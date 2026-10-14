@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSupplierSession, inboxScope, INBOX_FILE_KINDS } from "@/lib/supplier-inbox";
 import { calcAll, ensureRowIds, payloadFromTable, sendProblems, type CalcPayload, FORMAT_LABEL } from "@/lib/supplier-calc";
+import { copyForNext } from "@/lib/supplier-calc-start";
 import { parseTableFile } from "@/lib/table-file";
 import { readDocumentFiles, writeDocumentFiles } from "@/lib/purchase-files";
 import { removeStoredFiles } from "@/lib/fitting-files";
@@ -16,6 +17,8 @@ function parsePayload(json: string): CalcPayload | string {
     const p = JSON.parse(json) as CalcPayload;
     if (p?.v !== 1 || !(p.format in FORMAT_LABEL) || !Array.isArray(p.rows) || !p.header) return "Некорректные данные расчёта";
     if (p.rows.length > 500) return "Не больше 500 строк в одном расчёте";
+    if (p.stage !== "PRELIM" && p.stage !== "FINAL") delete p.stage;
+    if (p.basedOnId !== undefined && !/^[A-Za-z0-9_-]{1,64}$/.test(String(p.basedOnId))) delete p.basedOnId;
     return ensureRowIds(p);
   } catch {
     return "Некорректные данные расчёта";
@@ -113,4 +116,24 @@ export async function removeInboxFile(fileId: string): Promise<R> {
   await removeStoredFiles([f.storagePath]);
   revalidatePath(`/supplier/auction-calcs/${f.inboxId}`);
   return { ok: true };
+}
+
+/** «Сделать окончательный расчёт»: копия расчёта (стадия «окончательный», основа — этот расчёт) для ввода окончательных цифр. Повторное нажатие открывает уже созданный. */
+export async function makeFinalCalc(id: string): Promise<R> {
+  const s = await requireSupplierSession();
+  const src = await prisma.supplierInbox.findFirst({ where: { id, kind: "AUCTION_CALC", ...inboxScope(s) } });
+  if (!src) return { error: "Расчёт не найден" };
+  const p = ensureRowIds(src.payload as unknown as CalcPayload);
+  if (p.stage === "FINAL") return { error: "Это уже окончательный расчёт" };
+  const mine = await prisma.supplierInbox.findMany({ where: { kind: "AUCTION_CALC", ...inboxScope(s) }, select: { id: true, payload: true } });
+  const exist = mine.find((m) => (m.payload as { basedOnId?: string; stage?: string })?.basedOnId === id && (m.payload as { stage?: string }).stage === "FINAL");
+  if (exist) return { ok: true, id: exist.id };
+  const np = copyForNext(p, id, "FINAL");
+  const totals = calcAll(np);
+  const row = await prisma.supplierInbox.create({
+    data: { title: titleOf(np), payload: { ...np, totals: { qty: totals.qty, totalRub: Math.round(totals.totalRub * 100) / 100 } } as object, organizationId: s.user.organizationId, supplierId: s.user.supplierId, createdById: s.user.id, kind: "AUCTION_CALC", status: "DRAFT" },
+    select: { id: true },
+  });
+  revalidatePath("/supplier/auction-calcs");
+  return { ok: true, id: row.id };
 }

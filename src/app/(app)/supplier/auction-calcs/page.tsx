@@ -4,6 +4,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { requireInboxViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
+import { STAGE_LABEL } from "@/lib/supplier-calc";
 import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Расчёты аукционов" };
@@ -29,9 +30,10 @@ export default async function AuctionCalcsPage() {
         <Tbody>
           {rows.map((r) => {
             const qty = (r.payload as { totals?: { qty?: number } })?.totals?.qty;
+            const stage = (r.payload as { stage?: "PRELIM" | "FINAL" })?.stage;
             return (
               <Tr key={r.id}>
-                <Td><Link className="font-medium underline" href={`/supplier/auction-calcs/${r.id}`}>{r.title}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 text-xs text-red-700">Замечание: {r.reviewNote}</div>}</Td>
+                <Td><Link className="font-medium underline" href={`/supplier/auction-calcs/${r.id}`}>{r.title}</Link>{stage && <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${stage === "FINAL" ? "bg-green-50 text-green-800" : "bg-blue-50 text-blue-800"}`}>{STAGE_LABEL[stage]}</span>}{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 text-xs text-red-700">Замечание: {r.reviewNote}</div>}</Td>
                 {!isSup && <Td>{r.supplier.name}</Td>}
                 <Td className="tabular-nums">{qty ?? "—"}</Td>
                 <Td>{INBOX_STATUS_LABEL[r.status]}</Td>

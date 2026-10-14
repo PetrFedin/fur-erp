@@ -256,7 +256,7 @@ export function calcRow(f: CalcFormat, h: CalcHeader, raw: CalcRow, extraRub: nu
   return { ok: problems.length === 0, problems, unitRub: unit, totalRub: unit * qty, unitUsd, parts, extraRub };
 }
 
-export type CalcTotals = { qty: number; totalRub: number; advance: number; interim: number; rest: number; extraRub: number; calcs: RowCalc[]; rate: number };
+export type CalcTotals = { qtys: number[]; qty: number; totalRub: number; advance: number; interim: number; rest: number; extraRub: number; calcs: RowCalc[]; rate: number };
 export function calcAll(p: CalcPayload): CalcTotals {
   const qty = p.rows.reduce((s, r) => s + n0(r.qty), 0);
   const extraRub = extraPerHide(p.header, qty);
@@ -264,7 +264,7 @@ export function calcAll(p: CalcPayload): CalcTotals {
   const totalRub = calcs.reduce((s, c) => s + c.totalRub, 0);
   const advance = n0(p.header.advance);
   const interim = n0(p.header.interim);
-  return { qty, totalRub, advance, interim, rest: totalRub - advance - interim, extraRub, calcs, rate: effectiveRate(p.header) };
+  return { qtys: p.rows.map((r) => n0(r.qty)), qty, totalRub, advance, interim, rest: totalRub - advance - interim, extraRub, calcs, rate: effectiveRate(p.header) };
 }
 
 /** Проверка перед отправкой: что обязательно заполнено. */

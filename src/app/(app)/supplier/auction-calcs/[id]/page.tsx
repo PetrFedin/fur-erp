@@ -3,7 +3,9 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { ReopenButton } from "../../reopen-button";
 import { requireInboxViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
-import type { CalcPayload } from "@/lib/supplier-calc";
+import { STAGE_LABEL, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
+import { CompareBlock } from "../compare-block";
+import { FinalButton } from "../final-button";
 import { CalcForm } from "../calc-form";
 
 export const metadata = { title: "Расчёт аукциона" };
@@ -17,6 +19,7 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
     include: { files: { orderBy: { createdAt: "asc" }, select: { id: true, originalName: true, kind: true, sizeBytes: true } } },
   });
   if (!row) notFound();
+  const payload = ensureRowIds(row.payload as unknown as CalcPayload);
   const readOnly = row.status !== "DRAFT" || s.user.role !== "SUPPLIER";
   return (
     <div className="flex flex-col gap-4">
@@ -24,9 +27,12 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
       <div className="flex flex-wrap items-baseline gap-3">
         <h1 className="text-xl font-semibold">{row.title}</h1>
         <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs">{INBOX_STATUS_LABEL[row.status]}</span>
+        {payload.stage && <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">{STAGE_LABEL[payload.stage]}</span>}
       </div>
       {row.status === "REJECTED" && s.user.role === "SUPPLIER" && <ReopenButton id={row.id} />}
-      <CalcForm id={row.id} initial={row.payload as unknown as CalcPayload} readOnly={readOnly} files={row.files} reviewNote={row.reviewNote} />
+      {payload.stage === "PRELIM" && s.user.role === "SUPPLIER" && <FinalButton id={row.id} />}
+      <CompareBlock s={s} payload={payload} />
+      <CalcForm id={row.id} initial={payload} readOnly={readOnly} files={row.files} reviewNote={row.reviewNote} />
     </div>
   );
 }

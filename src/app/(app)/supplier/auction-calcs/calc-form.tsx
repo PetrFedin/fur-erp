@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { INBOX_FILE_KINDS } from "@/lib/supplier-inbox-consts";
-import { FORMAT_LABEL, calcAll, columnsFor, emptyRow, headerRate, missingRates, newId, rateCols, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
+import { FORMAT_LABEL, STAGE_LABEL, calcAll, columnsFor, emptyRow, headerRate, missingRates, newId, rateCols, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
 import { attachInboxFile, deleteCalcDraft, parseCalcFile, removeInboxFile, saveCalcDraft, sendCalc } from "./actions";
 
 const money = (n: number) => (Number.isFinite(n) ? n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
@@ -76,6 +76,12 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
             {(Object.keys(FORMAT_LABEL) as CalcFormat[]).map((k) => <option key={k} value={k}>{FORMAT_LABEL[k]}</option>)}
           </Select>
           <p className="mt-1 text-xs text-neutral-500">Выбор формата подставляет только набор столбцов и подписи. Ставки вы вводите сами ниже.</p>
+        </div>
+        <div>
+          <Label>Стадия расчёта</Label>
+          <Select value={p.stage ?? "FINAL"} disabled={ro} onChange={(e) => setP((x) => ({ ...x, stage: e.target.value as "PRELIM" | "FINAL" }))}>
+            {(["PRELIM", "FINAL"] as const).map((k) => <option key={k} value={k}>{STAGE_LABEL[k]}</option>)}
+          </Select>
         </div>
         <H label="Аукцион" v={p.header.auction} on={(v) => setH("auction", v)} ro={ro} ph="СП 09-26" />
         <H label="Номер аукционного счёта" v={p.header.invoice} on={(v) => setH("invoice", v)} ro={ro} />
