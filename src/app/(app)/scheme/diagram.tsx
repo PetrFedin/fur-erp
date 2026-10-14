@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { FLOWS, type Branch, type CardKey, type Step } from "./data";
+import { FLOWS, FUTURE, type Branch, type CardKey, type Step } from "./data";
 import { IconGear, IconPencil } from "@/components/icons";
 
 const NODES = [
@@ -35,7 +35,7 @@ function wrap(t: string, n: number): string[] {
   return out;
 }
 
-type Sel = { kind: "step"; i: number } | { kind: "branch"; i: number; j: number } | null;
+type Sel = { kind: "step"; i: number } | { kind: "branch"; i: number; j: number } | { kind: "future"; i: number } | null;
 
 /** Схема: узлы-коробки и линии; по клику на узел поверх схемы открывается окно с подробностями и кнопкой перехода в раздел. */
 export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<Record<CardKey, string>> }) {
@@ -49,10 +49,11 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
     if (!sel && d.open) d.close();
   }, [sel]);
 
-  const hot = hover ?? (sel ? sel.i : null);
-  const step = sel ? steps[sel.i] : null;
-  const takes = sel ? FLOWS.filter((f) => f.to === sel.i + 1) : [];
-  const gives = sel ? FLOWS.filter((f) => f.from === sel.i + 1) : [];
+  const hot = hover ?? (sel && sel.kind !== "future" ? sel.i : null);
+  const fut = sel && sel.kind === "future" ? FUTURE[sel.i] : null;
+  const step = sel && sel.kind !== "future" ? steps[sel.i] : null;
+  const takes = step && sel ? FLOWS.filter((f) => f.to === sel.i + 1) : [];
+  const gives = step && sel ? FLOWS.filter((f) => f.from === sel.i + 1) : [];
   const branch: Branch | null = sel && sel.kind === "branch" ? steps[sel.i].branches[sel.j] : null;
 
   return (
@@ -62,7 +63,7 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
         <span className="inline-flex items-center gap-1.5"><IconGear className="h-3.5 w-3.5 text-emerald-700" /> собирается автоматически из внесённого (вручную не создаётся)</span>
       </div>
       <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white" data-scheme>
-        <svg viewBox="-60 0 1120 700" className="mx-auto block min-w-[980px] w-full" role="img" aria-label="Схема связей и взаимодействий">
+        <svg viewBox="-60 0 1120 1010" className="mx-auto block min-w-[980px] w-full" role="img" aria-label="Схема связей и взаимодействий">
           <defs>
             <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#a3a3a3" /></marker>
             <marker id="arr-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#171717" /></marker>
@@ -103,9 +104,25 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
               </g>
             );
           })}
+          {/* будущие этапы: неактивны, пунктир */}
+          <path d="M 500 670 L 500 735" fill="none" stroke="#a3a3a3" strokeWidth="1.4" strokeDasharray="5 4" markerEnd="url(#arr)" />
+          <text x="500" y="758" textAnchor="middle" fontSize="13" fontWeight="600" fill="#737373">Дальше — пока не реализовано</text>
+          {FUTURE.map((f, k) => {
+            const x = 30 + (k % 3) * 350;
+            const y = 785 + Math.floor(k / 3) * 105;
+            const lines = wrap(f.title, 24);
+            return (
+              <g key={f.title} data-future={k + 1} transform={`translate(${x} ${y})`} className="cursor-pointer" tabIndex={0} role="button" aria-label={`${f.title} (пока не реализовано)`}
+                onClick={() => setSel({ kind: "future", i: k })} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel({ kind: "future", i: k }); } }}>
+                <rect width="300" height="86" rx="12" fill="#fafafa" stroke="#a3a3a3" strokeWidth="1.6" strokeDasharray="6 4" />
+                {lines.map((l, j) => <text key={j} x="18" y={30 + j * 16} fontSize="13.5" fontWeight="600" fill="#737373">{l}</text>)}
+                <text x="18" y={30 + lines.length * 16 + 4} fontSize="11.5" fontStyle="italic" fill="#a3a3a3">{f.sub}</text>
+                <g transform="translate(212 8)"><rect width="80" height="18" rx="9" fill="#e5e5e5" /><text x="40" y="12.5" textAnchor="middle" fontSize="10.5" fill="#737373">планируется</text></g>
+              </g>
+            );
+          })}
         </svg>
       </div>
-      <p className="mt-2 text-xs text-neutral-500">Номера не задают строгий порядок: оплаты и документы идут параллельно, аванс может быть раньше закупки и ТЗ. Наведите на блок — подсветятся его связи.</p>
 
       <dialog
         ref={ref}
@@ -113,24 +130,43 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
         onClick={(e) => { if (e.target === ref.current) setSel(null); }}
         className="m-auto w-[min(34rem,calc(100vw-1.5rem))] rounded-xl border border-neutral-200 bg-white p-0 shadow-2xl backdrop:bg-black/40"
       >
-        {step && sel && (
+        {sel && (step || fut) && (
           <div className="flex max-h-[85vh] flex-col gap-3 overflow-y-auto p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-base font-semibold text-neutral-900">{branch ? branch.title : step.title}</h2>
-                <p className="mt-0.5 text-xs text-neutral-500">{branch ? `Ветвь шага ${sel.i + 1}: ${step.title}` : step.from ? `Берёт данные: ${step.from}` : "Начало: отсюда заводятся данные"}</p>
+                <h2 className="text-base font-semibold text-neutral-900">{fut ? fut.title : branch ? branch.title : step!.title}</h2>
+                <p className="mt-0.5 text-xs text-neutral-500">
+                  {fut ? "Пока не реализовано — предложение" : branch ? `Часть шага ${sel.i + 1}: ${step!.title}` : step!.from ? `Данные берёт из: ${step!.from}` : "Начало цепочки"}
+                </p>
               </div>
               <button type="button" onClick={() => setSel(null)} aria-label="Закрыть" title="Закрыть" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-neutral-200 text-neutral-600 hover:bg-neutral-50">✕</button>
             </div>
-            {step.note && !branch && <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-note>{step.note}</p>}
-            {branch ? (
-              <p className="text-sm text-neutral-800">{branch.text}</p>
+
+            {fut ? (
+              <>
+                <p className="text-sm text-neutral-700"><span className="font-medium">Кто:</span> {fut.who}</p>
+                <Section tone="neutral" icon={<span aria-hidden>•</span>} title="Что будет делать" items={fut.what} />
+                <Section tone="violet" icon={<span aria-hidden>←</span>} title="Что берёт из системы" items={fut.takes} />
+                <Section tone="emerald" icon={<span aria-hidden>→</span>} title="Что даёт" items={fut.gives} />
+                <p className="text-xs text-neutral-500">Связано с: {fut.links}</p>
+              </>
+            ) : branch ? (
+              <>
+                <p className="text-sm text-neutral-800">{branch.text}</p>
+                <Link href={branch.href} className="inline-flex h-10 items-center justify-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-700">Открыть раздел →</Link>
+              </>
             ) : (
               <>
+                {step!.note && <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-note>{step!.note}</p>}
+                <div className="rounded-md bg-amber-50/70 p-3" data-how>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">Как это делается</p>
+                  <ol className="mt-1.5 flex list-decimal flex-col gap-1 pl-5 text-sm text-neutral-800">{step!.how.map((x) => <li key={x}>{x}</li>)}</ol>
+                </div>
+                <Section tone="neutral" icon={<span aria-hidden>→</span>} title="Что получаем" items={step!.get} />
                 <div className="rounded-md border border-neutral-200 p-3" data-entities>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">Что создаётся и где открыть карточку</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">Что здесь создаётся и где открыть</p>
                   <ul className="mt-1.5 flex flex-col gap-2">
-                    {step.entities.map((e) => (
+                    {step!.entities.map((e) => (
                       <li key={e.name} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                         <span className="flex min-w-0 items-start gap-1.5">
                           <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5" title={e.kind === "manual" ? "Создают вручную" : e.kind === "auto" ? "Собирается автоматически, вручную не создаётся" : "Часть вносят вручную, часть собирается сама"}>
@@ -146,33 +182,34 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
                       </li>
                     ))}
                   </ul>
-                  <p className="mt-1.5 text-[11px] text-neutral-500">«Карточка» открывает последнюю созданную запись; внутри карточки уже правят сами данные.</p>
                 </div>
-                <Section tone="amber" icon={<IconPencil className="h-3.5 w-3.5" />} title="Вносят вручную" items={step.enter} />
-                <Section tone="sky" icon={<IconPencil className="h-3.5 w-3.5" />} title="Можно изменить" items={step.edit} />
-                <Section tone="emerald" icon={<IconGear className="h-3.5 w-3.5" />} title="Считается автоматически" items={step.auto} />
-                <Section tone="neutral" icon={<span aria-hidden>→</span>} title="Получаем" items={step.get} />
-                {takes.length > 0 && <Section tone="violet" icon={<span aria-hidden>←</span>} title="Забирает данные из" items={takes.map((f) => `Шаг ${f.from}. ${steps[f.from - 1].title}: ${f.what}`)} />}
-                {gives.length > 0 && <Section tone="violet" icon={<span aria-hidden>→</span>} title="Отдаёт данные в" items={gives.map((f) => `Шаг ${f.to}. ${steps[f.to - 1].title}: ${f.what}`)} />}
-                <Section tone="rose" icon={<IconGear className="h-3.5 w-3.5" />} title="Если поправить здесь, пересчитается" items={step.recalc} />
+                <details className="rounded-md border border-neutral-200" data-more>
+                  <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Подробнее: что менять, что считается само, что пересчитается</summary>
+                  <div className="flex flex-col gap-2 border-t border-neutral-200 p-3">
+                    <Section tone="amber" icon={<IconPencil className="h-3.5 w-3.5" />} title="Вносят вручную" items={step!.enter} />
+                    <Section tone="sky" icon={<IconPencil className="h-3.5 w-3.5" />} title="Можно изменить" items={step!.edit} />
+                    <Section tone="emerald" icon={<IconGear className="h-3.5 w-3.5" />} title="Считается автоматически" items={step!.auto} />
+                    {takes.length > 0 && <Section tone="violet" icon={<span aria-hidden>←</span>} title="Забирает данные из" items={takes.map((f) => `Шаг ${f.from}. ${steps[f.from - 1].title}: ${f.what}`)} />}
+                    {gives.length > 0 && <Section tone="violet" icon={<span aria-hidden>→</span>} title="Отдаёт данные в" items={gives.map((f) => `Шаг ${f.to}. ${steps[f.to - 1].title}: ${f.what}`)} />}
+                    <Section tone="rose" icon={<IconGear className="h-3.5 w-3.5" />} title="Если поправить здесь, пересчитается" items={step!.recalc} />
+                    {step!.branches.length > 0 && (
+                      <div className="rounded-md bg-neutral-50 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">Связанные разделы</p>
+                        <ul className="mt-1.5 flex flex-col gap-1.5">
+                          {step!.branches.map((b) => (
+                            <li key={b.title} className="flex items-center justify-between gap-2 text-sm">
+                              <span className="min-w-0"><span className="font-medium">{b.title}</span><span className="text-neutral-600"> — {b.text}</span></span>
+                              <Link href={b.href} className="shrink-0 rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-100">Открыть →</Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </details>
+                <Link href={step!.href} className="inline-flex h-10 items-center justify-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-700">{step!.open} →</Link>
               </>
             )}
-            {!branch && step.branches.length > 0 && (
-              <div className="rounded-md bg-neutral-50 p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">Ветви шага</p>
-                <ul className="mt-1.5 flex flex-col gap-1.5">
-                  {step.branches.map((b) => (
-                    <li key={b.title} className="flex items-center justify-between gap-2 text-sm">
-                      <span className="min-w-0"><span className="font-medium">{b.title}</span><span className="text-neutral-600"> — {b.text}</span></span>
-                      <Link href={b.href} className="shrink-0 rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-100">Открыть →</Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <Link href={branch ? branch.href : step.href} className="inline-flex h-10 items-center justify-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-700">
-              {branch ? "Открыть раздел →" : `${step.open} →`}
-            </Link>
           </div>
         )}
       </dialog>

@@ -41,9 +41,6 @@ export default async function SchemePage() {
         <h1 className="text-xl font-semibold">Схема работы</h1>
         <Link href="/dashboard" className="rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 hover:bg-neutral-50">← Главная</Link>
       </div>
-      <p className="max-w-3xl text-sm text-neutral-600">
-        Сверху вниз: что заводим сначала и откуда берётся следующий шаг. Нажмите на блок — поверх откроется описание: что вносят, что получаем и кнопка перехода в раздел.
-      </p>
 
       <SchemeDiagram steps={STEPS} cards={Object.fromEntries(Object.entries(cards).filter(([, v]) => v)) as never} />
     </div>
