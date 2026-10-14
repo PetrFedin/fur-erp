@@ -93,13 +93,13 @@ export async function updateShipmentHeader(id: string, fd: FormData): Promise<Ed
   return { ok: true };
 }
 
-/** Удалить можно, пока нет ни одного этапа (а значит, и приёмки). */
+/** Удалить можно, пока приёмка не закрыта: этапы и состав удаляются вместе с отгрузкой. */
 export async function deleteShipment(id: string): Promise<{ error?: string }> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  const s = await prisma.shipment.findFirst({ where: { id, organizationId: orgId }, select: { id: true, _count: { select: { events: true } } } });
+  const s = await prisma.shipment.findFirst({ where: { id, organizationId: orgId }, select: { id: true, acceptedAt: true } });
   if (!s) return { error: "Отгрузка не найдена" };
-  if (s._count.events > 0) return { error: "Нельзя удалить: в отгрузке есть этапы. Сначала удалите их." };
+  if (s.acceptedAt) return { error: "Приёмка закрыта — отгрузку удалить нельзя" };
   await prisma.shipment.delete({ where: { id } });
   revalidateAll(orgId);
   return {};

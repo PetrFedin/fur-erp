@@ -40,11 +40,11 @@ export function HeaderEdit({ v, suppliers, batches }: { v: HeaderValues; supplie
   );
 }
 
-/** «Удалить» только пока нет этапов (а значит, и приёмки). */
-export function HeaderDelete({ id, name, blockedReason }: { id: string; name: string; blockedReason: string | null }) {
+/** «Удалить» — пока приёмка не закрыта; удаляется вместе с этапами и составом. */
+export function HeaderDelete({ id, name, blockedReason, events, lines }: { id: string; name: string; blockedReason: string | null; events: number; lines: number }) {
   return (
     <DeleteEntityButton
-      confirmText={`Удалить отгрузку «${name}» вместе с составом? Это нельзя отменить.`}
+      confirmText={`Удалить отгрузку «${name}» вместе с этапами (${events}) и составом (строк: ${lines})? Это нельзя отменить.`}
       action={deleteShipment.bind(null, id)}
       blockedReason={blockedReason}
       redirectTo="/shipments"

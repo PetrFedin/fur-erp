@@ -200,7 +200,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                 suppliers={suppliers}
                 batches={batchChoices.map((b) => ({ id: b.id, label: `Партия ${b.number}${b.year ? ` · ${b.year}` : ""}${b.name ? ` · ${b.name}` : ""}` }))}
               />
-              <HeaderDelete id={s.id} name={name} blockedReason={s.events.length > 0 ? `Есть этапы (${s.events.length}) — сначала удалите их` : null} />
+              <HeaderDelete id={s.id} name={name} blockedReason={s.acceptedAt ? "Приёмка закрыта — удалить нельзя" : null} events={s.events.length} lines={lines.length} />
             </div>
           )}
         </div>

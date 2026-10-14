@@ -17,6 +17,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { Dash } from "@/components/tree-table";
 import { AcceptCloseButton } from "./event-ui";
+import { FoldHeader, useFold } from "./fold";
 import { TotalLabel } from "@/components/total-label";
 import { formatQty } from "@/lib/utils";
 import { ACCEPT_NEEDS_READY, REWORK_STATE_LABEL, STAGE_LABEL, VIEW_LABEL, lineView, reworkRemainText, rowsText, type ReworkState, type Stage, type ViewKey } from "@/lib/shipment-stage";
@@ -369,7 +370,8 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint, default
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const [open, setOpen] = useState(defaultOpen);
+  const fold = useFold("fitting", defaultOpen);
+  const open = fold.open;
   const [q, setQ] = useState("");
   const [seg, setSeg] = useState<SegKey>("all");
   const { ask, node: confirmNode } = useConfirm();
@@ -436,19 +438,15 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint, default
   return (
     <section className="flex flex-col gap-2" aria-label="Примерка">
       {confirmNode}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="block-title flex items-center gap-1">
-          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-touch-ok className="inline-flex items-center gap-1 hover:text-neutral-700">
-            <span aria-hidden className={"inline-block w-3 transition-transform " + (open ? "rotate-90" : "")}>›</span>
-            Примерка
-          </button>
-          {hint ? <InfoHint label="О примерке">{hint}</InfoHint> : null}
-        </h2>
-        <div className="flex flex-wrap items-center gap-2">
-          {canEdit && counts.review > 0 && open && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllReview()} disabled={pending}>Принято всё, что на просмотре</Button>}
-          {canEdit && open && addButton}
-        </div>
-      </div>
+      <FoldHeader
+        title="Примерка"
+        fold={fold}
+        hint={hint ? <InfoHint label="О примерке">{hint}</InfoHint> : null}
+        actions={<>
+          {canEdit && counts.review > 0 && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllReview()} disabled={pending}>Принято всё, что на просмотре</Button>}
+          {canEdit && addButton}
+        </>}
+      />
       <div className={open ? "flex flex-col gap-2" : "hidden"}>
         <p className="text-xs text-neutral-600" data-stage-counts>
           На примерке {formatQty(totQtyAll)} ед. · к отгрузке {formatQty(qtyBy("READY"))}{qtyBy("REWORK") ? ` · на доработке ${formatQty(qtyBy("REWORK"))}` : ""}{qtyBy("REVIEW") ? ` · на просмотре ${formatQty(qtyBy("REVIEW"))}` : ""}
@@ -612,7 +610,8 @@ export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, 
   const [committed, setCommitted] = useState<Record<string, AD>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const [open, setOpen] = useState(true);
+  const fold = useFold("accept");
+  const open = fold.open;
   const { ask, node: confirmNode } = useConfirm();
   const editable = canEdit && !closed;
 
@@ -686,20 +685,16 @@ export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, 
     <section className="flex flex-col gap-2" aria-label="Приёмка в Коптево" data-accept-list>
       {guard}
       {confirmNode}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="block-title flex items-center gap-1">
-          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-touch-ok className="inline-flex items-center gap-1 hover:text-neutral-700">
-            <span aria-hidden className={"inline-block w-3 transition-transform " + (open ? "rotate-90" : "")}>›</span>
-            Приёмка в Коптево
-          </button>
-        </h2>
-        {editable && open && (
-          <div className="flex flex-wrap items-center gap-2">
+      <FoldHeader
+        title="Приёмка в Коптево"
+        fold={fold}
+        actions={editable && (
+          <>
             <AddLinesButton shipmentId={shipmentId} asReady />
             {ready.length > 0 && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllList()} disabled={pending}>Принять все по списку</Button>}
-          </div>
+          </>
         )}
-      </div>
+      />
       <div className={open ? "flex flex-col gap-2" : "hidden"}>
         {!event && !closed && <p className="text-sm text-neutral-700" data-accept-none>Приёмка в Коптево не создана{canEdit ? " — добавьте ожидаемый этап, потом по нему закрывается приёмка." : "."}</p>}
         {closed && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900" data-accept-closed>Приёмка закрыта {closed}</p>}
