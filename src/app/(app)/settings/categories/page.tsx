@@ -15,6 +15,7 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick } from "@/lib/filters";
 import { ConfirmSubmitButton } from "../../purchases/[id]/documents-form";
 import { bindCategoryModels, confirmCategory, createCategory, deleteCategory, mergeCategories, updateCategory } from "./actions";
+import { IconPencil } from "@/components/icons";
 
 export const metadata = { title: "Справочник категорий" };
 
@@ -240,7 +241,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
                 <Td className="align-top">
                   {canEdit && (
                     <details className="text-sm">
-                      <summary className="cursor-pointer text-blue-600">Изменить</summary>
+                      <summary className="cursor-pointer text-blue-600" title="Изменить" aria-label="Изменить"><IconPencil className="inline h-4 w-4" /></summary>
                       <div className="mt-2 flex w-80 max-w-full flex-col gap-3 rounded-md border border-neutral-200 bg-white p-3">
                         {!r.confirmed && (
                           <form action={confirmCategory}>

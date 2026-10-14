@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
+import { IconTrash } from "@/components/icons";
 
 /**
  * Единая кнопка «Удалить» записи: подтверждение окном приложения, действие на сервере, понятная ошибка.
@@ -33,6 +34,7 @@ export function DeleteEntityButton({
   const { ask, node } = useConfirm();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const isDel = /^(Удалить|Убрать)$/.test(label);
   return (
     <span className="inline-flex flex-col items-start gap-1">
       <Button
@@ -41,7 +43,8 @@ export function DeleteEntityButton({
         size="sm"
         className={className}
         disabled={pending || !!blockedReason}
-        title={blockedReason ?? undefined}
+        title={blockedReason ?? (isDel ? label : undefined)}
+        aria-label={isDel ? label : undefined}
         onClick={async () => {
           setError(null);
           if (!(await ask(confirmText, { ok: label, danger: true }))) return;
@@ -56,7 +59,7 @@ export function DeleteEntityButton({
           });
         }}
       >
-        {pending ? "Удаляем…" : label}
+        {isDel ? <IconTrash /> : pending ? "Удаляем…" : label}
       </Button>
       {blockedReason && showReason && <span className="max-w-xs text-xs text-neutral-500">{blockedReason}</span>}
       {error && <span role="alert" className="max-w-xs text-xs text-red-600">{error}</span>}

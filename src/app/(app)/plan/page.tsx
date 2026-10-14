@@ -30,6 +30,7 @@ import { ConfirmButton } from "./confirm-button";
 import { copyPlan, deletePlan } from "./actions";
 import { ArticleName } from "@/components/article-name";
 import { articleLabel } from "@/lib/article-label";
+import { IconPencil, IconTrash } from "@/components/icons";
 
 export const metadata = { title: "План заказа" };
 
@@ -408,9 +409,9 @@ function RowActions({ id, back }: { id: string; back: string }) {
   const btn = "inline-flex min-h-8 items-center rounded-md border border-neutral-300 px-2 text-xs hover:bg-neutral-100";
   return (
     <span className="flex flex-wrap gap-1">
-      <Link href={`/plan?${back ? `${back}&` : ""}edit=${id}#form`} className={btn}>Править</Link>
+      <Link href={`/plan?${back ? `${back}&` : ""}edit=${id}#form`} className={btn} title="Править" aria-label="Править"><IconPencil /></Link>
       <form action={copyPlan}><input type="hidden" name="id" value={id} /><button type="submit" className={btn}>Копировать</button></form>
-      <form action={deletePlan}><input type="hidden" name="id" value={id} /><ConfirmButton message="Удалить позицию плана? События календаря останутся." className={`${btn} text-red-600`}>Удалить</ConfirmButton></form>
+      <form action={deletePlan}><input type="hidden" name="id" value={id} /><ConfirmButton message="Удалить позицию плана? События календаря останутся." className={`${btn} text-red-600`} title="Удалить"><IconTrash /></ConfirmButton></form>
     </span>
   );
 }

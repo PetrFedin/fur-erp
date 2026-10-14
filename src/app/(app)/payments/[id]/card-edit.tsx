@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { useConfirm } from "@/components/confirm-dialog";
 import { deletePaymentCard, updatePaymentCard, type CardConfirm } from "../card-actions";
+import { IconPencil, IconTrash } from "@/components/icons";
 
 export type CardEditProps = {
   code: string;
@@ -99,8 +100,8 @@ export function PaymentCardEdit(p: CardEditProps) {
     <div className="flex flex-col gap-2 print:hidden">
       {node}
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={() => setOpen((v) => !v)} disabled={pending}>{open ? "Закрыть форму" : "Изменить"}</Button>
-        <Button type="button" variant="ghost" size="sm" className="text-red-600" onClick={remove} disabled={pending}>Удалить</Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpen((v) => !v)} disabled={pending}>{open ? "Закрыть форму" : <IconPencil />}</Button>
+        <Button type="button" variant="ghost" size="sm" className="text-red-600" onClick={remove} disabled={pending} title="Удалить" aria-label="Удалить"><IconTrash /></Button>
       </div>
       {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       {open && (

@@ -12,6 +12,7 @@ import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 import { todayIso } from "@/lib/shipments";
 import { SIDES, type PeopleBySide, wallDateIso, wallNow, wallTimeHm } from "@/lib/shipment-calc";
 import { acceptAllLines, cancelAcceptance, confirmAcceptance, createAcceptanceEvent, createEvent, deleteEvent, markEventDone, removeEventDocument, updateEvent, uploadEventDocument } from "../actions";
+import { IconPencil, IconTrash } from "@/components/icons";
 
 export type EventValues = {
   id: string;
@@ -214,13 +215,13 @@ export function EventActions({ v, titles, people, canDone }: { v: EventValues; c
         </Button>
       )}
       <Button type="button" size="sm" variant="ghost" className={textBtn} onClick={() => setDocOpen(true)} title="Прикрепить файл к этапу">+ Документ</Button>
-      <Button type="button" size="sm" variant="ghost" className={textBtn} onClick={() => setOpen(true)}>Изменить</Button>
-      <Button type="button" size="sm" variant="ghost" className={textBtn + " text-red-700"} disabled={pending}
+      <Button type="button" size="sm" variant="ghost" className={textBtn} onClick={() => setOpen(true)} title="Изменить этап" aria-label="Изменить этап"><IconPencil /></Button>
+      <Button type="button" size="sm" variant="ghost" className={textBtn + " text-red-700"} disabled={pending} title="Удалить этап" aria-label="Удалить этап"
         onClick={async () => {
           if (!(await ask(`Удалить этап «${v.title}»? Загруженные к нему документы тоже будут удалены.`, { ok: "Удалить", danger: true }))) return;
           start(async () => { setError(null); const r = await deleteEvent(v.id); if (r.error) return setError(r.error); router.refresh(); });
         }}>
-        Удалить
+        <IconTrash />
       </Button>
       <EditDialog key={v.version} open={open} onOpenChange={setOpen} title="Изменить этап" hint="Правка попадает в журнал изменений." action={updateEvent.bind(null, v.id)} wide>
         <EventFields titles={titles} people={people} initial={v} />

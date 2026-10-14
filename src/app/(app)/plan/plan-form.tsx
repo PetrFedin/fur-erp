@@ -10,6 +10,7 @@ import { LETTER_SIZES, NUMERIC_SIZES, cleanSize, compareSizeLabels, parsePastedP
 import { FUR_TEXT_RULES } from "@/lib/product-category";
 import { useKeepingForm } from "@/lib/use-keeping-form";
 import { savePlan, type PlanFormState } from "./actions";
+import { IconTrash } from "@/components/icons";
 
 type Row = {
   key: string;
@@ -288,7 +289,7 @@ export function PlanForm({
             {!initial && (
               <span className="flex gap-1">
                 <Button type="button" variant="ghost" size="sm" onClick={() => setRows((rs) => { const c = { ...r, key: newKey(), qty: { ...r.qty } }; const i = rs.findIndex((x) => x.key === r.key); return [...rs.slice(0, i + 1), c, ...rs.slice(i + 1)]; })}>Копировать</Button>
-                <Button type="button" variant="ghost" size="sm" disabled={rows.length === 1} onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}>Удалить</Button>
+                <Button type="button" variant="ghost" size="sm" disabled={rows.length === 1} onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))} title="Удалить" aria-label="Удалить"><IconTrash /></Button>
               </span>
             )}
           </div>

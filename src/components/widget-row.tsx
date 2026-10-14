@@ -53,11 +53,10 @@ export function WidgetRow({ id, title = "Виджеты", children, className = 
           {headerEnd ? <div className="flex h-7 items-center">{headerEnd}</div> : null}
           <div className="flex items-center gap-2">
           <button type="button" onClick={toggleCollapsed} data-touch-ok aria-label={collapsed ? "Развернуть виджеты" : "Свернуть виджеты"} title={collapsed ? "Развернуть" : "Свернуть"}
-            className={btn + " border-neutral-200 bg-white text-neutral-600"}>{collapsed ? "Развернуть" : "Свернуть"}</button>
+            className={btn + " w-7 justify-center border-neutral-200 bg-white text-neutral-600"}><svg aria-hidden viewBox="0 0 16 16" className={"h-3.5 w-3.5 transition-transform " + (collapsed ? "rotate-180" : "")} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 10 8 5.5 12.5 10" /></svg></button>
           <button type="button" onClick={togglePinned} data-touch-ok aria-pressed={pinned} aria-label={pinned ? "Открепить виджеты" : "Закрепить виджеты: показывать всегда"} title={pinned ? "Открепить" : "Закрепить: показывать всегда при прокрутке"}
-            className={btn + (pinned ? " border-neutral-900 bg-neutral-900 text-white" : " border-neutral-200 bg-white text-neutral-600")}>
+            className={btn + " w-7 justify-center" + (pinned ? " border-neutral-900 bg-neutral-900 text-white" : " border-neutral-200 bg-white text-neutral-600")}>
             <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="currentColor"><path d="M9.8 1.2 14.8 6.2l-1.1.4-1.6 1.6.5 3.1-1 1-2.9-2.9-3.7 3.7-.7-.7 3.7-3.7L3.1 5.8l1-1 3.1.5 1.6-1.6z" /></svg>
-            {pinned ? "Закреплено" : "Закрепить"}
           </button>
           </div>
         </div>

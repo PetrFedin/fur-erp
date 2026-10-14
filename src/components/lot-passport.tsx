@@ -8,6 +8,7 @@ import { LotEditCtx, type LotEditHandler } from "@/components/lot-edit-ctx";
 import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
 import { SaveStatus, useInlineSave } from "@/components/lot-inline";
 import { saveLotAttrs, saveLotFields } from "@/app/(app)/analytics/raw/lot/[id]/actions";
+import { IconPencil } from "@/components/icons";
 
 export type PassportField = {
   label: string;
@@ -198,7 +199,7 @@ export function LotPassport({
               <span className="text-xs text-neutral-500">Цена и количество перед записью покажут окно «что изменится».</span>
             </>
           ) : (
-            <button type="button" onClick={() => setEditing(true)} className="rounded-md border border-neutral-300 px-3 py-1 text-sm hover:bg-neutral-50">Править</button>
+            <button type="button" onClick={() => setEditing(true)} className="rounded-md border border-neutral-300 px-3 py-1 text-sm hover:bg-neutral-50" title="Править" aria-label="Править"><IconPencil /></button>
           )}
           {error ? <span role="alert" className="text-xs text-red-700">{error}</span> : null}
         </div>
