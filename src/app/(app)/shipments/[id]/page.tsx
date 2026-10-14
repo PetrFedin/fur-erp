@@ -206,7 +206,8 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         id="shipment"
         title="Отгрузка — итоги"
         tiles={[
-          { key: "in", label: "Примерка, ед.", value: formatQty(allQty), caption: `${formatQty(lines.length)} строк · готово к отгрузке ${formatQty(totals.inShipment)} ед.${reworkQty ? `; на доработке ${formatQty(reworkQty)} ед.` : ""}${reviewQty ? `; на просмотре ${formatQty(reviewQty)} ед.` : ""}`, hint: <p>Все изделия, показанные на примерке. «Готово к отгрузке» — то, что идёт на приёмку в Коптево.</p> },
+          { key: "in", label: "Примерка, ед.", value: formatQty(allQty), caption: `${formatQty(lines.length)} строк${reworkQty ? `; на доработке ${formatQty(reworkQty)} ед.` : ""}${reviewQty ? `; на просмотре ${formatQty(reviewQty)} ед.` : ""}`, hint: <p>Все изделия, показанные на примерке. «Готово к отгрузке» — то, что идёт на приёмку в Коптево.</p> },
+          { key: "ship", label: "К отгрузке, ед.", value: formatQty(totals.inShipment), caption: "идёт на приёмку в Коптево", hint: <p>Изделия со статусом «Готов к отгрузке» из всех показанных на примерке.</p> },
           { key: "acc", label: "Принято, ед.", value: formatQty(totals.accepted), caption: sharePct(totals.accepted) ? `${sharePct(totals.accepted)} от «готово к отгрузке»` : undefined, hint: <p>Сумма колонки «Принято» в блоке «Приёмка в Коптево» (сохранённые значения).</p> },
           {
             key: "ret",
@@ -217,6 +218,8 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           },
         ]}
         collapseWith={
+          <details open={reworkQty + reviewQty > 0} className="group mt-2">
+            <summary className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-800">Таблица примерки ({formatQty(lines.length)} строк){reworkQty + reviewQty === 0 ? " — примерка пройдена" : ""}</summary>
           <LinesTable
             shipmentId={s.id}
             rows={lineRows}
@@ -224,6 +227,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             addButton={<AddLinesButton shipmentId={s.id} />}
             hint={<p>Список изделий, показанных на примерке; здесь по каждой строке отмечается просмотр: «Принято» (устраивает полностью) или «На доработку». Строки берутся из позиций загруженных ТЗ: цвет, размер и вид меха — копия на момент добавления. Принятие в Коптево («Принято» / «Не принято» и причина) — в блоке «Приёмка в Коптево» под хронологией, только для строк «Готов к отгрузке».</p>}
           />
+          </details>
         }
       />
 
@@ -243,7 +247,10 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         ) : (
           <div className="relative rounded-lg border border-neutral-200 bg-white py-3 pl-8 pr-3" data-timeline>
             <div aria-hidden className="absolute bottom-4 left-[0.9375rem] top-4 w-px bg-neutral-200" />
-            {dayGroups.map((g) => (
+            {(() => {
+              const firstOpen = dayGroups.findIndex((g) => g.items.some((x) => x.event.expected));
+              const cut = Math.max(0, firstOpen === -1 ? dayGroups.length - 1 : firstOpen - 1);
+              const renderGroup = (g: (typeof dayGroups)[number]) => (
               <section key={g.day} className="relative" data-day={g.day} data-day-kind={g.kind} aria-label={g.heading}>
                 <h3 className="relative flex items-center gap-2 py-1.5 text-xs">
                   <span aria-hidden className={"absolute -left-[1.1875rem] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full " + (g.kind === "today" ? "bg-neutral-800" : "bg-neutral-300")} />
@@ -325,7 +332,20 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                   })}
                 </ol>
               </section>
-            ))}
+              );
+              const folded = dayGroups.slice(0, cut);
+              return (
+                <>
+                  {folded.length > 0 && (
+                    <details className="mb-1" data-passed-days>
+                      <summary className="cursor-pointer py-1.5 text-xs text-neutral-500 hover:text-neutral-800">Пройденные дни ({folded.length}): {folded[0].heading} — {folded[folded.length - 1].heading}</summary>
+                      {folded.map(renderGroup)}
+                    </details>
+                  )}
+                  {dayGroups.slice(cut).map(renderGroup)}
+                </>
+              );
+            })()}
           </div>
         )}
 
