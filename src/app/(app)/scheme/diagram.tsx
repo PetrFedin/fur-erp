@@ -60,8 +60,8 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700" data-legend>
-        <span className="inline-flex items-center gap-1.5"><IconPencil className="h-3.5 w-3.5 text-amber-700" /> вносят и правят вручную</span>
-        <span className="inline-flex items-center gap-1.5"><IconGear className="h-3.5 w-3.5 text-emerald-700" /> считается автоматически</span>
+        <span className="inline-flex items-center gap-1.5"><IconPencil className="h-3.5 w-3.5 text-amber-700" /> создают и правят вручную</span>
+        <span className="inline-flex items-center gap-1.5"><IconGear className="h-3.5 w-3.5 text-emerald-700" /> собирается автоматически из внесённого (вручную не создаётся)</span>
       </div>
       <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white" data-scheme>
         <svg viewBox="-60 0 1120 700" className="mx-auto block min-w-[980px] w-full" role="img" aria-label="Схема связей и взаимодействий">
@@ -85,7 +85,8 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
           {steps.map((s, i) => {
             const p = NODES[i];
             const lines = wrap(s.title, 26);
-            const last = i === steps.length - 1;
+            const hasManual = s.entities.some((e) => e.kind !== "auto");
+            const hasAuto = s.entities.some((e) => e.kind !== "manual");
             return (
               <g key={s.title} data-step={i + 1} transform={`translate(${p.x} ${p.y})`} className="cursor-pointer" tabIndex={0} role="button" aria-label={s.title}
                 onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(i)} onBlur={() => setHover(null)}
@@ -98,8 +99,8 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
                 ))}
                 {s.sub && <text x="50" y="52" fontSize="11" fontStyle="italic" fill={hot === i ? "#d4d4d4" : "#737373"}>{s.sub}</text>}
                 <g transform="translate(176 50)" aria-hidden>
-                  {!last && <path transform="scale(0.85)" d="M2.5 13.5l.6-3L10.6 3a1.4 1.4 0 0 1 2 0l.4.4a1.4 1.4 0 0 1 0 2l-7.5 7.5-3 .6zM9.5 4.2l2.3 2.3" fill="none" stroke="#b45309" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />}
-                  {<g transform={`translate(${last ? 0 : 26} 0) scale(0.85)`} fill="none" stroke="#047857" strokeWidth="1.5" strokeLinecap="round"><circle cx="8" cy="8" r="2.2" /><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1" /></g>}
+                  {hasManual && <path transform="scale(0.85)" d="M2.5 13.5l.6-3L10.6 3a1.4 1.4 0 0 1 2 0l.4.4a1.4 1.4 0 0 1 0 2l-7.5 7.5-3 .6zM9.5 4.2l2.3 2.3" fill="none" stroke="#b45309" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />}
+                  {hasAuto && <g transform={`translate(${hasManual ? 26 : 0} 0) scale(0.85)`} fill="none" stroke="#047857" strokeWidth="1.5" strokeLinecap="round"><circle cx="8" cy="8" r="2.2" /><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1" /></g>}
                 </g>
               </g>
             );
@@ -133,7 +134,13 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
                   <ul className="mt-1.5 flex flex-col gap-2">
                     {step.entities.map((e) => (
                       <li key={e.name} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                        <span className="min-w-0"><span className="font-medium">{e.name}</span><span className="text-neutral-600"> — {e.text}</span></span>
+                        <span className="flex min-w-0 items-start gap-1.5">
+                          <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5" title={e.kind === "manual" ? "Создают вручную" : e.kind === "auto" ? "Собирается автоматически, вручную не создаётся" : "Часть вносят вручную, часть собирается сама"}>
+                            {e.kind !== "auto" && <IconPencil className="h-3.5 w-3.5 text-amber-700" />}
+                            {e.kind !== "manual" && <IconGear className="h-3.5 w-3.5 text-emerald-700" />}
+                          </span>
+                          <span className="min-w-0"><span className="font-medium">{e.name}</span><span className="text-neutral-600"> — {e.text}</span></span>
+                        </span>
                         <span className="flex shrink-0 gap-1.5">
                           <Link href={e.list} className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-100">Список →</Link>
                           {e.card && cards[e.card] && <Link href={cards[e.card]!} className="rounded-md bg-neutral-900 px-2 py-1 text-xs text-white hover:bg-neutral-700">Карточка →</Link>}
