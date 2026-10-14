@@ -3,7 +3,7 @@
 
 export type Side = "INTERNAL" | "SUPPLIER" | "EXTERNAL";
 export type ThreadStatus = "OPEN" | "ANSWERED" | "CLOSED";
-export type ThreadKind = "GENERAL" | "REQUEST";
+export type ThreadKind = "GENERAL" | "REQUEST" | "GROUP";
 
 /** Внутренние роли, которым открыт чат (ключ chat в access.ts). */
 export const CHAT_INTERNAL_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST", "PURCHASER", "ACCOUNTANT"] as const;
@@ -43,8 +43,9 @@ export function nextStatus(t: { kind: ThreadKind; status: ThreadStatus; createdB
 }
 
 /** Непрочитано: последнее сообщение от другой стороны и новее отметки прочтения. */
-export function isUnread(t: { lastMessageAt: Date; lastMessageSide: Side }, lastReadAt: Date | null | undefined, mySide: Side): boolean {
-  if (t.lastMessageSide === mySide) return false;
+export function isUnread(t: { lastMessageAt: Date; lastMessageSide: Side; kind?: ThreadKind }, lastReadAt: Date | null | undefined, mySide: Side): boolean {
+  // В группах участников обеих сторон несколько: свои сообщения читаются сразу (отметка прочтения при отправке), чужие — по времени.
+  if (t.kind !== "GROUP" && t.lastMessageSide === mySide) return false;
   return !lastReadAt || t.lastMessageAt.getTime() > lastReadAt.getTime();
 }
 
@@ -234,3 +235,40 @@ export function bindCodeValid(c: { expiresAt: Date; usedAt: Date | null }, now =
 
 /** Идентификатор внешнего сообщения для идемпотентности: «чат:сообщение». */
 export const externalMsgId = (chatId: string | number, messageId: string | number) => `${chatId}:${messageId}`;
+
+// ───────── Группы по темам ─────────
+
+/** Темы групп: кто из ролей имеет доступ к теме и может ли быть участником поставщик (SUPPLIER). Оплаты и «Общее» — только свои. */
+export const GROUP_TOPICS: Record<string, { roles: readonly string[]; supplier: boolean }> = {
+  "Оплаты": { roles: ["OWNER", "ADMIN", "ACCOUNTANT"], supplier: false },
+  "Отгрузки": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST"], supplier: true },
+  "Аукционы": { roles: ["OWNER", "ADMIN", "PURCHASER"], supplier: true },
+  "Сырьё": { roles: ["OWNER", "ADMIN", "PURCHASER"], supplier: true },
+  "ТЗ": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST"], supplier: true },
+  "Изделия": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST"], supplier: true },
+  "Календарь": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST"], supplier: true },
+  "Общее": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST", "PURCHASER", "ACCOUNTANT"], supplier: false },
+};
+
+/** Может ли пользователь с этой ролью быть участником группы этой темы. */
+export function eligibleForTopic(topic: string, role: string): boolean {
+  const t = GROUP_TOPICS[topic];
+  if (!t) return false;
+  return role === "SUPPLIER" ? t.supplier : t.roles.includes(role);
+}
+
+/** Тема по умолчанию для группы, созданной из карточки записи. */
+export const TOPIC_OF_ENTITY: Record<string, string> = {
+  ProductionOrder: "ТЗ", ProductModel: "Изделия", Purchase: "Аукционы", Payment: "Оплаты", Shipment: "Отгрузки",
+  CalendarEvent: "Календарь", SupplierInbox: "Аукционы", RawMaterialLot: "Сырьё",
+};
+
+type Member = { userId: string; role: "OWNER" | "MEMBER" };
+/** Менять состав группы может её владелец и OWNER/ADMIN из числа участников; выйти может любой участник. */
+export function canManageGroup(u: { id: string; role: string }, members: Member[]): boolean {
+  const me = members.find((m) => m.userId === u.id);
+  if (!me) return false;
+  return me.role === "OWNER" || u.role === "OWNER" || u.role === "ADMIN";
+}
+/** Создать группу могут внутренние роли чата; поставщик — нет. */
+export const canCreateGroup = (role: string) => (CHAT_INTERNAL_ROLES as readonly string[]).includes(role);

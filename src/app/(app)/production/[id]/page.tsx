@@ -1,5 +1,5 @@
 import { orderLabel } from "@/lib/order-label";
-import { ChatLink } from "@/components/chat-link";
+import { ChatLink, GroupLink } from "@/components/chat-link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -396,6 +396,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <h1 className="text-xl font-semibold" title={`Внутренний номер заказа ${order.number}`}>{tzTitle}</h1>
           <div className="ml-auto" />
           <ChatLink type="ProductionOrder" id={order.id} role={session.user.role} label="Написать Веллмеху" />
+          <GroupLink type="ProductionOrder" id={order.id} role={session.user.role} label={`Создать группу по ${tzTitle}`} />
           <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">
             Печать / PDF
           </Link>

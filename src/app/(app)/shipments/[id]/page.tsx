@@ -1,5 +1,5 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { ChatLink } from "@/components/chat-link";
+import { ChatLink, GroupLink } from "@/components/chat-link";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -201,6 +201,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             {s.status === "ACCEPTED" && status ? <Badge variant={status.variant}>{status.label}</Badge> : null}
           </h1>
           <ChatLink type="Shipment" id={s.id} role={session.user.role} />
+          <GroupLink type="Shipment" id={s.id} role={session.user.role} label="Создать группу" />
           {canEdit && (
             <div className="flex flex-wrap items-start gap-2">
               <HeaderEdit

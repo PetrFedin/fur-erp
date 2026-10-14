@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { appendMessage, createThread, defaultSupplierId, markRead } from "@/lib/chat";
+import { appendMessage, createThread, defaultSupplierId, markRead, threadWhere } from "@/lib/chat";
 import { REQUEST_TYPES, bindCodeValid, externalMsgId, parseCommand, routeIncoming, sideOfRole, type Side } from "@/lib/chat-core";
 import { detectDocument } from "@/lib/doc-sniff";
 import { MAX_DOC_BYTES, fixFileNameExt, truncateFileName, writeDocumentFiles, type StoredDoc } from "@/lib/purchase-files";
@@ -31,11 +31,12 @@ export async function handleIncoming(adapter: ChannelAdapter, inc: IncomingMessa
       await say(wantGroup ? "Команда /bind работает только в группе, с кодом группы." : "Личный код: напишите боту /start КОД в личном чате.");
       return "не тот тип кода или чата";
     }
-    const data = { organizationId: code.organizationId, userId: code.userId, supplierId: code.supplierId, kind: code.kind, externalUsername: inc.fromUsername ?? null, verifiedAt: new Date() };
+    const data = { organizationId: code.organizationId, userId: code.userId, supplierId: code.supplierId, threadId: code.threadId, kind: code.kind, externalUsername: inc.fromUsername ?? null, verifiedAt: new Date() };
     await prisma.channelLink.upsert({ where: { channel_externalChatId: { channel, externalChatId: inc.chatId } }, create: { channel, externalChatId: inc.chatId, ...data }, update: data });
     await prisma.channelBindCode.update({ where: { code: code.code }, data: { usedAt: new Date() } });
     let who = "внутренний чат";
-    if (code.userId) who = (await prisma.user.findUnique({ where: { id: code.userId }, select: { name: true } }))?.name ?? "пользователь";
+    if (code.threadId) who = "группа платформы «" + ((await prisma.chatThread.findUnique({ where: { id: code.threadId }, select: { subject: true } }))?.subject ?? "") + "»";
+    else if (code.userId) who = (await prisma.user.findUnique({ where: { id: code.userId }, select: { name: true } }))?.name ?? "пользователь";
     else if (code.supplierId) who = "группа поставщика " + ((await prisma.supplier.findUnique({ where: { id: code.supplierId }, select: { name: true } }))?.name ?? "");
     await say(`Готово: привязано (${who}). Сообщения из платформы будут приходить сюда.\n\n` + HELP);
     return "привязка";
@@ -63,7 +64,8 @@ export async function handleIncoming(adapter: ChannelAdapter, inc: IncomingMessa
   } else {
     side = "INTERNAL"; authorId = null; authorName = `${inc.fromName} (Telegram)`; supplierScope = null;
   }
-  const scopeWhere = { organizationId: orgId, ...(supplierScope ? { supplierId: supplierScope } : {}) };
+  const viewer = { id: authorId ?? "-", name: authorName, role: side === "SUPPLIER" ? "SUPPLIER" : "OWNER", organizationId: orgId, supplierId: supplierScope, side };
+  const scopeWhere = threadWhere(viewer);
 
   // 3) Маршрут.
   let replyThreadId: string | null = null;
@@ -73,15 +75,16 @@ export async function handleIncoming(adapter: ChannelAdapter, inc: IncomingMessa
   }
   const lastDelivery = await prisma.channelDelivery.findFirst({ where: { channel, externalChatId: inc.chatId }, orderBy: { createdAt: "desc" }, select: { threadId: true } });
   const lastOwn = authorId ? await prisma.chatMessage.findFirst({ where: { authorId, thread: scopeWhere }, orderBy: { createdAt: "desc" }, select: { threadId: true } }) : null;
-  const lastInScope = supplierScope ? await prisma.chatThread.findFirst({ where: { ...scopeWhere, status: { not: "CLOSED" } }, orderBy: { lastMessageAt: "desc" }, select: { id: true } }) : null;
+  const lastInScope = supplierScope ? await prisma.chatThread.findFirst({ where: { AND: [scopeWhere], kind: { not: "GROUP" }, status: { not: "CLOSED" } }, orderBy: { lastMessageAt: "desc" }, select: { id: true } }) : null;
   let lastActive = lastDelivery?.threadId ?? lastOwn?.threadId ?? lastInScope?.id ?? null;
   const cmdThreadNo = cmd?.cmd === "t" && /^#?\d{1,9}$/.test(cmd.threadNo) ? Number(cmd.threadNo.replace("#", "")) : null;
-  const byNo = cmdThreadNo ? await prisma.chatThread.findFirst({ where: { ...scopeWhere, number: cmdThreadNo }, select: { id: true } }) : null;
+  const byNo = cmdThreadNo ? await prisma.chatThread.findFirst({ where: { AND: [scopeWhere], number: cmdThreadNo }, select: { id: true } }) : null;
   // Тред из reply / последний активный должен быть виден этой стороне.
-  const visible = async (id: string | null) => (id ? !!(await prisma.chatThread.findFirst({ where: { id, ...scopeWhere }, select: { id: true } })) : false);
+  const visible = async (id: string | null) => (id ? !!(await prisma.chatThread.findFirst({ where: { AND: [scopeWhere], id }, select: { id: true } })) : false);
   if (!(await visible(replyThreadId))) replyThreadId = null;
   if (!(await visible(lastActive))) lastActive = null;
-  const route = routeIncoming({ text: inc.text, linked: true, replyThreadId, lastActiveThreadId: lastActive, resolveThreadNo: () => byNo?.id ?? null });
+  const fixedThread = link.threadId ? await prisma.chatThread.findFirst({ where: { id: link.threadId, organizationId: orgId, kind: "GROUP" }, select: { id: true } }) : null;
+  const route = fixedThread && !(cmd?.cmd === "t" || cmd?.cmd === "new") ? ({ type: "post", threadId: fixedThread.id, text: inc.text, how: "last" } as const) : routeIncoming({ text: inc.text, linked: true, replyThreadId, lastActiveThreadId: lastActive, resolveThreadNo: () => byNo?.id ?? null });
   if (route.type === "notfound") { await say(`Обсуждение #${route.threadNo} не найдено или недоступно.`); return "тред не найден"; }
   if (route.type === "empty" && inc.files.length === 0) { await say("Напишите текст после команды.\n\n" + HELP); return "пусто"; }
 

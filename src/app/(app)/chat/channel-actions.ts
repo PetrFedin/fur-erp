@@ -10,9 +10,9 @@ import { canUseChat } from "@/lib/chat";
 
 export type CodeState = { error?: string; code?: string; minutes?: number; hint?: string };
 
-async function newCode(data: { organizationId: string; userId?: string; supplierId?: string; kind: "PRIVATE" | "GROUP" }) {
+async function newCode(data: { organizationId: string; userId?: string; supplierId?: string; threadId?: string; kind: "PRIVATE" | "GROUP" }) {
   const code = makeBindCode((n) => randomBytes(n));
-  await prisma.channelBindCode.create({ data: { code, organizationId: data.organizationId, userId: data.userId ?? null, supplierId: data.supplierId ?? null, kind: data.kind, expiresAt: new Date(Date.now() + BIND_CODE_TTL_MS) } });
+  await prisma.channelBindCode.create({ data: { code, organizationId: data.organizationId, userId: data.userId ?? null, supplierId: data.supplierId ?? null, threadId: data.threadId ?? null, kind: data.kind, expiresAt: new Date(Date.now() + BIND_CODE_TTL_MS) } });
   return code;
 }
 
@@ -49,4 +49,18 @@ export async function revokeLink(id: string): Promise<void> {
   if (!hasRole(s.user.role, ACCESS.channels)) return;
   await prisma.channelLink.deleteMany({ where: { id, organizationId: s.user.organizationId } });
   revalidatePath("/settings/channels");
+}
+
+/** Код для привязки группы платформы к Telegram-группе (владелец группы и OWNER/ADMIN из участников): в Telegram-группе с ботом — /bind КОД. */
+export async function createThreadBindCode(threadId: string): Promise<CodeState> {
+  const s = await requireSession();
+  const { viewerOf, loadThread } = await import("@/lib/chat");
+  const { canManageGroup } = await import("@/lib/chat-core");
+  const v = viewerOf(s);
+  const t = await loadThread(v, threadId);
+  if (!t || t.kind !== "GROUP") return { error: "Группа не найдена" };
+  const members = await prisma.chatMember.findMany({ where: { threadId }, select: { userId: true, role: true } });
+  if (!canManageGroup({ id: v.id, role: v.role }, members)) return { error: "Привязывать может владелец группы" };
+  const code = await newCode({ organizationId: v.organizationId, threadId, kind: "GROUP" });
+  return { code, minutes: BIND_CODE_TTL_MS / 60000, hint: `/bind ${code}` };
 }

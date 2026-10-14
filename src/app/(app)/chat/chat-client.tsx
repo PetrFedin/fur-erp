@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { markThreadRead, searchEntitiesAction, sendMessage, setThreadClosed, startThread } from "./actions";
+import { createThreadBindCode } from "./channel-actions";
+import { changeMemberAction, createGroupAction, eligibleUsersAction, markThreadRead, searchEntitiesAction, sendMessage, setThreadClosed, startThread } from "./actions";
 
 const FILE_ACCEPT = ".pdf,.xlsx,.docx,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf";
 
@@ -186,5 +187,105 @@ export function NewRequestForm({
         </div>
       </div>
     </form>
+  );
+}
+
+type Person = { id: string; name: string; role: string; isSupplier: boolean };
+
+/** Форма «+ Группа»: название, тема, участники чекбоксами с поиском (только те, у кого есть доступ к теме). */
+export function NewGroupForm({ topics, preset }: { topics: string[]; preset?: { topic: string; name: string; type: string; id: string; label: string } | null }) {
+  const router = useRouter();
+  const [topic, setTopic] = useState(preset?.topic ?? topics[0]);
+  const [name, setName] = useState(preset?.name ?? "");
+  const [people, setPeople] = useState<Person[]>([]);
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
+  const [q, setQ] = useState("");
+  const [err, setErr] = useState("");
+  const [pending, start] = useTransition();
+  useEffect(() => {
+    let dead = false;
+    eligibleUsersAction(topic).then((r) => { if (!dead) { setPeople(r); setChosen((c) => new Set([...c].filter((id) => r.some((p) => p.id === id)))); } }).catch(() => {});
+    return () => { dead = true; };
+  }, [topic]);
+  const shown = people.filter((p) => !q || p.name.toLowerCase().includes(q.toLowerCase()));
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    start(async () => {
+      const r = await createGroupAction({ name, topic, memberIds: [...chosen], entityType: preset?.type, entityId: preset?.id });
+      if (r.error) { setErr(r.error); return; }
+      router.push(`/chat?thread=${r.threadId}`); router.refresh();
+    });
+  }
+  return (
+    <form onSubmit={submit} className="flex max-w-2xl flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4">
+      <h2 className="text-base font-semibold">Новая группа</h2>
+      {preset && <div className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm">По записи: <b>{preset.label}</b></div>}
+      <label className="flex flex-col gap-1 text-sm"><span className="text-neutral-600">Название</span>
+        <input aria-label="Название группы" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className="h-9 rounded-md border border-neutral-300 px-3" /></label>
+      <label className="flex flex-col gap-1 text-sm"><span className="text-neutral-600">Тема</span>
+        <select aria-label="Тема группы" value={topic} onChange={(e) => setTopic(e.target.value)} className="h-9 rounded-md border border-neutral-300 bg-white px-2">
+          {topics.map((t) => <option key={t}>{t}</option>)}
+        </select></label>
+      <div className="flex flex-col gap-1 text-sm">
+        <span className="text-neutral-600">Участники (только те, у кого есть доступ к теме «{topic}»; вы добавлены сами)</span>
+        <input aria-label="Поиск участника" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск по имени" className="h-9 rounded-md border border-neutral-300 px-3" />
+        <ul className="max-h-48 overflow-y-auto rounded-md border border-neutral-200">
+          {shown.length === 0 && <li className="px-3 py-2 text-xs text-neutral-500">Никого</li>}
+          {shown.map((p) => (
+            <li key={p.id}><label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-neutral-50">
+              <input type="checkbox" checked={chosen.has(p.id)} onChange={(e) => setChosen((c) => { const n = new Set(c); if (e.target.checked) n.add(p.id); else n.delete(p.id); return n; })} />
+              <span>{p.name}</span>{p.isSupplier && <span className="rounded bg-sky-100 px-1.5 text-[11px] text-sky-800">Веллмех</span>}
+            </label></li>
+          ))}
+        </ul>
+      </div>
+      <div className="flex items-center justify-end gap-2">
+        {err && <span role="alert" className="text-xs text-red-700">{err}</span>}
+        <Button type="submit" disabled={pending}>{pending ? "Создаю…" : "Создать группу"}</Button>
+      </div>
+    </form>
+  );
+}
+
+/** Участники группы в шапке: список, «Добавить», «Убрать», «Выйти». */
+export function GroupMembers({ threadId, topic, me, canManage, members, telegramOn }: {telegramOn: boolean;  threadId: string; topic: string; me: string; canManage: boolean; members: { userId: string; name: string; role: string; isSupplier: boolean }[] }) {
+  const router = useRouter();
+  const [add, setAdd] = useState<Person[] | null>(null);
+  const [err, setErr] = useState("");
+  const [tg, setTg] = useState("");
+  const [pending, start] = useTransition();
+  const run = (userId: string, op: "add" | "remove") => start(async () => {
+    const r = await changeMemberAction(threadId, userId, op);
+    if (r.error) setErr(r.error); else { setErr(""); setAdd(null); router.refresh(); }
+  });
+  return (
+    <details className="text-xs">
+      <summary className="cursor-pointer text-neutral-700">Участники: {members.length}</summary>
+      <ul className="mt-1 flex flex-col gap-1">
+        {members.map((m) => (
+          <li key={m.userId} className="flex items-center gap-2">
+            <span>{m.name}{m.role === "OWNER" ? " (владелец)" : ""}</span>
+            {m.isSupplier && <span className="rounded bg-sky-100 px-1.5 text-sky-800">Веллмех</span>}
+            {(canManage || m.userId === me) && <button type="button" disabled={pending} onClick={() => run(m.userId, "remove")} className="text-red-700 underline">{m.userId === me ? "Выйти" : "Убрать"}</button>}
+          </li>
+        ))}
+      </ul>
+      {canManage && (
+        <div className="mt-2">
+          {add === null
+            ? <button type="button" className="underline" onClick={() => eligibleUsersAction(topic).then((r) => setAdd(r.filter((p) => !members.some((m) => m.userId === p.id))))}>Добавить участника</button>
+            : <select aria-label="Добавить участника" defaultValue="" onChange={(e) => e.target.value && run(e.target.value, "add")} className="h-8 rounded-md border border-neutral-300 bg-white px-2">
+                <option value="">— выберите —</option>{add.map((p) => <option key={p.id} value={p.id}>{p.name}{p.isSupplier ? " (Веллмех)" : ""}</option>)}
+              </select>}
+        </div>
+      )}
+      {canManage && telegramOn && (
+        <div className="mt-2">
+          <button type="button" className="underline" onClick={() => createThreadBindCode(threadId).then((r) => setTg(r.error ?? `В группе Telegram с ботом напишите: ${r.hint} (код на ${r.minutes} минут)`))}>Привязать Telegram-группу</button>
+          {tg && <p className="mt-1 rounded bg-neutral-100 p-2">{tg}</p>}
+        </div>
+      )}
+      {err && <p role="alert" className="mt-1 text-red-700">{err}</p>}
+    </details>
   );
 }

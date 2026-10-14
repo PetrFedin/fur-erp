@@ -4,7 +4,7 @@
  */
 import {
   bindCodeValid, canSeeThread, entityHrefFor, externalMsgId, formatForMessenger, isUnread, awaitsMyAnswer, makeBindCode, nextStatus,
-  parseCommand, pickRecipients, routeIncoming, safeEntityLabel, stripMoney, type LinkLite,
+  GROUP_TOPICS, canCreateGroup, canManageGroup, eligibleForTopic, parseCommand, pickRecipients, routeIncoming, safeEntityLabel, stripMoney, type LinkLite,
 } from "../src/lib/chat-core";
 
 let fails = 0;
@@ -93,6 +93,16 @@ ok(/^[A-HJ-NP-Z2-9]{8}$/.test(code), `код привязки: 8 знаков б
 const now = new Date("2026-10-15T10:00:00Z");
 ok(bindCodeValid({ expiresAt: new Date(now.getTime() + 60_000), usedAt: null }, now) && !bindCodeValid({ expiresAt: new Date(now.getTime() - 1), usedAt: null }, now) && !bindCodeValid({ expiresAt: new Date(now.getTime() + 60_000), usedAt: now }, now), "код: срок 15 минут и одноразовость");
 ok(externalMsgId(-100123, 77) === "-100123:77", "идентификатор внешнего сообщения");
+
+// Группы по темам
+ok(!eligibleForTopic("Оплаты", "SUPPLIER") && !eligibleForTopic("Общее", "SUPPLIER") && eligibleForTopic("Аукционы", "SUPPLIER") && eligibleForTopic("ТЗ", "SUPPLIER"), "Веллмех: нет в «Оплаты» и «Общее», есть в «Аукционы» и «ТЗ»");
+ok(eligibleForTopic("Оплаты", "ACCOUNTANT") && !eligibleForTopic("Оплаты", "PURCHASER") && !eligibleForTopic("Оплаты", "TECHNOLOGIST"), "«Оплаты»: бухгалтер да, закупщик и технолог нет");
+ok(eligibleForTopic("Аукционы", "PURCHASER") && !eligibleForTopic("Аукционы", "ACCOUNTANT") && eligibleForTopic("Отгрузки", "TECHNOLOGIST") && !eligibleForTopic("Отгрузки", "PURCHASER"), "«Аукционы» — закупщик, «Отгрузки» — технолог");
+ok(!eligibleForTopic("Нет такой", "OWNER") && Object.keys(GROUP_TOPICS).length === 8, "8 тем, неизвестная тема закрыта");
+ok(!canCreateGroup("SUPPLIER") && canCreateGroup("OWNER") && !canCreateGroup("WAREHOUSE"), "группу создаёт сотрудник с чатом, не поставщик");
+const gm = [{ userId: "a", role: "OWNER" as const }, { userId: "b", role: "MEMBER" as const }, { userId: "c", role: "MEMBER" as const }];
+ok(canManageGroup({ id: "a", role: "PURCHASER" }, gm) && !canManageGroup({ id: "b", role: "PURCHASER" }, gm) && canManageGroup({ id: "c", role: "ADMIN" }, gm) && !canManageGroup({ id: "z", role: "OWNER" }, gm), "состав меняет владелец группы и OWNER/ADMIN из участников");
+ok(isUnread({ lastMessageAt: t0, lastMessageSide: "INTERNAL", kind: "GROUP" }, null, "INTERNAL") && !isUnread({ lastMessageAt: t0, lastMessageSide: "INTERNAL", kind: "GROUP" }, new Date(t0.getTime() + 1), "INTERNAL"), "в группе сообщение коллеги той же стороны — непрочитанное");
 
 console.log(fails ? `\nПРОВАЛОВ: ${fails}` : "\nвсё хорошо");
 process.exit(fails ? 1 : 0);

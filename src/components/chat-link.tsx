@@ -17,3 +17,13 @@ export function ChatLink({ type, id, role, label = "Написать / Запр�
     </Link>
   );
 }
+
+/** «Создать группу по записи»: тематическая группа с выбранными участниками (только сотрудникам с чатом). */
+export function GroupLink({ type, id, role, label }: { type: string; id: string; role: string; label: string }) {
+  if (!(CHAT_INTERNAL_ROLES as readonly string[]).includes(role)) return null;
+  return (
+    <Link href={`/chat?group=${type}:${id}`} className="inline-flex items-center rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50 max-md:min-h-10">
+      {label}
+    </Link>
+  );
+}

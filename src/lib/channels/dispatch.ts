@@ -24,7 +24,13 @@ export async function dispatchMessage(messageId: string): Promise<{ sent: number
   const users = userIds.length ? await prisma.user.findMany({ where: { id: { in: userIds }, isActive: true }, select: { id: true, role: true, supplierId: true } }) : [];
   const byId = new Map(users.map((u) => [u.id, u]));
   const lite: LinkLite[] = links.map((l) => ({ id: l.id, channel: l.channel, externalChatId: l.externalChatId, userId: l.userId, supplierId: l.supplierId, kind: l.kind }));
-  const to = pickRecipients({
+  let to: LinkLite[];
+  if (m.thread.kind === "GROUP") {
+    // Группа платформы: привязанная Telegram-группа и личные чаты участников (кроме автора и источника).
+    const memberIds = new Set((await prisma.chatMember.findMany({ where: { threadId: m.threadId }, select: { userId: true } })).map((x) => x.userId));
+    const origin = m.source === "TELEGRAM" ? originChatOf(m.externalId) : null;
+    to = lite.filter((l) => l.externalChatId !== origin && !(l.userId && l.userId === m.authorId) && (links.find((x) => x.id === l.id)?.threadId === m.threadId || (l.kind === "PRIVATE" && !!l.userId && memberIds.has(l.userId))));
+  } else to = pickRecipients({
     threadSupplierId: m.thread.supplierId, authorSide: m.authorSide, authorId: m.authorId,
     originChatId: m.source === "TELEGRAM" ? originChatOf(m.externalId) : null, links: lite,
     roleOf: (u) => byId.get(u)?.role ?? null, supplierOfUser: (u) => byId.get(u)?.supplierId ?? null,

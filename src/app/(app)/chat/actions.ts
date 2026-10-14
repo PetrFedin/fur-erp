@@ -114,3 +114,35 @@ export async function searchEntitiesAction(type: string, q: string): Promise<{ i
   const v = await chatSession();
   return searchEntities(v, clip(type, 40), clip(q, 60));
 }
+
+/** Создать группу по теме с участниками (только сотрудники). */
+export async function createGroupAction(input: { name: string; topic: string; memberIds: string[]; entityType?: string; entityId?: string }): Promise<ChatState> {
+  const { createGroup } = await import("@/lib/chat");
+  const v = await chatSession();
+  let entity = null;
+  if (input.entityType && input.entityId) {
+    entity = await resolveEntity(v, clip(input.entityType, 40), clip(input.entityId, 64));
+    if (!entity) return { error: "Запись не найдена или недоступна" };
+  }
+  const r = await createGroup(v, { name: clip(input.name, 120), topic: clip(input.topic, 40), memberIds: (input.memberIds ?? []).slice(0, 100).map((x) => clip(x, 64)), entity });
+  if ("error" in r) return { error: r.error };
+  revalidatePath("/chat");
+  return { ok: true, threadId: r.threadId };
+}
+
+/** Участники, которых можно позвать в группу этой темы. */
+export async function eligibleUsersAction(topic: string): Promise<{ id: string; name: string; role: string; isSupplier: boolean }[]> {
+  const { eligibleUsers } = await import("@/lib/chat");
+  const v = await chatSession();
+  if (v.side === "SUPPLIER") return [];
+  return eligibleUsers(v.organizationId, clip(topic, 40));
+}
+
+/** Добавить / убрать участника (или выйти из группы). */
+export async function changeMemberAction(threadId: string, userId: string, op: "add" | "remove"): Promise<ChatState> {
+  const { changeMember } = await import("@/lib/chat");
+  const v = await chatSession();
+  const r = await changeMember(v, clip(threadId, 64), clip(userId, 64), op === "add" ? "add" : "remove");
+  revalidatePath("/chat");
+  return r.error ? { error: r.error } : { ok: true };
+}

@@ -5,9 +5,15 @@
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import Module from "node:module";
 import { TELEGRAM_NO_TOKEN, telegramAdapter, telegramToken, tgCall, type TgUpdate } from "../src/lib/channels/telegram";
-import { handleIncoming } from "../src/lib/channels/incoming";
-import { sweepUndispatched } from "../src/lib/channels/dispatch";
+
+// Серверный код платформы помечен пакетом server-only, которого вне Next нет, — подменяем его пустым модулем.
+const M = Module as unknown as { _resolveFilename: (req: string, ...rest: unknown[]) => string };
+const resolveOrig = M._resolveFilename;
+M._resolveFilename = function (req: string, ...rest: unknown[]) {
+  return req === "server-only" ? path.resolve(__dirname, "server-only-stub.cjs") : resolveOrig.call(this, req, ...rest);
+};
 
 const OFFSET_FILE = path.resolve(process.env.UPLOAD_DIR?.trim() || "./uploads", "telegram-offset.json");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -27,6 +33,8 @@ async function main() {
   }
   const st = await telegramAdapter.status();
   if (!st.connected) { console.error("Telegram не отвечает:", st.detail); process.exit(1); }
+  const { handleIncoming } = await import("../src/lib/channels/incoming");
+  const { sweepUndispatched } = await import("../src/lib/channels/dispatch");
   console.log(`Мост Telegram запущен: бот ${st.botName ?? ""}`);
   let offset = await loadOffset();
   const once = process.argv.includes("--once");
