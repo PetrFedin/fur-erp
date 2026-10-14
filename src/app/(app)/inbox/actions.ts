@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { acceptInboxRow, type AcceptResult } from "@/lib/inbox-accept";
 import { invalidateControlCounts } from "@/lib/control-counts";
+import { acceptDocumentInbox } from "@/lib/inbox-document";
 
 type R = { error?: string; ok?: boolean };
 
@@ -13,7 +14,8 @@ type R = { error?: string; ok?: boolean };
 export async function acceptInbox(id: string): Promise<AcceptResult> {
   const s = await requireRole(...ACCESS.inbox);
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return { error: "Входящее не найдено" };
-  const r = await acceptInboxRow(s, id);
+  const kind = await prisma.supplierInbox.findFirst({ where: { id, organizationId: s.user.organizationId }, select: { kind: true } });
+  const r = kind?.kind === "DOCUMENT" ? await acceptDocumentInbox(s, id) : await acceptInboxRow(s, id);
   revalidatePath("/inbox");
   revalidatePath(`/inbox/${id}`);
   return r;

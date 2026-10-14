@@ -13,6 +13,7 @@ import { FORMAT_LABEL, calcAll, columnsFor, resolveRow, rowFilled, type CalcPayl
 import { TZ_KIND_LABEL, plainNum, ruDate, spacedNum, tzTotals, type TzPayload } from "@/lib/tz-vendor";
 import { cn, formatDate } from "@/lib/utils";
 import { DecideButtons } from "./decide";
+import { DocumentCard } from "./document-card";
 
 export const metadata = { title: "Входящее" };
 
@@ -131,6 +132,7 @@ export default async function InboxCardPage({ params }: PageProps<"/inbox/[id]">
     include: { files: { orderBy: { createdAt: "asc" } }, supplier: { select: { name: true } } },
   });
   if (!row) notFound();
+  if (row.kind === "DOCUMENT") return <DocumentCard row={row} />;
   const sent = row.status === "SENT";
   const preview = sent ? await previewInbox(s.user.organizationId, row) : null;
   const decider = row.decidedById ? await prisma.user.findFirst({ where: { id: row.decidedById }, select: { name: true } }) : null;

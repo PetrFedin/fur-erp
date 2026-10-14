@@ -16,7 +16,7 @@ const FILTERS = [
   { key: "REJECTED", label: "Отклонено" },
   { key: "all", label: "Все" },
 ] as const;
-const KIND_LABEL: Record<string, string> = { AUCTION_CALC: "Расчёт аукциона", TZ: "ТЗ" };
+const KIND_LABEL: Record<string, string> = { AUCTION_CALC: "Расчёт аукциона", TZ: "ТЗ", DOCUMENT: "Документ" };
 
 export default async function InboxPage({ searchParams }: PageProps<"/inbox">) {
   const s = await requireRole(...ACCESS.inbox);
