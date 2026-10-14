@@ -6,13 +6,12 @@ import { useCommission4Display } from "@/lib/commission4-display";
 const HINT =
   "4% — наценка при купле-продаже меха и подкладки подрядчику (не комиссия Веллмеха; его вознаграждение 4,5% за сопровождение закупки сырья — отдельно, в расходах закупки): в ТЗ мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются. Закупки, оплаты и долги не меняются. По умолчанию включено.";
 
-/** Переключатель «Без 4% | С 4%» в шапке, рядом с «С НДС / Без НДС». */
+/** Переключатель «Без 4% | С 4%» в шапке, рядом с «С НДС / Без НДС». По умолчанию включено «С 4%». */
 export function Commission4Toggle() {
-  // Переключатель убран: 4% всегда показаны отдельно (в виджетах «Сырьё» и «Себестоимость»).
-  return null;
+  return <Commission4ToggleLegacy />;
 }
 
-export function Commission4ToggleLegacy() {
+function Commission4ToggleLegacy() {
   const { mode, setMode, pending } = useCommission4Display();
   const btn = (m: "off" | "on", text: string) => (
     <button

@@ -8,9 +8,8 @@ export const COMMISSION4_COOKIE = "commission4Display";
 /** Режим по умолчанию (cookie не задан): «С 4%» — мы эти 4% платим посреднику сверх. Любой параметр mode без значения берёт его же. */
 export const DEFAULT_COMMISSION4_MODE: Commission4Mode = "on";
 
-export function parseCommission4Cookie(_value: string | undefined): Commission4Mode {
-  // Переключатель «Без 4%» убран из шапки: режим всегда «С 4%».
-  return DEFAULT_COMMISSION4_MODE;
+export function parseCommission4Cookie(value: string | undefined): Commission4Mode {
+  return value === "off" ? "off" : DEFAULT_COMMISSION4_MODE;
 }
 
 /** Текущий режим из cookie (для серверных компонентов с (app) layout). */
