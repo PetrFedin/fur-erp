@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireInboxViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { TzRowButtons } from "./tz-preview";
 import { formatDate } from "@/lib/utils";
+import { tzTotals, type TzPayload } from "@/lib/tz-vendor";
 
 export const metadata = { title: "ТЗ поставщика" };
 
@@ -31,7 +32,11 @@ export default async function SupplierTzPage() {
     const na = Number(a), nb = Number(b);
     return Number.isFinite(na) && Number.isFinite(nb) ? nb - na : b.localeCompare(a, "ru");
   });
-  const qty = (r: (typeof rows)[number]) => Number((r.payload as Pl)?.totals?.qty ?? 0) || 0;
+  const qty = (r: (typeof rows)[number]) => {
+    const pl = r.payload as unknown as TzPayload | null;
+    const saved = Number((pl as unknown as Pl)?.totals?.qty ?? 0);
+    return saved || (pl && Array.isArray(pl.items) ? tzTotals(pl).qty : 0);
+  };
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "ТЗ" }]} />
