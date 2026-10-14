@@ -1,3 +1,4 @@
+import { prisma } from "@/lib/prisma";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SupplierSimpleRef } from "../supplier-refs";
 import Link from "next/link";
