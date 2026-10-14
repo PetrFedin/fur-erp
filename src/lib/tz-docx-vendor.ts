@@ -141,3 +141,42 @@ export async function buildTzDocx(p: TzPayload): Promise<Buffer> {
   zip.file("word/document.xml", xml.slice(0, bodyStart) + blocks.join("") + xml.slice(bodyEnd));
   return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
+
+// ——— Предпросмотр: HTML-копия того же документа (строится из собранного Word, поэтому тексты и порядок блоков совпадают) ———
+const jcOf = (p: string) => /<w:jc w:val="(\w+)"/.exec(p)?.[1];
+function htmlPara(p: string): string {
+  const jc = jcOf(p);
+  const bold = /<w:r(?: [^>]*)?>\s*<w:rPr>[\s\S]*?<w:b(?:\/| w:val="(?:1|true)"\/)>/.test(p);
+  const txt = paraText(p.replace(/<w:br\/>/g, "<w:t>\n</w:t>")).split("\n").map(esc).join("<br>");
+  const al = jc === "center" ? "center" : jc === "right" ? "right" : "left";
+  return `<p style="text-align:${al};${bold ? "font-weight:bold" : ""}">${txt || "&nbsp;"}</p>`;
+}
+export async function tzPreviewHtml(p: TzPayload): Promise<string> {
+  const zip = await JSZip.loadAsync(await buildTzDocx(p));
+  const xml = await zip.file("word/document.xml")!.async("string");
+  const sect = /<w:pgMar [^>]*w:top="(\d+)" [^>]*w:right="(\d+)" [^>]*w:bottom="(\d+)" [^>]*w:left="(\d+)"/.exec(xml);
+  const mm = (v?: string) => (Number(v ?? 0) / 56.7).toFixed(1) + "mm";
+  const blocks = xml.slice(xml.indexOf("<w:body>") + 8, xml.lastIndexOf("</w:body>")).match(/<w:tbl>[\s\S]*?<\/w:tbl>|<w:p[ >][\s\S]*?<\/w:p>/g) ?? [];
+  const body = blocks.map((b) => {
+    if (!b.startsWith("<w:tbl>")) return htmlPara(b);
+    const borderless = /<w:tblBorders>[\s\S]*?w:val="none"/.test(b);
+    const grid = [...b.matchAll(/<w:gridCol w:w="(\d+)"/g)].map((m) => Number(m[1]));
+    const rows = (b.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) ?? []).map((r) => {
+      const cells = (r.match(/<w:tc>[\s\S]*?<\/w:tc>/g) ?? []).map((c) => {
+        const span = /<w:gridSpan w:val="(\d+)"/.exec(c)?.[1];
+        const w = /<w:tcW w:w="(\d+)"/.exec(c)?.[1];
+        const mid = /<w:vAlign w:val="center"/.test(c);
+        return `<td${span ? ` colspan="${span}"` : ""} style="${borderless ? "" : "border:1px solid #000;"}${mid ? "vertical-align:middle;" : "vertical-align:top;"}${w ? `width:${(Number(w) / 20).toFixed(0)}pt;` : ""}padding:1px 4px">${(c.match(/<w:p[ >][\s\S]*?<\/w:p>/g) ?? []).map(htmlPara).join("")}</td>`;
+      });
+      return `<tr>${cells.join("")}</tr>`;
+    });
+    const tw = grid.reduce((s, x) => s + x, 0) / 20;
+    return `<table style="border-collapse:collapse;width:${tw.toFixed(0)}pt;max-width:100%;table-layout:auto">${rows.join("")}</table>`;
+  });
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><style>
+body{margin:0;background:#e5e5e5;font:9pt/1.15 "Times New Roman",Times,serif;color:#000}
+.page{box-sizing:border-box;width:210mm;min-height:297mm;margin:12px auto;background:#fff;padding:${mm(sect?.[1])} ${mm(sect?.[2])} ${mm(sect?.[3])} ${mm(sect?.[4])};box-shadow:0 1px 4px rgba(0,0,0,.3)}
+p{margin:0}td{font-size:9pt}table{margin:0}
+@media (max-width:800px){.page{width:auto;margin:0}}
+</style></head><body><div class="page">${body.join("")}</div></body></html>`;
+}

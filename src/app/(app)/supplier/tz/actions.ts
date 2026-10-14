@@ -63,3 +63,31 @@ export async function deleteTzDraft(id: string): Promise<R> {
   revalidatePath("/supplier/tz");
   return { ok: true };
 }
+
+/** «Вернуть в черновик и исправить»: отправленное, но ещё не принятое ТЗ снова становится черновиком; дата возврата видна у нас во «Входящих». Только свои ТЗ. */
+export async function reopenSentTz(id: string): Promise<R> {
+  const s = await requireSupplierSession();
+  const cur = await prisma.supplierInbox.findFirst({ where: { id, kind: "TZ", status: "SENT", ...inboxScope(s) }, select: { payload: true } });
+  if (!cur) return { error: "ТЗ не найдено или уже принято/отклонено — исправьте его копией" };
+  const payload = { ...(cur.payload as object), reopenedAt: new Date().toISOString() };
+  const r = await prisma.supplierInbox.updateMany({ where: { id, kind: "TZ", status: "SENT", ...inboxScope(s) }, data: { status: "DRAFT", sentAt: null, payload: payload as object } });
+  if (r.count !== 1) return { error: "ТЗ уже принято или отклонено — исправьте его копией" };
+  revalidatePath("/supplier/tz");
+  revalidatePath(`/supplier/tz/${id}`);
+  return { ok: true, id };
+}
+
+/** «Исправить и отправить заново» для принятого/отклонённого ТЗ: новый черновик с теми же данными, исходное остаётся как есть. Только свои ТЗ. */
+export async function copyTzAsDraft(id: string): Promise<R> {
+  const s = await requireSupplierSession();
+  const cur = await prisma.supplierInbox.findFirst({ where: { id, kind: "TZ", status: { in: ["ACCEPTED", "REJECTED"] }, ...inboxScope(s) }, select: { payload: true, title: true } });
+  if (!cur) return { error: "ТЗ не найдено" };
+  const { totals: _t, reopenedAt: _r, ...rest } = cur.payload as Record<string, unknown>;
+  void _t; void _r;
+  const row = await prisma.supplierInbox.create({
+    data: { organizationId: s.user.organizationId, supplierId: s.user.supplierId, createdById: s.user.id, kind: "TZ", status: "DRAFT", title: `${cur.title} (исправленное)`.slice(0, 160), payload: rest as object },
+    select: { id: true },
+  });
+  revalidatePath("/supplier/tz");
+  return { ok: true, id: row.id };
+}

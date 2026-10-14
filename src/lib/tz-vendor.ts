@@ -17,6 +17,8 @@ export type TzPayload = {
   vatPct: string; items: TzItem[]; materials: TzMaterial[]; terms: TzTerms;
   /** В строке «Итого:» показывать сумму работ (по умолчанию да, как в большинстве образцов). */
   showWorkTotal?: boolean;
+  /** Когда Веллмех вернул отправленное ТЗ в черновик для правки (ISO) — видно у нас во «Входящих». */
+  reopenedAt?: string;
   signers: { customerPost: string; customerName: string; contractorPost: string; contractorName: string };
 };
 

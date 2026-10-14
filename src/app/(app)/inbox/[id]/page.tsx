@@ -10,7 +10,7 @@ import { ACCESS } from "@/lib/access";
 import { INBOX_FILE_KINDS, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox-consts";
 import { previewInbox } from "@/lib/inbox-accept";
 import { FORMAT_LABEL, STAGE_LABEL, calcAll, columnsFor, headerRate, rateCols, resolveRow, rowFilled, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
-import { TZ_KIND_LABEL, plainNum, ruDate, spacedNum, tzTotals, type TzPayload } from "@/lib/tz-vendor";
+import { TZ_KIND_LABEL, itemFilled, materialFilled, plainNum, ruDate, spacedNum, tzTotals, type TzPayload } from "@/lib/tz-vendor";
 import { cn, formatDate } from "@/lib/utils";
 import { DecideButtons } from "./decide";
 import { FinalFigures } from "../../supplier/auction-calcs/final-figures";
@@ -129,11 +129,12 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
 
 function TzView({ p }: { p: TzPayload }) {
   const t = tzTotals(p);
-  const items = p.items.map((it, i) => ({ it, i })).filter(({ it }) => Object.values(it).some((v) => v.trim() !== "" && v !== "1"));
-  const mats = p.materials.map((m, i) => ({ m, i })).filter(({ m }) => Object.values(m).some((v) => v.trim() !== "" && v !== "Шт." && v !== "22"));
+  const items = p.items.map((it, i) => ({ it, i })).filter(({ it }) => itemFilled(it));
+  const mats = p.materials.map((m, i) => ({ m, i })).filter(({ m }) => materialFilled(m));
   const tm = p.terms;
   return (
     <div className="flex flex-col gap-4">
+      {p.reopenedAt && <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm">ТЗ изменено после отправки: {formatDate(new Date(p.reopenedAt))}</p>}
       <Dl items={[
         ["Вид", TZ_KIND_LABEL[p.kind]], ["Номер ТЗ", p.number], ["Дата", ruDate(p.date)], ["Город", dash(p.city)], ["Договор", dash(p.contract)], ["Заказчик", dash(p.customer)],
         ["Партия", dash(p.batch)], ["НДС, %", dash(p.vatPct)],

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { emptyItem, emptyMaterial, defaultTerms, tzTotals, type TzKind, type TzPayload, TZ_KIND_LABEL } from "@/lib/tz-vendor";
+import { TzPreviewModal } from "./tz-preview";
 import { deleteTzDraft, saveTzDraft, sendTz } from "./actions";
 
 const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -16,6 +17,7 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
   const [p, setP] = useState(initial);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [pending, start] = useTransition();
+  const [preview, setPreview] = useState<string | null>(null);
   const t = useMemo(() => tzTotals(p), [p]);
   const ro = readOnly;
   const repair = p.kind === "REPAIR";
@@ -40,6 +42,12 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
       return sendTz(saved.id!, JSON.stringify(p));
     }, "Отправлено", (r) => router.replace(`/supplier/tz/${r.id ?? id}`));
   };
+  const openPreview = () =>
+    start(async () => {
+      const res = await fetch(`/api/supplier/tz/${id ?? "new"}/preview`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+      if (!res.ok) return setMsg({ text: "Не удалось показать предпросмотр", bad: true });
+      setPreview(await res.text());
+    });
   const download = () =>
     start(async () => {
       const res = await fetch(`/api/supplier/tz/${id ?? "new"}/docx`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
@@ -173,9 +181,17 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
       <div className="flex flex-wrap items-center gap-2">
         {!ro && <Button type="button" disabled={pending} onClick={save}>Сохранить черновик</Button>}
         {!ro && <Button type="button" variant="outline" disabled={pending} onClick={send}>Отправить нам</Button>}
+        <Button type="button" variant="outline" disabled={pending} onClick={openPreview}>Предпросмотр</Button>
         <Button type="button" variant="outline" disabled={pending} onClick={download}>Скачать Word</Button>
         {!ro && id && <Button type="button" variant="ghost" disabled={pending} onClick={() => { if (confirm("Удалить черновик?")) run(() => deleteTzDraft(id), "Удалено", () => router.replace("/supplier/tz")); }}>Удалить черновик</Button>}
       </div>
+      {preview && (
+        <TzPreviewModal html={preview} onClose={() => setPreview(null)}>
+          {!ro && <Button type="button" size="sm" disabled={pending} onClick={() => { setPreview(null); save(); }}>Сохранить</Button>}
+          {!ro && <Button type="button" size="sm" variant="outline" onClick={() => setPreview(null)}>Исправить</Button>}
+          <Button type="button" size="sm" variant="outline" disabled={pending} onClick={download}>Скачать Word</Button>
+        </TzPreviewModal>
+      )}
       {msg && <p role="status" className={msg.bad ? "text-sm text-red-600" : "text-sm text-green-700"}>{msg.text}</p>}
     </div>
   );

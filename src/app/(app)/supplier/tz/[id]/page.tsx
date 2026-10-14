@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { ChatLink } from "@/components/chat-link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
-import { ReopenButton } from "../../reopen-button";
+import { TzStatusActions } from "../tz-status-actions";
 import { requireInboxViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { loadTzFormRefs } from "@/lib/supplier-tz-data";
 import type { TzPayload } from "@/lib/tz-vendor";
@@ -26,7 +26,7 @@ export default async function TzPage({ params }: PageProps<"/supplier/tz/[id]">)
         <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs">{INBOX_STATUS_LABEL[row.status]}</span>
         <ChatLink type="SupplierInbox" id={row.id} role={s.user.role} />
       </div>
-      {row.status === "REJECTED" && s.user.role === "SUPPLIER" && <ReopenButton id={row.id} />}
+      {s.user.role === "SUPPLIER" && <TzStatusActions id={row.id} status={row.status} />}
       <TzForm id={row.id} initial={row.payload as unknown as TzPayload} readOnly={readOnly} colors={refs.colors} models={refs.models} lots={refs.lots} batches={refs.batches} reviewNote={row.reviewNote} />
     </div>
   );

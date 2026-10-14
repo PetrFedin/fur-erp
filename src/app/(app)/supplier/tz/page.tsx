@@ -4,6 +4,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { requireInboxViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
+import { TzRowButtons } from "./tz-preview";
 import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "ТЗ поставщика" };
@@ -50,8 +51,8 @@ export default async function SupplierTzPage() {
               <span className="text-xs text-neutral-500">ТЗ: {list.length} · изделий: {total || "—"}</span>
             </summary>
             <div className="overflow-x-auto border-t border-neutral-100">
-              <Table className="min-w-[640px]">
-                <Thead><Tr><Th>ТЗ</Th>{!isSup && <Th>Поставщик</Th>}<Th className="text-right">Изделий</Th><Th>Статус</Th><Th>Изменено</Th></Tr></Thead>
+              <Table className="min-w-[820px]">
+                <Thead><Tr><Th>ТЗ</Th>{!isSup && <Th>Поставщик</Th>}<Th className="text-right">Изделий</Th><Th>Статус</Th><Th>Изменено</Th><Th /></Tr></Thead>
                 <Tbody>
                   {list.map((r) => (
                     <Tr key={r.id}>
@@ -60,6 +61,7 @@ export default async function SupplierTzPage() {
                       <Td className="text-right tabular-nums">{qty(r) || "—"}</Td>
                       <Td>{INBOX_STATUS_LABEL[r.status]}</Td>
                       <Td className="tabular-nums">{formatDate(r.sentAt ?? r.updatedAt)}</Td>
+                      <Td className="whitespace-nowrap"><Link href={`/supplier/tz/${r.id}`} className={buttonVariants({ size: "sm", variant: "outline" })}>Открыть</Link> <TzRowButtons id={r.id} /></Td>
                     </Tr>
                   ))}
                 </Tbody>
