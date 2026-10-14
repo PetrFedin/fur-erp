@@ -1762,6 +1762,8 @@ model SupplierRawStage {
   purchase       Purchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   lotId          String?
   lot            RawMaterialLot? @relation(fields: [lotId], references: [id], onDelete: SetNull)
+  /// Номер лота аукциона (у ещё не принятых лотов своей записи RawMaterialLot нет, поэтому лот называем по номеру).
+  lotNumber      String?
   stage          String
   /// PLANNED / IN_PROGRESS / DONE
   status         String         @default("PLANNED")

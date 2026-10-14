@@ -8,6 +8,7 @@ import { loadSupplierAuction } from "@/lib/supplier-auction";
 import { FORMAT_LABEL, calcAll, ensureRowIds } from "@/lib/supplier-calc";
 import { formatDate } from "@/lib/utils";
 import { AttachDocument } from "../attach";
+import { RawStagesBlock } from "@/components/raw-stages";
 
 export const metadata = { title: "Аукцион" };
 
@@ -32,6 +33,11 @@ export default async function SupplierAuctionPage({ params }: PageProps<"/suppli
   const d = await loadSupplierAuction(s.user.organizationId, supplierId, purchaseId);
   if (!d) notFound();
   const { purchase: p, items, calc, docs } = d;
+  const stages = await prisma.supplierRawStage.findMany({
+    where: { organizationId: s.user.organizationId, supplierId, purchaseId: p.id },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, stage: true, status: true, place: true, lotNumber: true, qty: true, note: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true },
+  });
   const qty = items.reduce((a, i) => a + i.qty, 0);
   const sum = items.reduce((a, i) => a + i.subtotal, 0);
   const payload = calc?.payload && calc.payload.v === 1 && Array.isArray(calc.payload.rows) ? ensureRowIds(calc.payload) : null;
@@ -59,7 +65,7 @@ export default async function SupplierAuctionPage({ params }: PageProps<"/suppli
         Дата: <b>{formatDate(p.orderDate)}</b> · курс: <b>{p.rate}</b> · поставщик: <b>{p.supplier}</b> · лотов <b>{items.length}</b> · шкур <b>{num(qty)}</b> · по УПД без НДС: <b>{money(sum)} {cur(p.currency)}</b>
       </p>
 
-      {/* STAGES_SLOT */}
+      <RawStagesBlock stages={stages} purchaseId={p.id} lots={[...new Set(items.map((i) => i.lot).filter(Boolean))]} editable={isSup} />
 
       <section className="rounded-md border border-neutral-300 bg-white p-3">
         <h2 className="mb-2 text-sm font-semibold">Данные аукциона</h2>

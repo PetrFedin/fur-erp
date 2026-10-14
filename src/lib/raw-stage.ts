@@ -48,7 +48,6 @@ export function ruShort(d: Date | null | undefined): string {
   if (!d) return "";
   return `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
-const plural = (_n: number) => "дн.";
 
 /** Порядок ленты: по справочнику, внутри этапа — по дате начала. */
 export function sortStages<T extends StageLike>(list: T[]): T[] {
@@ -58,9 +57,9 @@ export function sortStages<T extends StageLike>(list: T[]): T[] {
 
 /** Длительность этапа словами: «в работе 5 дн.», «заняло 12 дн.», «план 10 дн.» или "". */
 export function stageDuration(s: StageLike, today: number): string {
-  if (s.status === "IN_PROGRESS" && s.factStart) return `в работе ${Math.max(0, diffDays(today, s.factStart))} ${plural(0)}`;
-  if (s.status === "DONE" && s.factStart && s.factEnd) return `заняло ${Math.max(0, diffDays(s.factEnd, s.factStart))} ${plural(0)}`;
-  if (s.plannedStart && s.plannedEnd) return `план ${Math.max(0, diffDays(s.plannedEnd, s.plannedStart))} ${plural(0)}`;
+  if (s.status === "IN_PROGRESS" && s.factStart) return `в работе ${Math.max(0, diffDays(today, s.factStart))} дн.`;
+  if (s.status === "DONE" && s.factStart && s.factEnd) return `заняло ${Math.max(0, diffDays(s.factEnd, s.factStart))} дн.`;
+  if (s.plannedStart && s.plannedEnd) return `план ${Math.max(0, diffDays(s.plannedEnd, s.plannedStart))} дн.`;
   return "";
 }
 

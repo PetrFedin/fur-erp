@@ -8,6 +8,7 @@ import { supplierRawRows } from "@/lib/supplier-raw";
 import { cleanSearch } from "@/lib/input";
 import { formatDate } from "@/lib/utils";
 import { AttachDocument } from "./attach";
+import { RawChip } from "@/components/raw-stages";
 
 export const metadata = { title: "Сырьё" };
 
@@ -38,6 +39,11 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
   const sum = rows.reduce((a, r) => a + r.subtotal, 0);
   const mixed = new Set(rows.map((r) => r.currency)).size > 1;
   const cur = (c: string) => (c === "RUB" ? "₽" : c);
+
+  const stageRows = supplierId
+    ? await prisma.supplierRawStage.findMany({ where: { organizationId: s.user.organizationId, supplierId }, select: { purchaseId: true, stage: true, status: true, place: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true } })
+    : [];
+  const stagesOf = (pid: string) => stageRows.filter((x) => x.purchaseId === pid);
 
   const docs = supplierId
     ? await prisma.supplierInbox.findMany({
@@ -100,6 +106,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                 <span>лотов {g.length} · шкур {num(gq)}</span>
                 <span className={h.received ? "whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800" : "whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900"}>{h.status}</span>
                 <span className="tabular-nums">по УПД без НДС: <b>{money(gs)} {cur(h.currency)}</b></span>
+                <RawChip stages={stagesOf(h.purchaseId)} />
                 {isSup && <span className="ml-auto"><AttachDocument purchaseId={h.purchaseId} label="Приложить документ" /></span>}
               </summary>
               <div className="overflow-x-auto border-t border-neutral-200">
