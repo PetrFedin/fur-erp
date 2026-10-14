@@ -359,7 +359,7 @@ export function paramList(p: CalcPayload): { name: string; label: string; own: b
   const out: { name: string; label: string; own: boolean }[] = [{ name: "курс", label: "Курс для расчёта", own: false }, { name: "ндс", label: "НДС, %", own: false }];
   const seen = new Set(out.map((o) => o.name));
   for (const c of rateCols(p.format)) for (const nm of c.rate!.names) if (!seen.has(paramKey(nm))) { seen.add(paramKey(nm)); out.push({ name: paramKey(nm), label: c.rate!.label, own: false }); }
-  for (const q of p.params ?? []) if (q.name.trim()) out.push({ name: paramKey(q.name), label: "Свой параметр", own: true });
+  for (const q of p.params ?? []) if (q.name.trim() && !seen.has(paramKey(q.name))) { seen.add(paramKey(q.name)); out.push({ name: paramKey(q.name), label: "Свой параметр", own: true }); }
   return out;
 }
 

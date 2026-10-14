@@ -41,8 +41,17 @@ export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResu
   const used = usedRows(p);
   if (used.length === 0) errors.push("В расчёте нет ни одного лота");
   const all = calcAll(p);
-  const eff = effectiveRate(h);
-  if (!(eff > 0)) errors.push("В расчёте не указан курс");
+  const isSheet = f === "SHEET";
+  const eff = isSheet ? all.rate : effectiveRate(h);
+  if (!(eff > 0)) errors.push(isSheet ? "В расчёте нет параметра «курс» со значением" : "В расчёте не указан курс");
+  if (isSheet && !p.priceColumn) errors.push("Не выбран столбец «Закупка за шкуру (молоток)»");
+  const sheetPrice = (i: number) => {
+    const col = p.priceColumn;
+    if (!col) return 0;
+    const c = all.sheet.cells[col]?.[i];
+    if (c) return c.v ?? 0;
+    return n0(p.rows[i]?.[col]);
+  };
 
   // курс закупки и ставки НДС
   let rate = eff;
@@ -70,11 +79,14 @@ export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResu
   const customMode = (p.customColumns?.length ?? 0) > 0 || sh.unitCol !== "unit" || Object.values(p.overrides ?? {}).some((o) => o.unit !== undefined && o.unit.trim() !== "");
   const diffs: number[] = [];
   used.forEach(({ row: r, index }, k) => {
+    const priceN = isSheet ? sheetPrice(index) : n0(r.price);
     const name = `строка ${k + 1}`;
-    const base: IntakeRow = { n: k + 1, ...EMPTY_ROW, lot: r.lot.trim(), material: r.fur.trim(), grade: r.size.trim(), qty: t(all.qtys[index]), price: t(n0(r.price)) };
-    if (!(all.qtys[index] > 0) || !(n0(r.price) > 0)) errors.push(`${name}: нет количества или цены`);
+    const base: IntakeRow = { n: k + 1, ...EMPTY_ROW, lot: r.lot.trim(), material: r.fur.trim(), grade: r.size.trim(), qty: t(all.qtys[index]), price: t(priceN) };
+    if (!(all.qtys[index] > 0) || !(priceN > 0)) errors.push(`${name}: нет количества или цены`);
     const extra = all.extraRub;
-    if (f === "SAGA") {
+    if (isSheet) {
+      // свободная таблица: всё сверх «цена × курс» (сборы, выделка, транспорт, свои столбцы) приходит одной разницей в «транспорт» ниже
+    } else if (f === "SAGA") {
       const price = n0(r.price);
       const coef = filled(r.coef) ? n0(r.coef) : 1;
       const feePct = n0(r.feePct) + (price > 0 ? (n0(r.feeFixed) / price) * 100 : 0);
@@ -99,7 +111,7 @@ export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResu
 
     // контроль: себестоимость шкуры после раскладки совпадает с расчётом поставщика
     let unit = computeCostPlan({
-      quantity: all.qtys[index], price: n0(r.price), rate, vat: n0(vat),
+      quantity: all.qtys[index], price: priceN, rate, vat: n0(vat),
       feePct: n0(base.fee), dressing: n0(base.dressing), transport: n0(base.transport) + n0(base.customs) + n0(base.packing),
       brokerPct: n0(base.broker), transit: n0(base.transit), serviceVatPct: n0(serviceVat),
     }).unitIncl;
@@ -110,12 +122,12 @@ export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResu
       base.transport = t(n0(base.transport) + delta);
       diffs.push(Math.abs(delta));
       unit = computeCostPlan({
-        quantity: all.qtys[index], price: n0(r.price), rate, vat: n0(vat),
+        quantity: all.qtys[index], price: priceN, rate, vat: n0(vat),
         feePct: n0(base.fee), dressing: n0(base.dressing), transport: n0(base.transport) + n0(base.customs) + n0(base.packing),
         brokerPct: n0(base.broker), transit: n0(base.transit), serviceVatPct: n0(serviceVat),
       }).unitIncl;
     }
-    if (customMode) base.planItems = planItemsFor(p, all, index, cur, rate, want);
+    if (customMode) base.planItems = planItemsFor(p, all, index, cur, rate, want, priceN);
     if (Math.abs(unit - want) > 0.05) errors.push(`${name} (лот ${r.lot || "—"}): при переносе в закупку себестоимость шкуры вышла ${unit.toFixed(2)} ₽, а в расчёте ${want.toFixed(2)} ₽`);
   });
 
@@ -144,14 +156,14 @@ export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResu
 }
 
 /** Состав цены лота для окна «Цена лота»: цена, курс, стандартная раскладка формата, свои столбцы и итог — одним набором строк. */
-function planItemsFor(p: CalcPayload, all: ReturnType<typeof calcAll>, index: number, cur: string, rate: number, want: number): { label: string; value: number }[] {
+function planItemsFor(p: CalcPayload, all: ReturnType<typeof calcAll>, index: number, cur: string, rate: number, want: number, price: number): { label: string; value: number }[] {
   const sh = all.sheet;
   const r6 = (n: number) => Math.round(n * 1e6) / 1e6;
   const items: { label: string; value: number }[] = [
-    { label: `Цена за ед., ${cur === "EUR" ? "€" : "$"}`, value: r6(n0(p.rows[index].price)) },
+    { label: `Цена за ед., ${cur === "EUR" ? "€" : "$"}`, value: r6(price) },
     { label: "Курс для расчёта", value: r6(rate) },
   ];
-  const std = sh.cells.unit[index]?.v;
+  const std = sh.cells.unit?.[index]?.v;
   if (sh.unitCol !== "unit" && std != null) items.push({ label: "По стандартной формуле формата, ₽", value: r6(std) });
   for (const c of sh.cols) {
     if (c.kind !== "custom") continue;
