@@ -225,6 +225,8 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
               categoryRefId: model.categoryRefId,
               sellingPrice: model.sellingPrice ? model.sellingPrice.toString() : "",
               description: model.description ?? "",
+              supplierWorkPrice: model.supplierWorkPrice ? String(model.supplierWorkPrice) : "",
+              supplierFurPerUnit: model.supplierFurPerUnit ? String(model.supplierFurPerUnit) : "",
               isActive: model.isActive,
             }}
           />

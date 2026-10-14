@@ -25,6 +25,9 @@ export type ArticleSaveInput = {
   /** Short / Regular / Long или пусто. */
   lengthClass?: string;
   description?: string;
+  /** Данные от поставщика: расценка работы за единицу, ₽, и расход шкур на изделие. undefined — не менять; пусто — очистить. */
+  supplierWorkPrice?: FormDataEntryValue | string | number | null;
+  supplierFurPerUnit?: FormDataEntryValue | string | number | null;
   /** undefined — не менять (для нового артикула true). */
   isActive?: boolean;
 };
@@ -55,6 +58,15 @@ export async function saveArticleCore(orgId: string, role: string, id: string | 
   }
   const lengthRaw = (input.lengthClass ?? "").trim();
   if (lengthRaw && !parseLength(lengthRaw)) fields.lengthClass = "Длина: Short, Regular или Long";
+  const num = (v: ArticleSaveInput["supplierWorkPrice"], key: string, label: string, max: number): number | null | undefined => {
+    if (v === undefined) return undefined;
+    const n = normalizeNumberInput(v as never);
+    if (n === undefined) return null;
+    if (typeof n !== "number" || !Number.isFinite(n) || n <= 0 || n > max) { fields[key] = `${label}: число больше 0 (или оставьте пустым)`; return undefined; }
+    return n;
+  };
+  const workPrice = num(input.supplierWorkPrice, "supplierWorkPrice", "Расценка работы", 999_999_999);
+  const furPerUnit = num(input.supplierFurPerUnit, "supplierFurPerUnit", "Расход шкур", 99_999);
   if (Object.keys(fields).length) return { error: Object.values(fields)[0], fields };
 
   const list = await loadArticleList(orgId);
@@ -78,6 +90,8 @@ export async function saveArticleCore(orgId: string, role: string, id: string | 
     sellingPrice: price,
     lengthClass: parseLength(lengthRaw),
     description: description || null,
+    ...(workPrice !== undefined ? { supplierWorkPrice: workPrice } : {}),
+    ...(furPerUnit !== undefined ? { supplierFurPerUnit: furPerUnit } : {}),
     ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
   };
   let savedId = id;

@@ -886,6 +886,10 @@ model ProductModel {
   lengthClass    String?
   sellingPrice   Decimal?     @db.Decimal(14, 2)
   description    String?
+  /// Расценка работы за единицу, как прислал Веллмех (необязательно; наши цены и себестоимость — отдельно).
+  supplierWorkPrice Decimal?  @db.Decimal(14, 2)
+  /// Расход шкур на одно изделие, шт., как прислал Веллмех (необязательно).
+  supplierFurPerUnit Decimal? @db.Decimal(10, 3)
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt

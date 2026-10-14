@@ -81,7 +81,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const models = await prisma.productModel.findMany({
     // Ремонт — не изделия: отдельная страница «Ремонт».
     where: { AND: [articleModelWhere(orgId, f), { OR: [{ category: null }, { category: { not: "Ремонт" } }] }] },
-    select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, sellingPrice: true, isActive: true, categoryRef: { select: { group: true } } },
+    select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, sellingPrice: true, supplierWorkPrice: true, supplierFurPerUnit: true, isActive: true, categoryRef: { select: { group: true } } },
     orderBy: { name: "asc" },
   });
 
@@ -128,6 +128,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       id: m.id,
       name: m.name,
       bySupplier: supplierMade.has(m.id),
+      supplierNote: [m.supplierWorkPrice ? `работа ${formatMoney(m.supplierWorkPrice.toString())}` : "", m.supplierFurPerUnit ? `шкур ${m.supplierFurPerUnit.toString()}` : ""].filter(Boolean).join(" · "),
       model: { name: m.name, category: m.category, salesCode: m.salesCode, salesName: m.salesName, sku: m.sku },
       group: groupOf(m.categoryRef?.group),
       isActive: m.isActive,
@@ -326,6 +327,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                   <ArticleName model={r.model} compact />
                 </Link>
                 {r.bySupplier && <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800" title="Артикул завёл поставщик — проверьте и проставьте цену">внёс: Веллмех</span>}
+                {r.supplierNote && <span className="ml-2 text-xs font-normal text-neutral-500" title="Прислал Веллмех">{r.supplierNote}</span>}
               </Td>
               <Td className="text-neutral-700">
                 <div>{r.model.category?.trim() || "—"}</div>

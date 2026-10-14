@@ -6,6 +6,7 @@ import { revalidateAll } from "@/lib/revalidate-all";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { parsePrice } from "@/lib/input";
+import { composeSupplierDescription } from "@/lib/supplier-article";
 import { saveArticleCore, propagateArticlePrice } from "@/lib/article-save";
 
 const EDIT_ROLES = ACCESS.models;
@@ -47,10 +48,14 @@ export async function createArticleBySupplier(_prev: ArticleSaveState, formData:
   const session = await requireRole("SUPPLIER");
   const orgId = session.user.organizationId;
   const g = (k: string) => String(formData.get(k) ?? "");
+  // Только то, что поставщик реально присылает: код, наименование изделия, категория, длина, мех, подкладка, размеры, цвета,
+  // расценка работы и расход шкур. SKU, коды продаж, синонимы и цену он не задаёт. Мех/подкладка/размеры/цвета уходят строками в описание.
   const r = await saveArticleCore(orgId, session.user.role, null, {
-    name: g("name"), sku: g("sku"), salesCode: g("salesCode"), salesName: g("salesName"), aliases: g("aliases"),
+    name: g("name"), salesName: g("salesName"),
     category: g("category"), categoryRefId: g("categoryRefId") || null, group: "",
-    sellingPrice: null, lengthClass: g("lengthClass"), description: g("description"), isActive: true,
+    sellingPrice: null, lengthClass: g("lengthClass"),
+    description: composeSupplierDescription({ fur: g("fur"), lining: g("lining"), sizes: g("sizes"), colors: g("colors"), note: g("note") }),
+    supplierWorkPrice: g("supplierWorkPrice"), supplierFurPerUnit: g("supplierFurPerUnit"), isActive: true,
   });
   if (r.error) return { error: r.error, fields: r.fields };
   revalidateAll(orgId);
@@ -89,6 +94,8 @@ export async function saveArticleForm(id: string | null, _prev: ArticleSaveState
     name: g("name"), sku: g("sku"), salesCode: g("salesCode"), salesName: g("salesName"), aliases: g("aliases"),
     category: g("category"), categoryRefId: g("categoryRefId") || null, group: g("group"),
     sellingPrice: formData.get("sellingPrice"), lengthClass: g("lengthClass"), description: g("description"),
+    supplierWorkPrice: formData.has("supplierWorkPrice") ? g("supplierWorkPrice") : undefined,
+    supplierFurPerUnit: formData.has("supplierFurPerUnit") ? g("supplierFurPerUnit") : undefined,
     isActive: id ? formData.get("isActive") !== "0" : undefined,
   });
   if (r.error) return { error: r.error, fields: r.fields };

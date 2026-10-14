@@ -24,6 +24,14 @@ export type ArticleInitial = {
   sellingPrice: string;
   description: string;
   isActive: boolean;
+  /** От поставщика: расценка работы за ед., расход шкур на изделие; мех, подкладка, размеры, цвета (форма поставщика). */
+  supplierWorkPrice?: string;
+  supplierFurPerUnit?: string;
+  fur?: string;
+  lining?: string;
+  sizes?: string;
+  colors?: string;
+  note?: string;
 };
 
 const EMPTY: ArticleInitial = { name: "", sku: "", lengthClass: "", salesCode: "", salesName: "", aliases: "", category: "", categoryRefId: null, sellingPrice: "", description: "", isActive: true };
@@ -232,18 +240,18 @@ function Body({
           <Field htmlFor="name" label="Код артикула *" error={fe.name} hint="Наш код: M012, МН-02… Латиница и кириллица в похожих буквах считаются одним написанием.">
             <Input className="ui-field rounded-lg" id="name" name="name" value={f.name} onChange={set("name")} placeholder="M012" disabled={!canEdit} aria-invalid={fe.name ? true : undefined} />
           </Field>
-          <Field htmlFor="sku" label="SKU" hint="Наш внутренний SKU, если он отличается от кода артикула. Уникален в пределах организации.">
+          {!noPrice && <Field htmlFor="sku" label="SKU" hint="Наш внутренний SKU, если он отличается от кода артикула. Уникален в пределах организации.">
             <Input className="ui-field rounded-lg" id="sku" name="sku" value={f.sku} onChange={set("sku")} disabled={!canEdit} />
-          </Field>
-          <Field htmlFor="salesCode" label="Код в продажах" hint="Код этого же изделия в системе продаж. Уходит в сверку продаж и поиск артикула.">
+          </Field>}
+          {!noPrice && <Field htmlFor="salesCode" label="Код в продажах" hint="Код этого же изделия в системе продаж. Уходит в сверку продаж и поиск артикула.">
             <Input className="ui-field rounded-lg" id="salesCode" name="salesCode" value={f.salesCode} onChange={set("salesCode")} disabled={!canEdit} />
+          </Field>}
+          <Field htmlFor="salesName" label={noPrice ? "Наименование изделия" : "Название в продажах"} className="sm:col-span-2" hint={noPrice ? "Как в ТЗ («Наименование Продукции»): например, «Полупальто женское из соболя», «Головной убор (ушанка)»." : undefined}>
+            <Input className="ui-field rounded-lg" id="salesName" name="salesName" value={f.salesName} onChange={set("salesName")} placeholder={noPrice ? "Полупальто женское из соболя" : "Шуба норковая «Милан»"} disabled={!canEdit} />
           </Field>
-          <Field htmlFor="salesName" label="Название в продажах" className="sm:col-span-2">
-            <Input className="ui-field rounded-lg" id="salesName" name="salesName" value={f.salesName} onChange={set("salesName")} placeholder="Шуба норковая «Милан»" disabled={!canEdit} />
-          </Field>
-          <Field htmlFor="aliases" label="Другие написания (синонимы)" className="sm:col-span-2 lg:col-span-4" hint="Через запятую или с новой строки. По ним артикул находится в поиске и подбирается при импорте.">
+          {!noPrice && <Field htmlFor="aliases" label="Другие написания (синонимы)" className="sm:col-span-2 lg:col-span-4" hint="Через запятую или с новой строки. По ним артикул находится в поиске и подбирается при импорте.">
             <Input className="ui-field rounded-lg" id="aliases" name="aliases" value={f.aliases} onChange={set("aliases")} placeholder="М012, M-012" disabled={!canEdit} />
-          </Field>
+          </Field>}
         </div>
       </Step>
 
@@ -265,7 +273,7 @@ function Body({
               onChange={(t, r) => { setCatText(t); setCatRef(r); setDirty(true); }}
             />
           </Field>
-          <Field label="Группа" hint={refGroup ? "Группа берётся из категории; менять её — в справочнике категорий." : catKnown ? "У категории группа ещё не задана — выберите: она запишется в категорию." : "Для новой категории выберите группу."}>
+          {!noPrice && <Field label="Группа" hint={refGroup ? "Группа берётся из категории; менять её — в справочнике категорий." : catKnown ? "У категории группа ещё не задана — выберите: она запишется в категорию." : "Для новой категории выберите группу."}>
             <Select className="ui-field rounded-lg"
               aria-label="Группа"
               value={groupValue}
@@ -276,11 +284,11 @@ function Body({
               {CATEGORY_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
             </Select>
             {catText.trim() && !catKnown && !canCreateCategory ? <p className="mt-1 text-xs text-neutral-500">Категория сохранится текстом; группу задаст технолог в справочнике.</p> : null}
-          </Field>
+          </Field>}
         </div>
       </Step>
 
-      <Step n={3} title={noPrice ? "Длина и описание" : "Цена и описание"} hint={noPrice ? undefined : <><p>Розничная цена — с НДС. Меняется сразу и у ТЗ в плане и в работе; у завершённых ТЗ не меняется. Уходит в наценку «Изделий», «Ценообразования» и Главной.</p><p className="mt-1">Вид меха, цвет и НДС в строках списания задаются в ТЗ — артикул показывает их по своим ТЗ.</p></>}>
+      <Step n={3} title={noPrice ? "Длина, состав и расценки" : "Цена и описание"} hint={noPrice ? undefined : <><p>Розничная цена — с НДС. Меняется сразу и у ТЗ в плане и в работе; у завершённых ТЗ не меняется. Уходит в наценку «Изделий», «Ценообразования» и Главной.</p><p className="mt-1">Вид меха, цвет и НДС в строках списания задаются в ТЗ — артикул показывает их по своим ТЗ.</p></>}>
         <div className={`${cardCls} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
           {!noPrice && (
             <Field htmlFor="sellingPrice" label="Розничная цена, ₽ (с НДС)" error={fe.sellingPrice}>
@@ -301,9 +309,28 @@ function Body({
               </label>
             </Field>
           )}
+          {noPrice && (
+            <>
+              <Field htmlFor="fur" label="Мех (вид)" hint="Из чего изделие: соболь, норка, лиса арктическая…"><Input className="ui-field rounded-lg" id="fur" name="fur" value={f.fur ?? ""} onChange={set("fur")} placeholder="Соболь выделанный тонированный" /></Field>
+              <Field htmlFor="lining" label="Подкладка (состав)"><Input className="ui-field rounded-lg" id="lining" name="lining" value={f.lining ?? ""} onChange={set("lining")} placeholder="100% Шелк" /></Field>
+              <Field htmlFor="sizes" label="Размеры"><Input className="ui-field rounded-lg" id="sizes" name="sizes" value={f.sizes ?? ""} onChange={set("sizes")} placeholder="42, 44, 46" /></Field>
+              <Field htmlFor="colors" label="Цвета"><Input className="ui-field rounded-lg" id="colors" name="colors" value={f.colors ?? ""} onChange={set("colors")} placeholder="Коричневый" /></Field>
+              <Field htmlFor="supplierWorkPrice" label="Стоимость работ за ед., ₽" error={fe.supplierWorkPrice} hint="Расценка за пошив одного изделия — как в вашей таблице расценок."><Input className="ui-field rounded-lg" id="supplierWorkPrice" name="supplierWorkPrice" inputMode="decimal" value={f.supplierWorkPrice ?? ""} onChange={set("supplierWorkPrice")} /></Field>
+              <Field htmlFor="supplierFurPerUnit" label="Расход шкур на изделие, шт." error={fe.supplierFurPerUnit} hint="Сколько шкур уходит на одно изделие."><Input className="ui-field rounded-lg" id="supplierFurPerUnit" name="supplierFurPerUnit" inputMode="decimal" value={f.supplierFurPerUnit ?? ""} onChange={set("supplierFurPerUnit")} /></Field>
+              <Field htmlFor="note" label="Примечание" className="sm:col-span-2 lg:col-span-4"><Textarea className="ui-field rounded-lg" id="note" name="note" rows={2} value={f.note ?? ""} onChange={set("note")} /></Field>
+            </>
+          )}
+          {!noPrice && mode === "edit" && (
+            <>
+              <Field htmlFor="supplierWorkPrice" label="Расценка работы от Веллмеха, ₽" error={fe.supplierWorkPrice}><Input className="ui-field rounded-lg" id="supplierWorkPrice" name="supplierWorkPrice" inputMode="decimal" value={f.supplierWorkPrice ?? ""} onChange={set("supplierWorkPrice")} placeholder="не задана" disabled={!canEdit} /></Field>
+              <Field htmlFor="supplierFurPerUnit" label="Расход шкур на изделие, шт." error={fe.supplierFurPerUnit}><Input className="ui-field rounded-lg" id="supplierFurPerUnit" name="supplierFurPerUnit" inputMode="decimal" value={f.supplierFurPerUnit ?? ""} onChange={set("supplierFurPerUnit")} placeholder="не задан" disabled={!canEdit} /></Field>
+            </>
+          )}
+          {!noPrice && (
           <Field htmlFor="description" label="Описание" className="sm:col-span-2 lg:col-span-4">
             <Textarea className="ui-field rounded-lg" id="description" name="description" rows={2} value={f.description} onChange={set("description")} disabled={!canEdit} />
           </Field>
+          )}
         </div>
       </Step>
 
