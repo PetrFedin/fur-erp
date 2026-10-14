@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { groupBreakdownItems, labelUnit } from "@/lib/cost-breakdown-groups";
+import { BreakdownTable } from "@/components/breakdown-table";
 
 type Breakdown = {
   furDescription?: string | null;
@@ -13,7 +13,6 @@ type Breakdown = {
 const fmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
 // Курс показываем не больше чем с 2 знаками после запятой.
 const fmtRate = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
-const isRateLabel = (label: string) => /^курс/i.test(label.trim());
 const toNum = (v: number | string | null | undefined) => (v == null || v === "" ? null : Number(v));
 
 export function CostBreakdownToggle({
@@ -42,7 +41,6 @@ export function CostBreakdownToggle({
   useEffect(() => {
     if (opened && dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal();
   }, [opened]);
-  const groups = opened ? groupBreakdownItems(breakdown.items ?? []) : [];
   const excl = toNum(unitCostExcl);
   const incl = toNum(unitCostIncl);
   const q = toNum(qty);
@@ -71,7 +69,7 @@ export function CostBreakdownToggle({
         onClick={(e) => {
           if (e.target === dialogRef.current) dialogRef.current?.close();
         }}
-        className="m-auto max-h-[85vh] w-[34rem] max-w-[95vw] overflow-y-auto overflow-x-hidden whitespace-normal break-words rounded-lg border border-neutral-200 bg-white p-0 text-left text-xs font-normal shadow-xl backdrop:bg-black/30"
+        className="m-auto max-h-[85vh] w-[64rem] max-w-[95vw] overflow-y-auto overflow-x-hidden whitespace-normal break-words rounded-lg border border-neutral-200 bg-white p-0 text-left text-xs font-normal shadow-xl backdrop:bg-black/30"
       >
         {opened && (
         <div className="p-4">
@@ -112,40 +110,15 @@ export function CostBreakdownToggle({
             </div>
           )}
 
-          <details className="mt-3 rounded-md border border-neutral-200">
-            <summary className="cursor-pointer px-3 py-2 font-medium text-neutral-700 hover:bg-neutral-50">Подробно: расчёт из отчёта поставщика</summary>
+          <details open className="mt-3 rounded-md border border-neutral-200">
+            <summary className="cursor-pointer px-3 py-2 font-medium text-neutral-700 hover:bg-neutral-50">Из чего сложилась цена — таблицей</summary>
             <div className="border-t border-neutral-200 p-3">
               {(breakdown.exchangeRateInvoice || breakdown.exchangeRateFixed) && (
                 <p className="mb-1 text-neutral-500">
                   Курс инвойса: {breakdown.exchangeRateInvoice ? fmtRate(Number(breakdown.exchangeRateInvoice)) : "—"} · Курс ЦБ (фиксация): {breakdown.exchangeRateFixed ? fmtRate(Number(breakdown.exchangeRateFixed)) : "—"}
                 </p>
               )}
-              <table className="w-full table-fixed border-collapse">
-                <thead>
-                  <tr className="text-left text-neutral-500">
-                    <th className="py-0.5 pr-3 font-normal">Составляющая</th>
-                    <th className="w-24 py-0.5 pr-2 text-right font-normal">Значение</th>
-                    <th className="w-8 py-0.5 font-normal" />
-                  </tr>
-                </thead>
-                {groups.map((g) => (
-                  <tbody key={g.key}>
-                    <tr>
-                      <td colSpan={3} className="border-t border-neutral-200 pb-0.5 pt-1.5 font-medium text-neutral-700">{g.title}</td>
-                    </tr>
-                    {g.items.map((item, i) => {
-                      const u = labelUnit(item.label);
-                      return (
-                        <tr key={i}>
-                          <td className="py-px pr-3 text-neutral-500">{item.label}</td>
-                          <td className="py-px pr-2 text-right font-mono">{isRateLabel(item.label) ? fmtRate(item.value) : fmt(item.value)}</td>
-                          <td className={"py-px " + (u === "$" ? "text-sky-700" : "text-neutral-500")}>{u ?? ""}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                ))}
-              </table>
+              <BreakdownTable items={breakdown.items ?? []} />
               <p className="mt-2 text-neutral-500">Числа переписаны из отчёта поставщика как есть, в его единицах. Верхние карточки посчитаны приложением.</p>
             </div>
           </details>

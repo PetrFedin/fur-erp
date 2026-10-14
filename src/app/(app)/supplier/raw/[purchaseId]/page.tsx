@@ -9,6 +9,8 @@ import { FORMAT_LABEL, calcAll, ensureRowIds } from "@/lib/supplier-calc";
 import { formatDate } from "@/lib/utils";
 import { AttachDocument } from "../attach";
 import { RawStagesBlock } from "@/components/raw-stages";
+import { BreakdownTable } from "@/components/breakdown-table";
+import { CalcSheetReadonly } from "@/components/calc-sheet-readonly";
 import { ChatLink } from "@/components/chat-link";
 
 export const metadata = { title: "Аукцион" };
@@ -82,24 +84,7 @@ export default async function SupplierAuctionPage({ params }: PageProps<"/suppli
       <section>
         <h2 className="mb-1 text-sm font-semibold">Лоты</h2>
         {payload && t ? (
-          <div className="overflow-x-auto rounded-md border border-neutral-300 bg-white">
-            <Table className="min-w-[900px]">
-              <Thead><Tr><Th>№</Th>{t.sheet.cols.map((c) => <Th key={c.id} title={c.hint}>{c.unit && !c.title.trim().endsWith(c.unit) ? `${c.title}, ${c.unit}` : c.title}</Th>)}</Tr></Thead>
-              <Tbody>
-                {payload.rows.map((r, i) => !t.sheet.used[i] ? null : (
-                  <Tr key={r._id ?? i}>
-                    <Td className="text-neutral-400">{i + 1}</Td>
-                    {t.sheet.cols.map((c) => (
-                      <Td key={c.id} className={c.text ? "" : "text-right tabular-nums"}>{c.text ? r[c.id] ?? "" : cell(t.sheet.cells[c.id]?.[i]?.v)}</Td>
-                    ))}
-                  </Tr>
-                ))}
-                <Tr className="font-semibold">
-                  <Td />{t.sheet.cols.map((c, ci) => <Td key={c.id} className="text-right tabular-nums">{ci === 0 ? "Итого" : c.id === "qty" || c.id === "total" || c.id === t.sheet.qtyCol ? cell(t.sheet.sums[c.id]?.v) : ""}</Td>)}
-                </Tr>
-              </Tbody>
-            </Table>
-          </div>
+          <CalcSheetReadonly p={payload} t={t} maxHeight="70vh" />
         ) : items.length === 0 ? (
           <p className="rounded-md border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">В закупке пока нет лотов.</p>
         ) : (
@@ -122,13 +107,11 @@ export default async function SupplierAuctionPage({ params }: PageProps<"/suppli
       {!payload && items.some((i) => i.breakdown.length > 0) && (
         <section>
           <h2 className="mb-1 text-sm font-semibold">Из чего сложилась цена лота</h2>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-2">
             {items.filter((i) => i.breakdown.length > 0).map((i) => (
               <details key={i.id} className="rounded-md border border-neutral-200 bg-white">
                 <summary className="cursor-pointer px-3 py-1.5 text-sm">Лот {i.lot || "без номера"} · {i.fur}{i.color ? `, ${i.color}` : ""} · {num(i.qty)} шт.</summary>
-                <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-0.5 border-t border-neutral-100 px-3 py-2 text-sm sm:max-w-xl">
-                  {i.breakdown.map((b, k) => <div key={k} className="contents"><dt className="text-neutral-600">{b.label}</dt><dd className="text-right tabular-nums">{cell(b.value)}</dd></div>)}
-                </dl>
+                <div className="border-t border-neutral-100 p-2"><BreakdownTable items={i.breakdown} /></div>
               </details>
             ))}
           </div>
