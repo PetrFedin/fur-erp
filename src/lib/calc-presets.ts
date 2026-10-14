@@ -35,7 +35,7 @@ export function presetFill(pr: CalcPreset): Pick<CalcPayload, "customColumns" | 
   const idOf = (k: string | null) => (k ? colId(k) : undefined);
   return {
     customColumns,
-    params: pr.params.map((q) => ({ name: q.name, value: q.default })),
+    params: pr.params.map((q) => ({ name: q.name, value: q.default, label: q.label, hint: q.hint })),
     qtyColumn: idOf(pr.roles.qty), priceColumn: idOf(pr.roles.price), unitCostColumn: idOf(pr.roles.unit),
     formatId: pr.id, formatName: pr.title,
   };

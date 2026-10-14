@@ -9,6 +9,7 @@ import { INBOX_FILE_KINDS } from "@/lib/supplier-inbox-consts";
 import { CalcDetail } from "./calc-detail";
 import { SimpleSteps } from "./simple-steps";
 import { FinalFigures } from "./final-figures";
+import { FormatPicker } from "./format-picker";
 import { detectFormat, finalFigures, needsAdvanced } from "@/lib/supplier-calc-simple";
 import { FORMAT_LABEL, STAGE_LABEL, remapCustomRefs, syncLetters, calcAll, columnsFor, emptyRow, headerRate, missingRates, rowFilled, newId, rateCols, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
 import { attachInboxFile, deleteCalcDraft, parseCalcFile, removeInboxFile, saveCalcDraft, sendCalc } from "./actions";
@@ -21,7 +22,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
   const [p, setP] = useState<CalcPayload>(initial);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [pending, start] = useTransition();
-  const [tab, setTab] = useState<"calc" | "detail">("calc");
+  const [tab0, setTab] = useState<"calc" | "detail">("detail");
   // Простой вид по умолчанию; расчёты со своими столбцами/формулами открываются сразу в расширенном, чтобы ничего не спрятать.
   const [advanced, setAdvanced] = useState(() => needsAdvanced(initial));
   const [formatTouched, setFormatTouched] = useState(id !== null);
@@ -29,6 +30,9 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
   const fileRef = useRef<HTMLInputElement>(null);
   const attachRef = useRef<HTMLInputElement>(null);
   const t = useMemo(() => calcAll(p), [p]);
+  const isSheet = p.format === "SHEET";
+  // в свободной таблице есть только лист; в остальных форматах — ещё простая таблица «Расчёт»
+  const tab = isSheet ? "detail" : tab0;
   const cols = columnsFor(p.format);
   const cur = p.header.currency === "EUR" ? "€" : "$";
 
@@ -98,13 +102,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
       {advanced && (
         <>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="col-span-full sm:col-span-2">
-          <Label>Формат расчёта</Label>
-          <Select value={p.format} disabled={ro} onChange={(e) => setP((x) => remapCustomRefs(x, switchFormat(x, e.target.value as CalcFormat)))}>
-            {(Object.keys(FORMAT_LABEL) as CalcFormat[]).map((k) => <option key={k} value={k}>{FORMAT_LABEL[k]}</option>)}
-          </Select>
-          <p className="mt-1 text-xs text-neutral-500">Выбор формата подставляет только набор столбцов и подписи. Ставки вы вводите сами ниже.</p>
-        </div>
+        <FormatPicker p={p} setP={setP} ro={ro} notify={(text, bad) => setMsg({ text, bad })} onClassic={(f) => setP((x) => remapCustomRefs(x, switchFormat({ ...x, format: x.format === "SHEET" ? "SP_RP" : x.format, customColumns: x.format === "SHEET" ? [] : x.customColumns, params: x.format === "SHEET" ? [] : x.params, formatId: undefined, formatName: undefined, qtyColumn: x.format === "SHEET" ? undefined : x.qtyColumn, priceColumn: undefined, unitCostColumn: x.format === "SHEET" ? undefined : x.unitCostColumn }, f)))} />
         <div>
           <Label>Стадия расчёта</Label>
           <Select value={p.stage ?? "FINAL"} disabled={ro} onChange={(e) => setP((x) => ({ ...x, stage: e.target.value as "PRELIM" | "FINAL" }))}>
@@ -119,6 +117,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
           <Label>Валюта счёта</Label>
           <Select value={p.header.currency} disabled={ro} onChange={(e) => setH("currency", e.target.value)}><option value="USD">USD</option><option value="EUR">EUR</option></Select>
         </div>
+        {!isSheet && (<>
         <H label="Курс ЦБ на дату" v={p.header.cbRate} on={(v) => setH("cbRate", v)} ro={ro} />
         <H label="Надбавка агента, %" v={p.header.agentPct} on={(v) => setH("agentPct", v)} ro={ro} ph="например 1,5" />
         <div>
@@ -126,14 +125,15 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
           <div className="flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-50 px-3 text-sm tabular-nums">{t.rate ? t.rate.toLocaleString("ru-RU", { maximumFractionDigits: 6 }) : "—"}</div>
         </div>
         <div className="sm:col-span-2"><H label="Комментарий к курсу" v={p.header.rateComment} on={(v) => setH("rateComment", v)} ro={ro} ph="Расчётный курс ЦБ на … + 1,5 % агентская комиссия" /></div>
+        </>)}
         <H label="Кому оформлен счёт (bayer)" v={p.header.buyer} on={(v) => setH("buyer", v)} ro={ro} />
         <H label="Куда (завод выделки)" v={p.header.dest} on={(v) => setH("dest", v)} ro={ro} ph="Прогресс, МК ЛИС, XIN…" />
         <H label="№ брокера" v={p.header.broker} on={(v) => setH("broker", v)} ro={ro} />
         <H label="Срок оплаты" v={p.header.dueDate} on={(v) => setH("dueDate", v)} ro={ro} type="date" />
-        <H label="НДС, %" v={p.header.vat} on={(v) => setH("vat", v)} ro={ro} ph="22 (для 2025 года — 20)" />
+        {!isSheet && <H label="НДС, %" v={p.header.vat} on={(v) => setH("vat", v)} ro={ro} ph="22 (для 2025 года — 20)" />}
       </div>
 
-      <section className="flex flex-col gap-2 rounded-md border border-neutral-200 p-3">
+      {!isSheet && <section className="flex flex-col gap-2 rounded-md border border-neutral-200 p-3">
         <h2 className="text-sm font-semibold">Ставки расчёта</h2>
         <p className="text-xs text-neutral-500">Вводите вы. Пустая ставка считается как 0. Ставка строки (в таблице) важнее: если ячейка заполнена, берётся она. Серый текст в полях — только пример, он не подставляется.</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -145,10 +145,10 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
           ))}
         </div>
         {missing.length > 0 && !ro && <p className="text-sm text-amber-800">Ставка не указана: {missing.join("; ")}. Считается как 0 — проверьте перед отправкой.</p>}
-      </section>
+      </section>}
 
       <div className="flex gap-1 border-b border-neutral-200" role="tablist">
-        {([["calc", "Расчёт"], ["detail", "Детально — столбцы и формулы"]] as const).map(([k, l]) => (
+        {(isSheet ? ([["detail", "Таблица как в Excel — столбцы и формулы"]] as const) : ([["detail", "Таблица как в Excel — столбцы и формулы"], ["calc", "Расчёт (простая таблица)"]] as const)).map(([k, l]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
             className={`-mb-px border-b-2 px-3 py-1.5 text-sm ${tab === k ? "border-neutral-900 font-semibold" : "border-transparent text-neutral-500 hover:text-neutral-800"}`}>{l}</button>
         ))}
@@ -205,9 +205,9 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
           })}
         </Tbody>
       </Table>}
-      {tab === "calc" && <p className="-mt-3 text-xs text-neutral-500">Цену в {cur} и ставки можно вводить числом или простой формулой, например 6,8*1,156. Пустое «курс» в строке — курс из шапки; пустая ставка в строке — ставка из блока «Ставки расчёта». Свои столбцы и формулы — на вкладке «Детально».</p>}
+      {tab === "calc" && <p className="-mt-3 text-xs text-neutral-500">Цену в {cur} и ставки можно вводить числом или простой формулой, например 6,8*1,156. Пустое «курс» в строке — курс из шапки; пустая ставка в строке — ставка из блока «Ставки расчёта». Свои столбцы и формулы — на вкладке «Таблица как в Excel».</p>}
 
-      <section className="flex flex-col gap-2">
+      {!isSheet && <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold">Прочие расходы</h2>
         <p className="text-xs text-neutral-500">Расходы на весь счёт (сборы аукциона, счёт перевозчика, таможенный аванс, авиадоставка) делятся на все шкуры поровну; «на шкуру» добавляется к каждой шкуре как есть.</p>
         {p.header.extras.map((e, i) => (
@@ -221,7 +221,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
           </div>
         ))}
         {!ro && <div><Button type="button" size="sm" variant="outline" onClick={() => setP((x) => ({ ...x, header: { ...x.header, extras: [...x.header.extras, { name: "", amount: "", mode: "total" }] } }))}>+ Расход</Button></div>}
-      </section>
+      </section>}
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div><Label>Всего шкур</Label><div className="flex h-9 items-center text-sm font-semibold tabular-nums">{t.qty.toLocaleString("ru-RU")}</div></div>

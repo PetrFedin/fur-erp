@@ -49,7 +49,7 @@ export const hasOtherExtras = (p: CalcPayload) => p.header.extras.some((e) => !(
 
 /** Нужен ли расширенный режим, чтобы ничего не спрятать: свои столбцы, параметры, ручные значения, выбранные столбцы. */
 export const needsAdvanced = (p: CalcPayload) =>
-  (p.customColumns?.length ?? 0) > 0 || (p.params?.length ?? 0) > 0 || Object.keys(p.overrides ?? {}).length > 0 || !!p.unitCostColumn || !!p.qtyColumn;
+  p.format === "SHEET" || (p.customColumns?.length ?? 0) > 0 || (p.params?.length ?? 0) > 0 || Object.keys(p.overrides ?? {}).length > 0 || !!p.unitCostColumn || !!p.qtyColumn;
 
 /** Финальные цифры: лотов, шкур, итого ₽, средняя себестоимость шкуры. */
 export function finalFigures(p: CalcPayload, t: CalcTotals) {

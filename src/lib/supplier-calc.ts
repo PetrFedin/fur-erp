@@ -111,7 +111,8 @@ export type CustomCol = {
 };
 /** Итоговая строка: контрольная разность между двумя итогами с допуском. */
 export type CheckDiff = { id: string; title: string; a: string; b: string; tol: string };
-export type CalcParam = { name: string; value: string };
+/** Параметр шапки для формул; label и hint — пояснение и пример из образца формата (в расчёт не влияют). */
+export type CalcParam = { name: string; value: string; label?: string; hint?: string };
 export type CalcPayload = {
   v: 1; format: CalcFormat; header: CalcHeader; rows: CalcRow[];
   /** Стадия расчёта; у старых расчётов нет — считаются окончательными. */
