@@ -95,6 +95,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
               <summary className="flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-sm">
                 <span className="text-neutral-500 transition-transform group-open:rotate-90">▶</span>
                 <b className="text-base">{h.auction || h.purchaseNumber}</b>
+                <Link href={`/supplier/raw/${h.purchaseId}`} className="text-sm text-blue-700 underline">Подробно →</Link>
                 <span className="text-neutral-600">{h.invoice ? `счёт ${h.invoice}` : h.purchaseNumber}</span>
                 <span>лотов {g.length} · шкур {num(gq)}</span>
                 <span className={h.received ? "whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800" : "whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900"}>{h.status}</span>
