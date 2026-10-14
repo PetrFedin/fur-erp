@@ -36,7 +36,7 @@ function setCell(tc: string, text: string): string {
   const ps = paraOf(tc);
   if (!ps.length) return tc;
   if (squash(ps.map(paraText).join("")) === squash(text)) return tc; // совпало с шаблоном — вёрстку не трогаем
-  const head = tc.slice(0, tc.indexOf(ps[0]));
+  const head = tc.slice(0, tc.indexOf(ps[0]!));
   const out = text.split("\n").map((t, i) => setParaText(ps[Math.min(i, ps.length - 1)], t));
   return head + out.join("") + "</w:tc>";
 }
@@ -52,7 +52,7 @@ function setRow(tr: string, texts: (string | null)[]): string {
 const rowsOf = (tbl: string) => tbl.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) ?? [];
 function withRows(tbl: string, rows: string[]): string {
   const old = rowsOf(tbl);
-  const start = tbl.indexOf(old[0]);
+  const start = tbl.indexOf(old[0]!);
   const end = tbl.lastIndexOf(old[old.length - 1]) + old[old.length - 1].length;
   return tbl.slice(0, start) + rows.join("") + tbl.slice(end);
 }
@@ -83,13 +83,13 @@ export async function buildTzDocx(p: TzPayload): Promise<Buffer> {
   setPara("ТЕХНИЧЕСКОЕ ЗАДАНИЕ №", `ТЕХНИЧЕСКОЕ ЗАДАНИЕ № ${p.number}`);
 
   // город и дата
-  blocks[tbl[0]] = withRows(blocks[tbl[0]], [setRow(rowsOf(blocks[tbl[0]])[0], [p.city, `${ruDate(p.date)}г.`])]);
+  blocks[tbl[0]] = withRows(blocks[tbl[0]!]!, [setRow(rowsOf(blocks[tbl[0]!]!)[0]!, [p.city, `${ruDate(p.date)}г.`])]);
 
   // изделия: заголовок, строки, «Итого:»
   {
     const rows = rowsOf(blocks[tbl[1]]);
     const data = rows.slice(1, -1);
-    const head = setRow(rows[0], [
+    const head = setRow(rows[0]!, [
       null, repair ? "Наименование услуги" : "Наименование Продукции", null, null, null, null, null, null,
       repair ? `Стоимость работ в руб. т.ч. НДС\n${vat}%` : `Стоимость работ за ед. в руб. т.ч. НДС\n${vat}%`,
       repair ? `Стоимость материала в руб. в т.ч. НДС ${vat}%` : `Стоимость продукции за ед. в руб. в т.ч. НДС ${vat}%`,
@@ -114,7 +114,7 @@ export async function buildTzDocx(p: TzPayload): Promise<Buffer> {
       m.name, m.lot, m.unit, m.qty, typedNum(m.priceNet), `${m.vatPct || vat}%`, m.total?.trim() ? m.total.trim() : spacedNum(t.matTotals[p.materials.indexOf(m)] ?? 0),
     ]));
     const total = setRow(rows[rows.length - 1], ["ИТОГО:", t.matQty ? plainNum(t.matQty) : "", "", "", spacedNum(t.materials)]);
-    blocks[tbl[2]] = withRows(blocks[tbl[2]], [rows[0], head, ...body, total]);
+    blocks[tbl[2]] = withRows(blocks[tbl[2]], [rows[0]!, head, ...body, total]);
   }
 
   // условия
@@ -132,8 +132,8 @@ export async function buildTzDocx(p: TzPayload): Promise<Buffer> {
     const rows = rowsOf(blocks[tbl[3]]);
     const sg = p.signers;
     blocks[tbl[3]] = withRows(blocks[tbl[3]], [
-      rows[0],
-      setRow(rows[1], [sg.customerPost, sg.contractorPost]),
+      rows[0]!,
+      setRow(rows[1]!, [sg.customerPost, sg.contractorPost]),
       setRow(rows[2], [`___________________________ ${sg.customerName}`, `________________________ ${sg.contractorName}`]),
     ]);
   }
