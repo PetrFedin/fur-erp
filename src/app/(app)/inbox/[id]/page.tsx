@@ -22,6 +22,7 @@ import { DocumentCard } from "./document-card";
 export const metadata = { title: "Входящее" };
 
 const money = (n: number) => (Number.isFinite(n) ? n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
+const rateFmt = (n: number) => (Number.isFinite(n) && n > 0 ? n.toLocaleString("ru-RU", { maximumFractionDigits: 6 }) : "—");
 const dash = (s: string | undefined) => (s && s.trim() ? s : "—");
 const kb = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`);
 
@@ -45,7 +46,7 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
   return (
     <div className="flex flex-col gap-4">
       <FinalFigures {...ff} />
-      <p className="text-sm text-neutral-700">Аукцион <b>{dash(h.auction)}</b> · счёт № {dash(h.invoice)} от {dash(h.invoiceDate)} · курс {money(t.rate)} · {p.stage ? STAGE_LABEL[p.stage] : "окончательный"}</p>
+      <p className="text-sm text-neutral-700">Аукцион <b>{dash(h.auction)}</b> · счёт № {dash(h.invoice)} от {dash(h.invoiceDate)} · курс {rateFmt(t.rate)} · {p.stage ? STAGE_LABEL[p.stage] : "окончательный"}</p>
       {p.format === "SHEET" ? <CalcSheetReadonly p={p} t={t} maxHeight="70vh" /> : (
       <div className="overflow-x-auto">
         <Table className="min-w-[640px]">
@@ -68,7 +69,7 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
         <div className="mt-3 flex flex-col gap-4">
       <Dl items={[
         ["Формат", FORMAT_LABEL[p.format]], ["Аукцион", dash(h.auction)], ["Счёт №", dash(h.invoice)], ["Дата счёта", dash(h.invoiceDate)], ["Продавец", dash(h.seller)],
-        ["Валюта", h.currency], ["Курс ЦБ", dash(h.cbRate)], ["Надбавка агента, %", dash(h.agentPct)], ["Курс для расчёта", money(t.rate)], ["НДС, %", dash(h.vat)],
+        ["Валюта", h.currency], ["Курс ЦБ", dash(h.cbRate)], ["Надбавка агента, %", dash(h.agentPct)], ["Курс для расчёта", rateFmt(t.rate)], ["НДС, %", dash(h.vat)],
         ["Покупатель", dash(h.buyer)], ["Куда", dash(h.dest)], ["Брокер", dash(h.broker)], ["Срок оплаты", dash(h.dueDate)],
         ["Аванс", h.advance ? `${h.advance}${h.advanceDate ? ` от ${h.advanceDate}` : ""}` : "—"], ["Промежуточный платёж", dash(h.interim)],
       ]} />

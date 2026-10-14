@@ -125,8 +125,8 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
         </div>
       </div>
 
-      <div className="grid min-h-[60vh] gap-3 md:grid-cols-[22rem_1fr]">
-        <section aria-label="Обсуждения" className={cn("flex min-w-0 flex-col gap-2", (selected || showForm || showGroupForm) && "max-md:hidden")}>
+      <div className="grid min-h-[60vh] gap-3 lg:grid-cols-[20rem_minmax(0,1fr)]">
+        <section aria-label="Обсуждения" className={cn("flex min-w-0 flex-col gap-2", (selected || showForm || showGroupForm) && "max-lg:hidden")}>
           <form action="/chat" className="flex gap-2">
             {f && <input type="hidden" name="f" value={f} />}
             <input name="q" defaultValue={q} placeholder="Поиск по теме, записи, тексту" className="h-9 min-w-0 flex-1 rounded-md border border-neutral-300 px-3 text-sm" />
@@ -187,7 +187,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
           </ul>
         </section>
 
-        <section aria-label="Переписка" className={cn("min-w-0", !selected && !showForm && !showGroupForm && "max-md:hidden")}>
+        <section aria-label="Переписка" className={cn("min-w-0", !selected && !showForm && !showGroupForm && "max-lg:hidden")}>
           {showGroupForm && <NewGroupForm topics={topicsForMe} preset={groupPreset} />}
           {showForm && !showGroupForm && <NewRequestForm entityTypes={entityTypes} preset={preset} requestTypes={REQUEST_TYPES} />}
           {!showForm && !showGroupForm && !selected && <div className="rounded-lg border border-dashed border-neutral-300 p-8 text-center text-sm text-neutral-500">Выберите обсуждение слева или создайте новый запрос.</div>}
@@ -195,7 +195,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
             <div className="flex h-[70vh] flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white">
               <div className="flex flex-wrap items-start justify-between gap-2 border-b border-neutral-200 px-3 py-2">
                 <div className="min-w-0">
-                  <Link href={listHref({})} className="text-xs text-neutral-500 underline md:hidden">← К списку</Link>
+                  <Link href={listHref({})} className="text-xs text-neutral-500 underline lg:hidden">← К списку</Link>
                   <h2 className="truncate text-base font-semibold">{selected.subject}</h2>
                   <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-600">
                     {selected.kind === "GROUP" ? <span className="rounded bg-violet-100 px-1.5 py-px text-violet-800">Группа · {selected.topic}</span> : <span>{peerLabel}</span>}

@@ -12,6 +12,7 @@ import { cleanNote } from "@/lib/note-tags";
 import { inYear, type YearFilter } from "@/lib/year-filter";
 import { orderDateOf } from "@/lib/year-scope";
 import { articleLabel } from "@/lib/article-label";
+import { summarizeStages, summaryLine } from "@/lib/raw-stage";
 
 /**
  * «Что не заведено»: живые проверки полноты данных, ничего не хранится.
@@ -90,7 +91,7 @@ const PRIORITY_ORDER: Record<AttentionPriority, number> = { red: 0, yellow: 1, g
  *  - kind "info": справочно (ожидаемые поставки, справочники) — в число не входит.
  */
 export type AttentionGroupId =
-  | "no-receipt" | "advance-unlinked" | "auction-unpaid" | "overpaid" | "late-delivery" | "tz-requisites" | "suspect-date"
+  | "no-receipt" | "advance-unlinked" | "auction-unpaid" | "overpaid" | "late-delivery" | "raw-overdue" | "tz-requisites" | "suspect-date"
   | "model-dup" | "supplier-new-article" | "no-auction"
   | "tz-no-date" | "tz-end-date" | "batch-no-pay" | "no-auction-info" | "stub-lots" | "production-status"
   | "awaiting" | "no-usage" | "dict";
@@ -129,6 +130,11 @@ export const GROUPS: Record<AttentionGroupId, AttentionGroupMeta> = {
   "late-delivery": {
     title: "Срок поставки прошёл", kind: "decision",
     hint: "Закупка ещё не принята, а ожидаемая дата поставки уже прошла. Уточните у поставщика или поменяйте дату.",
+    link: { href: "/purchases", label: "Закупки" },
+  },
+  "raw-overdue": {
+    title: "Сырьё Веллмеха: этап просрочен", kind: "decision",
+    hint: "Веллмех внёс этапы сырья (выделка, дорога, склад), а ожидаемая дата последнего этапа уже прошла, мех ещё не принят. Откройте закупку, посмотрите, где сырьё, и напишите Веллмеху — или попросите обновить даты.",
     link: { href: "/purchases", label: "Закупки" },
   },
   "tz-requisites": {
@@ -356,6 +362,18 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
         group: late ? "late-delivery" : "awaiting",
       });
     }
+  }
+
+  // Этапы сырья, внесённые Веллмехом: ожидаемая дата прошла, а мех ещё не принят.
+  const stageRows = await db.supplierRawStage.findMany({
+    where: { organizationId, purchase: { status: { notIn: ["RECEIVED", "CANCELLED"] } } },
+    select: { purchaseId: true, stage: true, status: true, place: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true },
+  });
+  const stagesByPurchase = new Map<string, typeof stageRows>();
+  for (const r of stageRows) (stagesByPurchase.get(r.purchaseId) ?? stagesByPurchase.set(r.purchaseId, []).get(r.purchaseId)!).push(r);
+  for (const [id, list] of stagesByPurchase) {
+    const sum = summarizeStages(list, today);
+    if (sum?.overdue) flagPurchase(id, { text: `сырьё: ${summaryLine(sum)}`, priority: "yellow", group: "raw-overdue" });
   }
 
   // Лоты с датой-заглушкой

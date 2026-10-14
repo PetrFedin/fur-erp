@@ -75,7 +75,7 @@ export async function SupplierArticles({ orgId, q, noname }: { orgId: string; q:
         <p className="text-sm">
           {noname
             ? <Link href="/articles" className="text-blue-700 hover:underline">← Показать все артикулы</Link>
-            : <>Без названия: <Link href="/articles?noname=1" className="font-medium text-blue-700 hover:underline">{unnamed}</Link> — просим прислать наименование изделия.</>}
+            : <>Без названия: <Link href="/articles?noname=1" className="font-medium text-blue-700 hover:underline">{unnamed}</Link> — просим прислать наименование изделия: <Link href="/chat?new=1" className="text-blue-700 hover:underline">напишите нам в чате</Link> (существующие артикулы правим мы).</>}
         </p>
       )}
       <Table stickyHeader className="min-w-[980px]">

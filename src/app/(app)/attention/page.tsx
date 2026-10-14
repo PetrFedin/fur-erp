@@ -91,6 +91,19 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
         </Link>
       </div>
 
+      {!showAll && counts.inbox > 0 && hasRole(session.user.role, ACCESS.inbox) && (
+        <Card className="overflow-hidden">
+          <div className="flex items-center gap-3 p-3">
+            <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", DOT.yellow)} aria-hidden />
+            <span className="min-w-0 flex-1 text-sm font-medium text-neutral-900">
+              От поставщика ждут проверки
+              <span className="block text-xs font-normal text-neutral-500">Расчёты аукционов, ТЗ и документы, которые прислал Веллмех: принять в учёт или вернуть с комментарием.</span>
+            </span>
+            <Link href="/inbox" className="inline-flex h-8 shrink-0 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Открыть входящие →</Link>
+            <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", BADGE.yellow)}>{counts.inbox}</span>
+          </div>
+        </Card>
+      )}
       {!showAll && <DecisionsBlock decisions={taskBlocks.decisions} canDecide={hasRole(session.user.role, ACCESS.taskDecisions)} />}
       {!showAll && <DocTasksBlock blocks={taskBlocks} />}
       {!showAll && <UnallocatedAdvancesBlock orgId={session.user.organizationId} />}

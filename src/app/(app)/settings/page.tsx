@@ -26,14 +26,17 @@ const SUPPLIER_LINKS = ["/settings/colors", "/settings/categories", "/settings/f
 
 export default async function SettingsPage() {
   const session = await requireSession({ allowSupplier: true });
-  const links = session.user.role === "SUPPLIER" ? SETTINGS_LINKS.filter((l) => SUPPLIER_LINKS.includes(l.href)) : SETTINGS_LINKS;
+  const isSup = session.user.role === "SUPPLIER";
+  const links = isSup ? SETTINGS_LINKS.filter((l) => SUPPLIER_LINKS.includes(l.href)) : SETTINGS_LINKS;
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Настройки" }]} />
+      <Breadcrumbs items={[{ label: isSup ? "Справочники" : "Настройки" }]} />
       <div>
-        <h1 className="text-xl font-semibold">Настройки</h1>
+        <h1 className="text-xl font-semibold">{isSup ? "Справочники" : "Настройки"}</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Справочники и параметры. Оплаты — в разделе «Оплаты», проверка данных — в разделе «Контроль», план поставок — во вкладках «ТЗ».
+          {isSup
+            ? "Единые названия цветов, категорий, меха и аукционов — чтобы мы и вы называли одно и то же одинаково. Только просмотр; если чего-то не хватает, напишите нам в чате."
+            : "Справочники и параметры. Оплаты — в разделе «Оплаты», проверка данных — в разделе «Контроль», план поставок — во вкладках «ТЗ»."}
         </p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
