@@ -10,7 +10,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { clientFileError } from "@/components/drive-documents";
 import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 import { todayIso } from "@/lib/shipments";
-import { SIDES, wallDateIso, wallNow, wallTimeHm } from "@/lib/shipment-calc";
+import { SIDES, type PeopleBySide, wallDateIso, wallNow, wallTimeHm } from "@/lib/shipment-calc";
 import { acceptAllLines, cancelAcceptance, confirmAcceptance, createAcceptanceEvent, createEvent, deleteEvent, markEventDone, removeEventDocument, updateEvent, uploadEventDocument } from "../actions";
 
 export type EventValues = {
@@ -30,7 +30,7 @@ export type EventValues = {
   version: string;
 };
 
-type Common = { titles: string[]; names: string[] };
+type Common = { titles: string[]; people: PeopleBySide };
 
 const FILE_ACCEPT = ".pdf,.xlsx,.docx,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png";
 
@@ -56,31 +56,71 @@ function FileField({ label = "Документ: файл" }: { label?: string })
   );
 }
 
-/** Поля этапа: общие для «+ Этап» и «Изменить этап». Названия и имена подсказываются из ранее использованных (datalist), готового списка нет. */
-function EventFields({ titles, names, initial, withNext }: Common & { initial?: EventValues; withNext?: boolean }) {
+const OTHER = "__other__";
+
+/**
+ * «Кто»: выпадающий список действующих лиц выбранной компании + «Другой… (вписать)» с текстовым полем.
+ * Форме уходит одно поле `name` (текст имени); список пересобирается при смене компании.
+ */
+function PersonPicker({ name, label, side, people, initial }: { name: string; label: string; side: string; people: PeopleBySide; initial?: string }) {
+  const list = people[side] ?? [];
+  const [choice, setChoice] = useState<string>(() => {
+    const v = (initial ?? "").trim();
+    if (!v) return "";
+    const hit = (people[side] ?? []).find((x) => x.toLowerCase() === v.toLowerCase());
+    return hit ?? OTHER;
+  });
+  const [custom, setCustom] = useState<string>(() => {
+    const v = (initial ?? "").trim();
+    return v && !(people[side] ?? []).some((x) => x.toLowerCase() === v.toLowerCase()) ? v : "";
+  });
+  // Смена компании: выбранный из списка человек, которого нет у новой компании, остаётся вписанным вручную.
+  const [prevSide, setPrevSide] = useState(side);
+  if (prevSide !== side) {
+    setPrevSide(side);
+    if (choice && choice !== OTHER && !list.some((x) => x === choice)) {
+      setCustom(choice);
+      setChoice(OTHER);
+    }
+  }
+  const value = choice === OTHER ? custom.trim() : choice;
+  return (
+    <div className="flex flex-col gap-1 text-xs text-neutral-500" data-person-picker>
+      <label className="flex flex-col gap-1">
+        {label}
+        <Select value={choice} onChange={(e) => setChoice(e.target.value)} aria-label={label}>
+          <option value="">Не указан</option>
+          {list.map((n) => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+          <option value={OTHER}>Другой… (вписать)</option>
+        </Select>
+      </label>
+      {choice === OTHER && (
+        <Input value={custom} onChange={(e) => setCustom(e.target.value)} maxLength={120} placeholder="имя, например: Василий" autoComplete="off" aria-label={`${label}: имя`} autoFocus />
+      )}
+      <input type="hidden" name={name} value={value} />
+    </div>
+  );
+}
+
+/** Поля этапа: общие для «+ Этап» и «Изменить этап». Название подсказывается из ранее использованных (datalist); «Кто» — список действующих лиц компании. */
+function EventFields({ titles, people, initial, withNext }: Common & { initial?: EventValues; withNext?: boolean }) {
   const listId = useId();
-  const namesId = useId();
   const [today] = useState(() => todayIso());
   const [side, setSide] = useState(initial?.side || "WELLMEKH");
-  // «Следующий этап»: пока не выбрано своё значение, «на ком» берётся как у основного этапа.
+  // «Следующий этап»: пока не выбрано своё значение, «чьё действие» берётся как у основного этапа.
   const [nextSide, setNextSide] = useState<string | null>(null);
   return (
     <>
-      <Field label="На ком">
+      <Field label="Чьё действие">
         <Select name="side" required value={side} onChange={(e) => setSide(e.target.value)}>
           {SIDES.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}
         </Select>
       </Field>
-      <Field label="Ответственный" hint="Впишите имя; подсказки — сотрудники и ранее вписанные">
-        <Input name="responsible" maxLength={120} list={namesId} defaultValue={initial?.responsible ?? ""} placeholder="например: Василий" autoComplete="off" />
-        <datalist id={namesId}>
-          {names.map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
-      </Field>
+      <PersonPicker name="responsible" label="Кто" side={side} people={people} initial={initial?.responsible} />
       <Field label="Название этапа" wide>
         <Input name="title" required maxLength={120} list={listId} defaultValue={initial?.title ?? ""} placeholder="например: Принято в Коптево" autoComplete="off" />
         <datalist id={listId}>
@@ -117,13 +157,14 @@ function EventFields({ titles, names, initial, withNext }: Common & { initial?: 
           <Field label="Название"><Input name="nextTitle" maxLength={120} list={listId} autoComplete="off" /></Field>
           <Field label="Ожидаемая дата"><Input name="nextDate" type="date" /></Field>
           <Field label="Время (необязательно)"><Input name="nextTime" type="time" /></Field>
-          <Field label="На ком">
+          <Field label="Чьё действие">
             <Select name="nextSide" required value={nextSide ?? side} onChange={(e) => setNextSide(e.target.value)}>
               {SIDES.map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </Select>
           </Field>
+          <PersonPicker name="nextResponsible" label="Кто" side={nextSide ?? side} people={people} />
         </fieldset>
       )}
     </>
@@ -131,21 +172,21 @@ function EventFields({ titles, names, initial, withNext }: Common & { initial?: 
 }
 
 /** «+ Этап». */
-export function NewEventButton({ shipmentId, titles, names }: { shipmentId: string } & Common) {
+export function NewEventButton({ shipmentId, titles, people }: { shipmentId: string } & Common) {
   return (
     <CreateDialog label="+ Этап" title="Новый этап" wide hint="Название — любое, подсказки берутся из ранее использованных. Файл документа загружается сразу при добавлении.">
-      <NewEventForm shipmentId={shipmentId} titles={titles} names={names} />
+      <NewEventForm shipmentId={shipmentId} titles={titles} people={people} />
     </CreateDialog>
   );
 }
 
-function NewEventForm({ shipmentId, titles, names }: { shipmentId: string } & Common) {
+function NewEventForm({ shipmentId, titles, people }: { shipmentId: string } & Common) {
   const { state, pending, dlg, setForm, onSubmit } = useCreateForm(createEvent.bind(null, shipmentId), {});
   const [dirty, setDirty] = useState(false);
   const guard = useUnsavedGuard(dirty && !state.ok, { links: false });
   return (
     <form ref={setForm} onSubmit={onSubmit} onChange={() => setDirty(true)} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <EventFields titles={titles} names={names} withNext />
+      <EventFields titles={titles} people={people} withNext />
       {state.error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2">{state.error}</p>}
       <DialogButtons pending={pending} saveLabel="Добавить этап" onCancel={dlg?.close} />
       {guard}
@@ -156,7 +197,7 @@ function NewEventForm({ shipmentId, titles, names }: { shipmentId: string } & Co
 const textBtn = "h-7 px-2 text-xs";
 
 /** Действия этапа в ленте: «Выполнено» (для ожидаемого), «+ Документ», «Изменить», «Удалить» — мелкие текстовые кнопки. */
-export function EventActions({ v, titles, names, canDone }: { v: EventValues; canDone: boolean } & Common) {
+export function EventActions({ v, titles, people, canDone }: { v: EventValues; canDone: boolean } & Common) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
@@ -182,7 +223,7 @@ export function EventActions({ v, titles, names, canDone }: { v: EventValues; ca
         Удалить
       </Button>
       <EditDialog key={v.version} open={open} onOpenChange={setOpen} title="Изменить этап" hint="Правка попадает в журнал изменений." action={updateEvent.bind(null, v.id)} wide>
-        <EventFields titles={titles} names={names} initial={v} />
+        <EventFields titles={titles} people={people} initial={v} />
       </EditDialog>
       <EditDialog open={docOpen} onOpenChange={setDocOpen} title="Прикрепить документ" hint={v.title} saveLabel="Загрузить" action={uploadEventDocument.bind(null, v.id)}>
         <FileField label="Файл" />

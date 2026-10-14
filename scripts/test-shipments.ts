@@ -232,6 +232,19 @@ async function main() {
   const rAnna = await A.createEvent(id, {}, fd({ title: "Подтверждение исправлений", date: "2026-10-09", time: "19:07", responsible: user.name.toUpperCase(), side: "CUM" }));
   const rOlga = await A.createEvent(id, {}, fd({ title: "Ольга отправила УПД", date: "2026-10-12", time: "13:06", responsible: "Ольга", side: "WELLMEKH" }));
   ok(rAnna.ok === true && rOlga.ok === true, "этапы Анны и Ольги созданы");
+  // список действующих лиц: вписанное имя попадает в список своей компании
+  const SD = await import("../src/lib/shipment-data");
+  const peopleNow = await SD.loadShipmentPeople(org.id);
+  ok(peopleNow.WELLMEKH.includes("Василий (Веллмех)") && peopleNow.CUM.includes("Ольга") === false, "список лиц: Веллмех содержит вписанного Василия; Ольга (Веллмех в этом тесте) не в ЦУМ");
+  ok(peopleNow.WELLMEKH.includes("Ольга"), "список лиц: вписанная Ольга (Веллмех) есть в списке Веллмеха");
+  ok(user.name && peopleNow.CUM.some((n) => n.toLowerCase() === user.name.toLowerCase()), "список лиц ЦУМ включает пользователей приложения");
+  const rNew = await A.createEvent(id, {}, fd({ title: "Новый человек", date: "2026-10-10", responsible: "Тестовый Новичок", side: "CUM", nextTitle: "Дальше", nextDate: "2026-10-20", nextSide: "WELLMEKH", nextResponsible: "Геннадий (Веллмех)" }));
+  const peopleAfter = await SD.loadShipmentPeople(org.id);
+  ok(rNew.ok === true && peopleAfter.CUM.includes("Тестовый Новичок") && !peopleAfter.WELLMEKH.includes("Тестовый Новичок"), "новый вписанный человек автоматически попал в список своей компании (и только её)");
+  const nextEv = await raw.shipmentEvent.findFirstOrThrow({ where: { shipmentId: id, title: "Дальше" } });
+  ok(nextEv.responsibleName === "Геннадий (Веллмех)" && nextEv.side === "WELLMEKH" && nextEv.expected, "«Следующий этап»: «Кто» сохранён");
+  ok((await A.createEvent(id, {}, fd({ title: "Без компании", date: "2026-10-10", responsible: "X" }))).error === "Укажите, на ком этап: Веллмех или ЦУМ", "компания («Чьё действие») обязательна");
+  await raw.shipmentEvent.deleteMany({ where: { shipmentId: id, title: { in: ["Новый человек", "Дальше"] } } });
   evs = await raw.shipmentEvent.findMany({ where: { shipmentId: id }, orderBy: { createdAt: "asc" } });
   const ea = evs.find((e) => e.title === "Подтверждение исправлений")!;
   const eo = evs.find((e) => e.title === "Ольга отправила УПД")!;

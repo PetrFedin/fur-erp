@@ -13,11 +13,12 @@ import { ORDER_COLORS_INCLUDE } from "@/lib/order-colors";
 import { orderSortKey, SHIPMENT_STATUS } from "@/lib/shipments";
 import {
   candidateRows, compareEvents, deliverySummary, fmtWall, groupByOrder, groupEventsByDay, intervalNotes, isAcceptanceEvent, lineKey, parseDocLinks, shareOf, shipmentTotals,
-  SIDE_LABEL, wallDateIso, wallNow, wallTimeHm,
+  SIDE_LABEL, wallDateIso, wallDateRu, wallNow, wallTimeHm,
 } from "@/lib/shipment-calc";
 import { HeaderDelete, HeaderEdit } from "./header-ui";
 import { AcceptList, AddLinesButton, LinesTable, type LineRow } from "./lines-ui";
 import { STAGE_LABEL } from "@/lib/shipment-stage";
+import { loadShipmentPeople } from "@/lib/shipment-data";
 import { CreateAcceptanceButton, ClampText, DocRemove, EventActions, NewEventButton, SummaryShell, type EventValues } from "./event-ui";
 
 export const metadata = { title: "Отгрузка" };
@@ -60,10 +61,11 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   });
   if (!s) notFound();
 
-  const [users, titleGroups, nameGroups, batchChoices, suppliers] = await Promise.all([
+  const [users, titleGroups, nameGroups, people, batchChoices, suppliers] = await Promise.all([
     prisma.user.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, isActive: true }, orderBy: { name: "asc" } }),
     prisma.shipmentEvent.groupBy({ by: ["title"], where: { shipment: { organizationId: orgId } }, _count: { _all: true }, orderBy: { _count: { title: "desc" } }, take: 60 }),
     prisma.shipmentEvent.groupBy({ by: ["responsibleName"], where: { shipment: { organizationId: orgId }, responsibleName: { not: null } }, _count: { _all: true }, orderBy: { _count: { responsibleName: "desc" } }, take: 60 }),
+    loadShipmentPeople(orgId),
     canEdit ? prisma.productionBatch.findMany({ where: { organizationId: orgId }, select: { id: true, number: true, name: true, year: true }, orderBy: { number: "desc" } }) : Promise.resolve([]),
     canEdit ? prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
@@ -232,7 +234,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           <h2 className="block-title">
             Хронология <span className="font-normal text-neutral-500">({sorted.length})</span>
           </h2>
-          {canEdit && <NewEventButton shipmentId={s.id} titles={titles} names={names} />}
+          {canEdit && <NewEventButton shipmentId={s.id} titles={titles} people={people} />}
         </div>
         {sorted.length === 0 ? (
           <p className="rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-8 text-center text-sm text-neutral-500">
@@ -268,26 +270,37 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                           </div>
                         )}
                         <div className="relative">
-                          <span aria-hidden data-marker={e.expected ? "expected" : "done"} className={"absolute -left-[1.5rem] top-4 h-3.5 w-3.5 rounded-full border-2 " + (e.expected ? `border-dashed bg-white ${tone.ring}` : tone.dot)} />
-                          <div className={"flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:gap-4 " + (e.expected ? "border-dashed border-neutral-200 bg-neutral-50/60 text-neutral-400" : "border-neutral-200 bg-white shadow-sm")} title={fmtWall(e.occurredAt, e.timeKnown)}>
-                            <div className="flex shrink-0 flex-row flex-wrap items-center gap-x-2 gap-y-0.5 tabular-nums sm:w-28 sm:flex-col sm:items-start" data-event-side>
-                              <span className={"rounded px-1.5 py-0.5 text-[11px] font-medium " + (e.expected ? "bg-neutral-100 text-neutral-400" : tone.badge)}>{side ? SIDE_LABEL[side] : "не указано"}</span>
-                              <span className={"text-lg font-semibold leading-tight " + (e.expected ? "text-neutral-400" : "text-neutral-900")}>
+                          {e.expected ? (
+                            <span aria-hidden data-marker="expected" className="absolute -left-[1.5rem] top-4 flex h-3.5 w-3.5 items-center justify-center">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400/60 motion-reduce:animate-none" />
+                              <span className="relative inline-flex h-3.5 w-3.5 rounded-full border-2 border-orange-500 bg-white" />
+                            </span>
+                          ) : (
+                            <span aria-hidden data-marker="done" className="absolute -left-[1.5rem] top-4 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-600">
+                              <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6.5l2.5 2.5 4.5-5" /></svg>
+                            </span>
+                          )}
+                          <div className={"flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:gap-4 " + (e.expected ? "border-dashed border-orange-300 bg-neutral-50/60 text-neutral-400" : "border-neutral-200 bg-white shadow-sm")} title={fmtWall(e.occurredAt, e.timeKnown)}>
+                            <div className="flex shrink-0 flex-col items-start gap-0.5 tabular-nums sm:w-28" data-event-side>
+                              <span data-left="side" className={"rounded px-1.5 py-0.5 text-[11px] font-medium " + (e.expected ? "bg-neutral-100 text-neutral-400" : tone.badge)}>{side ? SIDE_LABEL[side] : "не указано"}</span>
+                              <span data-left="date" className={"text-[11px] " + (e.expected ? "text-neutral-400" : "text-neutral-600")}>{wallDateRu(e.occurredAt)}</span>
+                              <span data-left="time" className={"text-lg font-semibold leading-tight " + (e.expected ? "text-neutral-400" : "text-neutral-900")}>
                                 {time ?? <span className="text-[10px] font-normal text-neutral-400">время не указано</span>}
                               </span>
-                              <span className="text-[11px] text-neutral-500" title="Автор / ответственный действия">{resp || "—"}</span>
+                              <span data-left="who" className="text-[11px] text-neutral-500" title="Автор / ответственный действия">{resp || "—"}</span>
                             </div>
-                            <div className="min-w-0 flex-1 sm:border-l sm:border-neutral-100 sm:pl-4">
+                            <div aria-hidden className="h-px w-full shrink-0 bg-neutral-200 sm:h-auto sm:w-px" data-event-divider />
+                            <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
                                 <h4 className={"min-w-[10rem] flex-1 break-words text-sm font-semibold " + (e.expected ? "text-neutral-500" : "text-neutral-900")}>
                                   {e.title}
-                                  {e.expected && <span className="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-normal text-neutral-500">ожидается</span>}
+                                  {e.expected ? <span className="ml-2 rounded bg-orange-50 px-1.5 py-0.5 text-[11px] font-normal text-orange-700">ожидается</span> : <span className="ml-2 text-[11px] font-normal text-emerald-700" data-passed>пройдено</span>}
                                   <span className="ml-1.5 cursor-help rounded-full border border-neutral-300 px-1 text-[10px] font-normal text-neutral-400" title={trail} aria-label={trail} tabIndex={0}>i</span>
                                 </h4>
-                                {canEdit && <EventActions v={values(e)} titles={titles} names={names} canDone={!isAcceptanceEvent(e)} />}
+                                {canEdit && <EventActions v={values(e)} titles={titles} people={people} canDone={!isAcceptanceEvent(e)} />}
                               </div>
                               {e.details && <ClampText text={e.details} />}
-                              {e.place && <p className="mt-0.5 text-[11px] text-neutral-500">место: {e.place}</p>}
+                              {e.place && <p className="mt-0.5 text-[11px] text-neutral-500" data-place>место: {e.place}</p>}
                               {(e.documents.length > 0 || docs.length > 0) && (
                                 <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
                                   {e.documents.map((d) => (

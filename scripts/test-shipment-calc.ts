@@ -2,7 +2,7 @@
  * Чистые расчёты раздела «Отгрузки» (без базы и prisma generate):
  *   node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/test-shipment-calc.ts
  */
-import { acceptLineError, acceptSummaryText, deliverySummary, dayHeading, groupByOrder, groupEventsByDay, isAcceptanceEvent, sideError, planVsFact, shipmentTotals, shortStamp, wallToDate } from "../src/lib/shipment-calc";
+import { buildPeopleBySide, wallDateRu, acceptLineError, acceptSummaryText, deliverySummary, dayHeading, groupByOrder, groupEventsByDay, isAcceptanceEvent, sideError, planVsFact, shipmentTotals, shortStamp, wallToDate } from "../src/lib/shipment-calc";
 
 let fails = 0;
 const ok = (c: unknown, m: string) => { console.log(`${c ? "ok  " : "FAIL"} ${m}`); if (!c) fails++; };
@@ -67,6 +67,21 @@ ok(gd.map((g) => g.items.length).join() === "1,2,2,2", "группы по дня
 ok(gd.map((g) => g.kind).join() === "past,past,today,upcoming", "виды: " + gd.map((g) => g.kind).join());
 ok(gd.flatMap((g) => g.items.map((x) => x.index)).join() === "0,1,2,3,4,5,6", "индексы сохраняют общий порядок");
 ok(groupEventsByDay([], "2026-10-14").length === 0, "пусто — нет групп");
+
+// действующие лица
+const pe = buildPeopleBySide(
+  [
+    { side: "CUM", responsibleName: "Ольга" }, { side: "CUM", responsibleName: " ольга " }, { side: "CUM", responsibleName: "Анна" },
+    { side: "WELLMEKH", responsibleName: "Василий (Веллмех)" }, { side: "WELLMEKH", responsibleName: "Василий (Веллмех)" }, { side: "WELLMEKH", responsibleName: "Геннадий (Веллмех)" },
+    { side: "WELLMEKH", responsibleName: null }, { side: null, responsibleName: "Без стороны" }, { side: "CUM", responsibleName: "  " },
+  ],
+  { CUM: ["Анна", "Пётр", "Анна"] },
+);
+ok(pe.CUM.join() === "Ольга,Анна,Пётр", "ЦУМ: по частоте, затем пользователи приложения без дублей: " + pe.CUM.join());
+ok(pe.WELLMEKH.join() === "Василий (Веллмех),Геннадий (Веллмех)", "Веллмех: свои имена, чужая сторона не примешивается: " + pe.WELLMEKH.join());
+ok(!Object.values(pe).flat().includes("Без стороны"), "этап без стороны в списки не попадает");
+ok(buildPeopleBySide([]).CUM.length === 0 && buildPeopleBySide([]).WELLMEKH.length === 0, "пусто — пустые списки обеих компаний");
+ok(wallDateRu(wallToDate("2026-10-09", "19:07")) === "09.10.2026", "дата карточки: 09.10.2026");
 
 console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсе проверки пройдены");
 process.exit(fails ? 1 : 0);

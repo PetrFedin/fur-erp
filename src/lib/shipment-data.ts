@@ -6,7 +6,7 @@ import { loadTzPositions } from "@/lib/order-label-db";
 import { orderLabel } from "@/lib/order-label";
 import { ORDER_COLORS_INCLUDE } from "@/lib/order-colors";
 import { furKindsOfOrder } from "@/lib/order-fur";
-import { candidateRows, defaultShipmentName, lineKey, MONTHS_NOM } from "@/lib/shipment-calc";
+import { buildPeopleBySide, candidateRows, defaultShipmentName, lineKey, MONTHS_NOM } from "@/lib/shipment-calc";
 import { orderSortKey } from "@/lib/shipments";
 
 export type ShipmentCandidate = {
@@ -93,4 +93,15 @@ export async function nextShipmentName(orgId: string, plannedDate?: string): Pro
     select: { name: true },
   });
   return defaultShipmentName(d.getUTCMonth(), d.getUTCFullYear(), names.map((n) => n.name));
+}
+
+/** Действующие лица по компаниям: имена из этапов всех отгрузок организации; для ЦУМ ещё активные пользователи приложения. Отдельной таблицы нет. */
+export async function loadShipmentPeople(orgId: string): Promise<Record<string, string[]>> {
+  const [groups, users] = await Promise.all([
+    prisma.shipmentEvent.groupBy({ by: ["side", "responsibleName"], where: { shipment: { organizationId: orgId }, responsibleName: { not: null } }, _count: { _all: true } }),
+    prisma.user.findMany({ where: { organizationId: orgId, isActive: true }, select: { name: true } }),
+  ]);
+  // groupBy даёт строку на пару (side, имя) со счётчиком: разворачиваем в события для общей чистой функции.
+  const events = groups.flatMap((g) => Array.from({ length: g._count._all }, () => ({ side: g.side, responsibleName: g.responsibleName })));
+  return buildPeopleBySide(events, { CUM: users.map((u) => u.name) });
 }

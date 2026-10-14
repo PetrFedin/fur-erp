@@ -31,6 +31,9 @@ export const wallTimeHm = (d: Date) => d.toISOString().slice(11, 16);
 
 const ruDay = (d: Date) => `${p2(d.getUTCDate())}.${p2(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
 
+/** «09.10.2026» (для карточки этапа). */
+export const wallDateRu = ruDay;
+
 /** «09.10.2026 19:07»; время неизвестно — «05.10.2026». */
 export function fmtWall(d: Date, timeKnown: boolean): string {
   return timeKnown ? `${ruDay(d)} ${wallTimeHm(d)}` : ruDay(d);
@@ -154,6 +157,41 @@ export const isSide = (v: string) => SIDES.some((x) => x.value === v);
 export const SIDE_ERROR = "Укажите, на ком этап: Веллмех или ЦУМ";
 /** «На ком» обязателен и только Веллмех / ЦУМ: текст ошибки или null. */
 export const sideError = (v: string | null | undefined): string | null => (v && isSide(v) ? null : SIDE_ERROR);
+
+// ───────────── действующие лица ─────────────
+
+export type PeopleBySide = Record<string, string[]>;
+
+/**
+ * Список действующих лиц по компаниям: имена из этапов (без учёта регистра и пробелов по краям), по частоте, затем по алфавиту.
+ * `extra` — дополнительные имена по компании (для ЦУМ: пользователи приложения); в конец, если их нет среди вписанных.
+ * Отдельной таблицы нет: вписанный в этап человек сам попадает в список.
+ */
+export function buildPeopleBySide(
+  events: readonly { side: string | null; responsibleName: string | null }[],
+  extra: Partial<Record<string, readonly string[]>> = {},
+): PeopleBySide {
+  const out: PeopleBySide = {};
+  for (const { value } of SIDES) {
+    const count = new Map<string, { name: string; n: number }>();
+    for (const e of events) {
+      if (e.side !== value) continue;
+      const name = (e.responsibleName ?? "").trim();
+      if (!name) continue;
+      const k = name.toLowerCase();
+      const cur = count.get(k);
+      if (cur) cur.n++;
+      else count.set(k, { name, n: 1 });
+    }
+    const used = [...count.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, "ru")).map((x) => x.name);
+    const seen = new Set(used.map((x) => x.toLowerCase()));
+    const more = [...new Set((extra[value] ?? []).map((x) => x.trim()).filter(Boolean))]
+      .filter((x) => !seen.has(x.toLowerCase()))
+      .sort((a, b) => a.localeCompare(b, "ru"));
+    out[value] = [...used, ...more];
+  }
+  return out;
+}
 
 // ───────────── этап приёмки и итог поставки ─────────────
 

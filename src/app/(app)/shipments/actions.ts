@@ -348,6 +348,7 @@ export async function createEvent(shipmentId: string, _prev: ShipmentFormState, 
   const nextDate = str(fd, "nextDate");
   const nextTime = str(fd, "nextTime");
   const nextSide = str(fd, "nextSide") || e.side;
+  const nextWho = await resolveResponsible(orgId, str(fd, "nextResponsible"));
   if (nextTitle) {
     const ns = sideError(nextSide);
     if (ns) return { error: ns };
@@ -359,7 +360,7 @@ export async function createEvent(shipmentId: string, _prev: ShipmentFormState, 
     const ev = await tx.shipmentEvent.create({ data: { shipmentId, ...e, createdById: session.user.id } });
     if (nextTitle) {
       await tx.shipmentEvent.create({
-        data: { shipmentId, title: nextTitle, occurredAt: wallToDate(nextDate, nextTime), timeKnown: Boolean(nextTime), expected: true, side: nextSide, createdById: session.user.id },
+        data: { shipmentId, title: nextTitle, occurredAt: wallToDate(nextDate, nextTime), timeKnown: Boolean(nextTime), expected: true, side: nextSide, ...nextWho, createdById: session.user.id },
       });
     }
     return ev;
