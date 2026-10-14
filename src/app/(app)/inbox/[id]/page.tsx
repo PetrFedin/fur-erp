@@ -16,6 +16,7 @@ import { DecideButtons } from "./decide";
 import { FinalFigures } from "../../supplier/auction-calcs/final-figures";
 import { finalFigures } from "@/lib/supplier-calc-simple";
 import { CompareBlock } from "../../supplier/auction-calcs/compare-block";
+import { CalcSheetReadonly } from "@/components/calc-sheet-readonly";
 import { DocumentCard } from "./document-card";
 
 export const metadata = { title: "Входящее" };
@@ -45,6 +46,7 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
     <div className="flex flex-col gap-4">
       <FinalFigures {...ff} />
       <p className="text-sm text-neutral-700">Аукцион <b>{dash(h.auction)}</b> · счёт № {dash(h.invoice)} от {dash(h.invoiceDate)} · курс {money(t.rate)} · {p.stage ? STAGE_LABEL[p.stage] : "окончательный"}</p>
+      {p.format === "SHEET" ? <CalcSheetReadonly p={p} t={t} maxHeight="70vh" /> : (
       <div className="overflow-x-auto">
         <Table className="min-w-[640px]">
           <Thead><Tr><Th>Лот</Th><Th>Мех</Th><Th>Цвет / размер</Th><Th className="text-right">Кол-во</Th><Th className="text-right">Цена, {h.currency === "EUR" ? "€" : "$"}</Th><Th className="text-right">Себестоимость за шкуру, ₽</Th><Th className="text-right">За лот, ₽</Th></Tr></Thead>
@@ -59,7 +61,7 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
             {used.length === 0 && <Tr><Td colSpan={7} className="py-4 text-center text-neutral-500">В расчёте нет лотов</Td></Tr>}
           </Tbody>
         </Table>
-      </div>
+      </div>)}
       <CompareBlock s={s} payload={p} />
       <details className="rounded-md border border-neutral-200 p-3">
         <summary className="cursor-pointer select-none text-sm font-medium">Подробности: ставки, столбцы, формулы</summary>
@@ -96,28 +98,7 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
         </div>
       )}
       {h.extras.length > 0 && <p className="text-sm text-neutral-700">Прочие расходы: {h.extras.map((e) => `${e.name || "без названия"} — ${e.amount} (${e.mode === "total" ? "на весь счёт" : "на шкуру"})`).join("; ")}</p>}
-      <div className="overflow-x-auto">
-        <Table className="min-w-[900px]">
-          <Thead>
-            <Tr><Th>Лот</Th><Th>Мех</Th><Th>Размер / описание</Th><Th>Шт.</Th><Th>Закупка ({h.currency})</Th>{costCols.map((c) => <Th key={c.key}>{c.label}</Th>)}{t.sheet.cols.filter((c) => c.kind === "custom").map((c) => <Th key={c.id}>{c.letter} · {c.title}</Th>)}<Th>Себестоимость шкуры, ₽</Th><Th>Итого, ₽</Th></Tr>
-          </Thead>
-          <Tbody>
-            {used.map(({ r, i }) => (
-              <Tr key={i}>
-                <Td>{dash(r.lot)}</Td><Td>{dash(r.fur)}</Td><Td>{dash(r.size)}</Td><Td className="tabular-nums">{dash(r.qty)}</Td><Td className="tabular-nums">{dash(r.price)}</Td>
-                {costCols.map((c) => <Td key={c.key} className="tabular-nums">{dash(r[c.key])}</Td>)}
-                {t.sheet.cols.filter((c) => c.kind === "custom").map((c) => <Td key={c.id} className="tabular-nums">{t.sheet.cells[c.id][i].v != null ? money(t.sheet.cells[c.id][i].v!) : <span className="text-red-700">ошибка</span>}{t.sheet.cells[c.id][i].manual ? " (вручную)" : ""}</Td>)}
-                <Td className="tabular-nums font-medium">{t.calcs[i].ok ? money(t.calcs[i].unitRub) : <span className="text-red-700">{t.calcs[i].problems.join(", ")}</span>}</Td>
-                <Td className="tabular-nums">{money(t.calcs[i].totalRub)}</Td>
-              </Tr>
-            ))}
-            <Tr className="font-semibold">
-              <Td colSpan={3}>Итого</Td><Td className="tabular-nums">{plainNum(t.qty)}</Td><Td colSpan={costCols.length + 2 + t.sheet.cols.filter((c) => c.kind === "custom").length} />
-              <Td className="tabular-nums">{money(t.totalRub)}</Td>
-            </Tr>
-          </Tbody>
-        </Table>
-      </div>
+      {p.format !== "SHEET" && <CalcSheetReadonly p={p} t={t} maxHeight="70vh" />}
       <p className="text-sm text-neutral-700">Итого по счёту <b>{money(t.totalRub)} ₽</b>
         {t.advance > 0 && <> · аванс {money(t.advance)} ₽</>}{t.interim > 0 && <> · промежуточный {money(t.interim)} ₽</>}{(t.advance > 0 || t.interim > 0) && <> · остаток <b>{money(t.rest)} ₽</b></>}
       </p>
