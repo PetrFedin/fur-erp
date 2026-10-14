@@ -3,7 +3,9 @@
 import { useRef, useState, type ClipboardEvent, type Dispatch, type KeyboardEvent, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
-import { QTY_COL, UNIT_COL, checkDiffs, columnUsers, newId, paramList, paramNameProblem, remapCustomRefs, syncLetters, type CalcPayload, type CalcTotals, type CustomCol, type SheetCol } from "@/lib/supplier-calc";
+import { QTY_COL, UNIT_COL, checkDiffs, rowFilled, columnUsers, newId, paramList, paramNameProblem, remapCustomRefs, syncLetters, type CalcPayload, type CalcTotals, type CustomCol, type SheetCol } from "@/lib/supplier-calc";
+import { applySheetTable, findHeaderRow, parseClipboardTable, type PasteResult } from "@/lib/sheet-paste";
+import { readCalcTable } from "./actions";
 import { ColumnEditor, draftFrom, draftProblem, newDraft, type Draft } from "./column-editor";
 
 const fmt = (n: number | null | undefined) => (n == null || !Number.isFinite(n) ? "" : n.toLocaleString("ru-RU", { maximumFractionDigits: 4 }));
@@ -21,6 +23,10 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
   const [pval, setPval] = useState("");
   const [perr, setPerr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [report, setReport] = useState<PasteResult | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
   const [act, setAct] = useState<{ i: number; id: string } | null>(null);
@@ -92,6 +98,32 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
     setPname(""); setPval("");
   };
 
+  /** Таблица из Excel (буфер или файл) → лоты по заголовкам столбцов; сверка с формулами показывается в отчёте. */
+  const applyTable = (table: string[][], replace: boolean) => {
+    const r = applySheetTable(p, table, { replace });
+    if ("error" in r) { setNote(r.error); setReport(null); return false; }
+    setP(r.payload);
+    setReport(r);
+    setNote(null);
+    return true;
+  };
+  const fillDown = (r: number, ci: number) => {
+    const col = sh.cols[ci];
+    if (!col || col.kind !== "input") return;
+    const v = p.rows[r]?.[col.id] ?? "";
+    setP((x) => ({ ...x, rows: x.rows.map((row, j) => (j > r && rowFilled(row) ? { ...row, [col.id]: v } : row)) }));
+    setNote(`Значение «${v}» скопировано вниз по столбцу ${col.letter} (во все заполненные строки ниже).`);
+  };
+  const filledRows = p.rows.some(rowFilled);
+  const uploadTable = async (f: File) => {
+    const fd = new FormData();
+    fd.set("file", f);
+    const res = await readCalcTable(fd);
+    if (res.error || !res.table) return setNote(res.error ?? "Не удалось прочитать файл");
+    applyTable(res.table, !filledRows);
+  };
+  const rowParamList = p.rows.flatMap((row, i) => Object.entries(row).filter(([k, v]) => k.startsWith("@") && v.trim() !== "").map(([k, v]) => ({ i, k, v, name: k.slice(1) })));
+
   // ------------------------------------------------------------------------------------ клавиатура и вставка
   const focusCell = (r: number, c: number) => {
     const el = tableRef.current?.querySelector<HTMLInputElement>(`[data-cell="${r}-${c}"]`);
@@ -99,7 +131,8 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
     return false;
   };
   const onKey = (e: KeyboardEvent<HTMLInputElement>, r: number, c: number) => {
-    if (e.key === "Enter") { e.preventDefault(); focusCell(e.shiftKey ? r - 1 : r + 1, c); }
+    if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "в")) { e.preventDefault(); fillDown(r, c); }
+    else if (e.key === "Enter") { e.preventDefault(); focusCell(e.shiftKey ? r - 1 : r + 1, c); }
     else if (e.key === "ArrowDown") { e.preventDefault(); focusCell(r + 1, c); }
     else if (e.key === "ArrowUp") { e.preventDefault(); focusCell(r - 1, c); }
   };
@@ -107,6 +140,8 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
     const text = e.clipboardData.getData("text");
     if (!/[\t\n]/.test(text.replace(/\n$/, ""))) return; // одно значение — обычная вставка
     e.preventDefault();
+    const tbl = parseClipboardTable(text);
+    if (isSheet && findHeaderRow(tbl) >= 0) { applyTable(tbl, !filledRows); return; }
     const grid = text.replace(/\r/g, "").replace(/\n$/, "").split("\n").map((l) => l.split("\t"));
     const inputs = sh.cols.slice(ci).filter((c) => c.kind === "input");
     if (inputs.length === 0) return setNote("С этой ячейки вправо нет столбцов ввода — формулы вставкой не затираются.");
@@ -179,7 +214,36 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
           <Button type="button" size="sm" variant="outline" onClick={() => setDraft(newDraft("formula"))}>+ Столбец с формулой</Button>
           {isSheet && <Button type="button" size="sm" variant="outline" onClick={() => setDraft(newDraft("input"))}>+ Столбец для ввода</Button>}
           <Button type="button" size="sm" variant="outline" onClick={newRow}>+ Лот</Button>
-          <span className="text-xs text-neutral-500">Диапазон из Excel можно вставить (Ctrl+V) в любую ячейку ввода.</span>
+          {isSheet && <Button type="button" size="sm" variant="outline" onClick={() => setPasteOpen((v) => !v)}>Вставить таблицу из Excel</Button>}
+          {isSheet && (<>
+            <input ref={fileRef} type="file" accept=".xlsx,.csv,.txt,.tsv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadTable(f); e.target.value = ""; }} />
+            <Button type="button" size="sm" variant="outline" onClick={() => fileRef.current?.click()}>Загрузить файл Excel</Button>
+          </>)}
+          <span className="text-xs text-neutral-500">Скопируйте из Excel строки вместе с заголовками (invoice, lot, quantity, Закупка…) и вставьте (Ctrl+V) в любую ячейку — столбцы найдутся по названиям. Ctrl+D — копировать значение вниз.</span>
+        </div>
+      )}
+      {pasteOpen && !ro && isSheet && (
+        <div className="flex flex-col gap-2 rounded-md border border-dashed border-neutral-300 p-3">
+          <Label>Вставьте сюда таблицу из Excel (с заголовками)</Label>
+          <textarea className="min-h-24 w-full rounded-md border border-neutral-300 p-2 font-mono text-xs" rows={5} value={pasteText} onChange={(e) => setPasteText(e.target.value)} autoFocus
+            onPaste={(e) => { const tx = e.clipboardData.getData("text"); if (findHeaderRow(parseClipboardTable(tx)) >= 0) { e.preventDefault(); if (applyTable(parseClipboardTable(tx), !filledRows)) { setPasteOpen(false); setPasteText(""); } } }} />
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" onClick={() => { if (applyTable(parseClipboardTable(pasteText), false)) { setPasteOpen(false); setPasteText(""); } }}>{filledRows ? "Добавить к лотам" : "Вставить"}</Button>
+            {filledRows && <Button type="button" size="sm" variant="outline" onClick={() => { if (confirm("Заменить все лоты таблицей из буфера?") && applyTable(parseClipboardTable(pasteText), true)) { setPasteOpen(false); setPasteText(""); } }}>Заменить все лоты</Button>}
+            <Button type="button" size="sm" variant="ghost" onClick={() => { setPasteOpen(false); setPasteText(""); }}>Отмена</Button>
+          </div>
+        </div>
+      )}
+      {report && (
+        <div role="status" className="flex flex-col gap-1 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm">
+          <p className="font-medium">{report.notes.join(" ")} Распознаны столбцы: {report.mapped.join(", ")}.</p>
+          {report.skipped.length > 0 && <p className="text-xs text-neutral-600">Не использованы (считаются у нас по формулам формата или не нужны): {report.skipped.join(", ")}.</p>}
+          {report.checks.length > 0 && (
+            <p className="text-xs">Сверка с вашим файлом по итогам столбцов: {report.checks.map((x) => `${x.title.replace(/ \(в файле [A-Z]+\)/, "")} — ${x.ok ? "совпало" : `в файле ${fmt(x.file)}, у нас ${fmt(x.ours)} — проверьте`}`).join("; ")}.</p>
+          )}
+          {report.rowParams.length > 0 && <p className="text-xs text-neutral-700">В файле у некоторых лотов другие значения, чем в шапке — записаны для этих строк: {report.rowParams.join("; ")}.</p>}
+          {report.manualCells > 0 && <p className="text-xs text-amber-800">Ячеек со значением «вручную» из файла: {report.manualCells} (жёлтые).</p>}
+          <div><button type="button" className="text-xs text-neutral-500 underline" onClick={() => setReport(null)}>скрыть</button></div>
         </div>
       )}
       {draft && !ro && (
@@ -191,6 +255,17 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
         />
       )}
       {note && <p className="text-sm text-neutral-700">{note}</p>}
+      {rowParamList.length > 0 && (
+        <section className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-600">
+          <span className="font-semibold">Свои значения в строках (вместо шапки):</span>
+          {rowParamList.map((x) => (
+            <span key={x.i + x.k} className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5">
+              строка {x.i + 1}: {x.name} = {x.v.replace(".", ",")}
+              {!ro && <button type="button" className="text-neutral-400 hover:text-red-600" title="Вернуть значение из шапки" onClick={() => setP((y) => ({ ...y, rows: y.rows.map((row, j) => { if (j !== x.i) return row; const n = { ...row }; delete n[x.k]; return n; }) }))}>×</button>}
+            </span>
+          ))}
+        </section>
+      )}
 
       {(p.customColumns ?? []).length > 0 && !ro && (
         <section className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-600">
@@ -242,6 +317,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
         return (
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm">
             <span className="font-mono text-xs text-neutral-500">{col && act ? `${col.letter}${act.i + 1}` : "ячейка"}</span>
+            {!ro && col && col.kind === "input" && act && <button type="button" className="rounded border border-neutral-300 bg-white px-2 text-xs hover:bg-neutral-100" title="Ctrl+D" onClick={() => fillDown(act.i, sh.cols.findIndex((x) => x.id === col.id))}>↓ Заполнить вниз</button>}
             <span className="font-mono">{!col ? "нажмите на ячейку — здесь будет её формула" : ovr ? `${ovr.trim().startsWith("=") ? "" : "= "}${ovr} (вручную)` : cc && cc.kind !== "input" ? (cc.formula ? (cc.formula.startsWith("=") ? cc.formula : `=${cc.formula}`) : "правила по строкам") : col.kind === "input" ? "значение, введённое вручную" : "считается автоматически"}</span>
             {!ro && col && col.kind !== "input" && <span className="text-xs text-neutral-500">Чтобы поправить эту ячейку, впишите число или формулу со знака «=», например <span className="font-mono">=M+500</span> или <span className="font-mono">=E1*2</span> (ссылка на ячейку: буква столбца и номер строки). «↩» вернёт формулу.</span>}
           </div>

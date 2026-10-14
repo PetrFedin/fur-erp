@@ -2,13 +2,14 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { LotOpt } from "@/app/(app)/supplier/tz/tz-form";
 
-/** Справочники для формы ТЗ поставщика. Только названия, номера и остатки: никаких наших цен и себестоимости. */
-export async function loadTzFormRefs(orgId: string): Promise<{ colors: string[]; models: string[]; lots: LotOpt[]; batches: { value: string; label: string }[]; nextNumber: string }> {
+/** Справочники для формы ТЗ поставщика. Только названия и номера его же лотов: никаких наших цен, себестоимости и лотов других поставщиков. */
+export async function loadTzFormRefs(orgId: string, supplierId: string): Promise<{ colors: string[]; models: string[]; lots: LotOpt[]; batches: { value: string; label: string }[]; nextNumber: string }> {
   const [colors, models, lots, orders, inbox, batches] = await Promise.all([
     prisma.colorRef.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: { name: "asc" } }),
     prisma.productModel.findMany({ where: { organizationId: orgId, isActive: true }, select: { name: true, sku: true }, orderBy: { name: "asc" } }),
     prisma.rawMaterialLot.findMany({
-      where: { organizationId: orgId, quantityRemaining: { gt: 0 } },
+      // только лоты из закупок самого поставщика: лоты других поставщиков (и что у нас лежит) ему не показываем
+      where: { organizationId: orgId, quantityRemaining: { gt: 0 }, purchase: { supplierId } },
       select: { id: true, lotNumber: true, color: true, quantityRemaining: true, rawMaterial: { select: { name: true } } },
       orderBy: { createdAt: "desc" }, take: 400,
     }),

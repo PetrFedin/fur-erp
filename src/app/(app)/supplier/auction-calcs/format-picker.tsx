@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
-import { PRESETS, getPreset, payloadFromPreset, presetLabel } from "@/lib/calc-presets";
+import { SUPPLIER_PRESETS, payloadFromPreset, presetLabel } from "@/lib/calc-presets";
 import { FORMAT_LABEL, emptyPayload, newId, rowFilled, syncLetters, type CalcFormat, type CalcPayload } from "@/lib/supplier-calc";
 import { deleteTemplate, listTemplates, renameTemplate, saveTemplate, type TemplateRow } from "./template-actions";
 
@@ -56,7 +56,7 @@ export function FormatPicker({ p, setP, ro, onClassic, notify }: {
       notify(`Формат «${t.name}»: столбцы и параметры подставлены.`);
       return;
     }
-    const pr = getPreset(v);
+    const pr = SUPPLIER_PRESETS.find((x) => x.id === v) ?? null;
     if (!pr) return;
     setP((x) => {
       const rows = (x.format === "SHEET" ? x.rows : [{ fur: "", size: "", lot: "", _id: newId() }]).map((r) => ({ _id: r._id ?? newId(), fur: r.fur ?? "", size: r.size ?? "", lot: r.lot ?? "" }));
@@ -86,7 +86,7 @@ export function FormatPicker({ p, setP, ro, onClassic, notify }: {
             {CLASSIC.map((k) => <option key={k} value={k}>{FORMAT_LABEL[k]}</option>)}
           </optgroup>
           <optgroup label="Образцы из файлов Веллмеха (таблица со столбцами и формулами)">
-            {PRESETS.map((x) => <option key={x.id} value={x.id}>{presetLabel(x)}</option>)}
+            {SUPPLIER_PRESETS.map((x) => <option key={x.id} value={x.id}>{presetLabel(x)}</option>)}
           </optgroup>
           {(tpls?.length ?? 0) > 0 && (
             <optgroup label="Мои форматы">

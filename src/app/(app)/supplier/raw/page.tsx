@@ -9,6 +9,7 @@ import { cleanSearch } from "@/lib/input";
 import { formatDate } from "@/lib/utils";
 import { AttachDocument } from "./attach";
 import { RawChip } from "@/components/raw-stages";
+import { summarizeStages } from "@/lib/raw-stage";
 
 export const metadata = { title: "Сырьё" };
 
@@ -85,6 +86,32 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
         <button type="submit" className={buttonVariants({ size: "sm" })}>Показать</button>
         {filtered && <Link href="/supplier/raw" className={buttonVariants({ size: "sm", variant: "outline" })}>Сбросить</Link>}
       </form>
+
+      {groups.size > 0 && (
+        <section className="flex flex-col gap-1 rounded-md border border-neutral-300 bg-white p-3" aria-label="Где сырьё по аукционам">
+          <h2 className="text-sm font-semibold">Где сырьё сейчас — по аукционам</h2>
+          <p className="text-xs text-neutral-500">Этап, место и ожидаемая дата по каждому аукциону одним списком. Чтобы обновить, откройте аукцион («Подробно →») и нажмите «+ Этап»: мы сразу увидим.</p>
+          <Table className="min-w-[640px]">
+            <Thead><Tr><Th>Аукцион</Th><Th>Счёт</Th><Th>Шкур</Th><Th>Сейчас</Th>{isSup && <Th />}</Tr></Thead>
+            <Tbody>
+              {Array.from(groups.values()).map((g) => {
+                const h = g[0];
+                const st = stagesOf(h.purchaseId);
+                const sum = summarizeStages(st);
+                return (
+                  <Tr key={h.purchaseId}>
+                    <Td className="font-medium">{h.auction || h.purchaseNumber}</Td>
+                    <Td>{h.invoice || "—"}</Td>
+                    <Td className="tabular-nums">{num(g.reduce((a, r) => a + r.quantity, 0))}</Td>
+                    <Td>{sum ? <span className={sum.overdue ? "text-red-800" : ""}><RawChip stages={st} /> <span className="text-xs text-neutral-600">{sum.place}</span></span> : <span className="text-neutral-500">{h.received ? "принято у нас на склад" : "этапов нет — отметьте, где мех"}</span>}</Td>
+                    {isSup && <Td><Link href={`/supplier/raw/${h.purchaseId}`} className="text-sm text-blue-700 underline">{sum ? "Подробно" : "+ Этап"}</Link></Td>}
+                  </Tr>
+                );
+              })}
+            </Tbody>
+          </Table>
+        </section>
+      )}
 
       <p className="text-sm text-neutral-700">Лотов: <b>{rows.length}</b> · шкур: <b>{num(qty)}</b>{!mixed && rows.length > 0 && <> · сумма по УПД без НДС: <b>{money(sum)} {cur(rows[0].currency)}</b></>}</p>
 

@@ -93,6 +93,21 @@ export async function parseCalcFile(formData: FormData): Promise<R> {
   }
 }
 
+/** Файл Excel/CSV → таблица ячеек (для вставки по заголовкам в «Свою таблицу»). Ничего не сохраняет. */
+export async function readCalcTable(formData: FormData): Promise<{ error?: string; table?: string[][] }> {
+  await requireSupplierSession();
+  const f = formData.get("file");
+  if (!f || typeof f === "string" || f.size === 0) return { error: "Выберите файл" };
+  if (f.size > 10 * 1024 * 1024) return { error: "Файл больше 10 МБ" };
+  const name = (f.name || "файл").replace(/[\u0000-\u001f]/g, "");
+  if (!/\.(xlsx|csv|txt|tsv)$/i.test(name)) return { error: /\.xls$/i.test(name) ? "Формат .xls не читается — сохраните файл в Excel как .xlsx" : "Подходят файлы Excel (.xlsx) и CSV" };
+  try {
+    return { table: await parseTableFile(Buffer.from(await f.arrayBuffer()), name) };
+  } catch {
+    return { error: "Не удалось прочитать файл. Сохраните его как .xlsx заново." };
+  }
+}
+
 export async function attachInboxFile(id: string, kind: string, formData: FormData): Promise<R> {
   const s = await requireSupplierSession();
   if (!INBOX_FILE_KINDS.some((k) => k.key === kind)) return { error: "Неизвестный тип файла" };

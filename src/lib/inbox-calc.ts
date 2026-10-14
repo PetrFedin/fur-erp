@@ -81,7 +81,7 @@ export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResu
   used.forEach(({ row: r, index }, k) => {
     const priceN = isSheet ? sheetPrice(index) : n0(r.price);
     const name = `строка ${k + 1}`;
-    const base: IntakeRow = { n: k + 1, ...EMPTY_ROW, lot: r.lot.trim(), material: r.fur.trim(), grade: r.size.trim(), qty: t(all.qtys[index]), price: t(priceN) };
+    const base: IntakeRow = { n: k + 1, ...EMPTY_ROW, invoice: (r.invoice ?? "").trim(), lot: r.lot.trim(), material: r.fur.trim(), grade: r.size.trim(), qty: t(all.qtys[index]), price: t(priceN) };
     if (!(all.qtys[index] > 0) || !(priceN > 0)) errors.push(`${name}: нет количества или цены`);
     const extra = all.extraRub;
     if (isSheet) {
@@ -137,13 +137,16 @@ export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResu
 
   if (errors.length) return { payload: null, errors, warnings };
   const date = isoOk(h.invoiceDate) ? h.invoiceDate : ctx.today;
+  // В одном расчёте может быть несколько аукционных счетов (по одному на закупку): у каждой строки свой счёт, закупок создаётся по числу счетов.
+  const rowInvoices = [...new Set(rows.map((x) => x.invoice).filter(Boolean))];
+  const invoiceFallback = rowInvoices.length > 1 ? rowInvoices[0] : h.invoice.trim();
   const payload: BatchPayload = {
     key: `inbox-${ctx.inboxId}`.replace(/[^A-Za-z0-9-]/g, ""),
     header: {
       auctionId: ctx.auctionId ?? "",
       newAuction: ctx.auctionId ? null : { name: h.auction.replace(/\(.*$/, "").replace(/\s+/g, " ").trim(), date: "", house: "" },
       supplierId: ctx.supplierId, warehouseId: "", orderDate: date, currency: cur, exchangeRate: String(rate), vatDefault: vat,
-      invoiceNumber: h.invoice.trim(), invoiceDate: isoOk(h.invoiceDate) ? h.invoiceDate : "", receiveNow: false,
+      invoiceNumber: invoiceFallback, invoiceDate: isoOk(h.invoiceDate) ? h.invoiceDate : "", receiveNow: false,
       notes: `Из кабинета поставщика: ${ctx.title}`.slice(0, 1000), serviceVat,
     },
     rows,

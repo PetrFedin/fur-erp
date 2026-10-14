@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { inboxScope, type SupplierSess } from "@/lib/supplier-inbox";
-import { emptyPayload, ensureRowIds, newId, type CalcPayload } from "@/lib/supplier-calc";
+import { emptyPayload, emptyRow, ensureRowIds, newId, type CalcPayload } from "@/lib/supplier-calc";
 
 export type StartOption = { value: string; label: string };
 
@@ -48,7 +48,10 @@ export async function payloadFromBase(s: SupplierSess, from: string): Promise<Ca
     const pu = await prisma.purchase.findFirst({
       where: { organizationId: s.user.organizationId, supplierId, auctionId: id, auction: { isService: false } },
       orderBy: { orderDate: "desc" },
-      select: { currency: true, exchangeRate: true, auction: { select: { name: true } }, items: { select: { vatRate: true, unitPrice: true, costPlan: true }, take: 20 } },
+      select: {
+        currency: true, exchangeRate: true, invoiceNumber: true, auction: { select: { name: true } },
+        items: { select: { vatRate: true, unitPrice: true, costPlan: true, lotNumber: true, grade: true, color: true, quantity: true, rawMaterial: { select: { name: true } } }, orderBy: { lotNumber: "asc" }, take: 300 },
+      },
     });
     if (!pu) return null;
     const p = emptyPayload("SP_RP");
@@ -82,6 +85,15 @@ export async function payloadFromBase(s: SupplierSess, from: string): Promise<Ca
       break;
     }
     p.header.rates = rates;
+    // Лоты закупки: номер, мех, размер, количество и цена молотка — это данные самого поставщика (он сам их присылал); наших цен продажи здесь нет.
+    const lots = pu.items.filter((it) => Number(it.quantity) > 0 && Number(it.unitPrice) > 0);
+    if (lots.length > 0) {
+      p.rows = lots.map((it) => ({
+        ...emptyRow("SP_RP"), _id: newId(), invoice: pu.invoiceNumber ?? "", fur: it.rawMaterial.name, size: [it.color, it.grade].filter(Boolean).join(" "),
+        lot: it.lotNumber ?? "", qty: String(Number(it.quantity)), price: String(Number(it.unitPrice)),
+      }));
+      if (pu.invoiceNumber) p.header.invoice = pu.invoiceNumber;
+    }
     const vat = Number(pu.items[0]?.vatRate);
     if (vat > 0) p.header.vat = String(vat);
     return p;

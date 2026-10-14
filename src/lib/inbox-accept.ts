@@ -106,11 +106,18 @@ async function acceptCalc(s: Sess, row: Row): Promise<AcceptResult> {
   const payload = mapped.payload;
 
   // вложения: как документы закупки (PurchaseDocument), копией в хранилище закупок
+  // счета в расчёте с несколькими аукционными счетами: номер документа берём из имени файла («3017 ООО ВеллМех.pdf»), если он среди счетов расчёта
+  const rowInvoices = [...new Set(payload.rows.map((x) => x.invoice).filter(Boolean))];
+  const numberFor = (name: string) => (rowInvoices.length > 1 ? rowInvoices.find((n) => new RegExp(`(^|[^\\d])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^\\d]|$)`).test(name)) ?? "" : p.header.invoice.trim());
   const docs: DocMeta[] = row.files.map((f, idx) => ({
     idx, name: f.originalName, kind: PURCHASE_DOC_KIND[f.kind] ?? "OTHER",
-    number: f.kind === "AUCTION_INVOICE" || f.kind === "PAYMENT_INVOICE" ? p.header.invoice.trim() : "", date: "", amount: "",
+    number: f.kind === "AUCTION_INVOICE" || f.kind === "PAYMENT_INVOICE" ? numberFor(f.originalName) : "", date: "", amount: "",
   }));
   payload.docs = docs;
+  // защита от дублей: закупка с этим номером счёта у поставщика уже есть (заведена вручную или раньше) — вторую не создаём
+  const known = await loadSupplierInvoices(prisma, orgId, row.supplierId);
+  const dups = planBatch(payload, await loadIntakeRefs(prisma, orgId), 0, known).preview.dupInvoices;
+  if (dups.length) return { error: `Принять нельзя: закупки по этим счетам уже есть — ${dups.map((d) => `счёт ${d.invoice} → ${d.purchaseNumber}`).join("; ")}. Повторное принятие создало бы дубли. Отклоните расчёт с пометкой «уже заведено» или попросите Веллмеха исправить номер счёта.` };
   const loadStored = async (): Promise<{ error: string } | StoredDocs> => {
     const reads: ReadDoc[] = [];
     for (const f of row.files) {
@@ -155,6 +162,10 @@ async function planTz(orgId: string, p: TzPayload): Promise<{ error: string } | 
   const items = p.items.map((it, i) => ({ it, i })).filter(({ it }) => Object.values(it).some((v) => v.trim() !== "" && v !== "1"));
   if (items.length === 0) return { error: "В ТЗ нет ни одного изделия" };
   if (!p.number.trim()) return { error: "В ТЗ не указан номер" };
+
+  // защита от дублей: ТЗ с таким номером у нас уже есть (заведено вручную или раньше принято)
+  const have = await prisma.productionOrder.findMany({ where: { organizationId: orgId, workOrderNumber: p.number.trim() }, select: { number: true }, take: 6 });
+  if (have.length) return { error: `ТЗ № ${p.number.trim()} уже есть у нас (${have.map((x) => x.number).join(", ")}). Принять нельзя — создались бы дубли. Отклоните входящее с пометкой «уже заведено» или попросите Веллмеха поменять номер.` };
 
   // артикулы из справочника — ничего не создаём сами
   const list = await loadArticleList(orgId);
@@ -205,14 +216,14 @@ export async function previewInbox(orgId: string, row: Row): Promise<{ problems:
   const plan = planBatch(m.payload, refs, Number(debt.debt.toFixed(2)), known);
   const t = plan.preview.totals;
   const lines = [
-    `Будет создана закупка (черновик): ${plan.auctionName}${m.payload.header.newAuction ? " — аукциона нет в справочнике, он будет создан" : ""}`,
+    `Будет создано закупок (черновиков): ${plan.purchases.length} — по одной на аукционный счёт (${plan.purchases.map((x) => x.invoice || "—").join(", ")}) · ${plan.auctionName}${m.payload.header.newAuction ? " — аукциона нет в справочнике, он будет создан" : ""}`,
     `Лотов ${t.lots}, шкур ${t.qty}, ${t.inclVat.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₽ с НДС; на склад не принимается`,
     ...m.warnings,
-    ...plan.preview.dupInvoices.map((d) => `Внимание: счёт ${d.invoice} уже есть в закупке ${d.purchaseNumber}`),
   ];
   // «(шаг 2)» — подсказка мастера; здесь пишем сами ошибки строк.
   const rowErrs = plan.preview.validation.checks.flatMap((c, i) => c.errors.map((e) => `Лот ${p.rows[i] ? usedLot(m.payload!, c.n) : c.n}: ${e}`));
-  const problems = [...plan.preview.blocking.filter((b) => !/^В таблице лотов ошибок/.test(b)), ...rowErrs];
+  const dupProblems = plan.preview.dupInvoices.length ? [`Закупки по этим счетам уже есть: ${plan.preview.dupInvoices.map((d) => `счёт ${d.invoice} → ${d.purchaseNumber}`).join("; ")}. Принимать не нужно — иначе будут дубли; отклоните расчёт («уже заведено») или попросите исправить номер счёта.`] : [];
+  const problems = [...plan.preview.blocking.filter((b) => !/^В таблице лотов ошибок/.test(b)), ...rowErrs, ...dupProblems];
   return { problems, lines };
 }
 

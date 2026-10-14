@@ -7,6 +7,8 @@ export const RAW_STAGES = [
   { key: "PAID", label: "Оплачено аукциону" },
   { key: "SHIPPED_AUCTION", label: "Отправлено с аукциона (логистика)" },
   { key: "CUSTOMS", label: "Таможня / доставка" },
+  { key: "TO_MOSCOW", label: "В пути в Москву" },
+  { key: "ARRIVED_MSK", label: "Пришло в Москву" },
   { key: "TO_DRESSING", label: "В пути на выделку" },
   { key: "DRESSING", label: "Выделка" },
   { key: "TONING", label: "Тонировка / покраска" },
@@ -14,13 +16,16 @@ export const RAW_STAGES = [
   { key: "FROM_DRESSING", label: "Возврат с выделки" },
   { key: "TO_WAREHOUSE", label: "В пути на склад" },
   { key: "AT_WAREHOUSE", label: "На складе Веллмеха" },
+  { key: "READY_TO_SEND", label: "Готово к отправке нам" },
+  { key: "SENT_TO_US", label: "Отправлено нам" },
   { key: "HANDED", label: "Передано нам (УПД)" },
+  { key: "DELIVERED", label: "Пришло к нам" },
 ] as const;
 export type RawStageKey = (typeof RAW_STAGES)[number]["key"];
 export const RAW_STAGE_KEYS: string[] = RAW_STAGES.map((s) => s.key);
 export const STAGE_NAME: Record<string, string> = Object.fromEntries(RAW_STAGES.map((s) => [s.key, s.label]));
 /** Короткие подписи для чипа в списках. */
-const SHORT: Record<string, string> = { SHIPPED_AUCTION: "Отправлено с аукциона", CUSTOMS: "Таможня", AT_WAREHOUSE: "На складе Веллмеха" };
+const SHORT: Record<string, string> = { TO_MOSCOW: "В пути в Москву", ARRIVED_MSK: "В Москве", READY_TO_SEND: "Готово к отправке нам", SENT_TO_US: "Отправлено нам", DELIVERED: "Пришло к нам", SHIPPED_AUCTION: "Отправлено с аукциона", CUSTOMS: "Таможня", AT_WAREHOUSE: "На складе Веллмеха" };
 export const stageShort = (k: string) => SHORT[k] ?? STAGE_NAME[k] ?? k;
 
 export type StageStatusKey = "PLANNED" | "IN_PROGRESS" | "DONE";
@@ -77,7 +82,7 @@ export type RawSummary = {
   overdue: boolean;
 };
 
-const ARRIVAL = ["TO_WAREHOUSE", "AT_WAREHOUSE", "HANDED"];
+const ARRIVAL = ["TO_WAREHOUSE", "AT_WAREHOUSE", "SENT_TO_US", "HANDED", "DELIVERED"];
 
 export function summarizeStages(list: StageLike[], now: Date = new Date()): RawSummary | null {
   if (list.length === 0) return null;

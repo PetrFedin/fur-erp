@@ -1,3 +1,5 @@
+import { SupplierMarks, type MarkLine } from "./marks-ui";
+import { MARKS_TITLE, markOf } from "@/lib/shipment-marks";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { ChatLink, GroupLink } from "@/components/chat-link";
 import Link from "next/link";
@@ -93,6 +95,10 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   for (const o of orders) {
     for (const r of candidateRows({ ...o, plannedQuantity: Number(o.plannedQuantity) })) qtyTz.set(lineKey(o.id, r.color, r.size), r.qty);
   }
+
+  const markRows = await prisma.shipmentEventLine.findMany({ where: { event: { shipmentId: s.id, title: MARKS_TITLE } }, select: { shipmentLineId: true, accepted: true, rejected: true, comment: true, event: { select: { occurredAt: true, timeKnown: true } } } });
+  const markBy = new Map(markRows.map((m) => [m.shipmentLineId, markOf(m)]));
+  const markStamp = markRows[0] ? fmtWall(markRows[0].event.occurredAt, markRows[0].event.timeKnown) : "";
 
   const lines = [...s.lines].sort(
     (a, b) =>
@@ -268,6 +274,11 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         }
       />
 
+
+      {(isSupplier || markRows.length > 0) && lines.length > 0 && (
+        <SupplierMarks shipmentId={s.id} supplier={isSupplier} canConfirm={canEdit} stamp={markStamp}
+          lines={lines.map((l, i): MarkLine => ({ id: l.id, n: i + 1, text: [l.itemNo ? `№ ${l.itemNo}` : "", lineText(l)].filter(Boolean).join(" · "), quantity: l.quantity, stage: l.stage, mark: markBy.get(l.id) ?? null }))} />
+      )}
 
       {/* в) хронология */}
       <section className="flex flex-col gap-2" aria-label="Хронология">

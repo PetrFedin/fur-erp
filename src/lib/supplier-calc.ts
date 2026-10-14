@@ -21,12 +21,12 @@ export type RateInfo = { label: string; ph: string; names: string[]; warn?: bool
 export type Col = { key: string; label: string; hint?: string; width?: number; text?: boolean; rate?: RateInfo };
 /** Первые семь столбцов одинаковы во всех форматах. */
 const LEAD: Col[] = [
-  { key: "invoice", label: "invoice", text: true, width: 70 },
-  { key: "fur", label: "fur", text: true, width: 150 },
-  { key: "size", label: "size / description", text: true, width: 150 },
-  { key: "lot", label: "lot", text: true, width: 70 },
-  { key: "qty", label: "quantity", width: 70 },
-  { key: "operation", label: "operation", text: true, width: 110 },
+  { key: "invoice", label: "№ счёта", text: true, width: 70 },
+  { key: "fur", label: "Мех", text: true, width: 150 },
+  { key: "size", label: "Описание / размер", text: true, width: 150 },
+  { key: "lot", label: "Лот", text: true, width: 70 },
+  { key: "qty", label: "Кол-во", width: 70 },
+  { key: "operation", label: "Операция", text: true, width: 110 },
   { key: "dest", label: "Куда", text: true, width: 80 },
 ];
 const TAIL: Col[] = [{ key: "upd", label: "цена для УПД, ₽", hint: "вводится руками, если отличается от расчёта", width: 90 }];
@@ -649,6 +649,11 @@ export function sendProblems(p: CalcPayload): string[] {
   return out;
 }
 
+/** Название аукциона из заголовка файла → как в нашем справочнике: «СОЮЗПУШНИНА 09-26 (предварительный…)» → «СП 09-26», «Русьпушнина 04-26» → «РП 04-26». */
+export function auctionNameFromTitle(title: string): string {
+  const t = title.replace(/\(.*$/, "").replace(/\s+/g, " ").trim();
+  return t.replace(/^союзпушнина(?=\s|$)/i, "СП").replace(/^русьпушнина(?=\s|$)/i, "РП");
+}
 const TOTAL_RE = /^(итого|всего|total)/i;
 const head = (s: string) => s.toLowerCase().replace(/ё/g, "е").replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
 
@@ -677,7 +682,7 @@ export function payloadFromTable(table: string[][]): { payload: CalcPayload; war
   // Название аукциона из строк над шапкой: «СОЮЗПУШНИНА 09-26 (…)», «SAGA 03-26», «FH 06-26».
   for (let i = 0; i < hi; i++) for (const cell of table[i]) {
     const m = /(\S*\s?\d{2}-\d{2,4})/.exec(cell ?? "");
-    if (m && !payload.header.auction) payload.header.auction = cell.replace(/\(.*$/, "").trim();
+    if (m && !payload.header.auction) payload.header.auction = auctionNameFromTitle(cell);
   }
   const cInv = col(/^invoice/), cFur = col(/^fur/), cSize = col(/^size|^description/), cLot = col(/^lot/), cQty = col(/^quantity/);
   const cOp = col(/^operation/), cDest = col(/^куда/), cPrice = isSaga ? col(/^закупка/) : col(/^закупка/);

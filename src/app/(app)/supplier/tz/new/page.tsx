@@ -10,7 +10,7 @@ export const metadata = { title: "Новое ТЗ" };
 export default async function NewTzPage() {
   const s = await requireInboxViewer();
   if (s.user.role !== "SUPPLIER") redirect("/supplier/tz");
-  const refs = await loadTzFormRefs(s.user.organizationId);
+  const refs = await loadTzFormRefs(s.user.organizationId, s.user.supplierId ?? "-");
   const today = new Date().toISOString().slice(0, 10);
   return (
     <div className="flex flex-col gap-4">

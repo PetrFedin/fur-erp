@@ -18,6 +18,8 @@ export type CalcPreset = {
 };
 
 export const PRESETS = raw as unknown as CalcPreset[];
+/** Образцы, которые видит поставщик: без «LYNX MU» — там розница и наценка на наше изделие, это наша конфиденциальная информация. */
+export const SUPPLIER_PRESETS = PRESETS.filter((p) => p.id !== "lynx_markup");
 export const getPreset = (id: string) => PRESETS.find((p) => p.id === id) ?? null;
 /** Сколько встроенных столбцов (мех, описание, лот) идёт перед столбцами формата в свободной таблице. */
 const LEAD = 3;

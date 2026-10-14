@@ -65,7 +65,7 @@ export async function requireSession(opts?: SessionOpts) {
     redirect("/login");
   }
   // Периметр «по умолчанию закрыто»: поставщик попадает только туда, где allowSupplier указан явно.
-  if (session.user.role === "SUPPLIER" && !opts?.allowSupplier) redirect("/shipments");
+  if (session.user.role === "SUPPLIER" && !opts?.allowSupplier) redirect("/supplier");
   return session;
 }
 
@@ -73,7 +73,7 @@ export async function requireRole(...roles: UserRole[]) {
   // SUPPLIER проходит дальше только если роль названа явно (requireRole("SUPPLIER", ...)).
   const session = await requireSession({ allowSupplier: roles.includes("SUPPLIER") });
   if (!roles.includes(session.user.role)) {
-    if (session.user.role === "SUPPLIER") redirect("/shipments");
+    if (session.user.role === "SUPPLIER") redirect("/supplier");
     redirect("/dashboard?error=forbidden");
   }
   return session;

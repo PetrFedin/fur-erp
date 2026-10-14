@@ -17,7 +17,7 @@ export default async function TzPage({ params }: PageProps<"/supplier/tz/[id]">)
   const row = await prisma.supplierInbox.findFirst({ where: { id, kind: "TZ", ...inboxScope(s) } });
   if (!row) notFound();
   const readOnly = row.status !== "DRAFT" || s.user.role !== "SUPPLIER";
-  const refs = readOnly ? { colors: [], models: [], lots: [], batches: [] } : await loadTzFormRefs(s.user.organizationId);
+  const refs = readOnly ? { colors: [], models: [], lots: [], batches: [] } : await loadTzFormRefs(s.user.organizationId, s.user.supplierId ?? "-");
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "ТЗ", href: "/supplier/tz" }, { label: row.title }]} />

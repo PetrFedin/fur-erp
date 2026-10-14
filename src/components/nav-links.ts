@@ -24,6 +24,7 @@ export type NavItem = { readonly href: string; readonly label: string; readonly 
 
 /** Меню кабинета внешнего поставщика (Веллмех), в порядке работы: аукционы → сырьё → ТЗ → изделия (без цен) → отгрузки → календарь → справочники. */
 const SUPPLIER_NAV: readonly NavItem[] = [
+  { href: "/supplier", label: "Что ждут", also: [] },
   { href: "/supplier/auction-calcs", label: "Аукционы", also: [] },
   { href: "/supplier/raw", label: "Сырьё", also: [] },
   { href: "/supplier/tz", label: "ТЗ", also: [] },
