@@ -28,6 +28,7 @@ import { EventForm, type EventInitial } from "./event-form";
 import { DayEventActions, DayKeys } from "./day-panel";
 import { articleLabel } from "@/lib/article-label";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
+import { SUPPLIER_LABEL, supStage } from "@/lib/supplier-calendar";
 
 export const metadata = { title: "Производственный календарь" };
 
@@ -36,6 +37,8 @@ const CAL_FILTERS = defineFilters({
   ...pick(["season", "q"], { q: { label: "Артикул", aliases: ["article"], maxLen: 100 } }),
   action: { kind: "multi", label: "Действие" },
   layers: { kind: "single", label: "Факты", role: "state", allowed: ["1"] },
+  // Слой «Веллмех» — записи поставщика по артикулу: по умолчанию показан вместе с нашими; hide — скрыть, only — только они.
+  sup: { kind: "single", label: "Веллмех", role: "state", allowed: ["hide", "only"] },
   // Режимы «По месяцам» / «Стадии»: группа, вид меха, статус (стадия); cell — раскрытая ячейка, ord — открытая карточка ТЗ.
   grp: { kind: "multi", label: "Группа", maxLen: 40 },
   fur: { kind: "multi", label: "Вид меха", maxLen: 120 },
@@ -60,6 +63,9 @@ type Ev = {
   overdue: boolean;
   seasonCode: string | null;
   orderId: string | null;
+  /** Запись внёс поставщик (Веллмех); status — его этап. */
+  sup: boolean;
+  status: string | null;
 };
 
 export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
@@ -112,6 +118,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         { OR: [{ endDate: { gte: parseYmd(from) } }, { endDate: null, date: { gte: parseYmd(from) } }] },
         ...(yr ? [{ date: yr }] : []),
         ...(seasonPicked ? [{ OR: [...(pickedIds.length ? [{ seasonId: { in: pickedIds } }] : []), ...(pickedNone ? [{ seasonId: null }] : [])] }] : []),
+        ...(cf.sup === "hide" ? [{ supplierId: null }] : cf.sup === "only" ? [{ supplierId: { not: null } }] : []),
         ...(actionVals.length ? [{ OR: actionVals.map((a) => ({ action: { equals: a, mode: "insensitive" as const } })) }] : []),
       ],
       ...(articleF ? { OR: modelCodeVariants(articleF).map((v) => ({ articleCode: { contains: escapeLike(v), mode: "insensitive" as const } })) } : {}),
@@ -130,6 +137,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     overdue: !e.doneAt && (e.endDate ? ymd(e.endDate) : ymd(e.date)) < today,
     seasonCode: e.season?.code ?? null,
     orderId: e.orderId,
+    sup: !!e.supplierId,
+    status: e.status,
   }));
 
   // Слой фактов — только когда нет фильтров по сезону/действию (у фактов их нет).
@@ -202,7 +211,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const formSeasons = seasons.map((x) => ({ id: x.id, code: x.code }));
   const formPlans = plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }));
 
-  const params: Record<string, string | string[]> = { view: mode === "detail" ? view : mode, m: month, w: mode === "detail" && view === "week" ? weekStart : "", season: cf.season, action: actionVals, q: articleF, layers: layersOn ? "1" : "", grp: cf.grp, fur: cf.fur, stage: cf.stage, cell: cf.cell, mv: cf.mv, my: cf.my, gall: cf.gall, gp: cf.gp };
+  const params: Record<string, string | string[]> = { view: mode === "detail" ? view : mode, m: month, w: mode === "detail" && view === "week" ? weekStart : "", season: cf.season, action: actionVals, q: articleF, layers: layersOn ? "1" : "", sup: cf.sup, grp: cf.grp, fur: cf.fur, stage: cf.stage, cell: cf.cell, mv: cf.mv, my: cf.my, gall: cf.gall, gp: cf.gp };
   const href = (patch: Record<string, string | string[]>) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...params, ...patch })) {
@@ -218,14 +227,14 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const title = view === "week" ? `${fmtRu(days[0])} — ${fmtRu(days[6])}` : monthTitle(month);
 
   const chip = (e: Ev, dayIso: string) => {
-    const def = actionDef(e.action);
+    const def = e.sup ? supStage(e.status) : actionDef(e.action);
     const cont = e.date !== dayIso;
     const p = e.orderId ? pipeBy.get(e.orderId) : undefined;
     const fur = p?.fur ?? furOfArticle(e.articleCode);
     return (
-      <Link key={e.id + dayIso} href={href({ day: dayIso, event: e.id })} scroll={false} title={`${e.articleCode} × ${e.quantity} — ${e.action}${fur ? ` · ${fur}` : ""}${p ? ` · ${pipeTitle(p)}${pipeInner(p)}: ${p.stageWord}` : ""}${e.done ? " (выполнено)" : ""}`}
+      <Link key={e.id + dayIso} href={href({ day: dayIso, event: e.id })} scroll={false} title={`${e.sup ? `${SUPPLIER_LABEL}: ` : ""}${e.articleCode} × ${e.quantity} — ${e.action}${fur ? ` · ${fur}` : ""}${p ? ` · ${pipeTitle(p)}${pipeInner(p)}: ${p.stageWord}` : ""}${e.done ? " (выполнено)" : ""}`}
         className={`block rounded border px-1.5 py-0.5 text-xs leading-tight ${def.chip} ${e.done ? "opacity-60" : ""} ${e.overdue ? "ring-1 ring-red-500" : ""} ${selected?.id === e.id ? "outline outline-2 outline-neutral-900" : ""}`}>
-        <span className={`block truncate ${e.done ? "line-through" : ""}`}>{cont ? "↳ " : ""}{e.articleCode} ×{e.quantity}{fur ? ` · ${fur}` : ""}</span>
+        <span className={`block truncate ${e.done ? "line-through" : ""}`}>{cont ? "↳ " : ""}{e.sup ? "В · " : ""}{e.articleCode} ×{e.quantity}{fur ? ` · ${fur}` : ""}</span>
         <span className="flex flex-wrap items-center gap-x-1 text-[11px] opacity-90">
           {e.action}
           {p && <StageChip stage={p.stage} word={p.stageWord} />}
@@ -363,6 +372,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       {mode === "detail" && <>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <Segment label="Вид" items={([["month", "Месяц"], ["week", "Неделя"], ["list", "Список"]] as const).map(([v, t]) => ({ key: v, label: t, on: view === v, href: href({ view: v, w: v === "week" ? weekStart : "" }) }))} />
+        <Segment label="Веллмех" items={([["", "Все записи"], ["only", "Только Веллмех"], ["hide", "Без Веллмеха"]] as const).map(([v, t]) => ({ key: v || "all", label: t, on: (cf.sup || "") === v, href: href({ sup: v }) }))} />
         <Link href={prev} className={BTN_ICON} aria-label="Назад">‹</Link>
         <h2 className="min-w-44 text-center block-title">{title}</h2>
         <Link href={next} className={BTN_ICON} aria-label="Вперёд">›</Link>
@@ -446,7 +456,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                   <h3 className="block-title">События дня <InfoHint>События календаря на этот день (включая периоды, которые его захватывают). Серые пунктирные факты ниже — из ТЗ, поставок, отгрузок и примерок, они только для просмотра.</InfoHint></h3>
                   {dayEvents.length === 0 && <p className="rounded-md border border-dashed border-neutral-300 p-3 text-center text-sm text-neutral-500">В этот день событий нет{canEdit ? " — добавьте ниже" : ""}.</p>}
                   {dayEvents.map((e) => {
-                    const def = actionDef(e.action);
+                    const def = e.supplierId ? supStage(e.status) : actionDef(e.action);
                     const pi = e.orderId ? pipeBy.get(e.orderId) : undefined;
                     const fur = pi?.fur ?? furOfArticle(e.articleCode);
                     const done = !!e.doneAt;
@@ -457,11 +467,14 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                           <Badge className={def.chip}>{e.action}</Badge>
                           <b className={done ? "line-through opacity-60" : ""}>{e.articleCode}</b>
                           <span className="tabular-nums">×{formatQty(e.quantity)}</span>
+                          {e.supplierId && <Badge variant="info">внёс: {SUPPLIER_LABEL}</Badge>}
+                          {e.supplierId && (e.color || e.size) && <span className="text-neutral-500">{[e.color, e.size && `р. ${e.size}`].filter(Boolean).join(", ")}</span>}
                           {fur && <span className="text-neutral-500">{fur}</span>}
                           {pi && <StageChip stage={pi.stage} word={pi.stageWord} />}
                         </div>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-neutral-600">
                           {done ? <Badge variant="success">выполнено</Badge> : over ? <Badge variant="danger">просрочено</Badge> : <Badge variant="info">в плане</Badge>}
+                          {e.supplierId && <span>{e.factDate ? `факт ${fmtRu(ymd(e.factDate))}` : "факта пока нет"}{e.docNote ? ` · № ${e.docNote}` : ""}</span>}
                           {e.endDate && ymd(e.endDate) !== ymd(e.date) && <span className="tabular-nums">{fmtRu(ymd(e.date))} — {fmtRu(ymd(e.endDate))}</span>}
                           {e.season && <span>сезон {e.season.code}</span>}
                           {e.orderId && <Link href={`/production/${e.orderId}`} className="text-blue-700 hover:underline">{pi ? pipeTitle(pi) : "карточка ТЗ"} →</Link>}

@@ -20,12 +20,14 @@ export const NAV_LINKS = [
 
 export type NavItem = { readonly href: string; readonly label: string; readonly also: readonly string[] };
 
-/** Меню кабинета внешнего поставщика (Веллмех): только отгрузки, изделия без цен и справочники (просмотр). */
+/** Меню кабинета внешнего поставщика (Веллмех), в порядке работы: аукционы → сырьё → ТЗ → изделия (без цен) → отгрузки → календарь → справочники. */
 const SUPPLIER_NAV: readonly NavItem[] = [
-  { href: "/shipments", label: "Отгрузки", also: [] },
-  { href: "/supplier/auction-calcs", label: "Расчёты аукционов", also: [] },
+  { href: "/supplier/auction-calcs", label: "Аукционы", also: [] },
+  { href: "/supplier/raw", label: "Сырьё", also: [] },
   { href: "/supplier/tz", label: "ТЗ", also: [] },
   { href: "/articles", label: "Изделия", also: ["/models"] },
+  { href: "/shipments", label: "Отгрузки", also: [] },
+  { href: "/supplier/calendar", label: "Календарь", also: [] },
   { href: "/settings", label: "Справочники", also: [] },
 ];
 
