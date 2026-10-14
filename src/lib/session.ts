@@ -19,6 +19,7 @@ const loadUser = cache(async (userId: string) => {
       isActive: true,
       organizationId: true,
       name: true,
+      supplierId: true,
       organization: { select: { name: true, isActive: true } },
     },
   });
@@ -28,11 +29,17 @@ const loadUser = cache(async (userId: string) => {
  * Сессия с актуальной ролью из БД или null (нет входа / пользователь или
  * организация деактивированы / удалены). Для route handlers.
  */
-export async function getFreshSession() {
+export type SessionOpts = {
+  /** Пускать ли внешнего поставщика (роль SUPPLIER). По умолчанию закрыто: открывать явно, только где нужно. */
+  allowSupplier?: boolean;
+};
+
+export async function getFreshSession(opts?: SessionOpts) {
   const session = await auth();
   if (!session?.user?.id) return null;
   const user = await loadUser(session.user.id);
   if (!user || !user.isActive || !user.organization.isActive) return null;
+  if (user.role === "SUPPLIER" && !opts?.allowSupplier) return null;
   return {
     ...session,
     user: {
@@ -41,6 +48,7 @@ export async function getFreshSession() {
       organizationId: user.organizationId,
       organizationName: user.organization.name,
       name: user.name,
+      supplierId: user.supplierId,
     },
   };
 }
@@ -51,17 +59,21 @@ export async function getFreshSession() {
  * any Prisma query runs, which is what keeps tenants isolated in the
  * app-level scoping model (see prisma/schema.prisma header comment).
  */
-export async function requireSession() {
-  const session = await getFreshSession();
+export async function requireSession(opts?: SessionOpts) {
+  const session = await getFreshSession({ allowSupplier: true });
   if (!session) {
     redirect("/login");
   }
+  // Периметр «по умолчанию закрыто»: поставщик попадает только туда, где allowSupplier указан явно.
+  if (session.user.role === "SUPPLIER" && !opts?.allowSupplier) redirect("/shipments");
   return session;
 }
 
 export async function requireRole(...roles: UserRole[]) {
-  const session = await requireSession();
+  // SUPPLIER проходит дальше только если роль названа явно (requireRole("SUPPLIER", ...)).
+  const session = await requireSession({ allowSupplier: roles.includes("SUPPLIER") });
   if (!roles.includes(session.user.role)) {
+    if (session.user.role === "SUPPLIER") redirect("/shipments");
     redirect("/dashboard?error=forbidden");
   }
   return session;

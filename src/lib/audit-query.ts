@@ -94,9 +94,9 @@ const msk = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "
 export const fmtAt = (d: Date) => msk.format(d).replace(",", "");
 
 export function actorText(r: Pick<LogRow, "actorName" | "actorRole" | "source">): string {
-  const ROLES: Record<string, string> = { OWNER: "владелец", ADMIN: "администратор", PURCHASER: "закупщик", WAREHOUSE: "кладовщик", TECHNOLOGIST: "технолог", ACCOUNTANT: "бухгалтер", VIEWER: "наблюдатель" };
+  const ROLES: Record<string, string> = { OWNER: "владелец", ADMIN: "администратор", PURCHASER: "закупщик", WAREHOUSE: "кладовщик", TECHNOLOGIST: "технолог", ACCOUNTANT: "бухгалтер", VIEWER: "наблюдатель", SUPPLIER: "поставщик" };
   const role = r.actorRole ? `, ${ROLES[r.actorRole] ?? r.actorRole}` : "";
-  if (r.source === "ui") return `${r.actorName ?? "—"}${role}`;
+  if (r.source === "ui" || r.source === "supplier") return `${r.actorName ?? "—"}${role}`;
   if (r.actorName) return `${r.actorName}${role} · ${r.source}`;
   return r.source;
 }

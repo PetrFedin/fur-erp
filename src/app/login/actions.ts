@@ -29,7 +29,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
-      redirectTo: "/dashboard",
+      redirectTo: "/", // куда дальше — решает src/app/page.tsx (поставщик попадает на /shipments)
     });
     return {};
   } catch (error) {

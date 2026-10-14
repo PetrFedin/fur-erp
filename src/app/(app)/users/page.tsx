@@ -23,6 +23,7 @@ const ROLE_LABELS: Record<string, string> = {
   TECHNOLOGIST: "Технолог",
   ACCOUNTANT: "Бухгалтер",
   VIEWER: "Наблюдатель",
+  SUPPLIER: "Поставщик (кабинет)",
 };
 
 // Список: поиск по имени и email, роль (мультивыбор), статус. error — разовое сообщение после действия.
@@ -60,7 +61,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
         <h1 className="text-xl font-semibold">Пользователи</h1>
         {canManage && (
           <CreateDialog label="+ Новый пользователь" title="Новый пользователь" hint="Пароль сообщите сотруднику лично." defaultOpen={newOpen}>
-            <UserCreateForm />
+            <UserCreateForm suppliers={await prisma.supplier.findMany({ where: { organizationId: session.user.organizationId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } })} />
           </CreateDialog>
         )}
       </div>

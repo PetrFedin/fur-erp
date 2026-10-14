@@ -18,13 +18,18 @@ const MIME_EXT: Record<string, string> = {
  * Путь берётся только из БД, доступ — только своей организации.
  */
 export async function GET(request: Request, ctx: RouteContext<"/api/drive-docs/[id]">) {
-  const session = await getFreshSession();
+  const session = await getFreshSession({ allowSupplier: true });
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
   const { id } = await ctx.params;
   // NUL и прочие управляющие символы в id роняют запрос к Postgres — такого документа не бывает.
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return new Response("Not found", { status: 404 });
   const doc = await prisma.driveDocument.findFirst({
-    where: { id, organizationId: session.user.organizationId },
+    // Поставщик получает только файлы этапов своих отгрузок.
+    where: {
+      id,
+      organizationId: session.user.organizationId,
+      ...(session.user.role === "SUPPLIER" ? { shipmentEvent: { shipment: { supplierId: session.user.supplierId ?? "-" } } } : {}),
+    },
     select: { storagePath: true, storedName: true, storedMime: true, title: true },
   });
   if (!doc) return new Response("Not found", { status: 404 });

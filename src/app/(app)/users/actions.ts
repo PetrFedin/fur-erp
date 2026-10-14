@@ -16,6 +16,7 @@ const ROLE_VALUES = [
   "TECHNOLOGIST",
   "ACCOUNTANT",
   "VIEWER",
+  "SUPPLIER",
 ] as const;
 
 const createSchema = z.object({
@@ -23,6 +24,8 @@ const createSchema = z.object({
   email: z.string().trim().toLowerCase().email("Некорректный email"),
   password: z.string().min(8, "Минимум 8 символов").max(200, "Пароль слишком длинный"),
   role: z.enum(ROLE_VALUES),
+  /** Только для роли SUPPLIER: чей это кабинет. */
+  supplierId: z.string().trim().max(64).optional(),
 });
 
 export type UserFormState = { error?: string; ok?: boolean };
@@ -37,10 +40,20 @@ export async function createUser(
     email: formData.get("email"),
     password: formData.get("password"),
     role: formData.get("role"),
+    supplierId: formData.get("supplierId") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
   if (parsed.data.role === "OWNER" && session.user.role !== "OWNER") {
     return { error: "Только владелец может создавать пользователей с ролью «Владелец»" };
+  }
+
+  let supplierId: string | null = null;
+  if (parsed.data.role === "SUPPLIER") {
+    const sup = parsed.data.supplierId
+      ? await prisma.supplier.findFirst({ where: { id: parsed.data.supplierId, organizationId: session.user.organizationId, isActive: true }, select: { id: true } })
+      : null;
+    if (!sup) return { error: "Для роли «Поставщик» выберите поставщика" };
+    supplierId = sup.id;
   }
 
   const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } });
@@ -53,6 +66,7 @@ export async function createUser(
       name: parsed.data.name,
       email: parsed.data.email,
       role: parsed.data.role,
+      supplierId,
       passwordHash,
     },
   });
@@ -82,11 +96,12 @@ export async function updateUserRole(id: string, role: string): Promise<UserForm
   if (session.user.role !== "OWNER" && (target.role === "OWNER" || newRole === "OWNER")) {
     return { error: OWNER_ONLY };
   }
+  if (newRole === "SUPPLIER" && !target.supplierId) return { error: "Кабинет поставщика создаётся при добавлении пользователя (нужно выбрать поставщика)" };
   if (target.role === "OWNER" && newRole !== "OWNER" && target.isActive) {
     if ((await otherActiveOwners(orgId, target.id)) === 0) return { error: LAST_OWNER };
   }
 
-  await prisma.user.updateMany({ where: { id, organizationId: orgId }, data: { role: newRole } });
+  await prisma.user.updateMany({ where: { id, organizationId: orgId }, data: { role: newRole, ...(newRole === "SUPPLIER" ? {} : { supplierId: null }) } });
   revalidateAll(session.user.organizationId);
   return {};
 }

@@ -12,6 +12,7 @@ const ROLE_LABELS: Record<string, string> = {
   TECHNOLOGIST: "Технолог",
   ACCOUNTANT: "Бухгалтер",
   VIEWER: "Наблюдатель",
+  SUPPLIER: "Поставщик (кабинет)",
 };
 
 export function RoleSelect({
@@ -46,7 +47,7 @@ export function RoleSelect({
       }}
     >
       {Object.entries(ROLE_LABELS)
-        .filter(([v]) => allowOwner || v !== "OWNER")
+        .filter(([v]) => (allowOwner || v !== "OWNER") && (v !== "SUPPLIER" || role === "SUPPLIER"))
         .map(([value, label]) => (
         <option key={value} value={value}>
           {label}
