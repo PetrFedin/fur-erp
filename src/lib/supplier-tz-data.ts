@@ -23,7 +23,7 @@ export async function loadTzFormRefs(orgId: string): Promise<{ colors: string[];
   return {
     colors: colors.map((c) => c.name),
     models: models.map((m) => m.sku || m.name),
-    lots: lots.map((l) => ({ id: l.id, lot: l.lotNumber ?? "", material: l.rawMaterial.name, color: l.color ?? "", remaining: String(Number(l.quantityRemaining)) })),
+    lots: lots.map((l) => ({ id: l.id, lot: l.lotNumber ?? "", material: l.rawMaterial.name, color: l.color ?? "", remaining: "" })),
     batches: batches.map((b) => ({ value: String(b.number), label: `Партия ${b.number}${b.year ? ` · ${b.year}` : ""}` })),
     nextNumber: String((nums.length ? Math.max(...nums) : 0) + 1),
   };

@@ -147,7 +147,7 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
           <Button type="button" size="sm" variant="outline" onClick={() => setP((x) => ({ ...x, materials: [...x.materials, { ...emptyMaterial(), name: "Подкладка", unit: "Метр" }] }))}>+ Подкладка</Button>
           <Select className="w-80" value="" onChange={(e) => addLot(e.target.value)}>
             <option value="">Добавить наш лот из остатков…</option>
-            {lots.map((l) => <option key={l.id} value={l.id}>{l.lot || "без номера"} · {l.material}{l.color ? ` · ${l.color}` : ""} · остаток {l.remaining}</option>)}
+            {lots.map((l) => <option key={l.id} value={l.id}>{l.lot || "без номера"} · {l.material}{l.color ? ` · ${l.color}` : ""}</option>)}
           </Select>
         </div>
       )}
