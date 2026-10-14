@@ -70,7 +70,10 @@ async function load(f: string) {
   err("мусор", "1+*2", /Неожиданный/);
   err("функция", "FOO(1)", /Неизвестная функция/);
   err("аргументы ROUND", "ROUND(1)", /нужно аргументов/);
-  err("процент", "5%", /%/);
+  ok("процент 4,5% = 0,045", f("4,5%"), 0.045, 1e-12);
+  ok("процент в выражении 200*4,5%", f("200*4,5%"), 9, 1e-9);
+  ok("процент после скобки (2+3)%", f("(2+3)%"), 0.05, 1e-12);
+  err("диапазон вне функции", "A:B", /Диапазон/);
   // ---- столбцы: лот 4, 30 шкур, $360, курс 84,4075, сбор 7,35 %
   {
     const e = emptyPayload("SP_RP");
@@ -110,6 +113,63 @@ async function load(f: string) {
     const old: CalcPayload = { v: 1, format: "SP_RP", header: e.header, rows: e.rows.map((r) => { const { _id, ...x } = r; void _id; return x; }) };
     ok("старый payload без новых полей считается", calcAll(old).calcs[0].unitRub, calcAll({ ...e, customColumns: [] }).calcs[0].unitRub, 1e-9);
     if (renameColumnRefs("=P*2+SUM(Q)+ROUND(R;2)", { P: "O", Q: "P" }) !== "=O*2+SUM(P)+ROUND(R;2)") { bad++; console.log("FAIL renameColumnRefs", renameColumnRefs("=P*2+SUM(Q)+ROUND(R;2)", { P: "O", Q: "P" })); } else console.log("OK  renameColumnRefs");
+  }
+  // ---- свободная таблица: ячейки H3, диапазоны, AVERAGE, SUBTOTAL, правила для блоков строк, IF, проценты
+  {
+    const mk = (formulas: { id: string; f: string; rules?: import("../src/lib/supplier-calc").ColRule[] }[]): CalcPayload => {
+      const q = emptyPayload("SHEET");
+      q.rows = [1, 2, 3, 4].map((n) => ({ _id: newId(), fur: n <= 2 ? "норка" : "свакара", size: "", lot: String(n), a: String(n * 10), b: String(n) }));
+      q.customColumns = [
+        { id: "a", letter: "", title: "Цена", unit: "$", formula: "", kind: "input" },
+        { id: "b", letter: "", title: "Кол-во", unit: "шт", formula: "", kind: "input" },
+        ...formulas.map((x) => ({ id: x.id, letter: "", title: x.id, unit: "", formula: x.f, rules: x.rules })),
+      ];
+      return q;
+    };
+    // колонки: A=Мех B=Описание C=Лот D=Цена E=Кол-во F.. формулы
+    const q = mk([
+      { id: "f1", f: "=D*E*4,5%" },          // F
+      { id: "f2", f: "=D1+D4" },             // G: ячейки D1 и D4 (10+40)
+      { id: "f3", f: "=SUM(D:E)" },          // H: сумма столбцов D..E этой строки
+      { id: "f4", f: "=SUM(D)" },            // I: итог по столбцу D
+      { id: "f5", f: "=AVERAGE(D)" },        // J
+      { id: "f6", f: "=SUBTOTAL(9;D)" },     // K
+      { id: "f7", f: "=SUM(D1:E2)" },        // L: прямоугольник 10+1+20+2
+      { id: "f8", f: "=IF(D>20;1;0)" },      // M
+      { id: "f9", f: "=D*9,2%", rules: [{ rowFrom: 1, rowTo: 2, formula: "=D*7,95%+0,1" }] },  // N: правило для строк 1–2
+      { id: "f10", f: "=D*9,2%", rules: [{ whenCol: "fur", op: "=", whenValue: "норка", formula: "=D*7,95%+0,1" }] }, // O: по типу меха
+      { id: "f11", f: "=AVERAGE(D:E)" },     // P: среднее по строке
+    ]);
+    const sh = calcAll(q).sheet;
+    const cell = (id: string, i = 0) => sh.cells[id][i].v ?? NaN;
+    const L = (id: string) => sh.cols.find((c) => c.id === id)!.letter;
+    if (L("f1") !== "F") { bad++; console.log("FAIL буквы свободной таблицы", L("f1")); }
+    ok("F = D*E*4,5% (строка 2: 20*2*0,045)", cell("f1", 1), 20 * 2 * 0.045, 1e-9);
+    ok("ячейки D1+D4", cell("f2"), 50, 0);
+    ok("SUM(D:E) в строке 3 (30+3)", cell("f3", 2), 33, 0);
+    ok("SUM(D) итог по столбцу", cell("f4"), 100, 0);
+    ok("AVERAGE(D)", cell("f5"), 25, 0);
+    ok("SUBTOTAL(9;D)", cell("f6"), 100, 0);
+    ok("SUM(D1:E2) прямоугольник", cell("f7"), 33, 0);
+    ok("IF истина", cell("f8", 2), 1, 0);
+    ok("IF ложь", cell("f8", 0), 0, 0);
+    ok("правило строк 1–2 (норка 7,95%+0,1)", cell("f9", 0), 10 * 0.0795 + 0.1, 1e-9);
+    ok("вне правила — основная формула (9,2%)", cell("f9", 2), 30 * 0.092, 1e-9);
+    ok("правило по меху: норка", cell("f10", 1), 20 * 0.0795 + 0.1, 1e-9);
+    ok("правило по меху: свакара", cell("f10", 3), 40 * 0.092, 1e-9);
+    ok("AVERAGE(D:E) строка 4 (40;4)", cell("f11", 3), 22, 0);
+    ok("итог по столбцу F", sh.sums.f1.v ?? NaN, (10 + 40 + 90 + 160) * 0.045, 1e-9);
+    // приём: выбранные столбцы, ошибки
+    q.unitCostColumn = "f1"; q.qtyColumn = "b";
+    const t = calcAll(q);
+    ok("свободная таблица: итого = Σ себестоимость×кол-во", t.totalRub, (10 * 1 * 0.045) * 1 + (20 * 2 * 0.045) * 2 + (30 * 3 * 0.045) * 3 + (40 * 4 * 0.045) * 4, 1e-6);
+    if (calcAll(mk([{ id: "z", f: "=D1+" }])).sheet.colErrors.z) console.log("OK  ошибка синтаксиса в столбце"); else { bad++; console.log("FAIL ошибка синтаксиса"); }
+    const cyc = calcAll(mk([{ id: "c1", f: "=G*2" }, { id: "c2", f: "=F+1" }])).sheet.colErrors;
+    if (/Циклическая/.test(cyc.c1 ?? "")) console.log("OK  цикл в свободной таблице"); else { bad++; console.log("FAIL цикл", cyc); }
+    // контрольная разность
+    q.checks = [{ id: "k", title: "T−V", a: "F", b: "F", tol: "0,01" }];
+    const { checkDiffs } = await import("../src/lib/supplier-calc");
+    if (checkDiffs(q, calcAll(q).sheet)[0].ok) console.log("OK  контрольная разность"); else { bad++; console.log("FAIL контрольная разность"); }
   }
   // ---- простой вид: формат по названию, вставка из Excel, финальные цифры
   {

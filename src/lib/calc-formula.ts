@@ -16,6 +16,7 @@ type Tok =
 export type Node =
   | { t: "num"; v: number }
   | { t: "id"; name: string }
+  | { t: "range"; a: string; b: string }
   | { t: "neg"; e: Node }
   | { t: "bin"; op: string; l: Node; r: Node }
   | { t: "call"; name: string; args: Node[] };
@@ -46,8 +47,7 @@ function tokenize(src: string): Tok[] {
     }
     const two = s.slice(i, i + 2);
     if (two === ">=" || two === "<=" || two === "<>") { out.push({ t: "op", v: two, pos: i }); i += 2; continue; }
-    if ("+-*/();<>=".includes(c)) { out.push({ t: "op", v: c, pos: i }); i++; continue; }
-    if (c === "%") throw new FormulaError("Знак % не поддерживается: пишите долю числом, например 0,0735, или делите на 100");
+    if ("+-*/();<>=:%".includes(c)) { out.push({ t: "op", v: c, pos: i }); i++; continue; }
     if (c === "^") throw new FormulaError("Возведение в степень не поддерживается");
     throw new FormulaError(`Недопустимый символ «${c}»`);
   }
@@ -55,9 +55,10 @@ function tokenize(src: string): Tok[] {
 }
 
 export const FUNCS: Record<string, { min: number; max: number }> = {
-  ROUND: { min: 2, max: 2 }, MIN: { min: 1, max: 20 }, MAX: { min: 1, max: 20 }, IF: { min: 3, max: 3 }, SUM: { min: 1, max: 1 }, ABS: { min: 1, max: 1 },
+  ROUND: { min: 2, max: 2 }, MIN: { min: 1, max: 20 }, MAX: { min: 1, max: 20 }, IF: { min: 3, max: 3 }, SUM: { min: 1, max: 20 }, ABS: { min: 1, max: 1 },
+  AVERAGE: { min: 1, max: 20 }, SUBTOTAL: { min: 2, max: 2 },
 };
-const FUNC_ALIAS: Record<string, string> = { ОКРУГЛ: "ROUND", МИН: "MIN", МАКС: "MAX", ЕСЛИ: "IF", СУММ: "SUM", ABS: "ABS" };
+const FUNC_ALIAS: Record<string, string> = { ОКРУГЛ: "ROUND", МИН: "MIN", МАКС: "MAX", ЕСЛИ: "IF", СУММ: "SUM", СРЗНАЧ: "AVERAGE", ПРОМЕЖУТОЧНЫЕ_ИТОГИ: "SUBTOTAL", ABS: "ABS" };
 const funcName = (n: string) => { const u = n.toUpperCase(); return FUNCS[u] ? u : FUNC_ALIAS[u] ?? null; };
 
 export function parseFormula(src: string): Node {
@@ -89,7 +90,9 @@ export function parseFormula(src: string): Node {
   function unary(): Node {
     if (isOp("-")) { i++; return { t: "neg", e: unary() }; }
     if (isOp("+")) { i++; return unary(); }
-    return primary();
+    let e = primary();
+    while (isOp("%")) { i++; e = { t: "bin", op: "/", l: e, r: { t: "num", v: 100 } }; }
+    return e;
   }
   function primary(): Node {
     const k = peek();
@@ -99,7 +102,7 @@ export function parseFormula(src: string): Node {
       i++;
       if (isOp("(")) {
         const fn = funcName(k.v);
-        if (!fn) throw new FormulaError(`Неизвестная функция ${k.v}. Доступны: ROUND, MIN, MAX, IF, SUM, ABS`);
+        if (!fn) throw new FormulaError(`Неизвестная функция ${k.v}. Доступны: ROUND, MIN, MAX, IF, SUM, AVERAGE, SUBTOTAL, ABS`);
         i++;
         const args: Node[] = [];
         if (!isOp(")")) { args.push(cmp()); while (isOp(";")) { i++; args.push(cmp()); } }
@@ -107,6 +110,13 @@ export function parseFormula(src: string): Node {
         const spec = FUNCS[fn];
         if (args.length < spec.min || args.length > spec.max) throw new FormulaError(`${fn}: нужно аргументов ${spec.min === spec.max ? spec.min : `от ${spec.min} до ${spec.max}`}, а указано ${args.length} (аргументы разделяются «;»)`);
         return { t: "call", name: fn, args };
+      }
+      if (isOp(":")) {
+        i++;
+        const b = peek();
+        if (!b || b.t !== "id") throw new FormulaError("После «:» ожидается столбец или ячейка, например D:I или D3:I3");
+        i++;
+        return { t: "range", a: k.v, b: b.v };
       }
       return { t: "id", name: k.v };
     }
@@ -120,16 +130,54 @@ export function parseFormula(src: string): Node {
 }
 
 export type EvalCtx = {
-  /** Значение идентификатора в текущей строке: столбец по букве или параметр по имени; бросает FormulaError. */
+  /** Значение идентификатора в текущей строке: столбец по букве, ячейка (H3) или параметр по имени; бросает FormulaError. */
   ident(name: string): number;
   /** Итог по столбцу (буква) по всем строкам. */
   sum(letter: string): number;
+  /** Значения столбца (буква) по всем заполненным строкам — для AVERAGE и SUBTOTAL. */
+  colValues?(letter: string): number[];
+  /** Значения диапазона: D:I — столбцы этой строки; D3:I10 — прямоугольник ячеек. */
+  rangeValues?(a: string, b: string): number[];
+  /** Буква существующего столбца (для SUM(R) = весь столбец, а не значение строки). */
+  isColumn?(name: string): boolean;
 };
+
+/** Номер столбца по букве: A→0, Z→25, AA→26. */
+export function colIndex(letter: string): number {
+  let n = 0;
+  for (const ch of letter.toUpperCase()) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n - 1;
+}
+/** Ссылка на ячейку «H3» → столбец и номер строки (с 1); иначе null. */
+export function cellRef(name: string): { col: string; row: number } | null {
+  const m = /^([A-Za-z]{1,3})(\d{1,4})$/.exec(name);
+  return m && Number(m[2]) >= 1 ? { col: m[1].toUpperCase(), row: Number(m[2]) } : null;
+}
+/** Буквы столбцов от a до b включительно (D:I → D,E,F,G,H,I). */
+export function lettersBetween(a: string, b: string): string[] {
+  const x = colIndex(a), y = colIndex(b);
+  const out: string[] = [];
+  for (let i = Math.min(x, y); i <= Math.max(x, y); i++) out.push(colLetter(i));
+  return out;
+}
+
+function listOf(n: Node, ctx: EvalCtx, whole: boolean): number[] {
+  if (n.t === "range") {
+    if (!ctx.rangeValues) throw new FormulaError("Диапазон здесь недоступен");
+    return ctx.rangeValues(n.a, n.b);
+  }
+  if (whole && n.t === "id" && ctx.isColumn?.(n.name)) {
+    if (!ctx.colValues) throw new FormulaError(`Столбец ${n.name.toUpperCase()}: итоги здесь недоступны`);
+    return ctx.colValues(n.name);
+  }
+  return [evalNode(n, ctx)];
+}
 
 export function evalNode(n: Node, ctx: EvalCtx): number {
   switch (n.t) {
     case "num": return n.v;
     case "id": return ctx.ident(n.name);
+    case "range": throw new FormulaError("Диапазон можно писать только внутри SUM, AVERAGE, MIN, MAX");
     case "neg": return -evalNode(n.e, ctx);
     case "bin": {
       const a = evalNode(n.l, ctx), b = evalNode(n.r, ctx);
@@ -148,12 +196,30 @@ export function evalNode(n: Node, ctx: EvalCtx): number {
       throw new FormulaError("Неизвестная операция");
     }
     case "call": {
-      if (n.name === "SUM") {
-        const a = n.args[0];
-        if (a.t !== "id") throw new FormulaError("SUM: укажите столбец, например SUM(M)");
-        return ctx.sum(a.name);
-      }
       if (n.name === "IF") return evalNode(n.args[0], ctx) !== 0 ? evalNode(n.args[1], ctx) : evalNode(n.args[2], ctx);
+      if (n.name === "SUM") {
+        // SUM(R) — итог по столбцу R; SUM(D:I) — сумма столбцов этой строки
+        const a = n.args[0];
+        if (n.args.length === 1 && a.t === "id" && !cellRef(a.name) && /^[A-Za-z]{1,3}$/.test(a.name) && (!ctx.isColumn || ctx.isColumn(a.name))) return ctx.sum(a.name);
+        return n.args.flatMap((x) => listOf(x, ctx, true)).reduce((s, x) => s + x, 0);
+      }
+      if (n.name === "AVERAGE" || n.name === "SUBTOTAL") {
+        let args = n.args, mode = 1;
+        if (n.name === "SUBTOTAL") {
+          const code = evalNode(n.args[0], ctx);
+          if (code === 9 || code === 109) mode = 9; else if (code === 1 || code === 101) mode = 1; else throw new FormulaError("SUBTOTAL: поддерживаются коды 9 (сумма) и 1 (среднее)");
+          args = n.args.slice(1);
+        }
+        const v = args.flatMap((x) => listOf(x, ctx, true));
+        if (mode === 9) return v.reduce((s, x) => s + x, 0);
+        if (v.length === 0) throw new FormulaError("AVERAGE: нет значений");
+        return v.reduce((s, x) => s + x, 0) / v.length;
+      }
+      if (n.name === "MIN" || n.name === "MAX") {
+        const v = n.args.flatMap((x) => listOf(x, ctx, false));
+        if (v.length === 0) throw new FormulaError(`${n.name}: нет значений`);
+        return n.name === "MIN" ? Math.min(...v) : Math.max(...v);
+      }
       const v = n.args.map((x) => evalNode(x, ctx));
       if (n.name === "ROUND") {
         const d = Math.round(v[1]);
@@ -161,23 +227,31 @@ export function evalNode(n: Node, ctx: EvalCtx): number {
         const f = 10 ** d;
         return Math.round((v[0] + Math.sign(v[0]) * 1e-12) * f) / f;
       }
-      if (n.name === "MIN") return Math.min(...v);
-      if (n.name === "MAX") return Math.max(...v);
       if (n.name === "ABS") return Math.abs(v[0]);
     }
   }
   throw new FormulaError("Не удалось вычислить формулу");
 }
 
-/** Идентификаторы формулы: ссылки вне SUM (текущая строка) и внутри SUM (весь столбец). */
-export function refsOf(n: Node, acc: { row: Set<string>; sum: Set<string> } = { row: new Set(), sum: new Set() }) {
+/**
+ * Идентификаторы формулы: row — значения этой строки (столбцы по букве, диапазоны D:I, параметры);
+ * sum — столбцы целиком (SUM(R), AVERAGE(R), прямоугольные диапазоны).
+ */
+export function refsOf(n: Node, acc: { row: Set<string>; sum: Set<string> } = { row: new Set(), sum: new Set() }, wholeCol = false) {
   switch (n.t) {
-    case "id": acc.row.add(n.name); break;
+    case "id": if (wholeCol && /^[A-Za-z]{1,3}$/.test(n.name)) acc.sum.add(n.name); else acc.row.add(n.name); break;
+    case "range": {
+      const ca = cellRef(n.a), cb = cellRef(n.b);
+      if (ca && cb) for (const l of lettersBetween(ca.col, cb.col)) acc.sum.add(l);
+      else if (/^[A-Za-z]{1,3}$/.test(n.a) && /^[A-Za-z]{1,3}$/.test(n.b)) for (const l of lettersBetween(n.a, n.b)) acc.row.add(l);
+      break;
+    }
     case "neg": refsOf(n.e, acc); break;
     case "bin": refsOf(n.l, acc); refsOf(n.r, acc); break;
-    case "call":
-      if (n.name === "SUM" && n.args[0]?.t === "id") acc.sum.add((n.args[0] as { name: string }).name);
-      else n.args.forEach((a) => refsOf(a, acc));
+    case "call": {
+      const whole = n.name === "SUM" || n.name === "AVERAGE" || n.name === "SUBTOTAL";
+      n.args.forEach((a, k) => refsOf(a, acc, whole && !(n.name === "SUBTOTAL" && k === 0)));
+    }
   }
   return acc;
 }
@@ -200,7 +274,9 @@ export function renameColumnRefs(src: string, map: Record<string, string>): stri
       while (j < src.length && ID_PART.test(src[j])) j++;
       const w = src.slice(i, j);
       const isCall = src.slice(j).trimStart().startsWith("(") && funcName(w) && !map[w.toUpperCase()];
-      out += !isCall && map[w.toUpperCase()] ? map[w.toUpperCase()] : w;
+      const cr = cellRef(w);
+      if (!isCall && cr && map[cr.col] && !map[w.toUpperCase()]) out += map[cr.col] + cr.row;
+      else out += !isCall && map[w.toUpperCase()] ? map[w.toUpperCase()] : w;
       i = j;
     } else if (/[0-9]/.test(c)) {
       let j = i + 1;

@@ -5,14 +5,15 @@
  * СП/РП считаются через computeCostPlan — те же формулы, что в нашей закупке.
  */
 import { computeCostPlan } from "@/lib/cost-plan";
-import { FormulaError, colLetter, evalNode, parseFormula, refsOf, renameColumnRefs, type Node } from "@/lib/calc-formula";
+import { FormulaError, cellRef, colIndex, colLetter, evalNode, lettersBetween, parseFormula, refsOf, renameColumnRefs, type Node } from "@/lib/calc-formula";
 
-export type CalcFormat = "SP_RP" | "SAGA" | "FH" | "OTHER";
+export type CalcFormat = "SP_RP" | "SAGA" | "FH" | "OTHER" | "SHEET";
 export const FORMAT_LABEL: Record<CalcFormat, string> = {
   SP_RP: "Союзпушнина / Русьпушнина — соболь",
   SAGA: "SAGA — норка, свакара",
   FH: "Fur Harvesters — рысь",
   OTHER: "Другой",
+  SHEET: "Своя таблица (столбцы и формулы)",
 };
 
 /** Ставка, которую поставщик вводит сам в шапке расчёта (значения по умолчанию в формате НЕ подставляются). */
@@ -67,7 +68,14 @@ const FH_COLS: Col[] = [
   { key: "commPct", label: "Комиссия РМ, %", width: 80, rate: { label: "Комиссия РМ, %", ph: "например 0 или 2", names: ["комиссия_рм"] } },
 ];
 
+/** Свободная таблица: из встроенных только описание лота, остальные столбцы — свои (customColumns). */
+const SHEET_COLS: Col[] = [
+  { key: "fur", label: "Мех", text: true, width: 110 },
+  { key: "size", label: "Описание / размер", text: true, width: 130 },
+  { key: "lot", label: "Лот", text: true, width: 70 },
+];
 export function columnsFor(f: CalcFormat): Col[] {
+  if (f === "SHEET") return SHEET_COLS;
   return [...LEAD, ...(f === "SAGA" ? SAGA_COLS : f === "FH" ? FH_COLS : SP_COLS), ...TAIL];
 }
 
@@ -85,7 +93,24 @@ export type CalcHeader = {
 };
 export type CalcStage = "PRELIM" | "FINAL";
 export const STAGE_LABEL: Record<CalcStage, string> = { PRELIM: "Предварительный", FINAL: "Окончательный" };
-export type CustomCol = { id: string; letter: string; title: string; unit: string; formula: string };
+/** Правило столбца: для каких строк действует своя формула (первое подошедшее правило важнее основной формулы). */
+export type ColRule = {
+  /** Строки с … по … (номера с 1, как в таблице); пусто — любые. */
+  rowFrom?: number; rowTo?: number;
+  /** Условие по значению ячейки этой строки в столбце ввода (id): «норка», «> 100». */
+  whenCol?: string; op?: "=" | "<>" | ">" | "<" | ">=" | "<=" | "содержит"; whenValue?: string;
+  formula: string;
+};
+export type CustomCol = {
+  id: string; letter: string; title: string; unit: string; formula: string;
+  /** «input» — столбец ввода (в свободной таблице); по умолчанию — формула. */
+  kind?: "input" | "formula"; text?: boolean;
+  rules?: ColRule[];
+  /** Итог по столбцу в итоговой строке (по умолчанию сумма для чисел). */
+  total?: "sum" | "avg" | "none";
+};
+/** Итоговая строка: контрольная разность между двумя итогами с допуском. */
+export type CheckDiff = { id: string; title: string; a: string; b: string; tol: string };
 export type CalcParam = { name: string; value: string };
 export type CalcPayload = {
   v: 1; format: CalcFormat; header: CalcHeader; rows: CalcRow[];
@@ -101,6 +126,12 @@ export type CalcPayload = {
   unitCostColumn?: string;
   /** Столбец количества (по умолчанию «quantity»). */
   qtyColumn?: string;
+  /** Свободная таблица: столбец цены закупки (молотка) за шкуру — нужен для приёма в закупку. */
+  priceColumn?: string;
+  /** Откуда взят набор столбцов: id пресета / шаблона и его название (для подписи). */
+  formatId?: string; formatName?: string;
+  /** Контрольные разности под таблицей. */
+  checks?: CheckDiff[];
 };
 
 /** Пустая ли строка (служебные поля, начинающиеся с «_», не в счёт). */
@@ -261,7 +292,7 @@ export type CalcTotals = { qtys: number[]; qty: number; totalRub: number; advanc
 
 // ============================================================================================ таблица «Детально»: столбцы и формулы
 
-export type SheetCol = { id: string; letter: string; title: string; kind: "input" | "calc" | "custom"; unit?: string; text?: boolean; formula?: string; hint?: string };
+export type SheetCol = { id: string; letter: string; title: string; kind: "input" | "calc" | "custom"; unit?: string; text?: boolean; formula?: string; hint?: string; userInput?: boolean; rules?: ColRule[] };
 export type Cell = { v: number | null; err?: string; manual?: boolean };
 export type Sheet = {
   cols: SheetCol[];
@@ -282,10 +313,15 @@ export const QTY_COL = "qty";
 /** Столбцы таблицы: ввод формата → вычисляемые встроенные → свои. Букву получает каждый по порядку. */
 export function sheetColumns(p: CalcPayload): SheetCol[] {
   const out: SheetCol[] = columnsFor(p.format).map((c) => ({ id: c.key, letter: "", title: c.label, kind: "input" as const, text: c.text, hint: c.hint }));
-  out.push({ id: UNIT_COL, letter: "", title: "Цена за шкуру, ₽", kind: "calc", unit: "₽" });
-  if (p.format === "SAGA") out.push({ id: "unitUsd", letter: "", title: "Цена за шкуру, $", kind: "calc", unit: "$" });
-  out.push({ id: "total", letter: "", title: "Сумма, ₽", kind: "calc", unit: "₽" });
-  for (const c of p.customColumns ?? []) out.push({ id: c.id, letter: "", title: c.title || "Новый столбец", kind: "custom", unit: c.unit, formula: c.formula });
+  if (p.format !== "SHEET") {
+    out.push({ id: UNIT_COL, letter: "", title: "Цена за шкуру, ₽", kind: "calc", unit: "₽" });
+    if (p.format === "SAGA") out.push({ id: "unitUsd", letter: "", title: "Цена за шкуру, $", kind: "calc", unit: "$" });
+    out.push({ id: "total", letter: "", title: "Сумма, ₽", kind: "calc", unit: "₽" });
+  }
+  for (const c of p.customColumns ?? []) {
+    if (c.kind === "input") out.push({ id: c.id, letter: "", title: c.title || "Новый столбец", kind: "input", unit: c.unit, text: c.text, userInput: true });
+    else out.push({ id: c.id, letter: "", title: c.title || "Новый столбец", kind: "custom", unit: c.unit, formula: c.formula, rules: c.rules });
+  }
   out.forEach((c, i) => { c.letter = colLetter(i); });
   return out;
 }
@@ -298,7 +334,8 @@ export function paramNameProblem(name: string, taken: string[]): string | null {
   if (!k) return "Укажите имя параметра";
   if (!/^[\p{L}_][\p{L}\p{N}_]*$/u.test(k)) return "Имя: буквы, цифры и «_», без пробелов, не с цифры";
   if (/^[a-z]{1,3}$/.test(k)) return "Имя из 1–3 латинских букв занято под столбцы (A, B, AA…) — выберите другое";
-  if (/^(round|min|max|if|sum|abs|округл|мин|макс|если|сумм)$/.test(k)) return "Имя совпадает с функцией";
+  if (/^(round|min|max|if|sum|abs|average|subtotal|округл|мин|макс|если|сумм|срзнач)$/.test(k)) return "Имя совпадает с функцией";
+  if (cellRef(k)) return "Имя похоже на адрес ячейки (H3) — выберите другое";
   if (taken.map(paramKey).includes(k)) return "Параметр с таким именем уже есть";
   return null;
 }
@@ -327,15 +364,38 @@ export function paramList(p: CalcPayload): { name: string; label: string; own: b
 
 const LETTERS = /^[A-Za-z]{1,3}$/;
 
+const matchRule = (r: ColRule, rowNo: number, raw: CalcRow): boolean => {
+  if (r.rowFrom !== undefined && Number.isFinite(r.rowFrom) && rowNo < r.rowFrom) return false;
+  if (r.rowTo !== undefined && Number.isFinite(r.rowTo) && rowNo > r.rowTo) return false;
+  if (r.whenCol) {
+    const have = (raw[r.whenCol] ?? "").trim().toLowerCase().replace(/ё/g, "е");
+    const want = (r.whenValue ?? "").trim().toLowerCase().replace(/ё/g, "е");
+    const op = r.op ?? "=";
+    const a = evalNum(have), b = evalNum(want);
+    const num = Number.isFinite(a) && Number.isFinite(b);
+    switch (op) {
+      case "=": if (!(num ? Math.abs(a - b) < 1e-12 : have === want)) return false; break;
+      case "<>": if (num ? Math.abs(a - b) < 1e-12 : have === want) return false; break;
+      case ">": if (!(num && a > b)) return false; break;
+      case "<": if (!(num && a < b)) return false; break;
+      case ">=": if (!(num && a >= b)) return false; break;
+      case "<=": if (!(num && a <= b)) return false; break;
+      case "содержит": if (!have.includes(want)) return false; break;
+    }
+  }
+  return true;
+};
+
 export function computeSheet(p: CalcPayload): Sheet {
   const cols = sheetColumns(p);
   const byLetter = new Map(cols.map((c) => [c.letter, c]));
   const byId = new Map(cols.map((c) => [c.id, c]));
   const f = p.format, h = p.header;
+  const isSheet = f === "SHEET";
   const used = p.rows.map(rowFilled);
   const rawQty = p.rows.reduce((s, r, i) => s + (used[i] ? n0(r.qty) : 0), 0);
   const extra = extraPerHide(h, rawQty);
-  const base = p.rows.map((r, i) => (used[i] ? calcRow(f, h, r, extra) : null));
+  const base = p.rows.map((r, i) => (used[i] && !isSheet ? calcRow(f, h, r, extra) : null));
   const cells: Record<string, Cell[]> = {};
   const colErrors: Record<string, string> = {};
   const eff = effectiveRate(h);
@@ -347,6 +407,7 @@ export function computeSheet(p: CalcPayload): Sheet {
     if (c.kind !== "input") continue;
     cells[c.id] = p.rows.map((raw, i) => {
       if (!used[i]) return { v: null };
+      if (c.text) return { v: null };
       const r = resolveRow(f, h, raw);
       const t = (r[c.id] ?? "").trim();
       if (c.id === "rate" && (f === "SP_RP" || f === "OTHER") && t === "") return { v: eff };
@@ -357,31 +418,39 @@ export function computeSheet(p: CalcPayload): Sheet {
   }
   // встроенные вычисляемые
   const ov = (i: number, id: string) => { const o = p.overrides?.[p.rows[i]?._id ?? ""]?.[id]; return o !== undefined && o.trim() !== "" ? o : null; };
-  cells[UNIT_COL] = p.rows.map((_, i) => {
-    if (!used[i]) return { v: null };
-    const o = ov(i, UNIT_COL);
-    if (o !== null) { const v = evalNum(o); return Number.isFinite(v) ? { v, manual: true } : { v: null, err: `ручное значение не число: «${o}»`, manual: true }; }
-    return { v: base[i]!.unitRub };
-  });
-  cells.unitUsd = p.rows.map((_, i) => (used[i] && base[i]!.unitUsd != null ? { v: base[i]!.unitUsd } : { v: null }));
-  cells.total = p.rows.map((_, i) => {
-    const u = cells[UNIT_COL][i];
-    return used[i] && u.v != null ? { v: u.v * (cells[QTY_COL][i].v ?? 0) } : { v: null, err: u.err };
-  });
+  if (!isSheet) {
+    cells[UNIT_COL] = p.rows.map((_, i) => {
+      if (!used[i]) return { v: null };
+      const o = ov(i, UNIT_COL);
+      if (o !== null) { const v = evalNum(o); return Number.isFinite(v) ? { v, manual: true } : { v: null, err: `ручное значение не число: «${o}»`, manual: true }; }
+      return { v: base[i]!.unitRub };
+    });
+    cells.unitUsd = p.rows.map((_, i) => (used[i] && base[i]!.unitUsd != null ? { v: base[i]!.unitUsd } : { v: null }));
+    cells.total = p.rows.map((_, i) => {
+      const u = cells[UNIT_COL][i];
+      return used[i] && u.v != null ? { v: u.v * (cells[QTY_COL][i].v ?? 0) } : { v: null, err: u.err };
+    });
+  }
 
-  // свои столбцы: разбор, зависимости, порядок вычисления
-  const customs = (p.customColumns ?? []).map((cc) => ({ cc, col: byId.get(cc.id)! }));
-  const ast = new Map<string, Node>();
+  // свои столбцы-формулы: разбор (основная формула и правила), зависимости, порядок вычисления
+  const customs = (p.customColumns ?? []).filter((cc) => cc.kind !== "input").map((cc) => ({ cc, col: byId.get(cc.id)! }));
+  const ast = new Map<string, { main: Node | null; rules: (Node | null)[] }>();
   for (const { cc } of customs) {
-    if (!cc.formula.trim()) { colErrors[cc.id] = "Формула не задана"; continue; }
-    try { ast.set(cc.id, parseFormula(cc.formula)); } catch (e) { colErrors[cc.id] = e instanceof FormulaError ? e.message : "Ошибка в формуле"; }
+    const rules = cc.rules ?? [];
+    if (!cc.formula.trim() && rules.length === 0) { colErrors[cc.id] = "Формула не задана"; continue; }
+    try {
+      const main = cc.formula.trim() ? parseFormula(cc.formula) : null;
+      const rn = rules.map((r, k) => { try { return parseFormula(r.formula); } catch (e) { throw new FormulaError(`правило ${k + 1}: ${e instanceof FormulaError ? e.message : "ошибка в формуле"}`); } });
+      ast.set(cc.id, { main, rules: rn });
+    } catch (e) { colErrors[cc.id] = e instanceof FormulaError ? e.message : "Ошибка в формуле"; }
   }
   const deps = new Map<string, string[]>();
   for (const { cc } of customs) {
-    const n = ast.get(cc.id);
-    if (!n) continue;
-    const r = refsOf(n);
-    const ids = [...r.row, ...r.sum].map((x) => (LETTERS.test(x) ? byLetter.get(x.toUpperCase()) : undefined)).filter((c): c is SheetCol => !!c && c.kind === "custom").map((c) => c.id);
+    const a = ast.get(cc.id);
+    if (!a) continue;
+    const names: string[] = [];
+    for (const n of [a.main, ...a.rules]) if (n) { const r = refsOf(n); names.push(...r.row, ...r.sum); }
+    const ids = names.map((x) => { const cr = cellRef(x); const l = cr ? cr.col : x; return LETTERS.test(l) ? byLetter.get(l.toUpperCase()) : undefined; }).filter((c): c is SheetCol => !!c && c.kind === "custom").map((c) => c.id);
     deps.set(cc.id, [...new Set(ids)]);
   }
   const order: string[] = [];
@@ -400,42 +469,81 @@ export function computeSheet(p: CalcPayload): Sheet {
   };
   for (const { cc } of customs) if (ast.has(cc.id)) visit(cc.id, []);
 
-  const sumOf = (letter: string): number => {
+  const colArr = (letter: string): Cell[] => {
     const c = byLetter.get(letter.toUpperCase());
     if (!c || !LETTERS.test(letter)) throw new FormulaError(`Неизвестный столбец ${letter.toUpperCase()}`);
     const arr = cells[c.id];
-    if (!arr) throw new FormulaError(`SUM(${c.letter}): столбец ещё не вычислен`);
-    let s = 0;
+    if (!arr) throw new FormulaError(`${c.letter}: столбец ещё не вычислен`);
+    return arr;
+  };
+  const colValues = (letter: string): number[] => {
+    const arr = colArr(letter);
+    const out: number[] = [];
     arr.forEach((x, i) => {
       if (!used[i]) return;
-      if (x.v == null) throw new FormulaError(`SUM(${c.letter}): в строке ${i + 1} ошибка${x.err ? ` — ${x.err}` : ""}`);
-      s += x.v;
+      if (x.v == null) { if (byLetter.get(letter.toUpperCase())?.text) return; throw new FormulaError(`${letter.toUpperCase()}: в строке ${i + 1} ошибка${x.err ? ` — ${x.err}` : ""}`); }
+      out.push(x.v);
     });
-    return s;
+    return out;
   };
+  const sumOf = (letter: string): number => colValues(letter).reduce((s, x) => s + x, 0);
 
   for (const id of order) {
-    const col = byId.get(id)!;
     if (colErrors[id]) { cells[id] = p.rows.map((_, i) => (used[i] ? { v: null, err: colErrors[id] } : { v: null })); continue; }
-    const node = ast.get(id)!;
+    const a = ast.get(id)!;
+    const cc = p.customColumns!.find((x) => x.id === id)!;
     cells[id] = empty();
-    p.rows.forEach((_, i) => {
+    p.rows.forEach((raw, i) => {
       if (!used[i]) return;
       const o = ov(i, id);
       if (o !== null) { const v = evalNum(o); cells[id][i] = Number.isFinite(v) ? { v, manual: true } : { v: null, err: `ручное значение не число: «${o}»`, manual: true }; return; }
+      // формула строки: первое подошедшее правило, иначе основная
+      let node = a.main;
+      const rules = cc.rules ?? [];
+      for (let k = 0; k < rules.length; k++) if (matchRule(rules[k], i + 1, raw)) { node = a.rules[k]; break; }
+      if (!node) { cells[id][i] = { v: null, err: "для этой строки нет формулы" }; return; }
+      const cellAt = (letter: string, rowNo: number): number => {
+        const arr = colArr(letter);
+        const cell = arr[rowNo - 1];
+        if (!cell) throw new FormulaError(`${letter.toUpperCase()}${rowNo}: такой строки нет`);
+        if (!used[rowNo - 1]) return 0;
+        if (cell.v == null) { if (byLetter.get(letter.toUpperCase())?.text) return 0; throw new FormulaError(`в ячейке ${letter.toUpperCase()}${rowNo} ошибка${cell.err ? `: ${cell.err}` : ""}`); }
+        return cell.v;
+      };
       try {
         const v = evalNode(node, {
           sum: sumOf,
+          colValues,
+          isColumn: (name) => LETTERS.test(name) && byLetter.has(name.toUpperCase()),
+          rangeValues: (x, y) => {
+            const cx = cellRef(x), cy = cellRef(y);
+            if (cx && cy) {
+              const out: number[] = [];
+              const r1 = Math.min(cx.row, cy.row), r2 = Math.max(cx.row, cy.row);
+              for (const l of lettersBetween(cx.col, cy.col)) for (let rn = r1; rn <= r2; rn++) if (used[rn - 1]) out.push(cellAt(l, rn));
+              return out;
+            }
+            if (LETTERS.test(x) && LETTERS.test(y)) {
+              if (colIndex(x) > 25 && x.length > 3) throw new FormulaError("диапазон столбцов");
+              return lettersBetween(x, y).map((l) => cellAt(l, i + 1));
+            }
+            throw new FormulaError(`Диапазон ${x}:${y} записан неверно (пример: D:I или D3:I10)`);
+          },
           ident: (name) => {
+            const cr = cellRef(name);
+            if (cr && byLetter.has(cr.col)) return cellAt(cr.col, cr.row);
             if (LETTERS.test(name)) {
               const c = byLetter.get(name.toUpperCase());
               if (c) {
                 const cell = cells[c.id]?.[i];
                 if (!cell) throw new FormulaError(`Столбец ${c.letter} ещё не вычислен`);
-                if (cell.v == null) throw new FormulaError(`в столбце ${c.letter} ошибка${cell.err ? `: ${cell.err}` : ""}`);
+                if (cell.v == null) { if (c.text) return 0; throw new FormulaError(`в столбце ${c.letter} ошибка${cell.err ? `: ${cell.err}` : ""}`); }
                 return cell.v;
               }
             }
+            // параметр: для строки можно задать своё значение (ключ «@имя» в строке)
+            const rowOv = raw["@" + paramKey(name)];
+            if (rowOv !== undefined && rowOv.trim() !== "") { const x = evalNum(rowOv); if (Number.isFinite(x)) return x; }
             const pv = params[paramKey(name)];
             if (typeof pv === "number") return pv;
             if (typeof pv === "string") throw new FormulaError(pv);
@@ -448,50 +556,74 @@ export function computeSheet(p: CalcPayload): Sheet {
         cells[id][i] = { v: null, err: e instanceof FormulaError ? e.message : "ошибка вычисления" };
       }
     });
-    void col;
   }
   // столбцы с ошибкой синтаксиса/цикла, не попавшие в order
   for (const { cc } of customs) if (!cells[cc.id]) cells[cc.id] = p.rows.map((_, i) => (used[i] ? { v: null, err: colErrors[cc.id] ?? "ошибка формулы" } : { v: null }));
 
-  const unitCol = p.unitCostColumn && byId.get(p.unitCostColumn) && byId.get(p.unitCostColumn)!.kind !== "input" ? p.unitCostColumn : UNIT_COL;
-  const qtyCol = p.qtyColumn && byId.get(p.qtyColumn) && !byId.get(p.qtyColumn)!.text && byId.get(p.qtyColumn)!.kind !== "calc" ? p.qtyColumn : QTY_COL;
+  const okUnit = (id: string | undefined) => { const c = id ? byId.get(id) : undefined; return c && (isSheet ? !c.text : c.kind !== "input") ? c.id : null; };
+  const unitCol = okUnit(p.unitCostColumn) ?? (isSheet ? "" : UNIT_COL);
+  const qtyCol = p.qtyColumn && byId.get(p.qtyColumn) && !byId.get(p.qtyColumn)!.text && byId.get(p.qtyColumn)!.kind !== "calc" ? p.qtyColumn : isSheet ? "" : QTY_COL;
 
   // итоги по числовым столбцам
   const sums: Record<string, Cell> = {};
+  const totalMode = (c: SheetCol) => (p.customColumns ?? []).find((x) => x.id === c.id)?.total ?? "sum";
   for (const c of cols) {
-    if (c.kind === "input" && c.id !== QTY_COL && c.id !== "price") continue;
+    if (c.text) continue;
+    if (c.kind === "input" && !c.userInput && c.id !== QTY_COL && c.id !== "price") continue;
     const arr = cells[c.id];
     if (!arr || c.id === "unitUsd") continue;
-    let s = 0, bad: string | undefined;
-    arr.forEach((x, i) => { if (!used[i]) return; if (x.v == null) bad = bad ?? x.err ?? "ошибка"; else s += x.v; });
-    sums[c.id] = bad ? { v: null, err: bad } : { v: s };
+    const mode = totalMode(c);
+    if (mode === "none") continue;
+    let s = 0, n = 0, bad: string | undefined;
+    arr.forEach((x, i) => { if (!used[i]) return; if (x.v == null) bad = bad ?? x.err ?? "ошибка"; else { s += x.v; n++; } });
+    sums[c.id] = bad ? { v: null, err: bad } : mode === "avg" ? (n ? { v: s / n } : { v: null, err: "нет значений" }) : { v: s };
   }
   return { cols, cells, sums, colErrors, used, unitCol, qtyCol };
 }
 
 export function calcAll(p: CalcPayload): CalcTotals {
   const sh = computeSheet(p);
+  const isSheet = p.format === "SHEET";
   const rawQty = p.rows.reduce((s, r, i) => s + (sh.used[i] ? n0(r.qty) : 0), 0);
   const extraRub = extraPerHide(p.header, rawQty);
   const colTitle = (id: string) => sh.cols.find((c) => c.id === id)?.title ?? id;
-  const qtys = p.rows.map((_, i) => (sh.used[i] ? sh.cells[sh.qtyCol][i].v ?? 0 : 0));
+  const qtys = p.rows.map((_, i) => (sh.used[i] && sh.qtyCol ? sh.cells[sh.qtyCol]?.[i]?.v ?? 0 : 0));
   const calcs = p.rows.map((r, i) => {
-    const b = sh.used[i] ? calcRow(p.format, p.header, r, extraRub) : calcRow(p.format, p.header, r, extraRub);
+    const b = isSheet
+      ? { ok: true, problems: [] as string[], unitRub: 0, totalRub: 0, unitUsd: null, parts: [], extraRub: 0 } as RowCalc
+      : calcRow(p.format, p.header, r, extraRub);
     if (!sh.used[i]) return b;
     const problems = b.problems.filter((x) => !(x === "нет количества" && sh.qtyCol !== QTY_COL));
-    const u = sh.cells[sh.unitCol][i];
-    const q = sh.cells[sh.qtyCol][i];
-    if (sh.qtyCol !== QTY_COL && !(qtys[i] > 0)) problems.push("нет количества");
-    if (u.v == null) problems.push(`ошибка в столбце «${colTitle(sh.unitCol)}»: ${u.err ?? "нет значения"}`);
-    if (q.v == null) problems.push(`ошибка в столбце «${colTitle(sh.qtyCol)}»: ${q.err ?? "нет значения"}`);
-    const unit = u.v ?? 0;
+    if (isSheet && !sh.unitCol) problems.push("не выбран столбец себестоимости");
+    if (isSheet && !sh.qtyCol) problems.push("не выбран столбец количества");
+    const u = sh.unitCol ? sh.cells[sh.unitCol]?.[i] : undefined;
+    const q = sh.qtyCol ? sh.cells[sh.qtyCol]?.[i] : undefined;
+    if (sh.qtyCol && (isSheet || sh.qtyCol !== QTY_COL) && !(qtys[i] > 0)) problems.push("нет количества");
+    if (u && u.v == null) problems.push(`ошибка в столбце «${colTitle(sh.unitCol)}»: ${u.err ?? "нет значения"}`);
+    if (q && q.v == null) problems.push(`ошибка в столбце «${colTitle(sh.qtyCol)}»: ${q.err ?? "нет значения"}`);
+    const unit = u?.v ?? 0;
     return { ...b, ok: problems.length === 0, problems, unitRub: unit, totalRub: unit * qtys[i] };
   });
   const qty = qtys.reduce((s, x) => s + x, 0);
   const totalRub = calcs.reduce((s, c, i) => s + (sh.used[i] ? c.totalRub : 0), 0);
   const advance = n0(p.header.advance);
   const interim = n0(p.header.interim);
-  return { qtys, qty, totalRub, advance, interim, rest: totalRub - advance - interim, extraRub, calcs, rate: effectiveRate(p.header), sheet: sh };
+  const rate = isSheet ? (typeof paramValues(p)["курс"] === "number" ? (paramValues(p)["курс"] as number) : 0) : effectiveRate(p.header);
+  return { qtys, qty, totalRub, advance, interim, rest: totalRub - advance - interim, extraRub, calcs, rate, sheet: sh };
+}
+
+/** Контрольные разности под таблицей: |итог A − итог B| ≤ допуск. */
+export function checkDiffs(p: CalcPayload, sh: Sheet): { id: string; title: string; diff: number | null; ok: boolean; note?: string }[] {
+  const byLetter = new Map(sh.cols.map((c) => [c.letter, c]));
+  return (p.checks ?? []).map((c) => {
+    const a = byLetter.get(c.a.trim().toUpperCase()), b = byLetter.get(c.b.trim().toUpperCase());
+    const sa = a ? sh.sums[a.id] : undefined, sb = b ? sh.sums[b.id] : undefined;
+    if (!a || !b || !sa || !sb) return { id: c.id, title: c.title, diff: null, ok: false, note: "нет такого столбца" };
+    if (sa.v == null || sb.v == null) return { id: c.id, title: c.title, diff: null, ok: false, note: "в итоге ошибка" };
+    const diff = sa.v - sb.v;
+    const tol = n0(c.tol);
+    return { id: c.id, title: c.title, diff, ok: Math.abs(diff) <= tol + 1e-9 };
+  });
 }
 
 /** Проверка перед отправкой: что обязательно заполнено. */
@@ -499,7 +631,7 @@ export function sendProblems(p: CalcPayload): string[] {
   const out: string[] = [];
   if (!p.header.auction.trim()) out.push("Укажите аукцион");
   if (!p.header.invoice.trim()) out.push("Укажите номер аукционного счёта");
-  if (!(effectiveRate(p.header) > 0)) out.push("Укажите курс ЦБ");
+  if (p.format !== "SHEET" && !(effectiveRate(p.header) > 0)) out.push("Укажите курс ЦБ");
   const rows = p.rows.filter(rowFilled);
   if (rows.length === 0) out.push("Добавьте хотя бы один лот");
   const t = calcAll(p);
@@ -620,7 +752,7 @@ export function remapCustomRefs(before: CalcPayload, after: CalcPayload): CalcPa
     if (o && n && o.letter !== n.letter) map[o.letter] = n.letter;
   }
   if (Object.keys(map).length === 0) return syncLetters(after);
-  return syncLetters({ ...after, customColumns: after.customColumns.map((c) => ({ ...c, formula: renameColumnRefs(c.formula, map) })) });
+  return syncLetters({ ...after, checks: after.checks?.map((c) => ({ ...c, a: map[c.a.toUpperCase()] ?? c.a, b: map[c.b.toUpperCase()] ?? c.b })), customColumns: after.customColumns.map((c) => ({ ...c, formula: renameColumnRefs(c.formula, map), rules: c.rules?.map((r) => ({ ...r, formula: renameColumnRefs(r.formula, map) })) })) });
 }
 /** Какие столбцы ссылаются на данный (по букве): нельзя удалить, пока на него ссылаются. */
 export function columnUsers(p: CalcPayload, id: string): string[] {
@@ -630,10 +762,12 @@ export function columnUsers(p: CalcPayload, id: string): string[] {
   const out: string[] = [];
   for (const c of p.customColumns ?? []) {
     if (c.id === id) continue;
-    try {
-      const r = refsOf(parseFormula(c.formula));
-      if ([...r.row, ...r.sum].some((x) => x.toUpperCase() === me.letter && LETTERS.test(x))) out.push(c.title || "без названия");
-    } catch { /* формула с ошибкой — не считается */ }
+    for (const src of [c.formula, ...(c.rules ?? []).map((r) => r.formula)]) {
+      try {
+        const r = refsOf(parseFormula(src));
+        if ([...r.row, ...r.sum].some((x) => { const cr = cellRef(x); const l = cr ? cr.col : x; return l.toUpperCase() === me.letter && LETTERS.test(l); })) { out.push(c.title || "без названия"); break; }
+      } catch { /* формула с ошибкой — не считается */ }
+    }
   }
   return out;
 }
