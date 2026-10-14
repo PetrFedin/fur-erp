@@ -74,7 +74,8 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
     canEdit ? prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
   // Автор-поставщик показывается названием компании («Веллмех»), а не именем служебной учётной записи.
-  const userName = new Map(users.map((u) => [u.id, u.role === "SUPPLIER" ? u.supplier?.name ?? "Поставщик" : u.name]));
+  // Поставщику имена наших сотрудников не показываем: вместо них «ЦУМ».
+  const userName = new Map(users.map((u) => [u.id, u.role === "SUPPLIER" ? u.supplier?.name ?? "Поставщик" : isSupplier ? "ЦУМ" : u.name]));
   // Подсказки названий этапа: «Примерка» и «Приёмка в Коптево» есть всегда, дальше — ранее использованные.
   const titles = [...new Set([FITTING_TITLE, ACCEPTANCE_TITLE, ...titleGroups.map((g) => g.title)])];
   // Подсказки для «Ответственный»: сотрудники приложения и ранее вписанные имена.
@@ -142,7 +143,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   const notes = intervalNotes(sorted);
   const fittingDone = sorted.some((e) => /^примерка/i.test(e.title) && !e.expected);
   const dayGroups = groupEventsByDay(sorted, wallDateIso(wallNow()));
-  const respText = (e: (typeof sorted)[number]) => (e.responsibleUserId ? userName.get(e.responsibleUserId) : null) ?? e.responsibleName ?? "";
+  const respText = (e: (typeof sorted)[number]) => (isSupplier && e.side === "CUM" ? "ЦУМ" : (e.responsibleUserId ? userName.get(e.responsibleUserId) : null) ?? e.responsibleName ?? "");
 
   const values = (e: (typeof sorted)[number]): EventValues => ({
     id: e.id,
@@ -159,7 +160,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   });
 
   const name = s.name ?? `Отгрузка на ${formatDate(s.plannedDate)}`;
-  const batchText = s.batch ? `Партия ${s.batch.number}${s.batch.year ? ` · ${s.batch.year}` : ""}${s.batch.name ? ` · ${s.batch.name}` : ""}` : "";
+  const batchText = s.batch ? `Партия ${s.batch.number}${s.batch.year ? ` · ${s.batch.year}` : ""}${s.batch.name && !isSupplier ? ` · ${s.batch.name}` : ""}` : "";
   const sharePct = (part: number) => {
     const v = shareOf(part, totals.inShipment);
     return v == null ? undefined : formatShare(v);
@@ -216,8 +217,8 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           <dd>{s.batch ? (isSupplier ? batchText : <Link href={`/production/batches/${s.batch.number}`} className="hover:underline">{batchText}</Link>) : "—"}</dd>
           <dt className="text-neutral-500">Плановая дата</dt>
           <dd>{formatDate(s.plannedDate)}</dd>
-          <dt className="text-neutral-500">Примечание</dt>
-          <dd className="whitespace-pre-wrap">{s.notes ?? "—"}</dd>
+          {!isSupplier && (<><dt className="text-neutral-500">Примечание</dt>
+          <dd className="whitespace-pre-wrap">{s.notes ?? "—"}</dd></>)}
         </dl>
       </section>
 
@@ -375,7 +376,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           canEdit={canEdit}
           waiting={{ rework: reworkQty, review: reviewQty }}
           event={acceptEvent ? { id: acceptEvent.id, stamp: fmtWall(acceptEvent.occurredAt, acceptEvent.timeKnown) } : null}
-          closed={s.acceptedAt && summary ? `${summary.accepted.stamp}${s.acceptedBy ? `, принял ${s.acceptedBy}` : ""}` : null}
+          closed={s.acceptedAt && summary ? `${summary.accepted.stamp}${s.acceptedBy && !isSupplier ? `, принял ${s.acceptedBy}` : ""}` : null}
           closeProps={{ rows: acceptRows, totals, names }}
           createEvent={canEdit ? <CreateAcceptanceButton shipmentId={s.id} /> : null}
         />
@@ -384,7 +385,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           <SummaryShell
             shipmentId={s.id}
             canEdit={canEdit}
-            subtitle={`${summary.accepted.title} · ${summary.accepted.stamp}${s.acceptedBy ? ` · принял: ${s.acceptedBy}` : ""}${accEv?.side ? ` · на ком: ${SIDE_LABEL[accEv.side] ?? accEv.side}` : ""}`}
+            subtitle={`${summary.accepted.title} · ${summary.accepted.stamp}${s.acceptedBy && !isSupplier ? ` · принял: ${s.acceptedBy}` : ""}${accEv?.side ? ` · на ком: ${SIDE_LABEL[accEv.side] ?? accEv.side}` : ""}`}
           >
             <div>
               <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Объёмы</h3>

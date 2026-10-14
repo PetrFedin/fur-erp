@@ -63,7 +63,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         ? [{
             OR: [
               { name: like(f.q) },
-              { notes: like(f.q) },
+              ...(isSupplier ? [] : [{ notes: like(f.q) }]),
               { supplier: { name: like(f.q) } },
               { lines: { some: { OR: [
                 { color: like(f.q) },
@@ -122,11 +122,12 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
     : [];
 
   const supplierFilter: FilterOption[] = suppliers.map((x) => ({ value: x.id, label: x.name }));
-  const batchFilter: FilterOption[] = batches.map((b) => ({ value: String(b.number), label: `Партия ${b.number}${b.name ? ` · ${b.name}` : ""}` }));
+  const batchFilter: FilterOption[] = batches.map((b) => ({ value: String(b.number), label: `Партия ${b.number}${b.name && !isSupplier ? ` · ${b.name}` : ""}` }));
   const stageFilter: FilterOption[] = titles.map((t) => ({ value: t.title, label: t.title }));
 
   type Row = (typeof rows)[number];
-  const respOf = (e: { responsibleName: string | null; responsibleUser: { name: string } | null } | null) => e?.responsibleUser?.name ?? e?.responsibleName ?? "";
+  // Поставщику имена наших сотрудников не показываем.
+  const respOf = (e: { responsibleName: string | null; responsibleUser: { name: string } | null } | null) => (isSupplier ? "" : e?.responsibleUser?.name ?? e?.responsibleName ?? "");
   const lastText = (r: Row) => (r.last ? [`${r.last.title} · ${fmtWall(r.last.occurredAt, r.last.timeKnown)}`, respOf(r.last)].filter(Boolean).join(" · ") : "");
   const share = (part: number, whole: number, what: string) => {
     const s = shareOf(part, whole);
