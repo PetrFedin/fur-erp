@@ -75,7 +75,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <h1 className="text-xl font-semibold">Главная</h1>
           <PageModes info={info} c4={c4Mode} />
         </div>
-        <PrintButton />
+        <div className="flex items-center gap-2">
+          <Link href="/scheme" className="rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-700 hover:bg-neutral-50 print:hidden">Схема</Link>
+          <PrintButton />
+        </div>
       </div>
       <p data-print-date className="hidden text-xs text-neutral-600">
         Напечатано: {new Date().toLocaleString("ru-RU", { timeZone: "Europe/Moscow", dateStyle: "long", timeStyle: "short" })} (МСК) · {yl}{activeFilters ? ` · фильтры: ${activeFilters}` : ""}
