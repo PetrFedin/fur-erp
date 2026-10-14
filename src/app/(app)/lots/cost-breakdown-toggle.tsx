@@ -20,12 +20,20 @@ export function CostBreakdownToggle({
   breakdown,
   unitCostExcl,
   unitCostIncl,
+  qty,
+  unit = "шт.",
+  lotLabel,
 }: {
   breakdown: Breakdown;
   /** Себестоимость единицы без НДС — та, что идёт в ТЗ. Необязательно. */
   unitCostExcl?: number | string | null;
   /** Себестоимость единицы с НДС. Необязательно. */
   unitCostIncl?: number | string | null;
+  /** Количество в лоте — тогда в итоге показывается и стоимость всего лота. */
+  qty?: number | string | null;
+  unit?: string;
+  /** Название лота для заголовка окна. */
+  lotLabel?: string;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   // Содержимое окна рисуем только после первого открытия: на странице закупки таких окон по числу позиций (десятки),
@@ -37,6 +45,8 @@ export function CostBreakdownToggle({
   const groups = opened ? groupBreakdownItems(breakdown.items ?? []) : [];
   const excl = toNum(unitCostExcl);
   const incl = toNum(unitCostIncl);
+  const q = toNum(qty);
+  const showLot = q != null && Number.isFinite(q) && q > 0;
   const showFinal = excl != null && incl != null && Number.isFinite(excl) && Number.isFinite(incl);
 
   return (
@@ -63,11 +73,42 @@ export function CostBreakdownToggle({
               Закрыть
             </button>
           </div>
-          {breakdown.furDescription && <p className="mb-1 text-neutral-500">{breakdown.furDescription}</p>}
+          {(lotLabel || breakdown.furDescription) && <p className="mb-2 text-neutral-500">{[lotLabel, breakdown.furDescription].filter(Boolean).join(" · ")}</p>}
+          {showFinal && (
+            <div className="mb-3 rounded-md border border-neutral-300 bg-neutral-50 p-3" data-lot-result>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-600">Итог: цена лота</p>
+              <table className="w-full border-collapse text-xs">
+                <thead>
+                  <tr className="text-left text-neutral-500">
+                    <th className="py-0.5 pr-2 font-normal" />
+                    <th className="py-0.5 pr-2 text-right font-normal">Без НДС</th>
+                    <th className="py-0.5 pr-2 text-right font-normal">НДС</th>
+                    <th className="py-0.5 text-right font-normal">Всего, ₽</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono">
+                  <tr>
+                    <td className="py-0.5 pr-2 font-sans font-medium text-neutral-800">За 1 {unit}<span className="block text-[10px] font-normal text-neutral-500">идёт в ТЗ</span></td>
+                    <td className="py-0.5 pr-2 text-right font-semibold">{fmt(excl)}</td>
+                    <td className="py-0.5 pr-2 text-right">{fmt(incl - excl)}</td>
+                    <td className="py-0.5 text-right font-semibold">{fmt(incl)}</td>
+                  </tr>
+                  {showLot && (
+                    <tr className="border-t border-neutral-200">
+                      <td className="py-0.5 pr-2 font-sans font-medium text-neutral-800">За весь лот<span className="block text-[10px] font-normal text-neutral-500">{fmt(q!)} {unit}</span></td>
+                      <td className="py-0.5 pr-2 text-right font-semibold">{fmt(excl * q!)}</td>
+                      <td className="py-0.5 pr-2 text-right">{fmt((incl - excl) * q!)}</td>
+                      <td className="py-0.5 text-right font-semibold">{fmt(incl * q!)}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-600">Из чего собрана цена (отчёт поставщика)</p>
           {(breakdown.exchangeRateInvoice || breakdown.exchangeRateFixed) && (
             <p className="mb-1 text-neutral-500">
-              Курс инвойса: {breakdown.exchangeRateInvoice ?? "—"} · Курс ЦБ (фиксация):{" "}
-              {breakdown.exchangeRateFixed ?? "—"}
+              Курс инвойса: {breakdown.exchangeRateInvoice ?? "—"} · Курс ЦБ (фиксация): {breakdown.exchangeRateFixed ?? "—"}
             </p>
           )}
           <table className="w-full table-fixed border-collapse">
@@ -100,26 +141,7 @@ export function CostBreakdownToggle({
               </tbody>
             ))}
           </table>
-          {showFinal && (
-            <div className="mt-2 border-t border-neutral-300 pt-1.5">
-              <p className="mb-0.5 font-medium text-neutral-700">Итог для приложения — себестоимость единицы, идёт в ТЗ</p>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <div className="text-neutral-500">Без НДС</div>
-                  <div className="font-mono font-semibold">{fmt(excl)}</div>
-                </div>
-                <div>
-                  <div className="text-neutral-500">НДС</div>
-                  <div className="font-mono font-semibold">{fmt(incl - excl)}</div>
-                </div>
-                <div>
-                  <div className="text-neutral-500">Всего, ₽</div>
-                  <div className="font-mono font-semibold">{fmt(incl)}</div>
-                </div>
-              </div>
-            </div>
-          )}
-          <p className="mt-2 text-neutral-500">Числа — из отчёта поставщика, в его единицах.</p>
+          <p className="mt-2 text-neutral-500">Составляющие переписаны из отчёта поставщика как есть: часть в $, часть в ₽, на шкуру или на весь лот. Итог выше посчитан приложением из цены лота и количества.</p>
         </div>
         )}
       </dialog>

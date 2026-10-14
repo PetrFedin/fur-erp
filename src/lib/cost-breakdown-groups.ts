@@ -12,7 +12,7 @@ export const GROUPS: { key: GroupKey; title: string; hint?: string }[] = [
   { key: "delivery", title: "④ Доставка и таможня" },
   { key: "commission", title: "⑤ Комиссии" },
   { key: "vat", title: "⑥ НДС" },
-  { key: "totals", title: "⑦ Итоги из отчёта поставщика", hint: "подсказка из отчёта, не наш расчёт" },
+  { key: "totals", title: "⑦ Итоги самого отчёта поставщика (справочно)", hint: "могут отличаться от итога выше — тот считает приложение" },
   { key: "other", title: "Прочее" },
 ];
 

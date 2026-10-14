@@ -561,7 +561,7 @@ function LotRowView({
           <Money incl={r.unitIncl} excl={r.unitExcl} />
           <Unit4Note incl={r.unitIncl} excl={r.unitExcl} source={r.source === "price"} />
         </span>
-        {r.breakdown ? <CostBreakdownToggle breakdown={r.breakdown as never} unitCostExcl={String(r.unitExcl)} unitCostIncl={String(r.unitIncl)} /> : null}
+        {r.breakdown ? <CostBreakdownToggle breakdown={r.breakdown as never} unitCostExcl={String(r.unitExcl)} unitCostIncl={String(r.unitIncl)} qty={r.qty} unit={r.unit} /> : null}
       </Td>
       <Td className="whitespace-nowrap font-medium">
         <Money incl={r.totalIncl} excl={r.totalExcl} />
@@ -683,7 +683,7 @@ function LotCardView({
         ...fields.map((f) => ({ label: f.name, value: <CustomCell row={r} field={f} card /> })),
         {
           label: "Расчёт",
-          value: r.breakdown ? <CostBreakdownToggle breakdown={r.breakdown as never} unitCostExcl={String(r.unitExcl)} unitCostIncl={String(r.unitIncl)} /> : null,
+          value: r.breakdown ? <CostBreakdownToggle breakdown={r.breakdown as never} unitCostExcl={String(r.unitExcl)} unitCostIncl={String(r.unitIncl)} qty={r.qty} unit={r.unit} /> : null,
         },
       ]}
       extra={
