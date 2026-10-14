@@ -356,6 +356,7 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
               { label: "Остаток", value: p.hasLots || p.remFur + p.remLining > 0 ? remText(p) : null },
               { label: "Счёт", value: p.invoice },
               { label: "УПД", value: p.upd },
+              { label: "Где сырьё", value: p.raw?.line ?? null },
             ]}
           />
         ))}
@@ -396,6 +397,7 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
                   <td className="sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left font-medium">
                     <Link href={`/purchases/${p.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{p.number}</Link>
                     <span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
+                    {p.raw ? <div className={cn("truncate text-[11px] font-normal", p.raw.overdue ? "text-red-700" : "text-blue-700")} title={`Где сырьё: ${p.raw.line}`}>{p.raw.chip}</div> : null}
                   </td>
                   <td className={TD + BL}>{p.year}</td>
                   <td className={TD + " truncate !text-left text-xs"} title={p.batchLabel}>{p.batchLabel}</td>

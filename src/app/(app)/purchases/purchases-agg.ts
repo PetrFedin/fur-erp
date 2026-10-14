@@ -18,6 +18,8 @@ export type TreePurchase = {
   /** Часть «Оплачено», пришедшая из оплат партии целиком (не привязанных к закупке). */
   paidBatch: number;
   lots: number; fur: number; lining: number;
+  /** Где сырьё по данным Веллмеха: «Выделка · ждём к 20.10» (нет этапов — null). */
+  raw?: { chip: string; line: string; overdue: boolean } | null;
   /** Использовано / куплено по лотам, ₽ (для процента) и остаток по лотам: шкур и метров. Лотов нет (черновик) — hasLots = false. */
   usedValue: number; recvValue: number; hasLots: boolean; remFur: number; remLining: number;
   items: TreeItem[]; expenses: TreeExpense[]; pays: TreePay[];

@@ -1,3 +1,4 @@
+import { loadRawInfo } from "@/lib/raw-stage-server";
 import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { WidgetRow } from "@/components/widget-row";
 import Link from "next/link";
@@ -114,6 +115,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     prisma.rawMaterialLot.findMany({ where: { organizationId: orgId, sizeGrade: { not: null } }, select: { sizeGrade: true } }),
   ]);
   const furKinds = await furKindsP;
+  const rawInfo = await loadRawInfo(orgId, found.map((p) => p.id));
   const lotsOf = new Map<string, FurLot[]>();
   const lotById = new Map<string, FurLot>();
   for (const l of [...furLots, ...liningLots]) {
@@ -173,6 +175,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       remFur: ls.length > 0 ? ls.filter((l) => l.kind === "fur").reduce((a, l) => a + l.rem, 0) : status === "DRAFT" ? items.filter((i) => !unitIsM(i)).reduce((a, i) => a + i.qty, 0) : 0,
       remLining: ls.length > 0 ? ls.filter((l) => l.kind === "lining").reduce((a, l) => a + l.rem, 0) : status === "DRAFT" ? items.filter(unitIsM).reduce((a, i) => a + i.qty, 0) : 0,
       items,
+      raw: rawInfo.get(p.id) ?? null,
       expenses: p.expenses.map((e) => ({ id: e.id, label: e.category.name + (e.description ? ` · ${e.description}` : ""), sum: num(grossUp(e.amount, e.vatRate)) })),
       pays: own.map((x) => ({ id: x.id, date: formatDate(x.paidAt), amount: num(x.amount), doc: x.docRef?.trim() || null })),
     };

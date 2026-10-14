@@ -1,3 +1,4 @@
+import { loadRawFacts } from "@/lib/raw-calendar";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -162,8 +163,11 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const expFacts: FactItem[] = factsHidden ? [] : pipe
     .filter((p) => p.status !== "COMPLETED" && p.stage !== "repair" && !p.endDate && p.expected && EXPECT_SRC.includes(p.expected.source) && p.expected.date >= from && p.expected.date <= to && (artRe.length === 0 || artRe.some((v) => p.articleCode.toLowerCase().includes(v))))
     .map((p) => ({ id: `ex-${p.id}`, kind: "order" as const, date: p.expected!.date, title: p.articleLabel, qty: p.qty, label: `Ожидаем ${pipeTitle(p)}`, href: `/production/${p.id}`, orderId: p.id }));
+  // Слой «Сырьё Веллмеха»: показан по умолчанию рядом с записями Веллмеха (скрывается тем же «Без Веллмеха», как и они — фильтрами сезона/действия/артикула).
+  const rawOn = mode === "detail" && cf.sup !== "hide" && !seasonPicked && actionVals.length === 0 && !articleF;
+  const rawFacts = rawOn ? await loadRawFacts(orgId, from, to) : [];
   const factsByDay = new Map<string, FactItem[]>();
-  for (const f of [...layer.items, ...expFacts]) factsByDay.set(f.date, [...(factsByDay.get(f.date) ?? []), f]);
+  for (const f of [...layer.items, ...expFacts, ...rawFacts]) factsByDay.set(f.date, [...(factsByDay.get(f.date) ?? []), f]);
 
   const evByDay = new Map<string, Ev[]>();
   for (const e of evs) {
@@ -199,6 +203,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const dayFacts: FactItem[] = panelDay
     ? [
         ...(await loadFactLayer(orgId, panelDay, panelDay, { month: panelDay.slice(0, 7) })).items,
+        ...(rawOn ? await loadRawFacts(orgId, panelDay, panelDay) : []),
         ...pipe
           .filter((p) => p.status !== "COMPLETED" && p.stage !== "repair" && !p.endDate && p.expected && EXPECT_SRC.includes(p.expected.source) && p.expected.date === panelDay)
           .map((p) => ({ id: `ex-${p.id}`, kind: "order" as const, date: panelDay, title: p.articleLabel, qty: p.qty, label: `Ожидаем ${pipeTitle(p)}`, href: `/production/${p.id}`, orderId: p.id })),

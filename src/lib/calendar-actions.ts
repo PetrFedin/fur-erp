@@ -29,6 +29,7 @@ export const LAYER_STYLES = {
   supply: { label: "План поставок", chip: "bg-white text-neutral-700 border-dashed border-neutral-400", dot: "bg-neutral-400" },
   shipment: { label: "Отгрузка (план)", chip: "bg-white text-indigo-700 border-dashed border-indigo-300", dot: "bg-indigo-300" },
   fitting: { label: "Примерка", chip: "bg-white text-pink-700 border-dashed border-pink-300", dot: "bg-pink-300" },
+  raw: { label: "Сырьё Веллмеха", chip: "bg-white text-teal-800 border-dashed border-teal-300", dot: "bg-teal-400" },
   order: { label: "Окончание ТЗ", chip: "bg-white text-emerald-700 border-dashed border-emerald-300", dot: "bg-emerald-300" },
 } as const;
 export type LayerKind = keyof typeof LAYER_STYLES;

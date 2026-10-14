@@ -1,3 +1,4 @@
+import { loadRawInfo } from "@/lib/raw-stage-server";
 import { relabelOrders } from "@/lib/order-label-db";
 import { escapeLike } from "@/lib/input";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
@@ -213,6 +214,7 @@ export async function AuctionView({
   // Без фильтра показываем все закупки аукциона (и пустые); с фильтром — только те, где что-то нашлось.
   const purchases = filtering ? purchasesRaw.filter((p) => p.items.length > 0) : purchasesRaw;
 
+  const rawInfo = await loadRawInfo(organizationId, purchases.map((p) => p.id));
   const zero = () => new Decimal(0);
   const blocks = purchases.map((p) => {
     const counted = p.status !== "CANCELLED";
@@ -481,6 +483,9 @@ export async function AuctionView({
               <span className="text-xs text-neutral-500">
                 {lines.length} лот. · {formatQty(qty.toString())} шт.
               </span>
+              {rawInfo.get(p.id) && (
+                <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs ${rawInfo.get(p.id)!.overdue ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"}`} title={`Где сырьё: ${rawInfo.get(p.id)!.line}`}>{rawInfo.get(p.id)!.chip}</span>
+              )}
               <span className="ml-auto text-sm font-semibold">
                 <Money incl={pFullIncl} excl={pFullExcl} />
               </span>

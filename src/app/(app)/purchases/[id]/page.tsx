@@ -1,3 +1,4 @@
+import { RawStagesBlock } from "@/components/raw-stages";
 import { TotalLabel } from "@/components/total-label";
 
 import { WidgetRow } from "@/components/widget-row";
@@ -107,6 +108,12 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       })
     : [];
   const planItems = purchase.items.filter((i) => i.costPlan != null);
+  // Где сырьё — этапы, которые вносит Веллмех (у нас только чтение).
+  const rawStages = await prisma.supplierRawStage.findMany({
+    where: { organizationId: session.user.organizationId, purchaseId: purchase.id },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, stage: true, status: true, place: true, lotNumber: true, qty: true, note: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true },
+  });
 
   // Документы Google Drive: закупки, её лотов и оплат.
   const driveLotIds = purchase.items.map((i) => i.lotId).filter((x): x is string => !!x);
@@ -641,6 +648,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         />
         </div>
       </div>
+
+      {rawStages.length > 0 && <RawStagesBlock stages={rawStages} purchaseId={purchase.id} author="Веллмех" />}
 
       {isForeignCurrency && editable && planItems.length === 0 && (
         <Card>
