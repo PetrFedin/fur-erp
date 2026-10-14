@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { checkOrgRefs } from "@/lib/org-guard";
 import { DATE_RANGE_ERROR, MAX_LINE_QTY, MAX_LINES, isDateInRange } from "@/lib/shipments";
-import { acceptLineError, acceptSummaryText, sideError, shipmentTotals, wallNow, wallToDate } from "@/lib/shipment-calc";
+import { ACCEPTANCE_TITLE, acceptLineError, acceptSummaryText, sideError, shipmentTotals, wallNow, wallToDate } from "@/lib/shipment-calc";
 import { loadShipmentCandidates, nextShipmentName } from "@/lib/shipment-data";
 import { ACCEPT_NEEDS_READY, clip, eventTitles, isReworkState, moveError, REWORK_STATE_LABEL } from "@/lib/shipment-stage";
 import { orderLabel } from "@/lib/order-label";
@@ -432,7 +432,7 @@ export async function createAcceptanceEvent(shipmentId: string): Promise<{ error
   if (!sh) return { error: "Отгрузка не найдена" };
   if (sh.acceptedAt) return { error: "Приёмка уже подтверждена" };
   await prisma.shipmentEvent.create({
-    data: { shipmentId, title: "Принято в Коптево", occurredAt: sh.plannedDate, timeKnown: false, expected: true, place: "Коптево", side: "CUM", createdById: session.user.id },
+    data: { shipmentId, title: ACCEPTANCE_TITLE, occurredAt: sh.plannedDate, timeKnown: false, expected: true, place: "Коптево", side: "CUM", createdById: session.user.id },
   });
   revalidateAll(orgId);
   return {};

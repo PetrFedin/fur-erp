@@ -19,7 +19,7 @@ ok(acceptLineError(3, 50, 45, 5) === null && acceptLineError(3, 50, 40, null) ==
 ok(/Строка 4: принято \+ возврат \(51\) больше, чем в отгрузке \(50\)/.test(acceptLineError(4, 50, 46, 5) ?? ""), acceptLineError(4, 50, 46, 5) ?? "");
 ok(acceptLineError(1, 50, -1, null) !== null && acceptLineError(1, 50, 1.5, null) !== null, "отрицательное и дробное — ошибка");
 
-ok(isAcceptanceEvent({ expected: true, title: "Принято в Коптево", place: null }), "«Принято в Коптево» — приёмка");
+ok(isAcceptanceEvent({ expected: true, title: "Принято в Коптево", place: null }) && isAcceptanceEvent({ expected: true, title: "Приёмка в Коптево", place: null }), "«Приёмка в Коптево» и старое «Принято в Коптево» — приёмка");
 ok(isAcceptanceEvent({ expected: true, title: "Приёмка товара", place: null }) && isAcceptanceEvent({ expected: true, title: "Приемка", place: null }), "«Приёмка» / «Приемка»");
 ok(isAcceptanceEvent({ expected: true, title: "Выгрузка", place: "Коптево" }), "место «Коптево»");
 ok(!isAcceptanceEvent({ expected: false, title: "Принято в Коптево", place: "Коптево" }) && !isAcceptanceEvent({ expected: true, title: "QC", place: null }), "выполненный и посторонний — нет");

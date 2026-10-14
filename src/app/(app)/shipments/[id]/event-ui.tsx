@@ -122,7 +122,7 @@ function EventFields({ titles, people, initial, withNext }: Common & { initial?:
       </Field>
       <PersonPicker name="responsible" label="Кто" side={side} people={people} initial={initial?.responsible} />
       <Field label="Название этапа" wide>
-        <Input name="title" required maxLength={120} list={listId} defaultValue={initial?.title ?? ""} placeholder="например: Принято в Коптево" autoComplete="off" />
+        <Input name="title" required maxLength={120} list={listId} defaultValue={initial?.title ?? ""} placeholder="например: Приёмка в Коптево" autoComplete="off" />
         <datalist id={listId}>
           {titles.map((t) => (
             <option key={t} value={t} />

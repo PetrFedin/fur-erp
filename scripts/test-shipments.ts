@@ -208,11 +208,11 @@ async function main() {
   console.log("4. Этапы");
   const autoEvs = await raw.shipmentEvent.findMany({ where: { shipmentId: id, OR: [{ title: { contains: "Принято по просмотру" } }, { title: { contains: "На доработку" } }, { title: { contains: "Принято после доработки" } }, { title: { contains: "Согласовано к отгрузке" } }] } });
   ok(autoEvs.length > 0 && autoEvs.every((e) => e.side === "CUM"), `все автоэтапы (${autoEvs.length}) имеют «на ком» = ЦУМ`);
-  const e0 = await A.createEvent(id, {}, fd({ title: "Примерка", date: "2026-10-05", time: "", responsible: "Василий (Веллмех)", side: "WELLMEKH", place: "Санкт-Петербург", details: "Поездка", nextTitle: "Принято в Коптево", nextDate: "2026-10-15", nextSide: "CUM" }));
+  const e0 = await A.createEvent(id, {}, fd({ title: "Примерка", date: "2026-10-05", time: "", responsible: "Василий (Веллмех)", side: "WELLMEKH", place: "Санкт-Петербург", details: "Поездка", nextTitle: "Приёмка в Коптево", nextDate: "2026-10-15", nextSide: "CUM" }));
   ok(e0.ok === true, "этап без времени создан " + (e0.error ?? ""));
   let evs = await raw.shipmentEvent.findMany({ where: { shipmentId: id }, orderBy: { createdAt: "asc" } });
   const prim = evs.find((e) => e.title === "Примерка")!;
-  const exp = evs.find((e) => e.title === "Принято в Коптево")!;
+  const exp = evs.find((e) => e.title === "Приёмка в Коптево")!;
   ok(prim.timeKnown === false && prim.responsibleName === "Василий (Веллмех)" && prim.responsibleUserId === null && prim.place === "Санкт-Петербург", "время не указано → timeKnown=false; имя вписано текстом (нет такого пользователя → userId пуст)");
   ok(prim.side === "WELLMEKH", "«на ком» = Веллмех записано");
   ok(exp.expected === true && exp.timeKnown === false && exp.occurredAt.toISOString().startsWith("2026-10-15"), "«Следующий этап» создал ожидаемый этап в той же транзакции");
@@ -311,7 +311,7 @@ async function main() {
   const full = await raw.shipment.findUniqueOrThrow({ where: { id }, include: { lines: true, events: true } });
   const sum = C.deliverySummary({ plannedDate: full.plannedDate, acceptedAt: full.acceptedAt!, acceptEventId: full.acceptEventId, events: full.events });
   ok(sum.plan.days === 0 && sum.plan.text === "в срок" && sum.first?.title === "Примерка" && !!sum.firstToAccept, `итог по срокам: ${sum.plan.text}; первая запись «${sum.first?.title}» → приёмка ${sum.firstToAccept}`);
-  ok(sum.chain.length >= 1 && sum.chain[sum.chain.length - 1].to === "Принято в Коптево", "цепочка интервалов заканчивается приёмкой");
+  ok(sum.chain.length >= 1 && sum.chain[sum.chain.length - 1].to === "Приёмка в Коптево", "цепочка интервалов заканчивается приёмкой");
   const grp = C.groupByOrder(full.lines.map((l) => ({ orderKey: l.productionOrderId, label: l.productionOrderId, article: "a", quantity: l.quantity, acceptedQty: l.acceptedQty, returnedQty: l.returnedQty, comment: l.comment })));
   ok(grp.reduce((s2, g) => s2 + g.returned, 0) === 5 && grp.some((g) => g.reasons.includes("брак швов")), "таблица по ТЗ: возврат 5 с причиной «брак швов»");
   const delBad = await A.deleteShipmentLine(L.id);
@@ -326,7 +326,7 @@ async function main() {
   ok((await A.confirmAcceptance(id, exp.id, accForm())).error != null, "приёмка без отмеченных строк не подтверждается");
   await A.deleteEvent(exp.id);
   const mk = await A.createAcceptanceEvent(id);
-  const created = await raw.shipmentEvent.findFirst({ where: { shipmentId: id, title: "Принято в Коптево" } });
+  const created = await raw.shipmentEvent.findFirst({ where: { shipmentId: id, title: "Приёмка в Коптево" } });
   ok(!mk.error && created?.expected === true && created.side === "CUM" && created.place === "Коптево" && created.occurredAt.toISOString().startsWith("2026-10-15"), "«+ Приёмка в Коптево»: ожидаемый этап на плановую дату");
   await A.saveLineAcceptance(id, [{ id: L.id, n: 1, accepted: 45, returned: 5, comment: "брак швов" }]);
   ok((await A.confirmAcceptance(id, created!.id, accForm({ side: "" }))).error === "Укажите, на ком этап: Веллмех или ЦУМ", "подтверждение приёмки без «на ком» — ошибка");
