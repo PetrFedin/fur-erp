@@ -9,10 +9,11 @@ import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { INBOX_FILE_KINDS, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox-consts";
 import { previewInbox } from "@/lib/inbox-accept";
-import { FORMAT_LABEL, calcAll, columnsFor, resolveRow, rowFilled, type CalcPayload } from "@/lib/supplier-calc";
+import { FORMAT_LABEL, STAGE_LABEL, calcAll, columnsFor, headerRate, rateCols, resolveRow, rowFilled, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
 import { TZ_KIND_LABEL, plainNum, ruDate, spacedNum, tzTotals, type TzPayload } from "@/lib/tz-vendor";
 import { cn, formatDate } from "@/lib/utils";
 import { DecideButtons } from "./decide";
+import { CompareBlock } from "../../supplier/auction-calcs/compare-block";
 import { DocumentCard } from "./document-card";
 
 export const metadata = { title: "Входящее" };
@@ -31,7 +32,7 @@ function Dl({ items }: { items: [string, string][] }) {
   );
 }
 
-function CalcView({ p }: { p: CalcPayload }) {
+async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof requireRole>> }) {
   const h = p.header;
   const t = calcAll(p);
   const cols = columnsFor(p.format);
@@ -45,23 +46,50 @@ function CalcView({ p }: { p: CalcPayload }) {
         ["Покупатель", dash(h.buyer)], ["Куда", dash(h.dest)], ["Брокер", dash(h.broker)], ["Срок оплаты", dash(h.dueDate)],
         ["Аванс", h.advance ? `${h.advance}${h.advanceDate ? ` от ${h.advanceDate}` : ""}` : "—"], ["Промежуточный платёж", dash(h.interim)],
       ]} />
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-neutral-500">Стадия:</span>
+        <span className={cn("rounded-full px-2.5 py-0.5 text-xs", p.stage === "PRELIM" ? "bg-blue-50 text-blue-800" : "bg-green-50 text-green-800")}>{p.stage ? STAGE_LABEL[p.stage] : "не указана (считается окончательным)"}</span>
+      </div>
+      <CompareBlock s={s} payload={p} />
+      <div>
+        <h3 className="mb-1 text-sm font-semibold">Ставки (введены Веллмехом)</h3>
+        <Dl items={rateCols(p.format).map((c): [string, string] => [c.rate!.label, headerRate(h, c.key) || (p.rows.some((r) => (r[c.key] ?? "").trim() !== "") ? "в строках таблицы" : "не указана (0)")])} />
+      </div>
+      {(p.customColumns?.length ?? 0) > 0 && (
+        <div>
+          <h3 className="mb-1 text-sm font-semibold">Свои столбцы и формулы</h3>
+          <Table className="min-w-[560px]">
+            <Thead><Tr><Th>Буква</Th><Th>Столбец</Th><Th>Формула</Th><Th>Примечание</Th></Tr></Thead>
+            <Tbody>
+              {t.sheet.cols.filter((c) => c.kind === "custom").map((c) => (
+                <Tr key={c.id}>
+                  <Td className="font-mono">{c.letter}</Td><Td>{c.title}{c.unit ? `, ${c.unit}` : ""}</Td><Td className="font-mono text-xs">{c.formula}</Td>
+                  <Td className="text-xs">{[t.sheet.unitCol === c.id ? "идёт в закупку как себестоимость шкуры" : "", t.sheet.qtyCol === c.id ? "количество" : "", t.sheet.colErrors[c.id] ?? "", Object.values(p.overrides ?? {}).filter((o) => o[c.id] !== undefined).length ? `ручных значений: ${Object.values(p.overrides ?? {}).filter((o) => o[c.id] !== undefined).length}` : ""].filter(Boolean).join("; ") || "—"}</Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+          {(p.params?.length ?? 0) > 0 && <p className="mt-1 text-sm text-neutral-700">Свои параметры: {p.params!.map((q) => `${q.name} = ${q.value}`).join("; ")}</p>}
+        </div>
+      )}
       {h.extras.length > 0 && <p className="text-sm text-neutral-700">Прочие расходы: {h.extras.map((e) => `${e.name || "без названия"} — ${e.amount} (${e.mode === "total" ? "на весь счёт" : "на шкуру"})`).join("; ")}</p>}
       <div className="overflow-x-auto">
         <Table className="min-w-[900px]">
           <Thead>
-            <Tr><Th>Лот</Th><Th>Мех</Th><Th>Размер / описание</Th><Th>Шт.</Th><Th>Закупка ({h.currency})</Th>{costCols.map((c) => <Th key={c.key}>{c.label}</Th>)}<Th>Себестоимость шкуры, ₽</Th><Th>Итого, ₽</Th></Tr>
+            <Tr><Th>Лот</Th><Th>Мех</Th><Th>Размер / описание</Th><Th>Шт.</Th><Th>Закупка ({h.currency})</Th>{costCols.map((c) => <Th key={c.key}>{c.label}</Th>)}{t.sheet.cols.filter((c) => c.kind === "custom").map((c) => <Th key={c.id}>{c.letter} · {c.title}</Th>)}<Th>Себестоимость шкуры, ₽</Th><Th>Итого, ₽</Th></Tr>
           </Thead>
           <Tbody>
             {used.map(({ r, i }) => (
               <Tr key={i}>
                 <Td>{dash(r.lot)}</Td><Td>{dash(r.fur)}</Td><Td>{dash(r.size)}</Td><Td className="tabular-nums">{dash(r.qty)}</Td><Td className="tabular-nums">{dash(r.price)}</Td>
                 {costCols.map((c) => <Td key={c.key} className="tabular-nums">{dash(r[c.key])}</Td>)}
+                {t.sheet.cols.filter((c) => c.kind === "custom").map((c) => <Td key={c.id} className="tabular-nums">{t.sheet.cells[c.id][i].v != null ? money(t.sheet.cells[c.id][i].v!) : <span className="text-red-700">ошибка</span>}{t.sheet.cells[c.id][i].manual ? " (вручную)" : ""}</Td>)}
                 <Td className="tabular-nums font-medium">{t.calcs[i].ok ? money(t.calcs[i].unitRub) : <span className="text-red-700">{t.calcs[i].problems.join(", ")}</span>}</Td>
                 <Td className="tabular-nums">{money(t.calcs[i].totalRub)}</Td>
               </Tr>
             ))}
             <Tr className="font-semibold">
-              <Td colSpan={3}>Итого</Td><Td className="tabular-nums">{plainNum(t.qty)}</Td><Td colSpan={costCols.length + 2} />
+              <Td colSpan={3}>Итого</Td><Td className="tabular-nums">{plainNum(t.qty)}</Td><Td colSpan={costCols.length + 2 + t.sheet.cols.filter((c) => c.kind === "custom").length} />
               <Td className="tabular-nums">{money(t.totalRub)}</Td>
             </Tr>
           </Tbody>
@@ -166,12 +194,13 @@ export default async function InboxCardPage({ params }: PageProps<"/inbox/[id]">
           {preview.problems.length > 0 && <p className="font-medium text-red-800">Принять пока нельзя:</p>}
           {preview.problems.map((x) => <p key={x} className="text-red-800">{x}</p>)}
           {preview.lines.map((x) => <p key={x}>{x}</p>)}
+          {preview.links?.map((l) => <div key={l.href} className="mt-2"><Link href={l.href} className={buttonVariants({ size: "sm", variant: "outline" })}>{l.label}</Link></div>)}
         </div>
       )}
 
       {sent && <DecideButtons id={row.id} blocked={!!preview && preview.problems.length > 0} />}
 
-      {row.kind === "AUCTION_CALC" ? <CalcView p={row.payload as unknown as CalcPayload} /> : <TzView p={row.payload as unknown as TzPayload} />}
+      {row.kind === "AUCTION_CALC" ? <CalcView p={ensureRowIds(row.payload as unknown as CalcPayload)} s={s} /> : <TzView p={row.payload as unknown as TzPayload} />}
 
       {row.kind === "TZ" && (
         <div><a href={`/api/supplier/tz/${row.id}/docx`} className={buttonVariants({ variant: "outline" })}>Скачать Word</a></div>
