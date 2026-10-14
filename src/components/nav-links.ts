@@ -23,6 +23,8 @@ export type NavItem = { readonly href: string; readonly label: string; readonly 
 /** Меню кабинета внешнего поставщика (Веллмех): только отгрузки, изделия без цен и справочники (просмотр). */
 const SUPPLIER_NAV: readonly NavItem[] = [
   { href: "/shipments", label: "Отгрузки", also: [] },
+  { href: "/supplier/auction-calcs", label: "Расчёты аукционов", also: [] },
+  { href: "/supplier/tz", label: "ТЗ", also: [] },
   { href: "/articles", label: "Изделия", also: ["/models"] },
   { href: "/settings", label: "Справочники", also: [] },
 ];
