@@ -11,8 +11,8 @@ type Breakdown = {
 };
 
 const fmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
-// Курс показываем минимум с 4 знаками (до 6): округление до 2 знаков скрывало разницу в курсе.
-const fmtRate = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 4, maximumFractionDigits: 6 });
+// Курс показываем не больше чем с 2 знаками после запятой.
+const fmtRate = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
 const isRateLabel = (label: string) => /^курс/i.test(label.trim());
 const toNum = (v: number | string | null | undefined) => (v == null || v === "" ? null : Number(v));
 
@@ -47,6 +47,18 @@ export function CostBreakdownToggle({
   const incl = toNum(unitCostIncl);
   const q = toNum(qty);
   const showLot = q != null && Number.isFinite(q) && q > 0;
+  const vatPct = (() => {
+    const e = toNum(unitCostExcl), i = toNum(unitCostIncl);
+    if (e == null || i == null || !(e > 0)) return null;
+    const p = Math.round(((i / e) - 1) * 1000) / 10;
+    return Number.isFinite(p) && p > 0 && p < 50 ? p : null;
+  })();
+  const hammer = (() => {
+    const items = breakdown.items ?? [];
+    const usd = items.find((x) => /^цена за ед/i.test(x.label.trim()));
+    const rate = items.find((x) => /^курс/i.test(x.label.trim()));
+    return usd ? { usd: usd.value, rate: rate ? rate.value : null } : null;
+  })();
   const showFinal = excl != null && incl != null && Number.isFinite(excl) && Number.isFinite(incl);
 
   return (
@@ -63,85 +75,80 @@ export function CostBreakdownToggle({
       >
         {opened && (
         <div className="p-4">
-          <div className="mb-2 flex items-start justify-between gap-4">
-            <p className="text-sm font-semibold text-neutral-800">Из чего складывается цена лота</p>
-            <button
-              type="button"
-              onClick={() => dialogRef.current?.close()}
-              className="rounded border border-neutral-200 px-2 py-0.5 text-neutral-500 hover:bg-neutral-50"
-            >
-              Закрыть
-            </button>
+          <div className="mb-3 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-neutral-800">Цена лота{lotLabel ? ` ${lotLabel}` : ""}</p>
+              {breakdown.furDescription && <p className="mt-0.5 text-neutral-500">{breakdown.furDescription}</p>}
+            </div>
+            <button type="button" onClick={() => dialogRef.current?.close()} className="rounded border border-neutral-200 px-2 py-0.5 text-neutral-500 hover:bg-neutral-50">Закрыть</button>
           </div>
-          {(lotLabel || breakdown.furDescription) && <p className="mb-2 text-neutral-500">{[lotLabel, breakdown.furDescription].filter(Boolean).join(" · ")}</p>}
+
           {showFinal && (
-            <div className="mb-3 rounded-md border border-neutral-300 bg-neutral-50 p-3" data-lot-result>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-600">Итог: цена лота</p>
-              <table className="w-full border-collapse text-xs">
-                <thead>
-                  <tr className="text-left text-neutral-500">
-                    <th className="py-0.5 pr-2 font-normal" />
-                    <th className="py-0.5 pr-2 text-right font-normal">Без НДС</th>
-                    <th className="py-0.5 pr-2 text-right font-normal">НДС</th>
-                    <th className="py-0.5 text-right font-normal">Всего, ₽</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono">
-                  <tr>
-                    <td className="py-0.5 pr-2 font-sans font-medium text-neutral-800">За 1 {unit}<span className="block text-[10px] font-normal text-neutral-500">идёт в ТЗ</span></td>
-                    <td className="py-0.5 pr-2 text-right font-semibold">{fmt(excl)}</td>
-                    <td className="py-0.5 pr-2 text-right">{fmt(incl - excl)}</td>
-                    <td className="py-0.5 text-right font-semibold">{fmt(incl)}</td>
-                  </tr>
-                  {showLot && (
-                    <tr className="border-t border-neutral-200">
-                      <td className="py-0.5 pr-2 font-sans font-medium text-neutral-800">За весь лот<span className="block text-[10px] font-normal text-neutral-500">{fmt(q!)} {unit}</span></td>
-                      <td className="py-0.5 pr-2 text-right font-semibold">{fmt(excl * q!)}</td>
-                      <td className="py-0.5 pr-2 text-right">{fmt((incl - excl) * q!)}</td>
-                      <td className="py-0.5 text-right font-semibold">{fmt(incl * q!)}</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            <div className="flex flex-col gap-2" data-lot-result>
+              <div className="rounded-lg border border-neutral-300 bg-neutral-50 p-3">
+                <p className="text-neutral-500">Одна {unit === "шт." ? "шкура" : unit}</p>
+                <p className="text-xl font-semibold tabular-nums text-neutral-900">{fmt(incl)} ₽</p>
+                <p className="text-neutral-600">
+                  {fmt(excl)} ₽ без НДС + {fmt(incl - excl)} ₽ НДС{vatPct != null ? ` ${vatPct}%` : ""} <span className="text-neutral-400">· идёт в ТЗ</span>
+                </p>
+              </div>
+              {showLot && (
+                <div className="rounded-lg border border-neutral-300 bg-neutral-50 p-3">
+                  <p className="text-neutral-500">Весь лот: {fmt(q!)} {unit}</p>
+                  <p className="text-xl font-semibold tabular-nums text-neutral-900">{fmt(incl * q!)} ₽</p>
+                  <p className="text-neutral-600">{fmt(excl * q!)} ₽ без НДС + {fmt((incl - excl) * q!)} ₽ НДС</p>
+                </div>
+              )}
+              {hammer && (
+                <div className="rounded-lg border border-neutral-200 p-3">
+                  <p className="text-neutral-500">Цена на аукционе (молоток)</p>
+                  <p className="font-medium tabular-nums text-neutral-900">
+                    <span className="text-sky-700">{fmt(hammer.usd)} $</span>
+                    {hammer.rate != null && <> × курс {fmtRate(hammer.rate)} = <span>{fmt(hammer.usd * hammer.rate)} ₽</span></>}
+                  </p>
+                  <p className="text-neutral-400">Остальное до цены шкуры — сборы, выделка, доставка, комиссия, НДС.</p>
+                </div>
+              )}
             </div>
           )}
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-600">Из чего собрана цена (отчёт поставщика)</p>
-          {(breakdown.exchangeRateInvoice || breakdown.exchangeRateFixed) && (
-            <p className="mb-1 text-neutral-500">
-              Курс инвойса: {breakdown.exchangeRateInvoice ?? "—"} · Курс ЦБ (фиксация): {breakdown.exchangeRateFixed ?? "—"}
-            </p>
-          )}
-          <table className="w-full table-fixed border-collapse">
-            <thead>
-              <tr className="text-left text-neutral-500">
-                <th className="py-0.5 pr-3 font-normal">Составляющая</th>
-                <th className="w-24 py-0.5 pr-2 text-right font-normal">Значение</th>
-                <th className="w-10 py-0.5 font-normal">Ед.</th>
-              </tr>
-            </thead>
-            {groups.map((g) => (
-              <tbody key={g.key}>
-                <tr>
-                  <td colSpan={3} className="border-t border-neutral-200 pt-1.5 pb-0.5 font-medium text-neutral-700">
-                    {g.title}
-                    {g.hint && <span className="ml-1 font-normal text-neutral-500">({g.hint})</span>}
-                  </td>
-                </tr>
-                {g.items.map((item, i) => {
-                  const bold = g.key === "totals";
-                  const unit = labelUnit(item.label);
-                  return (
-                    <tr key={i} className={bold ? "font-semibold" : undefined}>
-                      <td className={`py-px pr-3 ${bold ? "" : "text-neutral-500"}`}>{item.label}</td>
-                      <td className="py-px pr-2 text-right font-mono">{isRateLabel(item.label) ? fmtRate(item.value) : fmt(item.value)}</td>
-                      <td className="py-px text-neutral-500">{unit ?? ""}</td>
+
+          <details className="mt-3 rounded-md border border-neutral-200">
+            <summary className="cursor-pointer px-3 py-2 font-medium text-neutral-700 hover:bg-neutral-50">Подробно: расчёт из отчёта поставщика</summary>
+            <div className="border-t border-neutral-200 p-3">
+              {(breakdown.exchangeRateInvoice || breakdown.exchangeRateFixed) && (
+                <p className="mb-1 text-neutral-500">
+                  Курс инвойса: {breakdown.exchangeRateInvoice ? fmtRate(Number(breakdown.exchangeRateInvoice)) : "—"} · Курс ЦБ (фиксация): {breakdown.exchangeRateFixed ? fmtRate(Number(breakdown.exchangeRateFixed)) : "—"}
+                </p>
+              )}
+              <table className="w-full table-fixed border-collapse">
+                <thead>
+                  <tr className="text-left text-neutral-500">
+                    <th className="py-0.5 pr-3 font-normal">Составляющая</th>
+                    <th className="w-24 py-0.5 pr-2 text-right font-normal">Значение</th>
+                    <th className="w-8 py-0.5 font-normal" />
+                  </tr>
+                </thead>
+                {groups.map((g) => (
+                  <tbody key={g.key}>
+                    <tr>
+                      <td colSpan={3} className="border-t border-neutral-200 pb-0.5 pt-1.5 font-medium text-neutral-700">{g.title}</td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            ))}
-          </table>
-          <p className="mt-2 text-neutral-500">Составляющие переписаны из отчёта поставщика как есть: часть в $, часть в ₽, на шкуру или на весь лот. Итог выше посчитан приложением из цены лота и количества.</p>
+                    {g.items.map((item, i) => {
+                      const u = labelUnit(item.label);
+                      return (
+                        <tr key={i}>
+                          <td className="py-px pr-3 text-neutral-500">{item.label}</td>
+                          <td className="py-px pr-2 text-right font-mono">{isRateLabel(item.label) ? fmtRate(item.value) : fmt(item.value)}</td>
+                          <td className={"py-px " + (u === "$" ? "text-sky-700" : "text-neutral-500")}>{u ?? ""}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                ))}
+              </table>
+              <p className="mt-2 text-neutral-500">Числа переписаны из отчёта поставщика как есть, в его единицах. Верхние карточки посчитаны приложением.</p>
+            </div>
+          </details>
         </div>
         )}
       </dialog>

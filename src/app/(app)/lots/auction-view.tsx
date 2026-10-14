@@ -118,7 +118,7 @@ function fmtSize(bytes: number): string {
 /** Версия файла для ссылки (сброс кэша при замене) — по имени файла на диске, а не по дате документа. */
 const docVersion = (storagePath: string) => encodeURIComponent(storagePath.split(/[\\/]/).pop() ?? "");
 
-const rateText = (r: Decimal) => Number(r.toString()).toLocaleString("ru-RU", { maximumFractionDigits: 6 });
+const rateText = (r: Decimal) => Number(r.toString()).toLocaleString("ru-RU", { maximumFractionDigits: 2 });
 
 export async function AuctionView({
   organizationId,

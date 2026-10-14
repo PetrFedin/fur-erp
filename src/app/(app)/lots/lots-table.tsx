@@ -24,7 +24,7 @@ import { InfoHint } from "@/components/info-hint";
 import { ALL_SCOPE, useLots, useScope, type ScopeView } from "./lots-state";
 import { TotalLabel } from "@/components/total-label";
 
-const rateFmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 4 });
+const rateFmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
 const symbol = (c: string) => (c === "USD" ? "$" : c);
 
 const TIP = {

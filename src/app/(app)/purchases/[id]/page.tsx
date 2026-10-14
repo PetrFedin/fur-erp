@@ -579,7 +579,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             {[
               purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}${purchase.invoiceDate ? ` от ${formatDate(purchase.invoiceDate)}` : ""}` : purchase.invoiceDate ? `счёт от ${formatDate(purchase.invoiceDate)}` : null,
               purchase.transferDocument ? `УПД ${purchase.transferDocument}` : null,
-              isForeignCurrency ? `валюта позиций ${purchase.currency}, курс ${purchase.exchangeRate.toString()}` : null,
+              isForeignCurrency ? `валюта позиций ${purchase.currency}, курс ${Number(purchase.exchangeRate.toString()).toLocaleString("ru-RU", { maximumFractionDigits: 2 })}` : null,
               vatRatesText ? `НДС ${vatRatesText}%` : null,
             ].filter(Boolean).map((t) => (
               <span key={t} className="flex items-center gap-x-1.5"><span aria-hidden>·</span>{t}</span>
