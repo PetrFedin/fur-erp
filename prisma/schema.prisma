@@ -1783,3 +1783,155 @@ model SupplierRawStage {
   @@index([organizationId, purchaseId])
   @@index([supplierId, status])
 }
+
+// ───────── Чат с поставщиком и мост в мессенджеры ─────────
+enum ChatKind {
+  GENERAL
+  REQUEST
+}
+
+enum ChatStatus {
+  OPEN
+  ANSWERED
+  CLOSED
+}
+
+enum ChatSide {
+  INTERNAL
+  SUPPLIER
+  EXTERNAL
+}
+
+enum ChatSource {
+  PLATFORM
+  TELEGRAM
+  WHATSAPP
+}
+
+enum ChannelType {
+  TELEGRAM
+  WHATSAPP
+}
+
+enum ChannelLinkKind {
+  PRIVATE
+  GROUP
+}
+
+/// Обсуждение (общий чат с поставщиком по записи или без неё). supplierId = null — внутреннее.
+model ChatThread {
+  id              String      @id @default(cuid())
+  organizationId  String
+  supplierId      String?
+  kind            ChatKind    @default(GENERAL)
+  subject         String
+  entityType      String?
+  entityId        String?
+  entityLabel     String?
+  entityHref      String?
+  requestType     String?
+  status          ChatStatus  @default(OPEN)
+  createdById     String
+  createdByName   String
+  createdBySide   ChatSide
+  lastMessageAt   DateTime    @default(now())
+  lastMessageSide ChatSide
+  createdAt       DateTime    @default(now())
+  closedAt        DateTime?
+  closedById      String?
+
+  messages ChatMessage[]
+  reads    ChatRead[]
+
+  @@index([organizationId, supplierId, lastMessageAt])
+  @@index([entityType, entityId])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  threadId       String
+  thread         ChatThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  organizationId String
+  authorId       String?
+  authorName     String
+  authorSide     ChatSide
+  body           String
+  source         ChatSource       @default(PLATFORM)
+  externalId     String?
+  replyToId      String?
+  createdAt      DateTime         @default(now())
+  editedAt       DateTime?
+  /// Когда сообщение разослано по мессенджерам (null — ещё нет).
+  dispatchedAt   DateTime?
+
+  attachments ChatAttachment[]
+  deliveries  ChannelDelivery[]
+
+  @@unique([source, externalId])
+  @@index([threadId, createdAt])
+}
+
+model ChatAttachment {
+  id           String      @id @default(cuid())
+  messageId    String
+  message      ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  storagePath  String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  createdAt    DateTime    @default(now())
+
+  @@index([messageId])
+}
+
+model ChatRead {
+  threadId   String
+  thread     ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId     String
+  lastReadAt DateTime   @default(now())
+
+  @@id([threadId, userId])
+}
+
+/// Привязка чата мессенджера: к человеку (PRIVATE, userId), к группе поставщика (GROUP, supplierId) или к внутренней группе (GROUP без обоих).
+model ChannelLink {
+  id               String          @id @default(cuid())
+  organizationId   String
+  channel          ChannelType
+  userId           String?
+  supplierId       String?
+  externalChatId   String
+  externalUsername String?
+  kind             ChannelLinkKind
+  verifiedAt       DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+
+  @@unique([channel, externalChatId])
+  @@index([organizationId])
+}
+
+model ChannelBindCode {
+  code           String          @id
+  organizationId String
+  userId         String?
+  supplierId     String?
+  kind           ChannelLinkKind
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime        @default(now())
+}
+
+/// Что и куда уже отправлено в мессенджер: защита от дублей и привязка ответов «reply» к обсуждению.
+model ChannelDelivery {
+  id                String      @id @default(cuid())
+  messageId         String
+  message           ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  threadId          String
+  channel           ChannelType
+  externalChatId    String
+  externalMessageId String
+  createdAt         DateTime    @default(now())
+
+  @@unique([messageId, channel, externalChatId])
+  @@unique([channel, externalChatId, externalMessageId])
+}
