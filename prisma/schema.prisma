@@ -1788,6 +1788,13 @@ model SupplierRawStage {
 enum ChatKind {
   GENERAL
   REQUEST
+  /// Тематическая группа с выбранными участниками (ChatMember).
+  GROUP
+}
+
+enum ChatMemberRole {
+  OWNER
+  MEMBER
 }
 
 enum ChatStatus {
@@ -1832,6 +1839,8 @@ model ChatThread {
   entityLabel     String?
   entityHref      String?
   requestType     String?
+  /// Тема группы (Оплаты, Отгрузки, Аукционы, Сырьё, ТЗ, Изделия, Календарь, Общее).
+  topic           String?
   status          ChatStatus  @default(OPEN)
   createdById     String
   createdByName   String
@@ -1844,9 +1853,22 @@ model ChatThread {
 
   messages ChatMessage[]
   reads    ChatRead[]
+  members  ChatMember[]
 
   @@index([organizationId, supplierId, lastMessageAt])
   @@index([entityType, entityId])
+}
+
+model ChatMember {
+  threadId  String
+  thread    ChatThread     @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId    String
+  role      ChatMemberRole @default(MEMBER)
+  addedById String?
+  addedAt   DateTime       @default(now())
+
+  @@id([threadId, userId])
+  @@index([userId])
 }
 
 model ChatMessage {
@@ -1904,6 +1926,8 @@ model ChannelLink {
   supplierId       String?
   externalChatId   String
   externalUsername String?
+  /// Группа платформы (ChatThread kind GROUP), привязанная к этому Telegram-чату.
+  threadId         String?
   kind             ChannelLinkKind
   verifiedAt       DateTime        @default(now())
   createdAt        DateTime        @default(now())
@@ -1917,6 +1941,7 @@ model ChannelBindCode {
   organizationId String
   userId         String?
   supplierId     String?
+  threadId       String?
   kind           ChannelLinkKind
   expiresAt      DateTime
   usedAt         DateTime?
