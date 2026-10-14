@@ -124,6 +124,8 @@ export type IntakeRow = {
   rate: string; fee: string; dressing: string; transport: string; broker: string; transit: string; fileUnit: string; fileTotal: string;
   /** Из «Расходов партии»: таможня и упаковка ₽ за шкуру — отдельные строки расчёта (в столбец «Транспорт» не входят). */
   customs?: string; packing?: string;
+  /** Состав цены, заданный целиком (приём расчёта поставщика со своими столбцами): строки «название — значение» вместо стандартных. */
+  planItems?: { label: string; value: number }[];
 };
 
 export const EMPTY_ROW: Omit<IntakeRow, "n"> = {
@@ -440,6 +442,7 @@ export function itemsOf(
         ...(ctx.serviceVatPct != null && ctx.serviceVatPct !== 22 ? { serviceVatPct: ctx.serviceVatPct } : {}),
       };
       costPlan = buildCostPlanJson(inputs, { furDescription: r.grade || null }, new Date().toISOString(), { customs: customs ?? 0, packing: packing ?? 0 });
+      if (r.planItems?.length) costPlan = { ...costPlan, costBreakdown: { ...costPlan.costBreakdown, items: r.planItems } };
       const cp = computeCostPlan(inputs);
       auctionUnit = cp.goods + cp.fee + cp.feeVat;
       if (fileUnit !== null) planDiffUnit = Math.round((cp.unitIncl - fileUnit) * 100) / 100;

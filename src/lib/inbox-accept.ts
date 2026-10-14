@@ -12,6 +12,7 @@ import { resolveAuctionIn } from "@/lib/auction-ref-core";
 import { createBatchCore, HookAbort, type BatchSession, type StoredDocs } from "@/lib/batch-create";
 import type { DocKindKey, DocMeta } from "@/lib/batch-intake";
 import { calcToBatchPayload } from "@/lib/inbox-calc";
+import { compareCalcs } from "@/lib/calc-compare";
 import type { CalcPayload } from "@/lib/supplier-calc";
 import { loadArticleList } from "@/lib/article-ref";
 import { resolveFromList } from "@/lib/article-key";
@@ -66,10 +67,39 @@ function finish(orgId: string) {
 
 // ============================================================================================ расчёт аукциона
 
+const money2 = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/**
+ * Окончательный расчёт при уже принятом предварительном: вторую закупку не создаём. Обновление принятой закупки по окончательному
+ * расчёту автоматически не делается (цены лотов правятся в окне «Цена лота»), поэтому приём блокируется с понятным текстом и разницей в числах.
+ * Обратный случай: предварительный нельзя принять, если уже принят окончательный (иначе закупка задвоится).
+ */
+async function stageConflict(orgId: string, row: Row, p: CalcPayload): Promise<{ text: string; link?: { href: string; label: string } } | null> {
+  if (p.stage === "FINAL" && p.basedOnId) {
+    const base = await prisma.supplierInbox.findFirst({ where: { id: p.basedOnId, organizationId: orgId, supplierId: row.supplierId, kind: "AUCTION_CALC" } });
+    if (base && base.status === "ACCEPTED" && base.createdEntityType === "Purchase" && base.createdEntityId) {
+      const pu = await prisma.purchase.findFirst({ where: { id: base.createdEntityId.split(",")[0], organizationId: orgId }, select: { id: true, number: true } });
+      const c = compareCalcs(base.payload as unknown as CalcPayload, p);
+      return {
+        text: `Предварительный расчёт уже принят${pu ? ` в закупку ${pu.number}` : ""} — вторую закупку по окончательному расчёту не создаём. Окончательный расчёт отличается: итого ${money2(c.totalBefore)} → ${money2(c.totalAfter)} ₽ (разница ${c.diff > 0 ? "+" : ""}${money2(c.diff)} ₽). Автоматического обновления закупки пока нет: поправьте цены лотов в закупке (окно «Цена лота») по таблице сравнения ниже, а этот расчёт отклоните с комментарием «учтено вручную».`,
+        link: pu ? { href: `/purchases/${pu.id}`, label: `Открыть закупку ${pu.number}` } : undefined,
+      };
+    }
+  }
+  if (p.stage !== "FINAL") {
+    const all = await prisma.supplierInbox.findMany({ where: { organizationId: orgId, supplierId: row.supplierId, kind: "AUCTION_CALC", status: "ACCEPTED" }, select: { id: true, title: true, payload: true } });
+    const fin = all.find((x) => (x.payload as { basedOnId?: string; stage?: string })?.basedOnId === row.id && (x.payload as { stage?: string }).stage === "FINAL");
+    if (fin) return { text: `По этому предварительному расчёту уже принят окончательный («${fin.title}») — принимать предварительный не нужно, закупка бы задвоилась. Отклоните его.` };
+  }
+  return null;
+}
+
 async function acceptCalc(s: Sess, row: Row): Promise<AcceptResult> {
   const orgId = s.user.organizationId;
   const p = row.payload as unknown as CalcPayload;
   if (!p || p.v !== 1 || !Array.isArray(p.rows) || !p.header) return { error: "Не удалось прочитать данные расчёта" };
+  const conflict = await stageConflict(orgId, row, p);
+  if (conflict) return { error: conflict.text };
   const auction = await resolveAuctionIn(prisma, p.header.auction, orgId);
   const mapped = calcToBatchPayload(p, { inboxId: row.id, supplierId: row.supplierId, auctionId: auction && !auction.isService ? auction.id : null, title: row.title, today: new Date().toISOString().slice(0, 10) });
   if (!mapped.payload) return { error: `Расчёт принять нельзя: ${mapped.errors[0]}` };
@@ -158,7 +188,7 @@ async function planTz(orgId: string, p: TzPayload): Promise<{ error: string } | 
 }
 
 /** Что будет создано / что мешает принять — для карточки во «Входящих» (ничего не пишет). */
-export async function previewInbox(orgId: string, row: Row): Promise<{ problems: string[]; lines: string[] }> {
+export async function previewInbox(orgId: string, row: Row): Promise<{ problems: string[]; lines: string[]; links?: { href: string; label: string }[] }> {
   if (row.kind === "TZ") {
     const r = await planTz(orgId, row.payload as unknown as TzPayload);
     if ("error" in r) return { problems: [r.error], lines: [] };
@@ -166,6 +196,8 @@ export async function previewInbox(orgId: string, row: Row): Promise<{ problems:
     return { problems: [], lines: [`Будет создано ТЗ: ${r.groups.length} (по одному на артикул и цвет), общий номер ТЗ ${(row.payload as unknown as TzPayload).number}`, `Заказчик: ${r.client.name}; изделий всего ${plainNum(q.reduce((a, b) => a + b, 0))} шт.`, "Статус «Запланировано», списаний сырья нет"] };
   }
   const p = row.payload as unknown as CalcPayload;
+  const conflict = await stageConflict(orgId, row, p);
+  if (conflict) return { problems: [conflict.text], lines: [], links: conflict.link ? [conflict.link] : undefined };
   const auction = await resolveAuctionIn(prisma, p.header?.auction, orgId);
   const m = calcToBatchPayload(p, { inboxId: row.id, supplierId: row.supplierId, auctionId: auction && !auction.isService ? auction.id : null, title: row.title, today: new Date().toISOString().slice(0, 10) });
   if (!m.payload) return { problems: m.errors, lines: [] };

@@ -65,10 +65,14 @@ export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResu
 
   const cur = (h.currency || "USD").trim().toUpperCase();
   const rows: IntakeRow[] = [];
+  const sh = all.sheet;
+  // «свой» расчёт: есть свои столбцы, выбран не встроенный столбец себестоимости или есть ручные значения цены
+  const customMode = (p.customColumns?.length ?? 0) > 0 || sh.unitCol !== "unit" || Object.values(p.overrides ?? {}).some((o) => o.unit !== undefined && o.unit.trim() !== "");
+  const diffs: number[] = [];
   used.forEach(({ row: r, index }, k) => {
     const name = `строка ${k + 1}`;
-    const base: IntakeRow = { n: k + 1, ...EMPTY_ROW, lot: r.lot.trim(), material: r.fur.trim(), grade: r.size.trim(), qty: t(n0(r.qty)), price: t(n0(r.price)) };
-    if (!(n0(r.qty) > 0) || !(n0(r.price) > 0)) errors.push(`${name}: нет количества или цены`);
+    const base: IntakeRow = { n: k + 1, ...EMPTY_ROW, lot: r.lot.trim(), material: r.fur.trim(), grade: r.size.trim(), qty: t(all.qtys[index]), price: t(n0(r.price)) };
+    if (!(all.qtys[index] > 0) || !(n0(r.price) > 0)) errors.push(`${name}: нет количества или цены`);
     const extra = all.extraRub;
     if (f === "SAGA") {
       const price = n0(r.price);
@@ -94,15 +98,28 @@ export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResu
     rows.push(base);
 
     // контроль: себестоимость шкуры после раскладки совпадает с расчётом поставщика
-    const unit = computeCostPlan({
-      quantity: n0(r.qty), price: n0(r.price), rate, vat: n0(vat),
+    let unit = computeCostPlan({
+      quantity: all.qtys[index], price: n0(r.price), rate, vat: n0(vat),
       feePct: n0(base.fee), dressing: n0(base.dressing), transport: n0(base.transport) + n0(base.customs) + n0(base.packing),
       brokerPct: n0(base.broker), transit: n0(base.transit), serviceVatPct: n0(serviceVat),
     }).unitIncl;
     const want = all.calcs[index].unitRub;
+    if (customMode && Math.abs(unit - want) > 0.005) {
+      // выбранный столбец себестоимости считает не по стандартной раскладке: разница записывается отдельной статьёй без НДС
+      const delta = want - unit;
+      base.transport = t(n0(base.transport) + delta);
+      diffs.push(Math.abs(delta));
+      unit = computeCostPlan({
+        quantity: all.qtys[index], price: n0(r.price), rate, vat: n0(vat),
+        feePct: n0(base.fee), dressing: n0(base.dressing), transport: n0(base.transport) + n0(base.customs) + n0(base.packing),
+        brokerPct: n0(base.broker), transit: n0(base.transit), serviceVatPct: n0(serviceVat),
+      }).unitIncl;
+    }
+    if (customMode) base.planItems = planItemsFor(p, all, index, cur, rate, want);
     if (Math.abs(unit - want) > 0.05) errors.push(`${name} (лот ${r.lot || "—"}): при переносе в закупку себестоимость шкуры вышла ${unit.toFixed(2)} ₽, а в расчёте ${want.toFixed(2)} ₽`);
   });
 
+  if (diffs.length) warnings.push(`Себестоимость по выбранному столбцу «${sh.cols.find((c) => c.id === sh.unitCol)?.title ?? ""}» отличается от стандартной раскладки (до ${Math.max(...diffs).toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₽ за шкуру): разница записана в состав цены.`);
   if (h.extras.length) warnings.push("Прочие расходы счёта (" + h.extras.map((e) => e.name || "без названия").join(", ") + ") разнесены по шкурам и записаны строкой «Упаковка и прочее».");
   if (used.some(({ row }) => filled(row.upd))) warnings.push("«Цена для УПД» поставщика в закупку не переносится: себестоимость считается по расчёту.");
 
@@ -124,4 +141,23 @@ export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResu
     ackMismatch: false,
   };
   return { payload, warnings, errors };
+}
+
+/** Состав цены лота для окна «Цена лота»: цена, курс, стандартная раскладка формата, свои столбцы и итог — одним набором строк. */
+function planItemsFor(p: CalcPayload, all: ReturnType<typeof calcAll>, index: number, cur: string, rate: number, want: number): { label: string; value: number }[] {
+  const sh = all.sheet;
+  const r6 = (n: number) => Math.round(n * 1e6) / 1e6;
+  const items: { label: string; value: number }[] = [
+    { label: `Цена за ед., ${cur === "EUR" ? "€" : "$"}`, value: r6(n0(p.rows[index].price)) },
+    { label: "Курс для расчёта", value: r6(rate) },
+  ];
+  const std = sh.cells.unit[index]?.v;
+  if (sh.unitCol !== "unit" && std != null) items.push({ label: "По стандартной формуле формата, ₽", value: r6(std) });
+  for (const c of sh.cols) {
+    if (c.kind !== "custom") continue;
+    const v = sh.cells[c.id]?.[index]?.v;
+    if (v != null) items.push({ label: `${c.title}${c.unit ? `, ${c.unit}` : ""}`, value: r6(v) });
+  }
+  items.push({ label: "Итого себестоимость за единицу, ₽", value: r6(want) });
+  return items;
 }
