@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { FLOWS, type Branch, type Step } from "./data";
-import { IconGear, IconPencil, IconTrash } from "@/components/icons";
+import { FLOWS, type Branch, type CardKey, type Step } from "./data";
+import { IconGear, IconPencil } from "@/components/icons";
 
 const NODES = [
   { x: 30, y: 30 }, { x: 730, y: 30 }, { x: 380, y: 220 }, { x: 30, y: 410 }, { x: 380, y: 410 }, { x: 730, y: 410 }, { x: 380, y: 600 },
@@ -40,7 +40,7 @@ function wrap(t: string, n: number): string[] {
 type Sel = { kind: "step"; i: number } | { kind: "branch"; i: number; j: number } | null;
 
 /** Схема: узлы-коробки и линии; по клику на узел поверх схемы открывается окно с подробностями и кнопкой перехода в раздел. */
-export function SchemeDiagram({ steps }: { steps: Step[] }) {
+export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<Record<CardKey, string>> }) {
   const [sel, setSel] = useState<Sel>(null);
   const [hover, setHover] = useState<number | null>(null);
   const ref = useRef<HTMLDialogElement>(null);
@@ -62,7 +62,6 @@ export function SchemeDiagram({ steps }: { steps: Step[] }) {
       <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700" data-legend>
         <span className="inline-flex items-center gap-1.5"><IconPencil className="h-3.5 w-3.5 text-amber-700" /> вносят и правят вручную</span>
         <span className="inline-flex items-center gap-1.5"><IconGear className="h-3.5 w-3.5 text-emerald-700" /> считается автоматически</span>
-        <span className="inline-flex items-center gap-1.5"><IconTrash className="h-3.5 w-3.5 text-red-600" /> можно удалить</span>
       </div>
       <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white" data-scheme>
         <svg viewBox="-60 0 1120 700" className="mx-auto block min-w-[980px] w-full" role="img" aria-label="Схема связей и взаимодействий">
@@ -95,8 +94,9 @@ export function SchemeDiagram({ steps }: { steps: Step[] }) {
                 <circle cx="26" cy="35" r="14" fill={hot === i ? "white" : "#171717"} />
                 <text x="26" y="40" textAnchor="middle" fontSize="14" fontWeight="600" fill={hot === i ? "#171717" : "white"}>{i + 1}</text>
                 {lines.map((l, k) => (
-                  <text key={k} x="50" y={lines.length === 1 ? 39 : 30 + k * 16} fontSize="13.5" fontWeight="600" fill={hot === i ? "white" : "#171717"}>{l}</text>
+                  <text key={k} x="50" y={s.sub ? 29 + k * 16 : lines.length === 1 ? 39 : 30 + k * 16} fontSize="13.5" fontWeight="600" fill={hot === i ? "white" : "#171717"}>{l}</text>
                 ))}
+                {s.sub && <text x="50" y="52" fontSize="11" fontStyle="italic" fill={hot === i ? "#d4d4d4" : "#737373"}>{s.sub}</text>}
                 <g transform="translate(176 50)" aria-hidden>
                   {!last && <path transform="scale(0.85)" d="M2.5 13.5l.6-3L10.6 3a1.4 1.4 0 0 1 2 0l.4.4a1.4 1.4 0 0 1 0 2l-7.5 7.5-3 .6zM9.5 4.2l2.3 2.3" fill="none" stroke="#b45309" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />}
                   {<g transform={`translate(${last ? 0 : 26} 0) scale(0.85)`} fill="none" stroke="#047857" strokeWidth="1.5" strokeLinecap="round"><circle cx="8" cy="8" r="2.2" /><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1" /></g>}
@@ -106,7 +106,7 @@ export function SchemeDiagram({ steps }: { steps: Step[] }) {
           })}
         </svg>
       </div>
-      <p className="mt-2 text-xs text-neutral-500">Наведите на блок — подсветятся его связи. Если схема шире экрана, её можно прокрутить вбок.</p>
+      <p className="mt-2 text-xs text-neutral-500">Номера не задают строгий порядок: оплаты и документы идут параллельно, аванс может быть раньше закупки и ТЗ. Наведите на блок — подсветятся его связи.</p>
 
       <dialog
         ref={ref}
@@ -123,12 +123,28 @@ export function SchemeDiagram({ steps }: { steps: Step[] }) {
               </div>
               <button type="button" onClick={() => setSel(null)} aria-label="Закрыть" title="Закрыть" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-neutral-200 text-neutral-600 hover:bg-neutral-50">✕</button>
             </div>
+            {step.note && !branch && <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-note>{step.note}</p>}
             {branch ? (
               <p className="text-sm text-neutral-800">{branch.text}</p>
             ) : (
               <>
+                <div className="rounded-md border border-neutral-200 p-3" data-entities>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">Что создаётся и где открыть карточку</p>
+                  <ul className="mt-1.5 flex flex-col gap-2">
+                    {step.entities.map((e) => (
+                      <li key={e.name} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <span className="min-w-0"><span className="font-medium">{e.name}</span><span className="text-neutral-600"> — {e.text}</span></span>
+                        <span className="flex shrink-0 gap-1.5">
+                          <Link href={e.list} className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-100">Список →</Link>
+                          {e.card && cards[e.card] && <Link href={cards[e.card]!} className="rounded-md bg-neutral-900 px-2 py-1 text-xs text-white hover:bg-neutral-700">Карточка →</Link>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1.5 text-[11px] text-neutral-500">«Карточка» открывает последнюю созданную запись; внутри карточки уже правят сами данные.</p>
+                </div>
                 <Section tone="amber" icon={<IconPencil className="h-3.5 w-3.5" />} title="Вносят вручную" items={step.enter} />
-                <Section tone="sky" icon={<><IconPencil className="h-3.5 w-3.5" /><IconTrash className="h-3.5 w-3.5" /></>} title="Можно изменить и удалить" items={step.edit} />
+                <Section tone="sky" icon={<IconPencil className="h-3.5 w-3.5" />} title="Можно изменить" items={step.edit} />
                 <Section tone="emerald" icon={<IconGear className="h-3.5 w-3.5" />} title="Считается автоматически" items={step.auto} />
                 <Section tone="neutral" icon={<span aria-hidden>→</span>} title="Получаем" items={step.get} />
                 {takes.length > 0 && <Section tone="violet" icon={<span aria-hidden>←</span>} title="Забирает данные из" items={takes.map((f) => `Шаг ${f.from}. ${steps[f.from - 1].title}: ${f.what}`)} />}
