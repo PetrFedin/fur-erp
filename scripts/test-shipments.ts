@@ -19,8 +19,8 @@ import Module from "module";
 import { join } from "path";
 
 const url = process.env.SHIPMENT_TEST_URL ?? "";
-if (!url.includes("shipment_test")) {
-  console.error("Задайте SHIPMENT_TEST_URL на scratch-базу (имя содержит shipment_test).");
+if (!/ship(ment)?_test/.test(url)) {
+  console.error("Задайте SHIPMENT_TEST_URL на scratch-базу (имя содержит ship_test или shipment_test).");
   process.exit(2);
 }
 process.env.DATABASE_URL = url;
@@ -312,7 +312,7 @@ async function main() {
   const sum = C.deliverySummary({ plannedDate: full.plannedDate, acceptedAt: full.acceptedAt!, acceptEventId: full.acceptEventId, events: full.events });
   ok(sum.plan.days === 0 && sum.plan.text === "в срок" && sum.first?.title === "Примерка" && !!sum.firstToAccept, `итог по срокам: ${sum.plan.text}; первая запись «${sum.first?.title}» → приёмка ${sum.firstToAccept}`);
   ok(sum.chain.length >= 1 && sum.chain[sum.chain.length - 1].to === "Приёмка в Коптево", "цепочка интервалов заканчивается приёмкой");
-  const grp = C.groupByOrder(full.lines.map((l) => ({ orderKey: l.productionOrderId, label: l.productionOrderId, article: "a", quantity: l.quantity, acceptedQty: l.acceptedQty, returnedQty: l.returnedQty, comment: l.comment })));
+  const grp = C.groupByOrder(full.lines.map((l) => ({ orderKey: l.productionOrderId ?? "", label: l.productionOrderId ?? "", article: "a", quantity: l.quantity, acceptedQty: l.acceptedQty, returnedQty: l.returnedQty, comment: l.comment })));
   ok(grp.reduce((s2, g) => s2 + g.returned, 0) === 5 && grp.some((g) => g.reasons.includes("брак швов")), "таблица по ТЗ: возврат 5 с причиной «брак швов»");
   const delBad = await A.deleteShipmentLine(L.id);
   ok(!!delBad.error && !!(await raw.shipmentLine.findUnique({ where: { id: L.id } })), "строку с приёмкой удалить нельзя");
@@ -367,6 +367,45 @@ async function main() {
   try { await A.saveLineAcceptance(id, [{ id: L.id, n: 1, accepted: 1, returned: null, comment: null }]); } catch (e) { denied2 = String((e as Error).message).startsWith("FORBIDDEN"); }
   ok(denied2, "роль VIEWER не может сохранять приёмку по строкам");
   setSession("OWNER");
+
+  // 9. Сценарий новой отгрузки: дата примерки при создании, свой артикул без ТЗ
+  console.log("9. Дата примерки и свой артикул");
+  const idF = await create({ name: "", plannedDate: "2026-11-20", fittingDate: "2026-11-05" });
+  const fit = await raw.shipmentEvent.findMany({ where: { shipmentId: idF } });
+  ok(fit.length === 1 && fit[0].title === "Примерка" && fit[0].expected === true && fit[0].side === "WELLMEKH" && fit[0].occurredAt.toISOString().startsWith("2026-11-05") && fit[0].timeKnown === false, "дата примерки при создании → ожидаемый этап «Примерка» (Веллмех)");
+  const idN = await create({ name: "", plannedDate: "2026-11-21" });
+  ok((await raw.shipmentEvent.count({ where: { shipmentId: idN } })) === 0, "без даты примерки этапов нет");
+  ok(await create({ name: "", plannedDate: "2026-11-22", fittingDate: "не дата" }).then(() => false, () => true), "неверная дата примерки отклоняется");
+  ok((await A.addCustomShipmentLine(idF, fd({ article: "", quantity: "2" }))).error != null, "свой артикул без названия отклонён");
+  ok((await A.addCustomShipmentLine(idF, fd({ article: "X-1", quantity: "0" }))).error != null, "свой артикул с нулевым количеством отклонён");
+  ok((await A.addCustomShipmentLine(idF, fd({ article: "X-1", color: "чёрный", size: "44", furKind: "соболь", quantity: "2" }))).ok === true, "свой артикул добавлен");
+  ok((await A.addCustomShipmentLine(idF, fd({ article: "X-1", color: "чёрный", size: "44", quantity: "3" }))).ok === true, "тот же свой артикул суммируется");
+  await A.addCustomShipmentLine(idF, fd({ article: "Y-2", quantity: "4" }), true);
+  const cl = await raw.shipmentLine.findMany({ where: { shipmentId: idF }, orderBy: { customArticle: "asc" } });
+  ok(cl.length === 2 && cl[0].productionOrderId === null && cl[0].quantity === 5 && cl[0].furKind === "соболь" && cl[0].stage === "REVIEW" && cl[1].stage === "READY" && cl[1].quantity === 4, "строки без ТЗ: 5 шт. на просмотре, 4 шт. сразу готовы");
+  const candsF = await A.listShipmentCandidates(idF);
+  ok(candsF.length > 0, "окно «Добавить из ТЗ» грузится при строках без ТЗ");
+  ok((await A.addShipmentLines(idF, [{ key: candsF[0].key, qty: 1 }])).added === 1, "строка из ТЗ добавляется рядом со своей");
+  const r9 = await A.acceptLinesByReview(idF, [cl[0].id]);
+  const ev9 = await raw.shipmentEvent.findFirst({ where: { shipmentId: idF, title: { startsWith: "Принято по просмотру" } } });
+  ok(r9.ok === true && (ev9?.title ?? "").includes("X-1") && (ev9?.details ?? "").includes("без ТЗ"), `принято по просмотру: этап «${ev9?.title}»`);
+  const r9b = await A.sendLineToRework(cl[1].id, [{ text: "ворот", state: "OPEN", note: "" }]);
+  ok(r9b.ok === true && (await raw.shipmentLine.findUniqueOrThrow({ where: { id: cl[1].id } })).stage === "REWORK", "своя строка уходит на доработку");
+  ok((await A.acceptAfterRework(cl[1].id, [{ text: "ворот", state: "DONE", note: "ок" }])).ok === true, "и принимается после доработки");
+  const ready9 = await raw.shipmentLine.findMany({ where: { shipmentId: idF, stage: "READY" } });
+  ok((await A.saveLineAcceptance(idF, ready9.map((l, i) => ({ id: l.id, n: i + 1, accepted: l.productionOrderId ? 0 : l.quantity - 1, returned: l.productionOrderId ? 0 : 1, comment: l.productionOrderId ? null : "брак" })))).saved === ready9.length, "приёмка своих строк: принято / не принято с причиной");
+  ok((await A.createAcceptanceEvent(idF)).error == null, "создаётся ожидаемый этап «Приёмка в Коптево»");
+  const acc9 = await raw.shipmentEvent.findFirstOrThrow({ where: { shipmentId: idF, title: "Приёмка в Коптево" } });
+  ok((await A.confirmAcceptance(idF, acc9.id, accForm())).ok === true, "приёмка с артикулами без ТЗ подтверждена");
+  const full9 = await raw.shipment.findUniqueOrThrow({ where: { id: idF }, include: { lines: true, events: true } });
+  const g9 = C.groupByOrder(full9.lines.filter((l) => l.stage === "READY").map((l) => ({ orderKey: l.productionOrderId ?? `custom|${l.customArticle ?? ""}`, label: l.productionOrderId ? "ТЗ" : "без ТЗ", article: l.customArticle ?? "—", quantity: l.quantity, acceptedQty: l.acceptedQty, returnedQty: l.returnedQty, comment: l.comment })));
+  ok(g9.some((g) => g.key === "custom|X-1" && g.accepted === 4 && g.returned === 1 && g.reasons.includes("брак")), "итог по артикулам: свой артикул отдельной строкой, причина возврата видна");
+  await A.cancelAcceptance(idF);
+  for (const sid of [idF, idN]) {
+    for (const e of await raw.shipmentEvent.findMany({ where: { shipmentId: sid }, select: { id: true } })) await A.deleteEvent(e.id);
+    await raw.shipment.delete({ where: { id: sid } });
+  }
+  ok(!(await raw.shipment.findUnique({ where: { id: idF } })), "отгрузка со своими строками удаляется вместе со строками");
 
   // уборка: пробную отгрузку удаляем (на копии это не обязательно)
   for (const e of await raw.shipmentEvent.findMany({ where: { shipmentId: id }, select: { id: true } })) await A.deleteEvent(e.id);

@@ -85,10 +85,10 @@ async function main() {
   }
 
   // ----- Пробный прогон / применение -----
-  const lines = await prisma.shipmentLine.findMany({
+  const lines = (await prisma.shipmentLine.findMany({
     where: { shipmentId: sh.id },
     include: { reworks: { select: { id: true } }, productionOrder: { select: { id: true, number: true, workOrderNumber: true, productModel: { select: { name: true, salesCode: true } } } } },
-  });
+  })).flatMap((l) => (l.productionOrder ? [{ ...l, productionOrder: l.productionOrder }] : [])); // строки без ТЗ («свой артикул») этот сценарий не касаются
   const pos = await loadTzPositions(org.id, lines.map((l) => l.productionOrder));
   const tz = (l: (typeof lines)[number]) => orderLabel({ workOrderNumber: l.productionOrder.workOrderNumber, number: l.productionOrder.number, ...pos.get(l.productionOrder.id) });
   const byId = new Map(lines.map((l) => [l.id, l]));

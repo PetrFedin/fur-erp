@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { checkOrgRefs } from "@/lib/org-guard";
 import { DATE_RANGE_ERROR, MAX_LINE_QTY, MAX_LINES, isDateInRange } from "@/lib/shipments";
-import { ACCEPTANCE_TITLE, acceptLineError, acceptSummaryText, sideError, shipmentTotals, wallNow, wallToDate } from "@/lib/shipment-calc";
+import { ACCEPTANCE_TITLE, FITTING_TITLE, acceptLineError, acceptSummaryText, sideError, shipmentTotals, wallNow, wallToDate } from "@/lib/shipment-calc";
 import { loadShipmentCandidates, nextShipmentName } from "@/lib/shipment-data";
 import { ACCEPT_NEEDS_READY, clip, eventTitles, isReworkState, moveError, REWORK_STATE_LABEL } from "@/lib/shipment-stage";
 import { orderLabel } from "@/lib/order-label";
@@ -39,7 +39,7 @@ function intField(fd: FormData, k: string): number | null | undefined {
 
 // ───────────── шапка отгрузки ─────────────
 
-type Header = { name: string; supplierId: string | null; batchId: string | null; plannedDate: string; notes: string | null };
+type Header = { name: string; supplierId: string | null; batchId: string | null; plannedDate: string; notes: string | null; fittingDate: string | null };
 
 async function parseHeader(orgId: string, fd: FormData, nameFallback: () => Promise<string>): Promise<Header | string> {
   const name = str(fd, "name") || (await nameFallback());
@@ -54,7 +54,10 @@ async function parseHeader(orgId: string, fd: FormData, nameFallback: () => Prom
   const bad = await checkOrgRefs(orgId, { supplier: supplierId });
   if (bad) return bad;
   if (batchId && !(await prisma.productionBatch.findFirst({ where: { id: batchId, organizationId: orgId }, select: { id: true } }))) return "Партия не найдена";
-  return { name, supplierId, batchId, plannedDate, notes: notes || null };
+  // Дата примерки (только при создании, необязательно): по ней заводится ожидаемый этап «Примерка».
+  const fittingDate = str(fd, "fittingDate");
+  if (fittingDate && !dateOk(fittingDate)) return DATE_RANGE_ERROR;
+  return { name, supplierId, batchId, plannedDate, notes: notes || null, fittingDate: fittingDate || null };
 }
 
 /** «+ Отгрузка»: создаёт карточку и переходит на неё. */
@@ -63,8 +66,16 @@ export async function createShipment(_prev: ShipmentFormState, fd: FormData): Pr
   const orgId = session.user.organizationId;
   const h = await parseHeader(orgId, fd, () => nextShipmentName(orgId, str(fd, "plannedDate")));
   if (typeof h === "string") return { error: h };
-  const s = await prisma.shipment.create({
-    data: { organizationId: orgId, name: h.name, supplierId: h.supplierId, batchId: h.batchId, plannedDate: new Date(h.plannedDate), notes: h.notes, createdById: session.user.id },
+  const s = await prisma.$transaction(async (tx) => {
+    const sh = await tx.shipment.create({
+      data: { organizationId: orgId, name: h.name, supplierId: h.supplierId, batchId: h.batchId, plannedDate: new Date(h.plannedDate), notes: h.notes, createdById: session.user.id },
+    });
+    if (h.fittingDate) {
+      await tx.shipmentEvent.create({
+        data: { shipmentId: sh.id, title: FITTING_TITLE, occurredAt: wallToDate(h.fittingDate), timeKnown: false, expected: true, side: "WELLMEKH", createdById: session.user.id },
+      });
+    }
+    return sh;
   });
   revalidateAll(orgId);
   redirect(`/shipments/${s.id}`);
@@ -122,6 +133,35 @@ export async function addShipmentLines(shipmentId: string, items: { key: string;
   });
   revalidateAll(orgId);
   return { added: picked.size };
+}
+
+/** «Свой артикул»: строка без ТЗ — для изделия, которого ещё нет в ТЗ (артикул, цвет, размер, вид меха, количество). Та же строка суммируется. */
+export async function addCustomShipmentLine(shipmentId: string, fd: FormData, asReady = false): Promise<EditResult> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  if (!(await ownShipment(orgId, shipmentId))) return { error: "Отгрузка не найдена" };
+  const article = str(fd, "article");
+  if (!article) return { error: "Укажите артикул или название" };
+  if (article.length > 120) return { error: "Артикул не длиннее 120 символов" };
+  const color = str(fd, "color"), size = str(fd, "size"), furKind = str(fd, "furKind");
+  if (color.length > 80 || furKind.length > 80) return { error: "Цвет и вид меха — не длиннее 80 символов" };
+  if (size.length > 40) return { error: "Размер не длиннее 40 символов" };
+  const qty = intField(fd, "quantity");
+  if (qty === undefined || qty === null || qty <= 0) return { error: "Количество должно быть целым числом больше 0" };
+  const where = { shipmentId, productionOrderId: null, customArticle: article, color: color || null, size: size || null };
+  const tooMany = await prisma.$transaction(async (tx) => {
+    const cur = await tx.shipmentLine.findFirst({ where });
+    if (!cur) {
+      await tx.shipmentLine.create({ data: { ...where, furKind: furKind || null, quantity: qty, ...(asReady ? { stage: "READY" } : {}) } });
+      return false;
+    }
+    if (cur.quantity + qty > MAX_LINE_QTY) return true;
+    await tx.shipmentLine.update({ where: { id: cur.id }, data: { quantity: cur.quantity + qty, ...(asReady ? { stage: "READY" } : {}) } });
+    return false;
+  });
+  if (tooMany) return { error: `Количество в строке не больше ${MAX_LINE_QTY.toLocaleString("ru-RU")} шт.` };
+  revalidateAll(orgId);
+  return { ok: true };
 }
 
 async function ownLine(orgId: string, lineId: string) {
@@ -509,19 +549,19 @@ export type ReworkInput = { id?: string; text: string; state: string; note: stri
 type StageResult = { error?: string; ok?: boolean; changed?: number };
 
 const lineSel = {
-  id: true, shipmentId: true, stage: true, itemNo: true, size: true, color: true, acceptedQty: true, returnedQty: true, productionOrderId: true,
+  id: true, shipmentId: true, stage: true, itemNo: true, size: true, color: true, acceptedQty: true, returnedQty: true, productionOrderId: true, customArticle: true,
   productionOrder: { select: { id: true, number: true, workOrderNumber: true, productModel: { select: { name: true } } } },
   reworks: { select: { id: true, state: true, text: true } },
 } as const;
 
 /** «M018 р. 44 №259» — короткое имя строки для названий этапов. */
-function articleOf(l: { size: string | null; itemNo: string | null; productionOrder: { productModel: { name: string } } }): string {
-  return [l.productionOrder.productModel.name, l.size ? `р. ${l.size}` : "", l.itemNo ? `№${l.itemNo}` : ""].filter(Boolean).join(" ");
+function articleOf(l: { size: string | null; itemNo: string | null; customArticle: string | null; productionOrder: { productModel: { name: string } } | null }): string {
+  return [l.productionOrder?.productModel.name ?? l.customArticle ?? "—", l.size ? `р. ${l.size}` : "", l.itemNo ? `№${l.itemNo}` : ""].filter(Boolean).join(" ");
 }
 
-async function lineDetails(orgId: string, lines: { id: string; size: string | null; itemNo: string | null; productionOrder: { id: string; number: string; workOrderNumber: string | null; productModel: { name: string } } }[]): Promise<string> {
-  const pos = await loadTzPositions(orgId, lines.map((l) => l.productionOrder));
-  return lines.map((l) => `${orderLabel({ workOrderNumber: l.productionOrder.workOrderNumber, number: l.productionOrder.number, ...pos.get(l.productionOrder.id) })} · ${articleOf(l)}`).join("\n").slice(0, 3900);
+async function lineDetails(orgId: string, lines: { id: string; size: string | null; itemNo: string | null; customArticle: string | null; productionOrder: { id: string; number: string; workOrderNumber: string | null; productModel: { name: string } } | null }[]): Promise<string> {
+  const pos = await loadTzPositions(orgId, lines.flatMap((l) => (l.productionOrder ? [l.productionOrder] : [])));
+  return lines.map((l) => `${l.productionOrder ? orderLabel({ workOrderNumber: l.productionOrder.workOrderNumber, number: l.productionOrder.number, ...pos.get(l.productionOrder.id) }) : "без ТЗ"} · ${articleOf(l)}`).join("\n").slice(0, 3900);
 }
 
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];

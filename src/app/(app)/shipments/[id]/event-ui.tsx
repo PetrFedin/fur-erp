@@ -172,21 +172,21 @@ function EventFields({ titles, people, initial, withNext }: Common & { initial?:
 }
 
 /** «+ Этап». */
-export function NewEventButton({ shipmentId, titles, people }: { shipmentId: string } & Common) {
+export function NewEventButton({ shipmentId, titles, people, between }: { shipmentId: string; between?: { date: string; label: string } } & Common) {
   return (
-    <CreateDialog label="+ Этап" title="Новый этап" wide hint="Название — любое, подсказки берутся из ранее использованных. Файл документа загружается сразу при добавлении.">
-      <NewEventForm shipmentId={shipmentId} titles={titles} people={people} />
+    <CreateDialog label={between?.label ?? "+ Этап"} size={between ? "sm" : undefined} variant={between ? "ghost" : undefined} title="Новый этап" wide hint="Название — любое, подсказки берутся из ранее использованных. Файл документа загружается сразу при добавлении.">
+      <NewEventForm shipmentId={shipmentId} titles={titles} people={people} date={between?.date} />
     </CreateDialog>
   );
 }
 
-function NewEventForm({ shipmentId, titles, people }: { shipmentId: string } & Common) {
+function NewEventForm({ shipmentId, titles, people, date }: { shipmentId: string; date?: string } & Common) {
   const { state, pending, dlg, setForm, onSubmit } = useCreateForm(createEvent.bind(null, shipmentId), {});
   const [dirty, setDirty] = useState(false);
   const guard = useUnsavedGuard(dirty && !state.ok, { links: false });
   return (
     <form ref={setForm} onSubmit={onSubmit} onChange={() => setDirty(true)} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <EventFields titles={titles} people={people} withNext />
+      <EventFields titles={titles} people={people} withNext initial={date ? ({ date } as EventValues) : undefined} />
       {state.error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2">{state.error}</p>}
       <DialogButtons pending={pending} saveLabel="Добавить этап" onCancel={dlg?.close} />
       {guard}

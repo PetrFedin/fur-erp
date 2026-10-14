@@ -12,10 +12,11 @@ import { loadTzPositions } from "@/lib/order-label-db";
 import { ORDER_COLORS_INCLUDE } from "@/lib/order-colors";
 import { orderSortKey, SHIPMENT_STATUS } from "@/lib/shipments";
 import {
-  candidateRows, compareEvents, deliverySummary, fmtWall, groupByOrder, groupEventsByDay, intervalNotes, isAcceptanceEvent, lineKey, parseDocLinks, shareOf, shipmentTotals,
+  ACCEPTANCE_TITLE, FITTING_TITLE, candidateRows, compareEvents, deliverySummary, fmtWall, groupByOrder, groupEventsByDay, intervalNotes, isAcceptanceEvent, lineKey, parseDocLinks, shareOf, shipmentTotals,
   SIDE_LABEL, wallDateIso, wallDateRu, wallNow, wallTimeHm,
 } from "@/lib/shipment-calc";
 import { HeaderDelete, HeaderEdit } from "./header-ui";
+import { TimelineSection } from "./timeline-section";
 import { AcceptList, AddLinesButton, LinesTable, type LineRow } from "./lines-ui";
 import { STAGE_LABEL } from "@/lib/shipment-stage";
 import { loadShipmentPeople } from "@/lib/shipment-data";
@@ -70,23 +71,27 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
     canEdit ? prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
   const userName = new Map(users.map((u) => [u.id, u.name]));
-  const titles = titleGroups.map((g) => g.title);
+  // Подсказки названий этапа: «Примерка» и «Приёмка в Коптево» есть всегда, дальше — ранее использованные.
+  const titles = [...new Set([FITTING_TITLE, ACCEPTANCE_TITLE, ...titleGroups.map((g) => g.title)])];
   // Подсказки для «Ответственный»: сотрудники приложения и ранее вписанные имена.
   const names = [...new Set([...users.filter((u) => u.isActive).map((u) => u.name), ...nameGroups.map((g) => g.responsibleName).filter((x): x is string => !!x)])];
 
-  const pos = await loadTzPositions(orgId, s.lines.map((l) => l.productionOrder));
-  const labelOf = (l: (typeof s.lines)[number]) => orderLabel({ workOrderNumber: l.productionOrder.workOrderNumber, number: l.productionOrder.number, ...pos.get(l.productionOrder.id) });
+  // Строка без ТЗ — «свой» артикул (productionOrder пусто, название в customArticle).
+  const orders = [...new Map(s.lines.flatMap((l) => (l.productionOrder ? [[l.productionOrder.id, l.productionOrder] as const] : []))).values()];
+  const pos = await loadTzPositions(orgId, orders);
+  const labelOf = (l: (typeof s.lines)[number]) => (l.productionOrder ? orderLabel({ workOrderNumber: l.productionOrder.workOrderNumber, number: l.productionOrder.number, ...pos.get(l.productionOrder.id) }) : "без ТЗ");
+  const articleOfLine = (l: (typeof s.lines)[number]) => l.productionOrder?.productModel.name ?? l.customArticle ?? "—";
 
   // «В ТЗ» — сколько штук по этой строке (цвет, размер) записано в самом ТЗ.
   const qtyTz = new Map<string, number>();
-  for (const o of new Map(s.lines.map((l) => [l.productionOrderId, l.productionOrder])).values()) {
+  for (const o of orders) {
     for (const r of candidateRows({ ...o, plannedQuantity: Number(o.plannedQuantity) })) qtyTz.set(lineKey(o.id, r.color, r.size), r.qty);
   }
 
   const lines = [...s.lines].sort(
     (a, b) =>
-      orderSortKey(a.productionOrder) - orderSortKey(b.productionOrder) ||
-      a.productionOrder.number.localeCompare(b.productionOrder.number, "ru", { numeric: true }) ||
+      (a.productionOrder ? orderSortKey(a.productionOrder) : Number.MAX_SAFE_INTEGER) - (b.productionOrder ? orderSortKey(b.productionOrder) : Number.MAX_SAFE_INTEGER) ||
+      (a.productionOrder?.number ?? a.customArticle ?? "").localeCompare(b.productionOrder?.number ?? b.customArticle ?? "", "ru", { numeric: true }) ||
       (a.color ?? "").localeCompare(b.color ?? "", "ru") ||
       (a.size ?? "").localeCompare(b.size ?? "", "ru", { numeric: true }),
   );
@@ -97,13 +102,13 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   const allQty = lines.reduce((t, l) => t + l.quantity, 0);
   const reworkQty = lines.filter((l) => l.stage === "REWORK").reduce((t, l) => t + l.quantity, 0);
   const reviewQty = lines.filter((l) => l.stage === "REVIEW").reduce((t, l) => t + l.quantity, 0);
-  const lineText = (l: (typeof lines)[number]) => [labelOf(l), l.productionOrder.productModel.name, l.color, l.size ? `р. ${l.size}` : ""].filter(Boolean).join(" · ");
+  const lineText = (l: (typeof lines)[number]) => [labelOf(l), articleOfLine(l), l.color, l.size ? `р. ${l.size}` : ""].filter(Boolean).join(" · ");
 
   const lineRows: LineRow[] = lines.map((l, i) => ({
     id: l.id,
     n: i + 1,
-    orderText: `${labelOf(l)} ${l.productionOrder.workOrderNumber ?? ""} ${l.productionOrder.number}`,
-    articleText: [l.productionOrder.productModel.name, l.productionOrder.productModel.salesCode ?? "", l.productionOrder.productModel.salesName ?? ""].join(" "),
+    orderText: `${labelOf(l)} ${l.productionOrder?.workOrderNumber ?? ""} ${l.productionOrder?.number ?? ""}`,
+    articleText: [articleOfLine(l), l.productionOrder?.productModel.salesCode ?? "", l.productionOrder?.productModel.salesName ?? ""].join(" "),
     itemNo: l.itemNo ?? "",
     stage: l.stage,
     stageNote: l.stageChangedAt ? `${STAGE_LABEL[l.stage]}: ${(l.stageChangedBy ? userName.get(l.stageChangedBy) ?? l.stageChangedBy : "—")}, ${stamp(l.stageChangedAt)}` : "",
@@ -112,12 +117,12 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
       created: `${userName.get(r.createdById) ?? "—"}, ${stamp(r.createdAt)}`,
       updated: r.updatedById ? `${userName.get(r.updatedById) ?? "—"}, ${stamp(r.updatedAt)}` : "",
     })),
-    order: <Link href={`/production/${l.productionOrder.id}`} title={orderHint(l.productionOrder)} className="font-medium hover:underline">{labelOf(l)}</Link>,
-    article: <Link href={`/models/${l.productionOrder.productModel.id}`} className="hover:underline"><ArticleName model={l.productionOrder.productModel} /></Link>,
+    order: l.productionOrder ? <Link href={`/production/${l.productionOrder.id}`} title={orderHint(l.productionOrder)} className="font-medium hover:underline">{labelOf(l)}</Link> : <span className="text-neutral-500" title="Этого артикула ещё нет в ТЗ">без ТЗ</span>,
+    article: l.productionOrder ? <Link href={`/models/${l.productionOrder.productModel.id}`} className="hover:underline"><ArticleName model={l.productionOrder.productModel} /></Link> : <span>{l.customArticle}</span>,
     color: l.color,
     size: l.size,
     furKind: l.furKind,
-    inTz: qtyTz.get(lineKey(l.productionOrderId, l.color, l.size)) ?? null,
+    inTz: l.productionOrderId ? qtyTz.get(lineKey(l.productionOrderId, l.color, l.size)) ?? null : null,
     quantity: l.quantity,
     accepted: l.acceptedQty,
     returned: l.returnedQty,
@@ -125,8 +130,8 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
     label: lineText(l),
     blockedReason: (l.acceptedQty ?? 0) > 0 || (l.returnedQty ?? 0) > 0 ? "Нельзя удалить: по строке есть приёмка" : null,
     title: labelOf(l),
-    href: `/production/${l.productionOrder.id}`,
-    subtitle: [l.productionOrder.productModel.name, l.color, l.size ? `р. ${l.size}` : "", l.furKind].filter(Boolean).join(" · "),
+    href: l.productionOrder ? `/production/${l.productionOrder.id}` : "",
+    subtitle: [articleOfLine(l), l.color, l.size ? `р. ${l.size}` : "", l.furKind].filter(Boolean).join(" · "),
   }));
 
   const sorted = [...s.events].sort(compareEvents);
@@ -161,11 +166,21 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   const summary = s.acceptedAt
     ? deliverySummary({ plannedDate: s.plannedDate, acceptedAt: s.acceptedAt, acceptEventId: s.acceptEventId, events: s.events })
     : null;
-  const groups = summary ? groupByOrder(readyLines.map((l) => ({ orderKey: l.productionOrderId, label: labelOf(l), article: l.productionOrder.productModel.name, quantity: l.quantity, acceptedQty: l.acceptedQty, returnedQty: l.returnedQty, comment: l.comment }))) : [];
+  const groups = summary ? groupByOrder(readyLines.map((l) => ({ orderKey: l.productionOrderId ?? `custom|${l.customArticle ?? ""}`, label: labelOf(l), article: articleOfLine(l), quantity: l.quantity, acceptedQty: l.acceptedQty, returnedQty: l.returnedQty, comment: l.comment }))) : [];
   const returnLines = readyLines.filter((l) => (l.returnedQty ?? 0) > 0);
   const reworkedLines = lines.filter((l) => l.reworks.length > 0);
   const accEv = s.acceptEventId ? s.events.find((e) => e.id === s.acceptEventId) : null;
   const status = SHIPMENT_STATUS[s.status];
+
+  // Шаги новой отгрузки: подсказка с кнопками, пока не заведены состав примерки, этапы и приёмка в Коптево.
+  const stepDone = [lines.length > 0, s.events.some((e) => !isAcceptanceEvent({ ...e, expected: true }) && !(e.expected && e.title === FITTING_TITLE)), !!s.acceptedAt || s.events.some((e) => isAcceptanceEvent({ ...e, expected: true }))];
+  const fittingEvent = sorted.find((e) => e.expected && e.title === FITTING_TITLE) ?? null;
+  const showSteps = canEdit && !s.acceptedAt && stepDone.some((d) => !d);
+  const steps = [
+    { title: "Примерка", text: fittingEvent ? `назначена на ${wallDateRu(fittingEvent.occurredAt)}. Добавьте артикулы, которые будут смотреть: из ТЗ или свой, если его нет в ТЗ.` : "добавьте артикулы, которые будут смотреть: из ТЗ или свой, если его нет в ТЗ. Дату примерки можно задать этапом «Примерка».", action: <AddLinesButton shipmentId={s.id} /> },
+    { title: "Этапы", text: "любые события по порядку: примерка, документы, отправка. Укажите, на ком этап (Веллмех или ЦУМ), кто, когда и что произошло.", action: <NewEventButton shipmentId={s.id} titles={titles} people={people} /> },
+    { title: "Приёмка в Коптево", text: "список согласованных к отгрузке артикулов; по каждому — принято или не принято.", action: <CreateAcceptanceButton shipmentId={s.id} /> },
+  ];
 
   return (
     <div className="flex flex-col gap-5">
@@ -201,6 +216,21 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         </dl>
       </section>
 
+      {showSteps && (
+        <section className="flex flex-col gap-2 rounded-lg border border-dashed border-neutral-300 bg-white p-4" aria-label="Шаги новой отгрузки" data-steps>
+          <h2 className="block-title">С чего начать</h2>
+          <ol className="flex flex-col gap-2">
+            {steps.map((st, i) => (
+              <li key={st.title} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                <span aria-hidden className={"flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold " + (stepDone[i] ? "bg-emerald-600 text-white" : "border border-neutral-300 text-neutral-600")}>{stepDone[i] ? "✓" : i + 1}</span>
+                <span className="min-w-0 flex-1"><span className="font-medium">{st.title}</span> — <span className="text-neutral-600">{st.text}</span></span>
+                {!stepDone[i] && st.action}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       {/* б) виджеты и «Примерка» — один сворачиваемый контейнер: «Свернуть» прячет и плитки, и таблицу примерки */}
       <SummaryTiles
         id="shipment"
@@ -218,35 +248,26 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           },
         ]}
         collapseWith={
-          <details open={reworkQty + reviewQty > 0} className="group mt-2">
-            <summary className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-800">Таблица примерки ({formatQty(lines.length)} строк){reworkQty + reviewQty === 0 ? " — примерка пройдена" : ""}</summary>
           <LinesTable
+            defaultOpen={reworkQty + reviewQty > 0}
             shipmentId={s.id}
             rows={lineRows}
             canEdit={canEdit}
             addButton={<AddLinesButton shipmentId={s.id} />}
             hint={<p>Список изделий, показанных на примерке; здесь по каждой строке отмечается просмотр: «Принято» (устраивает полностью) или «На доработку». Строки берутся из позиций загруженных ТЗ: цвет, размер и вид меха — копия на момент добавления. Принятие в Коптево («Принято» / «Не принято» и причина) — в блоке «Приёмка в Коптево» под хронологией, только для строк «Готов к отгрузке».</p>}
           />
-          </details>
         }
       />
 
 
       {/* в) хронология */}
       <section className="flex flex-col gap-2" aria-label="Хронология">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="block-title">
-            Хронология <span className="font-normal text-neutral-500">({sorted.length})</span>
-          </h2>
-          {canEdit && <NewEventButton shipmentId={s.id} titles={titles} people={people} />}
-        </div>
+        <TimelineSection count={sorted.length} action={canEdit ? <NewEventButton shipmentId={s.id} titles={titles} people={people} /> : null}>
         {sorted.length === 0 ? (
           <p className="rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-8 text-center text-sm text-neutral-500">
             Этапов пока нет{canEdit ? " — добавьте первый кнопкой «+ Этап»: что произошло, когда и на ком" : ""}.
           </p>
         ) : (
-          <details open className="flex flex-col gap-1" data-timeline-wrap>
-          <summary className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-800">Лента этапов — свернуть / развернуть</summary>
           <div className="relative rounded-lg border border-neutral-200 bg-white py-3 pl-8 pr-3" data-timeline>
             <div aria-hidden className="absolute bottom-4 left-[0.9375rem] top-4 w-px bg-neutral-200" />
             {(() => {
@@ -276,6 +297,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                           <div className="py-1.5 text-[11px] leading-tight text-neutral-400" data-interval>
                             {note.text}
                             {note.exact && note.fromTitle ? ` · от «${note.fromTitle}»: ${note.exact}` : ""}
+                            {canEdit && i > 0 && <span className="ml-2"><NewEventButton shipmentId={s.id} titles={titles} people={people} between={{ date: wallDateIso(sorted[i - 1].occurredAt), label: "+ этап между" }} /></span>}
                           </div>
                         )}
                         <div className="relative">
@@ -339,8 +361,8 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
               return <>{dayGroups.map(renderGroup)}</>;
             })()}
           </div>
-          </details>
         )}
+        </TimelineSection>
 
         <AcceptList
           shipmentId={s.id}

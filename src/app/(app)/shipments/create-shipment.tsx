@@ -11,7 +11,7 @@ type Opt = { id: string; name: string };
 /** «+ Отгрузка»: окно с названием (по умолчанию «Отгрузка <месяц> <год> · N»), поставщиком, партией пошива, плановой датой и примечанием. После «Создать» открывается карточка. */
 export function CreateShipmentButton(props: { defaultName: string; suppliers: Opt[]; defaultSupplierId: string; batches: { id: string; label: string }[] }) {
   return (
-    <CreateDialog label="+ Отгрузка" title="Новая отгрузка" hint="Примерка и этапы добавляются в карточке после создания.">
+    <CreateDialog label="+ Отгрузка" title="Новая отгрузка" hint="Состав примерки и этапы добавляются в карточке после создания.">
       <ShipmentCreateForm {...props} />
     </CreateDialog>
   );
@@ -47,6 +47,11 @@ function ShipmentCreateForm({ defaultName, suppliers, defaultSupplierId, batches
       <div>
         <Label htmlFor="sh-date">Плановая дата</Label>
         <Input id="sh-date" name="plannedDate" type="date" required defaultValue={today} />
+      </div>
+      <div>
+        <Label htmlFor="sh-fitting">Дата примерки (необязательно)</Label>
+        <Input id="sh-fitting" name="fittingDate" type="date" />
+        <p className="mt-1 text-xs text-neutral-500">Если указать — в хронологии появится ожидаемый этап «Примерка» (Веллмех).</p>
       </div>
       <div className="col-span-full">
         <Label htmlFor="sh-notes">Примечание</Label>

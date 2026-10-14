@@ -9,7 +9,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { CreateDialog, useCreateDialog } from "@/components/create-dialog";
 import { EditDialog, Field } from "@/components/edit-dialog";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
-import { acceptAfterRework, acceptAllOnReview, acceptLinesByReview, addShipmentLines, deleteShipmentLine, listShipmentCandidates, saveLineAcceptance, saveLineReworks, sendLineToRework, updateShipmentLine, type ReworkInput } from "../actions";
+import { acceptAfterRework, acceptAllOnReview, acceptLinesByReview, addCustomShipmentLine, addShipmentLines, deleteShipmentLine, listShipmentCandidates, saveLineAcceptance, saveLineReworks, sendLineToRework, updateShipmentLine, type ReworkInput } from "../actions";
 import type { ShipmentCandidate } from "@/lib/shipment-data";
 import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 import { InfoHint } from "@/components/info-hint";
@@ -40,8 +40,8 @@ function AddLinesBody({ shipmentId, asReady }: { shipmentId: string; asReady: bo
   const [cands, setCands] = useState<ShipmentCandidate[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [picks, setPicks] = useState<Record<string, PickState>>({});
-  const [f, setF] = useState({ tz: "", article: "", color: "", size: "", fur: "", batch: "" });
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [cu, setCu] = useState({ article: "", color: "", size: "", furKind: "", quantity: "1" });
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -54,30 +54,13 @@ function AddLinesBody({ shipmentId, asReady }: { shipmentId: string; asReady: bo
     return () => { alive = false; };
   }, [shipmentId]);
 
-  const opts = useMemo(() => {
-    const uniq = (xs: (string | null)[]) => [...new Set(xs.filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
-    const list = cands ?? [];
-    return {
-      color: uniq(list.map((c) => c.color)),
-      size: uniq(list.map((c) => c.size)),
-      fur: uniq(list.flatMap((c) => c.furKind.split(" + ").filter(Boolean))),
-      batch: uniq(list.map((c) => (c.batchNumber != null ? String(c.batchNumber) : null))),
-    };
-  }, [cands]);
-
   const shown = useMemo(() => {
-    const tz = f.tz.trim().toLowerCase();
-    const art = f.article.trim().toLowerCase();
-    return (cands ?? []).filter(
-      (c) =>
-        (!tz || c.workOrder.toLowerCase().includes(tz) || c.label.toLowerCase().includes(tz)) &&
-        (!art || c.article.toLowerCase().includes(art)) &&
-        (!f.color || c.color === f.color) &&
-        (!f.size || c.size === f.size) &&
-        (!f.fur || c.furKind.split(" + ").includes(f.fur)) &&
-        (!f.batch || String(c.batchNumber) === f.batch),
-    );
-  }, [cands, f]);
+    const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return (cands ?? []).filter((c) => {
+      const hay = [c.workOrder, c.label, c.article, c.color ?? "", c.size ?? "", c.furKind].join(" ").toLowerCase();
+      return words.every((w) => hay.includes(w));
+    });
+  }, [cands, q]);
 
   const get = (c: ShipmentCandidate): PickState => picks[c.key] ?? { on: false, qty: String(defaultQty(c)) };
   const set = (c: ShipmentCandidate, patch: Partial<PickState>) => setPicks((p) => ({ ...p, [c.key]: { ...get(c), ...patch } }));
@@ -92,14 +75,23 @@ function AddLinesBody({ shipmentId, asReady }: { shipmentId: string; asReady: bo
       return n;
     });
 
+  const hasCustom = cu.article.trim() !== "";
   const submit = () => {
     setError(null);
     const items = chosen.map((c) => ({ key: c.key, qty: Number(get(c).qty.replace(/\s/g, "")) }));
-    if (items.length === 0) return setError("Отметьте хотя бы одну позицию");
+    if (items.length === 0 && !hasCustom) return setError("Отметьте хотя бы одну позицию или впишите свой артикул");
     if (items.some((i) => !Number.isInteger(i.qty) || i.qty <= 0)) return setError("У каждой отмеченной позиции количество — целое число больше 0");
     start(async () => {
-      const r = await addShipmentLines(shipmentId, items, asReady);
-      if (r.error) return setError(r.error);
+      if (items.length > 0) {
+        const r = await addShipmentLines(shipmentId, items, asReady);
+        if (r.error) return setError(r.error);
+      }
+      if (hasCustom) {
+        const fd = new FormData();
+        for (const [k, v] of Object.entries(cu)) fd.set(k, v);
+        const r = await addCustomShipmentLine(shipmentId, fd, asReady);
+        if (r.error) return setError(r.error);
+      }
       router.refresh();
       dlg?.close();
     });
@@ -110,23 +102,7 @@ function AddLinesBody({ shipmentId, asReady }: { shipmentId: string; asReady: bo
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        <Field label="№ ТЗ"><Input value={f.tz} onChange={(e) => setF({ ...f, tz: e.target.value })} placeholder="182" /></Field>
-        <Field label="Артикул"><Input value={f.article} onChange={(e) => setF({ ...f, article: e.target.value })} /></Field>
-        <Field label="Цвет"><Pick2 value={f.color} onChange={(v) => setF({ ...f, color: v })} options={opts.color} /></Field>
-        <Field label="Размер"><Pick2 value={f.size} onChange={(v) => setF({ ...f, size: v })} options={opts.size} /></Field>
-        <Field label="Вид меха"><Pick2 value={f.fur} onChange={(v) => setF({ ...f, fur: v })} options={opts.fur} /></Field>
-      </div>
-      <div>
-        <button type="button" className="text-xs text-neutral-600 hover:underline" aria-expanded={moreOpen} onClick={() => setMoreOpen((v) => !v)}>
-          {moreOpen ? "Скрыть" : "Показать ещё"} {moreOpen ? "▴" : "▾"}
-        </button>
-        {moreOpen && (
-          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-            <Field label="Партия пошива"><Pick2 value={f.batch} onChange={(v) => setF({ ...f, batch: v })} options={opts.batch} /></Field>
-          </div>
-        )}
-      </div>
+      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: № ТЗ, артикул, цвет" aria-label="Поиск по позициям ТЗ" autoFocus />
 
       <div className="max-h-[48vh] overflow-auto rounded-lg border border-neutral-200">
         <table className="w-full min-w-[760px] text-sm">
@@ -174,24 +150,24 @@ function AddLinesBody({ shipmentId, asReady }: { shipmentId: string; asReady: bo
         </table>
       </div>
 
+      <details className="rounded-lg border border-neutral-200 px-3 py-2" open={hasCustom}>
+        <summary className="cursor-pointer text-sm text-neutral-700">Нет в ТЗ? Добавить свой артикул</summary>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <Field label="Артикул / название"><Input value={cu.article} maxLength={120} onChange={(e) => setCu({ ...cu, article: e.target.value })} /></Field>
+          <Field label="Цвет"><Input value={cu.color} maxLength={80} onChange={(e) => setCu({ ...cu, color: e.target.value })} /></Field>
+          <Field label="Размер"><Input value={cu.size} maxLength={40} onChange={(e) => setCu({ ...cu, size: e.target.value })} /></Field>
+          <Field label="Вид меха"><Input value={cu.furKind} maxLength={80} onChange={(e) => setCu({ ...cu, furKind: e.target.value })} /></Field>
+          <Field label="Шт."><Input value={cu.quantity} inputMode="numeric" onChange={(e) => setCu({ ...cu, quantity: e.target.value })} /></Field>
+        </div>
+      </details>
+
       {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <span className="mr-auto text-xs text-neutral-600">Отмечено: {chosen.length} · {total} шт.</span>
+        <span className="mr-auto text-xs text-neutral-600">Отмечено: {chosen.length + (hasCustom ? 1 : 0)} · {total + (hasCustom ? Number(cu.quantity) || 0 : 0)} шт.</span>
         <Button type="button" variant="ghost" onClick={dlg?.close} disabled={pending}>Отмена</Button>
-        <Button type="button" onClick={submit} disabled={pending || chosen.length === 0}>{pending ? "Добавляем…" : "Добавить в отгрузку"}</Button>
+        <Button type="button" onClick={submit} disabled={pending || (chosen.length === 0 && !hasCustom)}>{pending ? "Добавляем…" : "Добавить в отгрузку"}</Button>
       </div>
     </div>
-  );
-}
-
-function Pick2({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
-  return (
-    <Select value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">Все</option>
-      {options.map((o) => (
-        <option key={o} value={o}>{o}</option>
-      ))}
-    </Select>
   );
 }
 
@@ -389,11 +365,11 @@ const parseQty = (s: string): number | null | undefined => {
  * Примерка: список изделий, показанных на примерке. У каждой строки стадия («Принято» по просмотру / «На доработку»), поиск, фильтр по стадии
  * и счётчики. Приёмка в Коптево (принято / не принято) — отдельный блок AcceptList под составом.
  */
-export function LinesTable({ shipmentId, rows, canEdit, addButton, hint }: { shipmentId: string; rows: LineRow[]; canEdit: boolean; addButton?: ReactNode; hint?: ReactNode }) {
+export function LinesTable({ shipmentId, rows, canEdit, addButton, hint, defaultOpen = true }: { shipmentId: string; rows: LineRow[]; canEdit: boolean; addButton?: ReactNode; hint?: ReactNode; defaultOpen?: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(defaultOpen);
   const [q, setQ] = useState("");
   const [seg, setSeg] = useState<SegKey>("all");
   const { ask, node: confirmNode } = useConfirm();
@@ -401,6 +377,8 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint }: { shi
   const viewOf = (r: LineRow) => lineView({ stage: r.stage, quantity: r.quantity, acceptedQty: r.accepted, returnedQty: r.returned });
   const counts = rows.reduce<Record<ViewKey, number>>((c, r) => { c[viewOf(r).key]++; return c; }, { review: 0, rework: 0, ready: 0, accepted: 0, rejected: 0 });
 
+  const totQtyAll = rows.reduce((t, r) => t + r.quantity, 0);
+  const qtyBy = (st: Stage) => rows.filter((r) => r.stage === st).reduce((t, r) => t + r.quantity, 0);
   const needle = q.trim().toLowerCase();
   const shown = rows.filter((r) => {
     if (seg !== "all" && viewOf(r).key !== seg) return false;
@@ -468,13 +446,14 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint }: { shi
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           {canEdit && counts.review > 0 && open && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllReview()} disabled={pending}>Принято всё, что на просмотре</Button>}
-          {canEdit && addButton}
+          {canEdit && open && addButton}
         </div>
       </div>
       <div className={open ? "flex flex-col gap-2" : "hidden"}>
         <p className="text-xs text-neutral-600" data-stage-counts>
-          {(["review", "rework", "ready", "accepted", "rejected"] as ViewKey[]).map((k) => `${VIEW_LABEL[k]} ${counts[k]}`).join(" · ")}
+          На примерке {formatQty(totQtyAll)} ед. · к отгрузке {formatQty(qtyBy("READY"))}{qtyBy("REWORK") ? ` · на доработке ${formatQty(qtyBy("REWORK"))}` : ""}{qtyBy("REVIEW") ? ` · на просмотре ${formatQty(qtyBy("REVIEW"))}` : ""}
         </p>
+        <p className="text-xs text-neutral-500">«Принято» — изделие идёт в список «Готов к отгрузке» (приёмка в Коптево); «На доработку» — не принято, возвращается после исправления.</p>
         <div className="flex flex-wrap items-center gap-2">
           <Input className="h-8 w-56 max-md:h-10" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: №, ТЗ, артикул, цвет" aria-label="Поиск по примерке" />
           <div className="flex flex-wrap gap-1" role="group" aria-label="Фильтр по стадии">
@@ -535,7 +514,7 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint }: { shi
                 )}
                 {rows.length === 0 && (
                   <Tr>
-                    <Td colSpan={canEdit ? 11 : 9} className="py-8 text-center text-neutral-500">Примерка пока пуста{canEdit ? " — добавьте позиции кнопкой «+ Добавить из ТЗ»" : ""}</Td>
+                    <Td colSpan={canEdit ? 11 : 9} className="py-8 text-center text-neutral-500">Примерка пока пуста{canEdit ? " — добавьте позиции кнопкой «+ Добавить из ТЗ» (или свой артикул, если его нет в ТЗ)" : ""}</Td>
                   </Tr>
                 )}
                 {rows.length > 0 && shown.length === 0 && (
@@ -727,6 +706,7 @@ export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, 
         <p className="text-xs text-neutral-600">На приёмку идёт {rowsText(ready.length)} / {formatQty(qtyReady)} шт.{notIn ? `; ${notIn} — не в списке` : ""}.</p>
         {editable && panel}
         {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {ready.length === 0 && <p className="text-sm text-neutral-600" data-accept-empty>Список пуст: сюда попадают изделия, принятые на примерке («Принято» в блоке «Примерка»), и артикулы, добавленные кнопкой «+ Добавить артикул».</p>}
         <Table className="min-w-[760px]">
           <Thead>
             <Tr>

@@ -1160,8 +1160,11 @@ model ShipmentLine {
   id                String          @id @default(cuid())
   shipmentId        String
   shipment          Shipment        @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  productionOrderId String
-  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id])
+  /// Позиция ТЗ; пусто у «своего» артикула, которого ещё нет в ТЗ (тогда заполнен customArticle).
+  productionOrderId String?
+  productionOrder   ProductionOrder? @relation(fields: [productionOrderId], references: [id], onDelete: Restrict)
+  /// Свой артикул/название, если в ТЗ его ещё нет (productionOrderId пусто).
+  customArticle     String?
   size              String?
   quantity          Int
   /// Цвет и вид меха — копия на момент добавления из ТЗ (для показа и поиска, не источник правды).

@@ -62,7 +62,7 @@ export async function loadFactLayer(organizationId: string, from: string, to: st
   }
   for (const sh of shipments) {
     const qty = sh.lines.reduce((a, l) => a + l.quantity, 0);
-    const names = [...new Set(sh.lines.map((l) => articleLabel(l.productionOrder.productModel)))];
+    const names = [...new Set(sh.lines.flatMap((l) => (l.productionOrder ? [articleLabel(l.productionOrder.productModel)] : [])))];
     items.push({ id: `sh-${sh.id}`, kind: "shipment", date: ymd(sh.plannedDate), title: names.slice(0, 2).join(", ") + (names.length > 2 ? "…" : "") || "Отгрузка", qty, label: sh.client?.name ? `Отгрузка: ${sh.client.name}` : "Отгрузка", href: `/shipments/${sh.id}` });
   }
   for (const f of fittings) {

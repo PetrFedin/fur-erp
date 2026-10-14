@@ -341,7 +341,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           ) : (
             <ul className="flex flex-col divide-y divide-neutral-100">
               {shipments.map((sh) => {
-                const lines = sh.lines.filter((l) => l.productionOrder.productModelId === id);
+                const lines = sh.lines.flatMap((l) => (l.productionOrder?.productModelId === id ? [{ ...l, productionOrder: l.productionOrder }] : []));
                 return (
                   <li key={sh.id}>
                     <Link href={`/shipments/${sh.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:bg-neutral-50">

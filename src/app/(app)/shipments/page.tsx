@@ -64,6 +64,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
               { supplier: { name: like(f.q) } },
               { lines: { some: { OR: [
                 { color: like(f.q) },
+                { customArticle: like(f.q) },
                 { productionOrder: { OR: [{ workOrderNumber: like(f.q) }, { number: like(f.q) }, { productModel: { name: like(f.q) } }] } },
               ] } } },
             ],

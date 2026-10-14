@@ -55,6 +55,7 @@ export async function loadShipmentCandidates(orgId: string, shipmentId: string |
   const others = new Map<string, number>();
   const here = new Map<string, number>();
   for (const l of lines) {
+    if (!l.productionOrderId) continue; // «свой» артикул без ТЗ в остатках по ТЗ не участвует
     const k = lineKey(l.productionOrderId, l.color, l.size);
     const m = l.shipmentId === shipmentId ? here : others;
     m.set(k, (m.get(k) ?? 0) + l.quantity);
