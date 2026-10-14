@@ -497,13 +497,12 @@ export function computeSheet(p: CalcPayload): Sheet {
     cells[id] = empty();
     p.rows.forEach((raw, i) => {
       if (!used[i]) return;
-      const o = ov(i, id);
-      if (o !== null) { const v = evalNum(o); cells[id][i] = Number.isFinite(v) ? { v, manual: true } : { v: null, err: `ручное значение не число: «${o}»`, manual: true }; return; }
       // формула строки: первое подошедшее правило, иначе основная
       let node = a.main;
       const rules = cc.rules ?? [];
       for (let k = 0; k < rules.length; k++) if (matchRule(rules[k], i + 1, raw)) { node = a.rules[k]; break; }
-      if (!node) { cells[id][i] = { v: null, err: "для этой строки нет формулы" }; return; }
+      const o = ov(i, id);
+      if (!node && o === null) { cells[id][i] = { v: null, err: "для этой строки нет формулы" }; return; }
       const cellAt = (letter: string, rowNo: number): number => {
         const arr = colArr(letter);
         const cell = arr[rowNo - 1];
@@ -512,8 +511,7 @@ export function computeSheet(p: CalcPayload): Sheet {
         if (cell.v == null) { if (byLetter.get(letter.toUpperCase())?.text) return 0; throw new FormulaError(`в ячейке ${letter.toUpperCase()}${rowNo} ошибка${cell.err ? `: ${cell.err}` : ""}`); }
         return cell.v;
       };
-      try {
-        const v = evalNode(node, {
+      const ctx: Parameters<typeof evalNode>[1] = {
           sum: sumOf,
           colValues,
           isColumn: (name) => LETTERS.test(name) && byLetter.has(name.toUpperCase()),
@@ -552,7 +550,16 @@ export function computeSheet(p: CalcPayload): Sheet {
             if (LETTERS.test(name)) throw new FormulaError(`Неизвестный столбец ${name.toUpperCase()}`);
             throw new FormulaError(`Неизвестный параметр «${name}»`);
           },
-        });
+      };
+      try {
+        if (o !== null) {
+          // ручное значение: число, выражение «=950*1.22» или формула со ссылками «=H3*2», «=S+500», «=курс*10»
+          let v = evalNum(o);
+          if (!Number.isFinite(v) && o.trim().startsWith("=")) v = evalNode(parseFormula(o), ctx);
+          cells[id][i] = Number.isFinite(v) ? { v, manual: true } : { v: null, err: `ручное значение не число: «${o}»`, manual: true };
+          return;
+        }
+        const v = evalNode(node!, ctx);
         cells[id][i] = Number.isFinite(v) ? { v } : { v: null, err: "результат не число" };
       } catch (e) {
         cells[id][i] = { v: null, err: e instanceof FormulaError ? e.message : "ошибка вычисления" };

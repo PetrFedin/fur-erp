@@ -23,6 +23,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
   const [note, setNote] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+  const [act, setAct] = useState<{ i: number; id: string } | null>(null);
   const params = paramList(p);
   const customIds = new Set((p.customColumns ?? []).map((c) => c.id));
 
@@ -234,6 +235,18 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
         )}
       </section>
 
+      {(() => {
+        const col = act ? sh.cols.find((x) => x.id === act.id) : null;
+        const cc = act ? (p.customColumns ?? []).find((x) => x.id === act.id) : null;
+        const ovr = act ? p.overrides?.[p.rows[act.i]?._id]?.[act.id] : undefined;
+        return (
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm">
+            <span className="font-mono text-xs text-neutral-500">{col && act ? `${col.letter}${act.i + 1}` : "ячейка"}</span>
+            <span className="font-mono">{!col ? "нажмите на ячейку — здесь будет её формула" : ovr ? `${ovr.trim().startsWith("=") ? "" : "= "}${ovr} (вручную)` : cc && cc.kind !== "input" ? (cc.formula ? (cc.formula.startsWith("=") ? cc.formula : `=${cc.formula}`) : "правила по строкам") : col.kind === "input" ? "значение, введённое вручную" : "считается автоматически"}</span>
+            {!ro && col && col.kind !== "input" && <span className="text-xs text-neutral-500">Чтобы поправить эту ячейку, впишите число или формулу со знака «=», например <span className="font-mono">=M+500</span> или <span className="font-mono">=E1*2</span> (ссылка на ячейку: буква столбца и номер строки). «↩» вернёт формулу.</span>}
+          </div>
+        );
+      })()}
       <div ref={tableRef} className="scroll-hint max-h-[75vh] overflow-auto rounded-lg border border-neutral-300 bg-white">
         <table className="border-separate border-spacing-0 text-sm">
           <thead>
@@ -269,7 +282,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
                     return (
                       <td key={c.id} className="border-b border-r border-neutral-200 bg-white p-0">
                         <input data-cell={`${i}-${ci}`} value={r[c.id] ?? ""} readOnly={ro} inputMode={c.text ? "text" : "decimal"}
-                          onChange={(e) => setCell(i, c.id, e.target.value)} onKeyDown={(e) => onKey(e, i, ci)} onPaste={(e) => onPaste(e, i, ci)} onFocus={(e) => e.target.select()}
+                          onChange={(e) => setCell(i, c.id, e.target.value)} onKeyDown={(e) => onKey(e, i, ci)} onPaste={(e) => onPaste(e, i, ci)} onFocus={(e) => { e.target.select(); setAct({ i, id: c.id }); }}
                           style={{ width: c.text ? 120 : 96 }} className={`h-8 border-0 bg-transparent px-2 text-sm outline-none focus:bg-sky-50 focus:ring-2 focus:ring-inset focus:ring-sky-400 ${c.text ? "" : "text-right tabular-nums"}`} />
                       </td>
                     );
@@ -283,7 +296,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
                       {editable ? (
                         <div className="flex items-center">
                           <input data-cell={`${i}-${ci}`} value={ovr !== undefined ? ovr : fmt(cell?.v)} title={cell?.err ?? (cell?.manual ? "вручную" : "по формуле")}
-                            onFocus={(e) => e.target.select()} onChange={(e) => setOverride(r._id, c.id, e.target.value)} onKeyDown={(e) => onKey(e, i, ci)} inputMode="decimal"
+                            onFocus={(e) => { e.target.select(); setAct({ i, id: c.id }); }} onChange={(e) => setOverride(r._id, c.id, e.target.value)} onKeyDown={(e) => onKey(e, i, ci)} inputMode="decimal"
                             style={{ width: 104 }} className={`h-8 border-0 bg-transparent px-2 text-right text-sm tabular-nums outline-none focus:ring-2 focus:ring-inset focus:ring-sky-400 ${cell?.err ? "bg-red-50 text-red-700" : ""}`} />
                           {cell?.manual && <button type="button" className="pr-1 text-[10px] text-blue-700" title="Вернуть формулу" onClick={() => setOverride(r._id, c.id, null)}>↩</button>}
                         </div>

@@ -22,13 +22,15 @@ export const getPreset = (id: string) => PRESETS.find((p) => p.id === id) ?? nul
 /** Сколько встроенных столбцов (мех, описание, лот) идёт перед столбцами формата в свободной таблице. */
 const LEAD = 3;
 const colId = (key: string) => `k_${key}`;
+/** Название столбца с буквой из файла поставщика, если в нашей таблице буква другая: «Себестоимость (в файле S)». */
+const fileTitle = (c: PresetCol, idx: number) => (/^[A-Za-z]$/.test(c.key) && c.key.toUpperCase() !== colLetterOf(idx) ? `${c.title} (в файле ${c.key.toUpperCase()})` : c.title);
 
 /** Формат → готовые столбцы, параметры и выбор столбцов (количество, цена, себестоимость) для свободной таблицы. */
 export function presetFill(pr: CalcPreset): Pick<CalcPayload, "customColumns" | "params" | "qtyColumn" | "priceColumn" | "unitCostColumn" | "formatId" | "formatName"> {
   const map: Record<string, string> = {};
   pr.columns.forEach((c, i) => { map[c.key.toUpperCase()] = colLetterOf(LEAD + i); });
   const customColumns: CustomCol[] = pr.columns.map((c, i) => ({
-    id: colId(c.key), letter: colLetterOf(LEAD + i), title: c.title, unit: c.unit,
+    id: colId(c.key), letter: colLetterOf(LEAD + i), title: fileTitle(c, LEAD + i), unit: c.unit,
     kind: c.kind === "input" ? "input" : "formula",
     formula: c.kind === "formula" ? renameColumnRefs(c.formula, map) : "",
   }));
