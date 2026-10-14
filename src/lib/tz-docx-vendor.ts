@@ -1,136 +1,143 @@
-import { AlignmentType, BorderStyle, Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, VerticalAlign, WidthType } from "docx";
-import { plainNum, ruDate, spacedNum, tzTotals, type TzPayload } from "@/lib/tz-vendor";
+import JSZip from "jszip";
+import { TZ_TEMPLATE_B64 } from "@/lib/tz-template-data";
+import { itemFilled, kopNum, materialFilled, plainNum, ruDate, spacedNum, typedNum, tzTotals, type TzPayload } from "@/lib/tz-vendor";
 
 /**
- * Word-документ ТЗ в формате Веллмеха («ПРИЛОЖЕНИЕ N к Договору подряда»), сверено с образцом «ПРИЛОЖЕНИЕ 160»:
- * A4, поля 15 мм (сверху 10 мм), Times New Roman, 9 пт в тексте и таблицах, колонтитулов нет.
- * Это НОВЫЙ генератор; прежний (src/lib/tz-print.ts, /api/production/[id]/docx) не затронут.
+ * Word-документ ТЗ в формате Веллмеха («ПРИЛОЖЕНИЕ N к Договору подряда»).
+ * Вёрстка берётся из присланного Веллмехом Word (шаблон tz-template-data.ts: поля, стили, ширины колонок, границы, интервалы,
+ * кегль, пустые абзацы) — генератор меняет в нём только тексты и размножает строки таблиц. Если текст ячейки или абзаца не
+ * отличается от шаблона (без учёта пробелов), его XML остаётся нетронутым, поэтому ТЗ с теми же данными получается в той же вёрстке.
+ * Прежний генератор (src/lib/tz-print.ts, /api/production/[id]/docx) не затронут.
  */
-const FONT = "Times New Roman";
-const SZ = 18; // 9 пт — как в образце
-const PAGE_W = 11906;
-const MARGIN = 850;
-const CONTENT_W = PAGE_W - 2 * MARGIN;
 
-const line = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
-const grid = { top: line, bottom: line, left: line, right: line };
-const none = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
-const noBorders = { top: none, bottom: none, left: none, right: none };
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const unesc = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+const squash = (s: string) => s.replace(/[\s  ]+/g, "");
 
-const run = (text: string, bold = false) => new TextRun({ text, bold, font: FONT, size: SZ });
-const para = (text: string, o: { bold?: boolean; align?: (typeof AlignmentType)[keyof typeof AlignmentType]; after?: number } = {}) =>
-  new Paragraph({ alignment: o.align, spacing: { after: o.after ?? 120, line: 240 }, children: [run(text, o.bold)] });
-
-function cell(text: string, w: number, o: { bold?: boolean; span?: number; borders?: boolean; align?: (typeof AlignmentType)[keyof typeof AlignmentType] } = {}) {
-  const parts = text.split("\n");
-  return new TableCell({
-    width: { size: w, type: WidthType.DXA },
-    columnSpan: o.span,
-    borders: o.borders === false ? noBorders : grid,
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 30, bottom: 30, left: 60, right: 60 },
-    children: parts.map((t) => new Paragraph({ alignment: o.align ?? AlignmentType.CENTER, spacing: { after: 0, line: 240 }, children: [run(t, o.bold)] })),
-  });
+// ——— абзац ———
+const paraOf = (xml: string) => xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) ?? [];
+function paraText(p: string): string {
+  return unesc([...p.matchAll(/<w:t(?: [^>]*)?>([\s\S]*?)<\/w:t>/g)].map((m) => m[1]).join(""));
 }
-const scale = (ws: number[]) => {
-  const sum = ws.reduce((a, b) => a + b, 0);
-  const out = ws.map((w) => Math.floor((w * CONTENT_W) / sum));
-  out[out.length - 1] += CONTENT_W - out.reduce((a, b) => a + b, 0);
+/** Новый текст в абзаце: свойства абзаца и первого фрагмента (шрифт, кегль, жирность) сохраняются, «\n» — перенос строки. */
+function setParaText(p: string, text: string): string {
+  const open = /^<w:p(?: [^>]*)?>/.exec(p)![0];
+  const pPr = /<w:pPr>[\s\S]*?<\/w:pPr>/.exec(p)?.[0] ?? "";
+  const runRpr = /<w:r(?: [^>]*)?>\s*(<w:rPr>[\s\S]*?<\/w:rPr>)/.exec(p)?.[1];
+  const rPr = runRpr ?? /<w:rPr>[\s\S]*?<\/w:rPr>/.exec(pPr)?.[0] ?? "";
+  const parts = text.split("\n");
+  const body = text === "" ? "" : `<w:r>${rPr}${parts.map((t, i) => `${i ? "<w:br/>" : ""}<w:t xml:space="preserve">${esc(t)}</w:t>`).join("")}</w:r>`;
+  return `${open}${pPr}${body}</w:p>`;
+}
+
+// ——— ячейка, строка, таблица ———
+/** Текст ячейки: строки через «\n» — отдельные абзацы, как в образце. */
+function setCell(tc: string, text: string): string {
+  const ps = paraOf(tc);
+  if (!ps.length) return tc;
+  if (squash(ps.map(paraText).join("")) === squash(text)) return tc; // совпало с шаблоном — вёрстку не трогаем
+  const head = tc.slice(0, tc.indexOf(ps[0]));
+  const out = text.split("\n").map((t, i) => setParaText(ps[Math.min(i, ps.length - 1)], t));
+  return head + out.join("") + "</w:tc>";
+}
+const cellsOf = (tr: string) => tr.match(/<w:tc>[\s\S]*?<\/w:tc>/g) ?? [];
+function setRow(tr: string, texts: (string | null)[]): string {
+  let out = tr;
+  cellsOf(tr).forEach((c, i) => {
+    const t = texts[i];
+    if (t != null) out = out.replace(c, () => setCell(c, t));
+  });
   return out;
-};
+}
+const rowsOf = (tbl: string) => tbl.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) ?? [];
+function withRows(tbl: string, rows: string[]): string {
+  const old = rowsOf(tbl);
+  const start = tbl.indexOf(old[0]);
+  const end = tbl.lastIndexOf(old[old.length - 1]) + old[old.length - 1].length;
+  return tbl.slice(0, start) + rows.join("") + tbl.slice(end);
+}
+/** k-я строка данных берёт k-ю строку-образец; лишние строки — копии последнего образца. */
+const pick = <T,>(tpl: T[], k: number) => tpl[Math.min(k, tpl.length - 1)];
 
 export async function buildTzDocx(p: TzPayload): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(Buffer.from(TZ_TEMPLATE_B64, "base64"));
+  const xml = await zip.file("word/document.xml")!.async("string");
+  const bodyStart = xml.indexOf("<w:body>") + "<w:body>".length;
+  const bodyEnd = xml.lastIndexOf("</w:body>");
+  const blocks = xml.slice(bodyStart, bodyEnd).match(/<w:tbl>[\s\S]*?<\/w:tbl>|<w:p[ >][\s\S]*?<\/w:p>|<w:sectPr[\s\S]*?<\/w:sectPr>/g)!;
+
   const t = tzTotals(p);
   const vat = p.vatPct.trim() || "22";
   const repair = p.kind === "REPAIR";
-  const items = p.items.filter((i) => Object.values(i).some((v) => v.trim() !== "" && v !== "1"));
-  const mats = p.materials.filter((m) => Object.values(m).some((v) => v.trim() !== "" && v !== "Шт." && v !== "22"));
+  const items = p.items.filter(itemFilled);
+  const mats = p.materials.filter(materialFilled);
 
-  // Таблица изделий (поколение «ТЗ 100+»)
-  const w1 = scale([412, 1114, 850, 709, 1418, 567, 1275, 851, 1134, 1134, 1134]);
-  const head = [
-    "№", repair ? "Наименование услуги" : "Наименование Продукции", "Цвет", "Модель", "Материал Продукции", "Размер", "Подкладка", "Количество",
-    `Стоимость работ за ед. в руб. т.ч. НДС${vat}%`, `${repair ? "Стоимость материала" : "Стоимость продукции"} за ед. в руб. в т.ч. НДС ${vat}%`, `ИТОГО в руб. в т.ч. НДС ${vat}%`,
-  ];
-  const itemRows = items.map((i, k) => new TableRow({
-    children: [String(k + 1), i.name, i.color, i.model, i.material, i.size, i.lining, i.qty, plainNum(Number(i.work.replace(",", ".")) || 0), plainNum(Number(i.price.replace(",", ".")) || 0), plainNum(t.itemTotals[p.items.indexOf(i)] ?? 0)]
-      .map((v, c) => cell(v, w1[c])),
-  }));
-  const itemsTable = new Table({
-    width: { size: CONTENT_W, type: WidthType.DXA }, columnWidths: w1,
-    rows: [
-      new TableRow({ tableHeader: true, children: head.map((h, c) => cell(h, w1[c], { bold: true })) }),
-      ...itemRows,
-      new TableRow({ children: [
-        cell("Итого:", w1[0] + w1[1] + w1[2] + w1[3] + w1[4] + w1[5] + w1[6], { span: 7, bold: true }),
-        cell(plainNum(t.qty), w1[7], { bold: true }), cell(plainNum(t.work), w1[8], { bold: true }), cell("", w1[9]), cell(plainNum(t.total), w1[10], { bold: true }),
-      ] }),
-    ],
-  });
+  const setPara = (prefix: string, text: string) => {
+    const i = blocks.findIndex((b) => b.startsWith("<w:p") && paraText(b).trimStart().startsWith(prefix));
+    if (i >= 0 && squash(paraText(blocks[i])) !== squash(text)) blocks[i] = setParaText(blocks[i], text);
+  };
+  const tbl = blocks.map((b, i) => (b.startsWith("<w:tbl>") ? i : -1)).filter((i) => i >= 0);
+
+  setPara("ПРИЛОЖЕНИЕ №", `ПРИЛОЖЕНИЕ № ${p.number}`);
+  setPara("к Договору подряда", `к Договору подряда ${p.contract} `);
+  setPara("ТЕХНИЧЕСКОЕ ЗАДАНИЕ №", `ТЕХНИЧЕСКОЕ ЗАДАНИЕ № ${p.number}`);
+
+  // город и дата
+  blocks[tbl[0]] = withRows(blocks[tbl[0]], [setRow(rowsOf(blocks[tbl[0]])[0], [p.city, `${ruDate(p.date)}г.`])]);
+
+  // изделия: заголовок, строки, «Итого:»
+  {
+    const rows = rowsOf(blocks[tbl[1]]);
+    const data = rows.slice(1, -1);
+    const head = setRow(rows[0], [
+      null, repair ? "Наименование услуги" : "Наименование Продукции", null, null, null, null, null, null,
+      repair ? `Стоимость работ в руб. т.ч. НДС\n${vat}%` : `Стоимость работ за ед. в руб. т.ч. НДС\n${vat}%`,
+      repair ? `Стоимость материала в руб. в т.ч. НДС ${vat}%` : `Стоимость продукции за ед. в руб. в т.ч. НДС ${vat}%`,
+      `ИТОГО в руб. в т.ч. НДС ${vat}%`,
+    ]);
+    const body = items.map((i, k) => setRow(pick(data, k), [
+      String(k + 1), i.name, i.color, i.model, i.material, i.size, i.lining, i.qty, typedNum(i.work), typedNum(i.price), i.total?.trim() ? i.total.trim() : kopNum(t.itemTotals[p.items.indexOf(i)] ?? 0),
+    ]));
+    const showWork = p.showWorkTotal !== false;
+    const total = setRow(rows[rows.length - 1], [
+      "Итого:", plainNum(t.qty), showWork ? (repair ? kopNum(t.work) : plainNum(t.work)) : "", repair ? kopNum(t.price) : "", repair ? spacedNum(t.total) : kopNum(t.total),
+    ]);
+    blocks[tbl[1]] = withRows(blocks[tbl[1]], [head, ...body, total]);
+  }
 
   // «ЗАКАЗЧИК ПЕРЕДАЛ»
-  const w2 = scale([3510, 993, 1115, 1153, 1559, 850, 1418]);
-  const matRows = mats.map((m) => new TableRow({
-    children: [m.name, m.lot, m.unit, m.qty, spacedNum(Number(m.priceNet.replace(",", ".")) || 0), `${m.vatPct || vat}%`, spacedNum(t.matTotals[p.materials.indexOf(m)] ?? 0)].map((v, c) => cell(v, w2[c])),
-  }));
-  const matTable = new Table({
-    width: { size: CONTENT_W, type: WidthType.DXA }, columnWidths: w2,
-    rows: [
-      new TableRow({ children: [cell("ЗАКАЗЧИК ПЕРЕДАЛ\n(заполняет при передаче сырья, материалов и т.д. со стороны Заказчика)", CONTENT_W, { span: 7, bold: true })] }),
-      new TableRow({ children: ["Наименование материалов", "Лот (при наличии)", "Единица измерения", "Количество сырья", "Стоимость за единицу в рублях Без НДС", "НДС", `Общая стоимость товаров в т.ч. НДС ${vat}%`].map((h, c) => cell(h, w2[c], { bold: true })) }),
-      ...matRows,
-      new TableRow({ children: [cell("ИТОГО:", w2[0] + w2[1] + w2[2] + w2[3] + w2[4] + w2[5], { span: 6, bold: true, align: AlignmentType.LEFT }), cell(spacedNum(t.materials), w2[6], { bold: true })] }),
-    ],
-  });
+  {
+    const rows = rowsOf(blocks[tbl[2]]);
+    const data = rows.slice(2, -1);
+    const head = setRow(rows[1], [null, null, null, null, null, null, `Общая стоимость товаров в т.ч. НДС ${vat}%`]);
+    const body = mats.map((m, k) => setRow(pick(data, k), [
+      m.name, m.lot, m.unit, m.qty, typedNum(m.priceNet), `${m.vatPct || vat}%`, m.total?.trim() ? m.total.trim() : spacedNum(t.matTotals[p.materials.indexOf(m)] ?? 0),
+    ]));
+    const total = setRow(rows[rows.length - 1], ["ИТОГО:", t.matQty ? plainNum(t.matQty) : "", "", "", spacedNum(t.materials)]);
+    blocks[tbl[2]] = withRows(blocks[tbl[2]], [rows[0], head, ...body, total]);
+  }
 
-  const half = Math.floor(CONTENT_W / 2);
-  const two = (l: string, r: string, rBold = false, lBold = false) =>
-    new TableRow({ children: [cell(l, half, { borders: false, align: AlignmentType.LEFT, bold: lBold }), cell(r, CONTENT_W - half, { borders: false, align: AlignmentType.RIGHT, bold: rBold })] });
-  const cityTable = new Table({ width: { size: CONTENT_W, type: WidthType.DXA }, columnWidths: [half, CONTENT_W - half], rows: [two(p.city, `${ruDate(p.date)}г.`)] });
-  const signTable = new Table({
-    width: { size: CONTENT_W, type: WidthType.DXA }, columnWidths: [half, CONTENT_W - half],
-    rows: [
-      new TableRow({ children: [cell("ЗАКАЗЧИК", half, { borders: false, bold: true, align: AlignmentType.LEFT }), cell("ПОДРЯДЧИК", CONTENT_W - half, { borders: false, bold: true, align: AlignmentType.LEFT })] }),
-      new TableRow({ children: [cell(p.signers.customerPost, half, { borders: false, align: AlignmentType.LEFT }), cell(p.signers.contractorPost, CONTENT_W - half, { borders: false, align: AlignmentType.LEFT })] }),
-      new TableRow({ children: [cell(`___________________________ ${p.signers.customerName}`, half, { borders: false, align: AlignmentType.LEFT }), cell(`________________________ ${p.signers.contractorName}`, CONTENT_W - half, { borders: false, align: AlignmentType.LEFT })] }),
-    ],
-  });
-
+  // условия
   const tm = p.terms;
-  const paras = [
-    `Общая стоимость настоящего Технического задания № ${p.number} (далее по тексту – ТЗ) составляет ${plainNum(t.total)} рублей в т.ч. НДС ${vat}%.`,
-    `Порядок оплаты: ${tm.payment}.`,
-    `Срок завершения Работ: не позднее ${ruDate(tm.deadline)} г.`,
-    `Срок поставки Продукции: ${tm.delivery}.`,
-    `Место поставки/самовывоза Продукции: ${tm.place}.`,
-    `Способ поставки Продукции: ${tm.method}.`,
-    `Иные характеристики Продукции: ${tm.other}`,
-    "Во всем остальном, что не предусмотрено в настоящем ТЗ, условия Договора сохраняют свою силу и остаются неизменными.",
-    "В случае возникновения противоречий между условиями настоящего ТЗ и Договором преимущественную силу имеют положения данного ТЗ.",
-    "Настоящее ТЗ приобретает юридическую силу с момента его подписания обеими Сторонами и становится неотъемлемой частью Договора.",
-    "Настоящее ТЗ оформлено в 2 (двух) идентичных экземплярах, имеющих одинаковую юридическую силу, по одному для каждой из Сторон.",
-  ];
+  setPara("Общая стоимость настоящего", `Общая стоимость настоящего Технического задания № ${p.number} (далее по тексту – ТЗ) составляет ${plainNum(t.total)} рублей в т.ч. НДС ${vat}%.`);
+  setPara("Порядок оплаты:", `Порядок оплаты: ${tm.payment}.`);
+  setPara("Срок завершения Работ:", `Срок завершения Работ: не позднее ${ruDate(tm.deadline)} г.`);
+  setPara("Срок поставки Продукции:", `Срок поставки Продукции: ${tm.delivery}.`);
+  setPara("Место поставки/самовывоза Продукции:", `Место поставки/самовывоза Продукции: ${tm.place}.`);
+  setPara("Способ поставки Продукции:", `Способ поставки Продукции: ${tm.method}.`);
+  setPara("Иные характеристики Продукции:", `Иные характеристики Продукции: ${tm.other}`);
 
-  const doc = new Document({
-    styles: { default: { document: { run: { font: FONT, size: SZ } } } },
-    sections: [{
-      properties: { page: { size: { width: PAGE_W, height: 16838 }, margin: { top: 567, right: MARGIN, bottom: 284, left: 851, header: 0, footer: 0 } } },
-      children: [
-        para(`ПРИЛОЖЕНИЕ № ${p.number}`, { bold: true }),
-        para(`к Договору подряда ${p.contract} `, { bold: true, align: AlignmentType.RIGHT }),
-        para("", { after: 0 }),
-        para(`ТЕХНИЧЕСКОЕ ЗАДАНИЕ № ${p.number}`, { bold: true, align: AlignmentType.CENTER, after: 0 }),
-        cityTable,
-        para("", { after: 0 }),
-        itemsTable,
-        para("", { align: AlignmentType.CENTER, after: 0 }),
-        matTable,
-        para("", { align: AlignmentType.CENTER }),
-        ...paras.map((s) => para(s)),
-        para("12.ПОДПИСИ СТОРОН", { bold: true }),
-        signTable,
-      ],
-    }],
-  });
-  return Buffer.from(await Packer.toBuffer(doc));
+  // подписи
+  {
+    const rows = rowsOf(blocks[tbl[3]]);
+    const sg = p.signers;
+    blocks[tbl[3]] = withRows(blocks[tbl[3]], [
+      rows[0],
+      setRow(rows[1], [sg.customerPost, sg.contractorPost]),
+      setRow(rows[2], [`___________________________ ${sg.customerName}`, `________________________ ${sg.contractorName}`]),
+    ]);
+  }
+
+  zip.file("word/document.xml", xml.slice(0, bodyStart) + blocks.join("") + xml.slice(bodyEnd));
+  return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
