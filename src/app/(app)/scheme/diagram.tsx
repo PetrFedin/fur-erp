@@ -2,16 +2,39 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { FLOWS, type Branch, type Kind, type Step } from "./data";
+import { FLOWS, type Branch, type Step } from "./data";
 import { IconGear, IconPencil, IconTrash } from "@/components/icons";
 
-function KindIcons({ kind, className = "h-3.5 w-3.5" }: { kind: Kind; className?: string }) {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1" aria-hidden>
-      {kind !== "auto" && <IconPencil className={className + " text-amber-700"} />}
-      {kind !== "manual" && <IconGear className={className + " text-emerald-700"} />}
-    </span>
-  );
+const NODES = [
+  { x: 30, y: 30 }, { x: 730, y: 30 }, { x: 380, y: 220 }, { x: 30, y: 410 }, { x: 380, y: 410 }, { x: 730, y: 410 }, { x: 380, y: 600 },
+];
+/** Линии связей: k — индекс в FLOWS; координаты подобраны вручную под NODES. */
+const EDGES: { k: number; d: string; lx: number; ly: number; dash?: boolean }[] = [
+  { k: 0, d: "M 230 100 C 230 170 420 150 440 220", lx: 330, ly: 148 },
+  { k: 1, d: "M 770 100 C 770 170 580 150 560 220", lx: 670, ly: 148 },
+  { k: 2, d: "M 745 100 C 700 300 610 330 580 410", lx: 650, ly: 300 },
+  { k: 3, d: "M 940 100 L 940 410", lx: 940, ly: 255 },
+  { k: 4, d: "M 590 290 C 650 350 800 350 830 410", lx: 735, ly: 345 },
+  { k: 5, d: "M 500 290 L 500 410", lx: 500, ly: 350 },
+  { k: 6, d: "M 100 100 L 100 410", lx: 100, ly: 205 },
+  { k: 7, d: "M 420 290 C 420 360 270 350 250 410", lx: 330, ly: 352 },
+  { k: 8, d: "M 200 410 L 200 100", lx: 200, ly: 300, dash: true },
+  { k: 9, d: "M 270 440 C 330 440 340 300 380 275", lx: 292, ly: 395, dash: true },
+  { k: 10, d: "M 60 100 C -50 300 -50 560 380 640", lx: -10, ly: 470 },
+  { k: 11, d: "M 620 255 C 700 255 700 600 620 640", lx: 690, ly: 520 },
+  { k: 12, d: "M 150 480 C 150 570 300 620 380 625", lx: 205, ly: 585 },
+  { k: 13, d: "M 500 480 L 500 600", lx: 500, ly: 540 },
+  { k: 14, d: "M 850 480 C 850 570 680 650 620 655", lx: 770, ly: 595 },
+];
+
+function wrap(t: string, n: number): string[] {
+  const out: string[] = [];
+  let cur = "";
+  for (const w of t.split(" ")) {
+    if ((cur + " " + w).trim().length > n && cur) { out.push(cur); cur = w; } else cur = (cur + " " + w).trim();
+  }
+  if (cur) out.push(cur);
+  return out;
 }
 
 type Sel = { kind: "step"; i: number } | { kind: "branch"; i: number; j: number } | null;
@@ -19,6 +42,7 @@ type Sel = { kind: "step"; i: number } | { kind: "branch"; i: number; j: number 
 /** Схема: узлы-коробки и линии; по клику на узел поверх схемы открывается окно с подробностями и кнопкой перехода в раздел. */
 export function SchemeDiagram({ steps }: { steps: Step[] }) {
   const [sel, setSel] = useState<Sel>(null);
+  const [hover, setHover] = useState<number | null>(null);
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -27,6 +51,7 @@ export function SchemeDiagram({ steps }: { steps: Step[] }) {
     if (!sel && d.open) d.close();
   }, [sel]);
 
+  const hot = hover ?? (sel ? sel.i : null);
   const step = sel ? steps[sel.i] : null;
   const takes = sel ? FLOWS.filter((f) => f.to === sel.i + 1) : [];
   const gives = sel ? FLOWS.filter((f) => f.from === sel.i + 1) : [];
@@ -38,63 +63,50 @@ export function SchemeDiagram({ steps }: { steps: Step[] }) {
         <span className="inline-flex items-center gap-1.5"><IconPencil className="h-3.5 w-3.5 text-amber-700" /> вносят и правят вручную</span>
         <span className="inline-flex items-center gap-1.5"><IconGear className="h-3.5 w-3.5 text-emerald-700" /> считается автоматически</span>
         <span className="inline-flex items-center gap-1.5"><IconTrash className="h-3.5 w-3.5 text-red-600" /> можно удалить</span>
-        <span className="text-neutral-500">Нажмите на блок — откроется описание</span>
       </div>
-      <ol className="flex flex-col items-stretch" data-scheme>
-        {steps.map((s, i) => (
-          <li key={s.title} className="flex flex-col items-center md:flex-row md:items-center md:gap-0" data-step={i + 1}>
-            <div className="flex w-full flex-col items-center md:w-72 md:shrink-0">
-              <button
-                type="button"
-                onClick={() => setSel({ kind: "step", i })}
-                className="group flex w-full items-center gap-3 rounded-xl border-2 border-neutral-900 bg-white px-3 py-3 text-left shadow-sm transition hover:bg-neutral-900 hover:text-white"
-              >
-                <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-sm font-semibold text-white group-hover:bg-white group-hover:text-neutral-900">{i + 1}</span>
-                <span className="min-w-0 flex-1 text-sm font-semibold leading-snug">{s.title}</span>
-                <KindIcons kind={i === steps.length - 1 ? "auto" : "both"} />
-              </button>
-              {i < steps.length - 1 && (
-                <span aria-hidden className="flex h-8 flex-col items-center md:h-10">
-                  <span className="w-px flex-1 bg-neutral-400" />
-                  <svg viewBox="0 0 10 6" className="h-1.5 w-2.5 text-neutral-400" fill="currentColor"><path d="M0 0h10L5 6z" /></svg>
-                </span>
-              )}
-            </div>
-            {/* ветви справа от узла, соединены линией */}
-            <div className="flex w-full flex-wrap justify-center gap-2 pb-2 md:ml-0 md:w-auto md:flex-1 md:flex-nowrap md:items-center md:justify-start md:pb-10">
-              <span aria-hidden className="hidden h-px w-8 shrink-0 bg-neutral-400 md:block" />
-              {s.branches.map((b, j) => (
-                <button
-                  key={b.title}
-                  type="button"
-                  onClick={() => setSel({ kind: "branch", i, j })}
-                  className="rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-left text-xs font-medium text-neutral-800 shadow-sm transition hover:border-neutral-900 hover:bg-white"
-                >
-                  <span className="inline-flex items-center gap-1.5">{b.title}<KindIcons kind={b.kind} className="h-3 w-3" /></span>
-                </button>
-              ))}
-            </div>
-          </li>
-        ))}
-      </ol>
-
-      <section className="mt-6" aria-label="Кто откуда забирает данные" data-flows>
-        <h2 className="mb-2 text-sm font-semibold text-neutral-900">Кто откуда забирает данные</h2>
-        <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="bg-neutral-50 text-left text-xs text-neutral-500"><tr><th className="px-3 py-2">Откуда</th><th className="px-3 py-2">Что передаётся</th><th className="px-3 py-2">Куда</th></tr></thead>
-            <tbody className="divide-y divide-neutral-100">
-              {FLOWS.map((f, k) => (
-                <tr key={k}>
-                  <td className="px-3 py-1.5 align-top"><button type="button" onClick={() => setSel({ kind: "step", i: f.from - 1 })} className="text-left font-medium hover:underline">{f.from}. {steps[f.from - 1].title}</button></td>
-                  <td className="px-3 py-1.5 text-neutral-700">{f.what}</td>
-                  <td className="px-3 py-1.5 align-top"><button type="button" onClick={() => setSel({ kind: "step", i: f.to - 1 })} className="text-left font-medium hover:underline">→ {f.to}. {steps[f.to - 1].title}</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white" data-scheme>
+        <svg viewBox="-60 0 1120 700" className="mx-auto block min-w-[980px] w-full" role="img" aria-label="Схема связей и взаимодействий">
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#a3a3a3" /></marker>
+            <marker id="arr-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#171717" /></marker>
+          </defs>
+          {EDGES.map((e) => {
+            const f = FLOWS[e.k];
+            const on = hot != null && (f.from === hot + 1 || f.to === hot + 1);
+            return (
+              <g key={e.k} opacity={hot == null || on ? 1 : 0.25}>
+                <path d={e.d} fill="none" stroke={on ? "#171717" : "#a3a3a3"} strokeWidth={on ? 2 : 1.4} strokeDasharray={e.dash ? "5 4" : undefined} markerEnd={on ? "url(#arr-hot)" : "url(#arr)"} />
+                <g transform={`translate(${e.lx} ${e.ly})`}>
+                  <rect x={-(f.label.length * 3.6 + 5)} y="-10" width={f.label.length * 7.2 + 10} height="18" rx="4" fill="white" opacity="0.92" />
+                  <text textAnchor="middle" y="3" fontSize="12" fill={on ? "#171717" : "#525252"} fontWeight={on ? 600 : 400}>{f.label}</text>
+                </g>
+              </g>
+            );
+          })}
+          {steps.map((s, i) => {
+            const p = NODES[i];
+            const lines = wrap(s.title, 26);
+            const last = i === steps.length - 1;
+            return (
+              <g key={s.title} data-step={i + 1} transform={`translate(${p.x} ${p.y})`} className="cursor-pointer" tabIndex={0} role="button" aria-label={s.title}
+                onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(i)} onBlur={() => setHover(null)}
+                onClick={() => setSel({ kind: "step", i })} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel({ kind: "step", i }); } }}>
+                <rect width="240" height="70" rx="12" fill={hot === i ? "#171717" : "white"} stroke="#171717" strokeWidth="2" />
+                <circle cx="26" cy="35" r="14" fill={hot === i ? "white" : "#171717"} />
+                <text x="26" y="40" textAnchor="middle" fontSize="14" fontWeight="600" fill={hot === i ? "#171717" : "white"}>{i + 1}</text>
+                {lines.map((l, k) => (
+                  <text key={k} x="50" y={lines.length === 1 ? 39 : 30 + k * 16} fontSize="13.5" fontWeight="600" fill={hot === i ? "white" : "#171717"}>{l}</text>
+                ))}
+                <g transform="translate(176 50)" aria-hidden>
+                  {!last && <path transform="scale(0.85)" d="M2.5 13.5l.6-3L10.6 3a1.4 1.4 0 0 1 2 0l.4.4a1.4 1.4 0 0 1 0 2l-7.5 7.5-3 .6zM9.5 4.2l2.3 2.3" fill="none" stroke="#b45309" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />}
+                  {<g transform={`translate(${last ? 0 : 26} 0) scale(0.85)`} fill="none" stroke="#047857" strokeWidth="1.5" strokeLinecap="round"><circle cx="8" cy="8" r="2.2" /><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1" /></g>}
+                </g>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      <p className="mt-2 text-xs text-neutral-500">Наведите на блок — подсветятся его связи. Если схема шире экрана, её можно прокрутить вбок.</p>
 
       <dialog
         ref={ref}
@@ -123,6 +135,19 @@ export function SchemeDiagram({ steps }: { steps: Step[] }) {
                 {gives.length > 0 && <Section tone="violet" icon={<span aria-hidden>→</span>} title="Отдаёт данные в" items={gives.map((f) => `Шаг ${f.to}. ${steps[f.to - 1].title}: ${f.what}`)} />}
                 <Section tone="rose" icon={<IconGear className="h-3.5 w-3.5" />} title="Если поправить здесь, пересчитается" items={step.recalc} />
               </>
+            )}
+            {!branch && step.branches.length > 0 && (
+              <div className="rounded-md bg-neutral-50 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">Ветви шага</p>
+                <ul className="mt-1.5 flex flex-col gap-1.5">
+                  {step.branches.map((b) => (
+                    <li key={b.title} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="min-w-0"><span className="font-medium">{b.title}</span><span className="text-neutral-600"> — {b.text}</span></span>
+                      <Link href={b.href} className="shrink-0 rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-100">Открыть →</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
             <Link href={branch ? branch.href : step.href} className="inline-flex h-10 items-center justify-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-700">
               {branch ? "Открыть раздел →" : `${step.open} →`}
