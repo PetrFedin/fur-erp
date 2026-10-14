@@ -35,6 +35,8 @@ services:
       UPLOAD_DIR: /app/uploads
       DEMO_LOGIN_EMAIL: ${DEMO_LOGIN_EMAIL:-}
       DEMO_LOGIN_PASSWORD: ${DEMO_LOGIN_PASSWORD:-}
+      DEMO_SUPPLIER_EMAIL: ${DEMO_SUPPLIER_EMAIL:-}
+      DEMO_SUPPLIER_PASSWORD: ${DEMO_SUPPLIER_PASSWORD:-}
     volumes:
       - fur_erp_uploads:/app/uploads
     ports:

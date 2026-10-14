@@ -11,18 +11,18 @@ function setValue(id: string, value: string) {
 }
 
 // Демо-доступ: спокойная секция под формой, без отдельной карточки и цветной заливки.
-export function DemoLogin({ email, password }: { email: string; password: string }) {
+export function DemoLogin({ email, password, title = "Демо-доступ", note = "Данные для входа в демонстрационную версию.", id = "demo" }: { email: string; password: string; title?: string; note?: string; id?: string }) {
   return (
-    <section aria-labelledby="demo-title" className="mt-8 border-t border-neutral-200 pt-6">
+    <section aria-labelledby={`${id}-title`} className="mt-8 border-t border-neutral-200 pt-6">
       <div className="flex items-center gap-2">
-        <h2 id="demo-title" className="text-sm font-semibold text-neutral-900">
-          Демо-доступ
+        <h2 id={`${id}-title`} className="text-sm font-semibold text-neutral-900">
+          {title}
         </h2>
         <span className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs font-medium tracking-wide text-neutral-700">
           DEMO
         </span>
       </div>
-      <p className="mt-1 text-sm text-neutral-600">Данные для входа в демонстрационную версию.</p>
+      <p className="mt-1 text-sm text-neutral-600">{note}</p>
 
       <dl className="mt-3 grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-1.5 text-sm">
         <dt className="text-neutral-600">Email</dt>
