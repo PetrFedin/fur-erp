@@ -50,3 +50,5 @@ next-env.d.ts
 docs-inventory/
 !deploy/.env.prod.example
 .next-test
+.next-demo
+.next-simple

@@ -18,7 +18,12 @@ export default async function NewCalcPage({ searchParams }: PageProps<"/supplier
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Расчёты аукционов", href: "/supplier/auction-calcs" }, { label: "Новый расчёт" }]} />
       <h1 className="text-xl font-semibold">Новый расчёт аукциона</h1>
-      <StartFrom calcs={opts.calcs} auctions={opts.auctions} current={base ? from : ""} />
+      {(opts.calcs.length > 0 || opts.auctions.length > 0) && (
+        <details className="text-sm" open={!!base}>
+          <summary className="cursor-pointer select-none text-neutral-600 underline decoration-dotted">Взять с предыдущего расчёта</summary>
+          <div className="mt-2"><StartFrom calcs={opts.calcs} auctions={opts.auctions} current={base ? from : ""} /></div>
+        </details>
+      )}
       <CalcForm key={base ? from : "empty"} id={null} initial={base ?? emptyPayload("SP_RP")} readOnly={false} files={[]} />
     </div>
   );

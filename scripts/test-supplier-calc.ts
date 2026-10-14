@@ -3,6 +3,7 @@ import "./stubs/server-only-shim";
 import { readFile } from "node:fs/promises";
 import { parseTableFile } from "../src/lib/table-file";
 import { calcAll, emptyPayload, evalNum, missingRates, newId, payloadFromTable, type CalcPayload } from "../src/lib/supplier-calc";
+import { detectFormat, parsePasted, finalFigures } from "../src/lib/supplier-calc-simple";
 import { FormulaError, evalSimple, renameColumnRefs } from "../src/lib/calc-formula";
 
 const DIR = "/private/tmp/claude-501/-Users-petr-Documents-claude/d078d416-b2d7-4795-b3e7-4401793187b6/scratchpad/m_research/";
@@ -109,6 +110,26 @@ async function load(f: string) {
     const old: CalcPayload = { v: 1, format: "SP_RP", header: e.header, rows: e.rows.map((r) => { const { _id, ...x } = r; void _id; return x; }) };
     ok("старый payload без новых полей считается", calcAll(old).calcs[0].unitRub, calcAll({ ...e, customColumns: [] }).calcs[0].unitRub, 1e-9);
     if (renameColumnRefs("=P*2+SUM(Q)+ROUND(R;2)", { P: "O", Q: "P" }) !== "=O*2+SUM(P)+ROUND(R;2)") { bad++; console.log("FAIL renameColumnRefs", renameColumnRefs("=P*2+SUM(Q)+ROUND(R;2)", { P: "O", Q: "P" })); } else console.log("OK  renameColumnRefs");
+  }
+  // ---- простой вид: формат по названию, вставка из Excel, финальные цифры
+  {
+    const eq = (name: string, got: unknown, want: unknown) => { const g = JSON.stringify(got), w = JSON.stringify(want); if (g !== w) { bad++; console.log("FAIL", name, g, "≠", w); } else console.log("OK ", name); };
+    eq("формат СП 09-26", detectFormat("СП 09-26"), "SP_RP");
+    eq("формат Русьпушнина", detectFormat("", "Русьпушнина"), "SP_RP");
+    eq("формат SAGA", detectFormat("SAGA 03-26"), "SAGA");
+    eq("формат FH", detectFormat("FH 06-26"), "FH");
+    eq("формат не опознан", detectFormat("Аукцион 5"), null);
+    const a = parsePasted("4\tСоболь\tтёмный 1\t30\t360\n5\tСоболь\tсветлый\t1 200\t$100,5\nИтого\t\t\t1230\t");
+    if ("error" in a) { bad++; console.log("FAIL вставка без шапки", a.error); } else eq("вставка без шапки", [a.rows.length, a.skipped, a.rows[0].qty, a.rows[1].qty, a.rows[1].price], [2, 1, "30", "1200", "100,5"]);
+    const b = parsePasted("Цена\tКол-во\tЛот\tМех\n360\t30\t4\tСоболь");
+    if ("error" in b) { bad++; console.log("FAIL вставка по шапке", b.error); } else eq("вставка по шапке", [b.rows[0].lot, b.rows[0].fur, b.rows[0].qty, b.rows[0].price], ["4", "Соболь", "30", "360"]);
+    eq("вставка пустая → ошибка", "error" in parsePasted("  "), true);
+    const e = emptyPayload("SP_RP");
+    Object.assign(e.rows[0], { qty: "30", price: "360", lot: "4" });
+    e.header.cbRate = "84.4075"; e.header.rates = { feePct: "7.35" };
+    const ff = finalFigures(e, calcAll(e));
+    eq("финальные цифры: лотов и шкур", [ff.lots, ff.qty], [1, 30]);
+    ok("средняя за шкуру = итого / шкур", ff.avgRub, ff.totalRub / 30, 1e-9);
   }
   console.log(bad ? `ПРОВАЛОВ: ${bad}` : "всё сходится");
   process.exit(bad ? 1 : 0);

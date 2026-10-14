@@ -7,7 +7,9 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { INBOX_FILE_KINDS } from "@/lib/supplier-inbox-consts";
 import { CalcDetail } from "./calc-detail";
-import { FORMAT_LABEL, STAGE_LABEL, remapCustomRefs, syncLetters, calcAll, columnsFor, emptyRow, headerRate, missingRates, newId, rateCols, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
+import { SimpleSteps } from "./simple-steps";
+import { detectFormat, finalFigures, needsAdvanced } from "@/lib/supplier-calc-simple";
+import { FORMAT_LABEL, STAGE_LABEL, remapCustomRefs, syncLetters, calcAll, columnsFor, emptyRow, headerRate, missingRates, rowFilled, newId, rateCols, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
 import { attachInboxFile, deleteCalcDraft, parseCalcFile, removeInboxFile, saveCalcDraft, sendCalc } from "./actions";
 
 const money = (n: number) => (Number.isFinite(n) ? n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
@@ -19,6 +21,9 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [pending, start] = useTransition();
   const [tab, setTab] = useState<"calc" | "detail">("calc");
+  // Простой вид по умолчанию; расчёты со своими столбцами/формулами открываются сразу в расширенном, чтобы ничего не спрятать.
+  const [advanced, setAdvanced] = useState(() => needsAdvanced(initial));
+  const [formatTouched, setFormatTouched] = useState(id !== null);
   const [fileKind, setFileKind] = useState("AUCTION_INVOICE");
   const fileRef = useRef<HTMLInputElement>(null);
   const attachRef = useRef<HTMLInputElement>(null);
@@ -40,14 +45,15 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
       }
     });
 
-  const save = () => run(() => saveCalcDraft(id, JSON.stringify(syncLetters(p))), "Черновик сохранён", (r) => { if (!id && r.id) router.replace(`/supplier/auction-calcs/${r.id}`); else router.refresh(); });
+  const out = () => syncLetters({ ...p, rows: p.rows.map((r) => (rowFilled(r) ? { ...r, invoice: r.invoice || p.header.invoice, dest: r.dest || p.header.dest } : r)) });
+  const save = () => run(() => saveCalcDraft(id, JSON.stringify(out())), "Черновик сохранён", (r) => { if (!id && r.id) router.replace(`/supplier/auction-calcs/${r.id}`); else router.refresh(); });
   const send = () => {
     const warn = missing.length ? `\n\nСтавка не указана (считается как 0): ${missing.join("; ")}.` : "";
     if (!confirm(`Отправить расчёт нам? После отправки править его нельзя.${warn}`)) return;
     run(async () => {
-      const saved = id ? { id } : await saveCalcDraft(null, JSON.stringify(syncLetters(p)));
+      const saved = id ? { id } : await saveCalcDraft(null, JSON.stringify(out()));
       if ("error" in saved && saved.error) return saved;
-      return sendCalc(saved.id!, JSON.stringify(syncLetters(p)));
+      return sendCalc(saved.id!, JSON.stringify(out()));
     }, "Отправлено", (r) => router.replace(`/supplier/auction-calcs/${r.id ?? id}`));
   };
   const upload = (f: File) => {
@@ -71,6 +77,24 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
   return (
     <div className="flex flex-col gap-5">
       {reviewNote && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">Комментарий проверяющего: {reviewNote}</div>}
+      {!advanced && (
+        <>
+          {!ro && <p className="text-sm text-neutral-600">Перенесите из аукционного счёта: аукцион, лоты и цены. Расходы добавьте ниже — остальное посчитается само.</p>}
+          <SimpleSteps p={p} setP={setP} t={t} ro={ro} missing={missing} notify={(text, bad) => setMsg({ text, bad })}
+            onAuction={(auction, seller) => setP((x) => {
+              const d = !formatTouched ? detectFormat(auction, seller) : null;
+              const y = { ...x, header: { ...x.header, auction, seller } };
+              return d && d !== x.format ? remapCustomRefs(y, switchFormat(y, d)) : y;
+            })}
+            onFormat={(f) => { setFormatTouched(true); setP((x) => remapCustomRefs(x, switchFormat(x, f))); }}
+            uploadSlot={<>
+              <input ref={fileRef} type="file" accept=".xlsx,.csv,.txt,.tsv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} />
+              <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => fileRef.current?.click()}>Загрузить файл Excel</Button>
+            </>} />
+        </>
+      )}
+      {advanced && (
+        <>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="col-span-full sm:col-span-2">
           <Label>Формат расчёта</Label>
@@ -206,6 +230,9 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
         <div><Label>Остаток к оплате, ₽</Label><div className="flex h-9 items-center text-sm font-semibold tabular-nums">{money(t.rest)}</div></div>
       </section>
 
+        </>
+      )}
+
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold">Вложения</h2>
         {files.length === 0 && <p className="text-sm text-neutral-500">Нет файлов. PDF аукционного счёта, счёт Веллмеха на аванс, спецификация к Договору купли-продажи №2502 от 26.02.2025, УПД.</p>}
@@ -226,14 +253,32 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
         )}
       </section>
 
-      {!ro && (
+      <div className="text-sm"><button type="button" className="text-neutral-500 underline decoration-dotted hover:text-neutral-800" onClick={() => setAdvanced((v) => !v)}>{advanced ? "← Простой вид" : "Расширенный режим (свои столбцы и формулы)"}</button></div>
+      {msg && <p role="status" className={msg.bad ? "text-sm text-red-600" : "text-sm text-green-700"}>{msg.text}</p>}
+      {!advanced && (() => {
+        const f = finalFigures(p, t);
+        return (
+          <div className="sticky bottom-0 z-20 -mx-1 flex flex-col gap-2 rounded-lg border border-neutral-300 bg-white/95 p-3 shadow-lg backdrop-blur md:flex-row md:items-center md:justify-between">
+            <div className="text-sm" aria-live="polite">
+              <span className="text-neutral-500">Итого:</span> {f.lots} лотов · {f.qty.toLocaleString("ru-RU")} шкур · <b className="text-lg tabular-nums">{money(f.totalRub)} ₽</b> · средняя себестоимость шкуры <b className="text-lg tabular-nums">{money(f.avgRub)} ₽</b>
+            </div>
+            {!ro && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" disabled={pending} onClick={save}>Сохранить черновик</Button>
+                <Button type="button" variant="outline" disabled={pending} onClick={send}>Отправить нам</Button>
+                {id && <Button type="button" variant="ghost" disabled={pending} onClick={() => { if (confirm("Удалить черновик?")) run(() => deleteCalcDraft(id), "Удалено", () => router.replace("/supplier/auction-calcs")); }}>Удалить</Button>}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+      {advanced && !ro && (
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" disabled={pending} onClick={save}>Сохранить черновик</Button>
           <Button type="button" variant="outline" disabled={pending} onClick={send}>Отправить нам</Button>
           {id && <Button type="button" variant="ghost" disabled={pending} onClick={() => { if (confirm("Удалить черновик?")) run(() => deleteCalcDraft(id), "Удалено", () => router.replace("/supplier/auction-calcs")); }}>Удалить черновик</Button>}
         </div>
       )}
-      {msg && <p role="status" className={msg.bad ? "text-sm text-red-600" : "text-sm text-green-700"}>{msg.text}</p>}
     </div>
   );
 }

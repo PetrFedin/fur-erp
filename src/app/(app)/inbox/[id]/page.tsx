@@ -13,6 +13,8 @@ import { FORMAT_LABEL, STAGE_LABEL, calcAll, columnsFor, headerRate, rateCols, r
 import { TZ_KIND_LABEL, plainNum, ruDate, spacedNum, tzTotals, type TzPayload } from "@/lib/tz-vendor";
 import { cn, formatDate } from "@/lib/utils";
 import { DecideButtons } from "./decide";
+import { FinalFigures } from "../../supplier/auction-calcs/final-figures";
+import { finalFigures } from "@/lib/supplier-calc-simple";
 import { CompareBlock } from "../../supplier/auction-calcs/compare-block";
 import { DocumentCard } from "./document-card";
 
@@ -38,8 +40,30 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
   const cols = columnsFor(p.format);
   const used = p.rows.map((r, i) => ({ r, i })).filter(({ r }) => rowFilled(r)).map(({ r, i }) => ({ r: resolveRow(p.format, p.header, r), i }));
   const costCols = cols.filter((c) => !["invoice", "fur", "size", "lot", "qty", "operation", "dest", "price", "upd"].includes(c.key));
+  const ff = finalFigures(p, t);
   return (
     <div className="flex flex-col gap-4">
+      <FinalFigures {...ff} />
+      <p className="text-sm text-neutral-700">Аукцион <b>{dash(h.auction)}</b> · счёт № {dash(h.invoice)} от {dash(h.invoiceDate)} · курс {money(t.rate)} · {p.stage ? STAGE_LABEL[p.stage] : "окончательный"}</p>
+      <div className="overflow-x-auto">
+        <Table className="min-w-[640px]">
+          <Thead><Tr><Th>Лот</Th><Th>Мех</Th><Th>Цвет / размер</Th><Th className="text-right">Кол-во</Th><Th className="text-right">Цена, {h.currency === "EUR" ? "€" : "$"}</Th><Th className="text-right">Себестоимость за шкуру, ₽</Th><Th className="text-right">За лот, ₽</Th></Tr></Thead>
+          <Tbody>
+            {used.map(({ r, i }) => (
+              <Tr key={i}>
+                <Td>{dash(r.lot)}</Td><Td>{dash(r.fur)}</Td><Td>{dash(r.size)}</Td><Td className="text-right tabular-nums">{dash(r.qty)}</Td><Td className="text-right tabular-nums">{dash(r.price)}</Td>
+                <Td className="text-right tabular-nums font-medium">{t.calcs[i].ok ? money(t.calcs[i].unitRub) : <span className="text-red-700">{t.calcs[i].problems.join(", ")}</span>}</Td>
+                <Td className="text-right tabular-nums">{money(t.calcs[i].totalRub)}</Td>
+              </Tr>
+            ))}
+            {used.length === 0 && <Tr><Td colSpan={7} className="py-4 text-center text-neutral-500">В расчёте нет лотов</Td></Tr>}
+          </Tbody>
+        </Table>
+      </div>
+      <CompareBlock s={s} payload={p} />
+      <details className="rounded-md border border-neutral-200 p-3">
+        <summary className="cursor-pointer select-none text-sm font-medium">Подробности: ставки, столбцы, формулы</summary>
+        <div className="mt-3 flex flex-col gap-4">
       <Dl items={[
         ["Формат", FORMAT_LABEL[p.format]], ["Аукцион", dash(h.auction)], ["Счёт №", dash(h.invoice)], ["Дата счёта", dash(h.invoiceDate)], ["Продавец", dash(h.seller)],
         ["Валюта", h.currency], ["Курс ЦБ", dash(h.cbRate)], ["Надбавка агента, %", dash(h.agentPct)], ["Курс для расчёта", money(t.rate)], ["НДС, %", dash(h.vat)],
@@ -50,7 +74,6 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
         <span className="text-neutral-500">Стадия:</span>
         <span className={cn("rounded-full px-2.5 py-0.5 text-xs", p.stage === "PRELIM" ? "bg-blue-50 text-blue-800" : "bg-green-50 text-green-800")}>{p.stage ? STAGE_LABEL[p.stage] : "не указана (считается окончательным)"}</span>
       </div>
-      <CompareBlock s={s} payload={p} />
       <div>
         <h3 className="mb-1 text-sm font-semibold">Ставки (введены Веллмехом)</h3>
         <Dl items={rateCols(p.format).map((c): [string, string] => [c.rate!.label, headerRate(h, c.key) || (p.rows.some((r) => (r[c.key] ?? "").trim() !== "") ? "в строках таблицы" : "не указана (0)")])} />
@@ -98,6 +121,8 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
       <p className="text-sm text-neutral-700">Итого по счёту <b>{money(t.totalRub)} ₽</b>
         {t.advance > 0 && <> · аванс {money(t.advance)} ₽</>}{t.interim > 0 && <> · промежуточный {money(t.interim)} ₽</>}{(t.advance > 0 || t.interim > 0) && <> · остаток <b>{money(t.rest)} ₽</b></>}
       </p>
+        </div>
+      </details>
     </div>
   );
 }
