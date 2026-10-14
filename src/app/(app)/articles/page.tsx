@@ -35,6 +35,7 @@ import { CATEGORY_GROUPS, NO_GROUP, groupOf } from "@/lib/category-groups";
 import { TotalLabel } from "@/components/total-label";
 import { LENGTH_OPTIONS } from "@/lib/length-class";
 import { SupplierArticles } from "./supplier-view";
+import { loadSupplierArticleIds } from "@/lib/supplier-articles";
 
 export const metadata = { title: "Изделия" };
 
@@ -48,6 +49,7 @@ const ARTICLE_FILTERS = defineFilters({
   tz: { kind: "multi", label: "ТЗ", maxLen: 60 },
   price: { kind: "multi", label: "Цена", allowed: ["yes", "no"] },
   empty: stateParam("Состав списка", { allowed: ["1"] }),
+  src: stateParam("Источник", { allowed: ["supplier"] }),
 });
 
 export default async function ArticlesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -82,6 +84,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, sellingPrice: true, isActive: true, categoryRef: { select: { group: true } } },
     orderBy: { name: "asc" },
   });
+
+  // Артикулы, которые завёл Веллмех (по журналу изменений): пометка и фильтр «Новые от Веллмеха».
+  const supplierMade = await loadSupplierArticleIds(prisma, orgId);
 
   // Единый источник чисел — ТЗ «Произведено» Главной (без отменённых и без ремонта): те же ТЗ в таблице, плитках и дереве, поэтому всё сходится.
   const allDrill = await loadOrdersDrill(orgId, year, c4Mode);
@@ -122,6 +127,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     return {
       id: m.id,
       name: m.name,
+      bySupplier: supplierMade.has(m.id),
       model: { name: m.name, category: m.category, salesCode: m.salesCode, salesName: m.salesName, sku: m.sku },
       group: groupOf(m.categoryRef?.group),
       isActive: m.isActive,
@@ -140,10 +146,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   // Строки без ТЗ и без остатка скрыты по умолчанию (?empty=1 — показать). При поиске, фильтре категории или цены показываем всё найденное.
   // За выбранный год — артикулы с ТЗ этого года (остаток на складе — текущий, без даты).
   // Фильтры по ТЗ (вид меха, подкладка, год ТЗ, ТЗ, партия, цвет, размер, сезон): остаются артикулы, у которых есть подходящие ТЗ.
-  const baseRows = year === "all" ? rows0.filter((r) => r.stockQty > 0 || r.orderCount > 0) : rows0.filter((r) => r.orderCount > 0);
+  const baseRows = year === "all" ? rows0.filter((r) => r.stockQty > 0 || r.orderCount > 0 || r.bySupplier) : rows0.filter((r) => r.orderCount > 0 || r.bySupplier);
   const emptyCount = tzActive ? 0 : rows0.length - baseRows.length;
   const modelFilterOn = !!q || f.category.length > 0 || f.catgroup.length > 0 || f.model.length > 0 || f.len.length > 0 || f.price.length > 0;
-  const rows = (tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).sort((a, b) => {
+  const rows = (f.src === "supplier" ? rows0.filter((r) => r.bySupplier) : tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).sort((a, b) => {
     const wa = a.stockQty > 0 || a.orderCount > 0 ? 0 : 1;
     const wb = b.stockQty > 0 || b.orderCount > 0 ? 0 : 1;
     return wa - wb || compareModelNames(a.name, b.name);
@@ -258,6 +264,14 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         extra={<MarkupCarousel key="markup" rows={markupRows} />}
       />
 
+      {supplierMade.size > 0 && (
+        <p className="print:hidden text-sm">
+          {f.src === "supplier"
+            ? <Link href="/articles" className="text-blue-700 hover:underline">← Все артикулы</Link>
+            : <>Внёс Веллмех: <Link href="/articles?src=supplier" className="font-medium text-blue-700 hover:underline">{supplierMade.size} {supplierMade.size === 1 ? "артикул" : "артикулов"}</Link> — «Новые от Веллмеха»; без цены: <Link href="/articles?src=supplier&price=no" className="font-medium text-blue-700 hover:underline">{rows0.filter((r) => r.bySupplier && !r.sellingPrice).length}</Link></>}
+        </p>
+      )}
+
       <ResponsiveRows table={
       <Table anchor="table:articles" label="Таблица изделий" stickyHeader className="min-w-[1420px]">
         <Thead>
@@ -311,6 +325,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 <Link href={`/models/${r.id}`} className="text-blue-700 hover:underline" title="Карточка артикула">
                   <ArticleName model={r.model} compact />
                 </Link>
+                {r.bySupplier && <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800" title="Артикул завёл поставщик — проверьте и проставьте цену">внёс: Веллмех</span>}
               </Td>
               <Td className="text-neutral-700">
                 <div>{r.model.category?.trim() || "—"}</div>

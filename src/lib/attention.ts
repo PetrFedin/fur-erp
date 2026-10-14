@@ -1,4 +1,5 @@
 import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
+import { loadSupplierArticleIds } from "@/lib/supplier-articles";
 import { batchNameText } from "@/lib/batch-name";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -90,7 +91,7 @@ const PRIORITY_ORDER: Record<AttentionPriority, number> = { red: 0, yellow: 1, g
  */
 export type AttentionGroupId =
   | "no-receipt" | "advance-unlinked" | "auction-unpaid" | "overpaid" | "late-delivery" | "tz-requisites" | "suspect-date"
-  | "model-dup" | "no-auction"
+  | "model-dup" | "supplier-new-article" | "no-auction"
   | "tz-no-date" | "tz-end-date" | "batch-no-pay" | "no-auction-info" | "stub-lots" | "production-status"
   | "awaiting" | "no-usage" | "dict";
 
@@ -144,6 +145,11 @@ export const GROUPS: Record<AttentionGroupId, AttentionGroupMeta> = {
     title: "Модель заведена дважды", kind: "decision",
     hint: "Одна модель записана кириллицей и латиницей. Поиск и план их уже склеивают, данные не менялись — объедините карточки.",
     link: { href: "/models", label: "Модели" },
+  },
+  "supplier-new-article": {
+    title: "Добавьте розничную цену: артикулы от Веллмеха", kind: "decision",
+    hint: "Артикул завёл поставщик (Веллмех) — цен он не вносит. Откройте артикул, проверьте название, категорию, мех и подкладку, которые он прислал, и проставьте розничную цену.",
+    link: { href: "/articles?src=supplier&price=no", label: "Артикулы от Веллмеха" },
   },
   "no-auction": {
     title: "Закупка без аукциона", kind: "decision",
@@ -582,6 +588,13 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
       { title: `Модель «${g[0].name}»`, href: `/models/${g[0].id}` },
       { text: `заведена дважды (кириллица и латиница): ${g.map((m) => `«${m.name}»`).join(" и ")}`, priority: "yellow", group: "model-dup" }
     );
+  }
+  // Артикулы, внесённые поставщиком (по журналу изменений), у которых ещё нет розничной цены: задача «проставьте цену».
+  const supplierIds = await loadSupplierArticleIds(db, organizationId);
+  if (supplierIds.size > 0) {
+    const fresh = await db.productModel.findMany({ where: { organizationId, id: { in: [...supplierIds.keys()] }, sellingPrice: null, isActive: true }, select: { id: true, name: true } });
+    for (const m of fresh)
+      flag("model", m.id, { title: `Артикул «${m.name}»`, sub: "внёс Веллмех", href: `/models/${m.id}` }, { text: "от Веллмеха: нет розничной цены", priority: "yellow", group: "supplier-new-article" });
   }
   for (const m of materialsNoCat)
     flag("material", m.id, { title: `Материал «${m.name}»`, href: `/materials/${m.id}` }, { text: "категория не указана", priority: "gray", group: "dict" });
