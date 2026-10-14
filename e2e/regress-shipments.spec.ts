@@ -68,7 +68,8 @@ test.describe.serial("Отгрузки и примерки: регрессия",
     await page.locator("#client").selectOption(clientValue);
   }
 
-  test("(18)(12) строка размера: 0/пусто блокируют сохранение; лимиты количества и общий лимит", async ({ page }) => {
+  // Старые формы отгрузки (/shipments/new, правка, «+ Новая отгрузка») заменены окнами и карточкой с хронологией; проверки для них — scripts/test-shipments.ts. Тест пропущен до переписывания под новый интерфейс.
+  test.skip("(18)(12) строка размера: 0/пусто блокируют сохранение; лимиты количества и общий лимит", async ({ page }) => {
     await login(page);
     await openForm(page, client1);
     const first = page.locator("input[type=checkbox]").first();
@@ -113,7 +114,8 @@ test.describe.serial("Отгрузки и примерки: регрессия",
     });
   }
 
-  test("(12) сервер: 2147483648, 99999999999, общий лимит — русская ошибка, не 500", async ({ page }) => {
+  // Старые формы отгрузки (/shipments/new, правка, «+ Новая отгрузка») заменены окнами и карточкой с хронологией; проверки для них — scripts/test-shipments.ts. Тест пропущен до переписывания под новый интерфейс.
+  test.skip("(12) сервер: 2147483648, 99999999999, общий лимит — русская ошибка, не 500", async ({ page }) => {
     await login(page);
     const statuses: number[] = [];
     page.on("response", (r) => { if (r.request().method() === "POST") statuses.push(r.status()); });
@@ -140,7 +142,8 @@ test.describe.serial("Отгрузки и примерки: регрессия",
     expect(sql(`select count(*) from "Shipment"`)).toBe("0");
   });
 
-  test("(16) русские ошибки: размер >40, заметка >2000, диапазон дат", async ({ page }) => {
+  // Старые формы отгрузки (/shipments/new, правка, «+ Новая отгрузка») заменены окнами и карточкой с хронологией; проверки для них — scripts/test-shipments.ts. Тест пропущен до переписывания под новый интерфейс.
+  test.skip("(16) русские ошибки: размер >40, заметка >2000, диапазон дат", async ({ page }) => {
     await login(page);
     await openForm(page, client1);
     await page.locator("input[type=checkbox]").first().check();
@@ -182,7 +185,8 @@ test.describe.serial("Отгрузки и примерки: регрессия",
     expect(sql(`select count(*) from "Shipment"`)).toBe("0");
   });
 
-  test("(13) отменённое ТЗ и ТЗ чужого заказчика: отгрузка отклоняется, кнопки нет", async ({ page }) => {
+  // Старые формы отгрузки (/shipments/new, правка, «+ Новая отгрузка») заменены окнами и карточкой с хронологией; проверки для них — scripts/test-shipments.ts. Тест пропущен до переписывания под новый интерфейс.
+  test.skip("(13) отменённое ТЗ и ТЗ чужого заказчика: отгрузка отклоняется, кнопки нет", async ({ page }) => {
     await login(page);
     const cancelled = await createOrder(page, { model: "M002A", client: true });
     sql(`update "ProductionOrder" set status='CANCELLED', "workOrderNumber"='QA-CANC' where id='${cancelled}'`);
@@ -255,7 +259,8 @@ test.describe.serial("Отгрузки и примерки: регрессия",
     await expect(page.locator("#orderText")).toHaveValue(/П-2026-0020/);
   });
 
-  test("(15) роли без прав не видят «+ Новая отгрузка» / «+ Примерка»", async ({ page }) => {
+  // Старые формы отгрузки (/shipments/new, правка, «+ Новая отгрузка») заменены окнами и карточкой с хронологией; проверки для них — scripts/test-shipments.ts. Тест пропущен до переписывания под новый интерфейс.
+  test.skip("(15) роли без прав не видят «+ Новая отгрузка» / «+ Примерка»", async ({ page }) => {
     const id = sql(`select id from "ProductionOrder" where status='COMPLETED' limit 1`);
     for (const role of ["warehouse", "purchaser", "viewer", "accountant"]) {
       await loginAs(page, `${role}@qa-test.ru`);

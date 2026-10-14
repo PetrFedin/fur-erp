@@ -1,11 +1,13 @@
-// Основное меню (9 пунктов; «Настройки» сразу после «Календаря», «Контроль» внизу). `also` — вложенные и переехавшие разделы: на них
+// Основное меню (10 пунктов; «Настройки» сразу после «Календаря», «Контроль» внизу). `also` — вложенные и переехавшие разделы: на них
 // подсвечивается тот же пункт, чтобы человек не терял, "где он".
 export const NAV_LINKS = [
   { href: "/dashboard", label: "Главная", also: [] },
   // «Сырьё» — один раздел с вкладками (<RawTabs>): Закупки · Мех · Подкладка · Сводка по годам. Закупки — первая вкладка.
   { href: "/lots", label: "Сырьё", also: ["/purchases", "/analytics"] },
-  { href: "/production", label: "ТЗ", also: ["/shipments", "/fittings", "/plan", "/supply-plan"] },
+  { href: "/production", label: "ТЗ", also: ["/fittings", "/plan", "/supply-plan"] },
   { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/repair", "/analytics/products", "/analytics/pricing"] },
+  // «Отгрузки» — карточки отгрузок с хронологией этапов (состав из ТЗ, приёмка по строкам). Вкладка «Отгрузки» в разделе ТЗ ведёт сюда же.
+  { href: "/shipments", label: "Отгрузки", also: [] },
   { href: "/payments", label: "Оплаты", also: [] },
   { href: "/budget", label: "Бюджет", also: [] },
   { href: "/calendar", label: "Календарь", also: [] },

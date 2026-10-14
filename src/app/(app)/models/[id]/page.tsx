@@ -345,7 +345,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
                 return (
                   <li key={sh.id}>
                     <Link href={`/shipments/${sh.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:bg-neutral-50">
-                      <span className="whitespace-nowrap font-medium">{sh.status === "SHIPPED" && sh.shippedDate ? `отгружена ${formatDate(sh.shippedDate)}` : `план ${formatDate(sh.plannedDate)}`}</span>
+                      <span className="whitespace-nowrap font-medium">{sh.name ? `${sh.name} · ` : ""}{sh.status === "SHIPPED" && sh.shippedDate ? `отгружена ${formatDate(sh.shippedDate)}` : `план ${formatDate(sh.plannedDate)}`}</span>
                       <span className="min-w-0 text-neutral-600">{summarizeLines(lines).join("; ")}</span>
                     </Link>
                   </li>

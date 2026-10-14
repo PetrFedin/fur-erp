@@ -2,6 +2,7 @@ import { orderLabel } from "@/lib/order-label";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { CollapsibleBlock } from "@/components/collapsible-block";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { SourceDocs } from "@/components/source-docs";
@@ -117,6 +118,23 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     order.batchId ? prisma.productionOrder.findMany({ where: { organizationId: orgId, batchId: order.batchId }, select: { number: true, workOrderNumber: true } }).then(uniqueOrderCount) : Promise.resolve(null),
   ]);
   const shipmentCount = shipmentLines.length;
+  // Отгрузки, куда включена позиция: в отгрузке шт. и принято шт. (по всем этапам приёмки; ожидаемые этапы не в счёте).
+  const shipInclude = await prisma.shipmentLine.findMany({
+    where: { productionOrderId: order.id, shipment: { organizationId: orgId } },
+    select: {
+      quantity: true,
+      shipment: { select: { id: true, name: true, plannedDate: true } },
+      eventLines: { select: { accepted: true, event: { select: { expected: true } } } },
+    },
+  });
+  const shipBy = new Map<string, { id: string; title: string; qty: number; accepted: number }>();
+  for (const l of shipInclude) {
+    const e = shipBy.get(l.shipment.id) ?? { id: l.shipment.id, title: l.shipment.name ?? `Отгрузка на ${formatDate(l.shipment.plannedDate)}`, qty: 0, accepted: 0 };
+    e.qty += l.quantity;
+    e.accepted += l.eventLines.reduce((a, x) => a + (x.event.expected ? 0 : (x.accepted ?? 0)), 0);
+    shipBy.set(l.shipment.id, e);
+  }
+  const shipList = [...shipBy.values()];
 
   const batchOptions = (
     await prisma.productionBatch.findMany({
@@ -560,6 +578,19 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
         {cancelled && <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — в Главную и сводки не входит; правки сохраняются, но на итоги не влияют.</p>}
       </section>
+
+      {shipList.length > 0 && (
+        <CollapsibleBlock title="Отгрузки" summary={`${shipList.length} · в отгрузках ${formatQty(shipList.reduce((a, x) => a + x.qty, 0))} шт.`} autoOpen={false} id="shipments">
+          <ul className="flex flex-col divide-y divide-neutral-100 text-sm">
+            {shipList.map((x) => (
+              <li key={x.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-1.5">
+                <Link href={`/shipments/${x.id}`} className="font-medium hover:underline">{x.title}</Link>
+                <span className="tabular-nums text-neutral-600">в отгрузке {formatQty(x.qty)} шт. · принято {formatQty(x.accepted)} шт.</span>
+              </li>
+            ))}
+          </ul>
+        </CollapsibleBlock>
+      )}
 
       <div id="drive" className="scroll-mt-4">
         <SourceDocs data={await loadOrderSourceDocs({ organizationId: orgId, role: session.user.role }, order.id)} />

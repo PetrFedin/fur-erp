@@ -9,6 +9,9 @@ import type { LayerKind } from "@/lib/calendar-actions";
 import { articleLabel } from "@/lib/article-label";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 
+/** Отгрузки в календарь не выводим (слой скрыт), хотя раздел «Отгрузки» открыт. Вернуть слой — поставьте false. */
+const CALENDAR_SHIPMENTS_HIDDEN = true;
+
 // Слой «факты» производственного календаря: только чтение, ничего не копируется в CalendarEvent.
 // Источники: SupplyPlanEntry (дата этапа), Shipment.plannedDate, Fitting.fittingDate, ProductionOrder.endDate.
 
@@ -32,7 +35,8 @@ export async function loadFactLayer(organizationId: string, from: string, to: st
       },
       select: { id: true, status: true, quantity: true, eventDate: true, notes: true, productModel: { select: { name: true, category: true, salesCode: true, salesName: true } } },
     }),
-    HIDDEN_MODULES.shipments ? Promise.resolve([]) : prisma.shipment.findMany({
+    // Слой отгрузок календаря остаётся скрытым: раздел «Отгрузки» теперь открыт (HIDDEN_MODULES.shipments = false), а календарь не трогаем.
+    CALENDAR_SHIPMENTS_HIDDEN ? Promise.resolve([]) : prisma.shipment.findMany({
       where: { organizationId, status: { not: "CANCELLED" }, plannedDate: { gte, lte }, ...(nameFilter ? { lines: { some: { productionOrder: { productModel: nameFilter } } } } : {}) },
       select: { id: true, plannedDate: true, status: true, client: { select: { name: true } }, lines: { select: { quantity: true, productionOrder: { select: { productModel: { select: { name: true, category: true, salesCode: true, salesName: true } } } } } } },
     }),

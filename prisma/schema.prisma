@@ -256,6 +256,7 @@ model User {
 
   createdPurchases        Purchase[]        @relation("PurchaseCreatedBy")
   createdProductionOrders ProductionOrder[] @relation("ProductionOrderCreatedBy")
+  shipmentEvents          ShipmentEvent[]   @relation("ShipmentEventResponsible")
 
   @@index([organizationId])
 }
@@ -296,6 +297,7 @@ model Supplier {
   payments       Payment[]
   invoices       Invoice[]
   driveDocuments DriveDocument[]
+  shipments      Shipment[]
 
   @@index([organizationId])
 }
@@ -1124,6 +1126,13 @@ model Shipment {
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   clientId       String?
   client         Client?        @relation(fields: [clientId], references: [id])
+  /// Название отгрузки («Отгрузка октябрь 2026 · 1»); у старых записей пусто.
+  name           String?
+  supplierId     String?
+  supplier       Supplier?        @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  /// Партия пошива, к которой относится отгрузка (необязательно).
+  batchId        String?
+  batch          ProductionBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
   plannedDate    DateTime
   shippedDate    DateTime?
   status         ShipmentStatus @default(PLANNED)
@@ -1132,9 +1141,13 @@ model Shipment {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   lines          ShipmentLine[]
+  /// Хронология: этапы отгрузки, которые заводят вручную (свободное название, дата-время, ответственный).
+  events         ShipmentEvent[]
 
   @@index([organizationId, status])
   @@index([plannedDate])
+  @@index([supplierId])
+  @@index([batchId])
 }
 
 model ShipmentLine {
@@ -1145,9 +1158,60 @@ model ShipmentLine {
   productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id])
   size              String?
   quantity          Int
+  /// Цвет и вид меха — копия на момент добавления из ТЗ (для показа и поиска, не источник правды).
+  color             String?
+  furKind           String?
+  comment           String?
+  eventLines        ShipmentEventLine[]
 
   @@index([shipmentId])
   @@index([productionOrderId])
+}
+
+/// Этап отгрузки: свободное название, дата-время (время может быть неизвестно), ответственный, детализация.
+/// occurredAt хранится как «настенное» время (UTC-метка без пересчёта поясов): 09.10.2026 19:07 = 2026-10-09T19:07Z.
+model ShipmentEvent {
+  id                String         @id @default(cuid())
+  shipmentId        String
+  shipment          Shipment       @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  title             String
+  occurredAt        DateTime
+  timeKnown         Boolean        @default(true)
+  responsibleUserId String?
+  responsibleUser   User?          @relation("ShipmentEventResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  /// Внешний ответственный текстом («Василий (Веллмех)»).
+  responsibleName   String?
+  place             String?
+  details           String?
+  /// Ссылки на документы этапа (по одной в строке).
+  docLinks          String?
+  /// Ожидаемый этап: запланирован, ещё не произошёл.
+  expected          Boolean        @default(false)
+  createdById       String
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  updatedById       String?
+  lines             ShipmentEventLine[]
+
+  @@index([shipmentId])
+  @@index([occurredAt])
+}
+
+/// Что сделано по строке отгрузки на этапе: по сколько штук, принято / не принято / возвращено.
+model ShipmentEventLine {
+  id             String       @id @default(cuid())
+  eventId        String
+  event          ShipmentEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  shipmentLineId String
+  shipmentLine   ShipmentLine @relation(fields: [shipmentLineId], references: [id], onDelete: Cascade)
+  qty            Int?
+  accepted       Int?
+  rejected       Int?
+  returned       Int?
+  comment        String?
+
+  @@index([eventId])
+  @@index([shipmentLineId])
 }
 
 // Журнал примерок: по ТЗ (а значит и по модели) — дата, размер, итог,
@@ -1282,6 +1346,7 @@ model ProductionBatch {
 
   orders         ProductionOrder[]
   driveDocuments DriveDocument[]
+  shipments      Shipment[]
   // Подтверждение строки человеком (или автоматически по документам): «сумма и документ корректны».
   // verifiedBy: id пользователя либо "auto:<основание>"; сброс = null.
   verifiedAt     DateTime?

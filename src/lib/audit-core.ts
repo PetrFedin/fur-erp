@@ -38,6 +38,9 @@ export const AUDITED_MODELS: Record<string, Op[]> = {
   DriveDocument: ALL,
   PurchaseDocument: ALL,
   Shipment: ALL,
+  ShipmentLine: ALL,
+  ShipmentEvent: ALL,
+  ShipmentEventLine: ALL,
   Fitting: ALL,
   SupplyPlanEntry: ALL,
   FinishedGoodsStock: ["create", "delete"],
@@ -55,7 +58,8 @@ export const DELETE_CHILDREN: Record<string, Record<string, true>> = {
   Purchase: { items: true, expenses: true },
   ProductionOrder: { materialUsages: true, expenses: true, paymentAllocations: true, payShares: true, colors: true },
   ProductionPlan: { sizes: true },
-  Shipment: { lines: true },
+  Shipment: { lines: true, events: true },
+  ShipmentEvent: { lines: true },
   Fitting: { photos: true },
   ProductModel: { materials: true },
   ProductionPayment: { orders: true, allocations: true },
@@ -204,6 +208,9 @@ export const MODEL_TITLES: Record<string, string> = {
   DriveDocument: "Документ Drive",
   PurchaseDocument: "Документ закупки",
   Shipment: "Отгрузка",
+  ShipmentLine: "Строка отгрузки",
+  ShipmentEvent: "Этап отгрузки",
+  ShipmentEventLine: "Строка этапа отгрузки",
   Fitting: "Примерка",
   SupplyPlanEntry: "План поставок",
   FinishedGoodsStock: "Остаток готовой продукции",
@@ -243,7 +250,10 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
     case "CustomField": return `Столбец ${s("name") ?? ""}`.trim();
     case "DriveDocument": return `Документ ${s("title") ?? ""}`.trim();
     case "PurchaseDocument": return `Документ ${s("title") ?? ""}`.trim();
-    case "Shipment": return `Отгрузка ${day(r.plannedDate)}`.trim();
+    case "Shipment": return s("name") ? `Отгрузка «${s("name")}»` : `Отгрузка ${day(r.plannedDate)}`.trim();
+    case "ShipmentLine": return `Строка отгрузки${s("color") ? " " + s("color") : ""}${s("size") ? " р." + s("size") : ""} ×${s("quantity") ?? ""}`.trim();
+    case "ShipmentEvent": return `Этап отгрузки «${s("title") ?? ""}» ${day(r.occurredAt)}`.trim();
+    case "ShipmentEventLine": return `Строка этапа: принято ${s("accepted") ?? "—"}, не принято ${s("rejected") ?? "—"}, возвращено ${s("returned") ?? "—"}`;
     case "Fitting": return `Примерка ${day(r.fittingDate)}`.trim();
     case "SupplyPlanEntry": return `План поставок ${day(r.month)}`.trim();
     case "PurchaseExpense": return `Расход закупки ${money(r.amount)}${s("description") ? " · " + s("description") : ""}`.trim();
@@ -280,6 +290,19 @@ export const FIELD_LABELS: Record<string, string> = {
   resolutionNote: "как учтено", resolvedAt: "учтено (когда)", resolvedById: "закрыл",
 };
 FIELD_LABELS.colorRefId ??= "цвет (справочник)";
+FIELD_LABELS.title ??= "название этапа";
+FIELD_LABELS.occurredAt ??= "дата и время этапа";
+FIELD_LABELS.timeKnown ??= "время известно";
+FIELD_LABELS.responsibleName ??= "ответственный (внешний)";
+FIELD_LABELS.responsibleUserId ??= "ответственный";
+FIELD_LABELS.place ??= "место";
+FIELD_LABELS.details ??= "детализация";
+FIELD_LABELS.docLinks ??= "ссылки на документы";
+FIELD_LABELS.expected ??= "ожидаемый этап";
+FIELD_LABELS.accepted ??= "принято";
+FIELD_LABELS.rejected ??= "не принято";
+FIELD_LABELS.returned ??= "возвращено";
+FIELD_LABELS.furKind ??= "вид меха";
 export const fieldLabel = (k: string) => FIELD_LABELS[k] ?? k;
 
 /** Короткое отображение значения в журнале. */

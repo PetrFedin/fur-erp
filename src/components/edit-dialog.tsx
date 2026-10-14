@@ -35,10 +35,16 @@ type Props = {
   wide?: boolean;
   disabled?: boolean;
   disabledReason?: string;
+  /** Управляемый режим: окном управляет вызывающий (кнопки-открывашки нет), например «Отметить выполненным» → сразу правка. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export function EditDialog(props: Props) {
   const [open, setOpen] = useState(false);
+  if (props.open !== undefined) {
+    return props.open ? <EditDialogBody {...props} onClose={() => props.onOpenChange?.(false)} /> : null;
+  }
   const { label = "Изменить", variant = "ghost", className, disabled, disabledReason } = props;
   return (
     <>

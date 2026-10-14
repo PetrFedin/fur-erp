@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const like = () => ({ contains: escapeLike(q), mode: "insensitive" as const });
   const enc = encodeURIComponent(q);
 
-  const [orders, lots, purchases, pays, prodPays, articleList, suppliers, clients] = await Promise.all([
+  const [orders, lots, purchases, pays, prodPays, articleList, suppliers, clients, shipments] = await Promise.all([
     prisma.productionOrder.findMany({
       where: { organizationId: orgId, OR: [{ workOrderNumber: like() }, { number: like() }] },
       select: { id: true, number: true, workOrderNumber: true, productModel: { select: { name: true } }, client: { select: { name: true } } },
@@ -57,6 +57,7 @@ export async function GET(request: Request) {
     loadArticleList(orgId),
     prisma.supplier.findMany({ where: { organizationId: orgId, name: like() }, select: { id: true, name: true }, orderBy: { name: "asc" }, take: LIMIT }),
     prisma.client.findMany({ where: { organizationId: orgId, name: like() }, select: { id: true, name: true }, orderBy: { name: "asc" }, take: LIMIT }),
+    prisma.shipment.findMany({ where: { organizationId: orgId, name: like() }, select: { id: true, name: true, plannedDate: true, supplier: { select: { name: true } } }, orderBy: { plannedDate: "desc" }, take: LIMIT }),
   ]);
 
   const payItems = [
@@ -81,6 +82,10 @@ export async function GET(request: Request) {
     {
       key: "articles", label: "Артикулы", all: `/articles?q=${enc}`,
       items: searchArticleList(articleList, q, LIMIT).map((h) => ({ href: `/models/${h.article.id}`, title: h.article.name, sub: [h.article.salesCode && `в продажах ${h.article.salesCode}`, h.article.category].filter(Boolean).join(" · ") })),
+    },
+    {
+      key: "shipments", label: "Отгрузки", all: `/shipments?q=${enc}`,
+      items: shipments.map((s) => ({ href: `/shipments/${s.id}`, title: s.name ?? `Отгрузка на ${ruDate(s.plannedDate)}`, sub: [ruDate(s.plannedDate), s.supplier?.name].filter(Boolean).join(" · ") })),
     },
     {
       key: "counterparties", label: "Контрагенты", all: `/suppliers?q=${enc}`,
