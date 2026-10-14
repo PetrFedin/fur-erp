@@ -1701,6 +1701,21 @@ enum InboxKind {
 
 /// «Входящие от поставщика»: расчёт по лотам аукциона или ТЗ, внесённые Веллмехом. Это ЧЕРНОВИК на проверку,
 /// а не боевые данные: приём сотрудником создаёт настоящие записи (createdEntityType/Id).
+/// Мои форматы расчёта аукциона: набор столбцов, формул и параметров, который Веллмех сохраняет под своим именем.
+model SupplierCalcTemplate {
+  id             String   @id @default(cuid())
+  organizationId String
+  supplierId     String
+  name           String
+  description    String?
+  payload        Json
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId, supplierId])
+}
+
 model SupplierInbox {
   id                String      @id @default(cuid())
   organizationId    String

@@ -51,6 +51,7 @@ export const AUDITED_MODELS: Record<string, Op[]> = {
   SystemState: ALL,
   SupplierInbox: ALL,
   SupplierInboxFile: ALL,
+  SupplierCalcTemplate: ALL,
 };
 
 /** Поля, которые не пишем никогда: технические и секреты. */
