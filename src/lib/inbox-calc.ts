@@ -7,7 +7,7 @@
  * по столбцам мастера так, чтобы итог совпал: ставки НДС 0 (НДС этих форматов уже внутри сумм), суммы в рублях.
  */
 import { computeCostPlan, roundRate } from "@/lib/cost-plan";
-import { calcAll, effectiveRate, evalNum, type CalcPayload, type CalcRow } from "@/lib/supplier-calc";
+import { calcAll, effectiveRate, evalNum, resolveRow, rowFilled, type CalcPayload, type CalcRow } from "@/lib/supplier-calc";
 import { EMPTY_ROW, type BatchPayload, type IntakeRow } from "@/lib/batch-intake";
 
 const n0 = (s: string | undefined) => { const v = evalNum(s); return Number.isFinite(v) ? v : 0; };
@@ -30,7 +30,7 @@ export type CalcMapResult = { payload: BatchPayload | null; errors: string[]; wa
 
 /** Ненулевые строки расчёта (пустые строки формы пропускаются, как и при отправке). */
 export function usedRows(p: CalcPayload): { row: CalcRow; index: number }[] {
-  return p.rows.map((row, index) => ({ row, index })).filter(({ row }) => Object.values(row).some((v) => v.trim() !== ""));
+  return p.rows.map((row, index) => ({ row: resolveRow(p.format, p.header, row), index })).filter(({ row }) => rowFilled(row));
 }
 
 export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResult {

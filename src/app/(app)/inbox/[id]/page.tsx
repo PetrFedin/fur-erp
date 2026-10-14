@@ -9,7 +9,7 @@ import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { INBOX_FILE_KINDS, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox-consts";
 import { previewInbox } from "@/lib/inbox-accept";
-import { FORMAT_LABEL, calcAll, columnsFor, type CalcPayload } from "@/lib/supplier-calc";
+import { FORMAT_LABEL, calcAll, columnsFor, resolveRow, rowFilled, type CalcPayload } from "@/lib/supplier-calc";
 import { TZ_KIND_LABEL, plainNum, ruDate, spacedNum, tzTotals, type TzPayload } from "@/lib/tz-vendor";
 import { cn, formatDate } from "@/lib/utils";
 import { DecideButtons } from "./decide";
@@ -34,7 +34,7 @@ function CalcView({ p }: { p: CalcPayload }) {
   const h = p.header;
   const t = calcAll(p);
   const cols = columnsFor(p.format);
-  const used = p.rows.map((r, i) => ({ r, i })).filter(({ r }) => Object.values(r).some((v) => v.trim() !== ""));
+  const used = p.rows.map((r, i) => ({ r, i })).filter(({ r }) => rowFilled(r)).map(({ r, i }) => ({ r: resolveRow(p.format, p.header, r), i }));
   const costCols = cols.filter((c) => !["invoice", "fur", "size", "lot", "qty", "operation", "dest", "price", "upd"].includes(c.key));
   return (
     <div className="flex flex-col gap-4">

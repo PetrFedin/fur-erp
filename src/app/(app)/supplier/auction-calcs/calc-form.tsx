@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { INBOX_FILE_KINDS } from "@/lib/supplier-inbox-consts";
-import { FORMAT_LABEL, calcAll, columnsFor, emptyRow, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
+import { FORMAT_LABEL, calcAll, columnsFor, emptyRow, headerRate, missingRates, newId, rateCols, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
 import { attachInboxFile, deleteCalcDraft, parseCalcFile, removeInboxFile, saveCalcDraft, sendCalc } from "./actions";
 
 const money = (n: number) => (Number.isFinite(n) ? n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
@@ -24,6 +24,8 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
   const cols = columnsFor(p.format);
   const cur = p.header.currency === "EUR" ? "€" : "$";
 
+  const setRate = (k: string, v: string) => setP((x) => ({ ...x, header: { ...x.header, rates: { ...(x.header.rates ?? {}), [k]: v } } }));
+  const missing = useMemo(() => missingRates(p), [p]);
   const setH = (k: keyof CalcHeader, v: string) => setP((x) => ({ ...x, header: { ...x.header, [k]: v } }));
   const setCell = (i: number, k: string, v: string) => setP((x) => ({ ...x, rows: x.rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)) }));
   const run = (fn: () => Promise<{ error?: string; ok?: boolean; id?: string } | void>, okText: string, after?: (r: { id?: string }) => void) =>
@@ -38,8 +40,8 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
 
   const save = () => run(() => saveCalcDraft(id, JSON.stringify(p)), "Черновик сохранён", (r) => { if (!id && r.id) router.replace(`/supplier/auction-calcs/${r.id}`); else router.refresh(); });
   const send = () => {
-    if (!id && !confirm("Отправить расчёт нам? После отправки править его нельзя.")) return;
-    if (id && !confirm("Отправить расчёт нам? После отправки править его нельзя.")) return;
+    const warn = missing.length ? `\n\nСтавка не указана (считается как 0): ${missing.join("; ")}.` : "";
+    if (!confirm(`Отправить расчёт нам? После отправки править его нельзя.${warn}`)) return;
     run(async () => {
       const saved = id ? { id } : await saveCalcDraft(null, JSON.stringify(p));
       if ("error" in saved && saved.error) return saved;
@@ -73,7 +75,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
           <Select value={p.format} disabled={ro} onChange={(e) => setP((x) => switchFormat(x, e.target.value as CalcFormat))}>
             {(Object.keys(FORMAT_LABEL) as CalcFormat[]).map((k) => <option key={k} value={k}>{FORMAT_LABEL[k]}</option>)}
           </Select>
-          <p className="mt-1 text-xs text-neutral-500">Выбор формата подставляет колонки и ставки по умолчанию — их можно править в каждой строке.</p>
+          <p className="mt-1 text-xs text-neutral-500">Выбор формата подставляет только набор столбцов и подписи. Ставки вы вводите сами ниже.</p>
         </div>
         <H label="Аукцион" v={p.header.auction} on={(v) => setH("auction", v)} ro={ro} ph="СП 09-26" />
         <H label="Номер аукционного счёта" v={p.header.invoice} on={(v) => setH("invoice", v)} ro={ro} />
@@ -84,7 +86,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
           <Select value={p.header.currency} disabled={ro} onChange={(e) => setH("currency", e.target.value)}><option value="USD">USD</option><option value="EUR">EUR</option></Select>
         </div>
         <H label="Курс ЦБ на дату" v={p.header.cbRate} on={(v) => setH("cbRate", v)} ro={ro} />
-        <H label="Надбавка агента, %" v={p.header.agentPct} on={(v) => setH("agentPct", v)} ro={ro} />
+        <H label="Надбавка агента, %" v={p.header.agentPct} on={(v) => setH("agentPct", v)} ro={ro} ph="например 1,5" />
         <div>
           <Label>Курс для расчёта</Label>
           <div className="flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-50 px-3 text-sm tabular-nums">{t.rate ? t.rate.toLocaleString("ru-RU", { maximumFractionDigits: 6 }) : "—"}</div>
@@ -97,11 +99,25 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
         <H label="НДС, %" v={p.header.vat} on={(v) => setH("vat", v)} ro={ro} ph="22 (для 2025 года — 20)" />
       </div>
 
+      <section className="flex flex-col gap-2 rounded-md border border-neutral-200 p-3">
+        <h2 className="text-sm font-semibold">Ставки расчёта</h2>
+        <p className="text-xs text-neutral-500">Вводите вы. Пустая ставка считается как 0. Ставка строки (в таблице) важнее: если ячейка заполнена, берётся она. Серый текст в полях — только пример, он не подставляется.</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {rateCols(p.format).map((c) => (
+            <div key={c.key}>
+              <Label>{c.rate!.label}</Label>
+              <Input value={headerRate(p.header, c.key)} readOnly={ro} inputMode="decimal" placeholder={c.rate!.ph} onChange={(e) => setRate(c.key, e.target.value)} />
+            </div>
+          ))}
+        </div>
+        {missing.length > 0 && !ro && <p className="text-sm text-amber-800">Ставка не указана: {missing.join("; ")}. Считается как 0 — проверьте перед отправкой.</p>}
+      </section>
+
       {!ro && (
         <div className="flex flex-wrap items-center gap-2">
           <input ref={fileRef} type="file" accept=".xlsx,.csv,.txt,.tsv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} />
           <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => fileRef.current?.click()}>Загрузить из Excel</Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => setP((x) => ({ ...x, rows: [...x.rows, { ...emptyRow(x.format), invoice: x.header.invoice, dest: x.header.dest }] }))}>+ Лот</Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setP((x) => ({ ...x, rows: [...x.rows, { ...emptyRow(x.format), _id: newId(), invoice: x.header.invoice, dest: x.header.dest }] }))}>+ Лот</Button>
           <span className="text-xs text-neutral-500">Файл только читается в черновик на экране — ничего не сохраняется, пока вы не нажмёте «Сохранить черновик».</span>
         </div>
       )}
@@ -130,6 +146,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
                       readOnly={ro}
                       inputMode={col.text ? "text" : "decimal"}
                       title={col.hint}
+                      placeholder={col.rate && headerRate(p.header, col.key) ? headerRate(p.header, col.key) : undefined}
                       onChange={(e) => setCell(i, col.key, e.target.value)}
                       style={{ width: col.width ?? 80 }}
                       className="h-8 rounded border border-neutral-200 bg-white px-1.5 text-sm tabular-nums read-only:border-transparent read-only:bg-transparent"
@@ -145,7 +162,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
           })}
         </Tbody>
       </Table>
-      <p className="-mt-3 text-xs text-neutral-500">Цену в {cur} и ставки можно вводить числом или простой формулой, например 6,8*1,156. Пустое «курс» в строке — курс из шапки.</p>
+      <p className="-mt-3 text-xs text-neutral-500">Цену в {cur} и ставки можно вводить числом или простой формулой, например 6,8*1,156. Пустое «курс» в строке — курс из шапки; пустая ставка в строке — ставка из блока «Ставки расчёта».</p>
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold">Прочие расходы</h2>

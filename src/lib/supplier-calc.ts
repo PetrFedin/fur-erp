@@ -14,7 +14,9 @@ export const FORMAT_LABEL: Record<CalcFormat, string> = {
   OTHER: "Другой",
 };
 
-export type Col = { key: string; label: string; hint?: string; width?: number; text?: boolean; def?: string };
+/** Ставка, которую поставщик вводит сам в шапке расчёта (значения по умолчанию в формате НЕ подставляются). */
+export type RateInfo = { label: string; ph: string; names: string[]; warn?: boolean };
+export type Col = { key: string; label: string; hint?: string; width?: number; text?: boolean; rate?: RateInfo };
 /** Первые семь столбцов одинаковы во всех форматах. */
 const LEAD: Col[] = [
   { key: "invoice", label: "invoice", text: true, width: 70 },
@@ -29,39 +31,39 @@ const TAIL: Col[] = [{ key: "upd", label: "цена для УПД, ₽", hint: "
 
 const SP_COLS: Col[] = [
   { key: "price", label: "Закупка $", hint: "цена молотка за шкуру", width: 80 },
-  { key: "feePct", label: "аукционный сбор, %", def: "7.35", width: 80 },
+  { key: "feePct", label: "аукционный сбор, %", width: 80, rate: { label: "Ставка аукционного сбора, %", ph: "например 7,35", names: ["ставка_сбора", "сбор"] } },
   { key: "rate", label: "курс", hint: "пусто — курс из шапки", width: 80 },
-  { key: "dressing", label: "выделка руб", hint: "с НДС", def: "1159", width: 80 },
-  { key: "transport", label: "Транспорт на выделку и обратно", def: "20", width: 90 },
-  { key: "brokerPct", label: "Брокерский %", hint: "комиссия РМ", def: "4.5", width: 80 },
-  { key: "transit", label: "комиссия за транзит денег", width: 90 },
+  { key: "dressing", label: "выделка руб", hint: "с НДС", width: 80, rate: { label: "Выделка, ₽ за шкуру (с НДС)", ph: "например 1159", names: ["выделка"] } },
+  { key: "transport", label: "Транспорт на выделку и обратно", width: 90, rate: { label: "Транспорт на выделку и обратно, ₽", ph: "например 20", names: ["транспорт"] } },
+  { key: "brokerPct", label: "Брокерский %", hint: "комиссия РМ", width: 80, rate: { label: "Брокер / комиссия РМ, %", ph: "например 4,5", names: ["брокер", "комиссия_рм"] } },
+  { key: "transit", label: "комиссия за транзит денег", width: 90, rate: { label: "Комиссия за транзит денег, ₽ за шкуру", ph: "если есть", names: ["транзит"], warn: false } },
 ];
 const SAGA_COLS: Col[] = [
   { key: "price", label: "Закупка", hint: "за шкуру в валюте счёта (EUR или USD)", width: 80 },
-  { key: "feePct", label: "аукционный сбор, %", def: "9.2", width: 80 },
-  { key: "feeFixed", label: "сбор + $ за шкуру", hint: "для норки 7,95 % + $0,1", width: 80 },
-  { key: "packing", label: "упаковка", hint: "$", def: "0.25", width: 70 },
-  { key: "brokerPct", label: "брок. %", def: "3", width: 70 },
-  { key: "coef", label: "Курс EUR→USD (если счёт в евро)", hint: "колонка «курс» в файле SAGA: лоты выставлены в евро, цена $ = цена € × этот курс; для счёта в долларах — 1", def: "1.153", width: 110 },
+  { key: "feePct", label: "аукционный сбор, %", width: 80, rate: { label: "Ставка аукционного сбора, %", ph: "например 9,2", names: ["ставка_сбора", "сбор"] } },
+  { key: "feeFixed", label: "сбор + $ за шкуру", hint: "для норки 7,95 % + $0,1", width: 80, rate: { label: "Сбор + $ за шкуру (для норки)", ph: "например 0,1", names: ["сбор_фикс"], warn: false } },
+  { key: "packing", label: "упаковка", hint: "$", width: 70, rate: { label: "Упаковка, $ за шкуру", ph: "например 0,25", names: ["упаковка"] } },
+  { key: "brokerPct", label: "брок. %", width: 70, rate: { label: "Брокер, %", ph: "например 3", names: ["брокер"] } },
+  { key: "coef", label: "Курс EUR→USD (если счёт в евро)", hint: "колонка «курс» в файле SAGA: лоты выставлены в евро, цена $ = цена € × этот курс; для счёта в долларах — 1", width: 110, rate: { label: "Курс EUR→USD (если счёт в евро)", ph: "например 1,153; для USD пусто", names: ["курс_eur"], warn: false } },
   { key: "dressing", label: "выделка крашение стрижка", hint: "$", width: 90 },
   { key: "customs", label: "аванс на таможню вкл. услуги перевозчика", hint: "$", width: 110 },
-  { key: "air", label: "Доставка ФИН-КЛД-МСК (авиа)", hint: "$", def: "1", width: 100 },
+  { key: "air", label: "Доставка ФИН-КЛД-МСК (авиа)", hint: "$", width: 100, rate: { label: "Доставка ФИН-КЛД-МСК (авиа), $ за шкуру", ph: "например 1", names: ["авиа", "доставка"] } },
   { key: "adj", label: "корректировка", hint: "$", width: 80 },
-  { key: "interestPct", label: "интерес РМ/финансирование, %", def: "4.5", width: 100 },
+  { key: "interestPct", label: "интерес РМ/финансирование, %", width: 100, rate: { label: "Интерес РМ / финансирование, %", ph: "например 4,5", names: ["комиссия_рм", "интерес"] } },
 ];
 const FH_COLS: Col[] = [
   { key: "price", label: "Закупка $", width: 80 },
-  { key: "feePct", label: "аукционный сбор, %", def: "8.2", width: 80 },
-  { key: "packing", label: "упаковка", hint: "$", def: "11", width: 70 },
-  { key: "brokerPct", label: "брокер, %", def: "3", width: 70 },
-  { key: "dressingUsd", label: "выделка+покраска $", hint: "в долларах, ×курс", def: "11", width: 90 },
+  { key: "feePct", label: "аукционный сбор, %", width: 80, rate: { label: "Ставка аукционного сбора, %", ph: "например 8,2", names: ["ставка_сбора", "сбор"] } },
+  { key: "packing", label: "упаковка", hint: "$", width: 70, rate: { label: "Упаковка, $ за шкуру", ph: "например 11", names: ["упаковка"] } },
+  { key: "brokerPct", label: "брокер, %", width: 70, rate: { label: "Брокер, %", ph: "например 3", names: ["брокер"] } },
+  { key: "dressingUsd", label: "выделка+покраска $", hint: "в долларах, ×курс", width: 90, rate: { label: "Выделка + покраска, $ за шкуру", ph: "например 11", names: ["выделка"] } },
   { key: "base22", label: "для 22%", hint: "база НДС, ₽ за шкуру (руками)", width: 90 },
-  { key: "vatPct", label: "НДС, %", def: "22", width: 60 },
+  { key: "vatPct", label: "НДС, %", width: 60, rate: { label: "НДС на базу «для 22%», %", ph: "например 22", names: ["ндс_база"] } },
   { key: "base5", label: "для 5%", hint: "база пошлины, ₽ за шкуру (руками)", width: 90 },
-  { key: "dutyPct", label: "пошлина, %", def: "5", width: 70 },
-  { key: "trans1", label: "Транспот до выделки", hint: "$", def: "6", width: 80 },
-  { key: "trans2", label: "Транспорт Выделка-Склад", hint: "$", def: "6", width: 80 },
-  { key: "commPct", label: "Комиссия РМ, %", def: "0", width: 80 },
+  { key: "dutyPct", label: "пошлина, %", width: 70, rate: { label: "Пошлина, %", ph: "например 5", names: ["пошлина"] } },
+  { key: "trans1", label: "Транспот до выделки", hint: "$", width: 80, rate: { label: "Транспорт до выделки, $ за шкуру", ph: "например 6", names: ["транспорт1"] } },
+  { key: "trans2", label: "Транспорт Выделка-Склад", hint: "$", width: 80, rate: { label: "Транспорт выделка → склад, $ за шкуру", ph: "например 6", names: ["транспорт2"] } },
+  { key: "commPct", label: "Комиссия РМ, %", width: 80, rate: { label: "Комиссия РМ, %", ph: "например 0 или 2", names: ["комиссия_рм"] } },
 ];
 
 export function columnsFor(f: CalcFormat): Col[] {
@@ -75,35 +77,85 @@ export type CalcHeader = {
   cbRate: string; agentPct: string; rateComment: string; buyer: string; dest: string; broker: string; dueDate: string;
   /** НДС на товар и услуги, % (22 с 2026 года, 20 — для 2025). */
   vat: string;
+  /** Ставки, которые вводит поставщик (ключ — столбец строки: feePct, brokerPct…). Пустая ячейка строки берёт ставку отсюда. */
+  rates?: Record<string, string>;
   advanceDate: string; advance: string; interim: string;
   extras: ExtraExpense[];
 };
-export type CalcPayload = { v: 1; format: CalcFormat; header: CalcHeader; rows: CalcRow[] };
+export type CalcStage = "PRELIM" | "FINAL";
+export const STAGE_LABEL: Record<CalcStage, string> = { PRELIM: "Предварительный", FINAL: "Окончательный" };
+export type CustomCol = { id: string; letter: string; title: string; unit: string; formula: string };
+export type CalcParam = { name: string; value: string };
+export type CalcPayload = {
+  v: 1; format: CalcFormat; header: CalcHeader; rows: CalcRow[];
+  /** Стадия расчёта; у старых расчётов нет — считаются окончательными. */
+  stage?: CalcStage;
+  /** Расчёт-основа (id SupplierInbox) — для окончательного это предварительный. */
+  basedOnId?: string;
+  customColumns?: CustomCol[];
+  params?: CalcParam[];
+  /** Ручные значения ячеек вычисляемых столбцов: { id строки: { id столбца: значение } }. */
+  overrides?: Record<string, Record<string, string>>;
+  /** Столбец, идущий в закупку как «Себестоимость за единицу, ₽» (по умолчанию встроенный «Цена за шкуру, ₽»). */
+  unitCostColumn?: string;
+  /** Столбец количества (по умолчанию «quantity»). */
+  qtyColumn?: string;
+};
+
+/** Пустая ли строка (служебные поля, начинающиеся с «_», не в счёт). */
+export const rowFilled = (r: CalcRow) => Object.entries(r).some(([k, v]) => !k.startsWith("_") && v.trim() !== "");
+let idSeq = 0;
+export const newId = (p = "r") => `${p}${Date.now().toString(36)}${(idSeq++).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+/** Каждой строке — постоянный id (нужен для ручных значений); старые расчёты получают его при открытии. */
+export function ensureRowIds(p: CalcPayload): CalcPayload {
+  if (p.rows.every((r) => r._id)) return p;
+  return { ...p, rows: p.rows.map((r) => (r._id ? r : { ...r, _id: newId() })) };
+}
+
+/** Ставки формата, которые вводятся в шапке. */
+export function rateCols(f: CalcFormat): Col[] {
+  return columnsFor(f).filter((c) => c.rate);
+}
+/** Значение ставки из шапки (пусто → не введена). */
+export const headerRate = (h: CalcHeader, key: string) => (h.rates?.[key] ?? "").trim();
+/** Строка с подставленными из шапки ставками (ячейка пуста → ставка шапки). */
+export function resolveRow(f: CalcFormat, h: CalcHeader, r: CalcRow): CalcRow {
+  const o: CalcRow = { ...r };
+  for (const c of rateCols(f)) if ((o[c.key] ?? "").trim() === "" && headerRate(h, c.key) !== "") o[c.key] = headerRate(h, c.key);
+  return o;
+}
+/** Ставки, которые не указаны ни в шапке, ни в строках → считаются как 0 (предупреждение перед отправкой). */
+export function missingRates(p: CalcPayload): string[] {
+  const used = p.rows.filter(rowFilled);
+  return rateCols(p.format)
+    .filter((c) => c.rate!.warn !== false && headerRate(p.header, c.key) === "" && used.some((r) => (r[c.key] ?? "").trim() === ""))
+    .map((c) => c.rate!.label);
+}
 
 export function emptyHeader(f: CalcFormat): CalcHeader {
   return {
     auction: "", invoice: "", invoiceDate: "", seller: "", currency: "USD", cbRate: "",
-    agentPct: f === "SAGA" ? "1.5" : f === "FH" ? "1.55" : "0", rateComment: "", buyer: "ММ", dest: "", broker: "", dueDate: "",
-    vat: "22", advanceDate: "", advance: "", interim: "", extras: [],
+    agentPct: "", rateComment: "", buyer: "ММ", dest: "", broker: "", dueDate: "",
+    vat: "22", rates: {}, advanceDate: "", advance: "", interim: "", extras: [],
   };
 }
 export function emptyRow(f: CalcFormat): CalcRow {
   const r: CalcRow = {};
-  for (const c of columnsFor(f)) r[c.key] = c.def ?? "";
+  for (const c of columnsFor(f)) r[c.key] = "";
   return r;
 }
 export function emptyPayload(f: CalcFormat): CalcPayload {
-  return { v: 1, format: f, header: emptyHeader(f), rows: [emptyRow(f)] };
+  return { v: 1, format: f, header: emptyHeader(f), rows: [{ ...emptyRow(f), _id: newId() }], stage: "FINAL" };
 }
 /** Смена формата: общие поля строк сохраняются, ставки нового формата подставляются по умолчанию. */
 export function switchFormat(p: CalcPayload, f: CalcFormat): CalcPayload {
   const rows = p.rows.map((r) => {
     const n = emptyRow(f);
     for (const c of columnsFor(f)) if (r[c.key] !== undefined && (LEAD.some((l) => l.key === c.key) || c.key === "price" || c.key === "upd")) n[c.key] = r[c.key];
+    if (r._id) n._id = r._id;
     return n;
   });
-  const h = emptyHeader(f);
-  return { v: 1, format: f, header: { ...p.header, agentPct: h.agentPct }, rows };
+  return { ...p, format: f, rows };
 }
 
 /** Безопасный разбор числа или простой формулы из ячейки: «6,8*1,156», «(3,9+6)*1,156+250/91,89». Пусто/мусор → NaN. */
@@ -155,7 +207,8 @@ export function extraPerHide(h: CalcHeader, totalQty: number): number {
   return s;
 }
 
-export function calcRow(f: CalcFormat, h: CalcHeader, r: CalcRow, extraRub: number): RowCalc {
+export function calcRow(f: CalcFormat, h: CalcHeader, raw: CalcRow, extraRub: number): RowCalc {
+  const r = resolveRow(f, h, raw);
   const problems: string[] = [];
   const qty = n0(r.qty);
   const price = n0(r.price);
@@ -220,10 +273,10 @@ export function sendProblems(p: CalcPayload): string[] {
   if (!p.header.auction.trim()) out.push("Укажите аукцион");
   if (!p.header.invoice.trim()) out.push("Укажите номер аукционного счёта");
   if (!(effectiveRate(p.header) > 0)) out.push("Укажите курс ЦБ");
-  const rows = p.rows.filter((r) => Object.values(r).some((v) => v.trim() !== ""));
+  const rows = p.rows.filter(rowFilled);
   if (rows.length === 0) out.push("Добавьте хотя бы один лот");
   const t = calcAll(p);
-  t.calcs.forEach((c, i) => { if (!c.ok && p.rows[i] && Object.values(p.rows[i]).some((v) => v.trim() !== "")) out.push(`Строка ${i + 1}: ${c.problems.join(", ")}`); });
+  t.calcs.forEach((c, i) => { if (!c.ok && p.rows[i] && rowFilled(p.rows[i])) out.push(`Строка ${i + 1}: ${c.problems.join(", ")}`); });
   return out;
 }
 
@@ -269,6 +322,7 @@ export function payloadFromTable(table: string[][]): { payload: CalcPayload; war
     const qty = x(raw, cQty), price = x(raw, cPrice);
     if (!Number.isFinite(qty) || !Number.isFinite(price)) continue;
     const r = emptyRow(format);
+    r._id = newId();
     r.invoice = g(raw, cInv); r.fur = g(raw, cFur); r.size = [g(raw, col(/^grade/)), g(raw, col(/^color|^цвет/)), g(raw, cSize)].filter(Boolean).join(" "); r.lot = g(raw, cLot);
     // В файлах SAGA столбец перед «fur» без заголовка — это сам мех, а «fur» — описание.
     if (format === "SAGA" && cFur > 0 && H[cFur - 1] === "" && g(raw, cFur - 1)) { r.size = [g(raw, cFur), g(raw, cSize)].filter(Boolean).join(" "); r.fur = g(raw, cFur - 1); }

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSupplierSession, inboxScope, INBOX_FILE_KINDS } from "@/lib/supplier-inbox";
-import { calcAll, payloadFromTable, sendProblems, type CalcPayload, FORMAT_LABEL } from "@/lib/supplier-calc";
+import { calcAll, ensureRowIds, payloadFromTable, sendProblems, type CalcPayload, FORMAT_LABEL } from "@/lib/supplier-calc";
 import { parseTableFile } from "@/lib/table-file";
 import { readDocumentFiles, writeDocumentFiles } from "@/lib/purchase-files";
 import { removeStoredFiles } from "@/lib/fitting-files";
@@ -16,7 +16,7 @@ function parsePayload(json: string): CalcPayload | string {
     const p = JSON.parse(json) as CalcPayload;
     if (p?.v !== 1 || !(p.format in FORMAT_LABEL) || !Array.isArray(p.rows) || !p.header) return "Некорректные данные расчёта";
     if (p.rows.length > 500) return "Не больше 500 строк в одном расчёте";
-    return p;
+    return ensureRowIds(p);
   } catch {
     return "Некорректные данные расчёта";
   }
