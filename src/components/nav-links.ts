@@ -6,11 +6,11 @@ export const NAV_LINKS = [
   { href: "/lots", label: "Сырьё", also: ["/purchases", "/analytics"] },
   { href: "/production", label: "ТЗ", also: ["/fittings", "/plan", "/supply-plan"] },
   { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/repair", "/analytics/products", "/analytics/pricing"] },
-  // «Отгрузки» — карточки отгрузок с хронологией этапов (состав из ТЗ, приёмка по строкам). Вкладка «Отгрузки» в разделе ТЗ ведёт сюда же.
-  { href: "/shipments", label: "Отгрузки", also: [] },
   { href: "/payments", label: "Оплаты", also: [] },
   { href: "/budget", label: "Бюджет", also: [] },
   { href: "/calendar", label: "Календарь", also: [] },
+  // «Отгрузки» — карточки отгрузок с хронологией этапов (состав из ТЗ, приёмка по строкам).
+  { href: "/shipments", label: "Отгрузки", also: [] },
   // «Настройки» — только справочники и параметры.
   { href: "/settings", label: "Настройки", also: ["/clients", "/suppliers", "/warehouses", "/materials", "/users"] },
   // «Контроль» — один раздел с вкладками (<ControlTabs>): Задачи · Подтвердить · Документы · Сверка · История.

@@ -289,8 +289,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                               </span>
                               <span data-left="who" className="text-[11px] text-neutral-500" title="Автор / ответственный действия">{resp || "—"}</span>
                             </div>
-                            <div aria-hidden className="h-px w-full shrink-0 bg-neutral-200 sm:h-auto sm:w-px" data-event-divider />
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1 border-t border-neutral-200 pt-2 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0" data-event-divider>
                               <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
                                 <h4 className={"min-w-[10rem] flex-1 break-words text-sm font-semibold " + (e.expected ? "text-neutral-500" : "text-neutral-900")}>
                                   {e.title}
