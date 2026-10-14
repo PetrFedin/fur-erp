@@ -305,6 +305,7 @@ model Supplier {
   driveDocuments DriveDocument[]
   shipments      Shipment[]
   users          User[]
+  inbox          SupplierInbox[]
 
   @@index([organizationId])
 }
@@ -1130,11 +1131,11 @@ enum ShipmentStatus {
 }
 
 model Shipment {
-  id             String         @id @default(cuid())
+  id             String           @id @default(cuid())
   organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   clientId       String?
-  client         Client?        @relation(fields: [clientId], references: [id])
+  client         Client?          @relation(fields: [clientId], references: [id])
   /// Название отгрузки («Отгрузка октябрь 2026 · 1»); у старых записей пусто.
   name           String?
   supplierId     String?
@@ -1144,11 +1145,11 @@ model Shipment {
   batch          ProductionBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
   plannedDate    DateTime
   shippedDate    DateTime?
-  status         ShipmentStatus @default(PLANNED)
+  status         ShipmentStatus   @default(PLANNED)
   notes          String?
   createdById    String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
   lines          ShipmentLine[]
   /// Хронология: этапы отгрузки, которые заводят вручную (свободное название, дата-время, ответственный).
   events         ShipmentEvent[]
@@ -1164,12 +1165,12 @@ model Shipment {
 }
 
 model ShipmentLine {
-  id                String          @id @default(cuid())
+  id                String               @id @default(cuid())
   shipmentId        String
-  shipment          Shipment        @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  shipment          Shipment             @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
   /// Позиция ТЗ; пусто у «своего» артикула, которого ещё нет в ТЗ (тогда заполнен customArticle).
   productionOrderId String?
-  productionOrder   ProductionOrder? @relation(fields: [productionOrderId], references: [id], onDelete: Restrict)
+  productionOrder   ProductionOrder?     @relation(fields: [productionOrderId], references: [id], onDelete: Restrict)
   /// Свой артикул/название, если в ТЗ его ещё нет (productionOrderId пусто).
   customArticle     String?
   size              String?
@@ -1183,7 +1184,7 @@ model ShipmentLine {
   acceptedQty       Int?
   returnedQty       Int?
   /// Стадия изделия до отгрузки: просмотр → (доработка) → готов к отгрузке. Финальная приёмка (acceptedQty/returnedQty) — только при READY.
-  stage             ShipmentLineStage @default(REVIEW)
+  stage             ShipmentLineStage    @default(REVIEW)
   /// Номер изделия из списка («279»; у нескольких штук одной строки — «259, 260»).
   itemNo            String?
   stageChangedAt    DateTime?
@@ -1227,14 +1228,14 @@ model ShipmentLineRework {
 /// Этап отгрузки: свободное название, дата-время (время может быть неизвестно), ответственный, детализация.
 /// occurredAt хранится как «настенное» время (UTC-метка без пересчёта поясов): 09.10.2026 19:07 = 2026-10-09T19:07Z.
 model ShipmentEvent {
-  id                String         @id @default(cuid())
+  id                String              @id @default(cuid())
   shipmentId        String
-  shipment          Shipment       @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  shipment          Shipment            @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
   title             String
   occurredAt        DateTime
-  timeKnown         Boolean        @default(true)
+  timeKnown         Boolean             @default(true)
   responsibleUserId String?
-  responsibleUser   User?          @relation("ShipmentEventResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  responsibleUser   User?               @relation("ShipmentEventResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
   /// Внешний ответственный текстом («Василий (Веллмех)»).
   responsibleName   String?
   /// На ком этап: "WELLMEKH" (Веллмех) | "CUM" (ЦУМ); null — не указано.
@@ -1246,10 +1247,10 @@ model ShipmentEvent {
   /// Загруженные файлы этапа (DriveDocument.shipmentEventId).
   documents         DriveDocument[]
   /// Ожидаемый этап: запланирован, ещё не произошёл.
-  expected          Boolean        @default(false)
+  expected          Boolean             @default(false)
   createdById       String
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
   updatedById       String?
   lines             ShipmentEventLine[]
 
@@ -1259,11 +1260,11 @@ model ShipmentEvent {
 
 /// Что сделано по строке отгрузки на этапе: по сколько штук, принято / не принято / возвращено.
 model ShipmentEventLine {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   eventId        String
   event          ShipmentEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   shipmentLineId String
-  shipmentLine   ShipmentLine @relation(fields: [shipmentLineId], references: [id], onDelete: Cascade)
+  shipmentLine   ShipmentLine  @relation(fields: [shipmentLineId], references: [id], onDelete: Cascade)
   qty            Int?
   accepted       Int?
   rejected       Int?
@@ -1662,4 +1663,67 @@ model BudgetScenario {
   updatedBy      String?
 
   @@index([organizationId, season])
+}
+
+enum InboxStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
+enum InboxKind {
+  AUCTION_CALC
+  TZ
+}
+
+/// «Входящие от поставщика»: расчёт по лотам аукциона или ТЗ, внесённые Веллмехом. Это ЧЕРНОВИК на проверку,
+/// а не боевые данные: приём сотрудником создаёт настоящие записи (createdEntityType/Id).
+model SupplierInbox {
+  id                String      @id @default(cuid())
+  organizationId    String
+  supplierId        String
+  supplier          Supplier    @relation(fields: [supplierId], references: [id])
+  createdById       String
+  kind              InboxKind
+  status            InboxStatus @default(DRAFT)
+  title             String
+  payload           Json
+  note              String?
+  reviewNote        String?
+  sentAt            DateTime?
+  decidedAt         DateTime?
+  decidedById       String?
+  createdEntityType String?
+  createdEntityId   String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  files SupplierInboxFile[]
+
+  @@index([organizationId, status])
+  @@index([supplierId, status])
+}
+
+enum InboxFileKind {
+  AUCTION_INVOICE
+  PAYMENT_INVOICE
+  SPECIFICATION
+  UPD
+  OTHER
+}
+
+/// Вложение к входящему (PDF аукционного счёта, счёт Веллмеха, спецификация, УПД). Файл лежит в UPLOAD_DIR.
+model SupplierInboxFile {
+  id           String        @id @default(cuid())
+  inboxId      String
+  inbox        SupplierInbox @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+  storagePath  String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  kind         InboxFileKind @default(OTHER)
+  createdAt    DateTime      @default(now())
+
+  @@index([inboxId])
 }

@@ -48,6 +48,8 @@ export const AUDITED_MODELS: Record<string, Op[]> = {
   Comment: ALL,
   CommentReply: ALL,
   SystemState: ALL,
+  SupplierInbox: ALL,
+  SupplierInboxFile: ALL,
 };
 
 /** Поля, которые не пишем никогда: технические и секреты. */
