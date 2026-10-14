@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
-import { IconTrash } from "@/components/icons";
+import { ICON_BTN_DANGER, IconTrash } from "@/components/icons";
 
 /**
  * Единая кнопка «Удалить» записи: подтверждение окном приложения, действие на сервере, понятная ошибка.
@@ -41,7 +41,7 @@ export function DeleteEntityButton({
         type="button"
         variant={variant}
         size="sm"
-        className={className}
+        className={isDel ? ICON_BTN_DANGER : className}
         disabled={pending || !!blockedReason}
         title={blockedReason ?? (isDel ? label : undefined)}
         aria-label={isDel ? label : undefined}

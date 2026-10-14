@@ -13,7 +13,7 @@ import { mergeArticles, deleteArticle } from "./actions";
 import { ArticleForm } from "@/app/(app)/models/article-form";
 import { saveArticleForm } from "@/app/(app)/models/actions";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
-import { IconPencil } from "@/components/icons";
+import { ICON_BTN, IconPencil } from "@/components/icons";
 
 export type ArticleRow = {
   id: string;
@@ -228,7 +228,7 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
                   <Td><Badge variant={r.isActive ? "success" : "default"}>{r.isActive ? "Активен" : "Не активен"}</Badge></Td>
                   {canEdit && (
                     <Td className="whitespace-nowrap">
-                      <button type="button" className="text-blue-700 hover:underline" onClick={() => { setEditing(editing === r.id ? null : r.id); setMerging(null); }} title="Изменить" aria-label="Изменить"><IconPencil /></button>
+                      <button type="button" className={ICON_BTN} onClick={() => { setEditing(editing === r.id ? null : r.id); setMerging(null); }} title="Изменить" aria-label="Изменить"><IconPencil /></button>
                       <button type="button" className="ml-3 text-neutral-500 hover:underline" onClick={() => { setMerging(merging === r.id ? null : r.id); setEditing(null); }}>Объединить…</button>
                       <span className="ml-3 inline-block align-middle">
                         <DeleteEntityButton

@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState, type ReactNode } from "rea
 import { Button } from "@/components/ui/button";
 import { useKeepingForm } from "@/lib/use-keeping-form";
 import { useConfirm } from "@/components/confirm-dialog";
-import { IconPencil } from "@/components/icons";
+import { ICON_BTN, IconPencil } from "@/components/icons";
 
 /**
  * Единый паттерн правки записи: кнопка «Изменить» → форма в модальном окне → «Сохранить» / «Отмена».
@@ -54,7 +54,7 @@ export function EditDialog(props: Props) {
         type="button"
         variant={variant}
         size="sm"
-        className={className ?? "max-md:h-10"}
+        className={isEdit ? ICON_BTN : className ?? "max-md:h-10"}
         onClick={() => setOpen(true)}
         disabled={disabled}
         title={disabled ? disabledReason : isEdit ? label : undefined}

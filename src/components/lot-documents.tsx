@@ -6,7 +6,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { formatMb } from "@/lib/format-mb";
 import { cn } from "@/lib/utils";
 import { uploadLotDocuments, replaceLotDocument, deleteLotDocument } from "@/app/(app)/analytics/raw/lot/[id]/actions";
-import { IconTrash } from "@/components/icons";
+import { ICON_BTN_DANGER, IconTrash } from "@/components/icons";
 
 export type LotDocRow = { id: string; kind: string; title: string; originalName: string; mimeType: string; sizeBytes: number; createdAt: string };
 export type InheritedDoc = { href: string | null; text: string };
@@ -101,7 +101,7 @@ function Slot({ lotId, kind, label, hint, docs, canEdit, onError }: { lotId: str
                 {canEdit ? (
                   <>
                     <button type="button" className={BTN} disabled={busy} onClick={() => { replId.current = d.id; repl.current?.click(); }}>Заменить</button>
-                    <button type="button" className={cn(BTN, "hover:border-red-500 hover:text-red-700")} disabled={busy} onClick={() => void remove(d)} title="Удалить" aria-label="Удалить"><IconTrash /></button>
+                    <button type="button" className={ICON_BTN_DANGER} disabled={busy} onClick={() => void remove(d)} title="Удалить" aria-label="Удалить"><IconTrash /></button>
                   </>
                 ) : null}
               </div>

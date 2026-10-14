@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 import { removeEvent, setEventDone } from "./actions";
-import { IconPencil, IconTrash } from "@/components/icons";
+import { ICON_BTN, ICON_BTN_DANGER, IconPencil, IconTrash } from "@/components/icons";
 
 const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex="-1"])';
 
@@ -53,9 +53,9 @@ export function DayEventActions({ id, done, editHref, label }: { id: string; don
   const run = (fn: () => Promise<{ error?: string }>) => start(async () => { const r = await fn(); setError(r.error ?? ""); });
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <Link href={editHref} scroll={false} className="btn btn-accent inline-flex h-8 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs font-medium hover:bg-neutral-50 max-md:min-h-10" title="Править" aria-label="Править"><IconPencil /></Link>
+      <Link href={editHref} scroll={false} className={ICON_BTN} title="Править" aria-label="Править"><IconPencil /></Link>
       <Button type="button" variant="outline" size="sm" disabled={pending} className="btn-accent font-medium" onClick={() => run(() => setEventDone(id, !done))}>{done ? "Вернуть в план" : "Выполнено"}</Button>
-      <Button type="button" variant="outline" size="sm" disabled={pending} className="btn-accent font-medium text-red-600" onClick={async () => { if (await ask(`Удалить событие «${label}»?`, { ok: "Удалить", danger: true })) run(() => removeEvent(id)); }} title="Удалить" aria-label="Удалить"><IconTrash /></Button>
+      <Button type="button" variant="outline" size="sm" disabled={pending} className={ICON_BTN_DANGER} onClick={async () => { if (await ask(`Удалить событие «${label}»?`, { ok: "Удалить", danger: true })) run(() => removeEvent(id)); }} title="Удалить" aria-label="Удалить"><IconTrash /></Button>
       {error && <span role="alert" className="text-xs text-red-700">{error}</span>}
       {node}
     </div>

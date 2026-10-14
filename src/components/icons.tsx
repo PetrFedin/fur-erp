@@ -1,5 +1,9 @@
 /** Иконки действий (карандаш, корзина, свернуть, гвоздик): вместо подписей «Изменить», «Удалить», «Свернуть», «Закрепить»; название — в подсказке (title) и aria-label кнопки. */
-const base = { "aria-hidden": true, viewBox: "0 0 16 16", className: "h-4 w-4", fill: "none", stroke: "currentColor", strokeWidth: 1.4, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+const base = { "aria-hidden": true, viewBox: "0 0 16 16", className: "h-3.5 w-3.5", fill: "none", stroke: "currentColor", strokeWidth: 1.4, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+
+/** Единый вид кнопки-иконки (как «Свернуть»/«Закрепить»): квадрат 28 px, значок 14 px. */
+export const ICON_BTN = "inline-flex h-7 w-7 min-h-0 shrink-0 items-center justify-center gap-0 rounded-md border border-neutral-200 bg-white p-0 text-neutral-600 transition hover:bg-neutral-50 btn-accent";
+export const ICON_BTN_DANGER = ICON_BTN + " text-red-600 hover:border-red-300 hover:bg-red-50";
 
 export function IconPencil({ className }: { className?: string }) {
   return <svg {...base} className={className ?? base.className}><path d="M2.5 13.5l.6-3L10.6 3a1.4 1.4 0 0 1 2 0l.4.4a1.4 1.4 0 0 1 0 2l-7.5 7.5-3 .6zM9.5 4.2l2.3 2.3" /></svg>;

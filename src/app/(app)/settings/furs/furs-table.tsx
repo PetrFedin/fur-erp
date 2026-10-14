@@ -6,7 +6,7 @@ import { ClampText } from "@/components/clamp-text";
 import { Input } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { deleteFur, mergeFurs, saveFur, type FurInput } from "./actions";
-import { IconPencil, IconTrash } from "@/components/icons";
+import { ICON_BTN, ICON_BTN_DANGER, IconPencil, IconTrash } from "@/components/icons";
 
 export type FurRow = {
   id: string;
@@ -106,10 +106,10 @@ export function FursTable({ rows, allRows = rows, canEdit }: { rows: FurRow[]; a
                 <Td className="text-right">{r.orders}</Td>
                 {canEdit && (
                   <Td className="whitespace-nowrap">
-                    <button type="button" className="text-blue-700 hover:underline" onClick={() => { setEditing(editing === r.id ? null : r.id); setMerging(null); setAdding(false); }} title="Изменить" aria-label="Изменить"><IconPencil /></button>
+                    <button type="button" className={ICON_BTN} onClick={() => { setEditing(editing === r.id ? null : r.id); setMerging(null); setAdding(false); }} title="Изменить" aria-label="Изменить"><IconPencil /></button>
                     <button type="button" className="ml-3 text-neutral-500 hover:underline" onClick={() => { setMerging(merging === r.id ? null : r.id); setEditing(null); }}>Объединить…</button>
                     {r.lots + r.items + r.orders === 0 && (
-                      <button type="button" className="ml-3 text-red-700 hover:underline" onClick={() => { if (confirm(`Удалить пустой вид «${r.name}»?`)) start(async () => { const x = await deleteFur(r.id); setErr(x.error ?? ""); }); }} title="Удалить" aria-label="Удалить"><IconTrash /></button>
+                      <button type="button" className={ICON_BTN_DANGER + " ml-2"} onClick={() => { if (confirm(`Удалить пустой вид «${r.name}»?`)) start(async () => { const x = await deleteFur(r.id); setErr(x.error ?? ""); }); }} title="Удалить" aria-label="Удалить"><IconTrash /></button>
                     )}
                   </Td>
                 )}
