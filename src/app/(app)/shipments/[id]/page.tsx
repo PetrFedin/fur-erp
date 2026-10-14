@@ -245,6 +245,8 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             Этапов пока нет{canEdit ? " — добавьте первый кнопкой «+ Этап»: что произошло, когда и на ком" : ""}.
           </p>
         ) : (
+          <details open className="flex flex-col gap-1" data-timeline-wrap>
+          <summary className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-800">Лента этапов — свернуть / развернуть</summary>
           <div className="relative rounded-lg border border-neutral-200 bg-white py-3 pl-8 pr-3" data-timeline>
             <div aria-hidden className="absolute bottom-4 left-[0.9375rem] top-4 w-px bg-neutral-200" />
             {(() => {
@@ -337,6 +339,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
               return <>{dayGroups.map(renderGroup)}</>;
             })()}
           </div>
+          </details>
         )}
 
         <AcceptList

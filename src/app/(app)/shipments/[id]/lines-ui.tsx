@@ -737,6 +737,7 @@ export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, 
               <Th>Размер</Th>
               <Th className="text-right" unit="шт.">Шт.</Th>
               <Th>Приёмка</Th>
+              {editable && <Th><span className="sr-only">Действия</span></Th>}
             </Tr>
           </Thead>
           <Tbody>
@@ -781,6 +782,12 @@ export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, 
                       <span className="text-sm">{r.accepted == null && r.returned == null ? "—" : `принято ${r.accepted ?? 0}, не принято ${r.returned ?? 0}${r.comment ? ` — ${r.comment}` : ""}`}</span>
                     )}
                   </Td>
+                  {editable && (
+                    <Td className="whitespace-nowrap">
+                      <LineEdit v={{ id: r.id, label: r.label, quantity: r.quantity, size: r.size ?? "", comment: r.comment, accepted: r.accepted == null ? "" : String(r.accepted), returned: r.returned == null ? "" : String(r.returned), itemNo: r.itemNo, stage: r.stage }} />
+                      <LineDelete id={r.id} label={r.label} blockedReason={r.blockedReason} />
+                    </Td>
+                  )}
                 </Tr>
               );
             })}
