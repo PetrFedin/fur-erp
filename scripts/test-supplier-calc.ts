@@ -171,6 +171,35 @@ async function load(f: string) {
     const { checkDiffs } = await import("../src/lib/supplier-calc");
     if (checkDiffs(q, calcAll(q).sheet)[0].ok) console.log("OK  контрольная разность"); else { bad++; console.log("FAIL контрольная разность"); }
   }
+  // ---- конструктор формулы
+  {
+    const { buildFormula, previewFormula, EMPTY_SPEC } = await import("../src/lib/formula-builder");
+    const eqs = (name: string, got: unknown, want: unknown) => { if (got !== want) { bad++; console.log("FAIL", name, JSON.stringify(got), "≠", JSON.stringify(want)); } else console.log("OK ", name, "→", got); };
+    const S = (o: Partial<typeof EMPTY_SPEC>) => ({ ...EMPTY_SPEC, ...o });
+    eqs("сумма столбцов", buildFormula(S({ op: "sum", cols: ["D", "E", "F"] })), "=D+E+F");
+    eqs("произведение", buildFormula(S({ op: "product", cols: ["D", "E"] })), "=D*E");
+    eqs("столбец × параметр", buildFormula(S({ op: "mulNum", a: "D", b: "курс" })), "=D*курс");
+    eqs("столбец × число", buildFormula(S({ op: "mulNum", a: "D", b: "1,22" })), "=D*1,22");
+    eqs("процент от столбца", buildFormula(S({ op: "pct", a: "D", b: "7,35" })), "=D*7,35%");
+    eqs("процент от произведения", buildFormula(S({ op: "pctProduct", cols: ["D", "E"], b: "4,5" })), "=D*E*4,5%");
+    eqs("процент-параметр", buildFormula(S({ op: "pct", a: "D", b: "сбор_проц" })), "=D*сбор_проц/100");
+    eqs("разность", buildFormula(S({ op: "diff", a: "D", b: "E" })), "=D-E");
+    eqs("деление суммы на количество с НДС", buildFormula(S({ op: "divCount", a: "34143-1103", b: "2136", c: "22" })), "=(34143-1103)*(1+22%)/2136");
+    eqs("курс × (1+комиссия)", buildFormula(S({ op: "rate", a: "курс", b: "1,5" })), "=курс*(1+1,5%)");
+    eqs("округление", buildFormula(S({ op: "round", a: "D", digits: "2" })), "=ROUND(D;2)");
+    eqs("условие", buildFormula(S({ op: "cond", a: "D", cmp: ">", b: "100", then: "D*2", otherwise: "D" })), "=IF(D>100;D*2;D)");
+    eqs("своя формула", buildFormula(S({ op: "custom", text: "D*E" })), "=D*E");
+    eqs("не хватает данных", buildFormula(S({ op: "sum", cols: ["D"] })), null);
+    // живой пример: H=360, курс=84,4075 → 30 387
+    const q = emptyPayload("SHEET");
+    q.rows = [{ _id: newId(), fur: "соболь", size: "", lot: "4", price: "360" }];
+    q.customColumns = [{ id: "price", letter: "", title: "Закупка", unit: "$", formula: "", kind: "input" }];
+    q.params = [{ name: "курс", value: "84,4075" }];
+    const pv = previewFormula(q, "=D*курс");
+    if (!pv || Math.abs((pv.result ?? 0) - 30387) > 0.01) { bad++; console.log("FAIL живой пример", pv); } else console.log("OK  живой пример:", pv.text);
+    const pe = previewFormula(q, "=D*");
+    if (!pe?.error) { bad++; console.log("FAIL пример с ошибкой"); } else console.log("OK  пример с ошибкой:", pe.error);
+  }
   // ---- простой вид: формат по названию, вставка из Excel, финальные цифры
   {
     const eq = (name: string, got: unknown, want: unknown) => { const g = JSON.stringify(got), w = JSON.stringify(want); if (g !== w) { bad++; console.log("FAIL", name, g, "≠", w); } else console.log("OK ", name); };
