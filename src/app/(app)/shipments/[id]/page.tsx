@@ -136,6 +136,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
 
   const sorted = [...s.events].sort(compareEvents);
   const notes = intervalNotes(sorted);
+  const fittingDone = sorted.some((e) => /^примерка/i.test(e.title) && !e.expected);
   const dayGroups = groupEventsByDay(sorted, wallDateIso(wallNow()));
   const respText = (e: (typeof sorted)[number]) => (e.responsibleUserId ? userName.get(e.responsibleUserId) : null) ?? e.responsibleName ?? "";
 
@@ -249,7 +250,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         ]}
         collapseWith={
           <LinesTable
-            defaultOpen={reworkQty + reviewQty > 0}
+            defaultOpen={!fittingDone}
             shipmentId={s.id}
             rows={lineRows}
             canEdit={canEdit}
