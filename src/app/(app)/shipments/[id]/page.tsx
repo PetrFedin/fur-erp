@@ -206,13 +206,13 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         id="shipment"
         title="Отгрузка — итоги"
         tiles={[
-          { key: "in", label: "К отгрузке, шт.", value: formatQty(totals.inShipment), caption: `${formatQty(readyLines.length)} из ${formatQty(lines.length)} строк · из ${formatQty(allQty)} на примерке${reworkQty ? `; на доработке ${formatQty(reworkQty)}` : ""}${reviewQty ? `; на просмотре ${formatQty(reviewQty)}` : ""}` },
-          { key: "acc", label: "Принято, шт.", value: formatQty(totals.accepted), caption: sharePct(totals.accepted) ? `${sharePct(totals.accepted)} от «К отгрузке»` : undefined, hint: <p>Сумма колонки «Принято» в блоке «Приёмка в Коптево» (сохранённые значения).</p> },
+          { key: "in", label: "Примерка, ед.", value: formatQty(allQty), caption: `${formatQty(lines.length)} строк · готово к отгрузке ${formatQty(totals.inShipment)} ед.${reworkQty ? `; на доработке ${formatQty(reworkQty)} ед.` : ""}${reviewQty ? `; на просмотре ${formatQty(reviewQty)} ед.` : ""}`, hint: <p>Все изделия, показанные на примерке. «Готово к отгрузке» — то, что идёт на приёмку в Коптево.</p> },
+          { key: "acc", label: "Принято, ед.", value: formatQty(totals.accepted), caption: sharePct(totals.accepted) ? `${sharePct(totals.accepted)} от «готово к отгрузке»` : undefined, hint: <p>Сумма колонки «Принято» в блоке «Приёмка в Коптево» (сохранённые значения).</p> },
           {
             key: "ret",
-            label: "Не принято, шт.",
+            label: "Не принято, ед.",
             value: formatQty(totals.returned),
-            caption: [sharePct(totals.returned), `ещё ждёт приёмки: ${formatQty(totals.remaining)} шт.`].filter(Boolean).join(" · "),
+            caption: [sharePct(totals.returned), `ещё ждёт приёмки: ${formatQty(totals.remaining)} ед.`].filter(Boolean).join(" · "),
             hint: <p>Сумма колонки «Возврат»: возвращено поставщику / не принято. «Ещё ждёт приёмки» — по каждой строке: в отгрузке минус принято и минус возврат, не меньше нуля.</p>,
           },
         ]}
