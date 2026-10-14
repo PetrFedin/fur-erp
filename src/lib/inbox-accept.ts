@@ -178,8 +178,13 @@ export async function previewInbox(orgId: string, row: Row): Promise<{ problems:
     ...m.warnings,
     ...plan.preview.dupInvoices.map((d) => `Внимание: счёт ${d.invoice} уже есть в закупке ${d.purchaseNumber}`),
   ];
-  return { problems: plan.preview.blocking, lines };
+  // «(шаг 2)» — подсказка мастера; здесь пишем сами ошибки строк.
+  const rowErrs = plan.preview.validation.checks.flatMap((c, i) => c.errors.map((e) => `Лот ${p.rows[i] ? usedLot(m.payload!, c.n) : c.n}: ${e}`));
+  const problems = [...plan.preview.blocking.filter((b) => !/^В таблице лотов ошибок/.test(b)), ...rowErrs];
+  return { problems, lines };
 }
+
+const usedLot = (pl: { rows: { n: number; lot: string }[] }, n: number) => pl.rows.find((r) => r.n === n)?.lot || `строка ${n}`;
 
 async function acceptTz(s: Sess, row: Row): Promise<AcceptResult> {
   const orgId = s.user.organizationId;
