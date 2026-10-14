@@ -38,6 +38,7 @@ import { loadOrdersDrill } from "@/lib/orders-drill";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import { sumOrders, sumTotal } from "@/lib/orders-sum";
 import { articleMetrics } from "@/lib/article-metrics";
+import { loadArticleFurTypes } from "@/lib/article-fur-type";
 import { groupOf, NO_GROUP } from "@/lib/category-groups";
 import { canEditProduction } from "@/lib/production-access";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
@@ -142,6 +143,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
   const price = model.sellingPrice ? model.sellingPrice.toNumber() : null;
   const markup = price && unit && unit > 0 ? price / unit : null;
   const group = groupOf(model.categoryRef?.group);
+  const furType = (await loadArticleFurTypes(orgId)).get(id);
   const perItem = (q: number) => (met.qty > 0 ? formatQty(Math.round((q / met.qty) * 100) / 100) : "—");
   const newTzHref = `/production/new?article=${id}`;
 
@@ -235,6 +237,8 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 border-t border-neutral-100 pt-3 text-sm">
             <dt className="text-neutral-500">Категория → группа</dt>
             <dd>{model.category?.trim() || "—"}{group !== NO_GROUP ? <span className="ml-2 text-neutral-500">группа «{group}»</span> : null}<Src href="/settings/categories" title="Справочник категорий и групп" /></dd>
+            <dt className="text-neutral-500">Тип меха</dt>
+            <dd>{furType ? furType.fur : "—"}{furType ? <span className="ml-2 text-xs text-neutral-400">{furType.source === "tz" ? "по ТЗ артикула" : "по тексту материала/названия"}</span> : null}<Src href="/settings/furs" title="Справочник видов меха" /></dd>
             <dt className="text-neutral-500">Мех (по ТЗ)</dt>
             <dd>{met.furNames.length ? met.furNames.join(", ") : "—"}<Src href="/settings/furs" title="Справочник видов меха" /></dd>
             <dt className="text-neutral-500">Цвет (по ТЗ)</dt>

@@ -5,6 +5,7 @@ import { compareModelNames, modelCodeVariants } from "@/lib/model-code";
 import { buttonVariants } from "@/components/ui/button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
+import { loadArticleFurTypes } from "@/lib/article-fur-type";
 import { parseSupplierDescription, supplierArticleTitle, supplierSafeText } from "@/lib/supplier-article";
 
 /**
@@ -39,11 +40,13 @@ export async function SupplierArticles({ orgId, q, noname }: { orgId: string; q:
     cur.lining ??= supplierSafeText(o.lining);
     fromTz.set(o.productModelId, cur);
   }
+  const furTypes = await loadArticleFurTypes(orgId);
   const all = models.map((m) => {
     const own = parseSupplierDescription(m.description);
     const tz = fromTz.get(m.id);
     return {
       ...m,
+      furType: furTypes.get(m.id)?.fur ?? null,
       title: supplierArticleTitle(m.salesName, m.description),
       fur: own.fur || tz?.fur || null,
       lining: own.lining || tz?.lining || null,
@@ -73,14 +76,15 @@ export async function SupplierArticles({ orgId, q, noname }: { orgId: string; q:
             : <>Без названия: <Link href="/articles?noname=1" className="font-medium text-blue-700 hover:underline">{unnamed}</Link> — просим прислать наименование изделия.</>}
         </p>
       )}
-      <Table stickyHeader className="min-w-[760px]">
+      <Table stickyHeader className="min-w-[860px]">
         <Thead>
           <Tr>
             <Th>Артикул</Th>
             <Th>Название изделия</Th>
             <Th>Категория</Th>
             <Th>Длина</Th>
-            <Th>Мех</Th>
+            <Th>Тип меха</Th>
+            <Th>Мех (материал)</Th>
             <Th>Подкладка</Th>
           </Tr>
         </Thead>
@@ -91,12 +95,13 @@ export async function SupplierArticles({ orgId, q, noname }: { orgId: string; q:
               <Td>{m.title ?? <span className="text-amber-700">— <span className="text-xs">название не задано</span></span>}</Td>
               <Td>{m.category || "—"}</Td>
               <Td>{m.lengthClass || "—"}</Td>
+              <Td>{m.furType || "—"}</Td>
               <Td>{m.fur || "—"}</Td>
               <Td>{m.lining || "—"}</Td>
             </Tr>
           ))}
           {rows.length === 0 && (
-            <Tr><Td colSpan={6} className="py-8 text-center text-neutral-500">{q ? "Ничего не найдено" : "Артикулов пока нет"}</Td></Tr>
+            <Tr><Td colSpan={7} className="py-8 text-center text-neutral-500">{q ? "Ничего не найдено" : "Артикулов пока нет"}</Td></Tr>
           )}
         </Tbody>
       </Table>

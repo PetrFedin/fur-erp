@@ -1,6 +1,7 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { uniqueOrderCount } from "@/lib/tz-key";
 import { Fragment } from "react";
+import { loadArticleFurTypes } from "@/lib/article-fur-type";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -87,6 +88,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
 
   // Артикулы, которые завёл Веллмех (по журналу изменений): пометка и фильтр «Новые от Веллмеха».
   const supplierMade = await loadSupplierArticleIds(prisma, orgId);
+  const furTypes = await loadArticleFurTypes(orgId);
 
   // Единый источник чисел — ТЗ «Произведено» Главной (без отменённых и без ремонта): те же ТЗ в таблице, плитках и дереве, поэтому всё сходится.
   const allDrill = await loadOrdersDrill(orgId, year, c4Mode);
@@ -138,7 +140,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       sellingPrice: price,
       retailStock: price ? price * stockQty : null,
       markup: price && unitIncl && unitIncl > 0 ? price / unitIncl : null,
-      primaryFur: met.primaryFur,
+      primaryFur: met.primaryFur ?? furTypes.get(m.id)?.fur ?? null,
       met,
       colors,
     };
@@ -279,7 +281,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           <Tr>
             <Th>Артикул</Th>
             <Th>Категория / группа</Th>
-            <Th>Мех</Th>
+            <Th>Тип меха</Th>
             <Th>Цвет</Th>
             <Th className="text-right" unit="шт.">
               В выпуске
