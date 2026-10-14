@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 
-export const metadata = { title: "Схема работы — MVST FUR PRODUCTION" };
+export const metadata = { title: "Схема работы" };
 
 type Branch = { title: string; text: string; href: string };
 type Step = {
