@@ -317,7 +317,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                               <span data-left="side" className={"rounded px-1.5 py-0.5 text-[11px] font-medium " + (e.expected ? "bg-neutral-100 text-neutral-400" : tone.badge)}>{side ? SIDE_LABEL[side] : "не указано"}</span>
                               <span data-left="date" className={"text-[11px] " + (e.expected ? "text-neutral-400" : "text-neutral-600")}>{wallDateRu(e.occurredAt)}</span>
                               <span data-left="time" className={"text-lg font-semibold leading-tight " + (e.expected ? "text-neutral-400" : "text-neutral-900")}>
-                                {time ?? <span className="text-[10px] font-normal text-neutral-400">время не указано</span>}
+                                {time}
                               </span>
                               <span data-left="who" className="text-[11px] text-neutral-500" title="Автор / ответственный действия">{resp || "—"}</span>
                             </div>

@@ -129,10 +129,10 @@ function EventFields({ titles, people, initial, withNext }: Common & { initial?:
           ))}
         </datalist>
       </Field>
-      <Field label="Дата">
+      <Field label="Дата" hint="Когда было или на когда запланировано (письмо получено/отправлено, встреча…)">
         <Input name="date" type="date" required defaultValue={initial?.date ?? today} />
       </Field>
-      <Field label="Время" hint="Необязательно: не знаете час — оставьте пустым">
+      <Field label="Время" hint="Можно уточнить час: во сколько получено, отправлено, назначено. Не знаете — оставьте пустым">
         <Input name="time" type="time" defaultValue={initial?.time ?? ""} />
       </Field>
       <Field label="Место" wide>
