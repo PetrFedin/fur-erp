@@ -11,7 +11,7 @@ import { deleteTzDraft, saveTzDraft, sendTz } from "./actions";
 const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export type LotOpt = { id: string; lot: string; material: string; color: string; remaining: string };
 
-export function TzForm({ id, initial, readOnly, colors, models, lots, reviewNote }: { id: string | null; initial: TzPayload; readOnly: boolean; colors: string[]; models: string[]; lots: LotOpt[]; reviewNote?: string | null }) {
+export function TzForm({ id, initial, readOnly, colors, models, lots, batches, reviewNote }: { id: string | null; initial: TzPayload; readOnly: boolean; colors: string[]; models: string[]; lots: LotOpt[]; batches: { value: string; label: string }[]; reviewNote?: string | null }) {
   const router = useRouter();
   const [p, setP] = useState(initial);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
@@ -79,7 +79,12 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, reviewNote
         <F label="Город" v={p.city} on={(v) => setP((x) => ({ ...x, city: v }))} ro={ro} />
         <F label="Договор подряда" v={p.contract} on={(v) => setP((x) => ({ ...x, contract: v }))} ro={ro} />
         <F label="Заказчик" v={p.customer} on={(v) => setP((x) => ({ ...x, customer: v }))} ro={ro} />
-        <F label="Партия" v={p.batch} on={(v) => setP((x) => ({ ...x, batch: v }))} ro={ro} />
+        <div>
+          <Label>Партия</Label>
+          <Input value={p.batch} readOnly={ro} list="tz-batches" placeholder="номер, например 22" inputMode="numeric" onChange={(e) => setP((x) => ({ ...x, batch: e.target.value }))} />
+          <datalist id="tz-batches">{batches.map((b) => <option key={b.value} value={b.value} label={b.label} />)}</datalist>
+          <p className="mt-0.5 text-[11px] text-neutral-500">Выберите из списка или впишите номер новой партии.</p>
+        </div>
         <F label="НДС, %" v={p.vatPct} on={(v) => setP((x) => ({ ...x, vatPct: v }))} ro={ro} />
       </div>
 

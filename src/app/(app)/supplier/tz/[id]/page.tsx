@@ -16,7 +16,7 @@ export default async function TzPage({ params }: PageProps<"/supplier/tz/[id]">)
   const row = await prisma.supplierInbox.findFirst({ where: { id, kind: "TZ", ...inboxScope(s) } });
   if (!row) notFound();
   const readOnly = row.status !== "DRAFT" || s.user.role !== "SUPPLIER";
-  const refs = readOnly ? { colors: [], models: [], lots: [] } : await loadTzFormRefs(s.user.organizationId);
+  const refs = readOnly ? { colors: [], models: [], lots: [], batches: [] } : await loadTzFormRefs(s.user.organizationId);
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "ТЗ", href: "/supplier/tz" }, { label: row.title }]} />
@@ -25,7 +25,7 @@ export default async function TzPage({ params }: PageProps<"/supplier/tz/[id]">)
         <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs">{INBOX_STATUS_LABEL[row.status]}</span>
       </div>
       {row.status === "REJECTED" && s.user.role === "SUPPLIER" && <ReopenButton id={row.id} />}
-      <TzForm id={row.id} initial={row.payload as unknown as TzPayload} readOnly={readOnly} colors={refs.colors} models={refs.models} lots={refs.lots} reviewNote={row.reviewNote} />
+      <TzForm id={row.id} initial={row.payload as unknown as TzPayload} readOnly={readOnly} colors={refs.colors} models={refs.models} lots={refs.lots} batches={refs.batches} reviewNote={row.reviewNote} />
     </div>
   );
 }

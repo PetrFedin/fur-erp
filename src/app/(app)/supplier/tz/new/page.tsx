@@ -16,7 +16,7 @@ export default async function NewTzPage() {
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "ТЗ", href: "/supplier/tz" }, { label: "Новое ТЗ" }]} />
       <h1 className="text-xl font-semibold">Новое ТЗ</h1>
-      <TzForm id={null} initial={emptyTz("WORK", refs.nextNumber, today)} readOnly={false} colors={refs.colors} models={refs.models} lots={refs.lots} />
+      <TzForm id={null} initial={emptyTz("WORK", refs.nextNumber, today)} readOnly={false} colors={refs.colors} models={refs.models} lots={refs.lots} batches={refs.batches} />
     </div>
   );
 }
