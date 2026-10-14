@@ -61,9 +61,11 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
       <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700" data-legend>
         <span className="inline-flex items-center gap-1.5"><IconPencil className="h-3.5 w-3.5 text-amber-700" /> создают и правят вручную</span>
         <span className="inline-flex items-center gap-1.5"><IconGear className="h-3.5 w-3.5 text-emerald-700" /> собирается автоматически из внесённого (вручную не создаётся)</span>
+        <span className="inline-flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm border border-dashed border-emerald-600 bg-emerald-50" /> план: со стороны Веллмеха</span>
+        <span className="inline-flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm border border-dashed border-red-400 bg-red-50" /> наш план</span>
       </div>
       <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white" data-scheme>
-        <svg viewBox="-60 0 1120 1010" className="mx-auto block min-w-[980px] w-full" role="img" aria-label="Схема связей и взаимодействий">
+        <svg viewBox="-60 0 1120 1260" className="mx-auto block min-w-[980px] w-full" role="img" aria-label="Схема связей и взаимодействий">
           <defs>
             <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#a3a3a3" /></marker>
             <marker id="arr-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#171717" /></marker>
@@ -104,20 +106,29 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
               </g>
             );
           })}
-          {/* будущие этапы: неактивны, пунктир */}
+          {/* будущие этапы: неактивны, пунктир; зелёные — со стороны Веллмеха, красные — наш план */}
           <path d="M 500 670 L 500 735" fill="none" stroke="#a3a3a3" strokeWidth="1.4" strokeDasharray="5 4" markerEnd="url(#arr)" />
           <text x="500" y="758" textAnchor="middle" fontSize="13" fontWeight="600" fill="#737373">Дальше — пока не реализовано</text>
-          {FUTURE.map((f, k) => {
-            const x = 30 + (k % 3) * 350;
-            const y = 785 + Math.floor(k / 3) * 105;
-            const lines = wrap(f.title, 24);
+          {(["wellmekh", "ours"] as const).map((side, col) => {
+            const x = col === 0 ? -40 : 540;
+            const c = side === "wellmekh" ? { stroke: "#059669", fill: "#ecfdf5", text: "#065f46", sub: "#34a07a", chip: "#a7f3d0" } : { stroke: "#f87171", fill: "#fef2f2", text: "#991b1b", sub: "#e08080", chip: "#fecaca" };
             return (
-              <g key={f.title} data-future={k + 1} transform={`translate(${x} ${y})`} className="cursor-pointer" tabIndex={0} role="button" aria-label={`${f.title} (пока не реализовано)`}
-                onClick={() => setSel({ kind: "future", i: k })} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel({ kind: "future", i: k }); } }}>
-                <rect width="300" height="86" rx="12" fill="#fafafa" stroke="#a3a3a3" strokeWidth="1.6" strokeDasharray="6 4" />
-                {lines.map((l, j) => <text key={j} x="18" y={30 + j * 16} fontSize="13.5" fontWeight="600" fill="#737373">{l}</text>)}
-                <text x="18" y={30 + lines.length * 16 + 4} fontSize="11.5" fontStyle="italic" fill="#a3a3a3">{f.sub}</text>
-                <g transform="translate(212 8)"><rect width="80" height="18" rx="9" fill="#e5e5e5" /><text x="40" y="12.5" textAnchor="middle" fontSize="10.5" fill="#737373">планируется</text></g>
+              <g key={side}>
+                <text x={x} y="798" fontSize="14" fontWeight="700" fill={c.text}>{side === "wellmekh" ? "Со стороны Веллмеха" : "Наш план"}</text>
+                <text x={x} y="816" fontSize="11.5" fill={c.sub}>{side === "wellmekh" ? "Веллмех вносит данные в кабинете, мы забираем и обрабатываем" : "Развитие нашей системы"}</text>
+                {FUTURE.map((f, k) => ({ f, k })).filter((e) => e.f.side === side).map((e, row) => {
+                  const lines = wrap(e.f.title, 40);
+                  return (
+                    <g key={e.f.title} data-future={e.k + 1} data-side={side} transform={`translate(${x} ${832 + row * 100})`} className="cursor-pointer" tabIndex={0} role="button" aria-label={`${e.f.title} (пока не реализовано)`}
+                      onClick={() => setSel({ kind: "future", i: e.k })} onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSel({ kind: "future", i: e.k }); } }}>
+                      <rect width="480" height="86" rx="12" fill={c.fill} stroke={c.stroke} strokeWidth="1.8" strokeDasharray="7 4" />
+                      {lines.map((l, j) => <text key={j} x="18" y={29 + j * 16} fontSize="14" fontWeight="600" fill={c.text}>{l}</text>)}
+                      <text x="18" y={29 + lines.length * 16 + 2} fontSize="12" fontStyle="italic" fill={c.sub}>{e.f.sub}</text>
+                      <text x="18" y="76" fontSize="11" fill={c.sub}>связь: {e.f.links}</text>
+                      <g transform="translate(386 10)"><rect width="84" height="18" rx="9" fill={c.chip} /><text x="42" y="12.5" textAnchor="middle" fontSize="10.5" fill={c.text}>планируется</text></g>
+                    </g>
+                  );
+                })}
               </g>
             );
           })}
@@ -136,7 +147,7 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
               <div>
                 <h2 className="text-base font-semibold text-neutral-900">{fut ? fut.title : branch ? branch.title : step!.title}</h2>
                 <p className="mt-0.5 text-xs text-neutral-500">
-                  {fut ? "Пока не реализовано — предложение" : branch ? `Часть шага ${sel.i + 1}: ${step!.title}` : step!.from ? `Данные берёт из: ${step!.from}` : "Начало цепочки"}
+                  {fut ? "Пока не реализовано" : branch ? `Часть шага ${sel.i + 1}: ${step!.title}` : step!.from ? `Данные берёт из: ${step!.from}` : "Начало цепочки"}
                 </p>
               </div>
               <button type="button" onClick={() => setSel(null)} aria-label="Закрыть" title="Закрыть" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-neutral-200 text-neutral-600 hover:bg-neutral-50">✕</button>
@@ -144,10 +155,13 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
 
             {fut ? (
               <>
-                <p className="text-sm text-neutral-700"><span className="font-medium">Кто:</span> {fut.who}</p>
-                <Section tone="neutral" icon={<span aria-hidden>•</span>} title="Что будет делать" items={fut.what} />
-                <Section tone="violet" icon={<span aria-hidden>←</span>} title="Что берёт из системы" items={fut.takes} />
-                <Section tone="emerald" icon={<span aria-hidden>→</span>} title="Что даёт" items={fut.gives} />
+                <p className={"rounded-md px-3 py-1.5 text-xs font-medium " + (fut.side === "wellmekh" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800")}>
+                  {fut.side === "wellmekh" ? "Со стороны Веллмеха: он вносит данные в своём кабинете" : "Наш план: развитие нашей системы"}
+                </p>
+                <Section tone="neutral" icon={<span aria-hidden>•</span>} title="Что делает" items={fut.what} />
+                <Section tone="violet" icon={<span aria-hidden>→</span>} title={fut.side === "wellmekh" ? "Что мы им отдаём" : "Что берёт из нашей системы"} items={fut.out} />
+                <Section tone="emerald" icon={<span aria-hidden>←</span>} title={fut.side === "wellmekh" ? "Что у них забираем" : "Что даёт нам"} items={fut.inn} />
+                <Section tone="amber" icon={<span aria-hidden>⚙</span>} title="Как подключается" items={fut.via} />
                 <p className="text-xs text-neutral-500">Связано с: {fut.links}</p>
               </>
             ) : branch ? (
