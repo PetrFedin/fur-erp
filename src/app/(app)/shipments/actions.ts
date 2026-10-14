@@ -6,8 +6,12 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { checkOrgRefs } from "@/lib/org-guard";
 import { DATE_RANGE_ERROR, MAX_LINE_QTY, MAX_LINES, isDateInRange } from "@/lib/shipments";
-import { wallNow, wallToDate } from "@/lib/shipment-calc";
+import { acceptLineError, acceptSummaryText, isSide, shipmentTotals, wallNow, wallToDate } from "@/lib/shipment-calc";
 import { loadShipmentCandidates, nextShipmentName } from "@/lib/shipment-data";
+import { readOneDriveFile, removeDriveFileIfUnused, writeDriveFile } from "@/lib/drive-files";
+import { removeStoredFiles } from "@/lib/fitting-files";
+import { guessDocType } from "@/lib/drive-docs";
+import { randomUUID } from "node:crypto";
 
 // Так же, как в разделе ТЗ: отгрузки ведут те, кто ведёт ТЗ.
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
@@ -118,9 +122,10 @@ export async function addShipmentLines(shipmentId: string, items: { key: string;
 }
 
 async function ownLine(orgId: string, lineId: string) {
-  return prisma.shipmentLine.findFirst({ where: { id: lineId, shipment: { organizationId: orgId } }, select: { id: true, shipmentId: true } });
+  return prisma.shipmentLine.findFirst({ where: { id: lineId, shipment: { organizationId: orgId } }, select: { id: true, shipmentId: true, quantity: true } });
 }
 
+/** Правка строки: количество, размер, комментарий, принято и возврат. */
 export async function updateShipmentLine(lineId: string, fd: FormData): Promise<EditResult> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
@@ -131,20 +136,70 @@ export async function updateShipmentLine(lineId: string, fd: FormData): Promise<
   if (size.length > 40) return { error: "Размер не длиннее 40 символов" };
   const comment = str(fd, "comment");
   if (comment.length > 500) return { error: "Комментарий не длиннее 500 символов" };
-  await prisma.shipmentLine.update({ where: { id: lineId }, data: { quantity: q, size: size || null, comment: comment || null } });
+  const accepted = intField(fd, "acceptedQty");
+  const returned = intField(fd, "returnedQty");
+  if (accepted === undefined || returned === undefined) return { error: `«Принято» и «Возврат» — целые числа от 0 до ${MAX_LINE_QTY.toLocaleString("ru-RU")} или пусто` };
+  const bad = acceptLineError(1, q, accepted, returned);
+  if (bad) return { error: bad.replace(/^Строка 1: /, "") };
+  await prisma.shipmentLine.update({ where: { id: lineId }, data: { quantity: q, size: size || null, comment: comment || null, acceptedQty: accepted, returnedQty: returned } });
   revalidateAll(orgId);
   return { ok: true };
 }
 
-/** Строку с приёмкой (принято / не принято / возвращено хотя бы по одному этапу) удалять нельзя. */
+export type LineDraft = { id: string; n: number; accepted: number | null; returned: number | null; comment: string | null };
+
+/**
+ * «Сохранить» в составе: все изменённые в таблице строки одним действием в одной транзакции.
+ * Валидация: целые ≥ 0, принято + возврат не больше «в отгрузке» (меньше можно — «ещё не принято»); ошибка называет номер строки.
+ */
+export async function saveLineAcceptance(shipmentId: string, drafts: LineDraft[]): Promise<{ error?: string; saved?: number }> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  if (!(await ownShipment(orgId, shipmentId))) return { error: "Отгрузка не найдена" };
+  if (!Array.isArray(drafts) || drafts.length === 0) return { error: "Нечего сохранять" };
+  if (drafts.length > MAX_LINES * 5) return { error: "Слишком много строк за раз" };
+  const own = new Map((await prisma.shipmentLine.findMany({ where: { shipmentId }, select: { id: true, quantity: true } })).map((l) => [l.id, l]));
+  const seen = new Set<string>();
+  for (const d of drafts) {
+    const line = own.get(d.id);
+    if (!line) return { error: `Строка ${d.n}: не найдена в этой отгрузке — обновите страницу` };
+    if (seen.has(d.id)) return { error: `Строка ${d.n}: повторяется` };
+    seen.add(d.id);
+    const bad = acceptLineError(d.n, line.quantity, d.accepted, d.returned);
+    if (bad) return { error: bad };
+    for (const v of [d.accepted, d.returned]) if (v != null && v > MAX_LINE_QTY) return { error: `Строка ${d.n}: не больше ${MAX_LINE_QTY.toLocaleString("ru-RU")} шт.` };
+    if ((d.comment ?? "").length > 500) return { error: `Строка ${d.n}: комментарий не длиннее 500 символов` };
+  }
+  await prisma.$transaction(async (tx) => {
+    for (const d of drafts) {
+      await tx.shipmentLine.update({ where: { id: d.id }, data: { acceptedQty: d.accepted, returnedQty: d.returned, comment: (d.comment ?? "").trim() || null } });
+    }
+  });
+  revalidateAll(orgId);
+  return { saved: drafts.length };
+}
+
+/** «Принять всё»: принято = в отгрузке, возврат = 0 по всем строкам (используется в окне приёмки; в таблице то же делается черновиком). */
+export async function acceptAllLines(shipmentId: string): Promise<{ error?: string }> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  if (!(await ownShipment(orgId, shipmentId))) return { error: "Отгрузка не найдена" };
+  const lines = await prisma.shipmentLine.findMany({ where: { shipmentId }, select: { id: true, quantity: true } });
+  if (lines.length === 0) return { error: "В составе нет строк" };
+  await prisma.$transaction(async (tx) => {
+    for (const l of lines) await tx.shipmentLine.update({ where: { id: l.id }, data: { acceptedQty: l.quantity, returnedQty: 0 } });
+  });
+  revalidateAll(orgId);
+  return {};
+}
+
+/** Строку с приёмкой (принято или возврат больше 0) удалять нельзя. */
 export async function deleteShipmentLine(lineId: string): Promise<{ error?: string }> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  if (!(await ownLine(orgId, lineId))) return { error: "Строка не найдена" };
-  const touched = await prisma.shipmentEventLine.count({
-    where: { shipmentLineId: lineId, OR: [{ accepted: { not: null } }, { rejected: { not: null } }, { returned: { not: null } }] },
-  });
-  if (touched > 0) return { error: "Нельзя удалить: по строке есть приёмка. Сначала уберите её из этапов." };
+  const line = await prisma.shipmentLine.findFirst({ where: { id: lineId, shipment: { organizationId: orgId } }, select: { id: true, acceptedQty: true, returnedQty: true } });
+  if (!line) return { error: "Строка не найдена" };
+  if ((line.acceptedQty ?? 0) > 0 || (line.returnedQty ?? 0) > 0) return { error: "Нельзя удалить: по строке есть приёмка. Сначала обнулите «Принято» и «Возврат»." };
   await prisma.shipmentLine.delete({ where: { id: lineId } });
   revalidateAll(orgId);
   return {};
@@ -156,16 +211,24 @@ type EventData = {
   title: string;
   occurredAt: Date;
   timeKnown: boolean;
+  side: string | null;
   responsibleUserId: string | null;
   responsibleName: string | null;
   place: string | null;
   details: string | null;
   docLinks: string | null;
   expected: boolean;
-  lines: { shipmentLineId: string; qty: number | null; accepted: number | null; rejected: number | null; returned: number | null; comment: string | null }[];
 };
 
-async function parseEvent(orgId: string, shipmentId: string, fd: FormData): Promise<EventData | string> {
+/** Ответственный вписывается текстом; если совпал с именем пользователя приложения (без учёта регистра) — связываем с ним. */
+async function resolveResponsible(orgId: string, name: string): Promise<{ responsibleUserId: string | null; responsibleName: string | null }> {
+  const n = name.trim().slice(0, 120);
+  if (!n) return { responsibleUserId: null, responsibleName: null };
+  const u = await prisma.user.findFirst({ where: { organizationId: orgId, name: { equals: n, mode: "insensitive" } }, select: { id: true } });
+  return { responsibleUserId: u?.id ?? null, responsibleName: n };
+}
+
+async function parseEvent(orgId: string, fd: FormData): Promise<EventData | string> {
   const title = str(fd, "title");
   if (!title) return "Укажите название этапа";
   if (title.length > 120) return "Название этапа не длиннее 120 символов";
@@ -174,46 +237,25 @@ async function parseEvent(orgId: string, shipmentId: string, fd: FormData): Prom
   if (!dateOk(date)) return DATE_RANGE_ERROR;
   const time = str(fd, "time");
   if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return "Время укажите в формате ЧЧ:ММ или оставьте пустым";
-  const resp = str(fd, "responsible");
-  let responsibleUserId: string | null = null;
-  let responsibleName: string | null = null;
-  if (resp && resp !== "__other") {
-    const u = await prisma.user.findFirst({ where: { id: resp, organizationId: orgId }, select: { id: true } });
-    if (!u) return "Ответственный не найден";
-    responsibleUserId = u.id;
-  } else if (resp === "__other") {
-    responsibleName = str(fd, "responsibleName").slice(0, 120) || null;
-  }
+  const side = str(fd, "side");
+  if (side && !isSide(side)) return "«На ком» — Веллмех, ЦУМ или пусто";
+  const who = await resolveResponsible(orgId, str(fd, "responsible"));
   const place = str(fd, "place");
   const details = str(fd, "details");
   const docLinks = str(fd, "docLinks");
   if (place.length > 120) return "Место не длиннее 120 символов";
   if (details.length > 4000) return "Детализация не длиннее 4000 символов";
   if (docLinks.length > 2000) return "Ссылки на документы не длиннее 2000 символов";
-
-  const lines: EventData["lines"] = [];
-  if (str(fd, "mode") === "lines") {
-    const own = await prisma.shipmentLine.findMany({ where: { shipmentId }, select: { id: true } });
-    for (const l of own) {
-      const f = (n: string) => intField(fd, `l_${l.id}_${n}`);
-      const qty = f("qty"), accepted = f("accepted"), rejected = f("rejected"), returned = f("returned");
-      if ([qty, accepted, rejected, returned].includes(undefined)) return `Количества по строкам — целые числа от 0 до ${MAX_LINE_QTY.toLocaleString("ru-RU")}`;
-      const comment = str(fd, `l_${l.id}_comment`).slice(0, 500) || null;
-      if (qty == null && accepted == null && rejected == null && returned == null && !comment) continue;
-      lines.push({ shipmentLineId: l.id, qty: qty ?? null, accepted: accepted ?? null, rejected: rejected ?? null, returned: returned ?? null, comment });
-    }
-  }
   return {
     title,
     occurredAt: wallToDate(date, time),
     timeKnown: Boolean(time),
-    responsibleUserId,
-    responsibleName,
+    side: side || null,
+    ...who,
     place: place || null,
     details: details || null,
     docLinks: docLinks || null,
     expected: str(fd, "expected") === "on",
-    lines,
   };
 }
 
@@ -221,13 +263,77 @@ async function ownShipment(orgId: string, id: string) {
   return prisma.shipment.findFirst({ where: { id, organizationId: orgId }, select: { id: true } });
 }
 
-/** «+ Этап». При заполненном блоке «Следующий этап» в той же транзакции создаётся ожидаемый этап. */
+// ───────────── файлы этапа ─────────────
+
+/** В форме выбран непустой файл (пустое поле файла браузер всё равно присылает — с пустым именем). */
+const hasFile = (fd: FormData, k = "file") => fd.getAll(k).some((e) => typeof e !== "string" && e.name !== "" && e.size > 0);
+
+type ReadFile = Extract<Awaited<ReturnType<typeof readOneDriveFile>>, { file: unknown }>["file"];
+
+/** Проверяет файл формы до любых записей; null — файла в форме нет. */
+async function readEventFile(fd: FormData): Promise<{ error: string } | { file: ReadFile } | null> {
+  if (!hasFile(fd)) return null;
+  const r = await readOneDriveFile(fd);
+  return "error" in r ? { error: r.error } : { file: r.file };
+}
+
+/** Сохраняет файл на диск и привязывает к этапу (DriveDocument.shipmentEventId). При сбое записи файл с диска убирается. */
+async function attachFile(orgId: string, eventId: string, f: ReadFile, title: string | null): Promise<void> {
+  const stored = await writeDriveFile(orgId, f);
+  try {
+    await prisma.driveDocument.create({
+      data: {
+        organizationId: orgId,
+        driveFileId: `local-${randomUUID()}`,
+        title: (title ?? "").trim().slice(0, 200) || f.originalName.replace(/\.[A-Za-z0-9]{1,8}$/, "").slice(0, 200),
+        docType: guessDocType(f.originalName) ?? "OTHER",
+        mimeType: stored.storedMime,
+        sizeBytes: stored.storedSize,
+        ...stored,
+        storedAt: new Date(),
+        shipmentEventId: eventId,
+      },
+    });
+  } catch (e) {
+    await removeStoredFiles([stored.storagePath]);
+    throw e;
+  }
+}
+
+/** «+ Документ» на этапе в ленте. */
+export async function uploadEventDocument(eventId: string, fd: FormData): Promise<EditResult> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const cur = await prisma.shipmentEvent.findFirst({ where: { id: eventId, shipment: { organizationId: orgId } }, select: { id: true } });
+  if (!cur) return { error: "Этап не найден" };
+  if (!hasFile(fd)) return { error: "Выберите файл" };
+  const f = await readEventFile(fd);
+  if (!f || "error" in f) return { error: f?.error ?? "Выберите файл" };
+  await attachFile(orgId, cur.id, f.file, str(fd, "title"));
+  revalidateAll(orgId);
+  return { ok: true };
+}
+
+export async function removeEventDocument(docId: string): Promise<{ error?: string }> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const doc = await prisma.driveDocument.findFirst({ where: { id: docId, organizationId: orgId, shipmentEventId: { not: null } }, select: { id: true, storagePath: true } });
+  if (!doc) return { error: "Документ не найден" };
+  await prisma.driveDocument.delete({ where: { id: doc.id } });
+  await removeDriveFileIfUnused(doc.storagePath);
+  revalidateAll(orgId);
+  return {};
+}
+
+/** «+ Этап». Файл (необязательно) прикрепляется в той же отправке: сначала проверяется, потом этап создаётся. При заполненном «Следующий этап» создаётся ожидаемый этап. */
 export async function createEvent(shipmentId: string, _prev: ShipmentFormState, fd: FormData): Promise<ShipmentFormState> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
   if (!(await ownShipment(orgId, shipmentId))) return { error: "Отгрузка не найдена" };
-  const e = await parseEvent(orgId, shipmentId, fd);
+  const e = await parseEvent(orgId, fd);
   if (typeof e === "string") return { error: e };
+  const file = await readEventFile(fd);
+  if (file && "error" in file) return { error: file.error };
   const nextTitle = str(fd, "nextTitle");
   const nextDate = str(fd, "nextDate");
   const nextTime = str(fd, "nextTime");
@@ -236,11 +342,8 @@ export async function createEvent(shipmentId: string, _prev: ShipmentFormState, 
     if (!dateOk(nextDate)) return { error: "Укажите ожидаемую дату следующего этапа" };
     if (nextTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(nextTime)) return { error: "Время следующего этапа — ЧЧ:ММ или пусто" };
   }
-  const { lines, ...data } = e;
   const created = await prisma.$transaction(async (tx) => {
-    const ev = await tx.shipmentEvent.create({
-      data: { shipmentId, ...data, createdById: session.user.id, lines: { create: lines } },
-    });
+    const ev = await tx.shipmentEvent.create({ data: { shipmentId, ...e, createdById: session.user.id } });
     if (nextTitle) {
       await tx.shipmentEvent.create({
         data: { shipmentId, title: nextTitle, occurredAt: wallToDate(nextDate, nextTime), timeKnown: Boolean(nextTime), expected: true, createdById: session.user.id },
@@ -248,6 +351,14 @@ export async function createEvent(shipmentId: string, _prev: ShipmentFormState, 
     }
     return ev;
   });
+  if (file) {
+    try {
+      await attachFile(orgId, created.id, file.file, null);
+    } catch {
+      revalidateAll(orgId);
+      return { error: "Этап добавлен, но файл прикрепить не удалось — загрузите его кнопкой «+ Документ» на этапе", id: created.id };
+    }
+  }
   revalidateAll(orgId);
   return { ok: true, id: created.id };
 }
@@ -255,30 +366,37 @@ export async function createEvent(shipmentId: string, _prev: ShipmentFormState, 
 export async function updateEvent(eventId: string, fd: FormData): Promise<EditResult> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  const cur = await prisma.shipmentEvent.findFirst({ where: { id: eventId, shipment: { organizationId: orgId } }, select: { id: true, shipmentId: true } });
+  const cur = await prisma.shipmentEvent.findFirst({ where: { id: eventId, shipment: { organizationId: orgId } }, select: { id: true } });
   if (!cur) return { error: "Этап не найден" };
-  const e = await parseEvent(orgId, cur.shipmentId, fd);
+  const e = await parseEvent(orgId, fd);
   if (typeof e === "string") return { error: e };
-  const { lines, ...data } = e;
-  await prisma.$transaction(async (tx) => {
-    await tx.shipmentEventLine.deleteMany({ where: { eventId } });
-    await tx.shipmentEvent.update({ where: { id: eventId }, data: { ...data, updatedById: session.user.id, lines: { create: lines } } });
-  });
+  const file = await readEventFile(fd);
+  if (file && "error" in file) return { error: file.error };
+  await prisma.shipmentEvent.update({ where: { id: eventId }, data: { ...e, updatedById: session.user.id } });
+  if (file) await attachFile(orgId, eventId, file.file, null);
   revalidateAll(orgId);
   return { ok: true };
 }
 
+/** Удаление этапа: файлы этапа убираются с диска; если это был этап подтверждённой приёмки — приёмка снимается. */
 export async function deleteEvent(eventId: string): Promise<{ error?: string }> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  const cur = await prisma.shipmentEvent.findFirst({ where: { id: eventId, shipment: { organizationId: orgId } }, select: { id: true } });
+  const cur = await prisma.shipmentEvent.findFirst({
+    where: { id: eventId, shipment: { organizationId: orgId } },
+    select: { id: true, shipmentId: true, documents: { select: { storagePath: true } } },
+  });
   if (!cur) return { error: "Этап не найден" };
-  await prisma.shipmentEvent.delete({ where: { id: eventId } });
+  await prisma.$transaction(async (tx) => {
+    await tx.shipment.updateMany({ where: { id: cur.shipmentId, acceptEventId: eventId }, data: { acceptedAt: null, acceptedBy: null, acceptEventId: null, status: "PLANNED" } });
+    await tx.shipmentEvent.delete({ where: { id: eventId } });
+  });
+  for (const d of cur.documents) await removeDriveFileIfUnused(d.storagePath);
   revalidateAll(orgId);
   return {};
 }
 
-/** Ожидаемый этап → выполненный: дата и время «сейчас» (потом правятся окном «Изменить этап»). */
+/** Ожидаемый этап → выполненный: дата и время «сейчас» (потом правятся окном «Изменить»). Этап приёмки подтверждается кнопкой «ПРИНЯТО». */
 export async function markEventDone(eventId: string): Promise<{ error?: string }> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
@@ -286,6 +404,78 @@ export async function markEventDone(eventId: string): Promise<{ error?: string }
   if (!cur) return { error: "Этап не найден" };
   if (!cur.expected) return { error: "Этап уже отмечен выполненным" };
   await prisma.shipmentEvent.update({ where: { id: eventId }, data: { expected: false, occurredAt: wallNow(), timeKnown: true, updatedById: session.user.id } });
+  revalidateAll(orgId);
+  return {};
+}
+
+// ───────────── приёмка в Коптево ─────────────
+
+/** Нет ожидаемого этапа приёмки: «+ Приёмка в Коптево» создаёт его (дата — плановая дата отгрузки). */
+export async function createAcceptanceEvent(shipmentId: string): Promise<{ error?: string }> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const sh = await prisma.shipment.findFirst({ where: { id: shipmentId, organizationId: orgId }, select: { id: true, plannedDate: true, acceptedAt: true } });
+  if (!sh) return { error: "Отгрузка не найдена" };
+  if (sh.acceptedAt) return { error: "Приёмка уже подтверждена" };
+  await prisma.shipmentEvent.create({
+    data: { shipmentId, title: "Принято в Коптево", occurredAt: sh.plannedDate, timeKnown: false, expected: true, place: "Коптево", createdById: session.user.id },
+  });
+  revalidateAll(orgId);
+  return {};
+}
+
+/**
+ * Кнопка «ПРИНЯТО»: этап приёмки становится выполненным (дата-время из окна, details — автосводка по строкам),
+ * у отгрузки фиксируются acceptedAt, кто принял и этап; статус — «Принята».
+ */
+export async function confirmAcceptance(shipmentId: string, eventId: string, fd: FormData): Promise<EditResult> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const sh = await prisma.shipment.findFirst({
+    where: { id: shipmentId, organizationId: orgId },
+    select: { id: true, acceptedAt: true, lines: { select: { quantity: true, acceptedQty: true, returnedQty: true } } },
+  });
+  if (!sh) return { error: "Отгрузка не найдена" };
+  if (sh.acceptedAt) return { error: "Приёмка уже подтверждена" };
+  const ev = await prisma.shipmentEvent.findFirst({ where: { id: eventId, shipmentId, expected: true }, select: { id: true } });
+  if (!ev) return { error: "Ожидаемый этап приёмки не найден — обновите страницу" };
+  const date = str(fd, "date");
+  if (!dateOk(date)) return { error: "Укажите дату приёмки" };
+  const time = str(fd, "time");
+  if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return { error: "Время укажите в формате ЧЧ:ММ или оставьте пустым" };
+  const side = str(fd, "side");
+  if (side && !isSide(side)) return { error: "«На ком» — Веллмех, ЦУМ или пусто" };
+  const comment = str(fd, "comment");
+  if (comment.length > 1000) return { error: "Комментарий не длиннее 1000 символов" };
+  const who = await resolveResponsible(orgId, str(fd, "acceptedBy"));
+  const t = shipmentTotals(sh.lines);
+  if (t.filledLines === 0) return { error: "Сначала заполните колонки «Принято» и «Возврат» в составе отгрузки (или нажмите «Принять всё»)" };
+  const at = wallToDate(date, time);
+  const details = [acceptSummaryText(t), comment].filter(Boolean).join("\n");
+  await prisma.$transaction(async (tx) => {
+    await tx.shipmentEvent.update({
+      where: { id: ev.id },
+      data: { expected: false, occurredAt: at, timeKnown: Boolean(time), side: side || null, ...who, details, updatedById: session.user.id },
+    });
+    await tx.shipment.update({ where: { id: shipmentId }, data: { acceptedAt: at, acceptedBy: who.responsibleName, acceptEventId: ev.id, status: "ACCEPTED" } });
+  });
+  revalidateAll(orgId);
+  return { ok: true };
+}
+
+/** «Отменить приёмку»: этап снова ожидаемый, acceptedAt снимается, статус — «Запланирована». */
+export async function cancelAcceptance(shipmentId: string): Promise<{ error?: string }> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const sh = await prisma.shipment.findFirst({ where: { id: shipmentId, organizationId: orgId }, select: { id: true, acceptedAt: true, acceptEventId: true } });
+  if (!sh) return { error: "Отгрузка не найдена" };
+  if (!sh.acceptedAt) return { error: "Приёмка не подтверждена" };
+  await prisma.$transaction(async (tx) => {
+    if (sh.acceptEventId) {
+      await tx.shipmentEvent.updateMany({ where: { id: sh.acceptEventId, shipmentId }, data: { expected: true, details: null, updatedById: session.user.id } });
+    }
+    await tx.shipment.update({ where: { id: shipmentId }, data: { acceptedAt: null, acceptedBy: null, acceptEventId: null, status: "PLANNED" } });
+  });
   revalidateAll(orgId);
   return {};
 }

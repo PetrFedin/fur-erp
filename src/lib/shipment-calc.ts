@@ -98,49 +98,139 @@ export function intervalNotes<T extends SortableEvent & { title: string }>(sorte
   });
 }
 
-// ───────────── итоги приёмки ─────────────
+// ───────────── итоги приёмки (по строкам отгрузки) ─────────────
 
-export type EventLineLike = { shipmentLineId: string; accepted: number | null; rejected: number | null; returned: number | null };
-export type LineAcceptance = { accepted: number; rejected: number; returned: number };
-
-/** Накопительная сумма по всем этапам, где поля заполнены (ожидаемые этапы не учитываются): по строке отгрузки. */
-export function acceptanceByLine(events: readonly { expected: boolean; lines: readonly EventLineLike[] }[]): Map<string, LineAcceptance> {
-  const out = new Map<string, LineAcceptance>();
-  for (const ev of events) {
-    if (ev.expected) continue;
-    for (const l of ev.lines) {
-      const cur = out.get(l.shipmentLineId) ?? { accepted: 0, rejected: 0, returned: 0 };
-      cur.accepted += l.accepted ?? 0;
-      cur.rejected += l.rejected ?? 0;
-      cur.returned += l.returned ?? 0;
-      out.set(l.shipmentLineId, cur);
-    }
-  }
-  return out;
-}
+/** Приёмка живёт на строке отгрузки: принято и возвращено поставщику (не принято); null — ещё не отмечено. */
+export type AcceptLine = { quantity: number; acceptedQty: number | null; returnedQty: number | null };
 
 export type ShipmentTotals = {
+  /** «К отгрузке»: сумма количеств по строкам. */
   inShipment: number;
   accepted: number;
-  rejected: number;
+  /** «Не принято»: возвращено поставщику. */
   returned: number;
-  /** Не принято и возвращено вместе. */
-  notAccepted: number;
-  /** Ещё не принято: в отгрузке минус принято (не меньше 0). */
+  /** Ещё ждёт приёмки: по каждой строке количество минус принято и возвращено (не меньше 0). */
   remaining: number;
+  /** Сколько строк отмечено (принято или возврат заполнены). */
+  filledLines: number;
 };
 
-export function shipmentTotals(lines: readonly { id: string; quantity: number }[], acc: Map<string, LineAcceptance>): ShipmentTotals {
-  let inShipment = 0, accepted = 0, rejected = 0, returned = 0, remaining = 0;
+export function shipmentTotals(lines: readonly AcceptLine[]): ShipmentTotals {
+  let inShipment = 0, accepted = 0, returned = 0, remaining = 0, filledLines = 0;
   for (const l of lines) {
-    const a = acc.get(l.id) ?? { accepted: 0, rejected: 0, returned: 0 };
+    const a = l.acceptedQty ?? 0, r = l.returnedQty ?? 0;
     inShipment += l.quantity;
-    accepted += a.accepted;
-    rejected += a.rejected;
-    returned += a.returned;
-    remaining += Math.max(0, l.quantity - a.accepted);
+    accepted += a;
+    returned += r;
+    remaining += Math.max(0, l.quantity - a - r);
+    if (l.acceptedQty != null || l.returnedQty != null) filledLines++;
   }
-  return { inShipment, accepted, rejected, returned, notAccepted: rejected + returned, remaining };
+  return { inShipment, accepted, returned, remaining, filledLines };
+}
+
+/** Проверка приёмки строки: целые ≥ 0 и принято + возврат не больше, чем в отгрузке; допускаем меньше («ещё не принято»). Текст ошибки или null. */
+export function acceptLineError(n: number, quantity: number, accepted: number | null, returned: number | null): string | null {
+  for (const v of [accepted, returned]) {
+    if (v != null && (!Number.isInteger(v) || v < 0)) return `Строка ${n}: количества — целые числа не меньше 0`;
+  }
+  const sum = (accepted ?? 0) + (returned ?? 0);
+  if (sum > quantity) return `Строка ${n}: принято + возврат (${sum}) больше, чем в отгрузке (${quantity})`;
+  return null;
+}
+
+/** Автосводка для этапа приёмки: «Принято 70 из 77, возврат 7». */
+export function acceptSummaryText(t: Pick<ShipmentTotals, "inShipment" | "accepted" | "returned">): string {
+  return `Принято ${t.accepted} из ${t.inShipment}, возврат ${t.returned}`;
+}
+
+// ───────────── «на ком» этап ─────────────
+
+export const SIDES = [
+  { value: "WELLMEKH", label: "Веллмех" },
+  { value: "CUM", label: "ЦУМ" },
+] as const;
+export const SIDE_LABEL: Record<string, string> = Object.fromEntries(SIDES.map((x) => [x.value, x.label]));
+export const isSide = (v: string) => SIDES.some((x) => x.value === v);
+
+// ───────────── этап приёмки и итог поставки ─────────────
+
+/** Ожидаемый этап приёмки: в названии «принят» / «приёмк» / «приемк» или место «Коптево» (регистр не важен). */
+export function isAcceptanceEvent(e: { expected: boolean; title: string; place: string | null }): boolean {
+  if (!e.expected) return false;
+  return /принят|приёмк|приемк/i.test(e.title) || /коптево/i.test(e.place ?? "");
+}
+
+/** Короткая дата и время для ленты: «09.10» и «19:07» (время неизвестно — null). */
+export function shortStamp(d: Date, timeKnown: boolean): { date: string; time: string | null; full: string } {
+  return { date: `${p2(d.getUTCDate())}.${p2(d.getUTCMonth() + 1)}`, time: timeKnown ? wallTimeHm(d) : null, full: fmtWall(d, timeKnown) };
+}
+
+const dayNum = (d: Date) => Math.round(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86_400_000);
+
+/** Плановая дата → фактическая: «в срок», «опережение на N дн.», «задержка на N дн.» (разница в календарных днях). */
+export function planVsFact(planned: Date, actual: Date): { days: number; text: string } {
+  const days = dayNum(actual) - dayNum(planned);
+  if (days === 0) return { days, text: "в срок" };
+  return { days, text: days < 0 ? `опережение на ${-days} дн.` : `задержка на ${days} дн.` };
+}
+
+export type SummaryEvent = { id: string; title: string; occurredAt: Date; timeKnown: boolean; createdAt: Date; expected: boolean };
+
+export type DeliverySummary = {
+  first: { title: string; stamp: string } | null;
+  accepted: { title: string; stamp: string };
+  /** «первая запись → приёмка», например «5 дн. 20 ч». */
+  firstToAccept: string | null;
+  plan: { planned: string; actual: string; text: string; days: number };
+  /** Ключевые интервалы между этапами цепочки: первый → документы → запись на приёмку → приёмка (что нашлось по названиям). */
+  chain: { from: string; to: string; text: string }[];
+};
+
+const DOC_RE = /документ|упд/i;
+const BOOK_RE = /записал|запис[ьи]/i;
+
+/**
+ * Сроки поставки. `events` — все этапы отгрузки; ожидаемые не учитываются. `acceptEventId` — этап приёмки.
+ * Цепочка собирается по названиям (документы / запись на приёмку), которых нет — пропускаются; если ни одного нет, просто «первый → приёмка».
+ */
+export function deliverySummary(args: { plannedDate: Date; acceptedAt: Date; acceptEventId: string | null; events: readonly SummaryEvent[] }): DeliverySummary {
+  const done = [...args.events].filter((e) => !e.expected).sort(compareEvents);
+  const acc = done.find((e) => e.id === args.acceptEventId) ?? done[done.length - 1] ?? null;
+  const before = done.filter((e) => e !== acc && (!acc || compareEvents(e, acc) < 0));
+  const first = before[0] ?? null;
+  const docs = before.find((e) => DOC_RE.test(e.title) && e !== first) ?? null;
+  const book = [...before].reverse().find((e) => BOOK_RE.test(e.title) && e !== first && e !== docs) ?? null;
+  const nodes = [first, docs, book, acc].filter((e): e is SummaryEvent => !!e).sort(compareEvents);
+  const stampOf = (e: SummaryEvent) => fmtWall(e.occurredAt, e.timeKnown);
+  const chain: DeliverySummary["chain"] = [];
+  for (let i = 1; i < nodes.length; i++) chain.push({ from: nodes[i - 1].title, to: nodes[i].title, text: formatInterval(nodes[i - 1], nodes[i]) });
+  const accAt = { occurredAt: args.acceptedAt, timeKnown: acc ? acc.timeKnown : true };
+  return {
+    first: first ? { title: first.title, stamp: stampOf(first) } : null,
+    accepted: { title: acc?.title ?? "Приёмка", stamp: fmtWall(args.acceptedAt, accAt.timeKnown) },
+    firstToAccept: first ? formatInterval(first, accAt) : null,
+    plan: { planned: ruDay(args.plannedDate), actual: ruDay(args.acceptedAt), ...planVsFact(args.plannedDate, args.acceptedAt) },
+    chain,
+  };
+}
+
+export type OrderGroupLine = { orderKey: string; label: string; article: string; quantity: number; acceptedQty: number | null; returnedQty: number | null; comment: string | null };
+export type OrderGroup = { key: string; label: string; article: string; quantity: number; accepted: number; returned: number; waiting: number; reasons: string[] };
+
+/** Таблица итога «по ТЗ и артикулам»: суммы по ТЗ (с артикулом) и причины возврата из комментариев строк с возвратом. */
+export function groupByOrder(lines: readonly OrderGroupLine[]): OrderGroup[] {
+  const out = new Map<string, OrderGroup>();
+  for (const l of lines) {
+    const g = out.get(l.orderKey) ?? { key: l.orderKey, label: l.label, article: l.article, quantity: 0, accepted: 0, returned: 0, waiting: 0, reasons: [] };
+    const a = l.acceptedQty ?? 0, r = l.returnedQty ?? 0;
+    g.quantity += l.quantity;
+    g.accepted += a;
+    g.returned += r;
+    g.waiting += Math.max(0, l.quantity - a - r);
+    if (r > 0 && l.comment && !g.reasons.includes(l.comment)) g.reasons.push(l.comment);
+    out.set(l.orderKey, g);
+  }
+  return [...out.values()];
 }
 
 /** Доля 0–1 (null, если делить не на что). */

@@ -1118,6 +1118,8 @@ enum ShipmentStatus {
   PLANNED
   SHIPPED
   CANCELLED
+  /// Приёмка подтверждена кнопкой «Принято» (Shipment.acceptedAt).
+  ACCEPTED
 }
 
 model Shipment {
@@ -1143,6 +1145,10 @@ model Shipment {
   lines          ShipmentLine[]
   /// Хронология: этапы отгрузки, которые заводят вручную (свободное название, дата-время, ответственный).
   events         ShipmentEvent[]
+  /// Приёмка подтверждена: когда (настенное время), кем (текстом) и каким этапом хронологии.
+  acceptedAt     DateTime?
+  acceptedBy     String?
+  acceptEventId  String?
 
   @@index([organizationId, status])
   @@index([plannedDate])
@@ -1161,7 +1167,12 @@ model ShipmentLine {
   /// Цвет и вид меха — копия на момент добавления из ТЗ (для показа и поиска, не источник правды).
   color             String?
   furKind           String?
+  /// Единый комментарий строки (причина возврата / замечание).
   comment           String?
+  /// Приёмка по строке: сколько принято и сколько возвращено поставщику (не принято); null — ещё не отмечено.
+  acceptedQty       Int?
+  returnedQty       Int?
+  /// Устарело: приёмка по этапам больше не используется ни в интерфейсе, ни в итогах (таблица остаётся в БД).
   eventLines        ShipmentEventLine[]
 
   @@index([shipmentId])
@@ -1181,10 +1192,14 @@ model ShipmentEvent {
   responsibleUser   User?          @relation("ShipmentEventResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
   /// Внешний ответственный текстом («Василий (Веллмех)»).
   responsibleName   String?
+  /// На ком этап: "WELLMEKH" (Веллмех) | "CUM" (ЦУМ); null — не указано.
+  side              String?
   place             String?
   details           String?
   /// Ссылки на документы этапа (по одной в строке).
   docLinks          String?
+  /// Загруженные файлы этапа (DriveDocument.shipmentEventId).
+  documents         DriveDocument[]
   /// Ожидаемый этап: запланирован, ещё не произошёл.
   expected          Boolean        @default(false)
   createdById       String
@@ -1412,6 +1427,8 @@ model DriveDocument {
   client              Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
   supplierId          String?
   supplier            Supplier?          @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  shipmentEventId     String?
+  shipmentEvent       ShipmentEvent?     @relation(fields: [shipmentEventId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, driveFileId])
   @@index([purchaseId])
@@ -1422,6 +1439,7 @@ model DriveDocument {
   @@index([productionPaymentId])
   @@index([clientId])
   @@index([supplierId])
+  @@index([shipmentEventId])
 }
 
 /// Журнал изменений (аудит): кто, когда и что изменил. Пишется автоматически расширением клиента (src/lib/prisma.ts)

@@ -16,7 +16,7 @@ import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { dateRange, defineFilters, parseFilters, pick, yearOptionsFrom, yearRanges, type FilterOption } from "@/lib/filters";
-import { acceptanceByLine, compareEvents, fmtWall, shareOf, shipmentTotals } from "@/lib/shipment-calc";
+import { compareEvents, fmtWall, shareOf, shipmentTotals } from "@/lib/shipment-calc";
 import { nextShipmentName } from "@/lib/shipment-data";
 import { CreateShipmentButton } from "./create-shipment";
 
@@ -79,12 +79,11 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
       include: {
         supplier: { select: { name: true } },
         batch: { select: { number: true } },
-        lines: { select: { id: true, quantity: true } },
+        lines: { select: { id: true, quantity: true, acceptedQty: true, returnedQty: true } },
         events: {
           select: {
             id: true, title: true, occurredAt: true, timeKnown: true, expected: true, createdAt: true, responsibleName: true,
             responsibleUser: { select: { name: true } },
-            lines: { select: { shipmentLineId: true, accepted: true, rejected: true, returned: true } },
           },
         },
       },
@@ -98,15 +97,14 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   ]);
 
   const rows = shipments.map((s) => {
-    const acc = acceptanceByLine(s.events);
-    const t = shipmentTotals(s.lines, acc);
+    const t = shipmentTotals(s.lines);
     const done = s.events.filter((e) => !e.expected).sort(compareEvents);
     const last = done.length ? done[done.length - 1] : null;
     const next = s.events.filter((e) => e.expected).sort(compareEvents)[0] ?? null;
     return { s, t, last, next };
   });
   const sum = rows.reduce(
-    (a, r) => ({ inS: a.inS + r.t.inShipment, acc: a.acc + r.t.accepted, ret: a.ret + r.t.notAccepted, rem: a.rem + r.t.remaining }),
+    (a, r) => ({ inS: a.inS + r.t.inShipment, acc: a.acc + r.t.accepted, ret: a.ret + r.t.returned, rem: a.rem + r.t.remaining }),
     { inS: 0, acc: 0, ret: 0, rem: 0 },
   );
   const hasFilters = Boolean(f.year.length || f.q || f.from || f.to || f.model.length || f.supplier.length || f.batch.length || f.stage.length);
@@ -128,7 +126,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   const lastText = (r: Row) => (r.last ? [`${r.last.title} · ${fmtWall(r.last.occurredAt, r.last.timeKnown)}`, respOf(r.last)].filter(Boolean).join(" · ") : "");
   const share = (part: number, whole: number, what: string) => {
     const s = shareOf(part, whole);
-    return s == null ? undefined : `${formatShare(s)} ${what}`;
+    return s == null ? undefined : `${formatShare(s)} ${what}`.trim();
   };
 
   const createButton = canEdit ? (
@@ -146,7 +144,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
           <InfoHint label="Об отгрузках" wide>
             <p>Отгрузка — карточка, в которой мы ведём путь партии изделий от поставщика до приёмки: состав из позиций ТЗ и этапы по порядку, у каждого — дата, время и ответственный.</p>
             <p className="mt-1">Склад отгрузка не списывает. Год ({year === "all" ? "все годы" : year}): по плановой дате отгрузки.</p>
-            <p className="mt-1">«Принято» и «возвращено» считаются по всем этапам приёмки, где они отмечены по строкам.</p>
+            <p className="mt-1">«Принято» и «Не принято» (возврат) вносятся в составе отгрузки по каждой строке; приёмка в Коптево подтверждается в карточке кнопкой «ПРИНЯТО».</p>
           </InfoHint>
         </div>
         {createButton}
@@ -181,14 +179,14 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
             id="shipments"
             title="Отгрузки — итоги"
             tiles={[
-              { key: "in", label: "В отгрузках, шт.", value: sum.inS ? formatQty(sum.inS) : <Dash />, caption: `${formatQty(rows.length)} ${plural(rows.length, "отгрузка", "отгрузки", "отгрузок")}${hasFilters ? " · по фильтрам" : ""}` },
-              { key: "acc", label: "Принято, шт.", value: sum.acc ? formatQty(sum.acc) : <Dash />, caption: share(sum.acc, sum.inS, "от изделий в отгрузках"), hint: <p>Сумма «принято» по всем этапам приёмки, где она отмечена по строкам.</p> },
+              { key: "in", label: "К отгрузке, шт.", value: sum.inS ? formatQty(sum.inS) : <Dash />, caption: `${formatQty(rows.length)} ${plural(rows.length, "отгрузка", "отгрузки", "отгрузок")}${hasFilters ? " · по фильтрам" : ""}` },
+              { key: "acc", label: "Принято, шт.", value: sum.acc ? formatQty(sum.acc) : <Dash />, caption: share(sum.acc, sum.inS, "от «К отгрузке»"), hint: <p>Сумма колонки «Принято» в составе отгрузок.</p> },
               {
-                key: "rem",
-                label: "Осталось принять / возвращено, шт.",
-                value: sum.inS ? formatQty(sum.rem) : <Dash />,
-                caption: sum.inS ? [share(sum.rem, sum.inS, "осталось"), `возвращено/не принято ${formatQty(sum.ret)}`].filter(Boolean).join(" · ") : undefined,
-                hint: <p>Осталось принять = в отгрузках минус принято. Возвращено / не принято — отмечено на этапах приёмки; эти изделия принимаются заново отдельным этапом.</p>,
+                key: "ret",
+                label: "Не принято, шт.",
+                value: sum.inS ? formatQty(sum.ret) : <Dash />,
+                caption: sum.inS ? [share(sum.ret, sum.inS, ""), `ещё ждёт приёмки: ${formatQty(sum.rem)} шт.`].filter(Boolean).join(" · ") : undefined,
+                hint: <p>Сумма колонки «Возврат» (возвращено поставщику / не принято). «Ещё ждёт приёмки» — в отгрузке минус принято и минус возврат по каждой строке.</p>,
               },
             ]}
           />
@@ -202,7 +200,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
                     <Th>Поставщик</Th>
                     <Th>Партия</Th>
                     <Th>Плановая дата</Th>
-                    <Th className="text-right" unit="шт.">Изделий: в отгрузке · принято · возвращено</Th>
+                    <Th className="text-right" unit="шт.">К отгрузке · принято · не принято</Th>
                     <Th>Последний этап</Th>
                     <Th className="text-right">Этапов</Th>
                   </Tr>
@@ -219,7 +217,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
                       <Td className="whitespace-nowrap">{r.s.batch ? `Партия ${r.s.batch.number}` : <Dash />}</Td>
                       <Td className="whitespace-nowrap">{formatDate(r.s.plannedDate)}</Td>
                       <Td className="whitespace-nowrap text-right tabular-nums">
-                        {formatQty(r.t.inShipment)} · {formatQty(r.t.accepted)} · {formatQty(r.t.notAccepted)}
+                        {formatQty(r.t.inShipment)} · {formatQty(r.t.accepted)} · {formatQty(r.t.returned)}
                       </Td>
                       <Td>
                         {r.last ? (
@@ -265,8 +263,8 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
                 fields={[
                   { label: "Плановая дата", value: formatDate(r.s.plannedDate) },
                   { label: "Этапов", value: r.s.events.length || "—" },
-                  { label: "В отгрузке, шт.", value: formatQty(r.t.inShipment), strong: true },
-                  { label: "Принято / возвращено", value: `${formatQty(r.t.accepted)} / ${formatQty(r.t.notAccepted)}` },
+                  { label: "К отгрузке, шт.", value: formatQty(r.t.inShipment), strong: true },
+                  { label: "Принято / не принято", value: `${formatQty(r.t.accepted)} / ${formatQty(r.t.returned)}` },
                 ]}
                 details={[{ label: "Последний этап", value: lastText(r) }]}
               />

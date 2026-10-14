@@ -3,32 +3,34 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { ProductionTabs } from "@/components/production-tabs";
 import { ArticleName } from "@/components/article-name";
-import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
-import { Dash } from "@/components/tree-table";
-import { TotalLabel } from "@/components/total-label";
-import { InfoHint } from "@/components/info-hint";
 import { Badge } from "@/components/ui/badge";
 import { SummaryTiles } from "../../production/summary-tiles";
 import { formatDate, formatQty, formatShare } from "@/lib/utils";
 import { orderLabel, orderHint } from "@/lib/order-label";
 import { loadTzPositions } from "@/lib/order-label-db";
 import { ORDER_COLORS_INCLUDE } from "@/lib/order-colors";
-import { orderSortKey } from "@/lib/shipments";
+import { orderSortKey, SHIPMENT_STATUS } from "@/lib/shipments";
 import {
-  acceptanceByLine, candidateRows, compareEvents, fmtWall, intervalNotes, lineKey, parseDocLinks, shareOf, shipmentTotals, wallDateIso, wallTimeHm,
+  candidateRows, compareEvents, deliverySummary, fmtWall, groupByOrder, intervalNotes, isAcceptanceEvent, lineKey, parseDocLinks, shareOf, shipmentTotals, shortStamp,
+  SIDE_LABEL, wallDateIso, wallTimeHm,
 } from "@/lib/shipment-calc";
 import { HeaderDelete, HeaderEdit } from "./header-ui";
-import { AddLinesButton, LineDelete, LineEdit } from "./lines-ui";
-import { EventActions, NewEventButton, type EventValues, type LineBrief } from "./event-ui";
+import { AddLinesButton, LinesTable, type LineRow } from "./lines-ui";
+import { AcceptPanel, ClampText, DocRemove, EventActions, NewEventButton, SummaryShell, type EventValues } from "./event-ui";
 
 export const metadata = { title: "Отгрузка" };
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
 
 const stamp = (d: Date) =>
   d.toLocaleString("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+const Clip = () => (
+  <svg aria-hidden viewBox="0 0 16 16" className="inline h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.5 4.5 5.8 9.2a1.6 1.6 0 0 0 2.3 2.3l4.4-4.4a3 3 0 0 0-4.2-4.2L3.8 7.3a4.4 4.4 0 0 0 6.2 6.2l3-3" />
+  </svg>
+);
 
 export default async function ShipmentPage({ params }: PageProps<"/shipments/[id]">) {
   const { id } = await params;
@@ -52,20 +54,22 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           },
         },
       },
-      events: { include: { lines: true } },
+      events: { include: { documents: { select: { id: true, title: true, storagePath: true } } } },
     },
   });
   if (!s) notFound();
 
-  const [users, titleGroups, batchChoices, suppliers] = await Promise.all([
+  const [users, titleGroups, nameGroups, batchChoices, suppliers] = await Promise.all([
     prisma.user.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, isActive: true }, orderBy: { name: "asc" } }),
     prisma.shipmentEvent.groupBy({ by: ["title"], where: { shipment: { organizationId: orgId } }, _count: { _all: true }, orderBy: { _count: { title: "desc" } }, take: 60 }),
+    prisma.shipmentEvent.groupBy({ by: ["responsibleName"], where: { shipment: { organizationId: orgId }, responsibleName: { not: null } }, _count: { _all: true }, orderBy: { _count: { responsibleName: "desc" } }, take: 60 }),
     canEdit ? prisma.productionBatch.findMany({ where: { organizationId: orgId }, select: { id: true, number: true, name: true, year: true }, orderBy: { number: "desc" } }) : Promise.resolve([]),
     canEdit ? prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
   const userName = new Map(users.map((u) => [u.id, u.name]));
-  const pickable = users.filter((u) => u.isActive || s.events.some((e) => e.responsibleUserId === u.id)).map((u) => ({ id: u.id, name: u.name }));
   const titles = titleGroups.map((g) => g.title);
+  // Подсказки для «Ответственный»: сотрудники приложения и ранее вписанные имена.
+  const names = [...new Set([...users.filter((u) => u.isActive).map((u) => u.name), ...nameGroups.map((g) => g.responsibleName).filter((x): x is string => !!x)])];
 
   const pos = await loadTzPositions(orgId, s.lines.map((l) => l.productionOrder));
   const labelOf = (l: (typeof s.lines)[number]) => orderLabel({ workOrderNumber: l.productionOrder.workOrderNumber, number: l.productionOrder.number, ...pos.get(l.productionOrder.id) });
@@ -83,54 +87,78 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
       (a.color ?? "").localeCompare(b.color ?? "", "ru") ||
       (a.size ?? "").localeCompare(b.size ?? "", "ru", { numeric: true }),
   );
-  const acc = acceptanceByLine(s.events);
-  const totals = shipmentTotals(s.lines, acc);
-  const touched = new Set(s.events.flatMap((e) => e.lines.filter((l) => l.accepted != null || l.rejected != null || l.returned != null).map((l) => l.shipmentLineId)));
+  // Итоги — только по строкам отгрузки (принято / возврат), этапы в них не участвуют.
+  const totals = shipmentTotals(lines);
   const lineText = (l: (typeof lines)[number]) => [labelOf(l), l.productionOrder.productModel.name, l.color, l.size ? `р. ${l.size}` : ""].filter(Boolean).join(" · ");
-  const briefs: LineBrief[] = lines.map((l) => ({ id: l.id, label: lineText(l), quantity: l.quantity }));
-  const lineById = new Map(lines.map((l) => [l.id, l]));
+
+  const lineRows: LineRow[] = lines.map((l, i) => ({
+    id: l.id,
+    n: i + 1,
+    order: <Link href={`/production/${l.productionOrder.id}`} title={orderHint(l.productionOrder)} className="font-medium hover:underline">{labelOf(l)}</Link>,
+    article: <Link href={`/models/${l.productionOrder.productModel.id}`} className="hover:underline"><ArticleName model={l.productionOrder.productModel} /></Link>,
+    color: l.color,
+    size: l.size,
+    furKind: l.furKind,
+    inTz: qtyTz.get(lineKey(l.productionOrderId, l.color, l.size)) ?? null,
+    quantity: l.quantity,
+    accepted: l.acceptedQty,
+    returned: l.returnedQty,
+    comment: l.comment ?? "",
+    label: lineText(l),
+    blockedReason: (l.acceptedQty ?? 0) > 0 || (l.returnedQty ?? 0) > 0 ? "Нельзя удалить: по строке есть приёмка" : null,
+    title: labelOf(l),
+    href: `/production/${l.productionOrder.id}`,
+    subtitle: [l.productionOrder.productModel.name, l.color, l.size ? `р. ${l.size}` : "", l.furKind].filter(Boolean).join(" · "),
+  }));
 
   const sorted = [...s.events].sort(compareEvents);
   const notes = intervalNotes(sorted);
-  const respText = (e: (typeof sorted)[number]) => (e.responsibleUserId ? userName.get(e.responsibleUserId) : e.responsibleName) ?? "";
+  const respText = (e: (typeof sorted)[number]) => (e.responsibleUserId ? userName.get(e.responsibleUserId) : null) ?? e.responsibleName ?? "";
 
   const values = (e: (typeof sorted)[number]): EventValues => ({
     id: e.id,
     title: e.title,
     date: wallDateIso(e.occurredAt),
     time: e.timeKnown ? wallTimeHm(e.occurredAt) : "",
-    responsible: e.responsibleUserId ?? (e.responsibleName ? "__other" : ""),
-    responsibleName: e.responsibleName ?? "",
+    side: e.side ?? "",
+    responsible: respText(e),
     place: e.place ?? "",
     details: e.details ?? "",
     docLinks: e.docLinks ?? "",
     expected: e.expected,
-    mode: e.lines.length ? "lines" : "all",
-    lines: Object.fromEntries(
-      e.lines.map((l) => [l.shipmentLineId, { qty: l.qty?.toString() ?? "", accepted: l.accepted?.toString() ?? "", rejected: l.rejected?.toString() ?? "", returned: l.returned?.toString() ?? "", comment: l.comment ?? "" }]),
-    ),
     version: e.updatedAt.toISOString(),
   });
 
   const name = s.name ?? `Отгрузка на ${formatDate(s.plannedDate)}`;
   const batchText = s.batch ? `Партия ${s.batch.number}${s.batch.year ? ` · ${s.batch.year}` : ""}${s.batch.name ? ` · ${s.batch.name}` : ""}` : "";
-  const sharePct = (part: number, whole: number) => {
-    const v = shareOf(part, whole);
+  const sharePct = (part: number) => {
+    const v = shareOf(part, totals.inShipment);
     return v == null ? undefined : formatShare(v);
   };
-  const accShare = sharePct(totals.accepted, totals.inShipment);
-  const notShare = sharePct(totals.notAccepted, totals.inShipment);
-  const remShare = sharePct(totals.remaining, totals.inShipment);
+
+  // Приёмка: ожидаемый этап приёмки (по названию / месту), панель с кнопкой «ПРИНЯТО» и итог поставки.
+  const acceptEvent = s.acceptedAt ? null : sorted.find((e) => isAcceptanceEvent(e)) ?? null;
+  const acceptRows = lineRows.map((r) => ({ label: r.label, quantity: r.quantity, accepted: r.accepted, returned: r.returned, comment: r.comment }));
+  const summary = s.acceptedAt
+    ? deliverySummary({ plannedDate: s.plannedDate, acceptedAt: s.acceptedAt, acceptEventId: s.acceptEventId, events: s.events })
+    : null;
+  const groups = summary ? groupByOrder(lines.map((l) => ({ orderKey: l.productionOrderId, label: labelOf(l), article: l.productionOrder.productModel.name, quantity: l.quantity, acceptedQty: l.acceptedQty, returnedQty: l.returnedQty, comment: l.comment }))) : [];
+  const returnLines = lines.filter((l) => (l.returnedQty ?? 0) > 0);
+  const accEv = s.acceptEventId ? s.events.find((e) => e.id === s.acceptEventId) : null;
+  const status = SHIPMENT_STATUS[s.status];
 
   return (
     <div className="flex flex-col gap-5">
       <Breadcrumbs items={[{ label: "Отгрузки", href: "/shipments" }, { label: name }]} />
       <ProductionTabs active="shipments" />
 
-      {/* а) шапка и итоги */}
+      {/* а) шапка */}
       <section className="flex flex-col gap-3" aria-label="Шапка отгрузки">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <h1 className="text-xl font-semibold">{name}</h1>
+          <h1 className="flex flex-wrap items-center gap-2 text-xl font-semibold">
+            {name}
+            {s.status === "ACCEPTED" && status ? <Badge variant={status.variant}>{status.label}</Badge> : null}
+          </h1>
           {canEdit && (
             <div className="flex flex-wrap items-start gap-2">
               <HeaderEdit
@@ -152,122 +180,33 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           <dt className="text-neutral-500">Примечание</dt>
           <dd className="whitespace-pre-wrap">{s.notes ?? "—"}</dd>
         </dl>
-        <SummaryTiles
-          id="shipment"
-          title="Отгрузка — итоги"
-          tiles={[
-            { key: "in", label: "В отгрузке, шт.", value: formatQty(totals.inShipment), caption: `${formatQty(lines.length)} ${lines.length === 1 ? "строка" : "строк"}` },
-            { key: "acc", label: "Принято, шт.", value: formatQty(totals.accepted), caption: accShare ? `${accShare} · по всем этапам приёмки` : "по всем этапам приёмки", hint: <p>Сумма «принято» по всем этапам, где она отмечена по строкам (накопительно). Повторная приёмка тех же изделий суммируется.</p> },
-            { key: "ret", label: "Возвращено на переделку / не принято, шт.", value: formatQty(totals.notAccepted), caption: [`возвращено ${formatQty(totals.returned)}`, `не принято ${formatQty(totals.rejected)}`, notShare].filter(Boolean).join(" · ") },
-            { key: "rem", label: "Ещё не принято, шт.", value: formatQty(totals.remaining), caption: remShare ? `${remShare} от отгрузки` : undefined, hint: <p>В отгрузке минус принято — по каждой строке отдельно, не меньше нуля.</p> },
-          ]}
-        />
       </section>
 
-      {/* б) состав */}
-      <section className="flex flex-col gap-2" aria-label="Состав отгрузки">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="block-title">
-            Состав отгрузки
-            <InfoHint label="О составе отгрузки"><p>Строки берутся из позиций загруженных ТЗ: цвет, размер и вид меха — копия на момент добавления. «В ТЗ» — сколько штук по этой строке записано в самом ТЗ.</p></InfoHint>
-          </h2>
-          {canEdit && <AddLinesButton shipmentId={s.id} />}
-        </div>
-        <ResponsiveRows
-          table={
-            <Table className="min-w-[960px]">
-              <Thead>
-                <Tr>
-                  <Th>ТЗ · поз.</Th>
-                  <Th>Артикул</Th>
-                  <Th>Цвет</Th>
-                  <Th>Размер</Th>
-                  <Th>Вид меха</Th>
-                  <Th className="text-right" unit="шт.">В ТЗ</Th>
-                  <Th className="text-right" unit="шт.">В этой отгрузке</Th>
-                  <Th className="text-right">Принято / не принято / возвращено</Th>
-                  <Th>Комментарий</Th>
-                  {canEdit && <Th><span className="sr-only">Действия</span></Th>}
-                </Tr>
-              </Thead>
-              <Tbody>
-                {lines.map((l) => {
-                  const a = acc.get(l.id);
-                  const inTz = qtyTz.get(lineKey(l.productionOrderId, l.color, l.size));
-                  return (
-                    <Tr key={l.id}>
-                      <Td className="whitespace-nowrap">
-                        <Link href={`/production/${l.productionOrder.id}`} title={orderHint(l.productionOrder)} className="font-medium hover:underline">{labelOf(l)}</Link>
-                      </Td>
-                      <Td><Link href={`/models/${l.productionOrder.productModel.id}`} className="hover:underline"><ArticleName model={l.productionOrder.productModel} /></Link></Td>
-                      <Td>{l.color ?? <Dash />}</Td>
-                      <Td>{l.size ?? <Dash />}</Td>
-                      <Td>{l.furKind ?? <Dash />}</Td>
-                      <Td className="text-right tabular-nums">{inTz != null ? formatQty(inTz) : <Dash />}</Td>
-                      <Td className="text-right font-medium tabular-nums">{formatQty(l.quantity)}</Td>
-                      <Td className="whitespace-nowrap text-right tabular-nums">
-                        {a ? <>{formatQty(a.accepted)} / {formatQty(a.rejected)} / {formatQty(a.returned)}</> : <Dash />}
-                      </Td>
-                      <Td className="max-w-56 text-xs text-neutral-600">{l.comment ?? ""}</Td>
-                      {canEdit && (
-                        <Td className="whitespace-nowrap">
-                          <div className="flex items-center gap-1">
-                            <LineEdit v={{ id: l.id, label: lineText(l), quantity: l.quantity, size: l.size ?? "", comment: l.comment ?? "" }} />
-                            <LineDelete id={l.id} label={lineText(l)} blockedReason={touched.has(l.id) ? "Нельзя удалить: по строке есть приёмка" : null} />
-                          </div>
-                          {touched.has(l.id) && <div className="text-[11px] text-neutral-500">есть приёмка — удалить нельзя</div>}
-                        </Td>
-                      )}
-                    </Tr>
-                  );
-                })}
-                {lines.length > 0 && (
-                  <Tr className="row-total">
-                    <Td colSpan={6} className="text-right"><TotalLabel unit="шт." /></Td>
-                    <Td className="text-right tabular-nums">{formatQty(totals.inShipment)}</Td>
-                    <Td className="whitespace-nowrap text-right tabular-nums">{formatQty(totals.accepted)} / {formatQty(totals.rejected)} / {formatQty(totals.returned)}</Td>
-                    <Td colSpan={canEdit ? 2 : 1} />
-                  </Tr>
-                )}
-                {lines.length === 0 && (
-                  <Tr>
-                    <Td colSpan={canEdit ? 10 : 9} className="py-8 text-center text-neutral-500">Состав пока пуст{canEdit ? " — добавьте позиции кнопкой «+ Добавить из ТЗ»" : ""}</Td>
-                  </Tr>
-                )}
-              </Tbody>
-            </Table>
-          }
-        >
-          {lines.map((l) => {
-            const a = acc.get(l.id);
-            const inTz = qtyTz.get(lineKey(l.productionOrderId, l.color, l.size));
-            return (
-              <RowCard
-                key={l.id}
-                title={labelOf(l)}
-                href={`/production/${l.productionOrder.id}`}
-                subtitle={[l.productionOrder.productModel.name, l.color, l.size ? `р. ${l.size}` : "", l.furKind].filter(Boolean).join(" · ")}
-                fields={[
-                  { label: "В этой отгрузке, шт.", value: formatQty(l.quantity), strong: true },
-                  { label: "В ТЗ, шт.", value: inTz != null ? formatQty(inTz) : "—" },
-                  { label: "Принято / не принято / возвращено", value: a ? `${a.accepted} / ${a.rejected} / ${a.returned}` : "—" },
-                  { label: "Комментарий", value: l.comment ?? "—" },
-                ]}
-                extra={
-                  canEdit ? (
-                    <div className="flex items-center gap-1">
-                      <LineEdit v={{ id: l.id, label: lineText(l), quantity: l.quantity, size: l.size ?? "", comment: l.comment ?? "" }} />
-                      <LineDelete id={l.id} label={lineText(l)} blockedReason={touched.has(l.id) ? "Нельзя удалить: по строке есть приёмка" : null} />
-                      {touched.has(l.id) && <span className="text-[11px] text-neutral-500">есть приёмка</span>}
-                    </div>
-                  ) : undefined
-                }
-              />
-            );
-          })}
-          {lines.length === 0 && <p className="py-6 text-center text-sm text-neutral-500">Состав пока пуст</p>}
-        </ResponsiveRows>
-      </section>
+      {/* б) виджеты и состав — один сворачиваемый контейнер: «Свернуть» прячет и плитки, и таблицу состава */}
+      <SummaryTiles
+        id="shipment"
+        title="Отгрузка — итоги"
+        tiles={[
+          { key: "in", label: "К отгрузке, шт.", value: formatQty(totals.inShipment), caption: `${formatQty(lines.length)} ${lines.length === 1 ? "строка" : "строк"}` },
+          { key: "acc", label: "Принято, шт.", value: formatQty(totals.accepted), caption: sharePct(totals.accepted) ? `${sharePct(totals.accepted)} от «К отгрузке»` : undefined, hint: <p>Сумма колонки «Принято» в составе отгрузки (сохранённые значения).</p> },
+          {
+            key: "ret",
+            label: "Не принято, шт.",
+            value: formatQty(totals.returned),
+            caption: [sharePct(totals.returned), `ещё ждёт приёмки: ${formatQty(totals.remaining)} шт.`].filter(Boolean).join(" · "),
+            hint: <p>Сумма колонки «Возврат»: возвращено поставщику / не принято. «Ещё ждёт приёмки» — по каждой строке: в отгрузке минус принято и минус возврат, не меньше нуля.</p>,
+          },
+        ]}
+        collapseWith={
+          <LinesTable
+            shipmentId={s.id}
+            rows={lineRows}
+            canEdit={canEdit}
+            addButton={<AddLinesButton shipmentId={s.id} />}
+            hint={<p>Строки берутся из позиций загруженных ТЗ: цвет, размер и вид меха — копия на момент добавления. «Принято» и «Возврат» вносятся прямо в таблице и сохраняются кнопкой «Сохранить»; «Возврат» — возвращено поставщику / не принято, причина — в «Комментарии».</p>}
+          />
+        }
+      />
 
       {/* в) хронология */}
       <section className="flex flex-col gap-2" aria-label="Хронология">
@@ -275,92 +214,159 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           <h2 className="block-title">
             Хронология <span className="font-normal text-neutral-500">({sorted.length})</span>
           </h2>
-          {canEdit && <NewEventButton shipmentId={s.id} lines={briefs} users={pickable} titles={titles} />}
+          {canEdit && <NewEventButton shipmentId={s.id} titles={titles} names={names} />}
         </div>
         {sorted.length === 0 ? (
           <p className="rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-8 text-center text-sm text-neutral-500">
-            Этапов пока нет{canEdit ? " — добавьте первый кнопкой «+ Этап»: что произошло, когда и кто отвечает" : ""}.
+            Этапов пока нет{canEdit ? " — добавьте первый кнопкой «+ Этап»: что произошло, когда и на ком" : ""}.
           </p>
         ) : (
-          <ol className="flex flex-col">
+          <ol className="flex flex-col rounded-lg border border-neutral-200 bg-white px-3 py-1">
             {sorted.map((e, i) => {
               const note = notes[i];
+              const st = shortStamp(e.occurredAt, e.timeKnown);
               const docs = parseDocLinks(e.docLinks);
               const resp = respText(e);
+              const meta = [e.side ? `на ком: ${SIDE_LABEL[e.side] ?? e.side}` : "", resp ? `ответственный: ${resp}` : "", e.place ? `место: ${e.place}` : ""].filter(Boolean).join(" · ");
+              const author = userName.get(e.createdById) ?? (e.createdById.startsWith("script:") ? "скрипт (пример)" : "—");
+              const trail = `внёс: ${author}, ${stamp(e.createdAt)}${e.updatedById && e.updatedAt.getTime() - e.createdAt.getTime() > 1000 ? ` · изменил: ${userName.get(e.updatedById) ?? "—"}, ${stamp(e.updatedAt)}` : ""}`;
               return (
                 <li key={e.id} data-event={e.id}>
                   {note && (
-                    <div className="ml-4 border-l-2 border-neutral-200 py-1.5 pl-3 text-xs text-neutral-400" data-interval>
+                    <div className="py-0.5 pl-[4.75rem] text-[11px] text-neutral-400" data-interval>
                       {note.text}
-                      {note.exact && note.fromTitle ? ` · от этапа «${note.fromTitle}»: ${note.exact}` : ""}
+                      {note.exact && note.fromTitle ? ` · от «${note.fromTitle}»: ${note.exact}` : ""}
                     </div>
                   )}
-                  <article className={"rounded-lg border p-3 text-sm " + (e.expected ? "border-dashed border-neutral-300 bg-neutral-50 text-neutral-500" : "border-neutral-200 bg-white")}>
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <h3 className={"break-words font-semibold " + (e.expected ? "text-neutral-600" : "text-neutral-900")}>
-                          {e.title} {e.expected && <Badge variant="default">ожидается</Badge>}
-                        </h3>
-                        <p className="mt-0.5 text-xs text-neutral-600">
-                          <span className="tabular-nums">{fmtWall(e.occurredAt, e.timeKnown)}</span>
-                          {!e.timeKnown && <span className="text-neutral-400"> · время не указано</span>}
-                          {resp && <> · ответственный: <span className="font-medium">{resp}</span></>}
-                          {e.place && <> · {e.place}</>}
-                        </p>
-                      </div>
-                      {canEdit && <EventActions v={values(e)} lines={briefs} users={pickable} titles={titles} />}
+                  <div className={"flex flex-wrap gap-x-3 gap-y-1 py-2 " + (e.expected ? "text-neutral-400" : "")}>
+                    <div className="w-16 shrink-0 text-right tabular-nums" title={st.full}>
+                      <div className={"text-sm font-medium " + (e.expected ? "text-neutral-400" : "text-neutral-900")}>{st.date}</div>
+                      <div className="text-xs">{st.time ?? <span className="text-[10px] text-neutral-400">время не указано</span>}</div>
                     </div>
-                    {e.details && <p className="mt-2 whitespace-pre-wrap">{e.details}</p>}
-                    {e.lines.length > 0 && (
-                      <div className="mt-2 overflow-x-auto rounded-md border border-neutral-200 bg-white text-neutral-800">
-                        <table className="w-full min-w-[520px] text-xs">
-                          <thead className="bg-neutral-50 text-left text-neutral-500">
-                            <tr>
-                              <th className="px-2 py-1.5">Строка</th>
-                              <th className="px-2 py-1.5 text-right">По сколько шт.</th>
-                              <th className="px-2 py-1.5 text-right">Принято</th>
-                              <th className="px-2 py-1.5 text-right">Не принято</th>
-                              <th className="px-2 py-1.5 text-right">Возвращено</th>
-                              <th className="px-2 py-1.5">Комментарий</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-neutral-100">
-                            {e.lines.map((el) => {
-                              const l = lineById.get(el.shipmentLineId);
-                              return (
-                                <tr key={el.id}>
-                                  <td className="px-2 py-1.5">{l ? lineText(l) : "—"}</td>
-                                  <td className="px-2 py-1.5 text-right tabular-nums">{el.qty ?? "—"}</td>
-                                  <td className="px-2 py-1.5 text-right tabular-nums">{el.accepted ?? "—"}</td>
-                                  <td className="px-2 py-1.5 text-right tabular-nums">{el.rejected ?? "—"}</td>
-                                  <td className="px-2 py-1.5 text-right tabular-nums">{el.returned ?? "—"}</td>
-                                  <td className="px-2 py-1.5">{el.comment ?? ""}</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                    {docs.length > 0 && (
-                      <ul className="mt-2 flex flex-col gap-0.5 text-xs">
-                        {docs.map((d, k) => (
-                          <li key={k}>
-                            Документ:{" "}
-                            {d.href ? <a href={d.href} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline">{d.text}</a> : d.text}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <p className="mt-2 text-[11px] text-neutral-400">
-                      внёс: {userName.get(e.createdById) ?? (e.createdById.startsWith("script:") ? "скрипт (пример)" : "—")}, {stamp(e.createdAt)}
-                      {e.updatedById && e.updatedAt.getTime() - e.createdAt.getTime() > 1000 ? ` · изменил: ${userName.get(e.updatedById) ?? "—"}, ${stamp(e.updatedAt)}` : ""}
-                    </p>
-                  </article>
+                    <div className="min-w-[12rem] flex-1 border-l border-neutral-200 pl-3">
+                      <h3 className={"break-words text-sm font-semibold " + (e.expected ? "text-neutral-500" : "text-neutral-900")}>
+                        {e.title}
+                        {e.expected && <span className="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-normal text-neutral-500">ожидается</span>}
+                        <span className="ml-1.5 cursor-help rounded-full border border-neutral-300 px-1 text-[10px] font-normal text-neutral-400" title={trail} aria-label={trail} tabIndex={0}>i</span>
+                      </h3>
+                      {meta && <p className="text-xs text-neutral-600">{meta}</p>}
+                      {e.details && <ClampText text={e.details} />}
+                      {(e.documents.length > 0 || docs.length > 0) && (
+                        <ul className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                          {e.documents.map((d) => (
+                            <li key={d.id} className="flex items-center">
+                              <Clip />
+                              <a href={`/api/drive-docs/${d.id}`} target="_blank" rel="noopener noreferrer" className="ml-1 max-w-[16rem] truncate text-blue-700 hover:underline" title={d.title}>{d.title}</a>
+                              {canEdit && <DocRemove id={d.id} title={d.title} />}
+                            </li>
+                          ))}
+                          {docs.map((d, k) => (
+                            <li key={k} className="flex items-center">
+                              <Clip />
+                              {d.href ? <a href={d.href} target="_blank" rel="noopener noreferrer" className="ml-1 max-w-[16rem] truncate text-blue-700 hover:underline">{d.text}</a> : <span className="ml-1">{d.text}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    {canEdit && <EventActions v={values(e)} titles={titles} names={names} canDone={!isAcceptanceEvent(e)} />}
+                  </div>
                 </li>
               );
             })}
           </ol>
+        )}
+
+        {!s.acceptedAt && (
+          <AcceptPanel
+            shipmentId={s.id}
+            event={acceptEvent ? { id: acceptEvent.id, stamp: fmtWall(acceptEvent.occurredAt, acceptEvent.timeKnown) } : null}
+            rows={acceptRows}
+            totals={totals}
+            canEdit={canEdit}
+            names={names}
+          />
+        )}
+
+        {s.acceptedAt && summary && (
+          <SummaryShell
+            shipmentId={s.id}
+            canEdit={canEdit}
+            subtitle={`${summary.accepted.title} · ${summary.accepted.stamp}${s.acceptedBy ? ` · принял: ${s.acceptedBy}` : ""}${accEv?.side ? ` · на ком: ${SIDE_LABEL[accEv.side] ?? accEv.side}` : ""}`}
+          >
+            <div>
+              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Объёмы</h3>
+              <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                <div><dt className="text-xs text-neutral-500">К отгрузке</dt><dd className="text-lg font-semibold tabular-nums">{formatQty(totals.inShipment)} шт.</dd></div>
+                <div><dt className="text-xs text-neutral-500">Принято</dt><dd className="text-lg font-semibold tabular-nums">{formatQty(totals.accepted)} шт.<span className="ml-1 text-xs font-normal text-neutral-500">{sharePct(totals.accepted) ?? ""}</span></dd></div>
+                <div><dt className="text-xs text-neutral-500">Возврат (не принято)</dt><dd className="text-lg font-semibold tabular-nums">{formatQty(totals.returned)} шт.<span className="ml-1 text-xs font-normal text-neutral-500">{sharePct(totals.returned) ?? ""}</span></dd></div>
+                <div><dt className="text-xs text-neutral-500">Ещё ждёт приёмки</dt><dd className="text-lg font-semibold tabular-nums">{formatQty(totals.remaining)} шт.</dd></div>
+              </dl>
+              <div className="mt-3 overflow-x-auto rounded-md border border-neutral-200 bg-white">
+                <table className="w-full min-w-[560px] text-xs">
+                  <thead className="bg-neutral-50 text-left text-neutral-500">
+                    <tr><th className="px-2 py-1.5">ТЗ</th><th className="px-2 py-1.5">Артикул</th><th className="px-2 py-1.5 text-right">К отгрузке</th><th className="px-2 py-1.5 text-right">Принято</th><th className="px-2 py-1.5 text-right">Не принято</th><th className="px-2 py-1.5">Причина</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {groups.map((g) => (
+                      <tr key={g.key}>
+                        <td className="whitespace-nowrap px-2 py-1.5">{g.label}</td>
+                        <td className="px-2 py-1.5">{g.article}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(g.quantity)}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(g.accepted)}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{g.returned ? formatQty(g.returned) : "—"}</td>
+                        <td className="px-2 py-1.5">{g.reasons.join("; ")}</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-neutral-50 font-medium">
+                      <td className="px-2 py-1.5" colSpan={2}>Всего, шт.</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(totals.inShipment)}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(totals.accepted)}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(totals.returned)}</td>
+                      <td />
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Сроки</h3>
+              <dl className="grid grid-cols-[10rem_1fr] gap-y-1 text-sm sm:grid-cols-[14rem_1fr]">
+                <dt className="text-neutral-500">Первая запись → приёмка</dt>
+                <dd>{summary.firstToAccept ? <><span className="font-medium">{summary.firstToAccept}</span> <span className="text-xs text-neutral-500">({summary.first?.title}, {summary.first?.stamp} → {summary.accepted.stamp})</span></> : "—"}</dd>
+                <dt className="text-neutral-500">План → факт</dt>
+                <dd><span className="tabular-nums">{summary.plan.planned} → {summary.plan.actual}</span> · <span className={"font-medium " + (summary.plan.days > 0 ? "text-red-700" : "text-emerald-800")}>{summary.plan.text}</span></dd>
+                {summary.chain.length > 0 && (
+                  <>
+                    <dt className="text-neutral-500">Ключевые интервалы</dt>
+                    <dd>
+                      <ul className="flex flex-col gap-0.5">
+                        {summary.chain.map((c, k) => (
+                          <li key={k}>{c.from} → {c.to}: <span className="font-medium">{c.text}</span></li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                )}
+              </dl>
+            </div>
+
+            <div>
+              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Следующие действия</h3>
+              {returnLines.length === 0 ? (
+                <p className="text-sm text-neutral-600">Возвратов нет — действий не требуется.</p>
+              ) : (
+                <ul className="flex flex-col gap-1 text-sm">
+                  {returnLines.map((l) => (
+                    <li key={l.id}>
+                      <span className="font-medium">{lineText(l)}</span> — {formatQty(l.returnedQty ?? 0)} шт.: {l.comment ? l.comment : <span className="text-neutral-500">причина не указана</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </SummaryShell>
         )}
       </section>
 

@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
  * Состояние запоминается в браузере отдельно для каждой страницы и ряда (id).
  * Использование: <WidgetRow id="prod" title="Производство">…плитки…</WidgetRow>
  */
-export function WidgetRow({ id, title = "Виджеты", children, className = "", titleClass = "", headerExtra, headerEnd, defaultCollapsed = false }: { /** Свёрнут, пока пользователь сам не развернул (выбор запоминается в браузере). */ defaultCollapsed?: boolean; id: string; title?: string; children: ReactNode; className?: string; titleClass?: string; headerExtra?: ReactNode; headerEnd?: ReactNode }) {
+export function WidgetRow({ id, title = "Виджеты", children, className = "", titleClass = "", headerExtra, headerEnd, defaultCollapsed = false, collapseWith }: { /** Блок под рядом, который сворачивается и разворачивается вместе с плитками, но не закрепляется (например, таблица под виджетами). */ collapseWith?: ReactNode; /** Свёрнут, пока пользователь сам не развернул (выбор запоминается в браузере). */ defaultCollapsed?: boolean; id: string; title?: string; children: ReactNode; className?: string; titleClass?: string; headerExtra?: ReactNode; headerEnd?: ReactNode }) {
   const path = usePathname();
   const key = `widgets:${path}:${id}`;
   const [collapsed, setCollapsed] = useState(false);
@@ -36,6 +36,7 @@ export function WidgetRow({ id, title = "Виджеты", children, className = 
 
   const btn = "inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border px-2 text-xs transition btn-accent";
   return (
+    <>
     <section
       aria-label={title}
       data-widget-row
@@ -63,5 +64,7 @@ export function WidgetRow({ id, title = "Виджеты", children, className = 
       </div>
       <div className={collapsed && ready ? "hidden print:block" : ""}>{children}</div>
     </section>
+    {collapseWith ? <div className={collapsed && ready ? "hidden print:block" : ""}>{collapseWith}</div> : null}
+    </>
   );
 }

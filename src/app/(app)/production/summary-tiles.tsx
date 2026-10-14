@@ -20,12 +20,13 @@ export type SummaryTile = {
  * Ряд плиток-итогов страницы в стиле Главной: WidgetRow, «→ Раздел» над «Свернуть/Закрепить», равные плитки сеткой.
  * Данные приходят готовыми со страницы — здесь только оформление.
  */
-export function SummaryTiles({ id, title, linkHref, linkLabel, tiles }: { id: string; title: string; linkHref?: string; linkLabel?: string; tiles: SummaryTile[] }) {
+export function SummaryTiles({ id, title, linkHref, linkLabel, tiles, collapseWith }: { collapseWith?: ReactNode; id: string; title: string; linkHref?: string; linkLabel?: string; tiles: SummaryTile[] }) {
   const cols = tiles.length >= 5 ? "md:grid-cols-3 xl:grid-cols-5" : tiles.length === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
   return (
     <WidgetRow
       id={id}
       title={title}
+      collapseWith={collapseWith}
       headerEnd={linkHref ? <Link href={linkHref} className="text-xs text-blue-700 hover:underline print:hidden">{linkLabel ?? "→ Раздел"}</Link> : undefined}
     >
       <div className={"grid grid-cols-1 items-stretch gap-3 print:grid-cols-4 " + cols}>

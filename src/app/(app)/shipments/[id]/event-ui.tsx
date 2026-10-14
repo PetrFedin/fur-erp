@@ -1,50 +1,84 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useId, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { CreateDialog, DialogButtons, useCreateForm } from "@/components/create-dialog";
 import { EditDialog, Field } from "@/components/edit-dialog";
-import { DeleteEntityButton } from "@/components/delete-entity-button";
+import { useConfirm } from "@/components/confirm-dialog";
+import { clientFileError } from "@/components/drive-documents";
 import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 import { todayIso } from "@/lib/shipments";
-import { createEvent, deleteEvent, markEventDone, updateEvent } from "../actions";
+import { SIDES, wallDateIso, wallNow, wallTimeHm } from "@/lib/shipment-calc";
+import { acceptAllLines, cancelAcceptance, confirmAcceptance, createAcceptanceEvent, createEvent, deleteEvent, markEventDone, removeEventDocument, updateEvent, uploadEventDocument } from "../actions";
 
-export type LineBrief = { id: string; label: string; quantity: number };
-type LineVals = { qty: string; accepted: string; rejected: string; returned: string; comment: string };
 export type EventValues = {
   id: string;
   title: string;
   date: string;
   time: string;
-  /** "" — не указан, id пользователя, либо "__other" (внешний). */
+  /** "" | "WELLMEKH" | "CUM". */
+  side: string;
+  /** Ответственный текстом. */
   responsible: string;
-  responsibleName: string;
   place: string;
   details: string;
   docLinks: string;
   expected: boolean;
-  mode: "all" | "lines";
-  lines: Record<string, LineVals>;
   /** Меняется при любой правке записи: окно правки пересоздаётся с новыми значениями. */
   version: string;
 };
 
-const EMPTY: LineVals = { qty: "", accepted: "", rejected: "", returned: "", comment: "" };
-const num = (s: string) => (s.trim() === "" ? null : Number(s.replace(/\s/g, "")));
+type Common = { titles: string[]; names: string[] };
 
-/** Поля этапа: общие для «+ Этап» и «Изменить этап». Названия подсказываются из ранее использованных (datalist), готового списка нет. */
-function EventFields({ lines, users, titles, initial, withNext }: { lines: LineBrief[]; users: { id: string; name: string }[]; titles: string[]; initial?: EventValues; withNext?: boolean }) {
+const FILE_ACCEPT = ".pdf,.xlsx,.docx,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png";
+
+/** Поле «файл»: проверка типа и размера сразу при выборе (тот же порядок, что у документов закупок). */
+function FileField({ label = "Документ: файл" }: { label?: string }) {
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <Field label={label} wide hint="PDF, Excel, Word, JPEG или PNG до 25 МБ. Ещё файлы — кнопкой «+ Документ» на этапе.">
+      <input
+        type="file"
+        name="file"
+        accept={FILE_ACCEPT}
+        className="text-sm file:mr-3 file:rounded-md file:border file:border-neutral-300 file:bg-white file:px-3 file:py-1.5 file:text-xs"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          const bad = f ? clientFileError(f) : null;
+          if (bad) e.target.value = "";
+          setErr(bad);
+        }}
+      />
+      {err && <span role="alert" className="text-xs text-red-600">{err}</span>}
+    </Field>
+  );
+}
+
+/** Поля этапа: общие для «+ Этап» и «Изменить этап». Названия и имена подсказываются из ранее использованных (datalist), готового списка нет. */
+function EventFields({ titles, names, initial, withNext }: Common & { initial?: EventValues; withNext?: boolean }) {
   const listId = useId();
+  const namesId = useId();
   const [today] = useState(() => todayIso());
-  const [resp, setResp] = useState(initial?.responsible ?? "");
-  const [mode, setMode] = useState<"all" | "lines">(initial?.mode ?? "all");
-  const [vals, setVals] = useState<Record<string, LineVals>>(() => Object.fromEntries(lines.map((l) => [l.id, initial?.lines[l.id] ?? EMPTY])));
-  const setVal = (id: string, k: keyof LineVals, v: string) => setVals((p) => ({ ...p, [id]: { ...(p[id] ?? EMPTY), [k]: v } }));
-
   return (
     <>
+      <Field label="На ком">
+        <Select name="side" defaultValue={initial?.side ?? ""}>
+          <option value="">—</option>
+          {SIDES.map((s) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </Select>
+      </Field>
+      <Field label="Ответственный" hint="Впишите имя; подсказки — сотрудники и ранее вписанные">
+        <Input name="responsible" maxLength={120} list={namesId} defaultValue={initial?.responsible ?? ""} placeholder="например: Василий" autoComplete="off" />
+        <datalist id={namesId}>
+          {names.map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
+      </Field>
       <Field label="Название этапа" wide>
         <Input name="title" required maxLength={120} list={listId} defaultValue={initial?.title ?? ""} placeholder="например: Принято в Коптево" autoComplete="off" />
         <datalist id={listId}>
@@ -56,88 +90,19 @@ function EventFields({ lines, users, titles, initial, withNext }: { lines: LineB
       <Field label="Дата">
         <Input name="date" type="date" required defaultValue={initial?.date ?? today} />
       </Field>
-      <Field label="Время" hint="Не знаете час — оставьте пустым">
+      <Field label="Время" hint="Необязательно: не знаете час — оставьте пустым">
         <Input name="time" type="time" defaultValue={initial?.time ?? ""} />
       </Field>
-      <Field label="Ответственный">
-        <Select name="responsible" value={resp} onChange={(e) => setResp(e.target.value)}>
-          <option value="">— не указан —</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>{u.name}</option>
-          ))}
-          <option value="__other">Другой (внешний)…</option>
-        </Select>
-      </Field>
-      {resp === "__other" && (
-        <Field label="Кто (внешний)">
-          <Input name="responsibleName" maxLength={120} defaultValue={initial?.responsibleName ?? ""} placeholder="например: Василий (Веллмех)" />
-        </Field>
-      )}
-      <Field label="Место" wide={resp === "__other"}>
+      <Field label="Место" wide>
         <Input name="place" maxLength={120} defaultValue={initial?.place ?? ""} />
       </Field>
       <Field label="Детализация" wide>
         <Textarea name="details" rows={3} maxLength={4000} defaultValue={initial?.details ?? ""} />
       </Field>
+      <FileField />
       <Field label="Документы: ссылки или названия (по одному в строке)" wide>
         <Textarea name="docLinks" rows={2} maxLength={2000} defaultValue={initial?.docLinks ?? ""} placeholder="https://… — ссылка станет кликабельной" />
       </Field>
-
-      <details className="rounded-md border border-neutral-200 bg-neutral-50/50 px-3 py-2 sm:col-span-2" open={initial?.mode === "lines"}>
-        <summary className="cursor-pointer select-none text-sm font-medium text-neutral-700">По позициям</summary>
-        <div className="mt-2 flex flex-col gap-2 text-sm">
-          <input type="hidden" name="mode" value={mode} />
-          <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-1.5"><input type="radio" checked={mode === "all"} onChange={() => setMode("all")} /> Весь состав</label>
-            <label className="flex items-center gap-1.5"><input type="radio" checked={mode === "lines"} onChange={() => setMode("lines")} /> Отметить по строкам</label>
-          </div>
-          {mode === "lines" && (
-            <>
-              <div>
-                <Button type="button" variant="outline" size="sm" onClick={() => setVals(Object.fromEntries(lines.map((l) => [l.id, { ...(vals[l.id] ?? EMPTY), accepted: String(l.quantity), rejected: "", returned: "" }])))}>
-                  Принято всё по строкам
-                </Button>
-              </div>
-              <div className="max-h-[40vh] overflow-auto rounded-md border border-neutral-200 bg-white">
-                <table className="w-full min-w-[640px] text-xs">
-                  <thead className="sticky top-0 bg-neutral-50 text-left text-neutral-500">
-                    <tr>
-                      <th className="px-2 py-1.5">Строка</th>
-                      <th className="px-2 py-1.5 text-right">По сколько шт.</th>
-                      <th className="px-2 py-1.5 text-right">Принято</th>
-                      <th className="px-2 py-1.5 text-right">Не принято</th>
-                      <th className="px-2 py-1.5 text-right">Возвращено</th>
-                      <th className="px-2 py-1.5">Комментарий-причина</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100">
-                    {lines.map((l) => {
-                      const v = vals[l.id] ?? EMPTY;
-                      const base = num(v.qty) ?? l.quantity;
-                      const warn = (num(v.accepted) ?? 0) + (num(v.rejected) ?? 0) > base;
-                      const cell = "h-8 w-16 text-right tabular-nums";
-                      return (
-                        <tr key={l.id}>
-                          <td className="px-2 py-1.5">
-                            {l.label} <span className="text-neutral-500">· {l.quantity} шт.</span>
-                            {warn && <span className="block text-amber-700">принято + не принято больше {base} шт.</span>}
-                          </td>
-                          <td className="px-2 py-1.5 text-right"><Input className={cell} inputMode="numeric" name={`l_${l.id}_qty`} value={v.qty} onChange={(e) => setVal(l.id, "qty", e.target.value)} /></td>
-                          <td className="px-2 py-1.5 text-right"><Input className={cell} inputMode="numeric" name={`l_${l.id}_accepted`} value={v.accepted} onChange={(e) => setVal(l.id, "accepted", e.target.value)} /></td>
-                          <td className="px-2 py-1.5 text-right"><Input className={cell} inputMode="numeric" name={`l_${l.id}_rejected`} value={v.rejected} onChange={(e) => setVal(l.id, "rejected", e.target.value)} /></td>
-                          <td className="px-2 py-1.5 text-right"><Input className={cell} inputMode="numeric" name={`l_${l.id}_returned`} value={v.returned} onChange={(e) => setVal(l.id, "returned", e.target.value)} /></td>
-                          <td className="px-2 py-1.5"><Input className="h-8 min-w-40" maxLength={500} name={`l_${l.id}_comment`} value={v.comment} onChange={(e) => setVal(l.id, "comment", e.target.value)} /></td>
-                        </tr>
-                      );
-                    })}
-                    {lines.length === 0 && <tr><td colSpan={6} className="px-2 py-4 text-center text-neutral-500">Сначала добавьте состав отгрузки</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
-      </details>
 
       <label className="flex items-center gap-2 text-sm sm:col-span-2">
         <input type="checkbox" name="expected" defaultChecked={initial?.expected ?? false} />
@@ -157,26 +122,21 @@ function EventFields({ lines, users, titles, initial, withNext }: { lines: LineB
 }
 
 /** «+ Этап». */
-export function NewEventButton({ shipmentId, lines, users, titles }: { shipmentId: string; lines: LineBrief[]; users: { id: string; name: string }[]; titles: string[] }) {
+export function NewEventButton({ shipmentId, titles, names }: { shipmentId: string } & Common) {
   return (
-    <CreateDialog label="+ Этап" title="Новый этап" wide hint="Название — любое, подсказки берутся из ранее использованных. Этапы можно править и удалять.">
-      <NewEventForm shipmentId={shipmentId} lines={lines} users={users} titles={titles} />
+    <CreateDialog label="+ Этап" title="Новый этап" wide hint="Название — любое, подсказки берутся из ранее использованных. Файл документа загружается сразу при добавлении.">
+      <NewEventForm shipmentId={shipmentId} titles={titles} names={names} />
     </CreateDialog>
   );
 }
 
-function NewEventForm({ shipmentId, lines, users, titles }: { shipmentId: string; lines: LineBrief[]; users: { id: string; name: string }[]; titles: string[] }) {
+function NewEventForm({ shipmentId, titles, names }: { shipmentId: string } & Common) {
   const { state, pending, dlg, setForm, onSubmit } = useCreateForm(createEvent.bind(null, shipmentId), {});
   const [dirty, setDirty] = useState(false);
   const guard = useUnsavedGuard(dirty && !state.ok, { links: false });
   return (
-    <form
-      ref={setForm}
-      onSubmit={onSubmit}
-      onChange={() => setDirty(true)}
-      className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-    >
-      <EventFields lines={lines} users={users} titles={titles} withNext />
+    <form ref={setForm} onSubmit={onSubmit} onChange={() => setDirty(true)} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <EventFields titles={titles} names={names} withNext />
       {state.error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2">{state.error}</p>}
       <DialogButtons pending={pending} saveLabel="Добавить этап" onCancel={dlg?.close} />
       {guard}
@@ -184,55 +144,230 @@ function NewEventForm({ shipmentId, lines, users, titles }: { shipmentId: string
   );
 }
 
-/** Кнопки этапа: «Отметить выполненным» (для ожидаемого → сразу окно правки), «Изменить этап», «Удалить». */
-export function EventActions({ v, lines, users, titles }: { v: EventValues; lines: LineBrief[]; users: { id: string; name: string }[]; titles: string[] }) {
+const textBtn = "h-7 px-2 text-xs";
+
+/** Действия этапа в ленте: «Выполнено» (для ожидаемого), «+ Документ», «Изменить», «Удалить» — мелкие текстовые кнопки. */
+export function EventActions({ v, titles, names, canDone }: { v: EventValues; canDone: boolean } & Common) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [wantEdit, setWantEdit] = useState(false);
+  const [docOpen, setDocOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-
-  // После «Отметить выполненным» ждём обновлённые данные (дата и время «сейчас»), и только потом открываем правку.
-  if (wantEdit && !v.expected) {
-    setWantEdit(false);
-    setOpen(true);
-  }
+  const { ask, node } = useConfirm();
 
   return (
-    <div className="flex flex-wrap items-start gap-1">
-      {v.expected && (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={pending}
-          onClick={() =>
-            start(async () => {
-              setError(null);
-              const r = await markEventDone(v.id);
-              if (r.error) return setError(r.error);
-              setWantEdit(true);
-              router.refresh();
-            })
-          }
-        >
-          {pending ? "Отмечаем…" : "Отметить выполненным"}
+    <div className="flex flex-wrap items-center justify-end gap-0.5">
+      {v.expected && canDone && (
+        <Button type="button" size="sm" variant="outline" className={textBtn} disabled={pending}
+          onClick={() => start(async () => { setError(null); const r = await markEventDone(v.id); if (r.error) return setError(r.error); router.refresh(); })}>
+          {pending ? "…" : "Выполнено"}
         </Button>
       )}
-      <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(true)}>Изменить</Button>
-      <EditDialog
-        key={v.version}
-        open={open}
-        onOpenChange={setOpen}
-        title="Изменить этап"
-        hint="Правка попадает в журнал изменений."
-        action={updateEvent.bind(null, v.id)}
-        wide
-      >
-        <EventFields lines={lines} users={users} titles={titles} initial={v} />
+      <Button type="button" size="sm" variant="ghost" className={textBtn} onClick={() => setDocOpen(true)} title="Прикрепить файл к этапу">+ Документ</Button>
+      <Button type="button" size="sm" variant="ghost" className={textBtn} onClick={() => setOpen(true)}>Изменить</Button>
+      <Button type="button" size="sm" variant="ghost" className={textBtn + " text-red-700"} disabled={pending}
+        onClick={async () => {
+          if (!(await ask(`Удалить этап «${v.title}»? Загруженные к нему документы тоже будут удалены.`, { ok: "Удалить", danger: true }))) return;
+          start(async () => { setError(null); const r = await deleteEvent(v.id); if (r.error) return setError(r.error); router.refresh(); });
+        }}>
+        Удалить
+      </Button>
+      <EditDialog key={v.version} open={open} onOpenChange={setOpen} title="Изменить этап" hint="Правка попадает в журнал изменений." action={updateEvent.bind(null, v.id)} wide>
+        <EventFields titles={titles} names={names} initial={v} />
       </EditDialog>
-      <DeleteEntityButton variant="ghost" confirmText={`Удалить этап «${v.title}»? Отметки приёмки по нему тоже исчезнут.`} action={deleteEvent.bind(null, v.id)} />
-      {error && <span role="alert" className="w-full text-xs text-red-600">{error}</span>}
+      <EditDialog open={docOpen} onOpenChange={setDocOpen} title="Прикрепить документ" hint={v.title} saveLabel="Загрузить" action={uploadEventDocument.bind(null, v.id)}>
+        <FileField label="Файл" />
+        <Field label="Название документа (необязательно)" wide>
+          <Input name="title" maxLength={200} placeholder="по умолчанию — имя файла" />
+        </Field>
+      </EditDialog>
+      {error && <span role="alert" className="w-full text-right text-xs text-red-600">{error}</span>}
+      {node}
+    </div>
+  );
+}
+
+/** Крестик у документа этапа: убрать файл (с подтверждением). */
+export function DocRemove({ id, title }: { id: string; title: string }) {
+  const router = useRouter();
+  const { ask, node } = useConfirm();
+  const [pending, start] = useTransition();
+  return (
+    <>
+      <button type="button" disabled={pending} aria-label={`Убрать документ ${title}`} title="Убрать документ"
+        className="ml-1 rounded px-1 text-neutral-400 hover:bg-neutral-100 hover:text-red-700"
+        onClick={async () => {
+          if (!(await ask(`Убрать документ «${title}»? Файл будет удалён.`, { ok: "Убрать", danger: true }))) return;
+          start(async () => { await removeEventDocument(id); router.refresh(); });
+        }}>
+        ×
+      </button>
+      {node}
+    </>
+  );
+}
+
+// ───────────── приёмка в Коптево ─────────────
+
+export type AcceptRow = { label: string; quantity: number; accepted: number | null; returned: number | null; comment: string };
+
+/** Панель под лентой: «Приёмка в Коптево — ожидается …» и крупная кнопка «ПРИНЯТО»; нет этапа — «+ Приёмка в Коптево». */
+export function AcceptPanel({ shipmentId, event, rows, totals, canEdit, names }: {
+  shipmentId: string;
+  event: { id: string; stamp: string } | null;
+  rows: AcceptRow[];
+  totals: { inShipment: number; accepted: number; returned: number; filledLines: number };
+  canEdit: boolean;
+  names: string[];
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const namesId = useId();
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3" data-accept-panel>
+      <div className="min-w-0">
+        <p className="font-semibold text-neutral-900">{event ? `Приёмка в Коптево — ожидается ${event.stamp}` : "Приёмка в Коптево не запланирована"}</p>
+        <p className="text-xs text-neutral-500">
+          {event ? "Когда изделия приняты, отметьте в составе «Принято» и «Возврат» и нажмите «ПРИНЯТО»: появится итог поставки." : "Добавьте ожидаемый этап — потом по нему подтверждается приёмка и формируется итог."}
+        </p>
+        {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+      </div>
+      {canEdit && (event ? (
+        <EditDialog
+          label="ПРИНЯТО"
+          variant="default"
+          className="h-12 bg-emerald-600 px-10 text-base font-bold tracking-wide text-white hover:bg-emerald-700 max-md:w-full"
+          title="Принято в Коптево"
+          hint="Этап приёмки станет выполненным, отгрузка получит статус «Принята», внизу появится итог поставки."
+          saveLabel="Подтвердить приёмку"
+          action={confirmAcceptance.bind(null, shipmentId, event.id)}
+          wide
+        >
+          <AcceptFields shipmentId={shipmentId} rows={rows} totals={totals} namesId={namesId} names={names} />
+        </EditDialog>
+      ) : (
+        <Button type="button" disabled={pending}
+          onClick={() => start(async () => { setError(null); const r = await createAcceptanceEvent(shipmentId); if (r.error) return setError(r.error); router.refresh(); })}>
+          {pending ? "Добавляем…" : "+ Приёмка в Коптево"}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+function AcceptFields({ shipmentId, rows, totals, namesId, names }: { shipmentId: string; rows: AcceptRow[]; totals: { inShipment: number; accepted: number; returned: number; filledLines: number }; namesId: string; names: string[] }) {
+  const router = useRouter();
+  const [now] = useState(() => wallNow());
+  const [pending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+  const empty = totals.filledLines === 0;
+  return (
+    <>
+      <Field label="Дата приёмки"><Input name="date" type="date" required defaultValue={wallDateIso(now)} /></Field>
+      <Field label="Время"><Input name="time" type="time" defaultValue={wallTimeHm(now)} /></Field>
+      <Field label="Кто принял">
+        <Input name="acceptedBy" maxLength={120} list={namesId} autoComplete="off" placeholder="например: Анна" />
+        <datalist id={namesId}>{names.map((n) => <option key={n} value={n} />)}</datalist>
+      </Field>
+      <Field label="На ком">
+        <Select name="side" defaultValue="CUM">
+          <option value="">—</option>
+          {SIDES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </Select>
+      </Field>
+      <Field label="Комментарий" wide><Textarea name="comment" rows={2} maxLength={1000} /></Field>
+
+      <div className="flex flex-col gap-2 sm:col-span-2">
+        <h3 className="text-xs font-medium text-neutral-700">По строкам (из состава отгрузки)</h3>
+        {empty ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <span className="mr-auto">Сначала заполните колонки «Принято» и «Возврат» в составе (и нажмите «Сохранить»).</span>
+            <Button type="button" size="sm" variant="outline" disabled={pending}
+              onClick={() => start(async () => { setErr(null); const r = await acceptAllLines(shipmentId); if (r.error) return setErr(r.error); router.refresh(); })}>
+              {pending ? "…" : "Принять всё"}
+            </Button>
+          </div>
+        ) : (
+          <p className="text-xs text-neutral-500">Берутся сохранённые значения. Не сохранённые в таблице правки сюда не попадут.</p>
+        )}
+        {err && <p role="alert" className="text-xs text-red-600">{err}</p>}
+        <div className="max-h-[34vh] overflow-auto rounded-md border border-neutral-200">
+          <table className="w-full min-w-[480px] text-xs">
+            <thead className="sticky top-0 bg-neutral-50 text-left text-neutral-500">
+              <tr><th className="px-2 py-1.5">Строка</th><th className="px-2 py-1.5 text-right">В отгрузке</th><th className="px-2 py-1.5 text-right">Принято</th><th className="px-2 py-1.5 text-right">Возврат</th><th className="px-2 py-1.5">Комментарий</th></tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td className="px-2 py-1">{r.label}</td>
+                  <td className="px-2 py-1 text-right tabular-nums">{r.quantity}</td>
+                  <td className="px-2 py-1 text-right tabular-nums">{r.accepted ?? "—"}</td>
+                  <td className="px-2 py-1 text-right tabular-nums">{r.returned ?? "—"}</td>
+                  <td className="px-2 py-1">{r.comment}</td>
+                </tr>
+              ))}
+              <tr className="bg-neutral-50 font-medium">
+                <td className="px-2 py-1">Всего, шт.</td>
+                <td className="px-2 py-1 text-right tabular-nums">{totals.inShipment}</td>
+                <td className="px-2 py-1 text-right tabular-nums">{totals.accepted}</td>
+                <td className="px-2 py-1 text-right tabular-nums">{totals.returned}</td>
+                <td />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** Оболочка блока «ИТОГ ПОСТАВКИ»: сворачивается; «Отменить приёмку» (с подтверждением). Содержимое считает страница. */
+export function SummaryShell({ shipmentId, canEdit, subtitle, children }: { shipmentId: string; canEdit: boolean; subtitle: string; children: ReactNode }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(true);
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const { ask, node } = useConfirm();
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border border-emerald-300 bg-emerald-50/40 p-4" aria-label="Итог поставки" data-delivery-summary>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-touch-ok className="flex min-w-0 items-start gap-1 text-left">
+          <span aria-hidden className={"mt-0.5 inline-block w-3 transition-transform " + (open ? "rotate-90" : "")}>›</span>
+          <span>
+            <span className="block text-base font-bold uppercase tracking-wide text-emerald-900">Итог поставки</span>
+            <span className="block text-xs text-neutral-600">{subtitle}</span>
+          </span>
+        </button>
+        {canEdit && (
+          <Button type="button" size="sm" variant="outline" className="h-7 text-xs" disabled={pending}
+            onClick={async () => {
+              if (!(await ask("Отменить приёмку? Этап снова станет ожидаемым, итог поставки исчезнет. Отметки «Принято» и «Возврат» в составе останутся.", { ok: "Отменить приёмку", danger: true }))) return;
+              start(async () => { setError(null); const r = await cancelAcceptance(shipmentId); if (r.error) return setError(r.error); router.refresh(); });
+            }}>
+            Отменить приёмку
+          </Button>
+        )}
+      </div>
+      {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+      <div className={open ? "flex flex-col gap-4" : "hidden"}>{children}</div>
+      {node}
+    </section>
+  );
+}
+
+/** Детализация этапа: одна-две строки, длинную можно раскрыть («ещё»). */
+export function ClampText({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const long = text.length > 150 || text.split("\n").length > 2;
+  return (
+    <div className="text-sm text-neutral-700">
+      <p className={"whitespace-pre-wrap break-words " + (long && !open ? "line-clamp-2" : "")}>{text}</p>
+      {long && (
+        <button type="button" onClick={() => setOpen((v) => !v)} className="text-xs text-blue-700 hover:underline" aria-expanded={open}>
+          {open ? "свернуть" : "ещё"}
+        </button>
+      )}
     </div>
   );
 }

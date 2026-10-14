@@ -8,6 +8,7 @@ export const SHIPMENT_STATUS: Record<
   PLANNED: { label: "Запланирована", variant: "info" },
   SHIPPED: { label: "Отгружена", variant: "success" },
   CANCELLED: { label: "Отменена", variant: "danger" },
+  ACCEPTED: { label: "Принята", variant: "success" },
 };
 
 export type SizeRow = { size: string; quantity: string };
