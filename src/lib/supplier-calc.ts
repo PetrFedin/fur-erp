@@ -5,7 +5,7 @@
  * СП/РП считаются через computeCostPlan — те же формулы, что в нашей закупке.
  */
 import { computeCostPlan } from "@/lib/cost-plan";
-import { FormulaError, colLetter, evalNode, parseFormula, refsOf, type Node } from "@/lib/calc-formula";
+import { FormulaError, colLetter, evalNode, parseFormula, refsOf, renameColumnRefs, type Node } from "@/lib/calc-formula";
 
 export type CalcFormat = "SP_RP" | "SAGA" | "FH" | "OTHER";
 export const FORMAT_LABEL: Record<CalcFormat, string> = {
@@ -600,4 +600,40 @@ export function payloadFromTable(table: string[][]): { payload: CalcPayload; war
   if (header.vat === "" || !Number.isFinite(evalNum(header.vat))) header.vat = "22";
   warnings.push(`Распознан формат «${FORMAT_LABEL[format]}», строк: ${rows.length}. Проверьте шапку и ставки — они взяты из сумм файла.`);
   return { payload, warnings };
+}
+
+// ============================================================================================ правки столбцов (для формы «Детально»)
+
+/** Записать актуальные буквы в customColumns (буква считается по порядку; в хранилище — для чтения человеком). */
+export function syncLetters(p: CalcPayload): CalcPayload {
+  if (!p.customColumns?.length) return p;
+  const cols = sheetColumns(p);
+  return { ...p, customColumns: p.customColumns.map((c) => ({ ...c, letter: cols.find((x) => x.id === c.id)?.letter ?? c.letter })) };
+}
+/** После смены набора столбцов (формат) ссылки на свои столбцы в формулах переезжают на новые буквы; ссылки на встроенные придётся проверить. */
+export function remapCustomRefs(before: CalcPayload, after: CalcPayload): CalcPayload {
+  if (!after.customColumns?.length) return after;
+  const a = sheetColumns(before), b = sheetColumns(after);
+  const map: Record<string, string> = {};
+  for (const c of after.customColumns) {
+    const o = a.find((x) => x.id === c.id), n = b.find((x) => x.id === c.id);
+    if (o && n && o.letter !== n.letter) map[o.letter] = n.letter;
+  }
+  if (Object.keys(map).length === 0) return syncLetters(after);
+  return syncLetters({ ...after, customColumns: after.customColumns.map((c) => ({ ...c, formula: renameColumnRefs(c.formula, map) })) });
+}
+/** Какие столбцы ссылаются на данный (по букве): нельзя удалить, пока на него ссылаются. */
+export function columnUsers(p: CalcPayload, id: string): string[] {
+  const cols = sheetColumns(p);
+  const me = cols.find((c) => c.id === id);
+  if (!me) return [];
+  const out: string[] = [];
+  for (const c of p.customColumns ?? []) {
+    if (c.id === id) continue;
+    try {
+      const r = refsOf(parseFormula(c.formula));
+      if ([...r.row, ...r.sum].some((x) => x.toUpperCase() === me.letter && LETTERS.test(x))) out.push(c.title || "без названия");
+    } catch { /* формула с ошибкой — не считается */ }
+  }
+  return out;
 }
