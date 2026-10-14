@@ -31,7 +31,7 @@ export type EventValues = {
   version: string;
 };
 
-type Common = { titles: string[]; people: PeopleBySide };
+type Common = { titles: string[]; people: PeopleBySide; /** Кабинет поставщика: этап всегда «на Веллмехе». */ supplier?: boolean };
 
 const FILE_ACCEPT = ".pdf,.xlsx,.docx,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png";
 
@@ -106,7 +106,7 @@ function PersonPicker({ name, label, side, people, initial }: { name: string; la
 }
 
 /** Поля этапа: общие для «+ Этап» и «Изменить этап». Название подсказывается из ранее использованных (datalist); «Кто» — список действующих лиц компании. */
-function EventFields({ titles, people, initial, withNext }: Common & { initial?: EventValues; withNext?: boolean }) {
+function EventFields({ titles, people, initial, withNext, supplier }: Common & { initial?: EventValues; withNext?: boolean }) {
   const listId = useId();
   const [today] = useState(() => todayIso());
   const [side, setSide] = useState(initial?.side || "WELLMEKH");
@@ -116,7 +116,7 @@ function EventFields({ titles, people, initial, withNext }: Common & { initial?:
     <>
       <Field label="Чьё действие">
         <Select name="side" required value={side} onChange={(e) => setSide(e.target.value)}>
-          {SIDES.map((s) => (
+          {SIDES.filter((s) => !supplier || s.value === "WELLMEKH").map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}
         </Select>
@@ -160,7 +160,7 @@ function EventFields({ titles, people, initial, withNext }: Common & { initial?:
           <Field label="Время (необязательно)"><Input name="nextTime" type="time" /></Field>
           <Field label="Чьё действие">
             <Select name="nextSide" required value={nextSide ?? side} onChange={(e) => setNextSide(e.target.value)}>
-              {SIDES.map((s) => (
+              {SIDES.filter((s) => !supplier || s.value === "WELLMEKH").map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </Select>
@@ -173,21 +173,21 @@ function EventFields({ titles, people, initial, withNext }: Common & { initial?:
 }
 
 /** «+ Этап». */
-export function NewEventButton({ shipmentId, titles, people, between }: { shipmentId: string; between?: { date: string; label: string } } & Common) {
+export function NewEventButton({ shipmentId, titles, people, supplier, between }: { shipmentId: string; between?: { date: string; label: string } } & Common) {
   return (
     <CreateDialog label={between?.label ?? "+ Этап"} size={between ? "sm" : undefined} variant={between ? "ghost" : undefined} title="Новый этап" wide hint="Название — любое, подсказки берутся из ранее использованных. Файл документа загружается сразу при добавлении.">
-      <NewEventForm shipmentId={shipmentId} titles={titles} people={people} date={between?.date} />
+      <NewEventForm shipmentId={shipmentId} titles={titles} people={people} supplier={supplier} date={between?.date} />
     </CreateDialog>
   );
 }
 
-function NewEventForm({ shipmentId, titles, people, date }: { shipmentId: string; date?: string } & Common) {
+function NewEventForm({ shipmentId, titles, people, supplier, date }: { shipmentId: string; date?: string } & Common) {
   const { state, pending, dlg, setForm, onSubmit } = useCreateForm(createEvent.bind(null, shipmentId), {});
   const [dirty, setDirty] = useState(false);
   const guard = useUnsavedGuard(dirty && !state.ok, { links: false });
   return (
     <form ref={setForm} onSubmit={onSubmit} onChange={() => setDirty(true)} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <EventFields titles={titles} people={people} withNext initial={date ? ({ date } as EventValues) : undefined} />
+      <EventFields titles={titles} people={people} supplier={supplier} withNext initial={date ? ({ date } as EventValues) : undefined} />
       {state.error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2">{state.error}</p>}
       <DialogButtons pending={pending} saveLabel="Добавить этап" onCancel={dlg?.close} />
       {guard}
@@ -198,7 +198,7 @@ function NewEventForm({ shipmentId, titles, people, date }: { shipmentId: string
 const textBtn = "h-7 px-2 text-xs";
 
 /** Действия этапа в ленте: «Выполнено» (для ожидаемого), «+ Документ», «Изменить», «Удалить» — мелкие текстовые кнопки. */
-export function EventActions({ v, titles, people, canDone }: { v: EventValues; canDone: boolean } & Common) {
+export function EventActions({ v, titles, people, supplier, canDone }: { v: EventValues; canDone: boolean } & Common) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
@@ -224,7 +224,7 @@ export function EventActions({ v, titles, people, canDone }: { v: EventValues; c
         <IconTrash />
       </Button>
       <EditDialog key={v.version} open={open} onOpenChange={setOpen} title="Изменить этап" hint="Правка попадает в журнал изменений." action={updateEvent.bind(null, v.id)} wide>
-        <EventFields titles={titles} people={people} initial={v} />
+        <EventFields titles={titles} people={people} supplier={supplier} initial={v} />
       </EditDialog>
       <EditDialog open={docOpen} onOpenChange={setDocOpen} title="Прикрепить документ" hint={v.title} saveLabel="Загрузить" action={uploadEventDocument.bind(null, v.id)}>
         <FileField label="Файл" />

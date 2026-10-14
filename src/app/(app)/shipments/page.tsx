@@ -36,9 +36,12 @@ const SHIPMENT_FILTERS = defineFilters({
 });
 
 export default async function ShipmentsPage({ searchParams }: PageProps<"/shipments">) {
-  const session = await requireSession();
+  const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
   const canEdit = EDIT_ROLES.includes(session.user.role);
+  // Внешний поставщик видит только свои отгрузки.
+  const isSupplier = session.user.role === "SUPPLIER";
+  const shipScope = { organizationId: orgId, ...(isSupplier ? { supplierId: session.user.supplierId ?? "-" } : {}) };
   const sp = await searchParams;
   const f = parseFilters(SHIPMENT_FILTERS, sp);
   const year = await getYearFilter();
@@ -46,7 +49,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   const like = (v: string) => ({ contains: escapeLike(v), mode: "insensitive" as const });
 
   const where: Prisma.ShipmentWhereInput = {
-    organizationId: orgId,
+    ...shipScope,
     AND: [
       // Общий год — по плановой дате отгрузки; «Год» и период панели сужают внутри него.
       ...(yearRange(year) ? [{ plannedDate: yearRange(year) }] : []),
@@ -89,11 +92,11 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
       },
       orderBy: [{ plannedDate: "desc" }, { createdAt: "desc" }],
     }),
-    prisma.shipment.findMany({ where: { organizationId: orgId }, select: { plannedDate: true } }),
-    prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-    prisma.productionBatch.findMany({ where: { organizationId: orgId, shipments: { some: {} } }, select: { number: true, name: true }, orderBy: { number: "asc" } }),
-    prisma.shipmentEvent.findMany({ where: { shipment: { organizationId: orgId } }, select: { title: true }, distinct: ["title"], orderBy: { title: "asc" } }),
-    prisma.productModel.findMany({ where: { organizationId: orgId, productionOrders: { some: { shipmentLines: { some: {} } } } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.shipment.findMany({ where: shipScope, select: { plannedDate: true } }),
+    prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true, ...(isSupplier ? { id: session.user.supplierId ?? "-" } : {}) }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.productionBatch.findMany({ where: { organizationId: orgId, shipments: { some: isSupplier ? { supplierId: session.user.supplierId ?? "-" } : {} } }, select: { number: true, name: true }, orderBy: { number: "asc" } }),
+    prisma.shipmentEvent.findMany({ where: { shipment: shipScope }, select: { title: true }, distinct: ["title"], orderBy: { title: "asc" } }),
+    prisma.productModel.findMany({ where: { organizationId: orgId, productionOrders: { some: { shipmentLines: { some: { shipment: shipScope } } } } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
   const rows = shipments.map((s) => {

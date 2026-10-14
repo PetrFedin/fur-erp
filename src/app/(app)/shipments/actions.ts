@@ -18,6 +18,18 @@ import { randomUUID } from "node:crypto";
 
 // Так же, как в разделе ТЗ: отгрузки ведут те, кто ведёт ТЗ.
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
+// Этапы хронологии ведёт ещё и внешний поставщик (Веллмех) — только в своих отгрузках и только свои этапы.
+const EVENT_ROLES = [...EDIT_ROLES, "SUPPLIER"] as const;
+
+type Sess = Awaited<ReturnType<typeof requireRole>>;
+const isSupplier = (s: Sess) => s.user.role === "SUPPLIER";
+/** Отгрузки, доступные пользователю: у поставщика — только его (supplierId), у остальных — вся организация. */
+const shipmentScope = (s: Sess) => ({ organizationId: s.user.organizationId, ...(isSupplier(s) ? { supplierId: s.user.supplierId ?? "-" } : {}) });
+/** Этап по id в пределах доступного: поставщик видит для правки только этапы, которые внёс сам. */
+const eventWhere = (s: Sess, id: string) => ({ id, shipment: shipmentScope(s), ...(isSupplier(s) ? { createdById: s.user.id } : {}) });
+/** Поставщик не заводит этапы приёмки и примерки в Коптево — их ведёт наша сторона. */
+const supplierTitleError = (s: Sess, title: string, place: string | null): string | null =>
+  isSupplier(s) && (/принят|приёмк|приемк|^примерк/i.test(title) || /коптево/i.test(place ?? "")) ? "Приёмку и примерку в Коптево отмечает ЦУМ" : null;
 
 export type ShipmentFormState = { error?: string; ok?: boolean; id?: string };
 type EditResult = { error?: string; ok?: boolean };
@@ -139,7 +151,7 @@ export async function addShipmentLines(shipmentId: string, items: { key: string;
 export async function addCustomShipmentLine(shipmentId: string, fd: FormData, asReady = false): Promise<EditResult> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  if (!(await ownShipment(orgId, shipmentId))) return { error: "Отгрузка не найдена" };
+  if (!(await ownShipment(session, shipmentId))) return { error: "Отгрузка не найдена" };
   const article = str(fd, "article");
   if (!article) return { error: "Укажите артикул или название" };
   if (article.length > 120) return { error: "Артикул не длиннее 120 символов" };
@@ -202,7 +214,7 @@ export type LineDraft = { id: string; n: number; accepted: number | null; return
 export async function saveLineAcceptance(shipmentId: string, drafts: LineDraft[]): Promise<{ error?: string; saved?: number }> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  if (!(await ownShipment(orgId, shipmentId))) return { error: "Отгрузка не найдена" };
+  if (!(await ownShipment(session, shipmentId))) return { error: "Отгрузка не найдена" };
   if (!Array.isArray(drafts) || drafts.length === 0) return { error: "Нечего сохранять" };
   if (drafts.length > MAX_LINES * 5) return { error: "Слишком много строк за раз" };
   const own = new Map((await prisma.shipmentLine.findMany({ where: { shipmentId }, select: { id: true, quantity: true, stage: true } })).map((l) => [l.id, l]));
@@ -232,7 +244,7 @@ export async function saveLineAcceptance(shipmentId: string, drafts: LineDraft[]
 export async function acceptAllLines(shipmentId: string): Promise<{ error?: string }> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  if (!(await ownShipment(orgId, shipmentId))) return { error: "Отгрузка не найдена" };
+  if (!(await ownShipment(session, shipmentId))) return { error: "Отгрузка не найдена" };
   const lines = await prisma.shipmentLine.findMany({ where: { shipmentId, stage: "READY" }, select: { id: true, quantity: true } });
   if (lines.length === 0) return { error: "Нет строк, готовых к отгрузке: сначала «Принято» по просмотру" };
   await prisma.$transaction(async (tx) => {
@@ -277,7 +289,8 @@ async function resolveResponsible(orgId: string, name: string): Promise<{ respon
   return { responsibleUserId: u?.id ?? null, responsibleName: n };
 }
 
-async function parseEvent(orgId: string, fd: FormData): Promise<EventData | string> {
+async function parseEvent(session: Sess, fd: FormData): Promise<EventData | string> {
+  const orgId = session.user.organizationId;
   const title = str(fd, "title");
   if (!title) return "Укажите название этапа";
   if (title.length > 120) return "Название этапа не длиннее 120 символов";
@@ -286,11 +299,13 @@ async function parseEvent(orgId: string, fd: FormData): Promise<EventData | stri
   if (!dateOk(date)) return DATE_RANGE_ERROR;
   const time = str(fd, "time");
   if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return "Время укажите в формате ЧЧ:ММ или оставьте пустым";
-  const side = str(fd, "side");
+  const side = isSupplier(session) ? "WELLMEKH" : str(fd, "side");
   const sideErr = sideError(side);
   if (sideErr) return sideErr;
   const who = await resolveResponsible(orgId, str(fd, "responsible"));
   const place = str(fd, "place");
+  const bad = supplierTitleError(session, title, place);
+  if (bad) return bad;
   const details = str(fd, "details");
   const docLinks = str(fd, "docLinks");
   if (place.length > 120) return "Место не длиннее 120 символов";
@@ -309,8 +324,8 @@ async function parseEvent(orgId: string, fd: FormData): Promise<EventData | stri
   };
 }
 
-async function ownShipment(orgId: string, id: string) {
-  return prisma.shipment.findFirst({ where: { id, organizationId: orgId }, select: { id: true } });
+async function ownShipment(session: Sess, id: string) {
+  return prisma.shipment.findFirst({ where: { id, ...shipmentScope(session) }, select: { id: true } });
 }
 
 // ───────────── файлы этапа ─────────────
@@ -352,9 +367,9 @@ async function attachFile(orgId: string, eventId: string, f: ReadFile, title: st
 
 /** «+ Документ» на этапе в ленте. */
 export async function uploadEventDocument(eventId: string, fd: FormData): Promise<EditResult> {
-  const session = await requireRole(...EDIT_ROLES);
+  const session = await requireRole(...EVENT_ROLES);
   const orgId = session.user.organizationId;
-  const cur = await prisma.shipmentEvent.findFirst({ where: { id: eventId, shipment: { organizationId: orgId } }, select: { id: true } });
+  const cur = await prisma.shipmentEvent.findFirst({ where: eventWhere(session, eventId), select: { id: true } });
   if (!cur) return { error: "Этап не найден" };
   if (!hasFile(fd)) return { error: "Выберите файл" };
   const f = await readEventFile(fd);
@@ -365,9 +380,9 @@ export async function uploadEventDocument(eventId: string, fd: FormData): Promis
 }
 
 export async function removeEventDocument(docId: string): Promise<{ error?: string }> {
-  const session = await requireRole(...EDIT_ROLES);
+  const session = await requireRole(...EVENT_ROLES);
   const orgId = session.user.organizationId;
-  const doc = await prisma.driveDocument.findFirst({ where: { id: docId, organizationId: orgId, shipmentEventId: { not: null } }, select: { id: true, storagePath: true } });
+  const doc = await prisma.driveDocument.findFirst({ where: { id: docId, organizationId: orgId, shipmentEventId: { not: null }, ...(isSupplier(session) ? { shipmentEvent: { createdById: session.user.id, shipment: shipmentScope(session) } } : {}) }, select: { id: true, storagePath: true } });
   if (!doc) return { error: "Документ не найден" };
   await prisma.driveDocument.delete({ where: { id: doc.id } });
   await removeDriveFileIfUnused(doc.storagePath);
@@ -377,21 +392,23 @@ export async function removeEventDocument(docId: string): Promise<{ error?: stri
 
 /** «+ Этап». Файл (необязательно) прикрепляется в той же отправке: сначала проверяется, потом этап создаётся. При заполненном «Следующий этап» создаётся ожидаемый этап. */
 export async function createEvent(shipmentId: string, _prev: ShipmentFormState, fd: FormData): Promise<ShipmentFormState> {
-  const session = await requireRole(...EDIT_ROLES);
+  const session = await requireRole(...EVENT_ROLES);
   const orgId = session.user.organizationId;
-  if (!(await ownShipment(orgId, shipmentId))) return { error: "Отгрузка не найдена" };
-  const e = await parseEvent(orgId, fd);
+  if (!(await ownShipment(session, shipmentId))) return { error: "Отгрузка не найдена" };
+  const e = await parseEvent(session, fd);
   if (typeof e === "string") return { error: e };
   const file = await readEventFile(fd);
   if (file && "error" in file) return { error: file.error };
   const nextTitle = str(fd, "nextTitle");
   const nextDate = str(fd, "nextDate");
   const nextTime = str(fd, "nextTime");
-  const nextSide = str(fd, "nextSide") || e.side;
+  const nextSide = isSupplier(session) ? "WELLMEKH" : str(fd, "nextSide") || e.side;
   const nextWho = await resolveResponsible(orgId, str(fd, "nextResponsible"));
   if (nextTitle) {
     const ns = sideError(nextSide);
     if (ns) return { error: ns };
+    const nb = supplierTitleError(session, nextTitle, null);
+    if (nb) return { error: nb };
     if (nextTitle.length > 120) return { error: "Название следующего этапа не длиннее 120 символов" };
     if (!dateOk(nextDate)) return { error: "Укажите ожидаемую дату следующего этапа" };
     if (nextTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(nextTime)) return { error: "Время следующего этапа — ЧЧ:ММ или пусто" };
@@ -418,11 +435,11 @@ export async function createEvent(shipmentId: string, _prev: ShipmentFormState, 
 }
 
 export async function updateEvent(eventId: string, fd: FormData): Promise<EditResult> {
-  const session = await requireRole(...EDIT_ROLES);
+  const session = await requireRole(...EVENT_ROLES);
   const orgId = session.user.organizationId;
-  const cur = await prisma.shipmentEvent.findFirst({ where: { id: eventId, shipment: { organizationId: orgId } }, select: { id: true } });
+  const cur = await prisma.shipmentEvent.findFirst({ where: eventWhere(session, eventId), select: { id: true } });
   if (!cur) return { error: "Этап не найден" };
-  const e = await parseEvent(orgId, fd);
+  const e = await parseEvent(session, fd);
   if (typeof e === "string") return { error: e };
   const file = await readEventFile(fd);
   if (file && "error" in file) return { error: file.error };
@@ -434,10 +451,10 @@ export async function updateEvent(eventId: string, fd: FormData): Promise<EditRe
 
 /** Удаление этапа: файлы этапа убираются с диска; если это был этап подтверждённой приёмки — приёмка снимается. */
 export async function deleteEvent(eventId: string): Promise<{ error?: string }> {
-  const session = await requireRole(...EDIT_ROLES);
+  const session = await requireRole(...EVENT_ROLES);
   const orgId = session.user.organizationId;
   const cur = await prisma.shipmentEvent.findFirst({
-    where: { id: eventId, shipment: { organizationId: orgId } },
+    where: eventWhere(session, eventId),
     select: { id: true, shipmentId: true, documents: { select: { storagePath: true } } },
   });
   if (!cur) return { error: "Этап не найден" };
@@ -452,9 +469,9 @@ export async function deleteEvent(eventId: string): Promise<{ error?: string }> 
 
 /** Ожидаемый этап → выполненный: дата и время «сейчас» (потом правятся окном «Изменить»). Этап приёмки подтверждается кнопкой «ПРИНЯТО». */
 export async function markEventDone(eventId: string): Promise<{ error?: string }> {
-  const session = await requireRole(...EDIT_ROLES);
+  const session = await requireRole(...EVENT_ROLES);
   const orgId = session.user.organizationId;
-  const cur = await prisma.shipmentEvent.findFirst({ where: { id: eventId, shipment: { organizationId: orgId } }, select: { id: true, expected: true } });
+  const cur = await prisma.shipmentEvent.findFirst({ where: eventWhere(session, eventId), select: { id: true, expected: true } });
   if (!cur) return { error: "Этап не найден" };
   if (!cur.expected) return { error: "Этап уже отмечен выполненным" };
   await prisma.shipmentEvent.update({ where: { id: eventId }, data: { expected: false, occurredAt: wallNow(), timeKnown: true, updatedById: session.user.id } });
@@ -539,7 +556,7 @@ export async function cancelAcceptance(shipmentId: string): Promise<{ error?: st
 export async function listShipmentCandidates(shipmentId: string) {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  if (!(await ownShipment(orgId, shipmentId))) return [];
+  if (!(await ownShipment(session, shipmentId))) return [];
   return loadShipmentCandidates(orgId, shipmentId);
 }
 
@@ -601,7 +618,7 @@ export async function acceptLinesByReview(shipmentId: string, lineIds: string[])
 export async function acceptAllOnReview(shipmentId: string): Promise<StageResult> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  if (!(await ownShipment(orgId, shipmentId))) return { error: "Отгрузка не найдена" };
+  if (!(await ownShipment(session, shipmentId))) return { error: "Отгрузка не найдена" };
   const lines = await prisma.shipmentLine.findMany({ where: { shipmentId, stage: "REVIEW" }, select: { id: true } });
   if (lines.length === 0) return { error: "Нет строк на просмотре" };
   return acceptLinesByReview(shipmentId, lines.map((l) => l.id));

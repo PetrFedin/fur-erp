@@ -36,12 +36,15 @@ const Clip = () => (
 
 export default async function ShipmentPage({ params }: PageProps<"/shipments/[id]">) {
   const { id } = await params;
-  const session = await requireSession();
+  const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
   const canEdit = EDIT_ROLES.includes(session.user.role);
+  // Внешний поставщик: только свои отгрузки, свои этапы хронологии, без ссылок на закрытые разделы.
+  const isSupplier = session.user.role === "SUPPLIER";
+  const canEvents = canEdit || isSupplier;
 
   const s = await prisma.shipment.findFirst({
-    where: { id, organizationId: orgId },
+    where: { id, organizationId: orgId, ...(isSupplier ? { supplierId: session.user.supplierId ?? "-" } : {}) },
     include: {
       supplier: { select: { id: true, name: true } },
       batch: { select: { id: true, number: true, name: true, year: true } },
@@ -63,18 +66,19 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   if (!s) notFound();
 
   const [users, titleGroups, nameGroups, people, batchChoices, suppliers] = await Promise.all([
-    prisma.user.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, isActive: true }, orderBy: { name: "asc" } }),
-    prisma.shipmentEvent.groupBy({ by: ["title"], where: { shipment: { organizationId: orgId } }, _count: { _all: true }, orderBy: { _count: { title: "desc" } }, take: 60 }),
+    prisma.user.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, isActive: true, role: true, supplier: { select: { name: true } } }, orderBy: { name: "asc" } }),
+    prisma.shipmentEvent.groupBy({ by: ["title"], where: { shipment: { organizationId: orgId, ...(isSupplier ? { supplierId: s.supplierId } : {}) } }, _count: { _all: true }, orderBy: { _count: { title: "desc" } }, take: 60 }),
     prisma.shipmentEvent.groupBy({ by: ["responsibleName"], where: { shipment: { organizationId: orgId }, responsibleName: { not: null } }, _count: { _all: true }, orderBy: { _count: { responsibleName: "desc" } }, take: 60 }),
-    loadShipmentPeople(orgId),
+    loadShipmentPeople(orgId).then((p) => (isSupplier ? { WELLMEKH: p.WELLMEKH ?? [] } : p)),
     canEdit ? prisma.productionBatch.findMany({ where: { organizationId: orgId }, select: { id: true, number: true, name: true, year: true }, orderBy: { number: "desc" } }) : Promise.resolve([]),
     canEdit ? prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
-  const userName = new Map(users.map((u) => [u.id, u.name]));
+  // Автор-поставщик показывается названием компании («Веллмех»), а не именем служебной учётной записи.
+  const userName = new Map(users.map((u) => [u.id, u.role === "SUPPLIER" ? u.supplier?.name ?? "Поставщик" : u.name]));
   // Подсказки названий этапа: «Примерка» и «Приёмка в Коптево» есть всегда, дальше — ранее использованные.
   const titles = [...new Set([FITTING_TITLE, ACCEPTANCE_TITLE, ...titleGroups.map((g) => g.title)])];
   // Подсказки для «Ответственный»: сотрудники приложения и ранее вписанные имена.
-  const names = [...new Set([...users.filter((u) => u.isActive).map((u) => u.name), ...nameGroups.map((g) => g.responsibleName).filter((x): x is string => !!x)])];
+  const names = [...new Set([...users.filter((u) => u.isActive && u.role !== "SUPPLIER" && !isSupplier).map((u) => u.name), ...nameGroups.map((g) => g.responsibleName).filter((x): x is string => !!x)])];
 
   // Строка без ТЗ — «свой» артикул (productionOrder пусто, название в customArticle).
   const orders = [...new Map(s.lines.flatMap((l) => (l.productionOrder ? [[l.productionOrder.id, l.productionOrder] as const] : []))).values()];
@@ -117,8 +121,8 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
       created: `${userName.get(r.createdById) ?? "—"}, ${stamp(r.createdAt)}`,
       updated: r.updatedById ? `${userName.get(r.updatedById) ?? "—"}, ${stamp(r.updatedAt)}` : "",
     })),
-    order: l.productionOrder ? <Link href={`/production/${l.productionOrder.id}`} title={orderHint(l.productionOrder)} className="font-medium hover:underline">{labelOf(l)}</Link> : <span className="text-neutral-500" title="Этого артикула ещё нет в ТЗ">без ТЗ</span>,
-    article: l.productionOrder ? <Link href={`/models/${l.productionOrder.productModel.id}`} className="hover:underline"><ArticleName model={l.productionOrder.productModel} /></Link> : <span>{l.customArticle}</span>,
+    order: l.productionOrder ? (isSupplier ? <span title={orderHint(l.productionOrder)} className="font-medium">{labelOf(l)}</span> : <Link href={`/production/${l.productionOrder.id}`} title={orderHint(l.productionOrder)} className="font-medium hover:underline">{labelOf(l)}</Link>) : <span className="text-neutral-500" title="Этого артикула ещё нет в ТЗ">без ТЗ</span>,
+    article: l.productionOrder ? (isSupplier ? <ArticleName model={l.productionOrder.productModel} /> : <Link href={`/models/${l.productionOrder.productModel.id}`} className="hover:underline"><ArticleName model={l.productionOrder.productModel} /></Link>) : <span>{l.customArticle}</span>,
     color: l.color,
     size: l.size,
     furKind: l.furKind,
@@ -130,7 +134,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
     label: lineText(l),
     blockedReason: (l.acceptedQty ?? 0) > 0 || (l.returnedQty ?? 0) > 0 ? "Нельзя удалить: по строке есть приёмка" : null,
     title: labelOf(l),
-    href: l.productionOrder ? `/production/${l.productionOrder.id}` : "",
+    href: l.productionOrder && !isSupplier ? `/production/${l.productionOrder.id}` : "",
     subtitle: [articleOfLine(l), l.color, l.size ? `р. ${l.size}` : "", l.furKind].filter(Boolean).join(" · "),
   }));
 
@@ -207,9 +211,9 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         </div>
         <dl className="grid grid-cols-[8rem_1fr] gap-y-1 text-sm sm:grid-cols-[10rem_1fr]">
           <dt className="text-neutral-500">Поставщик</dt>
-          <dd>{s.supplier ? <Link href={`/suppliers/${s.supplier.id}`} className="hover:underline">{s.supplier.name}</Link> : "—"}</dd>
+          <dd>{s.supplier ? (isSupplier ? s.supplier.name : <Link href={`/suppliers/${s.supplier.id}`} className="hover:underline">{s.supplier.name}</Link>) : "—"}</dd>
           <dt className="text-neutral-500">Партия пошива</dt>
-          <dd>{s.batch ? <Link href={`/production/batches/${s.batch.number}`} className="hover:underline">{batchText}</Link> : "—"}</dd>
+          <dd>{s.batch ? (isSupplier ? batchText : <Link href={`/production/batches/${s.batch.number}`} className="hover:underline">{batchText}</Link>) : "—"}</dd>
           <dt className="text-neutral-500">Плановая дата</dt>
           <dd>{formatDate(s.plannedDate)}</dd>
           <dt className="text-neutral-500">Примечание</dt>
@@ -263,10 +267,10 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
 
       {/* в) хронология */}
       <section className="flex flex-col gap-2" aria-label="Хронология">
-        <TimelineSection count={sorted.length} action={canEdit ? <NewEventButton shipmentId={s.id} titles={titles} people={people} /> : null}>
+        <TimelineSection count={sorted.length} action={canEvents ? <NewEventButton shipmentId={s.id} titles={titles} people={people} supplier={isSupplier} /> : null}>
         {sorted.length === 0 ? (
           <p className="rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-8 text-center text-sm text-neutral-500">
-            Этапов пока нет{canEdit ? " — добавьте первый кнопкой «+ Этап»: что произошло, когда и на ком" : ""}.
+            Этапов пока нет{canEvents ? " — добавьте первый кнопкой «+ Этап»: что произошло, когда и на ком" : ""}.
           </p>
         ) : (
           <div className="relative rounded-lg border border-neutral-200 bg-white py-3 pl-8 pr-3" data-timeline>
@@ -298,7 +302,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                           <div className="py-1.5 text-[11px] leading-tight text-neutral-400" data-interval>
                             {note.text}
                             {note.exact && note.fromTitle ? ` · от «${note.fromTitle}»: ${note.exact}` : ""}
-                            {canEdit && i > 0 && <span className="ml-2"><NewEventButton shipmentId={s.id} titles={titles} people={people} between={{ date: wallDateIso(sorted[i - 1].occurredAt), label: "+ этап между" }} /></span>}
+                            {canEvents && i > 0 && <span className="ml-2"><NewEventButton shipmentId={s.id} titles={titles} people={people} supplier={isSupplier} between={{ date: wallDateIso(sorted[i - 1].occurredAt), label: "+ этап между" }} /></span>}
                           </div>
                         )}
                         <div className="relative">
@@ -328,7 +332,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                                   {e.expected ? <span className="ml-2 rounded bg-orange-50 px-1.5 py-0.5 text-[11px] font-normal text-orange-700">ожидается</span> : <span className="ml-2 text-[11px] font-normal text-emerald-700" data-passed>пройдено</span>}
                                   <span className="ml-1.5 cursor-help rounded-full border border-neutral-300 px-1 text-[10px] font-normal text-neutral-400" title={trail} aria-label={trail} tabIndex={0}>i</span>
                                 </h4>
-                                {canEdit && <EventActions v={values(e)} titles={titles} people={people} canDone={!isAcceptanceEvent(e)} />}
+                                {(canEdit || (isSupplier && e.createdById === session.user.id)) && <EventActions v={values(e)} titles={titles} people={people} supplier={isSupplier} canDone={!isAcceptanceEvent(e)} />}
                               </div>
                               {e.details && <ClampText text={e.details} />}
                               {e.place && <p className="mt-0.5 text-[11px] text-neutral-500" data-place>место: {e.place}</p>}
@@ -338,7 +342,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                                     <li key={d.id} className="flex items-center">
                                       <Clip />
                                       <a href={`/api/drive-docs/${d.id}`} target="_blank" rel="noopener noreferrer" className="ml-1 max-w-[16rem] truncate text-blue-700 hover:underline" title={d.title}>{d.title}</a>
-                                      {canEdit && <DocRemove id={d.id} title={d.title} />}
+                                      {(canEdit || (isSupplier && e.createdById === session.user.id)) && <DocRemove id={d.id} title={d.title} />}
                                     </li>
                                   ))}
                                   {docs.map((d, k) => (
