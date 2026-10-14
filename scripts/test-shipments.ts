@@ -5,13 +5,15 @@
  *   docker exec fur-erp-db-1 createdb -U fur_erp fur_erp_shipment_test
  *   docker exec fur-erp-db-1 pg_dump -U fur_erp --no-owner fur_erp | docker exec -i fur-erp-db-1 psql -U fur_erp -d fur_erp_shipment_test -q
  *   docker exec -i fur-erp-db-1 psql -U fur_erp -d fur_erp_shipment_test -q < prisma/migrations/20261014220000_shipments_accept/migration.sql   # новая миграция на копию
+ *   docker exec -i fur-erp-db-1 psql -U fur_erp -d fur_erp_shipment_test -q < prisma/migrations/20261015090000_shipment_line_status/migration.sql   # стадии строк
  *   SHIPMENT_TEST_URL=postgresql://…/fur_erp_shipment_test node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/test-shipments.ts
  *   docker exec fur-erp-db-1 dropdb -U fur_erp fur_erp_shipment_test                       # потом удалить копию
  *
  * Проверяет: создание отгрузки (название по умолчанию), добавление строк из ТЗ (с суммированием и мягким превышением),
  * приёмку по строкам (принято 45 из 50, возврат 5: сохранение пачкой, валидация с номером строки), этапы («на ком», ответственный текстом),
  * ожидаемый → выполненный, кнопку «Принято» → итог поставки и отмену приёмки, запрет удаления строки с приёмкой,
- * файл этапа, интервалы, журнал изменений, права ролей.
+ * файл этапа, интервалы, журнал изменений, права ролей; стадии строк (просмотр → доработка → готов к отгрузке), запрет приёмки до READY,
+ * запрет READY при непринятых пунктах доработки, автоэтапы хронологии, массовое «Принято» одним этапом, возврат READY → доработка.
  */
 import Module from "module";
 import { join } from "path";
@@ -96,6 +98,70 @@ async function main() {
   const back = cands2.find((c) => c.key === c182.key)!;
   ok(back.inHere === 50, `в кандидатах видно «уже в этой»: ${back.inHere} (в других отгрузках: ${back.inOthers}; на копии с примером может быть > 0)`);
 
+  // 2b. Стадии строк
+  console.log("2b. Стадии строк");
+  const S = await import("../src/lib/shipment-stage");
+  const stageOf = async (lid: string) => raw.shipmentLine.findUniqueOrThrow({ where: { id: lid }, include: { reworks: { orderBy: { createdAt: "asc" } } } });
+  const evCount = (prefix: string) => raw.shipmentEvent.count({ where: { shipmentId: id, title: { startsWith: prefix } } });
+  const otherLine = lines.find((l) => l.id !== L.id)!;
+  ok(lines.every((l) => l.stage === "REVIEW"), "новые строки — «На просмотре»");
+  ok(!!(await A.saveLineAcceptance(id, [{ id: L.id, n: 1, accepted: 1, returned: null, comment: null }])).error, "приёмка до «Принято» по просмотру недоступна (таблица)");
+  const edBad = await A.updateShipmentLine(L.id, fd({ quantity: "50", acceptedQty: "1" }));
+  ok(!!edBad.error && /сначала/.test(edBad.error), "приёмка до READY недоступна (окно «Изменить»): " + edBad.error);
+  ok((await A.updateShipmentLine(L.id, fd({ quantity: "50", size: L.size ?? "", itemNo: "279" }))).ok === true && (await stageOf(L.id)).itemNo === "279", "№ изделия сохраняется в окне «Изменить»");
+  ok(!!(await A.acceptAllLines(id)).error, "«Принять всё» без строк в READY отклонено");
+  ok(S.moveError("REWORK", "TO_READY", [{ state: "DONE" }, { state: "MORE" }], false) === S.BLOCKED_BY_REWORK, "moveError: есть пункт MORE → «есть непринятые пункты доработки»");
+  ok(S.moveError("REWORK", "TO_READY", [{ state: "DONE" }], false) === null, "moveError: все пункты DONE → можно");
+  ok(S.lineView({ stage: "READY", quantity: 50, acceptedQty: 45, returnedQty: 5 }).label === "Не принят" && S.lineView({ stage: "READY", quantity: 50, acceptedQty: 50, returnedQty: 0 }).label === "Принят" && S.lineView({ stage: "READY", quantity: 50, acceptedQty: null, returnedQty: null }).key === "ready", "lineView: Принят / Не принят / Готов к отгрузке");
+
+  // доработка
+  const e0n = await raw.shipmentEvent.count({ where: { shipmentId: id } });
+  ok(!!(await A.sendLineToRework(L.id, [{ text: "  ", state: "OPEN", note: "" }])).error, "«На доработку» без пункта «что именно» отклонено");
+  const toRw = await A.sendLineToRework(L.id, [{ text: "Перешить манжет", state: "OPEN", note: "" }, { text: "Заменить подкладку", state: "OPEN", note: "" }]);
+  let Lr = await stageOf(L.id);
+  ok(!toRw.error && Lr.stage === "REWORK" && Lr.reworks.length === 2 && Lr.stageChangedBy === user.id && !!Lr.stageChangedAt, "REVIEW → REWORK: стадия, два пункта, кто и когда");
+  const evRw = await raw.shipmentEvent.findFirst({ where: { shipmentId: id, title: { startsWith: "На доработку: " } } });
+  ok(!!evRw && evRw.title.includes("Перешить манжет") && evRw.responsibleUserId === user.id && evRw.side === null && evRw.timeKnown && !evRw.expected && (await raw.shipmentEvent.count({ where: { shipmentId: id } })) === e0n + 1, "автоэтап «На доработку: <артикул>: <первый пункт>», ответственный — нажавший кнопку, «на ком» пусто");
+  ok(!!(await A.sendLineToRework(L.id, [{ text: "ещё", state: "OPEN", note: "" }])).error, "повторно отправить на доработку нельзя");
+  ok(!!(await A.saveLineAcceptance(id, [{ id: L.id, n: 1, accepted: 1, returned: null, comment: null }])).error, "приёмка недоступна, пока строка на доработке");
+  const blocked = await A.acceptLinesByReview(id, [L.id]);
+  ok(!!blocked.error && blocked.error.includes("есть непринятые пункты доработки"), "REWORK → READY при открытых пунктах запрещено: " + blocked.error);
+  const early = await A.acceptAfterRework(L.id);
+  ok(!!early.error && early.error.includes("есть непринятые пункты доработки") && (await stageOf(L.id)).stage === "REWORK", "«Принято после доработки» при открытых пунктах отклонено");
+  const [rw1, rw2] = Lr.reworks;
+  ok((await A.saveLineReworks(L.id, [{ id: rw1.id, text: rw1.text, state: "DONE", note: "рукав, левый" }, { id: rw2.id, text: rw2.text, state: "MORE", note: "ещё подогнать" }])).ok === true, "пункты: один DONE (с комментарием «где»), второй MORE");
+  Lr = await stageOf(L.id);
+  ok(Lr.reworks[0].state === "DONE" && Lr.reworks[0].note === "рукав, левый" && Lr.reworks[1].state === "MORE" && Lr.reworks[0].updatedById === user.id, "состояния и комментарий пункта сохранены, кто изменил записан");
+  ok(!!(await A.acceptAfterRework(L.id)).error, "пока есть MORE — «Принято после доработки» недоступно");
+  ok(!!(await A.saveLineReworks(L.id, [{ id: "нет-такого", text: "x", state: "OPEN", note: "" }])).error, "чужой пункт доработки отклонён");
+  ok(!!(await A.saveLineReworks(L.id, [{ id: rw1.id, text: "x", state: "ПЛОХО", note: "" }])).error, "неизвестное состояние пункта отклонено");
+  const doneRw = await A.acceptAfterRework(L.id, [{ id: rw1.id, text: rw1.text, state: "DONE", note: "рукав, левый" }, { id: rw2.id, text: rw2.text, state: "DONE", note: "подогнано" }, { text: "Проверить молнию", state: "DONE", note: "" }]);
+  Lr = await stageOf(L.id);
+  ok(!doneRw.error && Lr.stage === "READY" && Lr.reworks.length === 3, "все пункты DONE → «Принято после доработки»: READY " + (doneRw.error ?? ""));
+  ok((await evCount("Принято после доработки: ")) === 1, "автоэтап «Принято после доработки: <артикул>»");
+  // READY → REWORK (замечания позже)
+  const backRw = await A.sendLineToRework(L.id, [{ text: "Замечание после просмотра", state: "OPEN", note: "" }]);
+  Lr = await stageOf(L.id);
+  ok(!backRw.error && Lr.stage === "REWORK" && Lr.reworks.length === 4 && Lr.reworks.filter((r) => r.state !== "DONE").length === 1, "READY → REWORK с причиной: новый открытый пункт");
+  ok((await evCount("На доработку: ")) === 2, "возврат записан отдельным этапом");
+  const fix = await A.acceptAfterRework(L.id, Lr.reworks.map((r) => ({ id: r.id, text: r.text, state: "DONE", note: r.note ?? "" })));
+  ok(!fix.error && (await stageOf(L.id)).stage === "READY", "после исправления снова READY");
+  // «Принято» по просмотру: одна строка и массово
+  const one = await A.acceptLinesByReview(id, [otherLine.id]);
+  ok(!one.error && (await stageOf(otherLine.id)).stage === "READY" && (await raw.shipmentEvent.count({ where: { shipmentId: id, title: { startsWith: "Принято по просмотру: " } } })) === 1, "«Принято» по одной строке: READY и один этап «Принято по просмотру: <артикул>»");
+  ok(!!(await A.acceptLinesByReview(id, [otherLine.id])).error, "строка уже READY — повторное «Принято» отклонено");
+  const extras = cands.filter((c) => c.key !== c182.key && !cOther.some((o) => o.key === c.key) && c.qtyTz > 0).slice(0, 2);
+  if (extras.length === 2) {
+    await A.addShipmentLines(id, extras.map((c) => ({ key: c.key, qty: 1 })));
+    const nowLines = await raw.shipmentLine.findMany({ where: { shipmentId: id, stage: "REVIEW" } });
+    const mass = await A.acceptAllOnReview(id);
+    ok(!mass.error && mass.changed === nowLines.length && nowLines.length >= 2, `массовое «Принято всё, что на просмотре»: ${mass.changed} строк`);
+    ok((await raw.shipmentEvent.count({ where: { shipmentId: id, title: `Принято по просмотру: ${S.rowsText(nowLines.length)}` } })) === 1, "массовое действие — ОДИН этап «Принято по просмотру: N строк»");
+    for (const l of nowLines) await A.deleteShipmentLine(l.id);
+  } else console.log("   (мало позиций ТЗ для проверки массового действия — пропущено)");
+  ok(!!(await A.acceptAllOnReview(id)).error, "массовое «Принято» без строк на просмотре отклонено");
+  ok((await raw.shipmentLine.findMany({ where: { shipmentId: id } })).every((l) => l.stage === "READY"), "все строки состава — READY, дальше финальная приёмка");
+
   // 3. Приёмка по строкам: принято 45 из 50, возврат 5
   console.log("3. Приёмка по строкам");
   const other = lines.find((l) => l.id !== L.id)!;
@@ -106,6 +172,8 @@ async function main() {
   ok(!!badSum.error && /Строка 1/.test(badSum.error) && (await raw.shipmentLine.findUniqueOrThrow({ where: { id: L.id } })).acceptedQty === null, `принято + возврат больше «в отгрузке» отклонено: ${badSum.error}`);
   ok(!!(await A.saveLineAcceptance(id, [{ id: L.id, n: 2, accepted: -1, returned: null, comment: null }])).error, "отрицательное количество отклонено");
   ok(!!(await A.saveLineAcceptance(id, [{ id: L.id, n: 2, accepted: 1.5, returned: null, comment: null }])).error, "нецелое количество отклонено");
+  const noReason = await A.saveLineAcceptance(id, [{ id: L.id, n: 1, accepted: 45, returned: 5, comment: "  " }]);
+  ok(!!noReason.error && /почему не принято/.test(noReason.error) && (await raw.shipmentLine.findUniqueOrThrow({ where: { id: L.id } })).returnedQty === null, "«Не принято» без причины не сохраняется: " + noReason.error);
   const mixed = await A.saveLineAcceptance(id, [{ id: other.id, n: 1, accepted: other.quantity, returned: 0, comment: null }, { id: L.id, n: 2, accepted: 45, returned: 99, comment: "x" }]);
   ok(!!mixed.error && /Строка 2/.test(mixed.error) && (await raw.shipmentLine.findUniqueOrThrow({ where: { id: other.id } })).acceptedQty === null, "пачка с одной ошибочной строкой не записывается вовсе");
   ok(!!(await A.saveLineAcceptance(id, [{ id: "нет-такой-строки", n: 3, accepted: 1, returned: null, comment: null }])).error, "чужая / несуществующая строка отклонена");
@@ -133,6 +201,8 @@ async function main() {
   const allRows = await raw.shipmentLine.findMany({ where: { shipmentId: id } });
   ok(!aa.error && allRows.every((l) => l.acceptedQty === l.quantity && l.returnedQty === 0), "«Принять всё»: принято = в отгрузке, возврат 0");
   await A.saveLineAcceptance(id, [{ id: L.id, n: 1, accepted: 45, returned: 5, comment: "брак швов" }]);
+  const rwBlocked = await A.sendLineToRework(L.id, [{ text: "поздно", state: "OPEN", note: "" }]);
+  ok(!!rwBlocked.error && /Сначала снимите/.test(rwBlocked.error) && (await stageOf(L.id)).stage === "READY", "после финальной приёмки вернуть на доработку нельзя, пока не сняты «Принято» и «Возврат»");
 
   // 4. Этапы: «на ком», ответственный текстом
   console.log("4. Этапы");
@@ -231,7 +301,19 @@ async function main() {
   const created = await raw.shipmentEvent.findFirst({ where: { shipmentId: id, title: "Принято в Коптево" } });
   ok(!mk.error && created?.expected === true && created.place === "Коптево" && created.occurredAt.toISOString().startsWith("2026-10-15"), "«+ Приёмка в Коптево»: ожидаемый этап на плановую дату");
   await A.saveLineAcceptance(id, [{ id: L.id, n: 1, accepted: 45, returned: 5, comment: "брак швов" }]);
-  ok((await A.confirmAcceptance(id, created!.id, accForm())).ok === true, "приёмка подтверждена повторно");
+  // строка не в списке приёмки (на просмотре) не входит в итоги приёмки
+  const exOne = cands.find((c) => c.key !== c182.key && !cOther.some((o) => o.key === c.key) && c.qtyTz > 0);
+  if (exOne) {
+    await A.addShipmentLines(id, [{ key: exOne.key, qty: 1 }]);
+    const exLine = await raw.shipmentLine.findFirstOrThrow({ where: { shipmentId: id, stage: "REVIEW" } });
+    ok((await A.confirmAcceptance(id, created!.id, accForm())).ok === true, "приёмка подтверждена повторно (в составе есть строка на просмотре)");
+    const evX = await raw.shipmentEvent.findUniqueOrThrow({ where: { id: created!.id } });
+    const readyTot = C.shipmentTotals(await raw.shipmentLine.findMany({ where: { shipmentId: id, stage: "READY" } }));
+    ok(evX.details?.startsWith(C.acceptSummaryText(readyTot)) === true, `итог приёмки считается только по строкам «Готов к отгрузке»: «${(evX.details ?? "").split("\n")[0]}»`);
+    await A.cancelAcceptance(id);
+    await A.deleteShipmentLine(exLine.id);
+    await A.confirmAcceptance(id, created!.id, accForm());
+  } else ok((await A.confirmAcceptance(id, created!.id, accForm())).ok === true, "приёмка подтверждена повторно");
   await A.deleteEvent(created!.id);
   const shD = await raw.shipment.findUniqueOrThrow({ where: { id } });
   ok(shD.acceptedAt === null && shD.status === "PLANNED", "удаление этапа приёмки снимает acceptedAt");

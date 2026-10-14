@@ -1172,11 +1172,46 @@ model ShipmentLine {
   /// Приёмка по строке: сколько принято и сколько возвращено поставщику (не принято); null — ещё не отмечено.
   acceptedQty       Int?
   returnedQty       Int?
+  /// Стадия изделия до отгрузки: просмотр → (доработка) → готов к отгрузке. Финальная приёмка (acceptedQty/returnedQty) — только при READY.
+  stage             ShipmentLineStage @default(REVIEW)
+  /// Номер изделия из списка («279»; у нескольких штук одной строки — «259, 260»).
+  itemNo            String?
+  stageChangedAt    DateTime?
+  stageChangedBy    String?
+  reworks           ShipmentLineRework[]
   /// Устарело: приёмка по этапам больше не используется ни в интерфейсе, ни в итогах (таблица остаётся в БД).
   eventLines        ShipmentEventLine[]
 
   @@index([shipmentId])
   @@index([productionOrderId])
+}
+
+enum ShipmentLineStage {
+  REVIEW
+  REWORK
+  READY
+}
+
+enum ShipmentReworkState {
+  OPEN
+  DONE
+  MORE
+}
+
+/// Пункт доработки по строке отгрузки: что именно доработать, состояние, комментарий (где доработка / что изменено).
+model ShipmentLineRework {
+  id          String              @id @default(cuid())
+  lineId      String
+  line        ShipmentLine        @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  text        String
+  state       ShipmentReworkState @default(OPEN)
+  note        String?
+  createdAt   DateTime            @default(now())
+  createdById String
+  updatedAt   DateTime            @updatedAt
+  updatedById String?
+
+  @@index([lineId])
 }
 
 /// Этап отгрузки: свободное название, дата-время (время может быть неизвестно), ответственный, детализация.

@@ -8,6 +8,9 @@ import { checkOrgRefs } from "@/lib/org-guard";
 import { DATE_RANGE_ERROR, MAX_LINE_QTY, MAX_LINES, isDateInRange } from "@/lib/shipments";
 import { acceptLineError, acceptSummaryText, isSide, shipmentTotals, wallNow, wallToDate } from "@/lib/shipment-calc";
 import { loadShipmentCandidates, nextShipmentName } from "@/lib/shipment-data";
+import { ACCEPT_NEEDS_READY, clip, eventTitles, isReworkState, moveError, REWORK_STATE_LABEL } from "@/lib/shipment-stage";
+import { orderLabel } from "@/lib/order-label";
+import { loadTzPositions } from "@/lib/order-label-db";
 import { readOneDriveFile, removeDriveFileIfUnused, writeDriveFile } from "@/lib/drive-files";
 import { removeStoredFiles } from "@/lib/fitting-files";
 import { guessDocType } from "@/lib/drive-docs";
@@ -122,14 +125,15 @@ export async function addShipmentLines(shipmentId: string, items: { key: string;
 }
 
 async function ownLine(orgId: string, lineId: string) {
-  return prisma.shipmentLine.findFirst({ where: { id: lineId, shipment: { organizationId: orgId } }, select: { id: true, shipmentId: true, quantity: true } });
+  return prisma.shipmentLine.findFirst({ where: { id: lineId, shipment: { organizationId: orgId } }, select: { id: true, shipmentId: true, quantity: true, stage: true } });
 }
 
 /** Правка строки: количество, размер, комментарий, принято и возврат. */
 export async function updateShipmentLine(lineId: string, fd: FormData): Promise<EditResult> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  if (!(await ownLine(orgId, lineId))) return { error: "Строка не найдена" };
+  const line = await ownLine(orgId, lineId);
+  if (!line) return { error: "Строка не найдена" };
   const q = intField(fd, "quantity");
   if (q === undefined || q === null || q <= 0) return { error: "Количество должно быть целым числом больше 0" };
   const size = str(fd, "size");
@@ -141,7 +145,10 @@ export async function updateShipmentLine(lineId: string, fd: FormData): Promise<
   if (accepted === undefined || returned === undefined) return { error: `«Принято» и «Возврат» — целые числа от 0 до ${MAX_LINE_QTY.toLocaleString("ru-RU")} или пусто` };
   const bad = acceptLineError(1, q, accepted, returned);
   if (bad) return { error: bad.replace(/^Строка 1: /, "") };
-  await prisma.shipmentLine.update({ where: { id: lineId }, data: { quantity: q, size: size || null, comment: comment || null, acceptedQty: accepted, returnedQty: returned } });
+  const itemNo = str(fd, "itemNo");
+  if (itemNo.length > 60) return { error: "№ изделия не длиннее 60 символов" };
+  if (line.stage !== "READY" && (accepted != null || returned != null)) return { error: `«Принято» и «Возврат» недоступны: ${ACCEPT_NEEDS_READY}` };
+  await prisma.shipmentLine.update({ where: { id: lineId }, data: { quantity: q, size: size || null, comment: comment || null, itemNo: itemNo || null, acceptedQty: accepted, returnedQty: returned } });
   revalidateAll(orgId);
   return { ok: true };
 }
@@ -158,7 +165,7 @@ export async function saveLineAcceptance(shipmentId: string, drafts: LineDraft[]
   if (!(await ownShipment(orgId, shipmentId))) return { error: "Отгрузка не найдена" };
   if (!Array.isArray(drafts) || drafts.length === 0) return { error: "Нечего сохранять" };
   if (drafts.length > MAX_LINES * 5) return { error: "Слишком много строк за раз" };
-  const own = new Map((await prisma.shipmentLine.findMany({ where: { shipmentId }, select: { id: true, quantity: true } })).map((l) => [l.id, l]));
+  const own = new Map((await prisma.shipmentLine.findMany({ where: { shipmentId }, select: { id: true, quantity: true, stage: true } })).map((l) => [l.id, l]));
   const seen = new Set<string>();
   for (const d of drafts) {
     const line = own.get(d.id);
@@ -167,8 +174,10 @@ export async function saveLineAcceptance(shipmentId: string, drafts: LineDraft[]
     seen.add(d.id);
     const bad = acceptLineError(d.n, line.quantity, d.accepted, d.returned);
     if (bad) return { error: bad };
+    if (line.stage !== "READY" && (d.accepted != null || d.returned != null)) return { error: `Строка ${d.n}: ${ACCEPT_NEEDS_READY}` };
     for (const v of [d.accepted, d.returned]) if (v != null && v > MAX_LINE_QTY) return { error: `Строка ${d.n}: не больше ${MAX_LINE_QTY.toLocaleString("ru-RU")} шт.` };
     if ((d.comment ?? "").length > 500) return { error: `Строка ${d.n}: комментарий не длиннее 500 символов` };
+    if ((d.returned ?? 0) > 0 && !(d.comment ?? "").trim()) return { error: `Строка ${d.n}: укажите, почему не принято` };
   }
   await prisma.$transaction(async (tx) => {
     for (const d of drafts) {
@@ -179,13 +188,13 @@ export async function saveLineAcceptance(shipmentId: string, drafts: LineDraft[]
   return { saved: drafts.length };
 }
 
-/** «Принять всё»: принято = в отгрузке, возврат = 0 по всем строкам (используется в окне приёмки; в таблице то же делается черновиком). */
+/** «Принять всё»: принято = в отгрузке, возврат = 0 по строкам «Готов к отгрузке» (используется в окне приёмки; в таблице то же делается черновиком). */
 export async function acceptAllLines(shipmentId: string): Promise<{ error?: string }> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
   if (!(await ownShipment(orgId, shipmentId))) return { error: "Отгрузка не найдена" };
-  const lines = await prisma.shipmentLine.findMany({ where: { shipmentId }, select: { id: true, quantity: true } });
-  if (lines.length === 0) return { error: "В составе нет строк" };
+  const lines = await prisma.shipmentLine.findMany({ where: { shipmentId, stage: "READY" }, select: { id: true, quantity: true } });
+  if (lines.length === 0) return { error: "Нет строк, готовых к отгрузке: сначала «Принято» по просмотру" };
   await prisma.$transaction(async (tx) => {
     for (const l of lines) await tx.shipmentLine.update({ where: { id: l.id }, data: { acceptedQty: l.quantity, returnedQty: 0 } });
   });
@@ -433,7 +442,7 @@ export async function confirmAcceptance(shipmentId: string, eventId: string, fd:
   const orgId = session.user.organizationId;
   const sh = await prisma.shipment.findFirst({
     where: { id: shipmentId, organizationId: orgId },
-    select: { id: true, acceptedAt: true, lines: { select: { quantity: true, acceptedQty: true, returnedQty: true } } },
+    select: { id: true, acceptedAt: true, lines: { where: { stage: "READY" }, select: { quantity: true, acceptedQty: true, returnedQty: true } } },
   });
   if (!sh) return { error: "Отгрузка не найдена" };
   if (sh.acceptedAt) return { error: "Приёмка уже подтверждена" };
@@ -449,7 +458,7 @@ export async function confirmAcceptance(shipmentId: string, eventId: string, fd:
   if (comment.length > 1000) return { error: "Комментарий не длиннее 1000 символов" };
   const who = await resolveResponsible(orgId, str(fd, "acceptedBy"));
   const t = shipmentTotals(sh.lines);
-  if (t.filledLines === 0) return { error: "Сначала заполните колонки «Принято» и «Возврат» в составе отгрузки (или нажмите «Принять всё»)" };
+  if (t.filledLines === 0) return { error: "Сначала отметьте «Принято» / «Не принято» в списке товаров на приёмке в Коптево (или нажмите «Принять все по списку»)" };
   const at = wallToDate(date, time);
   const details = [acceptSummaryText(t), comment].filter(Boolean).join("\n");
   await prisma.$transaction(async (tx) => {
@@ -486,4 +495,153 @@ export async function listShipmentCandidates(shipmentId: string) {
   const orgId = session.user.organizationId;
   if (!(await ownShipment(orgId, shipmentId))) return [];
   return loadShipmentCandidates(orgId, shipmentId);
+}
+
+// ───────────── стадии строк: просмотр → доработка → готов к отгрузке ─────────────
+
+export type ReworkInput = { id?: string; text: string; state: string; note: string };
+type StageResult = { error?: string; ok?: boolean; changed?: number };
+
+const lineSel = {
+  id: true, shipmentId: true, stage: true, itemNo: true, size: true, color: true, acceptedQty: true, returnedQty: true, productionOrderId: true,
+  productionOrder: { select: { id: true, number: true, workOrderNumber: true, productModel: { select: { name: true } } } },
+  reworks: { select: { id: true, state: true, text: true } },
+} as const;
+
+/** «M018 р. 44 №259» — короткое имя строки для названий этапов. */
+function articleOf(l: { size: string | null; itemNo: string | null; productionOrder: { productModel: { name: string } } }): string {
+  return [l.productionOrder.productModel.name, l.size ? `р. ${l.size}` : "", l.itemNo ? `№${l.itemNo}` : ""].filter(Boolean).join(" ");
+}
+
+async function lineDetails(orgId: string, lines: { id: string; size: string | null; itemNo: string | null; productionOrder: { id: string; number: string; workOrderNumber: string | null; productModel: { name: string } } }[]): Promise<string> {
+  const pos = await loadTzPositions(orgId, lines.map((l) => l.productionOrder));
+  return lines.map((l) => `${orderLabel({ workOrderNumber: l.productionOrder.workOrderNumber, number: l.productionOrder.number, ...pos.get(l.productionOrder.id) })} · ${articleOf(l)}`).join("\n").slice(0, 3900);
+}
+
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+/** Автоэтап хронологии: «сейчас», время известно, ответственный — нажавший кнопку, «на ком» не заполняется. */
+async function stageEvent(tx: Tx, shipmentId: string, userId: string, title: string, details: string | null) {
+  await tx.shipmentEvent.create({ data: { shipmentId, title, occurredAt: wallNow(), timeKnown: true, responsibleUserId: userId, details, createdById: userId } });
+}
+
+async function loadOwnLines(orgId: string, shipmentId: string, ids?: string[]) {
+  return prisma.shipmentLine.findMany({ where: { shipmentId, shipment: { organizationId: orgId }, ...(ids ? { id: { in: ids } } : {}) }, select: lineSel });
+}
+
+/** Кнопка «Принято» (по просмотру): REVIEW → READY. Одна строка — этап «Принято по просмотру: <артикул>», несколько — один этап «N строк». */
+export async function acceptLinesByReview(shipmentId: string, lineIds: string[]): Promise<StageResult> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  if (!Array.isArray(lineIds) || lineIds.length === 0) return { error: "Нет строк на просмотре" };
+  const ids = [...new Set(lineIds)];
+  const lines = await loadOwnLines(orgId, shipmentId, ids);
+  if (lines.length !== ids.length) return { error: "Строка не найдена — обновите страницу" };
+  for (const l of lines) {
+    if (l.stage === "READY") return { error: `${articleOf(l)}: уже готов к отгрузке` };
+    const bad = moveError(l.stage, "TO_READY", l.reworks, false);
+    if (bad) return { error: `${articleOf(l)}: ${bad}` };
+  }
+  const at = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.shipmentLine.updateMany({ where: { id: { in: ids } }, data: { stage: "READY", stageChangedAt: at, stageChangedBy: session.user.id } });
+    const details = await lineDetails(orgId, lines);
+    await stageEvent(tx, shipmentId, session.user.id, lines.length === 1 ? eventTitles.accepted(articleOf(lines[0])) : eventTitles.acceptedMany(lines.length), details);
+  });
+  revalidateAll(orgId);
+  return { ok: true, changed: ids.length };
+}
+
+/** «Принято всё, что на просмотре»: все строки REVIEW → READY одним этапом. */
+export async function acceptAllOnReview(shipmentId: string): Promise<StageResult> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  if (!(await ownShipment(orgId, shipmentId))) return { error: "Отгрузка не найдена" };
+  const lines = await prisma.shipmentLine.findMany({ where: { shipmentId, stage: "REVIEW" }, select: { id: true } });
+  if (lines.length === 0) return { error: "Нет строк на просмотре" };
+  return acceptLinesByReview(shipmentId, lines.map((l) => l.id));
+}
+
+function cleanItems(items: ReworkInput[]): ReworkInput[] | string {
+  if (!Array.isArray(items)) return "Нечего сохранять";
+  const out: ReworkInput[] = [];
+  for (const it of items) {
+    const text = (it.text ?? "").trim();
+    const note = (it.note ?? "").trim();
+    if (!text) continue;
+    if (text.length > 1000) return "Пункт доработки не длиннее 1000 символов";
+    if (note.length > 1000) return "Комментарий к пункту не длиннее 1000 символов";
+    if (!isReworkState(it.state)) return "Неизвестное состояние пункта доработки";
+    out.push({ id: it.id, text, state: it.state, note });
+  }
+  return out;
+}
+
+/** «На доработку» (из просмотра) и «Вернуть на доработку» (из «Готов к отгрузке»): обязателен хотя бы один пункт «что именно». */
+export async function sendLineToRework(lineId: string, items: ReworkInput[]): Promise<StageResult> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const line = (await prisma.shipmentLine.findMany({ where: { id: lineId, shipment: { organizationId: orgId } }, select: lineSel }))[0];
+  if (!line) return { error: "Строка не найдена" };
+  const cleaned = cleanItems(items.map((i) => ({ ...i, state: "OPEN" })));
+  if (typeof cleaned === "string") return { error: cleaned };
+  if (cleaned.length === 0) return { error: "Укажите, что именно нужно доработать" };
+  const bad = moveError(line.stage, "TO_REWORK", line.reworks, line.acceptedQty != null || line.returnedQty != null);
+  if (bad) return { error: bad };
+  const at = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.shipmentLine.update({ where: { id: lineId }, data: { stage: "REWORK", stageChangedAt: at, stageChangedBy: session.user.id } });
+    for (const it of cleaned) await tx.shipmentLineRework.create({ data: { lineId, text: it.text, note: it.note || null, state: "OPEN", createdById: session.user.id } });
+    const first = cleaned[0].text;
+    await stageEvent(tx, line.shipmentId, session.user.id, eventTitles.rework(articleOf(line), first),
+      [(await lineDetails(orgId, [line])), ...cleaned.map((c, i) => `${i + 1}. ${c.text}`), line.stage === "READY" ? "Возврат из «Готов к отгрузке»" : ""].filter(Boolean).join("\n"));
+  });
+  revalidateAll(orgId);
+  return { ok: true };
+}
+
+/** «Сохранить» в окне доработки: правка пунктов (текст, состояние, комментарий), новые пункты. Только пока строка на доработке. */
+export async function saveLineReworks(lineId: string, items: ReworkInput[]): Promise<StageResult> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const line = (await prisma.shipmentLine.findMany({ where: { id: lineId, shipment: { organizationId: orgId } }, select: lineSel }))[0];
+  if (!line) return { error: "Строка не найдена" };
+  if (line.stage !== "REWORK") return { error: "Строка не на доработке" };
+  const cleaned = cleanItems(items);
+  if (typeof cleaned === "string") return { error: cleaned };
+  const own = new Map(line.reworks.map((r) => [r.id, r]));
+  for (const it of cleaned) if (it.id && !own.has(it.id)) return { error: "Пункт доработки не найден — обновите страницу" };
+  if (cleaned.length === 0) return { error: "Должен остаться хотя бы один пункт доработки" };
+  const keep = new Set(cleaned.filter((c) => c.id).map((c) => c.id!));
+  await prisma.$transaction(async (tx) => {
+    for (const r of line.reworks) if (!keep.has(r.id)) await tx.shipmentLineRework.delete({ where: { id: r.id } });
+    for (const it of cleaned) {
+      if (it.id) await tx.shipmentLineRework.update({ where: { id: it.id }, data: { text: it.text, state: it.state as "OPEN" | "DONE" | "MORE", note: it.note || null, updatedById: session.user.id } });
+      else await tx.shipmentLineRework.create({ data: { lineId, text: it.text, state: it.state as "OPEN" | "DONE" | "MORE", note: it.note || null, createdById: session.user.id } });
+    }
+  });
+  revalidateAll(orgId);
+  return { ok: true };
+}
+
+/** «Принято после доработки»: REWORK → READY, когда все пункты исправлены и приняты. Можно сразу с сохранением пунктов из окна. */
+export async function acceptAfterRework(lineId: string, items?: ReworkInput[]): Promise<StageResult> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  if (items) {
+    const r = await saveLineReworks(lineId, items);
+    if (r.error) return r;
+  }
+  const line = (await prisma.shipmentLine.findMany({ where: { id: lineId, shipment: { organizationId: orgId } }, select: lineSel }))[0];
+  if (!line) return { error: "Строка не найдена" };
+  if (line.stage !== "REWORK") return { error: "Строка не на доработке" };
+  const bad = moveError(line.stage, "TO_READY", line.reworks, false);
+  if (bad) return { error: bad };
+  const at = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.shipmentLine.update({ where: { id: lineId }, data: { stage: "READY", stageChangedAt: at, stageChangedBy: session.user.id } });
+    await stageEvent(tx, line.shipmentId, session.user.id, eventTitles.afterRework(articleOf(line)),
+      [await lineDetails(orgId, [line]), ...line.reworks.map((r, i) => `${i + 1}. ${clip(r.text, 200)} — ${REWORK_STATE_LABEL[r.state]}`)].join("\n"));
+  });
+  revalidateAll(orgId);
+  return { ok: true };
 }

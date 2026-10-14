@@ -79,7 +79,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
       include: {
         supplier: { select: { name: true } },
         batch: { select: { number: true } },
-        lines: { select: { id: true, quantity: true, acceptedQty: true, returnedQty: true } },
+        lines: { select: { id: true, quantity: true, acceptedQty: true, returnedQty: true, stage: true } },
         events: {
           select: {
             id: true, title: true, occurredAt: true, timeKnown: true, expected: true, createdAt: true, responsibleName: true,
@@ -97,15 +97,16 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   ]);
 
   const rows = shipments.map((s) => {
-    const t = shipmentTotals(s.lines);
+    const t = shipmentTotals(s.lines.filter((l) => l.stage === "READY"));
+    const all = s.lines.reduce((x, l) => x + l.quantity, 0);
     const done = s.events.filter((e) => !e.expected).sort(compareEvents);
     const last = done.length ? done[done.length - 1] : null;
     const next = s.events.filter((e) => e.expected).sort(compareEvents)[0] ?? null;
-    return { s, t, last, next };
+    return { s, t, all, last, next };
   });
   const sum = rows.reduce(
-    (a, r) => ({ inS: a.inS + r.t.inShipment, acc: a.acc + r.t.accepted, ret: a.ret + r.t.returned, rem: a.rem + r.t.remaining }),
-    { inS: 0, acc: 0, ret: 0, rem: 0 },
+    (a, r) => ({ all: a.all + r.all, inS: a.inS + r.t.inShipment, acc: a.acc + r.t.accepted, ret: a.ret + r.t.returned, rem: a.rem + r.t.remaining }),
+    { all: 0, inS: 0, acc: 0, ret: 0, rem: 0 },
   );
   const hasFilters = Boolean(f.year.length || f.q || f.from || f.to || f.model.length || f.supplier.length || f.batch.length || f.stage.length);
   const isEmpty = rows.length === 0 && !hasFilters && year === "all";
@@ -179,7 +180,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
             id="shipments"
             title="Отгрузки — итоги"
             tiles={[
-              { key: "in", label: "К отгрузке, шт.", value: sum.inS ? formatQty(sum.inS) : <Dash />, caption: `${formatQty(rows.length)} ${plural(rows.length, "отгрузка", "отгрузки", "отгрузок")}${hasFilters ? " · по фильтрам" : ""}` },
+              { key: "in", label: "К отгрузке, шт.", value: sum.inS ? formatQty(sum.inS) : <Dash />, caption: `${formatQty(rows.length)} ${plural(rows.length, "отгрузка", "отгрузки", "отгрузок")} · в отгрузках ${formatQty(sum.all)} шт.${hasFilters ? " · по фильтрам" : ""}` },
               { key: "acc", label: "Принято, шт.", value: sum.acc ? formatQty(sum.acc) : <Dash />, caption: share(sum.acc, sum.inS, "от «К отгрузке»"), hint: <p>Сумма колонки «Принято» в составе отгрузок.</p> },
               {
                 key: "ret",
@@ -218,6 +219,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
                       <Td className="whitespace-nowrap">{formatDate(r.s.plannedDate)}</Td>
                       <Td className="whitespace-nowrap text-right tabular-nums">
                         {formatQty(r.t.inShipment)} · {formatQty(r.t.accepted)} · {formatQty(r.t.returned)}
+                        {r.all !== r.t.inShipment && <span className="block text-[11px] font-normal text-neutral-500">в отгрузке всего {formatQty(r.all)}</span>}
                       </Td>
                       <Td>
                         {r.last ? (

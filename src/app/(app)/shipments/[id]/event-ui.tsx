@@ -229,7 +229,7 @@ export function AcceptPanel({ shipmentId, event, rows, totals, canEdit, names }:
       <div className="min-w-0">
         <p className="font-semibold text-neutral-900">{event ? `Приёмка в Коптево — ожидается ${event.stamp}` : "Приёмка в Коптево не запланирована"}</p>
         <p className="text-xs text-neutral-500">
-          {event ? "Когда изделия приняты, отметьте в составе «Принято» и «Возврат» и нажмите «ПРИНЯТО»: появится итог поставки." : "Добавьте ожидаемый этап — потом по нему подтверждается приёмка и формируется итог."}
+          {event ? "Когда изделия приняты, отметьте «Принято» / «Не принято» в списке на приёмке и нажмите «ПРИНЯТО»: появится итог поставки." : "Добавьте ожидаемый этап — потом по нему подтверждается приёмка и формируется итог."}
         </p>
         {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       </div>
@@ -279,17 +279,17 @@ function AcceptFields({ shipmentId, rows, totals, namesId, names }: { shipmentId
       <Field label="Комментарий" wide><Textarea name="comment" rows={2} maxLength={1000} /></Field>
 
       <div className="flex flex-col gap-2 sm:col-span-2">
-        <h3 className="text-xs font-medium text-neutral-700">По строкам (из состава отгрузки)</h3>
+        <h3 className="text-xs font-medium text-neutral-700">По строкам списка на приёмке</h3>
         {empty ? (
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            <span className="mr-auto">Сначала заполните колонки «Принято» и «Возврат» в составе (и нажмите «Сохранить»).</span>
+            <span className="mr-auto">Сначала отметьте «Принято» / «Не принято» в списке товаров на приёмке (и нажмите «Сохранить»).</span>
             <Button type="button" size="sm" variant="outline" disabled={pending}
               onClick={() => start(async () => { setErr(null); const r = await acceptAllLines(shipmentId); if (r.error) return setErr(r.error); router.refresh(); })}>
-              {pending ? "…" : "Принять всё"}
+              {pending ? "…" : "Принять все по списку"}
             </Button>
           </div>
         ) : (
-          <p className="text-xs text-neutral-500">Берутся сохранённые значения. Не сохранённые в таблице правки сюда не попадут.</p>
+          <p className="text-xs text-neutral-500">Берутся сохранённые значения. Не сохранённые в списке на приёмке правки сюда не попадут.</p>
         )}
         {err && <p role="alert" className="text-xs text-red-600">{err}</p>}
         <div className="max-h-[34vh] overflow-auto rounded-md border border-neutral-200">

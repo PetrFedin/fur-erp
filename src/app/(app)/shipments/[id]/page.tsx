@@ -17,7 +17,8 @@ import {
   SIDE_LABEL, wallDateIso, wallTimeHm,
 } from "@/lib/shipment-calc";
 import { HeaderDelete, HeaderEdit } from "./header-ui";
-import { AddLinesButton, LinesTable, type LineRow } from "./lines-ui";
+import { AcceptList, AddLinesButton, LinesTable, type LineRow } from "./lines-ui";
+import { STAGE_LABEL } from "@/lib/shipment-stage";
 import { AcceptPanel, ClampText, DocRemove, EventActions, NewEventButton, SummaryShell, type EventValues } from "./event-ui";
 
 export const metadata = { title: "Отгрузка" };
@@ -45,6 +46,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
       batch: { select: { id: true, number: true, name: true, year: true } },
       lines: {
         include: {
+          reworks: { orderBy: { createdAt: "asc" } },
           productionOrder: {
             select: {
               id: true, number: true, workOrderNumber: true, size: true, color: true, plannedQuantity: true,
@@ -88,12 +90,27 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
       (a.size ?? "").localeCompare(b.size ?? "", "ru", { numeric: true }),
   );
   // Итоги — только по строкам отгрузки (принято / возврат), этапы в них не участвуют.
-  const totals = shipmentTotals(lines);
+  // «К отгрузке» и приёмка — только по строкам «Готов к отгрузке» (список приёмки в Коптево); остальное — на просмотре / доработке.
+  const readyLines = lines.filter((l) => l.stage === "READY");
+  const totals = shipmentTotals(readyLines);
+  const allQty = lines.reduce((t, l) => t + l.quantity, 0);
+  const reworkQty = lines.filter((l) => l.stage === "REWORK").reduce((t, l) => t + l.quantity, 0);
+  const reviewQty = lines.filter((l) => l.stage === "REVIEW").reduce((t, l) => t + l.quantity, 0);
   const lineText = (l: (typeof lines)[number]) => [labelOf(l), l.productionOrder.productModel.name, l.color, l.size ? `р. ${l.size}` : ""].filter(Boolean).join(" · ");
 
   const lineRows: LineRow[] = lines.map((l, i) => ({
     id: l.id,
     n: i + 1,
+    orderText: `${labelOf(l)} ${l.productionOrder.workOrderNumber ?? ""} ${l.productionOrder.number}`,
+    articleText: [l.productionOrder.productModel.name, l.productionOrder.productModel.salesCode ?? "", l.productionOrder.productModel.salesName ?? ""].join(" "),
+    itemNo: l.itemNo ?? "",
+    stage: l.stage,
+    stageNote: l.stageChangedAt ? `${STAGE_LABEL[l.stage]}: ${(l.stageChangedBy ? userName.get(l.stageChangedBy) ?? l.stageChangedBy : "—")}, ${stamp(l.stageChangedAt)}` : "",
+    reworks: l.reworks.map((r) => ({
+      id: r.id, text: r.text, state: r.state, note: r.note ?? "",
+      created: `${userName.get(r.createdById) ?? "—"}, ${stamp(r.createdAt)}`,
+      updated: r.updatedById ? `${userName.get(r.updatedById) ?? "—"}, ${stamp(r.updatedAt)}` : "",
+    })),
     order: <Link href={`/production/${l.productionOrder.id}`} title={orderHint(l.productionOrder)} className="font-medium hover:underline">{labelOf(l)}</Link>,
     article: <Link href={`/models/${l.productionOrder.productModel.id}`} className="hover:underline"><ArticleName model={l.productionOrder.productModel} /></Link>,
     color: l.color,
@@ -138,12 +155,13 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
 
   // Приёмка: ожидаемый этап приёмки (по названию / месту), панель с кнопкой «ПРИНЯТО» и итог поставки.
   const acceptEvent = s.acceptedAt ? null : sorted.find((e) => isAcceptanceEvent(e)) ?? null;
-  const acceptRows = lineRows.map((r) => ({ label: r.label, quantity: r.quantity, accepted: r.accepted, returned: r.returned, comment: r.comment }));
+  const acceptRows = lineRows.filter((r) => r.stage === "READY").map((r) => ({ label: r.label, quantity: r.quantity, accepted: r.accepted, returned: r.returned, comment: r.comment }));
   const summary = s.acceptedAt
     ? deliverySummary({ plannedDate: s.plannedDate, acceptedAt: s.acceptedAt, acceptEventId: s.acceptEventId, events: s.events })
     : null;
-  const groups = summary ? groupByOrder(lines.map((l) => ({ orderKey: l.productionOrderId, label: labelOf(l), article: l.productionOrder.productModel.name, quantity: l.quantity, acceptedQty: l.acceptedQty, returnedQty: l.returnedQty, comment: l.comment }))) : [];
-  const returnLines = lines.filter((l) => (l.returnedQty ?? 0) > 0);
+  const groups = summary ? groupByOrder(readyLines.map((l) => ({ orderKey: l.productionOrderId, label: labelOf(l), article: l.productionOrder.productModel.name, quantity: l.quantity, acceptedQty: l.acceptedQty, returnedQty: l.returnedQty, comment: l.comment }))) : [];
+  const returnLines = readyLines.filter((l) => (l.returnedQty ?? 0) > 0);
+  const reworkedLines = lines.filter((l) => l.reworks.length > 0);
   const accEv = s.acceptEventId ? s.events.find((e) => e.id === s.acceptEventId) : null;
   const status = SHIPMENT_STATUS[s.status];
 
@@ -187,7 +205,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         id="shipment"
         title="Отгрузка — итоги"
         tiles={[
-          { key: "in", label: "К отгрузке, шт.", value: formatQty(totals.inShipment), caption: `${formatQty(lines.length)} ${lines.length === 1 ? "строка" : "строк"}` },
+          { key: "in", label: "К отгрузке, шт.", value: formatQty(totals.inShipment), caption: `${formatQty(readyLines.length)} из ${formatQty(lines.length)} строк · из ${formatQty(allQty)} на примерке${reworkQty ? `; на доработке ${formatQty(reworkQty)}` : ""}${reviewQty ? `; на просмотре ${formatQty(reviewQty)}` : ""}` },
           { key: "acc", label: "Принято, шт.", value: formatQty(totals.accepted), caption: sharePct(totals.accepted) ? `${sharePct(totals.accepted)} от «К отгрузке»` : undefined, hint: <p>Сумма колонки «Принято» в составе отгрузки (сохранённые значения).</p> },
           {
             key: "ret",
@@ -203,10 +221,12 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             rows={lineRows}
             canEdit={canEdit}
             addButton={<AddLinesButton shipmentId={s.id} />}
-            hint={<p>Строки берутся из позиций загруженных ТЗ: цвет, размер и вид меха — копия на момент добавления. «Принято» и «Возврат» вносятся прямо в таблице и сохраняются кнопкой «Сохранить»; «Возврат» — возвращено поставщику / не принято, причина — в «Комментарии».</p>}
+            hint={<p>Строки берутся из позиций загруженных ТЗ: цвет, размер и вид меха — копия на момент добавления. Сначала стадия: «Принято» по просмотру или «На доработку». Принятие в Коптево («Принято» / «Не принято» и причина) — в блоке ниже, только для строк «Готов к отгрузке».</p>}
           />
         }
       />
+
+      <AcceptList shipmentId={s.id} rows={lineRows} canEdit={canEdit} hasEvent={s.events.some((e) => isAcceptanceEvent({ expected: true, title: e.title, place: e.place }))} waiting={{ rework: reworkQty, review: reviewQty }} />
 
       {/* в) хронология */}
       <section className="flex flex-col gap-2" aria-label="Хронология">
@@ -302,6 +322,9 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                 <div><dt className="text-xs text-neutral-500">Возврат (не принято)</dt><dd className="text-lg font-semibold tabular-nums">{formatQty(totals.returned)} шт.<span className="ml-1 text-xs font-normal text-neutral-500">{sharePct(totals.returned) ?? ""}</span></dd></div>
                 <div><dt className="text-xs text-neutral-500">Ещё ждёт приёмки</dt><dd className="text-lg font-semibold tabular-nums">{formatQty(totals.remaining)} шт.</dd></div>
               </dl>
+              {allQty - totals.inShipment > 0 && (
+                <p className="mt-2 text-sm text-neutral-700" data-not-in-list>Не вошло в список приёмки (на доработке / просмотре): <span className="font-medium tabular-nums">{formatQty(allQty - totals.inShipment)} шт.</span></p>
+              )}
               <div className="mt-3 overflow-x-auto rounded-md border border-neutral-200 bg-white">
                 <table className="w-full min-w-[560px] text-xs">
                   <thead className="bg-neutral-50 text-left text-neutral-500">
@@ -329,6 +352,10 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                 </table>
               </div>
             </div>
+
+            {reworkedLines.length > 0 && (
+              <p className="text-sm" data-reworked>Прошли доработку: <span className="font-medium">{reworkedLines.length} {reworkedLines.length === 1 ? "строка" : reworkedLines.length % 10 >= 2 && reworkedLines.length % 10 <= 4 && (reworkedLines.length % 100 < 12 || reworkedLines.length % 100 > 14) ? "строки" : "строк"}</span></p>
+            )}
 
             <div>
               <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Сроки</h3>

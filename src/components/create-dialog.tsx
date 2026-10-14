@@ -21,6 +21,7 @@ export function CreateDialog({
   wide,
   defaultOpen,
   variant = "default",
+  size,
 }: {
   label: string;
   title: string;
@@ -29,11 +30,12 @@ export function CreateDialog({
   wide?: boolean;
   defaultOpen?: boolean;
   variant?: "default" | "outline" | "ghost";
+  size?: "sm";
 }) {
   const [open, setOpen] = useState(Boolean(defaultOpen));
   return (
     <>
-      <Button type="button" variant={variant} onClick={() => setOpen(true)}>
+      <Button type="button" variant={variant} size={size} onClick={() => setOpen(true)}>
         {label}
       </Button>
       {open && (
