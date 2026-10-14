@@ -196,7 +196,7 @@ async function load(f: string) {
     q.customColumns = [{ id: "price", letter: "", title: "Закупка", unit: "$", formula: "", kind: "input" }];
     q.params = [{ name: "курс", value: "84,4075" }];
     const pv = previewFormula(q, "=D*курс");
-    if (!pv || Math.abs((pv.result ?? 0) - 30387) > 0.01) { bad++; console.log("FAIL живой пример", pv); } else console.log("OK  живой пример:", pv.text);
+    if (!pv || Math.abs((pv.result ?? 0) - 30386.7) > 0.001) { bad++; console.log("FAIL живой пример", pv); } else console.log("OK  живой пример:", pv.text);
     const pe = previewFormula(q, "=D*");
     if (!pe?.error) { bad++; console.log("FAIL пример с ошибкой"); } else console.log("OK  пример с ошибкой:", pe.error);
   }
