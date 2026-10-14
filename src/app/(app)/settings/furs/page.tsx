@@ -6,6 +6,7 @@ import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { buildFurIndex } from "@/lib/fur-ref";
 import { loadFurUsage } from "@/lib/fur-usage";
+import { SupplierFursRef } from "../supplier-refs";
 import { FursTable, type FurRow } from "./furs-table";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick } from "@/lib/filters";
@@ -21,6 +22,8 @@ export default async function FursPage({ searchParams }: PageProps<"/settings/fu
   const f = parseFilters(FUR_FILTERS, await searchParams);
   const canEdit = hasRole(session.user.role, ACCESS.furRefs);
   const refs = await prisma.furRef.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } });
+  // Поставщику — только названия и написания (в примечаниях и счётчиках использования бывают цены и наши закупки).
+  if (session.user.role === "SUPPLIER") return <SupplierFursRef rows={refs} />;
   const usage = await loadFurUsage(orgId, refs, buildFurIndex(refs));
   const rows: FurRow[] = refs.map((r) => {
     const u = usage.byRef.get(r.id);

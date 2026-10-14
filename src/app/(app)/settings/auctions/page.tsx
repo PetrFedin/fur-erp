@@ -8,6 +8,7 @@ import { loadAuctionOptions } from "@/lib/auction-ref";
 import { auctionKey } from "@/lib/auction-key";
 import { findAuctionIn } from "@/lib/auction-ref-core";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
+import { SupplierAuctionsRef } from "../supplier-refs";
 import { AuctionsTable, type AuctionRowData } from "./auctions-table";
 
 export const metadata = { title: "Справочник аукционов" };
@@ -16,6 +17,8 @@ export default async function AuctionsPage() {
   const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
   const canEdit = hasRole(session.user.role, ACCESS.auctions);
+  // Поставщику — только названия: без закупок, сумм и примечаний.
+  if (session.user.role === "SUPPLIER") return <SupplierAuctionsRef rows={await loadAuctionOptions(orgId)} />;
 
   const [options, purchases, unlinked, direct] = await Promise.all([
     loadAuctionOptions(orgId),

@@ -4,6 +4,7 @@ import { InfoHint } from "@/components/info-hint";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
+import { SupplierArticles } from "../../articles/supplier-view";
 import { ArticlesRefTable, type ArticleRow } from "./articles-table";
 import { ImportPanel } from "./import-panel";
 import { getCategoryOptions } from "@/lib/categories";
@@ -18,6 +19,8 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
   const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
   const f = parseFilters(ARTICLE_FILTERS, await searchParams);
+  // Поставщику — тот же список артикулов без цен, что в «Изделиях» (в справочнике есть цены и выпуск).
+  if (session.user.role === "SUPPLIER") return <SupplierArticles orgId={orgId} q={f.q} />;
   const canEdit = hasRole(session.user.role, ACCESS.models);
 
   const categories = await getCategoryOptions(orgId);
