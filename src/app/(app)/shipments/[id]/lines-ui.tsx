@@ -469,17 +469,16 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint, default
             <Table className="min-w-[1000px]">
               <Thead>
                 <Tr>
-                  <Th>№ изд.</Th>
-                  <Th>ТЗ · поз.</Th>
-                  <Th>Артикул</Th>
-                  <Th>Цвет</Th>
-                  <Th>Размер</Th>
-                  <Th>Вид меха</Th>
-                  <Th className="text-right" unit="шт.">В ТЗ</Th>
-                  <Th className="text-right" unit="шт.">В отгрузке</Th>
-                  <Th>Статус</Th>
-                  {canEdit && <Th>Изменить</Th>}
-                  {canEdit && <Th>Убрать</Th>}
+                  <Th className="whitespace-nowrap">№ изд.</Th>
+                  <Th className="whitespace-nowrap">ТЗ · поз.</Th>
+                  <Th className="whitespace-nowrap">Артикул</Th>
+                  <Th className="whitespace-nowrap">Цвет</Th>
+                  <Th className="whitespace-nowrap">Размер</Th>
+                  <Th className="whitespace-nowrap">Вид меха</Th>
+                  <Th className="whitespace-nowrap text-right" unit="шт.">В ТЗ</Th>
+                  <Th className="whitespace-nowrap text-right" unit="шт.">В отгрузке</Th>
+                  <Th className="whitespace-nowrap">Статус</Th>
+                  {canEdit && <Th><span className="sr-only">Действия</span></Th>}
                 </Tr>
               </Thead>
               <Tbody>
@@ -487,17 +486,19 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint, default
                   <Tr key={r.id}>
                     <Td className="whitespace-nowrap tabular-nums">{r.itemNo || <Dash />}</Td>
                     <Td className="whitespace-nowrap">{r.order}</Td>
-                    <Td>{r.article}</Td>
-                    <Td>{r.color ?? <Dash />}</Td>
-                    <Td>{r.size ?? <Dash />}</Td>
-                    <Td>{r.furKind ?? <Dash />}</Td>
+                    <Td className="whitespace-nowrap">{r.article}</Td>
+                    <Td className="whitespace-nowrap">{r.color ?? <Dash />}</Td>
+                    <Td className="whitespace-nowrap">{r.size ?? <Dash />}</Td>
+                    <Td className="whitespace-nowrap">{r.furKind ?? <Dash />}</Td>
                     <Td className="text-right tabular-nums">{r.inTz != null ? formatQty(r.inTz) : <Dash />}</Td>
                     <Td className="text-right font-medium tabular-nums">{formatQty(r.quantity)}</Td>
-                    <Td className="min-w-40">{stageCell(r)}</Td>
-                    {canEdit && <Td className="whitespace-nowrap"><LineEdit v={editValues(r)} /></Td>}
+                    <Td className="min-w-56">{stageCell(r)}</Td>
                     {canEdit && (
                       <Td className="whitespace-nowrap">
-                        <LineDelete id={r.id} label={r.label} blockedReason={r.blockedReason} />
+                        <span className="inline-flex items-center gap-1">
+                          <LineEdit v={editValues(r)} />
+                          <LineDelete id={r.id} label={r.label} blockedReason={r.blockedReason} />
+                        </span>
                         {r.blockedReason && <div className="text-[11px] text-neutral-500">есть приёмка</div>}
                       </Td>
                     )}
@@ -507,17 +508,17 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint, default
                   <Tr className="row-total">
                     <Td colSpan={7} className="text-right"><TotalLabel unit="шт." /></Td>
                     <Td className="text-right tabular-nums">{formatQty(totQty)}</Td>
-                    <Td colSpan={canEdit ? 3 : 1} />
+                    <Td colSpan={canEdit ? 2 : 1} />
                   </Tr>
                 )}
                 {rows.length === 0 && (
                   <Tr>
-                    <Td colSpan={canEdit ? 11 : 9} className="py-8 text-center text-neutral-500">Примерка пока пуста{canEdit ? " — добавьте позиции кнопкой «+ Добавить из ТЗ» (или свой артикул, если его нет в ТЗ)" : ""}</Td>
+                    <Td colSpan={canEdit ? 10 : 9} className="py-8 text-center text-neutral-500">Примерка пока пуста{canEdit ? " — добавьте позиции кнопкой «+ Добавить из ТЗ» (или свой артикул, если его нет в ТЗ)" : ""}</Td>
                   </Tr>
                 )}
                 {rows.length > 0 && shown.length === 0 && (
                   <Tr>
-                    <Td colSpan={canEdit ? 11 : 9} className="py-6 text-center text-neutral-500">Ничего не найдено</Td>
+                    <Td colSpan={canEdit ? 10 : 9} className="py-6 text-center text-neutral-500">Ничего не найдено</Td>
                   </Tr>
                 )}
               </Tbody>
