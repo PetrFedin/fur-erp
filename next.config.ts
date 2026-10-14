@@ -20,6 +20,8 @@ const docFrameHeaders = securityHeaders.map((h) =>
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Второй dev-сервер (проверка на тестовой копии базы): NEXT_DIST_DIR=.next-test next dev -p 3204.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   // Загрузка документов закупки (до 25 МБ на файл + служебные байты multipart).
   experimental: {

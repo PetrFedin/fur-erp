@@ -35,6 +35,11 @@ const NAMES: Record<string, [string, string, string?]> = {
   MGL03: ["Варежки", `${T}: прил. 88`],
   MH01: ["Головной убор", `${T}: прил. 76`],
   MH03: ["Головной убор (ушанка)", `${T}: прил. 160 («Головной убор (ушанка)»; в остальных «Головной убор»)`],
+  // Не из списка владельца из 36: у этих описание — только цены реестра, названия в ТЗ однозначны.
+  MH06: ["Головной убор (повязка меховая)", `${T}: прил. 96 (14 ТЗ), 182 («Головной убор (Повязка)»)`],
+  "MSC-01": ["Шарф меховой", `${T}: 24 ТЗ (прил. 106-109 и др.)`],
+  "MSC-02": ["Шарф меховой", `${T}: 6 ТЗ (в т.ч. прил. 156)`],
+  M041: ["Куртка из стриженой норки", `${T}: прил. 123 (4 ТЗ)`],
   M008: ["Шуба удлиненная из рыси", "расчёты LYNX MVST FW26 («Шуба удлиненная», рысь) + каталог закупки FW26/27 («Шуба удлиненная… из рыси»)", "Шуба / полушубок"],
   M047: ["Шуба укороченная из рыси", "расчёты LYNX MVST FW26 («Шуба укороченная», рысь канадская)"],
   M039: ["Пальто из стриженой норки с отделкой из соболя", "Расчёт стоимости пошива ММ FW26 («пальто», норка стрижка + соболь) + каталог закупки FW26/27"],
@@ -95,7 +100,9 @@ async function main() {
     journal.push({ id: t.m.id, name: t.m.name, oldCategory: t.m.category, oldCategoryRefId: t.m.categoryRefId, setCategory: setCat, newName: t.name, source: t.src });
     await prisma.productModel.update({ where: { id: t.m.id }, data: { salesName: t.name, ...(setCat ? { category: t.cat, categoryRefId: refId } : {}) } });
   }
-  writeFileSync(JOURNAL, JSON.stringify(journal, null, 2));
+  let old: unknown[] = [];
+  try { old = JSON.parse(readFileSync(JOURNAL, "utf8")); } catch { /* первого журнала нет */ }
+  writeFileSync(JOURNAL, JSON.stringify([...old, ...journal], null, 2));
   console.log("применено, журнал:", JOURNAL);
 }
 main().then(() => process.exit(0), (e) => { console.error(e); process.exit(1); });
