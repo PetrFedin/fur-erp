@@ -261,7 +261,7 @@ export function payloadFromTable(table: string[][]): { payload: CalcPayload; war
   const cOp = col(/^operation/), cDest = col(/^куда/), cPrice = isSaga ? col(/^закупка/) : col(/^закупка/);
   const cFee = col(/аукционный сбор/);
   const rows: CalcRow[] = [];
-  let header: CalcHeader = payload.header;
+  const header: CalcHeader = payload.header;
   for (const raw of table.slice(hi + 1)) {
     const first = (raw.find((c) => c.trim() !== "") ?? "").trim();
     if (!first) continue;
@@ -307,7 +307,7 @@ export function payloadFromTable(table: string[][]): { payload: CalcPayload; war
       if (!header.cbRate && rate > 0) { header.cbRate = num(rate); header.agentPct = "0"; }
       for (const k of ["feePct", "dressing", "transport", "brokerPct", "transit"]) if (r[k] === "") r[k] = "0";
     }
-    r.invoice && !header.invoice && (header.invoice = r.invoice);
+    if (r.invoice && !header.invoice) header.invoice = r.invoice;
     rows.push(r);
   }
   if (rows.length === 0) return { error: "В файле не нашлось строк лотов (нужны количество и цена)." };

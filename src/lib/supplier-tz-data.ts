@@ -12,11 +12,11 @@ export async function loadTzFormRefs(orgId: string): Promise<{ colors: string[];
       select: { id: true, lotNumber: true, color: true, quantityRemaining: true, rawMaterial: { select: { name: true } } },
       orderBy: { createdAt: "desc" }, take: 400,
     }),
-    prisma.productionOrder.findMany({ where: { organizationId: orgId }, select: { number: true } }),
+    prisma.productionOrder.findMany({ where: { organizationId: orgId }, select: { workOrderNumber: true } }),
     prisma.supplierInbox.findMany({ where: { organizationId: orgId, kind: "TZ" }, select: { payload: true } }),
   ]);
   const nums = [
-    ...orders.map((o) => parseInt(String(o.number).replace(/\D/g, ""), 10)),
+    ...orders.map((o) => (/^\d{1,5}$/.test((o.workOrderNumber ?? "").trim()) ? Number(o.workOrderNumber) : NaN)),
     ...inbox.map((i) => parseInt(String((i.payload as { number?: string })?.number ?? "").replace(/\D/g, ""), 10)),
   ].filter((n) => Number.isFinite(n) && n < 100000);
   return {
