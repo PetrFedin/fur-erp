@@ -179,9 +179,20 @@ model CalendarEvent {
   doneAt         DateTime?
   createdById    String?
   createdAt      DateTime        @default(now())
+  /// Запись внёс внешний поставщик (Веллмех): календарь по артикулу «этап · плановая и фактическая дата».
+  supplierId     String?
+  supplier       Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  /// Этап поставщика (ключ из src/lib/supplier-calendar.ts)
+  status         String?
+  factDate       DateTime?
+  color          String?
+  size           String?
+  /// Номер ТЗ или отгрузки, к которому относится запись (по желанию)
+  docNote        String?
 
   @@index([organizationId, date])
   @@index([seasonId])
+  @@index([supplierId, date])
 }
 
 model Organization {
@@ -306,6 +317,7 @@ model Supplier {
   shipments      Shipment[]
   users          User[]
   inbox          SupplierInbox[]
+  calendarEvents CalendarEvent[]
 
   @@index([organizationId])
 }
@@ -1675,6 +1687,8 @@ enum InboxStatus {
 enum InboxKind {
   AUCTION_CALC
   TZ
+  /// Документ поставщика к закупке или лоту (УПД, спецификация, счёт, письмо)
+  DOCUMENT
 }
 
 /// «Входящие от поставщика»: расчёт по лотам аукциона или ТЗ, внесённые Веллмехом. Это ЧЕРНОВИК на проверку,
