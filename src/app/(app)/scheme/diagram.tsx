@@ -8,23 +8,21 @@ import { IconGear, IconPencil } from "@/components/icons";
 const NODES = [
   { x: 30, y: 30 }, { x: 730, y: 30 }, { x: 380, y: 220 }, { x: 30, y: 410 }, { x: 380, y: 410 }, { x: 730, y: 410 }, { x: 380, y: 600 },
 ];
-/** Линии связей: k — индекс в FLOWS; координаты подобраны вручную под NODES. */
-const EDGES: { k: number; d: string; lx: number; ly: number; dash?: boolean }[] = [
-  { k: 0, d: "M 230 100 C 230 170 420 150 440 220", lx: 330, ly: 148 },
-  { k: 1, d: "M 770 100 C 770 170 580 150 560 220", lx: 670, ly: 148 },
-  { k: 2, d: "M 745 100 C 700 300 610 330 580 410", lx: 650, ly: 300 },
-  { k: 3, d: "M 940 100 L 940 410", lx: 940, ly: 255 },
-  { k: 4, d: "M 590 290 C 650 350 800 350 830 410", lx: 735, ly: 345 },
-  { k: 5, d: "M 500 290 L 500 410", lx: 500, ly: 350 },
-  { k: 6, d: "M 100 100 L 100 410", lx: 100, ly: 205 },
-  { k: 7, d: "M 420 290 C 420 360 270 350 250 410", lx: 330, ly: 352 },
-  { k: 8, d: "M 200 410 L 200 100", lx: 200, ly: 300, dash: true },
-  { k: 9, d: "M 270 440 C 330 440 340 300 380 275", lx: 292, ly: 395, dash: true },
-  { k: 10, d: "M 60 100 C -50 300 -50 560 380 640", lx: 12, ly: 440 },
-  { k: 11, d: "M 620 255 C 700 255 700 600 620 640", lx: 690, ly: 520 },
-  { k: 12, d: "M 150 480 C 150 570 300 620 380 625", lx: 205, ly: 585 },
-  { k: 13, d: "M 500 480 L 500 600", lx: 500, ly: 540 },
-  { k: 14, d: "M 850 480 C 850 570 680 650 620 655", lx: 770, ly: 595 },
+/** Линии связей: f → t по номерам шагов (FLOWS); координаты подобраны вручную под NODES. */
+const EDGES: { f: number; t: number; d: string; lx: number; ly: number; dash?: boolean }[] = [
+  { f: 1, t: 3, d: "M 230 100 C 230 170 420 150 440 220", lx: 330, ly: 148 },
+  { f: 2, t: 3, d: "M 770 100 C 770 170 580 150 560 220", lx: 670, ly: 148 },
+  { f: 2, t: 5, d: "M 745 100 C 700 300 610 330 580 410", lx: 650, ly: 300 },
+  { f: 3, t: 6, d: "M 590 290 C 650 350 800 350 830 410", lx: 735, ly: 345 },
+  { f: 3, t: 5, d: "M 500 290 L 500 410", lx: 500, ly: 350 },
+  { f: 1, t: 4, d: "M 100 100 L 100 410", lx: 100, ly: 205 },
+  { f: 3, t: 4, d: "M 420 290 C 420 360 270 350 250 410", lx: 330, ly: 352 },
+  { f: 4, t: 1, d: "M 200 410 L 200 100", lx: 200, ly: 300, dash: true },
+  { f: 4, t: 3, d: "M 270 440 C 330 440 340 300 380 275", lx: 292, ly: 395, dash: true },
+  { f: 1, t: 7, d: "M 60 100 C -50 300 -50 560 380 640", lx: 12, ly: 440 },
+  { f: 3, t: 7, d: "M 620 255 C 700 255 700 600 620 640", lx: 690, ly: 520 },
+  { f: 4, t: 7, d: "M 150 480 C 150 570 300 620 380 625", lx: 205, ly: 585 },
+  { f: 5, t: 7, d: "M 500 480 L 500 600", lx: 500, ly: 540 },
 ];
 
 function wrap(t: string, n: number): string[] {
@@ -70,10 +68,10 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
             <marker id="arr-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#171717" /></marker>
           </defs>
           {EDGES.map((e) => {
-            const f = FLOWS[e.k];
+            const f = FLOWS.find((x) => x.from === e.f && x.to === e.t)!;
             const on = hot != null && (f.from === hot + 1 || f.to === hot + 1);
             return (
-              <g key={e.k} opacity={hot == null || on ? 1 : 0.25}>
+              <g key={`${e.f}-${e.t}`} opacity={hot == null || on ? 1 : 0.25}>
                 <path d={e.d} fill="none" stroke={on ? "#171717" : "#a3a3a3"} strokeWidth={on ? 2 : 1.4} strokeDasharray={e.dash ? "5 4" : undefined} markerEnd={on ? "url(#arr-hot)" : "url(#arr)"} />
                 <g transform={`translate(${e.lx} ${e.ly})`}>
                   <rect x={-(f.label.length * 3.6 + 5)} y="-10" width={f.label.length * 7.2 + 10} height="18" rx="4" fill="white" opacity="0.92" />
