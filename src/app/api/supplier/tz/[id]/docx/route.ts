@@ -2,6 +2,7 @@ import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { buildTzDocx } from "@/lib/tz-docx-vendor";
 import type { TzPayload } from "@/lib/tz-vendor";
+import { ACCESS, hasRole } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ async function authorize() {
   const session = await getFreshSession({ allowSupplier: true });
   if (!session?.user) return null;
   const role = session.user.role;
-  if (role !== "SUPPLIER" && role !== "OWNER" && role !== "ADMIN") return null;
+  if (role !== "SUPPLIER" && !hasRole(role, ACCESS.inbox)) return null;
   return session;
 }
 function reply(buf: Buffer, number: string) {
@@ -31,7 +32,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/supplier/tz/[id
   const { id } = await ctx.params;
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return new Response("Not found", { status: 404 });
   const row = await prisma.supplierInbox.findFirst({
-    where: { id, kind: "TZ", organizationId: session.user.organizationId, ...(session.user.role === "SUPPLIER" ? { supplierId: session.user.supplierId ?? "-" } : {}) },
+    where: { id, kind: "TZ", organizationId: session.user.organizationId, ...(session.user.role === "SUPPLIER" ? { supplierId: session.user.supplierId ?? "-" } : session.user.role === "OWNER" || session.user.role === "ADMIN" ? {} : { status: { not: "DRAFT" as const } }) },
     select: { payload: true },
   });
   if (!row) return new Response("Not found", { status: 404 });

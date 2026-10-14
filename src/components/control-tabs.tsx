@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/session";
 import { getYearFilter } from "@/lib/year-filter";
 import { loadControlCounts, type ControlCounts } from "@/lib/control-counts";
 import { getIntegrityReport } from "@/lib/integrity";
+import { ACCESS, hasRole } from "@/lib/access";
 
 const TABS = [
   { key: "tasks", href: "/attention", label: "Задачи", hint: "Что требует действия — единый список" },
@@ -12,6 +13,7 @@ const TABS = [
   { key: "documents", href: "/documents", label: "Документы", hint: "Каких документов не хватает; расхождения и документы для поиска" },
   { key: "reconciliation", href: "/reconciliation", label: "Сверка", hint: "Что сходится на 100%, что нет; проверка данных: остатки, стоимости, оплаты, долг" },
   { key: "history", href: "/history", label: "История", hint: "Кто, когда и что изменил" },
+  { key: "inbox", href: "/inbox", label: "Входящие", hint: "Расчёты и ТЗ, присланные поставщиком: проверить и принять" },
 ] as const;
 
 export type ControlTab = (typeof TABS)[number]["key"];
@@ -27,14 +29,16 @@ function count(key: ControlTab, c: ControlCounts | null, integrity: { n: number;
   if (!c) return null;
   if (key === "tasks") return { n: c.tasks, tone: c.urgent > 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-900", title: plural(c.tasks, "вопрос", "вопроса", "вопросов") + (c.urgent ? `, срочных блоков: ${c.urgent}` : "") };
   if (key === "verify") return { n: c.waiting, tone: "bg-amber-100 text-amber-900", title: plural(c.waiting, "строка", "строки", "строк") + " ждут подтверждения" };
+  if (key === "inbox") return { n: c.inbox, tone: "bg-amber-100 text-amber-900", title: plural(c.inbox, "черновик", "черновика", "черновиков") + " от поставщика ждут проверки" };
   if (key === "documents") return { n: c.docGaps, tone: "bg-amber-100 text-amber-900", title: plural(c.docGaps, "документ", "документа", "документов") + " с неполным комплектом" };
   return null;
 }
 
-function Bar({ active, counts, integrity = null }: { active: ControlTab; counts: ControlCounts | null; integrity?: { n: number; red: boolean } | null }) {
+function Bar({ active, counts, integrity = null, showInbox = false }: { active: ControlTab; counts: ControlCounts | null; integrity?: { n: number; red: boolean } | null; showInbox?: boolean }) {
+  const tabs = TABS.filter((t) => t.key !== "inbox" || showInbox || active === "inbox");
   return (
     <nav aria-label="Контроль" className="flex items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-neutral-200 pb-2">
-      {TABS.map((t) => {
+      {tabs.map((t) => {
         const c = count(t.key, counts, integrity);
         const on = t.key === active;
         return (
@@ -67,7 +71,7 @@ async function Loaded({ active }: { active: ControlTab }) {
   const counts = await loadControlCounts(session.user.organizationId, year).catch(() => null);
   const rep = await getIntegrityReport(session.user.organizationId);
   const integrity = rep ? { n: rep.failingErrors + rep.failingWarns, red: rep.failingErrors > 0 } : null;
-  return <Bar active={active} counts={counts} integrity={integrity} />;
+  return <Bar active={active} counts={counts} integrity={integrity} showInbox={hasRole(session.user.role, ACCESS.inbox)} />;
 }
 
 /**
@@ -76,7 +80,7 @@ async function Loaded({ active }: { active: ControlTab }) {
  */
 export function ControlTabs({ active }: { active: ControlTab }) {
   return (
-    <Suspense fallback={<Bar active={active} counts={null} />}>
+    <Suspense fallback={<Bar active={active} counts={null} showInbox={false} />}>
       <Loaded active={active} />
     </Suspense>
   );

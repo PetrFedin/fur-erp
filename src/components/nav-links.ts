@@ -15,7 +15,7 @@ export const NAV_LINKS = [
   { href: "/settings", label: "Настройки", also: ["/clients", "/suppliers", "/warehouses", "/materials", "/users"] },
   // «Контроль» — один раздел с вкладками (<ControlTabs>): Задачи · Подтвердить · Документы · Сверка · История.
   // Старые адреса (/document-analysis, /integrity, /comments) — редиректы на новые места; подсветка остаётся на «Контроле».
-  { href: "/attention", label: "Контроль", also: ["/verify", "/documents", "/reconciliation", "/document-analysis", "/history", "/comments", "/integrity"] },
+  { href: "/attention", label: "Контроль", also: ["/verify", "/documents", "/reconciliation", "/document-analysis", "/history", "/comments", "/integrity", "/inbox"] },
 ] as const;
 
 export type NavItem = { readonly href: string; readonly label: string; readonly also: readonly string[] };

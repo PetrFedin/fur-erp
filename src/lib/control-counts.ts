@@ -16,6 +16,8 @@ export type ControlCounts = {
   /** Из tasks: документы для поиска и решения владельца (блоки центра задач). */
   docTasks: number;
   decisions: number;
+  /** Присланных поставщиком черновиков, ждущих проверки («Входящие»). */
+  inbox: number;
   /** Крупнейшие блоки задач (для Сводки). */
   top?: ControlTopBlock[];
   /** Блоки «Документы для поиска» и «Решения владельца» (центр задач берёт их отсюда, чтобы числа совпали). */
@@ -34,11 +36,12 @@ export function loadControlCounts(organizationId: string, year: YearFilter, opts
   const hit = cache.get(key);
   if (!opts.fresh && hit && Date.now() - hit.at < TTL_MS) return hit.value;
   const value = (async () => {
-    const [allRows, vf, coverage, blocks] = await Promise.all([
+    const [allRows, vf, coverage, blocks, inbox] = await Promise.all([
       computeAttention(prisma, organizationId, year),
       loadVerifyFlags(prisma, organizationId, year),
       computeDocCoverage(prisma, organizationId),
       loadTaskBlocks(prisma, organizationId),
+      prisma.supplierInbox.count({ where: { organizationId, status: "SENT" } }),
     ]);
     // Оплаты, описанные задачами на документы, не считаются второй раз в «Нет платёжек» / «Аванс без привязки».
     const attentionRows = stripCoveredPayments(allRows, blocks.coveredPaymentIds);
@@ -57,6 +60,7 @@ export function loadControlCounts(organizationId: string, year: YearFilter, opts
       docGaps: coverage.total.rowsWithGaps,
       docTasks: blocks.openDocs,
       decisions: blocks.openDecisions,
+      inbox,
       top: top.slice(0, 3),
       blocks,
     };
