@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import type { LotOpt } from "@/app/(app)/supplier/tz/tz-form";
 
 /** Справочники для формы ТЗ поставщика. Только названия, номера и остатки: никаких наших цен и себестоимости. */
-export async function loadTzFormRefs(orgId: string): Promise<{ colors: string[]; models: string[]; lots: LotOpt[]; nextNumber: string }> {
-  const [colors, models, lots, orders, inbox] = await Promise.all([
+export async function loadTzFormRefs(orgId: string): Promise<{ colors: string[]; models: string[]; lots: LotOpt[]; batches: { value: string; label: string }[]; nextNumber: string }> {
+  const [colors, models, lots, orders, inbox, batches] = await Promise.all([
     prisma.colorRef.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: { name: "asc" } }),
     prisma.productModel.findMany({ where: { organizationId: orgId, isActive: true }, select: { name: true, sku: true }, orderBy: { name: "asc" } }),
     prisma.rawMaterialLot.findMany({
@@ -14,6 +14,7 @@ export async function loadTzFormRefs(orgId: string): Promise<{ colors: string[];
     }),
     prisma.productionOrder.findMany({ where: { organizationId: orgId }, select: { workOrderNumber: true } }),
     prisma.supplierInbox.findMany({ where: { organizationId: orgId, kind: "TZ" }, select: { payload: true } }),
+    prisma.productionBatch.findMany({ where: { organizationId: orgId }, select: { number: true, name: true, year: true }, orderBy: { number: "desc" }, take: 60 }),
   ]);
   const nums = [
     ...orders.map((o) => (/^\d{1,5}$/.test((o.workOrderNumber ?? "").trim()) ? Number(o.workOrderNumber) : NaN)),
@@ -23,6 +24,7 @@ export async function loadTzFormRefs(orgId: string): Promise<{ colors: string[];
     colors: colors.map((c) => c.name),
     models: models.map((m) => m.sku || m.name),
     lots: lots.map((l) => ({ id: l.id, lot: l.lotNumber ?? "", material: l.rawMaterial.name, color: l.color ?? "", remaining: String(Number(l.quantityRemaining)) })),
+    batches: batches.map((b) => ({ value: String(b.number), label: `Партия ${b.number}${b.year ? ` · ${b.year}` : ""}` })),
     nextNumber: String((nums.length ? Math.max(...nums) : 0) + 1),
   };
 }
