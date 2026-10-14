@@ -6,6 +6,9 @@ import { requireSession } from "@/lib/session";
 import { canUseChat, chatCounts, loadThread, resolveEntity, supplierName, threadWhere, viewerOf } from "@/lib/chat";
 import { ENTITY_TYPES, REQUEST_TYPES, SUPPLIER_ENTITY_TYPES, awaitsMyAnswer, entityHrefFor, isUnread } from "@/lib/chat-core";
 import { cn } from "@/lib/utils";
+import { TelegramConnect } from "./telegram-connect";
+import { telegramToken } from "@/lib/channels/telegram";
+import { hasRole, ACCESS } from "@/lib/access";
 import { ChatAutoRefresh, CloseButton, Composer, NewRequestForm, ScrollBottom } from "./chat-client";
 
 export const metadata = { title: "Чат" };
@@ -82,6 +85,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
     return `/chat${qs ? "?" + qs : ""}`;
   };
   const entityTypes = v.side === "SUPPLIER" ? Object.fromEntries(SUPPLIER_ENTITY_TYPES.map((t) => [t, ENTITY_TYPES[t]])) : ENTITY_TYPES;
+  const myTg = await prisma.channelLink.count({ where: { organizationId: v.organizationId, userId: v.id, channel: "TELEGRAM" } });
   const showForm = isNew || (!!preset && !selected);
 
   return (
@@ -121,6 +125,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
                   <Link href={`/chat?thread=${t.id}${f ? `&f=${f}` : ""}`} className={cn("block px-3 py-2 hover:bg-neutral-50", selected?.id === t.id && "bg-neutral-100")}>
                     <div className="flex items-center gap-1.5">
                       <span className={cn("truncate text-sm", unread ? "font-semibold" : "font-medium")}>{t.subject}</span>
+                      <span className="shrink-0 text-[11px] text-neutral-400">#{t.number}</span>
                       {unread && <span className="shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">новое</span>}
                       <span className="ml-auto shrink-0 text-[11px] text-neutral-500">{fmt(t.lastMessageAt)}</span>
                     </div>
@@ -191,6 +196,13 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
           )}
         </section>
       </div>
+      <details className="max-w-3xl rounded-lg border border-neutral-200 bg-white p-3">
+        <summary className="cursor-pointer text-sm font-medium">Подключить Telegram</summary>
+        <div className="mt-2 flex flex-col gap-2">
+          <TelegramConnect linked={myTg > 0} hasToken={!!telegramToken()} />
+          {hasRole(v.role, ACCESS.channels) && <a href="/settings/channels" className="text-sm text-blue-700 underline">Каналы: группы поставщика, привязки, WhatsApp</a>}
+        </div>
+      </details>
     </div>
   );
 }

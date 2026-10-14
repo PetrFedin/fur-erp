@@ -16,6 +16,7 @@ const SETTINGS_LINKS = [
   { href: "/warehouses", title: "Склады", description: "Склады сырья и готовой продукции, склад по умолчанию" },
   { href: "/settings/expense-categories", title: "Статьи расходов", description: "Категории дополнительных расходов" },
   { href: "/users", title: "Пользователи", description: "Сотрудники и их роли" },
+  { href: "/settings/channels", title: "Каналы: Telegram, WhatsApp", description: "Токен бота, привязка групп и людей, мост сообщений чата в мессенджеры" },
 ];
 
 export const metadata = { title: "Настройки" };

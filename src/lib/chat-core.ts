@@ -214,7 +214,7 @@ export function pickRecipients(m: {
 
 /** Текст сообщения для мессенджера: «💬 Веллмех · ТЗ 160 · Тема\nИмя: текст» + ссылка на платформу. */
 export function formatForMessenger(i: { supplierName: string; entityLabel: string | null; subject: string; authorName: string; body: string; threadId: string; appUrl: string; threadNo?: number | string }): string {
-  const head = ["💬", [i.supplierName, i.entityLabel, i.subject].filter(Boolean).join(" · ")].join(" ");
+  const head = ["💬", [i.supplierName, i.entityLabel, i.subject].filter(Boolean).join(" · ") + (i.threadNo ? ` (#${i.threadNo})` : "")].join(" ");
   const url = `${i.appUrl.replace(/\/$/, "")}/chat?thread=${i.threadId}`;
   return `${head}\n${i.authorName}: ${i.body}\n\nОткрыть в платформе: ${url}`;
 }

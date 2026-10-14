@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "telegram": "node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/telegram-bridge.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
