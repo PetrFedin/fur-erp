@@ -48,7 +48,7 @@ export async function payloadFromBase(s: SupplierSess, from: string): Promise<Ca
     const pu = await prisma.purchase.findFirst({
       where: { organizationId: s.user.organizationId, supplierId, auctionId: id, auction: { isService: false } },
       orderBy: { orderDate: "desc" },
-      select: { currency: true, exchangeRate: true, auction: { select: { name: true } }, items: { select: { vatRate: true, costPlan: true }, take: 20 } },
+      select: { currency: true, exchangeRate: true, auction: { select: { name: true } }, items: { select: { vatRate: true, unitPrice: true, costPlan: true }, take: 20 } },
     });
     if (!pu) return null;
     const p = emptyPayload("SP_RP");
@@ -56,11 +56,30 @@ export async function payloadFromBase(s: SupplierSess, from: string): Promise<Ca
     p.header.auction = pu.auction?.name ?? "";
     p.header.currency = pu.currency === "EUR" ? "EUR" : "USD";
     if (Number(pu.exchangeRate) > 1) p.header.cbRate = String(Number(pu.exchangeRate));
-    const inp = pu.items.map((i) => (i.costPlan as { inputs?: Record<string, number> } | null)?.inputs).find((x) => x && typeof x.feePct === "number");
     const rates: Record<string, string> = {};
-    if (inp) {
-      const put = (k: string, v: unknown) => { if (typeof v === "number" && Number.isFinite(v) && v !== 0) rates[k] = String(v); };
-      put("feePct", inp.feePct); put("brokerPct", inp.brokerPct); put("dressing", inp.dressing); put("transport", inp.transport); put("transit", inp.transit);
+    const rate = Number(pu.exchangeRate);
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v)) ? Number(v) : null);
+    // Ставки берутся из расчётного листа позиции: сохранённые inputs, а для импортированных — по строкам состава цены (процент = сумма / стоимость товара по курсу).
+    // Цены и суммы в ответ не попадают — только проценты и ставки выделки/транспорта.
+    for (const it of pu.items) {
+      const cp = it.costPlan as { inputs?: Record<string, unknown>; costBreakdown?: { items?: { label?: unknown; value?: unknown }[] } } | null;
+      if (!cp) continue;
+      const goods = Number(it.unitPrice) * rate;
+      const find = (prefix: string) => {
+        const x = (cp.costBreakdown?.items ?? []).find((y) => typeof y.label === "string" && y.label.toLowerCase().startsWith(prefix));
+        return x ? num(x.value) : null;
+      };
+      const pct = (sum: number | null) => (sum != null && goods > 0 ? Math.round((sum / goods) * 100 * 1e4) / 1e4 : null);
+      const got: Record<string, number | null> = {
+        feePct: num(cp.inputs?.feePct) ?? pct(find("аукционный сбор")),
+        brokerPct: num(cp.inputs?.brokerPct) ?? pct(find("брокер")),
+        dressing: num(cp.inputs?.dressing) ?? find("выделка"),
+        transport: num(cp.inputs?.transport) ?? find("транспорт на выделку"),
+        transit: num(cp.inputs?.transit) ?? find("комиссия за транзит"),
+      };
+      if (got.feePct == null && got.brokerPct == null) continue;
+      for (const [k, v] of Object.entries(got)) if (v != null && v !== 0) rates[k] = String(v);
+      break;
     }
     p.header.rates = rates;
     const vat = Number(pu.items[0]?.vatRate);
