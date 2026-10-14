@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSupplierSession } from "@/lib/supplier-inbox";
 import { parseDateInput } from "@/lib/input";
+import { modelCodeVariants } from "@/lib/model-code";
 import { isFinalSupStage, isSupStage, nextSupStage, supStage } from "@/lib/supplier-calendar";
 import { parseLaunchTable, type ImportRow } from "@/lib/supplier-calendar-import";
 import { invalidateControlCounts } from "@/lib/control-counts";
@@ -25,7 +26,8 @@ type S = Awaited<ReturnType<typeof requireSupplierSession>>;
 const mine = (s: S, id: string) => ({ id, organizationId: s.user.organizationId, supplierId: s.user.supplierId });
 
 async function findModel(orgId: string, code: string) {
-  return prisma.productModel.findFirst({ where: { organizationId: orgId, isActive: true, name: { equals: code, mode: "insensitive" } }, select: { name: true, salesName: true } });
+  // «М001Е» кириллицей и «M001E» латиницей — один и тот же артикул.
+  return prisma.productModel.findFirst({ where: { organizationId: orgId, isActive: true, OR: modelCodeVariants(code).map((v) => ({ name: { equals: v, mode: "insensitive" as const } })) }, select: { name: true, salesName: true } });
 }
 
 type Fields = { articleCode: string; color: string; size: string; quantity: number; status: string; planDate: string; factDate: string; notes: string; docNote: string };

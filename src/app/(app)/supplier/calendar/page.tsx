@@ -50,7 +50,7 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Календарь" }]} />
+      <Breadcrumbs items={[{ label: "Главная" }, { label: "Календарь" }]} />
       <h1 className="text-xl font-semibold">Календарь</h1>
       <p className="text-sm text-neutral-600">Ведите изделия по артикулу: цвет, размер, количество, этап, плановая и фактическая даты. Запись сразу видна у нас в производственном календаре. Кнопка «→» переводит на следующий этап и ставит сегодняшнюю фактическую дату.</p>
 
