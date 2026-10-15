@@ -94,7 +94,7 @@ async function stageConflict(orgId: string, row: Row, p: CalcPayload): Promise<{
   return null;
 }
 
-async function acceptCalc(s: Sess, row: Row): Promise<AcceptResult> {
+async function acceptCalc(s: Sess, row: Row, orderDate?: string): Promise<AcceptResult> {
   const orgId = s.user.organizationId;
   const p = row.payload as unknown as CalcPayload;
   if (!p || p.v !== 1 || !Array.isArray(p.rows) || !p.header) return { error: "Не удалось прочитать данные расчёта" };
@@ -104,6 +104,7 @@ async function acceptCalc(s: Sess, row: Row): Promise<AcceptResult> {
   const mapped = calcToBatchPayload(p, { inboxId: row.id, supplierId: row.supplierId, auctionId: auction && !auction.isService ? auction.id : null, title: row.title, today: new Date().toISOString().slice(0, 10) });
   if (!mapped.payload) return { error: `Расчёт принять нельзя: ${mapped.errors[0]}` };
   const payload = mapped.payload;
+  if (orderDate) payload.header.orderDate = orderDate; // дата закупки, поправленная при приёме
 
   // вложения: как документы закупки (PurchaseDocument), копией в хранилище закупок
   // счета в расчёте с несколькими аукционными счетами: номер документа берём из имени файла («3017 ООО ВеллМех.pdf»), если он среди счетов расчёта
@@ -215,7 +216,7 @@ function docLines(row: Row, invoices: string[]): string[] {
 }
 
 /** Что будет создано / что мешает принять — для карточки во «Входящих» (ничего не пишет). */
-export async function previewInbox(orgId: string, row: Row): Promise<{ problems: string[]; lines: string[]; links?: { href: string; label: string }[] }> {
+export async function previewInbox(orgId: string, row: Row): Promise<{ problems: string[]; lines: string[]; links?: { href: string; label: string }[]; orderDate?: { value: string; source: string } }> {
   if (row.kind === "TZ") {
     const r = await planTz(orgId, row.payload as unknown as TzPayload);
     if ("error" in r) return { problems: [r.error], lines: [] };
@@ -241,8 +242,13 @@ export async function previewInbox(orgId: string, row: Row): Promise<{ problems:
   const rowErrs = plan.preview.validation.checks.flatMap((c, i) => c.errors.map((e) => `Лот ${p.rows[i] ? usedLot(m.payload!, c.n) : c.n}: ${e}`));
   const dupProblems = plan.preview.dupInvoices.length ? [`Закупки по этим счетам уже есть: ${plan.preview.dupInvoices.map((d) => `счёт ${d.invoice} → ${d.purchaseNumber}`).join("; ")}. Принимать не нужно — иначе будут дубли; отклоните расчёт («уже заведено») или попросите исправить номер счёта.`] : [];
   const problems = [...plan.preview.blocking.filter((b) => !/^В таблице лотов ошибок/.test(b)), ...rowErrs, ...dupProblems];
-  return { problems, lines };
+  const hasInvDate = /^\d{4}-\d{2}-\d{2}$/.test(p.header.invoiceDate ?? "");
+  const today = new Date().toISOString().slice(0, 10);
+  const od = m.payload.header.orderDate;
+  const source = hasInvoiceDate(hasInvDate, od, today);
+  return { problems, lines: [`Дата закупки: ${od.split("-").reverse().join(".")} (${source})`, ...lines], orderDate: { value: od, source } };
 }
+const hasInvoiceDate = (hasInv: boolean, od: string, today: string) => (hasInv ? "из даты счёта" : od === today ? "дата приёма" : "по году и месяцу из названия аукциона, число условное — поправьте");
 
 const usedLot = (pl: { rows: { n: number; lot: string }[] }, n: number) => pl.rows.find((r) => r.n === n)?.lot || `строка ${n}`;
 
@@ -350,7 +356,7 @@ async function acceptTz(s: Sess, row: Row): Promise<AcceptResult> {
 
 // ============================================================================================ вход
 
-export async function acceptInboxRow(s: Sess, id: string): Promise<AcceptResult> {
+export async function acceptInboxRow(s: Sess, id: string, opts: { orderDate?: string } = {}): Promise<AcceptResult> {
   if (!hasRole(s.user.role, ACCESS.inbox)) return { error: "Недостаточно прав" };
   const row = await prisma.supplierInbox.findFirst({ where: { id, organizationId: s.user.organizationId }, include: { files: { orderBy: { createdAt: "asc" } } } });
   if (!row) return { error: "Входящее не найдено" };
@@ -359,5 +365,5 @@ export async function acceptInboxRow(s: Sess, id: string): Promise<AcceptResult>
     return { ok: true, already: true, type: row.createdEntityType === "Purchase" ? "Purchase" : "ProductionOrder", ids, message: "Уже принято — повторное нажатие ничего не создало." };
   }
   if (row.status !== "SENT") return { error: row.status === "REJECTED" ? "Это входящее отклонено" : "Это черновик — поставщик ещё не отправил его" };
-  return row.kind === "AUCTION_CALC" ? acceptCalc(s, row) : acceptTz(s, row);
+  return row.kind === "AUCTION_CALC" ? acceptCalc(s, row, opts.orderDate) : acceptTz(s, row);
 }

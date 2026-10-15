@@ -27,7 +27,7 @@ export default async function TzPage({ params }: PageProps<"/supplier/tz/[id]">)
         <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs">{INBOX_STATUS_LABEL[row.status]}</span>
         <ChatLink type="SupplierInbox" id={row.id} role={s.user.role} />
       </div>
-      <p className="text-sm text-neutral-600">{INBOX_STATUS_HELP[row.status].replace("создана закупка (черновик) с лотами и вашими документами", "созданы ТЗ в производстве")}</p>
+      <p className="text-sm text-neutral-600">{INBOX_STATUS_HELP[row.status].replace("создана закупка (черновик) с лотами и вашими документами", "созданы ТЗ в производстве").replace("расчёт и файлы у нас", "ТЗ у нас").replace("Править расчёт", "Править ТЗ").replace("мы вернули расчёт", "мы вернули ТЗ").replace("по расчёту у нас", "по ТЗ у нас")}</p>
       {s.user.role === "SUPPLIER" && <TzStatusActions id={row.id} status={row.status} />}
       <TzForm id={row.id} initial={row.payload as unknown as TzPayload} readOnly={readOnly} colors={refs.colors} models={refs.models} lots={refs.lots} batches={refs.batches} reviewNote={row.reviewNote} />
     </div>

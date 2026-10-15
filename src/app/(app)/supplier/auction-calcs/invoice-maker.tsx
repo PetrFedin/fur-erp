@@ -61,7 +61,7 @@ export function InvoiceMaker({ id, payload }: { id: string | null; payload: Calc
           <div><Label>Дата спецификации</Label><Input type="date" value={specDate} onChange={(e) => { setSpecDate(e.target.value); setDesc(null); }} /></div>
           <div><Label>Оплатить не позднее (по желанию)</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
           <div className="sm:col-span-2"><Label>Текст строки счёта</Label><Input value={description} onChange={(e) => setDesc(e.target.value)} /></div>
-          <div><Label>Сумма, ₽ (с НДС)</Label><Input value={amount} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" /></div>
+          <div><Label>Сумма, ₽ (с НДС)</Label><Input value={amount} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" /><p className="mt-1 text-xs text-neutral-500">У Веллмеха бывает округление до 100 — впишите сумму как в их счёте.</p></div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={make}>Скачать счёт (Excel)</Button>

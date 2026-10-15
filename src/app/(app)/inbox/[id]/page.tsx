@@ -209,7 +209,7 @@ export default async function InboxCardPage({ params }: PageProps<"/inbox/[id]">
       )}
 
       <div><ChatLink type="SupplierInbox" id={row.id} role={s.user.role} label="Уточнить у Веллмеха" /></div>
-      {sent && <DecideButtons id={row.id} blocked={!!preview && preview.problems.length > 0} />}
+      {sent && <DecideButtons id={row.id} blocked={!!preview && preview.problems.length > 0} orderDate={preview?.orderDate} />}
 
       {row.kind === "AUCTION_CALC" ? <CalcView p={ensureRowIds(row.payload as unknown as CalcPayload)} s={s} /> : <TzView p={row.payload as unknown as TzPayload} />}
 

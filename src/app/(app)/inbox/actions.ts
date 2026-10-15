@@ -11,11 +11,11 @@ import { acceptDocumentInbox } from "@/lib/inbox-document";
 type R = { error?: string; ok?: boolean };
 
 /** «Принять»: создаёт закупку (черновик) или ТЗ из присланного черновика, одной транзакцией. Повторное нажатие ничего не дублирует. */
-export async function acceptInbox(id: string): Promise<AcceptResult> {
+export async function acceptInbox(id: string, orderDate?: string): Promise<AcceptResult> {
   const s = await requireRole(...ACCESS.inbox);
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return { error: "Входящее не найдено" };
   const kind = await prisma.supplierInbox.findFirst({ where: { id, organizationId: s.user.organizationId }, select: { kind: true } });
-  const r = kind?.kind === "DOCUMENT" ? await acceptDocumentInbox(s, id) : await acceptInboxRow(s, id);
+  const r = kind?.kind === "DOCUMENT" ? await acceptDocumentInbox(s, id) : await acceptInboxRow(s, id, { orderDate: /^\d{4}-\d{2}-\d{2}$/.test(orderDate ?? "") && !Number.isNaN(Date.parse(orderDate!)) ? orderDate : undefined });
   revalidatePath("/inbox");
   revalidatePath(`/inbox/${id}`);
   return r;

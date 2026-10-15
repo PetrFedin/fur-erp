@@ -7,17 +7,18 @@ import { Button } from "@/components/ui/button";
 import { acceptInbox, rejectInbox } from "../actions";
 
 /** Кнопки «Принять» / «Отклонить» (виден только при статусе «Отправлено»). */
-export function DecideButtons({ id, blocked }: { id: string; blocked: boolean }) {
+export function DecideButtons({ id, blocked, orderDate }: { id: string; blocked: boolean; orderDate?: { value: string; source: string } }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ text: string; bad?: boolean; href?: string } | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState("");
+  const [date, setDate] = useState(orderDate?.value ?? "");
 
   const accept = () =>
     start(async () => {
       setMsg(null);
-      const r = await acceptInbox(id);
+      const r = await acceptInbox(id, orderDate ? date : undefined);
       if ("error" in r && r.error) return setMsg({ text: r.error, bad: true });
       if ("ok" in r && r.ok) {
         setMsg({ text: r.message, href: r.type === "Purchase" ? `/purchases/${r.ids[0]}` : r.ids.length === 1 ? `/production/${r.ids[0]}` : "/production" });
@@ -35,6 +36,13 @@ export function DecideButtons({ id, blocked }: { id: string; blocked: boolean })
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-neutral-300 p-3">
+      {orderDate && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <label htmlFor="order-date" className="font-medium">Дата закупки</label>
+          <input id="order-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9 rounded-md border border-neutral-300 px-2" />
+          <span className="text-neutral-500">({date === orderDate.value ? orderDate.source : "вы поправили дату"}) — её можно исправить до приёма</span>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" onClick={accept} disabled={pending || blocked}>{pending && !rejecting ? "Принимаю…" : "Принять"}</Button>
         <Button type="button" variant="outline" onClick={() => setRejecting((x) => !x)} disabled={pending}>Отклонить</Button>

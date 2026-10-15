@@ -21,6 +21,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
   const isSup = s.user.role === "SUPPLIER";
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => cleanSearch(Array.isArray(v) ? v[0] : v, 60);
+  const openName = one(sp.open);
   const fAuction = one(sp.auction), fSt = one(sp.st), fFur = one(sp.fur), q = one(sp.q).toLowerCase();
 
   // Поставщик — только свои закупки; владелец/админ смотрят глазами поставщика (по поставщику из ?supplier или первому).
@@ -119,7 +120,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
             }
             const mixedCur = new Set(lots.map((r) => r.currency)).size > 1;
             return (
-              <details key={name} open={ai === 0 || filtered} className="group rounded-md border border-neutral-300 bg-white">
+              <details key={name} open={ai === 0 || filtered || openName === name} className="group rounded-md border border-neutral-300 bg-white">
                 <summary className="flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-sm">
                   <span className="text-neutral-500 transition-transform group-open:rotate-90">▶</span>
                   <b className="text-base">{name}</b>
@@ -163,6 +164,9 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                       <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Лоты</h3>
                       {isSup && invs.length === 1 && <AttachDocument purchaseId={invs[0][0].purchaseId} label="Приложить документ" />}
                     </div>
+                    {!(ai === 0 || filtered || openName === name) ? (
+                      <Link href={`/supplier/raw?open=${encodeURIComponent(name)}`} className="text-sm text-blue-700 underline">Показать лоты ({lots.length}) →</Link>
+                    ) : (
                     <div className="overflow-x-auto rounded-md border border-neutral-200">
                       <Table className="min-w-[820px]">
                         <Thead><Tr><Th>Счёт</Th><Th>Лот</Th><Th>Вид меха</Th><Th>Цвет</Th><Th>Размер / сорт</Th><Th>Кол-во</Th><Th>Цена без НДС</Th><Th>УПД</Th><Th /></Tr></Thead>
@@ -179,6 +183,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                         </Tbody>
                       </Table>
                     </div>
+                    )}
                   </div>
                 </div>
               </details>
