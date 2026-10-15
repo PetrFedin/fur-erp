@@ -429,7 +429,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   { label: "Подкладка, м", value: st.liningQty > 0 ? formatQty(st.liningQty) : undefined },
                   { label: <VatLabel base="Подкладка" />, value: st.lining.incl.isZero() ? undefined : <Money incl={st.lining.incl} excl={st.lining.excl} /> },
                   { label: "Работа", value: st.work > 0 ? formatMoney(Math.round(st.work)) : undefined },
-                  { label: "Партия пошива", value: o.batch ? batchLabel(o.batch.number, o.batch.year, [o]) : "без партии" },
+                  { label: "Партия пошива", value: o.batch ? batchLabel(o.batch.number, o.batch.year, [o]) : "вне партий" },
                   { label: "Цвет", value: orderColorNames(o).join("; ") || undefined },
                   { label: "Заказчик", value: o.client?.name },
                   { label: "Ставка НДС", value: <TzVatBadge b={vatB} /> },
@@ -628,7 +628,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         controls={[
           { type: "text", name: "q", label: "№ ТЗ / поиск", placeholder: "№ ТЗ, артикул, заказчик" },
           { type: "multi", name: "season", label: "Сезон", options: opts.season, noneLabel: "Без сезона", more: true },
-          { type: "multi", name: "batch", label: "Партия пошива", options: opts.batch, noneLabel: "Без партии", allLabel: "Все партии" },
+          { type: "multi", name: "batch", label: "Партия пошива", options: opts.batch, noneLabel: "Вне партий", allLabel: "Все партии" },
           { type: "multi", name: "model", label: "Артикул", options: opts.model },
           { type: "multi", name: "len", label: "Длина", more: true, options: LENGTH_OPTIONS, allLabel: "Любая" },
           { type: "multi", name: "catgroup", label: "Группа категорий", options: CATEGORY_GROUPS.map((g) => ({ value: g, label: g })), noneLabel: NO_GROUP_ARTICLES_LABEL, allLabel: "Все группы", more: true },

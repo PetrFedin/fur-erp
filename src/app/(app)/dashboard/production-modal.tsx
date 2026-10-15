@@ -199,6 +199,12 @@ export function ProductionModal({
                   })}
                   {level.items.length === 0 ? <p className="m-auto text-sm text-neutral-500">Нет данных за выбранный срез.</p> : null}
                 </div>
+                {level.items.some((it) => it.key === "none" && /Вне партий/.test(it.label)) ? (
+                  <p className="mt-2 text-xs text-neutral-600" data-testid="no-batch-note">
+                    <b>Вне партий</b> — ТЗ, которым партия пошива не нужна (по письму №135): отдельная поставка (ТЗ 117, кейп М057) и переделка (ТЗ 116, ремонт пальто, 7 шт.). Это не недоработка. Ремонт в «В выпуске» (штуки) не входит и считается отдельно, поэтому изделия по партиям + ремонт ТЗ 116 = выпуск + 7 шт.{" "}
+                    <Link href="/production?batch=none" className="text-blue-700 underline-offset-2 hover:underline">Открыть эти ТЗ →</Link>
+                  </p>
+                ) : null}
                 <div className="mt-2 min-h-[20px] text-xs text-neutral-700" aria-live="polite">
                   {shown ? (
                     <><b>{shown.label}</b>: <b className="tabular-nums">{formatMoney(shown.value)}</b>{shown.outside ? "" : <> · {pct(shown.share)} от уровня</>}{shown.qtyText ? <> · {shown.qtyText}</> : null}{shown.work ? <> · работа {formatMoney(shown.work)}</> : null}</>

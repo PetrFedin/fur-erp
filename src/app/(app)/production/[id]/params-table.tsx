@@ -127,7 +127,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
             label="Партия"
             emptyLabel="Партия не указана"
             confirmChange={completed ? undefined : (next, prev) => {
-              const name = (v: string) => o.batches.find((b) => b.value === v)?.label ?? "без партии";
+              const name = (v: string) => o.batches.find((b) => b.value === v)?.label ?? "вне партий";
               return ask(`Сменить партию ТЗ ${d.workOrderNumber || d.number} с «${name(prev)}» на «${name(next)}»? Долг по партиям изменится: работа и оплаты ТЗ перейдут в итоги другой партии.`, { ok: "Сменить партию" });
             }}
           />

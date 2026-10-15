@@ -270,7 +270,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           { type: "multi", name: "color", label: "Цвет", more: true, options: tzOpts.color },
           { type: "multi", name: "tz", label: "ТЗ", more: true, options: tzOpts.tz },
           { type: "multi", name: "tzyear", more: true, label: year === "all" ? "Год" : `Год (внутри ${year})`, options: tzOpts.tzyear, hint: "год ТЗ; дополнительно к общему году в шапке" },
-          { type: "multi", name: "batch", label: "Партия пошива", options: tzOpts.batch, noneLabel: "Без партии" },
+          { type: "multi", name: "batch", label: "Партия пошива", options: tzOpts.batch, noneLabel: "Вне партий" },
           { type: "multi", name: "lining", label: "Подкладка", more: true, options: [{ value: "yes", label: "Да — есть подкладка" }, { value: "no", label: "Нет подкладки" }], hint: "по ТЗ: подкладка указана или списана" },
           { type: "multi", name: "size", label: "Размер изделия", options: tzOpts.size, more: true },
           { type: "multi", name: "season", label: "Сезон", options: tzOpts.season, noneLabel: "Без сезона", more: true },

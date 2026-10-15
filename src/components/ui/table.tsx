@@ -20,7 +20,7 @@ export function Table({
       data-comment-anchor={anchor}
       data-comment-label={label}
       className={cn(
-        "table-scroll scroll-hint w-full rounded-lg border border-neutral-200 bg-white",
+        "table-scroll scroll-hint w-fit max-w-full rounded-lg border border-neutral-200 bg-white",
         stickyHeader ? "max-h-[75vh] overflow-auto [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10" : "overflow-x-auto",
       )}
     >

@@ -148,6 +148,8 @@ export function prodTotals(rows: OrderRow[]): ProdTotals {
 
 export const isDone = (o: OrderRow) => o.status === "COMPLETED";
 
+/** Подпись ТЗ без партии пошива (ProductionOrder.batchNotRequired: отдельная поставка, ремонт и переделка — по письму №135): не недоработка, а отдельный вид пошива. */
+export const NO_BATCH_LABEL = "Вне партий (индивидуальный пошив, переделка)";
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
 /** Строка аналитики → ТЗ для окна «проваливания» (суммы строк в выбранном режиме 4%). */
@@ -165,7 +167,7 @@ export function toDrillOrder(o: OrderRow, c4: "on" | "off", auctionShort: (name:
   const sumE = lines.reduce((s, l) => s + l.e, 0);
   return {
     id: o.id, number: o.number, wo: o.workOrderNumber, bk: o.batchNumber == null ? "none" : String(o.batchNumber),
-    bl: o.batchText ?? "Без партии", y: o.year, st: o.status, cat: o.category, grp: o.category === REPAIR_CATEGORY ? "Ремонт (отдельно)" : o.categoryGroup || NO_GROUP, mid: o.modelId, ml: o.modelLabel, fur: o.fur,
+    bl: o.batchText ?? NO_BATCH_LABEL, y: o.year, st: o.status, cat: o.category, grp: o.category === REPAIR_CATEGORY ? "Ремонт (отдельно)" : o.categoryGroup || NO_GROUP, mid: o.modelId, ml: o.modelLabel, fur: o.fur,
     qty: o.qty, work: o.work, exp: o.expenses, xs: o.expenseList, hI: 0, hE: 0, resI: r2(o.costIncl - sumI - o.expenses), resE: r2(o.costExcl - sumE - o.expenses), lines,
   };
 }
