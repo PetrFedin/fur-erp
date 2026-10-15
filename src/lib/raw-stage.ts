@@ -103,11 +103,13 @@ export function summarizeStages(list: StageLike[], now: Date = new Date()): RawS
   return { state, stage: cur.stage, place: cur.place ?? "", since: state === "now" ? cur.factStart ?? null : null, eta, daysLeft, overdue: daysLeft != null && daysLeft < 0 };
 }
 
+/** Этапы, после которых цепочка считается пройденной (мех у нас или передан нам). */
+const LAST_STAGES = ["HANDED", "DELIVERED"];
 const daysWord = (n: number) => `${n} дн.`;
 /** Строка «Сейчас: Выделка · МК ЛИС · с 02.10 · ждём к 20.10 (осталось 5 дн.)». */
 export function summaryLine(s: RawSummary): string {
   const name = STAGE_NAME[s.stage] ?? s.stage;
-  if (s.state === "done") return `Внесённые этапы завершены · ${name}`;
+  if (s.state === "done") return LAST_STAGES.includes(s.stage) ? `Все этапы пройдены · ${name}` : `Последний внесённый этап: ${name} — готово. Следующий этап ещё не внесён`;
   const parts = [s.state === "between" ? `Далее: ${name}` : name];
   if (s.place) parts.push(s.place);
   if (s.since) parts.push(`с ${ruShort(s.since)}`);

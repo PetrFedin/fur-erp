@@ -176,7 +176,6 @@ async function main() {
     finds.push({ file: f, md5, title, preset: fm[1], payload: r.payload, status: reasons.length === 0 && purchaseIds.length > 0 ? "MATCH" : "NO", reasons: [...new Set(reasons)], purchaseIds, sent: dates.get(eml) ?? null, totals: `лотов ${r.added}, шкур ${t.qty}, итого ${money(allTotal || t.totalRub)} ₽` });
   }
   // «нет файла с расчётом»: аукционы наших закупок, для которых не нашлось ни одного файла
-  const auctionsWithFile = new Set(finds.map((x) => x.title));
   for (const f of finds) {
     say(`\n${f.status === "MATCH" ? "✔ СОВПАЛО" : "✘ не создаём"}  ${f.title.slice(0, 60)}  [формат ${f.preset}]  ${f.totals}`);
     say(`   файл: ${f.file.replace(homedir(), "~")}${f.sent ? ` · письмо от ${f.sent.toLocaleDateString("ru-RU")}` : ""}`);

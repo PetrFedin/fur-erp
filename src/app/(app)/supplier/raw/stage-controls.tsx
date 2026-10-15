@@ -14,7 +14,7 @@ const PLACES = ["Прогресс", "МК ЛИС", "XIN", "ЛИС", "Финля�
 const input = "h-9 rounded-md border border-neutral-300 px-2";
 
 /** Форма этапа: «+ Этап» (id пусто) или правка существующего. */
-export function StageForm({ purchaseId, lots, initial, onDone }: { purchaseId: string; lots: string[]; initial?: StageEdit; onDone?: () => void }) {
+export function StageForm({ purchaseId, lots, siblings = 0, initial, onDone }: { purchaseId: string; lots: string[]; siblings?: number; initial?: StageEdit; onDone?: () => void }) {
   const [state, action, pending] = useActionState<StageState, FormData>(saveStage, {});
   useEffect(() => { if (state.ok) onDone?.(); }, [state, onDone]);
   const v = initial;
@@ -51,6 +51,9 @@ export function StageForm({ purchaseId, lots, initial, onDone }: { purchaseId: s
           </div>
         </details>
       )}
+      {!v && siblings > 0 && (
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="allInvoices" value="1" defaultChecked />Внести во все счета этого аукциона (ещё {siblings}) — этап один и тот же</label>
+      )}
       {state.error && <p role="alert" className="text-red-700">{state.error}</p>}
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={pending}>{pending ? "Сохраняю…" : "Сохранить"}</Button>
@@ -61,10 +64,10 @@ export function StageForm({ purchaseId, lots, initial, onDone }: { purchaseId: s
 }
 
 /** Кнопка «+ Этап» с раскрывающейся формой. */
-export function AddStage({ purchaseId, lots }: { purchaseId: string; lots: string[] }) {
+export function AddStage({ purchaseId, lots, siblings = 0 }: { purchaseId: string; lots: string[]; siblings?: number }) {
   const [open, setOpen] = useState(false);
   if (!open) return <Button type="button" size="sm" onClick={() => setOpen(true)}>+ Этап</Button>;
-  return <div className="w-full"><StageForm purchaseId={purchaseId} lots={lots} onDone={() => setOpen(false)} /></div>;
+  return <div className="w-full"><StageForm purchaseId={purchaseId} lots={lots} siblings={siblings} onDone={() => setOpen(false)} /></div>;
 }
 
 /** «Скопировать цепочку этапов из прошлого аукциона» — в пустую ленту. */

@@ -41,6 +41,9 @@ export default async function SupplierAuctionPage({ params }: PageProps<"/suppli
     orderBy: { createdAt: "asc" },
     select: { id: true, stage: true, status: true, place: true, lotNumber: true, qty: true, note: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true },
   });
+  // другие счета (закупки) того же аукциона: этап можно внести сразу во все
+  const sibling = await prisma.purchase.findFirst({ where: { id: p.id, organizationId: s.user.organizationId, supplierId }, select: { auctionId: true } });
+  const siblings = sibling?.auctionId ? await prisma.purchase.count({ where: { organizationId: s.user.organizationId, supplierId, auctionId: sibling.auctionId, status: { not: "CANCELLED" }, id: { not: p.id } } }) : 0;
   const qty = items.reduce((a, i) => a + i.qty, 0);
   const sum = items.reduce((a, i) => a + i.subtotal, 0);
   const payload = calc?.payload && calc.payload.v === 1 && Array.isArray(calc.payload.rows) ? ensureRowIds(calc.payload) : null;
@@ -68,7 +71,7 @@ export default async function SupplierAuctionPage({ params }: PageProps<"/suppli
         Дата: <b>{formatDate(p.orderDate)}</b> · курс: <b>{p.rate}</b> · поставщик: <b>{p.supplier}</b> · лотов <b>{items.length}</b> · шкур <b>{num(qty)}</b> · по УПД без НДС: <b>{money(sum)} {cur(p.currency)}</b>
       </p>
 
-      <RawStagesBlock stages={stages} purchaseId={p.id} lots={[...new Set(items.map((i) => i.lot).filter(Boolean))]} editable={isSup} />
+      <RawStagesBlock stages={stages} purchaseId={p.id} lots={[...new Set(items.map((i) => i.lot).filter(Boolean))]} siblings={siblings} editable={isSup} />
 
       <section className="rounded-md border border-neutral-300 bg-white p-3">
         <h2 className="mb-2 text-sm font-semibold">Данные аукциона</h2>

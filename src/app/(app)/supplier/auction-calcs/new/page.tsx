@@ -24,7 +24,7 @@ export default async function NewCalcPage({ searchParams }: PageProps<"/supplier
           <div className="mt-2"><StartFrom calcs={opts.calcs} auctions={opts.auctions} current={base ? from : ""} /></div>
         </details>
       )}
-      {base && from.startsWith("auction:") && base.rows.some((r) => r.lot) && <p className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm">Лоты, количество и цены молотка подставлены из нашей последней закупки по этому аукциону — проверьте их и допишите ставки и расходы.</p>}
+      {base && from.startsWith("auction:") && base.rows.some((r) => r.lot) && <p className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm">Лоты и количество подставлены из нашей последней закупки по этому аукциону, цена молотка — там, где она есть в закупке. Проверьте, допишите недостающие цены, ставки и расходы.</p>}
       <CalcForm key={base ? from : "empty"} id={null} initial={base ?? emptyPayload("SP_RP")} readOnly={false} files={[]} />
     </div>
   );

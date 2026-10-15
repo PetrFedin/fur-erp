@@ -50,7 +50,7 @@ export async function payloadFromBase(s: SupplierSess, from: string): Promise<Ca
       orderBy: { orderDate: "desc" },
       select: {
         currency: true, exchangeRate: true, invoiceNumber: true, auction: { select: { name: true } },
-        items: { select: { vatRate: true, unitPrice: true, costPlan: true, lotNumber: true, grade: true, color: true, quantity: true, rawMaterial: { select: { name: true } } }, orderBy: { lotNumber: "asc" }, take: 300 },
+        items: { select: { vatRate: true, unitPrice: true, costPlan: true, lotNumber: true, grade: true, color: true, quantity: true, rawMaterial: { select: { name: true } }, lot: { select: { costBreakdown: true } } }, orderBy: { lotNumber: "asc" }, take: 300 },
       },
     });
     if (!pu) return null;
@@ -85,14 +85,30 @@ export async function payloadFromBase(s: SupplierSess, from: string): Promise<Ca
       break;
     }
     p.header.rates = rates;
-    // Лоты закупки: номер, мех, размер, количество и цена молотка — это данные самого поставщика (он сам их присылал); наших цен продажи здесь нет.
-    const lots = pu.items.filter((it) => Number(it.quantity) > 0 && Number(it.unitPrice) > 0);
+    // Лоты закупки: номер, мех, размер, количество и цена молотка в валюте счёта — это данные самого поставщика (он сам их присылал); наших цен продажи здесь нет.
+    // Цена в $ берётся из расчётного листа позиции («Цена за ед., $» / «Цена за ед. (ам. долл.)»); у закупок в рублях без листа цену не угадываем — оставляем пустой.
+    const breakdown = (it: (typeof pu.items)[number]) => {
+      const a = (it.costPlan as { costBreakdown?: { items?: { label?: unknown; value?: unknown }[] } } | null)?.costBreakdown?.items;
+      const b = (it.lot?.costBreakdown as { items?: { label?: unknown; value?: unknown }[] } | null)?.items;
+      return [...(a ?? []), ...(b ?? [])].filter((x): x is { label: string; value: unknown } => typeof x.label === "string");
+    };
+    const priceOf = (it: (typeof pu.items)[number]): number | null => {
+      const x = breakdown(it).find((y) => /^цена за ед\.?,?\s*(\$|usd|€|eur|\(ам)/i.test(y.label.trim()));
+      const v = x ? num(x.value) : null;
+      if (v != null && v > 0) return v;
+      return pu.currency !== "RUB" && Number(it.unitPrice) > 0 ? Number(it.unitPrice) : null;
+    };
+    const lots = pu.items.filter((it) => Number(it.quantity) > 0);
     if (lots.length > 0) {
       p.rows = lots.map((it) => ({
         ...emptyRow("SP_RP"), _id: newId(), invoice: pu.invoiceNumber ?? "", fur: it.rawMaterial.name, size: [it.color, it.grade].filter(Boolean).join(" "),
-        lot: it.lotNumber ?? "", qty: String(Number(it.quantity)), price: String(Number(it.unitPrice)),
+        lot: it.lotNumber ?? "", qty: String(Number(it.quantity)), price: priceOf(it) != null ? String(priceOf(it)) : "",
       }));
       if (pu.invoiceNumber) p.header.invoice = pu.invoiceNumber;
+      if (!(Number(pu.exchangeRate) > 1)) {
+        const rt = pu.items.map((it) => breakdown(it).find((y) => /^курс/i.test(y.label.trim()))).find((x) => x && num(x.value) != null && num(x.value)! > 1);
+        if (rt) p.header.cbRate = String(num(rt.value));
+      }
     }
     const vat = Number(pu.items[0]?.vatRate);
     if (vat > 0) p.header.vat = String(vat);

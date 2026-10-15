@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
-import { requireInboxViewer, inboxScope } from "@/lib/supplier-inbox";
+import { requireInboxViewer } from "@/lib/supplier-inbox";
 import { supplierRawRows } from "@/lib/supplier-raw";
 import { chatCounts, viewerOf } from "@/lib/chat";
 import { summarizeStages, summaryLine } from "@/lib/raw-stage";

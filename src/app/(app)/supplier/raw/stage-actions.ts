@@ -72,6 +72,15 @@ export async function saveStage(_prev: StageState, fd: FormData): Promise<StageS
   const items = wanted.length ? await prisma.purchaseItem.findMany({ where: { purchaseId: purchase.id, lotNumber: { in: wanted } }, select: { lotNumber: true, lotId: true } }) : [];
   if (wanted.length && items.length === 0) return { error: "Лоты не найдены" };
   const scopes = wanted.length ? [...new Map(items.map((i) => [i.lotNumber, i])).values()] : [null];
+  // «Внести во все счета этого аукциона»: тот же этап (на весь счёт) в остальные закупки поставщика по этому аукциону
+  if (fd.get("allInvoices") === "1" && wanted.length === 0) {
+    const cur = await prisma.purchase.findFirst({ where: { id: purchase.id }, select: { auctionId: true } });
+    const others = cur?.auctionId ? await prisma.purchase.findMany({ where: { organizationId: orgId, supplierId, auctionId: cur.auctionId, status: { not: "CANCELLED" }, id: { not: purchase.id } }, select: { id: true } }) : [];
+    for (const o of others) {
+      await prisma.supplierRawStage.create({ data: { ...data, organizationId: orgId, supplierId, purchaseId: o.id, createdById: s.user.id } });
+      refresh(o.id);
+    }
+  }
   for (const it of scopes) {
     await prisma.supplierRawStage.create({
       data: { ...data, organizationId: orgId, supplierId, purchaseId: purchase.id, lotId: it?.lotId ?? null, lotNumber: it?.lotNumber ?? null, createdById: s.user.id },

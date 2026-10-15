@@ -94,20 +94,28 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
           <Table className="min-w-[640px]">
             <Thead><Tr><Th>Аукцион</Th><Th>Счёт</Th><Th>Шкур</Th><Th>Сейчас</Th>{isSup && <Th />}</Tr></Thead>
             <Tbody>
-              {Array.from(groups.values()).map((g) => {
-                const h = g[0];
-                const st = stagesOf(h.purchaseId);
-                const sum = summarizeStages(st);
-                return (
-                  <Tr key={h.purchaseId}>
-                    <Td className="font-medium">{h.auction || h.purchaseNumber}</Td>
-                    <Td>{h.invoice || "—"}</Td>
-                    <Td className="tabular-nums">{num(g.reduce((a, r) => a + r.quantity, 0))}</Td>
-                    <Td>{sum ? <span className={sum.overdue ? "text-red-800" : ""}><RawChip stages={st} /> <span className="text-xs text-neutral-600">{sum.place}</span></span> : <span className="text-neutral-500">{h.received ? "принято у нас на склад" : "этапов нет — отметьте, где мех"}</span>}</Td>
-                    {isSup && <Td><Link href={`/supplier/raw/${h.purchaseId}`} className="text-sm text-blue-700 underline">{sum ? "Подробно" : "+ Этап"}</Link></Td>}
+              {(() => {
+                // один аукцион с несколькими счетами и одинаковым положением — одной строкой
+                const out = new Map<string, { name: string; inv: string[]; qty: number; st: ReturnType<typeof stagesOf>; sum: ReturnType<typeof summarizeStages>; received: boolean; pid: string }>();
+                for (const g of groups.values()) {
+                  const h = g[0];
+                  const st = stagesOf(h.purchaseId);
+                  const sum = summarizeStages(st);
+                  const key = `${h.auction || h.purchaseNumber}|${sum ? `${sum.stage}|${sum.place}|${sum.state}|${sum.eta?.getTime() ?? ""}` : h.received ? "got" : "none"}`;
+                  const cur = out.get(key) ?? { name: h.auction || h.purchaseNumber, inv: [], qty: 0, st, sum, received: h.received, pid: h.purchaseId };
+                  cur.inv.push(h.invoice || h.purchaseNumber); cur.qty += g.reduce((a, r) => a + r.quantity, 0);
+                  out.set(key, cur);
+                }
+                return [...out.values()].map((x) => (
+                  <Tr key={x.name + x.pid}>
+                    <Td className="font-medium">{x.name}</Td>
+                    <Td>{x.inv.length > 3 ? `${x.inv.slice(0, 3).join(", ")} и ещё ${x.inv.length - 3}` : x.inv.join(", ")}</Td>
+                    <Td className="tabular-nums">{num(x.qty)}</Td>
+                    <Td>{x.sum ? <span className={x.sum.overdue ? "text-red-800" : ""}><RawChip stages={x.st} /> <span className="text-xs text-neutral-600">{x.sum.place}</span></span> : <span className="text-neutral-500">{x.received ? "принято у нас на склад" : "этапов нет — отметьте, где мех"}</span>}</Td>
+                    {isSup && <Td><Link href={`/supplier/raw/${x.pid}`} className="text-sm text-blue-700 underline">{x.sum || x.received ? "Подробно" : "+ Этап"}</Link></Td>}
                   </Tr>
-                );
-              })}
+                ));
+              })()}
             </Tbody>
           </Table>
         </section>

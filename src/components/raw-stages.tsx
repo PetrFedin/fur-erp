@@ -36,7 +36,7 @@ export function RawChip({ stages }: { stages: Pick<StageRow, "stage" | "status" 
  * Блок «Где сырьё»: текущий этап и лента этапов. editable — Веллмех (кнопки и формы), иначе только чтение (у нас).
  * author — кто внёс (подпись у нас: «внёс: Веллмех»).
  */
-export function RawStagesBlock({ stages, purchaseId, lots = [], editable = false, author }: { stages: StageRow[]; purchaseId: string; lots?: string[]; editable?: boolean; author?: string }) {
+export function RawStagesBlock({ stages, purchaseId, lots = [], siblings = 0, editable = false, author }: { stages: StageRow[]; purchaseId: string; lots?: string[]; siblings?: number; editable?: boolean; author?: string }) {
   const sorted = sortStages(stages);
   const today = todayDay();
   return (
@@ -44,7 +44,7 @@ export function RawStagesBlock({ stages, purchaseId, lots = [], editable = false
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-sm font-semibold">Где сырьё</h2>
         {author && <span className="text-xs text-neutral-500">внёс: {author}</span>}
-        {editable && <span className="ml-auto flex flex-wrap items-center gap-2">{stages.length === 0 && <CopyChain purchaseId={purchaseId} />}<AddStage purchaseId={purchaseId} lots={lots} /></span>}
+        {editable && <span className="ml-auto flex flex-wrap items-center gap-2">{stages.length === 0 && <CopyChain purchaseId={purchaseId} />}<AddStage purchaseId={purchaseId} lots={lots} siblings={siblings} /></span>}
       </div>
       <RawNow stages={stages} />
       {sorted.length === 0 ? (
