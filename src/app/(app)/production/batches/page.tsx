@@ -21,7 +21,7 @@ import { InfoHint } from "@/components/info-hint";
 import { C4Hint, Mode4Badge } from "@/components/c4-note";
 import { base4AndExtra } from "@/lib/commission4";
 import { loadBatchPanels } from "@/lib/production-doc-checklist";
-import { DocsPayBadge } from "@/components/docs-pay-badge";
+import { DocsPayBadge, docsPayIsOk } from "@/components/docs-pay-badge";
 import { VerifyPill } from "@/components/verify-control";
 import { loadVerifyFlags } from "@/lib/verification";
 import { payShort } from "@/lib/doc-panel";
@@ -288,21 +288,23 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                     : formatMoney(t.remaining.toString())}
               </Td>
               <Td className="hidden lg:table-cell">
-                {panelByNumber.get(b.number) ? (
-                  <span className="inline-flex items-center gap-1">
-                  <Link href={`/production/batches/${b.number}`} className="inline-block">
-                    <DocsPayBadge
-                      tone={panelByNumber.get(b.number)!.tone}
-                      missing={panelByNumber.get(b.number)!.panel.missingCount}
-                      noDocs={panelByNumber.get(b.number)!.unmatched}
-                      payText={panelByNumber.get(b.number)!.panel.pay.state === "PARTIAL" ? `оплата ${formatPercent(panelByNumber.get(b.number)!.panel.pay.percent)}` : payShort(panelByNumber.get(b.number)!.panel.pay)}
-                      proofMissing={panelByNumber.get(b.number)!.panel.proofMissing}
-                    />
-                  </Link>
-                  </span>
-                ) : (
-                  "—"
-                )}
+                {(() => {
+                  const pn = panelByNumber.get(b.number);
+                  if (!pn) return "—";
+                  if (docsPayIsOk({ missing: pn.panel.missingCount, noDocs: pn.unmatched, payOk: pn.panel.pay.state === "PAID", proofMissing: pn.panel.proofMissing })) return null;
+                  return (
+                    <Link href={`/production/batches/${b.number}`} className="inline-block">
+                      <DocsPayBadge
+                        tone={pn.tone}
+                        missing={pn.panel.missingCount}
+                        noDocs={pn.unmatched}
+                        payText={payShort(pn.panel.pay)}
+                        payOk={pn.panel.pay.state === "PAID"}
+                        proofMissing={pn.panel.proofMissing}
+                      />
+                    </Link>
+                  );
+                })()}
                 <div className="mt-1"><VerifyPill flag={vflags.batchByNumber.get(b.number)} tab="batches" /></div>
               </Td>
             </Tr>
@@ -353,19 +355,17 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 { label: `Себестоимость сырья${anyC4 ? c4Suffix(c4Mode) : ""}`, value: t.cost.isZero() ? "—" : formatMoney(t.cost.toString()) },
                 { label: "Работа", value: t.work.isZero() ? "—" : formatMoney(t.work.toString()) },
                 { label: "Год", value: b.year },
-                { label: "Проверка", value: <VerifyPill flag={vflags.batchByNumber.get(b.number)} tab="batches" /> },
-                {
-                  label: "Документы и оплата",
-                  value: panelByNumber.get(b.number) ? (
-                    <DocsPayBadge
-                      tone={panelByNumber.get(b.number)!.tone}
-                      missing={panelByNumber.get(b.number)!.panel.missingCount}
-                      noDocs={panelByNumber.get(b.number)!.unmatched}
-                      payText={panelByNumber.get(b.number)!.panel.pay.state === "PARTIAL" ? `оплата ${formatPercent(panelByNumber.get(b.number)!.panel.pay.percent)}` : payShort(panelByNumber.get(b.number)!.panel.pay)}
-                      proofMissing={panelByNumber.get(b.number)!.panel.proofMissing}
-                    />
-                  ) : null,
-                },
+                ...(vflags.batchByNumber.get(b.number)?.verified ? [] : [{ label: "Проверка", value: <VerifyPill flag={vflags.batchByNumber.get(b.number)} tab="batches" /> }]),
+                ...(() => {
+                  const pn = panelByNumber.get(b.number);
+                  if (!pn || docsPayIsOk({ missing: pn.panel.missingCount, noDocs: pn.unmatched, payOk: pn.panel.pay.state === "PAID", proofMissing: pn.panel.proofMissing })) return [];
+                  return [{
+                    label: "Документы и оплата",
+                    value: (
+                      <DocsPayBadge tone={pn.tone} missing={pn.panel.missingCount} noDocs={pn.unmatched} payText={payShort(pn.panel.pay)} payOk={pn.panel.pay.state === "PAID"} proofMissing={pn.panel.proofMissing} />
+                    ),
+                  }];
+                })(),
               ]}
             />
           );

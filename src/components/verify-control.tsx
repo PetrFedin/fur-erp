@@ -156,20 +156,21 @@ export function VerifyControl({
   );
 }
 
-/** Компактная отметка для списков: «✓ подтверждено» / «не подтверждено»; ведёт в очередь /verify. */
+/** Отметка для списков: показывает только «не подтверждено» (ведёт в очередь /verify); подтверждённое не выводится. */
 export function VerifyPill({ flag, tab, className }: { flag: { verified: boolean; auto: boolean; letter?: boolean } | undefined; tab: "payments" | "purchases" | "orders" | "batches"; className?: string }) {
   if (!flag) return <span className="text-neutral-500">—</span>;
+  if (flag.verified) return null;
   return (
     <Link
       href={`/verify?tab=${tab}`}
       className={cn(
         "inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium",
-        flag.verified ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-amber-300 bg-amber-50 text-amber-900",
+        "border-amber-300 bg-amber-50 text-amber-900",
         className,
       )}
-      title={flag.verified ? (flag.auto ? "Подтверждено автоматически по документам" : "Подтверждено вручную") : "Не подтверждено — откройте очередь «Подтвердить»"}
+      title="Не подтверждено — откройте очередь «Подтвердить»"
     >
-      {flag.verified ? `✓ ${verifiedLabel({ note: null, letter: flag.letter })}` : `${STATUS_LABEL.none}`}
+      {STATUS_LABEL.none}
     </Link>
   );
 }
