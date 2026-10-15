@@ -97,6 +97,7 @@ export function payloadFromOrders(all: OrderForTz[]): TzFromOrders {
   p.terms = { ...defaultTerms(p.kind), deadline: "" };
   p.showMatQty = false;
   p.blankDates = true;
+  p.layout = { tpl: repair ? "repair" : "work" };
   p.items = [];
   const missing: string[] = [];
   if (!date) missing.push("дата ТЗ");

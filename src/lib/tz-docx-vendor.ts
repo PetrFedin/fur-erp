@@ -34,9 +34,12 @@ function setParaText(p: string, text: string): string {
 
 // ——— ячейка, строка, таблица ———
 /** Текст ячейки: строки через «\n» — отдельные абзацы, как в образце. */
+/** Прежнее (до layout) сравнение ячеек для данных без layout; ставится в buildTzDocx на время синхронной сборки тела. */
+let legacyCells = false;
 function setCell(tc: string, text: string): string {
   const ps = paraOf(tc);
   if (!ps.length) return tc;
+  if (legacyCells && squash(ps.map(paraText).join("")) === squash(text)) return tc; // прежнее правило для ТЗ без layout: совпало без учёта пробелов и переносов
   const want = text.split("\n");
   if (ps.length === want.length && ps.every((x, i) => spaced(paraText(x)) === spaced(want[i]))) return tc;
   // обычные данные без явных пустых строк: пустые абзацы в хвосте ячейки шаблона текст не меняют — вёрстку не трогаем
@@ -107,11 +110,14 @@ const pick = <T,>(tpl: T[], k: number) => tpl[Math.min(k, tpl.length - 1)];
 const BLANK_DATE = "__.__.____";
 /** Пустые абзацы в местах, где Веллмех их оставляет: после «к Договору», после шапки, после таблиц изделий и материалов, до и после «12.ПОДПИСИ СТОРОН», после подписей. */
 export const DEFAULT_GAPS = [1, 0, 1, 1, 0, 0, 1];
+/** ТЗ без записанной вёрстки (принятые из кабинета до появления layout) собираются как раньше — по образцу ТЗ 182 с его пустыми абзацами. */
+const LEGACY_GAPS = [1, 1, 1, 1, 1, 1, 1];
 const isEmptyPara = (b: string) => b.startsWith("<w:p") && !b.startsWith("<w:tbl") && !/<w:sectPr/.test(b) && !/<w:t[ >]/.test(b) && !/<w:drawing|<w:pict/.test(b);
 
 /** Вариант шаблона по данным ТЗ: ремонт — «Наименование услуги», остальное — пошив; «wide» берётся только если вёрстка явно задана (layout.tpl). */
 export function templateFor(p: TzPayload): TzTemplateId {
-  return p.layout?.tpl ?? (p.kind === "REPAIR" ? "repair" : p.items.some((i) => i.extra?.trim()) ? "extra" : "work");
+  if (!p.layout) return "wide";
+  return p.layout.tpl ?? (p.kind === "REPAIR" ? "repair" : p.items.some((i) => i.extra?.trim()) ? "extra" : "work");
 }
 
 /** Строки «Итого:» обеих таблиц так, как их считает система (если Веллмех вписал иначе — см. TzPayload.totalRows). */
@@ -123,7 +129,7 @@ export function totalRowTexts(p: TzPayload): { items: string[]; mats: string[] }
   const withExtra = templateFor(p) === "extra";
   return {
     items: [repair ? "Итого:" : withExtra ? "ИТОГО:" : "Итого:", plainNum(t.qty), showWork ? (repair ? kopNum(t.work) : plainNum(t.work)) : "", ...(withExtra ? [kopNum(extraSum)] : []), repair ? kopNum(t.price) : "", repair ? spacedNum(t.total) : kopNum(t.total)],
-    mats: ["ИТОГО:", p.showMatQty && t.matQty ? plainNum(t.matQty) : "", "", "", spacedNum(t.materials)],
+    mats: ["ИТОГО:", p.showMatQty !== false && t.matQty ? plainNum(t.matQty) : "", "", "", spacedNum(t.materials)],
   };
 }
 
@@ -135,6 +141,7 @@ export async function buildTzDocx(p: TzPayload, tplOverride?: Buffer): Promise<B
   const raw = xml.slice(bodyStart, bodyEnd).match(/<w:tbl>[\s\S]*?<\/w:tbl>|<w:p[ >][\s\S]*?<\/w:p>|<w:sectPr[\s\S]*?<\/w:sectPr>/g)!;
   const emptyProto = raw.find(isEmptyPara) ?? "<w:p/>";
   // пустые абзацы шаблона запоминаются по месту (после какого блока стоят): в каждом разрыве у Веллмеха свой вид пустой строки
+  legacyCells = !p.layout;
   const blocks: string[] = [];
   const slotEmpties = new Map<number, string[]>();
   for (const b of raw) {
@@ -215,7 +222,7 @@ export async function buildTzDocx(p: TzPayload, tplOverride?: Buffer): Promise<B
   }
 
   // пустые абзацы возвращаются в свои места (по умолчанию как в большинстве ТЗ Веллмеха; иначе — как записано в layout.gaps)
-  const gaps = p.layout?.gaps ?? DEFAULT_GAPS;
+  const gaps = p.layout?.gaps ?? (p.layout ? DEFAULT_GAPS : LEGACY_GAPS);
   const at = (pred: (b: string) => boolean) => blocks.findIndex(pred);
   const after: Record<number, number> = {};
   const put = (i: number, n: number) => { if (i >= 0) after[i] = (after[i] ?? 0) + n; };

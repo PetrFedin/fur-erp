@@ -66,6 +66,18 @@ async function main() {
     const e = await buildTzDocx(emptyTz("WORK", "1", "2026-01-01"));
     check(e.length > 5000, "пустое ТЗ собирается");
   }
+  // принятый из кабинета ТЗ, сохранённый до появления layout (живой ТЗ 182): Word по сохранённым данным должен совпасть с присланным оригиналом
+  const row = await prisma.supplierInbox.findFirst({ where: { kind: "TZ", status: "ACCEPTED", title: { contains: "№ 182" } }, select: { payload: true } });
+  const orig182 = files.find((f) => /ПРИЛОЖЕНИЕ[_ ]+182|(^|\D)182(\D|$)/.test(f.name) && f.buf.subarray(0, 2).toString() === "PK");
+  if (row && orig182) {
+    const p = row.payload as unknown as import("../src/lib/tz-vendor").TzPayload;
+    if (!p.layout) {
+      const gen = await buildTzDocx(p);
+      const td = textDiff(await docxBlocks(orig182.buf), await docxBlocks(gen)), ld = await layoutDiff(orig182.buf, gen);
+      console.log(`сохранённый payload ТЗ 182 (без layout): текст ${td.length}, вёрстка ${ld.length}`);
+      check(td.length === 0 && ld.length === 0, `Word по сохранённому payload ТЗ 182 не совпал с оригиналом: ${[...td, ...ld].slice(0, 3).join("; ")}`);
+    }
+  }
   console.log(bad ? `ПРОВАЛОВ: ${bad}` : "OK");
   await prisma.$disconnect();
   process.exit(bad ? 1 : 0);
