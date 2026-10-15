@@ -16,7 +16,7 @@ import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 import { YearNote } from "@/components/year-note";
 import { Mode4Badge } from "@/components/c4-note";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
-import { formatMoney, formatPercent, formatQty, formatShare } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty, formatShare, formatMarkupPct } from "@/lib/utils";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import {
   VIEW_LABEL,
@@ -154,7 +154,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const exCalc = exampleModel ? calcOf(exampleModel) : null;
 
   const baseLabel = p.base === "full" ? "полная себестоимость (с работой)" : "себестоимость сырья (без работы)";
-  const basis = `наценка ${target ?? "—"}%, база — ${baseLabel}, ${c4Mode === "on" ? "с 4%" : "без 4%"}`;
+  const basis = `наценка ${target != null ? formatMarkupPct(target) : "—"}, база — ${baseLabel}, ${c4Mode === "on" ? "с 4%" : "без 4%"}`;
   const qs = pricingParams(p).toString();
   const here = (over: Partial<PricingParams> = {}) => {
     const s = pricingParams(p, over).toString();
@@ -331,8 +331,8 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     if (a.modelId) {
       items.push(
         ["Цена", a.price ? formatMoney(a.price.toFixed(2)) : <span className="text-amber-700">не задана</span>],
-        ["Наценка", c.markupX != null ? <>×{c.markupX.toFixed(2).replace(".", ",")} (+{formatPercent(c.markupPct ?? 0)}), маржа {pct1(c.marginPct ?? 0)}</> : dash],
-        ["Рекомендуемая цена", r ? <><Money incl={r.incl} excl={r.excl} /> <span className="text-neutral-500">(при наценке {target}%, не факт)</span></> : dash],
+        ["Наценка", c.markupX != null ? <>×{c.markupX.toFixed(2).replace(".", ",")} (+{formatMarkupPct(c.markupPct ?? 0)}), маржа {pct1(c.marginPct ?? 0)}</> : dash],
+        ["Рекомендуемая цена", r ? <><Money incl={r.incl} excl={r.excl} /> <span className="text-neutral-500">(при наценке {formatMarkupPct(target ?? 0)}, не факт)</span></> : dash],
       );
     }
     return (
@@ -548,7 +548,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>
             Целевая наценка
-            <InfoHint label="О целевой наценке">Для рекомендаций по цене. {target != null ? `×${(1 + target / 100).toFixed(2).replace(".", ",")} = +${target}%. ` : ""}{typed != null ? "Введена вручную." : defRounded != null ? "По умолчанию — из данных." : "Цен ещё нет — введите вручную."} В поле ниже наценка вводится в процентах: 300 значит цена в 4 раза выше себестоимости (×4).</InfoHint>
+            <InfoHint label="О целевой наценке">Для рекомендаций по цене. {target != null ? `×${(1 + target / 100).toFixed(2).replace(".", ",")} = +${formatMarkupPct(target)}. ` : ""}{typed != null ? "Введена вручную." : defRounded != null ? "По умолчанию — из данных." : "Цен ещё нет — введите вручную."} В поле ниже наценка вводится в процентах: 300 значит цена в 4 раза выше себестоимости (×4).</InfoHint>
           </TileHead>
           <TileValue>{target != null ? `×${(1 + target / 100).toFixed(2).replace(".", ",")}` : "не задана"}</TileValue>
         </div>

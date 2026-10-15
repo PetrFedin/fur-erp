@@ -11,7 +11,7 @@
  *
  * Суммы закупки здесь НЕ считаются: их считает src/lib/purchase-totals.ts (серверное действие подставляет позиции).
  */
-import { formatPercent } from "@/lib/utils";
+import { formatPercent, formatMoney } from "@/lib/utils";
 import { colorKey, matchColorRef, splitColorCode, suggestColorRef, type ColorRefLite } from "@/lib/color-ref";
 import { canonicalFur, furKey, type FurIndex } from "@/lib/fur-ref";
 import { buildCostPlanJson, computeCostPlan, DEFAULT_VAT, roundPrice, roundQty, roundRate, roundVat } from "@/lib/cost-plan";
@@ -640,7 +640,7 @@ export type ReconTotals = {
   auctionPart?: number | null;
 };
 
-const rub = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽";
+const rub = (n: number) => formatMoney(n);
 
 /** Сверка суммы документа с суммой лотов. Допуск — 50 ₽; расхождение объясняется: 4%, НДС, курс, валюта. */
 export function reconcileAmount(docAmount: number, t: ReconTotals, tol = DOC_TOLERANCE_RUB, kind?: DocKindKey): Recon {

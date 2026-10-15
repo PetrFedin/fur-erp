@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { InfoHint } from "@/components/info-hint";
 import { YearGroup } from "./year-group";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, formatQty } from "@/lib/utils";
 import { TotalLabel } from "@/components/total-label";
 
 /** Один заказ (ТЗ), за который заказчик платил: что за изделие и сколько. */
@@ -47,7 +47,7 @@ export type ClientPayRow = {
   docTitle: string;
 };
 
-const qtyText = (n: number) => `${n.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт.`;
+const qtyText = (n: number) => `${formatQty(n)} шт.`;
 
 const money = (n: number) => formatMoney(n.toFixed(2));
 

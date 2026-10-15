@@ -4,7 +4,7 @@ import Link from "next/link";
 import { TH as Head, THGroup } from "@/components/table-head";
 import { uniqueLabelCount } from "@/lib/tz-key";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { formatMoney, formatPercent } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead, TileValue, TileCaption, TileList, type TileItem } from "../dashboard/tile";
 import { TotalLabel } from "@/components/total-label";
@@ -186,7 +186,7 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
                 <Fragment key={b ?? "none"}>
                   <tr className="bg-neutral-50/70 font-semibold">
                     <td className="px-2 py-1.5" colSpan={3}>{b != null ? `Партия ${b}` : "Вне партий"}{list[0]?.year ? ` · ${list[0].year}` : ""} · {uniqueLabelCount(list)} ТЗ</td>
-                    <td className="border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{list.reduce((s, o) => s + o.qty, 0).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт.</td>
+                    <td className="border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{formatQty(list.reduce((s, o) => s + o.qty, 0))} шт.</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(w)}</td>
                     <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{rub(p)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-amber-700">{rub(w - p)}</td>
@@ -196,7 +196,7 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
                       <td className="whitespace-nowrap py-1.5 pr-2"><a href={`/production/${o.id}`} className="text-blue-700 hover:underline">{o.label} ›</a></td>
                       <td className="whitespace-nowrap px-2 py-1.5">{o.article}</td>
                       <td className="px-2 py-1.5 text-neutral-600">{o.fur}</td>
-                      <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{o.qty.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт.</td>
+                      <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{formatQty(o.qty)} шт.</td>
                       <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(o.work)}</td>
                       <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{rub(o.paid)}</td>
                       <td className="whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums text-amber-700">{rub(left(o))}</td>

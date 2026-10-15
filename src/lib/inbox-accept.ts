@@ -25,6 +25,7 @@ import { plainNum, ruDate, tzTotals, type TzPayload } from "@/lib/tz-vendor";
 import { writeDocumentFiles } from "@/lib/purchase-files";
 import { loadIntakeRefs, loadSupplierInvoices, planBatch } from "@/lib/batch-intake-server";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
+import { formatNum } from "@/lib/utils";
 
 export type AcceptResult =
   | { ok: true; already?: boolean; type: "Purchase" | "ProductionOrder"; ids: string[]; message: string }
@@ -67,7 +68,7 @@ function finish(orgId: string) {
 
 // ============================================================================================ расчёт аукциона
 
-const money2 = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money2 = (n: number) => formatNum(n, 1);
 
 /**
  * Окончательный расчёт при уже принятом предварительном: вторую закупку не создаём. Обновление принятой закупки по окончательному
@@ -144,7 +145,7 @@ async function acceptCalc(s: Sess, row: Row, orderDate?: string): Promise<Accept
   if (res.duplicate) return { ok: true, already: true, type: "Purchase", ids: pu ? [pu.id] : [], message: "Эта закупка уже была создана из этого расчёта — повторное нажатие дубль не создало." };
   return {
     ok: true, type: "Purchase", ids: res.purchases.map((x) => x.id),
-    message: `Создана закупка ${pu.number} (черновик): лотов ${pu.lots}, шкур ${pu.qty}, ${pu.inclVat.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₽ с НДС. На склад не принято.`,
+    message: `Создана закупка ${pu.number} (черновик): лотов ${pu.lots}, шкур ${pu.qty}, ${formatNum(pu.inclVat, 1)} ₽ с НДС. На склад не принято.`,
   };
 }
 
@@ -234,7 +235,7 @@ export async function previewInbox(orgId: string, row: Row): Promise<{ problems:
   const t = plan.preview.totals;
   const lines = [
     `Будет создано закупок (черновиков): ${plan.purchases.length} — по одной на аукционный счёт (${plan.purchases.map((x) => x.invoice || "—").join(", ")}) · ${plan.auctionName}${m.payload.header.newAuction ? " — аукциона нет в справочнике, он будет создан" : ""}`,
-    `Лотов ${t.lots}, шкур ${t.qty}, ${t.inclVat.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₽ с НДС; на склад не принимается`,
+    `Лотов ${t.lots}, шкур ${t.qty}, ${formatNum(t.inclVat, 1)} ₽ с НДС; на склад не принимается`,
     ...m.warnings,
     ...docLines(row, m.payload.rows.map((x) => x.invoice).filter(Boolean)),
   ];

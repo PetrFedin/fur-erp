@@ -6,13 +6,13 @@ import { TH, THGroup } from "@/components/table-head";
 import { TotalLabel } from "@/components/total-label";
 import { useVatDisplay } from "@/lib/vat-display";
 import { useClientSort } from "@/lib/use-client-sort";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatNum } from "@/lib/utils";
 import { REPAIR_CATEGORY } from "@/lib/dashboard-calc";
 import type { DrillData } from "@/lib/dashboard-drill";
 import { addOrder, blank, build, cost, type Agg, type Lvl } from "./production-table";
 
 const money = (v: number | null) => (v == null || !isFinite(v) ? "—" : formatMoney(Math.round(v)));
-const n2 = (v: number | null) => (v == null || !isFinite(v) || Math.abs(v) < 0.005 ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 2 }));
+const n2 = (v: number | null) => (v == null || !isFinite(v) || Math.abs(v) < 0.005 ? "—" : formatNum(v, 10));
 const qtyOf = (g: Agg) => Array.from(g.orders.values()).reduce((s, o) => s + o.qty, 0);
 const per = (v: number, q: number) => (q > 0 ? v / q : null);
 

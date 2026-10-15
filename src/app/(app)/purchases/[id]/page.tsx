@@ -18,7 +18,7 @@ import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatCurrency, formatDate, formatMoney, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
+import { formatCurrency, formatDate, formatMoney, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint, formatRate, formatNum } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Money } from "@/components/money";
@@ -606,7 +606,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
             {[
               purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}${purchase.invoiceDate ? ` от ${formatDate(purchase.invoiceDate)}` : ""}` : purchase.invoiceDate ? `счёт от ${formatDate(purchase.invoiceDate)}` : null,
               purchase.transferDocument ? `УПД ${purchase.transferDocument}` : null,
-              isForeignCurrency ? `валюта позиций ${purchase.currency}, курс ${Number(purchase.exchangeRate.toString()).toLocaleString("ru-RU", { maximumFractionDigits: 2 })}` : null,
+              isForeignCurrency ? `валюта позиций ${purchase.currency}, курс ${formatRate(Number(purchase.exchangeRate.toString()))}` : null,
               vatRatesText ? `НДС ${vatRatesText}%` : null,
             ].filter(Boolean).map((t) => (
               <span key={t} className="flex items-center gap-x-1.5"><span aria-hidden>·</span>{t}</span>
@@ -837,7 +837,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
           })
           .filter((r) => r.unit != null);
         if (rows.length === 0) return calcHow ? <Card><CardHeader><CardTitle>Из чего сложилась цена единицы</CardTitle></CardHeader><CardContent>{calcHow}</CardContent></Card> : null;
-        const num = (v: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(v);
+        const num = (v: number) => formatNum(v, 1);
         const totalAll = rows.reduce((a, r) => a.add(r.unit!.mul(r.qty)), new Decimal(0));
         return (
           <Card>

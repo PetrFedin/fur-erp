@@ -120,7 +120,7 @@ export function CompositionTable({ c, live = false, serverTotal }: { c: Composit
         <table className="w-full text-sm">
           <tbody>
             {lines.map(([label, v]) => (
-              <tr key={label} className="border-b border-neutral-100"><td className="py-1 text-neutral-600">{label}</td><td className="py-1 text-right tabular-nums">{money(v)}</td><td className="w-14 py-1 text-right text-xs tabular-nums text-neutral-500">{c.totalIncl > 0 ? `${fmt((v / c.totalIncl) * 100, 1)}%` : ""}</td></tr>
+              <tr key={label} className="border-b border-neutral-100"><td className="py-1 text-neutral-600">{label}</td><td className="py-1 text-right tabular-nums">{money(v)}</td><td className="w-14 py-1 text-right text-xs tabular-nums text-neutral-500">{c.totalIncl > 0 ? `${fmt((v / c.totalIncl) * 100, 0)}%` : ""}</td></tr>
             ))}
             <tr><td className="py-1 font-semibold">Итого с НДС</td><td className="py-1 text-right font-semibold tabular-nums">{money(c.totalIncl)}</td><td /></tr>
             <tr><td className="py-1 text-neutral-600">Итого без НДС</td><td className="py-1 text-right tabular-nums">{money(c.totalExcl)}</td><td /></tr>

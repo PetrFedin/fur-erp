@@ -6,8 +6,9 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { FORMAT_LABEL, STAGE_LABEL, emptyRow, headerRate, newId, rowFilled, type CalcFormat, type CalcHeader, type CalcPayload, type CalcTotals } from "@/lib/supplier-calc";
 import { expenseFields, getOther, hasOtherExtras, parsePasted, setOther } from "@/lib/supplier-calc-simple";
+import { formatRate, formatNum } from "@/lib/utils";
 
-const money = (n: number) => (Number.isFinite(n) ? n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
+const money = (n: number) => (Number.isFinite(n) ? formatNum(n, 1) : "—");
 const cellCls = "h-9 w-full rounded border border-neutral-300 bg-white px-1.5 text-sm tabular-nums read-only:border-transparent read-only:bg-transparent";
 
 function Step({ n, title, hint, children }: { n: number; title: string; hint?: string; children: ReactNode }) {
@@ -88,7 +89,7 @@ export function SimpleSteps({ p, setP, t, ro, missing, onAuction, onFormat, uplo
               <F label="Надбавка агента, %" v={h.agentPct} on={(v) => setH("agentPct", v)} ro={ro} ph="например 1,5" />
               <div>
                 <Label>Курс для расчёта</Label>
-                <div className="flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-50 px-3 text-sm tabular-nums">{t.rate ? t.rate.toLocaleString("ru-RU", { maximumFractionDigits: 6 }) : "—"}</div>
+                <div className="flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-50 px-3 text-sm tabular-nums">{t.rate ? formatRate(t.rate) : "—"}</div>
               </div>
               <F className="sm:col-span-2" label="Комментарий к курсу" v={h.rateComment} on={(v) => setH("rateComment", v)} ro={ro} ph="Курс ЦБ на … + 1,5 %" />
               <F label="Кому оформлен счёт (bayer)" v={h.buyer} on={(v) => setH("buyer", v)} ro={ro} />

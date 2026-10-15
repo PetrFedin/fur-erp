@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BreakdownTable } from "@/components/breakdown-table";
+import { formatNum, formatRate } from "@/lib/utils";
 
 type Breakdown = {
   furDescription?: string | null;
@@ -10,9 +11,9 @@ type Breakdown = {
   items: { label: string; value: number }[];
 };
 
-const fmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
-// Курс показываем не больше чем с 2 знаками после запятой.
-const fmtRate = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+const fmt = (n: number) => formatNum(n, 1);
+// Курс — ровно 2 знака после запятой.
+const fmtRate = (n: number) => formatRate(n);
 const toNum = (v: number | string | null | undefined) => (v == null || v === "" ? null : Number(v));
 
 export function CostBreakdownToggle({

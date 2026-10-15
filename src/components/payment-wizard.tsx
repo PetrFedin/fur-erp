@@ -9,11 +9,12 @@ import { PAY_KINDS, PRESET_PERCENTS, DOC_ROLES, canConfirm, guessDocRole, type D
 import { splitByWeights } from "@/lib/payment-alloc-core";
 import { centsOf, refHit, remainingOf, rubOf, suggestSupplierAlloc, suggestWorkAlloc } from "@/lib/payment-wizard-core";
 import { checkWizardDuplicate, getWizardData, saveWizardPayment, type WizardData, type WizardResult } from "@/app/(app)/payments/wizard-actions";
+import { formatMoney } from "@/lib/utils";
 
-const money = (c: number) => (c / 100).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽";
+const money = (c: number) => formatMoney(c / 100);
 /** Подпись остатка цели в списке: остаток / оплачено / переплата (минус не показываем). */
 const remLabel = (c: number) => (c >= 100 ? `остаток ${money(c)}` : c <= -100 ? `переплата ${money(-c)}` : "оплачено");
-const rub = (n: number | null) => (n == null ? "—" : n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽");
+const rub = (n: number | null) => (n == null ? "—" : formatMoney(n));
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

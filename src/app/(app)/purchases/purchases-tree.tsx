@@ -6,7 +6,7 @@ import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { ScopeEmpty, useScopeSrc } from "@/components/fur-scope";
 import { FUR_SRC_LABEL, type FurSrc } from "@/components/fur-source-nav";
 import { buttonVariants } from "@/components/ui/button";
-import { cn, formatDebt, formatMoney, formatPercent, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
+import { cn, formatDebt, formatMoney, formatPercent, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint, formatNum } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
 import { Chevron, Dash, SCROLL_BOX, TD, rowTone } from "@/components/tree-table";
@@ -282,7 +282,7 @@ function ItemRows({ x, open, flip, pk }: { x: TreeItem; open: Set<string>; flip:
   const isOpen = open.has(key);
   const canOpen = x.usages.length > 0;
   const detail = [x.color, x.size ?? ruGradeLabel(x.grade)].filter(Boolean).join(" · ");
-  const prices = [x.priceRub != null ? `${formatMoney(x.priceRub.toFixed(2))}/${x.unit}` : null, x.priceUsd != null ? `$${x.priceUsd.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null].filter(Boolean).join(" · ");
+  const prices = [x.priceRub != null ? `${formatMoney(x.priceRub.toFixed(2))}/${x.unit}` : null, x.priceUsd != null ? `$${formatNum(x.priceUsd, 1)}` : null].filter(Boolean).join(" · ");
   const isFur = x.unit === "шт.";
   return (
     <>

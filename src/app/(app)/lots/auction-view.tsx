@@ -3,7 +3,7 @@ import { relabelOrders } from "@/lib/order-label-db";
 import { escapeLike } from "@/lib/input";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionName as auctionNameLib, loadAuctionSummaries } from "@/lib/auction-payments";
-import { formatMoney, isRoundingRest, OVERPAY_FROM } from "@/lib/utils";
+import { formatMoney, isRoundingRest, OVERPAY_FROM, formatRate } from "@/lib/utils";
 import { isDebtDust } from "@/lib/raw-rounding";
 import Link from "next/link";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -123,7 +123,7 @@ function fmtSize(bytes: number): string {
 /** Версия файла для ссылки (сброс кэша при замене) — по имени файла на диске, а не по дате документа. */
 const docVersion = (storagePath: string) => encodeURIComponent(storagePath.split(/[\\/]/).pop() ?? "");
 
-const rateText = (r: Decimal) => Number(r.toString()).toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+const rateText = (r: Decimal) => formatRate(Number(r.toString()));
 
 export async function AuctionView({
   organizationId,

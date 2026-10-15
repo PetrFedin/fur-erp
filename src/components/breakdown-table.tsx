@@ -1,6 +1,7 @@
 import { groupBreakdownItems, labelUnit, type BreakdownItem } from "@/lib/cost-breakdown-groups";
+import { formatNum } from "@/lib/utils";
 
-const fmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+const fmt = (n: number) => formatNum(n, 1);
 
 /**
  * «Из чего сложилась цена» одной строкой, как в Excel: сверху группы ①…⑥, ниже подписи статей, под ними значения.

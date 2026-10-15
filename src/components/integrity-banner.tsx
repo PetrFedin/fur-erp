@@ -2,9 +2,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { requireSession } from "@/lib/session";
 import { getIntegrityReport, violationsForEntity, knownForEntity } from "@/lib/integrity";
-import { cn } from "@/lib/utils";
+import { cn, formatNum } from "@/lib/utils";
 
-const fmt = (v: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(Math.abs(v));
+const fmt = (v: number) => formatNum(Math.abs(v), 1);
 
 async function Body({ kind, id }: { kind?: string; id?: string }) {
   const session = await requireSession();

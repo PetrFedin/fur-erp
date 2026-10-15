@@ -1,4 +1,4 @@
-import { formatPercent } from "@/lib/utils";
+import { formatPercent, formatMoney } from "@/lib/utils";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { loadFurLots } from "@/lib/fur-table-server";
@@ -47,7 +47,7 @@ export type OverviewRow = {
 
 const ruDate = (d: Date) => d.toISOString().slice(0, 10).split("-").reverse().join(".");
 const METHOD_RU: Record<string, string> = { BANK_TRANSFER: "банковский перевод", CASH: "наличные", CARD: "карта", OTHER: "другое" };
-const money = (v: number) => v.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽";
+const money = (v: number) => formatMoney(v);
 const ppOf = (docRef: string | null) => /п\/п\s*№?\s*(\d+)/i.exec(docRef ?? "")?.[1] ?? null;
 const invoiceOf = (docRef: string | null) => /сч[её]т[^№;·]*№\s*([^\s;·,()]+)(?:\s+от\s+(\d{2}\.\d{2}\.\d{4}))?/i.exec(docRef ?? "");
 

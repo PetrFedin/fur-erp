@@ -18,7 +18,7 @@ const num2 = nf(2);
 const num4 = nf(4);
 
 const FIELD = "w-full rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-xs outline-none hover:border-neutral-400 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-300 disabled:opacity-60";
-const money = (v: number | null) => (v == null || Math.abs(v) < 0.005 ? "—" : formatMoney(v.toFixed(2)));
+const money = (v: number | null) => (v == null || Math.abs(v) < 0.005 ? "—" : formatMoney(v));
 
 type Draft = { title: string; cat: string; src: string; value: string };
 
@@ -123,7 +123,7 @@ export function LotSheetTable({
                     {canEdit ? (
                       <input aria-label={`Значение: ${r.label}`} inputMode="decimal" className={FIELD + " text-right tabular-nums"} value={d.value} onChange={(e) => patch(r, "value", e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") patch(r, "value", orig.get(r.idx)!.value); }} />
                     ) : (
-                      <span className="whitespace-nowrap">{r.unit === "курс" ? num4.format(r.value) : r.unit === "%" ? `${num2.format(r.value)}%` : `${num2.format(r.value)}${r.unit === "$" ? " $" : ""}`}</span>
+                      <span className="whitespace-nowrap">{r.unit === "курс" ? num2.format(r.value) : r.unit === "%" ? `${num2.format(r.value)}%` : `${num2.format(r.value)}${r.unit === "$" ? " $" : ""}`}</span>
                     )}
                   </td>
                   <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(r.perUnit)}</td>

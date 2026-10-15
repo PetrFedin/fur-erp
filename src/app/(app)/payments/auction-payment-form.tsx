@@ -4,6 +4,7 @@ import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 import { formatMb } from "@/lib/format-mb";
+import { formatMoney } from "@/lib/utils";
 import { Input, Select } from "@/components/ui/input";
 import { createAuctionPayment, updateAuctionPayment, deleteAuctionPayment, closeAuctionRemainder, type PayState } from "./actions";
 
@@ -43,7 +44,7 @@ function num(s: string): number {
   return t === "" || !/^[+-]?(\d+\.?\d*|\.\d+)$/.test(t) ? NaN : Number(t);
 }
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-const money = (n: number) => round2(n).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽";
+const money = (n: number) => formatMoney(round2(n));
 const toInput2 = (n: number) => round2(n).toFixed(2).replace(".", ",");
 const toInputPct = (n: number) => String(Math.round(n * 1000) / 1000).replace(".", ",");
 

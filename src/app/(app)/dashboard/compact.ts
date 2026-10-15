@@ -5,5 +5,5 @@ export function formatCompactMoney(value: number | string): string {
   const nf = (v: number, d: number) => v.toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: d });
   if (abs >= 1_000_000) return `${nf(n / 1_000_000, 1)} млн ₽`;
   if (abs >= 100_000) return `${nf(n / 1_000, 0)} тыс. ₽`;
-  return `${nf(n, 2)} ₽`;
+  return `${nf(n, Math.abs(n) < 1 ? 1 : 0)} ₽`;
 }

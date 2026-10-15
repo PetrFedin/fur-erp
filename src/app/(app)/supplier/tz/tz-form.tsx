@@ -9,8 +9,9 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { emptyItem, emptyMaterial, defaultTerms, tzTotals, type TzKind, type TzPayload, TZ_KIND_LABEL } from "@/lib/tz-vendor";
 import { TzPreviewModal } from "./tz-preview";
 import { deleteTzDraft, saveTzDraft, sendTz } from "./actions";
+import { formatNum } from "@/lib/utils";
 
-const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n: number) => formatNum(n, 1);
 export type LotOpt = { id: string; lot: string; material: string; color: string; remaining: string };
 
 export function TzForm({ id, initial, readOnly, colors, models, lots, batches, reviewNote }: { id: string | null; initial: TzPayload; readOnly: boolean; colors: string[]; models: string[]; lots: LotOpt[]; batches: { value: string; label: string }[]; reviewNote?: string | null }) {

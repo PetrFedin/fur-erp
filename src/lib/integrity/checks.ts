@@ -9,6 +9,7 @@ import { auctionKey } from "../auction-key";
 import recon from "../../data/reconciliation.json";
 import { r2, type IntegrityData, type IPurchase, type IOrder } from "./data";
 import type { Severity, Violation, EntityRef } from "./types";
+import { formatNum } from "@/lib/utils";
 
 /** Допуск на округление лотов против УПД (= ROUND_TOL_RUB из verification.ts). */
 export const ROUND_TOL_RUB = 50;
@@ -80,7 +81,7 @@ export function makeHelpers(d: IntegrityData) {
   return { lotById, orderById, purchaseById, batchById, modelById, usagesByLot, usagesByOrder, lotsByPurchase, purchaseTotal, ref, href, orderUnits, purchasesByAuction };
 }
 
-const fmt = (v: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(v).replace(/[  ]/g, " ");
+const fmt = (v: number) => formatNum(v, 1).replace(/[  ]/g, " ");
 const money = (v: number) => `${fmt(v)} ₽`;
 const sgn = (v: number) => (v > 0 ? "+" : "") + fmt(v);
 

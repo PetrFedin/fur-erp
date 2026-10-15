@@ -1,10 +1,11 @@
+import { formatNum } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { inboxScope, type SupplierSess } from "@/lib/supplier-inbox";
 import { compareCalcs } from "@/lib/calc-compare";
 import type { CalcPayload } from "@/lib/supplier-calc";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 
-const money = (n: number | null) => (n == null || !Number.isFinite(n) ? "—" : n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const money = (n: number | null) => (n == null || !Number.isFinite(n) ? "—" : formatNum(n, 1));
 const sign = (n: number) => (n > 0 ? "+" : "") + money(n);
 
 /** Окончательный расчёт против предварительного: итого и разница, по лотам «за шкуру было → стало». */

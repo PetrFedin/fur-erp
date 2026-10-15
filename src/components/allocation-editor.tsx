@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { saveProductionPaymentAllocation } from "@/app/(app)/production/mark-actions";
 import { fromCents, splitByWeights, toCents, type AllocOrderOpt } from "@/lib/payment-alloc-core";
+import { formatNum } from "@/lib/utils";
 
 export type { AllocOrderOpt };
 
 type Row = { orderId: string; amount: string };
 
-const rub = (c: number) => (c / 100).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const rub = (c: number) => formatNum(c / 100, 1);
 const parse = (s: string) => {
   const t = s.replace(/\s/g, "").replace(",", ".");
   return t === "" ? 0 : toCents(t);

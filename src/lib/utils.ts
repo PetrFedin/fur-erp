@@ -5,63 +5,93 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const rubFormatter = new Intl.NumberFormat("ru-RU", {
-  style: "currency",
-  currency: "RUB",
-  maximumFractionDigits: 2,
-});
+// ПРАВИЛО ПОКАЗА ЧИСЕЛ (решение владельца 15.10.2026; только экран, данные и расчёты точные):
+//   • деньги, количества, проценты, цены за единицу, шкуры, метры, площади — ЦЕЛЫЕ;
+//   • малые значения (по модулю < 1 у денег и процентов, < 10 у количеств) — максимум 1 знак, чтобы 0,4 не стало «0»;
+//   • курс валют и наценки (множитель ×1,25, % наценки) — ровно 2 знака: formatRate / formatMarkup / formatMarkupPct.
+const nfWhole = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
+const nfOne = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
+const nfTwo = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const rubWhole = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 0 });
-/** Порог, с которого копейки не показываются (экономия места в таблицах). Меньшие суммы — с копейками, чтобы были видны расхождения. */
-export const MONEY_WHOLE_FROM = 1000;
+/** Число по общему правилу: целое; если |n| < smallBelow — максимум 1 знак. */
+export function formatNum(value: number | string, smallBelow = 10): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  if (Math.abs(n) >= smallBelow) return nfWhole.format(n);
+  const r = nfOne.format(n);
+  return r === "-0" || r === "−0" ? "0" : r;
+}
 
-/** Сумма в рублях: от 1 000 ₽ — целые рубли, меньше — с копейками (целые без «,00»). */
+/** Курс валют: всегда 2 знака (92,45). */
+export function formatRate(value: number | string): string {
+  const n = Number(value);
+  return Number.isFinite(n) ? nfTwo.format(n) : "—";
+}
+
+/** Наценка множителем: ×1,25 (всегда 2 знака). */
+export function formatMarkup(value: number | string): string {
+  const n = Number(value);
+  return Number.isFinite(n) ? `×${nfTwo.format(n)}` : "—";
+}
+
+/** Наценка в процентах: 25,00% (всегда 2 знака). v уже в процентах. */
+export function formatMarkupPct(value: number | string): string {
+  const n = Number(value);
+  return Number.isFinite(n) ? `${nfTwo.format(n)}%` : "—";
+}
+
+const rubFormatter = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const rubSmall = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", minimumFractionDigits: 0, maximumFractionDigits: 1 });
+/** Устарело: раньше от этой суммы пропадали копейки; теперь копеек нет нигде (кроме |сумма| < 1 ₽). Оставлено для совместимости импортов. */
+export const MONEY_WHOLE_FROM = 1;
+
+/** Сумма в рублях: целые рубли; меньше 1 ₽ по модулю — один знак («0,4 ₽»), чтобы малая сумма не стала «0». */
 export function formatMoney(value: number | string) {
   let n = Number(value);
-  if (Math.abs(n) < 0.005) n = 0; // «-0 ₽» не показываем
-  if (Math.abs(n) >= MONEY_WHOLE_FROM) return rubWhole.format(n);
-  return rubFormatter.format(n).replace(/,00(?=[\s\u00a0]?₽)/, "");
+  if (!Number.isFinite(n)) return rubFormatter.format(n);
+  if (Math.abs(n) < 0.05) n = 0; // «-0 ₽» не показываем
+  if (Math.abs(n) >= 0.95) return rubFormatter.format(n);
+  return rubSmall.format(n);
 }
 
 const currencyFormatterCache = new Map<string, Intl.NumberFormat>();
 
-/** Formats a value in an arbitrary currency (purchases can be priced in USD/EUR before conversion). */
+/** Formats a value in an arbitrary currency (purchases can be priced in USD/EUR before conversion): целые, меньше 1 — один знак. */
 export function formatCurrency(value: number | string, currency: string) {
-  let formatter = currencyFormatterCache.get(currency);
+  const n = Number(value);
+  const small = Math.abs(n) < 0.95;
+  const key = `${currency}:${small ? 1 : 0}`;
+  let formatter = currencyFormatterCache.get(key);
   if (!formatter) {
     formatter = new Intl.NumberFormat("ru-RU", {
       style: "currency",
       currency,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: small ? 1 : 0,
     });
-    currencyFormatterCache.set(currency, formatter);
+    currencyFormatterCache.set(key, formatter);
   }
-  return formatter.format(Number(value));
+  return formatter.format(n);
 }
 
-const qtyFormatter = new Intl.NumberFormat("ru-RU", {
-  maximumFractionDigits: 3,
-});
-
+/** Количество (шт., м, кг, дм², шкуры): целое; меньше 10 — максимум 1 знак (0,5 м; 1,4 шкуры). */
 export function formatQty(value: number | string) {
-  return qtyFormatter.format(Number(value));
+  return formatNum(value, 10);
 }
 
-const pctFormatter = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-
-/** Процент всегда с одним знаком после запятой: 12,3% / 90,0% / 0,0%. Положительное меньше 0,1 → «<0,1%». v — уже в процентах (12.3). */
+/** Процент: целый; меньше 1% — один знак (0,4%); положительное меньше 0,1 → «<0,1%». v — уже в процентах (12.3). Наценку так НЕ форматировать: formatMarkupPct. */
 export function formatPercent(v: number | string | null | undefined, opts?: { sign?: boolean }): string {
   if (v == null) return "—";
   const n = Number(v);
   if (!Number.isFinite(n)) return "—";
   if (n > 0 && n < 0.1) return "<0,1%";
-  const r = Math.round(Math.abs(n) * 10) / 10;
-  const body = pctFormatter.format(r);
-  const neg = n < 0 && r !== 0;
-  return `${neg ? "−" : opts?.sign && r !== 0 ? "+" : ""}${body}%`;
+  const body = formatNum(Math.abs(n), 1);
+  const zero = body === "0";
+  const neg = n < 0 && !zero;
+  return `${neg ? "−" : opts?.sign && !zero ? "+" : ""}${body}%`;
 }
 
-/** Доля (0.123 → «12,3%»). */
+/** Доля (0.123 → «12%»). */
 export function formatShare(fraction: number | null | undefined, opts?: { sign?: boolean }): string {
   return fraction == null ? "—" : formatPercent(fraction * 100, opts);
 }
@@ -107,5 +137,5 @@ export function isRoundingRest(value: number | string, base?: number | string): 
 
 /** Подсказка для остатка-округления: «округление, 0,40 ₽». */
 export function roundingRestHint(value: number | string): string {
-  return `округление, ${formatMoney(Math.abs(Number(value)).toFixed(2))}`;
+  return `округление, ${formatMoney(Math.abs(Number(value)))}`;
 }

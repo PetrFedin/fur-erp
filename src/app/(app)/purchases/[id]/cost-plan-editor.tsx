@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { normalizeNumberInput } from "@/lib/input";
 import { computeCostPlan, roundQty, roundPrice, roundVat, roundRate } from "@/lib/cost-plan";
 import { updateCostPlanItem, updateCostPlanRate } from "../actions";
+import { formatNum } from "@/lib/utils";
 
 export type CostPlanEditorItem = {
   id: string;
@@ -34,7 +35,7 @@ const FIELDS: { name: keyof CostPlanEditorItem; label: string; hint?: string }[]
 ];
 
 const fmt = (n: number) =>
-  Number.isFinite(n) ? n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
+  Number.isFinite(n) ? formatNum(n, 1) : "—";
 const show = (n: number) => String(n).replace(".", ",");
 
 /** Кнопка «Править расчёт» + окно с формой и живым пересчётом себестоимости. */

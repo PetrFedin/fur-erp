@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
-import { cn, formatMoney, formatPercent, formatQty } from "@/lib/utils";
+import { cn, formatMoney, formatPercent, formatQty, formatNum } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
@@ -32,7 +32,7 @@ type Row = {
 
 const D = () => <span className="text-neutral-300">—</span>;
 const money = (v: number) => (Math.abs(v) < 0.5 ? <D /> : formatMoney(v));
-const usd = (v: number) => `$${v.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const usd = (v: number) => `$${formatNum(v, 1)}`;
 const BL = " border-l border-neutral-200";
 const TD = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
 

@@ -11,9 +11,10 @@ import { emptyDraft, type TzDraft } from "@/lib/tz-import-core";
 import type { TzAnalysis, TzIssue } from "@/lib/tz-import-server";
 import { parseTzInput, checkTzDrafts, createTzBatch, type ImportResult } from "../import-actions";
 import { useConfirm } from "@/components/confirm-dialog";
+import { formatMoney, formatQty } from "@/lib/utils";
 
-const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽";
-const qtyFmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 3 });
+const money = (n: number) => formatMoney(n);
+const qtyFmt = (n: number) => formatQty(n);
 
 type FieldDef = { k: keyof TzDraft; label: string; w?: string; ph?: string; issue?: TzIssue["field"] };
 const FIELDS: FieldDef[] = [

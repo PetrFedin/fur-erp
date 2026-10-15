@@ -4,7 +4,7 @@ import { TH, THGroup } from "@/components/table-head";
 import { TotalLabel } from "@/components/total-label";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatNum } from "@/lib/utils";
 import { REPAIR_CATEGORY } from "@/lib/dashboard-calc";
 import type { DrillData, DrillOrder } from "@/lib/dashboard-drill";
 import { InfoHint } from "@/components/info-hint";
@@ -20,7 +20,7 @@ const qtyOf = (g: Agg) => Array.from(g.orders.values()).reduce((s, o) => s + o.q
 const per = (v: number, q: number) => (q > 0 ? v / q : null);
 const m = (v: number | null) => (v == null || !isFinite(v) ? "—" : money(v));
 const nz = (v: number | null) => (v == null || Math.abs(v) < 0.05 ? "—" : n1(v));
-const n1 = (v: number | null) => (v == null ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
+const n1 = (v: number | null) => (v == null ? "—" : formatNum(v, 10));
 
 /** Средние на одно изделие по группе ТЗ (без ремонта). */
 function avgs(g: Agg) {

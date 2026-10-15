@@ -9,8 +9,9 @@ import { availableYears } from "@/lib/year-list";
 import { Input, Select } from "@/components/ui/input";
 import { PAY_KINDS, PRESET_PERCENTS, canConfirm, percentAmount, type DocRole, type PayKind } from "@/lib/payment-form-core";
 import { getPaymentTargets, quotePaymentTarget, savePayment, type Quote, type Recalc, type Spec, type TargetList } from "@/app/(app)/payments/pay-actions";
+import { formatMoney } from "@/lib/utils";
 
-const money = (n: number | null | undefined) => (n == null ? "—" : n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽");
+const money = (n: number | null | undefined) => (n == null ? "—" : formatMoney(n));
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

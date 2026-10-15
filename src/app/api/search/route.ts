@@ -4,6 +4,7 @@ import { cleanSearch, escapeLike } from "@/lib/input";
 import { loadArticleList } from "@/lib/article-ref";
 import { searchArticleList } from "@/lib/article-key";
 import { paymentCode } from "@/lib/payments-registry";
+import { formatMoney } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ type Group = { key: string; label: string; all: string; items: Item[] };
 
 const LIMIT = 5;
 const ruDate = (d: Date) => d.toISOString().slice(0, 10).split("-").reverse().join(".");
-const money = (v: { toString(): string }) => Number(v.toString()).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽";
+const money = (v: { toString(): string }) => formatMoney(Number(v.toString()));
 
 export async function GET(request: Request) {
   const session = await getFreshSession();

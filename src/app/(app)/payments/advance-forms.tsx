@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Input, Select } from "@/components/ui/input";
 import { createAdvancePayment, updateAdvancePayment, deleteAdvancePayment, allocateAdvance } from "./actions";
+import { formatNum } from "@/lib/utils";
 
 const METHODS: [string, string][] = [
   ["BANK_TRANSFER", "Банк. перевод"],
@@ -285,8 +286,8 @@ export function AllocateAdvanceControls({
           + Разнести ещё на один аукцион
         </Button>
         <span>
-          Разнесено: {sum.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₽; остаток без привязки:{" "}
-          {rest.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₽
+          Разнесено: {formatNum(sum, 1)} ₽; остаток без привязки:{" "}
+          {formatNum(rest, 1)} ₽
         </span>
       </div>
       {mine.length === 0 && <p className="text-xs text-amber-700">Нет аукционов и закупок этого поставщика, к которым можно привязать аванс.</p>}

@@ -25,6 +25,7 @@ import { resetByProdPayment } from "@/lib/verification";
 import { autoAllocatePayment } from "@/lib/payment-alloc";
 import { isUniqueViolation } from "@/lib/input";
 import { resolveContractorId } from "@/lib/contractors";
+import { formatNum } from "@/lib/utils";
 
 const optDate = (label: string) =>
   z.string().optional().refine((s) => !s || parseDateInput(s) !== null, label);
@@ -1576,7 +1577,7 @@ export async function updateProductionPayment(orderId: string, paymentId: string
   const keptAlloc = await prisma.paymentAllocation.findMany({ where: { productionPaymentId: paymentId, productionOrderId: { in: wanted } }, select: { amount: true, source: true } });
   const keptSum = keptAlloc.reduce((s, a) => s.add(a.amount), new Decimal(0));
   if (keptAlloc.some((a) => a.source === "MANUAL") && keptSum.greaterThan(new Decimal(String(parsed.data.amount)))) {
-    return { error: `Новая сумма меньше уже разнесённого вручную по ТЗ (${Number(keptSum.toString()).toLocaleString("ru-RU", { minimumFractionDigits: 2 })} ₽). Сначала уменьшите разнесение оплаты.` };
+    return { error: `Новая сумма меньше уже разнесённого вручную по ТЗ (${formatNum(Number(keptSum.toString()), 1)} ₽). Сначала уменьшите разнесение оплаты.` };
   }
   await prisma.$transaction(async (tx) => {
     await tx.productionPayment.update({

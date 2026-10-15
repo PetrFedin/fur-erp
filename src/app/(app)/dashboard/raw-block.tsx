@@ -3,7 +3,7 @@
 import { Fragment, createContext, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney, formatPercent, formatQty, formatShare } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty, formatShare, formatNum } from "@/lib/utils";
 import { alignColumn, alignFlowMoney, alignRows, type Trio } from "@/lib/money-round";
 import { alignRaw } from "@/lib/raw-display";
 import { TotalLabel } from "@/components/total-label";
@@ -24,7 +24,7 @@ import { ALL_TYPES_LABEL, FUR_SRC_KEYS, FUR_SRC_LABEL, SegmentSwitch, TypeDots, 
 
 type Pair = { incl: FlowFigures; excl: FlowFigures };
 
-const usd = (v: number) => `$${v.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const usd = (v: number) => `$${formatNum(v, 1)}`;
 const rub = (v: number) => formatMoney(v.toFixed(2));
 
 

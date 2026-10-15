@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { formatMoney, formatPercent, formatQty, cn } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty, cn, formatNum } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
@@ -59,7 +59,7 @@ const R = (n: number | null) => (n == null || Math.abs(n) < 0.5 ? "—" : format
 // Сначала до копеек (как avg в плитках: dashboard-data округляет цену до 2 знаков), затем формат — цифры совпадают с плитками.
 const A = (n: number | null) => (n == null || !Number.isFinite(n) || n <= 0 ? "—" : formatMoney(Math.round(n * 100) / 100));
 /** Средневзвешенная цена в долларах: только по лотам, у которых цена $ названа в документах. */
-const U = (n: number | null) => (n == null || !Number.isFinite(n) || n <= 0 ? "—" : `$${n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+const U = (n: number | null) => (n == null || !Number.isFinite(n) || n <= 0 ? "—" : `$${formatNum(n, 1)}`);
 
 /**
  * Таблица «куплено → использовано → остаток» по меху или подкладке (расчёт — src/lib/fur-table.ts, одна функция на

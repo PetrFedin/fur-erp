@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Money } from "@/components/money";
 import { RowCard } from "@/components/responsive-rows";
-import { formatCurrency, formatMoney, formatPercent, formatQty } from "@/lib/utils";
+import { formatCurrency, formatMoney, formatPercent, formatQty, formatRate } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { useCommission4Display } from "@/lib/commission4-display";
 import { COMMISSION_RATE, COMMISSION4_HINT } from "@/lib/commission4-const";
@@ -24,7 +24,7 @@ import { InfoHint } from "@/components/info-hint";
 import { ALL_SCOPE, useLots, useScope, type ScopeView } from "./lots-state";
 import { TotalLabel } from "@/components/total-label";
 
-const rateFmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+const rateFmt = (n: number) => formatRate(n);
 const symbol = (c: string) => (c === "USD" ? "$" : c);
 
 const TIP = {

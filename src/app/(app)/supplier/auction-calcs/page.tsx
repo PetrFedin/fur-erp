@@ -6,12 +6,12 @@ import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { requireRawViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { STAGE_LABEL, calcAll, calcYear, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatNum } from "@/lib/utils";
 import { Clamp } from "@/components/clamp";
 import { SortTh } from "@/components/sort-th";
 import { readSort, sortRows } from "@/lib/table-sort";
 
-const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n: number) => formatNum(n, 1);
 
 export const metadata = { title: "Расчёты аукционов" };
 

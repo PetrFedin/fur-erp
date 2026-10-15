@@ -542,7 +542,7 @@ function ReviewStep({
           <Row label="Сумма без НДС">{money(t.exclVat)}</Row>
           <Row label="Средняя цена, ₽ за шкуру (с НДС)">{money(t.avgInclPerUnit)}</Row>
           <Row label="Средняя цена, ₽ за шкуру (без НДС)">{money(t.avgExclPerUnit)}</Row>
-          {t.avgForeign !== null && <Row label={`Средний молоток, ${header.currency} за шкуру`}>{fmt(t.avgForeign, 2)}</Row>}
+          {t.avgForeign !== null && <Row label={`Средний молоток, ${header.currency} за шкуру`}>{fmt(t.avgForeign, 0)}</Row>}
           <Row label="Приёмка на склад">{preview.receiving ? "сразу" : "нет, черновик"}</Row>
         </div>
       </div>
@@ -560,7 +560,7 @@ function ReviewStep({
               <thead className="text-left text-neutral-500"><tr><th className="py-1">Лот</th><th>Мех</th><th className="text-right">Шт.</th><th className="text-right">За шкуру, ₽</th><th className="text-right">Итого, ₽</th></tr></thead>
               <tbody>
                 {comp.perLot.map((l) => (
-                  <tr key={l.n} className="border-t border-neutral-100"><td className="py-0.5">{l.lot || "—"}</td><td>{l.material}</td><td className="text-right tabular-nums">{fmt(l.qty)}</td><td className="text-right tabular-nums">{fmt(l.unitIncl, 2)}</td><td className="text-right tabular-nums">{fmt(l.totalIncl, 2)}</td></tr>
+                  <tr key={l.n} className="border-t border-neutral-100"><td className="py-0.5">{l.lot || "—"}</td><td>{l.material}</td><td className="text-right tabular-nums">{fmt(l.qty)}</td><td className="text-right tabular-nums">{fmt(l.unitIncl, 0)}</td><td className="text-right tabular-nums">{fmt(l.totalIncl, 0)}</td></tr>
                 ))}
               </tbody>
             </table>

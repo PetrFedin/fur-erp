@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { formatPercent } from "@/lib/utils";
+import { formatPercent, formatNum } from "@/lib/utils";
 import { useConfirm } from "@/components/confirm-dialog";
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
@@ -26,7 +26,7 @@ type Props = {
 /** Мелкая подпись под суммой: средняя цена шкуры / метра подкладки / работы на изделие. */
 function Avg({ sum, per, unit, d = 0 }: { sum: number; per: number; unit: string; d?: number }) {
   if (!(per > 0) || !(sum > 0)) return null;
-  return <div className="sub-cap mt-0.5 whitespace-normal text-[11px] font-normal leading-tight text-neutral-600">ср. {(sum / per).toLocaleString("ru-RU", { maximumFractionDigits: d })} {unit}</div>;
+  return <div className="sub-cap mt-0.5 whitespace-normal text-[11px] font-normal leading-tight text-neutral-600">ср. {formatNum(sum / per, d > 0 ? 10 : 1)} {unit}</div>;
 }
 
 

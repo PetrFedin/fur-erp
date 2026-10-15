@@ -4,7 +4,7 @@ import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { LotEditCtx } from "@/components/lot-edit-ctx";
 import { useConfirm } from "@/components/confirm-dialog";
 import { SaveStatus, InlineSelect, InlineText } from "@/components/lot-inline";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatNum } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { LotChange, LotPlan } from "@/lib/lot-reprice";
 import {
@@ -22,7 +22,7 @@ const fmtLine = (label: string, v: string) => {
   const n = Number(v);
   if (v.trim() === "" || !Number.isFinite(n)) return v;
   const money = /₽|\$|закупке|позиции|Молоток/.test(label);
-  return n.toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: money ? 2 : 3 });
+  return formatNum(n, money ? 1 : 10);
 };
 
 /** Окно «что изменится» перед пересчётом лота: сам лот, списания по ТЗ и их себестоимость, состав цены. */
