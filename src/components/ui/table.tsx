@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { SortMark, type THSort } from "@/components/table-head";
 import type { HTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from "react";
 
 /**
@@ -43,20 +45,27 @@ export function Tr({ className, ...props }: HTMLAttributes<HTMLTableRowElement>)
  * Ячейка заголовка. unit — единица (UNIT.* из src/lib/units.ts) мелкой второй строкой под названием;
  * числовые колонки задают className="text-right" (подпись и единица прижимаются к правому краю).
  * Вертикально всегда по центру. Подробнее — src/components/table-head.tsx.
+ * Сортировка по клику: sort + href (серверные страницы, thSort() из src/lib/table-sort.ts) или sort + onSort (клиентские,
+ * useClientSort из src/lib/use-client-sort.ts): ▲/▼, повторный клик меняет направление, aria-sort, ссылка/кнопка доступна с клавиатуры.
  */
-export function Th({ className, unit, children, ...props }: ThHTMLAttributes<HTMLTableCellElement> & { unit?: string }) {
+export function Th({ className, unit, children, sort, href, onSort, after, ...props }: ThHTMLAttributes<HTMLTableCellElement> & { unit?: string; sort?: THSort; href?: string; onSort?: () => void; /** Подсказка «i» и т.п.: рядом с подписью, но вне ссылки/кнопки сортировки (кнопка в ссылке недопустима). */ after?: React.ReactNode }) {
   const cls = className ?? "";
   const stack = /text-right/.test(cls) ? "items-end" : /text-center/.test(cls) ? "items-center" : "items-start";
+  const interactive = Boolean(href || onSort);
+  const body = (
+    <span className={cn("inline-flex flex-col leading-tight", stack)}>
+      <span className="inline-flex items-center gap-1">{children}{sort ? <SortMark dir={sort} /> : null}</span>
+      {unit ? <span className="text-[10px] font-normal opacity-80">{unit}</span> : null}
+    </span>
+  );
+  const ariaSort = sort === "asc" ? "ascending" : sort === "desc" ? "descending" : sort === "none" ? "none" : undefined;
   return (
-    <th className={cn("px-3 py-2 align-middle text-xs font-medium text-neutral-500", className)} {...props}>
-      {unit ? (
-        <span className={cn("inline-flex flex-col leading-tight", stack)}>
-          <span className="inline-flex items-center gap-1">{children}</span>
-          <span className="text-[10px] font-normal opacity-80">{unit}</span>
-        </span>
-      ) : (
-        children
-      )}
+    <th scope={interactive ? "col" : props.scope} aria-sort={ariaSort} className={cn("px-3 py-2 align-middle text-xs font-medium text-neutral-500", (sort === "asc" || sort === "desc") && "text-[color:var(--ui-accent-text)]", className)} {...props}>
+      {href ? (
+        <span className="inline-flex items-center gap-1"><Link href={href} scroll={false} className="hover:underline max-md:inline-flex max-md:min-h-11 max-md:items-center">{body}</Link>{after}</span>
+      ) : onSort ? (
+        <span className="inline-flex items-center gap-1"><button type="button" onClick={onSort} className="hover:underline max-md:min-h-11">{body}</button>{after}</span>
+      ) : unit || sort ? <>{body}{after}</> : <>{children}{after}</>}
     </th>
   );
 }

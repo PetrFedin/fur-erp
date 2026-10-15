@@ -10,7 +10,7 @@ import { computeMetrics, sortItems, type Metrics } from "@/lib/analytics-metrics
 export const GROUPS = {
   category: "Категория изделия",
   fur: "Вид меха",
-  size: "Размер",
+  size: "Размер изделия",
   model: "Модель (артикул)",
   batch: "Партия",
   year: "Год",

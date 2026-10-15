@@ -35,6 +35,11 @@ export function sortHref(path: string, sp: SortParams, key: string, cur: SortSta
   return `${path}?${q.toString()}`;
 }
 
+/** Свойства для <Th>/<TH> серверной страницы: состояние ▲/▼ и ссылка (см. также <SortTh/>, у которого есть и подпись). */
+export function thSort(path: string, sp: SortParams, key: string, cur: SortState | null, prefix = ""): { sort: "asc" | "desc" | "none"; href: string } {
+  return { sort: cur?.key === key ? cur.dir : "none", href: sortHref(path, sp, key, cur, prefix) };
+}
+
 const collator = new Intl.Collator("ru", { numeric: true, sensitivity: "base" });
 
 function cmp(a: SortVal, b: SortVal): number {

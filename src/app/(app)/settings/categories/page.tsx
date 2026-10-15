@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SupplierSimpleRef } from "../supplier-refs";
 import Link from "next/link";
@@ -89,11 +90,18 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
   const queue = [...rowsMap.values()].sort((a, b) => b.ids.length - a.ids.length || a.text.localeCompare(b.text, "ru"));
 
   const needle = cf.q.trim().toLowerCase();
-  const shown = refs.filter(
+  const shown0 = refs.filter(
     (r) =>
       (cf.status.length === 0 || cf.status.includes(r.confirmed ? "confirmed" : "proposed")) &&
       (!needle || [r.name, ...r.aliases, r.note ?? ""].some((x) => x.toLowerCase().includes(needle))),
   );
+
+  const sort = readSort(sp, ["group", "name", "aliases", "models", "orders"]);
+  const shown = sortRows(shown0, sort, {
+    group: (r) => r.group ?? NO_GROUP, name: (r) => r.name, aliases: (r) => r.aliases.join("; ") || null,
+    models: (r) => stat.get(r.id)?.models ?? 0, orders: (r) => stat.get(r.id)?.orders ?? 0,
+  });
+  const th = (k: string) => thSort("/settings/categories", sp, k, sort);
 
   return (
     <div className="flex flex-col gap-4">
@@ -222,11 +230,11 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
       <Table>
         <Thead>
           <Tr>
-            <Th>Группа</Th>
-            <Th>Категория</Th>
-            <Th>Синонимы</Th>
-            <Th className="text-right">Моделей</Th>
-            <Th className="text-right">ТЗ</Th>
+            <Th {...th("group")}>Группа</Th>
+            <Th {...th("name")}>Категория</Th>
+            <Th {...th("aliases")}>Синонимы</Th>
+            <Th {...th("models")} className="text-right">Моделей</Th>
+            <Th {...th("orders")} className="text-right">ТЗ</Th>
             <Th>{canEdit ? "Действия" : ""}</Th>
           </Tr>
         </Thead>

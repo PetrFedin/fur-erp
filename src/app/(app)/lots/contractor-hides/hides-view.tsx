@@ -17,6 +17,7 @@ export type HidesOrderRow = {
 };
 export type HidesPayment = { id: string; iso: string; date: string; year: number; label: string; doc: string | null; hides: number; amount: number; href: string; confirmed: boolean };
 
+import { useClientSort } from "@/lib/use-client-sort";
 const D = () => <span className="text-neutral-300">—</span>;
 const money = (v: number) => (Math.abs(v) < 0.5 ? <D /> : formatMoney(v.toFixed(2)));
 const TD = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
@@ -50,7 +51,13 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
   }, [orders]);
   const all = orders.reduce((a, o) => ({ incl: a.incl + o.incl, excl: a.excl + o.excl }), { incl: 0, excl: 0 });
   const paidTotal = payments.reduce((a, p) => a + p.hides, 0);
-  const shownPays = payments;
+  // Сортировка по клику на заголовок: по ТЗ и по платежам (▲/▼, повторный клик меняет направление).
+  const ord = useClientSort<HidesOrderRow>({
+    tz: (o) => o.label, batch: (o) => o.batch, year: (o) => o.payYear, article: (o) => o.article, units: (o) => o.units,
+    sum: (o) => val(o), vat: (o) => o.incl - o.excl, share: (o) => o.incl, per: (o) => (o.units > 0 ? val(o) / o.units : null),
+  });
+  const pay = useClientSort<HidesPayment>({ date: (p) => p.iso, label: (p) => p.label, doc: (p) => p.doc, amount: (p) => p.amount, hides: (p) => p.hides, ok: (p) => (p.confirmed ? 1 : 0) });
+  const shownPays = pay.sort(payments);
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,10 +122,10 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
           <table className="w-full table-fixed text-sm" style={{ minWidth: 900 }}>
             <thead>
               <tr><THGroup sep={false} colSpan={5}>ТЗ</THGroup><THGroup colSpan={4}>Стоимость шкур подрядчика</THGroup></tr>
-              <tr className="border-b border-neutral-200"><TH align="left" label="ТЗ" /><TH label="Партия" /><TH label="Год оплаты" /><TH align="left" label="Артикул" /><TH label="Изд." unit={UNIT.pcs} /><TH sep label={`Сумма (${vat === "excl" ? "без НДС" : "с НДС"})`} unit={UNIT.rub} /><TH label="НДС" unit={UNIT.rub} /><TH label="Доля" unit={UNIT.pct} /><TH label="На изделие" unit={UNIT.rub} /></tr>
+              <tr className="border-b border-neutral-200"><TH align="left" label="ТЗ" {...ord.th("tz")} /><TH label="Партия" {...ord.th("batch")} /><TH label="Год оплаты" {...ord.th("year")} /><TH align="left" label="Артикул" {...ord.th("article")} /><TH label="Изд." unit={UNIT.pcs} {...ord.th("units")} /><TH sep label={`Сумма (${vat === "excl" ? "без НДС" : "с НДС"})`} unit={UNIT.rub} {...ord.th("sum")} /><TH label="НДС" unit={UNIT.rub} {...ord.th("vat")} /><TH label="Доля" unit={UNIT.pct} {...ord.th("share")} /><TH label="На изделие" unit={UNIT.rub} {...ord.th("per")} /></tr>
             </thead>
             <tbody>
-              {shown.map((o) => (
+              {ord.sort(shown).map((o) => (
                 <tr key={o.orderId} className="border-t border-neutral-100">
                   <td className="px-2 py-1.5 text-left"><Link href={`/production/${o.orderId}`} className="text-blue-700 hover:underline" title={`Внутренний номер заказа ${o.number}`}>{o.label}</Link>{o.pinned ? <span className="ml-1.5 rounded-full bg-neutral-100 px-1.5 text-[10px] text-neutral-500" title="Сумма закреплена за этим ТЗ по документам">по документу</span> : null}</td>
                   <td className={TD}>{o.batch}</td><td className={TD}>{o.payYear}</td>
@@ -146,7 +153,7 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
         </div>
         <div className="scroll-hint overflow-x-auto rounded-xl border border-neutral-200 bg-white">
           <table className="w-full table-fixed text-sm" style={{ minWidth: 760 }}>
-            <thead><tr className="border-b border-neutral-200"><TH align="left" label="Дата" /><TH align="left" label="Платёж" /><TH align="left" label="Основание (п/п, счёт)" /><TH sep label="Платёж всего" unit={UNIT.rub} /><TH label="Из них шкуры" unit={UNIT.rub} /><TH label="Подтв." /></tr></thead>
+            <thead><tr className="border-b border-neutral-200"><TH align="left" label="Дата" {...pay.th("date")} /><TH align="left" label="Платёж" {...pay.th("label")} /><TH align="left" label="Основание (п/п, счёт)" {...pay.th("doc")} /><TH sep label="Платёж всего" unit={UNIT.rub} {...pay.th("amount")} /><TH label="Из них шкуры" unit={UNIT.rub} {...pay.th("hides")} /><TH label="Подтв." {...pay.th("ok")} /></tr></thead>
             <tbody>
               {shownPays.map((p) => (
                 <tr key={p.id} className="border-t border-neutral-100">

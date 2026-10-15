@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -25,7 +26,7 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
   const f = parseFilters(LIST_FILTERS, sp);
   const needle = escapeLike(f.q);
   const canCreate = hasRole(session.user.role, ACCESS.suppliers);
-  const suppliers = await prisma.supplier.findMany({
+  const suppliers0 = await prisma.supplier.findMany({
     where: {
       organizationId: session.user.organizationId,
       ...(f.q
@@ -42,6 +43,9 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
     orderBy: { name: "asc" },
   });
 
+  const sort = readSort(sp, ["name", "contact", "phone", "email"]);
+  const suppliers = sortRows(suppliers0, sort, { name: (x) => x.name, contact: (x) => x.contactName, phone: (x) => x.phone, email: (x) => x.email });
+  const th = (k: string) => thSort("/suppliers", sp, k, sort);
   const showContact = suppliers.some((x) => x.contactName);
   const showPhone = suppliers.some((x) => x.phone);
   const showEmail = suppliers.some((x) => x.email);
@@ -73,10 +77,10 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
       <Table stickyHeader>
         <Thead>
           <Tr>
-            <Th>Название</Th>
-            {showContact && <Th>Контакт</Th>}
-            {showPhone && <Th>Телефон</Th>}
-            {showEmail && <Th>Email</Th>}
+            <Th {...th("name")}>Название</Th>
+            {showContact && <Th {...th("contact")}>Контакт</Th>}
+            {showPhone && <Th {...th("phone")}>Телефон</Th>}
+            {showEmail && <Th {...th("email")}>Email</Th>}
             <Th></Th>
           </Tr>
         </Thead>

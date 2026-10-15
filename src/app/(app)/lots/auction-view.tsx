@@ -343,7 +343,7 @@ export async function AuctionView({
       <Card>
         <CardHeader>
           <CardTitle title={label}>
-            {names.length > 1 ? `Партии закупки: ${names.length}` : isServiceAuction(label) ? NO_AUCTION_LABEL : `Аукцион: ${shortAuctionName(label, 70)}`}
+            {names.length > 1 ? `Аукционы / закупки: ${names.length}` : isServiceAuction(label) ? NO_AUCTION_LABEL : `Аукцион: ${shortAuctionName(label, 70)}`}
             <YearNote year={year} />
             <InfoHint label="Об этом аукционе" wide>
               <p>Выбранный аукцион: счета, лоты, документы и расчёт цены.</p>

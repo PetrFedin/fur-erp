@@ -91,7 +91,7 @@ function Modal({ title, onClose, children, returnTo }: { title: string; onClose:
   );
 }
 
-function Slide({ lots, fur, label, withVat, hideLink = false }: { lots: PCLot[]; fur: string | null; label: string; withVat: boolean; /** Страница самого вида меха: ссылка на себя не нужна. */ hideLink?: boolean }) {
+function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вся закупка" }: { /** Заголовок слайда «все виды»: «Вся закупка» или выбранный источник. */ totalTitle?: string; lots: PCLot[]; fur: string | null; label: string; withVat: boolean; /** Страница самого вида меха: ссылка на себя не нужна. */ hideLink?: boolean }) {
   const a = useMemo(() => aggregate(lots), [lots]);
   const [open, setOpen] = useState<string | null>(null);
   const [opener, setOpener] = useState<HTMLElement | null>(null);
@@ -159,7 +159,7 @@ function Slide({ lots, fur, label, withVat, hideLink = false }: { lots: PCLot[];
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Вид меха</div>
-          <h3 className="truncate text-base font-semibold leading-tight">{fur ?? "Вся закупка"}</h3>
+          <h3 className="truncate text-base font-semibold leading-tight">{fur ?? totalTitle}</h3>
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-neutral-500 tabular-nums">
             <span>{withVat ? "с НДС" : "без НДС"}</span>
             <span className="font-semibold text-neutral-900">{formatMoney(total.toFixed(2))}</span>
@@ -218,31 +218,64 @@ function Slide({ lots, fur, label, withVat, hideLink = false }: { lots: PCLot[];
   );
 }
 
+type Src = "all" | "auction" | "supplier";
+const SRC_LABEL: Record<Src, string> = { all: "Все", auction: "Куплено на аукционе", supplier: "Куплено у поставщика" };
+const SRC_KEYS: Src[] = ["all", "auction", "supplier"];
+
 /** `onlyFur` — страница вида меха («Сырьё → Мех → Лиса»): тот же блок и те же лоты, что на Главной, но один слайд этого вида. */
-export function PriceCompositionBlock({ lots, onlyFur, href = "/lots" }: { lots: PCLot[]; onlyFur?: string; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
+export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots" }: { lots: PCLot[]; onlyFur?: string; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
   const { withVat, toggle } = useChartVat();
+  const [src, setSrc] = useState<Src>("all");
+  // Сумма «Куплено» по источнику (цена лота без НДС + НДС в режиме «с НДС»): Все = на аукционе + у поставщика, до копейки.
+  const sums = useMemo(() => {
+    const t: Record<Src, { v: number; n: number }> = { all: { v: 0, n: 0 }, auction: { v: 0, n: 0 }, supplier: { v: 0, n: 0 } };
+    for (const l of allLots) {
+      const v = l.excl.reduce((s, x) => s + x, 0) + (withVat ? l.vat : 0);
+      for (const k of ["all", l.src] as const) { t[k].v += v; t[k].n += 1; }
+    }
+    return t;
+  }, [allLots, withVat]);
+  const lots = useMemo(() => (src === "all" ? allLots : allLots.filter((l) => l.src === src)), [allLots, src]);
   const furs = useMemo(() => {
     const m = new Map<string, number>();
     for (const l of lots) m.set(l.fur, (m.get(l.fur) ?? 0) + l.excl.reduce((s, x) => s + x, 0));
     return Array.from(m).sort((a, b) => b[1] - a[1]).map(([f]) => f);
   }, [lots]);
-  if (lots.length === 0) return null;
-  const slides = onlyFur ? [{ key: `fur:${onlyFur}`, label: onlyFur, body: <Slide lots={lots} fur={onlyFur} label={onlyFur} withVat={withVat} hideLink /> }] : [
-    { key: "total", label: "Вся закупка", body: <Slide lots={lots} fur={null} label="Вся закупка" withVat={withVat} /> },
-    ...furs.map((f) => ({ key: `fur:${f}`, label: f, body: <Slide lots={lots.filter((l) => l.fur === f)} fur={f} label={f} withVat={withVat} /> })),
+  if (allLots.length === 0) return null;
+  const label = SRC_LABEL[src];
+  const slides = onlyFur ? [{ key: `${src}:fur:${onlyFur}`, label: onlyFur, body: <Slide lots={lots} fur={onlyFur} label={`${onlyFur} · ${label}`} withVat={withVat} hideLink /> }] : [
+    { key: `${src}:total`, label: src === "all" ? "Вся закупка" : label, body: <Slide lots={lots} fur={null} label={src === "all" ? "Вся закупка" : label} totalTitle={src === "all" ? "Вся закупка" : label} withVat={withVat} /> },
+    ...furs.map((f) => ({ key: `${src}:fur:${f}`, label: f, body: <Slide lots={lots.filter((l) => l.fur === f)} fur={f} label={`${f} · ${label}`} withVat={withVat} /> })),
   ];
+  const sourceSwitch = (
+    <div className="flex flex-col gap-1">
+      <div role="group" aria-label="Источник закупки" data-testid="pc-source-switch" className="flex flex-wrap gap-1.5 print:hidden">
+        {SRC_KEYS.map((k) => (
+          <button key={k} type="button" aria-pressed={src === k} onClick={() => setSrc(k)}
+            className={"inline-flex min-h-11 flex-col items-start justify-center rounded-md border px-3 py-1 text-left text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 " + (src === k ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>
+            <span className="font-medium">{SRC_LABEL[k]}</span>
+            <span className="tabular-nums opacity-80">{formatMoney(sums[k].v.toFixed(2))} · {sums[k].n} {lotsWord(sums[k].n)}</span>
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] leading-4 text-neutral-500" data-testid="pc-source-check">
+        Все = на аукционе + у поставщика: {formatMoney(sums.auction.v.toFixed(2))} + {formatMoney(sums.supplier.v.toFixed(2))} = {formatMoney((sums.auction.v + sums.supplier.v).toFixed(2))}{Math.abs(sums.auction.v + sums.supplier.v - sums.all.v) < 0.005 ? "" : " (с разницей округления)"}.
+      </p>
+    </div>
+  );
   return (
     <WidgetRow id="price-comp" title="Из чего складывается стоимость меха" headerEnd={onlyFur ? undefined : <Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3">
         <TileCarousel
           clickable twoUp
-          toolbar={<div className="mt-1.5">{toggle}</div>}
+          toolbar={<div className="mt-1.5 flex flex-col gap-2">{sourceSwitch}{toggle}</div>}
           title="Стоимость меха"
           hintLabel="Из чего складывается стоимость меха"
           hint={
             <>
               <p>Всё купленное сырьё по финальной рублёвой стоимости в разрезе составляющих: {COMP_CATS.map((c) => CAT_LABEL[c.key]).join(", ")}. Состав каждого лота — из его расчётного листа (карточка лота → «Из чего складывается цена»).</p>
               <p className="mt-1">Суммы секторов без НДС (цена лота ÷ (1 + ставка лота)); в режиме «с НДС» добавляется сектор НДС, и итог равен «Куплено» меха на Главной. Сектор «Прочее» раскрывается: «Упаковка и прочее» и лоты, у которых нет расчётного листа (и шкуры подрядчика).</p>
+              <p className="mt-1"><b>Все / Куплено на аукционе / Куплено у поставщика</b> — переключатель источника; суммы статей пересчитываются под выбор. На аукционе — закупки, привязанные к аукциону справочника (включая заказанное, но не полученное); у поставщика — остальные и шкуры подрядчика. «Все» = на аукционе + у поставщика.</p>
               <p className="mt-1">Наведите на сектор или строку — подсветится парная; клик открывает лоты с этой составляющей. Фильтры Главной действуют.</p>
             </>
           }

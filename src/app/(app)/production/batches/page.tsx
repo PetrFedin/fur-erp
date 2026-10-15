@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { positionsWord, itemsSuffix, tzCountText } from "@/lib/tz-key";
 import Link from "next/link";
@@ -71,11 +72,18 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
     if (!d) return null;
     return { docs: d.panel.missingCount > 0 || d.unmatched, pay: d.panel.pay.state === "UNPAID" || d.panel.pay.state === "PARTIAL" || d.panel.proofMissing > 0 };
   };
-  const rows = (showEmpty ? allRows : allRows.filter((r) => !isEmptyBatch(r))).filter((r) => {
+  const rows0 = (showEmpty ? allRows : allRows.filter((r) => !isEmptyBatch(r))).filter((r) => {
     if (!need) return true;
     const n = needsOf(r.b.number);
     return n ? n[need] : false;
   });
+  // Сортировка по клику на заголовок (?sort=…&dir=…); по умолчанию порядок как в запросе.
+  const sort = readSort(sp, ["batch", "orders", "units", "cost", "work", "paid", "remaining"]);
+  const rows = sortRows(rows0, sort, {
+    batch: (r) => r.b.number, orders: (r) => r.t.orders, units: (r) => r.t.producedUnits.toNumber(), cost: (r) => r.t.cost.toNumber(),
+    work: (r) => r.t.work.toNumber(), paid: (r) => r.t.paid.toNumber(), remaining: (r) => r.t.remaining.toNumber(),
+  });
+  const th = (k: string) => thSort("/production/batches", sp, k, sort);
   // Дерево и плитки — из тех же ТЗ, что на Главной; оплаты — по партиям/ТЗ из разнесения оплат (как в таблице).
   const shownNums = new Set(rows.map((r) => r.b.number));
   const drillAll = await loadOrdersDrill(orgId, year, c4Mode);
@@ -218,21 +226,21 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
       <Table stickyHeader>
         <Thead>
           <Tr>
-            <Th>Партия</Th>
-            <Th>ТЗ</Th>
-            <Th>
+            <Th {...th("batch")}>Партия</Th>
+            <Th {...th("orders")}>ТЗ</Th>
+            <Th {...th("units")} after={<InfoHint label="Что значит «в выпуске»">Все ТЗ партии без отменённых и без ремонта: готово (завершённые ТЗ) + в работе (план ТЗ «В работе» и «Запланировано») — как «В выпуске» на Главной. Разбивка «готово / в работе» — на карточке партии.</InfoHint>}>
               В выпуске, шт.
-              <InfoHint label="Что значит «в выпуске»">Все ТЗ партии без отменённых и без ремонта: готово (завершённые ТЗ) + в работе (план ТЗ «В работе» и «Запланировано») — как «В выпуске» на Главной. Разбивка «готово / в работе» — на карточке партии.</InfoHint>
             </Th>
-            <Th className="hidden md:table-cell">
-              <span className="inline-block max-w-[13rem] whitespace-normal align-middle leading-tight">Себестоимость сырья (мех, подкладка, 4 %), без работы, ₽</span>
+            <Th {...th("cost")} className="hidden md:table-cell" after={<>
               <InfoHint label="Чем отличается от «Полная себестоимость (с работой)»">Здесь себестоимость сырья: мех, подкладка и 4 % (при включённом «С 4%»), плюс расходы ТЗ — без работы подрядчика. В таблице «Партии → ТЗ → состав» ниже столбец «Полная себестоимость (с работой)» — это та же сумма плюс работа, поэтому цифры по одной партии там больше.</InfoHint>
               <Mode4Badge mode={c4Mode} />
               <C4Hint mode={c4Mode} base={c4Lines ? c4Base.toFixed(2) : null} extra={c4Lines ? c4Extra.toFixed(2) : null} excluded={c4Excl.toFixed(2)} title="4% по партиям списка" />
+            </>}>
+              <span className="inline-block max-w-[13rem] whitespace-normal align-middle leading-tight">Себестоимость сырья (мех, подкладка, 4 %), без работы, ₽</span>
             </Th>
-            <Th className="hidden md:table-cell" unit="₽">Работа</Th>
-            <Th className="hidden lg:table-cell" unit="₽">Оплачено</Th>
-            <Th unit="₽">Остаток</Th>
+            <Th {...th("work")} className="hidden md:table-cell" unit="₽">Работа</Th>
+            <Th {...th("paid")} className="hidden lg:table-cell" unit="₽">Оплачено</Th>
+            <Th {...th("remaining")} unit="₽">Остаток</Th>
             <Th className="hidden lg:table-cell">
               Документы и оплата
               <InfoHint label="Что значат документы и оплата" align="right">Чего не хватает по документам и оплачена ли работа заказчиком. Ниже — проверка: подтверждена ли партия (все ТЗ подтверждены, документы и оплата сопоставлены) или ждёт ручной проверки.</InfoHint>

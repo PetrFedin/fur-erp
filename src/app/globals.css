@@ -209,6 +209,8 @@ html:root :is(button, [role="button"], a.btn, summary):not(:disabled, [aria-disa
   .raw-row-fl { grid-template-rows: auto 1fr; }
   .raw-row-fl > .raw-group { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 0.25rem; }
   .raw-row-fl > .raw-divider { grid-row: span 2; }
+  /* Плитки подкладки — по высоте своего содержимого (на уровне плиток меха, без пустоты под ценой): у подкладки нет строки «Цена, $/шт.». */
+  .raw-row-fl .raw-tiles-short { align-self: start; align-items: stretch; }
 }
 @media (max-width: 767px) {
   .raw-divider { display: none; }

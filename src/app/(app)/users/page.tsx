@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { UserCreateForm } from "./user-create-form";
 import { CreateDialog } from "@/components/create-dialog";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -42,7 +43,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
   const flashError = typeof sp.error === "string" ? sp.error.slice(0, 300) : "";
   const newOpen = sp.new === "1";
   const f = parseFilters(USER_FILTERS, sp);
-  const users = await prisma.user.findMany({
+  const users0 = await prisma.user.findMany({
     where: {
       organizationId: session.user.organizationId,
       ...(f.role.length ? { role: { in: f.role as Array<"OWNER"> } } : {}),
@@ -51,6 +52,9 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
     orderBy: { createdAt: "asc" },
   });
 
+  const sort = readSort(sp, ["name", "email", "role"]);
+  const users = sortRows(users0, sort, { name: (u) => u.name, email: (u) => u.email, role: (u) => ROLE_LABELS[u.role as keyof typeof ROLE_LABELS] ?? u.role });
+  const th = (k: string) => thSort("/users", sp, k, sort);
   const presentRoles = new Set((await prisma.user.findMany({ where: { organizationId: session.user.organizationId }, select: { role: true } })).map((u) => u.role as string));
 
   return (
@@ -85,9 +89,9 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
       <Table stickyHeader>
         <Thead>
           <Tr>
-            <Th>Имя</Th>
-            <Th>Email</Th>
-            <Th>Роль</Th>
+            <Th {...th("name")}>Имя</Th>
+            <Th {...th("email")}>Email</Th>
+            <Th {...th("role")}>Роль</Th>
             <Th></Th>
           </Tr>
         </Thead>

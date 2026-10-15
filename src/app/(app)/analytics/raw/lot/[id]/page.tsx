@@ -184,7 +184,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         { label: "№ лота", key: "lotNumber", value: row.lotNumber ?? "" },
         { label: lining ? "Ткань" : "Вид меха", node: lining ? <>{shortMaterialName(p.materialName)}<span className="block text-[11px] text-neutral-500">{p.materialName}</span></> : <Link href={`/lots/fur/${encodeURIComponent(l.kind)}`} className="text-blue-700 hover:underline" title="Вид меха: все лоты и аукционы">{p.materialName}</Link>, editor: canEdit ? <LotChoiceField key="e" lotId={id} kind="material" value={row.rawMaterial.id} options={materialOpts.map((m) => ({ value: m.id, label: m.name }))} label={lining ? "Ткань" : "Вид меха"} /> : undefined },
         { label: lining ? "Цвет / описание" : "Цвет", key: "color" as const, value: row.color ?? colorText, refId: row.colorRefId, node: colorText },
-        ...(lining ? [] : [{ label: "Размер", key: "sizeGrade" as const, value: row.sizeGrade ?? "", node: sizeText }]),
+        ...(lining ? [] : [{ label: "Размер шкуры", key: "sizeGrade" as const, value: row.sizeGrade ?? "", node: sizeText }]),
         { label: lining ? "Описание" : "Сорт / описание", key: "grade", value: row.grade ?? "" },
         ...(lining ? [] : [{ label: "Признак меха", key: "attrs" as const, node: attrNames.map((a) => a.name).join(", ") || "—", note: canEdit ? <>новый признак — в <Link href="/settings/fur-attrs" className="text-blue-700 hover:underline">справочнике признаков</Link></> : undefined }]),
         { label: "Дата прихода", node: formatDate(p.receivedDate), editor: canEdit ? <LotDateField key="e" lotId={id} kind="received" value={isoDay(row.receivedDate)} label="Дата прихода" /> : undefined },
@@ -193,7 +193,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
     {
       title: "Закупка",
       fields: [
-        { label: "Партия закупки (аукцион)", node: auctionHref ? <Link href={auctionHref} className="text-blue-700 hover:underline" title="Партия закупки: все лоты и закупки партии">{l.auctionLabel}</Link> : l.auctionLabel, editor: canEdit && pu ? <LotChoiceField key="e" lotId={id} kind="auction" value={pu.auctionId ?? ""} options={auctionOpts.map((a) => ({ value: a.id, label: a.name }))} label="Аукцион" emptyLabel="без аукциона" note={purchaseWide} /> : undefined },
+        { label: "Аукцион / закупка", node: auctionHref ? <Link href={auctionHref} className="text-blue-700 hover:underline" title="Партия закупки: все лоты и закупки партии">{l.auctionLabel}</Link> : l.auctionLabel, editor: canEdit && pu ? <LotChoiceField key="e" lotId={id} kind="auction" value={pu.auctionId ?? ""} options={auctionOpts.map((a) => ({ value: a.id, label: a.name }))} label="Аукцион" emptyLabel="без аукциона" note={purchaseWide} /> : undefined },
         { label: "Закупка №", node: l.purchaseId ? <Link href={`/purchases/${l.purchaseId}`} className="text-blue-700 hover:underline">{l.purchaseNumber}</Link> : "—", editor: canEdit && l.purchaseId ? <LotChoiceField key="e" lotId={id} kind="purchase" value={l.purchaseId} options={purchaseOpts.map((x) => ({ value: x.id, label: x.number }))} label="Закупка-основание" /> : undefined },
         { label: "Поставщик", node: pu && p.supplier ? <Link href={`/suppliers/${pu.supplierId}`} className="text-blue-700 hover:underline" title="Карточка поставщика">{p.supplier}</Link> : (p.supplier ?? "—"), editor: canEdit && pu ? <LotChoiceField key="e" lotId={id} kind="supplier" value={pu.supplierId} options={supplierOpts.map((x) => ({ value: x.id, label: x.name }))} label="Поставщик" note={purchaseWide} /> : undefined },
         { label: "Накладная / счёт №", node: p.invoiceNumber ?? "—", editor: canEdit && pu ? <LotPurchaseText key="e" lotId={id} kind="invoiceNumber" value={pu.invoiceNumber ?? ""} label="Накладная / счёт №" /> : undefined, note: canEdit && pu ? purchaseWide : undefined },
@@ -234,7 +234,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
   // Ключевые поля — наверху, всегда на виду; остальное («справочные») — ниже, свёрнуто. Те же поля, та же правка по месту, без дублей.
   const KEY_LABELS = [
     lining ? "Ткань" : "Вид меха", lining ? "Цвет / описание" : "Цвет", lining ? "Описание" : "Сорт / описание",
-    "Получено", `Цена за ${unitWord}, ₽ (с НДС)`, "НДС, %", "Закупка №", "Партия закупки (аукцион)",
+    "Получено", `Цена за ${unitWord}, ₽ (с НДС)`, "НДС, %", "Закупка №", "Аукцион / закупка",
   ];
   const allFields = sections.flatMap((sec) => sec.fields);
   const keySection: PassportSection = {

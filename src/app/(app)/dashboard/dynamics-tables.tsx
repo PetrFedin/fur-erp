@@ -77,7 +77,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
             <p className="mt-1"><b>Всего, ₽</b> — сумма строк по каждой колонке (задолженность: года 1 + года 2 = общая). Год шапки таблицу не меняет; фильтры панели действуют на сырьё и производство.</p>
             <p className="mt-1"><b>Использовано</b> — всегда без 4%, поэтому куплено = использовано + остаток. Оплачено и задолженность — всегда с НДС, не зависят от 4%.</p>
             <p className="mt-1">Использовано — сырьё лотов, купленных в этом году (где бы ни было списано): мех, купленный в 2025, мог уйти в ТЗ 2026.</p>
-            <p className="mt-1">Бобр — сырьё подрядчика, лотов закупки нет; изделия из бобра смотрите в «Производство» и «Изделия».</p>
+            <p className="mt-1">Бобр: закупленные лоты (если есть) показаны как обычный мех — пока в ТЗ не списаны, всё куплено лежит в остатке; бобр подрядчика (изделия в ТЗ без лотов закупки) смотрите в «Производство» и «Изделия».</p>
           </InfoHint>
       }>
       <div className="table-scroll scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
@@ -145,14 +145,29 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
                         </tr>
                         {isOpen ? yrs.map((r) => {
                           const y = sum(r.fur[vat], r.lining[vat]);
+                          const yk = "all:" + r.key, yOpen = open.has(yk);
                           return (
-                            <tr key={"all" + r.key} className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
-                              <NameCell indent title={r.label}>{shortMaterialName(r.label)}{yearInfo(r)}</NameCell>
-                              <td className={td + GB}>—</td><td className={td}>{rub(y.rv)}</td>
-                              <td className={td + GB}>—</td><td className={td}>{rub(y.uv)}</td>
-                              <td className={td + GB}>—</td><td className={td}>{rub(y.mv)}</td>
-                              <MoneyTds paid={r.paid} due={r.debt} />
-                            </tr>
+                            <Fragment key={"all" + r.key}>
+                              <tr className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
+                                <NameCell indent={8} title={r.label} arrow={<button type="button" onClick={() => toggle(yk)} aria-expanded={yOpen} aria-label={`Раскрыть на мех и подкладку: ${r.label}`} className="inline-flex h-6 w-5 items-center justify-center"><Chevron open={yOpen} /></button>}>{shortMaterialName(r.label)}{yearInfo(r)}</NameCell>
+                                <td className={td + GB}>—</td><td className={td}>{rub(y.rv)}</td>
+                                <td className={td + GB}>—</td><td className={td}>{rub(y.uv)}</td>
+                                <td className={td + GB}>—</td><td className={td}>{rub(y.mv)}</td>
+                                <MoneyTds paid={r.paid} due={r.debt} />
+                              </tr>
+                              {yOpen ? kinds.map((kd) => {
+                                const c = kd.pick(r), m = kd.money(r);
+                                return (
+                                  <tr key={"all" + r.key + kd.k} className="border-b border-neutral-100 bg-white text-[12px] text-neutral-600">
+                                    <NameCell indent={36}>{kd.label}</NameCell>
+                                    <td className={td + GB}>—</td><td className={td}>{rub(c.rv)}</td>
+                                    <td className={td + GB}>—</td><td className={td}>{rub(c.uv)}</td>
+                                    <td className={td + GB}>—</td><td className={td}>{rub(c.mv)}</td>
+                                    <MoneyTds paid={m.paid} due={m.debt} />
+                                  </tr>
+                                );
+                              }) : null}
+                            </Fragment>
                           );
                         }) : null}
                       </Fragment>

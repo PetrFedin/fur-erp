@@ -51,7 +51,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const yl = yearLabel(year);
   const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, attr: f.attr, batch: f.batch, catgroup: f.catgroup, kind: f.kind ?? [] };
   const prodNums = (t: typeof d.prod.done) => ({ items: t.items, repairOrders: t.repairOrders, repairQty: t.repairQty, repairCostIncl: t.repairCostIncl, repairCostExcl: t.repairCostExcl, orders: t.orders, qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum, furIncl: t.furIncl, furExcl: t.furExcl, liningIncl: t.liningIncl, liningExcl: t.liningExcl, matIncl: t.furIncl + t.liningIncl, matExcl: t.furExcl + t.liningExcl, c4Incl: t.c4Incl, c4Excl: t.c4Excl });
-  const FILTER_NAMES: [keyof DashFilters, string][] = [["auction", "партия закупки"], ["fur", "вид меха"], ["color", "цвет"], ["attr", "признак меха"], ["batch", "партия пр-ва"], ["catgroup", "группа категорий"], ["kind", "тип"]];
+  const FILTER_NAMES: [keyof DashFilters, string][] = [["auction", "аукцион / закупка"], ["fur", "вид меха"], ["color", "цвет"], ["attr", "признак меха"], ["batch", "партия пр-ва"], ["catgroup", "группа категорий"], ["kind", "тип"]];
   const activeFilters = FILTER_NAMES.filter(([k]) => (f[k]?.length ?? 0) > 0).map(([k, n]) => `${n} ×${f[k]?.length ?? 0}`).join(", ");
   const info: ModeInfo = { year: yl, filters: activeFilters || null };
   // Ссылки «→ Сырьё» и «→ ТЗ» несут фильтры Главной, которые понимает целевая страница (год, НДС и 4% — общие, из шапки):
@@ -99,7 +99,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           hideChips
           dropOnChange={["status", "vat", "nds"]}
           controls={[
-            { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: d.options.auction, allLabel: "Все партии" },
+            { type: "multi", name: "auction", label: "Аукцион / закупка", aliases: ["auc"], options: d.options.auction, allLabel: "Все партии" },
             { type: "multi", name: "fur", label: "Вид меха", options: d.options.fur },
             { type: "multi", name: "color", label: "Цвет", options: d.options.color, allLabel: "Все цвета", noneLabel: d.noColorLots > 0 ? "Цвет не указан в документах" : undefined, hint: "Цвет лота по справочнику" },
             { type: "multi", name: "batch", label: "Партия производства", options: d.options.batch, noneLabel: "Без партии", allLabel: "Все партии" },
@@ -112,7 +112,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               Фильтры применяются сразу
               <InfoHint label="Что фильтруется на Главной" wide>
                 <p>Год — общий, из шапки ({year === "all" ? "все годы" : `${year} год`}).</p>
-                <p className="mt-1">Партия закупки, вид меха, цвет и признак меха отбирают лоты (куплено, остаток, использовано) и ТЗ, в которых списан такой лот; вид меха без лотов (например, бобр подрядчика) отбирает только ТЗ. Партия производства, группа категорий и тип (производство / ремонт) отбирают ТЗ (и «использовано» — только по ним). Ставки НДС показаны внутри карточек.</p>
+                <p className="mt-1">Аукцион / закупка, вид меха, цвет и признак меха отбирают лоты (куплено, остаток, использовано) и ТЗ, в которых списан такой лот; вид меха без лотов (например, бобр подрядчика) отбирает только ТЗ. Партия производства, группа категорий и тип (производство / ремонт) отбирают ТЗ (и «использовано» — только по ним). Ставки НДС показаны внутри карточек.</p>
                 <p className="mt-1">Сужают блоки «Сырьё» и «Производство» и обе таблицы динамики. Долг и оплаты поставщику (по закупкам и оплатам года) от фильтров не зависят{filtersOn ? " — сейчас фильтры включены" : ""}.</p>
               </InfoHint>
             </div>

@@ -1,3 +1,5 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
+import { Th } from "@/components/ui/table";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { auctionLabeler } from "@/lib/filter-options";
 import { WidgetRow } from "@/components/widget-row";
@@ -54,7 +56,7 @@ type SP = Record<string, string | string[] | undefined>;
 
 // Один язык фильтров: поиск `q` (прежнее `dq`) общий для матрицы и списка документов; страница списка — `page` (прежнее `dpage`).
 const DOC_FILTERS = defineFilters({
-  ...pick(["q", "auction", "sort"], { auction: { label: "Партия закупки", aliases: [] }, sort: { role: "filter", label: "Сортировка", allowed: ["gaps"] } }),
+  ...pick(["q", "auction", "sort"], { auction: { label: "Аукцион / закупка", aliases: [] }, sort: { role: "filter", label: "Сортировка", allowed: ["gaps"] } }),
   section: { kind: "multi", label: "Раздел", allowed: SECTION_ORDER },
   gaps: { kind: "multi", label: "Нужен файл", allowed: ["1"] },
   ver: { kind: "multi", label: "Подтверждение", allowed: ["yes", "no"] },
@@ -113,7 +115,17 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
 
   // ---------- Drive-блок
   // Одинаковые файлы (название + тип + размер) схлопнуты в одну строку «×N»; привязки — в раскрывающемся списке.
-  const docsFiltered = groupDocList(filterDocList(docList, df)).sort((a, b) => a.title.localeCompare(b.title, "ru"));
+  // Таблица документов Drive сортируется по клику на заголовок (?dsort=…&ddir=…); по умолчанию — по названию.
+  const dSort = readSort(sp, ["title", "type", "number", "date", "links", "orig"], null, "d");
+  const docsFiltered = sortRows(groupDocList(filterDocList(docList, df)).sort((a, b) => a.title.localeCompare(b.title, "ru")), dSort, {
+    title: (d) => d.title,
+    type: (d) => DRIVE_DOC_TYPE_LABELS[d.docType],
+    number: (d) => d.number,
+    date: (d) => (d.date ? new Date(d.date) : d.year ? new Date(Date.UTC(Number(d.year), 0, 1)) : null),
+    links: (d) => d.links.length,
+    orig: (d) => (d.hasOriginal ? 1 : 0),
+  });
+  const dth = (k: string) => thSort("/documents", sp, k, dSort, "d");
   const typeCounts = new Map<string, number>();
   for (const d of groupDocList(filterDocList(docList, df, "type"))) typeCounts.set(d.docType, (typeCounts.get(d.docType) ?? 0) + 1);
   const pages = Math.max(1, Math.ceil(docsFiltered.length / DOC_PAGE_SIZE));
@@ -164,7 +176,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
           controls={[
             { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "номер, название…" },
             { type: "multi", name: "section", label: "Раздел", options: SECTION_ORDER.map((k) => ({ value: k, label: SECTION_TITLES[k] })), allLabel: "Все разделы" },
-            { type: "multi", name: "auction", label: "Партия закупки (аукцион)", options: auctions.map((a) => ({ value: a, label: aucOf(a).label, title: aucOf(a).title })), allLabel: "Все партии" },
+            { type: "multi", name: "auction", label: "Аукцион / закупка", options: auctions.map((a) => ({ value: a, label: aucOf(a).label, title: aucOf(a).title })), allLabel: "Все партии" },
             { type: "multi", name: "gaps", label: "Нужен файл", single: true, options: [{ value: "1", label: "Только где нужен файл" }], allLabel: "Все записи" },
             { type: "multi", name: "ver", label: "Подтверждение", options: [{ value: "yes", label: "Подтверждена" }, { value: "no", label: "Не подтверждена" }], allLabel: "Любое" },
             { type: "multi", name: "sort", label: "Сортировка", more: true, single: true, options: [{ value: "gaps", label: "По числу пробелов" }], allLabel: "По порядку" },
@@ -243,12 +255,12 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
                 <table className="w-full table-fixed text-sm">
                   <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
                     <tr>
-                      <th className="w-[34%] px-3 py-2 font-medium">Название</th>
-                      <th className="w-[12%] px-3 py-2 font-medium">Тип</th>
-                      <th className="w-[10%] px-3 py-2 font-medium">№</th>
-                      <th className="w-[9%] px-3 py-2 font-medium">Дата</th>
-                      <th className="px-3 py-2 font-medium">Привязан к</th>
-                      <th className="w-[9%] px-3 py-2 font-medium">Оригинал</th>
+                      <Th {...dth("title")} className="w-[34%] px-3 py-2 font-medium">Название</Th>
+                      <Th {...dth("type")} className="w-[12%] px-3 py-2 font-medium">Тип</Th>
+                      <Th {...dth("number")} className="w-[10%] px-3 py-2 font-medium">№</Th>
+                      <Th {...dth("date")} className="w-[9%] px-3 py-2 font-medium">Дата</Th>
+                      <Th {...dth("links")} className="px-3 py-2 font-medium">Привязан к</Th>
+                      <Th {...dth("orig")} className="w-[9%] px-3 py-2 font-medium">Оригинал</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100">

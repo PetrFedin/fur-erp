@@ -96,7 +96,7 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
             <p className="mt-1 text-[11px] text-neutral-500">Нового поставщика добавьте в справочнике</p>
           </div>
           <div>
-            <Label htmlFor="lb-batch">Партия закупки</Label>
+            <Label htmlFor="lb-batch">Аукцион / закупка</Label>
             <Input id="lb-batch" value={batchShown} onChange={(e) => { setBatchTouched(true); setBatchName(e.target.value); }} placeholder="Подкладка 05.26" />
             <p className="mt-1 text-[11px] text-neutral-500">По умолчанию «Подкладка ММ.ГГ» по дате</p>
           </div>

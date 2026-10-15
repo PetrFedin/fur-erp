@@ -279,11 +279,12 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
   const vatW = vat === "incl" ? "с НДС" : "без НДС";
   const c4W = c4 === "on" ? "с 4%" : "без 4%";
   const [pc, setPc] = useState<null | { view: "fur" | "lining"; col: "recv" | "used" | "rem" }>(null);
+  const [srcOpen, setSrcOpen] = useState(false);
   const extra = (
     <>
       <InfoHint label="Как считаются плитки сырья" wide>
         <p><b>Цена</b> — средневзвешенная: Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м), а не среднее цен лотов. Совпадает с таблицей «Сырьё». Нажмите на плитку — цены по видам сырья.</p>
-        <p className="mt-1"><b>Режимы.</b> Цены {vatW}; «Использовано» — {c4W}. 4% начисляется только при списании в ТЗ, поэтому «Куплено» и «Остаток» всегда без 4%. НДС берётся по ставке каждого лота (20% или 22%); под суммой каждой плитки — «в т.ч. НДС» по ставкам (при режиме «Без НДС» — НДС, который в сумму не входит). Бобр — сырьё подрядчика, лотов закупки нет; изделия из бобра смотрите в «Производство» и «Изделия».</p>
+        <p className="mt-1"><b>Режимы.</b> Цены {vatW}; «Использовано» — {c4W}. 4% начисляется только при списании в ТЗ, поэтому «Куплено» и «Остаток» всегда без 4%. НДС берётся по ставке каждого лота (20% или 22%); под суммой каждой плитки — «в т.ч. НДС» по ставкам (при режиме «Без НДС» — НДС, который в сумму не входит). Бобр: закупленные лоты (если есть) показаны как обычный мех — пока в ТЗ не списаны, всё куплено лежит в остатке; бобр подрядчика (изделия в ТЗ без лотов закупки) смотрите в «Производство» и «Изделия».</p>
         <p className="mt-1"><b>Как сходится.</b> Куплено = использовано (без 4%) + остаток — отдельно для меха (шт.) и для подкладки (м).</p>
         <p className="mt-1"><b>Цена в долларах</b> — молоток за шкуру (до сборов), только из документов лота: строка в долларах; евро × записанный курс EUR→USD; молоток в ₽ ÷ записанный курс USD/RUB; цена $ из расчётного листа. У подкладки цен в долларах нет. Остальные лоты в среднюю $ не входят и по курсу ЦБ не пересчитываются.</p>
       </InfoHint>
@@ -317,7 +318,7 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
   const slideCtl = (
     <>
       <SegmentSwitch label="Источник закупки меха" value={nav.src} onChange={nav.pick} options={FUR_SRC_KEYS.map((k) => ({ key: k, label: FUR_SRC_LABEL[k] }))} />
-      <TypeDots labels={slidesF.map((x) => x.label)} cur={cur} goTo={goTo} step={step} last={maxStart} />
+      <TypeDots accent labels={slidesF.map((x) => x.label)} cur={cur} goTo={goTo} step={step} last={maxStart} />
     </>
   );
   const srcHint = (
@@ -340,7 +341,7 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
                 {g.view === "fur" ? (
                   <>
                     <div className="raw-group-label flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="fur-slide-label">
-                      <span>{g.label} · {FUR_SRC_LABEL[nav.src]}{slideNow?.key ? ` · ${slideNow.label}` : ""}</span>{slideCtl}{srcHint}
+                      <span>{g.label} · {FUR_SRC_LABEL[nav.src]}{slideNow?.key ? <> · <span className="font-semibold text-orange-700" data-testid="fur-type-now">{slideNow.label}</span></> : ""}</span>{slideCtl}{srcHint}
                     </div>
                     <div ref={scroller} onScroll={onScroll} {...dragProps} tabIndex={0} data-testid="fur-slides" role="group" aria-roledescription="карусель" aria-label={`Мех · ${FUR_SRC_LABEL[nav.src]}: слайды по типам меха`}
                       onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "ArrowRight") { e.preventDefault(); step(1); } else if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); } }}
@@ -348,7 +349,7 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
                       {slidesF.map((x, i) => (
                         <div key={`${nav.src}:${x.key || "all"}`} data-slide={`${nav.src}:${x.key || "all"}`} role="group" aria-roledescription="слайд" aria-label={`${x.label}, ${i + 1} из ${slidesF.length}`} aria-hidden={i !== cur} className="h-full min-w-full max-w-full snap-start px-1">
                           <div className="raw-tiles h-full">
-                            <RawTriple view="fur" fur={x.fur} lining={lining} c4={c4} compact noOpen={nav.src !== "all" || i > 0} onOpen={(col) => setPc({ view: "fur", col })} vatRates={nav.src === "all" && i === 0 ? vatRates?.fur : vatRates ? emptyVat : undefined} recvNote={noteOf(x.key, x.fur)} />
+                            <RawTriple view="fur" fur={x.fur} lining={lining} c4={c4} compact onOpen={nav.src !== "all" || i > 0 ? () => setSrcOpen(true) : (col) => setPc({ view: "fur", col })} vatRates={nav.src === "all" && i === 0 ? vatRates?.fur : vatRates ? emptyVat : undefined} recvNote={noteOf(x.key, x.fur)} />
                           </div>
                         </div>
                       ))}
@@ -357,7 +358,7 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
                 ) : (
                   <>
                     <div className="raw-group-label">{g.label}</div>
-                    <div className="raw-tiles">
+                    <div className="raw-tiles raw-tiles-short">
                       <RawTriple view={g.view} fur={fur} lining={lining} c4={c4} compact onOpen={(col) => setPc({ view: g.view, col })} vatRates={vatRates?.[g.view]} />
                     </div>
                   </>
@@ -366,9 +367,69 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
             </Fragment>
           ))}
         </div>
+        {srcOpen ? <SrcModal src={nav.src} active={slideNow?.key ?? ""} types={block.types} total={block.total} vat={vat} c4={c4} onClose={() => setSrcOpen(false)} /> : null}
         {pc ? <PriceModal col={pc.col} rows={rows.filter((r) => r.kind === pc.view)} vat={vat} fur={pc.view === "lining" ? null : fur[vat]} lining={pc.view === "fur" ? null : lining[vat]} onClose={() => setPc(null)} /> : null}
       </WidgetRow>
     </section>
+  );
+}
+
+/** Мех одного источника («На аукционах» / «У поставщика» / «Вся закупка» на слайде типа): по видам меха — куплено, использовано, остаток. Итог = сумма видов; активный тип подсвечен оранжевым. */
+function SrcModal({ src, active, types, total, vat, c4, onClose }: { src: FurSrc; active: string; types: { name: string; pair: Pair }[]; total: Pair; vat: "incl" | "excl"; c4: "on" | "off"; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => { ref.current?.showModal(); }, []);
+  const used = (f: FlowFigures) => (c4 === "on" ? f.usedValueOther : f.usedValue);
+  const tot = total[vat];
+  const num = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
+  const cells = (f: FlowFigures) => (
+    <>
+      <td className={num + " border-l border-neutral-200"}>{formatQty(f.recvQty)} шт.</td><td className={num}>{rub(f.recvValue)}</td>
+      <td className={num + " border-l border-neutral-200"}>{formatQty(f.usedQty)} шт.</td><td className={num}>{rub(used(f))}</td>
+      <td className={num + " border-l border-neutral-200"}>{formatQty(f.remQty)} шт.</td><td className={num}>{rub(f.remValue)}</td>
+    </>
+  );
+  return (
+    <dialog ref={ref} onClose={onClose} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }} className="m-auto w-[calc(100vw-2rem)] max-w-4xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
+      <div className="max-h-[88vh] overflow-auto p-4">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Мех по видам · куплено, использовано, остаток</div>
+            <div className="text-lg font-semibold">{FUR_SRC_LABEL[src]}</div>
+          </div>
+          <button type="button" onClick={() => ref.current?.close()} className="min-h-11 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">✕ Закрыть</button>
+        </div>
+        <table className="w-full min-w-[640px] text-sm">
+          <thead>
+            <tr>
+              <THGroup sep={false} colSpan={1}>{" "}</THGroup>
+              <THGroup colSpan={2}>Куплено</THGroup><THGroup colSpan={2}>Использовано (без 4%)</THGroup><THGroup colSpan={2}>Остаток</THGroup>
+            </tr>
+            <tr className="border-b border-neutral-200">
+              <TH align="left" label="Вид" />
+              {[0, 1, 2].flatMap((g) => [<TH key={`q${g}`} sep label="Кол-во" unit="шт." />, <TH key={`v${g}`} label="Сумма" unit={UNIT.rub} />])}
+            </tr>
+          </thead>
+          <tbody>
+            {types.map((t) => {
+              const on = t.name === active;
+              return (
+                <tr key={t.name} data-active={on || undefined} className={"border-b border-neutral-100 " + (on ? "bg-orange-50" : "")}>
+                  <td className={"px-2 py-1.5 " + (on ? "border-l-4 border-orange-500 font-semibold text-orange-800" : "")}>
+                    {<Link href={`/lots/fur/${encodeURIComponent(t.name)}`} className="hover:underline focus-visible:underline">{shortMaterialName(t.name)}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link>}
+                  </td>
+                  {cells(t.pair[vat])}
+                </tr>
+              );
+            })}
+            <tr className={"row-total"}>
+              <td className="px-2 py-1.5"><TotalLabel /></td>
+              {cells(tot)}
+            </tr>
+          </tbody>
+        </table>
+        <p className="mt-2 text-[11px] leading-4 text-neutral-500">Куплено = использовано (без 4%) + остаток. Использовано — сырьё лотов этого источника, списанное в ТЗ. В «У поставщика» к «Свакаре» добавлены шкуры подрядчика. Заказанное, но не полученное, входит в «На аукционах»: остаток = заказанное количество.</p>
+      </div>
+    </dialog>
   );
 }
 
@@ -504,7 +565,7 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
             {list.length === 0 ? <tr><td colSpan={cols} className="px-2 py-6 text-center text-neutral-500">По выбранным фильтрам нет данных.</td></tr> : null}
           </tbody>
         </table>
-        <p className="mt-2 text-[11px] leading-4 text-neutral-500">Бобр — сырьё подрядчика: лотов закупки нет, см. <Link href="/lots/fur/%D0%91%D0%BE%D0%B1%D1%80" className="text-blue-700 hover:underline">Сырьё › Мех › Бобр</Link>.</p>
+        <p className="mt-2 text-[11px] leading-4 text-neutral-500">Бобр: закупленные лоты не списаны в ТЗ (остаток = куплено); бобр подрядчика без лотов закупки — см. <Link href="/lots/fur/%D0%91%D0%BE%D0%B1%D1%80" className="text-blue-700 hover:underline">Сырьё › Мех › Бобр</Link>.</p>
       </div>
     </dialog>
   );

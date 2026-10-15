@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { prisma } from "@/lib/prisma";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SupplierSimpleRef } from "../supplier-refs";
@@ -38,12 +39,16 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
   const rows = await loadFurAttrRows(orgId);
   const groups = Array.from(new Set(rows.map((r) => r.group).filter((g): g is string => !!g)));
   const needle = f.q.trim().toLowerCase();
-  const shown = rows.filter(
+  const shown0 = rows.filter(
     (r) =>
       (f.status.length === 0 || f.status.includes(r.confirmed ? "confirmed" : "proposed")) &&
       (f.group.length === 0 || f.group.includes(r.group ?? "")) &&
       (!needle || [r.name, ...r.aliases, r.description ?? "", r.furKind ?? ""].some((x) => x.toLowerCase().includes(needle))),
   );
+
+  const sort = readSort(sp, ["name", "kind", "aliases", "lots", "qty", "orders"]);
+  const shown = sortRows(shown0, sort, { name: (r) => r.name, kind: (r) => r.furKind, aliases: (r) => r.aliases.join(", ") || null, lots: (r) => r.lots, qty: (r) => Number(r.qty), orders: (r) => r.ordersOwn + r.ordersViaLots });
+  const th = (k: string) => thSort("/settings/fur-attrs", sp, k, sort);
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,12 +117,12 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
         <Table>
           <Thead>
             <Tr>
-              <Th>Признак</Th>
-              <Th>Вид меха</Th>
-              <Th>Синонимы (по ним ищем в тексте)</Th>
-              <Th className="text-right">Лотов</Th>
-              <Th className="text-right" unit="шт.">Шкур</Th>
-              <Th className="text-right">ТЗ (в тексте / по лотам)</Th>
+              <Th {...th("name")}>Признак</Th>
+              <Th {...th("kind")}>Вид меха</Th>
+              <Th {...th("aliases")}>Синонимы (по ним ищем в тексте)</Th>
+              <Th {...th("lots")} className="text-right">Лотов</Th>
+              <Th {...th("qty")} className="text-right" unit="шт.">Шкур</Th>
+              <Th {...th("orders")} className="text-right">ТЗ (в тексте / по лотам)</Th>
               <Th>{canEdit ? "Действия" : ""}</Th>
             </Tr>
           </Thead>

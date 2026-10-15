@@ -22,12 +22,12 @@ export function AnalyticsFilterBar({ opts, lead = [], title = "Фильтры", 
     ...multi("fur", "Вид меха", opts.fur),
     ...multi("color", "Цвет", opts.color, { more: true }),
     ...multi("category", "Категория", opts.cat, { aliases: ["cat"], more: true }),
-    ...multi("size", "Размер", opts.size, { more: true }),
+    ...multi("size", "Размер изделия", opts.size, { more: true }),
     ...multi("batch", "Партия пошива", opts.batch, { more: true }),
     ...multi("season", "Сезон", opts.season, { more: true }),
     { type: "text", name: "q", label: "Модель, артикул", placeholder: "Код, название, № ТЗ, синоним", datalist: opts.models },
     ...(opts.auc.length
-      ? [{ type: "multi" as const, name: "auction", label: "Партия закупки (аукцион)", more: true, aliases: ["auc"], allLabel: "Все партии", options: opts.auc.map((v) => ({ value: v, label: aucOf?.(v).label ?? v, title: aucOf?.(v).title })) }]
+      ? [{ type: "multi" as const, name: "auction", label: "Аукцион / закупка", more: true, aliases: ["auc"], allLabel: "Все партии", options: opts.auc.map((v) => ({ value: v, label: aucOf?.(v).label ?? v, title: aucOf?.(v).title })) }]
       : []),
     ...multi("pyear", "Год закупки сырья", opts.py, { aliases: ["py"], more: true }),
     ...multi("lotcolor", "Цвет лота", opts.lc, { aliases: ["lc"], more: true }),

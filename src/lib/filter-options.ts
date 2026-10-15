@@ -124,7 +124,7 @@ async function load(orgId: string, year: YearFilter, key: OptionKey): Promise<Fi
 }
 
 /**
- * Варианты фильтра «Партия закупки (аукцион)» из СПРАВОЧНИКА аукционов (Auction, src/lib/auction-ref.ts).
+ * Варианты фильтра «Аукцион / закупка» из СПРАВОЧНИКА аукционов (Auction, src/lib/auction-ref.ts).
  * value = ключ группы, который понимают purchaseIdsByAuction() и страницы (/lots, /purchases, /payments, /production):
  * название аукциона из Purchase.auctionSession (auctionName()); у переименованного аукцион это его короткое имя.
  * label = короткое имя из справочника, title = полное название · дом · год; count = число закупок за год `year`.
@@ -166,7 +166,7 @@ export async function loadAuctionFilterOptions(orgId: string, year: YearFilter):
 /**
  * Подписи партий закупки из справочника аукционов для любого списка названий (Purchase.auctionSession):
  * label — короткое имя справочника («СП 03.25»), title — полное название · дом · год. Название, которого нет в справочнике,
- * остаётся как есть. Так все фильтры «Партия закупки (аукцион)» (lots, документы, аналитика, проверка…) подписаны одинаково.
+ * остаётся как есть. Так все фильтры «Аукцион / закупка» (lots, документы, аналитика, проверка…) подписаны одинаково.
  */
 export async function auctionLabeler(orgId: string): Promise<(name: string) => { label: string; title: string }> {
   const all = (await getFilterOptions(orgId, "all", ["auction"])).auction;

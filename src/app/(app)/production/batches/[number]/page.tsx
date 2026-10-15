@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { itemsSuffix, tzCountText } from "@/lib/tz-key";
 import { TotalLabel } from "@/components/total-label";
@@ -51,7 +52,8 @@ export async function generateMetadata({ params }: { params: Promise<{ number: s
   return { title: `Партия ${number}` };
 }
 
-export default async function BatchPage({ params }: { params: Promise<{ number: string }> }) {
+export default async function BatchPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
   const { number: numRaw } = await params;
   const session = await requireSession();
   const c4Mode = await getCommission4Mode();
@@ -100,6 +102,15 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
       paidByOrder.set(o.id, (paidByOrder.get(o.id) ?? new Decimal(0)).add(sh.amount));
     }
   }
+
+  // Сортировка ТЗ партии по клику на заголовок (?sort=…&dir=…); по умолчанию — по № ТЗ.
+  const oSort = readSort(sp, ["tz", "article", "qty", "cost", "work", "paid", "left"]);
+  const statOf = new Map(orders.map((o) => [o.id, orderStat(o, c4Mode)]));
+  const sortedOrders = sortRows(orders, oSort, {
+    tz: (o) => labelOf(o), article: (o) => o.productModel?.name ?? null, qty: (o) => statOf.get(o.id)!.qty.toNumber(), cost: (o) => statOf.get(o.id)!.cost.toNumber(),
+    work: (o) => statOf.get(o.id)!.work.toNumber(), paid: (o) => (paidByOrder.get(o.id) ?? new Decimal(0)).toNumber(), left: (o) => statOf.get(o.id)!.work.sub(paidByOrder.get(o.id) ?? 0).toNumber(),
+  });
+  const oth = (k: string) => thSort(`/production/batches/${batch.number}`, sp, k, oSort);
 
   // Переплата: оплата больше работы партии.
   const overpaid = t.remaining.lessThan(-1);
@@ -243,22 +254,23 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
           <Table>
             <Thead>
               <Tr>
-                <Th>№ ТЗ</Th>
-                <Th>Изделие</Th>
-                <Th unit="шт.">Кол-во</Th>
-                <Th className="hidden sm:table-cell">
-                  Себестоимость сырья, ₽{t.c4Applies ? c4Suffix(c4Mode) : ""}
+                <Th {...oth("tz")}>№ ТЗ</Th>
+                <Th {...oth("article")}>Изделие</Th>
+                <Th {...oth("qty")} unit="шт.">Кол-во</Th>
+                <Th {...oth("cost")} className="hidden sm:table-cell" after={<>
                   <InfoHint label="Чем отличается от полной себестоимости">Мех + подкладка + расходы ТЗ (и 4 % в режиме «С 4%») — без работы подрядчика. В дереве ниже «Полная себестоимость (с работой)» = эта сумма + работа.</InfoHint>
                   <InfoHint label="Что значит 4%" wide>4% — наценка при купле-продаже меха и подкладки подрядчику (не комиссия Веллмеха; его вознаграждение 4,5% за сопровождение закупки сырья — отдельно, в расходах закупки): в ТЗ мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются. Столбец «НДС» — ставки НДС лотов в списаниях ТЗ. «Оплачено» — разнесено на это ТЗ из оплат заказчика; «Остаток» — работа минус оплачено.</InfoHint>
+                </>}>
+                  Себестоимость сырья, ₽{t.c4Applies ? c4Suffix(c4Mode) : ""}
                 </Th>
-                <Th className="hidden md:table-cell" unit="₽">Работа</Th>
-                <Th className="hidden md:table-cell" unit="₽">Оплачено</Th>
-                <Th className="hidden md:table-cell" unit="₽">Остаток</Th>
+                <Th {...oth("work")} className="hidden md:table-cell" unit="₽">Работа</Th>
+                <Th {...oth("paid")} className="hidden md:table-cell" unit="₽">Оплачено</Th>
+                <Th {...oth("left")} className="hidden md:table-cell" unit="₽">Остаток</Th>
                 <Th className="hidden md:table-cell">НДС</Th>
               </Tr>
             </Thead>
             <Tbody>
-              {orders.map((o) => {
+              {sortedOrders.map((o) => {
                 const s = orderStat(o, c4Mode);
                 return (
                   <Tr key={o.id}>
@@ -307,7 +319,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
           </Table>
             }
           >
-            {orders.map((o) => {
+            {sortedOrders.map((o) => {
               const s = orderStat(o, c4Mode);
               const left = s.work.isZero() || o.status === "CANCELLED" ? null : s.work.sub(paidByOrder.get(o.id) ?? 0);
               return (

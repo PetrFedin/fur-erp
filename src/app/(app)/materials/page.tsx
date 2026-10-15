@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { MaterialCreate } from "./material-create";
 import { CreateDialog } from "@/components/create-dialog";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -42,7 +43,7 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
   const f = parseFilters(MATERIAL_FILTERS, sp);
   const cat = splitNone(f.category);
   const orgId = session.user.organizationId;
-  const [materials, categories] = await Promise.all([
+  const [materials0, categories] = await Promise.all([
     prisma.rawMaterial.findMany({
       where: {
         organizationId: orgId,
@@ -58,6 +59,9 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
   ]);
 
   const vatBy = await loadMaterialVat(orgId);
+  const sort = readSort(sp, ["name", "sku", "category", "unit", "min"]);
+  const materials = sortRows(materials0, sort, { name: (m) => m.name, sku: (m) => m.sku, category: (m) => m.category?.name ?? null, unit: (m) => UNIT_LABELS[m.unit], min: (m) => (m.minStockLevel ? Number(m.minStockLevel.toString()) : null) });
+  const th = (k: string) => thSort("/materials", sp, k, sort);
   const showSku = materials.some((m) => m.sku);
   const showCategory = materials.some((m) => m.category);
   const showMin = materials.some((m) => m.minStockLevel);
@@ -111,11 +115,11 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
       <Table stickyHeader>
         <Thead>
           <Tr>
-            <Th>Название</Th>
-            {showSku && <Th>Артикул</Th>}
-            {showCategory && <Th>Категория</Th>}
-            <Th>Ед. изм.</Th>
-            {showMin && <Th>Мин. остаток</Th>}
+            <Th {...th("name")}>Название</Th>
+            {showSku && <Th {...th("sku")}>Артикул</Th>}
+            {showCategory && <Th {...th("category")}>Категория</Th>}
+            <Th {...th("unit")}>Ед. изм.</Th>
+            {showMin && <Th {...th("min")}>Мин. остаток</Th>}
             <Th>НДС в ТЗ</Th>
           </Tr>
         </Thead>

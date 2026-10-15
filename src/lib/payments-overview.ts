@@ -30,6 +30,8 @@ export type OverviewRow = {
   doc: string | null;
   /** Вид платежа: «Аванс», «Доплата», «Оплата». */
   what: string;
+  /** Тип платежа как в базе (Payment.kind / ProductionPayment.paymentType): аванс, доплата, окончательный расчёт, прочее. */
+  type: "ADVANCE" | "PARTIAL" | "FINAL" | "OTHER";
   /** Распределение оплаты: по закупкам (сырьё) или по ТЗ (производство). */
   parts: OverviewPart[];
   /** Полное описание платежа: все поля текстом (подпись → значение), пустые пропущены. */
@@ -138,6 +140,7 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
       confirmed: p.confirmedAt != null,
       doc: p.docRef?.trim() || null,
       what: p.kind === "ADVANCE" ? "Аванс" : p.kind === "PARTIAL" ? "Доплата" : "Оплата",
+      type: p.kind,
       parts,
       href: au ? `/payments?tab=suppliers&auction=${encodeURIComponent(au)}#auction-block` : "/payments?tab=suppliers&noauction=1#noauction-block",
     });
@@ -218,6 +221,7 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
       confirmed: p.confirmedAt != null,
       doc: p.docRef?.trim() || null,
       what: p.paymentType === "ADVANCE" ? "Аванс" : p.paymentType === "PARTIAL" ? "Доплата" : "Оплата",
+      type: p.paymentType,
       parts,
       href: `/payments?tab=clients&pdate=${iso}`,
     });

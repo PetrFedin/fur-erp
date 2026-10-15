@@ -41,6 +41,7 @@ export const metadata = { title: "Закупки" };
 
 const PURCHASE_FILTERS = defineFilters({
   ...pick(["auction", "fur", "color", "size", "attr", "rest", "usage", "pyear", "q", "from", "to", "view", "sort", "dir"], {
+    size: { label: "Размер шкуры / сорт" },
     view: { allowed: ["tree", "list"] },
     sort: { allowed: ["number", "year", "batch", "date", "lots", "fur", "lining", "total", "paid", "rest", "used", "rem"] },
   }),
@@ -325,7 +326,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           <YearNote year={year} />
           <span className="ml-2 inline-flex">
           <InfoHint label="О странице «Закупки»" wide>
-            <p>Закупки сырья и подкладки: поставщик, партия закупки, счёт, сумма и оплата, использование лотов в ТЗ. Откройте закупку, чтобы увидеть позиции, расходы, расчёт цены и документы.</p>
+            <p>Закупки сырья и подкладки: поставщик, аукцион / закупка, счёт, сумма и оплата, использование лотов в ТЗ. Откройте закупку, чтобы увидеть позиции, расходы, расчёт цены и документы.</p>
             <p className="mt-1">
               Год ({year === "all" ? "все годы" : year}): по дате заказа закупки. Поля «с / по» сужают выбор внутри года.
             </p>
@@ -347,10 +348,10 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           hideChips
           controls={[
             { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: opts.pyear, allLabel: "Все годы", hint: "Дополнительно к году в шапке: сужает выбор внутри него" },
-            { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, noneLabel: "Без аукциона", allLabel: "Все партии" },
+            { type: "multi", name: "auction", label: "Аукцион / закупка", aliases: ["auc"], options: opts.auction, noneLabel: "Без аукциона", allLabel: "Все партии" },
             { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: furKinds.options.map((o) => (furKinds.noLots.includes(o.value) ? { ...o, label: `${o.label} (лотов нет)` } : o)), allLabel: "Все виды" },
             { type: "multi", name: "color", label: "Цвет", options: opts.color, allLabel: "Все цвета", hint: "Закупка подходит, если у неё есть лот этого цвета" },
-            { type: "multi", name: "size", label: "Размер", options: sizeOptions, noneLabel: "Размер не указан", allLabel: "Все размеры", more: true, hint: "Закупка подходит, если у неё есть лот этого размера" },
+            { type: "multi", name: "size", label: "Размер шкуры / сорт", options: sizeOptions, noneLabel: "Размер не указан", allLabel: "Все размеры", more: true, hint: "Закупка подходит, если у неё есть лот этого размера" },
             { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "№ закупки, счёт, поставщик, лот" },
             { type: "multi", name: "usage", label: "Использование", options: USAGE_OPTIONS, allLabel: "Любое", more: true, hint: "Закупка подходит, если есть лот, использованный (не использованный) в ТЗ" },
             { type: "multi", name: "rest", label: "Остаток", options: REST_OPTIONS, allLabel: "Любой", more: true, hint: "Закупка подходит, если есть лот с остатком (или исчерпанный)" },

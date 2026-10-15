@@ -81,7 +81,7 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
         <Link href="/lots?tab=lining" aria-label="Назад в «Сырьё — Подкладка»" title="Назад в «Сырьё — Подкладка»" className="inline-flex size-8 items-center justify-center rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">←</Link>
         <h1 className="text-xl font-semibold">Подкладка · {name}</h1>
         <InfoHint label="О карточке партии подкладки" wide>
-          <p>Партия закупки подкладки: сколько метров и на какую сумму куплено, использовано в ТЗ и осталось. Цифры те же, что в таблице «Сырьё → Подкладка» и в плитках Главной. 4% начисляется только при списании в ТЗ.</p>
+          <p>Аукцион / закупка подкладки: сколько метров и на какую сумму куплено, использовано в ТЗ и осталось. Цифры те же, что в таблице «Сырьё → Подкладка» и в плитках Главной. 4% начисляется только при списании в ТЗ.</p>
         </InfoHint>
       </div>
 

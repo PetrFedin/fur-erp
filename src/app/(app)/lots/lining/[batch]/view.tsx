@@ -1,5 +1,6 @@
 "use client";
 
+import { useClientSort } from "@/lib/use-client-sort";
 import Link from "next/link";
 import { useMemo } from "react";
 import { cn, formatMoney, formatPercent, formatQty } from "@/lib/utils";
@@ -36,6 +37,12 @@ export function LiningFabrics({ lots }: { lots: FurLot[] }) {
     const rates = [...m.keys()].sort((a, b) => a - b);
     return { rates, total: [...m.values()].reduce((a, v) => a + v, 0), detail: rates.map((r) => `${r}%: ${formatMoney(m.get(r) ?? 0)}`).join(" · ") };
   };
+  // Сортировка по клику на заголовок (▲/▼, повторный клик — наоборот).
+  const val0 = (ls: FurLot[]) => { const t = sum(ls); return vat === "excl" ? t.excl : t.incl; };
+  const cs = useClientSort<{ item: string; ls: FurLot[] }>({
+    name: (r) => r.item, recv: (r) => sum(r.ls).recv, price: (r) => { const t = sum(r.ls); return t.recv > 0 ? val0(r.ls) / t.recv : null; }, sum: (r) => val0(r.ls),
+    rate: (r) => Math.max(0, ...r.ls.map((l) => l.vatRate)), vat: (r) => vatBy(r.ls).total, used: (r) => sum(r.ls).used, share: (r) => { const t = sum(r.ls); return t.recv > 0 ? t.used / t.recv : null; }, rem: (r) => sum(r.ls).rem,
+  });
   const line = (item: string, ls: FurLot[], total = false) => {
     const s = sum(ls), v = vatBy(ls), val = vat === "excl" ? s.excl : s.incl;
     const pct = s.recv > 0 ? (s.used / s.recv) * 100 : 0;
@@ -85,19 +92,19 @@ export function LiningFabrics({ lots }: { lots: FurLot[] }) {
               <THGroup colSpan={1}>Остаток</THGroup>
             </tr>
             <tr className="border-b border-neutral-200">
-              <TH align="left" label="Ткань" />
-              <TH sep label="Кол-во" unit={UNIT.m} />
-              <TH label="Цена" unit={UNIT.rubPerM} />
-              <TH label="Сумма" unit={UNIT.rub} />
-              <TH sep label="Ставка" unit={UNIT.pct} />
-              <TH label="НДС" unit={UNIT.rub} />
-              <TH sep label="Кол-во" unit={`${UNIT.m} · ${UNIT.rub}`} />
-              <TH label="Доля" unit={UNIT.pct} />
-              <TH sep label="Кол-во" unit={`${UNIT.m} · ${UNIT.rub}`} />
+              <TH align="left" label="Ткань" {...cs.th("name")} />
+              <TH sep label="Кол-во" unit={UNIT.m} {...cs.th("recv")} />
+              <TH label="Цена" unit={UNIT.rubPerM} {...cs.th("price")} />
+              <TH label="Сумма" unit={UNIT.rub} {...cs.th("sum")} />
+              <TH sep label="Ставка" unit={UNIT.pct} {...cs.th("rate")} />
+              <TH label="НДС" unit={UNIT.rub} {...cs.th("vat")} />
+              <TH sep label="Кол-во" unit={`${UNIT.m} · ${UNIT.rub}`} {...cs.th("used")} />
+              <TH label="Доля" unit={UNIT.pct} {...cs.th("share")} />
+              <TH sep label="Кол-во" unit={`${UNIT.m} · ${UNIT.rub}`} {...cs.th("rem")} />
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => line(r.item, r.ls))}
+            {cs.sort(rows).map((r) => line(r.item, r.ls))}
             {rows.length === 0 ? <tr><td colSpan={9} className="px-3 py-5 text-center text-neutral-500">В партии нет тканей.</td></tr> : line("total", lots, true)}
           </tbody>
         </table>

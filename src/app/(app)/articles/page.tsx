@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { uniqueOrderCount } from "@/lib/tz-key";
 import { Fragment } from "react";
@@ -46,7 +47,7 @@ export const metadata = { title: "Изделия" };
 // подходящее под ВСЕ выбранные условия; её ср. взвеш. себестоимость и число ТЗ считаются только по таким ТЗ.
 // «Год ТЗ» (tzyear) — дополнительный фильтр внутри общего года из шапки (cookie), общий год не заменяет.
 const ARTICLE_FILTERS = defineFilters({
-  ...pick(["q", "category", "catgroup", "model", "len", "fur", "color", "size", "season", "batch"], { q: { label: "Поиск" }, fur: { label: "Вид (тип) меха" }, batch: { label: "Партия" }, model: { label: "Артикул" } }),
+  ...pick(["q", "category", "catgroup", "model", "len", "fur", "color", "size", "season", "batch"], { q: { label: "Поиск" }, fur: { label: "Вид (тип) меха" }, batch: { label: "Партия" }, size: { label: "Размер изделия" }, model: { label: "Артикул" } }),
   lining: { kind: "multi", label: "Подкладка", allowed: ["yes", "no"] },
   tzyear: { kind: "multi", label: "Год ТЗ", pattern: /^\d{4}$/ },
   tz: { kind: "multi", label: "ТЗ", maxLen: 60 },
@@ -167,11 +168,20 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const baseRows = year === "all" ? rows0.filter((r) => r.stockQty > 0 || r.orderCount > 0 || r.bySupplier) : rows0.filter((r) => r.orderCount > 0 || r.bySupplier);
   const emptyCount = tzActive ? 0 : rows0.length - baseRows.length;
   const modelFilterOn = !!q || f.category.length > 0 || f.catgroup.length > 0 || f.model.length > 0 || f.len.length > 0 || f.price.length > 0 || f.param.length > 0;
-  const rows = (f.src === "supplier" ? rows0.filter((r) => r.bySupplier) : tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).sort((a, b) => {
+  const rows1 = (f.src === "supplier" ? rows0.filter((r) => r.bySupplier) : tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).sort((a, b) => {
     const wa = a.stockQty > 0 || a.orderCount > 0 ? 0 : 1;
     const wb = b.stockQty > 0 || b.orderCount > 0 ? 0 : 1;
     return wa - wb || compareModelNames(a.name, b.name);
   });
+  // Сортировка по клику на заголовок (?sort=…&dir=…) поверх порядка по умолчанию (есть склад или ТЗ — выше, затем по названию).
+  const aSort = readSort(sp, ["name", "category", "fur", "color", "sizes", "lining", "qty", "furQty", "furSum", "liningQty", "liningSum", "work", "total", "unit", "price", "markup", "orders"]);
+  const rows = sortRows(rows1, aSort, {
+    name: (r) => r.name, category: (r) => r.model.category?.trim() || null, fur: (r) => r.primaryFur, color: (r) => r.colors[0] ?? null, sizes: (r) => r.sizes || null, lining: (r) => r.lining || null,
+    qty: (r) => r.qty, furQty: (r) => r.met.fur.qty, furSum: (r) => r.met.fur.on.incl, liningQty: (r) => r.met.lining.qty, liningSum: (r) => r.met.lining.on.incl,
+    work: (r) => r.met.work, total: (r) => (r.costIncl > 0 ? r.met.total.on.incl : null), unit: (r) => r.met.unit?.on.incl ?? null,
+    price: (r) => r.sellingPrice ?? null, markup: (r) => r.markup ?? null, orders: (r) => r.orderCount,
+  });
+  const ath = (k: string) => thSort("/articles", sp, k, aSort);
   const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((a, r) => a + pick(r), 0);
   const totalQty = sum((r) => r.qty);
   const totalCostIncl = sum((r) => r.costIncl);
@@ -262,7 +272,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           { type: "multi", name: "tzyear", more: true, label: year === "all" ? "Год" : `Год (внутри ${year})`, options: tzOpts.tzyear, hint: "год ТЗ; дополнительно к общему году в шапке" },
           { type: "multi", name: "batch", label: "Партия пошива", options: tzOpts.batch, noneLabel: "Без партии" },
           { type: "multi", name: "lining", label: "Подкладка", more: true, options: [{ value: "yes", label: "Да — есть подкладка" }, { value: "no", label: "Нет подкладки" }], hint: "по ТЗ: подкладка указана или списана" },
-          { type: "multi", name: "size", label: "Размер", options: tzOpts.size, more: true },
+          { type: "multi", name: "size", label: "Размер изделия", options: tzOpts.size, more: true },
           { type: "multi", name: "season", label: "Сезон", options: tzOpts.season, noneLabel: "Без сезона", more: true },
           ...(paramOpts.length ? [{ type: "multi" as const, name: "param", label: "Параметры", more: true, options: paramOpts, hint: "свои параметры артикула из карточки" }] : []),
           { type: "multi", name: "price", label: "Цена", more: true, options: [{ value: "yes", label: "Есть цена" }, { value: "no", label: "Нет цены" }] },
@@ -295,48 +305,27 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       <Table anchor="table:articles" label="Таблица изделий" stickyHeader className="min-w-[1640px]">
         <Thead>
           <Tr>
-            <Th>Артикул</Th>
-            <Th>Категория / группа</Th>
-            <Th>Тип меха</Th>
-            <Th>Цвет</Th>
-            <Th>Размеры</Th>
-            <Th>Состав подкладки</Th>
-            <Th className="text-right" unit="шт.">
-              В выпуске
-              <InfoHint label="Что такое «в выпуске»">Все ТЗ артикула без отменённых и без ремонта: готово (завершённые) + в работе (план ТЗ «В работе» и «Запланировано») — как на Главной.</InfoHint>
-            </Th>
-            <Th className="text-right" unit="шт.">
-              Шкур
-              <InfoHint label="Шкуры">Сколько шкур списано в ТЗ артикула и сколько в среднем на 1 изделие (шкур ÷ в выпуске).</InfoHint>
-            </Th>
-            <Th className="text-right" unit="₽">
-              Шкуры
-              <InfoHint label="Сумма шкур">Стоимость списанных шкур: основная цифра с 4%, мелко — без 4%. Включена в «Полную себестоимость итого». Цена за шкуру по видам меха — в карточке артикула.</InfoHint>
-            </Th>
-            <Th className="text-right" unit="м">Подкладка</Th>
-            <Th className="text-right" unit="₽">Подкладка</Th>
-            <Th className="text-right" unit="₽">Работа</Th>
-            <Th className="text-right" unit="₽">
-              Полная себестоимость итого (с работой)
-              <InfoHint label="Из чего складывается">Шкуры + подкладка + 4% + расходы + работа по всем ТЗ артикула. Итог равен «Полной себестоимости (с работой)» изделий (без ремонта) на Главной. Основная цифра — с 4%, мелко — без 4%.</InfoHint>
-            </Th>
-            <Th className="text-right" unit="₽/шт.">
-              Полная себестоимость за ед.
-              <InfoHint label="Полная себестоимость единицы">Полная себестоимость итого ÷ «В выпуске».</InfoHint>
-            </Th>
+            <Th {...ath("name")}>Артикул</Th>
+            <Th {...ath("category")}>Категория / группа</Th>
+            <Th {...ath("fur")}>Тип меха</Th>
+            <Th {...ath("color")}>Цвет</Th>
+            <Th {...ath("sizes")}>Размеры</Th>
+            <Th {...ath("lining")}>Состав подкладки</Th>
+            <Th {...ath("qty")} className="text-right" unit="шт." after={<InfoHint label="Что такое «в выпуске»">Все ТЗ артикула без отменённых и без ремонта: готово (завершённые) + в работе (план ТЗ «В работе» и «Запланировано») — как на Главной.</InfoHint>}>В выпуске</Th>
+            <Th {...ath("furQty")} className="text-right" unit="шт." after={<InfoHint label="Шкуры">Сколько шкур списано в ТЗ артикула и сколько в среднем на 1 изделие (шкур ÷ в выпуске).</InfoHint>}>Шкур</Th>
+            <Th {...ath("furSum")} className="text-right" unit="₽" after={<InfoHint label="Сумма шкур">Стоимость списанных шкур: основная цифра с 4%, мелко — без 4%. Включена в «Полную себестоимость итого». Цена за шкуру по видам меха — в карточке артикула.</InfoHint>}>Шкуры</Th>
+            <Th {...ath("liningQty")} className="text-right" unit="м">Подкладка</Th>
+            <Th {...ath("liningSum")} className="text-right" unit="₽">Подкладка</Th>
+            <Th {...ath("work")} className="text-right" unit="₽">Работа</Th>
+            <Th {...ath("total")} className="text-right" unit="₽" after={<InfoHint label="Из чего складывается">Шкуры + подкладка + 4% + расходы + работа по всем ТЗ артикула. Итог равен «Полной себестоимости (с работой)» изделий (без ремонта) на Главной. Основная цифра — с 4%, мелко — без 4%.</InfoHint>}>Полная себестоимость итого (с работой)</Th>
+            <Th {...ath("unit")} className="text-right" unit="₽/шт." after={<InfoHint label="Полная себестоимость единицы">Полная себестоимость итого ÷ «В выпуске».</InfoHint>}>Полная себестоимость за ед.</Th>
             <Th>
               НДС
               <InfoHint label="НДС">Ставки НДС в строках списания шкур и подкладки (из лотов или заданные в ТЗ). Все суммы в таблице показываются «с НДС» или «без НДС» по переключателю в шапке.</InfoHint>
             </Th>
-            <Th className="text-right" unit="₽">
-              Цена с НДС
-              <InfoHint label="Розничная цена">Розничная цена артикула с НДС. Правится прямо здесь: Enter или переход в другое поле сохраняет, рядом появляется «Сохранено». Применяется к ТЗ в плане и в работе.</InfoHint>
-            </Th>
-            <Th className="text-right">
-              Наценка
-              <InfoHint label="Как считается наценка">Розничная цена ÷ полная себестоимость за ед. (с работой, с НДС, с 4%) — по всем ТЗ артикула (завершённым и в работе). В «Аналитика → Цены» база другая: себестоимость сырья без работы, только завершённые ТЗ. Пример: цена 10 000 ₽ при себестоимости 4 000 ₽ — ×2,50.</InfoHint>
-            </Th>
-            <Th className="text-right">ТЗ</Th>
+            <Th {...ath("price")} className="text-right" unit="₽" after={<InfoHint label="Розничная цена">Розничная цена артикула с НДС. Правится прямо здесь: Enter или переход в другое поле сохраняет, рядом появляется «Сохранено». Применяется к ТЗ в плане и в работе.</InfoHint>}>Цена с НДС</Th>
+            <Th {...ath("markup")} className="text-right" after={<InfoHint label="Как считается наценка">Розничная цена ÷ полная себестоимость за ед. (с работой, с НДС, с 4%) — по всем ТЗ артикула (завершённым и в работе). В «Аналитика → Цены» база другая: себестоимость сырья без работы, только завершённые ТЗ. Пример: цена 10 000 ₽ при себестоимости 4 000 ₽ — ×2,50.</InfoHint>}>Наценка</Th>
+            <Th {...ath("orders")} className="text-right">ТЗ</Th>
           </Tr>
         </Thead>
         <Tbody>

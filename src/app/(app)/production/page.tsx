@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CATEGORY_GROUPS, NO_GROUP_ARTICLES_LABEL } from "@/lib/category-groups";
 import Link from "next/link";
@@ -67,6 +68,7 @@ const VERIFIED_OPTIONS = [
 const PROD_FILTERS = defineFilters({
   ...pick(["q", "season", "status", "batch", "model", "len", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view", "client"], {
     status: { allowed: ORDER_STATUS_OPTIONS.map((o) => o.value), label: "Статус" },
+    size: { label: "Размер изделия" },
     batch: { pattern: /^(\d{1,6}|none)$/ },
     docs: { allowed: ["docs", "pay"] },
     verified: { allowed: ["yes", "no"], label: "Проверка" },
@@ -378,7 +380,26 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   }
   const tzGroups = Array.from(groupMap.values());
   for (const g of tzGroups) if (g.length > 1) g.sort((a, b) => a.o.number.localeCompare(b.o.number, "ru", { numeric: true }));
-  const shownGroups = tzGroups.slice(0, limit);
+  // Сортировка по клику на заголовок (?tsort=…&tdir=…): строки-ТЗ целиком, как в списке; до обрезки по лимиту «показать ещё».
+  const tSort = readSort(sp, ["batch", "tz", "articles", "fur", "article", "units", "hides", "furSum", "liningQty", "liningSum", "work", "full"], null, "t");
+  const gStat = (g: P[]) => g.map((x) => ({ x, st: statOf(x.o, fullOf(x.o, x.total, x.totalExcl)), full: fullOf(x.o, x.total, x.totalExcl) }));
+  const sumG = (g: P[], pick: (r: ReturnType<typeof gStat>[number]) => number) => gStat(g).reduce((a, r) => a + pick(r), 0);
+  const sortedGroups = sortRows(tzGroups, tSort, {
+    batch: (g) => g[0].o.batch?.number ?? null,
+    tz: (g) => labelOf(g[0].o),
+    articles: (g) => g.length,
+    fur: (g) => furOf.get(g[0].o.id) || null,
+    article: (g) => articleLabel(g[0].o.productModel),
+    units: (g) => sumG(g, (r) => r.st.units),
+    hides: (g) => sumG(g, (r) => r.st.hides),
+    furSum: (g) => sumG(g, (r) => r.st.fur.incl.toNumber()),
+    liningQty: (g) => sumG(g, (r) => r.st.liningQty),
+    liningSum: (g) => sumG(g, (r) => r.st.lining.incl.toNumber()),
+    work: (g) => sumG(g, (r) => r.st.work),
+    full: (g) => sumG(g, (r) => r.full.incl.toNumber()),
+  });
+  const tth = (k: string) => thSort("/production", sp, k, tSort, "t");
+  const shownGroups = sortedGroups.slice(0, limit);
   const hiddenCount = tzGroups.length - shownGroups.length;
 
   const renderPos = ({ o, total, totalExcl }: P, child: boolean) => {
@@ -612,11 +633,11 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           { type: "multi", name: "len", label: "Длина", more: true, options: LENGTH_OPTIONS, allLabel: "Любая" },
           { type: "multi", name: "catgroup", label: "Группа категорий", options: CATEGORY_GROUPS.map((g) => ({ value: g, label: g })), noneLabel: NO_GROUP_ARTICLES_LABEL, allLabel: "Все группы", more: true },
           { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: opts.category, noneLabel: "Без категории" },
-          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, hint: "ТЗ, в которых списан мех этой партии закупки (аукциона)", more: true },
+          { type: "multi", name: "auction", label: "Аукцион / закупка", aliases: ["auc"], options: opts.auction, hint: "ТЗ, в которых списан мех этой партии закупки (аукциона)", more: true },
           { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur },
           ...(opts.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: opts.attr, noneLabel: "Без признака", allLabel: "Все признаки", more: true, hint: "Признаки ТЗ и лотов, списанных в ТЗ: седина, дикий / клеточный, тонированный…" }] : []),
           { type: "multi", name: "color", label: "Цвет изделия", more: true, options: attr.color, noneLabel: attr.noColor > 0 ? NO_COLOR_LABEL : undefined, hint: "Все цвета ТЗ: составное ТЗ попадает под каждый свой цвет" },
-          ...(attr.size.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер", more: true, options: attr.size, noneLabel: attr.noSize > 0 ? NO_SIZE_LABEL : undefined, hint: "Размеры из ТЗ: ТЗ с несколькими размерами попадает под каждый" }] : []),
+          ...(attr.size.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер изделия", more: true, options: attr.size, noneLabel: attr.noSize > 0 ? NO_SIZE_LABEL : undefined, hint: "Размеры из ТЗ: ТЗ с несколькими размерами попадает под каждый" }] : []),
           { type: "multi", name: "client", label: "Заказчик", options: opts.client, more: true },
           { type: "multi", name: "docs", label: "Документы и оплата", aliases: ["need"], options: DOCS_OPTIONS, allLabel: "Все", more: true },
           { type: "multi", name: "verified", label: "Проверка", options: VERIFIED_OPTIONS, allLabel: "Любая", more: true },
@@ -659,18 +680,18 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <Th colSpan={3} className={GH + BLH}>Итого</Th>
           </Tr>
           <Tr>
-            <Th>Партия</Th>
-            <Th>ТЗ</Th>
-            <Th className="text-right">Артикулов</Th>
-            <Th>Мех</Th>
-            <Th>Артикул</Th>
-            <Th className={"text-right" + BLH} unit="шт.">Изделий</Th>
-            <Th className="text-right" unit="шт.">Шкур</Th>
-            <Th className={"text-right" + BLH} unit="₽"><VatLabel base="Мех" /></Th>
-            <Th className="text-right" unit="м">Подкладка</Th>
-            <Th className="text-right" unit="₽"><VatLabel base="Подкладка" /></Th>
-            <Th className={"text-right" + BLH} unit="₽">Работа</Th>
-            <Th className="text-right" unit="₽">
+            <Th {...tth("batch")}>Партия</Th>
+            <Th {...tth("tz")}>ТЗ</Th>
+            <Th {...tth("articles")} className="text-right">Артикулов</Th>
+            <Th {...tth("fur")}>Мех</Th>
+            <Th {...tth("article")}>Артикул</Th>
+            <Th {...tth("units")} className={"text-right" + BLH} unit="шт.">Изделий</Th>
+            <Th {...tth("hides")} className="text-right" unit="шт.">Шкур</Th>
+            <Th {...tth("furSum")} className={"text-right" + BLH} unit="₽"><VatLabel base="Мех" /></Th>
+            <Th {...tth("liningQty")} className="text-right" unit="м">Подкладка</Th>
+            <Th {...tth("liningSum")} className="text-right" unit="₽"><VatLabel base="Подкладка" /></Th>
+            <Th {...tth("work")} className={"text-right" + BLH} unit="₽">Работа</Th>
+            <Th {...tth("full")} className="text-right" unit="₽">
               <VatLabel base={`Полная себестоимость (с работой)${c4}`} />
             </Th>
             <Th>НДС</Th>

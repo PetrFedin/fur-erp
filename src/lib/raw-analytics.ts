@@ -39,7 +39,7 @@ export const GROUPS: { key: GroupBy; label: string }[] = [
   { key: "kind", label: "Вид меха" },
   { key: "lot", label: "Лот" },
   { key: "cat", label: "Сорт / цвет" },
-  { key: "size", label: "Размер" },
+  { key: "size", label: "Размер шкуры" },
   { key: "article", label: "Изделие (артикул)" },
   { key: "order", label: "ТЗ" },
 ];

@@ -243,7 +243,7 @@ export function yearOptionsFrom(dates: Array<Date | null | undefined>): FilterOp
 // Одно понятие — одно имя на всех страницах. Страница берёт нужное: `pick("auction", "q")`.
 
 export const FILTER_CATALOG = {
-  auction: { kind: "multi", label: "Партия закупки (аукцион)", aliases: ["auc"] },
+  auction: { kind: "multi", label: "Аукцион / закупка", aliases: ["auc"] },
   pyear: { kind: "multi", label: "Год закупки", aliases: ["py"], pattern: /^\d{4}$/ },
   year: { kind: "multi", label: "Год", pattern: /^\d{4}$/ },
   fur: { kind: "multi", label: "Вид меха", aliases: ["kind"] },
@@ -259,7 +259,7 @@ export const FILTER_CATALOG = {
   category: { kind: "multi", label: "Категория", aliases: ["cat"] },
   /** Группа категорий справочника: «Одежда», «Аксессуары»; none — без группы. */
   catgroup: { kind: "multi", label: "Группа категорий" },
-  size: { kind: "multi", label: "Размер" },
+  size: { kind: "multi", label: "Размер" }, // страницы уточняют: «Размер шкуры / сорт» (лоты, закупки) или «Размер изделия» (ТЗ, артикулы)
   /** Остаток лотов закупки: with — есть, zero — исчерпан. */
   rest: { kind: "multi", label: "Остаток", allowed: ["with", "zero"] },
   /** Использование лотов закупки в ТЗ. */

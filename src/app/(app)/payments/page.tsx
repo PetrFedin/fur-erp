@@ -849,7 +849,7 @@ export default async function PaymentsPage({
           )}
           {auctions.length === 0 && (
             <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
-              Партий закупки пока нет: укажите «Партия закупки» в карточке закупки.
+              Аукционов и закупок пока нет: укажите «Аукцион / закупка» в карточке закупки.
             </p>
           )}
           {auctions.length > 0 && visibleAuctions.length === 0 && (
@@ -877,7 +877,7 @@ export default async function PaymentsPage({
           <div id="auction-block" className="scroll-mt-4" />
           {auctionQ && !selected && (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              Партия закупки «{auctionQ}» не найдена{year === "all" ? "" : ` за ${year} год`}. Выберите её в фильтре «Партия закупки».
+              Аукцион / закупка «{auctionQ}» не найден{year === "all" ? "" : ` за ${year} год`}. Выберите её в фильтре «Аукцион / закупка».
             </p>
           )}
           {selected && (() => {

@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { ClientForm } from "./client-form";
 import { createClient } from "./actions";
 import { CreateDialog } from "@/components/create-dialog";
@@ -25,7 +26,7 @@ export default async function ClientsPage({ searchParams }: PageProps<"/clients"
   const f = parseFilters(LIST_FILTERS, sp);
   const needle = escapeLike(f.q);
   const canCreate = hasRole(session.user.role, ACCESS.clients);
-  const clients = await prisma.client.findMany({
+  const clients0 = await prisma.client.findMany({
     where: {
       organizationId: session.user.organizationId,
       ...(f.q
@@ -42,6 +43,9 @@ export default async function ClientsPage({ searchParams }: PageProps<"/clients"
     orderBy: { name: "asc" },
   });
 
+  const sort = readSort(sp, ["name", "contact", "phone", "email"]);
+  const clients = sortRows(clients0, sort, { name: (x) => x.name, contact: (x) => x.contactName, phone: (x) => x.phone, email: (x) => x.email });
+  const th = (k: string) => thSort("/clients", sp, k, sort);
   const showContact = clients.some((x) => x.contactName);
   const showPhone = clients.some((x) => x.phone);
   const showEmail = clients.some((x) => x.email);
@@ -73,10 +77,10 @@ export default async function ClientsPage({ searchParams }: PageProps<"/clients"
       <Table stickyHeader>
         <Thead>
           <Tr>
-            <Th>Название</Th>
-            {showContact && <Th>Контакт</Th>}
-            {showPhone && <Th>Телефон</Th>}
-            {showEmail && <Th>Email</Th>}
+            <Th {...th("name")}>Название</Th>
+            {showContact && <Th {...th("contact")}>Контакт</Th>}
+            {showPhone && <Th {...th("phone")}>Телефон</Th>}
+            {showEmail && <Th {...th("email")}>Email</Th>}
             <Th></Th>
           </Tr>
         </Thead>

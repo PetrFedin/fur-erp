@@ -98,6 +98,8 @@ export type DashboardData = {
   supplierCashPaid: number;
   /** Оплачено по статьям: сырьё (мех / подкладка), работа подрядчику, расчётная надбавка 4%. */
   paidByItem: { fur: number; lining: number; work: number };
+  /** Оплачено по типам платежа (аванс, доплата, окончательный расчёт, прочее): сумма и число платежей; Σ = fur + lining + work без фильтров. */
+  paidByType: { type: "ADVANCE" | "PARTIAL" | "FINAL" | "OTHER"; amount: number; count: number }[];
   /** Осталось оплатить: сырьё (долг поставщику) и производство (долг заказчика) — те же числа, что в «Оплаты → Все». */
   left: { raw: number; fur: number; lining: number; prod: number };
   /** Оплачено и долг по сырью — итог строки «Всего» в «Динамике по сырью» (те же числа, что в «Оплатах»). */
@@ -463,6 +465,10 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
   const ovYear = ovAll.filter((r) => year === "all" || r.year === Number(year));
   const sumOv = (k: "fur" | "lining" | "work") => ovYear.reduce((a, r) => a + r[k], 0);
   const paidByItem = { fur: sumOv("fur"), lining: sumOv("lining"), work: sumOv("work") };
+  const paidByType = (["ADVANCE", "PARTIAL", "FINAL", "OTHER"] as const).map((type) => {
+    const rs = ovYear.filter((r) => r.type === type);
+    return { type, amount: rs.reduce((a, r) => a + r.fur + r.lining + r.work, 0), count: rs.length };
+  });
   const leftYears = Array.from(ovLeft.byYear.entries()).filter(([y]) => year === "all" || y === Number(year));
   const leftRaw = leftYears.reduce((a, [, v]) => a + v.raw, 0);
   // Остаток по сырью делим на мех и подкладку по доле подкладки в лотах каждого аукциона; прочее (закупки без аукциона, зачёты) — мех.
@@ -645,6 +651,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     c4,
     vat: vatOut,
     paidByItem: paidOut,
+    paidByType,
     left: leftOut,
     overpaid: debt.overpaid.map((o) => ({ name: o.name, amount: o.amount.toNumber() })),
     hides: hidesTotal,

@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SupplierSimpleRef } from "../supplier-refs";
 import Link from "next/link";
@@ -75,11 +76,14 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
   }
   const queue = [...unmatched.entries()].sort((a, b) => b[1].orders.length + b[1].items + b[1].lots - (a[1].orders.length + a[1].items + a[1].lots));
   const needle = cf.q.trim().toLowerCase();
-  const shownRefs = refs.filter(
+  const shownRefs0 = refs.filter(
     (r) =>
       (cf.status.length === 0 || cf.status.includes(isProposed(r.note) ? "proposed" : "confirmed")) &&
       (!needle || [r.name, ...r.aliases, r.note ?? ""].some((x) => x.toLowerCase().includes(needle))),
   );
+  const sort = readSort(sp, ["name", "aliases", "orders", "lots", "items"]);
+  const shownRefs = sortRows(shownRefs0, sort, { name: (r) => r.name, aliases: (r) => r.aliases.join(", ") || null, orders: (r) => r._count.orders, lots: (r) => r._count.lots, items: (r) => r._count.purchaseItems });
+  const th = (k: string) => thSort("/settings/colors", sp, k, sort);
   const lite = refs.map((r) => ({ id: r.id, name: r.name, aliases: r.aliases, note: r.note }));
 
   return (
@@ -226,11 +230,11 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
       <Table>
         <Thead>
           <Tr>
-            <Th>Цвет</Th>
-            <Th>Синонимы</Th>
-            <Th className="text-right">ТЗ</Th>
-            <Th className="text-right">Лотов</Th>
-            <Th className="text-right">Закупок (поз.)</Th>
+            <Th {...th("name")}>Цвет</Th>
+            <Th {...th("aliases")}>Синонимы</Th>
+            <Th {...th("orders")} className="text-right">ТЗ</Th>
+            <Th {...th("lots")} className="text-right">Лотов</Th>
+            <Th {...th("items")} className="text-right">Закупок (поз.)</Th>
             <Th>{canEdit ? "Действия" : ""}</Th>
           </Tr>
         </Thead>

@@ -6,6 +6,7 @@ import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty, formatShare } from "@/lib/utils";
 import { ProductionModal } from "./production-modal";
 import { ProductionTable } from "./production-table";
+import { AveragesTable } from "./averages-table";
 import { AveragesTile, useDrill } from "./averages";
 import { TileCarousel } from "@/components/tile-carousel";
 import { GroupCostSlide, GroupProducedSlide, PROD_GROUPS } from "@/components/prod-group-slides";
@@ -122,6 +123,7 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
       </div>
       </WidgetRow>
       <ProductionTable search={search} />
+      <AveragesTable data={drill} />
       {open ? (
         <ProductionModal
           scope={open}

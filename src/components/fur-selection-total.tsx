@@ -12,6 +12,9 @@ import { shortMaterialName } from "@/lib/material-name";
 import { ALL_TYPES_LABEL, FUR_SRC_KEYS, FUR_SRC_LABEL, SegmentSwitch, TypeDots, useSrcTypeNav, type FurSrc } from "@/components/fur-source-nav";
 import { TH, THGroup } from "@/components/table-head";
 import { UNIT } from "@/lib/units";
+import { SortMark } from "@/components/table-head";
+import { useClientSort } from "@/lib/use-client-sort";
+import { sortRows, type SortVal } from "@/lib/table-sort";
 import { RawCards, type RawSlide } from "@/app/(app)/dashboard/raw-block";
 import { classifyLotSource } from "@/lib/purchase-source";
 import { FilteredPayTiles } from "@/app/(app)/dashboard/filtered-pay-tiles";
@@ -29,9 +32,9 @@ const FILTER_LABELS: Record<FilterKey, { kind: Record<FurKind, string>; all: str
   item: { kind: { fur: "Мех", lining: "Ткань" }, all: "Все" },
   year: { kind: { fur: "Год закупки", lining: "Год закупки" }, all: "Все годы" },
   color: { kind: { fur: "Цвет", lining: "Цвет" }, all: "Все цвета" },
-  size: { kind: { fur: "Размер", lining: "Размер" }, all: "Все размеры" },
+  size: { kind: { fur: "Размер шкуры / сорт", lining: "Размер" }, all: "Все размеры" },
   attr: { kind: { fur: "Признак меха", lining: "Признак" }, all: "Все признаки" },
-  auction: { kind: { fur: "Партия закупки (аукцион)", lining: "Партия закупки (аукцион)" }, all: "Все партии" },
+  auction: { kind: { fur: "Аукцион / закупка", lining: "Аукцион / закупка" }, all: "Все партии" },
   rest: { kind: { fur: "Остаток", lining: "Остаток" }, all: "Любой" },
   supplier: { kind: { fur: "Поставщик", lining: "Поставщик" }, all: "Все поставщики" },
   status: { kind: { fur: "Статус закупки", lining: "Статус закупки" }, all: "Все статусы" },
@@ -117,6 +120,19 @@ export function FurSelectionTotal({
   const [group, setGroup] = useState<"item" | "year" | "auction" | "lots">(lockItem ? "auction" : "item");
   // «Списком лотов»: плоская таблица лотов (те же строки-лоты, что внутри дерева) с сортировкой; поиск и фильтры — общие, над таблицей.
   const [lotSort, setLotSort] = useState<"num" | "recv" | "used" | "rem">("num");
+  // Сортировка по клику на заголовок столбца (▲/▼, повторный клик — наоборот): строки каждого уровня; без выбора — прежний порядок.
+  const colGet = useMemo(() => {
+    const m: Record<string, (r: { figures: FlowFigures; label: string }) => SortVal> = { name: (r) => r.label };
+    for (const [k, qty, val, avg, usd] of [
+      ["recv", (f: FlowFigures) => f.recvQty, (f: FlowFigures) => f.recvValue, (f: FlowFigures) => f.recvAvg, (f: FlowFigures) => f.usdAvg],
+      ["used", (f: FlowFigures) => f.usedQty, (f: FlowFigures) => f.usedValue, (f: FlowFigures) => f.usedAvg, (f: FlowFigures) => f.usdUsedAvg],
+      ["rem", (f: FlowFigures) => f.remQty, (f: FlowFigures) => f.remValue, (f: FlowFigures) => f.remAvg, (f: FlowFigures) => f.usdRemAvg],
+    ] as const) {
+      m[`${k}.qty`] = (r) => qty(r.figures); m[`${k}.val`] = (r) => val(r.figures); m[`${k}.avg`] = (r) => avg(r.figures); m[`${k}.usd`] = (r) => usd(r.figures);
+    }
+    return m;
+  }, []);
+  const cs = useClientSort<{ figures: FlowFigures; label: string }>(colGet);
 
   // Состояние фильтров — в адресной строке (повтор параметров: fur=a&fur=b), без перезагрузки страницы.
   const first = useRef(true);
@@ -261,7 +277,10 @@ export function FurSelectionTotal({
   const groupHead = (
     <tr>
       <th rowSpan={2} className="sticky left-0 z-10 bg-neutral-50 px-3 py-2 text-left align-middle font-medium">
-        <span>{group === "lots" ? "Лот" : group === "year" ? "Год закупки" : group === "auction" ? "Партия закупки (аукцион)" : kind === "lining" ? "Подкладка" : "Мех"}</span>
+        <button type="button" onClick={cs.th("name").onSort} aria-sort={cs.th("name").sort === "asc" ? "ascending" : cs.th("name").sort === "desc" ? "descending" : "none"} className="inline-flex items-center gap-1 hover:underline max-md:min-h-11">
+          <span>{group === "lots" ? "Лот" : group === "year" ? "Год закупки" : group === "auction" ? "Аукцион / закупка" : kind === "lining" ? "Подкладка" : "Мех"}</span>
+          <SortMark dir={cs.th("name").sort} />
+        </button>
       </th>
       {GROUPS.map((g) => (
         <THGroup key={g.key} colSpan={colsOf(g.key)}>{g.title}</THGroup>
@@ -274,11 +293,11 @@ export function FurSelectionTotal({
     <>
       {GROUPS.map((g) => (
         <Fragment key={g.key}>
-          {showQty && <TH sep label="Кол-во" unit={unit} />}
-          {showMoney && <TH sep={!showQty} label="Сумма" unit={UNIT.rub} />}
-          <TH label="Ср. цена" unit={`₽/${priceUnit}`} />
+          {showQty && <TH sep label="Кол-во" unit={unit} {...cs.th(`${g.key}.qty`)} />}
+          {showMoney && <TH sep={!showQty} label="Сумма" unit={UNIT.rub} {...cs.th(`${g.key}.val`)} />}
+          <TH label="Ср. цена" unit={`₽/${priceUnit}`} {...cs.th(`${g.key}.avg`)} />
           {showHam && g.key === "recv" && <Th>Молоток, ₽/{priceUnit}<InfoHint label="Что такое молоток" align="right">Цена шкуры на аукционе до сборов, выделки, транспорта, брокера и комиссий (в режиме «С НДС / Без НДС» шапки). Берётся из расчёта лота; средневзвешенная считается только по лотам, у которых молоток в расчёте есть. Лот без молотка — «—».</InfoHint></Th>}
-          {showUsd && <TH label="Ср. цена" unit={`$/${priceUnit}`} after={<InfoHint label="Почему цена в $ не у всех" align="right">Цена в $ записана в расчёте не у всех лотов; закупки в рублях (КФХ, прочее) и подкладка без цены в $. Средневзвешенная $ считается только по лотам с ценой в $ (Σ $ × кол-во ÷ кол-во этих лотов); курс на сегодня не применяется.</InfoHint>} />}
+          {showUsd && <TH label="Ср. цена" unit={`$/${priceUnit}`} {...cs.th(`${g.key}.usd`)} after={<InfoHint label="Почему цена в $ не у всех" align="right">Цена в $ записана в расчёте не у всех лотов; закупки в рублях (КФХ, прочее) и подкладка без цены в $. Средневзвешенная $ считается только по лотам с ценой в $ (Σ $ × кол-во ÷ кол-во этих лотов); курс на сегодня не применяется.</InfoHint>} />}
         </Fragment>
       ))}
       {showPay && (
@@ -388,15 +407,17 @@ export function FurSelectionTotal({
   const levels: Level[] = group === "auction" ? ["auction"] : group === "year" ? (lockItem ? ["year", "auction"] : ["year", "item", "auction"]) : ["item", "auction"];
   const rowsFor = (list: FurLot[], level: Level): TableRow[] =>
     level === "year" ? rowsBy(list, mode, (l) => String(l.year)) : level === "item" ? rowsBy(list, mode, (l) => l.item) : rowsBy(list, mode, (l) => l.auction, (l) => l.auctionLabel);
-  const topRows: TableRow[] = group === "lots" ? [] : group === "item" ? table.rows : rowsFor(table.rows.flatMap((r) => r.lots), group === "auction" ? "auction" : "year");
+  const topRows: TableRow[] = group === "lots" ? [] : cs.sort(group === "item" ? table.rows : rowsFor(table.rows.flatMap((r) => r.lots), group === "auction" ? "auction" : "year"));
   const flatLots = useMemo(() => {
     if (group !== "lots") return [];
     const key = (l: FurLot) => { const f = figures(flowOf([l]), mode); return lotSort === "recv" ? f.recvValue : lotSort === "used" ? f.usedValue : f.remValue; };
     const list = [...table.filteredLots];
     if (lotSort === "num") list.sort((a, b) => (a.lotNumber ?? "").localeCompare(b.lotNumber ?? "", "ru", { numeric: true }));
     else list.sort((a, b) => key(b) - key(a));
-    return list;
-  }, [group, lotSort, table.filteredLots, mode]);
+    // Клик по заголовку столбца важнее выпадающего «Сортировка»: сравниваем показатели самого лота.
+    return cs.state ? sortRows(list, cs.state, Object.fromEntries(Object.entries(colGet).map(([k, g]) => [k, (l: FurLot) => g({ figures: figures(flowOf([l]), mode), label: l.lotNumber ?? "" })]))) : list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group, lotSort, table.filteredLots, mode, cs.state]);
   const pad = (depth: number) => ({ paddingLeft: 12 + depth * (kind === "lining" ? 12 : 20) });
 
   /** Строка ТЗ: сколько лота ушло в это ТЗ, на какую сумму (без 4%), цена за единицу и надбавка 4%. */
@@ -489,7 +510,7 @@ export function FurSelectionTotal({
     const isSel = depth === 0 && group === "item" && table.selectedKeys.includes(row.key);
     const inner = open
       ? depth + 1 < levels.length
-        ? rowsFor(row.lots, levels[depth + 1]).map((c) => renderNode(c, depth + 1, key))
+        ? cs.sort(rowsFor(row.lots, levels[depth + 1])).map((c) => renderNode(c, depth + 1, key))
         : row.lots.map((l) => renderLot(l, depth + 1, key, row.label))
       : null;
     // Оранжевая полоска слева (тема customer: bg-neutral-50/70) — только у родительских строк «год» и «вид меха»; у аукциона — лёгкий фон без полоски.
@@ -534,7 +555,7 @@ export function FurSelectionTotal({
   const slideCtl = hasTypes ? (
     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 print:hidden" data-testid="fur-slide-ctl">
       {kind === "fur" ? <SegmentSwitch label="Источник закупки меха" value={src} onChange={nav.pick} options={FUR_SRC_KEYS.map((k) => ({ key: k, label: FUR_SRC_LABEL[k] }))} /> : null}
-      <TypeDots labels={["", ...slideKeys].map((k) => k || (kind === "fur" ? ALL_TYPES_LABEL : "Все ткани"))} cur={slideIdx} goTo={sw.goTo} step={sw.step} last={sw.maxStart} ariaLabel={kind === "fur" ? "Тип меха" : "Ткань"}
+      <TypeDots accent labels={["", ...slideKeys].map((k) => k || (kind === "fur" ? ALL_TYPES_LABEL : "Все ткани"))} cur={slideIdx} goTo={sw.goTo} step={sw.step} last={sw.maxStart} ariaLabel={kind === "fur" ? "Тип меха" : "Ткань"}
         nowLabel={slideNow ? (kind === "fur" ? <Link href={`/lots/fur/${encodeURIComponent(slideNow)}`} className="hover:underline" title="Страница вида меха">{slideNow}↗</Link> : slideNow) : kind === "fur" ? ALL_TYPES_LABEL : "Все ткани"} />
     </div>
   ) : null;

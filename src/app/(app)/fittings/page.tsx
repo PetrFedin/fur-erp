@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { escapeLike } from "@/lib/input";
@@ -54,7 +55,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
       : {}),
   };
 
-  const [fittings, models, allDates] = await Promise.all([
+  const [fittings0, models, allDates] = await Promise.all([
     prisma.fitting.findMany({
       where,
       include: {
@@ -78,6 +79,12 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
     }),
     prisma.fitting.findMany({ where: { organizationId: orgId }, select: { fittingDate: true } }),
   ]);
+  const sort = readSort(sp, ["date", "tz", "client", "size", "comment", "photos"]);
+  const fittings = sortRows(fittings0, sort, {
+    date: (x) => x.fittingDate, tz: (x) => orderLabel(x.productionOrder), client: (x) => x.productionOrder.client?.name ?? null,
+    size: (x) => x.size, comment: (x) => x.comment, photos: (x) => x.photos.length,
+  });
+  const th = (k: string) => thSort("/fittings", sp, k, sort);
 
   const cntOf = (k: string) => fittings.filter((x) => x.status === k).length;
   const plannedCnt = cntOf("PLANNED");
@@ -144,12 +151,12 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
       <Table stickyHeader className="min-w-[720px]">
         <Thead>
           <Tr>
-            <Th>Дата</Th>
-            <Th>ТЗ</Th>
-            <Th>Заказчик</Th>
-            <Th>Размер</Th>
-            <Th>Комментарий</Th>
-            <Th unit="шт.">Фото</Th>
+            <Th {...th("date")}>Дата</Th>
+            <Th {...th("tz")}>ТЗ</Th>
+            <Th {...th("client")}>Заказчик</Th>
+            <Th {...th("size")}>Размер</Th>
+            <Th {...th("comment")}>Комментарий</Th>
+            <Th unit="шт." {...th("photos")}>Фото</Th>
           </Tr>
         </Thead>
         <Tbody>

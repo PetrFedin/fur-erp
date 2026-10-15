@@ -62,6 +62,14 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
     ...(inWork ? [{ k: workLabel, v: money(work), share: part(work, whole), tone: warn && work > 0 ? "text-amber-700" : undefined }] : []),
   ];
 
+  // Оплачено по типам платежа: аванс, доплата, окончательный расчёт и прочее (только те, что есть); сумма и число платежей.
+  // Показываем, когда Σ типов = «Оплачено всего» (без фильтров); при фильтрах «Оплачено» пересчитано по статьям, разбивки по типам для него нет.
+  const TYPE_LABEL = { ADVANCE: "Аванс", PARTIAL: "Доплата", FINAL: "Окончательный платёж", OTHER: "Прочие платежи" } as const;
+  const typeRows = d.paidByType.filter((t) => t.count > 0 || Math.abs(t.amount) >= 0.5);
+  const typeSum = typeRows.reduce((a, t) => a + t.amount, 0);
+  const typesOk = inWork && !only && typeRows.length > 0 && Math.abs(typeSum - paidAll) < 1;
+  const typeItems: TileItem[] = typeRows.map((t) => ({ k: `${TYPE_LABEL[t.type]} · ${t.count} ${t.count % 10 === 1 && t.count % 100 !== 11 ? "платёж" : t.count % 10 >= 2 && t.count % 10 <= 4 && (t.count % 100 < 10 || t.count % 100 >= 20) ? "платежа" : "платежей"}`, v: money(t.amount), share: part(t.amount, paidAll) }));
+
   const tiles = (
     <>
       <div key="total" className={TILE_BOX}>
@@ -90,6 +98,12 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
         <div data-testid="paid-by-item">
           <TileList stack={bare} items={list(paidAll, d.paidByItem.fur, furPaidD, furD.c4, d.paidByItem.lining, linPaidD, linD.c4, prodPaid, true)} />
         </div>
+        {typesOk ? (
+          <div data-testid="paid-by-type" className="mt-2 border-t border-neutral-100 pt-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">По типам платежа</div>
+            <TileList stack={bare} items={typeItems} />
+          </div>
+        ) : null}
       </div>
 
       <div key="left" className={TILE_BOX} data-testid="debt-bridge">

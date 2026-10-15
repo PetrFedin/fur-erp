@@ -15,6 +15,7 @@ import { UNDEFINED_CATEGORY } from "@/lib/product-category";
 import { atomsOf, type DrillData, type DrillOrder } from "@/lib/dashboard-drill";
 import { loadProductionDrill } from "./actions";
 import { grpBlock, pathBlock } from "@/lib/block-hover";
+import { useClientSort } from "@/lib/use-client-sort";
 
 export type Agg = {
   key: string;
@@ -156,6 +157,12 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const qty = (g: Agg) => Array.from(g.orders.values()).reduce((s, o) => s + o.qty, 0);
   const sum = cost;
+  // Сортировка по клику на заголовок (▲/▼): строки каждого уровня дерева; без выбора — порядок по умолчанию (группы по справочнику, остальное по сумме).
+  const per = (v: number, q: number) => (q > 0 ? v / q : null);
+  const { th, sort: colSort } = useClientSort<Agg>({
+    name: (g) => g.label, qty: (g) => qty(g), avg: (g) => per(sum(g), qty(g)), sum: (g) => sum(g), fur: (g) => g.fur, lining: (g) => g.lining, work: (g) => g.work, c4: (g) => g.c4, other: (g) => g.other,
+    hides: (g) => g.hides, hidePrice: (g) => (g.hides > 0 ? g.hideSum / g.hides : null), meters: (g) => g.meters, meterPrice: (g) => (g.meters > 0 ? g.liningSum / g.meters : null), workUnit: (g) => per(g.work, qty(g)),
+  });
 
   // Тонкая вертикальная линия между блоками колонок: «Производство» | «Расходы» | «Средние и расход».
   const BL = " border-l border-neutral-200";
@@ -198,7 +205,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
     return "/articles?" + p.toString();
   };
   const renderRows = (nodes: Agg[], depth: number, path: string, trail: Agg[] = [], anc: string[] = []): React.ReactNode =>
-    nodes.map((r) => {
+    colSort(nodes).map((r) => {
       const pk = path + "/" + r.key;
       const here = [...trail, r];
       const tok = pathBlock(pk);
@@ -227,7 +234,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3 print:break-inside-avoid">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Производство по группам меха и категориям</h3>
+        <h3 className="text-sm font-semibold">Объёмы по группам меха и категориям</h3>
         <div role="tablist" aria-label="Разрез таблицы" className="inline-flex overflow-hidden rounded-lg border border-neutral-300 text-xs">
           {([["cat", "Категории → мех"], ["fur", "Мех → категории"]] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={by === id} onClick={() => { setBy(id); setOpen(new Set()); }}
@@ -243,23 +250,23 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
                 <th />
                 <THGroup colSpan={3} sep={false}>Производство</THGroup>
                 <THGroup colSpan={showOther ? 5 : 4}>Расходы</THGroup>
-                <THGroup colSpan={5}>Среднее</THGroup>
+                <THGroup colSpan={5}>Объёмы и цены</THGroup>
               </tr>
               <tr className="border-b border-neutral-200 text-xs text-neutral-500">
-                <th className="py-1.5 pr-2 text-left font-medium">{by === "cat" ? "Группа / категория / мех" : "Мех / группа / категория"}</th>
-                <TH label="Изделий" unit="шт." />
-                <TH label="Ср. цена изделия" unit="₽/шт." />
-                <TH label="Сумма производства" unit="₽" />
-                <TH label="Мех" unit="₽" sep />
-                <TH label="Подкладка" unit="₽" />
-                <TH label="Работа" unit="₽" />
-                <TH label="4%" unit="₽" after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} />
-                {showOther ? <TH label="Расходы и прочее" unit="₽" /> : null}
-                <TH label="Шкур" unit="шт." sep />
-                <TH label="Ср. цена шкуры" unit="₽/шт." />
-                <TH label="Подкладки" unit="м" />
-                <TH label="Ср. цена подкладки" unit="₽/м" />
-                <TH label="Ср. цена работы" unit="₽/изд." />
+                <TH align="left" label={by === "cat" ? "Группа / категория / мех" : "Мех / группа / категория"} {...th("name")} className="px-0 pr-2" />
+                <TH {...th("qty")} label="Изделий" unit="шт." />
+                <TH {...th("avg")} label="Ср. цена изделия" unit="₽/шт." />
+                <TH {...th("sum")} label="Сумма производства" unit="₽" />
+                <TH {...th("fur")} label="Мех" unit="₽" sep />
+                <TH {...th("lining")} label="Подкладка" unit="₽" />
+                <TH {...th("work")} label="Работа" unit="₽" />
+                <TH {...th("c4")} label="4%" unit="₽" after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} />
+                {showOther ? <TH {...th("other")} label="Расходы и прочее" unit="₽" /> : null}
+                <TH {...th("hides")} label="Шкур" unit="шт." sep />
+                <TH {...th("hidePrice")} label="Ср. цена шкуры" unit="₽/шт." />
+                <TH {...th("meters")} label="Подкладки" unit="м" />
+                <TH {...th("meterPrice")} label="Ср. цена подкладки" unit="₽/м" />
+                <TH {...th("workUnit")} label="Ср. цена работы" unit="₽/изд." />
               </tr>
             </thead>
             <tbody>

@@ -267,7 +267,7 @@ test.describe("1c. сочетание фильтров, пустой резул�
   test("партии закупки: быстрых чипов на /lots нет, ссылки на аукцион — из таблицы закупок", async ({ page }) => {
     await login(page);
     await page.goto("/lots");
-    // Быстрые чипы партий убраны: партия выбирается только фильтром «Партия закупки (аукцион)».
+    // Быстрые чипы партий убраны: партия выбирается только фильтром «Аукцион / закупка».
     expect(await page.locator('a[href^="/lots?auction="]').count()).toBe(0);
     await page.goto("/purchases");
     const links = await page.locator('a[href^="/payments?auction="]').evaluateAll((as) => as.map((a) => [a.textContent, a.getAttribute("title"), a.getAttribute("href")]));

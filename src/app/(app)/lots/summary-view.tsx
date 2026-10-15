@@ -321,7 +321,7 @@ export async function PurchaseSummary({
       <FilterBar
         title="Фильтры сводки"
         controls={[
-          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", options: auctions.map((a) => ({ value: a, label: aucOf(a).label, title: aucOf(a).title })), allLabel: "Все партии" },
+          { type: "multi", name: "auction", label: "Аукцион / закупка", options: auctions.map((a) => ({ value: a, label: aucOf(a).label, title: aucOf(a).title })), allLabel: "Все партии" },
           { type: "multi", name: "material", label: "Сырьё", options: materials.map((m) => ({ value: m, label: m })), allLabel: "Всё сырьё" },
           ...(attrOptions.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: attrOptions, allLabel: "Все признаки", noneLabel: "Без признака", hint: "Признак лота: седина, дикий / клеточный, тонированный… Подкладка и позиции без лота — «без признака»" }] : []),
           { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: yearOptions, hint: "Дополнительно к году в шапке: сужает выбор внутри него" },

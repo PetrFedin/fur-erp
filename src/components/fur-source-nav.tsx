@@ -55,17 +55,17 @@ export function SegmentSwitch<T extends string>({ value, options, onChange, labe
 }
 
 /** Стрелки ‹ ›, точки и подпись слайда типа меха (нижний уровень). */
-export function TypeDots({ labels, cur, goTo, step, last, nowLabel, ariaLabel = "Тип меха" }: { labels: string[]; cur: number; goTo: (i: number) => void; step: (d: number) => void; last: number; nowLabel?: ReactNode; ariaLabel?: string }) {
+export function TypeDots({ accent, labels, cur, goTo, step, last, nowLabel, ariaLabel = "Тип меха" }: { /** Активный тип подсвечен оранжевым (цвет акцента проекта). */ accent?: boolean; labels: string[]; cur: number; goTo: (i: number) => void; step: (d: number) => void; last: number; nowLabel?: ReactNode; ariaLabel?: string }) {
   return (
     <div role="group" aria-label="Слайды по типам меха" className="inline-flex items-center gap-1 print:hidden">
       <button type="button" className={CAROUSEL_ARROW} aria-label="Предыдущий слайд" disabled={cur === 0} onClick={() => step(-1)}>‹</button>
       <div className="flex items-center gap-1" role="tablist" aria-label={ariaLabel}>
         {labels.map((l, i) => (
-          <button key={`${i}:${l}`} type="button" role="tab" aria-selected={i === cur} aria-label={l} title={l} onClick={() => goTo(i)} className={"h-2 rounded-full transition-all " + (i === cur ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
+          <button key={`${i}:${l}`} type="button" role="tab" aria-selected={i === cur} aria-label={l} title={l} onClick={() => goTo(i)} className={"h-2 rounded-full transition-all " + (i === cur ? (accent ? "w-5 bg-orange-500" : "w-5 bg-neutral-900") : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
         ))}
       </div>
       <button type="button" className={CAROUSEL_ARROW} aria-label="Следующий слайд" disabled={cur >= last} onClick={() => step(1)}>›</button>
-      {nowLabel ? <span className="ml-1 max-w-[9rem] truncate text-xs text-neutral-600">{nowLabel}</span> : null}
+      {nowLabel ? <span className="ml-1 max-w-[9rem] truncate text-xs font-semibold text-orange-700">{nowLabel}</span> : null}
     </div>
   );
 }

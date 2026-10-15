@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { ControlTabs } from "@/components/control-tabs";
@@ -30,13 +31,19 @@ export default async function InboxPage({ searchParams }: PageProps<"/inbox">) {
     status: st === "all" ? { in: ["SENT", "ACCEPTED", "REJECTED"] as ("SENT" | "ACCEPTED" | "REJECTED")[] } : (st as "SENT" | "ACCEPTED" | "REJECTED"),
     ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { supplier: { name: { contains: q, mode: "insensitive" as const } } }] } : {}),
   };
-  const [rows, counts] = await Promise.all([
+  const [rows0, counts] = await Promise.all([
     prisma.supplierInbox.findMany({
       where, orderBy: [{ sentAt: "desc" }, { updatedAt: "desc" }], take: 300,
       select: { id: true, kind: true, title: true, status: true, sentAt: true, decidedAt: true, payload: true, supplier: { select: { name: true } } },
     }),
     prisma.supplierInbox.groupBy({ by: ["status"], where: { organizationId: orgId }, _count: true }),
   ]);
+  const sort = readSort(sp, ["title", "kind", "supplier", "qty", "status", "sent"]);
+  const rows = sortRows(rows0, sort, {
+    title: (r) => r.title, kind: (r) => KIND_LABEL[r.kind], supplier: (r) => r.supplier.name,
+    qty: (r) => (r.payload as { totals?: { qty?: number } })?.totals?.qty ?? null, status: (r) => INBOX_STATUS_LABEL[r.status], sent: (r) => r.sentAt ?? r.decidedAt,
+  });
+  const th = (k: string) => thSort("/inbox", sp, k, sort);
   const cnt = (k: string) => (k === "all" ? counts.filter((c) => c.status !== "DRAFT").reduce((a, c) => a + c._count, 0) : (counts.find((c) => c.status === k)?._count ?? 0));
   const href = (status: string) => `/inbox?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
 
@@ -66,7 +73,7 @@ export default async function InboxPage({ searchParams }: PageProps<"/inbox">) {
         </form>
       </div>
       <Table className="min-w-[720px]">
-        <Thead><Tr><Th>Что прислали</Th><Th>Тип</Th><Th>Поставщик</Th><Th>Объём</Th><Th>Статус</Th><Th>Отправлено</Th></Tr></Thead>
+        <Thead><Tr><Th {...th("title")}>Что прислали</Th><Th {...th("kind")}>Тип</Th><Th {...th("supplier")}>Поставщик</Th><Th {...th("qty")}>Объём</Th><Th {...th("status")}>Статус</Th><Th {...th("sent")}>Отправлено</Th></Tr></Thead>
         <Tbody>
           {rows.map((r) => {
             const tot = (r.payload as { totals?: { qty?: number } })?.totals?.qty;

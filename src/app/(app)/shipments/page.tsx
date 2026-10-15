@@ -17,6 +17,7 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { dateRange, defineFilters, parseFilters, pick, yearOptionsFrom, yearRanges, type FilterOption } from "@/lib/filters";
 import { compareEvents, fmtWall, shareOf, shipmentTotals } from "@/lib/shipment-calc";
 import { nextShipmentName } from "@/lib/shipment-data";
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { CreateShipmentButton } from "./create-shipment";
 
 export const metadata = { title: "Отгрузки" };
@@ -99,7 +100,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
     prisma.productModel.findMany({ where: { organizationId: orgId, productionOrders: { some: { shipmentLines: { some: { shipment: shipScope } } } } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
-  const rows = shipments.map((s) => {
+  const rows0 = shipments.map((s) => {
     const t = shipmentTotals(s.lines.filter((l) => l.stage === "READY"));
     const all = s.lines.reduce((x, l) => x + l.quantity, 0);
     const done = s.events.filter((e) => !e.expected).sort(compareEvents);
@@ -107,6 +108,18 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
     const next = s.events.filter((e) => e.expected).sort(compareEvents)[0] ?? null;
     return { s, t, all, last, next };
   });
+  // Сортировка по клику на заголовок (?sort=…&dir=…); по умолчанию — по плановой дате (как в запросе).
+  const sort = readSort(sp, ["name", "supplier", "batch", "date", "qty", "last", "events"]);
+  const rows = sortRows(rows0, sort, {
+    name: (r) => r.s.name ?? `Отгрузка на ${formatDate(r.s.plannedDate)}`,
+    supplier: (r) => r.s.supplier?.name ?? null,
+    batch: (r) => r.s.batch?.number ?? null,
+    date: (r) => r.s.plannedDate,
+    qty: (r) => r.t.inShipment,
+    last: (r) => r.last?.occurredAt ?? null,
+    events: (r) => r.s.events.length,
+  });
+  const th = (k: string) => thSort("/shipments", sp, k, sort);
   const sum = rows.reduce(
     (a, r) => ({ all: a.all + r.all, inS: a.inS + r.t.inShipment, acc: a.acc + r.t.accepted, ret: a.ret + r.t.returned, rem: a.rem + r.t.remaining }),
     { all: 0, inS: 0, acc: 0, ret: 0, rem: 0 },
@@ -200,13 +213,13 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
               <Table stickyHeader className="min-w-[960px]">
                 <Thead>
                   <Tr>
-                    <Th>Название</Th>
-                    <Th>Поставщик</Th>
-                    <Th>Партия</Th>
-                    <Th>Плановая дата</Th>
-                    <Th className="text-right" unit="шт.">К отгрузке · принято · не принято</Th>
-                    <Th>Последний этап</Th>
-                    <Th className="text-right">Этапов</Th>
+                    <Th {...th("name")}>Название</Th>
+                    <Th {...th("supplier")}>Поставщик</Th>
+                    <Th {...th("batch")}>Партия</Th>
+                    <Th {...th("date")}>Плановая дата</Th>
+                    <Th {...th("qty")} className="text-right" unit="шт.">К отгрузке · принято · не принято</Th>
+                    <Th {...th("last")}>Последний этап</Th>
+                    <Th {...th("events")} className="text-right">Этапов</Th>
                   </Tr>
                 </Thead>
                 <Tbody>

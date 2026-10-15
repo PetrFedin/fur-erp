@@ -47,7 +47,7 @@ test('operational sections use one filter language', async ({page})=>{
 
   await page.goto('http://localhost:3000/dashboard');
   const raw=page.locator('section').filter({hasText:'Операции · Сырьё и склад'}).first();
-  await expect(raw.getByText('Партия закупки',{exact:true}).first()).toBeVisible();
+  await expect(raw.getByText('Аукцион / закупка',{exact:true}).first()).toBeVisible();
   await expect(raw.getByText('Лиса красная',{exact:true})).toHaveCount(0);
 });
 
