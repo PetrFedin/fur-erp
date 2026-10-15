@@ -437,7 +437,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
             <div className="flex flex-col gap-1">{dayBlock(d, false)}</div>
           </div>
         ))}
-        {view !== "week" && listDays.length === 0 && <p className="rounded-lg border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">В этом месяце событий нет{canEdit ? " — добавьте первое формой выше" : ""}.</p>}
+        {view !== "week" && listDays.length === 0 && <p className="rounded-lg border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">Событий в этом месяце нет.</p>}
       </div>
 
       {!factsHidden && !HIDDEN_MODULES.supplyPlan && layer.monthLevel.length > 0 && (
@@ -473,7 +473,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
               <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-3 [&>section+section]:border-t [&>section+section]:border-neutral-200 [&>section+section]:pt-3">
                 <section className="flex flex-col gap-2" aria-label="События дня">
                   <h3 className="block-title">События дня <InfoHint>События календаря на этот день (включая периоды, которые его захватывают). Серые пунктирные факты ниже — из ТЗ, поставок, отгрузок и примерок, они только для просмотра.</InfoHint></h3>
-                  {dayEvents.length === 0 && <p className="rounded-md border border-dashed border-neutral-300 p-3 text-center text-sm text-neutral-500">В этот день событий нет{canEdit ? " — добавьте ниже" : ""}.</p>}
+                  {dayEvents.length === 0 && <p className="rounded-md border border-dashed border-neutral-300 p-3 text-center text-sm text-neutral-500">Событий нет.</p>}
                   {dayEvents.map((e) => {
                     const def = e.supplierId ? supStage(e.status) : actionDef(e.action);
                     const pi = e.orderId ? pipeBy.get(e.orderId) : undefined;
