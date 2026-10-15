@@ -31,3 +31,6 @@ playwright-report
 # Документация и рабочие выгрузки не нужны для сборки
 docs
 node_modules
+.mcp.json
+.github
+e2e

@@ -361,6 +361,63 @@ async function main() {
   const csrf = await req("/dashboard", { method: "POST", cookie: A, headers: { origin: "https://evil.example", "next-action": "00".repeat(20), "content-type": "text/plain;charset=UTF-8" }, body: "[]" });
   ok(csrf.status !== 200, `server action с чужим Origin не выполняется (${csrf.status})`);
 
+  // ---------- 7. переключение «заказчик ⇄ поставщик» ----------
+  console.log("\n== 7. Демо-переключение роли (ROLE_SWITCH_EXPECT=" + (process.env.ROLE_SWITCH_EXPECT ?? "on") + ")");
+  const expectOn = (process.env.ROLE_SWITCH_EXPECT ?? "on") === "on";
+  const mergeCookies = (old: string, h: Headers) => {
+    const m = new Map(old.split("; ").map((c) => [c.split("=")[0], c] as const));
+    for (const c of setCookies(h)) m.set(c.split("=")[0], c);
+    return [...m.values()].filter((c) => !/=$/.test(c)).join("; ");
+  };
+  /** То, что делает кнопка: update() сессии с claim-ом. Данные приходят от клиента — как у злоумышленника. */
+  async function actAs(cookie: string, target: string | null) {
+    const c = await req("/api/auth/csrf", { cookie });
+    const cc = mergeCookies(cookie, c.headers);
+    const csrf = (JSON.parse(c.text) as { csrfToken: string }).csrfToken;
+    const r = await req("/api/auth/session", { method: "POST", cookie: cc, headers: { "content-type": "application/json" }, body: JSON.stringify({ csrfToken: csrf, data: { actAs: target } }) });
+    return mergeCookies(cc, r.headers);
+  }
+  const uid = async (e: string) => (await prisma.user.findUniqueOrThrow({ where: { email: e } })).id;
+  const idSup1 = await uid(E.sup1), idSup2 = await uid(E.sup2), idOwnerA = await uid(E.ownerA), idViewerA = await uid(E.viewerA);
+  const seesBanner = (t: string) => /режим/.test(t) && /Вы смотрите как/.test(t);
+
+  const o1 = await actAs(A, idSup1);
+  const asSup = await req("/supplier", { cookie: o1 });
+  const asSupDash = await req("/dashboard", { cookie: o1 });
+  if (expectOn) {
+    ok(asSup.status === 200 && seesBanner(asSup.text), "владелец → поставщик: кабинет открыт, плашка «Вы смотрите как … (демо-режим)» на месте");
+    ok(denied(asSupDash), `в режиме поставщика /dashboard закрыт (${asSupDash.status}) — изоляция как у настоящего SUPPLIER`);
+    for (const a of ["/purchases", "/payments", "/lots", "/users", "/api/search?q=12", `/api/purchase-docs/${pdoc.id}`, "/api/integrity"]) ok(denied(await req(a, { cookie: o1 })), `в режиме поставщика закрыто: ${a.split("?")[0]}`);
+    ok((await req(`/api/chat/files/${att.id}`, { cookie: o1 })).status === 200, "в режиме поставщика открываются файлы этого поставщика");
+    ok(denied(await req("/supplier/tz/" + (tzInbox?.id ?? "x"), { cookie: await actAs(A, idSup2) })) || !tzInbox, "переключение на второго поставщика не открывает данные первого");
+    const back = await actAs(o1, null);
+    const dash = await req("/dashboard", { cookie: back });
+    ok(dash.status === 200 && !seesBanner(dash.text), "обратно в кабинет заказчика: /dashboard снова открыт, плашки нет");
+    const audits = await prisma.auditLog.count({ where: { source: "auth", label: { startsWith: "Переключение в режим поставщика" } } });
+    ok(audits >= 1, `переключение записано в журнал (${audits})`);
+  } else {
+    ok(!(asSup.status === 200 && seesBanner(asSup.text)), "флаг выключен: переключение не действует");
+    ok(!denied(asSupDash), "флаг выключен: владелец остаётся владельцем");
+  }
+  // подделки: никто, кроме настоящего владельца/админа, не может получить claim
+  const forged: [string, string, string | null][] = [
+    ["поставщик → на владельца", S2, idOwnerA],
+    ["поставщик → на другого поставщика", S2, idSup1],
+    ["наблюдатель → на поставщика", V, idSup1],
+    ["владелец → на не-поставщика", A, idViewerA],
+    ["владелец чужой организации → на поставщика A", B, idSup1],
+  ];
+  for (const [what, ck, target] of forged) {
+    const c2 = await actAs(ck, target);
+    const dashRes = await req("/dashboard", { cookie: c2 });
+    const supRes = await req("/supplier", { cookie: c2 });
+    const same = ck === S2 ? denied(dashRes) && !seesBanner(supRes.text) : !seesBanner(supRes.text) && !seesBanner(dashRes.text);
+    ok(same, `подделка claim: ${what} — режим не включился`);
+  }
+  // поставщик после попытки по-прежнему видит только своё
+  const s2c = await actAs(S2, idSup1);
+  ok(denied(await req(`/api/chat/files/${att.id}`, { cookie: s2c })), "поставщик после попытки подмены по-прежнему не видит чужие файлы");
+
   // ---------- итог ----------
   console.log(`\n${fails === 0 ? "ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ" : fails + " ПРОВЕРОК НЕ ПРОЙДЕНО"} (всего ${total})`);
   await prisma.$disconnect();

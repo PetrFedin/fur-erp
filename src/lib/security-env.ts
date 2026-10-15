@@ -25,3 +25,9 @@ export function productionEnvProblems(env: NodeJS.ProcessEnv = process.env): str
   if (!(env.AUTH_URL || env.NEXTAUTH_URL || "").trim() && env.AUTH_TRUST_HOST !== "true") problems.push("не задан AUTH_URL (адрес сайта) и не включён AUTH_TRUST_HOST");
   return problems;
 }
+
+/** Быстрое переключение владельца в кабинет поставщика (демонстрация). В боевом режиме выключено, пока явно не задано ALLOW_ROLE_SWITCH=true. */
+export function roleSwitchEnabled(): boolean {
+  const v = process.env.ALLOW_ROLE_SWITCH;
+  return isProduction() ? v === "true" : v !== "false";
+}

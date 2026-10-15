@@ -3,6 +3,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { roleSwitchEnabled } from "@/lib/security-env";
 import type { UserRole } from "@prisma/client";
 
 /**
@@ -37,18 +38,36 @@ export type SessionOpts = {
 export async function getFreshSession(opts?: SessionOpts) {
   const session = await auth();
   if (!session?.user?.id) return null;
-  const user = await loadUser(session.user.id);
-  if (!user || !user.isActive || !user.organization.isActive) return null;
+  const realUser = await loadUser(session.user.id);
+  if (!realUser || !realUser.isActive || !realUser.organization.isActive) return null;
+  let user = realUser;
+  let realUserId: string | undefined;
+  let realUserName: string | undefined;
+  // Режим «смотрю как поставщик»: действует, только если флаг включён, настоящий пользователь по-прежнему OWNER/ADMIN,
+  // а цель — активный SUPPLIER той же организации. Иначе claim игнорируется, и сессия остаётся настоящей.
+  const act = session.user.actAsUserId;
+  if (act && roleSwitchEnabled() && (realUser.role === "OWNER" || realUser.role === "ADMIN")) {
+    const target = await loadUser(act);
+    if (target && target.isActive && target.organization.isActive && target.role === "SUPPLIER" && target.organizationId === realUser.organizationId) {
+      user = target;
+      realUserId = realUser.id;
+      realUserName = realUser.name;
+    }
+  }
   if (user.role === "SUPPLIER" && !opts?.allowSupplier) return null;
   return {
     ...session,
     user: {
       ...session.user,
+      id: user.id,
       role: user.role,
       organizationId: user.organizationId,
       organizationName: user.organization.name,
       name: user.name,
       supplierId: user.supplierId,
+      /** Заполнено только в режиме «смотрю как поставщик»: настоящий пользователь (владелец/админ). */
+      realUserId,
+      realUserName,
     },
   };
 }

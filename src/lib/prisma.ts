@@ -43,7 +43,8 @@ async function sessionActor(): Promise<AuditActor | null> {
     const { getFreshSession } = await import("@/lib/session");
     const s = await getFreshSession({ allowSupplier: true });
     if (!s) return null;
-    return { source: s.user.role === "SUPPLIER" ? "supplier" : "ui", id: s.user.id, name: s.user.name, role: s.user.role, organizationId: s.user.organizationId };
+    const demo = s.user.realUserId ? ` (выполнено владельцем: ${s.user.realUserName ?? s.user.realUserId} в режиме поставщика)` : "";
+    return { source: s.user.role === "SUPPLIER" ? "supplier" : "ui", id: s.user.id, name: s.user.name + demo, role: s.user.role, organizationId: s.user.organizationId };
   } catch {
     return null; // вне request-scope или сессия недоступна
   }

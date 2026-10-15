@@ -5,6 +5,11 @@ import type { NavItem } from "@/components/nav-links";
 import { TopbarModes } from "@/components/topbar-modes";
 import { GlobalSearch } from "@/components/global-search";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { IconSwitch } from "@/components/icons";
+import { switchBack, switchToSupplier } from "@/components/role-switch-actions";
+
+// Цель касания 44 px (не меньше), в стиле иконок проекта.
+const SWITCH_BTN = "inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-700 transition hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900";
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: "Владелец",
@@ -24,6 +29,8 @@ export function Topbar({
   role,
   links,
   badges,
+  switchTargets,
+  actingAs,
 }: {
   organizationName: string;
   /** Подпись кабинета внешнего поставщика/подрядчика (имя контрагента); пусто — «Кабинет Веллмеха» как раньше. */
@@ -32,6 +39,10 @@ export function Topbar({
   role: string;
   links: readonly NavItem[];
   badges?: Record<string, number>;
+  /** Владелец/админ при включённом ALLOW_ROLE_SWITCH: поставщики, в чьи кабинеты можно переключиться. */
+  switchTargets?: { id: string; name: string }[];
+  /** Режим «смотрю как поставщик» (начат владельцем): показываем кнопку возврата. */
+  actingAs?: boolean;
 }) {
   const isSupplier = role === "SUPPLIER";
   return (
@@ -59,6 +70,36 @@ export function Topbar({
             Выйти
           </Button>
         </form>
+        {actingAs ? (
+          <form action={switchBack}>
+            <button type="submit" className={SWITCH_BTN} title="Вернуться в кабинет заказчика" aria-label="Вернуться в кабинет заказчика">
+              <IconSwitch className="h-5 w-5" />
+            </button>
+          </form>
+        ) : switchTargets && switchTargets.length === 1 ? (
+          <form action={switchToSupplier}>
+            <input type="hidden" name="userId" value={switchTargets[0].id} />
+            <button type="submit" className={SWITCH_BTN} title="Сменить на кабинет поставщика" aria-label="Сменить на кабинет поставщика">
+              <IconSwitch className="h-5 w-5" />
+            </button>
+          </form>
+        ) : switchTargets && switchTargets.length > 1 ? (
+          <details className="relative">
+            <summary className={SWITCH_BTN + " list-none [&::-webkit-details-marker]:hidden"} title="Сменить на кабинет поставщика" aria-label="Сменить на кабинет поставщика">
+              <IconSwitch className="h-5 w-5" />
+            </summary>
+            <div className="absolute right-0 z-50 mt-1 w-64 rounded-md border border-neutral-200 bg-white p-1 shadow-md">
+              {switchTargets.map((t) => (
+                <form key={t.id} action={switchToSupplier}>
+                  <input type="hidden" name="userId" value={t.id} />
+                  <button type="submit" className="flex min-h-11 w-full items-center rounded px-3 text-left text-sm text-neutral-800 hover:bg-neutral-50">
+                    {t.name}
+                  </button>
+                </form>
+              ))}
+            </div>
+          </details>
+        ) : null}
       </div>
     </header>
   );

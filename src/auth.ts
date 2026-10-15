@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import type { UserRole } from "@prisma/client";
+import { roleSwitchEnabled } from "@/lib/security-env";
 import { clientIpFrom, loginKeys, lockedSeconds, recordFailure, recordSuccess } from "@/lib/rate-limit";
 
 // Запись в журнал входов (AuditLog, model="Вход"): успех, неверный пароль, блокировка. Сбой журнала не мешает входу.
@@ -44,6 +45,8 @@ declare module "next-auth" {
       role: UserRole;
       organizationId: string;
       organizationName: string;
+      /** Режим «смотрю как поставщик»: id пользователя-поставщика (заявлено в подписанном JWT; проверяется в lib/session.ts). */
+      actAsUserId?: string;
     };
   }
 }
@@ -54,10 +57,12 @@ declare module "@auth/core/jwt" {
     role: UserRole;
     organizationId: string;
     organizationName: string;
+    /** Подписанный claim режима «смотрю как поставщик»; ставится только в jwt-колбэке после проверок. */
+    actAsUserId?: string;
   }
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   // За обратным прокси (Caddy / туннель) адрес берётся из заголовков; без этого Auth.js отказывает на чужих хостах.
   trustHost: true,
   // Сессия живёт 7 дней с продлением раз в сутки; роль и активность всё равно перечитываются из БД на каждый запрос (lib/session.ts).
@@ -122,7 +127,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt: async ({ token, user }) => {
+    jwt: async ({ token, user, trigger, session }) => {
+      // Переключение «заказчик ⇄ поставщик» (демо). Данные update() приходят и от клиента, поэтому им не верим:
+      // claim ставится только если настоящий пользователь (token.id) — активный OWNER/ADMIN, а цель — активный SUPPLIER той же организации.
+      if (trigger === "update" && !user) {
+        const want = (session as { actAs?: unknown } | null)?.actAs;
+        if (want === null) {
+          delete token.actAsUserId;
+        } else if (typeof want === "string" && roleSwitchEnabled()) {
+          const [real, target] = await Promise.all([
+            prisma.user.findUnique({ where: { id: token.id }, include: { organization: true } }),
+            prisma.user.findUnique({ where: { id: want }, include: { organization: true } }),
+          ]);
+          const allowed =
+            !!real && real.isActive && real.organization.isActive && (real.role === "OWNER" || real.role === "ADMIN") &&
+            !!target && target.isActive && target.role === "SUPPLIER" && target.organizationId === real.organizationId;
+          if (allowed) token.actAsUserId = want;
+          await logAuth(real ? { id: real.id, name: real.name, role: real.role, organizationId: real.organizationId } : null, "-", real?.email ?? "?",
+            allowed ? `Переключение в режим поставщика: ${target!.name}` : "Отказ в переключении в режим поставщика");
+        }
+        return token;
+      }
       if (user) {
         token.id = user.id as string;
         token.role = (user as { role: UserRole }).role;
@@ -136,6 +161,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.role = token.role;
       session.user.organizationId = token.organizationId;
       session.user.organizationName = token.organizationName;
+      session.user.actAsUserId = token.actAsUserId;
       return session;
     },
   },

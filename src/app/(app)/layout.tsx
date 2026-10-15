@@ -7,6 +7,8 @@ import { countNewDecisions } from "@/lib/supplier-recent";
 import { RECENT_COOKIE } from "@/lib/supplier-recent-const";
 import { navLinksFor } from "@/components/nav-links";
 import { Topbar } from "@/components/topbar";
+import { roleSwitchEnabled } from "@/lib/security-env";
+import { switchBack } from "@/components/role-switch-actions";
 import { VatDisplayProvider } from "@/lib/vat-display";
 import { parseVatModeCookie } from "@/lib/vat-mode";
 import { Commission4DisplayProvider } from "@/lib/commission4-display";
@@ -47,6 +49,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ? await prisma.supplier.findFirst({ where: { id: session.user.supplierId, organizationId: orgId }, select: { suppliesRaw: true, name: true } })
     : null;
   const suppliesRaw = supRow?.suppliesRaw ?? true;
+  const acting = Boolean(session.user.realUserId);
+  const canSwitch = roleSwitchEnabled() && !acting && (session.user.role === "OWNER" || session.user.role === "ADMIN");
+  const switchTargets = canSwitch
+    ? (await prisma.user.findMany({ where: { organizationId: orgId, role: "SUPPLIER", isActive: true }, select: { id: true, name: true, supplier: { select: { name: true } } }, orderBy: { name: "asc" } }))
+        .map((u) => ({ id: u.id, name: u.supplier?.name ?? u.name }))
+    : [];
   const navLinks = navLinksFor(session.user.role, { suppliesRaw });
   const badges = { "/chat": chatUnread, "/supplier": supNew };
   const c4Mode = parseCommission4Cookie(cookieStore.get("commission4Display")?.value);
@@ -65,7 +73,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             role={session.user.role}
             links={navLinks}
             badges={badges}
+            switchTargets={canSwitch ? switchTargets : undefined}
+            actingAs={acting}
           />
+          {acting && (
+            <div role="status" className="print:hidden flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-950">
+              <span>Вы смотрите как: <b>{supRow?.name ?? session.user.name}</b> (демо-режим). Действия выполняются от имени поставщика.</span>
+              <form action={switchBack}><button type="submit" className="min-h-11 cursor-pointer rounded-md border border-amber-700 bg-white px-3 font-medium text-amber-950 hover:bg-amber-100">Вернуться</button></form>
+            </div>
+          )}
           <main className="relative flex-1 overflow-y-auto p-3 pb-16 md:p-6 md:pb-16 print:overflow-visible print:p-0">
             <Suspense fallback={null}>
               <BackLink />
