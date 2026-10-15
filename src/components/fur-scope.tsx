@@ -16,21 +16,19 @@ export const useFurScope = () => useContext(FurScopeCtx);
 
 export function FurScope({ info, section = "home", children }: { /** Год и активные фильтры меха — для плашки. */ info: { year: string; filters: string | null }; /** Где стоит область: «home» — блоки Главной, «raw» — весь раздел «Сырьё» (закупки, лоты, годы, суммы, оплаты внутри раздела). */ section?: "home" | "raw"; children: ReactNode }) {
   const [src, setSrcState] = useState<FurSrc>("all");
-  // Источник хранится в адресе (?fsrc=auction|supplier; «Вся закупка» — без параметра) и в sessionStorage: он сохраняется при
-  // переходе Главная ⇄ страницы видов меха. Читаем после загрузки, чтобы разметка сервера и клиента совпала.
+  // По умолчанию ВСЕГДА «Вся закупка»: выбор нигде не запоминается между заходами. Режим можно зафиксировать только явной ссылкой
+  // (?fsrc=auction|supplier — например, чтобы отправить коллеге), без параметра открывается «Вся закупка».
+  // Читаем адрес после загрузки, чтобы разметка сервера и клиента совпала.
   useEffect(() => {
     try {
       const q = new URL(window.location.href).searchParams.get("fsrc");
-      const v = (FUR_SRC_KEYS as string[]).includes(q ?? "") ? (q as FurSrc) : (FUR_SRC_KEYS as string[]).includes(sessionStorage.getItem("fur-src") ?? "") ? (sessionStorage.getItem("fur-src") as FurSrc) : "all";
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (v !== "all") setSrcState(v);
-      if (v !== "all" && q !== v) { const u = new URL(window.location.href); u.searchParams.set("fsrc", v); window.history.replaceState(window.history.state, "", u.pathname + u.search + u.hash); }
-    } catch { /* адрес и хранилище недоступны — работает без них */ }
+      if ((FUR_SRC_KEYS as string[]).includes(q ?? "") && q !== "all") setSrcState(q as FurSrc);
+    } catch { /* адрес недоступен — остаётся «Вся закупка» */ }
   }, []);
   const setSrc = useCallback((s: FurSrc) => {
     setSrcState(s);
     try {
-      sessionStorage.setItem("fur-src", s);
       const url = new URL(window.location.href);
       if (s === "all") url.searchParams.delete("fsrc"); else url.searchParams.set("fsrc", s);
       window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
