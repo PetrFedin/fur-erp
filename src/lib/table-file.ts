@@ -56,7 +56,8 @@ function colIndex(ref: string): number {
   return n - 1;
 }
 
-async function parseXlsx(buf: Buffer): Promise<string[][]> {
+/** Общие строки книги и список файлов листов по порядку. */
+async function xlsxParts(buf: Buffer) {
   const zip = await JSZip.loadAsync(buf);
   const shared: string[] = [];
   const ss = zip.file("xl/sharedStrings.xml");
@@ -69,8 +70,10 @@ async function parseXlsx(buf: Buffer): Promise<string[][]> {
   const sheets = Object.keys(zip.files)
     .filter((n) => /^xl\/worksheets\/sheet\d+\.xml$/.test(n))
     .sort((a, b) => Number(a.match(/\d+/)![0]) - Number(b.match(/\d+/)![0]));
-  if (sheets.length === 0) return [];
-  const xml = await zip.file(sheets[0])!.async("string");
+  return { zip, shared, sheets };
+}
+
+function sheetRows(xml: string, shared: string[]): string[][] {
   const rows: string[][] = [];
   for (const rm of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
     const row: string[] = [];
@@ -92,4 +95,21 @@ async function parseXlsx(buf: Buffer): Promise<string[][]> {
     rows.push(row);
   }
   return rows.filter((r) => r.some((x) => x.trim() !== "")).slice(0, 5000);
+}
+
+async function parseXlsx(buf: Buffer): Promise<string[][]> {
+  const { zip, shared, sheets } = await xlsxParts(buf);
+  if (sheets.length === 0) return [];
+  return sheetRows(await zip.file(sheets[0])!.async("string"), shared);
+}
+
+/** Все листы книги Excel (для разбора присланных расчётов, где итоговая таблица может быть не на первом листе). Только для скриптов. */
+export async function parseXlsxSheets(buf: Buffer, maxSheetChars = Infinity): Promise<string[][][]> {
+  const { zip, shared, sheets } = await xlsxParts(buf);
+  const out: string[][][] = [];
+  for (const n of sheets) {
+    const xml = await zip.file(n)!.async("string");
+    out.push(xml.length > maxSheetChars ? [] : sheetRows(xml, shared)); // огромные листы (выгрузки на сотни тысяч ячеек) не разбираем
+  }
+  return out;
 }
