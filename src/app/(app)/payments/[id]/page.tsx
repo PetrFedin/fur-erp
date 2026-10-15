@@ -203,6 +203,19 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
       </Block>
 
       <Block title="Куда отнесено" hint={<p>Разнесение оплаты: {parsed.kind === "raw" ? "по закупкам партии (доля в сумме партии)" : "по ТЗ, как записано в разнесении"}. Остаток «не разнесено» — аванс, который ещё не отнесён к закупкам или ТЗ.</p>}>
+        {ov.parts.length > 1 && (
+          <div className="mb-2 flex items-baseline gap-2 text-sm">
+            <Clamp
+              className="min-w-0 flex-1"
+              full={<ul className="flex flex-col gap-0.5">{ov.parts.map((x, i) => <li key={i} className="flex justify-between gap-4"><span>{x.label}</span><span className="tabular-nums">{money(x.amount)}</span></li>)}</ul>}
+            >
+              {ov.parts.map((x, i) => (<span key={i}>{i > 0 ? ", " : ""}{x.href ? <Link href={x.href} className="text-blue-700 hover:underline">{x.label}</Link> : x.label}</span>))}
+            </Clamp>
+            <span className="whitespace-nowrap text-neutral-500">{ov.parts.length} шт. · {money(partsTotal)} ₽</span>
+          </div>
+        )}
+        <details open={ov.parts.length <= 1} className="group">
+          {ov.parts.length > 1 && <summary className="mb-1 cursor-pointer text-xs text-neutral-500 hover:text-neutral-800">Показать таблицей с суммами</summary>}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[420px] text-sm">
             <thead>
@@ -238,6 +251,7 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
             </tfoot>
           </table>
         </div>
+        </details>
       </Block>
 
       <div id="docs" className="flex flex-col gap-4">
