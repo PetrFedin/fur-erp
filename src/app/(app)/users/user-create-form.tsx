@@ -14,7 +14,7 @@ const ROLES = [
   { value: "TECHNOLOGIST", label: "Технолог" },
   { value: "ACCOUNTANT", label: "Бухгалтер" },
   { value: "VIEWER", label: "Наблюдатель" },
-  { value: "SUPPLIER", label: "Поставщик (кабинет)" },
+  { value: "SUPPLIER", label: "Подрядчик (кабинет)" },
 ];
 
 export function UserCreateForm({ suppliers }: { suppliers: { id: string; name: string }[] }) {
@@ -46,7 +46,7 @@ export function UserCreateForm({ suppliers }: { suppliers: { id: string; name: s
       </div>
       {role === "SUPPLIER" && (
         <div className="sm:col-span-2">
-          <Label htmlFor="supplierId">Поставщик (чей кабинет)</Label>
+          <Label htmlFor="supplierId">Подрядчик (чей кабинет)</Label>
           <Select id="supplierId" name="supplierId" defaultValue="" required>
             <option value="" disabled>выберите…</option>
             {suppliers.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}

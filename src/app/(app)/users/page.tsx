@@ -24,7 +24,7 @@ const ROLE_LABELS: Record<string, string> = {
   TECHNOLOGIST: "Технолог",
   ACCOUNTANT: "Бухгалтер",
   VIEWER: "Наблюдатель",
-  SUPPLIER: "Поставщик (кабинет)",
+  SUPPLIER: "Подрядчик (кабинет)",
 };
 
 // Список: поиск по имени и email, роль (мультивыбор), статус. error — разовое сообщение после действия.

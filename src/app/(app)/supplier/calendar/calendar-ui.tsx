@@ -95,7 +95,7 @@ export function ImportBox() {
   const confirm = () => start(async () => { const r = await confirmImport(JSON.stringify(ok)); setRes(r); if (r.done) router.refresh(); });
   return (
     <details className="rounded-md border border-neutral-300 p-3 text-sm">
-      <summary className="cursor-pointer font-medium">Загрузить из Excel</summary>
+      <summary className="cursor-pointer font-medium max-md:py-3">Загрузить из Excel</summary>
       <p className="mt-2 text-neutral-600">Таблица по запуску изделий: колонки «модель», «мех, цвет», «размер», «запуск», «шубы сданы», «сдача …», «принято …», «примечание», «дополнение». Одна строка таблицы — одно изделие. Сначала покажем, что получится, и только после подтверждения запишем.</p>
       <form action={action} className="mt-2 flex flex-wrap items-center gap-2">
         <input name="file" type="file" accept=".xlsx" required />

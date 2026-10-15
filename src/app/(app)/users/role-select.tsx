@@ -12,7 +12,7 @@ const ROLE_LABELS: Record<string, string> = {
   TECHNOLOGIST: "Технолог",
   ACCOUNTANT: "Бухгалтер",
   VIEWER: "Наблюдатель",
-  SUPPLIER: "Поставщик (кабинет)",
+  SUPPLIER: "Подрядчик (кабинет)",
 };
 
 export function RoleSelect({

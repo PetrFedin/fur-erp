@@ -19,7 +19,7 @@ const ROLE_LABELS: Record<string, string> = {
   TECHNOLOGIST: "Технолог",
   ACCOUNTANT: "Бухгалтер",
   VIEWER: "Наблюдатель",
-  SUPPLIER: "Поставщик",
+  SUPPLIER: "Подрядчик",
 };
 
 export function Topbar({
@@ -66,7 +66,7 @@ export function Topbar({
             await signOut({ redirectTo: "/login" });
           }}
         >
-          <Button type="submit" variant="outline" size="sm" className="min-h-8">
+          <Button type="submit" variant="outline" size="sm" className="min-h-8 max-md:min-h-11">
             Выйти
           </Button>
         </form>
@@ -79,13 +79,13 @@ export function Topbar({
         ) : switchTargets && switchTargets.length === 1 ? (
           <form action={switchToSupplier}>
             <input type="hidden" name="userId" value={switchTargets[0].id} />
-            <button type="submit" className={SWITCH_BTN} title="Сменить на кабинет поставщика" aria-label="Сменить на кабинет поставщика">
+            <button type="submit" className={SWITCH_BTN} title="Сменить на кабинет подрядчика" aria-label="Сменить на кабинет подрядчика">
               <IconSwitch className="h-5 w-5" />
             </button>
           </form>
         ) : switchTargets && switchTargets.length > 1 ? (
           <details className="relative">
-            <summary className={SWITCH_BTN + " list-none [&::-webkit-details-marker]:hidden"} title="Сменить на кабинет поставщика" aria-label="Сменить на кабинет поставщика">
+            <summary className={SWITCH_BTN + " list-none [&::-webkit-details-marker]:hidden"} title="Сменить на кабинет подрядчика" aria-label="Сменить на кабинет подрядчика">
               <IconSwitch className="h-5 w-5" />
             </summary>
             <div className="absolute right-0 z-50 mt-1 w-64 rounded-md border border-neutral-200 bg-white p-1 shadow-md">

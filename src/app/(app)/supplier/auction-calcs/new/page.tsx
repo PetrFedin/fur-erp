@@ -22,7 +22,7 @@ export default async function NewCalcPage({ searchParams }: PageProps<"/supplier
       <h1 className="text-xl font-semibold">Новый расчёт аукциона</h1>
       {(opts.calcs.length > 0 || opts.auctions.length > 0) && (
         <details className="text-sm" open={!!base}>
-          <summary className="cursor-pointer select-none text-neutral-600 underline decoration-dotted">Взять с предыдущего расчёта</summary>
+          <summary className="cursor-pointer select-none text-neutral-600 underline decoration-dotted max-md:py-3">Взять с предыдущего расчёта</summary>
           <div className="mt-2"><StartFrom calcs={opts.calcs} auctions={opts.auctions} current={base ? from : ""} /></div>
         </details>
       )}

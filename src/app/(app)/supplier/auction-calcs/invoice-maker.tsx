@@ -51,7 +51,7 @@ export function InvoiceMaker({ id, payload }: { id: string | null; payload: Calc
 
   return (
     <details className="rounded-md border border-neutral-200 p-3">
-      <summary className="cursor-pointer text-sm font-medium">Счёт на оплату (Excel) — собрать по расчёту</summary>
+      <summary className="cursor-pointer text-sm font-medium max-md:py-3">Счёт на оплату (Excel) — собрать по расчёту</summary>
       <div className="mt-3 flex flex-col gap-3">
         <p className="flex items-center gap-1.5 text-xs text-neutral-500">Реквизиты, текст и сумма подставляются сами<InfoHint label="Что подставляется">Реквизиты, договор №{WELLMEKH_REQ.contract.number} и текст подставляются сами; сумма — из расчёта («К оплате: аванс 1»), НДС выделяется из суммы. Введите номер счёта и спецификацию.</InfoHint></p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

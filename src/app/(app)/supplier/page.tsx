@@ -91,7 +91,7 @@ export default async function SupplierHomePage() {
             {recent.map((r) => (
               <li key={r.key} className="flex flex-wrap items-baseline gap-x-2">
                 {r.at.getTime() > seenMs && <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-900">новое</span>}
-                <Link href={r.href} className={`inline-block underline decoration-dotted hover:decoration-solid max-md:py-2.5 ${r.tone === "back" ? "text-red-700" : "text-emerald-800"}`}>{r.text}</Link>
+                <Link href={r.href} className={`inline-block underline decoration-dotted hover:decoration-solid max-md:py-3 ${r.tone === "back" ? "text-red-700" : "text-emerald-800"}`}>{r.text}</Link>
               </li>
             ))}
           </ul>
@@ -104,7 +104,7 @@ export default async function SupplierHomePage() {
             <h2 className="text-sm font-semibold">{sec.title}{sec.items.length > 0 && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-normal text-amber-900">{sec.items.length}</span>}</h2>
             {sec.items.length === 0 ? <p className="text-sm text-neutral-500">{sec.empty}</p> : (
               <ul className="flex flex-col gap-1 text-sm">
-                {sec.items.map((i) => <li key={i.key}><Link href={i.href} className="inline-block text-blue-700 underline decoration-dotted hover:decoration-solid max-md:py-2.5">{i.text}</Link></li>)}
+                {sec.items.map((i) => <li key={i.key}><Link href={i.href} className="inline-block text-blue-700 underline decoration-dotted hover:decoration-solid max-md:py-3">{i.text}</Link></li>)}
               </ul>
             )}
           </section>

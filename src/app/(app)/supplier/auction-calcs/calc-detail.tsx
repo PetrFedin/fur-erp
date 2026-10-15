@@ -258,7 +258,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
       {note && <p className="text-sm text-neutral-700">{note}</p>}
       {rowParamList.length > 0 && (
         <details className="text-xs text-neutral-600" open={rowParamList.length <= 4}>
-          <summary className="cursor-pointer py-2 font-semibold">Свои значения в строках ({rowParamList.length})</summary>
+          <summary className="cursor-pointer py-2 font-semibold max-md:py-3.5">Свои значения в строках ({rowParamList.length})</summary>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {rowParamList.map((x) => (
             <span key={x.i + x.k} className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5">

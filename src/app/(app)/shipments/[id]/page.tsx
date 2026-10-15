@@ -295,7 +295,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
               const cut = firstOpen === -1 ? dayGroups.length - 1 : firstOpen;
               const renderGroup = (g: (typeof dayGroups)[number], gi: number) => (
               <section key={g.day} className="relative" data-day={g.day} data-day-kind={g.kind} aria-label={g.heading}>
-                <details open={gi >= cut} className="group/day"><summary className="relative flex cursor-pointer list-none items-center gap-2 py-1.5 text-xs [&::-webkit-details-marker]:hidden"><span aria-hidden className="text-neutral-400 transition-transform group-open/day:rotate-90">›</span>
+                <details open={gi >= cut} className="group/day"><summary className="relative flex cursor-pointer list-none items-center gap-2 py-1.5 text-xs max-md:min-h-11 [&::-webkit-details-marker]:hidden"><span aria-hidden className="text-neutral-400 transition-transform group-open/day:rotate-90">›</span>
                   <span aria-hidden className={"absolute -left-[1.1875rem] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full " + (g.kind === "today" ? "bg-neutral-800" : "bg-neutral-300")} />
                   <span className={g.kind === "today" ? "font-semibold text-neutral-900" : g.kind === "upcoming" ? "font-medium text-neutral-400" : "font-medium text-neutral-600"}>{g.heading}</span>
                   {g.kind === "today" && <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[11px] font-medium text-white">сегодня</span>}

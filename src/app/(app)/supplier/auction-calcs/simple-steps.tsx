@@ -65,7 +65,7 @@ export function SimpleSteps({ p, setP, t, ro, missing, onAuction, onFormat, uplo
           <F label="Продавец" v={h.seller} on={(v) => onAuction(h.auction, v)} ro={ro} ph="Союзпушнина" />
         </div>
         <details className="group text-sm">
-          <summary className="cursor-pointer select-none text-neutral-600 underline decoration-dotted">Ещё поля</summary>
+          <summary className="cursor-pointer select-none text-neutral-600 underline decoration-dotted max-md:py-3">Ещё поля</summary>
           <div className="mt-3 flex flex-col gap-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="sm:col-span-2">
