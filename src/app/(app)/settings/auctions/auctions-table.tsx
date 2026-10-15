@@ -56,6 +56,9 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
   const [kinds, setKinds] = useState<string[]>([]);
   const [conf, setConf] = useState<string[]>([]);
   const [sort, setSort] = useState<SortKey>("default");
+  const [rev, setRev] = useState(false);
+  // Клик по заголовку: новый столбец — как в списке «Сортировка», повторный клик — наоборот.
+  const headSort = (k: SortKey) => ({ sort: (sort === k ? (rev ? "desc" : "asc") : "none") as "asc" | "desc" | "none", onSort: () => { if (sort === k) setRev((v) => !v); else { setSort(k); setRev(false); } } });
   const [open, setOpen] = useState<string | null>(null);
   const [bulk, setBulk] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -83,8 +86,9 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
       count: (a, b) => b.purchaseCount - a.purchaseCount,
       total: (a, b) => b.total - a.total,
     };
-    return [...list].sort(by[sort]);
-  }, [rows, houses, years, kinds, conf, sort]);
+    const out = [...list].sort(by[sort]);
+    return rev ? out.reverse() : out;
+  }, [rows, houses, years, kinds, conf, sort, rev]);
 
   const pending = rows.filter((r) => !r.confirmed);
   const report = (r: AuctionResult) => setFlash(r);
@@ -106,7 +110,7 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
         <MultiFilter label="Статус" options={confOpts} selected={conf} onChange={setConf} />
         <div>
           <Label htmlFor="auc-sort">Сортировка</Label>
-          <Select id="auc-sort" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} className="h-11">
+          <Select id="auc-sort" value={sort} onChange={(e) => { setSort(e.target.value as SortKey); setRev(false); }} className="h-11">
             {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </Select>
         </div>
@@ -126,12 +130,12 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
           <Table>
             <Thead>
               <Tr>
-                <Th>Короткое имя</Th>
+                <Th {...headSort("name")}>Короткое имя</Th>
                 <Th>Полное название</Th>
                 <Th>Дом</Th>
-                <Th>Вид · год/мес.</Th>
-                <Th className="text-right">Закупок</Th>
-                <Th className="text-right" unit="₽">Сумма</Th>
+                <Th {...headSort("period")}>Вид · год/мес.</Th>
+                <Th className="text-right" {...headSort("count")}>Закупок</Th>
+                <Th className="text-right" unit="₽" {...headSort("total")}>Сумма</Th>
                 <Th>Статус</Th>
                 <Th>{canEdit ? "Действия" : ""}</Th>
               </Tr>

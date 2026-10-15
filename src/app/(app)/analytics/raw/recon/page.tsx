@@ -14,6 +14,8 @@ import { Money } from "@/components/money";
 import { Ref4, Mode4Badge } from "@/components/c4-note";
 import { formatQty } from "@/lib/utils";
 import { ageText, buildRecon, loadRawData, lotBalances, type RawLot } from "@/lib/raw-analytics";
+import { SortTh } from "@/components/sort-th";
+import { readSort, sortRows } from "@/lib/table-sort";
 import rawAudit from "@/data/raw-audit-2026-02-09.json";
 
 export const metadata = { title: "Сверка лотов" };
@@ -31,7 +33,8 @@ function LotLink({ l }: { l: RawLot }) {
   );
 }
 
-export default async function ReconPage() {
+export default async function ReconPage({ searchParams }: PageProps<"/analytics/raw/recon">) {
+  const sp = await searchParams;
   const session = await requireSession();
   const year = await getYearFilter();
   const c4 = await getCommission4Mode();
@@ -42,6 +45,12 @@ export default async function ReconPage() {
   const auditOpen = auditRows.filter((r) => r.delta !== 0).length;
   const dormantIncl = dormant.reduce((s, x) => s.add(x.remIncl), new Decimal(0));
   const dormantExcl = dormant.reduce((s, x) => s.add(x.remExcl), new Decimal(0));
+  const dSort = readSort(sp, ["lot", "what", "auc", "age", "rem", "cost"], null, "d");
+  const dormantSorted = sortRows(dormant, dSort, {
+    lot: (x) => name(x.lot), what: (x) => `${x.lot.unit === "M" ? "Подкладка" : x.lot.kind} · ${x.lot.cat}`, auc: (x) => `${x.lot.auctionLabel} ${x.lot.year}`,
+    age: (x) => x.days, rem: (x) => Number(x.lot.rem.toString()), cost: (x) => Number(x.remIncl.toString()),
+  });
+  const dth = (k: string, label: string, align: "left" | "right" = "left", unit?: string) => <SortTh path="/analytics/raw/recon" sp={sp} k={k} cur={dSort} label={label} align={align} unit={unit} prefix="d" />;
   const exp = (part: string) => `/analytics/raw/recon/export?part=${part}`;
   const csv = (part: string) => (
     <a href={exp(part)} className={buttonVariants({ variant: "outline", size: "sm" })}>CSV</a>
@@ -227,10 +236,10 @@ export default async function ReconPage() {
               table={
                 <Table>
                   <Thead>
-                    <Tr><Th>Лот</Th><Th>Что</Th><Th>Аукцион</Th><Th>Лежит</Th><Th className="text-right">Остаток</Th><Th className="text-right">Стоимость остатка</Th></Tr>
+                    <Tr>{dth("lot", "Лот")}{dth("what", "Что")}{dth("auc", "Аукцион")}{dth("age", "Лежит")}{dth("rem", "Остаток", "right")}{dth("cost", "Стоимость остатка", "right")}</Tr>
                   </Thead>
                   <Tbody>
-                    {dormant.map(({ lot: l, days, remIncl, remExcl }) => (
+                    {dormantSorted.map(({ lot: l, days, remIncl, remExcl }) => (
                       <Tr key={l.id}>
                         <Td><LotLink l={l} /></Td>
                         <Td className="text-xs">{l.unit === "M" ? "Подкладка" : l.kind} · {l.cat}</Td>

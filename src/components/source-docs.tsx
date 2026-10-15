@@ -269,7 +269,7 @@ export function SourceDocs({
           </p>
         )}
         {data.canUpload && data.target && <GeneralUpload target={data.target} />}
-        {footer}
+        {footer ? <div>{footer}</div> : null}
       </div>
     </details>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState, useTransition } from "react";
+import { useClientSort } from "@/lib/use-client-sort";
 import { Button } from "@/components/ui/button";
 import { ClampText } from "@/components/clamp-text";
 import { Input } from "@/components/ui/input";
@@ -73,6 +74,7 @@ function Merge({ src, rows, onClose }: { src: FurRow; rows: FurRow[]; onClose: (
 
 /** rows — показанные строки (после фильтров панели), allRows — весь справочник (для «Объединить»). */
 export function FursTable({ rows, allRows = rows, canEdit }: { rows: FurRow[]; allRows?: FurRow[]; canEdit: boolean }) {
+  const { th, sort } = useClientSort<FurRow>({ name: (r) => r.name, en: (r) => r.nameEn, lots: (r) => r.lots, items: (r) => r.items, orders: (r) => r.orders });
   const [editing, setEditing] = useState<string | null>(null);
   const [merging, setMerging] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -89,13 +91,13 @@ export function FursTable({ rows, allRows = rows, canEdit }: { rows: FurRow[]; a
       <Table>
         <Thead>
           <Tr>
-            <Th>Русское название</Th><Th>Английское</Th><Th>Синонимы</Th>
-            <Th className="text-right">Лотов</Th><Th className="text-right">Позиций закупок</Th><Th className="text-right">ТЗ</Th>
+            <Th {...th("name")}>Русское название</Th><Th {...th("en")}>Английское</Th><Th>Синонимы</Th>
+            <Th className="text-right" {...th("lots")}>Лотов</Th><Th className="text-right" {...th("items")}>Позиций закупок</Th><Th className="text-right" {...th("orders")}>ТЗ</Th>
             {canEdit && <Th />}
           </Tr>
         </Thead>
         <Tbody>
-          {rows.map((r) => (
+          {sort(rows).map((r) => (
             <Fragment key={r.id}>
               <Tr>
                 <Td className="font-medium">{r.name}{r.note && <div className="text-xs font-normal text-neutral-500"><ClampText text={r.note} /></div>}</Td>
