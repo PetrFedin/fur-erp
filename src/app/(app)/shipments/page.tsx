@@ -27,7 +27,7 @@ const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
 const SHIPMENT_FILTERS = defineFilters({
   ...pick(["q", "supplier", "batch", "year", "from", "to", "model"], {
     q: { label: "Поиск" },
-    supplier: { label: "Поставщик" },
+    supplier: { label: "Подрядчик" },
     batch: { label: "Партия пошива" },
     model: { label: "Артикул" },
     from: { label: "Плановая дата с" },
@@ -181,7 +181,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
               hideChips
               controls={[
                 { type: "text", name: "q", label: "Поиск", placeholder: "Название, № ТЗ, артикул, цвет" },
-                { type: "multi", name: "supplier", label: "Поставщик", options: supplierFilter },
+                { type: "multi", name: "supplier", label: "Подрядчик", options: supplierFilter },
                 { type: "multi", name: "batch", label: "Партия пошива", options: batchFilter },
                 { type: "multi", name: "stage", label: "Этап", options: stageFilter, hint: "По названию этапа" },
                 { type: "date", name: "from", label: "Плановая дата с" },
@@ -203,7 +203,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
                 label: "Не принято, шт.",
                 value: sum.inS ? formatQty(sum.ret) : <Dash />,
                 caption: sum.inS ? [share(sum.ret, sum.inS, ""), `ждёт приёмки ${formatQty(sum.rem)} шт.`].filter(Boolean).join(" · ") : undefined,
-                hint: <p>Сумма колонки «Возврат» (возвращено поставщику / не принято). «Ещё ждёт приёмки» — в отгрузке минус принято и минус возврат по каждой строке.</p>,
+                hint: <p>Сумма колонки «Возврат» (возвращено подрядчику / не принято). «Ещё ждёт приёмки» — в отгрузке минус принято и минус возврат по каждой строке.</p>,
               },
             ]}
           />
@@ -214,7 +214,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
                 <Thead>
                   <Tr>
                     <Th {...th("name")}>Название</Th>
-                    <Th {...th("supplier")}>Поставщик</Th>
+                    <Th {...th("supplier")}>Подрядчик</Th>
                     <Th {...th("batch")}>Партия</Th>
                     <Th {...th("date")}>Плановая дата</Th>
                     <Th {...th("qty")} className="text-right" unit="шт.">К отгрузке · принято · не принято</Th>

@@ -194,7 +194,7 @@ export function LineEdit({ v }: { v: LineEditValues }) {
       <Field label="Принято, шт." hint={v.stage === "READY" ? "Пусто — ещё не отмечено" : ACCEPT_NEEDS_READY}>
         <Input name="acceptedQty" inputMode="numeric" defaultValue={v.accepted} readOnly={v.stage !== "READY"} />
       </Field>
-      <Field label="Возврат, шт." hint="Возвращено поставщику / не принято">
+      <Field label="Возврат, шт." hint="Возвращено подрядчику / не принято">
         <Input name="returnedQty" inputMode="numeric" defaultValue={v.returned} readOnly={v.stage !== "READY"} />
       </Field>
       <Field label="Комментарий" wide>

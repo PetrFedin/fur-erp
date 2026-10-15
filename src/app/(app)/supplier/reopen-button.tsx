@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/info-hint";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ export function ReopenButton({ id }: { id: string }) {
       >
         Исправить и отправить заново
       </Button>
-      <span className="text-sm text-neutral-600">Вернёт в черновик с теми же данными — исправьте и отправьте снова.</span>
+      <InfoHint label="Что произойдёт">Вернёт в черновик с теми же данными — исправьте и отправьте снова.</InfoHint>
       {err && <span className="text-sm text-red-700">{err}</span>}
     </div>
   );

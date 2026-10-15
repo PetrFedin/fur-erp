@@ -14,7 +14,7 @@ export function HeaderEdit({ v, suppliers, batches }: { v: HeaderValues; supplie
       <Field label="Название" wide>
         <Input name="name" required maxLength={120} defaultValue={v.name} />
       </Field>
-      <Field label="Поставщик">
+      <Field label="Подрядчик">
         <Select name="supplierId" defaultValue={v.supplierId}>
           <option value="">— не указан —</option>
           {suppliers.map((s) => (

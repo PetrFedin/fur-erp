@@ -175,7 +175,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
         title={custom ? "Нажмите, чтобы открыть конструктор формулы; можно перетащить" : c.hint}>
         <button type="button" disabled={!custom || ro} onClick={() => { const cc = (p.customColumns ?? []).find((x) => x.id === c.id); if (cc) setDraft(draftFrom(cc)); }} className="block w-full text-left disabled:cursor-default">
           {c.title}{c.unit && !c.title.includes(c.unit) ? <span className="font-normal text-neutral-500">, {c.unit}</span> : null}
-          {c.kind !== "input" && c.formula ? <span className="block max-w-[200px] truncate text-[10px] font-normal text-neutral-400">{c.formula.replace(/^=/, "= ")}{c.rules?.length ? ` (+${c.rules.length} прав.)` : ""}</span> : null}
+          {c.kind !== "input" && c.formula ? <span className="block max-w-[200px] truncate text-[11px] font-normal text-neutral-400">{c.formula.replace(/^=/, "= ")}{c.rules?.length ? ` (+${c.rules.length} прав.)` : ""}</span> : null}
         </button>
       </th>
     );
@@ -334,8 +334,8 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
               {sh.cols.map((c) => (
                 <th key={c.id} className="sticky top-0 z-20 border-b border-r border-neutral-300 bg-neutral-200 px-2 py-1 text-center font-mono text-[11px] font-normal text-neutral-600">
                   {c.letter}
-                  {c.id === sh.unitCol && <span className="ml-1 rounded bg-emerald-200 px-1 text-[10px] text-emerald-900">в закупку</span>}
-                  {c.id === sh.qtyCol && c.id !== QTY_COL && <span className="ml-1 rounded bg-sky-200 px-1 text-[10px] text-sky-900">кол-во</span>}
+                  {c.id === sh.unitCol && <span className="ml-1 rounded bg-emerald-200 px-1 text-[11px] text-emerald-900">в закупку</span>}
+                  {c.id === sh.qtyCol && c.id !== QTY_COL && <span className="ml-1 rounded bg-sky-200 px-1 text-[11px] text-sky-900">кол-во</span>}
                   {customIds.has(c.id) && !ro && (
                     <span className="ml-1 whitespace-nowrap">
                       <button type="button" title="Сдвинуть влево" className="px-0.5 text-neutral-500 hover:text-neutral-900" onClick={() => { const cs = p.customColumns ?? []; const k = cs.findIndex((x) => x.id === c.id); if (k > 0) moveCol(c.id, cs[k - 1].id); }}>◀</button>
@@ -377,7 +377,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
                           <input data-cell={`${i}-${ci}`} value={ovr !== undefined ? ovr : fmt(cell?.v)} title={cell?.err ?? (cell?.manual ? "вручную" : "по формуле")}
                             onFocus={(e) => { e.target.select(); setAct({ i, id: c.id }); }} onChange={(e) => setOverride(r._id, c.id, e.target.value)} onKeyDown={(e) => onKey(e, i, ci)} inputMode="decimal"
                             style={{ width: 104 }} className={`h-8 border-0 bg-transparent px-2 text-right text-sm tabular-nums outline-none focus:ring-2 focus:ring-inset focus:ring-sky-400 ${cell?.err ? "bg-red-50 text-red-700" : ""}`} />
-                          {cell?.manual && <button type="button" className="pr-1 text-[10px] text-blue-700" title="Вернуть формулу" onClick={() => setOverride(r._id, c.id, null)}>↩</button>}
+                          {cell?.manual && <button type="button" className="pr-1 text-[11px] text-blue-700" title="Вернуть формулу" onClick={() => setOverride(r._id, c.id, null)}>↩</button>}
                         </div>
                       ) : (
                         <span className={`block px-2 py-1 text-right tabular-nums ${cell?.err ? "text-red-700" : ""}`} title={cell?.err}>{cell?.err ? "ошибка" : fmt(c.id === "total" ? t.calcs[i].totalRub : cell?.v)}</span>

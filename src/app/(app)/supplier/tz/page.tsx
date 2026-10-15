@@ -56,7 +56,7 @@ export default async function SupplierTzPage({ searchParams }: PageProps<"/suppl
           <details key={batch || "none"} open={gi === 0} className="group rounded-lg border border-neutral-200 bg-white" data-batch={batch || "none"}>
             <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
               <span aria-hidden className="inline-block w-3 text-neutral-500 transition-transform group-open:rotate-90">›</span>
-              <span className="font-semibold">{batch ? `Партия ${batch}` : "Без партии"}</span>
+              <span className="font-semibold">{batch ? `Партия ${batch}` : "Вне партий"}</span>
               <span className="text-xs text-neutral-500">ТЗ: {list.length} · изделий: {total || "—"}</span>
             </summary>
             <div className="overflow-x-auto border-t border-neutral-100">

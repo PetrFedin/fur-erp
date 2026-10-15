@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/info-hint";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ export function TzStatusActions({ id, status }: { id: string; status: string }) 
         else if (sent) router.refresh();
         else router.push(`/supplier/tz/${r.id}`);
       })}>{sent ? "Вернуть в черновик и исправить" : "Исправить и отправить заново"}</Button>
-      <span className="text-sm text-neutral-600">{sent ? "Пока мы не приняли ТЗ, его можно поправить; у нас будет видно, что оно изменено." : "Создаст новый черновик с теми же данными — исходное ТЗ останется."}</span>
+      <InfoHint label="Что произойдёт">{sent ? "Пока мы не приняли ТЗ, его можно поправить; у нас будет видно, что оно изменено." : "Создаст новый черновик с теми же данными — исходное ТЗ останется."}</InfoHint>
       {err && <span className="text-sm text-red-700">{err}</span>}
     </div>
   );

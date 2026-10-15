@@ -4,6 +4,8 @@ import { escapeLike } from "@/lib/input";
 import { compareModelNames, modelCodeVariants } from "@/lib/model-code";
 import { buttonVariants } from "@/components/ui/button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { Clamp } from "@/components/clamp";
+import { InfoHint } from "@/components/info-hint";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { loadArticleFurTypes } from "@/lib/article-fur-type";
 import { readSort, sortRows, thSort, type SortParams } from "@/lib/table-sort";
@@ -80,7 +82,7 @@ export async function SupplierArticles({ orgId, q, noname, sp = {} }: { orgId: s
         <p className="text-sm">
           {noname
             ? <Link href="/articles" className="text-blue-700 hover:underline">← Показать все артикулы</Link>
-            : <>Без названия: <Link href="/articles?noname=1" className="font-medium text-blue-700 hover:underline">{unnamed}</Link> — просим прислать наименование изделия: <Link href="/chat?new=1" className="text-blue-700 hover:underline">напишите нам в чате</Link> (существующие артикулы правим мы).</>}
+            : <>Без названия: <Link href="/articles?noname=1" className="font-medium text-blue-700 hover:underline max-md:inline-block max-md:min-w-11 max-md:py-3 max-md:text-center">{unnamed}</Link> · <Link href="/chat?new=1" className="text-blue-700 hover:underline max-md:inline-block max-md:py-3">написать в чат</Link><InfoHint label="Без названия">Просим прислать наименование изделия: напишите нам в чате. Существующие артикулы правим мы.</InfoHint></>}
         </p>
       )}
       <Table stickyHeader className="min-w-[980px]">
@@ -100,24 +102,23 @@ export async function SupplierArticles({ orgId, q, noname, sp = {} }: { orgId: s
           {rows.map((m) => (
             <Tr key={m.id} className={m.isActive ? undefined : "text-neutral-400"}>
               <Td className="font-medium">{m.name}{!m.isActive && <span className="ml-2 text-xs font-normal">не активен</span>}</Td>
-              <Td>{m.title ?? <span className="text-amber-700">— <span className="text-xs">название не задано</span></span>}</Td>
+              <Td className="max-w-[20rem]">{m.title ? <Clamp>{m.title}</Clamp> : <span className="text-amber-800">Нет названия</span>}</Td>
               <Td>{m.category || "—"}</Td>
               <Td>{m.lengthClass || "—"}</Td>
               <Td>{m.furType || "—"}</Td>
               <Td>
-                <div>{m.fur || "—"}</div>
-                {m.lining ? <div className="text-xs text-neutral-500">подкладка: {m.lining}</div> : null}
+                <div className="max-w-[16rem]"><Clamp>{m.fur || "—"}</Clamp>{m.lining ? <Clamp className="text-xs text-neutral-500">подкладка: {m.lining}</Clamp> : null}</div>
               </Td>
-              <Td className="text-xs">{m.sizes || "—"}</Td>
-              <Td className="text-xs">{m.colors || "—"}</Td>
+              <Td className="max-w-[10rem] text-xs"><Clamp>{m.sizes || "—"}</Clamp></Td>
+              <Td className="max-w-[10rem] text-xs"><Clamp>{m.colors || "—"}</Clamp></Td>
             </Tr>
           ))}
           {rows.length === 0 && (
-            <Tr><Td colSpan={8} className="py-8 text-center text-neutral-500">{q ? "Ничего не найдено" : "Артикулов пока нет"}</Td></Tr>
+            <Tr><Td colSpan={8} className="py-8 text-center text-neutral-500">{q ? "Нет результатов" : "Нет артикулов"}</Td></Tr>
           )}
         </Tbody>
       </Table>
-      <p className="text-xs text-neutral-500">Всего артикулов: {rows.length}. Новый артикул вносится кнопкой выше — цены ведёт ЦУМ.</p>
+      <p className="text-xs text-neutral-500">Всего артикулов: {rows.length}</p>
     </div>
   );
 }

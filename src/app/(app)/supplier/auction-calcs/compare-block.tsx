@@ -21,7 +21,7 @@ export async function CompareBlock({ s, payload }: { s: Pick<SupplierSess, "user
         Предварительно: <b>{money(c.totalBefore)} ₽</b> → окончательно: <b>{money(c.totalAfter)} ₽</b>, разница <b className={c.diff > 0 ? "text-red-700" : "text-green-700"}>{sign(c.diff)} ₽</b>
         {c.qtyBefore !== c.qtyAfter && <> · шкур {c.qtyBefore} → {c.qtyAfter}</>}
       </p>
-      {changed.length === 0 ? <p className="text-sm text-neutral-500">По лотам цифры не изменились.</p> : (
+      {changed.length === 0 ? <p className="text-sm text-neutral-500">Нет изменений по лотам.</p> : (
         <div className="overflow-x-auto">
           <Table className="min-w-[560px]">
             <Thead><Tr><Th>Лот</Th><Th>Мех</Th><Th className="text-right">Шкур</Th><Th className="text-right">За шкуру было, ₽</Th><Th className="text-right">Стало, ₽</Th><Th className="text-right">Сумма было → стало, ₽</Th></Tr></Thead>

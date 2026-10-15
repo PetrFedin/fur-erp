@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/info-hint";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -89,9 +90,8 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
         <F label="Заказчик" v={p.customer} on={(v) => setP((x) => ({ ...x, customer: v }))} ro={ro} />
         <div>
           <Label>Партия</Label>
-          <Input value={p.batch} readOnly={ro} list="tz-batches" placeholder="номер, например 22" inputMode="numeric" onChange={(e) => setP((x) => ({ ...x, batch: e.target.value }))} />
+          <Input value={p.batch} readOnly={ro} list="tz-batches" placeholder="номер или из списка" inputMode="numeric" onChange={(e) => setP((x) => ({ ...x, batch: e.target.value }))} />
           <datalist id="tz-batches">{batches.map((b) => <option key={b.value} value={b.value} label={b.label} />)}</datalist>
-          <p className="mt-0.5 text-[11px] text-neutral-500">Из списка или новая.</p>
         </div>
         <F label="НДС, %" v={p.vatPct} on={(v) => setP((x) => ({ ...x, vatPct: v }))} ro={ro} />
       </div>
@@ -124,7 +124,7 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
           <Tr><Td colSpan={7} className="font-semibold">Итого:</Td><Td className="font-semibold tabular-nums">{t.qty}</Td><Td className="tabular-nums text-neutral-600">{t.pelts ? `${t.pelts} шк.` : ""}</Td><Td className="font-semibold tabular-nums">{money(t.work)}</Td><Td /><Td className="text-right font-semibold tabular-nums">{money(t.total)}</Td>{!ro && <Td />}</Tr>
         </Tbody>
       </Table>
-      <p className="-mt-3 text-[11px] text-neutral-500">Колонка «ИТОГО» считается сама ({repair ? "работа + материал" : "количество × стоимость продукции"}); своя сумма — в клетку.</p>
+      <p className="-mt-3 flex items-center gap-1.5 text-[11px] text-neutral-500">Колонка «ИТОГО»<InfoHint label="Колонка ИТОГО">Считается сама ({repair ? "работа + материал" : "количество × стоимость продукции"}); своя сумма — в клетку.</InfoHint></p>
       {!repair && <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={ro} checked={p.showWorkTotal !== false} onChange={(e) => setP((x) => ({ ...x, showWorkTotal: e.target.checked }))} /> Показывать сумму работ в строке «Итого:»</label>}
       {!ro && (
         <div className="flex gap-2">

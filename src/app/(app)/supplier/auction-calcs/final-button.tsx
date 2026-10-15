@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/info-hint";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ export function FinalButton({ id }: { id: string }) {
         const r = await makeFinalCalc(id);
         if (r.error) setErr(r.error); else router.push(`/supplier/auction-calcs/${r.id}`);
       })}>Сделать окончательный расчёт</Button>
-      <span className="text-xs text-neutral-500">Создаст копию для ввода окончательных цифр; предварительный останется как был.</span>
+      <InfoHint label="Что произойдёт">Создаст копию для ввода окончательных цифр; предварительный останется как был.</InfoHint>
       {err && <span className="text-sm text-red-600">{err}</span>}
     </div>
   );

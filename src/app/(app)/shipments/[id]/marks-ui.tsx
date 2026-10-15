@@ -74,7 +74,7 @@ export function SupplierMarks({ shipmentId, lines, supplier, canConfirm, stamp }
         // Строк бывает десятки: панель прилипает к низу экрана, пока есть несохранённые отметки.
         <div className={`flex flex-wrap items-center gap-2 ${dirty ? "sticky bottom-2 z-10 rounded-lg border border-amber-300 bg-amber-50 p-2 shadow" : ""}`}>
           <Button type="button" disabled={pending} onClick={save}>Сохранить отметки</Button>
-          <span className={`text-xs ${dirty ? "font-medium text-amber-900" : "text-neutral-500"}`}>{dirty ? "Есть несохранённые отметки — нажмите «Сохранить отметки»." : "Сохраняются все строки сразу; наш учёт отметки не меняют."}</span>
+          {dirty ? <span className="text-xs font-medium text-amber-900">Есть несохранённые отметки</span> : <InfoHint label="Про отметки">Сохраняются все строки сразу; наш учёт отметки не меняют.</InfoHint>}
         </div>
       )}
       {msg && <p role="status" className={msg.bad ? "text-sm text-red-600" : "text-sm text-green-700"}>{msg.text}</p>}

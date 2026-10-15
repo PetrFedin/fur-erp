@@ -78,7 +78,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   ]);
   // Автор-поставщик показывается названием компании («Веллмех»), а не именем служебной учётной записи.
   // Поставщику имена наших сотрудников не показываем: вместо них «ЦУМ».
-  const userName = new Map(users.map((u) => [u.id, u.role === "SUPPLIER" ? u.supplier?.name ?? "Поставщик" : isSupplier ? "ЦУМ" : u.name]));
+  const userName = new Map(users.map((u) => [u.id, u.role === "SUPPLIER" ? u.supplier?.name ?? "Подрядчик" : isSupplier ? "ЦУМ" : u.name]));
   // Подсказки названий этапа: «Примерка» и «Приёмка в Коптево» есть всегда, дальше — ранее использованные.
   const titles = [...new Set([FITTING_TITLE, ACCEPTANCE_TITLE, ...titleGroups.map((g) => g.title)])];
   // Подсказки для «Ответственный»: сотрудники приложения и ранее вписанные имена.
@@ -220,7 +220,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           )}
         </div>
         <dl className="grid grid-cols-[8rem_1fr] gap-y-1 text-sm sm:grid-cols-[10rem_1fr]">
-          <dt className="text-neutral-500">Поставщик</dt>
+          <dt className="text-neutral-500">Подрядчик</dt>
           <dd>{s.supplier ? (isSupplier ? s.supplier.name : <Link href={`/suppliers/${s.supplier.id}`} className="hover:underline">{s.supplier.name}</Link>) : "—"}</dd>
           <dt className="text-neutral-500">Партия пошива</dt>
           <dd>{s.batch ? (isSupplier ? batchText : <Link href={`/production/batches/${s.batch.number}`} className="hover:underline">{batchText}</Link>) : "—"}</dd>
@@ -259,7 +259,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             label: "Не принято, ед.",
             value: formatQty(totals.returned),
             caption: [sharePct(totals.returned), `ждёт приёмки ${formatQty(totals.remaining)} ед.`].filter(Boolean).join(" · "),
-            hint: <p>Сумма колонки «Возврат»: возвращено поставщику / не принято. «Ещё ждёт приёмки» — по каждой строке: в отгрузке минус принято и минус возврат, не меньше нуля.</p>,
+            hint: <p>Сумма колонки «Возврат»: возвращено подрядчику / не принято. «Ещё ждёт приёмки» — по каждой строке: в отгрузке минус принято и минус возврат, не меньше нуля.</p>,
           },
         ]}
         collapseWith={
@@ -484,7 +484,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         )}
       </section>
 
-      <p className="text-xs text-neutral-500">Журнал пути партии: ничего не списывает и не меняет остатки.</p>
+      <p className="text-xs text-neutral-500">Журнал пути партии, остатки не меняет.</p>
     </div>
   );
 }

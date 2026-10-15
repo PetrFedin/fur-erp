@@ -27,7 +27,7 @@ function ShipmentCreateForm({ defaultName, suppliers, defaultSupplierId, batches
         <Input id="sh-name" name="name" required maxLength={120} defaultValue={defaultName} />
       </div>
       <div>
-        <Label htmlFor="sh-supplier">Поставщик</Label>
+        <Label htmlFor="sh-supplier">Подрядчик</Label>
         <Select id="sh-supplier" name="supplierId" defaultValue={defaultSupplierId}>
           <option value="">— не указан —</option>
           {suppliers.map((s) => (

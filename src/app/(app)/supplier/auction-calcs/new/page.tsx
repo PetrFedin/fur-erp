@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { InfoHint } from "@/components/info-hint";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { requireRawViewer } from "@/lib/supplier-inbox";
 import { emptyPayload } from "@/lib/supplier-calc";
@@ -25,7 +26,7 @@ export default async function NewCalcPage({ searchParams }: PageProps<"/supplier
           <div className="mt-2"><StartFrom calcs={opts.calcs} auctions={opts.auctions} current={base ? from : ""} /></div>
         </details>
       )}
-      {base && from.startsWith("auction:") && base.rows.some((r) => r.lot) && <p className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm">Лоты и количество подставлены из нашей последней закупки по этому аукциону, цена молотка — там, где она есть в закупке. Проверьте, допишите недостающие цены, ставки и расходы.</p>}
+      {base && from.startsWith("auction:") && base.rows.some((r) => r.lot) && <p className="flex items-center gap-1.5 rounded-md border border-sky-200 bg-sky-50 p-3 text-sm">Лоты подставлены из нашей закупки<InfoHint label="Откуда лоты">Лоты и количество подставлены из нашей последней закупки по этому аукциону, цена молотка — там, где она есть в закупке. Проверьте, допишите недостающие цены, ставки и расходы.</InfoHint></p>}
       <CalcForm key={base ? from : "empty"} id={null} initial={base ?? emptyPayload("SP_RP")} readOnly={false} files={[]} years={years} />
     </div>
   );
