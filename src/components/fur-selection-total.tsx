@@ -16,6 +16,8 @@ import { SortMark } from "@/components/table-head";
 import { useClientSort } from "@/lib/use-client-sort";
 import { sortRows, type SortVal } from "@/lib/table-sort";
 import { RawCards, type RawSlide } from "@/app/(app)/dashboard/raw-block";
+import { useFurScope } from "@/components/fur-scope";
+import { alignFlowSet } from "@/lib/money-round";
 import { classifyLotSource } from "@/lib/purchase-source";
 import { FilteredPayTiles } from "@/app/(app)/dashboard/filtered-pay-tiles";
 import { rawRowsFromLots } from "@/lib/raw-rows";
@@ -64,7 +66,7 @@ const U = (n: number | null) => (n == null || !Number.isFinite(n) || n <= 0 ? "�
  * Клик по названию или стрелке раскрывает строку до партий (аукционов) и лотов; чекбокс слева выбирает строку для итога.
  */
 export function FurSelectionTotal({
-  lots,
+  lots: lotsAll,
   kind = "fur",
   globalYear = "all",
   initialQuery = {},
@@ -97,6 +99,10 @@ export function FurSelectionTotal({
   initialQuery?: Record<string, string | string[] | undefined>;
 }) {
   const router = useRouter();
+  // Страница вида меха внутри FurScope: общий переключатель источника («Вся закупка / На аукционах / У поставщика») сужает лоты таблицы и плиток.
+  const scope = useFurScope();
+  const scopeSrc: FurSrc = lockItem && scope ? scope.src : "all";
+  const lots = useMemo(() => (scopeSrc === "all" ? lotsAll : lotsAll.filter((l) => inSrc(scopeSrc, l))), [lotsAll, scopeSrc]);
   const unit = kind === "lining" ? "м" : "шт.";
   // Как в таблицах Главной: «Использовано» всегда без 4% (4% — отдельно, в виджетах и себестоимости).
   const c4 = "off" as "on" | "off";
@@ -117,7 +123,7 @@ export function FurSelectionTotal({
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [view, setView] = useState<ViewMode>("all");
   // «Строки по»: вид меха (ткань) либо год закупки — год раскрывается в вид → партию → лот → ТЗ.
-  const [group, setGroup] = useState<"item" | "year" | "auction" | "lots">(lockItem ? "auction" : "item");
+  const [group, setGroup] = useState<"item" | "year" | "auction" | "lots">(lockItem ? "year" : "item");
   // «Списком лотов»: плоская таблица лотов (те же строки-лоты, что внутри дерева) с сортировкой; поиск и фильтры — общие, над таблицей.
   const [lotSort, setLotSort] = useState<"num" | "recv" | "used" | "rem">("num");
   // Сортировка по клику на заголовок столбца (▲/▼, повторный клик — наоборот): строки каждого уровня; без выбора — прежний порядок.
@@ -220,10 +226,10 @@ export function FurSelectionTotal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [raw, lockItem, hasTypes, src, slideKeys, table.filteredLots, isFiltered]);
   const tileData = useMemo(() => {
-    if (!raw || !isFiltered || !(lockItem || kind === "lining")) return null;
+    if (!raw || !(isFiltered || scopeSrc !== "all") || !(lockItem || kind === "lining")) return null;
     return tilesOf(table.filteredLots, "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [raw, isFiltered, lockItem, kind, table.filteredLots]);
+  }, [raw, isFiltered, scopeSrc, lockItem, kind, table.filteredLots]);
   const options = useMemo(() => {
     const o = Object.fromEntries(FILTER_KEYS.map((k) => [k, filterOptions(baseLots, filters, k)])) as Record<FilterKey, ReturnType<typeof filterOptions>>;
     // Вид меха без лотов (сырьё подрядчика): есть в списке с пометкой «лотов нет» — как на Главной; выбор даёт пустую таблицу с пояснением.
@@ -407,7 +413,22 @@ export function FurSelectionTotal({
   const levels: Level[] = group === "auction" ? ["auction"] : group === "year" ? (lockItem ? ["year", "auction"] : ["year", "item", "auction"]) : ["item", "auction"];
   const rowsFor = (list: FurLot[], level: Level): TableRow[] =>
     level === "year" ? rowsBy(list, mode, (l) => String(l.year)) : level === "item" ? rowsBy(list, mode, (l) => l.item) : rowsBy(list, mode, (l) => l.auction, (l) => l.auctionLabel);
-  const topRows: TableRow[] = group === "lots" ? [] : cs.sort(group === "item" ? table.rows : rowsFor(table.rows.flatMap((r) => r.lots), group === "auction" ? "auction" : "year"));
+  // Годы: новые сверху (пока не выбрана сортировка по заголовку); цифры года и «Всего» выровнены правилом money-round: сумма лет = итог.
+  const yearRows = useMemo(() => (group === "year" ? rowsFor(table.rows.flatMap((r) => r.lots), "year").sort((a, b) => Number(b.key) - Number(a.key)) : []), [group, table.rows, mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  const yearAligned = useMemo(() => {
+    if (group !== "year" || yearRows.length === 0) return null;
+    const a = alignFlowSet(table.totalFigures, yearRows.map((r) => r.figures), c4 === "on");
+    return { total: a.total, byKey: new Map(yearRows.map((r, i) => [r.key, a.parts[i]])) };
+  }, [group, yearRows, c4, table.totalFigures]);
+  const topRows: TableRow[] = group === "lots" ? [] : cs.sort(group === "item" ? table.rows : group === "year" ? yearRows : rowsFor(table.rows.flatMap((r) => r.lots), "auction"));
+  // Последний год открыт сразу, остальные свёрнуты (если лет больше одного).
+  const yearOpened = useRef(false);
+  useEffect(() => {
+    if (group !== "year" || yearRows.length === 0) { yearOpened.current = false; return; }
+    if (yearOpened.current) return;
+    yearOpened.current = true;
+    setExpanded(new Set([`g/year:${yearRows[0].key}`]));
+  }, [group, yearRows]);
   const flatLots = useMemo(() => {
     if (group !== "lots") return [];
     const key = (l: FurLot) => { const f = figures(flowOf([l]), mode); return lotSort === "recv" ? f.recvValue : lotSort === "used" ? f.usedValue : f.remValue; };
@@ -540,7 +561,7 @@ export function FurSelectionTotal({
             </div>
             {isAuction ? <div className="truncate pl-4 text-[11px] text-neutral-500" title={auctionSub(row)}>{auctionSub(row)}</div> : null}
           </td>
-          {cells(row.figures, { ...(depth === 0 ? {} : { small: true }), plan: planUsdAvg(row.lots, row.flow) })}
+          {cells(depth === 0 && group === "year" ? yearAligned?.byKey.get(row.key) ?? row.figures : row.figures, { ...(depth === 0 ? {} : { small: true }), plan: planUsdAvg(row.lots, row.flow) })}
           {payCells(row.lots, depth === 0 ? {} : { small: true })}
           {showVat && vatCells(row.lots, { small: depth !== 0 })}
         </tr>
@@ -748,7 +769,7 @@ export function FurSelectionTotal({
             {table.rows.length > 0 && (
               <tr data-total className="row-total text-[14px]">
                 <td className="sticky left-0 z-10 px-3 py-2.5 text-left font-semibold"><TotalLabel unit="₽" avg /></td>
-                {cells(t, { strong: true, altUsed: true })}
+                {cells(group === "year" && yearAligned ? yearAligned.total : t, { strong: true, altUsed: true })}
                 {payCells(table.rows.filter((r) => totalRowKeys.has(r.key)).flatMap((r) => r.lots), { strong: true })}
                 {showVat && vatCells(table.rows.filter((r) => totalRowKeys.has(r.key)).flatMap((r) => r.lots), { strong: true })}
               </tr>

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { FUR_SRC_KEYS, FUR_SRC_LABEL, type FurSrc } from "@/components/fur-source-nav";
 
 /**
@@ -15,7 +15,27 @@ const FurScopeCtx = createContext<Ctx | null>(null);
 export const useFurScope = () => useContext(FurScopeCtx);
 
 export function FurScope({ info, children }: { /** Год и активные фильтры меха — для плашки. */ info: { year: string; filters: string | null }; children: ReactNode }) {
-  const [src, setSrc] = useState<FurSrc>("all");
+  const [src, setSrcState] = useState<FurSrc>("all");
+  // Источник хранится в адресе (?fsrc=auction|supplier; «Вся закупка» — без параметра) и в sessionStorage: он сохраняется при
+  // переходе Главная ⇄ страницы видов меха. Читаем после загрузки, чтобы разметка сервера и клиента совпала.
+  useEffect(() => {
+    try {
+      const q = new URL(window.location.href).searchParams.get("fsrc");
+      const v = (FUR_SRC_KEYS as string[]).includes(q ?? "") ? (q as FurSrc) : (FUR_SRC_KEYS as string[]).includes(sessionStorage.getItem("fur-src") ?? "") ? (sessionStorage.getItem("fur-src") as FurSrc) : "all";
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (v !== "all") setSrcState(v);
+      if (v !== "all" && q !== v) { const u = new URL(window.location.href); u.searchParams.set("fsrc", v); window.history.replaceState(window.history.state, "", u.pathname + u.search + u.hash); }
+    } catch { /* адрес и хранилище недоступны — работает без них */ }
+  }, []);
+  const setSrc = useCallback((s: FurSrc) => {
+    setSrcState(s);
+    try {
+      sessionStorage.setItem("fur-src", s);
+      const url = new URL(window.location.href);
+      if (s === "all") url.searchParams.delete("fsrc"); else url.searchParams.set("fsrc", s);
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    } catch { /* без адресной строки переключатель всё равно работает */ }
+  }, []);
   return (
     <FurScopeCtx.Provider value={{ src, setSrc }}>
       <div data-testid="fur-scope" className="flex flex-col gap-5">

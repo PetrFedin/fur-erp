@@ -22,6 +22,7 @@ import { formatMoney } from "@/lib/utils";
 import { orderLabel } from "@/lib/order-label";
 import { loadTzPositions } from "@/lib/order-label-db";
 import { RawCards } from "../../../dashboard/raw-block";
+import { FurScope } from "@/components/fur-scope";
 import { FilteredPayTiles } from "../../../dashboard/filtered-pay-tiles";
 import { PriceCompositionBlock } from "../../../dashboard/price-composition-block";
 import { priceComposition } from "@/lib/price-composition-server";
@@ -138,8 +139,11 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
           </InfoHint>
         </span>
       </div>
+      {/* Общий переключатель источника (как на Главной): действует на плитки, «Из чего складывается стоимость» и таблицу аукционов и лотов этого вида. */}
+      <FurScope info={{ year: year === "all" ? "все годы" : `${year} год`, filters: name }}>
       <FurSelectionTotal lots={own} kind="fur" globalYear={year} initialQuery={sp} lockItem={name} orderInfo={orderInfo} raw={{ tiles, c4, fur: pair, lining: dash.raw.lining, headerEnd, rows: rawRowsFromLots(own) }} />
       <PriceCompositionBlock lots={pcLots} onlyFur={name} />
+      </FurScope>
     </div>
   );
 }
