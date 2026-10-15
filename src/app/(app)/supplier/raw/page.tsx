@@ -4,7 +4,10 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { requireRawViewer, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
-import { supplierRawRows } from "@/lib/supplier-raw";
+import { supplierRawRows, supplierAcceptedCalcs } from "@/lib/supplier-raw";
+import { calcAll, ensureRowIds } from "@/lib/supplier-calc";
+import { buildStatement } from "@/lib/auction-statement";
+import { InfoHint } from "@/components/info-hint";
 import { cleanSearch } from "@/lib/input";
 import { Clamp } from "@/components/clamp";
 import { SortTh } from "@/components/sort-th";
@@ -25,7 +28,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => cleanSearch(Array.isArray(v) ? v[0] : v, 60);
   const openName = one(sp.open);
-  const sort = readSort(sp, ["invoice", "lot", "fur", "color", "size", "qty", "price", "doc"]);
+  const sort = readSort(sp, ["invoice", "lot", "fur", "color", "size", "qty", "price", "unit", "total", "doc"]);
   const fAuction = one(sp.auction), fSt = one(sp.st), fFur = one(sp.fur), q = one(sp.q).toLowerCase();
 
   // Поставщик — только свои закупки; владелец/админ смотрят глазами поставщика (по поставщику из ?supplier или первому).
@@ -45,6 +48,22 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
   const sum = rows.reduce((a, r) => a + r.subtotal, 0);
   const mixed = new Set(rows.map((r) => r.currency)).size > 1;
   const cur = (c: string) => (c === "RUB" ? "₽" : c);
+
+  // Расчёт аукциона (тот же, что в «Аукционах»): итог, средняя, курс, НДС, аванс, остаток и цена лота в ₽.
+  const calcInfo = new Map<string, { id: string; qty: number; total: number; avg: number; rate: number; vat: string; advance: number; interim: number; rest: number; pids: string[] }>();
+  const lotCalc = new Map<string, { unit: number; total: number }>();
+  if (supplierId) {
+    for (const c of await supplierAcceptedCalcs(s.user.organizationId, supplierId, all.map((r) => r.purchaseId).filter((v, i, a) => a.indexOf(v) === i))) {
+      const pl = ensureRowIds(c.payload);
+      const t = calcAll(pl);
+      const st = buildStatement(pl, t);
+      const info = { id: c.id, qty: t.qty, total: t.totalRub, avg: t.qty ? t.totalRub / t.qty : 0, rate: t.rate, vat: pl.header.vat, advance: t.advance, interim: t.interim, rest: t.rest, pids: c.purchaseIds };
+      for (const pid of c.purchaseIds) {
+        if (!calcInfo.has(pid)) calcInfo.set(pid, info);
+        for (const l of st.lots) if (l.lot && st.lots.filter((x) => x.lot === l.lot).length === 1 && !lotCalc.has(`${pid}|${l.lot}`)) lotCalc.set(`${pid}|${l.lot}`, { unit: l.unit, total: l.total });
+      }
+    }
+  }
 
   const stageRows = supplierId
     ? await prisma.supplierRawStage.findMany({ where: { organizationId: s.user.organizationId, supplierId }, select: { purchaseId: true, stage: true, status: true, place: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true } })
@@ -123,6 +142,8 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
               (places.get(key) ?? places.set(key, { inv: [], st }).get(key)!).inv.push(g);
             }
             const mixedCur = new Set(lots.map((r) => r.currency)).size > 1;
+            const cs = [...new Map(invs.flatMap((g) => { const x = calcInfo.get(g[0].purchaseId); return x ? [[x.id, x] as const] : []; })).values()];
+            const cq = cs.reduce((a, x) => a + x.qty, 0), ct = cs.reduce((a, x) => a + x.total, 0);
             return (
               <details key={name} open={ai === 0 || filtered || openName === name} className="group rounded-md border border-neutral-300 bg-white">
                 <summary className="flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-sm">
@@ -130,6 +151,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                   <b className="text-base">{name}</b>
                   <span className="text-neutral-600">счетов {invs.length} · лотов {lots.length} · шкур {num(aq)}</span>
                   {!mixedCur && <span className="tabular-nums">по УПД без НДС: <b>{money(as)} {cur(lots[0].currency)}</b></span>}
+                  {cs.length > 0 && <span className="tabular-nums">себестоимость: <b>{money(ct)} ₽</b>{cq > 0 && <> · за шкуру <b>{money(ct / cq)} ₽</b></>}</span>}
                   {places.size === 1 ? <RawChip stages={stagesAll.length ? [...places.values()][0].st : []} /> : null}
                   {allGot && stagesAll.length === 0 && <span className="whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">принято на склад</span>}
                   {places.size > 1 && <span className="whitespace-nowrap rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700">положение разное по счетам</span>}
@@ -163,6 +185,24 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                       );
                     })}
                   </div>
+                  {cs.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">Расчёт стоимости<InfoHint label="О расчёте">Цифры из расчёта аукциона. Статьи по лотам — в карточке счёта.</InfoHint></h3>
+                      {cs.map((x) => (
+                        <div key={x.id} className="flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-neutral-200 p-2 text-sm tabular-nums">
+                          <span>шкур <b>{num(x.qty)}</b></span>
+                          <span>итого <b>{money(x.total)} ₽</b></span>
+                          <span>за шкуру <b>{money(x.avg)} ₽</b></span>
+                          {x.rate > 0 && <span>курс <b>{x.rate.toLocaleString("ru-RU", { maximumFractionDigits: 6 })}</b></span>}
+                          {x.vat && <span>НДС <b>{x.vat}%</b></span>}
+                          {x.advance > 0 && <span>аванс <b>{money(x.advance)} ₽</b></span>}
+                          {x.interim > 0 && <span>платёж <b>{money(x.interim)} ₽</b></span>}
+                          {(x.advance > 0 || x.interim > 0) && <span>остаток <b>{money(x.rest)} ₽</b></span>}
+                          <Link href={`/supplier/auction-calcs/${x.id}`} className="text-blue-700 underline max-md:inline-flex max-md:min-h-11 max-md:items-center">Открыть расчёт →</Link>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Лоты</h3>
@@ -172,7 +212,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                       <Link href={`/supplier/raw?open=${encodeURIComponent(name)}`} className="text-sm text-blue-700 underline max-md:inline-flex max-md:min-h-11 max-md:items-center">Показать лоты ({lots.length}) →</Link>
                     ) : (
                     <div className="overflow-x-auto rounded-md border border-neutral-200">
-                      <Table className="min-w-[820px]">
+                      <Table className="min-w-[980px]">
                         <Thead><Tr>
                           <SortTh path="/supplier/raw" sp={sp} k="invoice" cur={sort} label="Счёт" />
                           <SortTh path="/supplier/raw" sp={sp} k="lot" cur={sort} label="Лот" />
@@ -180,16 +220,19 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                           <SortTh path="/supplier/raw" sp={sp} k="color" cur={sort} label="Цвет" />
                           <SortTh path="/supplier/raw" sp={sp} k="size" cur={sort} label="Размер, сорт" />
                           <SortTh path="/supplier/raw" sp={sp} k="qty" cur={sort} label="Кол-во" align="right" />
-                          <SortTh path="/supplier/raw" sp={sp} k="price" cur={sort} label="Цена без НДС" align="right" />
+                          <SortTh path="/supplier/raw" sp={sp} k="price" cur={sort} label="УПД без НДС" align="right" />
+                          <SortTh path="/supplier/raw" sp={sp} k="unit" cur={sort} label="За шкуру, ₽" align="right" />
+                          <SortTh path="/supplier/raw" sp={sp} k="total" cur={sort} label="Сумма, ₽" align="right" />
                           <SortTh path="/supplier/raw" sp={sp} k="doc" cur={sort} label="УПД" />
                           <Th />
                         </Tr></Thead>
                         <Tbody>
-                          {sortRows(lots, sort, { invoice: (r) => r.invoice || r.purchaseNumber, lot: (r) => r.lotNumber, fur: (r) => r.fur, color: (r) => r.color, size: (r) => r.size, qty: (r) => r.quantity, price: (r) => r.unitPrice, doc: (r) => r.doc }).map((r) => (
+                          {sortRows(lots, sort, { invoice: (r) => r.invoice || r.purchaseNumber, lot: (r) => r.lotNumber, fur: (r) => r.fur, color: (r) => r.color, size: (r) => r.size, qty: (r) => r.quantity, price: (r) => r.unitPrice, unit: (r) => lotCalc.get(`${r.purchaseId}|${r.lotNumber}`)?.unit ?? null, total: (r) => lotCalc.get(`${r.purchaseId}|${r.lotNumber}`)?.total ?? null, doc: (r) => r.doc }).map((r) => (
                             <Tr key={r.itemId}>
                               <Td>{r.invoice || r.purchaseNumber}</Td><Td>{r.lotNumber || "—"}</Td><Td>{r.fur}</Td><Td className="max-w-[10rem]"><Clamp>{r.color || "—"}</Clamp></Td><Td className="max-w-[14rem]"><Clamp>{r.size || "—"}</Clamp></Td>
                               <Td className="tabular-nums">{num(r.quantity)}</Td>
                               <Td className="whitespace-nowrap tabular-nums">{money(r.unitPrice)} {cur(r.currency)}</Td>
+                              {(() => { const lc = lotCalc.get(`${r.purchaseId}|${r.lotNumber}`); return <><Td className="whitespace-nowrap tabular-nums">{lc ? money(lc.unit) : "—"}</Td><Td className="whitespace-nowrap tabular-nums">{lc ? money(lc.total) : "—"}</Td></>; })()}
                               <Td className="max-w-[12rem]">{r.doc ? <Clamp>{r.doc}</Clamp> : <span className="text-neutral-500">нет</span>}</Td>
                               <Td>{isSup && <AttachDocument purchaseId={r.purchaseId} itemId={r.itemId} label="Приложить" />}</Td>
                             </Tr>
@@ -206,9 +249,11 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
           return years.map((y) => {
             const ys = entries.map((e, i) => ({ e, i })).filter(({ e }) => yearOf(e[1]) === y);
             const yl = ys.flatMap(({ e }) => e[1].flat());
+            const ycs = [...new Map(yl.flatMap((r) => { const x = calcInfo.get(r.purchaseId); return x ? [[x.id, x] as const] : []; })).values()];
+            const yct = ycs.reduce((a, x) => a + x.total, 0), ycq = ycs.reduce((a, x) => a + x.qty, 0);
             return (
               <section key={y} className="flex flex-col gap-2">
-                <h2 className="flex items-baseline gap-3 border-b border-neutral-200 pb-1 text-base font-semibold">{y}<span className="text-xs font-normal text-neutral-500">аукционов {ys.length} · лотов {yl.length} · шкур {num(yl.reduce((a, r) => a + r.quantity, 0))}</span></h2>
+                <h2 className="flex items-baseline gap-3 border-b border-neutral-200 pb-1 text-base font-semibold">{y}<span className="text-xs font-normal text-neutral-500">аукционов {ys.length} · лотов {yl.length} · шкур {num(yl.reduce((a, r) => a + r.quantity, 0))}{ycs.length > 0 && <> · себестоимость {money(yct)} ₽{ycq > 0 && <> · за шкуру {money(yct / ycq)} ₽</>}</>}</span></h2>
                 {ys.map(({ i }) => cards[i])}
               </section>
             );

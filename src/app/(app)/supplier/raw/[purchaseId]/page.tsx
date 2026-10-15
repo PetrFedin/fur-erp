@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRawViewer } from "@/lib/supplier-inbox";
 import { loadSupplierAuction } from "@/lib/supplier-auction";
 import { calcAll, ensureRowIds } from "@/lib/supplier-calc";
-import { buildStatement, type Statement } from "@/lib/auction-statement";
+import { buildStatement, groupLines, type Statement } from "@/lib/auction-statement";
 import { readSort } from "@/lib/table-sort";
 import { formatDate } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -61,7 +61,7 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
 
   // Лоты: из расчёта (в ₽), если он есть, иначе из закупок (в валюте УПД).
   const lotRows: LotRow[] = st
-    ? st.lots.map((l) => ({ id: l.rowId, invoice: l.invoice, lot: l.lot, fur: l.fur, size: l.size, qty: l.qty, unit: l.unit, total: l.total, cur: "₽" }))
+    ? st.lots.map((l) => ({ id: l.rowId, invoice: l.invoice, lot: l.lot, fur: l.fur, size: l.size, qty: l.qty, unit: l.unit, total: l.total, cur: "₽", parts: Object.fromEntries(groupLines(st.lines).map((g) => [g.key, g.lines.reduce((a, x) => a + (x.perLot[l.index] ?? 0), 0)])) }))
     : items.map((i) => ({ id: i.id, invoice: i.invoice, lot: i.lot, fur: i.fur, size: i.size, qty: i.qty, unit: i.unitPrice, total: i.subtotal, cur: c }));
   const totalQty = lotRows.reduce((a, r) => a + r.qty, 0);
   const totalSum = st ? st.total : lotRows.reduce((a, r) => a + r.total, 0);
@@ -95,6 +95,16 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
     ["Дата", formatDate(p.orderDate)],
     ["Валюта и курс", `${p.currency}${h?.cbRate ? `, курс ЦБ ${h.cbRate}${h.agentPct ? ` + ${h.agentPct}%` : ""}` : p.rate !== 1 ? `, курс ${p.rate}` : ""}`],
     ["Счета", invoices.map((i) => i.invoice || i.number).join(", ")],
+    ...(t && payload ? ([
+      ["Шкур", num(t.qty)],
+      ["Итого", `${money(t.totalRub)} ₽`],
+      ["За шкуру", t.qty ? `${money(t.totalRub / t.qty)} ₽` : ""],
+      ["НДС", payload.header.vat ? `${payload.header.vat}%` : ""],
+      ["Расходы", payload.header.extras.filter((e) => e.name.trim() && e.amount.trim()).map((e) => `${e.name}: ${e.amount} ₽${e.mode === "perHide" ? "/шк." : ""}`).join("; ")],
+      ["Аванс", t.advance > 0 ? `${money(t.advance)} ₽${payload.header.advanceDate ? ` от ${formatDate(new Date(payload.header.advanceDate))}` : ""}` : ""],
+      ["Платёж", t.interim > 0 ? `${money(t.interim)} ₽` : ""],
+      ["Остаток", t.advance > 0 || t.interim > 0 ? `${money(t.rest)} ₽` : ""],
+    ] as [string, React.ReactNode][]) : []),
     ["Принято на склад", `${received} из ${invoices.length} счетов`],
   ];
   // Только булев признак: есть ли у заказчика загруженный документ по оплате счёта (без сумм, дат и файла).
@@ -113,7 +123,7 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
         </div>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
           {facts.filter(([, v]) => v).map(([k, v]) => (
-            <div key={k} className="flex gap-2"><dt className="shrink-0 text-neutral-500">{k}:</dt><dd className="min-w-0 break-words">{k === "Счета" && typeof v === "string" ? <Clamp>{v}</Clamp> : v}</dd></div>
+            <div key={k} className="flex gap-2"><dt className="shrink-0 text-neutral-500">{k}:</dt><dd className="min-w-0 break-words">{(k === "Счета" || k === "Расходы") && typeof v === "string" ? <Clamp>{v}</Clamp> : v}</dd></div>
           ))}
         </dl>
         {nowLine && <p className="text-sm"><b>Сырьё сейчас:</b> {nowLine}</p>}
@@ -133,7 +143,7 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
         {lotRows.length === 0 ? (
           <p className="rounded-md border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">В закупке пока нет лотов.</p>
         ) : (
-          <LotsTable rows={lotRows} path={path} sp={sp} cur={sort} openId={openId} showInvoice={invoices.length > 1 || lotRows.some((r) => r.invoice)} />
+          <LotsTable rows={lotRows} partCols={st && st.detailed ? groupLines(st.lines).map((g) => ({ key: g.key, title: g.title })) : []} path={path} sp={sp} cur={sort} openId={openId} showInvoice={invoices.length > 1 || lotRows.some((r) => r.invoice)} />
         )}
         {panel}
       </section>

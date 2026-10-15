@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 import { Clamp } from "@/components/clamp";
 import Link from "next/link";
-import { Table, Thead, Tbody, Tr, Td } from "@/components/ui/table";
+import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { SortTh } from "@/components/sort-th";
 import { groupLines, type Statement } from "@/lib/auction-statement";
 import { sortRows, type SortParams, type SortState } from "@/lib/table-sort";
+import { formatNum } from "@/lib/utils";
 
-const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const num = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 3 });
+const money = (n: number) => formatNum(n, 1);
+const num = (n: number) => formatNum(n, 10);
 
 /**
  * «За что заплачено»: выдержка из расчёта аукциона. Статьи по группам с суммами в ₽ (и в $ там, где столбец в долларах),
@@ -80,11 +81,12 @@ function GroupRows({ title, sub, lines, many }: { title: string; sub: number; li
   );
 }
 
-export type LotRow = { id: string; invoice: string; lot: string; fur: string; size: string; qty: number; unit: number; total: number; cur: string };
+export type PartCol = { key: string; title: string };
+export type LotRow = { id: string; invoice: string; lot: string; fur: string; size: string; qty: number; unit: number; total: number; cur: string; /** суммы по группам статей на весь лот */ parts?: Record<string, number> };
 
 /** Таблица лотов с сортировкой по заголовкам; номер лота открывает «из чего сложилась цена» (?lot=…). */
-export function LotsTable({ rows, path, sp, cur, openId, showInvoice = true, totalLabel = "Итого" }: {
-  rows: LotRow[]; path: string; sp: SortParams; cur: SortState | null; openId?: string; showInvoice?: boolean; totalLabel?: string;
+export function LotsTable({ rows, partCols = [], path, sp, cur, openId, showInvoice = true, totalLabel = "Итого" }: {
+  rows: LotRow[]; partCols?: PartCol[]; path: string; sp: SortParams; cur: SortState | null; openId?: string; showInvoice?: boolean; totalLabel?: string;
 }) {
   const sorted = sortRows(rows, cur, {
     invoice: (r) => r.invoice, lot: (r) => r.lot, fur: (r) => r.fur, size: (r) => r.size, qty: (r) => r.qty, unit: (r) => r.unit, total: (r) => r.total,
@@ -99,12 +101,13 @@ export function LotsTable({ rows, path, sp, cur, openId, showInvoice = true, tot
     return `${path}${s ? `?${s}` : ""}#lots`;
   };
   return (
-    <Table className="min-w-[640px]">
+    <Table className={partCols.length ? "min-w-[900px]" : "min-w-[640px]"}>
       <Thead>
         <Tr>
           {showInvoice && th("invoice", "Счёт")}
           {th("lot", "Лот")}{th("fur", "Мех")}{th("size", "Размер, сорт")}
           {th("qty", "Шкур", "right")}{th("unit", `За шкуру, ${c}`, "right")}{th("total", `Сумма, ${c}`, "right")}
+          {partCols.map((g) => <Th key={g.key} className="text-right">{g.title}</Th>)}
         </Tr>
       </Thead>
       <Tbody>
@@ -114,6 +117,7 @@ export function LotsTable({ rows, path, sp, cur, openId, showInvoice = true, tot
             <Td><Link href={lotHref(r.id)} scroll={false} aria-expanded={openId === r.id} className="inline-flex min-h-11 items-center font-medium text-blue-700 underline md:min-h-0">{r.lot || "без №"}</Link></Td>
             <Td>{r.fur}</Td><Td className="max-w-[14rem]"><Clamp>{r.size || "—"}</Clamp></Td>
             <Td className="text-right tabular-nums">{num(r.qty)}</Td><Td className="text-right tabular-nums">{money(r.unit)}</Td><Td className="text-right tabular-nums">{money(r.total)}</Td>
+            {partCols.map((g) => <Td key={g.key} className="text-right tabular-nums">{r.parts ? money(r.parts[g.key] ?? 0) : "—"}</Td>)}
           </Tr>
         ))}
         {rows.length > 1 && (
@@ -121,6 +125,7 @@ export function LotsTable({ rows, path, sp, cur, openId, showInvoice = true, tot
             <Td colSpan={showInvoice ? 4 : 3}>{totalLabel}</Td>
             <Td className="text-right tabular-nums">{num(rows.reduce((a, r) => a + r.qty, 0))}</Td><Td />
             <Td className="text-right tabular-nums">{money(rows.reduce((a, r) => a + r.total, 0))}</Td>
+            {partCols.map((g) => <Td key={g.key} className="text-right tabular-nums">{money(rows.reduce((a, r) => a + (r.parts?.[g.key] ?? 0), 0))}</Td>)}
           </Tr>
         )}
       </Tbody>

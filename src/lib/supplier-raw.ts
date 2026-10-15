@@ -90,3 +90,16 @@ export async function supplierRawRows(orgId: string, supplierId: string): Promis
     };
   });
 }
+
+/** Принятые расчёты аукционов поставщика, из которых созданы закупки (те же, что на странице аукциона). */
+export async function supplierAcceptedCalcs(orgId: string, supplierId: string, purchaseIds: string[]) {
+  if (purchaseIds.length === 0) return [];
+  const rows = await prisma.supplierInbox.findMany({
+    where: { organizationId: orgId, supplierId, kind: "AUCTION_CALC", status: "ACCEPTED", createdEntityType: "Purchase" },
+    orderBy: { decidedAt: "desc" },
+    select: { id: true, createdEntityId: true, payload: true },
+  });
+  return rows
+    .map((r) => ({ id: r.id, purchaseIds: purchaseIds.filter((id) => (r.createdEntityId ?? "").includes(id)), payload: r.payload as unknown as import("@/lib/supplier-calc").CalcPayload }))
+    .filter((r) => r.purchaseIds.length > 0 && r.payload?.v === 1 && Array.isArray(r.payload.rows));
+}
