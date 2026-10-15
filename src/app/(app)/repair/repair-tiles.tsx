@@ -25,7 +25,7 @@ export function RepairTiles({ orders, c4, filtered = false }: { orders: DrillOrd
       <a href="#orders-tree" aria-label="Ремонт — перейти к составу ТЗ" className={TILE_BOX + " w-full shadow-sm tile-click print:shadow-none"}>
         <TileHead>Ремонт</TileHead>
         <TileValue>{s.repairOrders} ТЗ</TileValue>
-        <TileCaption>{formatQty(s.repairQty)} шт. · не входят в «В выпуске»</TileCaption>
+        <TileCaption>{formatQty(s.repairQty)} шт.</TileCaption>
         <TileList items={[{ k: "Штук", v: formatQty(s.repairQty) }, { k: "Работа на штуку", v: s.repairQty > 0 ? money(s.work / s.repairQty) : "—" }]} />
       </a>
         <div className="absolute right-3 top-3">

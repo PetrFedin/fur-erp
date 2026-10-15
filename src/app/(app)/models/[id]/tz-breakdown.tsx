@@ -80,7 +80,7 @@ export function TzBreakdown({ orders, meta, latestId, c4 }: { orders: DrillOrder
                 </tr>
               ))}
               <tr className="row-total">
-                <th scope="row" className="py-2 pl-1.5 pr-3 text-left"><span>Всего, ₽</span><span className="block text-[11px] font-normal leading-4 opacity-80">сумма статей = итог таблицы ниже</span></th>
+                <th scope="row" className="py-2 pl-1.5 pr-3 text-left"><span>Всего, ₽</span></th>
                 <td className="py-2 pr-1.5 text-right align-top tabular-nums">{money(T.total)}</td>
               </tr>
             </tbody>
@@ -192,7 +192,6 @@ export function TzBreakdown({ orders, meta, latestId, c4 }: { orders: DrillOrder
               </tfoot>
             </table>
           </div>
-          <p className="mt-2 text-xs text-neutral-600">Итого — сумма строк. На изделие — итого ÷ {formatQty(T.qty)} изд.</p>
         </CardContent>
       </Card>
     </div>

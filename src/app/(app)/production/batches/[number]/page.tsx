@@ -204,12 +204,12 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
         extra={
           <div className="relative">
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-              <TileHead>Работа подрядчику</TileHead>
+              <TileHead>К оплате</TileHead>
               <TileValue className={t.remaining.greaterThan(1) ? "text-amber-700" : ""}>{t.remaining.abs().lessThan(1) ? "—" : mny(Math.abs(Number(t.remaining)))}</TileValue>
-              <TileCaption>{overpaid ? "оплачено сверх работы" : "К оплате по партиям: работа − оплачено"}</TileCaption>
+              <TileCaption>{overpaid ? "оплачено сверх работы" : "работа − оплачено"}</TileCaption>
               <TileList items={[
-                { k: "Работа подрядчику", v: mny(workN) },
-                { k: "Оплачено (разнесено на партии)", v: mny(paidN), share: workN ? paidN / workN : null },
+                { k: "Работа", v: mny(workN) },
+                { k: "Оплачено", v: mny(paidN), share: workN ? paidN / workN : null },
               ]} />
             </div>
             <div className="absolute right-3 top-3">
@@ -259,7 +259,7 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
                 <Th {...oth("qty")} unit="шт.">Кол-во</Th>
                 <Th {...oth("cost")} className="hidden sm:table-cell" after={<>
                   <InfoHint label="Чем отличается от полной себестоимости">Мех + подкладка + расходы ТЗ (и 4 % в режиме «С 4%») — без работы подрядчика. В дереве ниже «Полная себестоимость (с работой)» = эта сумма + работа.</InfoHint>
-                  <InfoHint label="Что значит 4%" wide>4% — наценка при купле-продаже меха и подкладки подрядчику (не комиссия Веллмеха; его вознаграждение 4,5% за сопровождение закупки сырья — отдельно, в расходах закупки): в ТЗ мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются. Столбец «НДС» — ставки НДС лотов в списаниях ТЗ. «Оплачено» — разнесено на это ТЗ из оплат за работу; «Остаток» — работа минус оплачено.</InfoHint>
+                  <InfoHint label="Что значит 4%" wide>4% — наценка подрядчику на мех и подкладку в ТЗ. Не комиссия Веллмеха (его 4,5% за закупку сырья — отдельно). Работа, расходы и фурнитура не облагаются. Столбец «НДС» — ставки НДС лотов в списаниях ТЗ. «Оплачено» — разнесено на это ТЗ из оплат за работу; «Остаток» — работа минус оплачено.</InfoHint>
                 </>}>
                   Себестоимость сырья, ₽{t.c4Applies ? c4Suffix(c4Mode) : ""}
                 </Th>

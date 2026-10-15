@@ -196,13 +196,13 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
             id="shipments"
             title="Отгрузки — итоги"
             tiles={[
-              { key: "in", label: "К отгрузке, шт.", value: sum.inS ? formatQty(sum.inS) : <Dash />, caption: `${formatQty(rows.length)} ${plural(rows.length, "отгрузка", "отгрузки", "отгрузок")} · в отгрузках ${formatQty(sum.all)} шт.${hasFilters ? " · по фильтрам" : ""}` },
+              { key: "in", label: "К отгрузке, шт.", value: sum.inS ? formatQty(sum.inS) : <Dash />, caption: `${formatQty(rows.length)} ${plural(rows.length, "отгрузка", "отгрузки", "отгрузок")}${hasFilters ? " · по фильтрам" : ""}` },
               { key: "acc", label: "Принято, шт.", value: sum.acc ? formatQty(sum.acc) : <Dash />, caption: share(sum.acc, sum.inS, "от «К отгрузке»"), hint: <p>Сумма колонки «Принято» в составе отгрузок.</p> },
               {
                 key: "ret",
                 label: "Не принято, шт.",
                 value: sum.inS ? formatQty(sum.ret) : <Dash />,
-                caption: sum.inS ? [share(sum.ret, sum.inS, ""), `ещё ждёт приёмки: ${formatQty(sum.rem)} шт.`].filter(Boolean).join(" · ") : undefined,
+                caption: sum.inS ? [share(sum.ret, sum.inS, ""), `ждёт приёмки ${formatQty(sum.rem)} шт.`].filter(Boolean).join(" · ") : undefined,
                 hint: <p>Сумма колонки «Возврат» (возвращено поставщику / не принято). «Ещё ждёт приёмки» — в отгрузке минус принято и минус возврат по каждой строке.</p>,
               },
             ]}

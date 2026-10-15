@@ -14,6 +14,7 @@ import { defineFilters, parseFilters, pick, splitNone } from "@/lib/filters";
 import { escapeLike } from "@/lib/input";
 import { loadMaterialVat } from "@/lib/material-vat-server";
 import { MaterialVatCell } from "@/components/material-vat-cell";
+import { InfoHint } from "@/components/info-hint";
 import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "../dashboard/tile";
 
@@ -97,17 +98,17 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
           <div className={TILE_BOX}>
             <TileHead>Материалов</TileHead>
             <TileValue>{materials.length}</TileValue>
-            <TileCaption>по текущим фильтрам</TileCaption>
+            
           </div>
           <div className={TILE_BOX}>
             <TileHead>Мех</TileHead>
             <TileValue>{materials.filter((m) => m.unit !== "M").length}</TileValue>
-            <TileCaption>позиций справочника</TileCaption>
+            
           </div>
           <div className={TILE_BOX}>
             <TileHead>Подкладка</TileHead>
             <TileValue>{materials.filter((m) => m.unit === "M").length}</TileValue>
-            <TileCaption>тканей, в метрах</TileCaption>
+            
           </div>
         </div>
       </WidgetRow>
@@ -120,7 +121,7 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
             {showCategory && <Th {...th("category")}>Категория</Th>}
             <Th {...th("unit")}>Ед. изм.</Th>
             {showMin && <Th {...th("min")}>Мин. остаток</Th>}
-            <Th>НДС в ТЗ</Th>
+            <Th>НДС в ТЗ <InfoHint label="НДС в ТЗ">Если у материала задана ставка — она. Иначе в ТЗ берётся ставка лота, из которого списано.</InfoHint></Th>
           </Tr>
         </Thead>
         <Tbody>

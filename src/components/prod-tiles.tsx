@@ -34,7 +34,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
   const producedTotal = (
     <>
       <TileValue>{formatQty(own.qty)} шт.</TileValue>
-      <TileCaption>{tzCountText(own.orders, own.items)} · состав ниже →{all.repairOrders > 0 ? ` · ремонт ${all.repairOrders} ТЗ отдельно` : ""}</TileCaption>
+      <TileCaption>{tzCountText(own.orders, own.items)}{all.repairOrders > 0 ? ` · ремонт ${all.repairOrders} ТЗ отдельно` : ""}</TileCaption>
       <TileList items={Array.from(years, ([k, q]) => ({ k, v: `${formatQty(q)} шт.`, share: share(q, own.qty) }))} />
     </>
   );

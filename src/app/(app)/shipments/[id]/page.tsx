@@ -258,7 +258,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             key: "ret",
             label: "Не принято, ед.",
             value: formatQty(totals.returned),
-            caption: [sharePct(totals.returned), `ещё ждёт приёмки: ${formatQty(totals.remaining)} ед.`].filter(Boolean).join(" · "),
+            caption: [sharePct(totals.returned), `ждёт приёмки ${formatQty(totals.remaining)} ед.`].filter(Boolean).join(" · "),
             hint: <p>Сумма колонки «Возврат»: возвращено поставщику / не принято. «Ещё ждёт приёмки» — по каждой строке: в отгрузке минус принято и минус возврат, не меньше нуля.</p>,
           },
         ]}
@@ -484,7 +484,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         )}
       </section>
 
-      <p className="text-xs text-neutral-500">Отгрузка — журнал пути партии: она ничего не списывает и не меняет остатки и себестоимость.</p>
+      <p className="text-xs text-neutral-500">Журнал пути партии: ничего не списывает и не меняет остатки.</p>
     </div>
   );
 }

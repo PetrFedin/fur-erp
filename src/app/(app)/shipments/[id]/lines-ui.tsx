@@ -704,7 +704,7 @@ export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, 
       <div className={open ? "flex flex-col gap-2" : "hidden"}>
         {!event && !closed && <p className="text-sm text-neutral-700" data-accept-none>Приёмка в Коптево не создана{canEdit ? " — добавьте ожидаемый этап, потом по нему закрывается приёмка." : "."}</p>}
         {closed && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900" data-accept-closed>Приёмка закрыта {closed}</p>}
-        <p className="text-xs text-neutral-600">На приёмку идёт {rowsText(ready.length)} / {formatQty(qtyReady)} шт.{notIn ? `; ${notIn} — не в списке` : ""}.</p>
+        <p className="text-xs text-neutral-600">На приёмке {rowsText(ready.length)} · {formatQty(qtyReady)} шт.{notIn ? ` · ${notIn} не в списке` : ""}</p>
         {editable && panel}
         {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         {ready.length === 0 && <p className="text-sm text-neutral-600" data-accept-empty>Список пуст: сюда попадают изделия, принятые на примерке («Принято» в блоке «Примерка»), и артикулы, добавленные кнопкой «+ Добавить артикул».</p>}

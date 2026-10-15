@@ -32,7 +32,7 @@ export function GroupProducedSlide({ all, grp, vat, loading, link, compact }: { 
   return (
     <>
       <TileValue>{formatQty(s.qty)} шт.</TileValue>
-      <TileCaption>{compact ? `${s.orders} ТЗ` : tzCountText(s.orders, s.items)} · {pctText(s.qty, t.qty)} от всего{link ? " · состав ниже →" : ""}</TileCaption>
+      <TileCaption>{compact ? `${s.orders} ТЗ` : tzCountText(s.orders, s.items)} · {pctText(s.qty, t.qty)} от всего</TileCaption>
       <TileList items={Array.from(years, ([k, q]) => ({ k, v: `${formatQty(q)} шт.`, share: share(q, s.qty) }))} />
     </>
   );

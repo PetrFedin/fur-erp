@@ -18,9 +18,6 @@ export function MaterialVatCell({ s }: { s: MaterialVatSummary }) {
           ))}
         </span>
       )}
-      <span className="block text-[11px] leading-tight text-neutral-500">
-        {s.defaultRate != null ? "задана у материала" : s.groups.length ? "в ТЗ — ставка лота, на который списано" : "ставка лота / по дате закупки"}
-      </span>
       {s.groups.length > 0 && s.defaultRate != null && (
         <span className="block text-[11px] leading-tight text-neutral-400">лоты: {s.groups.map((g) => `${g.rate}% ×${g.lots}`).join(", ")}</span>
       )}
