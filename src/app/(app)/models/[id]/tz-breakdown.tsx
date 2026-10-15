@@ -21,7 +21,7 @@ const qty = (v: number, unit: string) => (v > 0 ? `${formatQty(Math.round(v * 10
  * Показатели артикула сверху вниз к итогу: 1) всего по артикулу по статьям, 2) таблица по ТЗ (статьи столбцами в одном порядке),
  * 3) итог и среднее на изделие внизу таблицы. Все цифры — из одних и тех же ТЗ, что плитки сверху; итог строго равен сумме строк.
  */
-export function TzBreakdown({ orders, meta, latestId, c4 }: { orders: DrillOrder[]; meta: Record<string, TzMeta>; latestId: string | null; c4: "on" | "off" }) {
+export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: { orders: DrillOrder[]; meta: Record<string, TzMeta>; latestId: string | null; c4: "on" | "off"; profile?: React.ReactNode; furSizes?: string }) {
   const { mode: vat } = useVatDisplay();
   const t = useMemo(() => buildTzTable(orders, vat), [orders, vat]);
   const T = t.total;
@@ -38,6 +38,7 @@ export function TzBreakdown({ orders, meta, latestId, c4 }: { orders: DrillOrder
   const totalsRows: { label: string; src: string; value: React.ReactNode; strong?: boolean }[] = [
     { label: "Изделий", src: "по всем ТЗ артикула", value: qty(T.qty, "шт.") },
     { label: "Шкур меха", src: "списано по лотам", value: qty(T.furQ, "шк.") },
+    ...(furSizes ? [{ label: "Размер шкур", src: "из лотов, откуда списан мех", value: <span className="text-neutral-700">{furSizes}</span> }] : []),
     { label: "Мех", src: "списания меха и шкуры подрядчика", value: money(T.fur) },
     ...(showLining ? [
       { label: "Подкладка, м", src: "списано по лотам", value: qty(T.liningQ, "м") },
@@ -54,6 +55,8 @@ export function TzBreakdown({ orders, meta, latestId, c4 }: { orders: DrillOrder
 
   return (
     <div className="flex flex-col gap-4">
+      <div className={profile ? "grid items-start gap-4 lg:grid-cols-2" : ""}>
+        {profile}
       <Card>
         <CardHeader>
           <CardTitle as="h2" className="flex items-center gap-1">
@@ -86,6 +89,7 @@ export function TzBreakdown({ orders, meta, latestId, c4 }: { orders: DrillOrder
           </table>
         </CardContent>
       </Card>
+      </div>
 
       <Card id="model-tz" className="scroll-mt-4">
         <CardHeader>

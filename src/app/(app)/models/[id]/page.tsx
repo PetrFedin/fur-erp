@@ -12,7 +12,7 @@ import { RecordHistory } from "@/components/record-history";
 import { RecordComments } from "@/components/comments/record-comments";
 import { TzProfile, hasTzProfile } from "./tz-profile";
 import { TzBreakdown, type TzMeta } from "./tz-breakdown";
-import { SizeChart, NO_SIZE, sortSizes, type SizeRow } from "./size-chart";
+import { NO_SIZE, sortSizes, type SizeRow } from "./size-chart";
 import { WeightedTile } from "./weighted-tile";
 import { ArticleParams } from "./article-params";
 import { loadAllArticleParams, STANDARD_PARAM_NAMES } from "@/lib/article-params";
@@ -24,7 +24,7 @@ import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { deleteArticle } from "@/app/(app)/settings/articles-ref/actions";
 import { articleDeleteBlocker } from "@/lib/article-save";
 import { saveArticleForm } from "../actions";
-import { formatMoney, formatDate } from "@/lib/utils";
+import { formatMoney, formatDate, formatQty } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { orderLabel, truncate } from "@/lib/fittings";
 import { summarizeLines } from "@/lib/shipments";
@@ -279,20 +279,18 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         </div>
       </CollapsibleBlock>
 
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <TzProfile code={model.name} />
-        {sizeRows.length > 0 || met.qty > 0 ? <div className={hasTzProfile(model.name) ? "" : "lg:col-span-2"}><SizeChart rows={sizeRows} /></div> : null}
-      </div>
-
       {met.qty === 0 ? (
-        <Card>
-          <CardHeader><CardTitle as="h2">Показатели по ТЗ всего</CardTitle></CardHeader>
-          <CardContent className="text-sm text-neutral-600">
-            По артикулу ещё нет ТЗ{year === "all" ? "" : ` за ${year} год`} — показатели появятся после первого ТЗ. {canEditProduction(session.user.role) && model.isActive ? <Link href={newTzHref} className="text-blue-700 hover:underline">Создать ТЗ →</Link> : null}
-          </CardContent>
-        </Card>
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          <TzProfile code={model.name} />
+          <Card>
+            <CardHeader><CardTitle as="h2">Показатели по ТЗ всего</CardTitle></CardHeader>
+            <CardContent className="text-sm text-neutral-600">
+              По артикулу ещё нет ТЗ{year === "all" ? "" : ` за ${year} год`} — показатели появятся после первого ТЗ. {canEditProduction(session.user.role) && model.isActive ? <Link href={newTzHref} className="text-blue-700 hover:underline">Создать ТЗ →</Link> : null}
+            </CardContent>
+          </Card>
+        </div>
       ) : (
-        <TzBreakdown orders={slimForTiles(drill)} meta={tzMeta} latestId={latestId} c4={c4} />
+        <TzBreakdown orders={slimForTiles(drill)} meta={tzMeta} latestId={latestId} c4={c4} profile={hasTzProfile(model.name) ? <TzProfile code={model.name} /> : null} furSizes={sizeRows.map((r) => (sizeRows.length > 1 ? `${r.size}: ${formatQty(r.q)}` : r.size)).join("; ")} />
       )}
 
       <CollapsibleBlock title="Состав ТЗ по лотам и закупкам" summary={`${drill.length} ТЗ`} autoOpen={false}>
