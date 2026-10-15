@@ -117,8 +117,8 @@ export async function loadPipeline(orgId: string, year: YearFilter, today: strin
       if (sh > 0) units.shipped = sh;
       if (d.qty - sh > 0) units.ready = d.qty - sh;
       stage = sh >= d.qty && d.qty > 0 ? "shipped" : "ready";
-      stageWord = sh >= d.qty && d.qty > 0 ? "отгружено" : sh > 0 ? `отгружено ${sh} из ${d.qty}` : "готово";
-    } else if (d.st === "IN_PROGRESS") { stage = "work"; stageWord = "в работе"; units.work = d.qty; }
+      stageWord = sh >= d.qty && d.qty > 0 ? "отгружено" : sh > 0 ? `отгружено ${sh} из ${d.qty}` : "на складе";
+    } else if (d.st === "IN_PROGRESS") { stage = "work"; stageWord = "ТЗ"; units.work = d.qty; }
     else if (raw.length > 0) { stage = "raw"; stageWord = "сырьё есть"; units.raw = d.qty; }
     else { stage = "plan"; stageWord = "план"; units.plan = d.qty; }
 

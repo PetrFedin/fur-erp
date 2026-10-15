@@ -110,7 +110,7 @@ export function PipeCard({ p, closeHref, eventHref }: { p: PipeItem; closeHref: 
 }
 
 
-/** Крупные подписи стадий словами: «Отгружено 30», «В работе 7»; нули не показываем. */
+/** Крупные подписи стадий словами: «Отгружено 30», «ТЗ 7»; нули не показываем. */
 export function StageChips({ s, withRepair = true, size = "md" }: { s: StageSums; withRepair?: boolean; size?: "sm" | "md" }) {
   const parts = STAGE_ORDER.filter((k) => s[k] > 0 && (withRepair || k !== "repair"));
   if (parts.length === 0) return <span className="text-sm text-neutral-400">нет изделий</span>;

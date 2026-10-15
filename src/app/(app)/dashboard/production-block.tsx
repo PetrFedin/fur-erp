@@ -16,8 +16,7 @@ import { BridgeHint, type ModeInfo } from "./mode-line";
 import { formatCompactMoney } from "./compact";
 import { VatLine, vatEntries } from "./vat-line";
 import type { VatByRate } from "@/lib/dashboard-data";
-import { outputSplit } from "@/lib/orders-sum";
-import { COST_FULL_LABEL, OUTPUT_LABEL, outputHint } from "@/lib/cost-labels";
+import { COST_FULL_LABEL, OUTPUT_LABEL } from "@/lib/cost-labels";
 
 export type ProdNums = { items: number; repairOrders: number; repairQty: number; repairCostIncl: number; repairCostExcl: number; orders: number; qty: number; costIncl: number; costExcl: number; work: number; furIncl: number; furExcl: number; liningIncl: number; liningExcl: number; matIncl: number; matExcl: number; c4Incl: number; c4Excl: number };
 export type ProdBridge = { usedBase: { incl: number; excl: number }; comparable: boolean; lotFilters: boolean; yearOnly: boolean };
@@ -31,8 +30,7 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
   const [open, setOpen] = useState<null | "done" | "work" | "all">(null);
   const { data: drill } = useDrill(search);
   const drillOrders = drill?.orders ?? [];
-  const split = outputSplit(drillOrders);
-  // Отметка «завершён» не ведётся строго, поэтому себестоимость — факт списания по всем ТЗ (завершённые + в работе).
+  // Себестоимость — факт списания по всем ТЗ.
   const fact = { ...addNums(done, work), orders: all.orders, items: all.items, repairOrders: all.repairOrders };
   const cost = (n: ProdNums) => (vat === "incl" ? n.costIncl : n.costExcl);
   const repairCost = vat === "incl" ? fact.repairCostIncl : fact.repairCostExcl;
@@ -66,8 +64,7 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
         <TileCarousel clickable hoverBlocks title={OUTPUT_LABEL} hintLabel="Что такое «в выпуске»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
-            <p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ (завершённые и в работе): учитывается фактическое списание сырья, отметка «Завершён» не важна. Ремонт в штуки не входит — он считается отдельно (страница «Ремонт»). ТЗ без списаний и в плане входят плановым количеством.</p>
-            {drill ? <p className="mt-1">{outputHint(split.done, split.inWork, formatQty)}</p> : null}
+            <p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ: учитывается фактическое списание сырья. Ремонт в штуки не входит — он считается отдельно (страница «Ремонт»). ТЗ без списаний и в плане входят плановым количеством.</p>
             <p className="mt-1">Так же считаются себестоимость, таблица ниже и окно состава. «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают «Всего»). Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p>
           </>}
           slides={[
@@ -91,7 +88,7 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
           ]} />
         <TileCarousel clickable hoverBlocks title={COST_FULL_LABEL} hintLabel="Что такое полная себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
-            <p>Факт по всем ТЗ: сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Вся сумма = мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Себестоимость сырья» (без работы): <b>{money(cost(fact))}</b>. Считается по факту списания меха и подкладки во всех ТЗ (завершённых и в работе) — отметка «завершён» не важна.</p>
+            <p>Факт по всем ТЗ: сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Вся сумма = мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Себестоимость сырья» (без работы): <b>{money(cost(fact))}</b>. Считается по факту списания меха и подкладки во всех ТЗ.</p>
             <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "—"}</b>. Режимы: {vatW}, {c4W}.</p>
             <p className="mt-1">«Всего» включает ремонт; «Одежда» и «Аксессуары» — только изделия группы. Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p>
           </>}
@@ -130,7 +127,7 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
           workTotal={active.work}
           search={search}
           totals={{ costIncl: active.costIncl + (open === "all" ? hides.incl : 0), costExcl: active.costExcl + (open === "all" ? hides.excl : 0), qty: active.qty, orders: active.orders }}
-          title={open === "done" ? `В выпуске ${formatQty(fact.qty)} шт. на ${money(cost(done))}` : open === "all" ? `В выпуске ${formatQty(fact.qty)} шт. · полная себестоимость ${money(total)}` : `В работе ${formatQty(work.qty)} шт., списано ${money(cost(work))}`}
+          title={open === "done" ? `В выпуске ${formatQty(fact.qty)} шт.` : open === "all" ? `В выпуске ${formatQty(fact.qty)} шт. · полная себестоимость ${money(total)}` : `В выпуске ${formatQty(work.qty)} шт.`}
           onClose={() => setOpen(null)}
         />
       ) : null}

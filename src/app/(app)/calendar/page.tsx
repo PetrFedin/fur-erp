@@ -358,7 +358,6 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           controls={mode !== "detail" ? [
             { type: "multi", name: "grp", label: "Группа", options: [...CATEGORY_GROUPS, NO_GROUP].map((g) => ({ value: g, label: g })), allLabel: "Все группы" },
             { type: "multi", name: "fur", label: "Вид меха", options: furOptions.map((f) => ({ value: f, label: f })), allLabel: "Все виды меха" },
-            { type: "multi", name: "stage", label: "Статус", options: STAGE_ORDER.map((k) => ({ value: k, label: STAGE_STYLES[k].label })), allLabel: "Все статусы" },
           ] : [
             { type: "multi", name: "season", label: "Сезон", options: seasons.map((x) => ({ value: x.code, label: x.code })), noneLabel: "Без сезона", allLabel: "Все сезоны" },
             { type: "multi", name: "action", label: "Действие", options: CALENDAR_ACTIONS.map((a) => ({ value: a.label, label: a.label })), allLabel: "Все действия" },

@@ -25,7 +25,7 @@ import { defaultCommission4 } from "@/lib/commission4-const";
 import { ProductionExpenseForm } from "./expense-form";
 import { ORDER_COLORS_INCLUDE, formatOrderColors, orderColors } from "@/lib/order-colors";
 import { batchLabel } from "@/lib/batch-label";
-import { ApplyBomButton, CancelOrderButton } from "./order-actions";
+import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
 import { UsageRow } from "./usage-row";
 import { lotOptionLabel } from "./lot-label";
 import { CollapsibleRows } from "./collapsible-rows";
@@ -421,6 +421,17 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <a href={`/api/production/${id}/docx`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ, собранная системой из данных ТЗ (не присланный Word)">
                 Печатная форма .docx
               </a>
+              {open && canEdit && (
+                <div className="border-t border-neutral-100 pt-2">
+                  <CompleteOrderForm
+                    orderId={id}
+                    tzLabel={orderLabel({ workOrderNumber: order.workOrderNumber, number: order.number })}
+                    hasUsages={order.materialUsages.length > 0}
+                    plannedQuantity={order.plannedQuantity.toString()}
+                    costs={{ material: furOn.incl.add(liningOn.incl).sub(furOn.extraIncl).sub(liningOn.extraIncl).toFixed(2), extra4: furOn.extraIncl.add(liningOn.extraIncl).toFixed(2), expenses: expenseCost.toFixed(2), workPerUnit: order.clientWorkPricePerUnit?.toString() ?? "" }}
+                  />
+                </div>
+              )}
               {open && canEdit && (
                 <div className="border-t border-neutral-100 pt-2">
                   <CancelOrderButton orderId={id} blockedReason={cancelBlockedReason} />

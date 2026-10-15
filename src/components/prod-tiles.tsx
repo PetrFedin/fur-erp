@@ -6,8 +6,8 @@ import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import type { DrillOrder } from "@/lib/dashboard-drill";
-import { outputSplit, sumOrders, sumTotal } from "@/lib/orders-sum";
-import { COST_FULL_LABEL, OUTPUT_LABEL, outputHint } from "@/lib/cost-labels";
+import { sumOrders, sumTotal } from "@/lib/orders-sum";
+import { COST_FULL_LABEL, OUTPUT_LABEL } from "@/lib/cost-labels";
 import { TileCarousel } from "@/components/tile-carousel";
 import { GroupCostSlide, GroupProducedSlide, PROD_GROUPS } from "@/components/prod-group-slides";
 import { WidgetRow } from "@/components/widget-row";
@@ -25,7 +25,6 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
   const all = sumOrders(orders, vat);
   const own = sumOrders(orders.filter((o) => o.cat !== "Ремонт"), vat);
   const total = sumTotal(all);
-  const split = outputSplit(orders);
   const totalOwn = sumTotal(own);
   const years = new Map<string, number>();
   for (const o of orders) if (o.cat !== "Ремонт") { const k = o.y == null ? "Без года" : String(o.y); years.set(k, (years.get(k) ?? 0) + o.qty); }
@@ -62,7 +61,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
     <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (["xl:grid-cols-1", "xl:grid-cols-2", "xl:grid-cols-3", "xl:grid-cols-4", "xl:grid-cols-5"][Math.min(4, (hideProduced ? 0 : 1) + 1 + (hidePerUnit ? 0 : 1) + extraCount - 1)])}>
       {hideProduced ? null : carousel ? (
         <TileCarousel clickable hoverBlocks title={OUTPUT_LABEL} hintLabel="Что такое «в выпуске»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
-          hint={<><p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ без отменённых и без ремонта: завершённые и в работе. {outputHint(split.done, split.inWork, formatQty)} «Всего» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают «Всего» без ремонта). Ремонт — только в «Всего» и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
+          hint={<><p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ без отменённых и без ремонта. «Всего» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают «Всего» без ремонта). Ремонт — только в «Всего» и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
           slides={[
             { key: "total", label: "Всего", body: <a href={`#${treeId}`} className={slideLink} aria-label="В выпуске — перейти к составу">{producedTotal}</a> },
             ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: <a href={`#${treeId}`} className={slideLink} aria-label={`В выпуске: ${g} — перейти к составу`}><GroupProducedSlide all={orders} grp={g} vat={vat} link /></a> })),
@@ -75,7 +74,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
         </a>
         <div className="absolute right-3 top-3">
           <InfoHint label="Что такое «в выпуске»" wide align="right">
-            <p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ без отменённых и без ремонта: завершённые и в работе (как на Главной). {outputHint(split.done, split.inWork, formatQty)} Ремонт считается отдельно (страница «Ремонт»).</p>
+            <p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ без отменённых и без ремонта (как на Главной). Ремонт считается отдельно (страница «Ремонт»).</p>
           </InfoHint>
         </div>
       </div>
