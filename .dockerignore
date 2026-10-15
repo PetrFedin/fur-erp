@@ -4,3 +4,30 @@ node_modules
 .env
 .env.local
 npm-debug.log*
+
+# Данные и секреты: в образ не попадают никогда
+**/.env*
+!.env.example
+docs-inventory
+uploads
+.claude
+Backups
+backups
+/*.txt
+*.log
+*.tgz
+*.tar.gz
+*.sql
+*.sql.gz
+*.pem
+*.key
+# Служебное
+.next*
+.vercel
+.DS_Store
+tsconfig.tsbuildinfo
+test-results
+playwright-report
+# Документация и рабочие выгрузки не нужны для сборки
+docs
+node_modules
