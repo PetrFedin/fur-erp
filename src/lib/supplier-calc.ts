@@ -366,7 +366,7 @@ export function paramList(p: CalcPayload): { name: string; label: string; own: b
 export const colLetterOf = colLetter;
 const LETTERS = /^[A-Za-z]{1,3}$/;
 
-const matchRule = (r: ColRule, rowNo: number, raw: CalcRow): boolean => {
+export const matchRule = (r: ColRule, rowNo: number, raw: CalcRow): boolean => {
   if (r.rowFrom !== undefined && Number.isFinite(r.rowFrom) && rowNo < r.rowFrom) return false;
   if (r.rowTo !== undefined && Number.isFinite(r.rowTo) && rowNo > r.rowTo) return false;
   if (r.whenCol) {

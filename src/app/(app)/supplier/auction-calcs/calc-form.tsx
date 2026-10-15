@@ -78,6 +78,18 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
     run(() => attachInboxFile(id, fileKind, fd), "Файл прикреплён", () => { router.refresh(); if (attachRef.current) attachRef.current.value = ""; });
   };
 
+  const downloadXlsx = () =>
+    start(async () => {
+      const res = await fetch(`/api/supplier/auction-calcs/${id ?? "new"}/xlsx`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(out()) });
+      if (!res.ok) return setMsg({ text: "Не удалось сформировать Excel", bad: true });
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `расчет закупки ${p.header.auction || "аукцион"}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
   const ro = readOneOnly(readOnly);
   return (
     <div className="flex flex-col gap-5">
@@ -254,6 +266,11 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
           </div>
         )}
       </section>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" size="sm" disabled={pending} onClick={downloadXlsx}>Скачать Excel</Button>
+        <span className="text-xs text-neutral-500">Детальный расчёт стоимости сырья, как в письмах: лист «ММ-расчёт» с живыми формулами и лист «Параметры» (курс, ставки).</span>
+      </div>
 
       <div className="text-sm"><button type="button" className="text-neutral-500 underline decoration-dotted hover:text-neutral-800" onClick={() => setAdvanced((v) => !v)}>{advanced ? "← Простой вид" : "Расширенный режим (свои столбцы и формулы)"}</button></div>
       {msg && <p role="status" className={msg.bad ? "text-sm text-red-600" : "text-sm text-green-700"}>{msg.text}</p>}

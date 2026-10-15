@@ -212,6 +212,10 @@ export default async function InboxCardPage({ params }: PageProps<"/inbox/[id]">
 
       {row.kind === "AUCTION_CALC" ? <CalcView p={ensureRowIds(row.payload as unknown as CalcPayload)} s={s} /> : <TzView p={row.payload as unknown as TzPayload} />}
 
+      {row.kind === "AUCTION_CALC" && (
+        <div><a href={`/api/supplier/auction-calcs/${row.id}/xlsx`} className={buttonVariants({ variant: "outline" })}>Скачать Excel</a></div>
+      )}
+
       {row.kind === "TZ" && (
         <div><a href={`/api/supplier/tz/${row.id}/docx`} className={buttonVariants({ variant: "outline" })}>Скачать Word</a></div>
       )}

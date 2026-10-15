@@ -39,6 +39,7 @@
     "agentation": "^3.1.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
+    "fast-formula-parser": "^1.0.19",
     "shadcn": "^4.21.4",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
