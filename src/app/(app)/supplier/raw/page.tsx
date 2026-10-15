@@ -9,7 +9,7 @@ import { cleanSearch } from "@/lib/input";
 import { formatDate } from "@/lib/utils";
 import { AttachDocument } from "./attach";
 import { RawChip } from "@/components/raw-stages";
-import { summarizeStages } from "@/lib/raw-stage";
+import { summarizeStages, summaryLine, sortStages, ruShort, STAGE_NAME, STAGE_STATUS_LABEL, type StageStatusKey } from "@/lib/raw-stage";
 
 export const metadata = { title: "Сырьё" };
 
@@ -87,82 +87,101 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
         {filtered && <Link href="/supplier/raw" className={buttonVariants({ size: "sm", variant: "outline" })}>Сбросить</Link>}
       </form>
 
-      {groups.size > 0 && (
-        <section className="flex flex-col gap-1 rounded-md border border-neutral-300 bg-white p-3" aria-label="Где сырьё по аукционам">
-          <h2 className="text-sm font-semibold">Где сырьё сейчас — по аукционам</h2>
-          <p className="text-xs text-neutral-500">Этап, место и ожидаемая дата по каждому аукциону одним списком. Чтобы обновить, откройте аукцион («Подробно →») и нажмите «+ Этап»: мы сразу увидим.</p>
-          <Table className="min-w-[640px]">
-            <Thead><Tr><Th>Аукцион</Th><Th>Счёт</Th><Th>Шкур</Th><Th>Сейчас</Th>{isSup && <Th />}</Tr></Thead>
-            <Tbody>
-              {(() => {
-                // один аукцион с несколькими счетами и одинаковым положением — одной строкой
-                const out = new Map<string, { name: string; inv: string[]; qty: number; st: ReturnType<typeof stagesOf>; sum: ReturnType<typeof summarizeStages>; received: boolean; pid: string }>();
-                for (const g of groups.values()) {
-                  const h = g[0];
-                  const st = stagesOf(h.purchaseId);
-                  const sum = summarizeStages(st);
-                  const key = `${h.auction || h.purchaseNumber}|${sum ? `${sum.stage}|${sum.place}|${sum.state}|${sum.eta?.getTime() ?? ""}` : h.received ? "got" : "none"}`;
-                  const cur = out.get(key) ?? { name: h.auction || h.purchaseNumber, inv: [], qty: 0, st, sum, received: h.received, pid: h.purchaseId };
-                  cur.inv.push(h.invoice || h.purchaseNumber); cur.qty += g.reduce((a, r) => a + r.quantity, 0);
-                  out.set(key, cur);
-                }
-                return [...out.values()].map((x) => (
-                  <Tr key={x.name + x.pid}>
-                    <Td className="font-medium">{x.name}</Td>
-                    <Td>{x.inv.length > 3 ? `${x.inv.slice(0, 3).join(", ")} и ещё ${x.inv.length - 3}` : x.inv.join(", ")}</Td>
-                    <Td className="tabular-nums">{num(x.qty)}</Td>
-                    <Td>{x.sum ? <span className={x.sum.overdue ? "text-red-800" : ""}><RawChip stages={x.st} /> <span className="text-xs text-neutral-600">{x.sum.place}</span></span> : <span className="text-neutral-500">{x.received ? "принято у нас на склад" : "этапов нет — отметьте, где мех"}</span>}</Td>
-                    {isSup && <Td><Link href={`/supplier/raw/${x.pid}`} className="text-sm text-blue-700 underline">{x.sum || x.received ? "Подробно" : "+ Этап"}</Link></Td>}
-                  </Tr>
-                ));
-              })()}
-            </Tbody>
-          </Table>
-        </section>
-      )}
-
       <p className="text-sm text-neutral-700">Лотов: <b>{rows.length}</b> · шкур: <b>{num(qty)}</b>{!mixed && rows.length > 0 && <> · сумма по УПД без НДС: <b>{money(sum)} {cur(rows[0].currency)}</b></>}</p>
 
       {rows.length === 0 && (
         <p className="rounded-md border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500">{all.length === 0 ? "Закупок у вас пока нет. Внесите расчёт в разделе «Аукционы» — после нашей проверки лоты появятся здесь." : "По выбранным условиям лотов нет — сбросьте фильтры."}</p>
       )}
-      <div className="flex flex-col gap-2">
-        {Array.from(groups.values()).map((g, gi) => {
-          const h = g[0];
-          const gq = g.reduce((a, r) => a + r.quantity, 0);
-          const gs = g.reduce((a, r) => a + r.subtotal, 0);
-          return (
-            <details key={h.purchaseId} open={gi === 0 || filtered} className="group rounded-md border border-neutral-300 bg-white">
-              <summary className="flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-sm">
-                <span className="text-neutral-500 transition-transform group-open:rotate-90">▶</span>
-                <b className="text-base">{h.auction || h.purchaseNumber}</b>
-                <Link href={`/supplier/raw/${h.purchaseId}`} className="text-sm text-blue-700 underline">Подробно →</Link>
-                <span className="text-neutral-600">{h.invoice ? `счёт ${h.invoice}` : h.purchaseNumber}</span>
-                <span>лотов {g.length} · шкур {num(gq)}</span>
-                <span className={h.received ? "whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800" : "whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900"}>{h.status}</span>
-                <span className="tabular-nums">по УПД без НДС: <b>{money(gs)} {cur(h.currency)}</b></span>
-                <RawChip stages={stagesOf(h.purchaseId)} />
-                {isSup && <span className="ml-auto"><AttachDocument purchaseId={h.purchaseId} label="Приложить документ" /></span>}
-              </summary>
-              <div className="overflow-x-auto border-t border-neutral-200">
-                <Table className="min-w-[900px]">
-                  <Thead><Tr><Th>Лот</Th><Th>Вид меха</Th><Th>Цвет</Th><Th>Размер / сорт</Th><Th>Кол-во</Th><Th>УПД / спецификация</Th><Th>Цена без НДС</Th><Th /></Tr></Thead>
-                  <Tbody>
-                    {g.map((r) => (
-                      <Tr key={r.itemId}>
-                        <Td>{r.lotNumber || "—"}</Td><Td>{r.fur}</Td><Td>{r.color || "—"}</Td><Td>{r.size || "—"}</Td>
-                        <Td className="tabular-nums">{num(r.quantity)}</Td>
-                        <Td>{r.doc || <span className="text-neutral-400">нет — приложите</span>}</Td>
-                        <Td className="tabular-nums">{money(r.unitPrice)} {cur(r.currency)}</Td>
-                        <Td>{isSup && <AttachDocument purchaseId={r.purchaseId} itemId={r.itemId} label="Приложить" />}</Td>
-                      </Tr>
-                    ))}
-                  </Tbody>
-                </Table>
-              </div>
-            </details>
-          );
-        })}
+      <div className="flex flex-col gap-3">
+        {(() => {
+          // аукцион → счета (закупки) → лоты
+          const byAuction = new Map<string, typeof rows[]>();
+          for (const g of groups.values()) {
+            const name = g[0].auction || g[0].purchaseNumber;
+            (byAuction.get(name) ?? byAuction.set(name, []).get(name)!).push(g);
+          }
+          return [...byAuction.entries()].map(([name, invs], ai) => {
+            const lots = invs.flat();
+            const aq = lots.reduce((a, r) => a + r.quantity, 0);
+            const as = lots.reduce((a, r) => a + r.subtotal, 0);
+            const allGot = lots.every((r) => r.received);
+            const stagesAll = invs.flatMap((g) => stagesOf(g[0].purchaseId));
+            // счета с одинаковым положением — одной строкой
+            const places = new Map<string, { inv: typeof invs; st: ReturnType<typeof stagesOf> }>();
+            for (const g of invs) {
+              const st = stagesOf(g[0].purchaseId);
+              const sm = summarizeStages(st);
+              const key = sm ? sortStages(st).map((x) => `${x.stage}|${x.status}|${x.place ?? ""}|${x.plannedEnd?.getTime() ?? ""}|${x.factEnd?.getTime() ?? ""}`).join(";") : g[0].received ? "got" : "none";
+              (places.get(key) ?? places.set(key, { inv: [], st }).get(key)!).inv.push(g);
+            }
+            const mixedCur = new Set(lots.map((r) => r.currency)).size > 1;
+            return (
+              <details key={name} open={ai === 0 || filtered} className="group rounded-md border border-neutral-300 bg-white">
+                <summary className="flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-sm">
+                  <span className="text-neutral-500 transition-transform group-open:rotate-90">▶</span>
+                  <b className="text-base">{name}</b>
+                  <span className="text-neutral-600">счетов {invs.length} · лотов {lots.length} · шкур {num(aq)}</span>
+                  {!mixedCur && <span className="tabular-nums">по УПД без НДС: <b>{money(as)} {cur(lots[0].currency)}</b></span>}
+                  {places.size === 1 ? <RawChip stages={stagesAll.length ? [...places.values()][0].st : []} /> : null}
+                  {allGot && stagesAll.length === 0 && <span className="whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">принято на склад</span>}
+                  {places.size > 1 && <span className="whitespace-nowrap rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700">положение разное по счетам</span>}
+                </summary>
+                <div className="flex flex-col gap-3 border-t border-neutral-200 p-3">
+                  <div className="flex flex-col gap-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Где сырьё сейчас</h3>
+                    {[...places.values()].map(({ inv, st }) => {
+                      const sm = summarizeStages(st);
+                      const ids = inv.map((g) => g[0].invoice || g[0].purchaseNumber);
+                      const head = inv[0][0];
+                      return (
+                        <div key={head.purchaseId} className="rounded-md border border-neutral-200 p-2 text-sm">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <b>{ids.length > 4 ? `Счета ${ids.slice(0, 4).join(", ")} и ещё ${ids.length - 4}` : `${ids.length > 1 ? "Счета" : "Счёт"} ${ids.join(", ")}`}</b>
+                            <span className="text-neutral-600">шкур {num(inv.flat().reduce((a, r) => a + r.quantity, 0))}</span>
+                            {sm ? <span className={sm.overdue ? "text-red-800" : "text-neutral-700"}>{summaryLine(sm)}</span> : <span className="text-neutral-500">{head.received ? "принято у нас на склад" : "этапов нет — отметьте, где мех"}</span>}
+                            {isSup && <Link href={`/supplier/raw/${head.purchaseId}`} className="ml-auto text-blue-700 underline">{sm ? "Этапы и детали →" : "+ Этап"}</Link>}
+                          </div>
+                          {st.length > 0 && (
+                            <ol className="mt-2 flex flex-col gap-0.5 border-l-2 border-neutral-200 pl-3 text-xs text-neutral-700">
+                              {sortStages(st).map((x, i) => (
+                                <li key={i}>
+                                  <b>{STAGE_NAME[x.stage] ?? x.stage}</b>{x.place ? ` · ${x.place}` : ""} · {STAGE_STATUS_LABEL[x.status as StageStatusKey] ?? x.status}
+                                  {(x.factStart ?? x.plannedStart) || (x.factEnd ?? x.plannedEnd) ? ` · ${ruShort(x.factStart ?? x.plannedStart) || "…"} – ${ruShort(x.factEnd ?? x.plannedEnd) || "…"}${x.factEnd || x.factStart ? " (факт)" : " (план)"}` : ""}
+                                </li>
+                              ))}
+                            </ol>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Лоты</h3>
+                      {isSup && invs.length === 1 && <AttachDocument purchaseId={invs[0][0].purchaseId} label="Приложить документ" />}
+                    </div>
+                    <div className="overflow-x-auto rounded-md border border-neutral-200">
+                      <Table className="min-w-[820px]">
+                        <Thead><Tr><Th>Счёт</Th><Th>Лот</Th><Th>Вид меха</Th><Th>Цвет</Th><Th>Размер / сорт</Th><Th>Кол-во</Th><Th>Цена без НДС</Th><Th>УПД</Th><Th /></Tr></Thead>
+                        <Tbody>
+                          {lots.map((r) => (
+                            <Tr key={r.itemId}>
+                              <Td>{r.invoice || r.purchaseNumber}</Td><Td>{r.lotNumber || "—"}</Td><Td>{r.fur}</Td><Td>{r.color || "—"}</Td><Td>{r.size || "—"}</Td>
+                              <Td className="tabular-nums">{num(r.quantity)}</Td>
+                              <Td className="tabular-nums">{money(r.unitPrice)} {cur(r.currency)}</Td>
+                              <Td>{r.doc || <span className="text-neutral-400">нет</span>}</Td>
+                              <Td>{isSup && <AttachDocument purchaseId={r.purchaseId} itemId={r.itemId} label="Приложить" />}</Td>
+                            </Tr>
+                          ))}
+                        </Tbody>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            );
+          });
+        })()}
       </div>
 
       <div>
