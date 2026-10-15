@@ -103,12 +103,12 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
             <dd>{purchases.map((p, i) => <span key={p.id}>{i > 0 ? ", " : ""}<Link href={`/purchases/${p.id}`} className="text-blue-700 hover:underline">{p.number}<span aria-hidden className="ml-0.5 text-[10px] text-neutral-400">↗</span></Link></span>)}</dd>
           </div>
           <div><dt className="text-xs text-neutral-500">Счёт / УПД</dt><dd>{[...new Set(purchases.map((p) => p.invoiceNumber).filter(Boolean))].join(", ") || "—"}</dd></div>
-          <div><dt className="text-xs text-neutral-500">Сумма закупки, ₽ (с НДС)</dt><dd className="tabular-nums">{formatMoney(sumAll.toFixed(2))}</dd></div>
+          <div><dt className="text-xs text-neutral-500">Сумма, ₽ с НДС</dt><dd className="tabular-nums">{formatMoney(sumAll.toFixed(2))}</dd></div>
           <div>
             <dt className="text-xs text-neutral-500">Оплачено / долг, ₽</dt>
-            <dd className="tabular-nums">{paid != null && pay ? <>{formatMoney(paid.toFixed(2))} · <span className={pay.total.toNumber() - paid > 0.5 ? "text-amber-700" : undefined}>{formatMoney((pay.total.toNumber() - paid).toFixed(2))}</span> <Link href={`/payments?auction=${encodeURIComponent(name)}#auction-block`} className="ml-1 text-xs text-blue-700 hover:underline">оплаты ›</Link></> : <Link href="/payments" className="text-blue-700 hover:underline">Оплаты ведутся по партии целиком →</Link>}</dd>
+            <dd className="tabular-nums">{paid != null && pay ? <>{formatMoney(paid.toFixed(2))} · <span className={pay.total.toNumber() - paid > 0.5 ? "text-amber-700" : undefined}>{pay.total.toNumber() - paid < -0.5 ? `переплата ${formatMoney((paid - pay.total.toNumber()).toFixed(2))}` : formatMoney(Math.max(0, pay.total.toNumber() - paid).toFixed(2))}</span> <Link href={`/payments?auction=${encodeURIComponent(name)}#auction-block`} className="ml-1 text-xs text-blue-700 hover:underline">оплаты ›</Link></> : <Link href="/payments" className="text-blue-700 hover:underline">Оплаты ведутся по партии целиком →</Link>}</dd>
           </div>
-          {cleanNote(firstPurchase?.notes) ? <div className="sm:col-span-2"><dt className="text-xs text-neutral-500">Примечание</dt><dd>{cleanNote(firstPurchase?.notes)}</dd></div> : null}
+          {cleanNote(firstPurchase?.notes) ? <div className="sm:col-span-2"><dt className="text-xs text-neutral-500">Примечание</dt><dd><details className="text-sm"><summary className="cursor-pointer text-neutral-700 hover:text-neutral-900">{(cleanNote(firstPurchase?.notes) ?? "").slice(0, 110)}{(cleanNote(firstPurchase?.notes) ?? "").length > 110 ? "…" : ""}</summary><p className="mt-1 whitespace-pre-line text-neutral-600">{cleanNote(firstPurchase?.notes)}</p></details></dd></div> : null}
         </dl>
       </section>
 

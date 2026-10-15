@@ -116,7 +116,6 @@ function TotalsFooter({
               <Stat k="ср. взвеш. ₽" tip={TIP.price}>
                 <Money incl={q > 0 ? t.priceIncl / q : 0} excl={q > 0 ? t.priceExcl / q : 0} />
               </Stat>
-              <Note>цена в валюте — не зависит от НДС</Note>
             </>
           )}
         </Td>
@@ -132,7 +131,6 @@ function TotalsFooter({
                   мин–макс {rateFmt(t.rateMin)}–{rateFmt(t.rateMax)}
                 </div>
               )}
-              <Note>не зависит от НДС</Note>
             </>
           )}
         </Td>
@@ -717,7 +715,7 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3" data-cost-parts>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3">
-        <p className="text-sm font-semibold">{title ?? "Из чего складывается стоимость"}</p>
+        <p className="text-sm font-semibold">{title ?? "Состав стоимости"}</p>
         <p className="text-xs text-neutral-500">
           {view.label} · {mode === "excl" ? "без НДС" : "с НДС"}
         </p>
@@ -752,9 +750,9 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
             </span>
             <span className="w-14 text-right text-xs font-normal text-neutral-500">{formatPercent(100)}</span>
           </li>
-          <li className="text-xs text-neutral-500">
+          <li className={Math.abs(sum - total) < (roundingHidden ? 10 : 1) ? "sr-only" : "text-xs text-amber-700"}>
             Сумма частей {formatMoney(sum)} {Math.abs(sum - total) < (roundingHidden ? 10 : 1) ? "= итогу" : "≠ итогу"}.
-            {b.skippedUnallocated && " Расходы закупки не входят: выбрана только часть лотов закупки."}
+            {b.skippedUnallocated && " Расходы закупки не входят: выбрана часть лотов."}
           </li>
         </ul>
       )}
@@ -766,9 +764,9 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
 export function PurchaseCostParts({ purchaseId }: { purchaseId: string }) {
   return (
     <details className="rounded-md border border-neutral-200 bg-white">
-      <summary className="cursor-pointer px-3 py-2 text-sm font-medium hover:bg-neutral-50">Из чего складывается стоимость счёта</summary>
+      <summary className="cursor-pointer px-3 py-2 text-sm font-medium hover:bg-neutral-50">Состав стоимости счёта</summary>
       <div className="p-2">
-        <CostPartsBlock scope={purchaseId} title="Из чего складывается стоимость" />
+        <CostPartsBlock scope={purchaseId} title="Состав стоимости" />
       </div>
     </details>
   );
@@ -807,7 +805,7 @@ export function AuctionTotalsPanel() {
         <TotalsFooter view={view} fields={fields} hasEditCol={false} hasCheckCol />
       </Table>
       </div>
-      <CostPartsBlock scope={ALL_SCOPE} title="Из чего складывается стоимость аукциона" />
+      <CostPartsBlock scope={ALL_SCOPE} title="Состав стоимости аукциона" />
     </section>
   );
 }
@@ -942,7 +940,7 @@ export function FlatLotsPanel() {
         <TotalsFooter view={view} fields={fields} hasEditCol={false} hasCheckCol invoiceCol />
       </Table>
       </div>
-      <CostPartsBlock scope={ALL_SCOPE} title="Из чего складывается стоимость" />
+      <CostPartsBlock scope={ALL_SCOPE} title="Состав стоимости" />
     </section>
   );
 }

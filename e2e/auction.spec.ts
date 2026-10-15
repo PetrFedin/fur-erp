@@ -1105,7 +1105,7 @@ test.describe("3d. приёмка закупки с изменённым рас�
         const sumTxt = norm(await blk.locator("summary").innerText());
         if (Math.abs(num(sumTxt.split("шт.").pop()!) - purchaseTotal) > 0.011) problems.push(`заголовок закупки после приёмки ${sumTxt} vs итог ${purchaseTotal}`);
         // «Из чего цена» первой строки
-        await blk.getByRole("button", { name: "Из чего цена →" }).first().click();
+        await blk.getByRole("button", { name: "Состав цены" }).first().click();
         const dlg = norm(await blk.locator("dialog[open]").first().innerText());
         console.log("Из чего цена (после приёмки):", dlg.slice(0, 900));
         await page.keyboard.press("Escape");
@@ -1388,7 +1388,7 @@ test.describe("4. мобильная вёрстка", () => {
     report.push(`editor-dialog: кнопка «Сохранить» ${btn ? `y=${Math.round(btn.y)}..${Math.round(btn.y + btn.height)} (вьюпорт 812)` : "не видна"}`);
     await page.getByRole("dialog").getByRole("button", { name: "Отмена" }).click();
     // из чего цена
-    await page.locator("details[data-auction-purchase]").first().getByRole("button", { name: "Из чего цена →" }).first().click();
+    await page.locator("details[data-auction-purchase]").first().getByRole("button", { name: "Состав цены" }).first().click();
     await page.waitForTimeout(300);
     await check("breakdown-dialog");
     await page.keyboard.press("Escape");

@@ -62,7 +62,7 @@ export function CostBreakdownToggle({
   return (
     <div className="text-xs">
       <button type="button" onClick={() => (opened ? dialogRef.current?.showModal() : setOpened(true))} className="text-neutral-500 hover:underline max-md:inline-flex max-md:min-h-8 max-md:items-center">
-        Из чего цена →
+        Состав цены
       </button>
       <dialog
         ref={dialogRef}
@@ -111,7 +111,7 @@ export function CostBreakdownToggle({
           )}
 
           <details open className="mt-3 rounded-md border border-neutral-200">
-            <summary className="cursor-pointer px-3 py-2 font-medium text-neutral-700 hover:bg-neutral-50">Из чего сложилась цена — таблицей</summary>
+            <summary className="cursor-pointer px-3 py-2 font-medium text-neutral-700 hover:bg-neutral-50">Таблица поставщика</summary>
             <div className="border-t border-neutral-200 p-3">
               {(breakdown.exchangeRateInvoice || breakdown.exchangeRateFixed) && (
                 <p className="mb-1 text-neutral-500">
@@ -119,7 +119,7 @@ export function CostBreakdownToggle({
                 </p>
               )}
               <BreakdownTable items={breakdown.items ?? []} />
-              <p className="mt-2 text-neutral-500">Числа переписаны из отчёта поставщика как есть, в его единицах. Верхние карточки посчитаны приложением.</p>
+              <p className="mt-2 text-neutral-500">Таблица — из отчёта поставщика как есть; карточки выше посчитаны здесь.</p>
             </div>
           </details>
         </div>

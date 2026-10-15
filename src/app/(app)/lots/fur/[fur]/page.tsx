@@ -69,7 +69,7 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/lots" aria-label="Назад в «Сырьё — Мех»" title="Назад в «Сырьё — Мех»" className="inline-flex size-8 items-center justify-center rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">←</Link>
           <h1 className="text-xl font-semibold">{name}</h1>
-          <InfoHint label="О виде меха без лотов" wide><p>Закупок и лотов {name.toLowerCase()} нет; значения — по ТЗ изделий из {name.toLowerCase()} (как на Главной).</p></InfoHint>
+          <InfoHint label="О виде меха без лотов" wide><p>Закупок и лотов нет; значения — по ТЗ изделий из этого меха, как на Главной.</p></InfoHint>
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {["Куплено", "Остаток"].map((t) => (
@@ -81,7 +81,7 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
         <SupplierOnly what={`Сырьё «${name}» подрядчика`}>
         <section aria-labelledby="beaver-orders" className="space-y-2">
           <div className="flex items-center gap-2"><h2 id="beaver-orders" className="text-base font-semibold">Изделия из меха «{name}»</h2>
-            <InfoHint label="Откуда данные" wide><p>Данные ТЗ (артикул, партия, количество изделий, работа). Это не списания сырья: расход по документам в системе не записан.</p></InfoHint></div>
+            <InfoHint label="Откуда данные" wide><p>Данные ТЗ: артикул, партия, изделия, работа. Это не списания сырья: расход по документам не записан.</p></InfoHint></div>
           <div className="scroll-hint overflow-x-auto rounded-xl border border-neutral-200 bg-white">
             <table className="w-full table-fixed text-sm tabular-nums" style={{ minWidth: 640 }}>
               <thead><tr className="border-b border-neutral-200 text-xs text-neutral-500"><th className="px-2 py-1.5 text-left font-medium">ТЗ</th><th className="px-2 py-1.5 text-left font-medium">Артикул</th><th className="px-2 py-1.5 text-left font-medium">Партия</th><th className="px-2 py-1.5 text-right font-medium">Изделий, шт.</th><th className="px-2 py-1.5 text-right font-medium">Работа, ₽</th><th className="px-2 py-1.5 text-right font-medium">Работа за ед., ₽</th></tr></thead>
@@ -96,7 +96,7 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
                     <td className="px-2 py-1.5 text-right">{o.work > 0 && o.qty > 0 ? formatMoney(Math.round(o.work / o.qty)) : "—"}</td>
                   </tr>
                 ))}
-                {ords.length === 0 ? <tr><td colSpan={6} className="px-3 py-5 text-center text-neutral-500">ТЗ нет.</td></tr> : (
+                {ords.length === 0 ? <tr><td colSpan={6} className="px-3 py-5 text-center text-neutral-500">ТЗ нет</td></tr> : (
                   <tr className="row-total"><td className="px-2 py-2 text-left" colSpan={3}>Всего, шт.</td><td className="px-2 py-2 text-right">{units}</td><td className="px-2 py-2 text-right">{formatMoney(ords.reduce((a, o) => a + o.work, 0))}</td><td className="px-2 py-2" /></tr>
                 )}
               </tbody>
@@ -138,8 +138,8 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
         <YearNote year={year} />
         <span className="inline-flex">
           <InfoHint label="О странице вида меха" wide>
-            <p>Детализация по виду меха «{name}»: куплено → использовано → остаток по аукционам (партиям закупки) и годам, до лотов и ТЗ. Нажмите на название аукциона — откроется его страница со счетами и лотами; «карточка ›» — карточка лота; «ТЗ» — техзадание, в которое ушли шкуры.</p>
-            <p className="mt-1">Цифры те же, что в таблице «Мех» на странице «Сырьё» и в плитках Главной. Без фильтров плитки оплат — доля оплат и долга партий по стоимости лотов вида.</p>
+            <p>Куплено → использовано → остаток по виду «{name}»: по аукционам (партиям) и годам, до лотов и ТЗ. Название аукциона открывает его страницу, «карточка ›» — лот, «ТЗ» — техзадание, в которое ушли шкуры.</p>
+            <p className="mt-1">Цифры те же, что в таблице «Мех» и на Главной. Без фильтров оплаты — доля оплат и долга партий по стоимости лотов вида.</p>
           </InfoHint>
         </span>
       </div>

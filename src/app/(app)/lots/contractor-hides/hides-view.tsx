@@ -73,15 +73,15 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
           values={{ q: q ? [q] : [], batch: batch === "all" ? [] : [batch] }}
           onChange={(name, v) => { if (name === "q") setQ(v[0] ?? ""); else if (name === "batch") setBatch(v[0] ?? "all"); }}
           onReset={() => { setQ(""); setBatch("all"); }}
-          footer={<p className="mt-2 text-[11px] leading-4 text-neutral-500">Фильтры применяются сразу и сужают таблицу «По ТЗ»</p>}
+          footer={<p className="mt-2 text-[11px] leading-4 text-neutral-500">Фильтры применяются сразу</p>}
         />
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="hides-tiles">
         <div className={TILE_BOX}><TileHead>Сумма, ₽</TileHead><TileValue compact>{formatMoney(val(all).toFixed(2))}</TileValue><TileCaption>{vat === "excl" ? "без НДС" : "с НДС"}</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>С НДС, ₽</TileHead><TileValue compact>{formatMoney(all.incl.toFixed(2))}</TileValue><TileCaption>как в «Оплатах»</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>НДС, ₽</TileHead><TileValue compact>{formatMoney((all.incl - all.excl).toFixed(2))}</TileValue><TileCaption>в т.ч.: 20% партия 8, 22% партия 7</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>Оплачено, ₽</TileHead><TileValue compact>{formatMoney(paidTotal.toFixed(2))}</TileValue><TileCaption>в составе счетов за пошив</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>К оплате, ₽</TileHead><TileValue compact>—</TileValue><TileCaption>долга по шкурам нет</TileCaption></div>
+        {vat === "excl" ? <div className={TILE_BOX}><TileHead>С НДС, ₽</TileHead><TileValue compact>{formatMoney(all.incl.toFixed(2))}</TileValue><TileCaption>как в «Оплатах»</TileCaption></div> : null}
+        <div className={TILE_BOX}><TileHead>НДС, ₽</TileHead><TileValue compact>{formatMoney((all.incl - all.excl).toFixed(2))}</TileValue><TileCaption><span title="Партия 8 — 20%, партия 7 — 22%">20% · 22%</span></TileCaption></div>
+        <div className={TILE_BOX}><TileHead>Оплачено, ₽</TileHead><TileValue compact>{formatMoney(paidTotal.toFixed(2))}</TileValue><TileCaption>в счетах за пошив</TileCaption></div>
+        <div className={TILE_BOX}><TileHead>К оплате, ₽</TileHead><TileValue compact>—</TileValue><TileCaption>долга нет</TileCaption></div>
         <div className={TILE_BOX}><TileHead>Платежей / ТЗ</TileHead><TileValue compact>{payments.length} / {orders.length}</TileValue><TileCaption>партий: {batches.length}</TileCaption></div>
       </div>
 

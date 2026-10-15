@@ -134,7 +134,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
   const head = (k: SortKey, label: ReactNode, unit?: string, o: { left?: boolean; bl?: boolean; after?: ReactNode } = {}) => (
     <TH label={label} unit={unit} align={o.left ? "left" : "right"} sep={o.bl} after={o.after} sort={sort.key === k ? sort.dir : "none"} onSort={() => setSort((s) => ({ key: k, dir: s.key === k && s.dir === "desc" ? "asc" : "desc" }))} />
   );
-  const usdNote = (have: number, qty: number) => (have > 0 && qty - have > 0.0005 ? <div className="text-[10px] font-normal text-neutral-500">по {formatQty(have)} из {formatQty(qty)}</div> : null);
+  const usdNote = (have: number, qty: number) => (have > 0 && qty - have > 0.0005 ? <div className="text-[10px] font-normal text-neutral-500" title={`Цена в $ есть у ${formatQty(have)} из ${formatQty(qty)}`}>по части</div> : null);
   const rateText = (rates: number[]) => `${vat === "excl" ? "без НДС" : "с НДС"} ${rates.sort((a, b) => a - b).map((r) => `${r}%`).join(" · ")}`;
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const perUnit = (qty: number, units: number) => (units > 0 ? qty / units : null);
@@ -151,10 +151,10 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="tz-tiles">
-        <div className={TILE_BOX}><TileHead>ТЗ</TileHead><TileValue compact>{shown.length}</TileValue><TileCaption>{rows.length !== shown.length ? `из ${rows.length}` : "уникальных ТЗ"}</TileCaption></div>
+        <div className={TILE_BOX}><TileHead>ТЗ</TileHead><TileValue compact>{shown.length}</TileValue><TileCaption>{rows.length !== shown.length ? `из ${rows.length}` : "уникальных"}</TileCaption></div>
         <div className={TILE_BOX}><TileHead>{kind === "lining" ? "Метров всего" : "Шкур всего"}</TileHead><TileValue compact>{formatQty(T.qty)}</TileValue><TileCaption>{unit}</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>{kind === "lining" ? "Метров на изделие" : "Шкур на изделие"}</TileHead><TileValue compact>{T.units > 0 ? formatQty(Math.round((T.qty / T.units) * 100) / 100) : "—"}</TileValue><TileCaption>среднее: Σ {unit} ÷ Σ изделий</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>Ср. цена, ₽/{unit}</TileHead><TileValue compact>{T.qty > 0 ? formatMoney(Math.round((totBase / T.qty) * 100) / 100) : "—"}</TileValue><TileCaption>{T.usdQty > 0 ? `${usd(T.usdSum / T.usdQty)} · по ${formatQty(T.usdQty)} из ${formatQty(T.qty)}` : "цены в $ нет"}</TileCaption></div>
+        <div className={TILE_BOX}><TileHead>{kind === "lining" ? "Метров на изделие" : "Шкур на изделие"}</TileHead><TileValue compact>{T.units > 0 ? formatQty(Math.round((T.qty / T.units) * 100) / 100) : "—"}</TileValue><TileCaption>в среднем</TileCaption></div>
+        <div className={TILE_BOX}><TileHead>Ср. цена, ₽/{unit}</TileHead><TileValue compact>{T.qty > 0 ? formatMoney(Math.round((totBase / T.qty) * 100) / 100) : "—"}</TileValue><TileCaption><span title={T.usdQty > 0 ? `Цена в $ есть у ${formatQty(T.usdQty)} из ${formatQty(T.qty)}` : undefined}>{T.usdQty > 0 ? usd(T.usdSum / T.usdQty) : "—"}</span></TileCaption></div>
         <div className={TILE_BOX}><TileHead>Сумма, ₽</TileHead><TileValue compact>{formatMoney(totBase)}</TileValue><TileCaption>без 4%</TileCaption></div>
         <div className={TILE_BOX}><TileHead>Сумма с 4%, ₽</TileHead><TileValue compact>{formatMoney(totC4)}</TileValue><TileCaption>надбавка {formatMoney(totC4 - totBase)}</TileCaption></div>
       </div>

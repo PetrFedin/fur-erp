@@ -350,12 +350,9 @@ export async function AuctionView({
             {names.length > 1 ? `Аукционы / закупки: ${names.length}` : isServiceAuction(label) ? NO_AUCTION_LABEL : `Аукцион: ${shortAuctionName(label, 70)}`}
             <YearNote year={year} />
             <InfoHint label="Об этом аукционе" wide>
-              <p>Выбранный аукцион: счета, лоты, документы и расчёт цены.</p>
-              <p className="mt-1">Год: {year === "all" ? "все годы" : `${year} — только закупки этого аукциона с датой заказа в ${year} году`}.</p>
-              <p className="mt-1">
-                Закупок {counted.length}, лотов {totalLots}, шкур {formatQty(totalQty.toString())}. Цена шкур по счетам {formatMoney(priceIncl.toString())}, с расходами {formatMoney(fullIncl.toString())} (с НДС).
-              </p>
-              <p className="mt-1">Оплаты и остаток к оплате считаются по аукциону целиком и от года не зависят. 4% на закупки не начисляется — это наценка только на сырьё и подкладку в ТЗ.</p>
+              <p>Счета, лоты, документы и расчёт цены выбранного аукциона.</p>
+              <p className="mt-1">Год: {year === "all" ? "все годы" : `${year} — закупки с датой заказа в ${year} году`}. Оплаты и остаток считаются по аукциону целиком.</p>
+              <p className="mt-1">Закупок {counted.length}, лотов {totalLots}, шкур {formatQty(totalQty.toString())}. По счетам {formatMoney(priceIncl.toString())}, с расходами {formatMoney(fullIncl.toString())} (с НДС). 4% здесь не начисляется: это наценка в ТЗ.</p>
             </InfoHint>
           </CardTitle>
         </CardHeader>
@@ -365,19 +362,15 @@ export async function AuctionView({
           )}
           <dl className="grid grid-cols-2 gap-3 text-sm lg:grid-cols-4">
             <div>
-              <dt className="text-xs text-neutral-500">Закупок / шкур</dt>
-              <dd className="text-lg font-semibold">
-                {counted.length} / {formatQty(totalQty.toString())}
-              </dd>
-              <dd className="text-xs text-neutral-500">
-                {totalLots} лот.
-              </dd>
+              <dt className="text-xs text-neutral-500">Шкур</dt>
+              <dd className="text-lg font-semibold">{formatQty(totalQty.toString())}</dd>
+              <dd className="text-xs text-neutral-500">закупок {counted.length} · лотов {totalLots}</dd>
             </div>
             <div>
               <dt className="text-xs text-neutral-500">
-                Цена шкур по счетам
-                <InfoHint label="Как считается цена шкур по счетам">
-                  <p>Цена лота × курс + НДС, без сборов аукциона, выделки, транспорта и брокерских.</p>
+                По счетам
+                <InfoHint label="Как считается цена по счетам">
+                  <p>Цена шкур: лот × курс + НДС, без сборов аукциона, выделки, транспорта и брокера.</p>
                   <p className="mt-1">Сейчас: {formatMoney(priceIncl.toString())} с НДС ({formatMoney(priceExcl.toString())} без НДС) по {counted.length} закупкам.</p>
                 </InfoHint>
               </dt>
@@ -389,7 +382,7 @@ export async function AuctionView({
               <dt className="text-xs text-neutral-500">
                 С расходами
                 <InfoHint label="Как считается «С расходами»">
-                  <p>Цена шкур по счетам плюс сборы аукциона, выделка, транспорт, брокер.</p>
+                  <p>По счетам плюс сборы аукциона, выделка, транспорт, брокер.</p>
                   <p className="mt-1">
                     {formatMoney(priceIncl.toString())} + расходы {formatMoney(fullIncl.sub(priceIncl).toString())} = {formatMoney(fullIncl.toString())} (с НДС).
                   </p>
@@ -409,12 +402,12 @@ export async function AuctionView({
             </div>
             {paySummaries.length > 0 && (
               <div>
-                <dt className="text-xs text-neutral-500">{payRemaining.lessThan(-OVERPAY_FROM) ? "Переплата (с НДС)" : "Остаток к оплате (с НДС)"}</dt>
+                <dt className="text-xs text-neutral-500">{payRemaining.lessThan(-OVERPAY_FROM) ? "Переплата" : "К оплате"}</dt>
                 <dd className={"text-lg font-semibold " + (payRemaining.greaterThan(0.005) && !payDust ? "text-amber-700" : "")}>
                   {payDust ? <span title={`округление (${formatMoney(payRemaining.abs().toFixed(2))})`} className="cursor-help">оплачено</span> : formatMoney(payRemaining.lessThan(-OVERPAY_FROM) ? payRemaining.neg().toString() : payRemaining.toString())}
                 </dd>
                 <dd className="text-xs text-neutral-500">
-                  {payPaid.greaterThan(0.005) ? `оплачено ${formatMoney(payPaid.toString())}` : "оплат нет"} ·{" "}
+                  {payPaid.greaterThan(0.005) ? (payDust ? formatMoney(payPaid.toString()) : `оплачено ${formatMoney(payPaid.toString())}`) : "оплат нет"} ·{" "}
                   <Link
                     href={paySummaries.length === 1 ? `/payments?auction=${encodeURIComponent(paySummaries[0].name)}#auction-block` : "/payments"}
                     className="inline-block text-blue-600 hover:underline max-md:py-2"
@@ -434,7 +427,7 @@ export async function AuctionView({
             )}
           </dl>
           {filtering && (
-            <p className="text-xs text-amber-700">Включён поиск по лотам — итоги выше только по найденным лотам, без расходов закупок.</p>
+            <p className="text-xs text-amber-700">Поиск включён: итоги — по найденным лотам, без расходов закупок.</p>
           )}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Вид аукциона" data-auction-view-switch>
@@ -518,7 +511,7 @@ export async function AuctionView({
                     📄 {invoice.title}
                   </a>
                 ) : (
-                  <span className="text-xs text-neutral-500">счёта аукциона в документах нет</span>
+                  <span className="text-xs text-neutral-500">счёта в документах нет</span>
                 )}
                 {p.currency !== "RUB" && (
                   <span className="text-xs text-neutral-500">
@@ -559,11 +552,11 @@ export async function AuctionView({
       </LotsProvider>
 
       {/* Карточка: развёрнуты только цифры, остальное — по клику */}
-      <CollapsibleBlock title="Подтверждение закупок аукциона" summary="по документам · раскрыть, чтобы проверить">
+      <CollapsibleBlock title="Подтверждение закупок аукциона" summary="проверка по документам">
         <AuctionVerify organizationId={organizationId} names={names} />
       </CollapsibleBlock>
 
-      <CollapsibleBlock title="Документы и оплата" summary="чек-лист документов, платёжки, оплаты — по клику">
+      <CollapsibleBlock title="Документы и оплата" summary="документы и платёжки">
         <AuctionDocsPay organizationId={organizationId} names={names} />
       </CollapsibleBlock>
 
