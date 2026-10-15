@@ -197,6 +197,7 @@ model CalendarEvent {
 
 model Organization {
   rawStages SupplierRawStage[]
+  supplierContracts SupplierContract[]
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
@@ -309,9 +310,16 @@ model Supplier {
   address        String?
   notes          String?
   isActive       Boolean      @default(true)
+  /// Поставляет сырьё (аукционы, закупки, счета): кабинет показывает «Аукционы» и «Сырьё». Один контрагент может быть и поставщиком, и подрядчиком (Веллмех).
+  suppliesRaw    Boolean      @default(true)
+  /// Подрядчик: ведёт пошив по ТЗ (договор подряда). Выбирается в ТЗ (ProductionOrder.contractorId); оплаты за работу идут ему.
+  isContractor   Boolean      @default(false)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  contracts          SupplierContract[]
+  contractorOrders   ProductionOrder[]   @relation("ProductionOrderContractor")
+  contractorPayments ProductionPayment[] @relation("ProductionPaymentContractor")
   purchases      Purchase[]
   payments       Payment[]
   invoices       Invoice[]
@@ -322,6 +330,32 @@ model Supplier {
   calendarEvents CalendarEvent[]
 
   @@index([organizationId])
+}
+
+enum ContractKind {
+  /// Купля-продажа сырья
+  SUPPLY
+  /// Подряд (пошив по ТЗ)
+  WORK
+}
+
+/// Договор с контрагентом: номер, дата, вид. «Договор → подрядчик» определяется этой таблицей (а не только номером 1605).
+model SupplierContract {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplierId     String
+  supplier       Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  number         String
+  date           DateTime?
+  kind           ContractKind
+  note           String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, supplierId, number])
+  @@index([organizationId])
+  @@index([supplierId])
 }
 
 /// Счёт поставщика. Один счёт может покрывать несколько закупок (Purchase.invoiceId).
@@ -685,6 +719,9 @@ model ProductionPayment {
   organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   clientId       String?
   client         Client?                  @relation(fields: [clientId], references: [id])
+  /// Получатель оплаты за работу — подрядчик. Пусто: определяется по ТЗ платежа / договору (как раньше).
+  contractorId   String?
+  contractor     Supplier?                @relation("ProductionPaymentContractor", fields: [contractorId], references: [id], onDelete: SetNull)
   amount         Decimal                  @db.Decimal(14, 2)
   paymentType    ProductionPaymentType    @default(FINAL)
   method         PaymentMethod            @default(BANK_TRANSFER)
@@ -704,6 +741,7 @@ model ProductionPayment {
 
   @@index([organizationId])
   @@index([clientId])
+  @@index([contractorId])
 }
 
 // Join table: which ТЗ a given payment was allocated to (0, 1, or many).
@@ -1003,6 +1041,9 @@ model ProductionOrder {
   clientId               String?
   client                 Client?   @relation(fields: [clientId], references: [id])
   contractNumber         String?
+  /// Подрядчик ТЗ (Supplier с isContractor). Пусто: определяется по номеру договора (запасной путь до переноса).
+  contractorId           String?
+  contractor             Supplier? @relation("ProductionOrderContractor", fields: [contractorId], references: [id], onDelete: SetNull)
   workOrderNumber        String?
   workOrderDate          DateTime?
   // Price charged to the client per produced unit for the manufacturing
@@ -1051,6 +1092,7 @@ model ProductionOrder {
   @@unique([organizationId, number])
   @@index([organizationId])
   @@index([batchId])
+  @@index([contractorId])
 }
 
 // Actual raw-material consumption recorded against a production order
