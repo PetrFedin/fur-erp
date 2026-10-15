@@ -8,6 +8,7 @@ import { copyForNext } from "@/lib/supplier-calc-start";
 import { parseTableFile } from "@/lib/table-file";
 import { readDocumentFiles, writeDocumentFiles } from "@/lib/purchase-files";
 import { removeStoredFiles } from "@/lib/fitting-files";
+import { unknownRefsForSend } from "@/lib/inbox-accept";
 
 type R = { error?: string; ok?: boolean; id?: string; warnings?: string[]; payload?: CalcPayload };
 
@@ -59,6 +60,8 @@ export async function sendCalc(id: string, json: string): Promise<R> {
   if (problems.length) return { error: problems.slice(0, 4).join("; ") };
   const saved = await saveCalcDraft(id, json);
   if (saved.error) return saved;
+  const unknown = await unknownRefsForSend(s.user.organizationId, id);
+  if (unknown.length) return { error: `В нашем справочнике нет: ${unknown.slice(0, 4).join(", ")}. Исправьте название на принятое у нас (справочник «Справочники») или нажмите «Написать / Запросить» и попросите нас завести его — иначе мы не сможем принять расчёт. Черновик сохранён.` };
   const r = await prisma.supplierInbox.updateMany({ where: { id, kind: "AUCTION_CALC", status: "DRAFT", ...inboxScope(s) }, data: { status: "SENT", sentAt: new Date() } });
   if (r.count !== 1) return { error: "Не удалось отправить: расчёт уже отправлен или не найден" };
   revalidatePath("/supplier/auction-calcs");

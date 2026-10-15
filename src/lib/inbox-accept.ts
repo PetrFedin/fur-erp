@@ -239,7 +239,7 @@ export async function previewInbox(orgId: string, row: Row): Promise<{ problems:
     ...docLines(row, m.payload.rows.map((x) => x.invoice).filter(Boolean)),
   ];
   // «(шаг 2)» — подсказка мастера; здесь пишем сами ошибки строк.
-  const rowErrs = plan.preview.validation.checks.flatMap((c, i) => c.errors.map((e) => `Лот ${p.rows[i] ? usedLot(m.payload!, c.n) : c.n}: ${e}`));
+  const rowErrs = plan.preview.validation.checks.flatMap((c, i) => c.errors.map((e) => `Лот ${p.rows[i] ? usedLot(m.payload!, c.n) : c.n}: ${e.replace(/ — выберите из списка или добавьте$/, " — заведите материал в разделе «Материалы» и обновите страницу (или отклоните расчёт с комментарием)").replace(/ — выберите из списка, добавьте или оставьте как есть$/, " — заведите цвет в «Настройки → Цвета» и обновите страницу (или отклоните расчёт с комментарием)")}`));
   const dupProblems = plan.preview.dupInvoices.length ? [`Закупки по этим счетам уже есть: ${plan.preview.dupInvoices.map((d) => `счёт ${d.invoice} → ${d.purchaseNumber}`).join("; ")}. Принимать не нужно — иначе будут дубли; отклоните расчёт («уже заведено») или попросите исправить номер счёта.`] : [];
   const problems = [...plan.preview.blocking.filter((b) => !/^В таблице лотов ошибок/.test(b)), ...rowErrs, ...dupProblems];
   const hasInvDate = /^\d{4}-\d{2}-\d{2}$/.test(p.header.invoiceDate ?? "");
@@ -247,6 +247,17 @@ export async function previewInbox(orgId: string, row: Row): Promise<{ problems:
   const od = m.payload.header.orderDate;
   const source = hasInvoiceDate(hasInvDate, od, today);
   return { problems, lines: [`Дата закупки: ${od.split("-").reverse().join(".")} (${source})`, ...lines], orderDate: { value: od, source } };
+}
+/**
+ * Для кабинета поставщика при «Отправить нам»: мех или цвет, которых нет в нашем справочнике, мы принять не сможем
+ * (на странице приёма их не завести) — лучше сказать об этом до отправки. Только названия, без номеров лотов.
+ */
+export async function unknownRefsForSend(orgId: string, inboxId: string): Promise<string[]> {
+  const row = await prisma.supplierInbox.findFirst({ where: { id: inboxId, organizationId: orgId, kind: "AUCTION_CALC" }, include: { files: true } });
+  if (!row) return [];
+  const { problems } = await previewInbox(orgId, row);
+  const names = problems.map((x) => /(мех|цвет) «([^»]+)» нет в справочнике/.exec(x)).filter((m): m is RegExpExecArray => !!m).map((m) => `${m[1]} «${m[2]}»`);
+  return [...new Set(names)];
 }
 const hasInvoiceDate = (hasInv: boolean, od: string, today: string) => (hasInv ? "из даты счёта" : od === today ? "дата приёма" : "по году и месяцу из названия аукциона, число условное — поправьте");
 
