@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Clamp } from "@/components/clamp";
 import Link from "next/link";
 import { Table, Thead, Tbody, Tr, Td } from "@/components/ui/table";
 import { SortTh } from "@/components/sort-th";
@@ -19,7 +20,7 @@ export function StatementBlock({ st, source, action, note, cur = "₽" }: { st: 
     <section className="flex flex-col gap-2 rounded-md border border-neutral-300 bg-white p-3" aria-labelledby="st-title">
       <div className="flex flex-wrap items-center gap-3">
         <h2 id="st-title" className="text-base font-semibold">За что заплачено</h2>
-        <span className="text-xs text-neutral-500">{source}</span>
+        <span className="min-w-0 max-w-md text-xs text-neutral-500"><Clamp>{source}</Clamp></span>
         {action && <span className="ml-auto">{action}</span>}
       </div>
       {!st.detailed ? (
@@ -102,7 +103,7 @@ export function LotsTable({ rows, path, sp, cur, openId, showInvoice = true, tot
       <Thead>
         <Tr>
           {showInvoice && th("invoice", "Счёт")}
-          {th("lot", "Лот")}{th("fur", "Мех")}{th("size", "Размер / сорт")}
+          {th("lot", "Лот")}{th("fur", "Мех")}{th("size", "Размер, сорт")}
           {th("qty", "Шкур", "right")}{th("unit", `За шкуру, ${c}`, "right")}{th("total", `Сумма, ${c}`, "right")}
         </Tr>
       </Thead>
@@ -111,7 +112,7 @@ export function LotsTable({ rows, path, sp, cur, openId, showInvoice = true, tot
           <Tr key={r.id} className={openId === r.id ? "bg-amber-50" : ""}>
             {showInvoice && <Td>{r.invoice || "—"}</Td>}
             <Td><Link href={lotHref(r.id)} scroll={false} aria-expanded={openId === r.id} className="inline-flex min-h-11 items-center font-medium text-blue-700 underline md:min-h-0">{r.lot || "без №"}</Link></Td>
-            <Td>{r.fur}</Td><Td>{r.size || "—"}</Td>
+            <Td>{r.fur}</Td><Td className="max-w-[14rem]"><Clamp>{r.size || "—"}</Clamp></Td>
             <Td className="text-right tabular-nums">{num(r.qty)}</Td><Td className="text-right tabular-nums">{money(r.unit)}</Td><Td className="text-right tabular-nums">{money(r.total)}</Td>
           </Tr>
         ))}

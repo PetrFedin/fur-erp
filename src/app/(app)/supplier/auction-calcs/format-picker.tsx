@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { Clamp } from "@/components/clamp";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { SUPPLIER_PRESETS, payloadFromPreset, presetLabel } from "@/lib/calc-presets";
@@ -98,7 +99,7 @@ export function FormatPicker({ p, setP, ro, onClassic, notify }: {
           </optgroup>
         </Select>
         <p className="mt-1 text-xs text-neutral-500">
-          {p.formatName ? `Взят образец: ${p.formatName}. ` : ""}Образец подставляет столбцы, формулы и подсказки к параметрам; дальше всё можно менять. Ставки вы вводите сами.
+          {p.formatName ? <Clamp>{`Взят образец: ${p.formatName}`}</Clamp> : "Образец подставляет столбцы и формулы; дальше всё можно менять."}
         </p>
       </div>
       {!ro && (

@@ -1,3 +1,4 @@
+import { InfoHint } from "@/components/info-hint";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
@@ -61,18 +62,18 @@ export default async function SupplierHomePage() {
     const miss = rows.filter((r) => !r.doc).length;
     if (miss > 0) { const c = missDoc.get(name) ?? { lots: 0, of: 0 }; c.lots += miss; c.of += rows.length; missDoc.set(name, c); }
   }
-  for (const [name, c] of noStage) rawItems.push({ key: "n" + name, href: c.n > 1 ? `/supplier/raw?auction=${encodeURIComponent(name)}` : `/supplier/raw/${c.pid}`, text: `${name}${c.n > 1 ? ` (счетов: ${c.n})` : ""}: не отмечено, где сейчас мех — добавьте этап.` });
-  for (const [name, c] of missDoc) noDoc.push({ key: "d" + name, href: `/supplier/raw?auction=${encodeURIComponent(name)}`, text: `${name}: у ${c.lots} из ${c.of} лотов нет УПД / спецификации — приложите документ.` });
+  for (const [name, c] of noStage) rawItems.push({ key: "n" + name, href: c.n > 1 ? `/supplier/raw?auction=${encodeURIComponent(name)}` : `/supplier/raw/${c.pid}`, text: `${name}${c.n > 1 ? ` (счетов: ${c.n})` : ""}: нет этапа` });
+  for (const [name, c] of missDoc) noDoc.push({ key: "d" + name, href: `/supplier/raw?auction=${encodeURIComponent(name)}`, text: `${name}: у ${c.lots} из ${c.of} лотов нет УПД / спецификации` });
   if (hasRaw) {
-    sections.push({ title: "Сырьё по аукционам", empty: "По всем аукционам указано, где мех, и сроки не просрочены.", items: rawItems });
-    sections.push({ title: "Документы к лотам", empty: "К лотам приложены УПД и спецификации.", items: noDoc.slice(0, 15) });
+    sections.push({ title: "Сырьё по аукционам", empty: "Нет замечаний.", items: rawItems });
+    sections.push({ title: "Документы к лотам", empty: "Нет замечаний.", items: noDoc.slice(0, 15) });
   }
 
   // 4. Отгрузки: ожидаемые этапы Веллмеха с прошедшей датой
   const late = supplierId
     ? await prisma.shipmentEvent.findMany({ where: { expected: true, side: "WELLMEKH", occurredAt: { lt: wallNow() }, shipment: { organizationId: orgId, supplierId } }, orderBy: { occurredAt: "asc" }, take: 10, select: { id: true, title: true, shipmentId: true, occurredAt: true, shipment: { select: { name: true } } } })
     : [];
-  sections.push({ title: "Отгрузки", empty: "Нет просрочки.", items: late.map((e) => ({ key: e.id, href: `/shipments/${e.shipmentId}`, text: `${e.shipment.name ?? "Отгрузка"}: этап «${e.title}» ожидался ${e.occurredAt.toLocaleDateString("ru-RU", { timeZone: "UTC" })} — отметьте, когда прошёл.` })) });
+  sections.push({ title: "Отгрузки", empty: "Нет просрочки.", items: late.map((e) => ({ key: e.id, href: `/shipments/${e.shipmentId}`, text: `${e.shipment.name ?? "Отгрузка"}: «${e.title}», ждали ${e.occurredAt.toLocaleDateString("ru-RU", { timeZone: "UTC" })}` })) });
 
   // «Недавнее»: что мы решили по их входящим и отметкам за 14 дней; новое с прошлого просмотра помечено.
   const recent = supplierId ? await loadRecent(orgId, supplierId) : [];
@@ -84,7 +85,7 @@ export default async function SupplierHomePage() {
       <h1 className="text-xl font-semibold">Контроль</h1>
       <p className="text-sm text-neutral-600">{total === 0 ? "Ничего не требуется." : `Требует внимания: ${total}.`}</p>
       <section aria-label="Недавнее" className="flex flex-col gap-1.5 rounded-lg border border-neutral-200 bg-white p-4">
-        <h2 className="text-sm font-semibold">Недавнее <span className="font-normal text-neutral-500">· решения с нашей стороны за 14 дней</span></h2>
+        <h2 className="text-sm font-semibold">Недавнее <InfoHint label="Что в «Недавнем»">Решения с нашей стороны за 14 дней.</InfoHint></h2>
         {recent.length === 0 ? <p className="text-sm text-neutral-500">Нет решений.</p> : (
           <ul className="flex flex-col gap-1 text-sm">
             {recent.map((r) => (

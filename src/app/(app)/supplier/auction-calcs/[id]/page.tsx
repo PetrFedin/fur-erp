@@ -24,12 +24,16 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
   if (!row) notFound();
   const payload = ensureRowIds(row.payload as unknown as CalcPayload);
   const years = await calcYearOptions(s);
+  const full = row.title;
+  const m = /^(.*?[·,]\s*счёт\s+)(.+)$/.exec(full);
+  const inv = m ? m[2].split(/,\s*/) : [];
+  const shortTitle = m && inv.length > 2 ? `${m[1]}${inv[0]} +${inv.length - 1}` : full;
   const readOnly = row.status !== "DRAFT" || s.user.role !== "SUPPLIER";
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Расчёты аукционов", href: "/supplier/auction-calcs" }, { label: row.title }]} />
+      <Breadcrumbs items={[{ label: "Расчёты аукционов", href: "/supplier/auction-calcs" }, { label: shortTitle }]} />
       <div className="flex flex-wrap items-baseline gap-3">
-        <h1 className="text-xl font-semibold">{row.title}</h1>
+        <h1 className="text-xl font-semibold" title={full}>{shortTitle}</h1>
         <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs">{INBOX_STATUS_LABEL[row.status]}</span>
         <ChatLink type="SupplierInbox" id={row.id} role={s.user.role} />
         {payload.stage && <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">{STAGE_LABEL[payload.stage]}</span>}

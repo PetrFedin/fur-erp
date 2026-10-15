@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { InfoHint } from "@/components/info-hint";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { parseFormula, FormulaError } from "@/lib/calc-formula";
@@ -118,7 +119,7 @@ export function ColumnEditor({ draft, setDraft, p, cols, canInput, manualCount, 
                   className={`rounded-full border px-2.5 py-1 text-xs ${sp.op === o ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white hover:bg-neutral-100"}`}>{OP_LABEL[o]}</button>
               ))}
             </div>
-            <p className="mt-1 text-xs text-neutral-500">{OP_HINT[sp.op]}</p>
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-500">Что делает<InfoHint label="Что делает" wide>{OP_HINT[sp.op]}</InfoHint></p>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -146,7 +147,7 @@ export function ColumnEditor({ draft, setDraft, p, cols, canInput, manualCount, 
                   <div><Label>То (формула или число)</Label><Input className="font-mono" value={sp.then} placeholder="D*7,95%+0,1" onChange={(e) => setSpec({ then: e.target.value })} /></div>
                   <div><Label>Иначе</Label><Input className="font-mono" value={sp.otherwise} placeholder="D*9,2%" onChange={(e) => setSpec({ otherwise: e.target.value })} /></div>
                 </div>
-                {textCol(sp.a) && <p className="text-xs text-neutral-500">Условие по тексту записывается правилом столбца: для строк, где значение равно «{sp.b || "…"}», — формула «то», для остальных — «иначе».</p>}
+                {textCol(sp.a) && <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-500">Условие по тексту<InfoHint label="Условие по тексту" wide>Условие по тексту записывается правилом столбца: для строк, где значение равно «{sp.b || "…"}», — формула «то», для остальных — «иначе».</InfoHint></p>}
               </div>
             )}
             {sp.op === "custom" && null}
@@ -160,14 +161,14 @@ export function ColumnEditor({ draft, setDraft, p, cols, canInput, manualCount, 
                 {pv.error ? `Ошибка: ${pv.error}` : `Пример на строке ${pv.rowNo}: ${pv.text}`}
               </p>
             )}
-            <p className="mt-1 text-xs text-neutral-500">Как в Excel: буква столбца берёт значение этой строки, H3 — конкретную ячейку, имя параметра — число из блока «Параметры». + − * / ( ), проценты 4,5%, ROUND(x;2), MIN, MAX, IF(условие;a;b), SUM(H) — итог по столбцу, SUM(D:I) — сумма столбцов строки, AVERAGE, SUBTOTAL(9;H). Аргументы через «;».</p>
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-500">Как писать формулу<InfoHint label="Как писать формулу" wide>Как в Excel: буква столбца берёт значение этой строки, H3 — конкретную ячейку, имя параметра — число из блока «Параметры». + − * / ( ), проценты 4,5%, ROUND(x;2), MIN, MAX, IF(условие;a;b), SUM(H) — итог по столбцу, SUM(D:I) — сумма столбцов строки, AVERAGE, SUBTOTAL(9;H). Аргументы через «;».</InfoHint></p>
           </div>
 
           <div className="flex flex-col gap-2">
             <button type="button" className="self-start text-sm underline decoration-dotted" onClick={() => setShowRules((v) => !v)}>{showRules ? "▾" : "▸"} Другая формула для части строк{draft.rules.length ? ` (правил: ${draft.rules.length})` : ""}</button>
             {showRules && (
               <div className="flex flex-col gap-2 rounded border border-neutral-200 bg-white p-2">
-                <p className="text-xs text-neutral-500">Например: для строк 3–35 одна формула, для 36–62 другая; или для меха «свакара» ставка 9,2 %, для «норка» 7,95 % + 0,1 $. Сверху вниз: подходящее первое правило важнее основной формулы.</p>
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-500">Как работают правила<InfoHint label="Как работают правила" wide>Например: для строк 3–35 одна формула, для 36–62 другая; или для меха «свакара» ставка 9,2 %, для «норка» 7,95 % + 0,1 $. Сверху вниз: подходящее первое правило важнее основной формулы.</InfoHint></p>
                 {draft.rules.map((r, k) => (
                   <div key={k} className="flex flex-wrap items-end gap-2 border-b border-neutral-100 pb-2">
                     <div><Label>со строки</Label><Input className="w-20" inputMode="numeric" value={r.rowFrom ?? ""} onChange={(e) => setDraft({ ...draft, rules: draft.rules.map((x, j) => (j === k ? { ...x, rowFrom: e.target.value === "" ? undefined : Number(e.target.value) } : x)) })} /></div>

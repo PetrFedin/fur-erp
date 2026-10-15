@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Clamp } from "@/components/clamp";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
@@ -112,21 +113,23 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
         </div>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
           {facts.filter(([, v]) => v).map(([k, v]) => (
-            <div key={k} className="flex gap-2"><dt className="shrink-0 text-neutral-500">{k}:</dt><dd className="min-w-0 break-words">{v}</dd></div>
+            <div key={k} className="flex gap-2"><dt className="shrink-0 text-neutral-500">{k}:</dt><dd className="min-w-0 break-words">{k === "Счета" && typeof v === "string" ? <Clamp>{v}</Clamp> : v}</dd></div>
           ))}
         </dl>
         {nowLine && <p className="text-sm"><b>Сырьё сейчас:</b> {nowLine}</p>}
-        <p className="border-t border-neutral-200 pt-2 text-sm">
-          Лотов <b className="tabular-nums">{lotRows.length}</b> · шкур <b className="tabular-nums">{num(totalQty)}</b> · {st ? "по расчёту" : "по УПД без НДС"}: <b className="tabular-nums">{money(totalSum)} {st ? "₽" : c}</b>
-          {st && Math.abs(itemsQty - totalQty) > 0.0005 && <span className="ml-2 text-amber-900">В закупках шкур {num(itemsQty)} — не совпадает с расчётом, проверьте.</span>}
-        </p>
+        {(!st || Math.abs(itemsQty - totalQty) > 0.0005) && (
+          <p className="border-t border-neutral-200 pt-2 text-sm">
+            {!st && <>Лотов <b className="tabular-nums">{lotRows.length}</b> · шкур <b className="tabular-nums">{num(totalQty)}</b> · по УПД без НДС: <b className="tabular-nums">{money(totalSum)} {c}</b></>}
+            {st && <span className="text-amber-900">В закупках шкур {num(itemsQty)} — не совпадает с расчётом, проверьте.</span>}
+          </p>
+        )}
       </section>
 
       {st && <StatementBlock st={st} source={`лист расчёта «${calc?.title ?? ""}»`} />}
 
       <section id="lots" className="flex flex-col gap-2 scroll-mt-4">
         <h2 className="text-base font-semibold">Лоты</h2>
-        {!st && <p className="text-sm text-neutral-600">Расчёта по этому аукциону нет, поэтому суммы — по УПД без НДС. Из чего сложилась цена лота — в его строке (номер лота).{isSup && <> Внесите расчёт в разделе «<Link href="/supplier/auction-calcs" className="text-blue-700 underline">Аукционы</Link>» — здесь появится разбивка «за что заплачено».</>}</p>}
+        {!st && <p className="text-sm text-neutral-600">Нет расчёта{isSup && <> — внесите его в разделе «<Link href="/supplier/auction-calcs" className="text-blue-700 underline max-md:inline-block max-md:py-3">Аукционы</Link>»</>}.</p>}
         {lotRows.length === 0 ? (
           <p className="rounded-md border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">В закупке пока нет лотов.</p>
         ) : (

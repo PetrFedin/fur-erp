@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRawViewer, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { supplierRawRows } from "@/lib/supplier-raw";
 import { cleanSearch } from "@/lib/input";
+import { Clamp } from "@/components/clamp";
 import { SortTh } from "@/components/sort-th";
 import { readSort, sortRows } from "@/lib/table-sort";
 import { formatDate } from "@/lib/utils";
@@ -62,7 +63,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Главная" }, { label: "Сырьё" }]} />
       <h1 className="text-xl font-semibold">Сырьё</h1>
-      <p className="text-sm text-neutral-600">Приложите УПД, спецификацию или счёт — проверим и примем.</p>
+      <p className="text-sm text-neutral-600">Приложите УПД, спецификацию или счёт.</p>
 
       <form className="flex flex-wrap items-end gap-3 text-sm">
         <label className="flex flex-col gap-1">Аукцион
@@ -94,7 +95,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
       <p className="text-sm text-neutral-700">Лотов: <b>{rows.length}</b> · шкур: <b>{num(qty)}</b>{!mixed && rows.length > 0 && <> · сумма по УПД без НДС: <b>{money(sum)} {cur(rows[0].currency)}</b></>}</p>
 
       {rows.length === 0 && (
-        <p className="rounded-md border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500">{all.length === 0 ? "Закупок у вас пока нет. Внесите расчёт в разделе «Аукционы» — после нашей проверки лоты появятся здесь." : "По выбранным условиям лотов нет — сбросьте фильтры."}</p>
+        <p className="rounded-md border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500">{all.length === 0 ? "Нет закупок." : "Нет лотов по условиям."}</p>
       )}
       <div className="flex flex-col gap-3">
         {(() => {
@@ -143,12 +144,12 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                       return (
                         <div key={head.purchaseId} className="rounded-md border border-neutral-200 p-2 text-sm">
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                            <b>{ids.length > 4 ? `Счета ${ids.slice(0, 4).join(", ")} и ещё ${ids.length - 4}` : `${ids.length > 1 ? "Счета" : "Счёт"} ${ids.join(", ")}`}</b>
+                            <Clamp className="max-w-xs font-bold">{`${ids.length > 1 ? "Счета" : "Счёт"} ${ids.join(", ")}`}</Clamp>
                             <span className="text-neutral-600">шкур {num(inv.flat().reduce((a, r) => a + r.quantity, 0))}</span>
-                            {sm ? <span className={sm.overdue ? "text-red-800" : "text-neutral-700"}>{summaryLine(sm)}</span> : <span className="text-neutral-500">{head.received ? "принято у нас на склад" : "этапов нет — отметьте, где мех"}</span>}
+                            {sm ? <span className={sm.overdue ? "text-red-800" : "text-neutral-700"}>{summaryLine(sm)}</span> : <span className="text-neutral-500">{head.received ? "принято на склад" : "нет этапов"}</span>}
                             {isSup && <Link href={`/supplier/raw/${head.purchaseId}`} className="ml-auto text-blue-700 underline max-md:inline-flex max-md:min-h-11 max-md:items-center">{sm ? "Этапы и детали →" : "+ Этап"}</Link>}
                           </div>
-                          {st.length > 0 && (
+                          {st.length > 1 && (
                             <ol className="mt-2 flex flex-col gap-0.5 border-l-2 border-neutral-200 pl-3 text-xs text-neutral-700">
                               {sortStages(st).map((x, i) => (
                                 <li key={i}>
@@ -177,7 +178,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                           <SortTh path="/supplier/raw" sp={sp} k="lot" cur={sort} label="Лот" />
                           <SortTh path="/supplier/raw" sp={sp} k="fur" cur={sort} label="Вид меха" />
                           <SortTh path="/supplier/raw" sp={sp} k="color" cur={sort} label="Цвет" />
-                          <SortTh path="/supplier/raw" sp={sp} k="size" cur={sort} label="Размер / сорт" />
+                          <SortTh path="/supplier/raw" sp={sp} k="size" cur={sort} label="Размер, сорт" />
                           <SortTh path="/supplier/raw" sp={sp} k="qty" cur={sort} label="Кол-во" align="right" />
                           <SortTh path="/supplier/raw" sp={sp} k="price" cur={sort} label="Цена без НДС" align="right" />
                           <SortTh path="/supplier/raw" sp={sp} k="doc" cur={sort} label="УПД" />
@@ -186,10 +187,10 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                         <Tbody>
                           {sortRows(lots, sort, { invoice: (r) => r.invoice || r.purchaseNumber, lot: (r) => r.lotNumber, fur: (r) => r.fur, color: (r) => r.color, size: (r) => r.size, qty: (r) => r.quantity, price: (r) => r.unitPrice, doc: (r) => r.doc }).map((r) => (
                             <Tr key={r.itemId}>
-                              <Td>{r.invoice || r.purchaseNumber}</Td><Td>{r.lotNumber || "—"}</Td><Td>{r.fur}</Td><Td>{r.color || "—"}</Td><Td>{r.size || "—"}</Td>
+                              <Td>{r.invoice || r.purchaseNumber}</Td><Td>{r.lotNumber || "—"}</Td><Td>{r.fur}</Td><Td className="max-w-[10rem]"><Clamp>{r.color || "—"}</Clamp></Td><Td className="max-w-[14rem]"><Clamp>{r.size || "—"}</Clamp></Td>
                               <Td className="tabular-nums">{num(r.quantity)}</Td>
-                              <Td className="tabular-nums">{money(r.unitPrice)} {cur(r.currency)}</Td>
-                              <Td>{r.doc || <span className="text-neutral-400">нет</span>}</Td>
+                              <Td className="whitespace-nowrap tabular-nums">{money(r.unitPrice)} {cur(r.currency)}</Td>
+                              <Td className="max-w-[12rem]">{r.doc ? <Clamp>{r.doc}</Clamp> : <span className="text-neutral-500">нет</span>}</Td>
                               <Td>{isSup && <AttachDocument purchaseId={r.purchaseId} itemId={r.itemId} label="Приложить" />}</Td>
                             </Tr>
                           ))}

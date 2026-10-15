@@ -1,5 +1,7 @@
 "use client";
 
+import { Clamp } from "@/components/clamp";
+import { InfoHint } from "@/components/info-hint";
 import { useRef, useState, type ClipboardEvent, type Dispatch, type KeyboardEvent, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
@@ -181,11 +183,10 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-neutral-600">Таблица как в Excel: у каждого столбца своя буква. Белые ячейки заполняете вы, серые считаются по формуле (можно вписать значение вручную — ячейка пометится). Нажмите на название своего столбца (голубой), чтобы поменять формулу.</p>
+      <p className="flex items-center gap-1.5 text-sm text-neutral-600">Как заполнять<InfoHint label="Как заполнять таблицу">Таблица как в Excel: у каждого столбца своя буква. Белые ячейки заполняете вы, серые считаются по формуле (можно вписать значение вручную — ячейка пометится). Нажмите на название своего столбца (голубой), чтобы поменять формулу.</InfoHint></p>
 
       <section className="flex flex-col gap-2 rounded-md border border-neutral-200 p-3">
-        <h2 className="text-sm font-semibold">Параметры для формул</h2>
-        <p className="text-xs text-neutral-500">Числа (курс, ставки), которые можно писать в формулах по имени. {isSheet ? "Для отдельной строки значение можно задать своё." : "Ставки формата берутся из блока «Ставки расчёта» на вкладке «Расчёт»."}</p>
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold">Параметры<InfoHint label="Параметры для формул">Числа (курс, ставки), которые можно писать в формулах по имени. {isSheet ? "Для отдельной строки значение можно задать своё." : "Ставки формата берутся из блока «Ставки расчёта» на вкладке «Расчёт»."}</InfoHint></h2>
         {!isSheet && (
           <div className="flex flex-wrap gap-1.5 text-xs">
             {params.filter((q) => !q.own).map((q) => <span key={q.name} className="rounded-full bg-neutral-100 px-2 py-0.5" title={q.label}>{q.name}</span>)}
@@ -195,7 +196,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
           <div key={i} className="flex flex-wrap items-center gap-2">
             <Input className="w-56 font-mono" value={q.name} readOnly={ro} onChange={(e) => setP((x) => ({ ...x, params: (x.params ?? []).map((y, j) => (j === i ? { ...y, name: e.target.value } : y)) }))} />
             <Input className="w-40" inputMode="decimal" value={q.value} readOnly={ro} placeholder="значение" onChange={(e) => setP((x) => ({ ...x, params: (x.params ?? []).map((y, j) => (j === i ? { ...y, value: e.target.value } : y)) }))} />
-            {(q.label || q.hint) && <span className="text-xs text-neutral-500">{q.label}{q.hint ? ` — например: ${q.hint}` : ""}</span>}
+            {(q.label || q.hint) && <span className="max-w-xs text-xs text-neutral-500"><Clamp>{q.label}{q.hint ? ` — например: ${q.hint}` : ""}</Clamp></span>}
             {!ro && <button type="button" className="px-2 text-neutral-400 hover:text-red-600" title="Убрать параметр" onClick={() => setP((x) => ({ ...x, params: (x.params ?? []).filter((_, j) => j !== i) }))}>×</button>}
           </div>
         ))}
@@ -256,15 +257,17 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
       )}
       {note && <p className="text-sm text-neutral-700">{note}</p>}
       {rowParamList.length > 0 && (
-        <section className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-600">
-          <span className="font-semibold">Свои значения в строках (вместо шапки):</span>
+        <details className="text-xs text-neutral-600" open={rowParamList.length <= 4}>
+          <summary className="cursor-pointer py-2 font-semibold">Свои значения в строках ({rowParamList.length})</summary>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {rowParamList.map((x) => (
             <span key={x.i + x.k} className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5">
               строка {x.i + 1}: {x.name} = {x.v.replace(".", ",")}
               {!ro && <button type="button" className="text-neutral-400 hover:text-red-600" title="Вернуть значение из шапки" onClick={() => setP((y) => ({ ...y, rows: y.rows.map((row, j) => { if (j !== x.i) return row; const n = { ...row }; delete n[x.k]; return n; }) }))}>×</button>}
             </span>
           ))}
-        </section>
+          </div>
+        </details>
       )}
 
       {(p.customColumns ?? []).length > 0 && !ro && (
@@ -399,8 +402,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
       </div>
 
       <section className="flex flex-col gap-2 rounded-md border border-neutral-200 p-3">
-        <h2 className="text-sm font-semibold">Контрольная разность между двумя итогами</h2>
-        <p className="text-xs text-neutral-500">Например: «Итого по расчёту» минус «Итого в УПД» — разница должна быть в пределах допуска (копейки на округление).</p>
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold">Контрольная разность<InfoHint label="Контрольная разность">Разность двух итогов, например «Итого по расчёту» минус «Итого в УПД»: должна быть в пределах допуска (копейки на округление).</InfoHint></h2>
         {(p.checks ?? []).map((c, i) => {
           const r = checks[i];
           const upd = (patch: Partial<typeof c>) => setP((x) => ({ ...x, checks: (x.checks ?? []).map((y, j) => (j === i ? { ...y, ...patch } : y)) }));

@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRawViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { STAGE_LABEL, calcAll, calcYear, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
 import { formatDate } from "@/lib/utils";
+import { Clamp } from "@/components/clamp";
 import { SortTh } from "@/components/sort-th";
 import { readSort, sortRows } from "@/lib/table-sort";
 
@@ -76,8 +77,8 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
               <Fragment key={r.id}>
               {heading && <Tr><Td colSpan={8} className="bg-neutral-50 py-1.5 text-sm font-semibold">{yr} год</Td></Tr>}
               <Tr>
-                <Td><Link className="font-medium underline max-md:inline-block max-md:py-3" href={`/supplier/auction-calcs/${r.id}`}>{pl?.header?.auction || r.title}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 text-xs text-red-700">Замечание: {r.reviewNote}</div>}</Td>
-                <Td>{pl?.header?.invoice || "—"}</Td>
+                <Td><Link className="font-medium underline max-md:inline-block max-md:py-3" href={`/supplier/auction-calcs/${r.id}`}>{pl?.header?.auction || r.title}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 max-w-[16rem] text-xs text-red-700"><Clamp>Замечание: {r.reviewNote}</Clamp></div>}</Td>
+                <Td className="max-w-[12rem]"><Clamp>{pl?.header?.invoice || "—"}</Clamp></Td>
                 {!isSup && <Td>{r.supplier.name}</Td>}
                 <Td className="text-right tabular-nums">{qty || "—"}</Td>
                 <Td className="text-right tabular-nums">{qty ? money(total) : "—"}</Td>

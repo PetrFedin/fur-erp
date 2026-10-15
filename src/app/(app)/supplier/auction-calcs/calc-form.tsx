@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/info-hint";
 import { useId, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -112,7 +113,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [] 
             <option value="__new">+ новый год…</option>
           </Select>
         )}
-        <span className="text-xs text-neutral-500">По году расчёт ляжет в списке «Расчёты аукционов» и в «Сырьё»; закупка у нас получит тот же год.</span>
+        <InfoHint label="Про год">По году расчёт ляжет в списке «Расчёты аукционов» и в «Сырьё»; закупка у нас получит тот же год.</InfoHint>
       </div>
       {reviewNote && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">Комментарий проверяющего: {reviewNote}</div>}
       {!advanced && (
@@ -273,7 +274,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [] 
         {files.length === 0 && <p className="text-sm text-neutral-500">Нет файлов. PDF аукционного счёта, счёт Веллмеха на аванс, спецификация к Договору купли-продажи №2502 от 26.02.2025, УПД.</p>}
         {files.map((f) => (
           <div key={f.id} className="flex items-center gap-3 text-sm">
-            <a className="text-blue-700 underline" href={`/api/supplier/inbox-files/${f.id}`}>{f.originalName}</a>
+            <a className="inline-block text-blue-700 underline max-md:py-3" href={`/api/supplier/inbox-files/${f.id}`}>{f.originalName}</a>
             <span className="text-neutral-500">{INBOX_FILE_KINDS.find((k) => k.key === f.kind)?.label} · {(f.sizeBytes / 1048576).toFixed(1)} МБ</span>
             {!ro && <button type="button" className="text-neutral-400 hover:text-red-600" onClick={() => run(() => removeInboxFile(f.id), "Файл убран", () => router.refresh())}>×</button>}
           </div>
@@ -290,7 +291,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [] 
 
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="outline" size="sm" disabled={pending} onClick={downloadXlsx}>Скачать Excel</Button>
-        <span className="text-xs text-neutral-500">Детальный расчёт стоимости сырья, как в письмах: лист «ММ-расчёт» с живыми формулами и лист «Параметры» (курс, ставки).</span>
+        <InfoHint label="Что в файле">Детальный расчёт стоимости сырья, как в письмах: лист «ММ-расчёт» с живыми формулами и лист «Параметры» (курс, ставки).</InfoHint>
       </div>
 
       <InvoiceMaker id={id} payload={out()} />
