@@ -2,6 +2,7 @@ import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { buildTzDocx } from "@/lib/tz-docx-vendor";
 import type { TzPayload } from "@/lib/tz-vendor";
+import { loadTzFromOrders } from "@/lib/tz-from-orders-server";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,8 @@ const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.doc
  * «Финальный Word» ТЗ — одна ссылка для карточки артикула, списка ТЗ и карточки производства.
  * По порядку: 1) сохранённый Word приложения к ТЗ (присланный Веллмехом или собранный при приёме ТЗ из кабинета);
  * 2) ТЗ принято из кабинета Веллмеха — Word в его формате собирается из принятых данных (tz-docx-vendor);
- * 3) иначе печатная форма, которую система формирует по ТЗ (/api/production/[id]/docx). Ничего не пишет в базу.
+ * 3) Word Веллмеха из данных ТЗ нашей базы (tz-from-orders: позиции ТЗ, списания сырья, работа) — если данных хватает на полный документ;
+ * 4) иначе печатная форма, которую система формирует по ТЗ (/api/production/[id]/docx). Ничего не пишет в базу.
  */
 export async function GET(_request: Request, ctx: RouteContext<"/api/production/[id]/word">) {
   const session = await getFreshSession();
@@ -35,6 +37,17 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/production/
       const p = inbox.payload as unknown as TzPayload;
       const buf = await buildTzDocx(p);
       const enc = encodeURIComponent(`ПРИЛОЖЕНИЕ ${p.number}.docx`);
+      return new Response(new Uint8Array(buf), {
+        headers: { "Content-Type": DOCX, "Content-Disposition": `attachment; filename="tz.docx"; filename*=UTF-8''${enc}`, "Cache-Control": "private, no-store" },
+      });
+    }
+  }
+  if (!saved) {
+    // Word Веллмеха из данных нашего ТЗ: только если маппинг даёт полный документ (изделия, количество, работа, переданное сырьё)
+    const mapped = await loadTzFromOrders(orgId, id).catch(() => null);
+    if (mapped?.complete) {
+      const buf = await buildTzDocx(mapped.payload);
+      const enc = encodeURIComponent(`ПРИЛОЖЕНИЕ ${mapped.payload.number}.docx`);
       return new Response(new Uint8Array(buf), {
         headers: { "Content-Type": DOCX, "Content-Disposition": `attachment; filename="tz.docx"; filename*=UTF-8''${enc}`, "Cache-Control": "private, no-store" },
       });
