@@ -187,7 +187,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       {/* ---------- сводка */}
       <WidgetRow id="docs-coverage" title="Покрытие документами">
       <section aria-label="Сводка покрытия" className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-        <SummaryTile title="Всего, шт." stat={sum.total} href={buildHref({ section: null, gaps: "1", dpage: null })} strong />
+        <SummaryTile title="Всего" stat={sum.total} href={buildHref({ section: null, gaps: "1", dpage: null })} strong />
         {sum.sections.map((s) => (
           <SummaryTile key={s.key} title={SECTION_TITLES[s.key]} stat={s} href={buildHref({ section: s.key, gaps: "1", dpage: null })} />
         ))}
@@ -200,7 +200,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
 
       {hasRole(session.user.role, ACCESS.purchases) && (
         <details className="rounded-lg border border-neutral-200 bg-white" open={false}>
-          <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium hover:bg-neutral-50">Массовая загрузка документов <span className="font-normal text-neutral-500">— выбрать или перетащить несколько файлов, привязка предлагается сама</span></summary>
+          <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium hover:bg-neutral-50">Массовая загрузка документов <span className="font-normal text-neutral-500">— привязка предлагается сама</span></summary>
           <div className="border-t border-neutral-100 p-3"><BulkUpload /></div>
         </details>
       )}
@@ -374,10 +374,10 @@ function SummaryTile({ title, stat, href, strong }: { title: string; stat: Secti
         <div className={cn("h-full rounded-full", barTone(stat.percent))} style={{ width: `${stat.percent ?? 0}%` }} />
       </div>
       <div className="mt-1 text-xs text-neutral-500">
-        документы привязаны: {stat.have} из {stat.required} документов
+        привязано {stat.have} из {stat.required}
       </div>
       <div className={cn("text-xs", stat.rowsWithGaps > 0 ? "text-red-600" : "text-emerald-700")}>
-        {stat.rowsWithGaps > 0 ? `нужен файл: ${stat.rowsWithGaps} из ${stat.rows} записей` : `без пробелов (${stat.rows} записей)`}
+        {stat.rowsWithGaps > 0 ? `нужен файл: ${stat.rowsWithGaps} из ${stat.rows}` : `без пробелов · ${stat.rows}`}
       </div>
     </Link>
   );

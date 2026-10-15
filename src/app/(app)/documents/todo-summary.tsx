@@ -8,7 +8,7 @@ import { loadBatchPanels } from "@/lib/production-doc-checklist";
 import { TONE_DOT, overallTone, type Panel, type Tone } from "@/lib/doc-panel";
 import { type YearFilter } from "@/lib/year-filter";
 import { isServiceAuction } from "@/lib/auction-names";
-import { cn } from "@/lib/utils";
+import { cn, formatPercent } from "@/lib/utils";
 
 type Row = { key: string; kind: "Аукцион" | "Партия"; title: string; href: string; year: number | null; tone: Tone; panel: Panel; unmatched: boolean };
 
@@ -87,7 +87,7 @@ export async function TodoSummary({ organizationId, year }: { organizationId: st
               badge={<span aria-hidden className={cn("inline-block size-3 rounded-full", TONE_DOT[r.tone])} />}
               fields={[
                 { label: "Нужен документ", value: missingText(r.panel).length ? <span className="font-medium text-red-700">{missingText(r.panel).join(", ")}</span> : "всё есть", strong: true },
-                { label: "Оплата", value: r.panel.pay.label },
+                { label: "Оплата", value: r.panel.pay.state === "PARTIAL" ? `Оплачено ${formatPercent(r.panel.pay.percent)}` : r.panel.pay.label },
               ]}
               details={[
                 { label: "Где упомянут", value: mentionText(r.panel) || "в документах не названо" },
@@ -128,8 +128,8 @@ function TodoTable({ rows, missingText, mentionText }: { rows: Row[]; missingTex
                               </span>
                             )}
                             <span className="block text-xs font-normal text-neutral-500">
-                              {r.kind}
-                              {r.year ? ` · ${r.year}` : ""}
+                              {r.kind === "Партия" && /^Партия/.test(r.title) ? "" : `${r.kind}`}
+                              {r.year ? `${r.kind === "Партия" && /^Партия/.test(r.title) ? "" : " · "}${r.year}` : ""}
                               {r.unmatched ? " · нет сопоставимых документов" : ""}
                             </span>
                           </span>
@@ -140,7 +140,7 @@ function TodoTable({ rows, missingText, mentionText }: { rows: Row[]; missingTex
                       </td>
                       <td className="px-3 py-2">
                         <Link href={r.href} className="hover:underline">
-                          <span className={cn("font-medium", r.panel.pay.tone === "bad" ? "text-red-700" : r.panel.pay.tone === "warn" ? "text-amber-700" : "text-emerald-700")}>{r.panel.pay.label}</span>
+                          <span className={cn("font-medium", r.panel.pay.tone === "bad" ? "text-red-700" : r.panel.pay.tone === "warn" ? "text-amber-700" : "text-emerald-700")}>{r.panel.pay.state === "PARTIAL" ? `Оплачено ${formatPercent(r.panel.pay.percent)}` : r.panel.pay.label}</span>
                           {r.panel.pay.state !== "PAID" && r.panel.pay.state !== "NOBASE" && <span className="block text-xs text-neutral-500">остаток {r.panel.pay.remainingText}</span>}
                           {r.panel.proofMissing > 0 && <span className="block text-xs text-amber-700">платёжек нет: {r.panel.proofMissing}</span>}
                         </Link>

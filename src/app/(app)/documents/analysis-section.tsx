@@ -48,13 +48,13 @@ export async function AnalysisSection({ organizationId, year }: { organizationId
         </InfoHint>
       </div>
 
-      <WidgetRow id="docs-summary" title="Расхождения и документы для поиска — итоги">
+      <WidgetRow id="docs-summary" title="Итоги">
         <section className="grid items-stretch gap-3 sm:grid-cols-3">
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
             <TileHead>Документы папки «Мех»</TileHead>
             <TileValue>{formatPercent(driveSyncSnapshot.meaningfulCoveragePct)}</TileValue>
             <TileCaption>
-              документы привязаны (файлов)
+              привязано файлов
               <InfoHint label="Подробности">
                 <p>{driveSyncSnapshot.dbUniqueDriveFiles} канонических файлов · {driveSyncSnapshot.recognizedDuplicateCopies} дублей распознано.</p>
                 <p className="mt-1">{RELIABILITY_NOTE}</p>
