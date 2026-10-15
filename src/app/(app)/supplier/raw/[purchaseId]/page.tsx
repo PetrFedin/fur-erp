@@ -14,6 +14,8 @@ import { RawStagesBlock } from "@/components/raw-stages";
 import { BreakdownTable } from "@/components/breakdown-table";
 import { ChatLink } from "@/components/chat-link";
 import { LotCompose, LotsTable, StatementBlock, type LotRow } from "@/components/auction-statement";
+import { InfoHint } from "@/components/info-hint";
+import { paymentDocFlagsFor } from "@/lib/supplier-payment-docs";
 import { summarizeStages, summaryLine } from "@/lib/raw-stage";
 
 export const metadata = { title: "Аукцион" };
@@ -94,6 +96,8 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
     ["Счета", invoices.map((i) => i.invoice || i.number).join(", ")],
     ["Принято на склад", `${received} из ${invoices.length} счетов`],
   ];
+  // Только булев признак: есть ли у заказчика загруженный документ по оплате счёта (без сумм, дат и файла).
+  const payFlags = await paymentDocFlagsFor(s.user.organizationId, supplierId, invoices.map((i) => ({ id: i.id, invoice: i.invoice, number: i.number })));
   const docFiles = docs.flatMap((x) => x.files.map((f) => ({ ...f, title: x.title })));
 
   return (
@@ -144,6 +148,25 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
           <div className="flex flex-wrap items-center gap-3">
             {isSup && <AttachDocument purchaseId={p.id} label="Приложить документ" />}
             <ChatLink type="Purchase" id={p.id} role={s.user.role} />
+          </div>
+          <div className="flex flex-col gap-1 rounded-md border border-neutral-200 p-2 text-sm" aria-label="Платёжные документы по счетам">
+            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              Платёжный документ
+              <InfoHint label="О платёжных документах">Документы по оплате загружает заказчик.</InfoHint>
+            </div>
+            <ul className="flex flex-col gap-0.5">
+              {invoices.map((i) => {
+                const has = payFlags.get(i.id) === true;
+                return (
+                  <li key={i.id} className="flex flex-wrap items-center gap-x-2">
+                    <span>Счёт {i.invoice || i.number}:</span>
+                    {has
+                      ? <span className="font-medium text-green-800"><span aria-hidden>✓</span> есть</span>
+                      : <span className="text-neutral-500"><span aria-hidden>—</span> нет</span>}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
           {docFiles.length === 0 ? (
             <p className="text-sm text-neutral-500">Документов пока нет: счета, УПД, спецификации, письма.</p>

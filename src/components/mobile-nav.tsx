@@ -76,11 +76,12 @@ export function MobileNav({ links, badges }: { links: readonly NavItem[]; badges
                     aria-current={active ? "page" : undefined}
                     onClick={() => setOpenAt(null)}
                     className={cn(
-                      "rounded-md px-2 py-2 text-xs transition-colors",
+                      "flex min-h-11 items-center rounded-md px-2 py-2 text-xs transition-colors",
                       active ? "bg-neutral-900 text-white" : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
                     )}
                   >
                     {link.label}
+                    {(badges?.[link.href] ?? 0) > 0 && <span className="ml-1.5 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white" aria-label="новых решений">{badges?.[link.href]}</span>}
                   </Link>
                 );
               })}

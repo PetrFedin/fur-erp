@@ -17,6 +17,8 @@ import { randomBytes } from "node:crypto";
 import { mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
+import { SUPPLIER_DOC_TYPES, supplierMayUpload } from "../src/lib/supplier-docs";
+import { paymentDocFlags } from "../src/lib/supplier-payment-docs-core";
 
 const BASE = (process.env.BASE_URL ?? "http://localhost:3420").replace(/\/$/, "");
 const dbUrl = process.env.DATABASE_URL ?? "";
@@ -339,6 +341,35 @@ async function main() {
   ok(own.status === 200, `контроль: sup1 открывает файл своего обсуждения (${own.status})`);
   const own2 = ifile ? await req(`/api/supplier/inbox-files/${ifile.id}`, { cookie: S1 }) : null;
   if (own2) ok(own2.status === 200, `контроль: sup1 открывает свой файл входящего (${own2.status})`);
+
+  // Документы по оплате: Веллмех их не загружает (сервер отклоняет платёжные типы) и видит лишь признак «есть / нет».
+  console.log("   — документы по оплате (SUPPLIER не грузит, видит только факт):");
+  for (const k of ["PAYMENT_NOTE", "PAYMENT_PROOF", "PAYMENT_ORDER", "PAYMENT", "payment_note", "", null]) ok(!supplierMayUpload(k), `загрузка платёжного типа ${JSON.stringify(k)} от SUPPLIER отклоняется`);
+  ok(SUPPLIER_DOC_TYPES.every((t) => supplierMayUpload(t.key)) && !SUPPLIER_DOC_TYPES.some((t) => /оплат|платёж/i.test(t.label)), "в списке типов подрядчика нет платёжных, остальные (УПД, спецификация, смета…) разрешены");
+  const flagMap = paymentDocFlags([{ id: "a", invoice: "№ 083", number: "P-1" }, { id: "b", invoice: "84", number: "P-2" }, { id: "c", invoice: "", number: "P-3" }], [
+    { purchaseId: null, invoiceNo: "83", hasDoc: true }, { purchaseId: "b", invoiceNo: null, hasDoc: false }, { purchaseId: null, invoiceNo: "", hasDoc: true },
+  ]);
+  ok(flagMap.get("a") === true && flagMap.get("b") === false && flagMap.get("c") === false, "признак «есть / нет»: по номеру счёта есть, без документа и без счёта — нет");
+  ok([...flagMap.values()].every((v) => typeof v === "boolean"), "признак — только булево значение (сумм, дат, получателей нет)");
+  const sup1Purchase = await prisma.purchase.findFirst({ where: { organizationId: orgA, supplierId: sup1, status: { not: "CANCELLED" } }, select: { id: true, number: true, invoiceNumber: true } });
+  if (sup1Purchase) {
+    const SECRET = 987654.32;
+    const inv = sup1Purchase.invoiceNumber ?? sup1Purchase.number;
+    const pay = await prisma.payment.create({ data: { organizationId: orgA, supplierId: sup1, purchaseId: sup1Purchase.id, amount: SECRET, invoiceNo: inv, notes: "SEC-PAYMENT-SECRET-NOTE" } });
+    const dd = await prisma.driveDocument.create({ data: { organizationId: orgA, driveFileId: `local-sec-${pay.id}`, title: "Платёжка: SEC-PAYMENT-SCAN.pdf", docType: "PAYMENT_PROOF", paymentId: pay.id, purchaseId: sup1Purchase.id, storagePath: probe } });
+    try {
+      const pg = await req(`/supplier/raw/${sup1Purchase.id}`, { cookie: S1 });
+      ok(pg.status === 200 && pg.text.includes("Платёжный документ") && pg.text.includes("есть"), `sup1 видит у своего аукциона «Платёжный документ: есть» (${pg.status})`);
+      ok(!/987[\s\u00a0,.]?654/.test(pg.text) && !pg.text.includes("SEC-PAYMENT-SECRET-NOTE") && !pg.text.includes("SEC-PAYMENT-SCAN"), "страница подрядчика не раскрывает сумму, заметку и имя файла оплаты");
+      const f = await req(`/api/drive-docs/${dd.id}`, { cookie: S1 });
+      ok(denied(f), `sup1 не открывает файл оплаты напрямую (${f.status})`);
+      const pp = await req(`/payments`, { cookie: S1 });
+      ok(denied(pp), `sup1 не открывает /payments (${pp.status})`);
+    } finally {
+      await prisma.driveDocument.delete({ where: { id: dd.id } }).catch(() => {});
+      await prisma.payment.delete({ where: { id: pay.id } }).catch(() => {});
+    }
+  }
 
   // ---------- 6. права внутренних ролей ----------
   console.log("\n== 6. Наблюдатель (VIEWER) и тяжёлые запросы");

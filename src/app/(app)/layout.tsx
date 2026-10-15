@@ -41,7 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const years = availableYears(dataMaxYear);
   // Непрочитанное в чате — значок у пункта «Чат».
   const chatUnread = canUseChat(session.user.role) ? (await chatCounts(viewerOf(session)).catch(() => ({ unread: 0 }))).unread : 0;
-  // Кабинет Веллмеха: «Что ждут» — число новых решений нашей стороны с его последнего просмотра «Недавнего».
+  // Кабинет Веллмеха: «Контроль» — число новых решений нашей стороны с его последнего просмотра «Недавнего».
   const supNew = session.user.role === "SUPPLIER" && session.user.supplierId
     ? await countNewDecisions(orgId, session.user.supplierId, Number(cookieStore.get(RECENT_COOKIE)?.value) || null).catch(() => 0)
     : 0;

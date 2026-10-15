@@ -11,11 +11,11 @@ import { loadRecent } from "@/lib/supplier-recent";
 import { RECENT_COOKIE } from "@/lib/supplier-recent-const";
 import { RecentSeen } from "./recent-seen";
 
-export const metadata = { title: "Что от вас ждут" };
+export const metadata = { title: "Контроль" };
 
 type Item = { key: string; text: string; href: string; hint?: string };
 
-/** Главная кабинета Веллмеха: что от него ждут сегодня. Только его данные — без наших цен, продаж и остальных разделов. */
+/** Раздел «Контроль» кабинета Веллмеха: что от него ждут сегодня и что мы решили. Только его данные — без наших цен, продаж и остальных разделов. */
 export default async function SupplierHomePage() {
   const s = await requireInboxViewer();
   const isSup = s.user.role === "SUPPLIER";
@@ -80,8 +80,8 @@ export default async function SupplierHomePage() {
   const total = sections.reduce((a, x) => a + x.items.length, 0);
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Главная" }]} />
-      <h1 className="text-xl font-semibold">Что от вас ждут</h1>
+      <Breadcrumbs items={[{ label: "Контроль" }]} />
+      <h1 className="text-xl font-semibold">Контроль</h1>
       <p className="text-sm text-neutral-600">{total === 0 ? "Сейчас от вас ничего не требуется." : `Требует внимания: ${total}. Нажмите на строку — откроется нужное место.`}</p>
       <section aria-label="Недавнее" className="flex flex-col gap-1.5 rounded-lg border border-neutral-200 bg-white p-4">
         <h2 className="text-sm font-semibold">Недавнее <span className="font-normal text-neutral-500">· решения с нашей стороны за 14 дней</span></h2>

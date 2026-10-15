@@ -6,7 +6,7 @@ import { requireSupplierSession } from "@/lib/supplier-inbox";
 import { readDocumentFiles, writeDocumentFiles } from "@/lib/purchase-files";
 import { removeStoredFiles } from "@/lib/fitting-files";
 import { invalidateControlCounts } from "@/lib/control-counts";
-import { SUPPLIER_DOC_TYPES, type DocumentPayload } from "@/lib/supplier-docs";
+import { SUPPLIER_DOC_TYPES, supplierMayUpload, type DocumentPayload } from "@/lib/supplier-docs";
 
 export type AttachState = { error?: string; ok?: boolean };
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -17,7 +17,10 @@ export async function attachDocument(_prev: AttachState, formData: FormData): Pr
   const s = await requireSupplierSession();
   const purchaseId = clip(formData.get("purchaseId"), 64);
   const itemId = clip(formData.get("itemId"), 64);
-  const type = SUPPLIER_DOC_TYPES.find((t) => t.key === formData.get("docType"));
+  // Документы по оплате загружает только заказчик: от подрядчика платёжные типы и любые неизвестные отклоняются на сервере.
+  const docTypeRaw = formData.get("docType");
+  if (typeof docTypeRaw === "string" && !supplierMayUpload(docTypeRaw) && /PAYMENT|ОПЛАТ/i.test(docTypeRaw)) return { error: "Документы по оплате загружает заказчик" };
+  const type = SUPPLIER_DOC_TYPES.find((t) => supplierMayUpload(t.key) && t.key === docTypeRaw);
   if (!ID.test(purchaseId) || !type) return { error: "Проверьте форму" };
   const date = clip(formData.get("date"), 10);
   if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: "Дата — в формате ГГГГ-ММ-ДД" };

@@ -19,7 +19,7 @@ type Row = {
 export function DocumentCard({ row }: { row: Row }) {
   const p = row.payload as DocumentPayload;
   const sent = row.status === "SENT";
-  const typeLabel = SUPPLIER_DOC_TYPES.find((t) => t.key === p.docType)?.label ?? p.docType;
+  const typeLabel = SUPPLIER_DOC_TYPES.find((t) => t.key === p.docType)?.label ?? (p.docType === ("PAYMENT_NOTE" as string) ? "Оплата (прежний тип)" : p.docType);
   const kindLabel = (k: string) => INBOX_FILE_KINDS.find((x) => x.key === k)?.label ?? k;
   const info: [string, string][] = [
     ["Тип", typeLabel], ["Номер", p.number || "—"], ["Дата", p.date ? p.date.split("-").reverse().join(".") : "—"],

@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { MARKS_TITLE, markConfirmed, markOf } from "@/lib/shipment-marks";
 
-/** Куки «просмотрено до»: метка времени (мс), когда Веллмех последний раз открывал «Что ждут». */
+/** Куки «просмотрено до»: метка времени (мс), когда Веллмех последний раз открывал «Контроль». */
 import { RECENT_COOKIE } from "@/lib/supplier-recent-const";
 export { RECENT_COOKIE };
 export const RECENT_DAYS = 14;

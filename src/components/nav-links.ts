@@ -22,17 +22,18 @@ export const NAV_LINKS = [
 
 export type NavItem = { readonly href: string; readonly label: string; readonly also: readonly string[] };
 
-/** Меню кабинета внешнего поставщика (Веллмех), в порядке работы: аукционы → сырьё → ТЗ → изделия (без цен) → отгрузки → календарь → справочники. */
+/** Меню кабинета внешнего поставщика (Веллмех), в порядке работы: аукционы → сырьё → ТЗ → изделия (без цен) → отгрузки → календарь → чат → справочники; «Контроль» — внизу, как у владельца. */
 const SUPPLIER_NAV: readonly NavItem[] = [
-  { href: "/supplier", label: "Что ждут", also: [] },
   { href: "/supplier/auction-calcs", label: "Аукционы", also: [] },
   { href: "/supplier/raw", label: "Сырьё", also: [] },
   { href: "/supplier/tz", label: "ТЗ", also: [] },
   { href: "/articles", label: "Изделия", also: ["/models"] },
   { href: "/shipments", label: "Отгрузки", also: [] },
   { href: "/supplier/calendar", label: "Календарь", also: [] },
-  { href: "/settings", label: "Справочники", also: [] },
   { href: "/chat", label: "Чат", also: [] },
+  { href: "/settings", label: "Справочники", also: [] },
+  // «Контроль» подрядчика: что от него ждут и что мы решили (внизу, мельче — служебный раздел).
+  { href: "/supplier", label: "Контроль", also: [] },
 ];
 
 /** Пункты меню для роли: SUPPLIER получает усечённое меню, остальные — полное. Чистая функция. */
@@ -61,4 +62,4 @@ export function activeNavHref(pathname: string, links: readonly { href: string; 
 }
 
 /** Служебные разделы: в меню стоят отдельно внизу, мельче и без заливки, как неосновные. */
-export const SECONDARY_NAV_HREFS: readonly string[] = ["/attention"];
+export const SECONDARY_NAV_HREFS: readonly string[] = ["/attention", "/supplier"];

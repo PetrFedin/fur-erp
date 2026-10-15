@@ -35,7 +35,7 @@ export async function requireInboxViewer() {
   return s;
 }
 
-/** Разделы «Аукционы» и «Сырьё» кабинета: только для поставщика сырья; подрядчик без закупок уходит на «Что ждут». */
+/** Разделы «Аукционы» и «Сырьё» кабинета: только для поставщика сырья; подрядчик без закупок уходит на «Контроль». */
 export async function requireRawViewer() {
   const s = await requireInboxViewer();
   if (!(await suppliesRawOf(s))) (await import("next/navigation")).redirect("/supplier");
