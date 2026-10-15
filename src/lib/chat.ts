@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import type { ChatSide, ChatSource, ChatStatus, Prisma } from "@prisma/client";
 import {
   CHAT_INTERNAL_ROLES, SUPPLIER_ENTITY_TYPES, eligibleForTopic, canManageGroup, canCreateGroup, awaitsMyAnswer, entityHrefFor, isUnread, nextStatus, safeEntityLabel, sideOfRole,
-  type Side,
+  type Side, isReaction, groupReactions, type ReactionGroup,
 } from "@/lib/chat-core";
 import type { StoredDoc } from "@/lib/purchase-files";
 
@@ -293,4 +293,41 @@ export async function changeMember(v: ChatViewer, threadId: string, userId: stri
     await prisma.chatMember.delete({ where: { threadId_userId: { threadId, userId } } });
   }
   return {};
+}
+
+// ───────── Реакции ─────────
+
+/** Реакции по сообщениям. Если таблицы ещё нет (миграция не применена) — available:false, страница живёт без реакций. */
+export async function loadReactions(v: ChatViewer, messageIds: string[]): Promise<{ available: boolean; byMessage: Map<string, ReactionGroup[]> }> {
+  const byMessage = new Map<string, ReactionGroup[]>();
+  if (messageIds.length === 0) return { available: true, byMessage };
+  try {
+    const rows = await prisma.chatMessageReaction.findMany({ where: { messageId: { in: messageIds } }, orderBy: { createdAt: "asc" }, select: { messageId: true, userId: true, emoji: true } });
+    const users = await prisma.user.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.userId))] } }, select: { id: true, name: true } });
+    const name = new Map(users.map((u) => [u.id, u.name]));
+    const grouped = new Map<string, { emoji: string; userId: string }[]>();
+    for (const r of rows) (grouped.get(r.messageId) ?? grouped.set(r.messageId, []).get(r.messageId)!).push(r);
+    for (const [id, list] of grouped) byMessage.set(id, groupReactions(list, v.id, (u) => name.get(u) ?? "—"));
+    return { available: true, byMessage };
+  } catch {
+    return { available: false, byMessage };
+  }
+}
+
+/** Поставить реакцию или снять, если уже стоит. Только участники обсуждения (поставщик — своего). */
+export async function toggleReaction(v: ChatViewer, messageId: string, emoji: string): Promise<{ error?: string; on?: boolean }> {
+  if (!isReaction(emoji)) return { error: "Такой реакции нет" };
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(messageId)) return { error: "Сообщение не найдено" };
+  const m = await prisma.chatMessage.findFirst({ where: { id: messageId, thread: threadWhere(v) }, select: { id: true } });
+  if (!m) return { error: "Сообщение не найдено" };
+  try {
+    const key = { messageId_userId_emoji: { messageId, userId: v.id, emoji } };
+    const ex = await prisma.chatMessageReaction.findUnique({ where: key, select: { id: true } });
+    if (ex) { await prisma.chatMessageReaction.delete({ where: key }); return { on: false }; }
+    await prisma.chatMessageReaction.create({ data: { messageId, userId: v.id, emoji } });
+    return { on: true };
+  } catch (e) {
+    if ((e as { code?: string }).code === "P2002") return { on: true };
+    return { error: "Реакции пока недоступны" };
+  }
 }

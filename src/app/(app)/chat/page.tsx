@@ -1,29 +1,41 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { Breadcrumbs } from "@/components/breadcrumbs";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { canUseChat, chatCounts, groupMembers, loadThread, resolveEntity, supplierName, threadWhere, viewerOf } from "@/lib/chat";
-import { GROUP_TOPICS, TOPIC_OF_ENTITY, canCreateGroup, canManageGroup, eligibleForTopic, ENTITY_TYPES, REQUEST_TYPES, SUPPLIER_ENTITY_TYPES, awaitsMyAnswer, entityHrefFor, isUnread } from "@/lib/chat-core";
+import { canUseChat, groupMembers, loadReactions, loadThread, resolveEntity, supplierName, threadWhere, viewerOf } from "@/lib/chat";
+import { GROUP_TOPICS, TOPIC_OF_ENTITY, canCreateGroup, canManageGroup, eligibleForTopic, ENTITY_TYPES, REACTIONS, REQUEST_TYPES, SUPPLIER_ENTITY_TYPES, awaitsMyAnswer, entityHrefFor, isUnread } from "@/lib/chat-core";
 import { cn } from "@/lib/utils";
 import { TelegramConnect } from "./telegram-connect";
 import { telegramToken } from "@/lib/channels/telegram";
 import { hasRole, ACCESS } from "@/lib/access";
-import { ChatAutoRefresh, CloseButton, Composer, GroupMembers, NewGroupForm, NewRequestForm, ScrollBottom } from "./chat-client";
+import { ChatAutoRefresh, CloseButton, Composer, GroupMembers, ListFilters, NewGroupForm, NewRequestForm, Reactions, ScrollBottom } from "./chat-client";
 
 export const metadata = { title: "Чат" };
 
 const STATUS_LABEL = { OPEN: "Открыт", ANSWERED: "Ответ получен", CLOSED: "Закрыт" } as const;
-const STATUS_TONE = { OPEN: "bg-amber-100 text-amber-900", ANSWERED: "bg-emerald-100 text-emerald-800", CLOSED: "bg-neutral-200 text-neutral-600" } as const;
+const STATUS_TONE = { OPEN: "bg-amber-100 text-amber-900", ANSWERED: "bg-emerald-100 text-emerald-800", CLOSED: "bg-neutral-200 text-neutral-700" } as const;
 const FILTERS = [
   { key: "", label: "Все" },
+  { key: "await", label: "Ждут ответа" },
   { key: "mine", label: "Мои" },
-  { key: "await", label: "Ждут моего ответа" },
   { key: "req", label: "Запросы" },
+  { key: "groups", label: "Группы" },
   { key: "closed", label: "Закрытые" },
 ] as const;
 
-const fmt = (d: Date) => new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" }).format(d);
+const TZ = "Europe/Moscow";
+const timeFmt = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
+const dayKey = (d: Date) => new Intl.DateTimeFormat("sv-SE", { timeZone: TZ }).format(d);
+const dayFmt = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", timeZone: TZ });
+const shortFmt = new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "2-digit", timeZone: TZ });
+/** Время в списке: сегодня — часы и минуты, иначе дата. */
+const listTime = (d: Date, now: Date) => (dayKey(d) === dayKey(now) ? timeFmt.format(d) : shortFmt.format(d));
+function dayLabel(d: Date, now: Date) {
+  if (dayKey(d) === dayKey(now)) return "Сегодня";
+  if (dayKey(d) === dayKey(new Date(now.getTime() - 86400000))) return "Вчера";
+  return dayFmt.format(d);
+}
+const fileSize = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`);
 const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
 
 export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
@@ -33,19 +45,22 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
   const sp = await searchParams;
   const f = FILTERS.some((x) => x.key === one(sp.f)) ? one(sp.f) : "";
   const q = one(sp.q).trim().slice(0, 80);
+  const entityTypes = v.side === "SUPPLIER" ? Object.fromEntries(SUPPLIER_ENTITY_TYPES.map((t) => [t, ENTITY_TYPES[t]])) : ENTITY_TYPES;
+  const e = Object.keys(entityTypes).includes(one(sp.e)) ? one(sp.e) : "";
   const threadId = one(sp.thread);
   const isNew = one(sp.new) === "1";
+  const now = new Date();
 
   // «Написать / Запросить» с карточки записи: открываем последнее обсуждение по записи или готовим форму.
   let preset: { type: string; id: string; label: string } | null = null;
   const entityParam = one(sp.entity);
   if (entityParam) {
     const [type, id] = entityParam.split(":");
-    const e = type && id ? await resolveEntity(v, type, id) : null;
-    if (e) {
-      const ex = await prisma.chatThread.findFirst({ where: { AND: [threadWhere(v)], kind: { not: "GROUP" }, entityType: e.type, entityId: e.id }, orderBy: { lastMessageAt: "desc" }, select: { id: true } });
+    const ent = type && id ? await resolveEntity(v, type, id) : null;
+    if (ent) {
+      const ex = await prisma.chatThread.findFirst({ where: { AND: [threadWhere(v)], kind: { not: "GROUP" }, entityType: ent.type, entityId: ent.id }, orderBy: { lastMessageAt: "desc" }, select: { id: true } });
       if (ex) redirect(`/chat?thread=${ex.id}`);
-      preset = { type: e.type, id: e.id, label: e.label };
+      preset = { type: ent.type, id: ent.id, label: ent.label };
     }
   }
 
@@ -53,41 +68,53 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
   const gp = one(sp.group);
   if (gp && canCreateGroup(v.role)) {
     const [type, id] = gp.split(":");
-    const e = type && id ? await resolveEntity(v, type, id) : null;
-    const topic = e ? TOPIC_OF_ENTITY[e.type] : undefined;
-    if (e && topic && eligibleForTopic(topic, v.role)) groupPreset = { topic, name: `Группа: ${e.label}`, type: e.type, id: e.id, label: e.label };
+    const ent = type && id ? await resolveEntity(v, type, id) : null;
+    const topic = ent ? TOPIC_OF_ENTITY[ent.type] : undefined;
+    if (ent && topic && eligibleForTopic(topic, v.role)) groupPreset = { topic, name: `Группа: ${ent.label}`, type: ent.type, id: ent.id, label: ent.label };
   }
+
   const where = {
     AND: [
       threadWhere(v),
-      { kind: { not: "GROUP" as const } },
       f === "closed" ? { status: "CLOSED" as const } : { status: { not: "CLOSED" as const } },
       ...(f === "mine" ? [{ createdById: v.id }] : []),
-      ...(f === "req" ? [{ kind: "REQUEST" as const }] : []),
+      ...(f === "req" || f === "await" ? [{ kind: "REQUEST" as const }] : []),
+      ...(f === "groups" ? [{ kind: "GROUP" as const }] : []),
+      ...(e ? [{ entityType: e }] : []),
       ...(q ? [{ OR: [{ subject: { contains: q, mode: "insensitive" as const } }, { entityLabel: { contains: q, mode: "insensitive" as const } }, { messages: { some: { body: { contains: q, mode: "insensitive" as const } } } }] }] : []),
     ],
   };
-  const groups = await prisma.chatThread.findMany({
-    where: { AND: [threadWhere(v), { kind: "GROUP" }, ...(q ? [{ subject: { contains: q, mode: "insensitive" as const } }] : [])] },
-    orderBy: { lastMessageAt: "desc" }, take: 100,
-    include: { reads: { where: { userId: v.id }, select: { lastReadAt: true } }, _count: { select: { members: true } } },
-  });
-  const [rowsRaw, counts, selected] = await Promise.all([
+  const [rowsRaw, selected] = await Promise.all([
     prisma.chatThread.findMany({
       where, orderBy: { lastMessageAt: "desc" }, take: 150,
-      include: { reads: { where: { userId: v.id }, select: { lastReadAt: true } }, messages: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true, authorName: true, attachments: { select: { id: true }, take: 1 } } } },
+      include: {
+        reads: { where: { userId: v.id }, select: { lastReadAt: true } },
+        messages: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true, authorName: true, attachments: { select: { id: true }, take: 1 } } },
+        _count: { select: { members: true } },
+      },
     }),
-    chatCounts(v),
     threadId ? loadThread(v, threadId) : Promise.resolve(null),
   ]);
   const rows = f === "await" ? rowsRaw.filter((t) => awaitsMyAnswer(t, v.side)) : rowsRaw;
+  // Сколько новых сообщений в каждом непрочитанном чате.
+  const unreadCount = new Map<string, number>();
+  await Promise.all(rows.map(async (t) => {
+    if (!isUnread(t, t.reads[0]?.lastReadAt, v.side)) return;
+    const n = await prisma.chatMessage.count({
+      where: { threadId: t.id, ...(t.reads[0] ? { createdAt: { gt: t.reads[0].lastReadAt } } : {}), ...(t.kind === "GROUP" ? { NOT: { authorId: v.id } } : { authorSide: { not: v.side } }) },
+    });
+    unreadCount.set(t.id, Math.max(1, n));
+  }));
+
+  if (threadId && !selected) notFound();
   const supplier = selected ? await supplierName(v.organizationId, selected.supplierId) : "";
   const peerLabel = v.side === "SUPPLIER" ? s.user.organizationName : supplier || "Поставщик";
-
   let messages: Awaited<ReturnType<typeof loadMessages>> = [];
   let entityHref: string | null = null;
+  let reactions: Awaited<ReturnType<typeof loadReactions>> = { available: false, byMessage: new Map() };
   if (selected) {
     messages = await loadMessages(selected.id);
+    reactions = await loadReactions(v, messages.map((m) => m.id));
     let inboxKind: string | null = null;
     if (selected.entityType === "SupplierInbox" && selected.entityId) inboxKind = (await prisma.supplierInbox.findUnique({ where: { id: selected.entityId }, select: { kind: true } }))?.kind ?? null;
     entityHref = entityHrefFor(selected.entityType, selected.entityId, v.side, { inboxKind });
@@ -95,161 +122,160 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
   const selUnread = selected ? isUnread(selected, (await prisma.chatRead.findUnique({ where: { threadId_userId: { threadId: selected.id, userId: v.id } }, select: { lastReadAt: true } }))?.lastReadAt, v.side) : false;
   const listHref = (over: Record<string, string>) => {
     const p = new URLSearchParams();
-    const m = { f, q, ...over };
+    const m = { f, q, e, ...over };
     for (const [k, val] of Object.entries(m)) if (val) p.set(k, val);
     const qs = p.toString();
     return `/chat${qs ? "?" + qs : ""}`;
   };
-  const entityTypes = v.side === "SUPPLIER" ? Object.fromEntries(SUPPLIER_ENTITY_TYPES.map((t) => [t, ENTITY_TYPES[t]])) : ENTITY_TYPES;
   const myTg = await prisma.channelLink.count({ where: { organizationId: v.organizationId, userId: v.id, channel: "TELEGRAM" } });
   const showForm = isNew || (!!preset && !selected);
   const showGroupForm = canCreateGroup(v.role) && (one(sp.newgroup) === "1" || !!groupPreset) && !selected;
   const members = selected?.kind === "GROUP" ? await groupMembers(selected.id) : [];
   const topicsForMe = Object.keys(GROUP_TOPICS).filter((t) => eligibleForTopic(t, v.role));
+  const rightOpen = !!selected || showForm || showGroupForm;
+  const filtered = !!(q || e || f);
 
   return (
     <div className="flex flex-col gap-3">
-      <Breadcrumbs items={[{ label: "Чат" }]} />
-      <ChatAutoRefresh threadId={selected?.id} unread={selUnread} lastAt={selected?.lastMessageAt.toISOString()} />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold">Чат</h1>
-          <p className="text-sm text-neutral-600">
-            {counts.awaiting > 0 ? <Link href={listHref({ f: "await", thread: "" })} className="font-medium text-amber-800 underline">Ждут вашего ответа: {counts.awaiting}</Link> : "Ждут вашего ответа: 0"}
-            {counts.unread > 0 && <span className="ml-3 text-neutral-500">Непрочитанных: {counts.unread}</span>}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {canCreateGroup(v.role) && <Link href="/chat?newgroup=1" className="inline-flex h-9 items-center rounded-md border border-neutral-300 bg-white px-4 text-sm font-medium hover:bg-neutral-50 max-md:min-h-10">+ Группа</Link>}
-          <Link href="/chat?new=1" className="inline-flex h-9 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-700 max-md:min-h-10">Новый запрос</Link>
-        </div>
-      </div>
-
-      <div className="grid min-h-[60vh] gap-3 lg:grid-cols-[20rem_minmax(0,1fr)]">
-        <section aria-label="Обсуждения" className={cn("flex min-w-0 flex-col gap-2", (selected || showForm || showGroupForm) && "max-lg:hidden")}>
-          <form action="/chat" className="flex gap-2">
-            {f && <input type="hidden" name="f" value={f} />}
-            <input name="q" defaultValue={q} placeholder="Поиск по теме, записи, тексту" className="h-9 min-w-0 flex-1 rounded-md border border-neutral-300 px-3 text-sm" />
-          </form>
+      <div className="grid h-[calc(100dvh-11rem)] min-h-[30rem] gap-3 md:h-[calc(100dvh-9.5rem)] lg:grid-cols-[22rem_minmax(0,1fr)]">
+        <section aria-label="Список чатов" className={cn("flex min-h-0 min-w-0 flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3", rightOpen && "max-lg:hidden")}>
+          <h1 className="text-lg font-semibold">Чаты</h1>
+          <div className="flex gap-1.5">
+            <Link href="/chat?new=1" className="inline-flex h-10 flex-1 items-center justify-center rounded-md border border-neutral-300 bg-white px-3 text-sm font-medium hover:bg-neutral-50 max-md:min-h-11">Новое обсуждение</Link>
+            {canCreateGroup(v.role) && <Link href="/chat?newgroup=1" className="inline-flex h-10 flex-1 items-center justify-center rounded-md border border-neutral-300 bg-white px-3 text-sm font-medium hover:bg-neutral-50 max-md:min-h-11">Новая группа</Link>}
+          </div>
+          <ListFilters q={q} f={f} e={e} topics={entityTypes} />
           <div className="flex flex-wrap gap-1.5">
             {FILTERS.map((x) => (
-              <Link key={x.key} href={listHref({ f: x.key })} aria-current={f === x.key ? "page" : undefined}
-                className={cn("rounded-full border px-2.5 py-0.5 text-xs", f === x.key ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 hover:bg-neutral-100")}>{x.label}</Link>
+              <Link key={x.key} href={listHref({ f: x.key, thread: "" })} aria-current={f === x.key ? "page" : undefined}
+                className={cn("inline-flex items-center rounded-full border px-3 py-1 text-xs max-md:min-h-11", f === x.key ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 hover:bg-neutral-100")}>{x.label}</Link>
             ))}
           </div>
-          <h3 className="mt-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Мои чаты (запросы по записям)</h3>
-          <ul className="flex flex-col divide-y divide-neutral-200 overflow-hidden rounded-lg border border-neutral-200 bg-white">
-            {rows.length === 0 && <li className="p-4 text-sm text-neutral-500">Обсуждений пока нет. Нажмите «Новый запрос».</li>}
+          <ul className="-mx-3 flex min-h-0 flex-1 flex-col divide-y divide-neutral-200 overflow-y-auto border-t border-neutral-200">
+            {rows.length === 0 && (
+              <li className="p-4 text-sm text-neutral-600">
+                {filtered ? "Ничего не найдено. Сбросьте поиск или фильтр." : "Чатов пока нет. Нажмите «Новое обсуждение», чтобы написать по записи или задать общий вопрос."}
+              </li>
+            )}
             {rows.map((t) => {
-              const unread = isUnread(t, t.reads[0]?.lastReadAt, v.side);
+              const n = unreadCount.get(t.id) ?? 0;
               const last = t.messages[0];
+              const waits = awaitsMyAnswer(t, v.side);
               return (
                 <li key={t.id}>
-                  <Link href={`/chat?thread=${t.id}${f ? `&f=${f}` : ""}`} className={cn("block px-3 py-2 hover:bg-neutral-50", selected?.id === t.id && "bg-neutral-100")}>
-                    <div className="flex items-center gap-1.5">
-                      <span className={cn("truncate text-sm", unread ? "font-semibold" : "font-medium")}>{t.subject}</span>
-                      <span className="shrink-0 text-[11px] text-neutral-400">#{t.number}</span>
-                      {unread && <span className="shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">новое</span>}
-                      <span className="ml-auto shrink-0 text-[11px] text-neutral-500">{fmt(t.lastMessageAt)}</span>
+                  <Link href={listHref({ thread: t.id })} aria-current={selected?.id === t.id ? "true" : undefined}
+                    className={cn("block px-3 py-2.5 hover:bg-neutral-50 max-md:min-h-11", selected?.id === t.id && "bg-neutral-100")}>
+                    <div className="flex items-baseline gap-2">
+                      <span className={cn("min-w-0 flex-1 truncate text-sm", n ? "font-semibold" : "font-medium")}>{t.subject}</span>
+                      <span className={cn("shrink-0 text-[11px]", n ? "font-medium text-red-700" : "text-neutral-600")}>{listTime(t.lastMessageAt, now)}</span>
                     </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px]">
-                      {t.kind === "REQUEST" && <span className={cn("rounded px-1.5 py-px", STATUS_TONE[t.status])}>Запрос · {STATUS_LABEL[t.status]}</span>}
-                      {t.kind === "GENERAL" && t.status === "CLOSED" && <span className={cn("rounded px-1.5 py-px", STATUS_TONE.CLOSED)}>Закрыт</span>}
-                      {t.entityLabel && <span className="truncate rounded bg-neutral-100 px-1.5 py-px text-neutral-700">{t.entityLabel}</span>}
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-xs text-neutral-600">
+                        {last ? `${last.authorName}: ${last.body || (last.attachments.length ? "Файл" : "")}` : "Сообщений нет"}
+                      </span>
+                      {n > 0 && <span aria-label={`Непрочитанных: ${n}`} className="min-w-5 shrink-0 rounded-full bg-red-700 px-1.5 text-center text-[11px] font-semibold leading-5 text-white">{n}</span>}
                     </div>
-                    {last && <div className="mt-0.5 truncate text-xs text-neutral-500">{last.authorName}: {last.body || (last.attachments.length ? "📎 файл" : "")}</div>}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-          <h3 className="mt-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Группы</h3>
-          <ul aria-label="Группы" className="flex flex-col divide-y divide-neutral-200 overflow-hidden rounded-lg border border-neutral-200 bg-white">
-            {groups.length === 0 && <li className="p-3 text-sm text-neutral-500">Групп пока нет.</li>}
-            {groups.map((g) => {
-              const unread = isUnread(g, g.reads[0]?.lastReadAt, v.side);
-              return (
-                <li key={g.id}>
-                  <Link href={`/chat?thread=${g.id}`} className={cn("block px-3 py-2 hover:bg-neutral-50", selected?.id === g.id && "bg-neutral-100")}>
-                    <div className="flex items-center gap-1.5">
-                      <span className={cn("truncate text-sm", unread ? "font-semibold" : "font-medium")}>{g.subject}</span>
-                      {unread && <span className="shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">новое</span>}
-                      <span className="ml-auto shrink-0 text-[11px] text-neutral-500">{fmt(g.lastMessageAt)}</span>
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-1 text-[11px]">
-                      <span className="rounded bg-violet-100 px-1.5 py-px text-violet-800">{g.topic}</span>
-                      <span className="text-neutral-500">участников: {g._count.members}</span>
+                    <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
+                      {t.kind === "GROUP" && <span className="rounded bg-violet-100 px-1.5 py-px text-violet-900">Группа · {t.topic} · {t._count.members}</span>}
+                      {t.entityLabel && <span className="max-w-full truncate rounded bg-neutral-100 px-1.5 py-px text-neutral-800">{t.entityLabel}</span>}
+                      {waits && <span className="rounded bg-amber-100 px-1.5 py-px font-medium text-amber-900">ждёт ответа</span>}
+                      {t.status === "CLOSED" && <span className="rounded bg-neutral-200 px-1.5 py-px text-neutral-700">закрыт</span>}
                     </div>
                   </Link>
                 </li>
               );
             })}
           </ul>
+          <details className="text-sm">
+            <summary className="cursor-pointer py-1 text-neutral-700 max-md:min-h-11">Подключить Telegram</summary>
+            <div className="mt-2 flex flex-col gap-2">
+              <TelegramConnect linked={myTg > 0} hasToken={!!telegramToken()} />
+              {hasRole(v.role, ACCESS.channels) && <a href="/settings/channels" className="text-sm text-blue-800 underline">Каналы: группы поставщика, привязки, WhatsApp</a>}
+            </div>
+          </details>
         </section>
 
-        <section aria-label="Переписка" className={cn("min-w-0", !selected && !showForm && !showGroupForm && "max-lg:hidden")}>
+        <section aria-label="Переписка" data-chat-pane className={cn("min-h-0 min-w-0 overflow-y-auto", !rightOpen && "max-lg:hidden")}>
           {showGroupForm && <NewGroupForm topics={topicsForMe} preset={groupPreset} />}
           {showForm && !showGroupForm && <NewRequestForm entityTypes={entityTypes} preset={preset} requestTypes={REQUEST_TYPES} />}
-          {!showForm && !showGroupForm && !selected && <div className="rounded-lg border border-dashed border-neutral-300 p-8 text-center text-sm text-neutral-500">Выберите обсуждение слева или создайте новый запрос.</div>}
+          {!showForm && !showGroupForm && !selected && (
+            <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-neutral-300 p-8 text-center text-sm text-neutral-600">
+              Выберите чат слева, чтобы увидеть переписку.
+            </div>
+          )}
           {!showForm && !showGroupForm && selected && (
-            <div className="flex h-[70vh] flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white">
-              <div className="flex flex-wrap items-start justify-between gap-2 border-b border-neutral-200 px-3 py-2">
-                <div className="min-w-0">
-                  <Link href={listHref({})} className="text-xs text-neutral-500 underline lg:hidden">← К списку</Link>
+            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white">
+              <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-neutral-200 px-3 py-2">
+                <Link href={listHref({ thread: "" })} aria-label="Назад к списку чатов" className="inline-flex h-11 items-center rounded-md px-2 text-sm text-neutral-800 hover:bg-neutral-100 lg:hidden">← Назад</Link>
+                <div className="min-w-0 flex-1">
                   <h2 className="truncate text-base font-semibold">{selected.subject}</h2>
-                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-600">
-                    {selected.kind === "GROUP" ? <span className="rounded bg-violet-100 px-1.5 py-px text-violet-800">Группа · {selected.topic}</span> : <span>{peerLabel}</span>}
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-700">
+                    {selected.kind === "GROUP"
+                      ? <span>Группа · {selected.topic} · участников: {members.length}</span>
+                      : <span>Вы и {peerLabel}</span>}
                     {selected.kind === "REQUEST" && <span className={cn("rounded px-1.5 py-px", STATUS_TONE[selected.status])}>{selected.requestType ? selected.requestType + " · " : ""}{STATUS_LABEL[selected.status]}</span>}
                     {selected.entityLabel && (entityHref
-                      ? <Link href={entityHref} className="rounded bg-neutral-100 px-1.5 py-px text-neutral-800 underline">{selected.entityLabel}</Link>
+                      ? <Link href={entityHref} className="rounded bg-neutral-100 px-1.5 py-px text-neutral-900 underline">{selected.entityLabel} →</Link>
                       : <span className="rounded bg-neutral-100 px-1.5 py-px">{selected.entityLabel}</span>)}
                   </div>
                 </div>
-                {selected.kind === "GROUP" && <div className="w-full"><GroupMembers threadId={selected.id} topic={selected.topic ?? ""} me={v.id} canManage={canManageGroup({ id: v.id, role: v.role }, members)} members={members} telegramOn={!!telegramToken()} /></div>}
                 {(selected.kind === "REQUEST" || selected.status === "CLOSED") && <CloseButton threadId={selected.id} closed={selected.status === "CLOSED"} />}
-              </div>
-              <div className="flex flex-1 flex-col gap-2 overflow-y-auto bg-neutral-50 p-3">
-                {messages.map((m) => {
-                  const mine = m.authorSide === v.side;
+                {selected.kind === "GROUP" && (
+                  <details className="w-full text-sm">
+                    <summary className="cursor-pointer py-1 text-neutral-700 max-md:min-h-11">Участники</summary>
+                    <GroupMembers threadId={selected.id} topic={selected.topic ?? ""} me={v.id} canManage={canManageGroup({ id: v.id, role: v.role }, members)} members={members} telegramOn={!!telegramToken()} />
+                  </details>
+                )}
+              </header>
+              <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto bg-neutral-50 p-3">
+                {messages.length === 0 && <p className="m-auto text-sm text-neutral-600">Сообщений пока нет. Напишите первым.</p>}
+                {messages.map((m, i) => {
+                  const mine = m.authorId ? m.authorId === v.id : m.authorSide === v.side;
+                  const newDay = i === 0 || dayKey(messages[i - 1].createdAt) !== dayKey(m.createdAt);
+                  const groups = reactions.byMessage.get(m.id) ?? [];
                   return (
-                    <div key={m.id} className={cn("flex max-w-[85%] flex-col gap-0.5", mine ? "self-end items-end" : "self-start items-start")}>
-                      <div className="text-[11px] text-neutral-500">
-                        {m.authorName} · {mine ? "Мы" : m.authorSide === "SUPPLIER" ? supplier || "Веллмех" : s.user.organizationName} · {fmt(m.createdAt)}
-                        {m.source === "TELEGRAM" && <span className="ml-1 rounded bg-sky-100 px-1 text-sky-800">из Telegram</span>}
-                        {m.source === "WHATSAPP" && <span className="ml-1 rounded bg-emerald-100 px-1 text-emerald-800">из WhatsApp</span>}
-                      </div>
-                      <div className={cn("whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm", mine ? "bg-neutral-900 text-white" : "border border-neutral-200 bg-white")}>
-                        {m.body}
-                        {m.attachments.length > 0 && (
-                          <div className={cn("flex flex-col gap-1", m.body && "mt-2")}>
-                            {m.attachments.map((a) => (
-                              /^image\//.test(a.mimeType)
-                                ? <a key={a.id} href={`/api/chat/files/${a.id}`} target="_blank" rel="noreferrer"><img src={`/api/chat/files/${a.id}`} alt={a.originalName} className="max-h-48 rounded-md" /></a>
-                                : <a key={a.id} href={`/api/chat/files/${a.id}`} className="underline">📎 {a.originalName}</a>
-                            ))}
-                          </div>
-                        )}
+                    <div key={m.id} className="flex flex-col">
+                      {newDay && <div className="my-2 self-center rounded-full bg-neutral-200 px-3 py-0.5 text-[11px] text-neutral-800">{dayLabel(m.createdAt, now)}</div>}
+                      <div className={cn("flex max-w-[88%] flex-col gap-1 md:max-w-[75%]", mine ? "items-end self-end" : "items-start self-start")}>
+                        <div className={cn("min-w-0 max-w-full break-words rounded-2xl px-3 py-2 text-sm", mine ? "bg-neutral-900 text-white" : "border border-neutral-200 bg-white")}>
+                          {!mine && <div className="mb-0.5 text-xs font-semibold text-neutral-700">{m.authorName}{m.authorSide !== v.side && selected.kind !== "GROUP" ? ` · ${m.authorSide === "SUPPLIER" ? supplier || "Поставщик" : s.user.organizationName}` : ""}</div>}
+                          {m.body && <div className="whitespace-pre-wrap">{m.body}</div>}
+                          {m.attachments.length > 0 && (
+                            <div className={cn("flex flex-col gap-1.5", m.body && "mt-2")}>
+                              {m.attachments.map((a) => (
+                                /^image\//.test(a.mimeType)
+                                  ? <a key={a.id} href={`/api/chat/files/${a.id}`} target="_blank" rel="noreferrer" aria-label={`Открыть изображение ${a.originalName}`}><img src={`/api/chat/files/${a.id}`} alt={a.originalName} className="max-h-56 max-w-full rounded-md" /></a>
+                                  : (
+                                    <a key={a.id} href={`/api/chat/files/${a.id}`} download={a.originalName}
+                                      className={cn("flex min-h-11 items-center gap-2 rounded-lg border px-2.5 py-1.5", mine ? "border-neutral-600 bg-neutral-800 hover:bg-neutral-700" : "border-neutral-200 bg-neutral-50 hover:bg-neutral-100")}>
+                                      <span aria-hidden className="text-lg">📄</span>
+                                      <span className="min-w-0"><span className="block truncate text-sm font-medium">{a.originalName}</span><span className={cn("block text-[11px]", mine ? "text-neutral-300" : "text-neutral-600")}>{fileSize(a.sizeBytes)} · скачать</span></span>
+                                    </a>
+                                  )
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {reactions.available && <Reactions messageId={m.id} groups={groups} options={REACTIONS} alignRight={mine} />}
+                        <div className="px-1 text-[11px] text-neutral-600">
+                          {timeFmt.format(m.createdAt)}
+                          {m.source === "TELEGRAM" && " · из Telegram"}
+                          {m.source === "WHATSAPP" && " · из WhatsApp"}
+                        </div>
                       </div>
                     </div>
                   );
                 })}
                 <ScrollBottom dep={messages.at(-1)?.id ?? ""} />
               </div>
-              {selected.status === "CLOSED"
-                ? <div className="border-t border-neutral-200 p-3 text-sm text-neutral-500">Запрос закрыт. Новое сообщение откроет его заново.</div>
-                : null}
+              {selected.status === "CLOSED" && <div className="border-t border-neutral-200 px-3 py-2 text-sm text-neutral-700">Запрос закрыт. Новое сообщение откроет его заново.</div>}
               <Composer threadId={selected.id} />
+              <ChatAutoRefresh threadId={selected.id} unread={selUnread} lastAt={selected.lastMessageAt.toISOString()} />
             </div>
           )}
         </section>
       </div>
-      <details className="max-w-3xl rounded-lg border border-neutral-200 bg-white p-3">
-        <summary className="cursor-pointer text-sm font-medium">Подключить Telegram</summary>
-        <div className="mt-2 flex flex-col gap-2">
-          <TelegramConnect linked={myTg > 0} hasToken={!!telegramToken()} />
-          {hasRole(v.role, ACCESS.channels) && <a href="/settings/channels" className="text-sm text-blue-700 underline">Каналы: группы поставщика, привязки, WhatsApp</a>}
-        </div>
-      </details>
+      {!selected && <ChatAutoRefresh />}
     </div>
   );
 }
@@ -257,6 +283,6 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
 function loadMessages(threadId: string) {
   return prisma.chatMessage.findMany({
     where: { threadId }, orderBy: { createdAt: "asc" }, take: 500,
-    include: { attachments: { select: { id: true, originalName: true, mimeType: true }, orderBy: { createdAt: "asc" } } },
+    include: { attachments: { select: { id: true, originalName: true, mimeType: true, sizeBytes: true }, orderBy: { createdAt: "asc" } } },
   });
 }

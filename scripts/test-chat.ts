@@ -4,7 +4,7 @@
  */
 import {
   bindCodeValid, canSeeThread, entityHrefFor, externalMsgId, formatForMessenger, isUnread, awaitsMyAnswer, makeBindCode, nextStatus,
-  GROUP_TOPICS, canCreateGroup, canManageGroup, eligibleForTopic, parseCommand, pickRecipients, routeIncoming, safeEntityLabel, stripMoney, type LinkLite,
+  GROUP_TOPICS, REACTIONS, groupReactions, isReaction, canCreateGroup, canManageGroup, eligibleForTopic, parseCommand, pickRecipients, routeIncoming, safeEntityLabel, stripMoney, type LinkLite,
 } from "../src/lib/chat-core";
 
 let fails = 0;
@@ -103,6 +103,16 @@ ok(!canCreateGroup("SUPPLIER") && canCreateGroup("OWNER") && !canCreateGroup("WA
 const gm = [{ userId: "a", role: "OWNER" as const }, { userId: "b", role: "MEMBER" as const }, { userId: "c", role: "MEMBER" as const }];
 ok(canManageGroup({ id: "a", role: "PURCHASER" }, gm) && !canManageGroup({ id: "b", role: "PURCHASER" }, gm) && canManageGroup({ id: "c", role: "ADMIN" }, gm) && !canManageGroup({ id: "z", role: "OWNER" }, gm), "состав меняет владелец группы и OWNER/ADMIN из участников");
 ok(isUnread({ lastMessageAt: t0, lastMessageSide: "INTERNAL", kind: "GROUP" }, null, "INTERNAL") && !isUnread({ lastMessageAt: t0, lastMessageSide: "INTERNAL", kind: "GROUP" }, new Date(t0.getTime() + 1), "INTERNAL"), "в группе сообщение коллеги той же стороны — непрочитанное");
+
+// Реакции
+ok(REACTIONS.length === 6 && isReaction("👍") && isReaction("✅") && !isReaction("💩") && !isReaction(""), "набор реакций: 6, чужие эмодзи отклоняются");
+const rr = [{ emoji: "✅", userId: "u2" }, { emoji: "👍", userId: "u1" }, { emoji: "👍", userId: "u2" }];
+const gr = groupReactions(rr, "u1", (id) => (id === "u1" ? "Анна" : "Веллмех"));
+ok(gr.length === 2 && gr[0].emoji === "👍" && gr[0].count === 2 && gr[0].mine && gr[0].names.join() === "Анна,Веллмех", "реакции: счётчик, «моя», имена, порядок набора");
+ok(gr[1].emoji === "✅" && gr[1].count === 1 && !gr[1].mine, "чужая реакция не помечается как моя");
+ok(groupReactions([], "u1", () => "").length === 0, "без реакций — пусто");
+// Снятие реакции повторным нажатием: убрали свою — счётчик падает, группа исчезает
+ok(groupReactions(rr.filter((x) => !(x.emoji === "👍" && x.userId === "u1")), "u1", () => "x")[0].mine === false, "после снятия своей реакции она не «моя»");
 
 console.log(fails ? `\nПРОВАЛОВ: ${fails}` : "\nвсё хорошо");
 process.exit(fails ? 1 : 0);

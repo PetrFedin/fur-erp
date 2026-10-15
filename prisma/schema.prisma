@@ -1905,9 +1905,23 @@ model ChatMessage {
 
   attachments ChatAttachment[]
   deliveries  ChannelDelivery[]
+  reactions   ChatMessageReaction[]
 
   @@unique([source, externalId])
   @@index([threadId, createdAt])
+}
+
+/// Реакция участника на сообщение чата (👍 ✅ ❓ ❤️ 🔥 👀): одна и та же — один раз на человека.
+model ChatMessageReaction {
+  id        String      @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  emoji     String
+  createdAt DateTime    @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
 }
 
 model ChatAttachment {

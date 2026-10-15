@@ -272,3 +272,21 @@ export function canManageGroup(u: { id: string; role: string }, members: Member[
 }
 /** Создать группу могут внутренние роли чата; поставщик — нет. */
 export const canCreateGroup = (role: string) => (CHAT_INTERNAL_ROLES as readonly string[]).includes(role);
+
+// ───────── Реакции ─────────
+
+/** Набор реакций рабочего чата: нравится, сделано/согласовано, вопрос, спасибо, срочно/отлично, посмотрю. */
+export const REACTIONS = ["👍", "✅", "❓", "❤️", "🔥", "👀"] as const;
+export const isReaction = (e: string): boolean => (REACTIONS as readonly string[]).includes(e);
+
+export type ReactionGroup = { emoji: string; count: number; mine: boolean; names: string[] };
+
+/** Сворачивает строки реакций в группы по эмодзи (в порядке набора): счётчик, «моя» и список имён. */
+export function groupReactions(rows: { emoji: string; userId: string }[], meId: string, nameOf: (userId: string) => string): ReactionGroup[] {
+  const out: ReactionGroup[] = [];
+  for (const emoji of REACTIONS) {
+    const r = rows.filter((x) => x.emoji === emoji);
+    if (r.length) out.push({ emoji, count: r.length, mine: r.some((x) => x.userId === meId), names: r.map((x) => nameOf(x.userId)) });
+  }
+  return out;
+}

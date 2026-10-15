@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canUseChat, appendMessage, createThread, defaultSupplierId, loadThread, markRead, resolveEntity, searchEntities, viewerOf } from "@/lib/chat";
+import { canUseChat, appendMessage, createThread, defaultSupplierId, loadThread, markRead, resolveEntity, searchEntities, toggleReaction, viewerOf } from "@/lib/chat";
 import { REQUEST_TYPES } from "@/lib/chat-core";
 import { isPickedFile, readDocumentFiles, writeDocumentFiles, type StoredDoc } from "@/lib/purchase-files";
 import { removeStoredFiles } from "@/lib/fitting-files";
@@ -75,7 +75,7 @@ export async function startThread(_prev: ChatState, fd: FormData): Promise<ChatS
     supplierId = entity?.supplierId ?? ok?.id ?? (await defaultSupplierId(v.organizationId));
   }
   if (!supplierId) { await removeStoredFiles(f.files.map((x) => x.storagePath)); return { error: "Нет поставщика с кабинетом, с которым можно переписываться" }; }
-  const subject = clip(fd.get("subject"), 160) || (entity ? entity.label : requestType || "Общий вопрос");
+  const subject = clip(fd.get("subject"), 160) || (entity ? entity.label : body.split("\n")[0].slice(0, 60) || requestType || "Общий вопрос");
   try {
     const t = await createThread(v, { supplierId, kind, subject, requestType: requestType || null, entity });
     const { message } = await appendMessage({ threadId: t.id, organizationId: v.organizationId, authorId: v.id, authorName: v.name, authorSide: v.side, body, files: f.files });
@@ -145,4 +145,13 @@ export async function changeMemberAction(threadId: string, userId: string, op: "
   const r = await changeMember(v, clip(threadId, 64), clip(userId, 64), op === "add" ? "add" : "remove");
   revalidatePath("/chat");
   return r.error ? { error: r.error } : { ok: true };
+}
+
+/** Поставить / снять реакцию на сообщение. */
+export async function toggleReactionAction(messageId: string, emoji: string): Promise<ChatState> {
+  const v = await chatSession();
+  const r = await toggleReaction(v, clip(messageId, 64), clip(emoji, 16));
+  if (r.error) return { error: r.error };
+  revalidatePath("/chat");
+  return { ok: true };
 }
