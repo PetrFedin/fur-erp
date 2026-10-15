@@ -118,7 +118,22 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
   td button[aria-label^="Раскрыть"], td button[aria-expanded] { min-width: 44px; }
   nav a.rounded-md { display: flex; align-items: center; min-height: 44px; }
   input[type="checkbox"]:not([data-touch-ok]) { margin: 14px; }
+  input[type="file"] { min-height: 44px; }
   button:not([role="tab"]):not(.info-i):not([data-touch-ok]) { min-width: 44px; }
+}
+
+/* Телефон: ссылки-кнопки и блочные ссылки в списках/абзацах (карточки «Задачи», строки списков) — невидимая зона 44 px, вид прежний. */
+@media (max-width: 767px) {
+  :is(:is(div, li, span, section, article) > a[href], a[href][class*="max-md:inline-flex"]):not(td a):not(th a):not(nav a):not(.info-i):not([data-touch-ok]) { position: relative; }
+  :is(:is(div, li, span, section, article) > a[href], a[href][class*="max-md:inline-flex"]):not(td a):not(th a):not(nav a):not(.info-i):not([data-touch-ok])::after {
+    content: ""; position: absolute; top: 50%; left: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%);
+  }
+}
+
+/* Телефон: ссылки сортировки в шапках таблиц — высота уже 44, ширину добираем невидимой зоной. */
+@media (max-width: 767px) {
+  th a[href] { position: relative; }
+  th a[href]::after { content: ""; position: absolute; top: 50%; left: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%); }
 }
 
 /* Телефон: ряд плиток — одна горизонтальная лента (листается вправо-влево), плитки компактнее.
