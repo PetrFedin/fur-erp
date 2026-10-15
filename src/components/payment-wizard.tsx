@@ -51,6 +51,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
   const [side, setSide] = useState<"supplier" | "work">("supplier");
   const [supplierId, setSupplierId] = useState("");
   const [clientId, setClientId] = useState("");
+  const [contractorId, setContractorId] = useState("");
   const [kind, setKind] = useState<PayKind>("INVOICE");
   const [paidAt, setPaidAt] = useState(today());
   const [amount, setAmount] = useState("");
@@ -211,7 +212,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
 
   function buildForm(confirmOverpay: boolean): FormData {
     const fd = new FormData();
-    fd.set("payload", JSON.stringify({ side, kind, paidAt, amount, ppNo, invoiceNo, basis, note, method, supplierId, clientId, markConfirmed, confirmOverpay, parts: lines.map((l) => ({ key: l.key, amount: l.amount })) }));
+    fd.set("payload", JSON.stringify({ side, kind, paidAt, amount, ppNo, invoiceNo, basis, note, method, supplierId, clientId, contractorId, markConfirmed, confirmOverpay, parts: lines.map((l) => ({ key: l.key, amount: l.amount })) }));
     if (file) {
       fd.set("file", file);
       fd.set("fileRole", fileRole);
@@ -275,6 +276,9 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
             )}
             {!locked && side === "work" && (
               <div><Label htmlFor="pw-cl">Заказчик</Label><Select id="pw-cl" value={clientId} onChange={(e) => { setClientId(e.target.value); setLines([]); }}><option value="">Выберите…</option>{data.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></div>
+            )}
+            {!locked && side === "work" && data.contractors.length > 1 && (
+              <div><Label htmlFor="pw-ctr">Подрядчик (получатель)</Label><Select id="pw-ctr" value={contractorId} onChange={(e) => setContractorId(e.target.value)}><option value="">По ТЗ строк</option>{data.contractors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></div>
             )}
             <div><Label htmlFor="pw-kind">Вид оплаты</Label><Select id="pw-kind" value={kind} onChange={(e) => setKind(e.target.value as PayKind)}>{KINDS.map((k) => <option key={k.v} value={k.v}>{k.label}</option>)}</Select></div>
             <div><Label htmlFor="pw-date">Дата оплаты</Label><Input id="pw-date" type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} /></div>

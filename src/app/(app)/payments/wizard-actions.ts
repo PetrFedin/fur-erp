@@ -47,6 +47,8 @@ export type WizardData = {
   supTargets: SupTarget[];
   clients: { id: string; name: string }[];
   workTargets: WorkTarget[];
+  /** Подрядчики — получатели оплаты за работу (выбор показывается, когда их больше одного). */
+  contractors: { id: string; name: string }[];
   debtNow: number | null;
 };
 
@@ -56,7 +58,7 @@ export async function getWizardData(): Promise<WizardData | { error: string }> {
   const canSupplier = hasRole(session.user.role, SUPPLIER_ROLES);
   const canWork = hasRole(session.user.role, WORK_ROLES);
   if (!canSupplier && !canWork) return { error: "Недостаточно прав для внесения оплаты" };
-  const out: WizardData = { canSupplier, canWork, suppliers: [], supTargets: [], clients: [], workTargets: [], debtNow: null };
+  const out: WizardData = { canSupplier, canWork, suppliers: [], supTargets: [], clients: [], workTargets: [], contractors: [], debtNow: null };
   if (canSupplier) {
     const [sums, purchases, suppliers, debt, invoiceDocs, paidRefs] = await Promise.all([
       loadAuctionSummaries(prisma, orgId),
@@ -137,6 +139,7 @@ export async function getWizardData(): Promise<WizardData | { error: string }> {
       });
     }
     out.clients = [...clients].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "ru"));
+    out.contractors = await prisma.supplier.findMany({ where: { organizationId: orgId, isContractor: true, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } });
   }
   return out;
 }
@@ -162,6 +165,8 @@ type Payload = {
   method: string;
   supplierId?: string;
   clientId?: string;
+  /** Получатель оплаты за работу (подрядчик). Пусто: подрядчик выбранных ТЗ, а без ТЗ — единственный подрядчик. */
+  contractorId?: string;
   markConfirmed: boolean;
   confirmOverpay: boolean;
   parts: { key: string; amount: string }[];
@@ -320,13 +325,24 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
         // ---- по работе (ТЗ)
         const orderIds = parts.map((x) => x.key);
         const orders = orderIds.length
-          ? await tx.productionOrder.findMany({ where: { id: { in: orderIds }, organizationId: orgId }, select: { id: true, number: true, workOrderNumber: true, status: true, plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true, clientId: true, batchId: true } })
+          ? await tx.productionOrder.findMany({ where: { id: { in: orderIds }, organizationId: orgId }, select: { id: true, number: true, workOrderNumber: true, status: true, plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true, clientId: true, batchId: true, contractorId: true } })
           : [];
         if (orders.length !== orderIds.length) return { error: "Одно из ТЗ не найдено — обновите страницу" };
         if (orders.some((o) => o.status === "CANCELLED")) return { error: "ТЗ отменено — на него нельзя разнести оплату" };
         const clientId = String(p.clientId ?? "") || orders.find((o) => o.clientId)?.clientId || null;
         if (clientId && !(await tx.client.findFirst({ where: { id: clientId, organizationId: orgId }, select: { id: true } }))) return { error: "Заказчик не найден" };
         if (orders.some((o) => o.clientId && clientId && o.clientId !== clientId)) return { error: "Среди ТЗ есть ТЗ другого заказчика — выберите ТЗ одного заказчика" };
+        // Получатель оплаты — подрядчик ТЗ; разные подрядчики в одной оплате не смешиваем.
+        const orderContractors = Array.from(new Set(orders.map((o) => o.contractorId).filter((x): x is string => !!x)));
+        if (orderContractors.length > 1) return { error: "Среди ТЗ есть ТЗ разных подрядчиков — внесите оплату отдельно по каждому подрядчику" };
+        const chosenContractor = String(p.contractorId ?? "");
+        if (chosenContractor && orderContractors.length === 1 && orderContractors[0] !== chosenContractor) return { error: "Выбранный подрядчик не совпадает с подрядчиком ТЗ" };
+        let contractorId: string | null = orderContractors[0] ?? (chosenContractor || null);
+        if (!contractorId) {
+          const sole = await tx.supplier.findMany({ where: { organizationId: orgId, isContractor: true, isActive: true }, select: { id: true }, take: 2 });
+          if (sole.length === 1) contractorId = sole[0].id;
+        }
+        if (contractorId && !(await tx.supplier.findFirst({ where: { id: contractorId, organizationId: orgId, isContractor: true }, select: { id: true } }))) return { error: "Подрядчик не найден" };
         const others0 = await allocatedCentsByOrder(tx, orgId, orderIds);
         const over = parts.map((x) => {
           const o = orders.find((y) => y.id === x.key)!;
@@ -340,7 +356,7 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
 
         const pay = await tx.productionPayment.create({
           data: {
-            organizationId: orgId, clientId, amount: new Decimal(amountC / 100), paymentType: kindDef.db === "OTHER" ? "PARTIAL" : kindDef.db, method, status: "COMPLETED", paidAt,
+            organizationId: orgId, clientId, contractorId, amount: new Decimal(amountC / 100), paymentType: kindDef.db === "OTHER" ? "PARTIAL" : kindDef.db, method, status: "COMPLETED", paidAt,
             notes: [...baseNotes, restC > 0 ? `не разнесено ${formatMoney(restC / 100)}` : ""].filter(Boolean).join(" · ").slice(0, 1000), docRef, invoiceNo: invoiceField, ppNo: ppField, confirmed: confirmedFlag, ...confirmStamp,
             orders: { create: orderIds.map((productionOrderId) => ({ productionOrderId })) },
           },

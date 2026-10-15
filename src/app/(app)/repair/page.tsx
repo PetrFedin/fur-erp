@@ -9,6 +9,7 @@ import { InfoHint } from "@/components/info-hint";
 import { OrdersTree } from "@/components/orders-tree";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { FilterBar } from "@/components/filters/filter-bar";
+import { loadContractors } from "@/lib/contractors";
 import { defineFilters, parseFilters, pick } from "@/lib/filters";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import { isTzFilterActive, matchedOrderIds, tzOptions, type ArticleFilterValues } from "@/lib/article-filters";
@@ -18,6 +19,7 @@ import { RepairTiles } from "./repair-tiles";
 
 // Фильтры ремонта: те же понятия и тот же отбор ТЗ, что на «Изделиях» (уровень ТЗ + артикул).
 const REPAIR_FILTERS = defineFilters({
+  contractor: { kind: "multi", label: "Подрядчик" },
   ...pick(["model", "len", "fur", "color", "batch"], { fur: { label: "Вид (тип) меха" }, batch: { label: "Партия" }, model: { label: "Артикул" } }),
   tz: { kind: "multi", label: "ТЗ", maxLen: 60 },
   tzyear: { kind: "multi", label: "Год ТЗ", pattern: /^\d{4}$/ },
@@ -38,10 +40,14 @@ export default async function RepairPage({ searchParams }: { searchParams: Promi
   const fv: ArticleFilterValues = { q: "", category: [], size: [], season: [], lining: [], price: [], fur: f.fur, color: f.color, batch: f.batch, tzyear: f.tzyear, tz: f.tz };
   const matched = matchedOrderIds(orderRows, new Map(), fv);
   const lenOf = new Map((await prisma.productModel.findMany({ where: { organizationId: session.user.organizationId, id: { in: [...new Set(repairAll.map((o) => o.mid))] } }, select: { id: true, lengthClass: true } })).map((m) => [m.id, m.lengthClass]));
-  const orders = repairAll.filter((o) => (f.model.length === 0 || f.model.includes(o.mid)) && matchesLength(f.len, lenOf.get(o.mid)) && (!matched || matched.includes(o.id)));
+  // Подрядчик ТЗ (ProductionOrder.contractorId) — отдельным запросом: строки сводок его не несут.
+  const contractorOf = new Map((await prisma.productionOrder.findMany({ where: { organizationId: session.user.organizationId, id: { in: [...repairIds] } }, select: { id: true, contractorId: true } })).map((r) => [r.id, r.contractorId]));
+  const contractorOpts = (await loadContractors(session.user.organizationId)).map((c) => ({ value: c.id, label: c.name }));
+  const byContractor = (id: string) => f.contractor.length === 0 || f.contractor.includes(contractorOf.get(id) ?? "none");
+  const orders = repairAll.filter((o) => byContractor(o.id) && (f.model.length === 0 || f.model.includes(o.mid)) && matchesLength(f.len, lenOf.get(o.mid)) && (!matched || matched.includes(o.id)));
   const tzOpts = tzOptions(orderRows);
   const modelOpts = Array.from(new Map(orderRows.map((r) => [r.modelId, r.modelLabel || r.modelName])), ([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, "ru", { numeric: true }));
-  const filtered = isTzFilterActive(fv) || f.model.length > 0 || f.len.length > 0;
+  const filtered = isTzFilterActive(fv) || f.model.length > 0 || f.len.length > 0 || f.contractor.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -66,6 +72,7 @@ export default async function RepairPage({ searchParams }: { searchParams: Promi
           title="Фильтры ремонта"
           controls={[
             { type: "multi", name: "model", label: "Артикул", options: modelOpts },
+            ...(contractorOpts.length > 1 ? [{ type: "multi" as const, name: "contractor", label: "Подрядчик", options: contractorOpts, noneLabel: "Не указан", allLabel: "Все подрядчики" }] : []),
             { type: "multi", name: "len", label: "Длина", more: true, options: LENGTH_OPTIONS, allLabel: "Любая" },
             { type: "multi", name: "fur", label: "Тип меха", aliases: ["kind"], options: tzOpts.fur },
             { type: "multi", name: "color", label: "Цвет", more: true, options: tzOpts.color },

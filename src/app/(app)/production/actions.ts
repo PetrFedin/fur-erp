@@ -1496,6 +1496,7 @@ export async function addProductionPayment(orderId: string, formData: FormData):
       data: {
         organizationId: session.user.organizationId,
         clientId: order.clientId,
+        contractorId: order.contractorId,
         amount: parsed.data.amount,
         paymentType: parsed.data.paymentType,
         method: parsed.data.method,

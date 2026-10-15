@@ -1,5 +1,6 @@
 "use server";
 
+import { singleContractorId } from "@/lib/contractors";
 import { orderLabel, positionsOf } from "@/lib/order-label";
 import { randomUUID } from "node:crypto";
 import { revalidateAll } from "@/lib/revalidate-all";
@@ -408,6 +409,7 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
             data: {
               organizationId: orgId,
               clientId: orders.find((o) => o.clientId)?.clientId ?? null,
+              contractorId: singleContractorId(orders),
               amount,
               paymentType: kindDef.db === "OTHER" ? "PARTIAL" : kindDef.db,
               method,

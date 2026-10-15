@@ -13,6 +13,7 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { prisma } from "@/lib/prisma";
+import { loadContractors } from "@/lib/contractors";
 import { getYearFilter } from "@/lib/year-filter";
 import { orderInYear } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
@@ -47,7 +48,11 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
   const modelInfo = modelSel.length === 1 ? await prisma.productModel.findFirst({ where: { id: modelSel[0], organizationId: session.user.organizationId }, select: { name: true } }) : null;
   const allBatchesRaw = await loadBatchesWithOrders(session.user.organizationId);
   // ?model=… — партии, в которых есть ТЗ выбранного артикула (из карточки артикула); суммы партий считаются по всем ТЗ партии.
-  const allBatches = modelSel.length ? allBatchesRaw.filter((b) => b.orders.some((o) => o.status !== "CANCELLED" && modelSel.includes(o.productModelId))) : allBatchesRaw;
+  const byModel = modelSel.length ? allBatchesRaw.filter((b) => b.orders.some((o) => o.status !== "CANCELLED" && modelSel.includes(o.productModelId))) : allBatchesRaw;
+  // ?contractor=… — партии, в которых есть ТЗ выбранного подрядчика (none — подрядчик не указан); суммы партий считаются по всем её ТЗ.
+  const contractorSel = (Array.isArray(sp.contractor) ? sp.contractor : sp.contractor ? [sp.contractor] : []).filter((v) => /^[\w-]{1,40}$/.test(v));
+  const contractorOpts = (await loadContractors(session.user.organizationId)).map((c) => ({ value: c.id, label: c.name }));
+  const allBatches = contractorSel.length ? byModel.filter((b) => b.orders.some((o) => o.status !== "CANCELLED" && (o.contractorId ? contractorSel.includes(o.contractorId) : contractorSel.includes("none")))) : byModel;
   // Общий год: ТЗ партии отбираются по дате ТЗ (дата ТЗ → конец → начало → год партии); партия без ТЗ за год не показывается.
   const batches =
     year === "all"
@@ -165,6 +170,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           oneRow
           hideChips
           controls={[
+            ...(contractorOpts.length > 1 ? [{ type: "multi" as const, name: "contractor", label: "Подрядчик", options: contractorOpts, noneLabel: "Не указан", allLabel: "Все подрядчики" }] : []),
             { type: "multi", name: "need", label: "Документы и оплата", single: true, allLabel: "Все", options: [{ value: "docs", label: "Только без документов" }, { value: "pay", label: "Только без оплаты" }], hint: "Красная точка — не хватает документов или работа не оплачена; жёлтая — оплата частичная или нет платёжки; зелёная — всё в порядке. Откройте партию: там чек-лист и кнопка «Отметить оплату»." },
             ...(emptyCount > 0 || showEmpty ? [{ type: "multi" as const, name: "empty", label: "Пустые партии", single: true, allLabel: "Скрыты", options: [{ value: "1", label: `Показать пустые (${emptyCount})` }], hint: "Партии без ТЗ скрыты по умолчанию" }] : []),
           ]}

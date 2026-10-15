@@ -23,3 +23,9 @@ export async function resolveContractorId(orgId: string, raw: string | null | un
   if (!s) return { id: null, error: "Подрядчик не найден" };
   return { id: s.id };
 }
+
+/** Подрядчик группы ТЗ: у всех назначенных ТЗ один и тот же — он; иначе null. */
+export function singleContractorId(orders: { contractorId?: string | null }[]): string | null {
+  const ids = Array.from(new Set(orders.map((o) => o.contractorId).filter((x): x is string => !!x)));
+  return ids.length === 1 ? ids[0] : null;
+}
