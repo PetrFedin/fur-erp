@@ -18,7 +18,7 @@ import { mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { SUPPLIER_DOC_TYPES, supplierMayUpload } from "../src/lib/supplier-docs";
-import { paymentDocFlags } from "../src/lib/supplier-payment-docs-core";
+import { isOurPaymentDoc, paymentDocFlags } from "../src/lib/supplier-payment-docs-core";
 
 const BASE = (process.env.BASE_URL ?? "http://localhost:3420").replace(/\/$/, "");
 const dbUrl = process.env.DATABASE_URL ?? "";
@@ -350,6 +350,10 @@ async function main() {
     { purchaseId: null, invoiceNo: "83", hasDoc: true }, { purchaseId: "b", invoiceNo: null, hasDoc: false }, { purchaseId: null, invoiceNo: "", hasDoc: true },
   ]);
   ok(flagMap.get("a") === true && flagMap.get("b") === false && flagMap.get("c") === false, "признак «есть / нет»: по номеру счёта есть, без документа и без счёта — нет");
+  const one = (rows: { supplierId?: string; docType: string }[], sid = "S") => paymentDocFlags([{ id: "a", invoice: "83", number: "P" }], rows.map((r) => ({ supplierId: r.supplierId ?? "S", purchaseId: "a", invoiceNo: "83", hasDoc: isOurPaymentDoc(r.docType) })), sid).get("a");
+  ok(one([{ docType: "PAYMENT_INVOICE" }]) === false, "только счёт Веллмеха (PAYMENT_INVOICE) → «нет»");
+  ok(one([{ docType: "APPROVAL_EMAIL" }]) === true && one([{ docType: "PAYMENT_PROOF" }]) === true && one([{ docType: "OTHER" }]) === true, "письмо-согласование, платёжка и прочие наши документы → «есть»");
+  ok(one([{ docType: "APPROVAL_EMAIL", supplierId: "X" }]) === false, "документы оплат чужого поставщика не влияют");
   ok([...flagMap.values()].every((v) => typeof v === "boolean"), "признак — только булево значение (сумм, дат, получателей нет)");
   const sup1Purchase = await prisma.purchase.findFirst({ where: { organizationId: orgA, supplierId: sup1, status: { not: "CANCELLED" } }, select: { id: true, number: true, invoiceNumber: true } });
   if (sup1Purchase) {
