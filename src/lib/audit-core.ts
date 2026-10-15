@@ -293,7 +293,7 @@ export const FIELD_LABELS: Record<string, string> = {
   materialDescription: "материал", plannedUnits: "план, шт", year: "год", month: "месяц", eventDate: "дата события",
   position: "порядок", type: "тип", entity: "сущность", commission4: "4%", lotId: "лот", rawMaterialId: "материал",
   text: "текст", pagePath: "страница", pageTitle: "заголовок страницы", anchor: "блок", entityLabel: "запись", priority: "приоритет",
-  resolutionNote: "как учтено", resolvedAt: "учтено (когда)", resolvedById: "закрыл",
+  attributes: "параметры артикула", resolutionNote: "как учтено", resolvedAt: "учтено (когда)", resolvedById: "закрыл",
 };
 FIELD_LABELS.colorRefId ??= "цвет (справочник)";
 FIELD_LABELS.title ??= "название этапа";

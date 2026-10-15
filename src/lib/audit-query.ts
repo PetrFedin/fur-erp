@@ -107,6 +107,10 @@ const isPair = (v: unknown): v is [unknown, unknown] => Array.isArray(v) && v.le
 /** Строка «поле: было → стало»; для составных значений (JSON) и нераспознанных полей — «изменено: <поле>», полный вид — в «Подробнее». */
 function pairLine(k: string, v: [unknown, unknown], full: boolean): string {
   const label = fieldLabel(k);
+  if (k === "attributes") {
+    const show = (x: unknown) => (Array.isArray(x) && x.length ? x.map((p) => `${(p as { name?: string })?.name ?? "?"}: ${(p as { value?: string })?.value ?? ""}`).join("; ") : "—");
+    return `${label}: ${show(v[0])} → ${show(v[1])}`;
+  }
   if (full) return `${label}: ${isComplex(v[0]) ? JSON.stringify(v[0]) : showValue(v[0])} → ${isComplex(v[1]) ? JSON.stringify(v[1]) : showValue(v[1])}`;
   if (isComplex(v[0]) || isComplex(v[1]) || label === k) return `изменено: ${label}`;
   return `${label}: ${showValue(v[0])} → ${showValue(v[1])}`;

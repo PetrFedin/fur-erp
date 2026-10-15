@@ -8,7 +8,7 @@ import { ACCESS } from "@/lib/access";
 import { parsePrice } from "@/lib/input";
 import { composeSupplierDescription } from "@/lib/supplier-article";
 import { saveArticleCore, propagateArticlePrice } from "@/lib/article-save";
-import { PARAMS_MAX, PARAM_KEY_PREFIX, readParams, validateParam, type ArticleParam } from "@/lib/article-params";
+import { PARAMS_MAX, loadArticleParams, validateParam, writeArticleParams, type ArticleParam } from "@/lib/article-params";
 
 const EDIT_ROLES = ACCESS.models;
 
@@ -117,14 +117,11 @@ async function changeParams(modelId: string, change: (cur: ArticleParam[]) => Ar
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(modelId)) return { error: "Артикул не найден" };
-  const model = await prisma.productModel.findFirst({ where: { id: modelId, organizationId: orgId }, select: { id: true } });
-  if (!model) return { error: "Артикул не найден" };
-  const key = PARAM_KEY_PREFIX + modelId;
-  const row = await prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: orgId, key } }, select: { value: true } });
-  const next = change(readParams(row?.value));
+  const cur = await loadArticleParams(prisma, orgId, modelId);
+  if (!cur) return { error: "Артикул не найден" };
+  const next = change(cur.params);
   if (!Array.isArray(next)) return next;
-  if (next.length === 0) await prisma.systemState.deleteMany({ where: { organizationId: orgId, key } });
-  else await prisma.systemState.upsert({ where: { organizationId_key: { organizationId: orgId, key } }, create: { organizationId: orgId, key, value: { params: next } }, update: { value: { params: next } } });
+  await writeArticleParams(prisma, orgId, modelId, next, cur.legacy);
   revalidateAll(orgId);
   return { params: next };
 }

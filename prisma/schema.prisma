@@ -894,6 +894,8 @@ model ProductModel {
   supplierWorkPrice Decimal?  @db.Decimal(14, 2)
   /// Расход шкур на одно изделие, шт., как прислал Веллмех (необязательно).
   supplierFurPerUnit Decimal? @db.Decimal(10, 3)
+  /// Свои параметры артикула («Сезон: осень», «Цвет: бежевый»…): массив [{ name, value }] в порядке добавления (src/lib/article-params.ts).
+  attributes     Json?
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
