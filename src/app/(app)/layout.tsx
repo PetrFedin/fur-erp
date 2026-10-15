@@ -43,9 +43,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const supNew = session.user.role === "SUPPLIER" && session.user.supplierId
     ? await countNewDecisions(orgId, session.user.supplierId, Number(cookieStore.get(RECENT_COOKIE)?.value) || null).catch(() => 0)
     : 0;
-  const suppliesRaw = isSupplier && session.user.supplierId
-    ? (await prisma.supplier.findFirst({ where: { id: session.user.supplierId, organizationId: orgId }, select: { suppliesRaw: true } }))?.suppliesRaw ?? true
-    : true;
+  const supRow = isSupplier && session.user.supplierId
+    ? await prisma.supplier.findFirst({ where: { id: session.user.supplierId, organizationId: orgId }, select: { suppliesRaw: true, name: true } })
+    : null;
+  const suppliesRaw = supRow?.suppliesRaw ?? true;
   const navLinks = navLinksFor(session.user.role, { suppliesRaw });
   const badges = { "/chat": chatUnread, "/supplier": supNew };
   const c4Mode = parseCommission4Cookie(cookieStore.get("commission4Display")?.value);
@@ -59,6 +60,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="flex min-w-0 flex-1 flex-col print:block">
           <Topbar
             organizationName={session.user.organizationName}
+            cabinetLabel={supRow && !/в[еэ]лл?м[еэ][хк]/i.test(supRow.name) ? supRow.name : undefined}
             userName={session.user.name}
             role={session.user.role}
             links={navLinks}

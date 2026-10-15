@@ -19,12 +19,15 @@ const ROLE_LABELS: Record<string, string> = {
 
 export function Topbar({
   organizationName,
+  cabinetLabel,
   userName,
   role,
   links,
   badges,
 }: {
   organizationName: string;
+  /** Подпись кабинета внешнего поставщика/подрядчика (имя контрагента); пусто — «Кабинет Веллмеха» как раньше. */
+  cabinetLabel?: string;
   userName: string;
   role: string;
   links: readonly NavItem[];
@@ -36,7 +39,7 @@ export function Topbar({
       <div className="flex min-w-0 items-center gap-2">
         <MobileNav links={links} badges={badges} />
         <div className="truncate text-sm font-medium text-neutral-700 max-md:min-w-[3.25rem]">{organizationName}</div>
-        {isSupplier && <span className="shrink-0 rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-800">Кабинет Веллмеха</span>}
+        {isSupplier && <span className="shrink-0 rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-800">{cabinetLabel ? `Кабинет: ${cabinetLabel}` : "Кабинет Веллмеха"}</span>}
       </div>
       <div className="flex shrink-0 items-center gap-2 md:gap-3">
         {!isSupplier && <GlobalSearch />}
