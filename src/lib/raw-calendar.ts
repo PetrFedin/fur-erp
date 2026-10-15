@@ -21,6 +21,7 @@ export async function loadRawFacts(orgId: string, from: string, to: string): Pro
   const name = (p: (typeof rows)[number]["purchase"]) => p.auction?.name ?? p.auctionSession?.split(/\r?\n/)[0].trim() ?? p.number;
   const items: FactItem[] = [];
   for (const r of rows) {
+    if (r.stage === "AUCTION_BOUGHT") continue; // «Куплено на аукционе» показывает слой «Аукционы» (дата аукциона), а не этап сырья
     // Ключевая дата этапа: готово — когда закончили; идёт — когда ждём конец; не начат — плановое начало.
     const d = r.status === "DONE" ? r.factEnd ?? r.plannedEnd : r.status === "IN_PROGRESS" ? r.plannedEnd ?? r.factStart : r.plannedStart ?? r.plannedEnd;
     if (!d || d < gte || d > lte) continue;

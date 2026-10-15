@@ -9,6 +9,8 @@ import { cleanSearch } from "@/lib/input";
 import { SUP_STAGES, supStage, type SupEntry } from "@/lib/supplier-calendar";
 import { WEEKDAYS, fmtRu, monthGridDays, monthTitle, parseMonth, shiftMonth, todayYmd, ymd } from "@/lib/calendar-grid";
 import { EntryForm, ImportBox, RowActions, StageBadge } from "./calendar-ui";
+import { AuctionForm, AuctionRow } from "./auction-ui";
+import { AUCTION_ACTION, toAuctionMark } from "@/lib/auction-calendar";
 
 export const metadata = { title: "Календарь" };
 
@@ -27,10 +29,15 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
   // Поставщик — только свои записи; владелец/админ — просмотр записей поставщика.
   let supplierId = s.user.supplierId ?? null;
   if (!isSup) supplierId = (await prisma.supplier.findFirst({ where: { organizationId: orgId, users: { some: { role: "SUPPLIER" } } }, select: { id: true } }))?.id ?? null;
-  const [rowsDb, models] = await Promise.all([
+  const [allDb, models, houseRows] = await Promise.all([
     supplierId ? prisma.calendarEvent.findMany({ where: { organizationId: orgId, supplierId }, orderBy: [{ date: "asc" }, { articleCode: "asc" }], take: 3000 }) : [],
     prisma.productModel.findMany({ where: { organizationId: orgId, isActive: true }, select: { name: true }, orderBy: { name: "asc" } }),
+    prisma.auction.findMany({ where: { organizationId: orgId, isService: false, house: { not: null } }, select: { house: true }, distinct: ["house"], orderBy: { house: "asc" } }),
   ]);
+  // Отметки аукционов (action «Аукцион») лежат в той же таблице, но это не изделия — в таблицу «По артикулам» не попадают.
+  const rowsDb = allDb.filter((e) => e.action !== AUCTION_ACTION);
+  const auctions = allDb.filter((e) => e.action === AUCTION_ACTION).map(toAuctionMark).sort((a, b) => b.date.localeCompare(a.date));
+  const houses = houseRows.map((h) => h.house!).filter((h) => h !== "Прочее");
   const entries: SupEntry[] = rowsDb.map((e) => ({
     id: e.id, articleCode: e.articleCode, articleName: e.articleName ?? "", color: e.color ?? "", size: e.size ?? "", quantity: e.quantity,
     status: e.status ?? "launch", planDate: ymd(e.date), factDate: e.factDate ? ymd(e.factDate) : "", notes: e.notes ?? "", docNote: e.docNote ?? "",
@@ -54,6 +61,13 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
       <Breadcrumbs items={[{ label: "Главная" }, { label: "Календарь" }]} />
       <h1 className="text-xl font-semibold">Календарь</h1>
       <p className="text-sm text-neutral-600">Ведите изделия по артикулу: цвет, размер, количество, этап, плановая и фактическая даты. Запись сразу видна у нас в производственном календаре. Кнопка «→» переводит на следующий этап и ставит сегодняшнюю фактическую дату.</p>
+
+      <section aria-label="Аукционы" className="flex flex-col gap-2">
+        <h2 className="font-semibold">Аукционы</h2>
+        <p className="text-sm text-neutral-600">{isSup ? "Отметьте даты аукционов: у нас они видны в общем календаре, слой «Аукционы»." : "Даты аукционов, которые внёс Веллмех (в общем календаре — слой «Аукционы»)."}</p>
+        {isSup && <details className="rounded-md border border-neutral-300 p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">+ Аукцион</summary><div className="mt-2"><AuctionForm houses={houses} /></div></details>}
+        {auctions.length > 0 ? <ul className="flex flex-col gap-2">{auctions.map((a) => isSup ? <AuctionRow key={a.id} mark={a} houses={houses} today={today} /> : <li key={a.id} className="rounded-md border border-neutral-200 bg-white p-3 text-sm"><b className="tabular-nums">{fmtRu(a.date)}</b> {[a.name, a.house, a.place].filter(Boolean).join(" · ")}</li>)}</ul> : <p className="text-sm text-neutral-500">Отметок пока нет.</p>}
+      </section>
 
       {isSup && <EntryForm models={modelNames} />}
       {isSup && <ImportBox />}

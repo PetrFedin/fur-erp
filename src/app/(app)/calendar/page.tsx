@@ -1,4 +1,6 @@
 import { loadRawFacts } from "@/lib/raw-calendar";
+import { loadAuctionFacts } from "@/lib/auction-calendar-load";
+import { AUCTION_ACTION } from "@/lib/auction-calendar";
 import { ChatLink } from "@/components/chat-link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
@@ -38,8 +40,9 @@ export const metadata = { title: "Производственный календ�
 const CAL_FILTERS = defineFilters({
   ...pick(["season", "q"], { q: { label: "Артикул", aliases: ["article"], maxLen: 100 } }),
   action: { kind: "multi", label: "Действие" },
-  layers: { kind: "single", label: "Факты", role: "state", allowed: ["1"] },
-  // Слой «Веллмех» — записи поставщика по артикулу: по умолчанию показан вместе с нашими; hide — скрыть, only — только они.
+  // Слои: auction — даты аукционов, shipment — отгрузки, raw — этапы сырья, order — ТЗ (окончание, ожидание, план поставок, примерки). Пусто = аукционы и этапы сырья. Старое layers=1 = ТЗ и отгрузки.
+  layers: { kind: "multi", label: "Слои", allowed: ["auction", "shipment", "raw", "order", "1"] },
+  // Записи Веллмеха по артикулу: старые ссылки с hide / only читаются (переключателя на экране больше нет).
   sup: { kind: "single", label: "Веллмех", role: "state", allowed: ["hide", "only"] },
   // Режимы «По месяцам» / «Стадии»: группа, вид меха, статус (стадия); cell — раскрытая ячейка, ord — открытая карточка ТЗ.
   grp: { kind: "multi", label: "Группа", maxLen: 40 },
@@ -88,7 +91,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const weekStart = startOfWeek(weekStartParam || (today.startsWith(month) ? today : `${month}-01`));
   const cf = parseFilters(CAL_FILTERS, sp);
   const articleF = cf.q;
-  const layersOn = cf.layers === "1";
+  const layerSet = new Set(cf.layers.length ? cf.layers.flatMap((v) => (v === "1" ? ["order", "shipment"] : [v])) : ["auction", "raw"]);
+  const layersOn = layerSet.has("order") || layerSet.has("shipment");
   const eventId = cleanSearch(sp.event, 40);
   // ?day=ГГГГ-ММ-ДД — раскрытый день (старая ссылка ?new= открывает тот же день).
   const isYmd = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(parseYmd(v).getTime());
@@ -117,6 +121,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       organizationId: orgId,
       AND: [
         { date: { lte: parseYmd(to) } },
+        { NOT: { action: AUCTION_ACTION } },
         { OR: [{ endDate: { gte: parseYmd(from) } }, { endDate: null, date: { gte: parseYmd(from) } }] },
         ...(yr ? [{ date: yr }] : []),
         ...(seasonPicked ? [{ OR: [...(pickedIds.length ? [{ seasonId: { in: pickedIds } }] : []), ...(pickedNone ? [{ seasonId: null }] : [])] }] : []),
@@ -145,9 +150,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
   // Слой фактов — только когда нет фильтров по сезону/действию (у фактов их нет).
   const factsHidden = mode !== "detail" || !layersOn || seasonPicked || actionVals.length > 0;
+  const keepLayer = (items: FactItem[]) => items.filter((f) => (f.kind === "shipment" ? layerSet.has("shipment") : layerSet.has("order")));
   const layer = factsHidden
     ? { items: [] as FactItem[], monthLevel: [] }
-    : await loadFactLayer(orgId, from, to, { article: articleF, month });
+    : await loadFactLayer(orgId, from, to, { article: articleF, month, shipments: layerSet.has("shipment") }).then((l) => ({ ...l, items: keepLayer(l.items), monthLevel: layerSet.has("order") ? l.monthLevel : [] }));
   // «Конвейер» ТЗ: стадия, мех, ожидаемая дата — для подписей событий и фактов, карточек и режимов «По месяцам» / «Стадии».
   // «По месяцам» выбирает год сам (my), поэтому грузим все годы; остальные режимы — год шапки.
   const myEff = cf.my || (year === "all" ? "all" : year);
@@ -161,14 +167,15 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   // Ожидаемые ТЗ без даты окончания: срок по лоту / закупке / плану поставок (событие календаря и так видно в сетке).
   const EXPECT_SRC = ["по поставке лота", "по сроку закупки", "по плану поставок"];
   const artRe = articleF ? modelCodeVariants(articleF).map((v) => v.toLowerCase()) : [];
-  const expFacts: FactItem[] = factsHidden ? [] : pipe
+  const expFacts: FactItem[] = factsHidden || !layerSet.has("order") ? [] : pipe
     .filter((p) => p.status !== "COMPLETED" && p.stage !== "repair" && !p.endDate && p.expected && EXPECT_SRC.includes(p.expected.source) && p.expected.date >= from && p.expected.date <= to && (artRe.length === 0 || artRe.some((v) => p.articleCode.toLowerCase().includes(v))))
     .map((p) => ({ id: `ex-${p.id}`, kind: "order" as const, date: p.expected!.date, title: p.articleLabel, qty: p.qty, label: `Ожидаем ${pipeTitle(p)}`, href: `/production/${p.id}`, orderId: p.id }));
   // Слой «Сырьё Веллмеха»: показан по умолчанию рядом с записями Веллмеха (скрывается тем же «Без Веллмеха», как и они — фильтрами сезона/действия/артикула).
-  const rawOn = mode === "detail" && cf.sup !== "hide" && !seasonPicked && actionVals.length === 0 && !articleF;
-  const rawFacts = rawOn ? await loadRawFacts(orgId, from, to) : [];
+  const rawOn = mode === "detail" && layerSet.has("raw") && !seasonPicked && actionVals.length === 0 && !articleF;
+  const auctionOn = mode === "detail" && layerSet.has("auction") && !seasonPicked && actionVals.length === 0 && !articleF;
+  const [rawFacts, auctionFacts] = await Promise.all([rawOn ? loadRawFacts(orgId, from, to) : [], auctionOn ? loadAuctionFacts(orgId, from, to, today) : []]);
   const factsByDay = new Map<string, FactItem[]>();
-  for (const f of [...layer.items, ...expFacts, ...rawFacts]) factsByDay.set(f.date, [...(factsByDay.get(f.date) ?? []), f]);
+  for (const f of [...auctionFacts, ...layer.items, ...expFacts, ...rawFacts]) factsByDay.set(f.date, [...(factsByDay.get(f.date) ?? []), f]);
 
   const evByDay = new Map<string, Ev[]>();
   for (const e of evs) {
@@ -196,14 +203,15 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const panelDay = mode === "detail" ? dayParam || (selected ? ymd(selected.date) : "") : "";
   const dayEvents = panelDay
     ? await prisma.calendarEvent.findMany({
-        where: { organizationId: orgId, date: { lte: parseYmd(panelDay) }, OR: [{ endDate: { gte: parseYmd(panelDay) } }, { endDate: null, date: parseYmd(panelDay) }] },
+        where: { organizationId: orgId, NOT: { action: AUCTION_ACTION }, date: { lte: parseYmd(panelDay) }, OR: [{ endDate: { gte: parseYmd(panelDay) } }, { endDate: null, date: parseYmd(panelDay) }] },
         include: { season: { select: { code: true } } },
         orderBy: { createdAt: "asc" },
       })
     : [];
   const dayFacts: FactItem[] = panelDay
     ? [
-        ...(await loadFactLayer(orgId, panelDay, panelDay, { month: panelDay.slice(0, 7) })).items,
+        ...(auctionOn ? await loadAuctionFacts(orgId, panelDay, panelDay, today) : []),
+        ...(layersOn ? keepLayer((await loadFactLayer(orgId, panelDay, panelDay, { month: panelDay.slice(0, 7), shipments: layerSet.has("shipment") })).items) : []),
         ...(rawOn ? await loadRawFacts(orgId, panelDay, panelDay) : []),
         ...pipe
           .filter((p) => p.status !== "COMPLETED" && p.stage !== "repair" && !p.endDate && p.expected && EXPECT_SRC.includes(p.expected.source) && p.expected.date === panelDay)
@@ -217,7 +225,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const formSeasons = seasons.map((x) => ({ id: x.id, code: x.code }));
   const formPlans = plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }));
 
-  const params: Record<string, string | string[]> = { view: mode === "detail" ? view : mode, m: month, w: mode === "detail" && view === "week" ? weekStart : "", season: cf.season, action: actionVals, q: articleF, layers: layersOn ? "1" : "", sup: cf.sup, grp: cf.grp, fur: cf.fur, stage: cf.stage, cell: cf.cell, mv: cf.mv, my: cf.my, gall: cf.gall, gp: cf.gp };
+  const params: Record<string, string | string[]> = { view: mode === "detail" ? view : mode, m: month, w: mode === "detail" && view === "week" ? weekStart : "", season: cf.season, action: actionVals, q: articleF, layers: cf.layers, sup: cf.sup, grp: cf.grp, fur: cf.fur, stage: cf.stage, cell: cf.cell, mv: cf.mv, my: cf.my, gall: cf.gall, gp: cf.gp };
   const href = (patch: Record<string, string | string[]>) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...params, ...patch })) {
@@ -253,7 +261,15 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     const st = LAYER_STYLES[f.kind];
     const p = f.orderId ? pipeBy.get(f.orderId) : undefined;
     const fur = p?.fur;
-    const href2 = f.orderId && f.kind === "order" ? href({ ord: f.orderId, event: "" }) + "#card" : f.href;
+    const href2 = f.orderId && f.kind === "order" ? href({ ord: f.orderId, event: "" }) + "#card" : f.by ? href({ day: f.date, event: "" }) : f.href;
+    if (f.kind === "auction") {
+      return (
+        <Link key={f.id} href={href2} scroll={f.by ? false : undefined} title={`Аукцион: ${f.title} — ${f.label}${f.by ? ` · ${f.by}` : ""}`} className={`block rounded border px-1.5 py-0.5 text-xs leading-tight ${st.chip}`}>
+          <span className="block truncate font-medium">Аукцион · {f.title}</span>
+          <span className="block text-[11px] opacity-90">{f.label}{f.by ? ` · ${f.by}` : ""}</span>
+        </Link>
+      );
+    }
     return (
       <Link key={f.id} href={href2} title={`${st.label}: ${f.title}${f.qty != null ? ` × ${f.qty}` : ""}${fur ? ` · ${fur}` : ""} — ${f.label}${p?.expected ? ` · ${p.status === "COMPLETED" ? "дата" : "ждём"} ${fmtRu(p.expected.date)} (${p.expected.source})` : ""}`}
         className={`block rounded border px-1.5 py-0.5 text-xs leading-tight ${st.chip} ${p?.overdue && f.kind === "order" ? "ring-1 ring-red-500" : ""}`}>
@@ -290,7 +306,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   // Плитки-итоги: числа из calendar-table (те же, что в таблицах ниже); в «Детально» таблиц нет — берём все ТЗ года шапки без фильтров.
   const sumFilters: TableFilters = mode === "detail" ? { grp: [], fur: [], stage: [] } : tableFilters;
   // «Детально» без включённых фактов: календарь пуст, пока не заведены события — плитки по ТЗ обнулены (ТЗ видны в режимах «По месяцам» и «Стадии»).
-  const tilePipe = mode === "detail" && !layersOn ? [] : pipe;
+  const tilePipe = mode === "detail" && !layerSet.has("order") ? [] : pipe;
   const sumGrand = mode === "months" ? buildMonthGrid(tilePipe, sumFilters, myEff).grand : buildMonthTable(tilePipe, sumFilters, true).grand;
   const sumScope = mode === "months" ? myEff : "all";
   const sumOverdue = tilePipe.filter((p) => p.overdue && inScope(p, sumScope) && Object.keys(unitsFor(p, sumFilters)).length > 0).length;
@@ -299,7 +315,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     ? href({ view: "months", stage: [k], w: "", event: "", new: "", cell: "", ord: "" })
     : href({ stage: stageActive.length === 1 && stageActive[0] === k ? [] : [k], cell: "", ord: "", gp: "" });
   const periodEvents = evs.filter((e) => inPeriod(e.date)).length;
-  const factsNote = layersOn && (seasonPicked || actionVals.length > 0) ? "Факты из других разделов скрыты: у них нет сезона и действия из этого списка." : "";
+  const factsNote = (layersOn || layerSet.has("auction") || layerSet.has("raw")) && (seasonPicked || actionVals.length > 0) ? "Факты из других разделов скрыты: у них нет сезона и действия из этого списка." : "";
 
   return (
     <div className="flex flex-col gap-4">
@@ -310,7 +326,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           <span className="ml-2 inline-flex items-center gap-1 text-sm font-normal text-neutral-500">
             {year === "all" ? "· все годы" : `· ${year} год`}
             <InfoHint wide label="Как читать календарь">
-              <p>Здесь ваши события: артикул × количество, дата и действие (раскрой, пошив, сдача скорняку…). Серые пунктирные ярлыки — факты из других разделов (план поставок, отгрузки, примерки, окончание ТЗ); они только для просмотра, клик ведёт в свою карточку.</p>
+              <p>Здесь ваши события: артикул × количество, дата и действие (раскрой, пошив, сдача скорняку…). Пунктирные ярлыки — слои, их включают фильтром «Слои»: аукционы (даты, которые внёс Веллмех, и прошедшие из наших закупок), отгрузки, этапы сырья, даты по ТЗ; они только для просмотра.</p>
               <p className="mt-1">Красная рамка — дата прошла, а событие (или ТЗ) не выполнено. Итоги считаются по событиям один раз, в день начала. Общий год из шапки скрывает события других годов.</p>
               <p className="mt-1">Режимы: «Детально» — сетка с подписями (артикул, мех, количество, стадия, ожидаемая дата; клик по ТЗ открывает карточку), «По месяцам» — таблица видов меха по месяцам и стадиям, «Стадии» — путь изделия от плана до отгрузки со сроками.</p>
               {canEdit && <p className="mt-1">Добавить событие — кнопкой ниже или нажатием на любой день в календаре.</p>}
@@ -347,7 +363,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
             { type: "multi", name: "season", label: "Сезон", options: seasons.map((x) => ({ value: x.code, label: x.code })), noneLabel: "Без сезона", allLabel: "Все сезоны" },
             { type: "multi", name: "action", label: "Действие", options: CALENDAR_ACTIONS.map((a) => ({ value: a.label, label: a.label })), allLabel: "Все действия" },
             { type: "text", name: "q", label: "Артикул", aliases: ["article"], placeholder: "Артикул" },
-            { type: "multi", name: "layers", label: "Факты", single: true, state: true, allLabel: "Только мои события", options: [{ value: "1", label: "Показывать факты" }], hint: "По умолчанию календарь пустой — только события, заведённые вручную. «Показывать факты» добавляет серым пунктиром даты из ТЗ, отгрузок и примерок (только чтение)" },
+            { type: "multi", name: "layers", label: "Слои", allLabel: "Аукционы и этапы сырья", options: [{ value: "auction", label: "Аукционы" }, { value: "shipment", label: "Отгрузки" }, { value: "raw", label: "Этапы сырья" }, { value: "order", label: "ТЗ" }], hint: "Что показывать кроме ваших событий: даты аукционов (в том числе те, что внёс Веллмех), отгрузки, этапы сырья Веллмеха, даты по ТЗ. Ярлыки слоёв — пунктиром, только чтение" },
           ]}
           dropOnChange={["event", "new", "cell", "ord", "gp"]}
           footer={
@@ -378,7 +394,6 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       {mode === "detail" && <>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <Segment label="Вид" items={([["month", "Месяц"], ["week", "Неделя"], ["list", "Список"]] as const).map(([v, t]) => ({ key: v, label: t, on: view === v, href: href({ view: v, w: v === "week" ? weekStart : "" }) }))} />
-        <Segment label="Веллмех" items={([["", "Все записи"], ["only", "Только Веллмех"], ["hide", "Без Веллмеха"]] as const).map(([v, t]) => ({ key: v || "all", label: t, on: (cf.sup || "") === v, href: href({ sup: v }) }))} />
         <Link href={prev} className={BTN_ICON} aria-label="Назад">‹</Link>
         <h2 className="min-w-44 text-center block-title">{title}</h2>
         <Link href={next} className={BTN_ICON} aria-label="Вперёд">›</Link>
@@ -392,7 +407,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       </div>
       <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
         {CALENDAR_ACTIONS.map((a) => <span key={a.label} className="inline-flex items-center gap-1"><i className={`size-2 rounded-full ${a.dot}`} />{a.label}</span>)}
-        {layersOn && !factsHidden && <span className="inline-flex items-center gap-1"><i className="size-2 rounded-full border border-dashed border-neutral-500" />пунктир — факты (только чтение)</span>}
+        {(auctionOn || rawOn || (layersOn && !factsHidden)) && <span className="inline-flex items-center gap-1"><i className="size-2 rounded-full border border-dashed border-neutral-500" />пунктир — слои (только чтение)</span>}
         <span className="text-neutral-300">|</span>
         <StageLegend only={["plan", "raw", "work", "ready", "shipped"]} />
       </div>
@@ -427,7 +442,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         {view !== "week" && listDays.length === 0 && <p className="rounded-lg border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">В этом месяце событий нет{canEdit ? " — добавьте первое формой выше" : ""}.</p>}
       </div>
 
-      {layersOn && !factsHidden && !HIDDEN_MODULES.supplyPlan && layer.monthLevel.length > 0 && (
+      {!factsHidden && !HIDDEN_MODULES.supplyPlan && layer.monthLevel.length > 0 && (
         <section className="rounded-lg border border-neutral-200 bg-white p-3" aria-label="План поставок без точной даты">
           <h3 className="mb-2 block-title">План поставок на {monthTitle(month)} (без точной даты) <InfoHint>Записи из раздела «План поставок», у которых указан только месяц. Только чтение.</InfoHint></h3>
           <div className="flex flex-wrap gap-2 text-xs">

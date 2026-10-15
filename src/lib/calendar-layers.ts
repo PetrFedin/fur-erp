@@ -9,16 +9,14 @@ import type { LayerKind } from "@/lib/calendar-actions";
 import { articleLabel } from "@/lib/article-label";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 
-/** Отгрузки в календарь не выводим (слой скрыт), хотя раздел «Отгрузки» открыт. Вернуть слой — поставьте false. */
-const CALENDAR_SHIPMENTS_HIDDEN = true;
 
 // Слой «факты» производственного календаря: только чтение, ничего не копируется в CalendarEvent.
 // Источники: SupplyPlanEntry (дата этапа), Shipment.plannedDate, Fitting.fittingDate, ProductionOrder.endDate.
 
-export type FactItem = { id: string; kind: LayerKind; date: string; title: string; qty: number | null; label: string; href: string; /** ТЗ, к которому относится факт (карточка в календаре). */ orderId?: string };
+export type FactItem = { id: string; kind: LayerKind; date: string; title: string; qty: number | null; label: string; href: string; /** ТЗ, к которому относится факт (карточка в календаре). */ orderId?: string; /** Кто внёс (для отметок Веллмеха). */ by?: string };
 export type MonthLevelItem = { id: string; title: string; qty: number; label: string };
 
-export async function loadFactLayer(organizationId: string, from: string, to: string, opts: { article?: string; month: string }) {
+export async function loadFactLayer(organizationId: string, from: string, to: string, opts: { article?: string; month: string; shipments?: boolean }) {
   const gte = parseYmd(from);
   const lte = parseYmd(to);
   const art = opts.article?.trim();
@@ -35,8 +33,8 @@ export async function loadFactLayer(organizationId: string, from: string, to: st
       },
       select: { id: true, status: true, quantity: true, eventDate: true, notes: true, productModel: { select: { name: true, category: true, salesCode: true, salesName: true } } },
     }),
-    // Слой отгрузок календаря остаётся скрытым: раздел «Отгрузки» теперь открыт (HIDDEN_MODULES.shipments = false), а календарь не трогаем.
-    CALENDAR_SHIPMENTS_HIDDEN ? Promise.resolve([]) : prisma.shipment.findMany({
+    // Отгрузки — отдельный слой фильтра «Отгрузки» (по умолчанию выключен).
+    opts.shipments === false ? Promise.resolve([]) : prisma.shipment.findMany({
       where: { organizationId, status: { not: "CANCELLED" }, plannedDate: { gte, lte }, ...(nameFilter ? { lines: { some: { productionOrder: { productModel: nameFilter } } } } : {}) },
       select: { id: true, plannedDate: true, status: true, client: { select: { name: true } }, lines: { select: { quantity: true, productionOrder: { select: { productModel: { select: { name: true, category: true, salesCode: true, salesName: true } } } } } } },
     }),
