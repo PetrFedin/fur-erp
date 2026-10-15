@@ -412,6 +412,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   { label: "Цвет", value: orderColorNames(o).join("; ") || undefined },
                   { label: "Заказчик", value: o.client?.name },
                   { label: "Ставка НДС", value: <TzVatBadge b={vatB} /> },
+                  { label: "Word ТЗ", value: <a href={`/api/production/${o.id}/word`} className="inline-flex min-h-11 items-center text-blue-700 hover:underline">Открыть Word</a> },
                 ]}
               />
             );
@@ -437,6 +438,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                     {child ? <span className="pl-4 text-xs font-normal text-neutral-600" title={orderHint(o)}>{[posText(tzPos.get(o.id)?.posIndex, tzPos.get(o.id)?.posCount), articleLabel(o.productModel)].filter(Boolean).join(" · ")}</span> : <span title={orderHint(o)}>{labelOf(o)}</span>}
                     {matchOf(o)?.label && <span className="ml-2 text-xs font-normal text-neutral-500">({matchOf(o)!.label})</span>}
                   </Link>
+                  <a href={`/api/production/${o.id}/word`} className="block px-3 pb-2 text-xs font-normal text-blue-700 hover:underline" title="Финальный Word этого ТЗ">Word</a>
                 </Td>
                 <Td className={num}><Link href={href} className={link}>1</Link></Td>
                 <Td className={`${cell} text-neutral-700`}><Link href={href} className={`${link} whitespace-nowrap`}>{fur}</Link></Td>

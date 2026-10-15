@@ -397,6 +397,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <div className="ml-auto" />
           <ChatLink type="ProductionOrder" id={order.id} role={session.user.role} label="Написать Веллмеху" />
           <GroupLink type="ProductionOrder" id={order.id} role={session.user.role} label={`Создать группу по ${tzTitle}`} />
+          <a href={`/api/production/${id}/word`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Финальный Word этого ТЗ: сохранённое приложение, а если его нет — печатная форма из данных ТЗ">
+            Word ТЗ
+          </a>
           <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">
             Печать / PDF
           </Link>
@@ -408,8 +411,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               {order.client && <Link href={payLink} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title={order.batch ? `Оплаты от заказчика по партии ${order.batch.number} (фильтра по одному ТЗ в оплатах нет); оплачено именно на это ТЗ — в строке «Оплата работы» ниже` : "Оплаты от заказчика, разнесение по ТЗ"}>Оплаты заказчика</Link>}
               <Link href={`/verify?tab=orders&q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Подтверждение ТЗ в разделе «Контроль → Подтвердить»">Подтверждение</Link>
               <Link href={`/history?model=ProductionOrder&q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="История изменений и комментарии — в разделе «Контроль»">История</Link>
-              <a href={`/api/production/${id}/docx`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Скачать печатную форму ТЗ в формате Word">
-                Скачать .docx
+              <a href={`/api/production/${id}/docx`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ, собранная системой из данных ТЗ (не присланный Word)">
+                Печатная форма .docx
               </a>
               {open && canEdit && (
                 <div className="border-t border-neutral-100 pt-2">
