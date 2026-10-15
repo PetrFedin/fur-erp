@@ -4,7 +4,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { ReopenButton } from "../../reopen-button";
 import { requireRawViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
-import { INBOX_STATUS_HELP } from "@/lib/supplier-inbox-consts";
+import { INBOX_STATUS_HELP, shortInboxTitle } from "@/lib/supplier-inbox-consts";
 import { STAGE_LABEL, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
 import { CompareBlock } from "../compare-block";
 import { FinalButton } from "../final-button";
@@ -25,9 +25,7 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
   const payload = ensureRowIds(row.payload as unknown as CalcPayload);
   const years = await calcYearOptions(s);
   const full = row.title;
-  const m = /^(.*?[·,]\s*счёт\s+)(.+)$/.exec(full);
-  const inv = m ? m[2].split(/,\s*/) : [];
-  const shortTitle = m && inv.length > 2 ? `${m[1]}${inv[0]} +${inv.length - 1}` : full;
+  const shortTitle = shortInboxTitle(full);
   const readOnly = row.status !== "DRAFT" || s.user.role !== "SUPPLIER";
   return (
     <div className="flex flex-col gap-4">

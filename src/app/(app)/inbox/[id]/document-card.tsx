@@ -33,7 +33,7 @@ export function DocumentCard({ row }: { row: Row }) {
         <h1 className="text-xl font-semibold">{row.title}</h1>
         <span className={cn("rounded-full px-2.5 py-0.5 text-xs", sent ? "bg-amber-100 text-amber-900" : row.status === "ACCEPTED" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700")}>{INBOX_STATUS_LABEL[row.status]}</span>
       </div>
-      <p className="text-sm text-neutral-600">От поставщика: {row.supplier.name}{row.sentAt ? `, отправлено ${formatDate(row.sentAt)}` : ""}.</p>
+      <p className="text-sm text-neutral-600">Подрядчик: {row.supplier.name}{row.sentAt ? ` · отправлено ${formatDate(row.sentAt)}` : ""}</p>
       {row.status === "REJECTED" && row.reviewNote && <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm">Комментарий при отклонении: {row.reviewNote}</div>}
       {row.status === "ACCEPTED" && row.createdEntityId && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-green-300 bg-green-50 p-3 text-sm">
@@ -48,7 +48,7 @@ export function DocumentCard({ row }: { row: Row }) {
         <h3 className="mb-1 text-sm font-semibold">Вложения</h3>
         <ul className="flex flex-col gap-1 text-sm">
           {row.files.map((f) => <li key={f.id}><a className="underline" href={`/api/supplier/inbox-files/${f.id}`}>{f.originalName}</a> <span className="text-neutral-500">· {kindLabel(f.kind)} · {kb(f.sizeBytes)}</span></li>)}
-          {row.files.length === 0 && <li className="text-neutral-500">Файлов нет</li>}
+          {row.files.length === 0 && <li className="text-neutral-500">Нет файлов</li>}
         </ul>
       </div>
     </div>

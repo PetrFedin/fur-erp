@@ -13,3 +13,10 @@ export const INBOX_STATUS_HELP: Record<string, string> = {
   ACCEPTED: "Принято, править нельзя.",
   REJECTED: "Возвращено на доработку, замечание ниже.",
 };
+
+/** Заголовок расчёта с длинным списком счетов: «SAGA 03-26 · счёт 0534-002 +7». Полный — во всплывающей подсказке. */
+export function shortInboxTitle(title: string): string {
+  const m = /^(.*?[·,]\s*счёт\s+)(.+)$/.exec(title);
+  const inv = m ? m[2].split(/,\s*/) : [];
+  return m && inv.length > 2 ? `${m[1]}${inv[0]} +${inv.length - 1}` : title;
+}

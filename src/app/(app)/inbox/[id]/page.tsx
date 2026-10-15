@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { ControlTabs } from "@/components/control-tabs";
+import { Clamp } from "@/components/clamp";
+import { InfoHint } from "@/components/info-hint";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
-import { INBOX_FILE_KINDS, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox-consts";
+import { INBOX_FILE_KINDS, INBOX_STATUS_LABEL, shortInboxTitle } from "@/lib/supplier-inbox-consts";
 import { previewInbox } from "@/lib/inbox-accept";
 import { FORMAT_LABEL, STAGE_LABEL, calcAll, columnsFor, headerRate, rateCols, resolveRow, rowFilled, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
 import { TZ_KIND_LABEL, itemFilled, materialFilled, plainNum, ruDate, spacedNum, tzTotals, type TzPayload } from "@/lib/tz-vendor";
@@ -47,7 +49,7 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
   return (
     <div className="flex flex-col gap-4">
       <FinalFigures {...ff} />
-      <p className="text-sm text-neutral-700">Аукцион <b>{dash(h.auction)}</b> · счёт № {dash(h.invoice)} от {dash(h.invoiceDate)} · курс {rateFmt(t.rate)} · {p.stage ? STAGE_LABEL[p.stage] : "окончательный"}</p>
+      <p className="text-sm text-neutral-700">Аукцион <b>{dash(h.auction)}</b> · счёт <Clamp className="inline-block max-w-[16rem] align-bottom">{dash(h.invoice)}</Clamp>{h.invoiceDate ? ` от ${h.invoiceDate}` : ""}{t.rate > 0 ? ` · курс ${rateFmt(t.rate)}` : ""} · {p.stage ? STAGE_LABEL[p.stage] : "окончательный"}</p>
       {p.format === "SHEET" ? <CalcSheetReadonly p={p} t={t} maxHeight="70vh" /> : (
       <div className="overflow-x-auto">
         <Table className="min-w-[640px]">
@@ -55,7 +57,7 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
           <Tbody>
             {used.map(({ r, i }) => (
               <Tr key={i}>
-                <Td>{dash(r.lot)}</Td><Td>{dash(r.fur)}</Td><Td>{dash(r.size)}</Td><Td className="text-right tabular-nums">{dash(r.qty)}</Td><Td className="text-right tabular-nums">{dash(r.price)}</Td>
+                <Td>{dash(r.lot)}</Td><Td>{dash(r.fur)}</Td><Td className="max-w-[14rem]"><Clamp>{dash(r.size)}</Clamp></Td><Td className="text-right tabular-nums">{dash(r.qty)}</Td><Td className="text-right tabular-nums">{dash(r.price)}</Td>
                 <Td className="text-right tabular-nums font-medium">{t.calcs[i].ok ? money(t.calcs[i].unitRub) : <span className="text-red-700">{t.calcs[i].problems.join(", ")}</span>}</Td>
                 <Td className="text-right tabular-nums">{money(t.calcs[i].totalRub)}</Td>
               </Tr>
@@ -79,7 +81,7 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
         <span className={cn("rounded-full px-2.5 py-0.5 text-xs", p.stage === "PRELIM" ? "bg-blue-50 text-blue-800" : "bg-green-50 text-green-800")}>{p.stage ? STAGE_LABEL[p.stage] : "не указана (считается окончательным)"}</span>
       </div>
       <div>
-        <h3 className="mb-1 text-sm font-semibold">Ставки (введены Веллмехом)</h3>
+        <h3 className="mb-1 text-sm font-semibold">Ставки подрядчика</h3>
         <Dl items={rateCols(p.format).map((c): [string, string] => [c.rate!.label, headerRate(h, c.key) || (p.rows.some((r) => (r[c.key] ?? "").trim() !== "") ? "в строках таблицы" : "не указана (0)")])} />
       </div>
       {(p.customColumns?.length ?? 0) > 0 && (
@@ -96,10 +98,10 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
               ))}
             </Tbody>
           </Table>
-          {(p.params?.length ?? 0) > 0 && <p className="mt-1 text-sm text-neutral-700">Свои параметры: {p.params!.map((q) => `${q.name} = ${q.value}`).join("; ")}</p>}
+          {(p.params?.length ?? 0) > 0 && <p className="mt-1 text-sm text-neutral-700">Свои параметры: {p.params!.length}<InfoHint label="Свои параметры">{p.params!.map((q) => `${q.name} = ${q.value}`).join("; ")}</InfoHint></p>}
         </div>
       )}
-      {h.extras.length > 0 && <p className="text-sm text-neutral-700">Прочие расходы: {h.extras.map((e) => `${e.name || "без названия"} — ${e.amount} (${e.mode === "total" ? "на весь счёт" : "на шкуру"})`).join("; ")}</p>}
+      {h.extras.length > 0 && <p className="text-sm text-neutral-700">Прочие расходы: {h.extras.length}<InfoHint label="Прочие расходы">{h.extras.map((e) => `${e.name || "без названия"} — ${e.amount} (${e.mode === "total" ? "на весь счёт" : "на шкуру"})`).join("; ")}</InfoHint></p>}
       {p.format !== "SHEET" && <CalcSheetReadonly p={p} t={t} maxHeight="70vh" />}
       <p className="text-sm text-neutral-700">Итого по счёту <b>{money(t.totalRub)} ₽</b>
         {t.advance > 0 && <> · аванс {money(t.advance)} ₽</>}{t.interim > 0 && <> · промежуточный {money(t.interim)} ₽</>}{(t.advance > 0 || t.interim > 0) && <> · остаток <b>{money(t.rest)} ₽</b></>}
@@ -128,7 +130,7 @@ function TzView({ p }: { p: TzPayload }) {
           <Tbody>
             {items.map(({ it, i }, k) => (
               <Tr key={i}>
-                <Td>{k + 1}</Td><Td>{dash(it.name)}</Td><Td>{dash(it.color)}</Td><Td>{dash(it.model)}</Td><Td>{dash(it.material)}</Td><Td>{dash(it.size)}</Td><Td>{dash(it.lining)}</Td>
+                <Td>{k + 1}</Td><Td className="max-w-[14rem]"><Clamp>{dash(it.name)}</Clamp></Td><Td className="max-w-[9rem]"><Clamp>{dash(it.color)}</Clamp></Td><Td>{dash(it.model)}</Td><Td className="max-w-[12rem]"><Clamp>{dash(it.material)}</Clamp></Td><Td>{dash(it.size)}</Td><Td className="max-w-[12rem]"><Clamp>{dash(it.lining)}</Clamp></Td>
                 <Td className="tabular-nums">{it.qty}</Td><Td className="tabular-nums">{dash(it.work)}</Td><Td className="tabular-nums">{dash(it.price)}</Td><Td className="tabular-nums">{plainNum(t.itemTotals[i] ?? 0)}</Td>
               </Tr>
             ))}
@@ -138,7 +140,7 @@ function TzView({ p }: { p: TzPayload }) {
       </div>
       <div>
         <h3 className="mb-1 text-sm font-semibold">Заказчик передал</h3>
-        {mats.length === 0 ? <p className="text-sm text-neutral-500">Ничего не передавал</p> : (
+        {mats.length === 0 ? <p className="text-sm text-neutral-500">Нет</p> : (
           <div className="overflow-x-auto">
             <Table className="min-w-[640px]">
               <Thead><Tr><Th>Материал</Th><Th>Лот</Th><Th>Ед.</Th><Th>Кол-во</Th><Th>Цена без НДС</Th><Th>НДС, %</Th><Th>Всего, ₽</Th></Tr></Thead>
@@ -175,20 +177,20 @@ export default async function InboxCardPage({ params }: PageProps<"/inbox/[id]">
   const decider = row.decidedById ? await prisma.user.findFirst({ where: { id: row.decidedById }, select: { name: true } }) : null;
   const created = (row.createdEntityId ?? "").split(",").filter(Boolean);
   const purchaseNums = row.createdEntityType === "Purchase" && created.length ? new Map((await prisma.purchase.findMany({ where: { id: { in: created }, organizationId: s.user.organizationId }, select: { id: true, number: true } })).map((x) => [x.id, x.number])) : new Map<string, string>();
-  const createdLinks = row.createdEntityType === "Purchase" ? created.map((x) => ({ href: `/purchases/${x}`, label: `Открыть закупку ${purchaseNums.get(x) ?? ""}`.trim() })) : created.map((x, k) => ({ href: `/production/${x}`, label: `Открыть ТЗ ${k + 1}` }));
+  const createdLinks = row.createdEntityType === "Purchase" ? created.map((x) => ({ href: `/purchases/${x}`, label: `Закупка ${purchaseNums.get(x) ?? ""}`.trim() })) : created.map((x, k) => ({ href: `/production/${x}`, label: `ТЗ ${k + 1}` }));
   const kindLabel = (k: string) => INBOX_FILE_KINDS.find((x) => x.key === k)?.label ?? k;
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Входящие", href: "/inbox" }, { label: row.title }]} />
+      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Входящие", href: "/inbox" }, { label: shortInboxTitle(row.title) }]} />
       <ControlTabs active="inbox" />
       <div className="flex flex-wrap items-baseline gap-3">
-        <h1 className="text-xl font-semibold">{row.title}</h1>
-        <span className={cn("rounded-full px-2.5 py-0.5 text-xs", sent ? "bg-amber-100 text-amber-900" : row.status === "ACCEPTED" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700")}>{INBOX_STATUS_LABEL[row.status]}</span>
+        <h1 className="text-xl font-semibold" title={row.title}>{shortInboxTitle(row.title)}</h1>
+        <span className={cn("rounded-full px-2.5 py-0.5 text-xs", sent ? "bg-amber-100 text-amber-900" : row.status === "ACCEPTED" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700")}>{row.status === "ACCEPTED" ? "Принято" : INBOX_STATUS_LABEL[row.status]}</span>
       </div>
       <p className="text-sm text-neutral-600">
-        От поставщика: {row.supplier.name}{row.sentAt ? `, отправлено ${formatDate(row.sentAt)}` : ""}.
-        {row.decidedAt && <> {row.status === "ACCEPTED" ? "Принято" : "Отклонено"} {formatDate(row.decidedAt)}{decider?.name ? ` (${decider.name})` : ""}.</>}
+        Подрядчик: {row.supplier.name}{row.sentAt ? ` · отправлено ${formatDate(row.sentAt)}` : ""}
+        {row.decidedAt && <> · {row.status === "ACCEPTED" ? "принято" : "отклонено"} {formatDate(row.decidedAt)}{decider?.name ? ` (${decider.name})` : ""}</>}
       </p>
 
       {row.status === "REJECTED" && row.reviewNote && <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm">Комментарий при отклонении: {row.reviewNote}</div>}
@@ -223,7 +225,7 @@ export default async function InboxCardPage({ params }: PageProps<"/inbox/[id]">
 
       <div>
         <h3 className="mb-1 text-sm font-semibold">Вложения</h3>
-        {row.files.length === 0 ? <p className="text-sm text-neutral-500">Файлов нет</p> : (
+        {row.files.length === 0 ? <p className="text-sm text-neutral-500">Нет файлов</p> : (
           <ul className="flex flex-col gap-1 text-sm">
             {row.files.map((f) => (
               <li key={f.id}><a className="underline" href={`/api/supplier/inbox-files/${f.id}`}>{f.originalName}</a> <span className="text-neutral-500">· {kindLabel(f.kind)} · {kb(f.sizeBytes)}</span></li>
