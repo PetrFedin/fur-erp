@@ -4,7 +4,9 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createThreadBindCode } from "./channel-actions";
-import { changeMemberAction, createGroupAction, eligibleUsersAction, markThreadRead, searchEntitiesAction, sendMessage, setThreadClosed, startThread, toggleReactionAction } from "./actions";
+import { changeMemberAction, createChatAction, eligibleUsersAction, markThreadRead, searchEntitiesAction, sendMessage, setThreadClosed, toggleReactionAction, updateThreadAction, type NewChatState } from "./actions";
+import { planNewChat } from "@/lib/chat-core";
+import type { RecipientOption } from "@/lib/chat";
 
 const FILE_ACCEPT = ".pdf,.xlsx,.docx,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf";
 
@@ -58,7 +60,7 @@ const OK_EXT = /\.(pdf|xlsx|docx|jpe?g|png)$/i;
 const fmtSize = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`);
 
 /** Поле ввода: Enter отправляет, Shift+Enter — перенос; файлы — скрепкой, перетаскиванием на окно переписки или вставкой из буфера. */
-export function Composer({ threadId }: { threadId: string }) {
+export function Composer({ threadId, people = [] }: { threadId: string; people?: string[] }) {
   const router = useRouter();
   const taRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -66,6 +68,26 @@ export function Composer({ threadId }: { threadId: string }) {
   const [files, setFiles] = useState<File[]>([]);
   const [drag, setDrag] = useState(false);
   const [pending, start] = useTransition();
+  const [mention, setMention] = useState<{ q: string; from: number } | null>(null);
+
+  /** Подсказка «@имя»: смотрим слово перед кареткой. */
+  function checkMention(el: HTMLTextAreaElement) {
+    const before = el.value.slice(0, el.selectionStart);
+    const m = /(?:^|\s)@([\p{L}\p{N}_-]*)$/u.exec(before);
+    setMention(m ? { q: m[1].toLowerCase(), from: before.length - m[1].length - 1 } : null);
+  }
+  const suggest = mention ? people.filter((n) => n.toLowerCase().split(/\s+/).some((w) => w.startsWith(mention.q))).slice(0, 5) : [];
+  function pickMention(name: string) {
+    const el = taRef.current;
+    if (!el || !mention) return;
+    const first = name.split(/\s+/)[0];
+    const caret = el.selectionStart;
+    el.value = el.value.slice(0, mention.from) + "@" + first + " " + el.value.slice(caret);
+    const pos = mention.from + first.length + 2;
+    el.setSelectionRange(pos, pos);
+    setMention(null);
+    el.focus();
+  }
 
   function addFiles(list: File[]) {
     const bad = list.filter((f) => !OK_EXT.test(f.name) && !/^image\/(jpeg|png)$/.test(f.type));
@@ -104,7 +126,7 @@ export function Composer({ threadId }: { threadId: string }) {
     start(async () => {
       const r = await sendMessage({}, fd);
       if (r.error) { setErr(r.error); return; }
-      setErr(""); setFiles([]); if (taRef.current) taRef.current.value = "";
+      setErr(""); setFiles([]); setMention(null); if (taRef.current) { taRef.current.value = ""; taRef.current.style.height = "auto"; }
       router.refresh();
       taRef.current?.focus();
     });
@@ -129,14 +151,26 @@ export function Composer({ threadId }: { threadId: string }) {
           <input type="file" multiple accept={FILE_ACCEPT} className="sr-only" onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
         </label>
         <textarea
-          ref={taRef} rows={1} maxLength={4000} aria-label="Сообщение" placeholder="Сообщение"
+          ref={taRef} rows={1} maxLength={4000} aria-label="Сообщение" placeholder="Сообщение (Enter — отправить)"
           className="max-h-40 min-h-11 w-full min-w-0 resize-none rounded-md border border-neutral-300 px-3 py-2.5 text-sm md:min-h-10 md:py-2"
-          onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 160) + "px"; }}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }}
+          onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 160) + "px"; checkMention(t); }}
+          onClick={(e) => checkMention(e.currentTarget)}
+          onKeyDown={(e) => {
+            if (suggest.length && (e.key === "Enter" || e.key === "Tab") && !e.nativeEvent.isComposing) { e.preventDefault(); pickMention(suggest[0]); return; }
+            if (e.key === "Escape") setMention(null);
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); }
+          }}
           onPaste={(e) => { const fl = Array.from(e.clipboardData.files); if (fl.length) { e.preventDefault(); addFiles(fl.map((f) => (f.name && f.name !== "image.png" ? f : new File([f], `снимок-${Date.now()}.png`, { type: f.type })))); } }}
         />
         <Button type="submit" disabled={pending} className="h-11 shrink-0 px-4 md:h-10">{pending ? "…" : "Отправить"}</Button>
       </div>
+      {suggest.length > 0 && (
+        <ul role="listbox" aria-label="Кого упомянуть" className="absolute bottom-full left-2 z-20 mb-1 min-w-48 overflow-hidden rounded-md border border-neutral-200 bg-white shadow-md md:left-14">
+          {suggest.map((n) => (
+            <li key={n}><button type="button" role="option" aria-selected={false} onMouseDown={(e) => e.preventDefault()} onClick={() => pickMention(n)} className="flex min-h-11 w-full items-center px-3 text-left text-sm hover:bg-neutral-100 md:min-h-9">@{n}</button></li>
+          ))}
+        </ul>
+      )}
       {err && <p role="alert" className="text-xs text-red-700">{err}</p>}
     </form>
   );
@@ -189,7 +223,7 @@ export function ListFilters({ q, f, e, topics }: { q: string; f: string; e: stri
     <form action="/chat" className="flex flex-col gap-2">
       {f && <input type="hidden" name="f" value={f} />}
       <input type="search" name="q" defaultValue={q} aria-label="Поиск по чатам" placeholder="Найти чат или сообщение" className="h-10 min-w-0 rounded-md border border-neutral-300 px-3 text-sm" />
-      <select name="e" defaultValue={e} aria-label="Тема" onChange={(ev) => ev.currentTarget.form?.requestSubmit()} className="h-10 rounded-md border border-neutral-300 bg-white px-2 text-sm">
+      <select name="e" defaultValue={e} aria-label="Фильтр по теме" onChange={(ev) => ev.currentTarget.form?.requestSubmit()} className="h-10 rounded-md border border-neutral-300 bg-white px-2 text-sm">
         <option value="">Все темы</option>
         {Object.entries(topics).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
       </select>
@@ -197,218 +231,295 @@ export function ListFilters({ q, f, e, topics }: { q: string; f: string; e: stri
   );
 }
 
-export function CloseButton({ threadId, closed }: { threadId: string; closed: boolean }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  return (
-    <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => start(async () => { await setThreadClosed(threadId, !closed); router.refresh(); })}>
-      {closed ? "Открыть заново" : "Закрыть запрос"}
-    </Button>
-  );
-}
-
 type Ent = { id: string; label: string };
+const SEL = "h-10 rounded-md border border-neutral-300 bg-white px-2 text-sm max-md:h-11";
+const INP = "h-10 w-full rounded-md border border-neutral-300 px-3 text-sm max-md:h-11";
+const CUSTOM = "__custom";
 
-export function NewRequestForm({
-  entityTypes, preset, requestTypes, canPickGeneral = true,
-}: {
+/** Единое окно «+ Новый чат»: кому → тема → (запись) → название и сообщение. Один человек — личный чат, несколько — группа. */
+export function NewChatForm({ options, topics, entityTypes, viewerRole, preset, backHref }: {
+  options: RecipientOption[];
+  topics: string[];
   entityTypes: Record<string, string>;
-  preset?: { type: string; id: string; label: string } | null;
-  requestTypes: readonly string[];
-  canPickGeneral?: boolean;
+  viewerRole: string;
+  preset?: { type: string; id: string; label: string; topic?: string; supplierKey?: string } | null;
+  backHref: string;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const supplierSide = viewerRole === "SUPPLIER";
+  const [sel, setSel] = useState<string[]>(preset?.supplierKey && options.some((o) => o.key === preset.supplierKey) ? [preset.supplierKey] : []);
+  const [q, setQ] = useState("");
+  const [topicSel, setTopicSel] = useState<string>(preset?.topic && topics.includes(preset.topic) ? preset.topic : "");
+  const [custom, setCustom] = useState("");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [wait, setWait] = useState(true);
+  const [names, setNames] = useState<string[]>([]);
   const [type, setType] = useState(preset?.type ?? "");
   const [picked, setPicked] = useState<Ent | null>(preset ? { id: preset.id, label: preset.label } : null);
-  const [q, setQ] = useState("");
+  const [eq, setEq] = useState("");
   const [found, setFound] = useState<Ent[]>([]);
-  const [kind, setKind] = useState<"REQUEST" | "GENERAL">("REQUEST");
-  const [names, setNames] = useState<string[]>([]);
+  const [dropped, setDropped] = useState("");
+  const [dup, setDup] = useState<{ id: string; title: string } | null>(null);
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
+
+  const isCustom = topicSel === CUSTOM;
+  const topic: string | null | undefined = topicSel === "" ? undefined : isCustom ? null : topicSel;
+  const byKey = new Map(options.map((o) => [o.key, o]));
+  const chosen = sel.map((k) => byKey.get(k)).filter((o): o is RecipientOption => !!o);
+  const supplierChosen = chosen.some((o) => o.kind === "supplier");
+  const okForTopic = (o: RecipientOption) => topic === undefined || topic === null || o.topics.includes(topic);
+  const list = options.filter((o) => !sel.includes(o.key) && okForTopic(o) && !(o.kind === "supplier" && supplierChosen) && (!q || o.name.toLowerCase().includes(q.toLowerCase())));
+  // Роли на клиенте не известны (подрядчику их не отдаём): выбранные уже отфильтрованы по теме, сервер проверит по базе.
+  const plan = topic === undefined ? null : planNewChat({ viewerRole, topic, internalRoles: chosen.filter((o) => o.kind === "user").map(() => "OWNER"), supplierCount: chosen.filter((o) => o.kind === "supplier").length });
+  const planErr = plan && "error" in plan ? plan.error : "";
+  const mode = plan && "mode" in plan ? plan.mode : null;
+  const hint = mode === "supplier"
+    ? (supplierSide ? "Общий вопрос: увидят наши сотрудники" : `Чат с подрядчиком «${chosen.find((o) => o.kind === "supplier")?.name}»: видят наши сотрудники с доступом и подрядчик`)
+    : mode === "group" ? (chosen.length === 1 ? "Личный чат" : `Группа: вы и ещё ${chosen.length}`) : "";
+
+  function pickTopic(t: string) {
+    setTopicSel(t); setDup(null);
+    if (t === "" || t === CUSTOM) { setDropped(""); return; }
+    const gone = chosen.filter((o) => !o.topics.includes(t));
+    setDropped(gone.length ? `Убрали из списка: ${gone.map((o) => o.name).join(", ")} — нет доступа к теме «${t}»` : "");
+    if (gone.length) setSel((c) => c.filter((k) => !gone.some((o) => o.key === k)));
+  }
 
   useEffect(() => {
     if (!type || picked) return;
     let dead = false;
-    const t = setTimeout(() => { searchEntitiesAction(type, q).then((r) => { if (!dead) setFound(r); }).catch(() => {}); }, 250);
+    const t = setTimeout(() => { searchEntitiesAction(type, eq).then((r) => { if (!dead) setFound(r); }).catch(() => {}); }, 250);
     return () => { dead = true; clearTimeout(t); };
-  }, [type, q, picked]);
+  }, [type, eq, picked]);
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const fd = new FormData(formRef.current!);
-    fd.set("kind", kind);
-    if (picked && type) { fd.set("entityType", type); fd.set("entityId", picked.id); }
+  function submit(e: React.FormEvent | null, force = false) {
+    e?.preventDefault();
+    setErr("");
+    if (topic === undefined) { setErr("Выберите тему"); return; }
+    if (topic === null && !custom.trim()) { setErr("Напишите свою тему"); return; }
+    if (planErr) { setErr(planErr); return; }
+    const fd = new FormData();
+    const files = formRef.current?.querySelector<HTMLInputElement>('input[type="file"]')?.files;
+    for (const f of Array.from(files ?? [])) fd.append("files", f);
+    fd.set("payload", JSON.stringify({
+      topic, customText: custom, title, body, waitAnswer: mode === "supplier" && wait, force,
+      userIds: chosen.filter((o) => o.kind === "user").map((o) => o.id), supplierIds: chosen.filter((o) => o.kind === "supplier").map((o) => o.id),
+      entityType: picked && type ? type : "", entityId: picked?.id ?? "",
+    }));
     start(async () => {
-      const r = await startThread({}, fd);
-      if (r.error) { setErr(r.error); return; }
+      const r: NewChatState = await createChatAction({}, fd);
+      if (r.existingId) { setDup({ id: r.existingId, title: r.existingTitle ?? "" }); return; }
+      if (r.error && !r.threadId) { setErr(r.error); return; }
       router.push(`/chat?thread=${r.threadId}`);
       router.refresh();
     });
   }
 
+  const chip = (on: boolean) => `inline-flex items-center rounded-full border px-3 py-1 text-sm max-md:min-h-11 ${on ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white hover:bg-neutral-100"}`;
+
   return (
-    <form ref={formRef} onSubmit={submit} className="flex max-w-2xl flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4">
-      <h2 className="text-base font-semibold">Новое обсуждение</h2>
-      <div className="flex gap-2 text-sm">
-        {(["REQUEST", "GENERAL"] as const).map((k) => (
-          <button key={k} type="button" onClick={() => setKind(k)} aria-pressed={kind === k}
-            className={`rounded-full border px-3 py-1 ${kind === k ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 hover:bg-neutral-100"}`}>
-            {k === "REQUEST" ? "Запрос (ждёт ответа)" : "Просто сообщение"}
-          </button>
-        ))}
+    <form ref={formRef} onSubmit={(e) => submit(e)} className="flex max-w-2xl flex-col gap-4 rounded-lg border border-neutral-200 bg-white p-4">
+      <div className="flex items-center gap-2">
+        <a href={backHref} className="inline-flex h-11 items-center rounded-md px-2 text-sm text-neutral-800 hover:bg-neutral-100 lg:hidden">← Назад</a>
+        <h2 className="text-base font-semibold">Новый чат</h2>
       </div>
-      <div className="flex flex-col gap-1 text-sm">
-        <span className="text-neutral-600">По какой записи</span>
-        <select aria-label="Тип записи" value={type} disabled={!!preset} onChange={(e) => { setType(e.target.value); setPicked(null); setQ(""); setFound([]); }} className="h-9 rounded-md border border-neutral-300 bg-white px-2">
-          {canPickGeneral && <option value="">Общий вопрос (без записи)</option>}
-          {Object.entries(entityTypes).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-        </select>
-        {type && !picked && (
-          <>
-            <input aria-label="Поиск записи" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Номер ТЗ, артикул, аукцион, отгрузка…" className="h-9 rounded-md border border-neutral-300 px-3" />
-            <ul className="max-h-44 overflow-y-auto rounded-md border border-neutral-200">
-              {found.length === 0 && <li className="px-3 py-2 text-xs text-neutral-500">Ничего не найдено</li>}
-              {found.map((f) => (
-                <li key={f.id}><button type="button" onClick={() => setPicked(f)} className="w-full px-3 py-1.5 text-left text-sm hover:bg-neutral-100">{f.label}</button></li>
-              ))}
-            </ul>
-          </>
+
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="mb-1 text-sm font-medium">Кому{supplierSide ? " (пусто — всем нашим сотрудникам)" : ""}</legend>
+        {chosen.length > 0 && (
+          <ul className="flex flex-wrap gap-1.5" aria-label="Выбранные получатели">
+            {chosen.map((o) => (
+              <li key={o.key} className="flex items-center gap-1 rounded-full bg-neutral-900 py-1 pl-3 pr-1 text-sm text-white">
+                <span>{o.name}</span>{o.kind === "supplier" && <span className="text-[11px] text-neutral-300">подрядчик</span>}
+                <button type="button" aria-label={`Убрать ${o.name}`} onClick={() => { setSel((c) => c.filter((k) => k !== o.key)); setDup(null); }} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-neutral-700 max-md:h-11 max-md:w-11">×</button>
+              </li>
+            ))}
+          </ul>
         )}
-        {picked && (
-          <div className="flex items-center gap-2 rounded-md bg-neutral-100 px-3 py-1.5">
-            <span className="font-medium">{picked.label}</span>
-            {!preset && <button type="button" className="text-xs text-neutral-500 underline" onClick={() => setPicked(null)}>выбрать другую</button>}
-          </div>
-        )}
-      </div>
-      {kind === "REQUEST" && (
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-neutral-600">Тип запроса</span>
-          <select name="requestType" defaultValue={requestTypes[0]} className="h-9 rounded-md border border-neutral-300 bg-white px-2">
-            {requestTypes.map((t) => <option key={t}>{t}</option>)}
-          </select>
-        </label>
+        <input aria-label="Поиск получателя" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Найти по имени" className={INP} />
+        <ul className="max-h-44 overflow-y-auto rounded-md border border-neutral-200">
+          {list.length === 0 && <li className="px-3 py-2 text-sm text-neutral-600">{options.length === 0 ? "Некому писать" : "Никого не найдено"}</li>}
+          {list.map((o) => (
+            <li key={o.key}>
+              <button type="button" onClick={() => { setSel((c) => [...c, o.key]); setQ(""); setDup(null); }} className="flex min-h-11 w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-neutral-100 md:min-h-9">
+                <span>{o.name}</span>{o.hint && <span className="text-xs text-neutral-600">{o.hint}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {supplierChosen && <p className="text-xs text-neutral-600">Подрядчики — по одному на чат, чтобы они не видели друг друга.</p>}
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="mb-1 text-sm font-medium">Тема</legend>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Тема">
+          {topics.map((t) => <button key={t} type="button" aria-pressed={topicSel === t} onClick={() => pickTopic(t)} className={chip(topicSel === t)}>{t}</button>)}
+          <button type="button" aria-pressed={isCustom} onClick={() => pickTopic(CUSTOM)} className={chip(isCustom)}>Своя тема</button>
+        </div>
+        {isCustom && <input aria-label="Своя тема" value={custom} onChange={(e) => setCustom(e.target.value)} maxLength={100} placeholder="Например: Новая коллекция" className={INP} />}
+        {isCustom && supplierSide && <p className="text-xs text-neutral-600">Своя тема — только общий вопрос нашим сотрудникам, без закрытых данных.</p>}
+        {dropped && <p role="status" className="text-xs text-amber-900">{dropped}</p>}
+      </fieldset>
+
+      {hint && <p className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm" role="status">{hint}</p>}
+      {planErr && <p role="alert" className="text-sm text-red-700">{planErr}</p>}
+
+      <details className="text-sm" open={!!picked}>
+        <summary className="cursor-pointer py-1 font-medium max-md:min-h-11">Привязать к записи (необязательно)</summary>
+        <div className="mt-1 flex flex-col gap-1.5">
+          {picked ? (
+            <div className="flex items-center gap-2 rounded-md bg-neutral-100 px-3 py-1.5">
+              <span className="font-medium">{picked.label}</span>
+              <button type="button" className="text-xs text-neutral-700 underline max-md:min-h-11" onClick={() => { setPicked(null); setType(preset?.type ?? ""); setDup(null); }}>убрать</button>
+            </div>
+          ) : (
+            <>
+              <select aria-label="Тип записи" value={type} onChange={(e) => { setType(e.target.value); setEq(""); setFound([]); }} className={SEL}>
+                <option value="">Без записи</option>
+                {Object.entries(entityTypes).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+              {type && (
+                <>
+                  <input aria-label="Поиск записи" value={eq} onChange={(e) => setEq(e.target.value)} placeholder="Номер ТЗ, артикул, аукцион, отгрузка…" className={INP} />
+                  <ul className="max-h-40 overflow-y-auto rounded-md border border-neutral-200">
+                    {found.length === 0 && <li className="px-3 py-2 text-xs text-neutral-600">Ничего не найдено</li>}
+                    {found.map((f) => <li key={f.id}><button type="button" onClick={() => { setPicked(f); setDup(null); }} className="flex min-h-11 w-full items-center px-3 py-1.5 text-left text-sm hover:bg-neutral-100 md:min-h-9">{f.label}</button></li>)}
+                  </ul>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </details>
+
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium">Название (необязательно)</span>
+        <input value={title} onChange={(e) => { setTitle(e.target.value); setDup(null); }} maxLength={120} placeholder="По умолчанию: тема и получатели" className={INP} />
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium">Первое сообщение</span>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} maxLength={4000} className="rounded-md border border-neutral-300 px-3 py-2 text-sm" />
+      </label>
+      {mode === "supplier" && (
+        <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={wait} onChange={(e) => setWait(e.target.checked)} className="h-4 w-4" />Жду ответа (покажем в «Ждут ответа»)</label>
       )}
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-neutral-600">Тема (необязательно)</span>
-        <input name="subject" maxLength={160} className="h-9 rounded-md border border-neutral-300 px-3" />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-neutral-600">Сообщение</span>
-        <textarea name="body" rows={4} maxLength={4000} className="rounded-md border border-neutral-300 px-3 py-2" />
-      </label>
-      <div className="flex items-center justify-between gap-2">
+
+      {dup && (
+        <div role="status" className="flex flex-col gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          <span>Такой чат уже есть: «{dup.title}».</span>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={() => router.push(`/chat?thread=${dup.id}`)}>Открыть существующий</Button>
+            <Button type="button" variant="outline" disabled={pending} onClick={() => submit(null, true)}>Всё равно создать новый</Button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <FilePick names={names} onChange={setNames} />
         <div className="flex items-center gap-2">
           {err && <span role="alert" className="text-xs text-red-700">{err}</span>}
-          <Button type="submit" disabled={pending}>{pending ? "Создаю…" : kind === "REQUEST" ? "Отправить запрос" : "Отправить"}</Button>
+          {!dup && <Button type="submit" disabled={pending} className="h-11 md:h-10">{pending ? "Создаю…" : "Создать чат"}</Button>}
         </div>
       </div>
     </form>
   );
 }
 
-type Person = { id: string; name: string; role: string; isSupplier: boolean };
+type ChatMember = { userId: string; name: string; role: string; isSupplier: boolean; supplierId: string | null; orgName: string };
+type Cand = { id: string; name: string; isSupplier: boolean; supplierId: string | null; orgName: string };
 
-/** Форма «+ Группа»: название, тема, участники чекбоксами с поиском (только те, у кого есть доступ к теме). */
-export function NewGroupForm({ topics, preset }: { topics: string[]; preset?: { topic: string; name: string; type: string; id: string; label: string } | null }) {
+/** Меню «⋯» в шапке: название и тема, участники, закрыть / открыть, Telegram — всё в одном месте. */
+export function ChatMenu({ threadId, kind, subject, topic, topicChoices, closed, canEdit, canManage, canClose, members, me, telegramOn }: {
+  threadId: string; kind: string; subject: string; topic: string; topicChoices: string[]; closed: boolean;
+  canEdit: boolean; canManage: boolean; canClose: boolean; members: ChatMember[]; me: string; telegramOn: boolean;
+}) {
   const router = useRouter();
-  const [topic, setTopic] = useState(preset?.topic ?? topics[0]);
-  const [name, setName] = useState(preset?.name ?? "");
-  const [first, setFirst] = useState("");
-  const [people, setPeople] = useState<Person[]>([]);
-  const [chosen, setChosen] = useState<Set<string>>(new Set());
-  const [q, setQ] = useState("");
-  const [err, setErr] = useState("");
-  const [pending, start] = useTransition();
-  useEffect(() => {
-    let dead = false;
-    eligibleUsersAction(topic).then((r) => { if (!dead) { setPeople(r); setChosen((c) => new Set([...c].filter((id) => r.some((p) => p.id === id)))); } }).catch(() => {});
-    return () => { dead = true; };
-  }, [topic]);
-  const shown = people.filter((p) => !q || p.name.toLowerCase().includes(q.toLowerCase()));
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    start(async () => {
-      const r = await createGroupAction({ name, topic, memberIds: [...chosen], entityType: preset?.type, entityId: preset?.id }, first);
-      if (r.error) { setErr(r.error); return; }
-      router.push(`/chat?thread=${r.threadId}`); router.refresh();
-    });
-  }
-  return (
-    <form onSubmit={submit} className="flex max-w-2xl flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4">
-      <h2 className="text-base font-semibold">Новая группа</h2>
-      {preset && <div className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm">По записи: <b>{preset.label}</b></div>}
-      <label className="flex flex-col gap-1 text-sm"><span className="text-neutral-600">Название</span>
-        <input aria-label="Название группы" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className="h-9 rounded-md border border-neutral-300 px-3" /></label>
-      <label className="flex flex-col gap-1 text-sm"><span className="text-neutral-600">Тема</span>
-        <select aria-label="Тема группы" value={topic} onChange={(e) => setTopic(e.target.value)} className="h-9 rounded-md border border-neutral-300 bg-white px-2">
-          {topics.map((t) => <option key={t}>{t}</option>)}
-        </select></label>
-      <div className="flex flex-col gap-1 text-sm">
-        <span className="text-neutral-600">Участники (только те, у кого есть доступ к теме «{topic}»; вы добавлены сами)</span>
-        <input aria-label="Поиск участника" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск по имени" className="h-9 rounded-md border border-neutral-300 px-3" />
-        <ul className="max-h-48 overflow-y-auto rounded-md border border-neutral-200">
-          {shown.length === 0 && <li className="px-3 py-2 text-xs text-neutral-500">Никого</li>}
-          {shown.map((p) => (
-            <li key={p.id}><label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-neutral-50">
-              <input type="checkbox" checked={chosen.has(p.id)} onChange={(e) => setChosen((c) => { const n = new Set(c); if (e.target.checked) n.add(p.id); else n.delete(p.id); return n; })} />
-              <span>{p.name}</span>{p.isSupplier && <span className="rounded bg-sky-100 px-1.5 text-[11px] text-sky-800">Веллмех</span>}
-            </label></li>
-          ))}
-        </ul>
-      </div>
-      <label className="flex flex-col gap-1 text-sm"><span className="text-neutral-600">Первое сообщение (необязательно)</span>
-        <textarea aria-label="Первое сообщение" value={first} onChange={(e) => setFirst(e.target.value)} maxLength={4000} rows={3} className="rounded-md border border-neutral-300 px-3 py-2" /></label>
-      <div className="flex items-center justify-end gap-2">
-        {err && <span role="alert" className="text-xs text-red-700">{err}</span>}
-        <Button type="submit" disabled={pending}>{pending ? "Создаю…" : "Создать группу"}</Button>
-      </div>
-    </form>
-  );
-}
-
-/** Участники группы в шапке: список, «Добавить», «Убрать», «Выйти». */
-export function GroupMembers({ threadId, topic, me, canManage, members, telegramOn }: {telegramOn: boolean;  threadId: string; topic: string; me: string; canManage: boolean; members: { userId: string; name: string; role: string; isSupplier: boolean }[] }) {
-  const router = useRouter();
-  const [add, setAdd] = useState<Person[] | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(subject);
+  const [top, setTop] = useState(topic);
+  const [add, setAdd] = useState<Cand[] | null>(null);
   const [err, setErr] = useState("");
   const [tg, setTg] = useState("");
   const [pending, start] = useTransition();
-  const run = (userId: string, op: "add" | "remove") => start(async () => {
-    const r = await changeMemberAction(threadId, userId, op);
-    if (r.error) setErr(r.error); else { setErr(""); setAdd(null); router.refresh(); }
+  const isGroup = kind === "GROUP";
+
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", down); document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("mousedown", down); document.removeEventListener("keydown", key); };
+  }, [open]);
+
+  const run = (fn: () => Promise<{ error?: string }>, done?: () => void) => start(async () => {
+    const r = await fn();
+    if (r.error) { setErr(r.error); return; }
+    setErr(""); done?.(); router.refresh();
   });
+  const member = (userId: string, op: "add" | "remove") => run(() => changeMemberAction(threadId, userId, op), () => { setAdd(null); if (userId === me) router.push("/chat"); });
+  const loadAdd = () => eligibleUsersAction(topic).then((r) => setAdd(r.filter((p) => !members.some((m) => m.userId === p.id))));
+  const supInGroup = members.find((m) => m.isSupplier)?.supplierId ?? null;
+  const addList = (add ?? []).filter((p) => !p.isSupplier || !supInGroup || p.supplierId === supInGroup);
+  const row = "flex min-h-11 w-full items-center rounded px-2 text-left text-sm hover:bg-neutral-100 md:min-h-9";
+
   return (
-    <details className="text-xs">
-      <summary className="cursor-pointer text-neutral-700">Участники: {members.length}</summary>
-      <ul className="mt-1 flex flex-col gap-1">
-        {members.map((m) => (
-          <li key={m.userId} className="flex items-center gap-2">
-            <span>{m.name}{m.role === "OWNER" ? " (владелец)" : ""}</span>
-            {m.isSupplier && <span className="rounded bg-sky-100 px-1.5 text-sky-800">Веллмех</span>}
-            {(canManage || m.userId === me) && <button type="button" disabled={pending} onClick={() => run(m.userId, "remove")} className="text-red-700 underline">{m.userId === me ? "Выйти" : "Убрать"}</button>}
-          </li>
-        ))}
-      </ul>
-      {canManage && (
-        <div className="mt-2">
-          {add === null
-            ? <button type="button" className="underline" onClick={() => eligibleUsersAction(topic).then((r) => setAdd(r.filter((p) => !members.some((m) => m.userId === p.id))))}>Добавить участника</button>
-            : <select aria-label="Добавить участника" defaultValue="" onChange={(e) => e.target.value && run(e.target.value, "add")} className="h-8 rounded-md border border-neutral-300 bg-white px-2">
-                <option value="">— выберите —</option>{add.map((p) => <option key={p.id} value={p.id}>{p.name}{p.isSupplier ? " (Веллмех)" : ""}</option>)}
-              </select>}
+    <div ref={box} className="relative">
+      <button type="button" aria-label="Действия с чатом" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}
+        className="flex h-11 w-11 items-center justify-center rounded-md border border-neutral-300 bg-white text-lg hover:bg-neutral-50 md:h-10 md:w-10">⋯</button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-full z-30 mt-1 flex max-h-[70vh] w-[min(22rem,calc(100vw-2rem))] flex-col gap-3 overflow-y-auto rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
+          {canEdit && (
+            <form className="flex flex-col gap-1.5" onSubmit={(e) => { e.preventDefault(); run(() => updateThreadAction(threadId, name, top !== topic ? top : undefined)); }}>
+              <label className="flex flex-col gap-1 text-xs text-neutral-700">Название
+                <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className={INP} />
+              </label>
+              {topic && topicChoices.length > 0 && (
+                <label className="flex flex-col gap-1 text-xs text-neutral-700">Тема
+                  <select value={top} onChange={(e) => setTop(e.target.value)} className={SEL}>
+                    {[...new Set([topic, ...topicChoices])].map((t) => <option key={t}>{t}</option>)}
+                  </select>
+                </label>
+              )}
+              <Button type="submit" size="sm" variant="outline" disabled={pending || (name === subject && top === topic)}>Сохранить</Button>
+            </form>
+          )}
+          {isGroup && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-neutral-700">Участники: {members.length}</span>
+              <ul className="flex flex-col">
+                {members.map((m) => (
+                  <li key={m.userId} className="flex items-center gap-2 text-sm">
+                    <span className="min-w-0 flex-1 truncate">{m.userId === me ? "Вы" : m.name}{m.isSupplier ? ` · ${m.orgName}` : ""}{m.role === "OWNER" ? " (владелец)" : ""}</span>
+                    {(canManage || m.userId === me) && <button type="button" disabled={pending} onClick={() => member(m.userId, "remove")} className="min-h-11 shrink-0 px-2 text-red-700 underline md:min-h-9">{m.userId === me ? "Выйти" : "Убрать"}</button>}
+                  </li>
+                ))}
+              </ul>
+              {canManage && (add === null
+                ? <button type="button" className={`${row} underline`} onClick={loadAdd}>Добавить участника</button>
+                : <select aria-label="Добавить участника" defaultValue="" onChange={(e) => e.target.value && member(e.target.value, "add")} className={SEL}>
+                    <option value="">{addList.length ? "— выберите —" : "Некого добавить"}</option>
+                    {addList.map((p) => <option key={p.id} value={p.id}>{p.name}{p.isSupplier ? ` (${p.orgName})` : ""}</option>)}
+                  </select>)}
+            </div>
+          )}
+          {canClose && (
+            <button type="button" role="menuitem" disabled={pending} className={row} onClick={() => run(() => setThreadClosed(threadId, !closed), () => setOpen(false))}>
+              {closed ? "Открыть чат заново" : "Закрыть чат"}
+            </button>
+          )}
+          {isGroup && canManage && telegramOn && (
+            <div className="flex flex-col gap-1">
+              <button type="button" className={`${row} underline`} onClick={() => createThreadBindCode(threadId).then((r) => setTg(r.error ?? `В группе Telegram с ботом напишите: ${r.hint} (код на ${r.minutes} минут)`))}>Привязать Telegram-группу</button>
+              {tg && <p className="rounded bg-neutral-100 p-2 text-xs">{tg}</p>}
+            </div>
+          )}
+          {err && <p role="alert" className="text-xs text-red-700">{err}</p>}
         </div>
       )}
-      {canManage && telegramOn && (
-        <div className="mt-2">
-          <button type="button" className="underline" onClick={() => createThreadBindCode(threadId).then((r) => setTg(r.error ?? `В группе Telegram с ботом напишите: ${r.hint} (код на ${r.minutes} минут)`))}>Привязать Telegram-группу</button>
-          {tg && <p className="mt-1 rounded bg-neutral-100 p-2">{tg}</p>}
-        </div>
-      )}
-      {err && <p role="alert" className="mt-1 text-red-700">{err}</p>}
-    </details>
+    </div>
   );
 }

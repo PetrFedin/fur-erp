@@ -3,9 +3,7 @@
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { canUseChat, appendMessage, createThread, defaultSupplierId, loadThread, markRead, resolveEntity, searchEntities, toggleReaction, viewerOf } from "@/lib/chat";
-import { REQUEST_TYPES } from "@/lib/chat-core";
+import { canUseChat, appendMessage, loadThread, markRead, resolveEntity, searchEntities, toggleReaction, viewerOf } from "@/lib/chat";
 import { isPickedFile, readDocumentFiles, writeDocumentFiles, type StoredDoc } from "@/lib/purchase-files";
 import { removeStoredFiles } from "@/lib/fitting-files";
 import { dispatchMessage } from "@/lib/channels/dispatch";
@@ -49,57 +47,65 @@ export async function sendMessage(_prev: ChatState, fd: FormData): Promise<ChatS
   return { ok: true, threadId: t.id };
 }
 
-/** Новое обсуждение или запрос: по записи или общий вопрос. */
-export async function startThread(_prev: ChatState, fd: FormData): Promise<ChatState> {
+export type NewChatState = ChatState & { existingId?: string; existingTitle?: string };
+
+/** «+ Новый чат»: один путь для личного чата, группы и общего канала с подрядчиком. Поля — в JSON `payload`, файлы — `files`. */
+export async function createChatAction(_prev: NewChatState, fd: FormData): Promise<NewChatState> {
+  const { createChat } = await import("@/lib/chat");
   const v = await chatSession();
-  const kind = fd.get("kind") === "REQUEST" ? "REQUEST" : "GENERAL";
-  const type = clip(fd.get("entityType"), 40);
-  const id = clip(fd.get("entityId"), 64);
+  let p: Record<string, unknown> = {};
+  try { p = JSON.parse(String(fd.get("payload") ?? "{}")) as Record<string, unknown>; } catch { return { error: "Не удалось прочитать форму" }; }
+  const ids = (x: unknown) => (Array.isArray(x) ? x.slice(0, 100).map((y) => clip(y, 64)).filter(Boolean) : []);
   let entity = null;
-  if (type && id) {
-    entity = await resolveEntity(v, type, id);
+  const type = clip(p.entityType, 40);
+  const eid = clip(p.entityId, 64);
+  if (type && eid) {
+    entity = await resolveEntity(v, type, eid);
     if (!entity) return { error: "Запись не найдена или недоступна" };
   }
-  const body = clip(fd.get("body"), 4000);
+  const body = clip(p.body, 4000);
   const f = await readFiles(fd, v.organizationId);
   if ("error" in f) return { error: f.error };
-  if (!body && f.files.length === 0) return { error: "Напишите сообщение или приложите файл" };
-  const requestType = kind === "REQUEST" ? clip(fd.get("requestType"), 40) : "";
-  if (kind === "REQUEST" && !(REQUEST_TYPES as readonly string[]).includes(requestType)) { await removeStoredFiles(f.files.map((x) => x.storagePath)); return { error: "Выберите тип запроса" }; }
-  // С кем чат: у поставщика — он сам; у нас — поставщик записи, иначе указанный или единственный с кабинетом.
-  let supplierId: string | null;
-  if (v.side === "SUPPLIER") supplierId = v.supplierId;
-  else {
-    const wanted = clip(fd.get("supplierId"), 64);
-    const ok = wanted ? await prisma.supplier.findFirst({ where: { id: wanted, organizationId: v.organizationId }, select: { id: true } }) : null;
-    supplierId = entity?.supplierId ?? ok?.id ?? (await defaultSupplierId(v.organizationId));
-  }
-  if (!supplierId) { await removeStoredFiles(f.files.map((x) => x.storagePath)); return { error: "Нет поставщика с кабинетом, с которым можно переписываться" }; }
-  const subject = clip(fd.get("subject"), 160) || (entity ? entity.label : body.split("\n")[0].slice(0, 60) || requestType || "Общий вопрос");
-  try {
-    const t = await createThread(v, { supplierId, kind, subject, requestType: requestType || null, entity });
-    const { message } = await appendMessage({ threadId: t.id, organizationId: v.organizationId, authorId: v.id, authorName: v.name, authorSide: v.side, body, files: f.files });
-    await markRead(v, t.id);
-    after(() => dispatchMessage(message.id).catch(() => {}));
-    revalidatePath("/chat");
-    return { ok: true, threadId: t.id };
-  } catch (e) {
+  const topic = p.topic === null ? null : clip(p.topic, 40);
+  const r = await createChat(v, {
+    topic, customText: clip(p.customText, 100), title: clip(p.title, 120), userIds: ids(p.userIds), supplierIds: ids(p.supplierIds),
+    entity, waitAnswer: p.waitAnswer === true, force: p.force === true,
+  });
+  if ("error" in r || "existingId" in r) {
     await removeStoredFiles(f.files.map((x) => x.storagePath));
-    return { error: e instanceof Error ? e.message : "Не удалось создать обсуждение" };
+    return "error" in r ? { error: r.error } : { existingId: r.existingId, existingTitle: r.existingTitle };
   }
+  if (body || f.files.length) {
+    try {
+      const { message } = await appendMessage({ threadId: r.threadId, organizationId: v.organizationId, authorId: v.id, authorName: v.name, authorSide: v.side, body, files: f.files });
+      await markRead(v, r.threadId);
+      after(() => dispatchMessage(message.id).catch(() => {}));
+    } catch (e) {
+      await removeStoredFiles(f.files.map((x) => x.storagePath));
+      revalidatePath("/chat");
+      return { ok: true, threadId: r.threadId, error: e instanceof Error ? e.message : "Чат создан, но сообщение не отправилось" };
+    }
+  } else await markRead(v, r.threadId);
+  revalidatePath("/chat");
+  return { ok: true, threadId: r.threadId };
 }
 
-/** Закрыть запрос или открыть заново. */
+/** Закрыть чат или открыть заново. */
 export async function setThreadClosed(threadId: string, closed: boolean): Promise<ChatState> {
+  const { setClosed } = await import("@/lib/chat");
   const v = await chatSession();
-  const t = await loadThread(v, threadId);
-  if (!t) return { error: "Обсуждение не найдено" };
-  await prisma.chatThread.update({
-    where: { id: t.id },
-    data: closed ? { status: "CLOSED", closedAt: new Date(), closedById: v.id } : { status: "OPEN", closedAt: null, closedById: null },
-  });
+  const r = await setClosed(v, clip(threadId, 64), closed);
   revalidatePath("/chat");
-  return { ok: true, threadId: t.id };
+  return r.error ? { error: r.error } : { ok: true, threadId };
+}
+
+/** Сменить название и/или тему чата. */
+export async function updateThreadAction(threadId: string, subject: string, topic?: string): Promise<ChatState> {
+  const { updateThreadMeta } = await import("@/lib/chat");
+  const v = await chatSession();
+  const r = await updateThreadMeta(v, clip(threadId, 64), { subject: clip(subject, 120), topic: topic ? clip(topic, 40) : undefined });
+  revalidatePath("/chat");
+  return r.error ? { error: r.error } : { ok: true, threadId };
 }
 
 /** Отметить обсуждение прочитанным (при открытии). */
@@ -115,29 +121,8 @@ export async function searchEntitiesAction(type: string, q: string): Promise<{ i
   return searchEntities(v, clip(type, 40), clip(q, 60));
 }
 
-/** Создать группу по теме с участниками (только сотрудники). */
-export async function createGroupAction(input: { name: string; topic: string; memberIds: string[]; entityType?: string; entityId?: string }, firstMessage?: string): Promise<ChatState> {
-  const { createGroup } = await import("@/lib/chat");
-  const v = await chatSession();
-  let entity = null;
-  if (input.entityType && input.entityId) {
-    entity = await resolveEntity(v, clip(input.entityType, 40), clip(input.entityId, 64));
-    if (!entity) return { error: "Запись не найдена или недоступна" };
-  }
-  const r = await createGroup(v, { name: clip(input.name, 120), topic: clip(input.topic, 40), memberIds: (input.memberIds ?? []).slice(0, 100).map((x) => clip(x, 64)), entity });
-  if ("error" in r) return { error: r.error };
-  const body = clip(firstMessage, 4000);
-  if (body) {
-    const { message } = await appendMessage({ threadId: r.threadId, organizationId: v.organizationId, authorId: v.id, authorName: v.name, authorSide: v.side, body, files: [] });
-    await markRead(v, r.threadId);
-    after(() => dispatchMessage(message.id).catch(() => {}));
-  }
-  revalidatePath("/chat");
-  return { ok: true, threadId: r.threadId };
-}
-
 /** Участники, которых можно позвать в группу этой темы. */
-export async function eligibleUsersAction(topic: string): Promise<{ id: string; name: string; role: string; isSupplier: boolean }[]> {
+export async function eligibleUsersAction(topic: string) {
   const { eligibleFor } = await import("@/lib/chat");
   const v = await chatSession();
   return eligibleFor(v, clip(topic, 40));

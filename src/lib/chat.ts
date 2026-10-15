@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { ChatSide, ChatSource, ChatStatus, Prisma } from "@prisma/client";
 import {
-  CHAT_INTERNAL_ROLES, SUPPLIER_ENTITY_TYPES, createTopicsFor, eligibleForTopic, canManageGroup, canCreateGroup, awaitsMyAnswer, entityHrefFor, isUnread, nextStatus, safeEntityLabel, sideOfRole,
+  CHAT_INTERNAL_ROLES, GROUP_TOPICS, SUPPLIER_ENTITY_TYPES, createTopicsFor, defaultChatTitle, planNewChat, sameIdSet, eligibleForTopic, canManageGroup, canCreateGroup, awaitsMyAnswer, entityHrefFor, isUnread, nextStatus, safeEntityLabel, sideOfRole,
   type Side, isReaction, groupReactions, type ReactionGroup,
 } from "@/lib/chat-core";
 import type { StoredDoc } from "@/lib/purchase-files";
@@ -157,13 +157,13 @@ export async function searchEntities(v: ChatViewer, type: string, q: string): Pr
 // ───────── Обсуждения и сообщения ─────────
 
 export async function createThread(v: ChatViewer, i: {
-  supplierId: string | null; kind: "GENERAL" | "REQUEST"; subject: string; requestType?: string | null; entity?: EntityRef | null;
+  supplierId: string | null; kind: "GENERAL" | "REQUEST"; subject: string; requestType?: string | null; entity?: EntityRef | null; topic?: string | null;
 }) {
   const now = new Date();
   return prisma.chatThread.create({
     data: {
       organizationId: v.organizationId, supplierId: i.supplierId, kind: i.kind, subject: i.subject.slice(0, 160),
-      requestType: i.requestType ?? null,
+      requestType: i.requestType ?? null, topic: i.topic ?? null,
       entityType: i.entity?.type ?? null, entityId: i.entity?.id ?? null, entityLabel: i.entity?.label ?? null,
       entityHref: i.entity ? entityHrefFor(i.entity.type, i.entity.id, "INTERNAL") : null,
       createdById: v.id, createdByName: v.name, createdBySide: v.side, lastMessageAt: now, lastMessageSide: v.side,
@@ -242,31 +242,159 @@ export async function staleSupplierRequests(orgId: string, now = new Date()): Pr
 
 // ───────── Группы ─────────
 
+export type Person = { id: string; name: string; role: string; isSupplier: boolean; supplierId: string | null; orgName: string };
+
 /** Люди, которых можно позвать в группу этой темы: активные пользователи организации с доступом к теме. */
-export async function eligibleUsers(orgId: string, topic: string): Promise<{ id: string; name: string; role: string; isSupplier: boolean }[]> {
-  const users = await prisma.user.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true, name: true, role: true }, orderBy: { name: "asc" } });
-  return users.filter((u) => eligibleForTopic(topic, u.role)).map((u) => ({ ...u, isSupplier: u.role === "SUPPLIER" }));
+export async function eligibleUsers(orgId: string, topic: string): Promise<Person[]> {
+  const users = await prisma.user.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true, name: true, role: true, supplierId: true }, orderBy: { name: "asc" } });
+  const names = await supplierNames(orgId, users.map((u) => u.supplierId));
+  return users.filter((u) => eligibleForTopic(topic, u.role)).map((u) => ({ ...u, isSupplier: u.role === "SUPPLIER", orgName: (u.supplierId && names.get(u.supplierId)) || "Подрядчик" }));
+}
+
+async function supplierNames(orgId: string, ids: (string | null)[]): Promise<Map<string, string>> {
+  const list = [...new Set(ids.filter((x): x is string => !!x))];
+  if (!list.length) return new Map();
+  const rows = await prisma.supplier.findMany({ where: { organizationId: orgId, id: { in: list } }, select: { id: true, name: true } });
+  return new Map(rows.map((r) => [r.id, r.name]));
 }
 
 /**
  * Кого viewer может позвать в группу темы. Сотрудники — как раньше. Поставщик — только наших пользователей
  * с доступом к теме (не других поставщиков), и только в темах из createTopicsFor.
  */
-export async function eligibleFor(v: ChatViewer, topic: string) {
+export async function eligibleFor(v: ChatViewer, topic: string): Promise<Person[]> {
   if (v.side !== "SUPPLIER") return eligibleUsers(v.organizationId, topic);
   if (!createTopicsFor("SUPPLIER").includes(topic)) return [];
   // Роли наших людей поставщику не отдаём — только имена.
   return (await eligibleUsers(v.organizationId, topic)).filter((u) => !u.isSupplier).map((u) => ({ ...u, role: "" }));
 }
 
-export async function createGroup(v: ChatViewer, i: { name: string; topic: string; memberIds: string[]; entity?: EntityRef | null }): Promise<{ error: string } | { threadId: string }> {
+// ───────── Окно «Новый чат» ─────────
+
+export type RecipientOption = { key: string; kind: "user" | "supplier"; id: string; name: string; hint: string; topics: string[] };
+
+const ROLE_HINT: Record<string, string> = { OWNER: "владелец", ADMIN: "администратор", TECHNOLOGIST: "технолог", PURCHASER: "закупщик", ACCOUNTANT: "бухгалтер" };
+
+/**
+ * Кому можно написать. Сотрудник видит коллег и подрядчиков (с кабинетом); подрядчик — только наших сотрудников и без ролей.
+ * topics — темы из списка, по которым этот получатель допустим; «своя тема» разрешена всем сотрудникам.
+ */
+export async function recipientOptions(v: ChatViewer): Promise<RecipientOption[]> {
+  const mine = createTopicsFor(v.role);
+  const users = await prisma.user.findMany({ where: { organizationId: v.organizationId, isActive: true, id: { not: v.id } }, select: { id: true, name: true, role: true, supplierId: true }, orderBy: { name: "asc" } });
+  const out: RecipientOption[] = [];
+  for (const u of users) {
+    if (u.role === "SUPPLIER") continue;
+    if (!(CHAT_INTERNAL_ROLES as readonly string[]).includes(u.role)) continue;
+    const topics = mine.filter((t) => eligibleForTopic(t, u.role));
+    // Для подрядчика человек без общих тем не показывается совсем; для сотрудника остаётся (своя тема).
+    if (v.side === "SUPPLIER" && topics.length === 0) continue;
+    out.push({ key: `u:${u.id}`, kind: "user", id: u.id, name: u.name, hint: v.side === "SUPPLIER" ? "" : ROLE_HINT[u.role] ?? "", topics });
+  }
+  if (v.side !== "SUPPLIER") {
+    const sup = users.filter((u) => u.role === "SUPPLIER" && u.supplierId);
+    const names = await supplierNames(v.organizationId, sup.map((u) => u.supplierId));
+    for (const id of new Set(sup.map((u) => u.supplierId as string))) {
+      out.push({ key: `s:${id}`, kind: "supplier", id, name: names.get(id) ?? "Подрядчик", hint: "подрядчик", topics: mine.filter((t) => GROUP_TOPICS[t]?.supplier) });
+    }
+  }
+  return out;
+}
+
+export type NewChatInput = {
+  topic: string | null; customText: string; title: string; userIds: string[]; supplierIds: string[];
+  entity: EntityRef | null; waitAnswer: boolean; force: boolean;
+};
+export type NewChatResult = { error: string } | { threadId: string; existing?: false } | { existingId: string; existingTitle: string };
+
+/** Тот же чат уже есть: общий канал — тот же подрядчик, тема и запись; группа — тот же состав, тема и запись. */
+async function findDuplicate(v: ChatViewer, mode: "group" | "supplier", i: { topic: string | null; storedTopic: string; subject: string; supplierId: string | null; memberIds: string[]; entity: EntityRef | null }) {
+  const ent = { entityType: i.entity?.type ?? null, entityId: i.entity?.id ?? null };
+  const sameName = i.topic === null ? { subject: i.subject } : {};
+  if (mode === "supplier") {
+    return prisma.chatThread.findFirst({
+      where: { AND: [threadWhere(v)], kind: { not: "GROUP" }, status: { not: "CLOSED" }, supplierId: i.supplierId, ...ent, ...(i.topic === null ? { topic: null, ...sameName } : { topic: i.storedTopic }) },
+      orderBy: { lastMessageAt: "desc" }, select: { id: true, subject: true },
+    });
+  }
+  const rows = await prisma.chatThread.findMany({
+    where: { AND: [threadWhere(v)], kind: "GROUP", status: { not: "CLOSED" }, topic: i.storedTopic, ...ent, ...sameName },
+    orderBy: { lastMessageAt: "desc" }, take: 30, select: { id: true, subject: true, members: { select: { userId: true } } },
+  });
+  const want = [v.id, ...i.memberIds];
+  return rows.find((r) => sameIdSet(r.members.map((m) => m.userId), want)) ?? null;
+}
+
+/**
+ * Создаёт чат из окна «Новый чат». Все права проверяются здесь, а не в интерфейсе: получатели берутся из базы
+ * (своя организация, активные, роль чата), тема и состав — через planNewChat, запись — через resolveEntity,
+ * запись другого подрядчика в чат с этим подрядчиком не попадает.
+ */
+export async function createChat(v: ChatViewer, i: NewChatInput): Promise<NewChatResult> {
+  if (!canCreateGroup(v.role)) return { error: "Создавать чаты могут сотрудники и подрядчики с кабинетом" };
+  if (v.side === "SUPPLIER" && !v.supplierId) return { error: "Кабинет не привязан к подрядчику" };
+  const userIds = [...new Set(i.userIds)].filter((id) => id !== v.id);
+  const supplierIds = [...new Set(i.supplierIds)];
+  if (i.topic === null && !i.customText.trim()) return { error: "Напишите свою тему" };
+
+  const found = userIds.length ? await prisma.user.findMany({ where: { id: { in: userIds }, organizationId: v.organizationId, isActive: true }, select: { id: true, name: true, role: true } }) : [];
+  if (found.length !== userIds.length || found.some((u) => !(CHAT_INTERNAL_ROLES as readonly string[]).includes(u.role))) return { error: "Кто-то из получателей недоступен" };
+
+  let supUsers: { id: string; name: string }[] = [];
+  let supName = "";
+  if (supplierIds.length) {
+    if (v.side === "SUPPLIER") return { error: "Подрядчик может писать только нашим сотрудникам" };
+    if (supplierIds.length > 1) return { error: "Подрядчики общаются в отдельных чатах: выберите одного" };
+    const s = await prisma.supplier.findFirst({ where: { id: supplierIds[0], organizationId: v.organizationId }, select: { id: true, name: true } });
+    supUsers = s ? await prisma.user.findMany({ where: { organizationId: v.organizationId, role: "SUPPLIER", isActive: true, supplierId: s.id }, select: { id: true, name: true } }) : [];
+    if (!s || supUsers.length === 0) return { error: "У этого подрядчика нет кабинета: написать ему нельзя" };
+    supName = s.name;
+  }
+
+  const plan = planNewChat({ viewerRole: v.role, topic: i.topic, internalRoles: found.map((u) => u.role), supplierCount: supplierIds.length });
+  if ("error" in plan) return plan;
+
+  // Запись другого подрядчика не должна попасть в чат с этим подрядчиком.
+  const targetSupplier = v.side === "SUPPLIER" ? v.supplierId : supplierIds[0] ?? null;
+  if (i.entity?.supplierId && targetSupplier && i.entity.supplierId !== targetSupplier) return { error: "Эта запись относится к другому подрядчику" };
+
+  const names = [...found.map((u) => u.name), ...(supName ? [supName] : [])];
+  const subject = clip120(i.title.trim() || defaultChatTitle(i.topic, i.customText, names));
+  const storedTopic = plan.topic;
+  const memberIds = [...found.map((u) => u.id), ...supUsers.map((u) => u.id)];
+
+  if (!i.force) {
+    const dup = await findDuplicate(v, plan.mode, { topic: i.topic, storedTopic, subject, supplierId: targetSupplier, memberIds, entity: i.entity });
+    if (dup) return { existingId: dup.id, existingTitle: dup.subject };
+  }
+
+  if (plan.mode === "supplier") {
+    const t = await createThread(v, {
+      supplierId: targetSupplier, kind: i.waitAnswer ? "REQUEST" : "GENERAL", subject, requestType: i.waitAnswer ? "Уточнение" : null,
+      entity: i.entity, topic: i.topic === null ? null : storedTopic,
+    });
+    return { threadId: t.id };
+  }
+  const g = await createGroup(v, { name: subject, topic: storedTopic, memberIds, entity: i.entity, strict: true });
+  return "error" in g ? g : { threadId: g.threadId };
+}
+
+const clip120 = (s: string) => s.slice(0, 120);
+
+export async function createGroup(v: ChatViewer, i: { name: string; topic: string; memberIds: string[]; entity?: EntityRef | null; strict?: boolean }): Promise<{ error: string } | { threadId: string }> {
   if (!canCreateGroup(v.role)) return { error: "Создавать группы могут сотрудники" };
   const name = i.name.trim().slice(0, 120);
   if (!name) return { error: "Введите название группы" };
   if (!eligibleForTopic(i.topic, v.role) || !createTopicsFor(v.role).includes(i.topic)) return { error: "У вас нет доступа к этой теме" };
   if (v.side === "SUPPLIER" && !v.supplierId) return { error: "Кабинет не привязан к поставщику" };
-  const ok = new Set((await eligibleFor(v, i.topic)).map((u) => u.id));
-  const ids = [...new Set(i.memberIds)].filter((id) => ok.has(id) && id !== v.id);
+  const eligible = await eligibleFor(v, i.topic);
+  const ok = new Map(eligible.map((u) => [u.id, u]));
+  const want = [...new Set(i.memberIds)].filter((id) => id !== v.id);
+  if (i.strict && want.some((id) => !ok.has(id))) return { error: "Кому-то из выбранных эта тема недоступна" };
+  const picked = want.filter((id) => ok.has(id));
+  // Изоляция: подрядчики разных компаний в одной группе друг друга не видят — такой состав не создаём.
+  if (new Set(picked.map((id) => ok.get(id)!).filter((u) => u.isSupplier).map((u) => u.supplierId)).size > 1) return { error: "Подрядчики общаются в отдельных чатах: выберите одного" };
+  const ids = picked;
   const now = new Date();
   const t = await prisma.chatThread.create({
     data: {
@@ -281,11 +409,12 @@ export async function createGroup(v: ChatViewer, i: { name: string; topic: strin
   return { threadId: t.id };
 }
 
-export async function groupMembers(threadId: string) {
+export async function groupMembers(orgId: string, threadId: string) {
   const ms = await prisma.chatMember.findMany({ where: { threadId }, orderBy: { addedAt: "asc" } });
-  const users = await prisma.user.findMany({ where: { id: { in: ms.map((m) => m.userId) } }, select: { id: true, name: true, role: true } });
+  const users = await prisma.user.findMany({ where: { id: { in: ms.map((m) => m.userId) } }, select: { id: true, name: true, role: true, supplierId: true } });
   const by = new Map(users.map((u) => [u.id, u]));
-  return ms.map((m) => ({ userId: m.userId, role: m.role, name: by.get(m.userId)?.name ?? "—", userRole: by.get(m.userId)?.role ?? "", isSupplier: by.get(m.userId)?.role === "SUPPLIER" }));
+  const sn = await supplierNames(orgId, users.map((u) => u.supplierId));
+  return ms.map((m) => { const u = by.get(m.userId); return { userId: m.userId, role: m.role, name: u?.name ?? "—", userRole: u?.role ?? "", isSupplier: u?.role === "SUPPLIER", supplierId: u?.supplierId ?? null, orgName: (u?.supplierId && sn.get(u.supplierId)) || "Подрядчик" }; });
 }
 
 export async function changeMember(v: ChatViewer, threadId: string, userId: string, op: "add" | "remove"): Promise<{ error?: string }> {
@@ -296,8 +425,13 @@ export async function changeMember(v: ChatViewer, threadId: string, userId: stri
   if (op === "remove" && self) { /* выйти может любой участник */ }
   else if (!canManageGroup({ id: v.id, role: v.role }, members)) return { error: "Менять состав может владелец группы" };
   if (op === "add") {
-    const ok = (await eligibleFor(v, t.topic ?? "")).some((u) => u.id === userId);
-    if (!ok) return { error: "У этого человека нет доступа к теме группы" };
+    const cand = (await eligibleFor(v, t.topic ?? "")).find((u) => u.id === userId);
+    if (!cand) return { error: "У этого человека нет доступа к теме группы" };
+    if (cand.isSupplier) {
+      // Изоляция: в группе только один подрядчик.
+      const others = await prisma.user.findMany({ where: { id: { in: members.map((m) => m.userId) }, role: "SUPPLIER" }, select: { supplierId: true } });
+      if (others.some((o) => o.supplierId !== cand.supplierId)) return { error: "В группе уже есть другой подрядчик: подрядчики общаются в отдельных чатах" };
+    }
     await prisma.chatMember.upsert({ where: { threadId_userId: { threadId, userId } }, create: { threadId, userId, addedById: v.id }, update: {} });
   } else {
     const target = members.find((m) => m.userId === userId);
@@ -305,6 +439,51 @@ export async function changeMember(v: ChatViewer, threadId: string, userId: stri
     if (target.role === "OWNER" && members.filter((m) => m.role === "OWNER").length === 1 && members.length > 1) return { error: "Сначала передайте группу другому владельцу или удалите остальных" };
     await prisma.chatMember.delete({ where: { threadId_userId: { threadId, userId } } });
   }
+  return {};
+}
+
+/** Закрыть / открыть чат: в группе — владелец группы и OWNER/ADMIN, в общем канале — любой участник. */
+export async function setClosed(v: ChatViewer, threadId: string, closed: boolean): Promise<{ error?: string }> {
+  const t = await loadThread(v, threadId);
+  if (!t) return { error: "Чат не найден" };
+  if (t.kind === "GROUP") {
+    const members = await prisma.chatMember.findMany({ where: { threadId }, select: { userId: true, role: true } });
+    if (!canManageGroup({ id: v.id, role: v.role }, members)) return { error: "Закрывать группу может её владелец" };
+  }
+  await prisma.chatThread.update({
+    where: { id: t.id },
+    data: closed ? { status: "CLOSED", closedAt: new Date(), closedById: v.id } : { status: "OPEN", closedAt: null, closedById: null },
+  });
+  return {};
+}
+
+/**
+ * Сменить название и/или тему. Группа — владелец группы и OWNER/ADMIN; общий канал с подрядчиком — сотрудники и автор.
+ * Новая тема должна быть доступна вам, а в группе — каждому участнику (иначе кто-то увидит чужую тему); для канала с подрядчиком — не закрытая ему.
+ */
+export async function updateThreadMeta(v: ChatViewer, threadId: string, i: { subject: string; topic?: string | null }): Promise<{ error?: string }> {
+  const t = await loadThread(v, threadId);
+  if (!t) return { error: "Чат не найден" };
+  const subject = i.subject.trim().slice(0, 120);
+  if (!subject) return { error: "Название не может быть пустым" };
+  const topicChanged = !!i.topic && i.topic !== t.topic;
+  if (t.kind === "GROUP") {
+    const members = await prisma.chatMember.findMany({ where: { threadId }, select: { userId: true, role: true } });
+    if (!canManageGroup({ id: v.id, role: v.role }, members)) return { error: "Менять группу может её владелец" };
+    if (topicChanged) {
+      if (!createTopicsFor(v.role).includes(i.topic!)) return { error: "Эта тема вам недоступна" };
+      const users = await prisma.user.findMany({ where: { id: { in: members.map((m) => m.userId) } }, select: { name: true, role: true } });
+      const bad = users.find((u) => !eligibleForTopic(i.topic!, u.role));
+      if (bad) return { error: `У участника «${bad.name}» нет доступа к теме «${i.topic}»` };
+    }
+  } else {
+    if (v.side === "SUPPLIER" && t.createdById !== v.id) return { error: "Название может менять только автор чата" };
+    if (topicChanged) {
+      if (v.side === "SUPPLIER") return { error: "Тему общего чата меняют сотрудники" };
+      if (!createTopicsFor(v.role).includes(i.topic!) || !GROUP_TOPICS[i.topic!]?.supplier) return { error: "Эта тема подрядчику закрыта" };
+    }
+  }
+  await prisma.chatThread.update({ where: { id: t.id }, data: { subject, ...(topicChanged ? { topic: i.topic } : {}) } });
   return {};
 }
 

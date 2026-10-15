@@ -4,7 +4,7 @@
  */
 import {
   bindCodeValid, canSeeThread, entityHrefFor, externalMsgId, formatForMessenger, isUnread, awaitsMyAnswer, makeBindCode, nextStatus,
-  GROUP_TOPICS, REACTIONS, groupReactions, isReaction, canCreateGroup, createTopicsFor, statusLabelFor, canManageGroup, eligibleForTopic, parseCommand, pickRecipients, routeIncoming, safeEntityLabel, stripMoney, type LinkLite,
+  GROUP_TOPICS, REACTIONS, groupReactions, isReaction, canCreateGroup, createTopicsFor, statusLabelFor, canManageGroup, eligibleForTopic, parseCommand, pickRecipients, planNewChat, defaultChatTitle, sameIdSet, participantsLabel, mentionsUser, splitMentions, routeIncoming, safeEntityLabel, stripMoney, type LinkLite,
 } from "../src/lib/chat-core";
 
 let fails = 0;
@@ -106,6 +106,33 @@ ok(statusLabelFor("ANSWERED", "INTERNAL", "INTERNAL") === "Ответ получ
 const gm = [{ userId: "a", role: "OWNER" as const }, { userId: "b", role: "MEMBER" as const }, { userId: "c", role: "MEMBER" as const }];
 ok(canManageGroup({ id: "a", role: "PURCHASER" }, gm) && !canManageGroup({ id: "b", role: "PURCHASER" }, gm) && canManageGroup({ id: "c", role: "ADMIN" }, gm) && !canManageGroup({ id: "z", role: "OWNER" }, gm), "состав меняет владелец группы и OWNER/ADMIN из участников");
 ok(isUnread({ lastMessageAt: t0, lastMessageSide: "INTERNAL", kind: "GROUP" }, null, "INTERNAL") && !isUnread({ lastMessageAt: t0, lastMessageSide: "INTERNAL", kind: "GROUP" }, new Date(t0.getTime() + 1), "INTERNAL"), "в группе сообщение коллеги той же стороны — непрочитанное");
+
+// Окно «Новый чат»: кому + тема → что получится и что запрещено
+const P = (viewerRole: string, topic: string | null, internalRoles: string[], supplierCount = 0) => planNewChat({ viewerRole, topic, internalRoles, supplierCount });
+const isErr = (r: ReturnType<typeof P>) => "error" in r;
+ok(JSON.stringify(P("OWNER", "ТЗ", ["TECHNOLOGIST"])) === JSON.stringify({ mode: "group", topic: "ТЗ" }), "один человек — личный чат (группа из двоих)");
+ok(JSON.stringify(P("OWNER", "ТЗ", ["TECHNOLOGIST", "ADMIN"], 0)) === JSON.stringify({ mode: "group", topic: "ТЗ" }), "несколько людей — группа");
+ok(JSON.stringify(P("OWNER", "ТЗ", [], 1)) === JSON.stringify({ mode: "supplier", topic: "ТЗ" }), "один подрядчик по теме «ТЗ» — общий канал с подрядчиком");
+ok(JSON.stringify(P("OWNER", "ТЗ", ["TECHNOLOGIST"], 1)) === JSON.stringify({ mode: "group", topic: "ТЗ" }), "подрядчик + наш человек — группа");
+ok(isErr(P("OWNER", "ТЗ", [], 2)), "два подрядчика в одном чате — отказ (изоляция)");
+ok(isErr(P("OWNER", "Оплаты", [], 1)) && isErr(P("OWNER", "Общее", [], 1)), "закрытые темы «Оплаты» и «Общее» с подрядчиком — отказ");
+ok(isErr(P("OWNER", "Аукционы", ["ACCOUNTANT"])) && !isErr(P("OWNER", "Аукционы", ["PURCHASER"])), "получатель без доступа к теме — отказ");
+ok(isErr(P("OWNER", "ТЗ", [])), "без получателей сотрудник чат не создаёт");
+ok(isErr(P("PURCHASER", "Оплаты", ["ACCOUNTANT"])), "закупщику тема «Оплаты» недоступна");
+ok(JSON.stringify(P("OWNER", null, ["PURCHASER", "ACCOUNTANT"])) === JSON.stringify({ mode: "group", topic: "Общее" }), "своя тема между сотрудниками — группа «Общее»");
+ok(P("OWNER", null, [], 1) && !isErr(P("OWNER", null, [], 1)) && isErr(P("OWNER", null, ["ADMIN"], 1)), "своя тема с подрядчиком — только вдвоём");
+ok(!isErr(P("SUPPLIER", "ТЗ", [])) && (P("SUPPLIER", "ТЗ", []) as { mode: string }).mode === "supplier", "подрядчик без получателей — общий вопрос сотрудникам");
+ok((P("SUPPLIER", "ТЗ", ["TECHNOLOGIST"]) as { mode: string }).mode === "group", "подрядчик выбрал сотрудника — группа");
+ok(isErr(P("SUPPLIER", "Оплаты", [])) && isErr(P("SUPPLIER", "Общее", [])) && isErr(P("SUPPLIER", "Изделия", ["TECHNOLOGIST"])), "подрядчик: «Оплаты», «Общее» и «Изделия» закрыты");
+ok(isErr(P("SUPPLIER", "ТЗ", ["ACCOUNTANT"])), "подрядчик: сотрудник без доступа к теме — отказ");
+ok(isErr(P("SUPPLIER", "ТЗ", [], 1)), "подрядчик не пишет другим подрядчикам");
+ok(!isErr(P("SUPPLIER", null, [])) && isErr(P("SUPPLIER", null, ["OWNER"])), "своя тема у подрядчика — только общий вопрос без выбранных людей");
+ok(isErr(P("WAREHOUSE", "ТЗ", ["OWNER"])), "роль без чата чат не создаёт");
+ok(defaultChatTitle("ТЗ", "", ["Анна", "Веллмех"]) === "ТЗ · Анна, Веллмех" && defaultChatTitle(null, " Новая коллекция ", ["Анна"]) === "Новая коллекция" && defaultChatTitle("ТЗ", "", ["А", "Б", "В", "Г"]) === "ТЗ · А, Б, В +1", "название по умолчанию: тема и получатели");
+ok(sameIdSet(["a", "b"], ["b", "a"]) && !sameIdSet(["a"], ["a", "b"]) && !sameIdSet(["a", "c"], ["a", "b"]), "дубль группы — тот же состав независимо от порядка");
+ok(participantsLabel(["Анна", "Веллмех"]) === "Вы, Анна, Веллмех" && participantsLabel(["А", "Б", "В", "Г", "Д"]) === "Вы, А, Б, В и ещё 2", "шапка: «Вы, Анна, Веллмех», длинный список сворачивается");
+ok(mentionsUser("Анна, посмотри @Анна срочно", "Анна Петрова") && mentionsUser("@петрова проверь", "Анна Петрова") && !mentionsUser("Анна, привет", "Анна Петрова") && !mentionsUser("пишите на ivan@анна.ru", "Анна Петрова"), "@имя: совпадение с именем или фамилией, почта и слово без @ не считаются");
+ok(splitMentions("привет @Анна и @Веллмех!").map((p) => (p.mention ? `[${p.text}]` : p.text)).join("") === "привет [@Анна] и [@Веллмех]!", "подсветка @имён в тексте");
 
 // Реакции
 ok(REACTIONS.length === 6 && isReaction("👍") && isReaction("✅") && !isReaction("💩") && !isReaction(""), "набор реакций: 6, чужие эмодзи отклоняются");

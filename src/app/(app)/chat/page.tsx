@@ -2,13 +2,13 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { canUseChat, groupMembers, loadReactions, loadThread, resolveEntity, supplierName, threadWhere, viewerOf } from "@/lib/chat";
-import { statusLabelFor, TOPIC_OF_ENTITY, createTopicsFor, canCreateGroup, canManageGroup, eligibleForTopic, ENTITY_TYPES, REACTIONS, REQUEST_TYPES, SUPPLIER_ENTITY_TYPES, awaitsMyAnswer, entityHrefFor, isUnread } from "@/lib/chat-core";
+import { canUseChat, groupMembers, loadReactions, loadThread, recipientOptions, resolveEntity, supplierName, threadWhere, viewerOf } from "@/lib/chat";
+import { statusLabelFor, TOPIC_OF_ENTITY, GROUP_TOPICS, createTopicsFor, canCreateGroup, canManageGroup, eligibleForTopic, ENTITY_TYPES, REACTIONS, SUPPLIER_ENTITY_TYPES, awaitsMyAnswer, entityHrefFor, isUnread, mentionsUser, participantsLabel, splitMentions } from "@/lib/chat-core";
 import { cn } from "@/lib/utils";
 import { TelegramConnect } from "./telegram-connect";
 import { telegramToken } from "@/lib/channels/telegram";
 import { hasRole, ACCESS } from "@/lib/access";
-import { ChatAutoRefresh, CloseButton, Composer, GroupMembers, ListFilters, NewGroupForm, NewRequestForm, Reactions, ScrollBottom } from "./chat-client";
+import { ChatAutoRefresh, ChatMenu, Composer, ListFilters, NewChatForm, Reactions, ScrollBottom } from "./chat-client";
 
 export const metadata = { title: "Чат" };
 
@@ -16,8 +16,6 @@ const STATUS_TONE = { OPEN: "bg-amber-100 text-amber-900", ANSWERED: "bg-emerald
 const FILTERS = [
   { key: "", label: "Все" },
   { key: "await", label: "Ждут ответа" },
-  { key: "mine", label: "Мои" },
-  { key: "req", label: "Запросы" },
   { key: "groups", label: "Группы" },
   { key: "closed", label: "Закрытые" },
 ] as const;
@@ -45,41 +43,40 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
   const f = FILTERS.some((x) => x.key === one(sp.f)) ? one(sp.f) : "";
   const q = one(sp.q).trim().slice(0, 80);
   const entityTypes = v.side === "SUPPLIER" ? Object.fromEntries(SUPPLIER_ENTITY_TYPES.map((t) => [t, ENTITY_TYPES[t]])) : ENTITY_TYPES;
-  const e = Object.keys(entityTypes).includes(one(sp.e)) ? one(sp.e) : "";
+  // Фильтр «по теме» — те же темы, что при создании чата.
+  const topicsAll = Object.keys(GROUP_TOPICS).filter((t) => eligibleForTopic(t, v.role) && (v.side !== "SUPPLIER" || createTopicsFor("SUPPLIER").includes(t)));
+  const e = topicsAll.includes(one(sp.e)) ? one(sp.e) : "";
   const threadId = one(sp.thread);
   const isNew = one(sp.new) === "1";
   const now = new Date();
 
-  // «Написать / Запросить» с карточки записи: открываем последнее обсуждение по записи или готовим форму.
-  let preset: { type: string; id: string; label: string } | null = null;
-  const entityParam = one(sp.entity);
+  // «Написать / Запросить» и «Создать группу» с карточки записи: открываем последнее общее обсуждение по записи или готовим «Новый чат» с записью.
+  let preset: { type: string; id: string; label: string; topic?: string; supplierKey?: string } | null = null;
+  const entityParam = one(sp.entity) || one(sp.group);
   if (entityParam) {
     const [type, id] = entityParam.split(":");
     const ent = type && id ? await resolveEntity(v, type, id) : null;
     if (ent) {
-      const ex = await prisma.chatThread.findFirst({ where: { AND: [threadWhere(v)], kind: { not: "GROUP" }, entityType: ent.type, entityId: ent.id }, orderBy: { lastMessageAt: "desc" }, select: { id: true } });
-      if (ex) redirect(`/chat?thread=${ex.id}`);
-      preset = { type: ent.type, id: ent.id, label: ent.label };
+      if (one(sp.entity)) {
+        const ex = await prisma.chatThread.findFirst({ where: { AND: [threadWhere(v)], kind: { not: "GROUP" }, entityType: ent.type, entityId: ent.id }, orderBy: { lastMessageAt: "desc" }, select: { id: true } });
+        if (ex) redirect(`/chat?thread=${ex.id}`);
+      }
+      const topic = TOPIC_OF_ENTITY[ent.type];
+      preset = {
+        type: ent.type, id: ent.id, label: ent.label,
+        topic: topic && createTopicsFor(v.role).includes(topic) ? topic : undefined,
+        supplierKey: v.side !== "SUPPLIER" && ent.supplierId ? `s:${ent.supplierId}` : undefined,
+      };
     }
-  }
-
-  let groupPreset: { topic: string; name: string; type: string; id: string; label: string } | null = null;
-  const gp = one(sp.group);
-  if (gp && canCreateGroup(v.role)) {
-    const [type, id] = gp.split(":");
-    const ent = type && id ? await resolveEntity(v, type, id) : null;
-    const topic = ent ? TOPIC_OF_ENTITY[ent.type] : undefined;
-    if (ent && topic && createTopicsFor(v.role).includes(topic)) groupPreset = { topic, name: `Группа: ${ent.label}`, type: ent.type, id: ent.id, label: ent.label };
   }
 
   const where = {
     AND: [
       threadWhere(v),
       f === "closed" ? { status: "CLOSED" as const } : { status: { not: "CLOSED" as const } },
-      ...(f === "mine" ? [{ createdById: v.id }] : []),
-      ...(f === "req" || f === "await" ? [{ kind: "REQUEST" as const }] : []),
+      ...(f === "await" ? [{ kind: "REQUEST" as const }] : []),
       ...(f === "groups" ? [{ kind: "GROUP" as const }] : []),
-      ...(e ? [{ entityType: e }] : []),
+      ...(e ? [{ topic: e }] : []),
       ...(q ? [{ OR: [{ subject: { contains: q, mode: "insensitive" as const } }, { entityLabel: { contains: q, mode: "insensitive" as const } }, { messages: { some: { body: { contains: q, mode: "insensitive" as const } } } }] }] : []),
     ],
   };
@@ -88,7 +85,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
       where, orderBy: { lastMessageAt: "desc" }, take: 150,
       include: {
         reads: { where: { userId: v.id }, select: { lastReadAt: true } },
-        messages: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true, authorName: true, attachments: { select: { id: true }, take: 1 } } },
+        messages: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true, authorName: true, authorId: true, attachments: { select: { id: true }, take: 1 } } },
         _count: { select: { members: true } },
       },
     }),
@@ -107,7 +104,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
 
   if (threadId && !selected) notFound();
   const supplier = selected ? await supplierName(v.organizationId, selected.supplierId) : "";
-  const peerLabel = v.side === "SUPPLIER" ? s.user.organizationName : supplier || "Поставщик";
+  const peerLabel = v.side === "SUPPLIER" ? s.user.organizationName : supplier || "Подрядчик";
   let messages: Awaited<ReturnType<typeof loadMessages>> = [];
   let entityHref: string | null = null;
   let reactions: Awaited<ReturnType<typeof loadReactions>> = { available: false, byMessage: new Map() };
@@ -127,11 +124,20 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
     return `/chat${qs ? "?" + qs : ""}`;
   };
   const myTg = await prisma.channelLink.count({ where: { organizationId: v.organizationId, userId: v.id, channel: "TELEGRAM" } });
-  const showForm = isNew || (!!preset && !selected);
-  const showGroupForm = canCreateGroup(v.role) && (one(sp.newgroup) === "1" || !!groupPreset) && !selected;
-  const members = selected?.kind === "GROUP" ? await groupMembers(selected.id) : [];
+  const showForm = canCreateGroup(v.role) && (isNew || !!preset) && !selected;
+  const members = selected?.kind === "GROUP" ? await groupMembers(v.organizationId, selected.id) : [];
   const topicsForMe = createTopicsFor(v.role);
-  const rightOpen = !!selected || showForm || showGroupForm;
+  // «Вы, Анна, Веллмех»: подрядчик в группе — одним именем компании.
+  const otherNames = [...new Set(members.filter((m) => m.userId !== v.id).map((m) => (m.isSupplier ? m.orgName : m.name)))];
+  const who = !selected ? "" : selected.kind === "GROUP" ? participantsLabel(otherNames) : `${participantsLabel([peerLabel])} · видят все сотрудники`;
+  const mentionNames = [...new Set([...otherNames, ...messages.map((m) => m.authorName)])].filter((n) => n !== v.name);
+  const isGroupSel = selected?.kind === "GROUP";
+  const canManage = isGroupSel && canManageGroup({ id: v.id, role: v.role }, members);
+  const canEdit = !!selected && (isGroupSel ? canManage : v.side !== "SUPPLIER" || selected.createdById === v.id);
+  const canClose = !!selected && (isGroupSel ? canManage : true);
+  const menuTopics = !selected ? [] : isGroupSel ? topicsForMe : v.side === "SUPPLIER" ? [] : topicsForMe.filter((t) => GROUP_TOPICS[t]?.supplier);
+  const options = showForm ? await recipientOptions(v) : [];
+  const rightOpen = !!selected || showForm;
   const filtered = !!(q || e || f);
 
   return (
@@ -139,11 +145,8 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
       <div className="grid h-[calc(100dvh-11rem)] min-h-[30rem] gap-3 md:h-[calc(100dvh-9.5rem)] lg:grid-cols-[22rem_minmax(0,1fr)]">
         <section aria-label="Список чатов" className={cn("flex min-h-0 min-w-0 flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3", rightOpen && "max-lg:hidden")}>
           <h1 className="text-lg font-semibold">Чаты</h1>
-          <div className="flex gap-1.5">
-            <Link href="/chat?new=1" className="inline-flex h-10 flex-1 items-center justify-center rounded-md border border-neutral-300 bg-white px-3 text-sm font-medium hover:bg-neutral-50 max-md:min-h-11">Новое обсуждение</Link>
-            {canCreateGroup(v.role) && <Link href="/chat?newgroup=1" className="inline-flex h-10 flex-1 items-center justify-center rounded-md border border-neutral-300 bg-white px-3 text-sm font-medium hover:bg-neutral-50 max-md:min-h-11">Новая группа</Link>}
-          </div>
-          <ListFilters q={q} f={f} e={e} topics={entityTypes} />
+          {canCreateGroup(v.role) && <Link href="/chat?new=1" className="inline-flex h-10 items-center justify-center rounded-md bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-800 max-md:min-h-11">+ Новый чат</Link>}
+          <ListFilters q={q} f={f} e={e} topics={Object.fromEntries(topicsAll.map((t) => [t, t]))} />
           <div className="flex flex-wrap gap-1.5">
             {FILTERS.map((x) => (
               <Link key={x.key} href={listHref({ f: x.key, thread: "" })} aria-current={f === x.key ? "page" : undefined}
@@ -153,13 +156,14 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
           <ul className="-mx-3 flex min-h-0 flex-1 flex-col divide-y divide-neutral-200 overflow-y-auto border-t border-neutral-200">
             {rows.length === 0 && (
               <li className="p-4 text-sm text-neutral-600">
-                {filtered ? "Ничего не найдено. Сбросьте поиск или фильтр." : "Чатов пока нет. Нажмите «Новое обсуждение», чтобы написать по записи или задать общий вопрос."}
+                {filtered ? "Ничего не найдено. Сбросьте поиск или фильтр." : "Чатов пока нет. Нажмите «+ Новый чат»."}
               </li>
             )}
             {rows.map((t) => {
               const n = unreadCount.get(t.id) ?? 0;
               const last = t.messages[0];
               const waits = awaitsMyAnswer(t, v.side);
+              const mentioned = n > 0 && !!last && last.authorId !== v.id && mentionsUser(last.body, v.name);
               return (
                 <li key={t.id}>
                   <Link href={listHref({ thread: t.id })} aria-current={selected?.id === t.id ? "true" : undefined}
@@ -175,7 +179,9 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
                       {n > 0 && <span aria-label={`Непрочитанных: ${n}`} className="min-w-5 shrink-0 rounded-full bg-red-700 px-1.5 text-center text-[11px] font-semibold leading-5 text-white">{n}</span>}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
-                      {t.kind === "GROUP" && <span className="rounded bg-violet-100 px-1.5 py-px text-violet-900">Группа · {t.topic} · {t._count.members}</span>}
+                      {t.kind === "GROUP" && <span className="rounded bg-violet-100 px-1.5 py-px text-violet-900">{t._count.members === 2 ? "Личный" : `Группа · ${t._count.members}`}{t.topic ? ` · ${t.topic}` : ""}</span>}
+                      {t.kind !== "GROUP" && t.topic && <span className="rounded bg-sky-100 px-1.5 py-px text-sky-900">{t.topic}</span>}
+                      {mentioned && <span className="rounded bg-red-100 px-1.5 py-px font-medium text-red-900">вас упомянули</span>}
                       {t.entityLabel && <span className="max-w-full truncate rounded bg-neutral-100 px-1.5 py-px text-neutral-800">{t.entityLabel}</span>}
                       {waits && <span className="rounded bg-amber-100 px-1.5 py-px font-medium text-amber-900">ждёт ответа</span>}
                       {t.status === "CLOSED" && <span className="rounded bg-neutral-200 px-1.5 py-px text-neutral-700">закрыт</span>}
@@ -196,36 +202,33 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
         </section>
 
         <section aria-label="Переписка" data-chat-pane className={cn("min-h-0 min-w-0 overflow-y-auto", !rightOpen && "max-lg:hidden")}>
-          {showGroupForm && <NewGroupForm topics={topicsForMe} preset={groupPreset} />}
-          {showForm && !showGroupForm && <NewRequestForm entityTypes={entityTypes} preset={preset} requestTypes={REQUEST_TYPES} />}
-          {!showForm && !showGroupForm && !selected && (
+          {showForm && <NewChatForm options={options} topics={topicsForMe} entityTypes={entityTypes} viewerRole={v.role} preset={preset} backHref={listHref({ thread: "" })} />}
+          {!showForm && !selected && (
             <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-neutral-300 p-8 text-center text-sm text-neutral-600">
               Выберите чат слева, чтобы увидеть переписку.
             </div>
           )}
-          {!showForm && !showGroupForm && selected && (
+          {!showForm && selected && (
             <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white">
               <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-neutral-200 px-3 py-2">
                 <Link href={listHref({ thread: "" })} aria-label="Назад к списку чатов" className="inline-flex h-11 items-center rounded-md px-2 text-sm text-neutral-800 hover:bg-neutral-100 lg:hidden">← Назад</Link>
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate text-base font-semibold">{selected.subject}</h2>
                   <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-700">
-                    {selected.kind === "GROUP"
-                      ? <span>Группа · {selected.topic} · участников: {members.length}</span>
-                      : <span>Вы и {peerLabel}</span>}
-                    {selected.kind === "REQUEST" && <span className={cn("rounded px-1.5 py-px", STATUS_TONE[selected.status])}>{selected.requestType ? selected.requestType + " · " : ""}{statusLabelFor(selected.status, selected.createdBySide, v.side)}</span>}
+                    <span>{who}</span>
+                    {selected.topic && <span className="rounded bg-sky-100 px-1.5 py-px text-sky-900">{selected.topic}</span>}
+                    {selected.kind === "REQUEST" && <span className={cn("rounded px-1.5 py-px", STATUS_TONE[selected.status])}>{statusLabelFor(selected.status, selected.createdBySide, v.side)}</span>}
+                    {selected.kind !== "REQUEST" && selected.status === "CLOSED" && <span className={cn("rounded px-1.5 py-px", STATUS_TONE.CLOSED)}>Закрыт</span>}
                     {selected.entityLabel && (entityHref
                       ? <Link href={entityHref} className="rounded bg-neutral-100 px-1.5 py-px text-neutral-900 underline">{selected.entityLabel} →</Link>
                       : <span className="rounded bg-neutral-100 px-1.5 py-px">{selected.entityLabel}</span>)}
                   </div>
                 </div>
-                {(selected.kind === "REQUEST" || selected.status === "CLOSED") && <CloseButton threadId={selected.id} closed={selected.status === "CLOSED"} />}
-                {selected.kind === "GROUP" && (
-                  <details className="w-full text-sm">
-                    <summary className="cursor-pointer py-1 text-neutral-700 max-md:min-h-11">Участники</summary>
-                    <GroupMembers threadId={selected.id} topic={selected.topic ?? ""} me={v.id} canManage={canManageGroup({ id: v.id, role: v.role }, members)} members={members} telegramOn={!!telegramToken()} />
-                  </details>
-                )}
+                <ChatMenu
+                  threadId={selected.id} kind={selected.kind} subject={selected.subject} topic={selected.topic ?? ""} topicChoices={menuTopics}
+                  closed={selected.status === "CLOSED"} canEdit={canEdit} canManage={canManage} canClose={canClose}
+                  members={members} me={v.id} telegramOn={!!telegramToken()}
+                />
               </header>
               <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto bg-neutral-50 p-3">
                 {messages.length === 0 && <p className="m-auto text-sm text-neutral-600">Сообщений пока нет. Напишите первым.</p>}
@@ -239,7 +242,9 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
                       <div className={cn("flex max-w-[88%] flex-col gap-1 md:max-w-[75%]", mine ? "items-end self-end" : "items-start self-start")}>
                         <div className={cn("min-w-0 max-w-full break-words rounded-2xl px-3 py-2 text-sm", mine ? "bg-neutral-900 text-white" : "border border-neutral-200 bg-white")}>
                           {!mine && <div className="mb-0.5 text-xs font-semibold text-neutral-700">{m.authorName}{m.authorSide !== v.side && selected.kind !== "GROUP" ? ` · ${m.authorSide === "SUPPLIER" ? supplier || "Поставщик" : s.user.organizationName}` : ""}</div>}
-                          {m.body && <div className="whitespace-pre-wrap">{m.body}</div>}
+                          {m.body && <div className="whitespace-pre-wrap">{splitMentions(m.body).map((p, k) => p.mention
+                            ? <span key={k} className={cn("rounded px-1 font-medium", mentionsUser(p.text, v.name) ? "bg-amber-200 text-amber-950" : mine ? "bg-neutral-700 text-white" : "bg-sky-100 text-sky-900")}>{p.text}</span>
+                            : <span key={k}>{p.text}</span>)}</div>}
                           {m.attachments.length > 0 && (
                             <div className={cn("flex flex-col gap-1.5", m.body && "mt-2")}>
                               {m.attachments.map((a) => (
@@ -268,8 +273,8 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
                 })}
                 <ScrollBottom dep={messages.at(-1)?.id ?? ""} />
               </div>
-              {selected.status === "CLOSED" && <div className="border-t border-neutral-200 px-3 py-2 text-sm text-neutral-700">Запрос закрыт. Новое сообщение откроет его заново.</div>}
-              <Composer threadId={selected.id} />
+              {selected.status === "CLOSED" && <div className="border-t border-neutral-200 px-3 py-2 text-sm text-neutral-700">Чат закрыт. Новое сообщение откроет его заново.</div>}
+              <Composer threadId={selected.id} people={mentionNames} />
               <ChatAutoRefresh threadId={selected.id} unread={selUnread} lastAt={selected.lastMessageAt.toISOString()} />
             </div>
           )}

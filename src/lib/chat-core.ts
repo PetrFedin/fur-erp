@@ -285,6 +285,84 @@ export const SUPPLIER_CREATE_TOPICS: readonly string[] = ["Аукционы", "�
 /** Темы, доступные для создания группы этой ролью. */
 export const createTopicsFor = (role: string): string[] => Object.keys(GROUP_TOPICS).filter((t) => eligibleForTopic(t, role) && (role !== "SUPPLIER" || SUPPLIER_CREATE_TOPICS.includes(t)));
 
+// ───────── Единое окно «Новый чат» ─────────
+
+/** Тема группы для чата со «своей темой» между сотрудниками: доступ как у «Общее» (подрядчикам закрыта). */
+export const CUSTOM_TOPIC_GROUP = "Общее";
+
+export type NewChatPlan = { error: string } | { mode: "group" | "supplier"; topic: string };
+
+/**
+ * Что получится из выбора «кому + тема». topic === null — «своя тема».
+ * supplier — общий канал с подрядчиком (видят все сотрудники и этот подрядчик); group — закрытая группа по списку участников.
+ * Правила: подрядчик — не больше одного в чате (изоляция); закрытые темы подрядчику недоступны; своя тема с подрядчиком — только вдвоём.
+ * Сервер повторяет эту проверку по данным из базы, интерфейс использует её для подсказок.
+ */
+export function planNewChat(i: { viewerRole: string; topic: string | null; internalRoles: string[]; supplierCount: number }): NewChatPlan {
+  const fromSupplier = i.viewerRole === "SUPPLIER";
+  if (!canCreateGroup(i.viewerRole)) return { error: "Создавать чаты могут сотрудники и подрядчики с кабинетом" };
+  if (fromSupplier && i.supplierCount > 0) return { error: "Подрядчик может писать только нашим сотрудникам" };
+  if (i.supplierCount > 1) return { error: "Подрядчики общаются в отдельных чатах: выберите одного" };
+  const custom = i.topic === null;
+  if (!custom && !createTopicsFor(i.viewerRole).includes(i.topic!)) return { error: "Эта тема вам недоступна" };
+  const topic = custom ? (fromSupplier ? "Общий вопрос" : CUSTOM_TOPIC_GROUP) : i.topic!;
+  const hasSup = i.supplierCount === 1;
+  const people = i.internalRoles.length;
+  if (!fromSupplier && !hasSup && people === 0) return { error: "Выберите, кому писать" };
+  if (custom) {
+    if (fromSupplier) return people === 0 ? { mode: "supplier", topic } : { error: "Своя тема у подрядчика — только общий вопрос всем сотрудникам. Для выбранных людей возьмите тему из списка" };
+    if (hasSup) return people === 0 ? { mode: "supplier", topic } : { error: "Своя тема с подрядчиком — только вдвоём. Для общего чата возьмите тему из списка" };
+    return i.internalRoles.every((r) => eligibleForTopic(topic, r)) ? { mode: "group", topic } : { error: "Кому-то из выбранных эта тема недоступна" };
+  }
+  if (hasSup && !GROUP_TOPICS[topic]?.supplier) return { error: `Тема «${topic}» подрядчику закрыта` };
+  const bad = i.internalRoles.some((r) => !eligibleForTopic(topic, r));
+  if (bad) return { error: `Кому-то из выбранных тема «${topic}» недоступна` };
+  if (fromSupplier) return people === 0 ? { mode: "supplier", topic } : { mode: "group", topic };
+  return hasSup && people === 0 ? { mode: "supplier", topic } : { mode: "group", topic };
+}
+
+/** Название чата по умолчанию: своя тема как есть, иначе «Тема · получатели». */
+export function defaultChatTitle(topic: string | null, customText: string, names: string[]): string {
+  const who = names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "");
+  const t = topic === null ? customText.trim() : topic;
+  return clip([t, topic === null ? "" : who].filter(Boolean).join(" · ") || who || "Чат", 120);
+}
+
+/** Одинаковые ли наборы идентификаторов (порядок не важен). */
+export function sameIdSet(a: string[], b: string[]): boolean {
+  const x = new Set(a);
+  const y = new Set(b);
+  return x.size === y.size && [...x].every((id) => y.has(id));
+}
+
+/** «Вы, Анна, Веллмех» — кто в чате; больше четырёх имён сворачиваем в «и ещё N». */
+export function participantsLabel(names: string[], max = 4): string {
+  const list = ["Вы", ...names];
+  return list.length <= max ? list.join(", ") : `${list.slice(0, max).join(", ")} и ещё ${list.length - max}`;
+}
+
+const MENTION_RE = /@[\p{L}\p{N}_-]+/gu;
+/** Упомянули ли человека: «@Анна» совпадает с именем или с любым словом полного имени («Анна Петрова»). */
+export function mentionsUser(body: string, fullName: string): boolean {
+  const words = fullName.toLowerCase().split(/\s+/).filter(Boolean);
+  return words.length > 0 && splitMentions(body).some((p) => p.mention && words.includes(p.text.slice(1).toLowerCase()));
+}
+/** Разбивает текст на куски: обычный и «@имя». Для подсветки в сообщении. */
+export function splitMentions(body: string): { text: string; mention: boolean }[] {
+  const out: { text: string; mention: boolean }[] = [];
+  let last = 0;
+  for (const m of body.matchAll(MENTION_RE)) {
+    const at = m.index ?? 0;
+    // «@» внутри слова (почта) не считаем упоминанием
+    if (at > 0 && /[\p{L}\p{N}._-]/u.test(body[at - 1])) continue;
+    if (at > last) out.push({ text: body.slice(last, at), mention: false });
+    out.push({ text: m[0], mention: true });
+    last = at + m[0].length;
+  }
+  if (last < body.length) out.push({ text: body.slice(last), mention: false });
+  return out;
+}
+
 // ───────── Реакции ─────────
 
 /** Набор реакций рабочего чата: нравится, сделано/согласовано, вопрос, спасибо, срочно/отлично, посмотрю. */
