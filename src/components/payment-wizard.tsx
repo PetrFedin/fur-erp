@@ -328,7 +328,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
                   {lines.map((l, i) => (
                     <tr key={i} className="border-t border-neutral-100 align-top">
                       <td className="py-1 pr-2"><Select className="h-8 text-xs" value={l.key} onChange={(e) => patchLine(i, { key: e.target.value, why: "выбрано вручную" })} aria-label="Цель разнесения"><option value="">Выберите…</option>{targetOptions(l.key).map((t) => { const k = "key" in t ? t.key : t.id; return <option key={k} value={k}>{t.label} · {remLabel("key" in t ? remainingOf(t) : t.workCents - t.paidCents)}</option>; })}</Select></td>
-                      <td className="py-1 text-right tabular-nums">{l.key ? money(remOf(l.key)) : "—"}</td>
+                      <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{l.key ? money(remOf(l.key)) : "—"}</td>
                       <td className="py-1"><Input className="h-8 text-right text-xs" inputMode="decimal" value={l.amount} onChange={(e) => patchLine(i, { amount: e.target.value, why: "изменено вручную" })} aria-label="Сумма" /></td>
                       <td className="py-1 pl-2 text-xs text-neutral-500">{l.why}</td>
                       <td className="py-1 text-right"><button type="button" className="text-xs text-neutral-500 underline" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}>убрать</button></td>

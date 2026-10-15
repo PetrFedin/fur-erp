@@ -211,7 +211,7 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
             >
               {ov.parts.map((x, i) => (<span key={i}>{i > 0 ? ", " : ""}{x.href ? <Link href={x.href} className="text-blue-700 hover:underline">{x.label}</Link> : x.label}</span>))}
             </Clamp>
-            <span className="whitespace-nowrap text-neutral-500">{ov.parts.length} шт. · {money(partsTotal)} ₽</span>
+            <span className="whitespace-nowrap text-neutral-500">{ov.parts.length} шт. · {money(partsTotal)}</span>
           </div>
         )}
         <details open={ov.parts.length <= 1} className="group">
