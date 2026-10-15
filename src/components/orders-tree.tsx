@@ -63,6 +63,9 @@ export function OrdersTree({
   const { mode: vat } = useVatDisplay();
   const [modeId, setModeId] = useState(modes[0].id);
   const [toggled, setToggled] = useState<Set<string>>(new Set());
+  // Сортировка по клику на заголовок: упорядочивает группы на каждом уровне дерева; без выбора — порядок по умолчанию.
+  const [st, setSt] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
+  const hs = (key: string) => ({ sort: (st?.key === key ? st.dir : "none") as "asc" | "desc" | "none", onSort: () => setSt((c) => ({ key, dir: c?.key === key ? (c.dir === "asc" ? "desc" : "asc") : key === "label" ? "asc" : "desc" })) });
   const mode = modes.find((m) => m.id === modeId) ?? modes[0];
   const dims = mode.dims;
   const v: VatSel = vat;
@@ -196,6 +199,36 @@ export function OrdersTree({
     });
 
   const sortGroups = (dim: TreeDim, groups: [string, string, DrillOrder[]][]) => {
+    if (st) {
+      const sign = st.dir === "asc" ? 1 : -1;
+      const val = (g: [string, string, DrillOrder[]]): number | string => {
+        if (st.key === "label") return g[1];
+        const x = sumOrders(g[2], v);
+        const q = qtyOf(x);
+        const paid = dim === "batch" ? payBy?.[`batch:${g[0]}`] : dim === "order" ? sumPaid(g[2]) : undefined;
+        switch (st.key) {
+          case "qty": return q;
+          case "unit": return q ? sumTotal(x) / q : -1e18;
+          case "furQ": return x.furQ;
+          case "furAvg": return x.furQ ? x.fur / x.furQ : -1e18;
+          case "linQ": return x.liningQ;
+          case "linAvg": return x.liningQ ? x.lining / x.liningQ : -1e18;
+          case "total": return sumTotal(x);
+          case "fur": return x.fur;
+          case "lining": return x.lining;
+          case "work": return x.work + x.exp;
+          case "c4": return x.c4;
+          case "res": return x.other - x.exp;
+          case "paid": return paid ?? -1e18;
+          case "left": return paid == null ? -1e18 : x.work - paid;
+          default: return 0;
+        }
+      };
+      return groups.sort((a, b) => {
+        const x = val(a), y = val(b);
+        return sign * (typeof x === "string" || typeof y === "string" ? naturalSort.compare(String(x), String(y)) : x - y);
+      });
+    }
     if (dim === "year" || dim === "batch") return groups.sort((a, b) => (a[0] === "none" ? 1 : b[0] === "none" ? -1 : Number(a[0]) - Number(b[0])));
     if (dim === "order") return groups.sort((a, b) => naturalSort.compare(a[1], b[1]));
     return groups.sort((a, b) => sumTotal(sumOrders(b[2], v)) - sumTotal(sumOrders(a[2], v)));
@@ -288,20 +321,20 @@ export function OrdersTree({
             </tr>
             <tr className="border-b border-neutral-200">
               <th className={ARROW_TH} aria-label="Раскрыть" />
-              <th className={TH_LEFT}>{mode.label}</th>
-              <Head label="Изделий" unit="шт." align="right" />
-              <Head label="На изделие" unit="₽/шт." align="right" />
-              <Head label="Шкур" unit="шт." align="right" sep />
-              <Head label="Ср. цена" unit="₽/шт." align="right" />
-              <Head label="Подкладка" unit="м" align="right" />
-              <Head label="Ср. цена" unit="₽/м" align="right" />
-              <Head label={costLabel} unit="₽" align="right" sep after={costHint ? <InfoHint label={`Что в столбце «${costLabel}»`} wide>{costHint}</InfoHint> : undefined} />
-              <Head label="Мех" unit="₽" align="right" />
-              <Head label="Подкладка" unit="₽" align="right" />
-              <Head label="Работа и расходы" unit="₽" align="right" after={<InfoHint label="Что в столбце «Работа и доп. расходы»" wide><p>Работа подрядчику (цена работы × количество — это «Работа» в плитках, оплатах и карточке заказчика) плюс доп. расходы ТЗ (фурнитура, прочее — строки «Доп. расходы · статья»). Поэтому итог столбца больше плитки «Работа» ровно на доп. расходы ТЗ, а оплачивается подрядчику только работа.</p></InfoHint>} />
-              {c4 === "on" ? <Head label="4%" unit="₽" align="right" after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} /> : null}
-              {showRes ? <Head label="Прочее" unit="₽" align="right" /> : null}
-              {showPay ? <><Head label="Оплачено" unit="₽" align="right" sep /><Head label="К оплате" unit="₽" align="right" /></> : null}
+              <Head label={mode.label} align="left" className={TH_LEFT} {...hs("label")} />
+              <Head label="Изделий" unit="шт." align="right" {...hs("qty")} />
+              <Head label="На изделие" unit="₽/шт." align="right" {...hs("unit")} />
+              <Head label="Шкур" unit="шт." align="right" sep {...hs("furQ")} />
+              <Head label="Ср. цена" unit="₽/шт." align="right" {...hs("furAvg")} />
+              <Head label="Подкладка" unit="м" align="right" {...hs("linQ")} />
+              <Head label="Ср. цена" unit="₽/м" align="right" {...hs("linAvg")} />
+              <Head label={costLabel} unit="₽" align="right" sep {...hs("total")} after={costHint ? <InfoHint label={`Что в столбце «${costLabel}»`} wide>{costHint}</InfoHint> : undefined} />
+              <Head label="Мех" unit="₽" align="right" {...hs("fur")} />
+              <Head label="Подкладка" unit="₽" align="right" {...hs("lining")} />
+              <Head label="Работа и расходы" unit="₽" align="right" {...hs("work")} after={<InfoHint label="Что в столбце «Работа и доп. расходы»" wide><p>Работа подрядчику (цена работы × количество — это «Работа» в плитках, оплатах и карточке заказчика) плюс доп. расходы ТЗ (фурнитура, прочее — строки «Доп. расходы · статья»). Поэтому итог столбца больше плитки «Работа» ровно на доп. расходы ТЗ, а оплачивается подрядчику только работа.</p></InfoHint>} />
+              {c4 === "on" ? <Head label="4%" unit="₽" align="right" {...hs("c4")} after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} /> : null}
+              {showRes ? <Head label="Прочее" unit="₽" align="right" {...hs("res")} /> : null}
+              {showPay ? <><Head label="Оплачено" unit="₽" align="right" sep {...hs("paid")} /><Head label="К оплате" unit="₽" align="right" {...hs("left")} /></> : null}
             </tr>
           </thead>
           <tbody>
