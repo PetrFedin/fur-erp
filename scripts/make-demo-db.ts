@@ -80,6 +80,8 @@ const WIPE = [
   "ChatThread", "ChannelBindCode", "ChannelLink", "FittingPhoto", "SupplierInboxFile", "SupplierInbox", "SupplierCalcTemplate",
 ];
 
+/** Фамилии и имена людей, которые встречаются в свободных текстах (этапы отгрузок, примечания). */
+const PERSON_NAMES = ["Василий", "Вельмакин", "Павлов", "Коношенко", "Желнин", "Киржнер", "Козлов", "Федин"];
 const ORIGINAL_ALIASES = ["Веллмех", "Wellmekh", "Vellmex", "Wellmex", "Веллмекс", "Меркури", "Mercury"];
 
 async function nullable(table: string, col: string) {
@@ -191,6 +193,14 @@ async function main() {
       const col = q(c.column_name);
       if (c.data_type === "jsonb") await x(`update ${q(c.table_name)} set ${col} = replace(${col}::text, ${sqlLit(o)}, ${sqlLit(target)})::jsonb where ${col}::text like ${sqlLit("%" + o + "%")}`);
       else await x(`update ${q(c.table_name)} set ${col} = replace(${col}, ${sqlLit(o)}, ${sqlLit(target)}) where ${col} like ${sqlLit("%" + o + "%")}`);
+    }
+  }
+  // Имена людей из переписки (в названиях этапов отгрузок и примечаниях) -> нейтральное слово
+  for (const c of textCols) {
+    for (const o of PERSON_NAMES) {
+      const col = q(c.column_name);
+      if (c.data_type === "jsonb") await x(`update ${q(c.table_name)} set ${col} = replace(${col}::text, ${sqlLit(o)}, 'Сотрудник')::jsonb where ${col}::text like ${sqlLit("%" + o + "%")}`);
+      else await x(`update ${q(c.table_name)} set ${col} = replace(${col}, ${sqlLit(o)}, 'Сотрудник') where ${col} like ${sqlLit("%" + o + "%")}`);
     }
   }
   // Веллмех-демо не должен превращаться в «Веллмех-демо-демо» при повторных заменах

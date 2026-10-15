@@ -2,7 +2,7 @@
 // Проверяет: (1) копия исходников после scripts/demo-static-data.mjs чиста от запрещённых строк; (2) функции генерации
 // (счёт Excel, Word ТЗ четырёх образцов, расчёт Excel, реквизиты, каталог задач, пресеты, известные случаи) в обезличенной копии
 // выдают вымышленный текст, а формулы Excel остаются теми же, что в боевой копии; (3) собранная демо-сборка (.next), если указана.
-//   npx tsx scripts/test-demo-sanitize.ts [путь к собранной демо-сборке, например /tmp/wt-demo]
+//   npx tsx scripts/test-demo-sanitize.ts [папка со сборкой, например /tmp/wt-demo] [имя distDir, по умолчанию .next]
 // Боевой режим не затрагивается: проверка идёт на временной копии.
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -21,7 +21,8 @@ const FORBIDDEN = [
 const root = process.cwd();
 let bad = 0;
 const ok = (name: string, cond: boolean, extra = "") => { if (!cond) bad++; console.log(`${cond ? "OK  " : "FAIL"} ${name}${extra ? ": " + extra : ""}`); };
-const hits = (text: string) => FORBIDDEN.filter((w) => text.includes(w));
+// Путь сборочной машины («/Users/petr/…» в манифестах) не данные приложения.
+const hits = (text: string) => { const t = text.replace(/\/Users\/petr\//g, "/Users/_/"); return FORBIDDEN.filter((w) => t.includes(w)); };
 
 function walk(dir: string, out: string[] = [], re = /\.(ts|tsx|json|mjs|js|html|css|txt|map)$/): string[] {
   for (const n of readdirSync(dir)) {
@@ -74,8 +75,9 @@ ok("боевые исходники не тронуты", readFileSync(join(root
 
 // 3. собранная демо-сборка
 const build = process.argv[2];
-if (build && existsSync(join(build, ".next"))) {
-  for (const sub of [".next/standalone", ".next/server"]) if (existsSync(join(build, sub))) scanTree(join(build, sub), `сборка ${build}/${sub}`);
+const dist = process.argv[3] ?? ".next";
+if (build && existsSync(join(build, dist))) {
+  for (const sub of [`${dist}/standalone`, `${dist}/server`, `${dist}/static`]) if (existsSync(join(build, sub))) scanTree(join(build, sub), `сборка ${build}/${sub}`);
 } else console.log("(собранная демо-сборка не указана: пропуск; запуск: npx tsx scripts/test-demo-sanitize.ts /путь/к/сборке)");
 
 console.log(bad ? `ПРОВАЛОВ: ${bad}` : "демо-обезличивание: проверки пройдены");
