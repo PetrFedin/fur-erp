@@ -7,6 +7,7 @@ import { requireInboxViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/suppli
 import { STAGE_LABEL, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
 import { CompareBlock } from "../compare-block";
 import { FinalButton } from "../final-button";
+import { calcYearOptions } from "@/lib/supplier-calc-years";
 import { CalcForm } from "../calc-form";
 
 export const metadata = { title: "Расчёт аукциона" };
@@ -21,6 +22,7 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
   });
   if (!row) notFound();
   const payload = ensureRowIds(row.payload as unknown as CalcPayload);
+  const years = await calcYearOptions(s);
   const readOnly = row.status !== "DRAFT" || s.user.role !== "SUPPLIER";
   return (
     <div className="flex flex-col gap-4">
@@ -34,7 +36,7 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
       {row.status === "REJECTED" && s.user.role === "SUPPLIER" && <ReopenButton id={row.id} />}
       {payload.stage === "PRELIM" && s.user.role === "SUPPLIER" && <FinalButton id={row.id} />}
       <CompareBlock s={s} payload={payload} />
-      <CalcForm id={row.id} initial={payload} readOnly={readOnly} files={row.files} reviewNote={row.reviewNote} />
+      <CalcForm id={row.id} initial={payload} readOnly={readOnly} files={row.files} reviewNote={row.reviewNote} years={years} />
     </div>
   );
 }

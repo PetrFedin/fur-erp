@@ -25,7 +25,7 @@ function parsePayload(json: string): CalcPayload | string {
   }
 }
 
-const titleOf = (p: CalcPayload) => [p.header.auction.trim() || "Расчёт аукциона", p.header.invoice.trim() ? `счёт ${p.header.invoice.trim()}` : ""].filter(Boolean).join(" · ").slice(0, 160);
+const titleOf = (p: CalcPayload) => [p.header.auction.trim() || "Расчёт аукциона", p.header.year?.trim() && !p.header.auction.includes(p.header.year.trim().slice(2)) ? p.header.year.trim() : "", p.header.invoice.trim() ? `счёт ${p.header.invoice.trim()}` : ""].filter(Boolean).join(" · ").slice(0, 160);
 
 /** Сохранить черновик (создать или обновить). После отправки править нельзя. Пишет только в SupplierInbox. */
 export async function saveCalcDraft(id: string | null, json: string): Promise<R> {

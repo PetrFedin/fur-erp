@@ -82,7 +82,10 @@ export function columnsFor(f: CalcFormat): Col[] {
 export type CalcRow = Record<string, string>;
 export type ExtraExpense = { name: string; amount: string; mode: "perHide" | "total" };
 export type CalcHeader = {
-  auction: string; invoice: string; invoiceDate: string; seller: string; currency: string;
+  auction: string;
+  /** Год аукциона (2026): группировка в списках, год новой закупки и аукциона при приёме. Пусто — берётся из названия «СП 09-26» или даты счёта. */
+  year?: string;
+  invoice: string; invoiceDate: string; seller: string; currency: string;
   cbRate: string; agentPct: string; rateComment: string; buyer: string; dest: string; broker: string; dueDate: string;
   /** НДС на товар и услуги, % (22 с 2026 года, 20 — для 2025). */
   vat: string;
@@ -163,6 +166,21 @@ export function missingRates(p: CalcPayload): string[] {
   return rateCols(p.format)
     .filter((c) => c.rate!.warn !== false && headerRate(p.header, c.key) === "" && used.some((r) => (r[c.key] ?? "").trim() === ""))
     .map((c) => c.rate!.label);
+}
+
+/** Год аукциона расчёта: выбранный → из названия («СП 09-26» → 2026) → из даты счёта; иначе null. */
+export function calcYear(h: Pick<CalcHeader, "auction" | "year" | "invoiceDate">): number | null {
+  const y = Number((h.year ?? "").trim());
+  if (Number.isInteger(y) && y >= 2000 && y <= 2100) return y;
+  const m = /(\d{1,2})[-.](\d{2})\s*(?:\(.*)?$/.exec((h.auction ?? "").trim());
+  if (m) return 2000 + Number(m[2]);
+  const d = /^(\d{4})-\d{2}-\d{2}$/.exec(h.invoiceDate ?? "");
+  return d ? Number(d[1]) : null;
+}
+/** Месяц из названия аукциона «СП 09-26» → «09»; иначе «01». */
+export function calcMonth(h: Pick<CalcHeader, "auction">): string {
+  const m = /(\d{1,2})[-.]\d{2}\s*(?:\(.*)?$/.exec((h.auction ?? "").trim());
+  return m && Number(m[1]) >= 1 && Number(m[1]) <= 12 ? m[1].padStart(2, "0") : "01";
 }
 
 export function emptyHeader(f: CalcFormat): CalcHeader {

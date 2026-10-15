@@ -7,7 +7,7 @@
  * по столбцам мастера так, чтобы итог совпал: ставки НДС 0 (НДС этих форматов уже внутри сумм), суммы в рублях.
  */
 import { computeCostPlan, roundRate } from "@/lib/cost-plan";
-import { calcAll, effectiveRate, evalNum, resolveRow, rowFilled, type CalcPayload, type CalcRow } from "@/lib/supplier-calc";
+import { calcAll, calcMonth, calcYear, effectiveRate, evalNum, resolveRow, rowFilled, type CalcPayload, type CalcRow } from "@/lib/supplier-calc";
 import { EMPTY_ROW, type BatchPayload, type IntakeRow } from "@/lib/batch-intake";
 
 const n0 = (s: string | undefined) => { const v = evalNum(s); return Number.isFinite(v) ? v : 0; };
@@ -136,7 +136,10 @@ export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResu
   if (used.some(({ row }) => filled(row.upd))) warnings.push("«Цена для УПД» поставщика в закупку не переносится: себестоимость считается по расчёту.");
 
   if (errors.length) return { payload: null, errors, warnings };
-  const date = isoOk(h.invoiceDate) ? h.invoiceDate : ctx.today;
+  // Год, выбранный Веллмехом (или «09-26» из названия), важнее сегодняшней даты: закупка и новый аукцион попадают в нужный год
+  const yr = calcYear(h);
+  const baseDate = isoOk(h.invoiceDate) ? h.invoiceDate : ctx.today;
+  const date = yr && Number(baseDate.slice(0, 4)) !== yr ? `${yr}-${calcMonth(h)}-01` : baseDate;
   // В одном расчёте может быть несколько аукционных счетов (по одному на закупку): у каждой строки свой счёт, закупок создаётся по числу счетов.
   const rowInvoices = [...new Set(rows.map((x) => x.invoice).filter(Boolean))];
   const invoiceFallback = rowInvoices.length > 1 ? rowInvoices[0] : h.invoice.trim();

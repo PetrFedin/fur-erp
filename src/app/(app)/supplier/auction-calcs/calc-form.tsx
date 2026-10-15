@@ -12,13 +12,13 @@ import { FinalFigures } from "./final-figures";
 import { FormatPicker } from "./format-picker";
 import { InvoiceMaker } from "./invoice-maker";
 import { detectFormat, finalFigures, needsAdvanced } from "@/lib/supplier-calc-simple";
-import { FORMAT_LABEL, STAGE_LABEL, remapCustomRefs, syncLetters, calcAll, columnsFor, emptyRow, headerRate, missingRates, rowFilled, newId, rateCols, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
+import { FORMAT_LABEL, STAGE_LABEL, calcYear, remapCustomRefs, syncLetters, calcAll, columnsFor, emptyRow, headerRate, missingRates, rowFilled, newId, rateCols, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
 import { attachInboxFile, deleteCalcDraft, parseCalcFile, removeInboxFile, saveCalcDraft, sendCalc } from "./actions";
 
 const money = (n: number) => (Number.isFinite(n) ? n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
 export type FileRow = { id: string; originalName: string; kind: string; sizeBytes: number };
 
-export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: string | null; initial: CalcPayload; readOnly: boolean; files: FileRow[]; reviewNote?: string | null }) {
+export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [] }: { id: string | null; initial: CalcPayload; readOnly: boolean; files: FileRow[]; reviewNote?: string | null; years?: number[] }) {
   const router = useRouter();
   const [p, setP] = useState<CalcPayload>(initial);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
@@ -51,7 +51,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
       }
     });
 
-  const out = () => syncLetters({ ...p, rows: p.rows.map((r) => (rowFilled(r) ? { ...r, invoice: r.invoice || p.header.invoice, dest: r.dest || p.header.dest } : r)) });
+  const out = () => syncLetters({ ...p, header: { ...p.header, year: p.header.year || String(calcYear(p.header) ?? new Date().getFullYear()) }, rows: p.rows.map((r) => (rowFilled(r) ? { ...r, invoice: r.invoice || p.header.invoice, dest: r.dest || p.header.dest } : r)) });
   const save = () => run(() => saveCalcDraft(id, JSON.stringify(out())), "Черновик сохранён", (r) => { if (!id && r.id) router.replace(`/supplier/auction-calcs/${r.id}`); else router.refresh(); });
   const send = () => {
     const warn = missing.length ? `\n\nСтавка не указана (считается как 0): ${missing.join("; ")}.` : "";
@@ -92,8 +92,28 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
     });
 
   const ro = readOneOnly(readOnly);
+  const curYear = calcYear(p.header) ?? new Date().getFullYear();
+  const yearList = [...new Set([...years, curYear])].sort((a, b) => b - a);
+  const pickYear = (v: string) => {
+    if (v === "__new") {
+      const y = Number((window.prompt("Новый год аукциона, например 2027") ?? "").trim());
+      if (Number.isInteger(y) && y >= 2000 && y <= 2100) setH("year", String(y));
+      return;
+    }
+    setH("year", v);
+  };
   return (
     <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Label className="mb-0">Год аукциона</Label>
+        {ro ? <b>{curYear}</b> : (
+          <Select className="w-40" value={String(curYear)} onChange={(e) => pickYear(e.target.value)} aria-label="Год аукциона">
+            {yearList.map((y) => <option key={y} value={y}>{y}</option>)}
+            <option value="__new">+ новый год…</option>
+          </Select>
+        )}
+        <span className="text-xs text-neutral-500">По году расчёт ляжет в списке «Расчёты аукционов» и в «Сырьё»; закупка у нас получит тот же год.</span>
+      </div>
       {reviewNote && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">Комментарий проверяющего: {reviewNote}</div>}
       {!advanced && (
         <>
