@@ -62,7 +62,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Главная" }, { label: "Сырьё" }]} />
       <h1 className="text-xl font-semibold">Сырьё</h1>
-      <p className="text-sm text-neutral-600">Мех, который вы купили на аукционах и продали нам. К закупке или лоту можно приложить УПД, спецификацию, счёт или письмо: мы проверим и примем.</p>
+      <p className="text-sm text-neutral-600">Приложите УПД, спецификацию или счёт — проверим и примем.</p>
 
       <form className="flex flex-wrap items-end gap-3 text-sm">
         <label className="flex flex-col gap-1">Аукцион
@@ -217,7 +217,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
 
       <div>
         <h2 className="mb-1 text-sm font-semibold">Отправленные документы</h2>
-        {docs.length === 0 ? <p className="text-sm text-neutral-500">Пока ничего не отправлено</p> : (
+        {docs.length === 0 ? <p className="text-sm text-neutral-500">Нет документов</p> : (
           <ul className="flex flex-col gap-1 text-sm">
             {docs.map((d) => (
               <li key={d.id}>{d.title} · {INBOX_STATUS_LABEL[d.status]} · {formatDate(d.sentAt ?? d.createdAt)}{d.status === "REJECTED" && d.reviewNote && <span className="text-red-700"> · замечание: {d.reviewNote}</span>}</li>

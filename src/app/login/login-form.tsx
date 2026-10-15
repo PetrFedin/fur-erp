@@ -65,7 +65,7 @@ export function LoginForm({ demoEmail, demoPassword, supplierEmail, supplierPass
       </form>
 
       {demoEmail && demoPassword ? <DemoLogin email={demoEmail} password={demoPassword} /> : null}
-      {supplierEmail && supplierPassword ? <DemoLogin id="demo-supplier" title="Демо-доступ: кабинет Веллмеха" note="Вход для поставщика: отгрузки, расчёты аукционов, ТЗ, изделия (без цен), справочники." email={supplierEmail} password={supplierPassword} /> : null}
+      {supplierEmail && supplierPassword ? <DemoLogin id="demo-supplier" title="Демо: кабинет Веллмеха" email={supplierEmail} password={supplierPassword} /> : null}
     </AuthShell>
   );
 }

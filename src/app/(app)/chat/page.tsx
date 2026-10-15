@@ -156,7 +156,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
           <ul className="-mx-3 flex min-h-0 flex-1 flex-col divide-y divide-neutral-200 overflow-y-auto border-t border-neutral-200">
             {rows.length === 0 && (
               <li className="p-4 text-sm text-neutral-600">
-                {filtered ? "Ничего не найдено. Сбросьте поиск или фильтр." : "Чатов пока нет. Нажмите «+ Новый чат»."}
+                {filtered ? "Ничего не найдено." : "Нет чатов."}
               </li>
             )}
             {rows.map((t) => {
@@ -205,7 +205,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
           {showForm && <NewChatForm options={options} topics={topicsForMe} entityTypes={entityTypes} viewerRole={v.role} preset={preset} backHref={listHref({ thread: "" })} />}
           {!showForm && !selected && (
             <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-neutral-300 p-8 text-center text-sm text-neutral-600">
-              Выберите чат слева, чтобы увидеть переписку.
+              Выберите чат.
             </div>
           )}
           {!showForm && selected && (

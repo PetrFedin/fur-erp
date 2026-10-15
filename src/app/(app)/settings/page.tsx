@@ -6,18 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 const SETTINGS_LINKS = [
   { href: "/materials", title: "Справочник материалов", description: "Названия, единицы измерения, категории" },
   { href: "/suppliers", title: "Поставщики", description: "Поставщики и их контакты" },
-  { href: "/settings/contractors", title: "Подрядчики", description: "Кто шьёт по ТЗ: реквизиты, договоры, доступ в кабинет, их ТЗ, оплаты и долг" },
+  { href: "/settings/contractors", title: "Подрядчики", description: "Реквизиты, договоры, доступ" },
   { href: "/clients", title: "Заказчики", description: "Кому шьём и кто платит" },
-  { href: "/settings/colors", title: "Справочник цветов", description: "Единые названия цветов, синонимы, объединение и привязка" },
-  { href: "/settings/categories", title: "Справочник категорий", description: "Пальто, полупальто, жакет… единые названия категорий изделий, синонимы, объединение и привязка моделей" },
-  { href: "/settings/furs", title: "Справочник меха", description: "Вид меха по-русски и по-английски, синонимы из инвойсов и ТЗ" },
-  { href: "/settings/fur-attrs", title: "Признаки меха", description: "Седина (SIL), дикий / клеточный / баргузинский, тонированный… — признаки по описаниям лотов и ТЗ, синонимы, объединение, фильтр «Признак меха»" },
-  { href: "/settings/auctions", title: "Справочник аукционов", description: "Короткие имена аукционов, как они видны на платформе; новые аукционы, объединение, подтверждение" },
-  { href: "/settings/articles-ref", title: "Справочник артикулов", description: "Наш код и код/название в системе продаж, другие написания, объединение дублей" },
+  { href: "/settings/colors", title: "Справочник цветов", description: "Названия и синонимы" },
+  { href: "/settings/categories", title: "Справочник категорий", description: "Категории изделий и синонимы" },
+  { href: "/settings/furs", title: "Справочник меха", description: "Названия и синонимы" },
+  { href: "/settings/fur-attrs", title: "Признаки меха", description: "Признаки по описаниям лотов" },
+  { href: "/settings/auctions", title: "Справочник аукционов", description: "Короткие имена аукционов" },
+  { href: "/settings/articles-ref", title: "Справочник артикулов", description: "Коды и написания" },
   { href: "/warehouses", title: "Склады", description: "Склады сырья и готовой продукции, склад по умолчанию" },
   { href: "/settings/expense-categories", title: "Статьи расходов", description: "Категории дополнительных расходов" },
   { href: "/users", title: "Пользователи", description: "Сотрудники и их роли" },
-  { href: "/settings/channels", title: "Каналы: Telegram, WhatsApp", description: "Токен бота, привязка групп и людей, мост сообщений чата в мессенджеры" },
+  { href: "/settings/channels", title: "Каналы: Telegram, WhatsApp", description: "Боты и привязки" },
 ];
 
 export const metadata = { title: "Настройки" };
@@ -36,8 +36,8 @@ export default async function SettingsPage() {
         <h1 className="text-xl font-semibold">{isSup ? "Справочники" : "Настройки"}</h1>
         <p className="mt-1 text-sm text-neutral-500">
           {isSup
-            ? "Единые названия цветов, категорий, меха и аукционов — чтобы мы и вы называли одно и то же одинаково. Только просмотр; если чего-то не хватает, напишите нам в чате."
-            : "Справочники и параметры. Оплаты — в разделе «Оплаты», проверка данных — в разделе «Контроль», план поставок — во вкладках «ТЗ»."}
+            ? "Только просмотр. Не хватает — напишите в чате."
+            : "Справочники и параметры."}
         </p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

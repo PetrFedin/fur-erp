@@ -53,7 +53,7 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
         <h1 className="text-xl font-semibold">Расчёты аукционов</h1>
         {isSup && <Link href="/supplier/auction-calcs/new" className={buttonVariants({ size: "sm" })}>+ Новый расчёт</Link>}
       </div>
-      <p className="text-sm text-neutral-600">Внесите лоты и расходы — итог посчитается сам. Мы получим расчёт черновиком и примем после проверки.</p>
+      <p className="text-sm text-neutral-600">Принимаем после проверки.</p>
       <Table className="min-w-[720px]">
         <Thead><Tr>
           <SortTh path={P} sp={sp} k="auction" cur={sort} label="Аукцион" />

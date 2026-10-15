@@ -48,7 +48,7 @@ export default async function SupplierTzPage({ searchParams }: PageProps<"/suppl
         <h1 className="text-xl font-semibold">ТЗ</h1>
         {isSup && <Link href="/supplier/tz/new" className={buttonVariants({ size: "sm" })}>+ Новое ТЗ</Link>}
       </div>
-      <p className="text-sm text-neutral-600">ТЗ по партиям. Отправленное ТЗ приходит к нам на проверку.</p>
+      <p className="text-sm text-neutral-600">Отправленное приходит к нам на проверку.</p>
       {ordered.length === 0 && <p className="rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-8 text-center text-sm text-neutral-500">ТЗ пока нет{isSup ? " — нажмите «+ Новое ТЗ»" : ""}.</p>}
       {ordered.map(([batch, list], gi) => {
         const total = list.reduce((t, r) => t + qty(r), 0);

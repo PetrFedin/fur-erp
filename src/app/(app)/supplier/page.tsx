@@ -35,13 +35,13 @@ export default async function SupplierHomePage() {
   const inboxHref = (r: (typeof inbox)[number]) => (r.kind === "TZ" ? `/supplier/tz/${r.id}` : r.kind === "AUCTION_CALC" ? `/supplier/auction-calcs/${r.id}` : "/supplier/raw");
   sections.push({
     title: "Не отправлено нам и возвращено на доработку",
-    empty: "Всё отправлено, возвращённого нет.",
+    empty: "Нет.",
     items: inbox.map((r) => ({ key: r.id, href: inboxHref(r), text: `${r.kind === "TZ" ? "ТЗ" : r.kind === "AUCTION_CALC" ? "Расчёт" : "Документ"} «${r.title}» — ${r.status === "DRAFT" ? "черновик, ещё не отправлен" : `возвращено${r.reviewNote ? `: ${r.reviewNote}` : ""}`}` })),
   });
 
   // 2. Запросы от нас
   const awaiting = isSup ? (await chatCounts(viewerOf(s))).awaiting : 0;
-  sections.push({ title: "Запросы от нас", empty: "Запросов без ответа нет.", items: awaiting > 0 ? [{ key: "chat", href: "/chat?f=await", text: `Ждут вашего ответа в чате: ${awaiting}` }] : [] });
+  sections.push({ title: "Запросы от нас", empty: "Нет запросов.", items: awaiting > 0 ? [{ key: "chat", href: "/chat?f=await", text: `Ждут вашего ответа в чате: ${awaiting}` }] : [] });
 
   // 3. Сырьё: просроченные этапы и аукционы без отметки «где мех»
   const stageRows = supplierId && hasRaw ? await prisma.supplierRawStage.findMany({ where: { organizationId: orgId, supplierId }, select: { purchaseId: true, stage: true, status: true, place: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true } }) : [];
@@ -72,7 +72,7 @@ export default async function SupplierHomePage() {
   const late = supplierId
     ? await prisma.shipmentEvent.findMany({ where: { expected: true, side: "WELLMEKH", occurredAt: { lt: wallNow() }, shipment: { organizationId: orgId, supplierId } }, orderBy: { occurredAt: "asc" }, take: 10, select: { id: true, title: true, shipmentId: true, occurredAt: true, shipment: { select: { name: true } } } })
     : [];
-  sections.push({ title: "Отгрузки", empty: "Просроченных этапов на вашей стороне нет.", items: late.map((e) => ({ key: e.id, href: `/shipments/${e.shipmentId}`, text: `${e.shipment.name ?? "Отгрузка"}: этап «${e.title}» ожидался ${e.occurredAt.toLocaleDateString("ru-RU", { timeZone: "UTC" })} — отметьте, когда прошёл.` })) });
+  sections.push({ title: "Отгрузки", empty: "Нет просрочки.", items: late.map((e) => ({ key: e.id, href: `/shipments/${e.shipmentId}`, text: `${e.shipment.name ?? "Отгрузка"}: этап «${e.title}» ожидался ${e.occurredAt.toLocaleDateString("ru-RU", { timeZone: "UTC" })} — отметьте, когда прошёл.` })) });
 
   // «Недавнее»: что мы решили по их входящим и отметкам за 14 дней; новое с прошлого просмотра помечено.
   const recent = supplierId ? await loadRecent(orgId, supplierId) : [];
@@ -82,10 +82,10 @@ export default async function SupplierHomePage() {
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Контроль" }]} />
       <h1 className="text-xl font-semibold">Контроль</h1>
-      <p className="text-sm text-neutral-600">{total === 0 ? "Сейчас от вас ничего не требуется." : `Требует внимания: ${total}. Нажмите на строку — откроется нужное место.`}</p>
+      <p className="text-sm text-neutral-600">{total === 0 ? "Ничего не требуется." : `Требует внимания: ${total}.`}</p>
       <section aria-label="Недавнее" className="flex flex-col gap-1.5 rounded-lg border border-neutral-200 bg-white p-4">
         <h2 className="text-sm font-semibold">Недавнее <span className="font-normal text-neutral-500">· решения с нашей стороны за 14 дней</span></h2>
-        {recent.length === 0 ? <p className="text-sm text-neutral-500">За две недели новых решений нет.</p> : (
+        {recent.length === 0 ? <p className="text-sm text-neutral-500">Нет решений.</p> : (
           <ul className="flex flex-col gap-1 text-sm">
             {recent.map((r) => (
               <li key={r.key} className="flex flex-wrap items-baseline gap-x-2">

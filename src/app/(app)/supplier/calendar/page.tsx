@@ -77,13 +77,13 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Главная" }, { label: "Календарь" }]} />
       <h1 className="text-xl font-semibold">Календарь</h1>
-      <p className="text-sm text-neutral-600">Ведите изделия по артикулу: цвет, размер, количество, этап, плановая и фактическая даты. Запись сразу видна у нас в производственном календаре. Кнопка «→» переводит на следующий этап и ставит сегодняшнюю фактическую дату.</p>
+      <p className="text-sm text-neutral-600">Записи видны в нашем календаре.</p>
 
       <section aria-label="Аукционы" className="flex flex-col gap-2">
         <h2 className="font-semibold">Аукционы</h2>
-        <p className="text-sm text-neutral-600">{isSup ? "Отметьте даты аукционов: у нас они видны в общем календаре, слой «Аукционы»." : "Даты аукционов, которые внёс Веллмех (в общем календаре — слой «Аукционы»)."}</p>
+        <p className="text-sm text-neutral-600">{isSup ? "Слой «Аукционы» в общем календаре." : "Даты аукционов, которые внёс Веллмех (в общем календаре — слой «Аукционы»)."}</p>
         {isSup && <details className="rounded-md border border-neutral-300 p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">+ Аукцион</summary><div className="mt-2"><AuctionForm houses={houses} /></div></details>}
-        {auctions.length > 0 ? <ul className="flex flex-col gap-2">{auctions.map((a) => isSup ? <AuctionRow key={a.id} mark={a} houses={houses} today={today} /> : <li key={a.id} className="rounded-md border border-neutral-200 bg-white p-3 text-sm"><b className="tabular-nums">{fmtRu(a.date)}</b> {[a.name, a.house, a.place].filter(Boolean).join(" · ")}</li>)}</ul> : <p className="text-sm text-neutral-500">Отметок пока нет.</p>}
+        {auctions.length > 0 ? <ul className="flex flex-col gap-2">{auctions.map((a) => isSup ? <AuctionRow key={a.id} mark={a} houses={houses} today={today} /> : <li key={a.id} className="rounded-md border border-neutral-200 bg-white p-3 text-sm"><b className="tabular-nums">{fmtRu(a.date)}</b> {[a.name, a.house, a.place].filter(Boolean).join(" · ")}</li>)}</ul> : <p className="text-sm text-neutral-500">Нет отметок.</p>}
       </section>
 
       {isSup && <EntryForm models={modelNames} />}
@@ -198,7 +198,7 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
                 {isSup && <Td><div className="flex items-center gap-1"><RowActions entry={e} models={modelNames} /><ChatLink type="CalendarEvent" id={e.id} role={s.user.role} label="Написать" className="!py-0.5 text-xs" /></div></Td>}
               </Tr>
             ))}
-            {shown.length === 0 && <Tr><Td colSpan={9} className="py-8 text-center text-neutral-500">{entries.length === 0 ? "Записей пока нет. Добавьте первую выше или загрузите Excel." : "По выбранным условиям записей нет"}</Td></Tr>}
+            {shown.length === 0 && <Tr><Td colSpan={9} className="py-8 text-center text-neutral-500">{entries.length === 0 ? "Нет записей." : "Нет записей"}</Td></Tr>}
           </Tbody>
         </Table>
       </div>
