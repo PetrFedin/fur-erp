@@ -10,9 +10,11 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Демо-стенд для внешних: DEMO_BUILD=true заменяет вшитые в приложение реальные справочные JSON пустыми заготовками.
+# Демо-стенд для внешних: DEMO_BUILD=true заменяет вшитые в приложение реальные справочные JSON пустыми заготовками и обезличивает
+# реквизиты, фамилии, Word-шаблоны и примеры расчётов в коде (scripts/demo-static-data.mjs → scripts/demo-sanitize.mjs).
 ARG DEMO_BUILD=false
 ENV DEMO_BUILD=$DEMO_BUILD
+ENV NEXT_PUBLIC_DEMO_BUILD=$DEMO_BUILD
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN if [ "$DEMO_BUILD" = "true" ]; then node scripts/demo-static-data.mjs; fi
 RUN npx prisma generate

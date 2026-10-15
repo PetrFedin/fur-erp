@@ -339,7 +339,7 @@ enum ContractKind {
   WORK
 }
 
-/// Договор с контрагентом: номер, дата, вид. «Договор → подрядчик» определяется этой таблицей (а не только номером 1605).
+/// Договор с контрагентом: номер, дата, вид. «Договор → подрядчик» определяется этой таблицей (а не только номером договора).
 model SupplierContract {
   id             String       @id @default(cuid())
   organizationId String
@@ -1300,7 +1300,7 @@ model ShipmentEvent {
   timeKnown         Boolean             @default(true)
   responsibleUserId String?
   responsibleUser   User?               @relation("ShipmentEventResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
-  /// Внешний ответственный текстом («Василий (Веллмех)»).
+  /// Внешний ответственный текстом («Иван (подрядчик)»).
   responsibleName   String?
   /// На ком этап: "WELLMEKH" (Веллмех) | "CUM" (ЦУМ); null — не указано.
   side              String?

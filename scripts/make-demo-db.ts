@@ -151,7 +151,7 @@ async function main() {
     const wm = /в[еэ]лл?м[еэ][хк]с?|w[eе]llm/i.test(s.name);
     const name = wm ? "Веллмех-демо" : `Поставщик №${++si} ${FICT[si % FICT.length]}`;
     await x(`update "Supplier" set name=$1, inn=$2, address='г. Москва, ул. Демонстрационная, д. 1', "contactName"='Контактное лицо', email=$3, phone='+7 000 000-00-00' where id=$4`,
-      name, String(7700000000 + sups.indexOf(s) * 13 + 1000000), `supplier${sups.indexOf(s) + 1}@demo.invalid`, s.id);
+      name, wm ? "7701000000" : String(7700000000 + sups.indexOf(s) * 13 + 1000013), `supplier${sups.indexOf(s) + 1}@demo.invalid`, s.id);
   }
   for (const [i, c] of clis.entries()) {
     await x(`update "Client" set name=$1, inn=$2, address='г. Москва, ул. Демонстрационная, д. 2', "contactName"='Контактное лицо', email=$3, phone='+7 000 000-00-01' where id=$4`,
