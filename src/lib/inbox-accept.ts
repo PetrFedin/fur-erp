@@ -362,7 +362,7 @@ async function acceptTz(s: Sess, row: Row): Promise<AcceptResult> {
   }
   finish(orgId);
   const t = tzTotals(p);
-  return { ok: true, type: "ProductionOrder", ids, message: `Создано ТЗ в статусе «Запланировано»: ${ids.length} (№ ${p.number}), изделий ${plainNum(t.qty)} шт. Списаний сырья нет — добавьте их в карточках.` };
+  return { ok: true, type: "ProductionOrder", ids, message: `Создано ТЗ: ${ids.length} (№ ${p.number}), изделий ${plainNum(t.qty)} шт. Списаний сырья нет — добавьте их в карточках.` };
 }
 
 // ============================================================================================ вход

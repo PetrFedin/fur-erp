@@ -24,7 +24,7 @@ import { defaultCommission4 } from "@/lib/commission4-const";
 import { ProductionExpenseForm } from "./expense-form";
 import { ORDER_COLORS_INCLUDE, formatOrderColors, orderColors } from "@/lib/order-colors";
 import { batchLabel } from "@/lib/batch-label";
-import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
+import { ApplyBomButton, CancelOrderButton } from "./order-actions";
 import { UsageRow } from "./usage-row";
 import { lotOptionLabel } from "./lot-label";
 import { CollapsibleRows } from "./collapsible-rows";
@@ -429,15 +429,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               )}
             </div>
           </details>
-          {open && canEdit && (
-            <CompleteOrderForm
-              orderId={id}
-              tzLabel={orderLabel({ workOrderNumber: order.workOrderNumber, number: order.number })}
-              hasUsages={order.materialUsages.length > 0}
-              plannedQuantity={order.plannedQuantity.toString()}
-              costs={{ material: furOn.incl.add(liningOn.incl).sub(furOn.extraIncl).sub(liningOn.extraIncl).toFixed(2), extra4: furOn.extraIncl.add(liningOn.extraIncl).toFixed(2), expenses: expenseCost.toFixed(2), workPerUnit: order.clientWorkPricePerUnit?.toString() ?? "" }}
-            />
-          )}
         </div>
         <div className="mt-2">
           <OrderNav

@@ -13,7 +13,6 @@ import { loadPaymentsSourceDocs } from "@/lib/source-docs-server";
 import { allocatedCentsByOrder, loadClientDebt, orderWorkCents } from "@/lib/payment-alloc";
 import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
 import { PAYMENT_TYPE_LABELS_RU } from "@/lib/payment-alloc-labels";
-import { ORDER_STATUS_LABELS } from "@/lib/dashboard-calc";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { groupByTz, tzLabel, articlesWord } from "@/lib/tz-key";
 import { cleanNote } from "@/lib/note-tags";
@@ -125,19 +124,17 @@ export default async function EditClientPage({ params }: PageProps<"/clients/[id
             <p className="text-sm text-neutral-500">ТЗ этого заказчика пока нет.</p>
           ) : (
             <Table>
-              <Thead><Tr><Th>ТЗ</Th><Th>Партия</Th><Th>Статус</Th><Th className="text-right" unit="₽">Работа</Th><Th className="text-right" unit="₽">Оплачено</Th></Tr></Thead>
+              <Thead><Tr><Th>ТЗ</Th><Th>Партия</Th><Th className="text-right" unit="₽">Работа</Th><Th className="text-right" unit="₽">Оплачено</Th></Tr></Thead>
               <Tbody>
                 {tzGroups.slice(0, ORD_SHOWN).map((g) => {
                   const o = g[0];
                   const work = g.reduce((s, x) => s + orderWorkCents(x), 0);
                   const paid = g.reduce((s, x) => s + (alloc.get(x.id) ?? 0), 0);
                   const batches = Array.from(new Set(g.map((x) => x.batch?.number).filter(Boolean)));
-                  const statuses = Array.from(new Set(g.map((x) => ORDER_STATUS_LABELS[x.status] ?? x.status)));
                   return (
                     <Tr key={o.id}>
                       <Td><Link href={`/production/${o.id}`} className="text-blue-700 hover:underline" title={o.number}>ТЗ {tzLabel(o)}</Link>{g.length > 1 && <span className="ml-1 text-xs text-neutral-500">· {g.length} {articlesWord(g.length)}</span>}</Td>
                       <Td>{batches.length ? batches.join(", ") : "—"}</Td>
-                      <Td>{statuses.join(", ")}</Td>
                       <Td className="text-right tabular-nums">{work > 0 ? cents(work) : "—"}</Td>
                       <Td className="text-right tabular-nums">{cents(paid)}</Td>
                     </Tr>

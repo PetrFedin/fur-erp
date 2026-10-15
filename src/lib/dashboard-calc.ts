@@ -10,7 +10,6 @@ import type { YearFilter } from "@/lib/year-filter";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { orderKey } from "@/lib/tz-key";
 
-export const ORDER_STATUS_LABELS: Record<string, string> = { PLANNED: "Запланирован", IN_PROGRESS: "В работе", COMPLETED: "Завершён", CANCELLED: "Отменён" };
 
 // Фильтры Сводки (год — общий, из шапки). «Статус ТЗ» и «Ставка НДС» из панели убраны: старые параметры status / vat / nds
 // в адресе игнорируются (parseDashFilters всегда отдаёт для них пустой выбор). «kind» здесь — тип ТЗ (prod / repair);

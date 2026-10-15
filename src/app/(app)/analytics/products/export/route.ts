@@ -27,12 +27,12 @@ export async function GET(request: Request) {
   if (url.searchParams.get("part") === "orders") {
     const body = toCsv(
       [
-        "ТЗ", "Номер ТЗ заказчика", "Статус", "Модель", "Категория", "Мех", "Размер изделия", "Цвет", "Партия", "Год", "Единиц", "Работа, ₽",
+        "ТЗ", "Номер ТЗ заказчика", "Модель", "Категория", "Мех", "Размер изделия", "Цвет", "Партия", "Год", "Единиц", "Работа, ₽",
         `Себестоимость с НДС (${c4Label}), ₽`, `Себестоимость без НДС (${c4Label}), ₽`, "Шкур", "Подкладка, м",
         "Молоток за шкуру с НДС, ₽", "Молоток за шкуру без НДС, ₽", "Шкур с данными о молотке", "Ставка НДС",
       ],
       rows.map((r) => [
-        r.number, r.workOrderNumber, r.group === "done" ? "сделано" : "в работе/план", r.modelName, r.category, r.fur, r.sizeRaw || r.size, r.color,
+        r.number, r.workOrderNumber, r.modelName, r.category, r.fur, r.sizeRaw || r.size, r.color,
         r.batchNumber, r.year, csvNum(r.qty, 3), csvNum(r.work), csvNum(r.costIncl), csvNum(r.costExcl), csvNum(r.furQty, 3), csvNum(r.liningQty, 3),
         r.hammerSkins > 0 ? csvNum(r.hammerIncl / r.hammerSkins) : "", r.hammerSkins > 0 ? csvNum(r.hammerExcl / r.hammerSkins) : "", csvNum(r.hammerSkins, 3),
         r.vatKind === "mix" ? "смешанные" : r.vatKind === "none" ? "" : r.vatKind,

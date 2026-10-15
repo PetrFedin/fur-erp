@@ -11,12 +11,6 @@ import { articleLabel } from "@/lib/article-label";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
 import { PrintToolbar } from "../../../../print-toolbar";
 
-const STATUS: Record<string, string> = {
-  PLANNED: "Запланирован",
-  IN_PROGRESS: "В работе",
-  COMPLETED: "Завершён",
-  CANCELLED: "Отменён",
-};
 
 const th = "border border-neutral-700 bg-neutral-100 px-2 py-1 text-left font-semibold";
 const td = "border border-neutral-700 px-2 py-1 align-top";
@@ -91,7 +85,6 @@ export default async function BatchPrintPage({
               <th className={th}>Изделие</th>
               <th className={th}>Цвет / размеры</th>
               <Head label="Кол-во" unit="шт." align="right" />
-              <th className={th}>Статус</th>
               <th className={th + " text-right"}>Себестоимость сырья{c4}</th>
               <th className={th + " text-right"}>Работа</th>
             </tr>
@@ -106,7 +99,6 @@ export default async function BatchPrintPage({
                   <td className={td}>{articleLabel(o.productModel)}</td>
                   <td className={td}>{cs || "—"}</td>
                   <td className={tdr}>{formatQty(s.qty.toString())}</td>
-                  <td className={td}>{STATUS[o.status]}</td>
                   <td className={tdr}>{s.cost.isZero() ? "—" : formatMoney(s.cost.toString())}</td>
                   <td className={tdr}>{s.work.isZero() ? "—" : formatMoney(s.work.toString())}</td>
                 </tr>
@@ -114,7 +106,7 @@ export default async function BatchPrintPage({
             })}
             {orders.length === 0 && (
               <tr>
-                <td className={td + " text-center"} colSpan={7}>
+                <td className={td + " text-center"} colSpan={6}>
                   К партии не привязано ни одного ТЗ
                 </td>
               </tr>
@@ -124,7 +116,6 @@ export default async function BatchPrintPage({
                 Итого (без отменённых)
               </td>
               <td className={tdr + " font-semibold"}>{formatQty(t.producedUnits.toString())}</td>
-              <td className={td}></td>
               <td className={tdr + " font-semibold"}>{formatMoney(t.cost.toString())}</td>
               <td className={tdr + " font-semibold"}>{formatMoney(t.work.toString())}</td>
             </tr>

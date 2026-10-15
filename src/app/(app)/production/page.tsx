@@ -50,7 +50,6 @@ import { vatBreakdown } from "@/lib/tz-vat";
 import { furKindsOfOrder, withOrderFurOptions } from "@/lib/order-fur";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
-import { ORDER_STATUS_OPTIONS } from "@/components/order-status-badge";
 import { LENGTH_OPTIONS, lengthWhere } from "@/lib/length-class";
 
 const SORTS: Record<string, string> = {
@@ -66,8 +65,7 @@ const VERIFIED_OPTIONS = [
   { value: "no", label: "Не подтверждено" },
 ];
 const PROD_FILTERS = defineFilters({
-  ...pick(["q", "season", "status", "batch", "model", "len", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view", "client"], {
-    status: { allowed: ORDER_STATUS_OPTIONS.map((o) => o.value), label: "Статус" },
+  ...pick(["q", "season", "batch", "model", "len", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view", "client"], {
     size: { label: "Размер изделия" },
     batch: { pattern: /^(\d{1,6}|none)$/ },
     docs: { allowed: ["docs", "pay"] },
@@ -185,7 +183,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         auction: () => ({ id: { in: lotOrderIds ?? [] } }),
         fur: () => ({ id: { in: lotOrderIds ?? [] } }),
         client: (v) => ({ clientId: { in: v } }),
-        status: (v) => ({ status: { in: v as ("PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED")[] } }),
         verified: (v) => (v.includes("yes") && v.includes("no") ? undefined : v.includes("yes") ? { verifiedAt: { not: null } } : v.includes("no") ? { verifiedAt: null } : undefined),
         q: (text) => ({
           OR: [

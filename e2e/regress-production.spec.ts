@@ -96,33 +96,17 @@ test.describe.serial("ТЗ: регрессия", () => {
     }
   });
 
-  test("(2)(3) отмена «В работе» без списаний; завершение без списаний запрещено; confirm", async ({ page }) => {
+  test("(2) ТЗ без списаний можно отменить; кнопки «Завершить» в карточке нет", async ({ page }) => {
     await login(page);
     const dialogs: string[] = [];
-    let accept = true;
-    page.on("dialog", (d) => { dialogs.push(d.message()); accept ? d.accept() : d.dismiss(); });
-    // ТЗ со списанием -> убираем списание: остаётся «В работе», списаний нет
+    page.on("dialog", (d) => { dialogs.push(d.message()); d.accept(); });
+    // ТЗ со списанием -> убираем списание: списаний нет
     const id = await createOrder(page, { model: "M002A", lots: "1 1" });
-    expect(statusOf(id)).toBe("IN_PROGRESS");
-    await expect(page.getByRole("button", { name: "Завершить" })).toBeEnabled();
-    accept = false;
-    await page.getByRole("button", { name: "Завершить" }).click();
-    await page.waitForTimeout(500);
-    expect(dialogs.at(-1)).toContain("Завершить ТЗ?");
-    expect(statusOf(id)).toBe("IN_PROGRESS");
-    accept = true;
+    await expect(page.getByRole("button", { name: "Завершить" })).toHaveCount(0);
     await page.getByRole("button", { name: "Удалить" }).first().click();
     await expect(page.getByText("Подкладка не указана")).toBeVisible();
     await page.waitForTimeout(800);
     expect(sql(`select count(*) from "ProductionMaterialUsage" where "productionOrderId"='${id}'`)).toBe("0");
-    expect(statusOf(id)).toBe("IN_PROGRESS");
-    // «Завершить» недоступна; сервер тоже отказывает
-    const done = page.getByRole("button", { name: "Завершить" });
-    await expect(done).toBeDisabled();
-    await done.evaluate((b) => b.removeAttribute("disabled"));
-    await done.click();
-    await expect(page.getByText("Нельзя завершить ТЗ без списаний")).toBeVisible();
-    expect(statusOf(id)).toBe("IN_PROGRESS");
     // Отмена
     await page.locator("summary", { hasText: "⋯" }).click();
     await page.getByRole("button", { name: "Отменить ТЗ" }).click();
@@ -351,17 +335,6 @@ test.describe.serial("ТЗ: регрессия", () => {
     await loginAs(page, "technologist@qa-test.ru");
     await page.goto("/production");
     await expect(page.getByRole("link", { name: "+ Новое ТЗ" })).toBeVisible();
-  });
-
-  test("(3б) «Завершить» с подтверждением переводит ТЗ в «Завершён»", async ({ page }) => {
-    await login(page);
-    const dialogs: string[] = [];
-    page.on("dialog", (d) => { dialogs.push(d.message()); d.accept(); });
-    const id = await createOrder(page, { model: "M002A", lots: "1 1" });
-    await page.getByRole("button", { name: "Завершить" }).click();
-    await expect(page.getByText("Завершён").first()).toBeVisible({ timeout: 10_000 });
-    expect(dialogs.some((m) => m.includes("Завершить ТЗ?"))).toBeTruthy();
-    expect(statusOf(id)).toBe("COMPLETED");
   });
 
   test.afterAll(() => {
