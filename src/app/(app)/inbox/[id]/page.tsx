@@ -174,7 +174,8 @@ export default async function InboxCardPage({ params }: PageProps<"/inbox/[id]">
   const preview = sent ? await previewInbox(s.user.organizationId, row) : null;
   const decider = row.decidedById ? await prisma.user.findFirst({ where: { id: row.decidedById }, select: { name: true } }) : null;
   const created = (row.createdEntityId ?? "").split(",").filter(Boolean);
-  const createdLinks = row.createdEntityType === "Purchase" ? created.map((x) => ({ href: `/purchases/${x}`, label: "Открыть закупку" })) : created.map((x, k) => ({ href: `/production/${x}`, label: `Открыть ТЗ ${k + 1}` }));
+  const purchaseNums = row.createdEntityType === "Purchase" && created.length ? new Map((await prisma.purchase.findMany({ where: { id: { in: created }, organizationId: s.user.organizationId }, select: { id: true, number: true } })).map((x) => [x.id, x.number])) : new Map<string, string>();
+  const createdLinks = row.createdEntityType === "Purchase" ? created.map((x) => ({ href: `/purchases/${x}`, label: `Открыть закупку ${purchaseNums.get(x) ?? ""}`.trim() })) : created.map((x, k) => ({ href: `/production/${x}`, label: `Открыть ТЗ ${k + 1}` }));
   const kindLabel = (k: string) => INBOX_FILE_KINDS.find((x) => x.key === k)?.label ?? k;
 
   return (
