@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChatLink } from "@/components/chat-link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { requireInboxViewer } from "@/lib/supplier-inbox";
@@ -43,7 +44,10 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
     status: e.status ?? "launch", planDate: ymd(e.date), factDate: e.factDate ? ymd(e.factDate) : "", notes: e.notes ?? "", docNote: e.docNote ?? "",
   }));
   const modelNames = models.map((m) => m.name);
-  const shown = entries.filter((e) => (!fMonth || e.planDate.startsWith(fMonth) || e.factDate.startsWith(fMonth)) && (!fArticle || e.articleCode.toLowerCase().includes(fArticle)) && (!fStatus || e.status === fStatus));
+  const sort = readSort(sp, ["article", "color", "size", "qty", "stage", "plan", "fact", "notes"]);
+  const th = (k: string) => thSort("/supplier/calendar", sp, k, sort);
+  const shownAll = entries.filter((e) => (!fMonth || e.planDate.startsWith(fMonth) || e.factDate.startsWith(fMonth)) && (!fArticle || e.articleCode.toLowerCase().includes(fArticle)) && (!fStatus || e.status === fStatus));
+  const shown = sortRows(shownAll, sort, { article: (e) => e.articleCode, color: (e) => e.color, size: (e) => e.size, qty: (e) => e.quantity, stage: (e) => SUP_STAGES.findIndex((x) => x.key === e.status), plan: (e) => e.planDate, fact: (e) => e.factDate, notes: (e) => e.notes });
 
   const days = monthGridDays(grid);
   const byDay = new Map<string, SupEntry[]>();
@@ -120,7 +124,7 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
       <p className="text-sm text-neutral-700">Записей: <b>{shown.length}</b> · изделий: <b>{shown.reduce((a, e) => a + e.quantity, 0)}</b></p>
       <div className="overflow-x-auto">
         <Table className="min-w-[900px]">
-          <Thead><Tr><Th>Артикул</Th><Th>Цвет</Th><Th>Размер</Th><Th>Кол-во</Th><Th>Этап</Th><Th>План</Th><Th>Факт</Th><Th>Комментарий</Th>{isSup && <Th />}</Tr></Thead>
+          <Thead><Tr><Th {...th("article")}>Артикул</Th><Th {...th("color")}>Цвет</Th><Th {...th("size")}>Размер</Th><Th {...th("qty")}>Кол-во</Th><Th {...th("stage")}>Этап</Th><Th {...th("plan")}>План</Th><Th {...th("fact")}>Факт</Th><Th {...th("notes")}>Комментарий</Th>{isSup && <Th />}</Tr></Thead>
           <Tbody>
             {shown.map((e) => (
               <Tr key={e.id}>

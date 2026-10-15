@@ -19,13 +19,19 @@ export function TzPreviewModal({ html, onClose, children }: { html: string; onCl
   );
 }
 
+/** Имя файла — из ответа сервера («ПРИЛОЖЕНИЕ 178.docx»), чтобы Word разных ТЗ не назывались одинаково. */
+function fileNameFrom(res: Response): string {
+  const m = /filename\*=UTF-8''([^;]+)/i.exec(res.headers.get("content-disposition") ?? "");
+  try { return m ? decodeURIComponent(m[1]) : "ПРИЛОЖЕНИЕ.docx"; } catch { return "ПРИЛОЖЕНИЕ.docx"; }
+}
+
 async function downloadWord(id: string) {
   const res = await fetch(`/api/supplier/tz/${id}/docx`);
-  if (!res.ok) return;
+  if (!res.ok) { alert("Не удалось скачать Word. Обновите страницу и попробуйте ещё раз."); return; }
   const url = URL.createObjectURL(await res.blob());
   const a = document.createElement("a");
   a.href = url;
-  a.download = "ПРИЛОЖЕНИЕ.docx";
+  a.download = fileNameFrom(res);
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -40,7 +46,7 @@ export function TzRowButtons({ id }: { id: string }) {
         setBusy(true);
         const r = await fetch(`/api/supplier/tz/${id}/preview`);
         setBusy(false);
-        if (r.ok) setHtml(await r.text());
+        if (r.ok) setHtml(await r.text()); else alert("Не удалось открыть предпросмотр. Обновите страницу и попробуйте ещё раз.");
       }}>Предпросмотр</Button>
       <Button type="button" size="sm" variant="outline" onClick={() => downloadWord(id)}>Скачать Word</Button>
       {html && <TzPreviewModal html={html} onClose={() => setHtml(null)}><Button type="button" size="sm" variant="outline" onClick={() => downloadWord(id)}>Скачать Word</Button></TzPreviewModal>}

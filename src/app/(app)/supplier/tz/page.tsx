@@ -72,7 +72,7 @@ export default async function SupplierTzPage({ searchParams }: PageProps<"/suppl
                 <Tbody>
                   {sortRows(list, sort, { title: (r) => r.title, supplier: (r) => r.supplier.name, qty: (r) => qty(r) || null, status: (r) => INBOX_STATUS_LABEL[r.status], date: (r) => r.sentAt ?? r.updatedAt }).map((r) => (
                     <Tr key={r.id}>
-                      <Td><Link className="font-medium underline" href={`/supplier/tz/${r.id}`}>{r.title}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 text-xs text-red-700">Замечание: {r.reviewNote}</div>}</Td>
+                      <Td><Link className="font-medium underline max-md:inline-block max-md:py-3" href={`/supplier/tz/${r.id}`}>{r.title}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 text-xs text-red-700">Замечание: {r.reviewNote}</div>}</Td>
                       {!isSup && <Td>{r.supplier.name}</Td>}
                       <Td className="text-right tabular-nums">{qty(r) || "—"}</Td>
                       <Td>{INBOX_STATUS_LABEL[r.status]}</Td>

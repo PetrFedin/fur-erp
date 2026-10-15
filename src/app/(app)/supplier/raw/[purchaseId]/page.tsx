@@ -150,7 +150,7 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
           ) : (
             <ul className="flex flex-col gap-1 text-sm">
               {docFiles.map((f) => (
-                <li key={f.id}><a href={`/api/supplier/inbox-files/${f.id}`} className="text-blue-700 underline">{f.originalName}</a><span className="text-neutral-500"> · {KIND[f.kind] ?? "Документ"}</span></li>
+                <li key={f.id}><a href={`/api/supplier/inbox-files/${f.id}`} className="text-blue-700 underline">{f.originalName}</a><span className="text-neutral-500"> · {f.title || (KIND[f.kind] ?? "Документ")}</span></li>
               ))}
             </ul>
           )}

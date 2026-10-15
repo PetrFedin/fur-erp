@@ -146,7 +146,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                             <b>{ids.length > 4 ? `Счета ${ids.slice(0, 4).join(", ")} и ещё ${ids.length - 4}` : `${ids.length > 1 ? "Счета" : "Счёт"} ${ids.join(", ")}`}</b>
                             <span className="text-neutral-600">шкур {num(inv.flat().reduce((a, r) => a + r.quantity, 0))}</span>
                             {sm ? <span className={sm.overdue ? "text-red-800" : "text-neutral-700"}>{summaryLine(sm)}</span> : <span className="text-neutral-500">{head.received ? "принято у нас на склад" : "этапов нет — отметьте, где мех"}</span>}
-                            {isSup && <Link href={`/supplier/raw/${head.purchaseId}`} className="ml-auto text-blue-700 underline">{sm ? "Этапы и детали →" : "+ Этап"}</Link>}
+                            {isSup && <Link href={`/supplier/raw/${head.purchaseId}`} className="ml-auto text-blue-700 underline max-md:inline-flex max-md:min-h-11 max-md:items-center">{sm ? "Этапы и детали →" : "+ Этап"}</Link>}
                           </div>
                           {st.length > 0 && (
                             <ol className="mt-2 flex flex-col gap-0.5 border-l-2 border-neutral-200 pl-3 text-xs text-neutral-700">
@@ -168,7 +168,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                       {isSup && invs.length === 1 && <AttachDocument purchaseId={invs[0][0].purchaseId} label="Приложить документ" />}
                     </div>
                     {!(ai === 0 || filtered || openName === name) ? (
-                      <Link href={`/supplier/raw?open=${encodeURIComponent(name)}`} className="text-sm text-blue-700 underline">Показать лоты ({lots.length}) →</Link>
+                      <Link href={`/supplier/raw?open=${encodeURIComponent(name)}`} className="text-sm text-blue-700 underline max-md:inline-flex max-md:min-h-11 max-md:items-center">Показать лоты ({lots.length}) →</Link>
                     ) : (
                     <div className="overflow-x-auto rounded-md border border-neutral-200">
                       <Table className="min-w-[820px]">

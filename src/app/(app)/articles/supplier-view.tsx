@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { loadArticleFurTypes } from "@/lib/article-fur-type";
+import { readSort, sortRows, thSort, type SortParams } from "@/lib/table-sort";
 import { parseSupplierDescription, supplierArticleTitle, supplierSafeText } from "@/lib/supplier-article";
 
 /**
@@ -14,7 +15,7 @@ import { parseSupplierDescription, supplierArticleTitle, supplierSafeText } from
  * только очищенное название и строки «Мех/Подкладка», которые вносит сам поставщик. Страница не берёт денежные поля вообще,
  * а page.tsx возвращает её раньше любых денежных запросов.
  */
-export async function SupplierArticles({ orgId, q, noname }: { orgId: string; q: string; noname?: boolean }) {
+export async function SupplierArticles({ orgId, q, noname, sp = {} }: { orgId: string; q: string; noname?: boolean; sp?: SortParams }) {
   const variants = q ? modelCodeVariants(q) : [];
   const like = (v: string) => ({ contains: escapeLike(v), mode: "insensitive" as const });
   const models = await prisma.productModel.findMany({
@@ -55,9 +56,13 @@ export async function SupplierArticles({ orgId, q, noname }: { orgId: string; q:
     };
   });
   const unnamed = all.filter((m) => !m.title).length;
-  const rows = (noname ? all.filter((m) => !m.title) : all).sort(
+  const byDefault = (noname ? all.filter((m) => !m.title) : all).sort(
     (a, b) => Number(!!a.title) - Number(!!b.title) || compareModelNames(a.name, b.name)
   );
+  // Сортировка по клику на заголовок (?sort=…&dir=…); без неё — как раньше: сначала с названием, по артикулу.
+  const sort = readSort(sp, ["name", "title", "category", "length", "fur", "furTz", "sizes", "colors"]);
+  const rows = sortRows(byDefault, sort, { name: (m) => m.name, title: (m) => m.title, category: (m) => m.category, length: (m) => m.lengthClass, fur: (m) => m.furType, furTz: (m) => m.fur, sizes: (m) => m.sizes, colors: (m) => m.colors });
+  const th = (k: string) => thSort("/articles", sp, k, sort);
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Изделия" }]} />
@@ -81,14 +86,14 @@ export async function SupplierArticles({ orgId, q, noname }: { orgId: string; q:
       <Table stickyHeader className="min-w-[980px]">
         <Thead>
           <Tr>
-            <Th>Артикул</Th>
-            <Th>Название изделия</Th>
-            <Th>Категория</Th>
-            <Th>Длина</Th>
-            <Th>Тип меха</Th>
-            <Th>Мех и подкладка</Th>
-            <Th>Размеры</Th>
-            <Th>Цвета</Th>
+            <Th {...th("name")}>Артикул</Th>
+            <Th {...th("title")}>Название изделия</Th>
+            <Th {...th("category")}>Категория</Th>
+            <Th {...th("length")}>Длина</Th>
+            <Th {...th("fur")}>Тип меха</Th>
+            <Th {...th("furTz")}>Мех и подкладка</Th>
+            <Th {...th("sizes")}>Размеры</Th>
+            <Th {...th("colors")}>Цвета</Th>
           </Tr>
         </Thead>
         <Tbody>

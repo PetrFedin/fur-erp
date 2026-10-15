@@ -64,7 +64,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const showEmpty = f.empty === "1";
   const session = await requireSession({ allowSupplier: true });
   // Поставщик (Веллмех): отдельный вид без денег — возвращаем ДО любых денежных запросов ниже.
-  if (session.user.role === "SUPPLIER") return <SupplierArticles orgId={session.user.organizationId} q={q} noname={sp.noname === "1"} />;
+  if (session.user.role === "SUPPLIER") return <SupplierArticles orgId={session.user.organizationId} q={q} noname={sp.noname === "1"} sp={sp} />;
   const c4Mode = await getCommission4Mode();
   const year = await getYearFilter();
   const canCreate = hasRole(session.user.role, ACCESS.models);

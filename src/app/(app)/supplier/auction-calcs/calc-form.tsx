@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useId, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
@@ -329,10 +329,11 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [] 
 const readOneOnly = (b: boolean) => b;
 
 function H({ label, v, on, ro, ph, type }: { label: string; v: string; on: (v: string) => void; ro: boolean; ph?: string; type?: string }) {
+  const id = useId();
   return (
     <div>
-      <Label>{label}</Label>
-      <Input value={v} readOnly={ro} placeholder={ph} type={type} onChange={(e) => on(e.target.value)} />
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} value={v} readOnly={ro} placeholder={ph} type={type} onChange={(e) => on(e.target.value)} />
     </div>
   );
 }

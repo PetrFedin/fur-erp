@@ -31,7 +31,7 @@ export default async function SupplierHomePage() {
   sections.push({
     title: "Не отправлено нам и возвращено на доработку",
     empty: "Всё отправлено, возвращённого нет.",
-    items: inbox.map((r) => ({ key: r.id, href: inboxHref(r), text: `${r.kind === "TZ" ? "ТЗ" : r.kind === "AUCTION_CALC" ? "Расчёт" : "Документ"} «${r.title}» — ${r.status === "DRAFT" ? "черновик, ещё не отправлен" : `отклонено${r.reviewNote ? `: ${r.reviewNote}` : ""}`}` })),
+    items: inbox.map((r) => ({ key: r.id, href: inboxHref(r), text: `${r.kind === "TZ" ? "ТЗ" : r.kind === "AUCTION_CALC" ? "Расчёт" : "Документ"} «${r.title}» — ${r.status === "DRAFT" ? "черновик, ещё не отправлен" : `возвращено${r.reviewNote ? `: ${r.reviewNote}` : ""}`}` })),
   });
 
   // 2. Запросы от нас
@@ -79,7 +79,7 @@ export default async function SupplierHomePage() {
             <h2 className="text-sm font-semibold">{sec.title}{sec.items.length > 0 && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-normal text-amber-900">{sec.items.length}</span>}</h2>
             {sec.items.length === 0 ? <p className="text-sm text-neutral-500">{sec.empty}</p> : (
               <ul className="flex flex-col gap-1 text-sm">
-                {sec.items.map((i) => <li key={i.key}><Link href={i.href} className="text-blue-700 underline decoration-dotted hover:decoration-solid">{i.text}</Link></li>)}
+                {sec.items.map((i) => <li key={i.key}><Link href={i.href} className="inline-block text-blue-700 underline decoration-dotted hover:decoration-solid max-md:py-2.5">{i.text}</Link></li>)}
               </ul>
             )}
           </section>

@@ -186,13 +186,14 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
               );
             })}
           </ul>
-          <details className="text-sm">
+          {/* Без токена бота подключать нечего: рядовому пользователю (и поставщику) подсказку «добавьте токен в .env» не показываем. */}
+          {(!!telegramToken() || hasRole(v.role, ACCESS.channels)) && <details className="text-sm">
             <summary className="cursor-pointer py-1 text-neutral-700 max-md:min-h-11">Подключить Telegram</summary>
             <div className="mt-2 flex flex-col gap-2">
               <TelegramConnect linked={myTg > 0} hasToken={!!telegramToken()} />
               {hasRole(v.role, ACCESS.channels) && <a href="/settings/channels" className="text-sm text-blue-800 underline">Каналы: группы поставщика, привязки, WhatsApp</a>}
             </div>
-          </details>
+          </details>}
         </section>
 
         <section aria-label="Переписка" data-chat-pane className={cn("min-h-0 min-w-0 overflow-y-auto", !rightOpen && "max-lg:hidden")}>

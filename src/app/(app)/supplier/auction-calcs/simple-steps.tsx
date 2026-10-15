@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useId, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
@@ -19,10 +19,11 @@ function Step({ n, title, hint, children }: { n: number; title: string; hint?: s
   );
 }
 function F({ label, v, on, ro, ph, type, className }: { label: string; v: string; on: (v: string) => void; ro: boolean; ph?: string; type?: string; className?: string }) {
+  const id = useId();
   return (
     <div className={className}>
-      <Label>{label}</Label>
-      <Input value={v} readOnly={ro} placeholder={ph} type={type} onChange={(e) => on(e.target.value)} />
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} value={v} readOnly={ro} placeholder={ph} type={type} onChange={(e) => on(e.target.value)} />
     </div>
   );
 }

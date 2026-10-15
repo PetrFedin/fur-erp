@@ -76,7 +76,7 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
               <Fragment key={r.id}>
               {heading && <Tr><Td colSpan={8} className="bg-neutral-50 py-1.5 text-sm font-semibold">{yr} год</Td></Tr>}
               <Tr>
-                <Td><Link className="font-medium underline" href={`/supplier/auction-calcs/${r.id}`}>{pl?.header?.auction || r.title}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 text-xs text-red-700">Замечание: {r.reviewNote}</div>}</Td>
+                <Td><Link className="font-medium underline max-md:inline-block max-md:py-3" href={`/supplier/auction-calcs/${r.id}`}>{pl?.header?.auction || r.title}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 text-xs text-red-700">Замечание: {r.reviewNote}</div>}</Td>
                 <Td>{pl?.header?.invoice || "—"}</Td>
                 {!isSup && <Td>{r.supplier.name}</Td>}
                 <Td className="text-right tabular-nums">{qty || "—"}</Td>

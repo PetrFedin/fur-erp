@@ -20,6 +20,7 @@ export function SupplierMarks({ shipmentId, lines, supplier, canConfirm, stamp }
   const [pending, start] = useTransition();
   const set = (id: string, patch: Partial<{ kind: MarkKind | ""; note: string }>) => setDraft((d) => ({ ...d, [id]: { ...d[id], ...patch } }));
   const anyMark = lines.some((l) => l.mark);
+  const dirty = lines.some((l) => (draft[l.id]?.kind ?? "") !== (l.mark?.kind ?? "") || (draft[l.id]?.note ?? "") !== (l.mark?.note ?? ""));
   if (!supplier && !anyMark) return null;
   const save = () => start(async () => {
     const r = await saveSupplierMarks(shipmentId, lines.map((l) => ({ lineId: l.id, kind: draft[l.id].kind, note: draft[l.id].note })));
@@ -68,7 +69,13 @@ export function SupplierMarks({ shipmentId, lines, supplier, canConfirm, stamp }
           </tbody>
         </table>
       </div>
-      {supplier && <div className="flex flex-wrap items-center gap-2"><Button type="button" disabled={pending} onClick={save}>Сохранить отметки</Button><span className="text-xs text-neutral-500">Сохраняются все строки сразу; наш учёт отметки не меняют.</span></div>}
+      {supplier && (
+        // Строк бывает десятки: панель прилипает к низу экрана, пока есть несохранённые отметки.
+        <div className={`flex flex-wrap items-center gap-2 ${dirty ? "sticky bottom-2 z-10 rounded-lg border border-amber-300 bg-amber-50 p-2 shadow" : ""}`}>
+          <Button type="button" disabled={pending} onClick={save}>Сохранить отметки</Button>
+          <span className={`text-xs ${dirty ? "font-medium text-amber-900" : "text-neutral-500"}`}>{dirty ? "Есть несохранённые отметки — нажмите «Сохранить отметки»." : "Сохраняются все строки сразу; наш учёт отметки не меняют."}</span>
+        </div>
+      )}
       {msg && <p role="status" className={msg.bad ? "text-sm text-red-600" : "text-sm text-green-700"}>{msg.text}</p>}
     </section>
   );

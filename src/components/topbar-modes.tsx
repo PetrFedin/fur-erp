@@ -52,7 +52,7 @@ export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
       <>
         <div className="flex items-center gap-1.5">
           <span className="hidden text-xs text-neutral-500 xl:inline">Год:</span>
-          <YearToggle />
+          <YearToggle supplier={yearOnly} />
         </div>
         {!yearOnly && (
           <>
@@ -87,7 +87,7 @@ export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
         <div className="absolute right-0 top-full z-40 mt-1 flex w-max max-w-[calc(100vw-1.5rem)] flex-col gap-2 rounded-md border border-neutral-200 bg-white p-3 shadow-lg">
           <div className="flex flex-col gap-1">
             <span className="text-xs text-neutral-500">Год: все, 2025 или 2026</span>
-            <YearToggle />
+            <YearToggle supplier={yearOnly} />
           </div>
           {!yearOnly && (
             <>
