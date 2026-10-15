@@ -209,7 +209,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Кому платим">
               {tgt?.canSupplier !== false && (
                 <button type="button" role="radio" aria-checked={side === "supplier"} onClick={() => { setSide("supplier"); setQuote(null); }} className={`rounded-md border px-3 py-2 text-sm ${side === "supplier" ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-300"}`}>
-                  Поставщику (аукцион / закупка)
+                  За сырьё (аукцион / закупка)
                 </button>
               )}
               {tgt?.canWork !== false && (
@@ -326,7 +326,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
         <section className="flex flex-col gap-3">
           {quote && !quote.error && quote.total != null && <p className="text-xs text-neutral-600">{quote.label}: сумма {money(quote.total)}, оплачено {money(quote.paid)}, остаток {money(quote.remaining)}</p>}
           <fieldset className="flex flex-wrap gap-2">
-            <legend className={lab}>Вид оплаты</legend>
+            <legend className={lab}>Тип оплаты</legend>
             {kinds.map((k) => (
               <button key={k.v} type="button" role="radio" aria-checked={kind === k.v} title={k.hint} onClick={() => { setKind(k.v); setCustomKind(""); if (k.v === "PERCENT" && mode === "amount") { setMode("percent"); setPercent("30"); } }} className={`rounded-md border px-3 py-2 text-sm ${kind === k.v ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-300"}`}>
                 {k.label}

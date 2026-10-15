@@ -166,7 +166,7 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
           {parsed.kind === "raw" && <ChatLink type="Payment" id={parsed.id} role={session.user.role} className="ml-auto" label="Запросить у Веллмеха" />}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-          <span>{r.what} · {dateText}</span>
+          <span>{r.what}</span>
           <span className={"font-medium " + TONE[r.status]}>{PAY_STATUS_LABEL[r.status]}</span>
         </div>
       </section>

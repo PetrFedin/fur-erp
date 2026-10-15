@@ -267,8 +267,8 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
         <div className="flex flex-col gap-3">
           {locked && <p className="rounded-md bg-[var(--ui-soft)] px-3 py-2 text-sm" data-wizard-locked>Оплата по: <b>{presetKeys.map(labelOfKey).join(", ")}</b></p>}
           {!locked && <div className="flex flex-wrap gap-3 text-sm">
-            {data.canSupplier && <label className="flex items-center gap-1.5"><input type="radio" checked={side === "supplier"} onChange={() => { setSide("supplier"); setLines([]); }} /> Поставщику</label>}
-            {data.canWork && <label className="flex items-center gap-1.5"><input type="radio" checked={side === "work"} onChange={() => { setSide("work"); setLines([]); }} /> За работу подрядчику (по ТЗ)</label>}
+            {data.canSupplier && <label className="flex items-center gap-1.5"><input type="radio" checked={side === "supplier"} onChange={() => { setSide("supplier"); setLines([]); }} /> За сырьё</label>}
+            {data.canWork && <label className="flex items-center gap-1.5"><input type="radio" checked={side === "work"} onChange={() => { setSide("work"); setLines([]); }} /> За работу</label>}
           </div>}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {!locked && side === "supplier" && data.suppliers.length > 1 && (
@@ -280,7 +280,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
             {!locked && side === "work" && data.contractors.length > 1 && (
               <div><Label htmlFor="pw-ctr">Подрядчик (получатель)</Label><Select id="pw-ctr" value={contractorId} onChange={(e) => setContractorId(e.target.value)}><option value="">По ТЗ строк</option>{data.contractors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></div>
             )}
-            <div><Label htmlFor="pw-kind">Вид оплаты</Label><Select id="pw-kind" value={kind} onChange={(e) => setKind(e.target.value as PayKind)}>{KINDS.map((k) => <option key={k.v} value={k.v}>{k.label}</option>)}</Select></div>
+            <div><Label htmlFor="pw-kind">Тип оплаты</Label><Select id="pw-kind" value={kind} onChange={(e) => setKind(e.target.value as PayKind)}>{KINDS.map((k) => <option key={k.v} value={k.v}>{k.label}</option>)}</Select></div>
             <div><Label htmlFor="pw-date">Дата оплаты</Label><Input id="pw-date" type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} /></div>
             <div><Label htmlFor="pw-amount">Сумма, ₽</Label><Input id="pw-amount" inputMode="decimal" value={amount} onChange={(e) => { setAmount(e.target.value); setLines([]); }} placeholder="например, 1 500 000,00" /></div>
             <div><Label htmlFor="pw-inv">{side === "work" ? "№ документа (по желанию)" : "№ счёта (обязательно)"}</Label><Input id="pw-inv" value={invoiceNo} onChange={(e) => { setInvoiceNo(e.target.value); setLines([]); }} placeholder={side === "work" ? "счёт, акт или письмо" : "например, 2004"} required={side !== "work"} /></div>
