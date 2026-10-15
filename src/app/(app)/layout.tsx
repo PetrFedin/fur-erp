@@ -18,6 +18,7 @@ import { availableYears, parseYearCookie } from "@/lib/year-filter";
 import { prisma } from "@/lib/prisma";
 import { canUseChat, chatCounts, viewerOf } from "@/lib/chat";
 import { BlockHover } from "@/components/block-hover";
+import { MobileTables } from "@/components/mobile-tables";
 import { FromTracker } from "@/components/from-tracker";
 import { BackLink } from "@/components/back-link";
 
@@ -91,6 +92,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </div>
       <BlockHover />
+      <MobileTables />
       <FromTracker />
       {!isSupplier && (
         <div className="print:hidden">

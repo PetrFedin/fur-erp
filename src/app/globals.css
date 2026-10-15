@@ -136,29 +136,17 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
   th a[href]::after { content: ""; position: absolute; top: 50%; left: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%); }
 }
 
-/* Телефон: ряд плиток — одна горизонтальная лента (листается вправо-влево), плитки компактнее.
+/* Телефон: ряд плиток — столбец (без горизонтальной ленты), плитки компактнее.
    Относится к рядам, где плитка (.tile-box) лежит прямо в сетке или в обёртке .relative (как на Главной). */
 @media (max-width: 639px) {
   .grid:has(> .tile-box),
   .grid:has(> .relative > .tile-box) {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.5rem;
-    margin-inline: -0.75rem;
-    padding-inline: 0.75rem;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scroll-padding-inline: 0.75rem;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
   }
-  .grid:has(> .tile-box)::-webkit-scrollbar,
-  .grid:has(> .relative > .tile-box)::-webkit-scrollbar { display: none; }
   .grid:has(> .tile-box) > *,
-  .grid:has(> .relative > .tile-box) > * {
-    flex: 0 0 74%;
-    min-width: 0;
-    scroll-snap-align: start;
-  }
+  .grid:has(> .relative > .tile-box) > * { min-width: 0; }
   .tile-box { padding: 0.75rem; }
   .tile-box [data-comment-title] { min-height: 1.5rem; font-size: 0.6875rem; }
 }
@@ -238,12 +226,9 @@ html:root :is(button, [role="button"], a.btn, summary):not(:disabled, [aria-disa
 }
 @media (max-width: 767px) {
   .raw-divider { display: none; }
-  .raw-tiles {
-    display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
-    margin-inline: -0.75rem; padding-inline: 0.75rem; scroll-padding-inline: 0.75rem;
-  }
-  .raw-tiles::-webkit-scrollbar { display: none; }
-  .raw-tiles > * { flex: 0 0 172px; min-width: 0; scroll-snap-align: start; }
+  /* Плитки сырья/оплат: столбец, без горизонтальной ленты. */
+  .raw-tiles { display: flex; flex-direction: column; gap: 0.5rem; }
+  .raw-tiles > * { flex: 0 0 auto; min-width: 0; }
 }
 
 /* «Сырьё | Оплаты» (страница «Сырьё»): в узких плитках «Общая стоимость» занимает две строки — резервируем две строки у всех шести,
@@ -271,4 +256,151 @@ table thead th { line-height: 1.15; }
 @media (max-width: 767px) {
   .icon-btn { position: relative; }
   .icon-btn::after { content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+}
+
+/* ══ ТЕЛЕФОН (<768px): без горизонтальной прокрутки и «зависших» кусков ══════════════════════════════════════
+   Таблицы превращаются в карточки-строки (атрибуты проставляет src/components/mobile-tables.tsx).
+   Исключение — класс .table-keep (матрицы вроде «как в Excel»): прокрутка только внутри самой матрицы, с подсказкой.
+   Всё ниже действует только на телефоне, десктоп и планшет (≥768px) не затронуты. */
+@media (max-width: 767px) {
+  /* Обёртки таблиц: без внутренней прокрутки, рамки и закреплённой шапки. */
+  .table-scroll:not(.table-keep),
+  .scroll-hint:not(.table-keep) {
+    overflow: visible !important;
+    max-height: none !important;
+    width: 100% !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: none !important;
+  }
+  /* Закреплённые строки/колонки отключены везде, кроме матриц. */
+  [class*="sticky"]:not(.table-keep *):not(.table-keep) { position: static !important; }
+
+  table[data-cards] { display: block; width: 100% !important; min-width: 0 !important; max-width: 100%; }
+  table[data-cards] colgroup,
+  table[data-cards] > thead { display: none !important; }
+  table[data-cards] > tbody,
+  table[data-cards] > tfoot { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; }
+  table[data-cards] > tbody > tr,
+  table[data-cards] > tfoot > tr {
+    display: grid;
+    position: relative;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.125rem 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid #e5e5e5;
+    border-radius: 0.5rem;
+    min-width: 0;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  :where(table[data-cards] > tbody > tr, table[data-cards] > tfoot > tr) { background-color: #fff; }
+  table[data-cards] > tbody > tr > :is(td, th),
+  table[data-cards] > tfoot > tr > :is(td, th) {
+    display: block;
+    position: static !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    padding: 0.125rem 0 !important;
+    border: 0 !important;
+    background-color: transparent !important;
+    text-align: left !important;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    height: auto !important;
+  }
+  table[data-cards] tr > [data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    font-weight: 400;
+    color: #666;
+  }
+  table[data-cards] tr > [data-label] { font-weight: 500; font-variant-numeric: tabular-nums; }
+  table[data-cards] tr > [data-empty] { display: none !important; }
+  table[data-cards] tr > [data-title],
+  table[data-cards] tr > :not([data-label]):not([data-ctl]),
+  table[data-cards] tr[data-solo] > * { grid-column: 1 / -1; }
+  table[data-cards] tr > [data-title] {
+    font-size: 1rem;
+    line-height: 1.375rem;
+    font-weight: 600;
+    padding-bottom: 0.375rem !important;
+    margin-bottom: 0.25rem;
+    border-bottom: 1px solid #efefef !important;
+  }
+  table[data-cards] tr > [data-ctl] {
+    position: absolute !important;
+    top: 0.125rem;
+    right: 0.125rem;
+    z-index: 1;
+    padding: 0 !important;
+  }
+  table[data-cards] tr:has(> [data-ctl]) > [data-title] { padding-right: 2.75rem !important; }
+  /* Итог — отдельная карточка. */
+  table[data-cards] tr.row-total {
+    background-color: var(--ui-soft);
+    border: 1px solid #e5e5e5;
+    border-top: 2px solid var(--ui-accent);
+  }
+  table[data-cards] tr.row-total > :is(td, th) { border-top: 0 !important; }
+  /* Вложенные таблицы внутри ячейки — те же карточки, но без своей рамки. */
+  table[data-cards] td table[data-cards] > tbody > tr { border-color: #efefef; }
+
+  /* «Сортировка» вместо скрытой шапки. */
+  .mobile-sort { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: #666; }
+  .mobile-sort label { display: flex; flex: 1; min-width: 0; align-items: center; gap: 0.5rem; }
+  .mobile-sort select { flex: 1; min-width: 0; border: 1px solid #d4d4d4; border-radius: 0.375rem; background: #fff; padding: 0 0.5rem; font-size: 0.875rem; color: #171717; }
+  .mobile-sort button { border: 1px solid #d4d4d4; border-radius: 0.375rem; background: #fff; padding: 0 0.75rem; }
+
+  /* Карусели слайдов: смахивать вбок нельзя (нет горизонтальной прокрутки) — слайды листают стрелки и точки, они уже есть. */
+  .snap-x { overflow-x: hidden !important; }
+  /* Закрепление ряда виджетов на телефоне не нужно (ряд не «зависает»). */
+  button[aria-label^="Закрепить виджеты"], button[aria-label^="Открепить виджеты"] { display: none; }
+
+  /* Обёртки вокруг карточек-таблиц и ряды вкладок/чипов: без прокрутки и рамки, вкладки и чипы переносятся в несколько строк. */
+  :is(div, section):has(> table[data-cards]),
+  :is(div, section):has(> .table-scroll > table[data-cards]) {
+    overflow: visible !important;
+    max-height: none !important;
+    border: 0 !important;
+    background: none !important;
+  }
+  .overflow-x-auto:not(.table-keep):not([data-keep-scroll]):not(.snap-x),
+  nav[aria-label="Путь"] ol {
+    overflow-x: visible !important;
+    flex-wrap: wrap !important;
+    white-space: normal !important;
+    height: auto !important;
+  }
+  nav.overflow-x-auto { row-gap: 0.25rem; }
+
+  /* Страховка: ничто не создаёт горизонтальную прокрутку страницы (внутри .table-keep прокрутка остаётся). */
+  main { overflow-x: clip; }
+
+  /* Длинные слова, имена файлов и узкие подписи не раздвигают экран. */
+  .break-words, .truncate, [class*="max-w-["] { overflow-wrap: anywhere; max-width: 100% !important; }
+  .min-w-max { min-width: 0 !important; flex-wrap: wrap; }
+  /* Выпадающие панели (фильтры, выбор): на ширину экрана под кнопкой, а не вправо за край. */
+  details:has(> .absolute) { position: static !important; }
+  details > .absolute { left: 0.75rem !important; right: 0.75rem !important; width: auto !important; max-width: none !important; }
+
+  /* Календарь-сетка кабинета Веллмеха: на телефоне — список только тех дней, где есть события (семь узких колонок не читаются). */
+  .month-grid { display: flex !important; flex-direction: column; min-width: 0 !important; gap: 0.375rem !important; border: 0 !important; background: none !important; }
+  .month-grid > div { min-height: 0 !important; border: 1px solid #e5e5e5; border-radius: 0.5rem; padding: 0.5rem 0.75rem !important; font-size: 0.8125rem; }
+  .month-grid > div:not(:has(> :nth-child(2))) { display: none; }
+  .month-grid > div > :first-child { font-size: 0.875rem; font-weight: 600; color: #171717; }
+  .month-grid .truncate { white-space: normal; }
+
+  /* Матрицы (.table-keep): прокрутка только внутри матрицы, с тенью у края; шапка/колонка остаются закреплёнными внутри неё. */
+  .table-keep { overflow: auto !important; max-width: 100%; max-height: 70vh; position: relative; }
+  .table-keep::before {
+    content: "Матрица: листайте внутри рамки вбок и вниз";
+    display: block; position: sticky; left: 0; z-index: 40; width: max-content; max-width: 100%;
+    padding: 0.25rem 0.5rem; font-size: 0.6875rem; line-height: 1rem; color: #555; background: #fffbe6; border-bottom: 1px solid #eadf9a;
+  }
 }
