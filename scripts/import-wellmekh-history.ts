@@ -27,7 +27,7 @@ import { createHash } from "crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { basename, join } from "path";
-import { docxBlocks, layoutDiff, payloadFromBlocks, textDiff } from "./lib/tz-docx-import";
+import { docxBlocks, layoutDiff, payloadFromDocx, textDiff } from "./lib/tz-docx-import";
 import { buildTzDocx } from "../src/lib/tz-docx-vendor";
 import { applySheetTable, findHeaderRow } from "../src/lib/sheet-paste";
 import { getPreset, payloadFromPreset } from "../src/lib/calc-presets";
@@ -201,7 +201,7 @@ async function main() {
     const first = (blocks.find((b) => b[0] === "P") as ["P", string] | undefined)?.[1] ?? "";
     if (!/приложение\s*№\s*\d+/i.test(first)) continue;
     let p: TzPayload;
-    try { p = payloadFromBlocks(blocks); } catch { say(`\n✘ ${basename(f).slice(0, 60)}: другой вид документа — разобрать не удалось (не создаём)`); continue; }
+    try { p = await payloadFromDocx(buf); } catch { say(`\n✘ ${basename(f).slice(0, 60)}: другой вид документа — разобрать не удалось (не создаём)`); continue; }
     const gen = await buildTzDocx(p);
     const td = textDiff(blocks, await docxBlocks(gen)).length, ld = (await layoutDiff(buf, gen)).length;
     const pos = await prisma.productionOrder.findMany({ where: { organizationId: orgId, workOrderNumber: p.number }, select: { id: true, plannedQuantity: true } });

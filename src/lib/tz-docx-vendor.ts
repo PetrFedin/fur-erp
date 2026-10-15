@@ -1,5 +1,5 @@
 import JSZip from "jszip";
-import { TZ_TEMPLATE_B64 } from "@/lib/tz-template-data";
+import { TZ_COMPAT12, TZ_TEMPLATES, type TzTemplateId } from "@/lib/tz-template-data";
 import { itemFilled, kopNum, materialFilled, plainNum, ruDate, spacedNum, typedNum, tzTotals, type TzPayload } from "@/lib/tz-vendor";
 
 /**
@@ -13,6 +13,8 @@ import { itemFilled, kopNum, materialFilled, plainNum, ruDate, spacedNum, typedN
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const unesc = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
 const squash = (s: string) => s.replace(/[\s  ]+/g, "");
+/** Текст как его видит читатель: подряд идущие пробелы (в т.ч. неразрывные) — один. */
+const spaced = (s: string) => s.replace(/[\s\u00a0\u202f]+/g, " ").trim();
 
 // ——— абзац ———
 const paraOf = (xml: string) => xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) ?? [];
@@ -35,7 +37,14 @@ function setParaText(p: string, text: string): string {
 function setCell(tc: string, text: string): string {
   const ps = paraOf(tc);
   if (!ps.length) return tc;
-  if (squash(ps.map(paraText).join("")) === squash(text)) return tc; // совпало с шаблоном — вёрстку не трогаем
+  const want = text.split("\n");
+  if (ps.length === want.length && ps.every((x, i) => spaced(paraText(x)) === spaced(want[i]))) return tc;
+  // обычные данные без явных пустых строк: пустые абзацы в хвосте ячейки шаблона текст не меняют — вёрстку не трогаем
+  const trimEnd = (a: string[]) => { const b = [...a]; while (b.length > 1 && !spaced(b[b.length - 1])) b.pop(); return b; };
+  if (!want.length || spaced(want[want.length - 1])) {
+    const have = trimEnd(ps.map(paraText)), w = trimEnd(want);
+    if (have.length === w.length && have.every((x, i) => spaced(x) === spaced(w[i]))) return tc;
+  } // совпало с шаблоном — вёрстку не трогаем
   const head = tc.slice(0, tc.indexOf(ps[0]!));
   const out = text.split("\n").map((t, i) => setParaText(ps[Math.min(i, ps.length - 1)], t));
   return head + out.join("") + "</w:tc>";
@@ -56,16 +65,83 @@ function withRows(tbl: string, rows: string[]): string {
   const end = tbl.lastIndexOf(old[old.length - 1]) + old[old.length - 1].length;
   return tbl.slice(0, start) + rows.join("") + tbl.slice(end);
 }
+/**
+ * Геометрия таблицы: Веллмех подгоняет ширины колонок в каждом файле. Сетка (twips), ширина таблицы и ширины ячеек по строкам.
+ * Ячейки без записанной ширины получают сумму колонок, которые занимают.
+ */
+export type TzGeo = { w?: number; grid: number[]; cells?: number[][] };
+function applyGeo(tbl: string, g: TzGeo): string {
+  const cols = [...tbl.matchAll(/<w:gridCol w:w="\d+"\/>/g)];
+  if (cols.length !== g.grid.length || /<w:gridAfter|<w:gridBefore/.test(tbl)) return tbl;
+  let k = 0;
+  let out = tbl.replace(/<w:gridCol w:w="\d+"\/>/g, () => `<w:gridCol w:w="${g.grid[k++]}"/>`);
+  if (g.w != null) out = out.replace(/<w:tblW w:w="\d+"/, `<w:tblW w:w="${g.w}"`);
+  let r = 0;
+  return out.replace(/<w:tr[ >][\s\S]*?<\/w:tr>/g, (tr) => {
+    let col = 0, c = 0;
+    const rowCells = g.cells?.[r++];
+    return tr.replace(/<w:tc>[\s\S]*?<\/w:tc>/g, (tc) => {
+      const span = Number(/<w:gridSpan w:val="(\d+)"/.exec(tc)?.[1] ?? 1);
+      const w = rowCells && rowCells.length === (tr.match(/<w:tc>/g) ?? []).length ? rowCells[c] : g.grid.slice(col, col + span).reduce((a, b) => a + b, 0);
+      col += span; c++;
+      return tc.replace(/<w:tcW w:w="\d+"/, `<w:tcW w:w="${w}"`);
+    });
+  });
+}
+/** Выравнивание по вертикали в ячейках строк таблицы материалов: у каждого файла Веллмеха своя колонка «по низу/по центру» (вставка из Excel). */
+function applyAlign(tr: string, align: (string | null)[]): string {
+  let c = 0;
+  return tr.replace(/<w:tc>[\s\S]*?<\/w:tc>/g, (tc) => {
+    const a = align[c++];
+    if (a === undefined) return tc;
+    const body = tc.replace(/<w:vAlign [^>]*\/>/, "");
+    const mark = a ? `<w:vAlign w:val="${a}"/>` : "";
+    if (/<w:tcPr>[\s\S]*?<\/w:tcPr>/.test(body)) return body.replace("</w:tcPr>", `${mark}</w:tcPr>`);
+    return body.replace(/<w:tcPr\/>/, mark ? `<w:tcPr>${mark}</w:tcPr>` : "<w:tcPr/>");
+  });
+}
 /** k-я строка данных берёт k-ю строку-образец; лишние строки — копии последнего образца. */
 const pick = <T,>(tpl: T[], k: number) => tpl[Math.min(k, tpl.length - 1)];
 
-export async function buildTzDocx(p: TzPayload): Promise<Buffer> {
-  const zip = await JSZip.loadAsync(Buffer.from(TZ_TEMPLATE_B64, "base64"));
+/** Дата, которой в данных нет: пустое место для заполнения от руки (ничего не выдумываем). */
+const BLANK_DATE = "__.__.____";
+/** Пустые абзацы в местах, где Веллмех их оставляет: после «к Договору», после шапки, после таблиц изделий и материалов, до и после «12.ПОДПИСИ СТОРОН», после подписей. */
+export const DEFAULT_GAPS = [1, 0, 1, 1, 0, 0, 1];
+const isEmptyPara = (b: string) => b.startsWith("<w:p") && !b.startsWith("<w:tbl") && !/<w:sectPr/.test(b) && !/<w:t[ >]/.test(b) && !/<w:drawing|<w:pict/.test(b);
+
+/** Вариант шаблона по данным ТЗ: ремонт — «Наименование услуги», остальное — пошив; «wide» берётся только если вёрстка явно задана (layout.tpl). */
+export function templateFor(p: TzPayload): TzTemplateId {
+  return p.layout?.tpl ?? (p.kind === "REPAIR" ? "repair" : p.items.some((i) => i.extra?.trim()) ? "extra" : "work");
+}
+
+/** Строки «Итого:» обеих таблиц так, как их считает система (если Веллмех вписал иначе — см. TzPayload.totalRows). */
+export function totalRowTexts(p: TzPayload): { items: string[]; mats: string[] } {
+  const t = tzTotals(p);
+  const repair = p.kind === "REPAIR";
+  const showWork = p.showWorkTotal !== false;
+  const extraSum = p.items.reduce((a, i) => a + (Number(String(i.extra ?? "").replace(",", ".")) || 0) * (Number(i.qty) || 0), 0);
+  const withExtra = templateFor(p) === "extra";
+  return {
+    items: [repair ? "Итого:" : withExtra ? "ИТОГО:" : "Итого:", plainNum(t.qty), showWork ? (repair ? kopNum(t.work) : plainNum(t.work)) : "", ...(withExtra ? [kopNum(extraSum)] : []), repair ? kopNum(t.price) : "", repair ? spacedNum(t.total) : kopNum(t.total)],
+    mats: ["ИТОГО:", p.showMatQty && t.matQty ? plainNum(t.matQty) : "", "", "", spacedNum(t.materials)],
+  };
+}
+
+export async function buildTzDocx(p: TzPayload, tplOverride?: Buffer): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(tplOverride ?? Buffer.from(TZ_TEMPLATES[templateFor(p)], "base64"));
   const xml = await zip.file("word/document.xml")!.async("string");
   const bodyStart = xml.indexOf("<w:body>") + "<w:body>".length;
   const bodyEnd = xml.lastIndexOf("</w:body>");
-  const blocks = xml.slice(bodyStart, bodyEnd).match(/<w:tbl>[\s\S]*?<\/w:tbl>|<w:p[ >][\s\S]*?<\/w:p>|<w:sectPr[\s\S]*?<\/w:sectPr>/g)!;
-
+  const raw = xml.slice(bodyStart, bodyEnd).match(/<w:tbl>[\s\S]*?<\/w:tbl>|<w:p[ >][\s\S]*?<\/w:p>|<w:sectPr[\s\S]*?<\/w:sectPr>/g)!;
+  const emptyProto = raw.find(isEmptyPara) ?? "<w:p/>";
+  // пустые абзацы шаблона запоминаются по месту (после какого блока стоят): в каждом разрыве у Веллмеха свой вид пустой строки
+  const blocks: string[] = [];
+  const slotEmpties = new Map<number, string[]>();
+  for (const b of raw) {
+    if (!isEmptyPara(b)) { blocks.push(b); continue; }
+    const k = blocks.length - 1;
+    slotEmpties.set(k, [...(slotEmpties.get(k) ?? []), b]);
+  }
   const t = tzTotals(p);
   const vat = p.vatPct.trim() || "22";
   const repair = p.kind === "REPAIR";
@@ -74,7 +150,7 @@ export async function buildTzDocx(p: TzPayload): Promise<Buffer> {
 
   const setPara = (prefix: string, text: string) => {
     const i = blocks.findIndex((b) => b.startsWith("<w:p") && paraText(b).trimStart().startsWith(prefix));
-    if (i >= 0 && squash(paraText(blocks[i])) !== squash(text)) blocks[i] = setParaText(blocks[i], text);
+    if (i >= 0 && spaced(paraText(blocks[i])) !== spaced(text)) blocks[i] = setParaText(blocks[i], text);
   };
   const tbl = blocks.map((b, i) => (b.startsWith("<w:tbl>") ? i : -1)).filter((i) => i >= 0);
 
@@ -83,25 +159,24 @@ export async function buildTzDocx(p: TzPayload): Promise<Buffer> {
   setPara("ТЕХНИЧЕСКОЕ ЗАДАНИЕ №", `ТЕХНИЧЕСКОЕ ЗАДАНИЕ № ${p.number}`);
 
   // город и дата
-  blocks[tbl[0]] = withRows(blocks[tbl[0]!]!, [setRow(rowsOf(blocks[tbl[0]!]!)[0]!, [p.city, `${ruDate(p.date)}г.`])]);
+  blocks[tbl[0]] = withRows(blocks[tbl[0]!]!, [setRow(rowsOf(blocks[tbl[0]!]!)[0]!, [p.city, `${ruDate(p.date) || (p.blankDates ? BLANK_DATE : "")}г.`])]);
 
   // изделия: заголовок, строки, «Итого:»
   {
     const rows = rowsOf(blocks[tbl[1]]);
     const data = rows.slice(1, -1);
+    const withExtra = templateFor(p) === "extra";
     const head = setRow(rows[0]!, [
       null, repair ? "Наименование услуги" : "Наименование Продукции", null, null, null, null, null, null,
       repair ? `Стоимость работ в руб. т.ч. НДС\n${vat}%` : `Стоимость работ за ед. в руб. т.ч. НДС\n${vat}%`,
+      ...(withExtra ? [`Дополнительные материалы в руб. т.ч. НДС\n${vat}%`] : []),
       repair ? `Стоимость материала в руб. в т.ч. НДС ${vat}%` : `Стоимость продукции за ед. в руб. в т.ч. НДС ${vat}%`,
       `ИТОГО в руб. в т.ч. НДС ${vat}%`,
     ]);
     const body = items.map((i, k) => setRow(pick(data, k), [
-      String(k + 1), i.name, i.color, i.model, i.material, i.size, i.lining, i.qty, typedNum(i.work), typedNum(i.price), i.total?.trim() ? i.total.trim() : kopNum(t.itemTotals[p.items.indexOf(i)] ?? 0),
+      String(k + 1), i.name, i.color, i.model, i.material, i.size, i.lining, i.qty, typedNum(i.work), ...(withExtra ? [typedNum(i.extra ?? "")] : []), typedNum(i.price), i.total?.trim() ? i.total.trim() : kopNum(t.itemTotals[p.items.indexOf(i)] ?? 0),
     ]));
-    const showWork = p.showWorkTotal !== false;
-    const total = setRow(rows[rows.length - 1], [
-      "Итого:", plainNum(t.qty), showWork ? (repair ? kopNum(t.work) : plainNum(t.work)) : "", repair ? kopNum(t.price) : "", repair ? spacedNum(t.total) : kopNum(t.total),
-    ]);
+    const total = setRow(rows[rows.length - 1], p.totalRows?.items ?? totalRowTexts(p).items);
     blocks[tbl[1]] = withRows(blocks[tbl[1]], [head, ...body, total]);
   }
 
@@ -110,18 +185,19 @@ export async function buildTzDocx(p: TzPayload): Promise<Buffer> {
     const rows = rowsOf(blocks[tbl[2]]);
     const data = rows.slice(2, -1);
     const head = setRow(rows[1], [null, null, null, null, null, null, `Общая стоимость товаров в т.ч. НДС ${vat}%`]);
-    const body = mats.map((m, k) => setRow(pick(data, k), [
+    const al = p.layout?.matAlign;
+    const body = mats.map((m, k) => (al ? (r: string) => applyAlign(r, al) : (r: string) => r)(setRow(pick(data, k), [
       m.name, m.lot, m.unit, m.qty, typedNum(m.priceNet), `${m.vatPct || vat}%`, m.total?.trim() ? m.total.trim() : spacedNum(t.matTotals[p.materials.indexOf(m)] ?? 0),
-    ]));
-    const total = setRow(rows[rows.length - 1], ["ИТОГО:", t.matQty ? plainNum(t.matQty) : "", "", "", spacedNum(t.materials)]);
+    ])));
+    const total = setRow(rows[rows.length - 1], p.totalRows?.mats ?? totalRowTexts(p).mats);
     blocks[tbl[2]] = withRows(blocks[tbl[2]], [rows[0]!, head, ...body, total]);
   }
 
   // условия
   const tm = p.terms;
-  setPara("Общая стоимость настоящего", `Общая стоимость настоящего Технического задания № ${p.number} (далее по тексту – ТЗ) составляет ${plainNum(t.total)} рублей в т.ч. НДС ${vat}%.`);
+  setPara("Общая стоимость настоящего", `Общая стоимость настоящего Технического задания № ${p.number} (далее по тексту – ТЗ) составляет ${p.totalText ?? plainNum(t.total)} рублей в т.ч. НДС ${vat}%.`);
   setPara("Порядок оплаты:", `Порядок оплаты: ${tm.payment}.`);
-  setPara("Срок завершения Работ:", `Срок завершения Работ: не позднее ${ruDate(tm.deadline)} г.`);
+  setPara("Срок завершения Работ:", `Срок завершения Работ: не позднее ${ruDate(tm.deadline) || (p.blankDates ? BLANK_DATE : "")} г.`);
   setPara("Срок поставки Продукции:", `Срок поставки Продукции: ${tm.delivery}.`);
   setPara("Место поставки/самовывоза Продукции:", `Место поставки/самовывоза Продукции: ${tm.place}.`);
   setPara("Способ поставки Продукции:", `Способ поставки Продукции: ${tm.method}.`);
@@ -138,7 +214,28 @@ export async function buildTzDocx(p: TzPayload): Promise<Buffer> {
     ]);
   }
 
-  zip.file("word/document.xml", xml.slice(0, bodyStart) + blocks.join("") + xml.slice(bodyEnd));
+  // пустые абзацы возвращаются в свои места (по умолчанию как в большинстве ТЗ Веллмеха; иначе — как записано в layout.gaps)
+  const gaps = p.layout?.gaps ?? DEFAULT_GAPS;
+  const at = (pred: (b: string) => boolean) => blocks.findIndex(pred);
+  const after: Record<number, number> = {};
+  const put = (i: number, n: number) => { if (i >= 0) after[i] = (after[i] ?? 0) + n; };
+  put(at((b) => b.startsWith("<w:p") && paraText(b).trimStart().startsWith("к Договору подряда")), gaps[0] ?? 0);
+  put(tbl[0], gaps[1] ?? 0); put(tbl[1], gaps[2] ?? 0); put(tbl[2], gaps[3] ?? 0);
+  const iSign = at((b) => b.startsWith("<w:p") && /^12\.\s*ПОДПИСИ/.test(paraText(b).trimStart()));
+  put(iSign - 1, gaps[4] ?? 0); put(iSign, gaps[5] ?? 0); put(tbl[3], gaps[6] ?? 0);
+  (p.layout?.geo ?? []).forEach((g, i) => { if (g && tbl[i] != null) blocks[tbl[i]] = applyGeo(blocks[tbl[i]], g); });
+  const out = blocks.flatMap((b, i) => {
+    const own = slotEmpties.get(i) ?? [];
+    return [b, ...Array.from({ length: after[i] ?? 0 }, (_, j) => own[Math.min(j, own.length - 1)] ?? emptyProto)];
+  });
+  // поля страницы и режим совместимости: как в файле Веллмеха, если заданы
+  const sectIdx = out.findIndex((b) => b.startsWith("<w:sectPr"));
+  if (p.layout?.sect && sectIdx >= 0) out[sectIdx] = p.layout.sect;
+  if (p.layout?.compat === 12) {
+    const st = await zip.file("word/settings.xml")!.async("string");
+    zip.file("word/settings.xml", st.replace(/<w:compat>[\s\S]*?<\/w:compat>/, TZ_COMPAT12));
+  }
+  zip.file("word/document.xml", xml.slice(0, bodyStart) + out.join("") + xml.slice(bodyEnd));
   return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
 

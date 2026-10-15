@@ -6,6 +6,8 @@ import { evalNum } from "@/lib/supplier-calc";
 
 export type TzKind = "WORK" | "REPAIR";
 export type TzItem = { name: string; color: string; model: string; material: string; size: string; lining: string; qty: string; pelts: string; work: string; price: string;
+  /** Необязательно: «Дополнительные материалы» в рублях — отдельный столбец в ТЗ, где Веллмех их выделяет (ТЗ 178); на итоги не влияет. */
+  extra?: string;
   /** Необязательно: «ИТОГО» по строке, как вписал Веллмех (иначе считается: количество × стоимость продукции; в ремонте — работа + материал). */
   total?: string };
 export type TzMaterial = { name: string; lot: string; unit: string; qty: string; priceNet: string; vatPct: string;
@@ -17,6 +19,16 @@ export type TzPayload = {
   vatPct: string; items: TzItem[]; materials: TzMaterial[]; terms: TzTerms;
   /** В строке «Итого:» показывать сумму работ (по умолчанию да, как в большинстве образцов). */
   showWorkTotal?: boolean;
+  /** Сумма в фразе «Общая стоимость настоящего ТЗ составляет …» так, как её вписал Веллмех (пробелы, запятая), если иначе, чем считает система. */
+  totalText?: string;
+  /** Даты, которых в данных нет (дата ТЗ, срок работ), печатать как «__.__.____» для заполнения от руки (ТЗ, собранные из нашей базы). */
+  blankDates?: boolean;
+  /** В строке «ИТОГО:» таблицы материалов показывать количество сырья (по умолчанию нет — в большинстве ТЗ Веллмеха ячейка пустая). */
+  showMatQty?: boolean;
+  /** Строки «Итого:» таблиц, если Веллмех вписал их иначе, чем считает система (формат числа, «ИТОГО:» заглавными, пустые ячейки): как вписано. */
+  totalRows?: { items?: string[]; mats?: string[] };
+  /** Вёрстка Word: какой образец взят и сколько пустых абзацев оставлено в местах разрывов (см. tz-docx-vendor.ts). Нет — стандартная. */
+  layout?: { tpl?: "wide" | "work" | "repair" | "extra"; compat?: 12; sect?: string; matAlign?: (string | null)[]; gaps?: number[]; geo?: ({ w?: number; grid: number[]; cells?: number[][] } | null)[] };
   /** Когда Веллмех вернул отправленное ТЗ в черновик для правки (ISO) — видно у нас во «Входящих». */
   reopenedAt?: string;
   signers: { customerPost: string; customerName: string; contractorPost: string; contractorName: string };

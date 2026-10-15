@@ -8,7 +8,7 @@ import "./stubs/server-only-shim";
 import { execSync } from "child_process";
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { docxBlocks, layoutDiff, payloadFromBlocks, textDiff } from "./lib/tz-docx-import";
+import { docxBlocks, layoutDiff, payloadFromDocx, textDiff } from "./lib/tz-docx-import";
 import { buildTzDocx } from "../src/lib/tz-docx-vendor";
 
 const APPLY = process.argv.includes("--apply"), ROLLBACK = process.argv.includes("--rollback");
@@ -16,7 +16,7 @@ const JOURNAL = join(__dirname, "..", "docs-inventory", "corrections-journal-wel
 async function main() {
   const [origPath, outPath] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
   const origBuf = readFileSync(origPath); // присланный Word (.docx)
-  const p = payloadFromBlocks(await docxBlocks(origBuf));
+  const p = await payloadFromDocx(origBuf);
   const gen = await buildTzDocx(p);
   writeFileSync(outPath, gen);
   const td = textDiff(await docxBlocks(origBuf), await docxBlocks(gen)), ld = await layoutDiff(origBuf, gen);
