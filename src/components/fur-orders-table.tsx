@@ -36,7 +36,7 @@ const usd = (v: number) => `$${v.toLocaleString("ru-RU", { minimumFractionDigits
 const BL = " border-l border-neutral-200";
 const TD = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
 
-type SortKey = "number" | "year" | "qty" | "sum" | "avg" | "per";
+type SortKey = "number" | "year" | "qty" | "sum" | "avg" | "per" | "article" | "units" | "lots" | "usd";
 
 /**
  * «Использование по ТЗ» на странице вида меха: одна строка = ТЗ (только списания этого меха из отфильтрованных лотов выше).
@@ -105,6 +105,10 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
         case "sum": return base(r);
         case "avg": return r.qty > 0 ? base(r) / r.qty : 0;
         case "per": return r.info && r.info.units > 0 ? r.qty / r.info.units : 0;
+        case "article": return r.info?.article ?? "";
+        case "units": return r.info?.units ?? 0;
+        case "lots": return r.lots.size;
+        case "usd": return r.usdQty > 0 ? r.usdSum / r.usdQty : 0;
       }
     };
     const col = new Intl.Collator("ru", { numeric: true });
@@ -198,16 +202,16 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
             </tr>
             <tr className="border-b border-neutral-200">
               <TH align="left" className="sticky left-0 z-[2] bg-white" label="№ ТЗ / партия" sort={sort.key === "number" ? sort.dir : "none"} onSort={() => setSort((s) => ({ key: "number", dir: s.key === "number" && s.dir === "desc" ? "asc" : "desc" }))} />
-              <TH align="left" label="Артикул" />
-              <TH label="Изд." unit={UNIT.pcs} />
+              {head("article", "Артикул", undefined, { left: true })}
+              {head("units", "Изд.", UNIT.pcs)}
               {head("year", "Год")}
               {head("qty", kind === "lining" ? "Метров" : "Шкур", unit, { bl: true })}
-              <TH label="Лотов" />
+              {head("lots", "Лотов")}
               <TH label="Аукц." />
               {head("sum", "Сумма", `${UNIT.rub} · без 4%`)}
               {head("avg", "Ср. цена", `₽/${unit}`, { after: <InfoHint label="Что такое средневзвешенная цена" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ.</InfoHint> })}
               <TH className="!px-1" label={grp === "all" ? "Доля" : "Доля от группы"} unit={UNIT.pct} />
-              <TH label="Ср. цена" unit={`$/${unit}`} after={<InfoHint label="Что такое средневзвешенная цена в долларах" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ — только по лотам с ценой в $ (охват «по N из M»).</InfoHint>} />
+              <TH label="Ср. цена" unit={`$/${unit}`} sort={sort.key === "usd" ? sort.dir : "none"} onSort={() => setSort((s) => ({ key: "usd", dir: s.key === "usd" && s.dir === "desc" ? "asc" : "desc" }))} after={<InfoHint label="Что такое средневзвешенная цена в долларах" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ — только по лотам с ценой в $ (охват «по N из M»).</InfoHint>} />
               {head("per", kind === "lining" ? "Метров на изд." : "Шкур на изд.", unit, { bl: true })}
               <TH label={kind === "lining" ? "Подкладка на изд." : "Мех на изд."} unit={UNIT.rub} />
             </tr>

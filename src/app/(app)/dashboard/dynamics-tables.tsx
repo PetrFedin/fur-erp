@@ -3,13 +3,16 @@
 import { TotalLabel } from "@/components/total-label";
 import { TH, THGroup } from "@/components/table-head";
 import { UNIT } from "@/lib/units";
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { isDebtDust } from "@/lib/raw-rounding";
 import { InfoHint } from "@/components/info-hint";
 import { PinSection } from "@/components/pin-section";
+import { useClientSort } from "@/lib/use-client-sort";
+import { sortRows } from "@/lib/table-sort";
+import { ScopeBadge, useFurScope } from "@/components/fur-scope";
 import { VatTriplesHint } from "./vat-line";
 import { shortMaterialName } from "@/lib/material-name";
 import type { Cells, CellsPair, RawTableRow, VatTriple, YearRow } from "@/lib/dashboard-data";
@@ -59,17 +62,44 @@ function NameCell({ arrow, indent = 0, children, title, className = "" }: { arro
 
 // ───────────────────────────── Динамика по годам ─────────────────────────────
 
-export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "off"; info: ModeInfo }) {
+const sumCellsP = (list: Cells[]): Cells => {
+  const t = list.reduce((a, c) => ({ rq: a.rq + c.rq, rv: a.rv + c.rv, uq: a.uq + c.uq, uv: a.uv + c.uv, mq: a.mq + c.mq, mv: a.mv + c.mv, uo: a.uo + c.uo }), { rq: 0, rv: 0, uq: 0, uv: 0, mq: 0, mv: 0, uo: 0 });
+  return { ...t, ra: null, ua: null, ma: null, uoa: null };
+};
+
+export function YearsTable({ rows: rowsAll, bySrc, c4, info }: { rows: YearRow[]; /** Мех по годам для источников «На аукционах» / «У поставщика». */ bySrc?: Record<"auction" | "supplier", { key: string; fur: CellsPair }[]>; c4: "on" | "off"; info: ModeInfo }) {
   void info;
+  const scope = useFurScope();
+  const sel = scope?.src ?? "all";
+  // Источник меха: мех по годам берётся из выбранного источника, подкладка не делится по источнику; оплаты и долг меха по источнику не разделяются («—»).
+  const rows = useMemo(() => {
+    if (sel === "all" || !bySrc) return rowsAll;
+    const per = new Map(bySrc[sel].map((x) => [x.key, x.fur]));
+    const yr = rowsAll.filter((r) => r.key !== "all").map((r) => {
+      const fur = per.get(r.key) ?? r.fur;
+      const lin = r.money.lining;
+      return { ...r, fur: r.key === "none" ? r.fur : fur, paid: lin.paid, debt: lin.debt, money: { fur: { paid: 0, debt: 0 }, lining: lin } };
+    });
+    const allRow = rowsAll.find((r) => r.key === "all")!;
+    const tot: YearRow = { ...allRow, fur: { incl: sumCellsP(yr.map((r) => r.fur.incl)), excl: sumCellsP(yr.map((r) => r.fur.excl)) }, paid: yr.reduce((a, r) => a + r.paid, 0), debt: yr.reduce((a, r) => a + r.debt, 0), money: { fur: { paid: 0, debt: 0 }, lining: { paid: yr.reduce((a, r) => a + r.money.lining.paid, 0), debt: yr.reduce((a, r) => a + r.money.lining.debt, 0) } } };
+    return [...yr.filter((r) => [r.fur.incl, r.lining.incl].some((c) => c.rq !== 0 || c.uq !== 0 || c.mq !== 0 || c.rv !== 0)), tot];
+  }, [rowsAll, bySrc, sel]);
   const { mode: vat } = useVatDisplay();
   // По умолчанию видны три тотала (Мех, Подкладка, Всего); по клику на «›» строка раскрывается по годам.
   const [open, setOpen] = useState<Set<string>>(new Set(["all"])); // «Всего, ₽ мех+подкладка» по годам развёрнуто по умолчанию
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  // Сортировка строк-годов по клику на заголовок (▲/▼) внутри каждого раскрытого блока (Мех, Подкладка, Всего); без выбора — по годам.
+  const ycs = useClientSort<YearRow>({});
+  const ys = (yrs0: YearRow[], pick: (r: YearRow) => Cells) => sortRows(yrs0, ycs.state, {
+    name: (r) => r.label, rq: (r) => pick(r).rq, rv: (r) => pick(r).rv, uq: (r) => pick(r).uq, uv: (r) => pick(r).uv, mq: (r) => pick(r).mq, mv: (r) => pick(r).mv, paid: (r) => r.paid, debt: (r) => r.debt,
+  });
   const sum = (a: Cells, b: Cells): Cells => ({ rq: a.rq + b.rq, rv: a.rv + b.rv, ra: null, uq: a.uq + b.uq, uv: a.uv + b.uv, ua: null, mq: a.mq + b.mq, mv: a.mv + b.mv, ma: null, uo: a.uo + b.uo, uoa: null });
 
   return (
     <PinSection id="years-table" title="Динамика по годам" value={Array.from(open)} onRestore={(v) => setOpen(new Set(v))}
-      headerExtra={
+      headerExtra={<>
+        <ScopeBadge />
+        {sel !== "all" ? <span className="text-[11px] text-neutral-500" data-testid="years-src-note">подкладка не делится по источнику; оплаты и долг меха по источнику не разделяются</span> : null}
           <InfoHint label="Как читать динамику по годам" wide>
             <p><b>Закуплено / использовано / остаток</b> — по году закупки лота: в каждой строке закуплено − использовано = остаток. Использовано — всегда без 4% (надбавка 4% показана в виджетах «Сырьё» и «Себестоимость»).</p>
             <p className="mt-1">Строки «Мех», «Подкладка» и «Всего, ₽» — итоги за все годы; нажмите «›», чтобы увидеть разбивку по годам. Штуки — только мех, подкладка в метрах; в «Всего» количества не суммируются, суммируются рубли.</p>
@@ -79,21 +109,21 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
             <p className="mt-1">Использовано — сырьё лотов, купленных в этом году (где бы ни было списано): мех, купленный в 2025, мог уйти в ТЗ 2026.</p>
             <p className="mt-1">Бобр: закупленные лоты (если есть) показаны как обычный мех — пока в ТЗ не списаны, всё куплено лежит в остатке; бобр подрядчика (изделия в ТЗ без лотов закупки) смотрите в «Производство» и «Изделия».</p>
           </InfoHint>
-      }>
+      </>}>
       <div className="table-scroll scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className={TABLE_CLS}>
           <TableCols />
           <thead>
             <tr className="border-b border-neutral-200">
-              <TH rowSpan={2} align="left" className="sticky left-0 z-[2] bg-white px-2" label="Сырьё / год" />
+              <TH rowSpan={2} align="left" className="sticky left-0 z-[2] bg-white px-2" label="Сырьё / год" {...ycs.th("name")} />
               <THGroup colSpan={2}>Куплено</THGroup>
               <THGroup colSpan={2}>Использовано</THGroup>
               <THGroup colSpan={2}>Остаток</THGroup>
-              <TH rowSpan={2} sep label="Оплачено" unit={UNIT.rub} />
-              <TH rowSpan={2} label="Задолженность" unit={UNIT.rub} />
+              <TH rowSpan={2} sep label="Оплачено" unit={UNIT.rub} {...ycs.th("paid")} />
+              <TH rowSpan={2} label="Задолженность" unit={UNIT.rub} {...ycs.th("debt")} />
             </tr>
             <tr className="border-b border-neutral-200">
-              {[0, 1, 2].flatMap((g) => [<TH key={`q${g}`} sep label="Кол-во" unit="шт. · м" />, <TH key={`v${g}`} label="Сумма" unit={UNIT.rub} />])}
+              {[0, 1, 2].flatMap((g) => [<TH key={`q${g}`} sep label="Кол-во" unit="шт. · м" {...ycs.th(["rq", "uq", "mq"][g])} />, <TH key={`v${g}`} label="Сумма" unit={UNIT.rub} {...ycs.th(["rv", "uv", "mv"][g])} />])}
             </tr>
           </thead>
           <tbody>
@@ -118,7 +148,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
                           <CellsTds c={c} unit={kd.unit} avg={false} />
                           <MoneyTds paid={m.paid} due={m.debt} note={kd.k === "lining" ? LINING_NOTE : undefined} />
                         </tr>
-                        {isOpen ? yrs.map((r) => {
+                        {isOpen ? ys(yrs, kd.pick).map((r) => {
                           const y = kd.pick(r), ym = kd.money(r);
                           return (
                             <tr key={kd.k + r.key} data-block={kd.k} className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
@@ -143,7 +173,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
                           <td className={td + " border-l border-neutral-300"}>{rub0(all.paid)}</td>
                           <td className={td + (all.debt > 0 ? " text-amber-700" : "")}>{rub0(all.debt)}</td>
                         </tr>
-                        {isOpen ? yrs.map((r) => {
+                        {isOpen ? ys(yrs, (r) => sum(r.fur[vat], r.lining[vat])).map((r) => {
                           const y = sum(r.fur[vat], r.lining[vat]);
                           const yk = "all:" + r.key, yOpen = open.has(yk);
                           return (
@@ -218,16 +248,35 @@ const addCells = (list: Cells[]): Cells => {
   return { ...s, ra: r(s.rv, s.rq), ua: r(s.uv, s.uq), ma: r(s.mv, s.mq), uoa: r(s.uo, s.uq) };
 };
 
-export function RawTable({ rows, total, money, c4, info: _info, orderFilters, vatRates }: { vatRates?: { fur: VatTriple; lining: VatTriple }; rows: RawTableRow[]; total: CellsPair; money: { paid: number; due: number; unreceived: { paid: number; due: number; names: string[]; byFur: { label: string; names: string[]; paid: number; due: number }[] } }; c4: "on" | "off"; info: ModeInfo; orderFilters: boolean}) {
+export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _info, orderFilters, vatRates }: { /** Источник строки аукциона (для переключателя «На аукционах / У поставщика»). */ auctionSrc?: Record<string, "auction" | "supplier">; vatRates?: { fur: VatTriple; lining: VatTriple }; rows: RawTableRow[]; total: CellsPair; money: { paid: number; due: number; unreceived: { paid: number; due: number; names: string[]; byFur: { label: string; names: string[]; paid: number; due: number }[] } }; c4: "on" | "off"; info: ModeInfo; orderFilters: boolean}) {
   const { mode: vat } = useVatDisplay();
   const [open, setOpen] = useState<Set<string>>(new Set());
   const avg = false; // колонки цен убраны: цены — в окне по клику на «Цена» в блоке «Сырьё»
+  const scope = useFurScope();
+  const sel = scope?.src ?? "all";
+  // Источник меха: строки видов собираются из своих строк аукционов нужного источника (подкладка не делится по источнику).
+  const rows = useMemo(() => {
+    if (sel === "all" || !auctionSrc) return rowsAll;
+    const srcOf = (k: string) => (k.startsWith("unrecv|") ? "auction" : auctionSrc[k] ?? "supplier");
+    return rowsAll.flatMap((r) => {
+      if (r.kind !== "fur") return [r];
+      const as = r.auctions.filter((a) => srcOf(a.key) === sel);
+      if (as.length === 0) return [];
+      return [{ ...r, auctions: as, cells: { incl: addCells(as.map((a) => a.cells.incl)), excl: addCells(as.map((a) => a.cells.excl)) }, paid: as.reduce((x, a) => x + a.paid, 0), due: as.reduce((x, a) => x + a.due, 0) }];
+    });
+  }, [rowsAll, auctionSrc, sel]);
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
-  const fur = rows.filter((r) => r.kind === "fur");
-  const lin = rows.filter((r) => r.kind === "lining");
+  // Сортировка по клику на заголовок (▲/▼): виды меха и ткани внутри своих блоков; без выбора — порядок по умолчанию.
+  const cs = useClientSort<RawTableRow>({
+    name: (r) => r.label, rq: (r) => r.cells[vat].rq, rv: (r) => r.cells[vat].rv, uq: (r) => r.cells[vat].uq, uv: (r) => r.cells[vat].uv, mq: (r) => r.cells[vat].mq, mv: (r) => r.cells[vat].mv, paid: (r) => r.paid, due: (r) => r.due,
+  });
+  const fur = cs.sort(rows.filter((r) => r.kind === "fur"));
+  const lin = cs.sort(rows.filter((r) => r.kind === "lining"));
   const furSub = addCells(fur.map((r) => r.cells[vat]));
   const linSub = addCells(lin.map((r) => r.cells[vat]));
-  const T = total[vat];
+  const T = sel === "all" ? total[vat] : addCells([furSub, linSub]);
+  const tPaid = sel === "all" ? money.paid : rows.reduce((a, r) => a + r.paid, 0);
+  const tDue = sel === "all" ? money.due : rows.reduce((a, r) => a + r.due, 0);
 
   const kindHead = (kindLabel: string, block: string) => (
     <tr data-hover-block={block} data-block={block} className="bg-neutral-100/70 text-xs font-semibold uppercase tracking-wide text-neutral-600"><td colSpan={9} className="px-2 py-1">{kindLabel}</td></tr>
@@ -307,7 +356,9 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
 
   return (
     <PinSection id="raw-table" title="Динамика по сырью" value={Array.from(open)} onRestore={(v) => setOpen(new Set(v))}
-      headerExtra={
+      headerExtra={<>
+          <ScopeBadge />
+          {sel !== "all" ? <span className="text-[11px] text-neutral-500">подкладка не делится по источнику</span> : null}
           <InfoHint label="Как читать таблицу по сырью" wide>
             <p>Строка — вид меха или ткань подкладки («Лиса красная» — вид «Лиса», красная — цвет). Нажмите на вид — разбивка по аукционам.</p>
             <p className="mt-1"><b>Ср. цена</b> (средневзвешенное значение: сумма ÷ количество по лотам) = Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м). Использовано, куплено и остаток — без 4%.</p>
@@ -316,21 +367,21 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
             <p className="mt-1"><b>Бобр</b> — сырьё подрядчика, лотов закупки нет; изделия из бобра смотрите в «Производство» и «Изделия». Поэтому в этой таблице по лотам его нет.</p>
             {vatRates ? <VatTriplesHint fur={vatRates.fur} lining={vatRates.lining} /> : null}
           </InfoHint>
-      }>
+      </>}>
       <div className="table-scroll scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className={TABLE_CLS}>
           <TableCols />
           <thead>
             <tr className="border-b border-neutral-200">
-              <TH rowSpan={2} align="left" className="sticky left-0 z-[2] bg-white px-2" label="Вид" />
+              <TH rowSpan={2} align="left" className="sticky left-0 z-[2] bg-white px-2" label="Вид" {...cs.th("name")} />
               <THGroup colSpan={avg ? 3 : 2}>Куплено</THGroup>
               <THGroup colSpan={avg ? 3 : 2}>Использовано</THGroup>
               <THGroup colSpan={avg ? 3 : 2}>Остаток</THGroup>
-              <TH rowSpan={2} sep label="Оплачено" unit={UNIT.rub} />
-              <TH rowSpan={2} label="Задолженность" unit={UNIT.rub} />
+              <TH rowSpan={2} sep label="Оплачено" unit={UNIT.rub} {...cs.th("paid")} />
+              <TH rowSpan={2} label="Задолженность" unit={UNIT.rub} {...cs.th("due")} />
             </tr>
             <tr className="border-b border-neutral-200">
-              {[0, 1, 2].flatMap((g) => [<TH key={`q${g}`} sep label="Кол-во" unit="шт. · м" />, <TH key={`v${g}`} label="Сумма" unit={UNIT.rub} />, ...(avg ? [<TH key={`a${g}`} label="Ср. цена" unit="₽/шт. · ₽/м" />] : [])])}
+              {[0, 1, 2].flatMap((g) => [<TH key={`q${g}`} sep label="Кол-во" unit="шт. · м" {...cs.th(["rq", "uq", "mq"][g])} />, <TH key={`v${g}`} label="Сумма" unit={UNIT.rub} {...cs.th(["rv", "uv", "mv"][g])} />, ...(avg ? [<TH key={`a${g}`} label="Ср. цена" unit="₽/шт. · ₽/м" />] : [])])}
             </tr>
           </thead>
           <tbody>
@@ -338,7 +389,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
             {lin.length > 0 ? linBlock : null}
             {(() => {
               // Деньги по закупкам без лотов (мех ещё не получен) — отдельной строкой; остальное расхождение («Всего» − виды) — прочее.
-              if (rows.length === 0) return null;
+              if (rows.length === 0 || sel !== "all") return null;
               const u = money.unreceived;
               const restPaid = money.paid - rows.reduce((a, r) => a + r.paid, 0) - u.paid;
               const restDue = money.due - rows.reduce((a, r) => a + r.due, 0) - u.due;
@@ -373,7 +424,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
                 <td className={td}>—</td><td className={td}>{rub(T.rv)}</td>{avg ? <td className={td}>—</td> : null}
                 <td className={td}>—</td><td className={td}>{rub(T.uv)}</td>{avg ? <td className={td}>—</td> : null}
                 <td className={td}>—</td><td className={td}>{rub(T.mv)}</td>{avg ? <td className={td}>—</td> : null}
-                <td className={td + " border-l border-neutral-300"}>{rub0(money.paid)}</td><td className={td}>{rub0(money.due)}</td>
+                <td className={td + " border-l border-neutral-300"}>{rub0(tPaid)}</td><td className={td}>{rub0(tDue)}</td>
               </tr>
             ) : null}
           </tbody>

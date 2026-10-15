@@ -15,6 +15,7 @@ import { YearsTable, RawTable } from "./dynamics-tables";
 import { PrintButton } from "./print-button";
 import { PriceCompositionBlock } from "./price-composition-block";
 import { priceComposition } from "@/lib/price-composition-server";
+import { FurScope } from "@/components/fur-scope";
 import { PageModes, type ModeInfo } from "./mode-line";
 
 export const metadata = { title: "Главная" };
@@ -122,14 +123,18 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       {/* ───────── Главное: ключевые цифры одной полосой, каждая плитка ведёт в раздел ───────── */}
 
-      <RawBlock href={rawHref} rows={d.rawTable} fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} vat={d.vat} furSrc={d.rawFurBySource} />
+      {/* Область действия переключателя источника меха: только эти четыре блока; всё ниже (производство, оплаты) от него не зависит. */}
+      <FurScope info={info}>
+        <RawBlock href={rawHref} rows={d.rawTable} fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} vat={d.vat} furSrc={d.rawFurBySource} />
 
-      <YearsTable rows={d.years} c4={c4Mode} info={info} />
+        <YearsTable rows={d.years} bySrc={d.yearsFurBySrc} c4={c4Mode} info={info} />
 
-      <RawTable rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4Mode} info={info} orderFilters={orderFiltersOn(f)} vatRates={d.vat} />
+        <RawTable auctionSrc={d.auctionSrc} rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4Mode} info={info} orderFilters={orderFiltersOn(f)} vatRates={d.vat} />
 
-      {/* ───────── Из чего складывается стоимость меха (сразу под «Динамикой по сырью») ───────── */}
-      <PriceCompositionBlock lots={pc.lots} href={rawHref} />
+        {/* ───────── Из чего складывается стоимость меха (сразу под «Динамикой по сырью») ───────── */}
+        <PriceCompositionBlock lots={pc.lots} href={rawHref} />
+
+      </FurScope>
 
       <ProductionBlock href={prodHref} vatCost={d.vat.cost} kind={f.kind?.[0] ?? ""} hides={d.hides} c4Parts={{ fur: { incl: Math.abs(d.raw.fur.incl.usedValue - d.raw.fur.incl.usedValueOther), excl: Math.abs(d.raw.fur.excl.usedValue - d.raw.fur.excl.usedValueOther) }, lining: { incl: Math.abs(d.raw.lining.incl.usedValue - d.raw.lining.incl.usedValueOther), excl: Math.abs(d.raw.lining.excl.usedValue - d.raw.lining.excl.usedValueOther) } }} years={d.years.filter((y) => y.key !== "all").map((y) => ({ label: y.label, qty: y.prod.qty }))} done={prodNums(d.prod.done)} all={prodNums(d.prod.all)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} info={info} bridge={{ usedBase: d.bridge.usedBase, comparable: d.bridge.usedComparable, lotFilters: lotFiltersOn(f), yearOnly: year !== "all" }} />
 

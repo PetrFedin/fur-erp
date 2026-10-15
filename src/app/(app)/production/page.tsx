@@ -416,7 +416,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                 subtitle={`${articleLabel(o.productModel)}${fur !== "—" ? ` · ${fur}` : ""}`}
                 fields={[
                   {
-                    label: <VatLabel base={`Полная себестоимость (с работой)${c4}`} />,
+                    label: <VatLabel base={`Себестоимость с работой${c4}`} />,
                     value: full.incl.isZero() ? "—" : <><Money incl={full.incl} excl={full.excl} />{st.noC4 ? <span className="block whitespace-nowrap text-[11px] font-normal text-neutral-400">без 4%: <Money incl={st.noC4.incl} excl={st.noC4.excl} /></span> : null}</>,
                     strong: true,
                   },
@@ -519,7 +519,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         subtitle={`${models.slice(0, 4).join(", ")}${models.length > 4 ? "…" : ""}${furs[0] !== "—" ? ` · ${furs.join(" + ")}` : ""}${match ? ` (${match})` : ""}`}
         badge={<span className="text-xs text-neutral-500">один ТЗ</span>}
         fields={[
-          { label: <VatLabel base={`Полная себестоимость (с работой)${c4}`} />, value: tot.full.incl.isZero() ? "—" : <Money incl={tot.full.incl} excl={tot.full.excl} />, strong: true },
+          { label: <VatLabel base={`Себестоимость с работой${c4}`} />, value: tot.full.incl.isZero() ? "—" : <Money incl={tot.full.incl} excl={tot.full.excl} />, strong: true },
           { label: "Изделий", value: tot.units > 0 ? `${formatQty(tot.units)} шт.` : "—" },
         ]}
         details={[
@@ -692,7 +692,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <Th {...tth("liningSum")} className="text-right" unit="₽"><VatLabel base="Подкладка" /></Th>
             <Th {...tth("work")} className={"text-right" + BLH} unit="₽">Работа</Th>
             <Th {...tth("full")} className="text-right" unit="₽">
-              <VatLabel base={`Полная себестоимость (с работой)${c4}`} />
+              <VatLabel base={`Себестоимость с работой${c4}`} />
             </Th>
             <Th>НДС</Th>
           </Tr>

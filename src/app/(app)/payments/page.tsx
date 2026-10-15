@@ -1,3 +1,4 @@
+import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { orderLabel, positionsOf } from "@/lib/order-label";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { uniqueLabelCount } from "@/lib/tz-key";
@@ -416,8 +417,11 @@ export default async function PaymentsPage({
       if (!pa || !pb) return pa ? -1 : pb ? 1 : 0;
       return pa.year - pb.year || pa.month - pb.month;
     });
+  // Сортировка по клику на заголовок (?asort=…&adir=…): партии внутри каждого года; без выбора — хронологически.
+  const aSort = readSort(sp, ["name", "total", "paid", "planned", "rem"], null, "a");
+  const ath = (k: string) => thSort("/payments", sp, k, aSort, "a");
   const auctionsTable = (rawList: typeof auctions, withExtras = false) => {
-    const list = sortByPeriod(rawList);
+    const list = sortRows(sortByPeriod(rawList), aSort, { name: (a) => a.name, total: (a) => a.total.toNumber(), paid: (a) => a.paid.toNumber(), planned: (a) => a.planned.toNumber(), rem: (a) => a.remaining.toNumber() });
     const groups: { year: number | null; items: typeof auctions }[] = [];
     for (const a of list) {
       const y = auctionPeriod(a.name)?.year ?? null;
@@ -430,11 +434,11 @@ export default async function PaymentsPage({
     <Table>
       <Thead>
         <Tr>
-          <Th>Аукцион</Th>
-          <Th className="text-right" unit="₽">Стоимость</Th>
-          <Th className="text-right" unit="₽">Оплачено</Th>
-          {anyPlanned && <Th className="text-right" unit="₽">Запланировано</Th>}
-          <Th className="text-right" unit="₽">Задолженность</Th>
+          <Th {...ath("name")}>Аукцион</Th>
+          <Th {...ath("total")} className="text-right" unit="₽">Стоимость</Th>
+          <Th {...ath("paid")} className="text-right" unit="₽">Оплачено</Th>
+          {anyPlanned && <Th {...ath("planned")} className="text-right" unit="₽">Запланировано</Th>}
+          <Th {...ath("rem")} className="text-right" unit="₽">Задолженность</Th>
         </Tr>
       </Thead>
       <Tbody>

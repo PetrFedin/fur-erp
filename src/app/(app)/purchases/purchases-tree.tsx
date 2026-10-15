@@ -14,6 +14,8 @@ import { LotUsageMini } from "@/components/lot-usage-bar";
 import { RowCard } from "@/components/responsive-rows";
 import { shortMaterialName } from "@/lib/material-name";
 import { ruGradeLabel } from "@/lib/fur-ref";
+import { useClientSort } from "@/lib/use-client-sort";
+import { sortRows, type SortVal } from "@/lib/table-sort";
 import { aggregate, type Agg, type TreeItem, type TreePurchase, type TreeYear } from "./purchases-agg";
 
 export type { PurchaseStatus, TreeBatch, TreePurchase, TreeYear } from "./purchases-agg";
@@ -80,6 +82,13 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
   const arrow = (isOpen: boolean, onClick: () => void, label: string) => (
     <button type="button" onClick={onClick} aria-expanded={isOpen} aria-label={`Раскрыть: ${label}`}><Chevron open={isOpen} /></button>
   );
+  // Сортировка по клику на заголовок (▲/▼): на каждом уровне (годы, партии, закупки); без выбора — хронологический порядок.
+  const cs = useClientSort<never>({});
+  const keysOf = <T,>(agg: (t: T) => Agg, name: (t: T) => string, date: (t: T) => string | null | undefined): Record<string, (t: T) => SortVal> => ({
+    name, date: (t) => date(t) ?? null, purchases: (t) => agg(t).purchases, lots: (t) => agg(t).lots, fur: (t) => agg(t).fur, lining: (t) => agg(t).lining, sum: (t) => pick(agg(t)),
+    used: (t) => usedPct(agg(t)), paid: (t) => agg(t).paid, rest: (t) => agg(t).rest,
+  });
+  const sortBy = <T,>(list: T[], agg: (t: T) => Agg, name: (t: T) => string, date: (t: T) => string | null | undefined = () => null) => sortRows(list, cs.state, keysOf(agg, name, date));
   const all = years.flatMap((y) => y.batches.flatMap((b) => b.purchases));
   const tot = aggregate(all);
   const exSum = extras.reduce((a, x) => a + x.sum, 0);
@@ -113,26 +122,26 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
           <colgroup>{TREE_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
           <thead>
             <tr>
-              <TH rowSpan={2} align="left" className="sticky left-0 z-[2] bg-white" label="Год / партия / закупка / лот" />
+              <TH rowSpan={2} align="left" className="sticky left-0 z-[2] bg-white" label="Год / партия / закупка / лот" {...cs.th("name")} />
               <THGroup colSpan={6}>Закупка</THGroup>
               <THGroup colSpan={2}>Использование</THGroup>
               <THGroup colSpan={2}>Оплата</THGroup>
             </tr>
             <tr className="border-b border-neutral-200">
-              <TH sep align="center" label="Дата" />
-              <TH label="Закупок" unit={UNIT.pcs} />
-              <TH label="Лотов" unit={UNIT.pcs} />
-              <TH label="Шкур" unit={UNIT.pcs} />
-              <TH label="Подкладка" unit={UNIT.m} />
-              <TH label="Сумма" unit={`${UNIT.rub} · ${word}`} />
-              <TH sep label="Использовано" unit={UNIT.pct} />
+              <TH sep align="center" label="Дата" {...cs.th("date")} />
+              <TH label="Закупок" unit={UNIT.pcs} {...cs.th("purchases")} />
+              <TH label="Лотов" unit={UNIT.pcs} {...cs.th("lots")} />
+              <TH label="Шкур" unit={UNIT.pcs} {...cs.th("fur")} />
+              <TH label="Подкладка" unit={UNIT.m} {...cs.th("lining")} />
+              <TH label="Сумма" unit={`${UNIT.rub} · ${word}`} {...cs.th("sum")} />
+              <TH sep label="Использовано" unit={UNIT.pct} {...cs.th("used")} />
               <TH label="Остаток" unit="шт. · м" />
-              <TH sep label="Оплачено" unit={UNIT.rub} />
-              <TH label="Долг" unit={UNIT.rub} />
+              <TH sep label="Оплачено" unit={UNIT.rub} {...cs.th("paid")} />
+              <TH label="Долг" unit={UNIT.rub} {...cs.th("rest")} />
             </tr>
           </thead>
           <tbody>
-            {years.map((y) => {
+            {sortBy(years, (y) => aggregate(y.batches.flatMap((b) => b.purchases)), (y) => String(y.year)).map((y) => {
               const yk = `y${y.year}`;
               const yOpen = !closed.has(yk);
               const list = y.batches.flatMap((b) => b.purchases);
@@ -142,7 +151,7 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
                     <td className={NAME_CELL}><span className="mr-1 inline-block align-middle">{arrow(yOpen, () => setClosed((s) => flip(s, yk)), String(y.year))}</span>{y.year}<span className="ml-1.5 text-xs font-normal text-neutral-500">{cnt(y.batches.length, "партия", "партии", "партий")}</span></td>
                     {cells(aggregate(list))}
                   </tr>
-                  {yOpen ? y.batches.map((b) => {
+                  {yOpen ? sortBy(y.batches, (b) => aggregate(b.purchases), (b) => b.label, (b) => b.purchases[0]?.date).map((b) => {
                     const bk = `${yk}:${b.key}`;
                     const bOpen = open.has(bk);
                     const ba = aggregate(b.purchases);
@@ -159,7 +168,7 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
                           </td>
                           {cells(ba, { date: b.purchases[0]?.date })}
                         </tr>
-                        {bOpen ? b.purchases.map((p) => {
+                        {bOpen ? sortBy(b.purchases, (p) => aggregate([p]), (p) => p.number, (p) => p.date).map((p) => {
                           const pk = `${bk}:${p.id}`;
                           const pOpen = open.has(pk);
                           const pa = aggregate([p]);

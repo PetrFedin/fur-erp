@@ -9,6 +9,8 @@ import { PriceCompositionChart, useChartVat } from "@/components/price-compositi
 import { COMP_CATS, CAT_LABEL, COMP_COLOR, sliceList, type CompCat, type CompSlice } from "@/lib/price-composition";
 import type { PCLot } from "@/lib/price-composition-server";
 import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
+import { ScopeBadge, useFurScope } from "@/components/fur-scope";
+import { useClientSort } from "@/lib/use-client-sort";
 import { lotsText } from "@/lib/cost-labels";
 
 const NCAT = COMP_CATS.length;
@@ -94,6 +96,7 @@ function Modal({ title, onClose, children, returnTo }: { title: string; onClose:
 function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вся закупка" }: { /** Заголовок слайда «все виды»: «Вся закупка» или выбранный источник. */ totalTitle?: string; lots: PCLot[]; fur: string | null; label: string; withVat: boolean; /** Страница самого вида меха: ссылка на себя не нужна. */ hideLink?: boolean }) {
   const a = useMemo(() => aggregate(lots), [lots]);
   const [open, setOpen] = useState<string | null>(null);
+  const rcs = useClientSort<{ l: PCLot; v: number; tot: number }>({ lot: (x) => x.l.num, fur: (x) => x.l.fur, qty: (x) => x.l.qty, v: (x) => x.v, share: (x) => (x.tot > 0 ? x.v / x.tot : null) });
   const [opener, setOpener] = useState<HTMLElement | null>(null);
   const nobdLotsN = useMemo(() => lots.filter((l) => l.excl[NOBD_IDX] > 0.005).reduce((n, l) => n + wt(l), 0), [lots]);
   // «Прочие расходы» раскрываются по сути: упаковка (строка расчёта) и остаток до цены лота (округления, не разложенное).
@@ -185,11 +188,11 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
               <colgroup><col /><col className="w-[6rem]" /><col className="w-[4.5rem]" /><col className="w-[7rem]" /><col className="w-[4.5rem]" /></colgroup>
               <thead>
                 <tr className="border-b border-neutral-200 text-xs font-medium text-neutral-500">
-                  <th className="py-1.5 pr-2">Лот</th><th className="px-1.5 py-1.5 text-right">Вид</th><Head label="Кол-во" unit="шт." align="right" className="px-1.5" /><th className="px-1.5 py-1.5 text-right">{openSlice.label}, ₽</th><th className="whitespace-nowrap px-1.5 py-1.5 text-right">Доля, %</th>
+                  <Head label="Лот" align="left" className="px-0 pr-2" {...rcs.th("lot")} /><Head label="Вид" align="right" className="px-1.5" {...rcs.th("fur")} /><Head label="Кол-во" unit="шт." align="right" className="px-1.5" {...rcs.th("qty")} /><Head label={`${openSlice.label}, ₽`} align="right" className="px-1.5" {...rcs.th("v")} /><Head label="Доля, %" align="right" className="px-1.5" {...rcs.th("share")} />
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ l, v, tot }) => (
+                {rcs.sort(rows).map(({ l, v, tot }) => (
                   <tr key={l.id} className="border-b border-neutral-100">
                     <td className="py-1.5 pr-2">
                       {l.kind === "lot" ? <Link href={`/analytics/raw/lot/${l.id}`} className="text-blue-700 hover:underline">№ {l.num}</Link> : <span>{l.num}</span>}
@@ -225,7 +228,9 @@ const SRC_KEYS: Src[] = ["all", "auction", "supplier"];
 /** `onlyFur` — страница вида меха («Сырьё → Мех → Лиса»): тот же блок и те же лоты, что на Главной, но один слайд этого вида. */
 export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots" }: { lots: PCLot[]; onlyFur?: string; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
   const { withVat, toggle } = useChartVat();
-  const [src, setSrc] = useState<Src>("all");
+  const scope = useFurScope();
+  const [localSrc, setSrc] = useState<Src>("all");
+  const src: Src = scope ? scope.src : localSrc;
   // Сумма «Куплено» по источнику (цена лота без НДС + НДС в режиме «с НДС»): Все = на аукционе + у поставщика, до копейки.
   const sums = useMemo(() => {
     const t: Record<Src, { v: number; n: number }> = { all: { v: 0, n: 0 }, auction: { v: 0, n: 0 }, supplier: { v: 0, n: 0 } };
@@ -249,7 +254,7 @@ export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots" }
   ];
   const sourceSwitch = (
     <div className="flex flex-col gap-1">
-      <div role="group" aria-label="Источник закупки" data-testid="pc-source-switch" className="flex flex-wrap gap-1.5 print:hidden">
+      {scope ? <div className="flex flex-wrap gap-1.5" data-testid="pc-source-switch"><ScopeBadge />{SRC_KEYS.map((k) => <span key={k} className={"rounded-md border px-2 py-1 text-[11px] tabular-nums " + (src === k ? "border-orange-300 bg-orange-50 text-orange-900" : "border-neutral-200 text-neutral-600")}>{SRC_LABEL[k]}: {formatMoney(sums[k].v.toFixed(2))} · {sums[k].n} {lotsWord(sums[k].n)}</span>)}</div> : <div role="group" aria-label="Источник закупки" data-testid="pc-source-switch" className="flex flex-wrap gap-1.5 print:hidden">
         {SRC_KEYS.map((k) => (
           <button key={k} type="button" aria-pressed={src === k} onClick={() => setSrc(k)}
             className={"inline-flex min-h-11 flex-col items-start justify-center rounded-md border px-3 py-1 text-left text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 " + (src === k ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>
@@ -257,7 +262,7 @@ export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots" }
             <span className="tabular-nums opacity-80">{formatMoney(sums[k].v.toFixed(2))} · {sums[k].n} {lotsWord(sums[k].n)}</span>
           </button>
         ))}
-      </div>
+      </div>}
       <p className="text-[11px] leading-4 text-neutral-500" data-testid="pc-source-check">
         Все = на аукционе + у поставщика: {formatMoney(sums.auction.v.toFixed(2))} + {formatMoney(sums.supplier.v.toFixed(2))} = {formatMoney((sums.auction.v + sums.supplier.v).toFixed(2))}{Math.abs(sums.auction.v + sums.supplier.v - sums.all.v) < 0.005 ? "" : " (с разницей округления)"}.
       </p>

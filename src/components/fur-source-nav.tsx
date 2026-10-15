@@ -16,8 +16,10 @@ export const ALL_TYPES_LABEL = "Все типы";
  * Смена источника сохраняет выбранный тип, если он есть в новом источнике, иначе показывает «Все типы».
  * Листание — общий useSlideWindow (колесо/тачпад/Shift+колесо/свайп/перетаскивание со scroll-snap, стрелки, точки).
  */
-export function useSrcTypeNav(typesBySrc: Partial<Record<FurSrc, string[]>>, initial: FurSrc = "all") {
-  const [src, setSrc] = useState<FurSrc>(initial);
+export function useSrcTypeNav(typesBySrc: Partial<Record<FurSrc, string[]>>, initial: FurSrc = "all", ctl?: { src: FurSrc; setSrc: (s: FurSrc) => void }) {
+  const [localSrc, setLocalSrc] = useState<FurSrc>(initial);
+  const src = ctl?.src ?? localSrc;
+  const setSrc = ctl?.setSrc ?? setLocalSrc;
   const types = typesBySrc[src] ?? [];
   const keys = ["", ...types];
   const sw = useSlideWindow(keys.length, "(min-width: 1024px)", 1);

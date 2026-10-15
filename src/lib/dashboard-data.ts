@@ -94,6 +94,10 @@ export type DashboardData = {
   rawTable: RawTableRow[];
   rawTableTotal: CellsPair;
   years: YearRow[];
+  /** Мех по годам закупки для источника «На аукционах» / «У поставщика» (заказанное — к аукционам, шкуры подрядчика — к поставщику): ключ года → пара ячеек. Оплаты и долг по источнику не делятся. */
+  yearsFurBySrc: Record<"auction" | "supplier", { key: string; fur: CellsPair }[]>;
+  /** Источник строки аукциона в «Динамике по сырью» (ключ строки → аукцион / поставщик). */
+  auctionSrc: Record<string, "auction" | "supplier">;
   debt: SupplierDebt;
   supplierCashPaid: number;
   /** Оплачено по статьям: сырьё (мех / подкладка), работа подрядчику, расчётная надбавка 4%. */
@@ -435,6 +439,16 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     return [...shownRows, totalRow];
   };
   let years: YearRow[] = buildYears();
+  const yearsFurBySrc = (["auction", "supplier"] as const).reduce((acc, sr) => {
+    acc[sr] = yearList.map((y) => {
+      const base = cellsPair(lotsAllYears.filter((l) => l.year === y && l.kind === "fur" && classifyLotSource(l) === sr), c4k);
+      const fur = sr === "auction" ? withOrdered(base, orderedYear.get(y)) : withHides(base, hidesYear.get(y));
+      return { key: String(y), fur };
+    });
+    return acc;
+  }, {} as DashboardData["yearsFurBySrc"]);
+  const auctionSrc: Record<string, "auction" | "supplier"> = { __none: "supplier", hides: "supplier" };
+  for (const l of allLots) if (l.kind === "fur" && !(l.auction in auctionSrc)) auctionSrc[l.auction] = classifyLotSource(l);
 
   const debt = supplierDebtFromInputs(debtInputs, year);
   const invoiceDeadlines = debt.byAuction
@@ -694,7 +708,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
       };
     })(),
     prod: { done: prodTotals(ordersYear.filter(isDone)), work: prodTotals(ordersYear.filter((o) => !isDone(o))), all: prodTotals(ordersYear) },
-    rawTable, rawTableTotal: rawTableTotalAll, years, debt,
+    rawTable, rawTableTotal: rawTableTotalAll, years, yearsFurBySrc, auctionSrc, debt,
     supplierCashPaid,
     clientDebts, clientDebtInfo: { allocated: clientDebt.allocated, unallocated: clientDebt.unallocated, unallocatedAll: clientDebt.unallocatedAll, unallocatedApplied: clientDebt.unallocatedApplied, unallocatedByKind: clientDebt.unallocatedByKind }, invoiceDeadlines, control, options: { ...options, fur: withOrderFurOptions(options.fur, ordersAll) }, noColorLots,
     noGroup: { repair: ordersAll.filter((o) => !o.categoryGroup && o.category === REPAIR_CATEGORY).length, other: ordersAll.filter((o) => !o.categoryGroup && o.category !== REPAIR_CATEGORY).length },

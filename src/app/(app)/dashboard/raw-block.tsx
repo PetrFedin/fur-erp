@@ -16,6 +16,8 @@ import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
 import { useSlideWindow } from "@/components/slide-window";
+import { useClientSort } from "@/lib/use-client-sort";
+import { ScopeBadge, useFurScope } from "@/components/fur-scope";
 import { ALL_TYPES_LABEL, FUR_SRC_KEYS, FUR_SRC_LABEL, SegmentSwitch, TypeDots, useSrcTypeNav, type FurSrc } from "@/components/fur-source-nav";
 
 type Pair = { incl: FlowFigures; excl: FlowFigures };
@@ -297,7 +299,8 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
   );
   const groups: { view: "fur" | "lining"; label: string }[] = [{ view: "fur", label: "Мех" }, { view: "lining", label: "Подкладка" }];
   // Группа «Мех»: сверху источник («Вся закупка | На аукционах | У поставщика»), под ним слайды по типам меха внутри источника: «Все типы» → Лиса → Норка → …
-  const nav = useSrcTypeNav({ all: furSrc.all.types.map((t) => t.name), auction: furSrc.auction.types.map((t) => t.name), supplier: furSrc.supplier.types.map((t) => t.name) });
+  const scope = useFurScope();
+  const nav = useSrcTypeNav({ all: furSrc.all.types.map((t) => t.name), auction: furSrc.auction.types.map((t) => t.name), supplier: furSrc.supplier.types.map((t) => t.name) }, "all", scope ?? undefined);
   const { scroller, onScroll, dragProps, cur, step, goTo, maxStart } = nav.sw;
   const block = furSrc[nav.src];
   const slidesF = [{ key: "", label: ALL_TYPES_LABEL, fur: block.total }, ...block.types.map((t) => ({ key: t.name, label: t.name, fur: t.pair }))];
@@ -317,7 +320,7 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
     && eqAll(furSrc.all.total[vat], sumFig([furSrc.auction.total[vat], furSrc.supplier.total[vat]]));
   const slideCtl = (
     <>
-      <SegmentSwitch label="Источник закупки меха" value={nav.src} onChange={nav.pick} options={FUR_SRC_KEYS.map((k) => ({ key: k, label: FUR_SRC_LABEL[k] }))} />
+      {scope ? <ScopeBadge /> : <SegmentSwitch label="Источник закупки меха" value={nav.src} onChange={nav.pick} options={FUR_SRC_KEYS.map((k) => ({ key: k, label: FUR_SRC_LABEL[k] }))} />}
       <TypeDots accent labels={slidesF.map((x) => x.label)} cur={cur} goTo={goTo} step={step} last={maxStart} />
     </>
   );
@@ -358,7 +361,7 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
                 ) : (
                   <>
                     <div className="raw-group-label">{g.label}</div>
-                    <div className="raw-tiles raw-tiles-short">
+                    <div className="raw-tiles">
                       <RawTriple view={g.view} fur={fur} lining={lining} c4={c4} compact onOpen={(col) => setPc({ view: g.view, col })} vatRates={vatRates?.[g.view]} />
                     </div>
                   </>
@@ -380,6 +383,9 @@ function SrcModal({ src, active, types, total, vat, c4, onClose }: { src: FurSrc
   useEffect(() => { ref.current?.showModal(); }, []);
   const used = (f: FlowFigures) => (c4 === "on" ? f.usedValueOther : f.usedValue);
   const tot = total[vat];
+  const cs = useClientSort<{ name: string; pair: Pair }>({
+    name: (t) => t.name, rq: (t) => t.pair[vat].recvQty, rv: (t) => t.pair[vat].recvValue, uq: (t) => t.pair[vat].usedQty, uv: (t) => used(t.pair[vat]), mq: (t) => t.pair[vat].remQty, mv: (t) => t.pair[vat].remValue,
+  });
   const num = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
   const cells = (f: FlowFigures) => (
     <>
@@ -405,12 +411,12 @@ function SrcModal({ src, active, types, total, vat, c4, onClose }: { src: FurSrc
               <THGroup colSpan={2}>Куплено</THGroup><THGroup colSpan={2}>Использовано (без 4%)</THGroup><THGroup colSpan={2}>Остаток</THGroup>
             </tr>
             <tr className="border-b border-neutral-200">
-              <TH align="left" label="Вид" />
-              {[0, 1, 2].flatMap((g) => [<TH key={`q${g}`} sep label="Кол-во" unit="шт." />, <TH key={`v${g}`} label="Сумма" unit={UNIT.rub} />])}
+              <TH align="left" label="Вид" {...cs.th("name")} />
+              {[0, 1, 2].flatMap((g) => [<TH key={`q${g}`} sep label="Кол-во" unit="шт." {...cs.th(["rq", "uq", "mq"][g])} />, <TH key={`v${g}`} label="Сумма" unit={UNIT.rub} {...cs.th(["rv", "uv", "mv"][g])} />])}
             </tr>
           </thead>
           <tbody>
-            {types.map((t) => {
+            {cs.sort(types).map((t) => {
               const on = t.name === active;
               return (
                 <tr key={t.name} data-active={on || undefined} className={"border-b border-neutral-100 " + (on ? "bg-orange-50" : "")}>
@@ -448,6 +454,7 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
   const list = rows.map((r) => ({ r, ...pick(r) })).filter((x) => x.q > 0);
   const kinds: ("fur" | "lining")[] = ["fur", "lining"];
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const pcs = useClientSort<{ r: RawTableRow; q: number; v: number; a: number | null; d: number | null; rq: number }>({ name: (x) => x.r.label, share: (x) => (x.rq > 0 ? x.q / x.rq : null), q: (x) => x.q, v: (x) => x.v, a: (x) => x.a, d: (x) => x.d });
   const toggle = (k: string) => setOpen((o) => { const n = new Set(o); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const pickYear = (c: RawTableRow["years"][number]["cells"], u: RawTableRow["usd"]) => { const x = c[vat]; const b = col === "recv" ? { q: x.rq, v: x.rv, a: x.ra, d: u.bought } : col === "used" ? { q: x.uq, v: x.uv, a: x.ua, d: u.used } : { q: x.mq, v: x.mv, a: x.ma, d: u.rem }; return { ...b, rq: x.rq }; };
   // Цена в долларах есть только у меха: в окне «Подкладка» колонки $ нет.
@@ -479,17 +486,17 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
               <THGroup colSpan={showUsd ? 2 : 1}>Цена</THGroup>
             </tr>
             <tr className="border-b border-neutral-200">
-              <TH align="left" label="Вид" />
-              {showShare ? <TH sep label="Доля от купленного" unit={UNIT.pct} /> : null}
-              <TH sep={!showShare} label="Кол-во" unit="шт. · м" />
-              <TH sep label="Сумма" unit={UNIT.rub} />
-              <TH sep label="Цена" unit="₽/шт. · ₽/м" />
-              {showUsd ? <TH label="Цена" unit={UNIT.usdPerPcs} /> : null}
+              <TH align="left" label="Вид" {...pcs.th("name")} />
+              {showShare ? <TH sep label="Доля от купленного" unit={UNIT.pct} {...pcs.th("share")} /> : null}
+              <TH sep={!showShare} label="Кол-во" unit="шт. · м" {...pcs.th("q")} />
+              <TH sep label="Сумма" unit={UNIT.rub} {...pcs.th("v")} />
+              <TH sep label="Цена" unit="₽/шт. · ₽/м" {...pcs.th("a")} />
+              {showUsd ? <TH label="Цена" unit={UNIT.usdPerPcs} {...pcs.th("d")} /> : null}
             </tr>
           </thead>
           <tbody>
             {kinds.map((k) => {
-              const part = list.filter((x) => x.r.kind === k).sort((a, b) => b.v - a.v);
+              const part = pcs.sort(list.filter((x) => x.r.kind === k).sort((a, b) => b.v - a.v));
               if (part.length === 0) return null;
               const unit = k === "lining" ? "м" : "шт.";
               return (

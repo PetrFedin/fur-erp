@@ -119,7 +119,7 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
             <Tr>
               <Th {...th("name")}>Признак</Th>
               <Th {...th("kind")}>Вид меха</Th>
-              <Th {...th("aliases")}>Синонимы (по ним ищем в тексте)</Th>
+              <Th {...th("aliases")}>Синонимы</Th>
               <Th {...th("lots")} className="text-right">Лотов</Th>
               <Th {...th("qty")} className="text-right" unit="шт.">Шкур</Th>
               <Th {...th("orders")} className="text-right">ТЗ (в тексте / по лотам)</Th>

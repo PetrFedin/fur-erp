@@ -62,7 +62,7 @@ export default async function ExpenseCategoriesPage({ searchParams }: PageProps<
       <Table>
         <Thead>
           <Tr>
-            <Th>Название и тип (можно править)</Th>
+            <Th>Название и тип</Th>
             <Th>Статус</Th>
             <Th></Th>
           </Tr>

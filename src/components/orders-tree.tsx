@@ -298,7 +298,7 @@ export function OrdersTree({
               <Head label={costLabel} unit="₽" align="right" sep after={costHint ? <InfoHint label={`Что в столбце «${costLabel}»`} wide>{costHint}</InfoHint> : undefined} />
               <Head label="Мех" unit="₽" align="right" />
               <Head label="Подкладка" unit="₽" align="right" />
-              <Head label="Работа и доп. расходы" unit="₽" align="right" after={<InfoHint label="Что в столбце «Работа и доп. расходы»" wide><p>Работа подрядчику (цена работы × количество — это «Работа» в плитках, оплатах и карточке заказчика) плюс доп. расходы ТЗ (фурнитура, прочее — строки «Доп. расходы · статья»). Поэтому итог столбца больше плитки «Работа» ровно на доп. расходы ТЗ, а оплачивается подрядчику только работа.</p></InfoHint>} />
+              <Head label="Работа и расходы" unit="₽" align="right" after={<InfoHint label="Что в столбце «Работа и доп. расходы»" wide><p>Работа подрядчику (цена работы × количество — это «Работа» в плитках, оплатах и карточке заказчика) плюс доп. расходы ТЗ (фурнитура, прочее — строки «Доп. расходы · статья»). Поэтому итог столбца больше плитки «Работа» ровно на доп. расходы ТЗ, а оплачивается подрядчику только работа.</p></InfoHint>} />
               {c4 === "on" ? <Head label="4%" unit="₽" align="right" after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} /> : null}
               {showRes ? <Head label="Прочее" unit="₽" align="right" /> : null}
               {showPay ? <><Head label="Оплачено" unit="₽" align="right" sep /><Head label="К оплате" unit="₽" align="right" /></> : null}

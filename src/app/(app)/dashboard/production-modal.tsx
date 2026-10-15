@@ -241,7 +241,7 @@ export function ProductionModal({
                           {showLinQ ? <TH label="Подкладка" unit="м" sep={!showFurQ} /> : null}
                           <TH label="Полная себестоимость" unit="₽" sep />
                           {rich ? <><TH label="Мех" unit="₽" /><TH label="Подкладка" unit="₽" /><TH label="4%" unit="₽" after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} />{showOther ? <TH label={workCol ? "Прочее" : "Расходы и прочее"} unit="₽" /> : null}</> : null}
-                          {workCol ? <TH label="Работа и доп. расходы" unit="₽" after={<InfoHint label="Что в столбце «Работа и доп. расходы»"><p>Работа подрядчику плюс доп. расходы ТЗ (строки «Доп. расходы · статья»). Плитка «Работа» и оплаты — только работа; доп. расходы подрядчику не оплачиваются.</p></InfoHint>} /> : null}
+                          {workCol ? <TH label="Работа и расходы" unit="₽" after={<InfoHint label="Что в столбце «Работа и доп. расходы»"><p>Работа подрядчику плюс доп. расходы ТЗ (строки «Доп. расходы · статья»). Плитка «Работа» и оплаты — только работа; доп. расходы подрядчику не оплачиваются.</p></InfoHint>} /> : null}
                           <TH label="Доля уровня" unit="%" sep />
                         </tr>
                       </thead>

@@ -9,6 +9,7 @@ import { REPAIR_CATEGORY } from "@/lib/dashboard-calc";
 import type { DrillData, DrillOrder } from "@/lib/dashboard-drill";
 import { InfoHint } from "@/components/info-hint";
 import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
+import { useClientSort } from "@/lib/use-client-sort";
 import { loadProductionDrill } from "./actions";
 import { CAROUSEL_ARROW } from "@/components/tile-carousel";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "./tile";
@@ -142,6 +143,7 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
   const [modeId, setModeId] = useState("cat");
   const [open, setOpen] = useState<Set<string>>(new Set());
   const closeRef = useRef<HTMLButtonElement>(null);
+  const cs = useClientSort<Agg>({ name: (g) => g.label, q: (g) => avgs(g).q, cost: (g) => avgs(g).cost, fur: (g) => avgs(g).fur, hides: (g) => avgs(g).hides, hp: (g) => avgs(g).hidePrice, meters: (g) => avgs(g).meters, mp: (g) => avgs(g).meterPrice, work: (g) => avgs(g).work, c4: (g) => avgs(g).c4 });
   const levels = MODES.find((x) => x.id === modeId)!.levels;
   const rows = useMemo(() => build(orders, vat, levels), [orders, vat, levels]);
   const total = useMemo(() => { const t = blank("all", "Всего по группе"); for (const o of orders) addOrder(t, o, vat); return t; }, [orders, vat]);
@@ -175,7 +177,7 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
   };
   const depthMax = levels.length - 1;
   const render = (nodes: Agg[], depth: number, path: string): React.ReactNode =>
-    nodes.map((r) => {
+    cs.sort(nodes).map((r) => {
       const pk = path + "/" + r.key;
       const canOpen = depth < depthMax && r.children.size > 0;
       const isOpen = open.has(pk);
@@ -230,16 +232,16 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
                   <THGroup colSpan={2}>Работа и надбавка</THGroup>
                 </tr>
                 <tr className="border-b border-neutral-200 text-xs text-neutral-500">
-                  <th className="py-1.5 pr-2 text-left font-medium">Строка</th>
-                  <TH label="Изделий" unit="шт." />
-                  <TH label="Полная себестоимость изделия" unit="₽/шт." />
-                  <TH label="Мех на изделие" unit="₽/шт." sep />
-                  <TH label="Шкур на изделие" unit="шт./изд." />
-                  <TH label="Ср. цена шкуры" unit="₽/шт." />
-                  <TH label="Подкладки на изделие" unit="м/изд." />
-                  <TH label="Ср. цена подкладки" unit="₽/м" />
-                  <TH label="Работа на изделие" unit="₽/шт." sep />
-                  <TH label="4% на изделие" unit="₽/шт." />
+                  <TH align="left" label="Строка" {...cs.th("name")} className="px-0 pr-2" />
+                  <TH label="Изделий" unit="шт." {...cs.th("q")} />
+                  <TH label="Средневзв. себестоимость" unit="₽/изд." {...cs.th("cost")} />
+                  <TH label="Мех на изделие" unit="₽/изд." sep {...cs.th("fur")} />
+                  <TH label="Шкур на изделие" unit="шт./изд." {...cs.th("hides")} />
+                  <TH label="Ср. цена шкуры" unit="₽/шт." {...cs.th("hp")} />
+                  <TH label="Подкладки на изделие" unit="м/изд." {...cs.th("meters")} />
+                  <TH label="Ср. цена подкладки" unit="₽/м" {...cs.th("mp")} />
+                  <TH label="Работа на изделие" unit="₽/изд." sep {...cs.th("work")} />
+                  <TH label="4% на изделие" unit="₽/изд." {...cs.th("c4")} />
                 </tr>
               </thead>
               <tbody>
