@@ -15,6 +15,7 @@ import { loadVerifyFlags, type VerifyFlags } from "@/lib/verification";
 import { LazyDetails } from "../lots/lazy-details";
 import { loadReconGroup } from "./group-action";
 import { loadReconBridge, type BridgeRow, type ReconBridge } from "./bridge";
+import { alignBridge } from "@/lib/recon-bridge-align";
 
 import {
   ALL_INVOICES,
@@ -154,10 +155,12 @@ const signed = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${money(Math.a
 
 /** Короткий мост «Реестр документов → разница по статьям → Главная» (по всем годам; чтение, данные не меняются). */
 function BridgeCard({ b }: { b: ReconBridge }) {
-  const rows = (list: BridgeRow[]) => list.map((r, i) => (
+  // Целые рубли, сходящиеся на экране (src/lib/recon-bridge-align.ts): реестр + разница = Главная ровно.
+  const sh = alignBridge(b);
+  const rows = (list: BridgeRow[], vals: number[]) => list.map((r, i) => (
     <tr key={i} className="border-t border-neutral-100 align-top">
       <td className="py-1 pl-4 pr-3">{r.label}{r.note ? <InfoHint label={r.label} wide>{r.note}</InfoHint> : null}</td>
-      <td className="whitespace-nowrap py-1 text-right tabular-nums">{signed(r.value)}</td>
+      <td className="whitespace-nowrap py-1 text-right tabular-nums">{signed(vals[i])}</td>
     </tr>
   ));
   const sp = b.purchase.reduce((a, r) => a + r.value, 0), sw = b.production.reduce((a, r) => a + r.value, 0);
@@ -174,16 +177,16 @@ function BridgeCard({ b }: { b: ReconBridge }) {
       </div>
       <table className="mt-2 w-full max-w-4xl">
         <tbody>
-          <tr className="border-t border-neutral-200 font-medium"><td className="py-1">Реестр документов ({ALL_INVOICES.length} счетов, все годы)</td><td className="whitespace-nowrap py-1 text-right tabular-nums">{money(b.registry.total)}</td></tr>
-          <tr className="text-neutral-600"><td className="py-1 pl-4">в т. ч. закупки сырья {money(b.registry.purchase)} · производство {money(b.registry.production)}</td><td /></tr>
-          <tr className="font-medium"><td className="pt-2">Закупки сырья: Главная − реестр ({signed(sp)})</td><td /></tr>
-          {rows(b.purchase)}
-          <tr className="font-medium"><td className="pt-2">Работа подрядчику: Главная − реестр ({signed(sw)})</td><td /></tr>
-          {rows(b.production)}
-          <tr className="border-t border-neutral-300 font-semibold"><td className="py-1">Главная: сырьё {money(b.main.raw)} + работа подрядчику {money(b.main.work)}</td><td className="whitespace-nowrap py-1 text-right tabular-nums">{money(b.main.total)}</td></tr>
+          <tr className="border-t border-neutral-200 font-medium"><td className="py-1">Реестр документов ({ALL_INVOICES.length} счетов, все годы)</td><td className="whitespace-nowrap py-1 text-right tabular-nums">{money(sh.registry.total)}</td></tr>
+          <tr className="text-neutral-600"><td className="py-1 pl-4">в т. ч. закупки сырья {money(sh.registry.purchase)} · производство {money(sh.registry.production)}</td><td /></tr>
+          <tr className="font-medium"><td className="pt-2">Закупки сырья: Главная − реестр ({signed(sh.sp)})</td><td /></tr>
+          {rows(b.purchase, sh.purchase)}
+          <tr className="font-medium"><td className="pt-2">Работа подрядчику: Главная − реестр ({signed(sh.sw)})</td><td /></tr>
+          {rows(b.production, sh.production)}
+          <tr className="border-t border-neutral-300 font-semibold"><td className="py-1">Главная: сырьё {money(sh.main.raw)} + работа подрядчику {money(sh.main.work)}</td><td className="whitespace-nowrap py-1 text-right tabular-nums">{money(sh.main.total)}</td></tr>
         </tbody>
       </table>
-      <p className="mt-2 text-xs text-neutral-500">Реестр {money(b.registry.total)} {signed(sp + sw)} = Главная {money(b.main.total)}.</p>
+      <p className="mt-2 text-xs text-neutral-500">Реестр {money(sh.registry.total)} {signed(sh.sp + sh.sw)} = Главная {money(sh.main.total)}.</p>
     </Card>
   );
 }

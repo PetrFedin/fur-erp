@@ -9,6 +9,7 @@
 // Все суммы собираются «с НДС» (в той базе, в какой посчитана цена лота: Σ = totalCost лота), а «без НДС» получается делением на (1 + ставка лота),
 // как и везде в системе (unitExcl = unitIncl ÷ (1+ставка)). Что не распознано — «Прочие расходы» (остаток до цены лота, копейки не теряются).
 import { lotUsdRef } from "@/lib/lot-hammer";
+import { alignColumn, lrAllocate } from "@/lib/money-round";
 
 export type CompCat = "raw" | "fx" | "transport" | "dress" | "dye" | "agent" | "mediator" | "other";
 
@@ -314,4 +315,15 @@ export function sliceList(cats: Record<CompCat, number>, o: { nobd?: number; vat
   if ((o.nobd ?? 0) !== 0) out.push({ key: "nobd", label: "Без разбивки в расчёте", value: o.nobd ?? 0, color: COMP_COLOR.nobd, hint: "Лоты и позиции, у которых в расчёте нет строк состава цены (или только итог): вся их стоимость без деления на составляющие." });
   if (o.withVat && (o.vat ?? 0) !== 0) out.push({ key: "vat", label: "НДС", value: o.vat ?? 0, color: COMP_COLOR.vat, hint: "НДС, включённый в цену лота (цена с НДС − цена без НДС)." });
   return out.filter((s) => Math.abs(s.value) >= 0.005);
+}
+
+/** Составляющие в целых рублях, складывающиеся в показанный итог; подстроки — в показанное значение родителя (src/lib/money-round.ts). */
+export function alignSlices(list: CompSlice[], total: number): CompSlice[] {
+  const al = alignColumn(list.map((s) => s.value), total);
+  return list.map((s, i) => {
+    const v = al.values[i];
+    if (!s.sub) return { ...s, value: v };
+    const subs = lrAllocate(s.sub.map((x) => x.value), v);
+    return { ...s, value: v, sub: s.sub.map((x, j) => ({ ...x, value: subs[j] })) };
+  });
 }

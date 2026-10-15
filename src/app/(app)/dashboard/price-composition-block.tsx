@@ -6,12 +6,13 @@ import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { TileCarousel } from "@/components/tile-carousel";
 import { PriceCompositionChart, useChartVat } from "@/components/price-composition";
-import { COMP_CATS, CAT_LABEL, COMP_COLOR, sliceList, type CompCat, type CompSlice } from "@/lib/price-composition";
+import { COMP_CATS, CAT_LABEL, COMP_COLOR, alignSlices, sliceList, type CompCat, type CompSlice } from "@/lib/price-composition";
 import type { PCLot } from "@/lib/price-composition-server";
 import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { ScopeBadge, useFurScope } from "@/components/fur-scope";
 import { useClientSort } from "@/lib/use-client-sort";
-import { lotsText } from "@/lib/cost-labels";
+import { lotCounts, lotCountsText, LOTS_RULE } from "@/lib/cost-labels";
+import { alignColumn, lrAllocate, roundRub } from "@/lib/money-round";
 
 const NCAT = COMP_CATS.length;
 const KEYS: string[] = [...COMP_CATS.map((c) => c.key), "nobd"];
@@ -22,12 +23,8 @@ const NOBD_IDX = KEYS.indexOf("nobd");
 
 /** Вес строки в счёте «лотов»: заказанное, но не полученное (лотов ещё нет) считается по позициям закупки — каждая станет лотом. */
 const wt = (l: PCLot) => (l.kind === "planned" ? l.positions ?? 1 : 1);
-/** «лотов 23, позиций заказано 71» (lotsText, LOTS_RULE): настоящие лоты и позиции заказанного, но не полученного — раздельно. */
-const lotsLine = (lots: PCLot[]) => {
-  const real = lots.filter((l) => l.kind === "lot").length;
-  const pos = lots.filter((l) => l.kind === "planned").reduce((n, l) => n + wt(l), 0);
-  return lotsText(real, pos);
-};
+/** «лотов 23, позиций заказано 71» (единый подсчёт lotCounts / LOTS_RULE): настоящие лоты, позиции заказанного и шкуры подрядчика — раздельно. */
+const lotsLine = (lots: PCLot[]) => lotCountsText(lotCounts(lots));
 const lotsWord = (n: number) => { const m = n % 100, d = n % 10; return m >= 11 && m <= 14 ? "лотов" : d === 1 ? "лот" : d >= 2 && d <= 4 ? "лота" : "лотов"; };
 
 /** «Нет расчётного листа» входит в сектор «Сырьё» (в цене лота без разбивки в основном шкуры) подстрокой; сумма сектора = сумма подстрок. */
@@ -125,7 +122,9 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
       ? { ...sl, note: fur === "Рысь" ? LYNX_NOTE : undefined, sub: otherGroups.map(([k, e]) => ({ key: k, label: `${e.label} (${e.n} ${lotsWord(e.n)})`, value: e.value, color: COMP_COLOR.other, hint: e.hint })) }
       : fur === "Рысь" && (sl.key === "other" || sl.key === "dress") ? { ...sl, note: LYNX_NOTE } : sl);
   const exclTotal = Object.values(a.cats).reduce((s, v) => s + v, 0) + a.nobd;
-  const total = withVat ? exclTotal + a.vat : exclTotal;
+  const totalExact = withVat ? exclTotal + a.vat : exclTotal;
+  const total = roundRub(totalExact);
+  const slicesShown = alignSlices(slices, total);
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
     for (const k of KEYS) m[k] = lots.filter((l) => l.excl[KEYS.indexOf(k)] > 0.005).reduce((n, l) => n + wt(l), 0);
@@ -147,7 +146,7 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
     }
     return m;
   }, [lots, otherGroups]);
-  const openSlice = open ? slices.find((s) => s.key === open) : null;
+  const openSlice = open ? slicesShown.find((s) => s.key === open) : null;
   const sel = (key: string) => { setOpener(document.activeElement as HTMLElement | null); setOpen(key); };
   const rows = openSlice
     ? lots
@@ -155,7 +154,9 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
         .filter((r) => r.v > 0.005)
         .sort((x, y) => y.v - x.v)
     : [];
-  const rowsSum = rows.reduce((s, r) => s + r.v, 0);
+  const rowsAl = alignColumn(rows.map((r) => r.v)); // лоты составляющей складываются в показанный итог окна
+  const rowsShown = rows.map((r, i) => ({ ...r, v: rowsAl.values[i] }));
+  const rowsSum = rowsAl.total;
   const href = fur ? `/lots/fur/${encodeURIComponent(fur)}` : "/lots";
   return (
     <div className="flex w-full flex-col gap-3 pt-1">
@@ -165,14 +166,14 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
           <h3 className="truncate text-base font-semibold leading-tight">{fur ?? totalTitle}</h3>
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-neutral-500 tabular-nums">
             <span>{withVat ? "с НДС" : "без НДС"}</span>
-            <span className="font-semibold text-neutral-900">{formatMoney(total.toFixed(2))}</span>
+            <span className="font-semibold text-neutral-900">{formatMoney(total)}</span>
             <span>{a.qty > 0 ? `${formatQty(a.qty)} шт.` : "без количества"} · {lotsLine(lots)}</span>
           </div>
         </div>
         {fur && !hideLink ? <Link href={href} className="shrink-0 text-xs text-blue-700 hover:underline print:hidden">→ {fur}</Link> : null}
       </div>
       <PriceCompositionChart
-        slices={slices} total={total} qty={a.qty} qtyVals={qtyVals}
+        slices={slicesShown} total={total} qty={a.qty} qtyVals={qtyVals}
         stacked totalLabel={withVat ? "Всего, с НДС" : "Всего, без НДС"}
         ariaLabel={`Из чего складывается стоимость меха: ${label}${withVat ? ", с НДС" : ", без НДС"}`}
         onSelect={sel} selectTitle="Показать лоты с этой составляющей"
@@ -192,7 +193,7 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
                 </tr>
               </thead>
               <tbody>
-                {rcs.sort(rows).map(({ l, v, tot }) => (
+                {rcs.sort(rowsShown).map(({ l, v, tot }) => (
                   <tr key={l.id} className="border-b border-neutral-100">
                     <td className="py-1.5 pr-2">
                       {l.kind === "lot" ? <Link href={`/analytics/raw/lot/${l.id}`} className="text-blue-700 hover:underline">№ {l.num}</Link> : <span>{l.num}</span>}
@@ -200,13 +201,13 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
                     </td>
                     <td className="truncate px-1.5 py-1.5 text-right text-xs" title={l.fur}>{l.fur}</td>
                     <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{l.qty > 0 ? formatQty(l.qty) : "—"}</td>
-                    <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{formatMoney(v.toFixed(2))}</td>
+                    <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{formatMoney(v)}</td>
                     <td className="whitespace-nowrap px-1.5 py-1.5 text-right text-neutral-500 tabular-nums">{tot > 0 ? formatPercent((v / tot) * 100) : "—"}</td>
                   </tr>
                 ))}
                 <tr className="row-total">
                   <td className="py-1.5 pr-2 text-sm font-semibold" colSpan={3}>Всего, ₽</td>
-                  <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{formatMoney(rowsSum.toFixed(2))}</td>
+                  <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{formatMoney(rowsSum)}</td>
                   <td />
                 </tr>
               </tbody>
@@ -231,14 +232,19 @@ export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots" }
   const scope = useFurScope();
   const [localSrc, setSrc] = useState<Src>("all");
   const src: Src = scope ? scope.src : localSrc;
-  // Сумма «Куплено» по источнику (цена лота без НДС + НДС в режиме «с НДС»): Все = на аукционе + у поставщика, до копейки.
+  // Сумма «Куплено» по источнику (цена лота без НДС + НДС в режиме «с НДС»): Все = на аукционе + у поставщика, до рубля.
+  // Все = round(точной суммы), «на аукционе» и «у поставщика» выравниваются под неё (src/lib/money-round.ts). Счёт лотов — единый (lotCounts): лоты, позиции заказанного, шкуры подрядчика.
   const sums = useMemo(() => {
-    const t: Record<Src, { v: number; n: number }> = { all: { v: 0, n: 0 }, auction: { v: 0, n: 0 }, supplier: { v: 0, n: 0 } };
+    const ex: Record<Src, number> = { all: 0, auction: 0, supplier: 0 };
+    const rowsBy: Record<Src, PCLot[]> = { all: allLots, auction: [], supplier: [] };
     for (const l of allLots) {
       const v = l.excl.reduce((s, x) => s + x, 0) + (withVat ? l.vat : 0);
-      for (const k of ["all", l.src] as const) { t[k].v += v; t[k].n += 1; }
+      ex.all += v; ex[l.src] += v; rowsBy[l.src].push(l);
     }
-    return t;
+    const total = roundRub(ex.all);
+    const [au, su] = lrAllocate([ex.auction, ex.supplier], total);
+    const shown: Record<Src, number> = { all: total, auction: au, supplier: su };
+    return Object.fromEntries((["all", "auction", "supplier"] as Src[]).map((k) => [k, { v: shown[k], text: lotCountsText(lotCounts(rowsBy[k])) }])) as Record<Src, { v: number; text: string }>;
   }, [allLots, withVat]);
   const lots = useMemo(() => (src === "all" ? allLots : allLots.filter((l) => l.src === src)), [allLots, src]);
   const furs = useMemo(() => {
@@ -254,17 +260,17 @@ export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots" }
   ];
   const sourceSwitch = (
     <div className="flex flex-col gap-1">
-      {scope ? <div className="flex flex-wrap gap-1.5" data-testid="pc-source-switch"><ScopeBadge />{SRC_KEYS.map((k) => <span key={k} className={"rounded-md border px-2 py-1 text-[11px] tabular-nums " + (src === k ? "border-orange-300 bg-orange-50 text-orange-900" : "border-neutral-200 text-neutral-600")}>{SRC_LABEL[k]}: {formatMoney(sums[k].v.toFixed(2))} · {sums[k].n} {lotsWord(sums[k].n)}</span>)}</div> : <div role="group" aria-label="Источник закупки" data-testid="pc-source-switch" className="flex flex-wrap gap-1.5 print:hidden">
+      {scope ? <div className="flex flex-wrap gap-1.5" data-testid="pc-source-switch"><ScopeBadge />{SRC_KEYS.map((k) => <span key={k} className={"rounded-md border px-2 py-1 text-[11px] tabular-nums " + (src === k ? "border-orange-300 bg-orange-50 text-orange-900" : "border-neutral-200 text-neutral-600")}>{SRC_LABEL[k]}: {formatMoney(sums[k].v)} · {sums[k].text}</span>)}</div> : <div role="group" aria-label="Источник закупки" data-testid="pc-source-switch" className="flex flex-wrap gap-1.5 print:hidden">
         {SRC_KEYS.map((k) => (
           <button key={k} type="button" aria-pressed={src === k} onClick={() => setSrc(k)}
             className={"inline-flex min-h-11 flex-col items-start justify-center rounded-md border px-3 py-1 text-left text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 " + (src === k ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>
             <span className="font-medium">{SRC_LABEL[k]}</span>
-            <span className="tabular-nums opacity-80">{formatMoney(sums[k].v.toFixed(2))} · {sums[k].n} {lotsWord(sums[k].n)}</span>
+            <span className="tabular-nums opacity-80">{formatMoney(sums[k].v)} · {sums[k].text}</span>
           </button>
         ))}
       </div>}
       <p className="text-[11px] leading-4 text-neutral-500" data-testid="pc-source-check">
-        Все = на аукционе + у поставщика: {formatMoney(sums.auction.v.toFixed(2))} + {formatMoney(sums.supplier.v.toFixed(2))} = {formatMoney((sums.auction.v + sums.supplier.v).toFixed(2))}{Math.abs(sums.auction.v + sums.supplier.v - sums.all.v) < 0.005 ? "" : " (с разницей округления)"}.
+        Все = на аукционе + у поставщика: {formatMoney(sums.auction.v)} + {formatMoney(sums.supplier.v)} = {formatMoney(sums.all.v)}. {LOTS_RULE}
       </p>
     </div>
   );

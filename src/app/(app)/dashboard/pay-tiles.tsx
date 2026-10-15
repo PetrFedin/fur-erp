@@ -1,5 +1,6 @@
 import { formatMoney } from "@/lib/utils";
-import { rawRounding } from "@/lib/raw-rounding";
+import { alignColumn, roundRub } from "@/lib/money-round";
+import { payNumbers } from "@/lib/pay-display";
 import type { YearFilter } from "@/lib/year-filter";
 import { InfoHint } from "@/components/info-hint";
 import { SupplierDebtHint } from "@/components/supplier-debt-hint";
@@ -22,29 +23,13 @@ function isPastRu(date: string): boolean {
 export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Оплаты", headerEnd, bare = false, defaultCollapsed = false }: { /** Свёрнуто по умолчанию (на Главной эти цифры уже в полосе «Главное»). */ defaultCollapsed?: boolean; /** Только три плитки, без WidgetRow и сетки: их кладёт в общий ряд «Сырьё | Оплаты» вызывающий (RawCards pay). */ bare?: boolean; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** id и заголовок ряда виджетов (запоминание «свернуть/закрепить»). */ id?: string; title?: string; d: DashboardData; c4Mode: "on" | "off"; year: YearFilter; /** Только мех или только подкладка (страница «Сырьё»): без работы и без общих подсказок по долгу. */ only?: "fur" | "lining" }) {
   const { debt } = d;
   const mln = (v: number) => formatCompactMoney(v);
-  const rawPaid = d.paidByItem.fur + d.paidByItem.lining;
   const prodPaid = d.paidByItem.work;
-  const money = (v: number) => formatMoney(v.toFixed(2));
+  const money = (v: number) => formatMoney(roundRub(v));
   const dash = (v: number) => (Math.abs(v) < 0.5 ? "—" : money(v));
-  // Детализация меха и подкладки: остаток на складе, использовано (без 4%) и надбавка 4% (оплачена в составе оплат ТЗ, доплаты нет).
-  const detail = (x: typeof d.raw.fur.incl) => ({ stock: x.remValue, used: c4Mode === "on" ? x.usedValueOther : x.usedValue, c4: Math.abs(x.usedValue - x.usedValueOther) });
-  const furD = detail(d.raw.fur.incl), linD = detail(d.raw.lining.incl);
-  // Оплачено и к оплате делятся на «за использованное» и «за остаток на складе» пропорционально их стоимости; 4% оплачены в составе оплат ТЗ (доплаты нет).
-  const split = (D: ReturnType<typeof detail>, amount: number) => {
-    const base = D.used + D.stock;
-    const u = base > 0 ? D.used / base : 0;
-    return { used: amount * u, stock: amount * (1 - u) };
-  };
-  const furPaidD = split(furD, d.paidByItem.fur), linPaidD = split(linD, d.paidByItem.lining);
-  const furLeftD = split(furD, d.left.fur), linLeftD = split(linD, d.left.lining);
-
-  const inFur = only !== "lining", inLin = only !== "fur", inWork = !only;
-  const paidAll = (inFur ? d.paidByItem.fur : 0) + (inLin ? d.paidByItem.lining : 0) + (inWork ? prodPaid : 0);
-  const leftAll = (inFur ? d.left.fur : 0) + (inLin ? d.left.lining : 0) + (inWork ? d.left.prod : 0);
-  // Копеечное округление между «Куплено» (сумма лотов) и документами: на «Сырьё» показываем строкой, чтобы итог совпал с Главной (на самой Главной не трогаем).
-  const roundAll = only ? rawRounding(d, { fur: inFur, lining: inLin }) : 0;
-  const totalAll = paidAll + leftAll + roundAll;
-  void rawPaid;
+  // Деньги — целые рубли, сходящиеся на экране (src/lib/money-round.ts): мех + подкладка выровнены вместе с плитками «Куплено / Использовано / Остаток»,
+  // оплачено и к оплате делятся по статьям так, чтобы Σ статей == показанному итогу.
+  const N = payNumbers(d, c4Mode, only);
+  const { furD, linD, inFur, inLin, inWork, P, L, T, paidAll, leftAll, roundAll, totalAll, furPaidD, linPaidD, furLeftD, linLeftD } = N;
   const part = (v: number, whole: number) => (whole > 0.5 ? v / whole : null);
   const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, work: number, warn?: boolean, workLabel = "Работа подрядчику"): TileItem[] => [
     ...(inFur ? [
@@ -68,7 +53,8 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
   const typeRows = d.paidByType.filter((t) => t.count > 0 || Math.abs(t.amount) >= 0.5);
   const typeSum = typeRows.reduce((a, t) => a + t.amount, 0);
   const typesOk = inWork && !only && typeRows.length > 0 && Math.abs(typeSum - paidAll) < 1;
-  const typeItems: TileItem[] = typeRows.map((t) => ({ k: `${TYPE_LABEL[t.type]} · ${t.count} ${t.count % 10 === 1 && t.count % 100 !== 11 ? "платёж" : t.count % 10 >= 2 && t.count % 10 <= 4 && (t.count % 100 < 10 || t.count % 100 >= 20) ? "платежа" : "платежей"}`, v: money(t.amount), share: part(t.amount, paidAll) }));
+  const typeAl = alignColumn(typeRows.map((t) => t.amount), paidAll); // типы платежа складываются в показанное «Оплачено всего»
+  const typeItems: TileItem[] = typeRows.map((t, i) => ({ k: `${TYPE_LABEL[t.type]} · ${t.count} ${t.count % 10 === 1 && t.count % 100 !== 11 ? "платёж" : t.count % 10 >= 2 && t.count % 10 <= 4 && (t.count % 100 < 10 || t.count % 100 >= 20) ? "платежа" : "платежей"}`, v: money(typeAl.values[i]), share: part(typeAl.values[i], paidAll) }));
 
   const tiles = (
     <>
@@ -81,7 +67,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
           </InfoHint>
         </div>
         <TileValue compact={bare}>{money(totalAll)}</TileValue>
-        <TileList stack={bare} items={[...list(totalAll, d.paidByItem.fur + d.left.fur, { stock: furD.stock, used: furD.used }, furD.c4, d.paidByItem.lining + d.left.lining, { stock: linD.stock, used: linD.used }, linD.c4, prodPaid + d.left.prod, true), ...(roundAll !== 0 ? [{ k: "округление", v: money(roundAll) }] : [])]} />
+        <TileList stack={bare} items={[...list(totalAll, T.fur, { stock: furD.stock, used: furD.used }, furD.c4, T.lining, { stock: linD.stock, used: linD.used }, linD.c4, T.work, true), ...(roundAll !== 0 ? [{ k: "округление (лоты и документы)", v: money(roundAll) }] : [])]} />
       </div>
 
       <div key="paid" className={TILE_BOX}>
@@ -96,7 +82,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
         ) : null}
         <TileValue compact={bare}>{money(paidAll)}</TileValue>
         <div data-testid="paid-by-item">
-          <TileList stack={bare} items={list(paidAll, d.paidByItem.fur, furPaidD, furD.c4, d.paidByItem.lining, linPaidD, linD.c4, prodPaid, true)} />
+          <TileList stack={bare} items={list(paidAll, P.fur, furPaidD, furD.c4, P.lining, linPaidD, linD.c4, P.work, true)} />
         </div>
         {typesOk ? (
           <div data-testid="paid-by-type" className="mt-2 border-t border-neutral-100 pt-2">
@@ -110,7 +96,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
         <TileHead>К оплате всего</TileHead>
         <div className={"absolute right-3 top-3 flex items-center gap-1" + (only ? " hidden" : "")}>
           <BridgeHint label="Как сходится долг поставщику">
-            <p>К оплате всего = за мех и подкладку {money(d.left.fur + d.left.lining)} + за работу подрядчику {money(d.left.prod)}.</p>
+            <p>К оплате всего = за мех и подкладку {money(L.fur + L.lining)} + за работу подрядчику {money(L.work)}.</p>
             <p className="mt-1">Долг по работе подрядчику (общий баланс): работа по всем ТЗ минус все оплаты, включая авансы, ещё не привязанные к партиям — сколько предстоит заплатить, если все авансы отработают (договор №1605: аванс 70 %, доплата 30 % после сдачи).</p>
             <p className="mt-1">Закупки всего <b>{mln(debt.total.toNumber())}</b> = мех получен <b>{mln(d.bridge.purchases.received)}</b> + ещё не получен <b>{mln(d.bridge.purchases.draft)}</b>. Минус оплачено <b>{mln(d.supplierCashPaid)}</b> = долг <b>{mln(debt.debt.toNumber())}</b>.</p>
             <p className="mt-1">Части (по УПД, счёт не оплачен, ожидаемое) в сумме дают этот долг. Всегда с НДС.</p>
@@ -118,8 +104,8 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
           <SupplierDebtHint debt={debt} year={year} align="right" />
         </div>
         <TileValue compact={bare} className={leftAll > 0 ? "text-amber-700" : ""}>{money(leftAll)}</TileValue>
-        {inWork && !only ? <div className="text-xs text-neutral-500">за мех и подкладку {money(d.left.fur + d.left.lining)} + за работу подрядчику {money(d.left.prod)}</div> : null}
-        <TileList stack={bare} items={list(leftAll, d.left.fur, furLeftD, 0, d.left.lining, linLeftD, 0, d.left.prod, true, "Долг по работе подрядчику")} />
+        {inWork && !only ? <div className="text-xs text-neutral-500">за мех и подкладку {money(L.fur + L.lining)} + за работу подрядчику {money(L.work)}</div> : null}
+        <TileList stack={bare} items={list(leftAll, L.fur, furLeftD, 0, L.lining, linLeftD, 0, L.work, true, "Долг по работе подрядчику")} />
         {d.invoiceDeadlines.length > 0 && !only ? (
           <div className="mt-2 border-t border-neutral-100 pt-2 text-xs text-neutral-600">
             <div className="font-medium text-neutral-700">Ближайшие сроки счетов</div>

@@ -4,6 +4,8 @@ import { Fragment, createContext, useContext, useEffect, useRef, useState } from
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatPercent, formatQty, formatShare } from "@/lib/utils";
+import { alignColumn, alignFlowMoney, alignRows, type Trio } from "@/lib/money-round";
+import { alignRaw } from "@/lib/raw-display";
 import { TotalLabel } from "@/components/total-label";
 import { TH, THGroup } from "@/components/table-head";
 import { UNIT } from "@/lib/units";
@@ -24,6 +26,7 @@ type Pair = { incl: FlowFigures; excl: FlowFigures };
 
 const usd = (v: number) => `$${v.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const rub = (v: number) => formatMoney(v.toFixed(2));
+
 
 function Card({ title, children, hint, onOpen, block }: { block?: string; title: string; children: React.ReactNode; hint?: React.ReactNode; onOpen?: () => void }) {
   return (
@@ -85,7 +88,7 @@ export type RawSlide = { key: string; label: string; fur: Pair; lining: Pair; pa
 export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd, titleSuffix, headerExtra, slides, slideWindow }: { /** Слайды ряда: плитки всех слайдов лежат в одной ленте с прокруткой вправо-влево (колесо, тачпад, свайп, перетаскивание), заголовок ряда остаётся на месте. rows/fur/lining — текущего слайда (для окна цен). */ slides?: RawSlide[]; slideWindow?: ReturnType<typeof useSlideWindow>; /** Подпись текущего слайда в заголовке ряда («· Лиса»). */ titleSuffix?: string; /** Элементы рядом с заголовком (стрелки и точки слайдов). */ headerExtra?: React.ReactNode; view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; vatRates?: VatTriple; /** Плитки оплат (PayTiles bare) — вторая группа ряда. */ pay?: React.ReactNode; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** Устарело: заголовок ряда теперь всегда в WidgetRow. */ hideLabel?: boolean }) {
   const { mode: vat } = useVatDisplay();
   const [priceCol, setPriceCol] = useState<null | "recv" | "used" | "rem">(null);
-  const modal = priceCol ? <PriceModal col={priceCol} rows={rows.filter((r) => r.kind === view)} vat={vat} fur={view === "lining" ? null : fur[vat]} lining={view === "fur" ? null : lining[vat]} onClose={() => setPriceCol(null)} /> : null;
+  const modal = priceCol ? <PriceModal col={priceCol} rows={rows.filter((r) => r.kind === view)} vat={vat} fur={view === "lining" ? null : fur[vat]} lining={view === "fur" ? null : lining[vat]} c4={c4} onClose={() => setPriceCol(null)} /> : null;
   if (slides && slideWindow) {
     const { scroller, onScroll, dragProps, cur, step } = slideWindow;
     return (
@@ -152,8 +155,9 @@ export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd
  *  поля стоят в столбик с зарезервированной высотой, поэтому одинаковые строки лежат на одной горизонтали во всех шести плитках. */
 function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false, vatRates, recvNote, noOpen = false }: { /** Слайды-источники: окно цен по видам считается по всему меху, поэтому плитки не открывают его. */ noOpen?: boolean; recvNote?: React.ReactNode; view: "fur" | "lining"; fur: Pair; lining: Pair; c4: "on" | "off"; onOpen: (c: "recv" | "used" | "rem") => void; compact?: boolean; vatRates?: VatTriple }) {
   const { mode: vat } = useVatDisplay();
-  const F = fur[vat];
-  const L = lining[vat];
+  // Деньги показываем целыми рублями так, чтобы куплено = использовано + остаток (правило округления: src/lib/money-round.ts).
+  const F = alignFlowMoney(fur[vat], c4 === "on");
+  const L = alignFlowMoney(lining[vat], c4 === "on");
   const unit = view === "lining" ? "м" : "шт.";
   const cur = view === "lining" ? L : F;
   const all = false as boolean; // «Всё» убрано: мех и подкладка — отдельными рядами плиток
@@ -275,9 +279,11 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   );
 }
 
-export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, orderFilters, vat: vatRates, furSrc }: { /** Мех по источнику × типу (готовые числа с сервера, с теми же фильтрами Главной). */ furSrc: Record<FurSrc, { total: Pair; types: { name: string; pair: Pair }[] }>; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; lots: number; info: ModeInfo; orderFilters: boolean; vat?: { fur: VatTriple; lining: VatTriple }; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
+export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c4, lots, info, orderFilters, vat: vatRates, furSrc: furSrcIn }: { /** Мех по источнику × типу (готовые числа с сервера, с теми же фильтрами Главной). */ furSrc: Record<FurSrc, { total: Pair; types: { name: string; pair: Pair }[] }>; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; lots: number; info: ModeInfo; orderFilters: boolean; vat?: { fur: VatTriple; lining: VatTriple }; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
   void info;
   const { mode: vat } = useVatDisplay();
+  // Деньги — целые рубли, складывающиеся везде: мех + подкладка = всего, виды = источник, куплено = использовано + остаток (src/lib/money-round.ts).
+  const { fur, lining, furSrc } = alignRaw(furIn, liningIn, furSrcIn, c4);
   const vatW = vat === "incl" ? "с НДС" : "без НДС";
   const c4W = c4 === "on" ? "с 4%" : "без 4%";
   const [pc, setPc] = useState<null | { view: "fur" | "lining"; col: "recv" | "used" | "rem" }>(null);
@@ -371,7 +377,7 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
           ))}
         </div>
         {srcOpen ? <SrcModal src={nav.src} active={slideNow?.key ?? ""} types={block.types} total={block.total} vat={vat} c4={c4} onClose={() => setSrcOpen(false)} /> : null}
-        {pc ? <PriceModal col={pc.col} rows={rows.filter((r) => r.kind === pc.view)} vat={vat} fur={pc.view === "lining" ? null : fur[vat]} lining={pc.view === "fur" ? null : lining[vat]} onClose={() => setPc(null)} /> : null}
+        {pc ? <PriceModal col={pc.col} rows={rows.filter((r) => r.kind === pc.view)} vat={vat} fur={pc.view === "lining" ? null : fur[vat]} lining={pc.view === "fur" ? null : lining[vat]} c4={c4} onClose={() => setPc(null)} /> : null}
       </WidgetRow>
     </section>
   );
@@ -442,13 +448,27 @@ function SrcModal({ src, active, types, total, vat, c4, onClose }: { src: FurSrc
 const COL_TITLE = { recv: "Куплено", used: "Использовано", rem: "Остаток" } as const;
 
 /** Цены по видам сырья для выбранной колонки (куплено / использовано / остаток): количество, сумма, средняя цена ₽ и $. */
-function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "used" | "rem"; rows: RawTableRow[]; vat: "incl" | "excl"; fur: FlowFigures | null; lining: FlowFigures | null; onClose: () => void }) {
+function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" | "used" | "rem"; rows: RawTableRow[]; vat: "incl" | "excl"; fur: FlowFigures | null; lining: FlowFigures | null; c4: "on" | "off"; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { ref.current?.showModal(); }, []);
+  // Суммы по видам — целые рубли, складывающиеся в итог (src/lib/money-round.ts): строки выравниваются под итог вида сырья.
+  const al = (() => {
+    const byKey = new Map<string, Trio>();
+    const tot: Partial<Record<"fur" | "lining", Trio>> = {};
+    for (const [kind, f] of [["fur", fur], ["lining", lining]] as const) {
+      const rs = rows.filter((r) => r.kind === kind);
+      if (rs.length === 0 || !f) continue;
+      const a = alignRows(rs.map((r) => ({ r: r.cells[vat].rv, u: r.cells[vat].uv, m: r.cells[vat].mv })), { r: f.recvValue, u: c4 === "on" ? f.usedValueOther : f.usedValue, m: f.remValue });
+      rs.forEach((r, i) => byKey.set(r.key, a.rows[i]));
+      tot[kind] = a.total;
+    }
+    return { byKey, tot };
+  })();
+  const pickV = (t: Trio | undefined, raw: number) => (t ? (col === "recv" ? t.r : col === "used" ? t.u : t.m) : raw);
   const pick = (r: RawTableRow) => {
     const c = r.cells[vat];
     const u = r.usd;
-    const base = col === "recv" ? { q: c.rq, v: c.rv, a: c.ra, d: u.bought } : col === "used" ? { q: c.uq, v: c.uv, a: c.ua, d: u.used } : { q: c.mq, v: c.mv, a: c.ma, d: u.rem };
+    const base = col === "recv" ? { q: c.rq, v: pickV(al.byKey.get(r.key), c.rv), a: c.ra, d: u.bought } : col === "used" ? { q: c.uq, v: pickV(al.byKey.get(r.key), c.uv), a: c.ua, d: u.used } : { q: c.mq, v: pickV(al.byKey.get(r.key), c.mv), a: c.ma, d: u.rem };
     return { ...base, rq: c.rq };
   };
   const list = rows.map((r) => ({ r, ...pick(r) })).filter((x) => x.q > 0);
@@ -465,8 +485,8 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
   const BL = " border-l border-neutral-200";
   const shareCell = (q: number, rq: number, cls = "px-2 py-1.5") => showShare ? <td className={`whitespace-nowrap ${cls} text-right tabular-nums text-neutral-500${BL}`}>{rq > 0 ? formatShare(q / rq) : "—"}</td> : null;
   // Итого по виду: количество, сумма, средневзвешенная цена ₽ и $ (как в карточке).
-  const total = (f: FlowFigures | null) =>
-    !f ? null : col === "recv" ? { q: f.recvQty, v: f.recvValue, a: f.recvAvg, d: f.usdAvg, rq: f.recvQty } : col === "used" ? { q: f.usedQty, v: f.usedValue, a: f.usedAvg, d: f.usdUsedAvg, rq: f.recvQty } : { q: f.remQty, v: f.remValue, a: f.remAvg, d: f.usdRemAvg, rq: f.recvQty };
+  const total = (f: FlowFigures | null, kind: "fur" | "lining") =>
+    !f ? null : col === "recv" ? { q: f.recvQty, v: pickV(al.tot[kind], f.recvValue), a: f.recvAvg, d: f.usdAvg, rq: f.recvQty } : col === "used" ? { q: f.usedQty, v: pickV(al.tot[kind], c4 === "on" ? f.usedValueOther : f.usedValue), a: f.usedAvg, d: f.usdUsedAvg, rq: f.recvQty } : { q: f.remQty, v: pickV(al.tot[kind], f.remValue), a: f.remAvg, d: f.usdRemAvg, rq: f.recvQty };
   return (
     <dialog ref={ref} onClose={onClose} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }} className="m-auto w-[calc(100vw-2rem)] max-w-3xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
       <div className="max-h-[88vh] overflow-y-auto p-4">
@@ -506,7 +526,14 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                     // Подкладка: сначала по годам и итого, потом — по видам ткани.
                     const byYear = new Map<number, { q: number; v: number; rq: number }>();
                     for (const x of part) for (const y of x.r.years) { const p = pickYear(y.cells, y.usd); if (p.q > 0) { const c = byYear.get(y.year) ?? { q: 0, v: 0, rq: 0 }; c.q += p.q; c.v += p.v; c.rq += p.rq; byYear.set(y.year, c); } }
-                    const t = total(lining);
+                    {
+                      // Годы подкладки складываются в итог подкладки (целые рубли, наибольшие остатки).
+                      const ys = Array.from(byYear.entries()).sort((a, b) => a[0] - b[0]);
+                      const ex = lining ? (col === "recv" ? lining.recvValue : col === "used" ? (c4 === "on" ? lining.usedValueOther : lining.usedValue) : lining.remValue) : undefined;
+                      const a = alignColumn(ys.map(([, c]) => c.v), ex);
+                      ys.forEach(([, c], i) => { c.v = a.values[i]; });
+                    }
+                    const t = total(lining, "lining");
                     return (
                       <>
                         {Array.from(byYear.entries()).sort((a, b) => a[0] - b[0]).map(([yr, c]) => (
@@ -541,7 +568,11 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                       <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + BL}>{x.a != null ? rub(x.a) : "—"}</td>
                       {showUsd ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{x.d != null ? usd(x.d) : "—"}</td> : null}
                     </tr>
-                    {open.has(x.r.key) ? x.r.years.map((y) => ({ y, p: pickYear(y.cells, y.usd) })).filter((z) => z.p.q > 0).map(({ y, p }) => (
+                    {open.has(x.r.key) ? (() => {
+                      const kids = x.r.years.map((y) => ({ y, p: pickYear(y.cells, y.usd) })).filter((z) => z.p.q > 0);
+                      const kv = alignColumn(kids.map((z) => z.p.v), x.v).values; // годы вида складываются в показанную сумму вида
+                      return kids.map((z, i) => ({ y: z.y, p: { ...z.p, v: kv[i] } }));
+                    })().map(({ y, p }) => (
                       <tr key={y.year} data-block={k} className="border-b border-neutral-100 bg-neutral-50/70 text-[13px] text-neutral-700">
                         <td className="py-1 pl-7 pr-2">{y.year}</td>
                         {shareCell(p.q, p.rq, "px-2 py-1")}
@@ -554,7 +585,7 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                     </Fragment>
                   ))}
                   {(() => {
-                    const t = k === "fur" ? total(fur) : null;
+                    const t = k === "fur" ? total(fur, "fur") : null;
                     return t ? (
                       <tr className="row-total">
                         <td className="py-1.5 pr-2"><TotalLabel avg /></td>

@@ -16,6 +16,7 @@ import { atomsOf, type DrillData, type DrillOrder } from "@/lib/dashboard-drill"
 import { loadProductionDrill } from "./actions";
 import { grpBlock, pathBlock } from "@/lib/block-hover";
 import { useClientSort } from "@/lib/use-client-sort";
+import { alignTree, money5, sum5, type Money5 } from "@/lib/production-display";
 
 export type Agg = {
   key: string;
@@ -156,6 +157,9 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
 
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const qty = (g: Agg) => Array.from(g.orders.values()).reduce((s, o) => s + o.qty, 0);
+  // Показанные деньги: целые рубли, сходящиеся по дереву (строки → итог → итог с ремонтом).
+  const AL = useMemo(() => { const m = new Map<Agg, Money5>(); alignTree(rows, total, repair, all, m); return m; }, [rows, total, repair, all]);
+  const shown = (g: Agg): Money5 => AL.get(g) ?? money5(g);
   const sum = cost;
   // Сортировка по клику на заголовок (▲/▼): строки каждого уровня дерева; без выбора — порядок по умолчанию (группы по справочнику, остальное по сумме).
   const per = (v: number, q: number) => (q > 0 ? v / q : null);
@@ -168,17 +172,18 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
   const BL = " border-l border-neutral-200";
   const cells = (g: Agg, small: boolean, noQty = false, dark = false) => {
     const q = noQty ? 0 : qty(g);
+    const m = shown(g);
     const cls = "whitespace-nowrap px-2 text-right tabular-nums " + (small ? "py-1 text-xs " + (dark ? "text-neutral-900" : "text-neutral-600") : "py-1.5 text-sm");
     return (
       <>
         <td className={cls}>{noQty ? "—" : formatQty(q)}</td>
-        <td className={cls}>{dash(q > 0 ? sum(g) / q : null, money)}</td>
-        <td className={cls + (small ? "" : " font-medium")}>{money(sum(g))}</td>
-        <td className={cls + BL}>{money(g.fur)}</td>
-        <td className={cls}>{money(g.lining)}</td>
-        <td className={cls}>{money(g.work)}</td>
-        <td className={cls}>{money(g.c4)}</td>
-        {showOther ? <td className={cls}>{money(g.other)}</td> : null}
+        <td className={cls}>{dash(q > 0 ? sum5(m) / q : null, money)}</td>
+        <td className={cls + (small ? "" : " font-medium")}>{money(sum5(m))}</td>
+        <td className={cls + BL}>{money(m.fur)}</td>
+        <td className={cls}>{money(m.lining)}</td>
+        <td className={cls}>{money(m.work)}</td>
+        <td className={cls}>{money(m.c4)}</td>
+        {showOther ? <td className={cls}>{money(m.other)}</td> : null}
         <td className={cls + BL}>{formatQty(g.hides)}</td>
         <td className={cls}>{dash(g.hides > 0 ? g.hideSum / g.hides : null, money)}</td>
         <td className={cls}>{formatQty(g.meters)}</td>

@@ -41,6 +41,9 @@ import { getFilterOptions } from "@/lib/filter-options";
 import { ClientPaymentsTable, type ClientPayRow } from "./client-payments-table";
 import { ClientDateDetail } from "./client-date-detail";
 import { PaymentTiles } from "./payment-tiles";
+import { payNumbers } from "@/lib/pay-display";
+import { alignYears } from "@/lib/raw-display";
+import { alignColumn } from "@/lib/money-round";
 import { rawRounding } from "@/lib/raw-rounding";
 import { YearGroup } from "./year-group";
 import { GoodsTiles, type BatchRow, type OwedOrder } from "./goods-tiles";
@@ -271,8 +274,10 @@ export default async function PaymentsPage({
     .filter((x): x is NonNullable<typeof x> => x != null)
     .sort((a, b) => a.sort.localeCompare(b.sort));
   const anyPlanned = auctions.some((a) => a.planned.greaterThan(PAY_EPS));
-  const renderAuction = (a: (typeof auctions)[number]) => {
+  // o — суммы строки в целых рублях, сложенные под итог года (src/lib/money-round.ts); без o — точные суммы, как раньше.
+  const renderAuction = (a: (typeof auctions)[number], o?: { t: number; p: number; r: number }) => {
     const active = selected?.name === a.name;
+    const remD = o ? new Decimal(o.r) : a.remaining;
     const href = `${auctionHref(a.name)}#auction-block`;
     return (
       <Tr key={a.name} className={active ? "bg-neutral-50" : undefined}>
@@ -281,10 +286,10 @@ export default async function PaymentsPage({
             {shortAuctionName(a.name)}
           </Link>
         </Td>
-        <Td className="whitespace-nowrap text-right">{formatMoney(a.total.toString())}</Td>
+        <Td className="whitespace-nowrap text-right">{formatMoney(o ? o.t : a.total.toString())}</Td>
         <Td className="whitespace-nowrap text-right">
           <span className="inline-flex items-baseline justify-end gap-2">
-            <span>{formatMoney(a.paid.toString())}</span>
+            <span>{formatMoney(o ? o.p : a.paid.toString())}</span>
             <span className={"text-xs font-medium " + (a.percentPaid < 99.95 ? "text-red-600" : "font-normal text-neutral-500")}>{fmtPct(a.percentPaid)}</span>
           </span>
         </Td>
@@ -295,7 +300,7 @@ export default async function PaymentsPage({
             (a.remaining.greaterThan(0.005) ? "text-amber-700" : a.remaining.lessThan(-0.005) ? "text-emerald-700" : "")
           }
         >
-          {fmtRemaining(a.remaining)}
+          {fmtRemaining(remD)}
           {a.remaining.lessThan(-0.005) && OVERPAY_NOTE.some((n) => n.inline && n.rx.test(a.name)) ? (
             <InfoHint wide label="Где учтена переплата" align="right">
               <p>{OVERPAY_NOTE.find((n) => n.inline && n.rx.test(a.name))!.text}</p>
@@ -332,6 +337,10 @@ export default async function PaymentsPage({
   const rawPaidAll = ovRows.reduce((a, r) => a + r.fur + r.lining, 0);
   // Мех / подкладка в плитках — те же числа, что на Главной (одна функция).
   const supDash = tab === "suppliers" ? await loadDashboard(orgId, year, { status: [], ...parseFilters(DASH_FILTERS, {}) } as unknown as DashFilters, await getCommission4Mode()) : null;
+  // Целые рубли, сходящиеся на экране (те же числа, что в плитках оплат на Главной): мех + подкладка без работы.
+  const rawPay = supDash ? payNumbers(supDash, await getCommission4Mode(), "raw") : null;
+  // Итоги лет в таблице партий = «Динамика по годам» на Главной (один и тот же год — одно и то же число на экране).
+  const yearAnchors = supDash ? new Map(alignYears(supDash.years).filter((r) => /^\d{4}$/.test(r.key)).map((r) => [Number(r.key), { t: r.fur.incl.rv + r.lining.incl.rv, p: r.paid, r: r.debt }])) : null;
   // Сводная строка «Без аукциона»: все служебные группы + закупки без аукциона — чтобы Σ строк сходилась с «Остатком к оплате».
   const zeroD = new Decimal(0);
   const svcAll = auctions.filter((a) => isServiceAuction(a.name));
@@ -366,15 +375,15 @@ export default async function PaymentsPage({
       if (h.greaterThan(PAY_EPS)) addExtra(y, { label: "Шкуры подрядчика", title: "Шкуры подрядчика, оплаченные в составе счетов за пошив (мех, в ТЗ не списаны)", total: h, paid: h, rem: zeroD });
     }
   }
-  const extraRowEl = (y: number, e: Extra) => (
+  const extraRowEl = (y: number, e: Extra, o?: { t: number; p: number; r: number }) => (
     <Tr key={`__extra_${y}_${e.label}`}>
       <Td className="min-w-[10rem] max-w-[18rem] font-medium text-neutral-600" title={e.title}>
         {e.href ? <Link href={e.href} scroll className="hover:underline">{e.label}</Link> : e.label}
       </Td>
-      <Td className="whitespace-nowrap text-right">{formatMoney(e.total.toString())}</Td>
-      <Td className="whitespace-nowrap text-right">{formatMoney(e.paid.toString())}</Td>
+      <Td className="whitespace-nowrap text-right">{formatMoney(o ? o.t : e.total.toString())}</Td>
+      <Td className="whitespace-nowrap text-right">{formatMoney(o ? o.p : e.paid.toString())}</Td>
       {anyPlanned && <Td className="text-right">—</Td>}
-      <Td className={"whitespace-nowrap text-right font-semibold " + (e.rem.greaterThan(0.005) ? "text-amber-700" : "")}>{fmtRemaining(e.rem)}</Td>
+      <Td className={"whitespace-nowrap text-right font-semibold " + (e.rem.greaterThan(0.005) ? "text-amber-700" : "")}>{fmtRemaining(o ? new Decimal(o.r) : e.rem)}</Td>
     </Tr>
   );
   const remClass = (r: Decimal) => (r.greaterThan(0.005) ? "text-amber-700" : r.lessThan(-0.005) ? "text-emerald-700" : "");
@@ -429,6 +438,23 @@ export default async function PaymentsPage({
       const g = groups.find((x) => x.year === y);
       if (g) g.items.push(a); else groups.push({ year: y, items: [a] });
     }
+    // Целые рубли, сходящиеся на экране: года складываются в «Общую стоимость» плиток (когда таблица показывает всё без фильтров), партии и строки «без аукциона» — в свой год.
+    const calc = groups.map((g) => {
+      const ex = withExtras && g.year != null ? (extraByYear.get(g.year) ?? []) : [];
+      const nums = [...g.items.map((a) => ({ t: a.total.toNumber(), p: a.paid.toNumber(), r: a.remaining.toNumber() })), ...ex.map((e) => ({ t: e.total.toNumber(), p: e.paid.toNumber(), r: e.rem.toNumber() }))];
+      return { ex, nums, t: nums.reduce((x, n) => x + n.t, 0), p: nums.reduce((x, n) => x + n.p, 0), r: nums.reduce((x, n) => x + n.r, 0) };
+    });
+    const anchored = withExtras && showServiceSum && !listFiltered && !selected && rawPay != null;
+    // Года берём из «Динамики по годам» Главной, если они сходятся с документами (до 1,5 ₽ на год) и покрывают все группы таблицы.
+    const fromYears = anchored && yearAnchors != null && groups.every((g, i) => g.year != null && yearAnchors.has(g.year) && Math.abs(yearAnchors.get(g.year)!.t - calc[i].t) < 1.5 && Math.abs(yearAnchors.get(g.year)!.p - calc[i].p) < 1.5 && Math.abs(yearAnchors.get(g.year)!.r - calc[i].r) < 1.5);
+    const gTv = fromYears ? groups.map((g) => yearAnchors!.get(g.year!)!.t) : alignColumn(calc.map((c) => c.t), anchored ? rawPay!.totalAll : undefined).values;
+    const gPv = fromYears ? groups.map((g) => yearAnchors!.get(g.year!)!.p) : alignColumn(calc.map((c) => c.p), anchored ? rawPay!.paidAll : undefined).values;
+    const gRv = fromYears ? groups.map((g) => yearAnchors!.get(g.year!)!.r) : alignColumn(calc.map((c) => c.r), anchored ? rawPay!.leftAll : undefined).values;
+    const rowV = calc.map((c, i) => ({
+      t: alignColumn(c.nums.map((n) => n.t), gTv[i]).values,
+      p: alignColumn(c.nums.map((n) => n.p), gPv[i]).values,
+      r: alignColumn(c.nums.map((n) => n.r), gRv[i]).values,
+    }));
     return (
     <ResponsiveRows
       table={
@@ -443,19 +469,15 @@ export default async function PaymentsPage({
         </Tr>
       </Thead>
       <Tbody>
-        {groups.map((g) => {
-          const gt0 = g.items.reduce((acc, a) => acc.add(a.total), zeroD);
-          const gp0 = g.items.reduce((acc, a) => acc.add(a.paid), zeroD);
-          const gr0 = g.items.reduce((acc, a) => acc.add(a.remaining), zeroD);
+        {groups.map((g, gi) => {
           // «Закупки без аукциона» и «Шкуры подрядчика» — внутри года оплаты: входят в итог года и раскрываются вместе с ним.
-          const ex = withExtras && g.year != null ? (extraByYear.get(g.year) ?? []) : [];
-          const gt = ex.reduce((acc, e) => acc.add(e.total), gt0);
-          const gp = ex.reduce((acc, e) => acc.add(e.paid), gp0);
-          const gr = ex.reduce((acc, e) => acc.add(e.rem), gr0);
+          const ex = calc[gi].ex;
+          const gt = new Decimal(gTv[gi]), gp = new Decimal(gPv[gi]), gr = new Decimal(gRv[gi]);
+          const rv = rowV[gi];
           return (
             <Fragment key={g.year ?? "none"}>
               {groups.length === 1 && g.items.length === 1 ? (
-                g.items.map(renderAuction)
+                g.items.map((a, i) => renderAuction(a, { t: rv.t[i], p: rv.p[i], r: rv.r[i] }))
               ) : (
                 <YearGroup
                   label={g.year ?? "Без года"}
@@ -475,8 +497,8 @@ export default async function PaymentsPage({
                     </>
                   }
                 >
-                  {g.items.map(renderAuction)}
-                  {ex.map((e) => extraRowEl(g.year!, e))}
+                  {g.items.map((a, i) => renderAuction(a, { t: rv.t[i], p: rv.p[i], r: rv.r[i] }))}
+                  {ex.map((e, j) => { const k = g.items.length + j; return extraRowEl(g.year!, e, { t: rv.t[k], p: rv.p[k], r: rv.r[k] }); })}
                 </YearGroup>
               )}
             </Fragment>
@@ -791,6 +813,7 @@ export default async function PaymentsPage({
                 split={supDash ? { paid: { fur: supDash.paidByItem.fur, lining: supDash.paidByItem.lining }, debt: { fur: supDash.left.fur, lining: supDash.left.lining } } : undefined}
                 hidesMemo={hidesMemo}
                 rounding={supDash ? rawRounding(supDash) : 0}
+                shown={rawPay ? { total: rawPay.totalAll, paid: rawPay.paidAll, left: rawPay.leftAll, round: rawPay.roundAll, totalFur: rawPay.T.fur, totalLining: rawPay.T.lining, paidFur: rawPay.P.fur, paidLining: rawPay.P.lining, leftFur: rawPay.L.fur, leftLining: rawPay.L.lining } : undefined}
                 paid={{
                   // Та же сумма, что «Оплачено → За сырьё» в разделе «Все» (мех и подкладка по оплатам, с шкурами подрядчика и зачётом переплат).
                   total: rawPaidAll,

@@ -5,6 +5,8 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { loadPaymentsLeft, loadPaymentsOverview } from "@/lib/payments-overview";
 import { loadDebtInputs, supplierDebtFromInputs } from "@/lib/supplier-debt";
+import { loadDashboard } from "@/lib/dashboard-data";
+import { parseDashFilters } from "@/lib/dashboard-calc";
 import type { Live } from "./live";
 import { ALL_GROUPS, ALL_INVOICES, calcInvoice, groupInvoices, totalsOf } from "./model";
 
@@ -24,9 +26,13 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
 const SMALL = 500;
 
 export async function loadReconBridge(orgId: string, live: Live): Promise<ReconBridge> {
-  const [ov, left, inp] = await Promise.all([loadPaymentsOverview(orgId), loadPaymentsLeft(orgId), loadDebtInputs(prisma, orgId)]);
+  const [ov, left, inp, dash] = await Promise.all([loadPaymentsOverview(orgId), loadPaymentsLeft(orgId), loadDebtInputs(prisma, orgId), loadDashboard(orgId, "all", parseDashFilters({}), "off")]);
   const sum = (k: "fur" | "lining" | "work" | "hides") => ov.reduce((a, r) => a + r[k], 0);
-  const mainRaw = sum("fur") + sum("lining") + Array.from(left.byYear.values()).reduce((a, v) => a + v.raw, 0);
+  const mainRawDocs = sum("fur") + sum("lining") + Array.from(left.byYear.values()).reduce((a, v) => a + v.raw, 0);
+  // Сырьё «Главной» = «Куплено» мех + подкладка (сумма лотов). Документы отличаются от лотов на копейки (цена за единицу в лоте округлена): это отдельная строка «Прочее (округление)».
+  // Больше пяти рублей — уже не округление (неполученный мех, фильтры): тогда берём документы, как раньше.
+  const mainRawLots = dash.raw.fur.incl.recvValue + dash.raw.lining.incl.recvValue;
+  const mainRaw = Math.abs(mainRawLots - mainRawDocs) <= 5 ? mainRawLots : mainRawDocs;
   const mainWork = sum("work") + Array.from(left.byYear.values()).reduce((a, v) => a + v.prod, 0);
   const debtTotal = supplierDebtFromInputs(inp, "all").total.toNumber();
   const hides = sum("hides");

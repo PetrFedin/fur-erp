@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { isDebtDust } from "@/lib/raw-rounding";
+import { alignRawTable, alignYears, cellsWith } from "@/lib/raw-display";
 import { InfoHint } from "@/components/info-hint";
 import { PinSection } from "@/components/pin-section";
 import { useClientSort } from "@/lib/use-client-sort";
@@ -72,7 +73,7 @@ export function YearsTable({ rows: rowsAll, bySrc, c4, info }: { rows: YearRow[]
   const scope = useFurScope();
   const sel = scope?.src ?? "all";
   // Источник меха: мех по годам берётся из выбранного источника, подкладка не делится по источнику; оплаты и долг меха по источнику не разделяются («—»).
-  const rows = useMemo(() => {
+  const rowsRaw = useMemo(() => {
     if (sel === "all" || !bySrc) return rowsAll;
     const per = new Map(bySrc[sel].map((x) => [x.key, x.fur]));
     const yr = rowsAll.filter((r) => r.key !== "all").map((r) => {
@@ -84,6 +85,7 @@ export function YearsTable({ rows: rowsAll, bySrc, c4, info }: { rows: YearRow[]
     const tot: YearRow = { ...allRow, fur: { incl: sumCellsP(yr.map((r) => r.fur.incl)), excl: sumCellsP(yr.map((r) => r.fur.excl)) }, paid: yr.reduce((a, r) => a + r.paid, 0), debt: yr.reduce((a, r) => a + r.debt, 0), money: { fur: { paid: 0, debt: 0 }, lining: { paid: yr.reduce((a, r) => a + r.money.lining.paid, 0), debt: yr.reduce((a, r) => a + r.money.lining.debt, 0) } } };
     return [...yr.filter((r) => [r.fur.incl, r.lining.incl].some((c) => c.rq !== 0 || c.uq !== 0 || c.mq !== 0 || c.rv !== 0)), tot];
   }, [rowsAll, bySrc, sel]);
+  const rows = useMemo(() => alignYears(rowsRaw), [rowsRaw]);
   const { mode: vat } = useVatDisplay();
   // По умолчанию видны три тотала (Мех, Подкладка, Всего); по клику на «›» строка раскрывается по годам.
   const [open, setOpen] = useState<Set<string>>(new Set(["all"])); // «Всего, ₽ мех+подкладка» по годам развёрнуто по умолчанию
@@ -270,13 +272,22 @@ export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _i
   const cs = useClientSort<RawTableRow>({
     name: (r) => r.label, rq: (r) => r.cells[vat].rq, rv: (r) => r.cells[vat].rv, uq: (r) => r.cells[vat].uq, uv: (r) => r.cells[vat].uv, mq: (r) => r.cells[vat].mq, mv: (r) => r.cells[vat].mv, paid: (r) => r.paid, due: (r) => r.due,
   });
-  const fur = cs.sort(rows.filter((r) => r.kind === "fur"));
-  const lin = cs.sort(rows.filter((r) => r.kind === "lining"));
-  const furSub = addCells(fur.map((r) => r.cells[vat]));
-  const linSub = addCells(lin.map((r) => r.cells[vat]));
-  const T = sel === "all" ? total[vat] : addCells([furSub, linSub]);
-  const tPaid = sel === "all" ? money.paid : rows.reduce((a, r) => a + r.paid, 0);
-  const tDue = sel === "all" ? money.due : rows.reduce((a, r) => a + r.due, 0);
+  const { furEx, linEx, furSubEx, linSubEx, TEx, AL } = useMemo(() => alignRawTable({ rows, vat, sel, money, total }), [rows, vat, sel, money, total]);
+  const alRow = (r: RawTableRow): RawTableRow => {
+    const c = AL.byKey.get(r.key);
+    if (!c) return r;
+    return {
+      ...r, paid: c.p, due: c.d, cells: { ...r.cells, [vat]: cellsWith(r.cells[vat], c) },
+      auctions: r.auctions.map((a) => { const x = AL.byAuc.get(r.key + "|" + a.key); return x ? { ...a, paid: x.p, due: x.d, cells: { ...a.cells, [vat]: cellsWith(a.cells[vat], x) } } : a; }),
+    };
+  };
+  const fur = cs.sort(furEx).map(alRow);
+  const lin = cs.sort(linEx).map(alRow);
+  const furSub = cellsWith(furSubEx, AL.fur);
+  const linSub = cellsWith(linSubEx, AL.lin);
+  const T = cellsWith(TEx, AL.total);
+  const tPaid = AL.total.p;
+  const tDue = AL.total.d;
 
   const kindHead = (kindLabel: string, block: string) => (
     <tr data-hover-block={block} data-block={block} className="bg-neutral-100/70 text-xs font-semibold uppercase tracking-wide text-neutral-600"><td colSpan={9} className="px-2 py-1">{kindLabel}</td></tr>
@@ -332,13 +343,13 @@ export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _i
       {kindHead("Мех", "fur")}
       {itemRows(fur, "шт.")}
       {fur.length > 1 ? (
-        <tr className="row-total"><NameCell><TotalLabel note="мех" avg={avg} /></NameCell><CellsTds c={furSub} unit="шт." bold avg={avg} /><MoneyTds paid={fur.reduce((a, r) => a + r.paid, 0)} due={fur.reduce((a, r) => a + r.due, 0)} bold /></tr>
+        <tr className="row-total"><NameCell><TotalLabel note="мех" avg={avg} /></NameCell><CellsTds c={furSub} unit="шт." bold avg={avg} /><MoneyTds paid={AL.fur.p} due={AL.fur.d} bold /></tr>
       ) : null}
     </>
   );
   // Подкладка по умолчанию свёрнута до одной итоговой строки; по клику — ткани.
   const LIN = "__lining";
-  const linPaid = lin.reduce((a, r) => a + r.paid, 0), linDue = lin.reduce((a, r) => a + r.due, 0);
+  const linPaid = AL.lin.p, linDue = AL.lin.d;
   const linBlock = (
     <>
       {kindHead("Подкладка", "lining")}
@@ -391,21 +402,22 @@ export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _i
               // Деньги по закупкам без лотов (мех ещё не получен) — отдельной строкой; остальное расхождение («Всего» − виды) — прочее.
               if (rows.length === 0 || sel !== "all") return null;
               const u = money.unreceived;
-              const restPaid = money.paid - rows.reduce((a, r) => a + r.paid, 0) - u.paid;
-              const restDue = money.due - rows.reduce((a, r) => a + r.due, 0) - u.due;
+              const ex = AL.extras; // [по видам не полученного меха…, прочие закупки без лотов, прочее] — целые рубли
+              const nB = u.byFur.length;
+              const otherPaid = ex[nB]?.p ?? 0, otherDue = ex[nB]?.d ?? 0, restPaid = ex[nB + 1]?.p ?? 0, restDue = ex[nB + 1]?.d ?? 0;
               const show = (x: number, y: number) => Math.abs(x) >= 0.5 || Math.abs(y) >= 0.5;
               return (
                 <>
-                  {u.byFur.map((g) => (
+                  {u.byFur.map((g, gi) => (
                     <tr key={g.label} className="border-b border-neutral-100 text-[13px] text-neutral-700">
                       <td className="px-2 py-1.5 text-left" colSpan={7}>{g.label} — ещё не получен ({g.names.join(", ")})</td>
-                      <MoneyTds paid={g.paid} due={g.due} />
+                      <MoneyTds paid={ex[gi]?.p ?? g.paid} due={ex[gi]?.d ?? g.due} />
                     </tr>
                   ))}
-                  {show(u.paid - u.byFur.reduce((a, g) => a + g.paid, 0), u.due - u.byFur.reduce((a, g) => a + g.due, 0)) ? (
+                  {show(otherPaid, otherDue) ? (
                     <tr className="border-b border-neutral-100 bg-white text-[13px] text-neutral-700">
                       <td className="px-2 py-1.5 text-left" colSpan={7}>Мех ещё не получен: прочие закупки без лотов</td>
-                      <MoneyTds paid={u.paid - u.byFur.reduce((a, g) => a + g.paid, 0)} due={u.due - u.byFur.reduce((a, g) => a + g.due, 0)} />
+                      <MoneyTds paid={otherPaid} due={otherDue} />
                     </tr>
                   ) : null}
                   {show(restPaid, restDue) ? (

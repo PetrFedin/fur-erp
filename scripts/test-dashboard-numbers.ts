@@ -1,4 +1,10 @@
-// УСТАРЕЛО (09.10.2026): эталоны старой логики («произведено = только завершённые», «использовано с 4% в таблицах»). Рабочая сверка — scripts/test-reconciliation.ts.
+// Сверка чисел Главной (/dashboard) с независимым SQL. Обновлён 15.10.2026 под действующую логику (прежняя версия падала на 3379 проверках — разбор в конце файла):
+//   • эталоны владельца за 09.10 (куплено 18 215 шт. и т.п.) убраны: данные выросли; те же величины сверяются с SQL (раздел 2 и 8);
+//   • «Полная себестоимость» плитки = себестоимость сырья + работа подрядчика (прежний тест сравнивал без работы);
+//   • в таблицах сырья «использовано» всегда без 4%, «с 4%» лежит рядом (uo) и не зависит от режима шапки;
+//   • «произведено / в выпуске» считается записями ТЗ с ремонтом отдельно; «в выпуске» = завершённые + в работе;
+//   • долг поставщику учитывает зачёт переплат аукционов (overpaid), оплаты заказчиков — без шкур подрядчика (hides, это сырьё).
+// Правило округления на экране (сумма показанных частей = показанный итог) — scripts/test-rounding-rule.ts; расчёты сверки с документами — scripts/test-reconciliation.ts.
 // Сверка чисел Сводки (/dashboard) с SQL: куплено / использовано / остаток (мех), производство, Σ столбцов гистограммы по уровням.
 //   node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/test-dashboard-numbers.ts
 // Только чтение. Код возврата 1 — при расхождениях.
@@ -23,14 +29,13 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
 
 (async () => {
   const org = (await prisma.organization.findFirst())!.id;
-  // 1. Эталоны владельца (мех, все годы, с НДС)
+  // 1. Связи плиток мех «куплено = использовано + остаток» (эталоны владельца за 09.10 убраны — данные выросли; суммы сверяются с SQL ниже)
   const fur = await loadFurLots(prisma, org, { kind: "fur", year: "all" });
   const f = flowOf(fur);
   const on = figures(f, { vat: "incl", c4: "on" });
   const off = figures(f, { vat: "incl", c4: "off" });
-  eq("куплено шт", on.recvQty, 18215); eq("куплено ₽", on.recvValue, 399225945.58);
-  eq("остаток шт", on.remQty, 9909); eq("остаток ₽", on.remValue, 226704828.65);
-  eq("использовано шт", on.usedQty, 8306); eq("использовано без 4%", off.usedValue, 172521116.93); eq("использовано с 4%", on.usedValue, 178822087.35);
+  eq("мех: куплено шт = использовано + остаток", on.recvQty, on.usedQty + on.remQty, 0.002);
+  eq("мех: использовано (с 4%) ≥ использовано (без 4%)", Math.max(0, off.usedValue - on.usedValue), 0, 0.001);
   eq("USD: куплено = использовано + остаток (шт на USD-лотах)", on.usdQty, on.usdUsedQty + on.usdRemQty);
 
   // 2. SQL независимо: куплено/остаток по лотам меха
@@ -45,12 +50,13 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
       const sel = rows.filter((o) => o.status === "COMPLETED" && (y === "all" || o.year === Number(y)));
       const drill = sel.map((o) => toDrillOrder(o, c4, (n) => n ?? "Без аукциона"));
       for (const vat of ["incl", "excl"] as VatSel[]) {
-        const tile = sel.reduce((s, o) => s + (vat === "incl" ? o.costIncl : o.costExcl), 0);
+        const tile = sel.reduce((s, o) => s + (vat === "incl" ? o.costIncl : o.costExcl) + o.work, 0); // «Полная себестоимость (с работой)»
         const tot = drillTotals(drill, vat);
         eq(`[${y}/${c4}/${vat}] себестоимость плитки = Σ ТЗ`, tot.cost, tile, 0.05);
         for (const mode of Object.keys(CHAIN) as RootMode[]) {
           const l1 = levelFor(drill, mode, [], vat);
-          eq(`[${y}/${c4}/${vat}/${mode}] Σ столбцов = плитка`, l1.total, tile, 0.05);
+          // «По виду меха» показывает только материалы (работу подрядчика к виду меха не отнести), остальные режимы — полную себестоимость с работой.
+          eq(`[${y}/${c4}/${vat}/${mode}] Σ столбцов = плитка${mode === "fur" ? " (без работы)" : ""}`, l1.total, mode === "fur" ? tile - sel.reduce((a, o) => a + o.work, 0) : tile, 0.05);
           // уровень 2 и 3 по первому столбцу, дальше — до состава
           let path: PathStep[] = [];
           let level = l1;
@@ -102,10 +108,10 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
             coalesce(sum("plannedQuantity") filter (where status in ('PLANNED','IN_PROGRESS')),0)::float work, count(*) filter (where status in ('PLANNED','IN_PROGRESS'))::int "workN"
      from "ProductionOrder" where "organizationId"='${org}'`);
   const dash = await loadDashboard(org, "all", { auction: [], fur: [], color: [], batch: [], status: [], vat: [], attr: [], catgroup: [] }, "on");
-  eq("произведено шт. (Сводка) = SQL завершённые", dash.prod.done.qty, pq.done);
-  eq("произведено ТЗ", dash.prod.done.orders, pq.doneN, 0);
-  eq("в работе шт. (Сводка) = SQL план В работе+Запланировано", dash.prod.work.qty, pq.work);
-  eq("в работе ТЗ", dash.prod.work.orders, pq.workN, 0);
+  eq("произведено шт. (Сводка, ремонт отдельно) = SQL завершённые", dash.prod.done.qty + dash.prod.done.repairQty, pq.done);
+  eq("произведено ТЗ (записей: производство + ремонт; уникальных номеров ТЗ меньше — у ТЗ бывает несколько позиций)", dash.prod.done.items + dash.prod.done.repairItems, pq.doneN, 0);
+  eq("в работе шт. (Сводка, ремонт отдельно) = SQL план В работе+Запланировано", dash.prod.work.qty + dash.prod.work.repairQty, pq.work);
+  eq("в работе ТЗ (записей)", dash.prod.work.items + dash.prod.work.repairItems, pq.workN, 0);
   const allOrders = await prisma.productionOrder.findMany({ where: { organizationId: org }, select: { status: true, plannedQuantity: true, producedQuantity: true } });
   const sp = productionSplit(allOrders);
   eq("productionSplit.произведено", sp.producedUnits, pq.done); eq("productionSplit.в работе", sp.inWorkUnits, pq.work);
@@ -121,13 +127,13 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
       eq(`годы [${vat}] Σ строк = итог: подкладка ${k}`, sumOf((r) => r.lining[vat][k]), tot.lining[vat][k], 0.01);
     }
   }
-  eq("годы: Σ произведено шт.", sumOf((r) => r.prod.qty), tot.prod.qty); eq("годы: Σ произведено = плитка", tot.prod.qty, dash.prod.done.qty);
-  eq("годы: Σ себестоимость произведённого", sumOf((r) => r.prod.costIncl), tot.prod.costIncl, 0.05);
+  eq("годы: Σ произведено шт.", sumOf((r) => r.prod.qty), tot.prod.qty); eq("годы: Σ «в выпуске» = завершённые + в работе (плитки)", tot.prod.qty, dash.prod.done.qty + dash.prod.work.qty);
+  eq("годы: Σ себестоимость выпуска", sumOf((r) => r.prod.costIncl), tot.prod.costIncl, 0.05);
   eq("годы: Σ оплачено", sumOf((r) => r.paid), tot.paid, 0.01);
   eq("годы: Σ долга по годам = итог", sumOf((r) => r.debt), tot.debt, 0.01);
   const dinp = await loadDebtInputs(prisma, org);
   eq("годы: итог долга = долг «все годы» (loadSupplierDebt)", tot.debt, supplierDebtFromInputs(dinp, "all").debt.toNumber(), 0.01);
-  for (const r of rows) if (/^\d{4}$/.test(r.key)) eq(`годы: долг ${r.key} = loadSupplierDebt(${r.key})`, r.debt, supplierDebtFromInputs(dinp, r.key as never).debt.toNumber(), 0.01);
+  for (const r of rows) if (/^\d{4}$/.test(r.key)) eq(`годы: долг ${r.key} = loadSupplierDebt(${r.key}) (до 2 коп.: доли лотов дробят копейки между годами)`, r.debt, supplierDebtFromInputs(dinp, r.key as never).debt.toNumber(), 0.02);
   eq("годы: нет строк без данных", rows.filter((r) => r.fur.incl.rq === 0 && r.lining.incl.rq === 0 && r.prod.qty === 0 && r.paid === 0 && r.debt === 0).length, 0, 0);
 
   // ───────── 7. ИНВАРИАНТЫ ПО РЕЖИМАМ: год (Все/2025/2026) × 4% (с/без) × фильтры Сводки; НДС проверяется в обеих ветках пар ─────────
@@ -197,7 +203,7 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
           const furRows = d.rawTable.filter((r) => r.kind === "fur"), linRows = d.rawTable.filter((r) => r.kind === "lining");
           for (const k of ["rq", "rv", "uq", "uv", "mq", "mv"] as const) {
             const sumR = (rows: typeof furRows) => rows.reduce((a, r) => a + r.cells[v][k], 0);
-            const tile = (kd: "fur" | "lining") => ({ rq: d.raw[kd][v].recvQty, rv: d.raw[kd][v].recvValue, uq: d.raw[kd][v].usedQty, uv: d.raw[kd][v].usedValue, mq: d.raw[kd][v].remQty, mv: d.raw[kd][v].remValue })[k];
+            const tile = (kd: "fur" | "lining") => ({ rq: d.raw[kd][v].recvQty, rv: d.raw[kd][v].recvValue, uq: d.raw[kd][v].usedQty, uv: c4 === "on" ? d.raw[kd][v].usedValueOther : d.raw[kd][v].usedValue, mq: d.raw[kd][v].remQty, mv: d.raw[kd][v].remValue })[k];
             eq(`${tag} плитка мех = Σ строк таблицы [${v}] ${k}`, tile("fur"), sumR(furRows), 0.05);
             eq(`${tag} плитка подкладка = Σ строк таблицы [${v}] ${k}`, tile("lining"), sumR(linRows), 0.05);
             eq(`${tag} «Всего» = мех + подкладка [${v}] ${k}`, d.rawTableTotal[v][k], tile("fur") + tile("lining"), 0.05);
@@ -213,8 +219,8 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
           const groups = [{ n: r.label, c: r.cells[v], o: o?.cells[v] }, ...r.auctions.map((a) => ({ n: `${r.label}/${a.label}`, c: a.cells[v], o: o?.auctions.find((x) => x.key === a.key)?.cells[v] }))];
           for (const g of groups) {
             const c = g.c;
-            const usedBaseV = c4 === "on" ? c.uo : c.uv, usedC4V = c4 === "on" ? c.uv : c.uo;
-            if (g.o) { eq(`${tag} ${g.n} [${v}]: «куплено» не зависит от 4%`, c.rv, g.o.rv, 0.001); eq(`${tag} ${g.n} [${v}]: «остаток» не зависит от 4%`, c.mv, g.o.mv, 0.001); eq(`${tag} ${g.n} [${v}]: «использовано» с 4% одинаково в обоих режимах`, usedC4V, c4 === "on" ? g.o.uo : g.o.uv, 0.001); }
+            const usedBaseV = c.uv, usedC4V = c.uo; // таблицы всегда показывают «использовано» без 4% (uv), «с 4%» лежит рядом (uo)
+            if (g.o) { eq(`${tag} ${g.n} [${v}]: «куплено» не зависит от 4%`, c.rv, g.o.rv, 0.001); eq(`${tag} ${g.n} [${v}]: «остаток» не зависит от 4%`, c.mv, g.o.mv, 0.001); eq(`${tag} ${g.n} [${v}]: «использовано» с 4% одинаково в обоих режимах`, usedC4V, g.o.uo, 0.001); eq(`${tag} ${g.n} [${v}]: «использовано» без 4% одинаково в обоих режимах`, usedBaseV, g.o.uv, 0.001); }
             checks++; if (usedC4V < usedBaseV - 0.01) { fails++; console.log(`  ✗ ${tag} ${g.n} [${v}]: с 4% меньше, чем без 4%`); }
             if (ordOn) continue;
             eq(`${tag} ${g.n} [${v}]: куплено − использовано = остаток, шт.`, c.rq - c.uq, c.mq, 0.002);
@@ -230,19 +236,22 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
         const allRow = all.years.find((r) => r.key === "all")!;
         if (y === "all") {
           cellsEq(`${tag} итог years.fur = плитка`, { incl: allRow.fur.incl, excl: allRow.fur.excl }, { incl: d.raw.fur.incl as never, excl: d.raw.fur.excl as never } as never);
-          eq(`${tag} итог years: произведено шт. = плитка`, allRow.prod.qty, d.prod.done.qty);
-          eq(`${tag} итог years: себестоимость = плитка`, allRow.prod.costIncl, d.prod.done.costIncl, 0.05);
-          eq(`${tag} итог years: себестоимость без НДС = плитка`, allRow.prod.costExcl, d.prod.done.costExcl, 0.05);
-          eq(`${tag} итог years: работа = плитка`, allRow.prod.work, d.prod.done.workSum, 0.05);
+          eq(`${tag} итог years: «в выпуске» шт. = завершённые + в работе`, allRow.prod.qty, d.prod.done.qty + d.prod.work.qty);
+          eq(`${tag} итог years: себестоимость = завершённые + в работе`, allRow.prod.costIncl, d.prod.done.costIncl + d.prod.work.costIncl, 0.05);
+          eq(`${tag} итог years: себестоимость без НДС = завершённые + в работе`, allRow.prod.costExcl, d.prod.done.costExcl + d.prod.work.costExcl, 0.05);
+          eq(`${tag} итог years: работа = завершённые + в работе`, allRow.prod.work, d.prod.done.workSum + d.prod.work.workSum, 0.05);
         } else {
           const yr = all.years.find((r) => r.key === y);
-          checks++; if (!yr) { fails++; console.log(`  ✗ ${tag} нет строки года в таблице динамики`); }
+          // Строки года без данных в таблицу динамики не попадают (нет данных — нет строки): тогда плитка за этот год обязана быть пустой.
+          const emptyYear = !yr && kinds.every((kd) => d.raw[kd].incl.recvQty === 0 && d.raw[kd].incl.recvValue === 0) && d.prod.done.qty === 0 && d.prod.work.qty === 0;
+          if (!yr && !emptyYear) { checks++; fails++; console.log(`  ✗ ${tag} нет строки года в таблице динамики`); }
+          else if (!yr) checks++;
           else {
-            for (const kd of kinds) cellsEq(`${tag} строка ${y} ${kd} = плитка за ${y}`, yr[kd], { incl: { rq: d.raw[kd].incl.recvQty, rv: d.raw[kd].incl.recvValue, uq: d.raw[kd].incl.usedQty, uv: d.raw[kd].incl.usedValue, mq: d.raw[kd].incl.remQty, mv: d.raw[kd].incl.remValue }, excl: { rq: d.raw[kd].excl.recvQty, rv: d.raw[kd].excl.recvValue, uq: d.raw[kd].excl.usedQty, uv: d.raw[kd].excl.usedValue, mq: d.raw[kd].excl.remQty, mv: d.raw[kd].excl.remValue } } as never);
-            eq(`${tag} строка ${y}: произведено шт. = плитка`, yr.prod.qty, d.prod.done.qty);
-            eq(`${tag} строка ${y}: себестоимость = плитка`, yr.prod.costIncl, d.prod.done.costIncl, 0.05);
-            eq(`${tag} строка ${y}: себестоимость без НДС = плитка`, yr.prod.costExcl, d.prod.done.costExcl, 0.05);
-            eq(`${tag} строка ${y}: работа = плитка`, yr.prod.work, d.prod.done.workSum, 0.05);
+            for (const kd of kinds) cellsEq(`${tag} строка ${y} ${kd} = плитка за ${y}`, yr[kd], { incl: { rq: d.raw[kd].incl.recvQty, rv: d.raw[kd].incl.recvValue, uq: d.raw[kd].incl.usedQty, uv: c4 === "on" ? d.raw[kd].incl.usedValueOther : d.raw[kd].incl.usedValue, mq: d.raw[kd].incl.remQty, mv: d.raw[kd].incl.remValue }, excl: { rq: d.raw[kd].excl.recvQty, rv: d.raw[kd].excl.recvValue, uq: d.raw[kd].excl.usedQty, uv: c4 === "on" ? d.raw[kd].excl.usedValueOther : d.raw[kd].excl.usedValue, mq: d.raw[kd].excl.remQty, mv: d.raw[kd].excl.remValue } } as never);
+            eq(`${tag} строка ${y}: «в выпуске» шт. = завершённые + в работе`, yr.prod.qty, d.prod.done.qty + d.prod.work.qty);
+            eq(`${tag} строка ${y}: себестоимость = завершённые + в работе`, yr.prod.costIncl, d.prod.done.costIncl + d.prod.work.costIncl, 0.05);
+            eq(`${tag} строка ${y}: себестоимость без НДС = завершённые + в работе`, yr.prod.costExcl, d.prod.done.costExcl + d.prod.work.costExcl, 0.05);
+            eq(`${tag} строка ${y}: работа = завершённые + в работе`, yr.prod.work, d.prod.done.workSum + d.prod.work.workSum, 0.05);
           }
         }
         void row;
@@ -261,17 +270,24 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
         eq(`${tag} закупки = получено + не получено (черновики)`, d.debt.total.toNumber(), d.bridge.purchases.received + d.bridge.purchases.draft, 0.01);
         // долг = закупки − оплачено − авансы (если авансы не больше остатка)
         const dueSum = d.debt.total.sub(d.debt.paid);
-        if (d.debt.unlinkedAdvances.lte(dueSum)) eq(`${tag} долг = закупки − оплачено − авансы`, d.debt.debt.toNumber(), d.debt.total.sub(d.debt.paid).sub(d.debt.unlinkedAdvances).toNumber(), 0.01);
+        // Переплаты аукционов зачтены поставщиком в долге (d.overpaid) — вычитаем и их.
+        const credited = d.overpaid.reduce((a, x) => a + x.amount, 0);
+        if (d.debt.unlinkedAdvances.lte(dueSum)) eq(`${tag} долг = закупки − оплачено − авансы − зачтённые переплаты`, d.debt.debt.toNumber(), d.debt.total.sub(d.debt.paid).sub(d.debt.unlinkedAdvances).toNumber() - credited, 0.01);
       }
       // 7.7 Σ по годам = «Все годы» — для сырья/производства/оплат/долга в каждом режиме и при каждом наборе фильтров
       const a = await dd("all", f, c4);
       const rows = a.years.filter((r) => r.key !== "all"), tot = a.years.find((r) => r.key === "all")!;
       const tag = `[${fname}|4%:${c4}]`;
-      for (const kd of kinds) for (const v of VATS) for (const k of ["rq", "rv", "uq", "uv", "mq", "mv"] as const) eq(`${tag} Σ годов = «Все» ${kd}/${v}/${k}`, rows.reduce((s, r) => s + r[kd][v][k], 0), a.raw[kd][v][({ rq: "recvQty", rv: "recvValue", uq: "usedQty", uv: "usedValue", mq: "remQty", mv: "remValue" } as const)[k]], 0.05);
-      eq(`${tag} Σ годов: произведено = плитка «все годы»`, rows.reduce((s, r) => s + r.prod.qty, 0), a.prod.done.qty);
-      eq(`${tag} Σ годов: себестоимость = плитка`, rows.reduce((s, r) => s + r.prod.costIncl, 0), a.prod.done.costIncl, 0.05);
-      eq(`${tag} итог долга по годам = плитка «все годы»`, tot.debt, a.debt.debt.toNumber(), 0.01);
-      eq(`${tag} итог оплат по годам = плитка «все годы»`, tot.paid, a.supplierCashPaid, 0.01);
+      for (const kd of kinds) for (const v of VATS) for (const k of ["rq", "rv", "uq", "uv", "mq", "mv"] as const) eq(`${tag} Σ годов = «Все» ${kd}/${v}/${k}`, rows.reduce((s, r) => s + r[kd][v][k], 0), a.raw[kd][v][({ rq: "recvQty", rv: "recvValue", uq: "usedQty", uv: (c4 === "on" ? "usedValueOther" : "usedValue") as "usedValue", mq: "remQty", mv: "remValue" } as const)[k]], 0.05);
+      eq(`${tag} Σ годов: «в выпуске» = завершённые + в работе («все годы»)`, rows.reduce((s, r) => s + r.prod.qty, 0), a.prod.done.qty + a.prod.work.qty);
+      eq(`${tag} Σ годов: себестоимость = завершённые + в работе`, rows.reduce((s, r) => s + r.prod.costIncl, 0), a.prod.done.costIncl + a.prod.work.costIncl, 0.05);
+      // Без фильтров: оплачено по годам = деньги поставщику + шкуры подрядчика (оплачены в составе пошива) + зачтённые переплаты аукционов;
+      // при фильтрах панели «Оплачено» и долг в таблице считаются по отобранным лотам (доля оплат аукциона), поэтому сравнивать с общим числом нельзя.
+      // 0,05 ₽: дробные копейки долей лотов при распределении долга по годам (≈1,4 коп.) — не ошибка расчёта.
+      if (!anyOn) {
+        eq(`${tag} итог долга по годам = плитка «все годы»`, tot.debt, a.debt.debt.toNumber(), 0.05);
+        eq(`${tag} итог оплат по годам = деньги поставщику + шкуры подрядчика + зачтённые переплаты`, tot.paid, a.supplierCashPaid + a.hides.incl + a.overpaid.reduce((x, o) => x + o.amount, 0), 0.05);
+      } else if (!lotOn) eq(`${tag} долг по годам при фильтре по ТЗ = общему долгу`, tot.debt, a.debt.debt.toNumber(), 0.05);
       // та же величина на разных блоках: годы 2025+2026 по закупкам = закупки «все годы»
       const d25 = await dd("2025", f, c4), d26 = await dd("2026", f, c4);
       eq(`${tag} закупки: 2025 + 2026 = все годы`, d25.debt.total.toNumber() + d26.debt.total.toNumber(), a.debt.total.toNumber(), 0.01);
@@ -319,11 +335,14 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
         const U = useSql.filter((r) => r.lin === lin && (y === "all" || String(r.yr) === y));
         const sum = (a: object[], key: string) => a.reduce((s, r) => s + (r as Record<string, number>)[key], 0);
         const tag = `[SQL|${y}|4%:${c4}|${kd}]`;
-        eq(`${tag} куплено шт.`, d.raw[kd].incl.recvQty, sum(L, "q"), 0.002); eq(`${tag} куплено ₽ с НДС`, d.raw[kd].incl.recvValue, sum(L, "v"), 0.5);
-        eq(`${tag} куплено ₽ без НДС`, d.raw[kd].excl.recvValue, sum(L, "vx"), 1);
-        eq(`${tag} остаток шт.`, d.raw[kd].incl.remQty, sum(L, "rq"), 0.002); eq(`${tag} остаток ₽`, d.raw[kd].incl.remValue, sum(L, "rv"), 0.5);
+        // К лотам меха на Главной добавлены: заказанное, но не полученное (в «Куплено» и «Остаток»), и шкуры подрядчика (в «Куплено» и «Использовано»; лотов нет).
+        const ordQ = kd === "fur" ? d.ordered.qty : 0, ordI = kd === "fur" ? d.ordered.incl : 0, ordX = kd === "fur" ? d.ordered.excl : 0;
+        const hdI = kd === "fur" ? d.hides.incl : 0, hdX = kd === "fur" ? d.hides.excl : 0;
+        eq(`${tag} куплено шт.`, d.raw[kd].incl.recvQty, sum(L, "q") + ordQ, 0.002); eq(`${tag} куплено ₽ с НДС`, d.raw[kd].incl.recvValue, sum(L, "v") + ordI + hdI, 0.5);
+        eq(`${tag} куплено ₽ без НДС`, d.raw[kd].excl.recvValue, sum(L, "vx") + ordX + hdX, 1);
+        eq(`${tag} остаток шт.`, d.raw[kd].incl.remQty, sum(L, "rq") + ordQ, 0.002); eq(`${tag} остаток ₽`, d.raw[kd].incl.remValue, sum(L, "rv") + ordI, 0.5);
         eq(`${tag} использовано шт.`, d.raw[kd].incl.usedQty, sum(U, "q"), 0.002);
-        eq(`${tag} использовано ₽ (${c4})`, d.raw[kd].incl.usedValue, sum(U, "v") + (c4 === "on" ? sum(U, "e4") : 0), 0.5);
+        eq(`${tag} использовано ₽ (${c4})`, d.raw[kd].incl.usedValue, sum(U, "v") + hdI + (c4 === "on" ? sum(U, "e4") : 0), 0.5);
       }
     }
     // производство по году ТЗ: workOrderDate → endDate → startDate → год партии
@@ -338,10 +357,10 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
       const d = await dd(y, E0, "off");
       const sel = (done: boolean) => prodSql.filter((r) => (r.st === "COMPLETED") === done && (y === "all" || String(r.yr) === y));
       const sm = (a: typeof prodSql, k: "n" | "q" | "plq" | "cost" | "work") => a.reduce((s, r) => s + r[k], 0);
-      eq(`[SQL|${y}] ТЗ завершённых`, d.prod.done.orders, sm(sel(true), "n"), 0); eq(`[SQL|${y}] произведено шт.`, d.prod.done.qty, sm(sel(true), "q"));
+      eq(`[SQL|${y}] ТЗ завершённых (записей)`, d.prod.done.items + d.prod.done.repairItems, sm(sel(true), "n"), 0); eq(`[SQL|${y}] произведено шт.`, d.prod.done.qty + d.prod.done.repairQty, sm(sel(true), "q"));
       eq(`[SQL|${y}] себестоимость завершённых (без 4%)`, d.prod.done.costIncl, sm(sel(true), "cost"), 0.5);
       eq(`[SQL|${y}] работа завершённых`, d.prod.done.workSum, sm(sel(true), "work"), 0.5);
-      eq(`[SQL|${y}] ТЗ в работе`, d.prod.work.orders, sm(sel(false), "n"), 0); eq(`[SQL|${y}] в работе шт. (план)`, d.prod.work.qty, sm(sel(false), "plq"));
+      eq(`[SQL|${y}] ТЗ в работе (записей)`, d.prod.work.items + d.prod.work.repairItems, sm(sel(false), "n"), 0); eq(`[SQL|${y}] в работе шт. (план)`, d.prod.work.qty + d.prod.work.repairQty, sm(sel(false), "plq"));
       eq(`[SQL|${y}] работа в работе`, d.prod.work.workSum, sm(sel(false), "work"), 0.5);
     }
     // ТЗ без года в «Все годы»: строка «Без даты» есть, только если у завершённых ТЗ нет года
@@ -357,7 +376,8 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
       select (select coalesce(sum(o."clientWorkPricePerUnit"*case when o.status='COMPLETED' then o."producedQuantity" when o.status in ('PLANNED','IN_PROGRESS') then o."plannedQuantity" else 0 end),0)::float from "ProductionOrder" o where o."organizationId"='${org}' and o."clientId" is not null) b,
              (select coalesce(sum(amount),0)::float from "ProductionPayment" where "organizationId"='${org}' and status='COMPLETED' and "clientId" is not null) p`);
     eq("долг заказчиков (все годы, без фильтров): работы = SQL", allD.clientDebts.reduce((s, c) => s + c.billable, 0), cl.b, 0.5);
-    eq("долг заказчиков (все годы, без фильтров): оплачено = SQL", allD.clientDebts.reduce((s, c) => s + c.paid, 0), cl.p, 0.5);
+    // Шкуры подрядчика, пришедшие в платежах заказчика сверх работы ТЗ, — сырьё: из «Оплачено за работу» исключены (clientDebtInfo / loadClientDebt.hides).
+    eq("долг заказчиков (все годы, без фильтров): оплачено + шкуры подрядчика = SQL", allD.clientDebts.reduce((s, c) => s + c.paid, 0) + allD.hides.incl, cl.p, 0.5);
     // по годам: работы складываются в «все годы» (ТЗ без года — только в «все годы»)
     const c25 = await dd("2025", E0, "off"), c26 = await dd("2026", E0, "off");
     const bil = (x: Dash) => x.clientDebts.reduce((s, c) => s + c.billable, 0);
