@@ -20,9 +20,7 @@ import { loadPaymentsOverview } from "@/lib/payments-overview";
 import {
   GROUPS,
   GROUP_KEYS,
-  STATUS_LABEL,
   applyFilters,
-  applyStatus,
   buildGroups,
   buildMatrix,
   orderLabel,
@@ -65,14 +63,10 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
     const m = computeMetrics(rs);
     return { m, d: derived(m), batches: new Set(rs.filter((r) => r.batchNumber != null).map((r) => r.batchNumber)).size };
   };
-  const sDone = sumFor(applyStatus(all, "done"));
-  const sWork = sumFor(applyStatus(all, "work"));
   const sAll = sumFor(all);
   // «Произведено» как на Главной: все ТЗ без отменённых (loadOrderRows их уже исключает) и без ремонта.
   const ownRows = all.filter((r) => r.category !== "Ремонт");
   const sOwn = sumFor(ownRows);
-  const sOwnDone = sumFor(applyStatus(ownRows, "done"));
-  const sOwnWork = sumFor(applyStatus(ownRows, "work"));
   const repairUnits = sAll.m.units - sOwn.m.units;
 
   // Шкуры подрядчика (оплачены в составе пошива): на Главной и в «ТЗ» они входят в мех и в себестоимость, здесь — только по списаниям лотов.
@@ -81,12 +75,10 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
 
   // Качество данных — по всем ТЗ года.
   const undefCat = all.filter((r) => r.category === UNDEFINED_CATEGORY);
-  const noUsagesDone = all.filter((r) => r.group === "done" && r.usageCount === 0);
-  const noUsagesWork = all.filter((r) => r.group === "work" && r.usageCount === 0);
+  const noUsages = all.filter((r) => r.usageCount === 0);
   const noWork = all.filter((r) => !(r.work > 0));
-  const zeroCostDone = all.filter((r) => r.group === "done" && !(r.costIncl > 0));
-  const zeroCostWork = all.filter((r) => r.group === "work" && !(r.costIncl > 0));
-  const noFurUsage = all.filter((r) => r.group === "done" && !r.furFromUsage);
+  const zeroCost = all.filter((r) => !(r.costIncl > 0));
+  const noFurUsage = all.filter((r) => !r.furFromUsage);
   const noBatch = all.filter((r) => r.batchNumber == null);
   const partHammer = all.filter((r) => r.furQty > 0 && r.hammerSkins < r.furQty - 1e-9);
 
@@ -117,7 +109,6 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
             <span title={r.modelHint}>{r.modelLabel}</span>
             <span>разм. {r.sizeRaw || "—"}</span>
             <span>{formatQty(r.qty)} ед.</span>
-            <span>{r.group === "done" ? "сделано" : "в работе"}</span>
             <span>{r.costIncl > 0 ? <Money incl={r.costIncl / Math.max(r.qty, 1)} excl={r.costExcl / Math.max(r.qty, 1)} /> : "себестоимость 0"} за ед.</span>
             {r.work > 0 && <span>работа {formatMoney((r.work / Math.max(r.qty, 1)).toFixed(2))}</span>}
             {r.furQty > 0 && <span>шкур {formatQty(r.furQty)}</span>}
@@ -261,7 +252,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Что произведено</h1><YearNote year={year} />
           <Mode4Badge mode={c4Mode} />
           <InfoHint label="О странице" wide>
-            <p>Какие ТЗ сделаны и во что они обошлись: по категориям, видам меха, размерам, моделям (артикулам), партиям, годам, цветам и по каждому ТЗ. Одна строка источника = одно ТЗ (отменённые не считаются).</p>
+            <p>Какие изделия произведены по ТЗ и во что они обошлись: по категориям, видам меха, размерам, моделям (артикулам), партиям, годам, цветам и по каждому ТЗ. Одна строка источника = одно ТЗ (отменённые не считаются).</p>
             <p className="mt-1">
               <b>Себестоимость сырья</b> = сырьё + подкладка (по лотам) + расходы ТЗ; в режиме «С 4%» к сырью и подкладке добавляется 4% (работа не облагается). Это та же «Себестоимость сырья», что в таблице «Партии»; в «Изделиях», в списке ТЗ и на Главной показана «Полная себестоимость (с работой)». <b>Работа</b> (цена работы по ТЗ × количество) в неё не входит; <b>полная себестоимость</b> = себестоимость + работа.
             </p>
@@ -294,14 +285,13 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         </div>
       </div>
 
-      {/* Фильтры: группировка и статус — параметры вида (применяются сразу, фильтрами не считаются); над виджетами, как на Главной */}
+      {/* Фильтры: группировка — параметры вида (применяются сразу, фильтрами не считаются); над виджетами, как на Главной */}
       <AnalyticsFilterBar
         opts={opts}
         aucOf={aucOf}
         lead={[
           { type: "multi", name: "g", label: "Группировать по", single: true, state: true, allLabel: GROUPS.category, options: GROUP_KEYS.filter((k) => k !== "category").map((k) => ({ value: k, label: GROUPS[k] })) },
           { type: "multi", name: "g2", label: "Внутри", single: true, state: true, allLabel: "Без второго уровня", options: GROUP_KEYS.filter((k) => k !== f.g).map((k) => ({ value: k, label: GROUPS[k] })) },
-          { type: "multi", name: "st", label: "ТЗ", single: true, state: true, allLabel: STATUS_LABEL.done, options: (["work", "all"] as const).map((k) => ({ value: k, label: STATUS_LABEL[k] })) },
         ]}
       />
 
@@ -363,7 +353,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       {/* Вид таблицы */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-neutral-500">
-          Группировка: <b className="text-neutral-800">{GROUPS[f.g]}{f.g2 ? ` → ${GROUPS[f.g2]}` : ""}</b> · {STATUS_LABEL[f.st]} · ТЗ: {total.orders}{itemsSuffix(total.orders, total.items)} · единиц: {formatQty(total.units)}
+          Группировка: <b className="text-neutral-800">{GROUPS[f.g]}{f.g2 ? ` → ${GROUPS[f.g2]}` : ""}</b> · ТЗ: {total.orders}{itemsSuffix(total.orders, total.items)} · единиц: {formatQty(total.units)}
           {total.units === 0 && <span className="ml-2 text-neutral-500">нет данных за выбранный год и фильтры</span>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -505,26 +495,19 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
             )}
           </li>
           <li>
-            ТЗ «сделано» без списаний материалов (состав не заполнен): <b>{noUsagesDone.length}</b>
-            {noUsagesDone.length > 0 && <div className="mt-1 text-xs">{linkList(noUsagesDone)}</div>}
-            {noUsagesWork.length > 0 && <div className="text-xs text-neutral-500">«В работе» без списаний: {noUsagesWork.length} (ожидаемо — материалы ещё не списаны)</div>}
+            ТЗ без списаний материалов (состав не заполнен): <b>{noUsages.length}</b>
+            {noUsages.length > 0 && <div className="mt-1 text-xs">{linkList(noUsages)}</div>}
           </li>
           <li>
-            ТЗ «сделано» с себестоимостью 0: <b>{zeroCostDone.length}</b>
-            {zeroCostDone.length > 0 && <div className="mt-1 text-xs">{linkList(zeroCostDone)}</div>}
-            {zeroCostWork.length > 0 && (
-              <details className="mt-1">
-                <summary className="cursor-pointer text-neutral-600">«В работе» с себестоимостью 0: {zeroCostWork.length} (в средних не участвуют)</summary>
-                <div className="mt-1 text-xs">{linkList(zeroCostWork)}</div>
-              </details>
-            )}
+            ТЗ с себестоимостью 0 (в средних не участвуют): <b>{zeroCost.length}</b>
+            {zeroCost.length > 0 && <div className="mt-1 text-xs">{linkList(zeroCost)}</div>}
           </li>
           <li>
             ТЗ без цены работы: <b>{noWork.length}</b>
             {noWork.length > 0 && <div className="mt-1 text-xs">{linkList(noWork)}</div>}
           </li>
           <li>
-            «Сделано», вид меха взят по названию (нет списаний): <b>{noFurUsage.length}</b>
+            ТЗ, где вид меха взят по названию (нет списаний): <b>{noFurUsage.length}</b>
             {noFurUsage.length > 0 && <div className="mt-1 text-xs">{linkList(noFurUsage)}</div>}
           </li>
           <li>

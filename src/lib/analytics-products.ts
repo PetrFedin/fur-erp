@@ -20,31 +20,21 @@ export const GROUPS = {
 export type GroupKey = keyof typeof GROUPS;
 export const GROUP_KEYS = Object.keys(GROUPS) as GroupKey[];
 
-export type StatusFilter = "done" | "work" | "all";
-export const STATUS_LABEL: Record<StatusFilter, string> = {
-  done: "Сделано",
-  work: "В работе и план",
-  all: "Все (кроме отменённых)",
-};
-
 export type ProductFilters = SharedFilters & {
   g: GroupKey;
   /** Второй уровень группировки (внутри первого); пусто — один уровень. */
   g2: GroupKey | "";
-  st: StatusFilter;
   mx: "units" | "cost";
 };
 
 export function parseProductFilters(sp: SP): ProductFilters {
   const g = one(sp.g) as GroupKey;
   const g2 = one(sp.g2) as GroupKey;
-  const st = one(sp.st) as StatusFilter;
   const gg: GroupKey = g in GROUPS ? g : "category";
   return {
     ...parseShared(sp),
     g: gg,
     g2: g2 in GROUPS && g2 !== gg ? g2 : "",
-    st: st === "work" || st === "all" ? st : "done",
     mx: one(sp.mx) === "cost" ? "cost" : "units",
   };
 }
@@ -55,7 +45,6 @@ export function productParams(f: ProductFilters, over: Partial<ProductFilters> =
   const p = sharedParams(x, {}, withView);
   if (x.g !== "category") p.set("g", x.g);
   if (x.g2) p.set("g2", x.g2);
-  if (x.st !== "done") p.set("st", x.st);
   if (x.mx !== "units") p.set("mx", x.mx);
   return p;
 }
@@ -64,12 +53,8 @@ export function productQuery(f: ProductFilters, over: Partial<ProductFilters> = 
   return s ? `?${s}` : "";
 }
 
-export function applyStatus(rows: OrderRow[], st: StatusFilter): OrderRow[] {
-  return st === "all" ? rows : rows.filter((r) => r.group === st);
-}
-
 export function applyFilters(rows: OrderRow[], f: ProductFilters): OrderRow[] {
-  return applyShared(applyStatus(rows, f.st), f);
+  return applyShared(rows, f);
 }
 
 export const orderLabel = (r: OrderRow) => (r.workOrderNumber && r.workOrderNumber !== r.number ? `${r.number} (заказчика ${r.workOrderNumber})` : r.number);

@@ -2,12 +2,12 @@ import { getFreshSession } from "@/lib/session";
 import { getYearFilter } from "@/lib/year-filter";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { loadOrderRows } from "@/lib/analytics-orders";
-import { GROUPS, STATUS_LABEL, applyFilters, buildGroups, parseProductFilters } from "@/lib/analytics-products";
+import { GROUPS, applyFilters, buildGroups, parseProductFilters } from "@/lib/analytics-products";
 import { derived, parseSort, type Metrics } from "@/lib/analytics-metrics";
 import { csvNum, csvResponse, toCsv } from "@/lib/csv";
 
 /**
- * CSV «Что произведено» (UTF-8 с BOM, «;», десятичная запятая). Те же фильтры, что и у страницы (g, g2, st, cat, fur, size, batch, color, q, …),
+ * CSV «Что произведено» (UTF-8 с BOM, «;», десятичная запятая). Те же фильтры, что и у страницы (g, g2, cat, fur, size, batch, color, q, …),
  * та же сортировка (sort, dir), общий год и режим 4% из cookie. part=groups — сводная таблица со ВСЕМИ параметрами; part=orders — плоский список ТЗ.
  * Деньги — с НДС и без НДС отдельными колонками.
  */
@@ -72,6 +72,6 @@ export async function GET(request: Request) {
     out.push(line(n.label, n.m));
     for (const c of n.children) out.push(line(`${n.label} / ${c.label}`, c.m));
   }
-  out.push(line(`Итого (${STATUS_LABEL[f.st]})`, total));
+  out.push(line("Итого", total));
   return csvResponse(`izdeliya-${f.g}${f.g2 ? `-${f.g2}` : ""}-${stamp}.csv`, toCsv(head, out));
 }
