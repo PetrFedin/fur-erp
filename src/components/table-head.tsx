@@ -73,9 +73,9 @@ export function TH({ label, unit, align = "right", sort, href, onSort, sep, afte
       {interactive ? (
         <span className={cn("inline-flex items-center gap-1", after ? "" : "contents")}>
           {href ? (
-            <Link href={href} className="hover:underline">{body(null)}</Link>
+            <Link href={href} scroll={false} className="hover:underline max-md:inline-flex max-md:min-h-11 max-md:items-center">{body(null)}</Link>
           ) : (
-            <button type="button" onClick={onSort} className="hover:underline">{body(null)}</button>
+            <button type="button" onClick={onSort} className="hover:underline max-md:min-h-11">{body(null)}</button>
           )}
           {after}
         </span>

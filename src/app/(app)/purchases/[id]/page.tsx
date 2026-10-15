@@ -1,4 +1,9 @@
-import { RawStagesBlock } from "@/components/raw-stages";
+import { RawStagesBlock, RawNow } from "@/components/raw-stages";
+import { SortTh } from "@/components/sort-th";
+import { readSort, sortRows } from "@/lib/table-sort";
+import { StatementBlock } from "@/components/auction-statement";
+import { buildStatement } from "@/lib/auction-statement";
+import { calcAll, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
 import { ChatLink } from "@/components/chat-link";
 import { TotalLabel } from "@/components/total-label";
 
@@ -81,8 +86,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: p ? `Закупка ${p.number}` : "Закупка" };
 }
 
-export default async function PurchaseDetailPage({ params }: PageProps<"/purchases/[id]">) {
+export default async function PurchaseDetailPage({ params, searchParams }: PageProps<"/purchases/[id]">) {
   const { id } = await params;
+  const sp = await searchParams;
   const session = await requireSession();
 
   const purchase = await prisma.purchase.findFirst({
@@ -97,6 +103,18 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     },
   });
   if (!purchase) notFound();
+  // сортировка позиций кликом по заголовку (?sort=…&dir=…)
+  const itemSort = readSort(sp, ["material", "lot", "qty", "price", "total"]);
+  purchase.items = sortRows(purchase.items, itemSort, {
+    material: (i) => i.rawMaterial.name, lot: (i) => i.lotNumber, qty: (i) => Number(i.quantity), price: (i) => Number(i.unitPrice), total: (i) => Number(i.subtotal),
+  });
+  // принятый расчёт Веллмеха, из которого создана закупка: по нему «За что заплачено»
+  const calcRow = await prisma.supplierInbox.findFirst({
+    where: { organizationId: session.user.organizationId, kind: "AUCTION_CALC", status: "ACCEPTED", createdEntityType: "Purchase", createdEntityId: { contains: purchase.id } },
+    orderBy: { decidedAt: "desc" },
+    select: { id: true, title: true, payload: true },
+  });
+  const calcPayload = calcRow && (calcRow.payload as unknown as CalcPayload)?.v === 1 && Array.isArray((calcRow.payload as unknown as CalcPayload).rows) ? ensureRowIds(calcRow.payload as unknown as CalcPayload) : null;
   const furIdx = await getFurIndex(session.user.organizationId);
 
   // Документы партии (спецификация, расчётный лист, счёт на аванс) лежат на
@@ -594,6 +612,10 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               <span key={t} className="flex items-center gap-x-1.5"><span aria-hidden>·</span>{t}</span>
             ))}
           </p>
+          <p className="mt-1 text-sm text-neutral-700">
+            Лотов <b className="tabular-nums">{purchase.items.length}</b> · шкур <b className="tabular-nums">{formatQty(purchase.items.reduce((a, i) => a + Number(i.quantity), 0).toString())}</b>
+          </p>
+          {rawStages.length > 0 && <RawNow stages={rawStages} className="mt-2 max-w-3xl" />}
           {sharedDocPurchases.length > 0 && (
             <p className="mt-1 text-xs text-neutral-600">
               Тот же {purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}` : "УПД"} оформлен ещё на:{" "}
@@ -651,8 +673,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </div>
       </div>
 
-      {rawStages.length > 0 && <RawStagesBlock stages={rawStages} purchaseId={purchase.id} author="Веллмех" />}
-
       {isForeignCurrency && editable && planItems.length === 0 && (
         <Card>
           <CardContent className="flex items-center justify-between pt-4">
@@ -707,7 +727,21 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       </div>
       </WidgetRow>
 
-      <Card>
+      {(() => {
+        if (!calcPayload || !calcRow) return null;
+        const inv = (purchase.invoiceNumber ?? "").trim();
+        const st = buildStatement(calcPayload, calcAll(calcPayload), inv ? (r) => (r.invoice ?? "").trim() === inv : undefined);
+        if (st.lots.length === 0) return null;
+        return (
+          <StatementBlock
+            st={st}
+            source={`выдержка из расчёта Веллмеха «${calcRow.title}»${inv ? `, счёт ${inv}` : ""}`}
+            action={<span className="flex flex-wrap items-center gap-3 text-sm"><Link href={`/supplier/auction-calcs/${calcRow.id}`} className="inline-flex min-h-11 items-center text-blue-700 underline md:min-h-0">Открыть расчёт</Link>{editable && <a href="#items" className="inline-flex min-h-11 items-center text-blue-700 underline md:min-h-0">Править расчёт лотов</a>}</span>}
+          />
+        );
+      })()}
+
+      <Card id="items" className="scroll-mt-4">
         <CardHeader>
           <CardTitle>Позиции ({purchase.items.length})</CardTitle>
         </CardHeader>
@@ -739,11 +773,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             <Table>
               <Thead>
                 <Tr>
-                  <Th>Материал</Th>
-                  <Th>Лот</Th>
+                  <SortTh path={`/purchases/${id}`} sp={sp} k="material" cur={itemSort} label="Материал" />
+                  <SortTh path={`/purchases/${id}`} sp={sp} k="lot" cur={itemSort} label="Лот" />
                   {showGradeColor && <Th>Сорт / цвет</Th>}
-                  <Th>Кол-во</Th>
-                  <Th>{hasPlan ? `Цена лота, ${currencySym}` : "Цена без НДС"}</Th>
+                  <SortTh path={`/purchases/${id}`} sp={sp} k="qty" cur={itemSort} label="Кол-во" />
+                  <SortTh path={`/purchases/${id}`} sp={sp} k="price" cur={itemSort} label={hasPlan ? `Цена лота, ${currencySym}` : "Цена без НДС"} />
                   <Th>НДС</Th>
                   {hasPlan ? (
                     <>
@@ -956,6 +990,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           )}
         </CardContent>
       </Card>
+
+      <details className="group rounded-lg border border-neutral-200 bg-white" open={rawStages.length > 0 && rawStages.length <= 3}>
+        <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-3 text-sm font-semibold text-neutral-800"><span className="text-neutral-500 transition-transform group-open:rotate-90">▶</span>Этапы сырья{rawStages.length ? ` · ${rawStages.length}` : ""}</summary>
+        <div className="border-t border-neutral-100 p-2"><RawStagesBlock stages={rawStages} purchaseId={purchase.id} author="Веллмех" showNow={false} title="Лента этапов" /></div>
+      </details>
 
       <SourceDocs data={await loadPurchaseSourceDocs({ organizationId: session.user.organizationId, role: session.user.role }, id)} />
 

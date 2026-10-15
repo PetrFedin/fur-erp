@@ -1,28 +1,32 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { prisma } from "@/lib/prisma";
 import { requireInboxViewer } from "@/lib/supplier-inbox";
 import { loadSupplierAuction } from "@/lib/supplier-auction";
-import { FORMAT_LABEL, calcAll, ensureRowIds } from "@/lib/supplier-calc";
+import { calcAll, ensureRowIds } from "@/lib/supplier-calc";
+import { buildStatement, type Statement } from "@/lib/auction-statement";
+import { readSort } from "@/lib/table-sort";
 import { formatDate } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 import { AttachDocument } from "../attach";
 import { RawStagesBlock } from "@/components/raw-stages";
 import { BreakdownTable } from "@/components/breakdown-table";
-import { CalcSheetReadonly } from "@/components/calc-sheet-readonly";
 import { ChatLink } from "@/components/chat-link";
+import { LotCompose, LotsTable, StatementBlock, type LotRow } from "@/components/auction-statement";
+import { summarizeStages, summaryLine } from "@/lib/raw-stage";
 
 export const metadata = { title: "Аукцион" };
 
 const num = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 3 });
 const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const cell = (n: number | null | undefined) => (n == null || !Number.isFinite(n) ? "" : n.toLocaleString("ru-RU", { maximumFractionDigits: 4 }));
-const cur = (c: string) => (c === "RUB" ? "₽" : c);
+const cur = (c: string) => (c === "RUB" ? "₽" : c === "USD" ? "$" : c);
 const KIND: Record<string, string> = { AUCTION_INVOICE: "Аукционный счёт", PAYMENT_INVOICE: "Счёт", SPECIFICATION: "Спецификация", UPD: "УПД", OTHER: "Документ" };
+const SORTS = ["invoice", "lot", "fur", "size", "qty", "unit", "total"];
 
-export default async function SupplierAuctionPage({ params }: PageProps<"/supplier/raw/[purchaseId]">) {
+export default async function SupplierAuctionPage({ params, searchParams }: PageProps<"/supplier/raw/[purchaseId]">) {
   const { purchaseId } = await params;
+  const sp = await searchParams;
   const s = await requireInboxViewer();
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(purchaseId)) notFound();
   const isSup = s.user.role === "SUPPLIER";
@@ -35,111 +39,123 @@ export default async function SupplierAuctionPage({ params }: PageProps<"/suppli
   if (!supplierId) notFound();
   const d = await loadSupplierAuction(s.user.organizationId, supplierId, purchaseId);
   if (!d) notFound();
-  const { purchase: p, items, calc, docs } = d;
+  const { purchase: p, items, calc, docs, invoices } = d;
   const stages = await prisma.supplierRawStage.findMany({
-    where: { organizationId: s.user.organizationId, supplierId, purchaseId: p.id },
+    where: { organizationId: s.user.organizationId, supplierId, purchaseId: { in: invoices.map((i) => i.id) } },
     orderBy: { createdAt: "asc" },
-    select: { id: true, stage: true, status: true, place: true, lotNumber: true, qty: true, note: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true },
+    select: { id: true, purchaseId: true, stage: true, status: true, place: true, lotNumber: true, qty: true, note: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true },
   });
-  // другие счета (закупки) того же аукциона: этап можно внести сразу во все
-  const sibling = await prisma.purchase.findFirst({ where: { id: p.id, organizationId: s.user.organizationId, supplierId }, select: { auctionId: true } });
-  const siblings = sibling?.auctionId ? await prisma.purchase.count({ where: { organizationId: s.user.organizationId, supplierId, auctionId: sibling.auctionId, status: { not: "CANCELLED" }, id: { not: p.id } } }) : 0;
-  const qty = items.reduce((a, i) => a + i.qty, 0);
-  const sum = items.reduce((a, i) => a + i.subtotal, 0);
+  const myStages = stages.filter((x) => x.purchaseId === p.id);
+  const lines = [...new Set(invoices.map((i) => { const sm = summarizeStages(stages.filter((x) => x.purchaseId === i.id)); return sm ? summaryLine(sm) : i.received ? "принято на склад" : ""; }))];
+  const nowLine = lines.length === 1 ? lines[0] : lines.length > 1 ? "по счетам по-разному — см. «Этапы сырья» ниже" : "";
+  const received = invoices.filter((i) => i.received).length;
+
   const payload = calc?.payload && calc.payload.v === 1 && Array.isArray(calc.payload.rows) ? ensureRowIds(calc.payload) : null;
   const t = payload ? calcAll(payload) : null;
+  const st: Statement | null = payload && t ? buildStatement(payload, t) : null;
   const h = payload?.header;
-  const head: [string, string][] = [
-    ["Продавец / аукционный дом", h?.seller || h?.auction || p.auction],
-    ["Валюта", h?.currency || p.currency],
-    ["Курс ЦБ", h?.cbRate ? `${h.cbRate}${h.agentPct ? ` + надбавка агента ${h.agentPct}%` : ""}` : p.rate !== 1 ? String(p.rate) : ""],
-    ["Куда (завод выделки)", h?.dest ?? ""],
-    ["№ брокера", h?.broker ?? ""],
-    ["Срок оплаты", h?.dueDate ?? ""],
-    ["Формат расчёта", payload ? FORMAT_LABEL[payload.format] : ""],
+  const c = cur(p.currency);
+
+  // Лоты: из расчёта (в ₽), если он есть, иначе из закупок (в валюте УПД).
+  const lotRows: LotRow[] = st
+    ? st.lots.map((l) => ({ id: l.rowId, invoice: l.invoice, lot: l.lot, fur: l.fur, size: l.size, qty: l.qty, unit: l.unit, total: l.total, cur: "₽" }))
+    : items.map((i) => ({ id: i.id, invoice: i.invoice, lot: i.lot, fur: i.fur, size: i.size, qty: i.qty, unit: i.unitPrice, total: i.subtotal, cur: c }));
+  const totalQty = lotRows.reduce((a, r) => a + r.qty, 0);
+  const totalSum = st ? st.total : lotRows.reduce((a, r) => a + r.total, 0);
+  const itemsQty = items.reduce((a, i) => a + i.qty, 0);
+  const sort = readSort(sp, SORTS);
+  const path = `/supplier/raw/${p.id}`;
+  const openId = typeof sp.lot === "string" ? sp.lot : undefined;
+  const closeHref = (() => { const q = new URLSearchParams(); for (const [k, v] of Object.entries(sp)) { const val = Array.isArray(v) ? v[0] : v; if (val && k !== "lot") q.set(k, val); } const qs = q.toString(); return `${path}${qs ? `?${qs}` : ""}#lots`; })();
+
+  let panel: React.ReactNode = null;
+  if (openId) {
+    if (st) {
+      const l = st.lots.find((x) => x.rowId === openId);
+      if (l) panel = <LotCompose title={`лот ${l.lot || "без №"} · ${l.fur}`} qty={l.qty} unit={l.unit} total={l.total} closeHref={closeHref} lines={st.lines.map((x) => ({ label: x.label, letter: x.letter, perUnit: x.perUnit[l.index] ?? 0, total: x.perLot[l.index] ?? 0 }))} />;
+    } else {
+      const it = items.find((x) => x.id === openId);
+      if (it) panel = (
+        <section id="lot-detail" className="flex flex-col gap-2 rounded-md border border-amber-300 bg-amber-50/60 p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="text-sm font-semibold">Из чего сложилась цена: лот {it.lot || "без №"} · {it.fur}</h3>
+            <Link href={closeHref} scroll={false} className="ml-auto inline-flex min-h-11 items-center text-sm text-blue-700 underline md:min-h-0">Закрыть</Link>
+          </div>
+          {it.breakdown.length > 0 ? <BreakdownTable items={it.breakdown} /> : <p className="text-sm text-neutral-600">Разбивки по этому лоту нет: цена по УПД {money(it.unitPrice)} {c} за шкуру без НДС.</p>}
+        </section>
+      );
+    }
+  }
+
+  const facts: [string, React.ReactNode][] = [
+    ["Аукционный дом", h?.seller || h?.auction || p.auction],
+    ["Дата", formatDate(p.orderDate)],
+    ["Валюта и курс", `${p.currency}${h?.cbRate ? `, курс ЦБ ${h.cbRate}${h.agentPct ? ` + ${h.agentPct}%` : ""}` : p.rate !== 1 ? `, курс ${p.rate}` : ""}`],
+    ["Счета", invoices.map((i) => i.invoice || i.number).join(", ")],
+    ["Принято на склад", `${received} из ${invoices.length} счетов`],
   ];
+  const docFiles = docs.flatMap((x) => x.files.map((f) => ({ ...f, title: x.title })));
 
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Главная" }, { label: "Сырьё", href: "/supplier/raw" }, { label: p.auction || p.number }]} />
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <h1 className="text-xl font-semibold">{p.auction || p.number}</h1>
-        <span className="text-sm text-neutral-600">{p.invoice ? `счёт ${p.invoice}${p.invoiceDate ? ` от ${formatDate(p.invoiceDate)}` : ""}` : p.number}</span>
-        <span className={p.received ? "rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800" : "rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900"}>{p.status}</span>
-      </div>
-      <p className="text-sm text-neutral-700">
-        Дата: <b>{formatDate(p.orderDate)}</b> · курс: <b>{p.rate}</b> · поставщик: <b>{p.supplier}</b> · лотов <b>{items.length}</b> · шкур <b>{num(qty)}</b> · по УПД без НДС: <b>{money(sum)} {cur(p.currency)}</b>
-      </p>
 
-      <RawStagesBlock stages={stages} purchaseId={p.id} lots={[...new Set(items.map((i) => i.lot).filter(Boolean))]} siblings={siblings} editable={isSup} />
-
-      <section className="rounded-md border border-neutral-300 bg-white p-3">
-        <h2 className="mb-2 text-sm font-semibold">Данные аукциона</h2>
+      <section className="flex flex-col gap-3 rounded-md border border-neutral-300 bg-white p-3" aria-label="Карточка аукциона">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <h1 className="text-xl font-semibold">{p.auction || p.number}</h1>
+          <span className={received === invoices.length ? "rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800" : "rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900"}>{received === invoices.length ? "принято на склад" : "в пути / заказано"}</span>
+          {calc && <Link href={`/supplier/auction-calcs/${calc.id}`} className={`ml-auto ${buttonVariants({ size: "sm" })}`}>Открыть расчёт</Link>}
+        </div>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          {head.filter(([, v]) => v).map(([k, v]) => (
-            <div key={k} className="flex gap-2"><dt className="text-neutral-500">{k}:</dt><dd>{v}</dd></div>
+          {facts.filter(([, v]) => v).map(([k, v]) => (
+            <div key={k} className="flex gap-2"><dt className="shrink-0 text-neutral-500">{k}:</dt><dd className="min-w-0 break-words">{v}</dd></div>
           ))}
         </dl>
-        {!payload && <p className="mt-2 text-xs text-neutral-500">Расчёта аукциона по этой закупке нет — ниже лоты и цены из отчёта. Расчёт можно внести в разделе «Аукционы».</p>}
-        {calc && <p className="mt-2 text-sm"><Link href={`/supplier/auction-calcs/${calc.id}`} className="text-blue-700 underline">Открыть расчёт «{calc.title}»</Link>{isSup && <> · <Link href={`/supplier/auction-calcs/new?from=${encodeURIComponent(`calc:${calc.id}`)}`} className="text-blue-700 underline" title="Принятый расчёт не меняется: копия берёт формат, столбцы с формулами и параметры, вы правите лоты и цифры">Новый расчёт на этой основе</Link></>}</p>}
+        {nowLine && <p className="text-sm"><b>Сырьё сейчас:</b> {nowLine}</p>}
+        <p className="border-t border-neutral-200 pt-2 text-sm">
+          Лотов <b className="tabular-nums">{lotRows.length}</b> · шкур <b className="tabular-nums">{num(totalQty)}</b> · {st ? "по расчёту" : "по УПД без НДС"}: <b className="tabular-nums">{money(totalSum)} {st ? "₽" : c}</b>
+          {st && Math.abs(itemsQty - totalQty) > 0.0005 && <span className="ml-2 text-amber-900">В закупках шкур {num(itemsQty)} — не совпадает с расчётом, проверьте.</span>}
+        </p>
       </section>
 
-      <section>
-        <h2 className="mb-1 text-sm font-semibold">Лоты</h2>
-        {payload && t ? (
-          <CalcSheetReadonly p={payload} t={t} maxHeight="70vh" />
-        ) : items.length === 0 ? (
+      {st && <StatementBlock st={st} source={`лист расчёта «${calc?.title ?? ""}»`} />}
+
+      <section id="lots" className="flex flex-col gap-2 scroll-mt-4">
+        <h2 className="text-base font-semibold">Лоты</h2>
+        {!st && <p className="text-sm text-neutral-600">Расчёта по этому аукциону нет, поэтому суммы — по УПД без НДС. Из чего сложилась цена лота — в его строке (номер лота).{isSup && <> Внесите расчёт в разделе «<Link href="/supplier/auction-calcs" className="text-blue-700 underline">Аукционы</Link>» — здесь появится разбивка «за что заплачено».</>}</p>}
+        {lotRows.length === 0 ? (
           <p className="rounded-md border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">В закупке пока нет лотов.</p>
         ) : (
-          <div className="overflow-x-auto rounded-md border border-neutral-300 bg-white">
-            <Table className="min-w-[760px]">
-              <Thead><Tr><Th>Лот</Th><Th>Вид меха</Th><Th>Цвет</Th><Th>Размер / сорт</Th><Th>Кол-во</Th><Th>Цена без НДС</Th><Th>Сумма</Th></Tr></Thead>
-              <Tbody>
-                {items.map((i) => (
-                  <Tr key={i.id}>
-                    <Td>{i.lot || "—"}</Td><Td>{i.fur}</Td><Td>{i.color || "—"}</Td><Td>{i.size || "—"}</Td>
-                    <Td className="tabular-nums">{num(i.qty)}</Td><Td className="tabular-nums">{money(i.unitPrice)}</Td><Td className="tabular-nums">{money(i.subtotal)}</Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </div>
+          <LotsTable rows={lotRows} path={path} sp={sp} cur={sort} openId={openId} showInvoice={invoices.length > 1 || lotRows.some((r) => r.invoice)} />
         )}
+        {panel}
       </section>
 
-      {!payload && items.some((i) => i.breakdown.length > 0) && (
-        <section>
-          <h2 className="mb-1 text-sm font-semibold">Из чего сложилась цена лота</h2>
-          <div className="flex flex-col gap-2">
-            {items.filter((i) => i.breakdown.length > 0).map((i) => (
-              <details key={i.id} className="rounded-md border border-neutral-200 bg-white">
-                <summary className="cursor-pointer px-3 py-1.5 text-sm">Лот {i.lot || "без номера"} · {i.fur}{i.color ? `, ${i.color}` : ""} · {num(i.qty)} шт.</summary>
-                <div className="border-t border-neutral-100 p-2"><BreakdownTable items={i.breakdown} /></div>
-              </details>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section>
-        <div className="mb-1 flex flex-wrap items-center gap-3">
-          <h2 className="text-sm font-semibold">Документы аукциона</h2>
-          {isSup && <AttachDocument purchaseId={p.id} label="Приложить документ" />}
-          <ChatLink type="Purchase" id={p.id} role={s.user.role} />
+      <details className="group rounded-md border border-neutral-300 bg-white" open={isSup && myStages.length === 0}>
+        <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-3 text-sm font-semibold"><span className="text-neutral-500 transition-transform group-open:rotate-90">▶</span>Этапы сырья<span className="font-normal text-neutral-500">{stages.length ? ` · ${stages.length}` : ""}</span></summary>
+        <div className="border-t border-neutral-200 p-2">
+          <RawStagesBlock stages={myStages} purchaseId={p.id} lots={[...new Set(items.filter((i) => i.purchaseId === p.id).map((i) => i.lot).filter(Boolean))]} siblings={invoices.length - 1} editable={isSup} showNow={false} title="Лента этапов" />
         </div>
-        {docs.every((x) => x.files.length === 0) ? (
-          <p className="text-sm text-neutral-500">Документов пока нет. Приложите аукционный счёт, свой счёт, спецификацию или УПД.</p>
-        ) : (
-          <ul className="flex flex-col gap-1 text-sm">
-            {docs.flatMap((x) => x.files.map((f) => (
-              <li key={f.id}>
-                <a href={`/api/supplier/inbox-files/${f.id}`} className="text-blue-700 underline">{f.originalName}</a>
-                <span className="text-neutral-500"> · {KIND[f.kind] ?? "Документ"} · {x.title}</span>
-              </li>
-            )))}
-          </ul>
-        )}
-      </section>
+      </details>
+
+      <details className="group rounded-md border border-neutral-300 bg-white">
+        <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-3 text-sm font-semibold"><span className="text-neutral-500 transition-transform group-open:rotate-90">▶</span>Документы аукциона<span className="font-normal text-neutral-500">{docFiles.length ? ` · ${docFiles.length}` : ""}</span></summary>
+        <div className="flex flex-col gap-2 border-t border-neutral-200 p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {isSup && <AttachDocument purchaseId={p.id} label="Приложить документ" />}
+            <ChatLink type="Purchase" id={p.id} role={s.user.role} />
+          </div>
+          {docFiles.length === 0 ? (
+            <p className="text-sm text-neutral-500">Документов пока нет: счета, УПД, спецификации, письма.</p>
+          ) : (
+            <ul className="flex flex-col gap-1 text-sm">
+              {docFiles.map((f) => (
+                <li key={f.id}><a href={`/api/supplier/inbox-files/${f.id}`} className="text-blue-700 underline">{f.originalName}</a><span className="text-neutral-500"> · {KIND[f.kind] ?? "Документ"}</span></li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </details>
     </div>
   );
 }

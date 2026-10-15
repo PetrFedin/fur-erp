@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { requireInboxViewer, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { supplierRawRows } from "@/lib/supplier-raw";
 import { cleanSearch } from "@/lib/input";
+import { SortTh } from "@/components/sort-th";
+import { readSort, sortRows } from "@/lib/table-sort";
 import { formatDate } from "@/lib/utils";
 import { AttachDocument } from "./attach";
 import { RawChip } from "@/components/raw-stages";
@@ -22,6 +24,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => cleanSearch(Array.isArray(v) ? v[0] : v, 60);
   const openName = one(sp.open);
+  const sort = readSort(sp, ["invoice", "lot", "fur", "color", "size", "qty", "price", "doc"]);
   const fAuction = one(sp.auction), fSt = one(sp.st), fFur = one(sp.fur), q = one(sp.q).toLowerCase();
 
   // Поставщик — только свои закупки; владелец/админ смотрят глазами поставщика (по поставщику из ?supplier или первому).
@@ -169,9 +172,19 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                     ) : (
                     <div className="overflow-x-auto rounded-md border border-neutral-200">
                       <Table className="min-w-[820px]">
-                        <Thead><Tr><Th>Счёт</Th><Th>Лот</Th><Th>Вид меха</Th><Th>Цвет</Th><Th>Размер / сорт</Th><Th>Кол-во</Th><Th>Цена без НДС</Th><Th>УПД</Th><Th /></Tr></Thead>
+                        <Thead><Tr>
+                          <SortTh path="/supplier/raw" sp={sp} k="invoice" cur={sort} label="Счёт" />
+                          <SortTh path="/supplier/raw" sp={sp} k="lot" cur={sort} label="Лот" />
+                          <SortTh path="/supplier/raw" sp={sp} k="fur" cur={sort} label="Вид меха" />
+                          <SortTh path="/supplier/raw" sp={sp} k="color" cur={sort} label="Цвет" />
+                          <SortTh path="/supplier/raw" sp={sp} k="size" cur={sort} label="Размер / сорт" />
+                          <SortTh path="/supplier/raw" sp={sp} k="qty" cur={sort} label="Кол-во" align="right" />
+                          <SortTh path="/supplier/raw" sp={sp} k="price" cur={sort} label="Цена без НДС" align="right" />
+                          <SortTh path="/supplier/raw" sp={sp} k="doc" cur={sort} label="УПД" />
+                          <Th />
+                        </Tr></Thead>
                         <Tbody>
-                          {lots.map((r) => (
+                          {sortRows(lots, sort, { invoice: (r) => r.invoice || r.purchaseNumber, lot: (r) => r.lotNumber, fur: (r) => r.fur, color: (r) => r.color, size: (r) => r.size, qty: (r) => r.quantity, price: (r) => r.unitPrice, doc: (r) => r.doc }).map((r) => (
                             <Tr key={r.itemId}>
                               <Td>{r.invoice || r.purchaseNumber}</Td><Td>{r.lotNumber || "—"}</Td><Td>{r.fur}</Td><Td>{r.color || "—"}</Td><Td>{r.size || "—"}</Td>
                               <Td className="tabular-nums">{num(r.quantity)}</Td>

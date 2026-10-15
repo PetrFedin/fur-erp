@@ -12,7 +12,7 @@ export async function loadSupplierAuction(orgId: string, supplierId: string, pur
   const p = await prisma.purchase.findFirst({
     where: { id: purchaseId, organizationId: orgId, supplierId, status: { not: "CANCELLED" } },
     select: {
-      id: true, number: true, status: true, currency: true, exchangeRate: true, auctionSession: true, invoiceNumber: true, invoiceDate: true,
+      id: true, number: true, status: true, currency: true, auctionId: true, exchangeRate: true, auctionSession: true, invoiceNumber: true, invoiceDate: true,
       orderDate: true, expectedDate: true, receivedDate: true,
       auction: { select: { name: true } }, supplier: { select: { name: true } },
       items: {
@@ -25,6 +25,20 @@ export async function loadSupplierAuction(orgId: string, supplierId: string, pur
     },
   });
   if (!p) return null;
+  // Аукцион целиком: все счета (закупки) этого поставщика с тем же аукционом. Страница открывается с любого из них.
+  const sibRows = p.auctionId
+    ? await prisma.purchase.findMany({
+        where: { organizationId: orgId, supplierId, auctionId: p.auctionId, status: { not: "CANCELLED" }, id: { not: p.id } },
+        orderBy: { number: "asc" },
+        select: {
+          id: true, number: true, status: true, invoiceNumber: true,
+          items: {
+            orderBy: { lotNumber: "asc" },
+            select: { id: true, lotNumber: true, grade: true, color: true, quantity: true, unitPrice: true, subtotal: true, costPlan: true, rawMaterial: { select: { name: true } }, lot: { select: { costBreakdown: true } } },
+          },
+        },
+      })
+    : [];
   // Принятый расчёт этого поставщика, из которого создана закупка.
   const calcRow = await prisma.supplierInbox.findFirst({
     where: { organizationId: orgId, supplierId, kind: "AUCTION_CALC", status: "ACCEPTED", createdEntityType: "Purchase", createdEntityId: { contains: p.id } },
@@ -36,16 +50,18 @@ export async function loadSupplierAuction(orgId: string, supplierId: string, pur
       organizationId: orgId, supplierId, status: { in: ["SENT", "ACCEPTED"] },
       OR: [
         ...(calcRow ? [{ id: calcRow.id }] : []),
-        { kind: "DOCUMENT" as const, payload: { path: ["purchaseId"], equals: p.id } },
+        ...[p.id, ...sibRows.map((x) => x.id)].map((id) => ({ kind: "DOCUMENT" as const, payload: { path: ["purchaseId"], equals: id } })),
       ],
     },
     orderBy: { createdAt: "asc" },
     select: { id: true, title: true, status: true, files: { orderBy: { createdAt: "asc" }, select: { id: true, originalName: true, kind: true, sizeBytes: true } } },
   });
-  const items = p.items.map((i) => {
+  const mine = { id: p.id, number: p.number, status: p.status, invoiceNumber: p.invoiceNumber, items: p.items };
+  const allPurchases = [mine, ...sibRows].sort((a, b) => a.number.localeCompare(b.number, "ru", { numeric: true }));
+  const items = allPurchases.flatMap((pp) => pp.items.map((i) => ({ i, pp }))).map(({ i, pp }) => {
     const raw = (i.lot?.costBreakdown ?? (i.costPlan as { costBreakdown?: unknown } | null)?.costBreakdown) as unknown;
     return {
-      id: i.id, lot: i.lotNumber ?? "", fur: i.rawMaterial.name, color: i.color ?? "", size: i.grade ?? "",
+      id: i.id, purchaseId: pp.id, invoice: pp.invoiceNumber ?? pp.number, lot: i.lotNumber ?? "", fur: i.rawMaterial.name, color: i.color ?? "", size: i.grade ?? "",
       qty: Number(i.quantity), unitPrice: Number(i.unitPrice), subtotal: Number(i.subtotal),
       breakdown: itemsOfBreakdown(raw).map((b) => ({ label: b.label, value: b.value })),
     };
@@ -57,6 +73,7 @@ export async function loadSupplierAuction(orgId: string, supplierId: string, pur
       orderDate: p.orderDate, expectedDate: p.expectedDate, receivedDate: p.receivedDate, supplier: p.supplier.name,
     },
     items,
+    invoices: allPurchases.map((pp) => ({ id: pp.id, number: pp.number, invoice: pp.invoiceNumber ?? "", received: pp.status === "RECEIVED", status: pp.status })),
     calc: calcRow ? { id: calcRow.id, title: calcRow.title, payload: calcRow.payload as unknown as CalcPayload } : null,
     docs: docRows,
   };

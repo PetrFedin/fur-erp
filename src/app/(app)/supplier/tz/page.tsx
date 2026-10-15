@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { requireInboxViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { TzRowButtons } from "./tz-preview";
 import { formatDate } from "@/lib/utils";
+import { SortTh } from "@/components/sort-th";
+import { readSort, sortRows } from "@/lib/table-sort";
 import { tzTotals, type TzPayload } from "@/lib/tz-vendor";
 
 export const metadata = { title: "ТЗ поставщика" };
@@ -13,7 +15,9 @@ export const metadata = { title: "ТЗ поставщика" };
 type Pl = { batch?: string; totals?: { qty?: number } } | null;
 
 /** ТЗ по партиям — как в нашем разделе «ТЗ»: партия сворачивается, внутри список ТЗ с количеством и статусом. */
-export default async function SupplierTzPage() {
+export default async function SupplierTzPage({ searchParams }: PageProps<"/supplier/tz">) {
+  const sp = await searchParams;
+  const sort = readSort(sp, ["title", "supplier", "qty", "status", "date"]);
   const s = await requireInboxViewer();
   const isSup = s.user.role === "SUPPLIER";
   const rows = await prisma.supplierInbox.findMany({
@@ -57,9 +61,16 @@ export default async function SupplierTzPage() {
             </summary>
             <div className="overflow-x-auto border-t border-neutral-100">
               <Table className="min-w-[820px]">
-                <Thead><Tr><Th>ТЗ</Th>{!isSup && <Th>Поставщик</Th>}<Th className="text-right">Изделий</Th><Th>Статус</Th><Th>Изменено</Th><Th /></Tr></Thead>
+                <Thead><Tr>
+                  <SortTh path="/supplier/tz" sp={sp} k="title" cur={sort} label="ТЗ" />
+                  {!isSup && <SortTh path="/supplier/tz" sp={sp} k="supplier" cur={sort} label="Поставщик" />}
+                  <SortTh path="/supplier/tz" sp={sp} k="qty" cur={sort} label="Изделий" align="right" />
+                  <SortTh path="/supplier/tz" sp={sp} k="status" cur={sort} label="Статус" />
+                  <SortTh path="/supplier/tz" sp={sp} k="date" cur={sort} label="Изменено" />
+                  <Th />
+                </Tr></Thead>
                 <Tbody>
-                  {list.map((r) => (
+                  {sortRows(list, sort, { title: (r) => r.title, supplier: (r) => r.supplier.name, qty: (r) => qty(r) || null, status: (r) => INBOX_STATUS_LABEL[r.status], date: (r) => r.sentAt ?? r.updatedAt }).map((r) => (
                     <Tr key={r.id}>
                       <Td><Link className="font-medium underline" href={`/supplier/tz/${r.id}`}>{r.title}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 text-xs text-red-700">Замечание: {r.reviewNote}</div>}</Td>
                       {!isSup && <Td>{r.supplier.name}</Td>}
