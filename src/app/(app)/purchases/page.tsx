@@ -5,7 +5,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
-import { lotsText, LOTS_RULE } from "@/lib/cost-labels";
+import { LOTS_RULE } from "@/lib/cost-labels";
 import { formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, grossUp } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -338,14 +338,10 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           <YearNote year={year} />
           <span className="ml-2 inline-flex">
           <InfoHint label="О странице «Закупки»" wide>
-            <p>Закупки сырья и подкладки: поставщик, аукцион / закупка, счёт, сумма и оплата, использование лотов в ТЗ. Откройте закупку, чтобы увидеть позиции, расходы, расчёт цены и документы.</p>
-            <p className="mt-1">
-              Год ({year === "all" ? "все годы" : year}): по дате заказа закупки. Поля «с / по» сужают выбор внутри года.
-            </p>
-            <p className="mt-1">
-              Оплаты закупок внутри одной партии закупки ведутся по партии целиком — «оплачено из» показывает сумму всего аукциона. «Принято на склад» — по закупке уже созданы лоты сырья.
-            </p>
-            <p className="mt-1">4% к закупкам, оплатам и долгу поставщику не применяется — это наценка на сырьё и подкладку в ТЗ.</p>
+            <p>Закупки сырья и подкладки: поставщик, партия, счёт, сумма, оплата и использование лотов в ТЗ. Откройте закупку — позиции, расходы, цена и документы.</p>
+            <p className="mt-1">Год ({year === "all" ? "все годы" : year}) — по дате заказа; «с / по» сужают выбор внутри года.</p>
+            <p className="mt-1">Оплаты внутри партии ведутся по партии целиком: «оплачено из» — сумма всего аукциона. «Принято на склад» — по закупке уже есть лоты.</p>
+            <p className="mt-1">4% к закупкам, оплатам и долгу поставщику не применяется: это наценка в ТЗ.</p>
           </InfoHint>
           </span>
         </div>
@@ -385,7 +381,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           ))}
         </div>
         <InfoHint label="Как разделены мех и подкладка" wide>
-          <p>«Мех» — закупки шкур (шт.), «Подкладка» — закупки метров. Итоги, плитки и таблицы считаются по выбранному набору; «Все» — как раньше. Закупка из меха и подкладки попадает в оба набора своей частью: количество и позиции вида, сумма, оплата и долг — по доле стоимости позиций вида.</p>
+          <p>«Мех» — шкуры (шт.), «Подкладка» — метры. Итоги и таблицы считаются по выбранному набору. Закупка из меха и подкладки попадает в оба набора своей частью: сумма, оплата и долг — по доле стоимости позиций.</p>
         </InfoHint>
       </div>
 
@@ -396,7 +392,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             return (
               <ScopeShow key={k} src={k}>
                 <span className="text-xs text-neutral-500" data-testid="purchases-grand">
-                  {k === "all" ? "" : `${FUR_SRC_LABEL[k]}: `}Всего куплено {formatMoney(grand.bought.toFixed(2))} · оплачено {formatMoney(grand.paid.toFixed(2))} · {grand.rest < -OVERPAY_FROM ? "переплата" : "к оплате"} {formatMoney(Math.abs(grand.rest).toFixed(2))}
+                  {k === "all" ? "" : `${FUR_SRC_LABEL[k]}: `}Куплено {formatMoney(grand.bought.toFixed(2))} · оплачено {formatMoney(grand.paid.toFixed(2))} · {grand.rest < -OVERPAY_FROM ? "переплата" : "к оплате"} {formatMoney(Math.abs(grand.rest).toFixed(2))}
                 </span>
               </ScopeShow>
             );
@@ -408,7 +404,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             {FUR_SRC_KEYS.map((srcK) => (
             <ScopeShow key={srcK} src={srcK}>
             {variants[srcK].blocks.length === 0 ? (
-              <ScopeEmpty title="Подкладки на аукционах нет" text="Подкладка закупается у поставщика, не на аукционе: в режиме «На аукционах» набор «Подкладка» пуст. В режимах «У поставщика» и «Вся закупка» подкладка показана целиком." />
+              <ScopeEmpty title="Подкладки на аукционах нет" text="Подкладка — только у поставщика." />
             ) : variants[srcK].blocks.map((b) => (
               <div key={b.key} className="flex flex-col gap-1.5" data-testid={`purchases-totals-${b.key}`}>
                 {b.title ? <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{b.title}</div> : null}
@@ -417,14 +413,15 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                     <TileHead><VatLabel base="Куплено" /></TileHead>
                     <div className="absolute right-3 top-3">
                       <InfoHint label="О «Куплено»" align="right">
-                        <p>Стоимость закупок выборки: позиции плюс расходы закупки. Без фильтров к ним добавлены шкуры подрядчика (оплачены в составе пошива) — тогда итог совпадает с «Общая стоимость» сырья на Главной и в Оплатах. Отменённые закупки не входят.</p>
-                        <p className="mt-1">Цена ср. — куплено ÷ {b.kind === "lining" ? "метры" : "штуки"} закупок набора; шкуры подрядчика, у которых нет закупки и количества, в знаменатель и в числитель не входят.</p>
+                        <p>Позиции плюс расходы закупок выборки, без отменённых. Без фильтров добавлены шкуры подрядчика{b.h > 0.5 ? ` (${formatMoney(b.h.toFixed(2))})` : ""}, оплаченные в составе пошива, — итог равен «Общей стоимости» сырья на Главной и в Оплатах.</p>
+                        <p className="mt-1">Цена ср. = куплено ÷ {b.kind === "lining" ? "метры" : "штуки"} закупок; шкуры подрядчика без количества в расчёт не входят.</p>
+                        {b.t.ordered > 0 ? <p className="mt-1">Позиций заказано, но не получено: {b.t.ordered}.</p> : null}
                         <p className="mt-1">{LOTS_RULE}</p>
-                        <p className="mt-1">НДС по ставкам — по позициям закупок набора (расходы, шкуры подрядчика и округление не входят); внутри суммы «с НДС».</p>
+                        <p className="mt-1">НДС по ставкам — по позициям закупок (без расходов, шкур подрядчика и округления); внутри суммы «с НДС».</p>
                       </InfoHint>
                     </div>
                     <TileValue><Money incl={b.bought.toFixed(2)} excl={b.boughtExcl.toFixed(2)} /></TileValue>
-                    <TileCaption>{`${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · ${lotsText(b.t.lots - b.t.ordered, b.t.ordered)} · ${formatQty(b.kind === "lining" ? b.t.lining : b.t.fur)} ${b.kind === "lining" ? "м" : "шт."}`}</TileCaption>
+                    <TileCaption>{`${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · лотов ${b.t.lots - b.t.ordered} · ${formatQty(b.kind === "lining" ? b.t.lining : b.t.fur)} ${b.kind === "lining" ? "м" : "шт."}`}</TileCaption>
                     <TileList items={[{
                       k: `Цена, ₽/${b.kind === "lining" ? "м" : "шт."} (ср.)`,
                       v: (b.kind === "lining" ? b.t.lining : b.t.fur) > 0
@@ -432,22 +429,26 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                         : "—",
                     }]} />
                     <VatLine v={b.vat} className="mt-1" />
-                    {b.h > 0.5 ? <div className="mt-1 text-[11px] leading-4 text-neutral-500">с шкурами подрядчика {formatMoney(b.h.toFixed(2))}</div> : null}
                   </div>
                   <div className={TILE_BOX}>
                     <TileHead>Оплачено</TileHead>
                     <TileValue>{formatMoney(b.paid.toFixed(2))}</TileValue>
-                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.paid / b.bought) * 100)} от куплено · с НДС` : "всегда с НДС"}</TileCaption>
+                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.paid / b.bought) * 100)} от куплено` : "—"}</TileCaption>
                   </div>
                   <div className={TILE_BOX}>
                     <TileHead>{b.rest < -OVERPAY_FROM ? "Переплата" : "К оплате"}</TileHead>
+                    <div className="absolute right-3 top-3">
+                      <InfoHint label="О «К оплате»" align="right">
+                        <p>Куплено − Оплачено.{b.kind === "fur" && variants[srcK].liningOverpay > 0.5 ? ` Это долг по меху: переплата по подкладке ${formatMoney(variants[srcK].liningOverpay.toFixed(2))} не вычтена (на Главной вычтена, поэтому там меньше).` : ""}</p>
+                      </InfoHint>
+                    </div>
                     <TileValue className={b.rest > PAY_EPS.toNumber() ? "text-amber-700" : ""}>{formatMoney(Math.abs(b.rest).toFixed(2))}</TileValue>
-                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.rest / b.bought) * 100)} от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}{b.kind === "fur" && variants[srcK].liningOverpay > 0.5 ? `. К оплате по меху; переплата по подкладке ${formatMoney(variants[srcK].liningOverpay.toFixed(2))} не вычтена (на Главной она вычтена, поэтому там меньше)` : ""}</TileCaption>
+                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.rest / b.bought) * 100)} от куплено` : "—"}</TileCaption>
                   </div>
                 </div>
               </div>
             ))}
-            {srcK === "auction" && !sec ? <p className="text-[11px] leading-4 text-neutral-500" data-testid="lining-not-in-mode">Подкладка закупается у поставщика, не на аукционе, и в режиме «На аукционах» не участвует; шкуры подрядчика — тоже сырьё поставщика.</p> : null}
+            {srcK === "auction" && !sec ? <p className="text-[11px] leading-4 text-neutral-500" data-testid="lining-not-in-mode">Подкладка и шкуры подрядчика — не с аукциона.</p> : null}
             </ScopeShow>
             ))}
           </div>

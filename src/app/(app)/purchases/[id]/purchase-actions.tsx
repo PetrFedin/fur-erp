@@ -47,7 +47,7 @@ export function PurchaseActions({
         >
           {pending ? "Отменяем..." : "Отменить закупку"}
         </Button>
-        {cancelBlocker && <p className="max-w-xs text-right text-xs text-neutral-500">Отмена недоступна: {cancelBlocker}</p>}
+        {cancelBlocker && <p className="max-w-xs text-right text-xs text-neutral-500">Нельзя отменить: {cancelBlocker.charAt(0).toLowerCase() + cancelBlocker.slice(1).replace(/ — отмена невозможна$/, "")}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
         {node}
       </div>

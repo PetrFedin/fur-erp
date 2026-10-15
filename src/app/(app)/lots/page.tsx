@@ -267,8 +267,8 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             <ScopeShow src={onlySrc ? ["all", onlySrc] : "all"}>{view(auctionNames, auctionLabel)}</ScopeShow>
             {!onlySrc && byName.auction.length > 0 ? <ScopeShow src="auction">{view(byName.auction, labelOf(byName.auction))}</ScopeShow> : null}
             {!onlySrc && byName.supplier.length > 0 ? <ScopeShow src="supplier">{view(byName.supplier, labelOf(byName.supplier))}</ScopeShow> : null}
-            {onlySrc === "supplier" ? <ScopeShow src="auction"><ScopeEmpty title="Эта закупка не на аукционе" text={`${auctionLabel}: закупка у поставщика или фермы, не на аукционе. В режиме «На аукционах» её нет — переключите источник на «У поставщика» или «Вся закупка».`} /></ScopeShow> : null}
-            {onlySrc === "auction" ? <ScopeShow src="supplier"><ScopeEmpty title="Эта закупка на аукционе" text={`${auctionLabel}: закупка на аукционе. В режиме «У поставщика» её нет — переключите источник на «На аукционах» или «Вся закупка».`} /></ScopeShow> : null}
+            {onlySrc === "supplier" ? <ScopeShow src="auction"><ScopeEmpty title="Закупка не на аукционе" text={`${auctionLabel} — у поставщика. Выберите «У поставщика» или «Вся закупка».`} /></ScopeShow> : null}
+            {onlySrc === "auction" ? <ScopeShow src="supplier"><ScopeEmpty title="Закупка на аукционе" text={`${auctionLabel} — на аукционе. Выберите «На аукционах» или «Вся закупка».`} /></ScopeShow> : null}
           </>
         )}
         </FurScope>
@@ -330,14 +330,10 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             <YearNote year={year} />
             <span className="ml-2 inline-flex">
             <InfoHint label="О странице «Сырьё»" wide>
-              <p>Куплено → использовано в ТЗ → остаток по видам меха (или по тканям подкладки). Клик по названию раскрывает строку до партий (аукционов) и лотов; галочка слева выбирает строку для итога.</p>
-              <p className="mt-1">
-                Год ({year === "all" ? "все годы" : year}): в таблице только лоты закупок с датой заказа в выбранном году. Фильтр «Год закупки» в таблице сужает выбор внутри него.
-              </p>
-              <p className="mt-1">
-                Стоимость = Σ(количество лота × цена лота за единицу); цена лота — как в закупке (по курсу, с НДС и расходами). Средневзвешенная цена = Σ ₽ ÷ Σ шт. (м). 4% не начисляется на «куплено» и «остаток»: оно считается только при списании сырья и подкладки в ТЗ — переключатель «С 4%» меняет «использовано».
-              </p>
-              <p className="mt-1">«Лиса красная» — это вид «Лиса» цвета «Красный».</p>
+              <p>Куплено → использовано в ТЗ → остаток по видам меха (или тканям подкладки). Клик по названию раскрывает партии и лоты; галочка выбирает строку для итога.</p>
+              <p className="mt-1">Год ({year === "all" ? "все годы" : year}): лоты закупок с датой заказа в этом году; «Год закупки» в таблице сужает выбор.</p>
+              <p className="mt-1">Стоимость = Σ(количество × цена лота), цена — как в закупке (курс, НДС, расходы). Средняя цена = Σ ₽ ÷ Σ шт. (м). 4% считается только при списании в ТЗ; «С 4%» меняет «использовано».</p>
+              <p className="mt-1">«Лиса красная» — вид «Лиса», цвет «Красный».</p>
             </InfoHint>
             </span>
           </div>
@@ -381,7 +377,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           <div className="flex items-center gap-2">
             <h2 id="raw-fur" className="text-base font-semibold">{kindTitle}</h2>
             <InfoHint label="Как читать плитки сырья" wide>
-              <p>Те же цифры, что в блоке «Сырьё» на Главной: <b>Куплено = Использовано + Остаток</b> (без 4%). 4% начисляется только при списании в ТЗ и показано в «Использовано» отдельной строкой «с 4%». Нажмите на плитку — цены по видам. Справа за тонкой линией: Оплачено и К оплате по меху (с НДС, 4% отдельно не добавляются).</p>
+              <p>Цифры те же, что на Главной: <b>Куплено = Использовано + Остаток</b> (без 4%). Нажмите на плитку — цены по видам. Справа: Оплачено и К оплате по меху (с НДС).</p>
             </InfoHint>
           </div>
           <FurSelectionTotal noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
@@ -391,7 +387,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           <div className="flex items-center gap-2">
             <h2 id="raw-lining" className="text-base font-semibold">{kindTitle}</h2>
             <InfoHint label="Как читать плитки подкладки" wide>
-              <p>Те же цифры, что в блоке «Сырьё» на Главной: <b>Куплено = Использовано + Остаток</b> (в метрах и в ₽, без 4%). 4% начисляется только при списании в ТЗ. Справа за тонкой линией: Оплачено и К оплате по подкладке (с НДС).</p>
+              <p>Цифры те же, что на Главной: <b>Куплено = Использовано + Остаток</b> (м и ₽, без 4%). Справа: Оплачено и К оплате по подкладке (с НДС).</p>
             </InfoHint>
           </div>
           {/* Порядок: фильтры → ряд виджетов (плитки + формы подкладки) → таблица — это задаёт FurSelectionTotal. */}

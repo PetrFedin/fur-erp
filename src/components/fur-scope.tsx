@@ -96,10 +96,3 @@ export function SupplierOnly({ what, children }: { /** Что это: «Парт
   if (src === "auction") return <ScopeEmpty title={`${what} — не с аукциона`} text="Закупка у поставщика: в режиме «На аукционах» данных нет." />;
   return <>{children}</>;
 }
-
-/** Метка в заголовке блока: какой источник сейчас показан (только внутри области). */
-export function ScopeBadge() {
-  const c = useFurScope();
-  if (!c) return null;
-  return <span data-testid="scope-badge" className={"rounded-full px-2 py-0.5 text-[11px] font-medium " + (c.src === "all" ? "bg-neutral-100 text-neutral-700" : "bg-orange-50 text-orange-800")}>Мех: {FUR_SRC_LABEL[c.src]}</span>;
-}

@@ -16,7 +16,7 @@ import { SortMark } from "@/components/table-head";
 import { useClientSort } from "@/lib/use-client-sort";
 import { sortRows, type SortVal } from "@/lib/table-sort";
 import { RawCards, type RawSlide } from "@/app/(app)/dashboard/raw-block";
-import { ScopeBadge, ScopeEmpty, useFurScope } from "@/components/fur-scope";
+import { ScopeEmpty, useFurScope } from "@/components/fur-scope";
 import { alignFlowSet } from "@/lib/money-round";
 import { alignFurBySource } from "@/lib/fur-src-data";
 import { classifyLotSource } from "@/lib/purchase-source";
@@ -593,7 +593,7 @@ export function FurSelectionTotal({
   // Управление слайдами: у меха — переключатель источника + ‹ › и точки типов; у ткани — только ‹ › и точки.
   const slideCtl = hasTypes ? (
     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 print:hidden" data-testid="fur-slide-ctl">
-      {kind === "fur" ? (scope ? <ScopeBadge /> : <SegmentSwitch label="Источник закупки меха" value={src} onChange={nav.pick} options={FUR_SRC_KEYS.map((k) => ({ key: k, label: FUR_SRC_LABEL[k] }))} />) : null}
+      {kind === "fur" ? (scope ? null : <SegmentSwitch label="Источник закупки меха" value={src} onChange={nav.pick} options={FUR_SRC_KEYS.map((k) => ({ key: k, label: FUR_SRC_LABEL[k] }))} />) : null}
       <TypeDots accent labels={["", ...slideKeys].map((k) => k || (kind === "fur" ? ALL_TYPES_LABEL : "Все ткани"))} cur={slideIdx} goTo={sw.goTo} step={sw.step} last={sw.maxStart} ariaLabel={kind === "fur" ? "Тип меха" : "Ткань"}
         nowLabel={slideNow ? (kind === "fur" ? <Link href={`/lots/fur/${encodeURIComponent(slideNow)}`} className="hover:underline" title="Страница вида меха">{slideNow}↗</Link> : slideNow) : kind === "fur" ? ALL_TYPES_LABEL : "Все ткани"} />
     </div>
@@ -651,42 +651,39 @@ export function FurSelectionTotal({
             const used$ = (f: FlowFigures) => (raw.c4 === "on" ? f.usedValueOther : f.usedValue); // «Использовано» без 4% — как в плитке
             const chk: [string, (f: FlowFigures) => number, boolean][] = [["куплено", (f) => f.recvQty, false], ["куплено", (f) => f.recvValue, true], ["использовано", (f) => f.usedQty, false], ["использовано", used$, true], ["остаток", (f) => f.remQty, false], ["остаток", (f) => f.remValue, true]];
             const pctOf = (a: number, b: number) => (b > 0 ? formatPercent((a / b) * 100) : "—");
-            const shareNote = (of: FlowFigures, f: FlowFigures, what: string) => `${what}: ${pctOf(f.recvQty, of.recvQty)} по шт., ${pctOf(f.recvValue, of.recvValue)} по ₽`;
-            const checkLine = (lhs: string, parts: FlowFigures[], whole: FlowFigures, testid: string, hint?: ReactNode) => {
+            const shareNote = (of: FlowFigures, f: FlowFigures, what: string, from: string) => <span title={`${what} в «${from}» по количеству и по сумме`}>{what}: {pctOf(f.recvQty, of.recvQty)} шт. · {pctOf(f.recvValue, of.recvValue)} ₽</span>;
+            const checkLine = (lhs: string, parts: FlowFigures[], whole: FlowFigures, testid: string) => {
               const sum = (g: (f: FlowFigures) => number) => parts.reduce((a, f) => a + g(f), 0);
               const dif = (g: (f: FlowFigures) => number) => g(whole) - sum(g);
               const rounding = chk.filter(([, g]) => Math.abs(dif(g)) >= 0.5).map(([n, g, m]) => `${n} ${m ? formatMoney(dif(g)) : formatQty(dif(g)) + " шт."}`);
               return (
-                <div className="mt-1 flex items-start gap-1 px-1 text-[11px] leading-4 text-neutral-500" data-testid={testid}>
-                  <span>
-                    {lhs}: куплено {formatQty(sum((f) => f.recvQty))} шт., {formatMoney(sum((f) => f.recvValue))}; использовано {formatQty(sum((f) => f.usedQty))} шт., {formatMoney(sum(used$))}; остаток {formatQty(sum((f) => f.remQty))} шт., {formatMoney(sum((f) => f.remValue))}
-                    {rounding.length ? `; округление: ${rounding.join(", ")}` : ""}.
-                  </span>
-                  {hint}
-                </div>
+                <p className="mt-1 first:mt-0" data-testid={testid}>
+                  {lhs}: куплено {formatQty(sum((f) => f.recvQty))} шт., {formatMoney(sum((f) => f.recvValue))}; использовано {formatQty(sum((f) => f.usedQty))} шт., {formatMoney(sum(used$))}; остаток {formatQty(sum((f) => f.remQty))} шт., {formatMoney(sum((f) => f.remValue))}
+                  {rounding.length ? `; округление: ${rounding.join(", ")}` : ""}.
+                </p>
               );
             };
             const srcHint = (
-              <InfoHint label="Что такое аукцион, поставщик и прочее" align="left" wide>
-                <p><b>Вся закупка</b> — весь купленный мех. <b>На аукционах</b> — закупки, привязанные к настоящему аукциону справочника (SAGA, Kopenhagen, Fur Harvesters, AME, Союзпушнина, Русьпушнина); привязка — поле закупки «Аукцион».</p>
-                <p className="mt-1"><b>У поставщика</b> — закупки без аукциона: напрямую у поставщика или фермы (КФХ), белая норка №80/№96, красная лиса со склада, а также шкуры подрядчика (сырьё Веллмех, оплаченное в составе счетов за пошив).</p>
-                <p className="mt-1">Любая закупка — либо на аукционе, либо у поставщика; третьего источника нет. «На аукционах» включает заказанное, но ещё не полученное (СП 09.26, FH 06.26): по ним лотов нет, поэтому остаток = заказанное количество, использовано 0 — на «Использовано» и «Остаток» этого слайда это влияет.</p>
-                <p className="mt-1">Внутри источника листаются типы меха: «Все типы» → Лиса → Норка → … (только типы с данными). Сумма типов = «Все типы» источника; «На аукционах» + «У поставщика» = «Вся закупка» (до рубля и штуки); разница округления, если есть, показана строкой «округление». Использовано — без 4%.</p>
+              <InfoHint label="Что значат источники" align="left" wide>
+                <p><b>На аукционах</b> — закупки, привязанные к аукциону справочника (SAGA, Kopenhagen, Fur Harvesters, AME, Союзпушнина, Русьпушнина). Включая заказанное, но не полученное (СП 09.26, FH 06.26): лотов по нему нет, остаток = заказанное, использовано 0.</p>
+                <p className="mt-1"><b>У поставщика</b> — закупки без аукциона: напрямую у поставщика или фермы (КФХ), белая норка №80/№96, красная лиса со склада и шкуры подрядчика (сырьё Веллмех в счетах за пошив).</p>
+                <p className="mt-1">«На аукционах» + «У поставщика» = «Вся закупка», сумма типов = «Все типы» источника (до рубля и штуки). «Использовано» — без 4%.</p>
               </InfoHint>
             );
             const pane: RawSlide[] = slides.map((sl) => {
               const d = sl.data;
               const fur = kind === "fur" && d ? d.pair : kind === "fur" && aligned && !isFiltered ? aligned.fur : raw.fur;
               const lining = kind === "lining" && d ? d.pair : raw.lining;
-              let recvNote: string | undefined;
+              let recvNote: ReactNode;
               let below: ReactNode = null;
               if (kind === "fur") {
-                if (!sl.key) recvNote = src === "all" ? undefined : shareNote(G("all", ""), G(src, ""), "доля от «Вся закупка»");
-                else recvNote = shareNote(G(src, ""), G(src, sl.key), `доля вида в «${FUR_SRC_LABEL[src]}»`);
+                if (!sl.key) recvNote = src === "all" ? undefined : shareNote(G("all", ""), G(src, ""), "Доля", FUR_SRC_LABEL.all);
+                else recvNote = shareNote(G(src, ""), G(src, sl.key), "Доля вида", FUR_SRC_LABEL[src]);
                 const parts = [G("auction", sl.key), G("supplier", sl.key)];
-                const bySrc = checkLine(`«На аукционах» + «У поставщика» = «Вся закупка»${sl.key ? ` · ${sl.key}` : ""}`, parts, G("all", sl.key), "source-check", srcHint);
+                const bySrc = checkLine(`«На аукционах» + «У поставщика» = «Вся закупка»${sl.key ? ` · ${sl.key}` : ""}`, parts, G("all", sl.key), "source-check");
                 const byType = !sl.key && slideKeys.length > 0 ? checkLine(`Сумма типов (${slideKeys.length}) = «Все типы» · «${FUR_SRC_LABEL[src]}»`, slideKeys.map((k) => G(src, k)), G(src, ""), "type-check") : null;
-                below = <>{byType}{bySrc}</>;
+                below = <div className="mt-1 flex items-center gap-1 px-1 text-[11px] leading-4 text-neutral-500">Сверка
+                  <InfoHint label="Сверка сумм" align="left" wide><div className="space-y-1">{byType}{bySrc}</div>{srcHint}</InfoHint></div>;
               }
               return {
                 key: `${src}:${sl.key || "all"}`, label: sl.key || (kind === "fur" ? ALL_TYPES_LABEL : "Все ткани"), fur, lining,
@@ -712,7 +709,7 @@ export function FurSelectionTotal({
           ) : raw.tiles}
           {isFiltered ? (
             <div className="px-1 text-[11px] leading-4 text-neutral-500" data-testid="tiles-filtered">
-              Плитки сырья и оплат посчитаны по выбранным фильтрам{scopeSrc !== "all" ? ` и источнику «${FUR_SRC_LABEL[scopeSrc]}»` : ""} — лотов: {table.filteredLots.length}
+              Плитки — по фильтрам{scopeSrc !== "all" ? ` и источнику «${FUR_SRC_LABEL[scopeSrc]}»` : ""} · лотов: {table.filteredLots.length}
               <InfoHint label="Как считаются плитки при фильтрах" wide>
                 <p>Куплено, Использовано и Остаток — по лотам, подходящим под фильтры (те же функции, что без фильтров). Оплачено и К оплате — доля оплат и долга партии закупки пропорционально стоимости лота, как строки «по сырью» на Главной при фильтрах.</p>
                 <p className="mt-1">Без фильтров показаны плитки Главной — цифры те же.</p>

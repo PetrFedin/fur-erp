@@ -695,7 +695,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
       <WidgetRow id="purchase" title="Закупка — итоги" headerEnd={<Link href={auctionPay ? `/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block` : "/payments"} className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3">
         <SummaryCard
-          label={<VatLabel base="Всего по закупке, ₽" />}
+          label={<VatLabel base="Всего, ₽" />}
           value={<Money incl={grandTotalRub} excl={itemsTotalExclVatRub.add(expensesTotalExclVat)} />}
           note={`сырьё ${formatMoney(goodsExclVatRub.toString())}${extraExclVat.isZero() ? "" : ` · расходы без НДС ${formatMoney(extraExclVat.toString())}`} · НДС ${formatMoney(vatTotal.toString())}${isForeignCurrency ? ` · позиции ${formatCurrency(itemsTotal.toString(), purchase.currency)}` : ""}`}
           emphasis
@@ -709,7 +709,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                 </Link>
               }
               value={auctionPay.paid.greaterThan(0.005) ? formatMoney(auctionPay.paid.toString()) : "—"}
-              note={`по всей партии «${auctionPay.name}» (не только этой закупки), из ${formatMoney(auctionPay.total.toString())}`}
+              note={`по партии «${auctionPay.name}» из ${formatMoney(auctionPay.total.toString())}`}
             />
             <SummaryCard
               label="Остаток"
@@ -784,7 +784,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                       <Th>
                         Себестоимость единицы
                         <InfoHint label="Из чего складывается себестоимость единицы">
-                          Расчёт из расчётного листа: цена лота, сборы аукциона, выделка, транспорт, брокерский %, НДС.
+                          Из расчётного листа: цена, сборы, выделка, транспорт, брокерский %, НДС.
                         </InfoHint>
                       </Th>
                       <Th>Всего, ₽</Th>
@@ -985,7 +985,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
           {purchase.expenses.length === 0 && planExpenseLines(purchase.items).lines.length === 0 && <p className="text-sm text-neutral-500">Расходов нет</p>}
           {!statusEditable && canEditRole && purchase.expenses.length > 0 && (
             <p className="text-xs text-neutral-500">
-              Расходы принятой закупки уже распределены по лотам, поэтому здесь не правятся: изменение сломало бы себестоимость лотов, которые могли уйти в ТЗ.
+              Расходы принятой закупки уже распределены по лотам и здесь не правятся.
             </p>
           )}
         </CardContent>
