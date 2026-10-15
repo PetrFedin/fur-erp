@@ -100,7 +100,7 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
 
   return (
     <>
-      <WidgetRow id="payments" title="Оплаты — итоги" headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
+      <WidgetRow id="payments" title="Итоги" headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-pay-tiles>
         <Tile label="Общая стоимость" value={rub(shown ? shown.total : paid.total + debt.total + rounding)} hint={<InfoHint label="Что такое общая стоимость" align="right"><p>Оплачено плюс осталось оплатить за сырьё (мех с шкурами подрядчика, подкладка). Всегда с НДС; 4% отдельно не добавляются.</p></InfoHint>} items={shown ? [...stat(shown.total, shown.total, shown.totalFur, shown.totalLining), ...(shown.round !== 0 ? [{ k: "округление (лоты и документы)", v: rub(shown.round) }] : [])] : split ? [...stat(paid.total + debt.total, paid.total + debt.total, split.paid.fur + split.debt.fur, split.paid.lining + split.debt.lining), ...(rounding !== 0 ? [{ k: "Округление", v: rub(rounding) }] : [])] : undefined} />
         <Tile label="Оплачено" value={rub(shown ? shown.paid : paid.total)} hint={paidHint} onOpen={() => setOpen("paid")} items={shown ? stat(shown.paid, shown.paid, shown.paidFur, shown.paidLining) : split ? stat(paid.total, paid.total, split.paid.fur, split.paid.lining) : undefined} />

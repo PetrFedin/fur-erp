@@ -20,7 +20,7 @@ export async function UnallocatedAdvancesBlock({ orgId }: { orgId: string }) {
         <h2 className="block-title">
           Неразнесённые авансы <span className="font-normal text-neutral-500">· {list.length} на {formatMoney(total.toFixed(2))}</span>
           <span className="ml-1.5 align-middle"><InfoHint wide label="Что это">
-            <p>Часть платежа за работу, не отнесённая ни к одному ТЗ. На долг по работе подрядчику не влияет (учтена отдельной строкой), в число задач не входит.</p>
+            <p>Часть платежа за работу, не отнесённая ни к одному ТЗ. На долг не влияет, в число задач не входит.</p>
           </InfoHint></span>
         </h2>
         <Link href="/payments?tab=clients#unallocated" className="text-sm text-blue-700 hover:underline">Разнести по ТЗ →</Link>
@@ -30,7 +30,7 @@ export async function UnallocatedAdvancesBlock({ orgId }: { orgId: string }) {
           <li key={p.id} className="flex flex-wrap justify-between gap-x-3 py-1.5">
             <span>
               <span className="font-medium tabular-nums">{formatMoney(p.rest.toFixed(2))}</span>
-              <span className="text-neutral-500"> · {formatDate(p.paidAt)} · оплата подрядчику за работу · {KIND[p.kind]}</span>
+              <span className="text-neutral-500"> · {formatDate(p.paidAt)}{p.kind === "excess" ? ` · ${KIND.excess}` : ""}</span>
             </span>
             <span className="text-xs text-neutral-500">из {formatMoney(p.amount.toFixed(2))}</span>
           </li>

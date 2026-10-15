@@ -32,8 +32,7 @@ export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; ye
         <h2 className="block-title">
           <span className="inline-flex items-center gap-1.5">Неразнесённые авансы <span className="font-normal text-neutral-500">· {pays.length} на {formatMoney(total.toFixed(2))}</span>
             <InfoHint label="Про неразнесённые авансы" wide>
-              <p>Часть платежа за работу, не отнесённая ни к одному ТЗ. В долге по работе подрядчику она уже учтена отдельной строкой, поэтому разнесение итог долга не меняет — оно переносит аванс из «без партии» в конкретные ТЗ и партии. Эта сумма — «Аванс без партии» на странице «Партии».</p>
-              <p className="mt-1">Платежи в счёт шкур подрядчика — это сырьё, а не оплата работы, их здесь нет.</p>
+              <p>Часть платежа за работу, не отнесённая ни к одному ТЗ. В долге она уже учтена, поэтому разнесение итог не меняет — оно переносит аванс из «без партии» в конкретные ТЗ и партии. Сумма равна «Аванс без партии» на странице «Партии». Платежи за шкуры подрядчика — сырьё, их здесь нет.</p>
             </InfoHint></span>
         </h2>
         <Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии</Link>
@@ -49,12 +48,13 @@ export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; ye
                 <div className="min-w-0">
                   <div>
                     <Link href={`/payments/c-${p.id}`} className="text-blue-700 hover:underline">{formatDate(p.paidAt)}</Link>
-                    <span className="text-neutral-500"> · {PAYMENT_TYPE_LABELS_RU[p.paymentType] ?? p.paymentType} · оплата подрядчику за работу{pp ? ` · ${pp[0]}` : ""}</span>
+                    <span className="text-neutral-500"> · {PAYMENT_TYPE_LABELS_RU[p.paymentType] ?? p.paymentType}{pp ? ` · ${pp[0]}` : ""}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-neutral-500">
                     <span>разнесено {formatMoney(p.allocated.toFixed(2))} из {formatMoney(p.amount.toFixed(2))}</span>
-                    <span className="font-medium tabular-nums text-amber-700">не разнесено {formatMoney(p.rest.toFixed(2))}</span>
-                    <span>· {KIND_LABEL[p.kind]}{p.linkedOrders > 0 ? ` · в наборе ${p.linkedOrders} ТЗ` : " · без ТЗ"}</span>
+                    <span className="font-medium tabular-nums text-amber-700">· остаток {formatMoney(p.rest.toFixed(2))}</span>
+                    {p.kind === "excess" ? <span>· {KIND_LABEL.excess}</span> : null}
+                    <span>· {p.linkedOrders > 0 ? `${p.linkedOrders} ТЗ` : "без ТЗ"}</span>
                     {p.docRef ? <InfoHint label="Основание платежа"><p>{p.docRef}</p></InfoHint> : null}
                   </div>
                 </div>

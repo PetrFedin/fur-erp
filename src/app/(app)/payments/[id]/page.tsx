@@ -173,8 +173,6 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
 
       <Block title="Оплата">
         <Dl items={[
-                    ["Вид оплаты", PAY_KIND_LABEL[r.kind]],
-          ["Тип", r.what],
           ["Счёт", invHref ? <Link href={invHref} className="text-blue-700 hover:underline">{invText} ›</Link> : invText],
           ...(invoiceInBase ? [["Счёт в базе", invoiceInBase] as [string, ReactNode]] : []),
           ["П/п", ppText],
@@ -225,7 +223,7 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
             <thead>
               <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
                 <th className="py-1.5 pr-2 font-medium">Куда</th>
-                <th className="px-2 py-1.5 text-right font-medium">Сумма<span className="block text-[10px] font-normal opacity-80">₽</span></th>
+                <th className="px-2 py-1.5 text-right font-medium">Сумма</th>
                 {hasNotes && <th className="px-2 py-1.5 font-medium">Примечание</th>}
               </tr>
             </thead>

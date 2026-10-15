@@ -102,7 +102,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
         {year !== "all" && <span className="text-sm font-normal text-neutral-600">· {yearLabel(year)}</span>}
         <InfoHint wide label="О странице оплат">
           <p>Суммы с НДС. Год — из шапки: партия закупки по дате заказа, работа по дате оплаты.</p>
-          <p className="mt-1">«Реестр» — одна таблица всех проведённых оплат: за сырьё (поставщикам: мех, шкуры, подкладка) и за работу (подрядчику за пошив). Все оплаты исходящие: платит наша компания, входящих оплат нет. Плитки сверху — общие итоги, как на Главной; таблица ниже учитывает фильтры.</p>
+          <p className="mt-1">«Реестр» — все проведённые оплаты: за сырьё (поставщикам) и за работу (подрядчику). Плитки сверху — общие итоги, как на Главной; таблица учитывает фильтры.</p>
         </InfoHint>
         {canPay && <span className="ml-auto"><PaymentWizardButton label="+ Внести оплату" /></span>}
       </div>
@@ -129,12 +129,12 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
       <PayTiles d={dash} c4Mode={await getCommission4Mode()} year={year} headerEnd={<Link href="/dashboard" className="text-xs text-blue-700 hover:underline print:hidden">→ Главная</Link>} />
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-600">
-        <span>Оплат в таблице: <b className="tabular-nums">{rows.length}</b>{filtered ? <> из <span className="tabular-nums">{all.length}</span></> : null}</span>
+        <span>Оплат: <b className="tabular-nums">{rows.length}</b>{filtered ? <> из <span className="tabular-nums">{all.length}</span></> : null}</span>
         <span>Ждут документа или проверки: <b className="tabular-nums">{waiting}</b></span>
         <InfoHint wide label="Статусы оплат">
           <p><b>Подтверждена</b> — есть документ-основание, оплата привязана, сумма и дата заданы; подтверждение поставлено.</p>
           <p className="mt-1"><b>Ждёт документа</b> — файл платёжки не загружен. <b>Не подтверждено</b> — файл есть, подтверждения ещё нет. <b>Расходится</b> — п/п названа в документах сверки, но сумма или дата в базе с ними не совпали.</p>
-          <p className="mt-1">«Документ ✓» — только если файл реально лежит в приложении. «○ нужно загрузить» — файла нет.</p>
+          <p className="mt-1">«✓ загружен» — файл есть в приложении, «○ загрузить» — файла нет.</p>
         </InfoHint>
         <Link href="/payments?tab=all" className="ml-auto text-blue-700 hover:underline">Разбор оплат по статьям →</Link>
       </div>
@@ -164,7 +164,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
             <tfoot>
               {KINDS.filter((k) => cnt(k) > 0).map((k) => (
                 <tr key={k} className="row-total">
-                  <td className="px-3 py-1.5" colSpan={7}>{TOTAL_LABEL[k]} · {cnt(k)}<span className="ml-2 text-[11px] font-normal text-neutral-600">{typeBreak(k)}</span></td>
+                  <td className="px-3 py-1.5" colSpan={7}><span className="inline-flex items-center gap-1">{TOTAL_LABEL[k]} · {cnt(k)}<InfoHint label="По типам" wide><p>{typeBreak(k)}</p></InfoHint></span></td>
                   <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">{money(sumOf(k))}</td>
                   <td colSpan={2} />
                 </tr>
@@ -182,7 +182,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
         {rows.map((r) => <Card key={r.code} r={r} invHref={invLinks.get(r.code)} />)}
         {rows.length === 0 ? <p className="py-8 text-center text-neutral-500">{filtered ? "По выбранным фильтрам оплат нет" : "Оплат пока нет"}</p> : null}
         {KINDS.filter((k) => cnt(k) > 0).map((k) => (
-          <p key={k} className="flex justify-between gap-2 px-1 text-sm font-semibold"><span>{TOTAL_LABEL[k]} · {cnt(k)}<span className="block text-[11px] font-normal text-neutral-600">{typeBreak(k)}</span></span><span className="tabular-nums">{money(sumOf(k))}</span></p>
+          <p key={k} className="flex justify-between gap-2 px-1 text-sm font-semibold"><span className="inline-flex items-center gap-1">{TOTAL_LABEL[k]} · {cnt(k)}<InfoHint label="По типам" wide><p>{typeBreak(k)}</p></InfoHint></span><span className="tabular-nums">{money(sumOf(k))}</span></p>
         ))}
         {rows.length > 0 ? <p className="flex justify-between gap-2 px-1 text-sm font-semibold"><span>Всего, ₽ · {rows.length}</span><span className="tabular-nums">{money(totalSum)}</span></p> : null}
       </ResponsiveRows>
@@ -196,13 +196,13 @@ function Card({ r, invHref }: { r: RegistryRow; invHref?: string }) {
   const href = `/payments/${r.code}?from=${encodeURIComponent("/payments")}`;
   return (
     <RowCard
-      title={`${ruDate(r.iso)} · ${money(r.amount)} ₽`}
+      title={`${ruDate(r.iso)} · ${money(r.amount)}`}
       href={href}
       subtitle={<>{PAY_KIND_LABEL[r.kind]} · {cpHref(r) ? <Link href={cpHref(r)!} className="text-blue-700">{r.counterparty}</Link> : r.counterparty}</>}
       badge={<span className={"text-xs " + STATUS_TONE[r.status]}>{STATUS_MARK[r.status]} {PAY_STATUS_LABEL[r.status]}</span>}
       fields={[
         { label: "Тип", value: r.what },
-        { label: "Документ", value: r.fileOk ? <span className="text-emerald-700">✓ файл загружен</span> : <Link href={href + "#docs"} className="text-amber-700">○ нужно загрузить</Link> },
+        { label: "Документ", value: r.fileOk ? <span className="text-emerald-700">✓ загружен</span> : <Link href={href + "#docs"} className="text-amber-700">○ загрузить</Link> },
       ]}
       details={[
         { label: "Счёт", value: invHref && r.invoice ? <Link href={invHref} className="text-blue-700">{r.invoice}</Link> : r.invoice },
@@ -235,7 +235,7 @@ function Row({ r, invHref }: { r: RegistryRow; invHref?: string }) {
       </td>
       <td className={CELL + " whitespace-nowrap text-right tabular-nums"}>{money(r.amount)}</td>
       <td className={CELL + " whitespace-nowrap"}>
-        {r.fileOk ? <span className="text-emerald-700">✓ файл загружен</span> : <Link href={href + "#docs"} className="text-amber-700 hover:underline">○ нужно загрузить</Link>}
+        {r.fileOk ? <span className="text-emerald-700">✓ загружен</span> : <Link href={href + "#docs"} className="text-amber-700 hover:underline">○ загрузить</Link>}
       </td>
       <td className={CELL + " whitespace-nowrap " + STATUS_TONE[r.status]}>{STATUS_MARK[r.status]} {PAY_STATUS_LABEL[r.status]}</td>
     </tr>
