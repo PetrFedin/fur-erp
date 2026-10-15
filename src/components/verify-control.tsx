@@ -117,15 +117,14 @@ export function VerifyControl({
       {v.verified && v.note && <p className="text-xs text-neutral-600">{remarkOf(v.note) ? `Замечание: ${remarkOf(v.note)}` : `Примечание: ${v.note}`}</p>}
       {!v.verified && v.blockers.length > 0 && (
         <ul className="flex flex-col gap-1 rounded-md border border-amber-200 bg-amber-50/70 px-3 py-2">
-          <li className="text-xs font-semibold text-amber-900">Не подтверждено — что не сходится:</li>
+          <li className="text-xs font-semibold text-amber-900">Что не сходится:</li>
           {v.blockers.map((b, i) => (
             <li key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-amber-950">
               <span aria-hidden>•</span>
-              <span className="min-w-0 break-words">{b.text}</span>
-              {b.href && (
-                <Link href={b.href} className="text-blue-700 hover:underline">
-                  открыть
-                </Link>
+              {b.href ? (
+                <Link href={b.href} className="min-w-0 break-words text-blue-800 underline decoration-dotted underline-offset-2 hover:decoration-solid">{b.text}</Link>
+              ) : (
+                <span className="min-w-0 break-words">{b.text}</span>
               )}
               {canEdit && b.upload && <UploadTargetButton upload={b.upload} />}
             </li>

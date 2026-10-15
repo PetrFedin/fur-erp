@@ -390,7 +390,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         const costDiff = docCost != null && gd?.cost != null ? gd.cost - docCost : null;
         const roundingOnly = costDiff != null && Math.abs(costDiff) <= ROUND_TOL_RUB;
         const failed = (g.checks ?? []).filter((c) => !c.ok && !(roundingOnly && /УПД|расч[её]т/i.test(c.label)));
-        for (const c of failed) blockers.push({ text: `в реестре сверки не сошлось: ${c.label}`, href: gHref });
+        for (const c of failed) blockers.push({ text: `не сошлось: ${c.label}`, href: gHref });
         if (g.status !== "ok" && failed.length === 0 && !(roundingOnly && g.status === "docs")) blockers.push({ text: STATUS_BLOCKER[g.status] ?? "сверка с документами: не сходится на 100%", href: gHref });
         if (docCost == null) blockers.push({ text: "в документах нет итоговой суммы (УПД/счёта) — сравнить не с чем", href: gHref });
         else if (costDiff != null) {
@@ -503,7 +503,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         const g = batchGroup(b.number);
         if (!g) blockers.push({ text: "партии нет в реестре сверки", href: "/reconciliation" });
         else {
-          for (const c of (g.checks ?? []).filter((x) => !x.ok && !/ТЗ-приложения|Остаток по документам/.test(x.label))) blockers.push({ text: `в реестре сверки не сошлось: ${c.label}`, href: `/reconciliation#${encodeURIComponent(g.id)}` });
+          for (const c of (g.checks ?? []).filter((x) => !x.ok && !/ТЗ-приложения|Остаток по документам/.test(x.label))) blockers.push({ text: `не сошлось: ${c.label}`, href: `/reconciliation#${encodeURIComponent(g.id)}` });
         }
         const st = stampOf(b.verifiedAt, b.verifiedBy, userId, names);
         rows.push({

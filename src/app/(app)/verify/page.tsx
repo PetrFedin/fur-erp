@@ -135,13 +135,13 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
         />
       </div>
 
-      <WidgetRow id="verify" title="Очередь проверки — итоги">
+      <WidgetRow id="verify" title="Итоги">
       <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
         {[
-          { label: "Строк подтверждено документом", v: total.verified, sub: total.auto ? `из них авто по документам: ${total.auto}` : null, tone: "text-emerald-700" },
-          { label: "Не подтверждено, строк", v: total.waiting, sub: null, tone: total.waiting > 0 ? "text-amber-700" : "" },
+          { label: "Подтверждено", v: total.verified, sub: total.auto ? `авто по документам: ${total.auto}` : null, tone: "text-emerald-700" },
+          { label: "Не подтверждено", v: total.waiting, sub: null, tone: total.waiting > 0 ? "text-amber-700" : "" },
           { label: "Готово к подтверждению", v: total.ready, sub: null, tone: "" },
-          { label: "Всего, строк", v: total.total, sub: null, tone: "" },
+          { label: "Всего", v: total.total, sub: null, tone: "" },
         ].map((c) => (
           <div key={c.label} className={TILE_BOX + " shadow-sm print:shadow-none"}>
             <TileHead>{c.label}</TileHead>
@@ -154,7 +154,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <p className="text-xs text-neutral-500">
-          {tab.label}: подтверждено {tabCounts.verified}{remarkCount ? ` (с замечанием: ${remarkCount})` : ""}, не подтверждено {tabCounts.waiting}, из них готово к подтверждению {tabCounts.ready}
+          {tab.label}: подтверждено {tabCounts.verified}{remarkCount ? ` (с замечанием ${remarkCount})` : ""} · не подтверждено {tabCounts.waiting} · готово {tabCounts.ready}
           <InfoHint wide label={`Что значит «подтверждено» у раздела «${tab.label}»`} className="ml-1.5">
             {tab.hint}
           </InfoHint>
@@ -164,7 +164,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
       {dups.length > 0 && (
         <details className="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm">
           <summary className="cursor-pointer list-none font-medium text-amber-950">
-            Повторы в разделе «{tab.label}»: {dups.length} {dups.length === 1 ? "группа" : "групп"} <span className="font-normal text-neutral-600">— похоже на одну запись, показать ›</span>
+            Возможные повторы: {dups.length} {dups.length === 1 ? "группа" : "групп"} <span className="font-normal text-neutral-600">· показать ›</span>
           </summary>
           <ul className="mt-2 flex flex-col gap-2">
             {dups.slice(0, 20).map((g) => (
@@ -200,7 +200,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
         </p>
       )}
       <p className="text-xs text-neutral-500">
-        Что мешает подтвердить — в разделе «Контроль»: <Link className="text-blue-700 hover:underline" href="/attention">Задачи</Link> · <Link className="text-blue-700 hover:underline" href="/documents">Документы</Link> · <Link className="text-blue-700 hover:underline" href="/reconciliation">Сверка</Link>
+        Что мешает подтвердить: <Link className="text-blue-700 hover:underline" href="/attention">Задачи</Link> · <Link className="text-blue-700 hover:underline" href="/documents">Документы</Link> · <Link className="text-blue-700 hover:underline" href="/reconciliation">Сверка</Link>
       </p>
     </div>
   );
