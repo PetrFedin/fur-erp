@@ -69,12 +69,12 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
   transition: outline-color 0.3s ease;
 }
 
-/* Телефон: все нажимаемые элементы — не ниже 40 px (значок «i» расширен невидимой зоной касания в самом компоненте). */
+/* Телефон: все нажимаемые элементы — не ниже 44 px (значок «i» расширен невидимой зоной касания в самом компоненте). */
 @media (max-width: 767px), (max-width: 1023px) and (pointer: coarse) {
   button:not(.info-i):not([data-touch-ok]),
   select,
   input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not([type="range"]) {
-    min-height: 40px;
+    min-height: 44px;
   }
 }
 
@@ -92,22 +92,33 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: max(100%, 40px);
-    height: max(100%, 40px);
+    width: max(100%, 44px);
+    height: max(100%, 44px);
     transform: translate(-50%, -50%);
   }
   /* Точки-индикаторы каруселей: остаются маленькими (не тянутся до 40 px), зона касания — невидимая. */
   button[role="tab"].h-2 { min-height: 0; position: relative; }
-  button[role="tab"].h-2::after { content: ""; position: absolute; top: 50%; left: 50%; width: 16px; height: 40px; transform: translate(-50%, -50%); }
+  button[role="tab"].h-2::after { content: ""; position: absolute; top: 50%; left: 50%; width: 16px; height: 44px; transform: translate(-50%, -50%); }
   /* Шевроны «Раскрыть …» в таблицах: узкая кнопка получает зону касания шире самой стрелки. */
   button[aria-expanded][aria-label^="Раскрыть"]:not([data-touch-ok]) { position: relative; }
-  button[aria-expanded][aria-label^="Раскрыть"]::after { content: ""; position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); }
+  button[aria-expanded][aria-label^="Раскрыть"]::after { content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
   /* Хлебные крошки и ссылки «оплаты ›» / «документы ›» в строках таблиц: невидимая зона касания 40 px. */
   nav[aria-label="Путь"] a, td a[href$="/payments"], td a[href*="#"], td a[href*="tab="], td a[href^="/documents?"] { position: relative; }
-  nav[aria-label="Путь"] a::after, td a[href$="/payments"]::after, td a[href*="#"]::after, td a[href*="tab="]::after, td a[href^="/documents?"]::after { content: ""; position: absolute; top: 50%; left: 50%; width: max(100%, 40px); height: 40px; transform: translate(-50%, -50%); }
+  nav[aria-label="Путь"] a::after, td a[href$="/payments"]::after, td a[href*="#"]::after, td a[href*="tab="]::after, td a[href^="/documents?"]::after { content: ""; position: absolute; top: 50%; left: 50%; width: max(100%, 44px); height: 44px; transform: translate(-50%, -50%); }
   /* Стрелки каруселей слайдов: ширина 32 → 40 */
   button[aria-label="Предыдущий слайд"],
-  button[aria-label="Следующий слайд"] { min-width: 40px; }
+  button[aria-label="Следующий слайд"] { min-width: 44px; }
+}
+
+/* Телефон: ссылки в ячейках таблиц и пункты бокового меню — зона нажатия не ниже 44 px (в строке без наезда на соседние). */
+@media (max-width: 767px) {
+  td a[href]:not(.truncate) { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+  td a.block { display: flex; }
+  td a.truncate { display: block; padding-block: 14px; }
+  td button[aria-label^="Раскрыть"], td button[aria-expanded] { min-width: 44px; }
+  nav a.rounded-md { display: flex; align-items: center; min-height: 44px; }
+  input[type="checkbox"]:not([data-touch-ok]) { margin: 14px; }
+  button:not([role="tab"]):not(.info-i):not([data-touch-ok]) { min-width: 44px; }
 }
 
 /* Телефон: ряд плиток — одна горизонтальная лента (листается вправо-влево), плитки компактнее.
