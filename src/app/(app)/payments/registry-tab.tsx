@@ -24,6 +24,7 @@ const STATUSES = Object.keys(PAY_STATUS_LABEL) as PayStatus[];
 
 export const REGISTRY_FILTERS = defineFilters({
   kind: { kind: "multi", label: "Вид оплаты", allowed: ["raw", "prod"] },
+  ty: { kind: "multi", label: "Тип оплаты", allowed: ["adv", "part", "fin"] },
   cp: { kind: "multi", label: "Контрагент", maxLen: 120 },
   st: { kind: "multi", label: "Статус", allowed: STATUSES },
   from: { kind: "date", label: "Оплата с" },
@@ -41,6 +42,10 @@ const SORT_VAL: Record<SortKey, (r: RegistryRow) => string | number> = {
   sum: (r) => r.amount, doc: (r) => (r.fileOk ? 1 : 0), st: (r) => STATUSES.indexOf(r.status),
 };
 
+/** Тип оплаты: код в адресе → подпись в данных (Payment.kind / ProductionPayment.paymentType; OTHER, как и прежде, идёт в «Расчёт»). */
+const TYPE_BY_CODE: Record<string, RegistryRow["what"]> = { adv: "Аванс", part: "Доплата", fin: "Расчёт" };
+const TYPE_OPTIONS = [{ value: "adv", label: "Аванс" }, { value: "part", label: "Доплата" }, { value: "fin", label: "Окончательный платёж" }];
+
 const ruDate = (iso: string) => iso.split("-").reverse().join(".");
 const money = (n: number) => formatMoney(n.toFixed(2));
 const STATUS_TONE: Record<PayStatus, string> = { verified: "text-emerald-700", docs: "text-amber-700", check: "text-neutral-700", mismatch: "text-red-700" };
@@ -53,6 +58,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
   const q = f.rq.toLowerCase().replace(/^№\s*/, "").replace(/ё/g, "е");
   const rows = all
     .filter((r) => f.kind.length === 0 || f.kind.includes(r.kind))
+    .filter((r) => f.ty.length === 0 || f.ty.some((c) => TYPE_BY_CODE[c] === r.what))
     .filter((r) => f.cp.length === 0 || f.cp.includes(r.counterparty))
     .filter((r) => f.st.length === 0 || f.st.includes(r.status))
     .filter((r) => !f.from || r.iso >= f.from)
@@ -110,6 +116,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
           hideChips
           controls={[
             { type: "multi", name: "kind", label: "Вид оплаты", more: true, options: [{ value: "raw", label: "За сырьё" }, { value: "prod", label: "За работу" }], allLabel: "Все" },
+            { type: "multi", name: "ty", label: "Тип оплаты", options: TYPE_OPTIONS, allLabel: "Любой" },
             { type: "multi", name: "cp", label: "Получатель", options: cpOptions, allLabel: "Все получатели" },
             { type: "multi", name: "st", label: "Статус", options: STATUSES.map((s) => ({ value: s, label: PAY_STATUS_LABEL[s] })), allLabel: "Все статусы" },
             { type: "date", name: "from", label: "Оплата с" },
