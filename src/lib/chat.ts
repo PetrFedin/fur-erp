@@ -45,7 +45,7 @@ export async function defaultSupplierId(orgId: string): Promise<string | null> {
 export async function supplierName(orgId: string, supplierId: string | null): Promise<string> {
   if (!supplierId) return "Внутренний чат";
   const s = await prisma.supplier.findFirst({ where: { id: supplierId, organizationId: orgId }, select: { name: true } });
-  return s?.name ?? "Поставщик";
+  return s?.name ?? "Подрядчик";
 }
 
 // ───────── Записи, по которым можно писать ─────────

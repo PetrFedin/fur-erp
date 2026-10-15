@@ -63,7 +63,7 @@ export default async function SupplierTzPage({ searchParams }: PageProps<"/suppl
               <Table className="min-w-[820px]">
                 <Thead><Tr>
                   <SortTh path="/supplier/tz" sp={sp} k="title" cur={sort} label="ТЗ" />
-                  {!isSup && <SortTh path="/supplier/tz" sp={sp} k="supplier" cur={sort} label="Поставщик" />}
+                  {!isSup && <SortTh path="/supplier/tz" sp={sp} k="supplier" cur={sort} label="Подрядчик" />}
                   <SortTh path="/supplier/tz" sp={sp} k="qty" cur={sort} label="Изделий" align="right" />
                   <SortTh path="/supplier/tz" sp={sp} k="status" cur={sort} label="Статус" />
                   <SortTh path="/supplier/tz" sp={sp} k="date" cur={sort} label="Изменено" />

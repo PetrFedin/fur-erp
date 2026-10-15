@@ -185,7 +185,7 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
               return (
                 <Fragment key={b ?? "none"}>
                   <tr className="bg-neutral-50/70 font-semibold">
-                    <td className="px-2 py-1.5" colSpan={3}>{b != null ? `Партия ${b}` : "Без партии"}{list[0]?.year ? ` · ${list[0].year}` : ""} · {uniqueLabelCount(list)} ТЗ</td>
+                    <td className="px-2 py-1.5" colSpan={3}>{b != null ? `Партия ${b}` : "Вне партий"}{list[0]?.year ? ` · ${list[0].year}` : ""} · {uniqueLabelCount(list)} ТЗ</td>
                     <td className="border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{list.reduce((s, o) => s + o.qty, 0).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт.</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(w)}</td>
                     <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{rub(p)}</td>

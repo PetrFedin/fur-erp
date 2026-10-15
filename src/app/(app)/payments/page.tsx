@@ -622,7 +622,7 @@ export default async function PaymentsPage({
     for (const o of orderInfo.values()) {
       if (!o.clientName || (year !== "all" && o.year !== Number(year))) continue;
       const key = o.batchNumber != null ? String(o.batchNumber) : "—";
-      const cur = byBatch.get(key) ?? { key, label: o.batchNumber != null ? `Партия ${o.batchNumber}` : "Без партии", year: o.year, work: 0, paid: 0 };
+      const cur = byBatch.get(key) ?? { key, label: o.batchNumber != null ? `Партия ${o.batchNumber}` : "Вне партий", year: o.year, work: 0, paid: 0 };
       cur.work += o.work;
       cur.paid += allocBy.get(o.id) ?? 0;
       byBatch.set(key, cur);

@@ -31,7 +31,7 @@ export default async function ContractorHidesPage() {
   const rows: HidesOrderRow[] = shares.map((s) => {
     const o = byId.get(s.id)!;
     return {
-      orderId: o.id, number: o.number, label: orderLabel({ workOrderNumber: o.workOrderNumber, number: o.number, ...tzPos.get(o.id) }), batch: o.batchNumber == null ? "без партии" : String(o.batchNumber), payYear: s.payYear,
+      orderId: o.id, number: o.number, label: orderLabel({ workOrderNumber: o.workOrderNumber, number: o.number, ...tzPos.get(o.id) }), batch: o.batchNumber == null ? "вне партий" : String(o.batchNumber), payYear: s.payYear,
       article: o.modelLabel || o.modelName, category: o.category, units: o.qty, incl: s.incl, excl: s.excl, pinned: s.pinned ?? false,
     };
   });

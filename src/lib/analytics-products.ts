@@ -70,7 +70,7 @@ export function groupLabel(r: OrderRow, g: GroupKey): string {
     case "model":
       return r.modelName;
     case "batch":
-      return r.batchNumber == null ? "Без партии" : `Партия ${r.batchNumber}`;
+      return r.batchNumber == null ? "Вне партий" : `Партия ${r.batchNumber}`;
     case "year":
       return r.year == null ? "Год не определён" : String(r.year);
     case "color":
@@ -89,7 +89,7 @@ function compareLabels(g: GroupKey, a: string, b: string): number {
   return a.localeCompare(b, "ru");
 }
 
-const UNDEFINED_LABELS = new Set([UNDEFINED_CATEGORY, "Мех не определён", "Размер не указан", "Цвет не указан", "Без партии", "Год не определён"]);
+const UNDEFINED_LABELS = new Set([UNDEFINED_CATEGORY, "Мех не определён", "Размер не указан", "Цвет не указан", "Вне партий", "Год не определён"]);
 
 export type GroupNode = {
   /** Ключ для ссылок и React: значение группы первого уровня (и второго через «\u0000»). */

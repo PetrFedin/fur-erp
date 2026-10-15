@@ -12,7 +12,7 @@ const PP = /п\/п\s*№?\s*\d+/i;
 
 /**
  * Вкладка «За работу» → «Неразнесённые авансы»: платежи заказчика, часть которых ещё не отнесена ни к одному ТЗ.
- * Итог совпадает со строкой «Аванс без партии» на /production/batches (тот же loadClientDebt; шкуры подрядчика — это сырьё, их здесь нет).
+ * Итог совпадает со строкой «Аванс вне партий» на /production/batches (тот же loadClientDebt; шкуры подрядчика — это сырьё, их здесь нет).
  * Кнопка «Разнести…» открывает редактор разнесения по ТЗ (тот же, что в карточке ТЗ). Якорь #unallocated — для ссылок из Контроля.
  */
 export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; year: string; role: string }) {
@@ -32,7 +32,7 @@ export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; ye
         <h2 className="block-title">
           <span className="inline-flex items-center gap-1.5">Неразнесённые авансы <span className="font-normal text-neutral-500">· {pays.length} на {formatMoney(total.toFixed(2))}</span>
             <InfoHint label="Про неразнесённые авансы" wide>
-              <p>Часть платежа за работу, не отнесённая ни к одному ТЗ. В долге она уже учтена, поэтому разнесение итог не меняет — оно переносит аванс из «без партии» в конкретные ТЗ и партии. Сумма равна «Аванс без партии» на странице «Партии». Платежи за шкуры подрядчика — сырьё, их здесь нет.</p>
+              <p>Часть платежа за работу, не отнесённая ни к одному ТЗ. В долге она уже учтена, поэтому разнесение итог не меняет — оно переносит аванс из «вне партий» в конкретные ТЗ и партии. Сумма равна «Аванс вне партий» на странице «Партии». Платежи за шкуры подрядчика — сырьё, их здесь нет.</p>
             </InfoHint></span>
         </h2>
         <Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии</Link>

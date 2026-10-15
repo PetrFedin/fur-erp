@@ -212,7 +212,7 @@ export function ProductionModal({
                 })() : null}
                 {level.items.some((it) => it.key === "none" && /Вне партий/.test(it.label)) ? (
                   <p className="mt-2 text-xs text-neutral-600" data-testid="no-batch-note">
-                    <b>Вне партий</b> — ТЗ без партии пошива (письмо №135): отдельная поставка (ТЗ 117) и переделка (ТЗ 116, ремонт, 7 шт.). Ремонт в «В выпуске» не входит.{" "}
+                    <b>Вне партий</b> — ТЗ вне партий пошива (письмо №135): отдельная поставка (ТЗ 117) и переделка (ТЗ 116, ремонт, 7 шт.). Ремонт в «В выпуске» не входит.{" "}
                     <Link href="/production?batch=none" className="text-blue-700 underline-offset-2 hover:underline">Открыть эти ТЗ →</Link>
                   </p>
                 ) : null}

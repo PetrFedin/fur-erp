@@ -38,7 +38,7 @@ function ShipmentCreateForm({ defaultName, suppliers, defaultSupplierId, batches
       <div>
         <Label htmlFor="sh-batch">Партия пошива</Label>
         <Select id="sh-batch" name="batchId" defaultValue="">
-          <option value="">— без партии —</option>
+          <option value="">— вне партий —</option>
           {batches.map((b) => (
             <option key={b.id} value={b.id}>{b.label}</option>
           ))}

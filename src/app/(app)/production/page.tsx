@@ -527,7 +527,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           { label: "Изделий", value: tot.units > 0 ? `${formatQty(tot.units)} шт.` : "—" },
         ]}
         details={[
-          { label: "Партия пошива", value: batches.length === 1 && first.batch ? batchLabel(first.batch.number, first.batch.year, [first]) : batches.length > 1 ? "несколько" : "без партии" },
+          { label: "Партия пошива", value: batches.length === 1 && first.batch ? batchLabel(first.batch.number, first.batch.year, [first]) : batches.length > 1 ? "несколько" : "вне партий" },
           { label: "Работа", value: tot.work > 0 ? formatMoney(Math.round(tot.work)) : undefined },
           ...rows.map((r) => ({
             key: r.x.o.id,

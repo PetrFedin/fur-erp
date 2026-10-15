@@ -311,7 +311,7 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
               {orders.length === 0 && (
                 <Tr>
                   <Td colSpan={8} className="py-6 text-center text-neutral-500">
-                    К партии пока не привязано ни одного ТЗ. Привязать: откройте ТЗ → «Изменить» → поле «Партия» (ТЗ без партии видны в виде <Link href="/production/batches" className="underline underline-offset-2">«По партиям»</Link>, группа «Без партии»)
+                    К партии пока не привязано ни одного ТЗ. Привязать: откройте ТЗ → «Изменить» → поле «Партия» (ТЗ вне партий видны в виде <Link href="/production/batches" className="underline underline-offset-2">«По партиям»</Link>, группа «Вне партий»)
                   </Td>
                 </Tr>
               )}

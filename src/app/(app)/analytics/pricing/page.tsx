@@ -302,7 +302,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const breakdown = (a: PriceAgg, key: "year" | "season" | "batch") => {
     const m = new Map<string, number>();
     for (const r of a.rows) {
-      const k = key === "year" ? (r.year == null ? "год не определён" : String(r.year)) : key === "season" ? (r.seasonCode ?? "сезон не указан") : r.batchNumber == null ? "без партии" : `партия ${r.batchNumber}`;
+      const k = key === "year" ? (r.year == null ? "год не определён" : String(r.year)) : key === "season" ? (r.seasonCode ?? "сезон не указан") : r.batchNumber == null ? "вне партий" : `партия ${r.batchNumber}`;
       m.set(k, (m.get(k) ?? 0) + r.qty);
     }
     return Array.from(m, ([k, v]) => `${k}: ${formatQty(v)}`).sort((x, y) => x.localeCompare(y, "ru", { numeric: true })).join(" · ");

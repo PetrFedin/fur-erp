@@ -78,7 +78,7 @@ export default async function RepairPage({ searchParams }: { searchParams: Promi
             { type: "multi", name: "color", label: "Цвет", more: true, options: tzOpts.color },
             { type: "multi", name: "tz", label: "ТЗ", options: tzOpts.tz },
             { type: "multi", name: "tzyear", label: year === "all" ? "Год" : `Год (внутри ${year})`, options: tzOpts.tzyear },
-            { type: "multi", name: "batch", label: "Партия пошива", options: tzOpts.batch, noneLabel: "Без партии" },
+            { type: "multi", name: "batch", label: "Партия пошива", options: tzOpts.batch, noneLabel: "Вне партий" },
           ]}
         />
       </div>

@@ -59,7 +59,7 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
         <Thead><Tr>
           <SortTh path={P} sp={sp} k="auction" cur={sort} label="Аукцион" />
           <SortTh path={P} sp={sp} k="invoice" cur={sort} label="Счёт" />
-          {!isSup && <SortTh path={P} sp={sp} k="supplier" cur={sort} label="Поставщик" />}
+          {!isSup && <SortTh path={P} sp={sp} k="supplier" cur={sort} label="Подрядчик" />}
           <SortTh path={P} sp={sp} k="qty" cur={sort} label="Шкур" align="right" />
           <SortTh path={P} sp={sp} k="total" cur={sort} label="Итого, ₽" align="right" />
           <SortTh path={P} sp={sp} k="avg" cur={sort} label="Средняя за шкуру, ₽" align="right" />

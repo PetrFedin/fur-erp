@@ -509,7 +509,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
             {noFurUsage.length > 0 && <div className="mt-1 text-xs">{linkList(noFurUsage)}</div>}
           </li>
           <li>
-            ТЗ без партии: <b>{noBatch.length}</b>
+            ТЗ вне партий: <b>{noBatch.length}</b>
             {noBatch.length > 0 && <div className="mt-1 text-xs">{linkList(noBatch)}</div>}
           </li>
           <li className="text-xs text-neutral-500">

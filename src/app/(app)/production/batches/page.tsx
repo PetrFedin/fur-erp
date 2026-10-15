@@ -92,7 +92,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
   // Дерево и плитки — из тех же ТЗ, что на Главной; оплаты — по партиям/ТЗ из разнесения оплат (как в таблице).
   const shownNums = new Set(rows.map((r) => r.b.number));
   const drillAll = await loadOrdersDrill(orgId, year, c4Mode);
-  // Без фильтра по документам/оплате — все ТЗ (как на Главной, включая ТЗ без партии); с фильтром — только показанные партии.
+  // Без фильтра по документам/оплате — все ТЗ (как на Главной, включая ТЗ вне партий); с фильтром — только показанные партии.
   const drill = need ? drillAll.filter((o) => o.bk !== "none" && shownNums.has(Number(o.bk))) : drillAll;
   const payBy: Record<string, number> = {};
   let payPaid = 0, payWork = 0, payOver = 0;
@@ -107,8 +107,8 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
   // Без фильтров партий — тот же расчёт долга заказчиков (loadClientDebt), что на Главной.
   const bridgeOn = !need && modelSel.length === 0;
   const debt = bridgeOn ? await loadClientDebt(prisma, orgId, { year, orderIds: drillAll.map((o) => o.id), orderFiltersActive: false }) : null;
-  const outAlloc = debt ? debt.allocated - payPaid : 0; // разнесено на ТЗ без партии
-  const outWork = debt ? debt.billable - payWork : 0; // работа ТЗ без партии
+  const outAlloc = debt ? debt.allocated - payPaid : 0; // разнесено на ТЗ вне партий
+  const outWork = debt ? debt.billable - payWork : 0; // работа ТЗ вне партий
   const unallocList = debt ? debt.payments.filter((p) => !isContractorHidesRest(p) && p.rest.greaterThan(0.005)) : [];
   // Итог таблицы — только показанные партии (как строки выше); ТЗ каждой партии свои, двойного счёта нет.
   const sumOrders = rows.reduce((a, r) => a + r.t.orders, 0);
@@ -198,8 +198,8 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                   {payOver > 0.5 && <li>Сверх работы (шкуры подрядчика и др.): <b>{money(payOver)}</b></li>}
                   {debt && (
                     <>
-                      <li>Оплачено всего: <b>{money(debt.paid)}</b>, из них разнесено на партии {money(payPaid)}{Math.abs(outAlloc) > 0.5 ? `, на ТЗ без партии ${money(outAlloc)}` : ""}, не разнесено (аванс) {money(debt.unallocated)}</li>
-                      <li>Работа подрядчику всего (Главная): <b>{money(debt.billable)}</b>{Math.abs(outWork) > 0.5 ? `, в т. ч. ТЗ без партии ${money(outWork)}` : ""}</li>
+                      <li>Оплачено всего: <b>{money(debt.paid)}</b>, из них разнесено на партии {money(payPaid)}{Math.abs(outAlloc) > 0.5 ? `, на ТЗ вне партий ${money(outAlloc)}` : ""}, не разнесено (аванс) {money(debt.unallocated)}</li>
+                      <li>Работа подрядчику всего (Главная): <b>{money(debt.billable)}</b>{Math.abs(outWork) > 0.5 ? `, в т. ч. ТЗ вне партий ${money(outWork)}` : ""}</li>
                     </>
                   )}
                 </ul>
@@ -208,7 +208,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                   <>
                     <p className="mt-1">Остаток по каждой партии после аванса, уже привязанного к её ТЗ. Договор №1605: аванс 70 %, доплата 30 % после сдачи партии. Часть аванса пока не привязана к партиям — после привязки цифра уменьшится до «Долга по работе» на Главной.</p>
                     <p className="mt-1"><b>Разница = неразнесённый аванс {money(debt.unallocated)}</b> (аванс подрядчику, ещё не отнесён к партиям): «Оплачено всего» − «Оплачено (разнесено на партии)».</p>
-                    <p className="mt-1"><b>До Главной и «Оплат»:</b> там «оплачено» — всё, что перечислил заказчик ({money(debt.paid)}), а работа — по всем ТЗ ({money(debt.billable)}). Здесь по партиям: оплачено {money(payPaid)}, работа {money(payWork)}. Разница в оплате — {money(debt.unallocated)} аванса, не разнесённого на ТЗ{Math.abs(outAlloc) > 0.5 ? `, и ${money(outAlloc)} на ТЗ без партии` : ""}; в работе — {money(outWork)} по ТЗ без партии. Долг на Главной {money(debt.balance)} = {money(Math.max(payRest, 0))} здесь − {money(debt.unallocated)} аванса{Math.abs(outAlloc - outWork) > 0.5 ? ` ${outAlloc - outWork > 0 ? "+" : "−"} ${money(Math.abs(outAlloc - outWork))} по ТЗ без партии` : ""}.</p>
+                    <p className="mt-1"><b>До Главной и «Оплат»:</b> там «оплачено» — всё, что перечислил заказчик ({money(debt.paid)}), а работа — по всем ТЗ ({money(debt.billable)}). Здесь по партиям: оплачено {money(payPaid)}, работа {money(payWork)}. Разница в оплате — {money(debt.unallocated)} аванса, не разнесённого на ТЗ{Math.abs(outAlloc) > 0.5 ? `, и ${money(outAlloc)} на ТЗ вне партий` : ""}; в работе — {money(outWork)} по ТЗ вне партий. Долг на Главной {money(debt.balance)} = {money(Math.max(payRest, 0))} здесь − {money(debt.unallocated)} аванса{Math.abs(outAlloc - outWork) > 0.5 ? ` ${outAlloc - outWork > 0 ? "+" : "−"} ${money(Math.abs(outAlloc - outWork))} по ТЗ вне партий` : ""}.</p>
                     {unallocList.length > 0 && (
                       <>
                         <p className="mt-1">Платежи с неразнесённым остатком (аванс):</p>
@@ -377,7 +377,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
       {debt ? (
         <p className="text-sm text-neutral-700" data-testid="batches-bridge">
           К доплате по партиям <b className="tabular-nums">{money(Math.max(payRest, 0))}</b>
-          {" · "}Аванс без партии <b className="tabular-nums">−{money(debt.unallocated)}</b>
+          {" · "}Аванс вне партий <b className="tabular-nums">−{money(debt.unallocated)}</b>
           {debt.unallocated > 1 ? <> <Link href="/payments?tab=clients#unallocated" className="text-blue-700 hover:underline print:hidden">Разнести…</Link></> : null}
           {" → "}Долг по работе подрядчику = Главная <b className="tabular-nums">{money(debt.balance)}</b>
         </p>

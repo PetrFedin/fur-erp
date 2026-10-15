@@ -467,7 +467,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
         id: o.id, section: "tz", number: o.number, title: `ТЗ ${o.number}`,
         sub: articleLabel(o.productModel), href: `/production/${o.id}`, year, auction: null,
         groupKey: b ? `b${b.number}` : "nob",
-        groupTitle: b ? `Партия ${b.number}${batchNameText(b.name) ? ` «${batchNameText(b.name)}»` : ""}` : "Без партии",
+        groupTitle: b ? `Партия ${b.number}${batchNameText(b.name) ? ` «${batchNameText(b.name)}»` : ""}` : "Вне партий",
         groupSort: b ? b.number : 9999,
       },
       tzRules({ status: o.status }),

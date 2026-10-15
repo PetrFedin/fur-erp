@@ -338,7 +338,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
       rows.push({
         key: `prodPayment:${p.id}`, kind: "prodPayment", id: p.id,
         title: `${formatDate(p.paidAt)} · ${fmtRub(p.amount)}`,
-        sub: `${p.client?.name ?? "заказчик не указан"} · ${batches.length ? `партия ${batches.join(", ")}` : "без партии"}${p.docRef ? ` · ${p.docRef.slice(0, 80)}` : ""}`,
+        sub: `${p.client?.name ?? "заказчик не указан"} · ${batches.length ? `партия ${batches.join(", ")}` : "вне партий"}${p.docRef ? ` · ${p.docRef.slice(0, 80)}` : ""}`,
         href, group: batches.length === 1 ? `Партия ${batches[0]}` : null, year: p.paidAt.getUTCFullYear(), amountText: fmtRub(p.amount),
         verified, auto: verified && st.auto, stampText: verified ? st.text : null, note: payNoteOf(p.notes), letter: !hasFile && ev === "letter",
         ready: blockers.length === 0, blockers,

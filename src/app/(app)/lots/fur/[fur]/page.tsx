@@ -111,7 +111,7 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
   // Сведения о ТЗ, в которые ушёл этот мех: артикул, партия, год, статус, число изделий.
   const usedIds = new Set(own.flatMap((l) => l.usages.map((u) => u.orderId)));
   const orderInfo = Object.fromEntries(
-    (await loadOrderRows(orgId, "all", c4)).filter((o) => usedIds.has(o.id)).map((o) => [o.id, { number: o.number, article: o.modelLabel || o.modelName, category: o.category, batch: o.batchText ?? "Без партии", year: o.year, status: o.status, units: o.qty, group: o.categoryGroup }]),
+    (await loadOrderRows(orgId, "all", c4)).filter((o) => usedIds.has(o.id)).map((o) => [o.id, { number: o.number, article: o.modelLabel || o.modelName, category: o.category, batch: o.batchText ?? "Вне партий", year: o.year, status: o.status, units: o.qty, group: o.categoryGroup }]),
   );
 
   const fl = flowOf(own);

@@ -24,7 +24,7 @@ export function HeaderEdit({ v, suppliers, batches }: { v: HeaderValues; supplie
       </Field>
       <Field label="Партия пошива">
         <Select name="batchId" defaultValue={v.batchId}>
-          <option value="">— без партии —</option>
+          <option value="">— вне партий —</option>
           {batches.map((b) => (
             <option key={b.id} value={b.id}>{b.label}</option>
           ))}

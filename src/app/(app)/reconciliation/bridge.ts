@@ -83,7 +83,7 @@ export async function loadReconBridge(orgId: string, live: Live): Promise<ReconB
     { label: "Партии со счетами: работа по ТЗ в базе минус счета реестра", value: r2(w2 - s2), note: "в базе работа считается по ТЗ (цена за единицу × количество), в реестре — по выставленным счетам (аванс и доплата)" },
   ];
   const prodRest = r2(mainWork - w2);
-  if (Math.abs(prodRest) >= 0.005) production.push({ label: "Работа подрядчику по ТЗ в базе вне групп реестра (партии без счёта, ТЗ без партии)", value: prodRest });
+  if (Math.abs(prodRest) >= 0.005) production.push({ label: "Работа подрядчику по ТЗ в базе вне групп реестра (партии без счёта, ТЗ вне партий)", value: prodRest });
   const check = r2(mainWork - regProduction - production.reduce((a, r) => a + r.value, 0));
   if (Math.abs(check) >= 0.005) production.push({ label: "Прочее (округление)", value: check });
 

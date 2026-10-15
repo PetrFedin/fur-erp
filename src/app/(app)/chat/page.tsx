@@ -241,7 +241,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
                       {newDay && <div className="my-2 self-center rounded-full bg-neutral-200 px-3 py-0.5 text-[11px] text-neutral-800">{dayLabel(m.createdAt, now)}</div>}
                       <div className={cn("flex max-w-[88%] flex-col gap-1 md:max-w-[75%]", mine ? "items-end self-end" : "items-start self-start")}>
                         <div className={cn("min-w-0 max-w-full break-words rounded-2xl px-3 py-2 text-sm", mine ? "bg-neutral-900 text-white" : "border border-neutral-200 bg-white")}>
-                          {!mine && <div className="mb-0.5 text-xs font-semibold text-neutral-700">{m.authorName}{m.authorSide !== v.side && selected.kind !== "GROUP" ? ` · ${m.authorSide === "SUPPLIER" ? supplier || "Поставщик" : s.user.organizationName}` : ""}</div>}
+                          {!mine && <div className="mb-0.5 text-xs font-semibold text-neutral-700">{m.authorName}{m.authorSide !== v.side && selected.kind !== "GROUP" ? ` · ${m.authorSide === "SUPPLIER" ? supplier || "Подрядчик" : s.user.organizationName}` : ""}</div>}
                           {m.body && <div className="whitespace-pre-wrap">{splitMentions(m.body).map((p, k) => p.mention
                             ? <span key={k} className={cn("rounded px-1 font-medium", mentionsUser(p.text, v.name) ? "bg-amber-200 text-amber-950" : mine ? "bg-neutral-700 text-white" : "bg-sky-100 text-sky-900")}>{p.text}</span>
                             : <span key={k}>{p.text}</span>)}</div>}

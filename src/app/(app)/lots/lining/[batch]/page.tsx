@@ -53,7 +53,7 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
   const pay = pays.find((p) => p.name === name) ?? pays[0];
   const usedIds = new Set(lots.flatMap((l) => l.usages.map((u) => u.orderId)));
   const orderInfo = Object.fromEntries(
-    orders.filter((o) => usedIds.has(o.id)).map((o) => [o.id, { number: o.number, article: o.modelLabel || o.modelName, category: o.category, batch: o.batchText ?? "Без партии", year: o.year, status: o.status, units: o.qty, group: o.categoryGroup }]),
+    orders.filter((o) => usedIds.has(o.id)).map((o) => [o.id, { number: o.number, article: o.modelLabel || o.modelName, category: o.category, batch: o.batchText ?? "Вне партий", year: o.year, status: o.status, units: o.qty, group: o.categoryGroup }]),
   );
 
   const fl = flowOf(lots);
