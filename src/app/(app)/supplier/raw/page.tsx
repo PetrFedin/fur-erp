@@ -100,7 +100,10 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
             const name = g[0].auction || g[0].purchaseNumber;
             (byAuction.get(name) ?? byAuction.set(name, []).get(name)!).push(g);
           }
-          return [...byAuction.entries()].map(([name, invs], ai) => {
+          const yearOf = (invs: typeof rows[]) => invs[0][0].year;
+          const years = [...new Set([...byAuction.values()].map(yearOf))].sort((a, b) => b - a);
+          const entries = [...byAuction.entries()].sort((a, b) => yearOf(b[1]) - yearOf(a[1]));
+          const cards = entries.map(([name, invs], ai) => {
             const lots = invs.flat();
             const aq = lots.reduce((a, r) => a + r.quantity, 0);
             const as = lots.reduce((a, r) => a + r.subtotal, 0);
@@ -179,6 +182,16 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                   </div>
                 </div>
               </details>
+            );
+          });
+          return years.map((y) => {
+            const ys = entries.map((e, i) => ({ e, i })).filter(({ e }) => yearOf(e[1]) === y);
+            const yl = ys.flatMap(({ e }) => e[1].flat());
+            return (
+              <section key={y} className="flex flex-col gap-2">
+                <h2 className="flex items-baseline gap-3 border-b border-neutral-200 pb-1 text-base font-semibold">{y}<span className="text-xs font-normal text-neutral-500">аукционов {ys.length} · лотов {yl.length} · шкур {num(yl.reduce((a, r) => a + r.quantity, 0))}</span></h2>
+                {ys.map(({ i }) => cards[i])}
+              </section>
             );
           });
         })()}

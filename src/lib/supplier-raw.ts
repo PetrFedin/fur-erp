@@ -28,6 +28,8 @@ export type RawRow = {
   unitPrice: number;
   subtotal: number;
   currency: string;
+  /** Год закупки (по дате заказа) — для группировки по годам. */
+  year: number;
 };
 
 /**
@@ -42,7 +44,7 @@ export async function supplierRawRows(orgId: string, supplierId: string): Promis
       rawMaterial: { select: { id: true, name: true } },
       purchase: {
         select: {
-          id: true, number: true, status: true, currency: true, auctionSession: true, invoiceNumber: true, invoiceDate: true, transferDocument: true,
+          id: true, number: true, status: true, currency: true, orderDate: true, auctionSession: true, invoiceNumber: true, invoiceDate: true, transferDocument: true,
           auction: { select: { name: true } },
           driveDocuments: { where: { docType: { in: ["UPD", "SPECIFICATION"] } }, select: { docType: true, docNumber: true, docDate: true, lotId: true } },
           documents: { where: { kind: { in: ["UPD", "SPECIFICATION"] } }, select: { kind: true, title: true, lotId: true } },
@@ -84,6 +86,7 @@ export async function supplierRawRows(orgId: string, supplierId: string): Promis
       unitPrice: Number(i.unitPrice),
       subtotal: Number(i.subtotal),
       currency: p.currency,
+      year: p.orderDate.getUTCFullYear(),
     };
   });
 }
