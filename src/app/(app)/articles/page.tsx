@@ -36,6 +36,7 @@ import { CostTwo } from "@/components/cost-two";
 import { CATEGORY_GROUPS, NO_GROUP, groupOf } from "@/lib/category-groups";
 import { TotalLabel } from "@/components/total-label";
 import { LENGTH_OPTIONS } from "@/lib/length-class";
+import { loadAllArticleParams, modelIdsWithParams, paramFilterOptions } from "@/lib/article-params";
 import { SupplierArticles } from "./supplier-view";
 import { loadSupplierArticleIds } from "@/lib/supplier-articles";
 
@@ -50,6 +51,7 @@ const ARTICLE_FILTERS = defineFilters({
   tzyear: { kind: "multi", label: "Год ТЗ", pattern: /^\d{4}$/ },
   tz: { kind: "multi", label: "ТЗ", maxLen: 60 },
   price: { kind: "multi", label: "Цена", allowed: ["yes", "no"] },
+  param: { kind: "multi", label: "Параметры", maxLen: 90 },
   empty: stateParam("Состав списка", { allowed: ["1"] }),
   src: stateParam("Источник", { allowed: ["supplier"] }),
 });
@@ -80,9 +82,15 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const matchedIds = matchedOrderIds(orderRows, liningById, f);
   const tzOpts = tzOptions(orderRows);
 
+  // Свои параметры артикулов (карточка артикула -> «+ Добавить параметр»): фильтр «Параметры» оставляет артикулы с выбранными «название: значение».
+  const allParams = await loadAllArticleParams(prisma, orgId);
+  const paramOpts = paramFilterOptions(allParams);
+  const paramIds = f.param.length ? modelIdsWithParams(allParams, f.param) : null;
+  const modelIds = paramIds ? (f.model.length ? paramIds.filter((x) => f.model.includes(x)) : paramIds) : null;
+
   const models = await prisma.productModel.findMany({
     // Ремонт — не изделия: отдельная страница «Ремонт».
-    where: { AND: [articleModelWhere(orgId, f), { OR: [{ category: null }, { category: { not: "Ремонт" } }] }] },
+    where: { AND: [articleModelWhere(orgId, modelIds ? { ...f, model: modelIds.length ? modelIds : ["-"] } : f), { OR: [{ category: null }, { category: { not: "Ремонт" } }] }] },
     select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, description: true, sellingPrice: true, supplierWorkPrice: true, supplierFurPerUnit: true, isActive: true, categoryRef: { select: { group: true } } },
     orderBy: { name: "asc" },
   });
@@ -158,7 +166,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   // Фильтры по ТЗ (вид меха, подкладка, год ТЗ, ТЗ, партия, цвет, размер, сезон): остаются артикулы, у которых есть подходящие ТЗ.
   const baseRows = year === "all" ? rows0.filter((r) => r.stockQty > 0 || r.orderCount > 0 || r.bySupplier) : rows0.filter((r) => r.orderCount > 0 || r.bySupplier);
   const emptyCount = tzActive ? 0 : rows0.length - baseRows.length;
-  const modelFilterOn = !!q || f.category.length > 0 || f.catgroup.length > 0 || f.model.length > 0 || f.len.length > 0 || f.price.length > 0;
+  const modelFilterOn = !!q || f.category.length > 0 || f.catgroup.length > 0 || f.model.length > 0 || f.len.length > 0 || f.price.length > 0 || f.param.length > 0;
   const rows = (f.src === "supplier" ? rows0.filter((r) => r.bySupplier) : tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).sort((a, b) => {
     const wa = a.stockQty > 0 || a.orderCount > 0 ? 0 : 1;
     const wb = b.stockQty > 0 || b.orderCount > 0 ? 0 : 1;
@@ -256,6 +264,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           { type: "multi", name: "lining", label: "Подкладка", more: true, options: [{ value: "yes", label: "Да — есть подкладка" }, { value: "no", label: "Нет подкладки" }], hint: "по ТЗ: подкладка указана или списана" },
           { type: "multi", name: "size", label: "Размер", options: tzOpts.size, more: true },
           { type: "multi", name: "season", label: "Сезон", options: tzOpts.season, noneLabel: "Без сезона", more: true },
+          ...(paramOpts.length ? [{ type: "multi" as const, name: "param", label: "Параметры", more: true, options: paramOpts, hint: "свои параметры артикула из карточки" }] : []),
           { type: "multi", name: "price", label: "Цена", more: true, options: [{ value: "yes", label: "Есть цена" }, { value: "no", label: "Нет цены" }] },
         ]}
       />

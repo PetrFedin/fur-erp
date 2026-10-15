@@ -1,5 +1,6 @@
 "use server";
 
+import { PARAM_KEY_PREFIX } from "@/lib/article-params";
 import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -81,6 +82,7 @@ export async function deleteArticle(id: string): Promise<Res> {
   if (why) return { error: why };
   try {
     await prisma.productModel.deleteMany({ where: { id, organizationId: orgId } });
+    await prisma.systemState.deleteMany({ where: { organizationId: orgId, key: PARAM_KEY_PREFIX + id } });
   } catch {
     return { error: "Артикул связан с другими записями — деактивируйте его (галочка «Активный»)" };
   }

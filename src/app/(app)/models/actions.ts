@@ -8,6 +8,7 @@ import { ACCESS } from "@/lib/access";
 import { parsePrice } from "@/lib/input";
 import { composeSupplierDescription } from "@/lib/supplier-article";
 import { saveArticleCore, propagateArticlePrice } from "@/lib/article-save";
+import { PARAMS_MAX, PARAM_KEY_PREFIX, readParams, validateParam, type ArticleParam } from "@/lib/article-params";
 
 const EDIT_ROLES = ACCESS.models;
 
@@ -105,4 +106,40 @@ export async function saveArticleForm(id: string | null, _prev: ArticleSaveState
     redirect(`/models/${r.id}`);
   }
   return { saved: { at: Date.now() } };
+}
+
+
+// ───────────────────────── свои параметры артикула (src/lib/article-params.ts) ─────────────────────────
+
+export type ParamsState = { error?: string; params?: ArticleParam[] };
+
+async function changeParams(modelId: string, change: (cur: ArticleParam[]) => ArticleParam[] | { error: string }): Promise<ParamsState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(modelId)) return { error: "Артикул не найден" };
+  const model = await prisma.productModel.findFirst({ where: { id: modelId, organizationId: orgId }, select: { id: true } });
+  if (!model) return { error: "Артикул не найден" };
+  const key = PARAM_KEY_PREFIX + modelId;
+  const row = await prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: orgId, key } }, select: { value: true } });
+  const next = change(readParams(row?.value));
+  if (!Array.isArray(next)) return next;
+  if (next.length === 0) await prisma.systemState.deleteMany({ where: { organizationId: orgId, key } });
+  else await prisma.systemState.upsert({ where: { organizationId_key: { organizationId: orgId, key } }, create: { organizationId: orgId, key, value: { params: next } }, update: { value: { params: next } } });
+  revalidateAll(orgId);
+  return { params: next };
+}
+
+/** Добавить параметр артикулу или заменить значение параметра с тем же названием. */
+export async function saveArticleParam(modelId: string, name: string, value: string): Promise<ParamsState> {
+  const r = validateParam(name, value);
+  if ("error" in r) return { error: r.error };
+  return changeParams(modelId, (cur) => {
+    const i = cur.findIndex((p) => p.name.toLowerCase() === r.param.name.toLowerCase());
+    if (i < 0 && cur.length >= PARAMS_MAX) return { error: `Не больше ${PARAMS_MAX} параметров у артикула` };
+    return i < 0 ? [...cur, r.param] : cur.map((p, k) => (k === i ? r.param : p));
+  });
+}
+
+export async function removeArticleParam(modelId: string, name: string): Promise<ParamsState> {
+  return changeParams(modelId, (cur) => cur.filter((p) => p.name.toLowerCase() !== String(name).toLowerCase()));
 }
