@@ -1,3 +1,4 @@
+import { Clamp } from "@/components/clamp";
 import Link from "next/link";
 import { TH as Head } from "@/components/table-head";
 import type { ReactNode } from "react";
@@ -59,7 +60,7 @@ export function PaymentLinesTable({ lines, emptyText }: { lines: PayLine[]; empt
               <td className="whitespace-nowrap px-2 py-2">
                 {l.invoice ? (l.invoice.href ? <Link href={l.invoice.href} className="text-blue-700 hover:underline">{l.invoice.text}</Link> : l.invoice.text) : <span className="text-neutral-400">—</span>}
               </td>
-              {hasComment ? <td className="px-2 py-2 text-xs text-neutral-600">{l.comment ?? ""}</td> : null}
+              {hasComment ? <td className="max-w-[18rem] px-2 py-2 text-xs text-neutral-600"><Clamp>{l.comment ?? ""}</Clamp></td> : null}
               <td className="whitespace-nowrap px-2 py-2 text-neutral-600">{l.ppNo ? `№ ${l.ppNo}` : "—"}</td>
               {hasDocs ? <td className="px-2 py-2">{l.sourceDocs ? <SourceDocs compact data={l.sourceDocs} /> : <span className="text-neutral-400">—</span>}</td> : null}
               <td className="px-2 py-2 text-right">
@@ -113,7 +114,7 @@ export function PurchaseLinesTable({ lines, withPaid }: { lines: PurchaseLine[];
                   <Link href={`/purchases/${l.id}`} className="text-blue-700 hover:underline">{l.number}</Link>
                   {l.invoice ? <span className="block text-xs text-neutral-500">счёт {l.invoice}</span> : null}
                 </td>
-                <td className="px-2 py-2 text-neutral-600">{l.note ?? "—"}</td>
+                <td className="max-w-[18rem] px-2 py-2 text-neutral-600"><Clamp>{l.note ?? "—"}</Clamp></td>
                 <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatMoney(l.total)}</td>
                 {withPaid ? <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatMoney(l.paid)}</td> : null}
                 {withPaid ? (

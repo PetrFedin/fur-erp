@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { InfoHint } from "@/components/info-hint";
+import { CollapsibleBlock } from "@/components/collapsible-block";
+import { Clamp } from "@/components/clamp";
 import { RecordHistory } from "@/components/record-history";
 import { SourceDocs } from "@/components/source-docs";
 import { TotalLabel } from "@/components/total-label";
@@ -148,6 +150,7 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
     { ok: linked, label: "Привязка", detail: linked ? ov.links.map((l) => l.label).join(", ") : parsed.kind === "raw" ? "не привязана к закупке или аукциону" : "не привязана к ТЗ" },
     { ok: r.unallocated <= 0.5, label: "Разнесена на 100 %", detail: r.unallocated <= 0.5 ? `разнесено ${money(allocated)} из ${money(r.amount)}` : `не разнесено ${money(r.unallocated)} из ${money(r.amount)}` },
   ];
+  const hasNotes = ov.parts.some((x) => !!x.note);
   const model = parsed.kind === "raw" ? "Payment" : "ProductionPayment";
 
   return (
@@ -163,22 +166,11 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <span>{r.what} · {dateText}</span>
           <span className={"font-medium " + TONE[r.status]}>{PAY_STATUS_LABEL[r.status]}</span>
-          <span className="text-neutral-600">
-            {verify?.verified ? `Подтверждение: ${verify.stampText ?? "есть"}` : "Подтверждения пока нет"}
-            <InfoHint wide label="Что значит «подтверждена»">
-              <p>Оплата подтверждена, если есть документ-основание (файл платёжки либо п/п с номером или письмо «оплачено» с датой), она привязана и сумма с датой заданы. Любая правка суммы, документа или даты снимает подтверждение.</p>
-              <p className="mt-1">Здесь подтверждение только показывается. Поставить его можно в «Контроль → Не подтверждено».</p>
-            </InfoHint>
-          </span>
         </div>
       </section>
 
-      <Block title="Основное">
+      <Block title="Оплата">
         <Dl items={[
-          ["Дата оплаты", dateText],
-          ["Сумма", money(r.amount)],
-          [r.direction === "out" ? "Получатель" : "Плательщик", cpHref ? <Link href={cpHref} className="text-blue-700 hover:underline">{r.counterparty} ›</Link> : r.counterparty],
-          ["Тип", r.what],
           ["Счёт", invHref ? <Link href={invHref} className="text-blue-700 hover:underline">{invText} ›</Link> : invText],
           ...(invoiceInBase ? [["Счёт в базе", invoiceInBase] as [string, ReactNode]] : []),
           ["П/п", ppText],
@@ -217,20 +209,20 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
               <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
                 <th className="py-1.5 pr-2 font-medium">Куда</th>
                 <th className="px-2 py-1.5 text-right font-medium">Сумма<span className="block text-[10px] font-normal opacity-80">₽</span></th>
-                <th className="px-2 py-1.5 font-medium">Примечание</th>
+                {hasNotes && <th className="px-2 py-1.5 font-medium">Примечание</th>}
               </tr>
             </thead>
             <tbody>
               {ov.parts.map((x, i) => (
                 <tr key={i} className="border-b border-neutral-100">
-                  <td className="py-1.5 pr-2">{x.href ? <Link href={x.href} className="text-blue-700 hover:underline">{x.label} ›</Link> : x.label}</td>
+                  <td className="max-w-[22rem] py-1.5 pr-2"><Clamp>{x.href ? <Link href={x.href} className="text-blue-700 hover:underline">{x.label} ›</Link> : x.label}</Clamp></td>
                   <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{money(x.amount)}</td>
-                  <td className="px-2 py-1.5 text-neutral-600">{x.note ?? ""}</td>
+                  {hasNotes && <td className="max-w-[16rem] px-2 py-1.5 text-neutral-600"><Clamp>{x.note ?? ""}</Clamp></td>}
                 </tr>
               ))}
               {ov.links.filter((l) => !ov.parts.some((x) => x.href === l.href)).map((l) => (
                 <tr key={l.href} className="border-b border-neutral-100">
-                  <td className="py-1.5 pr-2" colSpan={3}><Link href={l.href} className="text-blue-700 hover:underline">{l.label} ›</Link></td>
+                  <td className="py-1.5 pr-2" colSpan={hasNotes ? 3 : 2}><Link href={l.href} className="text-blue-700 hover:underline">{l.label} ›</Link></td>
                 </tr>
               ))}
             </tbody>
@@ -238,8 +230,8 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
               <tr className="row-total">
                 <td className="py-1.5 pr-2"><TotalLabel /></td>
                 <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{money(partsTotal)}</td>
-                <td className={"px-2 py-1.5 " + (r.unallocated > 0.5 ? "text-amber-700" : "")}>
-                  {r.unallocated > 0.5 ? `в т. ч. не разнесено ${money(r.unallocated)}` : "разнесено полностью"}
+                <td className={"px-2 py-1.5 " + (r.unallocated > 0.5 ? "text-amber-700" : "text-neutral-600")}>
+                  {r.unallocated > 0.5 ? `не разнесено ${money(r.unallocated)}` : "разнесено полностью"}
                   {parsed.kind === "prod" && r.unallocated > 1 ? <Link href="/payments?tab=clients#unallocated" className="ml-2 text-blue-700 hover:underline print:hidden">Разнести остаток →</Link> : null}
                 </td>
               </tr>
@@ -248,7 +240,15 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
         </div>
       </Block>
 
-      <Block title="Подтверждение" hint={<p>Чек-лист только показывает, чего не хватает. Кнопок подтверждения здесь нет: файл загружают в блоке «Документы-основания», подтверждение ставят в «Контроль → Не подтверждено».</p>}>
+      <div id="docs" className="flex flex-col gap-4">
+        {srcDocs[parsed.id] ? <SourceDocs data={srcDocs[parsed.id]} /> : null}
+      </div>
+
+      <CollapsibleBlock
+        title="Подтверждение"
+        autoOpen={false}
+        summary={verify?.verified ? `Подтверждена${verify.stampText ? ` · ${verify.stampText}` : ""}` : `Не подтверждена · выполнено ${checks.filter((c) => c.ok).length} из ${checks.length}`}
+      >
         <ul className="flex flex-col gap-1.5 text-sm">
           {checks.map((c) => (
             <li key={c.label} className="flex flex-wrap items-baseline gap-x-2">
@@ -259,17 +259,15 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
           ))}
         </ul>
         {verify && verify.blockers.length > 0 && !verify.verified ? (
-          <div className="mt-1 text-xs text-neutral-600">
+          <div className="mt-2 text-xs text-neutral-600">
             <div className="font-medium text-neutral-700">Что мешает подтвердить</div>
             <ul className="list-disc pl-4">{verify.blockers.map((b, i) => <li key={i}>{b.text}</li>)}</ul>
           </div>
         ) : null}
-      </Block>
+        <p className="mt-2 text-xs text-neutral-500">Подтверждение ставят в «Контроль → Не подтверждено»; любая правка суммы, даты или документа его снимает.</p>
+      </CollapsibleBlock>
 
-      <div id="docs" className="flex flex-col gap-2">
-        {srcDocs[parsed.id] ? <SourceDocs data={srcDocs[parsed.id]} /> : null}
-        <RecordHistory model={model} recordId={parsed.id} />
-      </div>
+      <RecordHistory model={model} recordId={parsed.id} />
     </div>
   );
 }

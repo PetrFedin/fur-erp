@@ -128,16 +128,16 @@ export function PaymentCardEdit(p: CardEditProps) {
           <Field label="№ счёта"><Input name="invoiceNo" defaultValue={p.defaults.invoiceNo} maxLength={40} autoComplete="off" /></Field>
           <Field label="№ п/п"><Input name="ppNo" defaultValue={p.defaults.ppNo} maxLength={40} autoComplete="off" /></Field>
           {p.targets ? (
-            <Field label={`Привязка (сейчас: ${p.linkText})`}>
+            <Field label="Привязка">
               <Select name="targetPurchaseId" defaultValue={p.defaults.purchaseId}>
                 {p.defaults.purchaseId === "" && <option value="">Без привязки (аванс)</option>}
                 {p.targets.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
               </Select>
             </Field>
           ) : (
-            <Field label="Привязка"><span className="py-2 text-sm text-neutral-800">{p.linkText}. Менять — в блоке «Куда отнесено».</span></Field>
+            <Field label="Привязка"><span className="py-2 text-sm text-neutral-800">{p.linkText}</span></Field>
           )}
-          <Field label="Основание / заметка" wide><Textarea name="notes" rows={2} defaultValue={p.defaults.notes} maxLength={1000} /></Field>
+          <Field label="Заметка" wide><Textarea name="notes" rows={2} defaultValue={p.defaults.notes} maxLength={1000} /></Field>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
             <Button type="submit" size="sm" disabled={pending}>{pending ? "Сохраняем…" : "Сохранить"}</Button>
             <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)} disabled={pending}>Отмена</Button>

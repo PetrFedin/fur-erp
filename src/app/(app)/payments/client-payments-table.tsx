@@ -1,3 +1,4 @@
+import { Clamp } from "@/components/clamp";
 import { SourceDocs } from "@/components/source-docs";
 import type { SourceDocsData } from "@/lib/source-docs";
 import { uniqueLabelCount } from "@/lib/tz-key";
@@ -103,7 +104,7 @@ export function Goods({ goods }: { goods: PaidGood[] }) {
             <tr key={g.id} className="border-b border-neutral-100">
               <td className="whitespace-nowrap py-1.5 pr-2"><Link href={`/production/${g.id}`} className="text-blue-700 hover:underline">{g.label ?? `Заказ ${g.number}`} ›</Link></td>
               <td className="whitespace-nowrap px-2 py-1.5">{g.article ?? g.model}</td>
-              <td className="px-2 py-1.5 text-neutral-600">{g.fur ?? "—"}</td>
+              <td className="max-w-[16rem] px-2 py-1.5 text-neutral-600"><Clamp>{g.fur ?? "—"}</Clamp></td>
               <td className="whitespace-nowrap px-2 py-1.5 text-neutral-600">{g.batch ?? "—"}</td>
               <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{qtyText(g.qty)}</td>
               <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{g.work != null ? money(g.work) : "—"}</td>
