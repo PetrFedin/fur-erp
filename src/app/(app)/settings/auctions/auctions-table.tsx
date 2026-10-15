@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Fragment, useActionState, useMemo, useState, useTransition } from "react";
 import { MultiFilter } from "@/components/multi-filter";
+import { Clamp } from "@/components/clamp";
 import { InfoHint } from "@/components/info-hint";
 import { RowCard, ResponsiveRows } from "@/components/responsive-rows";
 import { Badge } from "@/components/ui/badge";
@@ -98,7 +99,7 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-semibold">Справочник аукционов</h1>
         <Hint />
-        <span className="text-xs text-neutral-500">Имя правится в строке: измените и нажмите «Сохранить»</span>
+        <InfoHint label="Как править имя">Имя правится в строке: измените и нажмите «Сохранить».</InfoHint>
       </div>
       {flash?.error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flash.error}</p>}
       {flash?.ok && <p role="status" className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{flash.ok}</p>}
@@ -148,7 +149,7 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
                       <NameEditor row={r} canEdit={canEdit} onResult={report} />
                       {r.aliases.length > 0 && <div className="mt-1 max-w-[10rem] text-xs text-neutral-500">раньше: {r.aliases.join("; ")}</div>}
                     </Td>
-                    <Td className="max-w-[13rem] align-top text-xs text-neutral-600">{r.fullName ?? "—"}</Td>
+                    <Td className="max-w-[13rem] align-top text-xs text-neutral-600"><Clamp>{r.fullName ?? "—"}</Clamp></Td>
                     <Td className="align-top text-sm">{r.house ?? "—"}</Td>
                     <Td className="align-top text-sm">
                       {KIND_LABELS[r.kind]}
@@ -194,7 +195,7 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
               <div className="flex flex-col gap-2">
                 <StatusCell row={r} canEdit={canEdit} onResult={report} hideBadge />
                 <details>
-                  <summary className="cursor-pointer py-2 text-xs text-blue-600">Подробнее и правка</summary>
+                  <summary className="cursor-pointer py-2 text-xs text-blue-600 max-md:py-3.5">Подробнее и правка</summary>
                   <Details row={r} all={rows} canEdit={canEdit} onResult={report} />
                 </details>
               </div>

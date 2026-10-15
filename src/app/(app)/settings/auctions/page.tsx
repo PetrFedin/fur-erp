@@ -69,7 +69,7 @@ export default async function AuctionsPage() {
           <ul className="mt-1 list-disc pl-5">
             {[...orphan.entries()].map(([t, nums]) => <li key={t}>{t} — {nums.join(", ")}</li>)}
           </ul>
-          <p className="mt-1 text-xs text-neutral-600">Добавьте такой аукцион кнопкой «Добавить аукцион» (или впишите это название в «раньше» нужного аукциона).</p>
+          <p className="mt-1 text-xs text-neutral-600">Добавьте аукцион кнопкой «Добавить аукцион».</p>
         </div>
       )}
     </div>

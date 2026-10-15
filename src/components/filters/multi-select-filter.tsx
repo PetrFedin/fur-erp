@@ -163,7 +163,7 @@ export function MultiSelectFilter({
         className="ui-field flex h-11 w-full min-w-0 cursor-pointer list-none items-center justify-between gap-2 rounded-lg border border-neutral-300 bg-white px-3 text-left text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 [&::-webkit-details-marker]:hidden"
       >
         <span className="min-w-0 flex-1">
-          <span className="mb-0.5 block truncate text-[10px] font-semibold uppercase leading-none tracking-[0.02em] text-neutral-600">{label}</span>
+          <span className="mb-0.5 block truncate text-[11px] font-semibold uppercase leading-none tracking-[0.02em] text-neutral-600">{label}</span>
           <span className="block truncate text-xs font-normal leading-tight text-neutral-800">{summary}</span>
         </span>
         <span className="flex shrink-0 items-center gap-1">

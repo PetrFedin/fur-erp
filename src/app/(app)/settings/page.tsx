@@ -4,18 +4,18 @@ import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 const SETTINGS_LINKS = [
-  { href: "/materials", title: "Справочник материалов", description: "Названия, единицы измерения, категории" },
-  { href: "/suppliers", title: "Поставщики", description: "Поставщики и их контакты" },
+  { href: "/materials", title: "Справочник материалов", description: "Названия, единицы, категории" },
+  { href: "/suppliers", title: "Поставщики", description: "Контакты" },
   { href: "/settings/contractors", title: "Подрядчики", description: "Реквизиты, договоры, доступ" },
   { href: "/clients", title: "Заказчики", description: "Кому шьём и кто платит" },
   { href: "/settings/colors", title: "Справочник цветов", description: "Названия и синонимы" },
-  { href: "/settings/categories", title: "Справочник категорий", description: "Категории изделий и синонимы" },
+  { href: "/settings/categories", title: "Справочник категорий", description: "Категории и синонимы" },
   { href: "/settings/furs", title: "Справочник меха", description: "Названия и синонимы" },
-  { href: "/settings/fur-attrs", title: "Признаки меха", description: "Признаки по описаниям лотов" },
-  { href: "/settings/auctions", title: "Справочник аукционов", description: "Короткие имена аукционов" },
+  { href: "/settings/fur-attrs", title: "Признаки меха", description: "Признаки лотов" },
+  { href: "/settings/auctions", title: "Справочник аукционов", description: "Короткие имена" },
   { href: "/settings/articles-ref", title: "Справочник артикулов", description: "Коды и написания" },
-  { href: "/warehouses", title: "Склады", description: "Склады сырья и готовой продукции, склад по умолчанию" },
-  { href: "/settings/expense-categories", title: "Статьи расходов", description: "Категории дополнительных расходов" },
+  { href: "/warehouses", title: "Склады", description: "Сырьё и готовая продукция" },
+  { href: "/settings/expense-categories", title: "Статьи расходов", description: "Дополнительные расходы" },
   { href: "/users", title: "Пользователи", description: "Сотрудники и их роли" },
   { href: "/settings/channels", title: "Каналы: Telegram, WhatsApp", description: "Боты и привязки" },
 ];

@@ -314,7 +314,7 @@ function BarView({
           const value = vals[c.name]?.[0] ?? "";
           return (
             <label key={c.name} className={cn("relative flex min-w-0 flex-col max-sm:w-full", c.type === "text" ? "sm:flex-[2] sm:basis-60" : "sm:flex-1 sm:basis-40", c.className)}>
-              <span className="pointer-events-none absolute left-3 top-1.5 max-w-[calc(100%-1.5rem)] truncate text-[10px] font-semibold uppercase leading-none tracking-[0.02em] text-neutral-600">{c.label}</span>
+              <span className="pointer-events-none absolute left-3 top-1.5 max-w-[calc(100%-1.5rem)] truncate text-[11px] font-semibold uppercase leading-none tracking-[0.02em] text-neutral-600">{c.label}</span>
               <input
                 type={c.type === "date" ? "date" : "search"}
                 inputMode={c.type === "text" ? c.inputMode : undefined}
@@ -404,7 +404,6 @@ function BarView({
       {/* Чипы (если страница их просит) — в слоте постоянной высоты, в одну строку с прокруткой: панель от выбора не растёт. */}
       {!hideChips && (
         <div className="mt-2 flex h-8 flex-nowrap items-center gap-1.5 overflow-x-auto overflow-y-hidden" aria-label="Активные фильтры">
-          {chips.length === 0 && <span className="whitespace-nowrap text-xs text-neutral-500">Активных фильтров нет</span>}
           {chips.map(({ c, v }) => (
             <button
               key={`${c.name}:${v}`}
@@ -423,9 +422,7 @@ function BarView({
       )}
       {/* Блок передаётся серверной страницей (элемент с владельцем DashboardPage): без собственного key в списке детей <section> React 19 ругается «Each child in a list should have a unique key». */}
       {/* Единая подпись под всеми панелями фильтров; свой footer (с подсказкой) её заменяет, footer={null} убирает. */}
-      {footer === undefined
-        ? <p key="footer" className="mt-2 text-[11px] leading-4 text-neutral-500">Фильтры применяются сразу</p>
-        : footer ? <div key="footer">{footer}</div> : null}
+      {footer ? <div key="footer">{footer}</div> : null}
     </section>
   );
 }

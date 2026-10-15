@@ -198,7 +198,7 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
 
       {canEdit && (
         <details className="max-w-3xl rounded-xl border border-neutral-200 bg-white px-4 py-3">
-          <summary className="cursor-pointer text-sm font-medium">+ Добавить цвет</summary>
+          <summary className="cursor-pointer text-sm font-medium max-md:py-3">+ Добавить цвет</summary>
           <div className="mt-3">
             <form action={createColor} className="flex flex-wrap items-end gap-2">
               <div className="min-w-48 flex-1">

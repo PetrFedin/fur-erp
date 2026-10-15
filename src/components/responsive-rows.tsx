@@ -67,7 +67,7 @@ export function RowCard({
       {extra && <div className="mt-2">{extra}</div>}
       {shownDetails.length > 0 && (
         <details className="mt-2 border-t border-neutral-100 pt-2">
-          <summary className="cursor-pointer select-none py-2 text-xs text-neutral-500">Подробнее</summary>
+          <summary className="cursor-pointer select-none py-2 text-xs text-neutral-500 max-md:py-3.5">Подробнее</summary>
           <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
             {shownDetails.map((f, i) => (
               <div key={f.key ?? i} className="min-w-0">

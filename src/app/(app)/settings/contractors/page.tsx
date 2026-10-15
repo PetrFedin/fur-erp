@@ -6,6 +6,7 @@ import { ACCESS, hasRole } from "@/lib/access";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
+import { InfoHint } from "@/components/info-hint";
 import { CreateDialog } from "@/components/create-dialog";
 import { ContractorForm } from "./contractor-forms";
 import { createContractor, makeContractor, toggleContractorActive } from "./actions";
@@ -36,7 +37,7 @@ export default async function ContractorsPage({ searchParams }: PageProps<"/sett
           </CreateDialog>
         )}
       </div>
-      <p className="text-sm text-neutral-600">Подрядчик — тот, кто шьёт по ТЗ (договор подряда). У ТЗ выбирается подрядчик, ему идут оплаты за работу. Один контрагент может быть и поставщиком сырья, и подрядчиком.</p>
+      <p className="flex items-center gap-1.5 text-sm text-neutral-600">Шьют по ТЗ.<InfoHint label="Кто такой подрядчик">Подрядчик — тот, кто шьёт по ТЗ (договор подряда). У ТЗ выбирается подрядчик, ему идут оплаты за работу. Один контрагент может быть и поставщиком сырья, и подрядчиком.</InfoHint></p>
       <Table stickyHeader>
         <Thead><Tr><Th>Подрядчик</Th><Th>Договоры подряда</Th><Th className="text-right">ТЗ</Th><Th>Сырьё</Th><Th></Th></Tr></Thead>
         <Tbody>
@@ -55,12 +56,12 @@ export default async function ContractorsPage({ searchParams }: PageProps<"/sett
               </Td>
             </Tr>
           ))}
-          {rows.length === 0 && <Tr><Td colSpan={5} className="py-8 text-center text-neutral-500">Подрядчиков пока нет</Td></Tr>}
+          {rows.length === 0 && <Tr><Td colSpan={5} className="py-8 text-center text-neutral-500">Нет подрядчиков</Td></Tr>}
         </Tbody>
       </Table>
       {canEdit && others.length > 0 && (
         <form action={makeContractor} className="flex flex-wrap items-end gap-2 rounded-lg border border-neutral-200 bg-white p-3 text-sm">
-          <label className="flex flex-col gap-1">Сделать подрядчиком существующего поставщика
+          <label className="flex flex-col gap-1">Добавить из поставщиков
             <Select name="supplierId" required defaultValue=""><option value="" disabled>Выберите поставщика</option>{others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select>
           </label>
           <Button type="submit" size="sm">Сделать подрядчиком</Button>

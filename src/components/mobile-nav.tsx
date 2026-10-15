@@ -61,7 +61,7 @@ export function MobileNav({ links, badges }: { links: readonly NavItem[]; badges
                     )}
                   >
                     {link.label}
-                    {(badges?.[link.href] ?? 0) > 0 && <span className="ml-1.5 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white" aria-label="непрочитанных">{badges?.[link.href]}</span>}
+                    {(badges?.[link.href] ?? 0) > 0 && <span className="ml-1.5 rounded-full bg-red-600 px-1.5 text-[11px] font-semibold text-white" aria-label="непрочитанных">{badges?.[link.href]}</span>}
                   </Link>
                 );
               })}
@@ -81,7 +81,7 @@ export function MobileNav({ links, badges }: { links: readonly NavItem[]; badges
                     )}
                   >
                     {link.label}
-                    {(badges?.[link.href] ?? 0) > 0 && <span className="ml-1.5 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white" aria-label="новых решений">{badges?.[link.href]}</span>}
+                    {(badges?.[link.href] ?? 0) > 0 && <span className="ml-1.5 rounded-full bg-red-600 px-1.5 text-[11px] font-semibold text-white" aria-label="новых решений">{badges?.[link.href]}</span>}
                   </Link>
                 );
               })}

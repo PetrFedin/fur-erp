@@ -119,9 +119,9 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
         <Card>
           <CardHeader>
             <CardTitle>Не сопоставлено ({queue.reduce((s, r) => s + r.ids.length, 0)} моделей)</CardTitle>
-            <CardDescription>
-              У этих моделей категория пустая или записана так, что однозначно определить её нельзя. Текст не менялся. Проверьте предложение и нажмите «Привязать» —
-              модели получат категорию из справочника, прежний текст станет синонимом. Привязка к категории с пометкой «ждёт подтверждения» подтверждает её.
+            <CardDescription className="flex items-center gap-1.5">
+              Категория пустая или неоднозначная.
+              <InfoHint label="Что делает «Привязать»" wide>Текст не менялся. Проверьте предложение и нажмите «Привязать» — модели получат категорию из справочника, прежний текст станет синонимом. Привязка к категории с пометкой «ждёт подтверждения» подтверждает её.</InfoHint>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -191,7 +191,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
 
       {canEdit && (
         <details className="max-w-3xl rounded-xl border border-neutral-200 bg-white px-4 py-3">
-          <summary className="cursor-pointer text-sm font-medium">+ Добавить категорию</summary>
+          <summary className="cursor-pointer text-sm font-medium max-md:py-3">+ Добавить категорию</summary>
           <div className="mt-3">
             <form action={createCategory} className="flex flex-wrap items-end gap-2">
               <div className="min-w-48 flex-1">

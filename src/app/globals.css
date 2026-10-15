@@ -251,3 +251,9 @@ table thead th { line-height: 1.15; }
   line-height: 1.5rem;
   font-weight: 600;
 }
+
+/* Телефон: значки-кнопки 28 px (ICON_BTN) — невидимая зона касания 44 px, без увеличения самого значка. */
+@media (max-width: 767px) {
+  .icon-btn { position: relative; }
+  .icon-btn::after { content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/info-hint";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -21,10 +22,10 @@ export function TelegramConnect({ linked, hasToken }: { linked: boolean; hasToke
   const router = useRouter();
   const [st, setSt] = useState<CodeState>({});
   const [pending, start] = useTransition();
-  if (!hasToken) return <p className="text-sm text-neutral-600">Telegram не подключён: добавьте токен бота (@BotFather) в .env.</p>;
+  if (!hasToken) return <p className="flex items-center gap-1.5 text-sm text-neutral-600">Telegram не подключён<InfoHint label="Как подключить">Добавьте токен бота (@BotFather) в .env.</InfoHint></p>;
   return (
     <div className="flex flex-col gap-2 text-sm">
-      <p className="text-neutral-600">{linked ? "Ваш Telegram привязан: сообщения чата приходят в него, а ответы «reply» попадают обратно в платформу." : "Привяжите Telegram, чтобы получать сообщения чата и отвечать из мессенджера."}</p>
+      <p className="flex items-center gap-1.5 text-neutral-600">{linked ? "Telegram привязан" : "Telegram не привязан"}<InfoHint label="Про Telegram">{linked ? "Сообщения чата приходят в Telegram, а ответы «reply» попадают обратно в платформу." : "Привяжите Telegram, чтобы получать сообщения чата и отвечать из мессенджера."}</InfoHint></p>
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => start(async () => setSt(await createMyBindCode()))}>{linked ? "Привязать заново" : "Получить код"}</Button>
         {linked && <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { await unlinkMyTelegram(); setSt({}); router.refresh(); })}>Отвязать</Button>}

@@ -19,7 +19,7 @@ const ALIGN_STACK: Record<THAlign, string> = { left: "items-start", right: "item
 /** Метка сортировки фиксированной ширины: неактивная невидима, но место занимает. */
 export function SortMark({ dir }: { dir: THSort }) {
   return (
-    <span aria-hidden className={cn("inline-block w-3 shrink-0 text-center text-[9px] leading-none", dir === "none" ? "invisible" : "text-[color:var(--ui-accent)]")}>
+    <span aria-hidden className={cn("inline-block w-3 shrink-0 text-center text-[11px] leading-none", dir === "none" ? "invisible" : "text-[color:var(--ui-accent)]")}>
       {dir === "desc" ? "▼" : "▲"}
     </span>
   );
@@ -52,7 +52,7 @@ export function TH({ label, unit, align = "right", sort, href, onSort, sep, afte
         {sort ? <SortMark dir={sort} /> : null}
         {inner}
       </span>
-      {unit ? <span className="text-[10px] font-normal opacity-80">{unit}</span> : null}
+      {unit ? <span className="text-[11px] font-normal opacity-80">{unit}</span> : null}
     </span>
   );
   const ariaSort = sort === "asc" ? "ascending" : sort === "desc" ? "descending" : sort === "none" ? "none" : undefined;

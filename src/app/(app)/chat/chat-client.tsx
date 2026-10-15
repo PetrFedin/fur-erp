@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/info-hint";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -350,7 +351,7 @@ export function NewChatForm({ options, topics, entityTypes, viewerRole, preset, 
             </li>
           ))}
         </ul>
-        {supplierChosen && <p className="text-xs text-neutral-600">Подрядчики — по одному на чат, чтобы они не видели друг друга.</p>}
+        {supplierChosen && <p className="flex items-center gap-1.5 text-xs text-neutral-600">Подрядчики — по одному на чат<InfoHint label="Почему по одному">Чтобы подрядчики не видели друг друга.</InfoHint></p>}
       </fieldset>
 
       <fieldset className="flex flex-col gap-1.5">
@@ -360,7 +361,7 @@ export function NewChatForm({ options, topics, entityTypes, viewerRole, preset, 
           <button type="button" aria-pressed={isCustom} onClick={() => pickTopic(CUSTOM)} className={chip(isCustom)}>Своя тема</button>
         </div>
         {isCustom && <input aria-label="Своя тема" value={custom} onChange={(e) => setCustom(e.target.value)} maxLength={100} placeholder="Например: Новая коллекция" className={INP} />}
-        {isCustom && supplierSide && <p className="text-xs text-neutral-600">Своя тема — только общий вопрос нашим сотрудникам, без закрытых данных.</p>}
+        {isCustom && supplierSide && <p className="flex items-center gap-1.5 text-xs text-neutral-600">Своя тема — общий вопрос<InfoHint label="Про свою тему">Только общий вопрос нашим сотрудникам, без закрытых данных.</InfoHint></p>}
         {dropped && <p role="status" className="text-xs text-amber-900">{dropped}</p>}
       </fieldset>
 
@@ -368,7 +369,7 @@ export function NewChatForm({ options, topics, entityTypes, viewerRole, preset, 
       {planErr && <p role="alert" className="text-sm text-red-700">{planErr}</p>}
 
       <details className="text-sm" open={!!picked}>
-        <summary className="cursor-pointer py-1 font-medium max-md:min-h-11">Привязать к записи (необязательно)</summary>
+        <summary className="cursor-pointer py-1 font-medium max-md:min-h-11">Привязать к записи</summary>
         <div className="mt-1 flex flex-col gap-1.5">
           {picked ? (
             <div className="flex items-center gap-2 rounded-md bg-neutral-100 px-3 py-1.5">
@@ -385,7 +386,7 @@ export function NewChatForm({ options, topics, entityTypes, viewerRole, preset, 
                 <>
                   <input aria-label="Поиск записи" value={eq} onChange={(e) => setEq(e.target.value)} placeholder="Номер ТЗ, артикул, аукцион, отгрузка…" className={INP} />
                   <ul className="max-h-40 overflow-y-auto rounded-md border border-neutral-200">
-                    {found.length === 0 && <li className="px-3 py-2 text-xs text-neutral-600">Ничего не найдено</li>}
+                    {found.length === 0 && <li className="px-3 py-2 text-xs text-neutral-600">Нет результатов</li>}
                     {found.map((f) => <li key={f.id}><button type="button" onClick={() => { setPicked(f); setDup(null); }} className="flex min-h-11 w-full items-center px-3 py-1.5 text-left text-sm hover:bg-neutral-100 md:min-h-9">{f.label}</button></li>)}
                   </ul>
                 </>
@@ -396,7 +397,7 @@ export function NewChatForm({ options, topics, entityTypes, viewerRole, preset, 
       </details>
 
       <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium">Название (необязательно)</span>
+        <span className="font-medium">Название</span>
         <input value={title} onChange={(e) => { setTitle(e.target.value); setDup(null); }} maxLength={120} placeholder="По умолчанию: тема и получатели" className={INP} />
       </label>
       <label className="flex flex-col gap-1 text-sm">

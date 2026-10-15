@@ -55,7 +55,7 @@ export function Th({ className, unit, children, sort, href, onSort, after, ...pr
   const body = (
     <span className={cn("inline-flex flex-col leading-tight", stack)}>
       <span className="inline-flex items-center gap-1">{children}{sort ? <SortMark dir={sort} /> : null}</span>
-      {unit ? <span className="text-[10px] font-normal opacity-80">{unit}</span> : null}
+      {unit ? <span className="text-[11px] font-normal opacity-80">{unit}</span> : null}
     </span>
   );
   const ariaSort = sort === "asc" ? "ascending" : sort === "desc" ? "descending" : sort === "none" ? "none" : undefined;

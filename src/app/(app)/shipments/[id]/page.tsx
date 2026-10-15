@@ -298,9 +298,9 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                 <details open={gi >= cut} className="group/day"><summary className="relative flex cursor-pointer list-none items-center gap-2 py-1.5 text-xs [&::-webkit-details-marker]:hidden"><span aria-hidden className="text-neutral-400 transition-transform group-open/day:rotate-90">›</span>
                   <span aria-hidden className={"absolute -left-[1.1875rem] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full " + (g.kind === "today" ? "bg-neutral-800" : "bg-neutral-300")} />
                   <span className={g.kind === "today" ? "font-semibold text-neutral-900" : g.kind === "upcoming" ? "font-medium text-neutral-400" : "font-medium text-neutral-600"}>{g.heading}</span>
-                  {g.kind === "today" && <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[10px] font-medium text-white">сегодня</span>}
-                  {g.kind === "upcoming" && <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-normal text-neutral-500">ожидается</span>}
-                <span className="text-[10px] font-normal text-neutral-400">· этапов: {g.items.length}</span></summary>
+                  {g.kind === "today" && <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[11px] font-medium text-white">сегодня</span>}
+                  {g.kind === "upcoming" && <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-normal text-neutral-500">ожидается</span>}
+                <span className="text-[11px] font-normal text-neutral-400">· этапов: {g.items.length}</span></summary>
                 <ol className="flex flex-col">
                   {g.items.map(({ event: e, index: i }) => {
                     const note = notes[i];
@@ -345,7 +345,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                                 <h4 className={"min-w-[10rem] flex-1 break-words text-sm font-semibold " + (e.expected ? "text-neutral-500" : "text-neutral-900")}>
                                   {e.title}
                                   {e.expected ? <span className="ml-2 rounded bg-orange-50 px-1.5 py-0.5 text-[11px] font-normal text-orange-700">ожидается</span> : <span className="ml-2 text-[11px] font-normal text-emerald-700" data-passed>пройдено</span>}
-                                  <span className="ml-1.5 cursor-help rounded-full border border-neutral-300 px-1 text-[10px] font-normal text-neutral-400" title={trail} aria-label={trail} tabIndex={0}>i</span>
+                                  <span className="ml-1.5 cursor-help rounded-full border border-neutral-300 px-1 text-[11px] font-normal text-neutral-400" title={trail} aria-label={trail} tabIndex={0}>i</span>
                                 </h4>
                                 {(canEdit || (isSupplier && e.createdById === session.user.id)) && <EventActions v={values(e)} titles={titles} people={people} supplier={isSupplier} canDone={!isAcceptanceEvent(e)} />}
                               </div>

@@ -156,7 +156,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
           <ul className="-mx-3 flex min-h-0 flex-1 flex-col divide-y divide-neutral-200 overflow-y-auto border-t border-neutral-200">
             {rows.length === 0 && (
               <li className="p-4 text-sm text-neutral-600">
-                {filtered ? "Ничего не найдено." : "Нет чатов."}
+                {filtered ? "Нет результатов." : "Нет чатов."}
               </li>
             )}
             {rows.map((t) => {
@@ -174,7 +174,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
                     </div>
                     <div className="mt-0.5 flex items-center gap-2">
                       <span className="min-w-0 flex-1 truncate text-xs text-neutral-600">
-                        {last ? `${last.authorName}: ${last.body || (last.attachments.length ? "Файл" : "")}` : "Сообщений нет"}
+                        {last ? `${last.authorName}: ${last.body || (last.attachments.length ? "Файл" : "")}` : "Нет сообщений"}
                       </span>
                       {n > 0 && <span aria-label={`Непрочитанных: ${n}`} className="min-w-5 shrink-0 rounded-full bg-red-700 px-1.5 text-center text-[11px] font-semibold leading-5 text-white">{n}</span>}
                     </div>
@@ -231,7 +231,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
                 />
               </header>
               <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto bg-neutral-50 p-3">
-                {messages.length === 0 && <p className="m-auto text-sm text-neutral-600">Сообщений пока нет. Напишите первым.</p>}
+                {messages.length === 0 && <p className="m-auto text-sm text-neutral-600">Нет сообщений.</p>}
                 {messages.map((m, i) => {
                   const mine = m.authorId ? m.authorId === v.id : m.authorSide === v.side;
                   const newDay = i === 0 || dayKey(messages[i - 1].createdAt) !== dayKey(m.createdAt);

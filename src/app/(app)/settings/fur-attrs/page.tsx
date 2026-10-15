@@ -65,7 +65,7 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
 
       {canEdit && (
         <details className="max-w-3xl rounded-xl border border-neutral-200 bg-white px-4 py-3">
-          <summary className="cursor-pointer text-sm font-medium">+ Добавить признак</summary>
+          <summary className="cursor-pointer text-sm font-medium max-md:py-3">+ Добавить признак</summary>
           <div className="mt-3">
             <form action={createFurAttr} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div>
