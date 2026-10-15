@@ -1,5 +1,6 @@
-# Боевой запуск на сервере: база + приложение + Caddy (сам получает HTTPS-сертификат).
-# Запуск:  cp deploy/.env.prod.example .env  →  заполнить  →  docker compose -f docker-compose.prod.yml up -d --build
+# Боевой запуск на сервере: база + приложение + Caddy (сам получает HTTPS-сертификат и ставит общий замок-пароль).
+# Запуск:  sh deploy/setup-env.sh  (создаёт .env со случайными секретами)  →  docker compose -f docker-compose.prod.yml up -d --build
+# Обновление: sh deploy/update.sh.  Временный доступ с ноутбука через туннель: docker-compose.tunnel.yml (см. docs/DEPLOY.md).
 services:
   db:
     image: postgres:16-alpine
@@ -32,13 +33,19 @@ services:
       AUTH_URL: https://${DOMAIN:?задайте DOMAIN в .env}
       NEXTAUTH_URL: https://${DOMAIN}
       AUTH_TRUST_HOST: "true"
+      # Публичный стенд: всё опасное выключено по умолчанию. Включать только осознанно (docs/DEPLOY.md, раздел «Переменные»).
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
+      ALLOW_DEMO_LOGIN: ${ALLOW_DEMO_LOGIN:-false}
+      ALLOW_ROLE_SWITCH: ${ALLOW_ROLE_SWITCH:-false}
       NODE_ENV: production
       UPLOAD_DIR: /app/uploads
-      DEMO_LOGIN_EMAIL: ${DEMO_LOGIN_EMAIL:-}
-      DEMO_LOGIN_PASSWORD: ${DEMO_LOGIN_PASSWORD:-}
-      DEMO_SUPPLIER_EMAIL: ${DEMO_SUPPLIER_EMAIL:-}
-      DEMO_SUPPLIER_PASSWORD: ${DEMO_SUPPLIER_PASSWORD:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+    # Приложение работает без прав суперпользователя и без лишних возможностей ядра.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     volumes:
       - fur_erp_uploads:/app/uploads
     expose:
@@ -59,13 +66,15 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    profiles: ["server"]
     depends_on:
       app:
         condition: service_healthy
     environment:
-      DOMAIN: ${DOMAIN}
-      BASIC_USER: ${BASIC_USER:-}
-      BASIC_HASH: ${BASIC_HASH:-}
+      DOMAIN: ${DOMAIN:?задайте DOMAIN в .env}
+      # Общий замок на весь сайт (второй слой защиты для внешних тестировщиков). Без него сервер не стартует.
+      BASIC_USER: ${BASIC_USER:?задайте BASIC_USER в .env (sh deploy/setup-env.sh)}
+      BASIC_HASH: ${BASIC_HASH:?задайте BASIC_HASH в .env (sh deploy/setup-env.sh)}
     ports:
       - "80:80"
       - "443:443"

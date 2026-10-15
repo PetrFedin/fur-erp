@@ -1,0 +1,32 @@
+# Временный доступ с ноутбука: те же база и приложение + Caddy с паролем + защищённый туннель cloudflared (адрес https://….trycloudflare.com).
+# Использовать ВМЕСТЕ с docker-compose.prod.yml и ОТДЕЛЬНЫМ проектом (чтобы не задеть вашу рабочую базу):
+#   COMPOSE_PROFILES=tunnel docker compose -p fur-erp-demo -f docker-compose.prod.yml -f docker-compose.tunnel.yml up -d --build
+# Адрес туннеля:  docker compose -p fur-erp-demo -f docker-compose.prod.yml -f docker-compose.tunnel.yml logs cloudflared | grep trycloudflare
+# Остановка:      docker compose -p fur-erp-demo -f docker-compose.prod.yml -f docker-compose.tunnel.yml down
+# Подробная инструкция — docs/DEPLOY.md, вариант 2. Пока ноутбук выключен или спит, ссылка не работает.
+services:
+  app:
+    environment:
+      # Адрес заранее неизвестен (его выдаёт туннель): приложение берёт его из заголовков запроса.
+      AUTH_URL: ""
+      NEXTAUTH_URL: ""
+  caddy-tunnel:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      BASIC_USER: ${BASIC_USER:?задайте BASIC_USER в .env}
+      BASIC_HASH: ${BASIC_HASH:?задайте BASIC_HASH в .env}
+    volumes:
+      - ./deploy/Caddyfile.tunnel:/etc/caddy/Caddyfile:ro
+    # порты наружу НЕ публикуются: попасть можно только через туннель
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate --url http://caddy-tunnel:80
+    depends_on:
+      - caddy-tunnel

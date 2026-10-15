@@ -1,0 +1,25 @@
+# Вариант «с ноутбука через туннель»: HTTPS-адрес выдаёт сам туннель (cloudflared), поэтому Caddy слушает обычный порт 80
+# внутри docker-сети и без сертификатов. Общий замок-пароль обязателен.
+{
+	auto_https off
+}
+:80 {
+	encode zstd gzip
+	header {
+		X-Content-Type-Options "nosniff"
+		-Server
+		-X-Powered-By
+	}
+	request_body {
+		max_size 30MB
+	}
+	handle /api/channels/telegram/webhook {
+		reverse_proxy app:3000
+	}
+	handle {
+		basic_auth {
+			{$BASIC_USER} {$BASIC_HASH}
+		}
+		reverse_proxy app:3000
+	}
+}

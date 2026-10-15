@@ -1,9 +1,36 @@
 # Caddy сам получает и продлевает бесплатный сертификат Let's Encrypt для {$DOMAIN}.
+# Второй слой защиты: общий замок (логин/пароль браузера) на весь сайт, плюс заголовки и ограничение размера.
 {$DOMAIN} {
-	encode gzip
-	# Загрузка документов до 25 МБ
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+		-X-Powered-By
+	}
+
+	# Загрузка документов до 25 МБ (+ служебные байты); всё, что больше, отклоняется до приложения.
 	request_body {
 		max_size 30MB
 	}
-	reverse_proxy app:3000
+
+	# Вебхук Telegram приходит от серверов Telegram без пароля — он защищён своим секретом (TELEGRAM_WEBHOOK_SECRET).
+	# Если Telegram не используется, приложение отвечает на него 404.
+	handle /api/channels/telegram/webhook {
+		reverse_proxy app:3000
+	}
+
+	handle {
+		basic_auth {
+			{$BASIC_USER} {$BASIC_HASH}
+		}
+		reverse_proxy app:3000
+	}
+
+	log {
+		output stdout
+		format console
+	}
 }
