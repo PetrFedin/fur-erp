@@ -18,6 +18,7 @@ import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { Dash } from "@/components/tree-table";
 import { AcceptCloseButton } from "./event-ui";
 import { FoldHeader, useFold } from "./fold";
+import { useClientSort } from "@/lib/use-client-sort";
 import { TotalLabel } from "@/components/total-label";
 import { formatQty } from "@/lib/utils";
 import { ACCEPT_NEEDS_READY, REWORK_STATE_LABEL, STAGE_LABEL, VIEW_LABEL, lineView, reworkRemainText, rowsText, type ReworkState, type Stage, type ViewKey } from "@/lib/shipment-stage";
@@ -382,11 +383,15 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint, default
   const totQtyAll = rows.reduce((t, r) => t + r.quantity, 0);
   const qtyBy = (st: Stage) => rows.filter((r) => r.stage === st).reduce((t, r) => t + r.quantity, 0);
   const needle = q.trim().toLowerCase();
-  const shown = rows.filter((r) => {
+  const { th, sort } = useClientSort<LineRow>({
+    itemNo: (r) => r.itemNo, order: (r) => r.orderText, article: (r) => r.articleText, color: (r) => r.color, size: (r) => r.size, furKind: (r) => r.furKind,
+    inTz: (r) => r.inTz, quantity: (r) => r.quantity,
+  });
+  const shown = sort(rows.filter((r) => {
     if (seg !== "all" && viewOf(r).key !== seg) return false;
     if (!needle) return true;
     return [r.itemNo, r.orderText, r.articleText, r.color ?? ""].some((x) => x.toLowerCase().includes(needle));
-  });
+  }));
 
   const acceptReview = (r: LineRow) => {
     setError(null);
@@ -469,14 +474,14 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint, default
             <Table className="min-w-[1000px]">
               <Thead>
                 <Tr>
-                  <Th className="whitespace-nowrap">№ изд.</Th>
-                  <Th className="whitespace-nowrap">ТЗ · поз.</Th>
-                  <Th className="whitespace-nowrap">Артикул</Th>
-                  <Th className="whitespace-nowrap">Цвет</Th>
-                  <Th className="whitespace-nowrap">Размер</Th>
-                  <Th className="whitespace-nowrap">Вид меха</Th>
-                  <Th className="whitespace-nowrap text-right" unit="шт.">В ТЗ</Th>
-                  <Th className="whitespace-nowrap text-right" unit="шт.">В отгрузке</Th>
+                  <Th className="whitespace-nowrap" {...th("itemNo")}>№ изд.</Th>
+                  <Th className="whitespace-nowrap" {...th("order")}>ТЗ · поз.</Th>
+                  <Th className="whitespace-nowrap" {...th("article")}>Артикул</Th>
+                  <Th className="whitespace-nowrap" {...th("color")}>Цвет</Th>
+                  <Th className="whitespace-nowrap" {...th("size")}>Размер</Th>
+                  <Th className="whitespace-nowrap" {...th("furKind")}>Вид меха</Th>
+                  <Th className="whitespace-nowrap text-right" unit="шт." {...th("inTz")}>В ТЗ</Th>
+                  <Th className="whitespace-nowrap text-right" unit="шт." {...th("quantity")}>В отгрузке</Th>
                   <Th className="whitespace-nowrap">Статус</Th>
                   {canEdit && <Th><span className="sr-only">Действия</span></Th>}
                 </Tr>

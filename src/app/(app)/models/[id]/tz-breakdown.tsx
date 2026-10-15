@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoHint } from "@/components/info-hint";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
+import { TH as SortableTH } from "@/components/table-head";
+import { useClientSort } from "@/lib/use-client-sort";
 import { buildTzTable, type TzTableRow } from "@/lib/article-tz-table";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 
 export type TzMeta = { label: string; href: string; wordHref: string };
 
-const TH = "whitespace-nowrap px-2 py-2 text-right align-bottom text-xs font-medium text-neutral-600";
 const TD = "whitespace-nowrap px-2 py-2 text-right tabular-nums";
 const money = (v: number) => (Math.abs(v) < 0.5 ? <span className="text-neutral-400">—</span> : formatMoney(Math.round(v)));
 const qty = (v: number, unit: string) => (v > 0 ? `${formatQty(Math.round(v * 100) / 100)} ${unit}` : <span className="text-neutral-400">—</span>);
@@ -24,6 +25,10 @@ export function TzBreakdown({ orders, meta, latestId, c4 }: { orders: DrillOrder
   const { mode: vat } = useVatDisplay();
   const t = useMemo(() => buildTzTable(orders, vat), [orders, vat]);
   const T = t.total;
+  const { th, sort } = useClientSort<TzTableRow>({
+    tz: (r) => meta[r.id]?.label ?? r.id, qty: (r) => r.qty, furQ: (r) => r.furQ, fur: (r) => r.fur, liningQ: (r) => r.liningQ, lining: (r) => r.lining,
+    c4: (r) => r.c4, other: (r) => r.other, work: (r) => r.work, total: (r) => r.total,
+  });
   const showC4 = c4 === "on" && t.total.c4 !== 0;
   const showLining = T.liningQ > 0 || T.lining !== 0;
   const showOther = t.total.other !== 0 || t.rows.some((r) => r.other !== 0);
@@ -105,20 +110,20 @@ export function TzBreakdown({ orders, meta, latestId, c4 }: { orders: DrillOrder
             <table className="w-max min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-neutral-200">
-                  <th scope="col" className="sm:sticky sm:left-0 sm:z-10 bg-white px-2 py-2 text-left align-bottom text-xs font-medium text-neutral-600">ТЗ</th>
-                  <th scope="col" className={TH}>Изделий<span className="block text-[11px] font-normal text-neutral-500">шт.</span></th>
-                  <th scope="col" className={TH}>Шкур<span className="block text-[11px] font-normal text-neutral-500">шт.</span></th>
-                  <th scope="col" className={TH}>Мех<span className="block text-[11px] font-normal text-neutral-500">₽</span></th>
-                  {showLining && <th scope="col" className={TH}>Подкладка<span className="block text-[11px] font-normal text-neutral-500">м</span></th>}
-                  {showLining && <th scope="col" className={TH}>Подкладка<span className="block text-[11px] font-normal text-neutral-500">₽</span></th>}
-                  {showC4 && <th scope="col" className={TH}>4%<span className="block text-[11px] font-normal text-neutral-500">₽</span></th>}
-                  {showOther && <th scope="col" className={TH}>Расходы<span className="block text-[11px] font-normal text-neutral-500">₽</span></th>}
-                  <th scope="col" className={TH}>Работа<span className="block text-[11px] font-normal text-neutral-500">₽</span></th>
-                  <th scope="col" className={TH + " border-l border-neutral-200"}>Итого<span className="block text-[11px] font-normal text-neutral-500">₽</span></th>
+                  <SortableTH label="ТЗ" align="left" className="sm:sticky sm:left-0 sm:z-10 bg-white" {...th("tz")} />
+                  <SortableTH label="Изделий" unit="шт." {...th("qty")} />
+                  <SortableTH label="Шкур" unit="шт." {...th("furQ")} />
+                  <SortableTH label="Мех" unit="₽" {...th("fur")} />
+                  {showLining && <SortableTH label="Подкладка" unit="м" {...th("liningQ")} />}
+                  {showLining && <SortableTH label="Подкладка" unit="₽" {...th("lining")} />}
+                  {showC4 && <SortableTH label="4%" unit="₽" {...th("c4")} />}
+                  {showOther && <SortableTH label="Расходы" unit="₽" {...th("other")} />}
+                  <SortableTH label="Работа" unit="₽" {...th("work")} />
+                  <SortableTH label="Итого" unit="₽" sep {...th("total")} />
                 </tr>
               </thead>
               <tbody>
-                {t.rows.map((r) => {
+                {sort(t.rows).map((r) => {
                   const m = meta[r.id];
                   return (
                     <tr key={r.id} className="border-b border-neutral-100 align-top">
