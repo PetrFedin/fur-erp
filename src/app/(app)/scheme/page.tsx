@@ -9,7 +9,7 @@ export const metadata = { title: "Схема работы" };
 export default async function SchemePage() {
   const session = await requireSession();
   const org = session.user.organizationId;
-  const [purchase, lot, order, batch, payment, paymentProd, shipment, model, fitting, budget, supplier] = await Promise.all([
+  const [purchase, lot, order, batch, payment, paymentProd, shipment, model, budget, supplier, contractor, inbox] = await Promise.all([
     prisma.purchase.findFirst({ where: { organizationId: org }, orderBy: { createdAt: "desc" }, select: { id: true } }),
     prisma.rawMaterialLot.findFirst({ where: { organizationId: org }, orderBy: { createdAt: "desc" }, select: { id: true } }),
     prisma.productionOrder.findFirst({ where: { organizationId: org }, orderBy: { createdAt: "desc" }, select: { id: true } }),
@@ -18,9 +18,10 @@ export default async function SchemePage() {
     prisma.productionPayment.findFirst({ where: { organizationId: org }, orderBy: { createdAt: "desc" }, select: { id: true } }),
     prisma.shipment.findFirst({ where: { organizationId: org }, orderBy: { createdAt: "desc" }, select: { id: true } }),
     prisma.productModel.findFirst({ where: { organizationId: org }, orderBy: { createdAt: "desc" }, select: { id: true } }),
-    prisma.fitting.findFirst({ where: { organizationId: org }, orderBy: { createdAt: "desc" }, select: { id: true } }),
     prisma.budgetScenario.findFirst({ where: { organizationId: org }, orderBy: { createdAt: "desc" }, select: { id: true } }),
     prisma.supplier.findFirst({ where: { organizationId: org }, orderBy: { createdAt: "desc" }, select: { id: true } }),
+    prisma.supplier.findFirst({ where: { organizationId: org, isContractor: true }, orderBy: { createdAt: "desc" }, select: { id: true } }),
+    prisma.supplierInbox.findFirst({ where: { organizationId: org, status: { in: ["SENT", "ACCEPTED", "REJECTED"] } }, orderBy: { updatedAt: "desc" }, select: { id: true } }),
   ]);
   const cards = {
     purchase: purchase && `/purchases/${purchase.id}`,
@@ -31,9 +32,10 @@ export default async function SchemePage() {
     paymentProd: paymentProd && `/payments/c-${paymentProd.id}`,
     shipment: shipment && `/shipments/${shipment.id}`,
     model: model && `/models/${model.id}`,
-    fitting: fitting && `/fittings/${fitting.id}`,
     budget: budget && `/budget/${budget.id}`,
     supplier: supplier && `/suppliers/${supplier.id}`,
+    contractor: contractor && `/settings/contractors/${contractor.id}`,
+    inbox: inbox && `/inbox/${inbox.id}`,
   };
   return (
     <div className="flex flex-col gap-4">
