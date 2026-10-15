@@ -64,7 +64,7 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
                 <div className="pointer-events-none relative z-10 min-w-0">
                   <span className="block truncate text-base font-semibold">{b.name}</span>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
-                    <span>{b.season}</span>
+                    {b.season && b.season !== b.name ? <span>{b.season}</span> : null}
                     {b.parentName ? <span title="Получен копированием">копия «{b.parentName}»</span> : null}
                   </div>
                 </div>

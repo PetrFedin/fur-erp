@@ -422,8 +422,8 @@ export function BudgetEditor(p: Props) {
   ].map((sl) => {
     const isMex = sl.id === "mex";
     const items = [
-      { k: "Цена шкуры (ср.)", v: money(sl.a.hides ? sl.a.mex / sl.a.hides : null) },
-      { k: "Шкур на изд. (ср.)", v: qty(sl.a.pcs ? sl.a.hides / sl.a.pcs : null, 1) },
+      { k: "Цена шкуры, ср.", v: money(sl.a.hides ? sl.a.mex / sl.a.hides : null) },
+      { k: "Шкур на изд., ср.", v: qty(sl.a.pcs ? sl.a.hides / sl.a.pcs : null, 1) },
       { k: "Доля", v: share(isMex ? sl.a.mex : sl.a.total, fullTotal.total) },
     ];
     return {
@@ -440,9 +440,9 @@ export function BudgetEditor(p: Props) {
     <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 print:grid-cols-5">
       {tile("t", "Прогноз бюджета", money(fullTotal.total), `${qty(fullTotal.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }])}
       {furTile}
-      {tile("l", "Подкладка", money(fullTotal.lining), `${qty(fullTotal.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(fullTotal.meters ? fullTotal.lining / fullTotal.meters : null) }, { k: "Метров на изд. (ср.)", v: qty(fullTotal.pcs ? fullTotal.meters / fullTotal.pcs : null, 1) }, { k: "Доля", v: share(fullTotal.lining, fullTotal.total) }])}
-      {tile("w", "Работа", money(fullTotal.work), "пошив по бюджету", [{ k: "На 1 изделие", v: money(fullTotal.pcs ? fullTotal.work / fullTotal.pcs : null) }, { k: "Надбавка к цене", v: formatPercent(params.upWork) }, { k: "Доля", v: share(fullTotal.work, fullTotal.total) }])}
-      {tile("c", `Надбавка ${formatPercent(params.c4)}`, money(fullTotal.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(fullTotal.pcs ? fullTotal.c4 / fullTotal.pcs : null) }, { k: "Ставка", v: formatPercent(params.c4) }, { k: "Доля", v: share(fullTotal.c4, fullTotal.total) }])}
+      {tile("l", "Подкладка", money(fullTotal.lining), `${qty(fullTotal.meters, 1)} м`, [{ k: "Цена за м, ср.", v: money(fullTotal.meters ? fullTotal.lining / fullTotal.meters : null) }, { k: "Метров на изд., ср.", v: qty(fullTotal.pcs ? fullTotal.meters / fullTotal.pcs : null, 1) }, { k: "Доля", v: share(fullTotal.lining, fullTotal.total) }])}
+      {tile("w", "Работа", money(fullTotal.work), "пошив", [{ k: "На 1 изделие", v: money(fullTotal.pcs ? fullTotal.work / fullTotal.pcs : null) }, { k: "Надбавка к цене", v: formatPercent(params.upWork) }, { k: "Доля", v: share(fullTotal.work, fullTotal.total) }])}
+      {tile("c", `Надбавка ${formatPercent(params.c4)}`, money(fullTotal.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(fullTotal.pcs ? fullTotal.c4 / fullTotal.pcs : null) }, { k: "Доля", v: share(fullTotal.c4, fullTotal.total) }])}
     </div>
   );
   // ---- Сводка (для руководства): без полей ввода
@@ -657,7 +657,7 @@ export function BudgetEditor(p: Props) {
 
       <div className="flex flex-col gap-3">
         <div className="min-w-0">
-          <WidgetRow id="budget-totals" title="Всего, ₽ по бюджету">{totalTiles}</WidgetRow>
+          <WidgetRow id="budget-totals" title="Итоги">{totalTiles}</WidgetRow>
         </div>
         <aside aria-label="Надбавки" className="flex flex-wrap items-end gap-x-3 gap-y-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 print:hidden">
           <div className="flex items-center gap-1 self-center text-sm font-medium">Надбавки, %
