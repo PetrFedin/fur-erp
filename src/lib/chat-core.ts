@@ -42,6 +42,14 @@ export function nextStatus(t: { kind: ThreadKind; status: ThreadStatus; createdB
   return t.status;
 }
 
+/** Подпись статуса запроса для зрителя: «Ответ получен» — только автору запроса; ответившему — «Ждём ответа от нас» (поставщику) или «Ответ отправлен». */
+export function statusLabelFor(status: ThreadStatus, createdBySide: Side, mySide: Side): string {
+  if (status === "CLOSED") return "Закрыт";
+  if (status === "OPEN") return "Открыт";
+  if (mySide === createdBySide) return "Ответ получен";
+  return mySide === "SUPPLIER" ? "Ждём ответа от нас" : "Ответ отправлен";
+}
+
 /** Непрочитано: последнее сообщение от другой стороны и новее отметки прочтения. */
 export function isUnread(t: { lastMessageAt: Date; lastMessageSide: Side; kind?: ThreadKind }, lastReadAt: Date | null | undefined, mySide: Side): boolean {
   // В группах участников обеих сторон несколько: свои сообщения читаются сразу (отметка прочтения при отправке), чужие — по времени.
@@ -271,7 +279,11 @@ export function canManageGroup(u: { id: string; role: string }, members: Member[
   return me.role === "OWNER" || u.role === "OWNER" || u.role === "ADMIN";
 }
 /** Создать группу могут внутренние роли чата; поставщик — нет. */
-export const canCreateGroup = (role: string) => (CHAT_INTERNAL_ROLES as readonly string[]).includes(role);
+export const canCreateGroup = (role: string) => role === "SUPPLIER" || (CHAT_INTERNAL_ROLES as readonly string[]).includes(role);
+/** Темы, в которых группу может создать поставщик (Веллмех): «Оплаты», «Общее» и прочие внутренние ему закрыты. */
+export const SUPPLIER_CREATE_TOPICS: readonly string[] = ["Аукционы", "ТЗ", "Сырьё", "Отгрузки"];
+/** Темы, доступные для создания группы этой ролью. */
+export const createTopicsFor = (role: string): string[] => Object.keys(GROUP_TOPICS).filter((t) => eligibleForTopic(t, role) && (role !== "SUPPLIER" || SUPPLIER_CREATE_TOPICS.includes(t)));
 
 // ───────── Реакции ─────────
 

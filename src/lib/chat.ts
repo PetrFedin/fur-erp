@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { ChatSide, ChatSource, ChatStatus, Prisma } from "@prisma/client";
 import {
-  CHAT_INTERNAL_ROLES, SUPPLIER_ENTITY_TYPES, eligibleForTopic, canManageGroup, canCreateGroup, awaitsMyAnswer, entityHrefFor, isUnread, nextStatus, safeEntityLabel, sideOfRole,
+  CHAT_INTERNAL_ROLES, SUPPLIER_ENTITY_TYPES, createTopicsFor, eligibleForTopic, canManageGroup, canCreateGroup, awaitsMyAnswer, entityHrefFor, isUnread, nextStatus, safeEntityLabel, sideOfRole,
   type Side, isReaction, groupReactions, type ReactionGroup,
 } from "@/lib/chat-core";
 import type { StoredDoc } from "@/lib/purchase-files";
@@ -64,8 +64,9 @@ export async function resolveEntity(v: ChatViewer, type: string, id: string): Pr
   const mineSup = sup ? (v.supplierId ?? "-") : undefined;
   switch (type) {
     case "ProductionOrder": {
-      const r = await prisma.productionOrder.findFirst({ where: { id, organizationId: org }, select: { number: true } });
-      return r && { type, id, label: safeEntityLabel(type, { number: r.number }), supplierId: null };
+      const r = await prisma.productionOrder.findFirst({ where: { id, organizationId: org }, select: { number: true, workOrderNumber: true } });
+      // Рабочий номер из документа Веллмеха («ТЗ 182»), а не только наш внутренний «П-2026-…».
+      return r && { type, id, label: safeEntityLabel(type, { number: r.workOrderNumber?.trim() || r.number }), supplierId: null };
     }
     case "ProductModel": {
       const r = await prisma.productModel.findFirst({ where: { id, organizationId: org }, select: { name: true } });
@@ -111,8 +112,8 @@ export async function searchEntities(v: ChatViewer, type: string, q: string): Pr
   const lab = (t: string, d: Parameters<typeof safeEntityLabel>[1]) => safeEntityLabel(t, d);
   switch (type) {
     case "ProductionOrder": {
-      const rows = await prisma.productionOrder.findMany({ where: { organizationId: org, ...(s ? ci("number") : {}) }, select: { id: true, number: true }, orderBy: { createdAt: "desc" }, take: 8 });
-      return rows.map((r) => ({ id: r.id, label: lab(type, { number: r.number }) }));
+      const rows = await prisma.productionOrder.findMany({ where: { organizationId: org, ...(s ? { OR: [ci("number"), ci("workOrderNumber")] } : {}) }, select: { id: true, number: true, workOrderNumber: true }, orderBy: { createdAt: "desc" }, take: 8 });
+      return rows.map((r) => ({ id: r.id, label: lab(type, { number: r.workOrderNumber?.trim() || r.number }) }));
     }
     case "ProductModel": {
       const rows = await prisma.productModel.findMany({ where: { organizationId: org, isActive: true, ...(s ? ci("name") : {}) }, select: { id: true, name: true }, orderBy: { name: "asc" }, take: 8 });
@@ -247,12 +248,24 @@ export async function eligibleUsers(orgId: string, topic: string): Promise<{ id:
   return users.filter((u) => eligibleForTopic(topic, u.role)).map((u) => ({ ...u, isSupplier: u.role === "SUPPLIER" }));
 }
 
+/**
+ * Кого viewer может позвать в группу темы. Сотрудники — как раньше. Поставщик — только наших пользователей
+ * с доступом к теме (не других поставщиков), и только в темах из createTopicsFor.
+ */
+export async function eligibleFor(v: ChatViewer, topic: string) {
+  if (v.side !== "SUPPLIER") return eligibleUsers(v.organizationId, topic);
+  if (!createTopicsFor("SUPPLIER").includes(topic)) return [];
+  // Роли наших людей поставщику не отдаём — только имена.
+  return (await eligibleUsers(v.organizationId, topic)).filter((u) => !u.isSupplier).map((u) => ({ ...u, role: "" }));
+}
+
 export async function createGroup(v: ChatViewer, i: { name: string; topic: string; memberIds: string[]; entity?: EntityRef | null }): Promise<{ error: string } | { threadId: string }> {
   if (!canCreateGroup(v.role)) return { error: "Создавать группы могут сотрудники" };
   const name = i.name.trim().slice(0, 120);
   if (!name) return { error: "Введите название группы" };
-  if (!eligibleForTopic(i.topic, v.role)) return { error: "У вас нет доступа к этой теме" };
-  const ok = new Set((await eligibleUsers(v.organizationId, i.topic)).map((u) => u.id));
+  if (!eligibleForTopic(i.topic, v.role) || !createTopicsFor(v.role).includes(i.topic)) return { error: "У вас нет доступа к этой теме" };
+  if (v.side === "SUPPLIER" && !v.supplierId) return { error: "Кабинет не привязан к поставщику" };
+  const ok = new Set((await eligibleFor(v, i.topic)).map((u) => u.id));
   const ids = [...new Set(i.memberIds)].filter((id) => ok.has(id) && id !== v.id);
   const now = new Date();
   const t = await prisma.chatThread.create({
@@ -283,7 +296,7 @@ export async function changeMember(v: ChatViewer, threadId: string, userId: stri
   if (op === "remove" && self) { /* выйти может любой участник */ }
   else if (!canManageGroup({ id: v.id, role: v.role }, members)) return { error: "Менять состав может владелец группы" };
   if (op === "add") {
-    const ok = (await eligibleUsers(v.organizationId, t.topic ?? "")).some((u) => u.id === userId);
+    const ok = (await eligibleFor(v, t.topic ?? "")).some((u) => u.id === userId);
     if (!ok) return { error: "У этого человека нет доступа к теме группы" };
     await prisma.chatMember.upsert({ where: { threadId_userId: { threadId, userId } }, create: { threadId, userId, addedById: v.id }, update: {} });
   } else {

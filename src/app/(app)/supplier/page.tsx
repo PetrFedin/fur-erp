@@ -6,6 +6,10 @@ import { supplierRawRows } from "@/lib/supplier-raw";
 import { chatCounts, viewerOf } from "@/lib/chat";
 import { summarizeStages, summaryLine } from "@/lib/raw-stage";
 import { wallNow } from "@/lib/shipment-calc";
+import { cookies } from "next/headers";
+import { loadRecent } from "@/lib/supplier-recent";
+import { RECENT_COOKIE } from "@/lib/supplier-recent-const";
+import { RecentSeen } from "./recent-seen";
 
 export const metadata = { title: "Что от вас ждут" };
 
@@ -67,12 +71,29 @@ export default async function SupplierHomePage() {
     : [];
   sections.push({ title: "Отгрузки", empty: "Просроченных этапов на вашей стороне нет.", items: late.map((e) => ({ key: e.id, href: `/shipments/${e.shipmentId}`, text: `${e.shipment.name ?? "Отгрузка"}: этап «${e.title}» ожидался ${e.occurredAt.toLocaleDateString("ru-RU", { timeZone: "UTC" })} — отметьте, когда прошёл.` })) });
 
+  // «Недавнее»: что мы решили по их входящим и отметкам за 14 дней; новое с прошлого просмотра помечено.
+  const recent = supplierId ? await loadRecent(orgId, supplierId) : [];
+  const seenMs = Number((await cookies()).get(RECENT_COOKIE)?.value) || 0;
   const total = sections.reduce((a, x) => a + x.items.length, 0);
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Главная" }]} />
       <h1 className="text-xl font-semibold">Что от вас ждут</h1>
       <p className="text-sm text-neutral-600">{total === 0 ? "Сейчас от вас ничего не требуется." : `Требует внимания: ${total}. Нажмите на строку — откроется нужное место.`}</p>
+      <section aria-label="Недавнее" className="flex flex-col gap-1.5 rounded-lg border border-neutral-200 bg-white p-4">
+        <h2 className="text-sm font-semibold">Недавнее <span className="font-normal text-neutral-500">· решения с нашей стороны за 14 дней</span></h2>
+        {recent.length === 0 ? <p className="text-sm text-neutral-500">За две недели новых решений нет.</p> : (
+          <ul className="flex flex-col gap-1 text-sm">
+            {recent.map((r) => (
+              <li key={r.key} className="flex flex-wrap items-baseline gap-x-2">
+                {r.at.getTime() > seenMs && <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-900">новое</span>}
+                <Link href={r.href} className={`inline-block underline decoration-dotted hover:decoration-solid max-md:py-2.5 ${r.tone === "back" ? "text-red-700" : "text-emerald-800"}`}>{r.text}</Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {isSup && <RecentSeen />}
+      </section>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {sections.map((sec) => (
           <section key={sec.title} className="flex flex-col gap-1.5 rounded-lg border border-neutral-200 bg-white p-4">

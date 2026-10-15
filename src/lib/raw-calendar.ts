@@ -8,11 +8,12 @@ import type { FactItem } from "@/lib/calendar-layers";
  * Слой календаря «Сырьё Веллмеха»: ожидаемая дата прибытия сырья по аукциону и этапы с датами.
  * Только чтение; данные вносит Веллмех на странице аукциона («Где сырьё»).
  */
-export async function loadRawFacts(orgId: string, from: string, to: string): Promise<FactItem[]> {
+export async function loadRawFacts(orgId: string, from: string, to: string, supplierId?: string): Promise<FactItem[]> {
+  const sup = supplierId ? { supplierId } : {};
   const gte = parseYmd(from), lte = parseYmd(to);
   const inRange = { gte, lte };
   const rows = await prisma.supplierRawStage.findMany({
-    where: { organizationId: orgId, OR: [{ plannedStart: inRange }, { plannedEnd: inRange }, { factStart: inRange }, { factEnd: inRange }] },
+    where: { organizationId: orgId, ...sup, OR: [{ plannedStart: inRange }, { plannedEnd: inRange }, { factStart: inRange }, { factEnd: inRange }] },
     select: {
       id: true, purchaseId: true, stage: true, status: true, place: true, lotNumber: true, qty: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true,
       purchase: { select: { number: true, auctionSession: true, auction: { select: { name: true } } } },
@@ -32,10 +33,10 @@ export async function loadRawFacts(orgId: string, from: string, to: string): Pro
     });
   }
   // Ожидаемая дата прибытия по каждому аукциону с неоконченными этапами.
-  const ids = [...new Set((await prisma.supplierRawStage.findMany({ where: { organizationId: orgId, status: { not: "DONE" }, plannedEnd: { not: null } }, select: { purchaseId: true } })).map((x) => x.purchaseId))];
+  const ids = [...new Set((await prisma.supplierRawStage.findMany({ where: { organizationId: orgId, ...sup, status: { not: "DONE" }, plannedEnd: { not: null } }, select: { purchaseId: true } })).map((x) => x.purchaseId))];
   if (ids.length) {
     const stages = await prisma.supplierRawStage.findMany({
-      where: { organizationId: orgId, purchaseId: { in: ids } },
+      where: { organizationId: orgId, ...sup, purchaseId: { in: ids } },
       select: { purchaseId: true, stage: true, status: true, place: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true, purchase: { select: { number: true, auctionSession: true, auction: { select: { name: true } } } } },
     });
     const by = new Map<string, typeof stages>();

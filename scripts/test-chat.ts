@@ -4,7 +4,7 @@
  */
 import {
   bindCodeValid, canSeeThread, entityHrefFor, externalMsgId, formatForMessenger, isUnread, awaitsMyAnswer, makeBindCode, nextStatus,
-  GROUP_TOPICS, REACTIONS, groupReactions, isReaction, canCreateGroup, canManageGroup, eligibleForTopic, parseCommand, pickRecipients, routeIncoming, safeEntityLabel, stripMoney, type LinkLite,
+  GROUP_TOPICS, REACTIONS, groupReactions, isReaction, canCreateGroup, createTopicsFor, statusLabelFor, canManageGroup, eligibleForTopic, parseCommand, pickRecipients, routeIncoming, safeEntityLabel, stripMoney, type LinkLite,
 } from "../src/lib/chat-core";
 
 let fails = 0;
@@ -99,7 +99,10 @@ ok(!eligibleForTopic("Оплаты", "SUPPLIER") && !eligibleForTopic("Обще�
 ok(eligibleForTopic("Оплаты", "ACCOUNTANT") && !eligibleForTopic("Оплаты", "PURCHASER") && !eligibleForTopic("Оплаты", "TECHNOLOGIST"), "«Оплаты»: бухгалтер да, закупщик и технолог нет");
 ok(eligibleForTopic("Аукционы", "PURCHASER") && !eligibleForTopic("Аукционы", "ACCOUNTANT") && eligibleForTopic("Отгрузки", "TECHNOLOGIST") && !eligibleForTopic("Отгрузки", "PURCHASER"), "«Аукционы» — закупщик, «Отгрузки» — технолог");
 ok(!eligibleForTopic("Нет такой", "OWNER") && Object.keys(GROUP_TOPICS).length === 8, "8 тем, неизвестная тема закрыта");
-ok(!canCreateGroup("SUPPLIER") && canCreateGroup("OWNER") && !canCreateGroup("WAREHOUSE"), "группу создаёт сотрудник с чатом, не поставщик");
+ok(canCreateGroup("SUPPLIER") && canCreateGroup("OWNER") && !canCreateGroup("WAREHOUSE"), "группу создаёт сотрудник с чатом и поставщик (в своих темах)");
+ok(JSON.stringify(createTopicsFor("SUPPLIER").sort()) === JSON.stringify(["Аукционы", "Отгрузки", "Сырьё", "ТЗ"].sort()), "поставщик создаёт группы только в темах Аукционы / ТЗ / Сырьё / Отгрузки");
+ok(!createTopicsFor("SUPPLIER").includes("Оплаты") && !createTopicsFor("SUPPLIER").includes("Общее"), "темы «Оплаты» и «Общее» поставщику закрыты");
+ok(statusLabelFor("ANSWERED", "INTERNAL", "INTERNAL") === "Ответ получен" && statusLabelFor("ANSWERED", "INTERNAL", "SUPPLIER") === "Ждём ответа от нас", "«Ответ получен» видит автор запроса, ответивший Веллмех — «Ждём ответа от нас»");
 const gm = [{ userId: "a", role: "OWNER" as const }, { userId: "b", role: "MEMBER" as const }, { userId: "c", role: "MEMBER" as const }];
 ok(canManageGroup({ id: "a", role: "PURCHASER" }, gm) && !canManageGroup({ id: "b", role: "PURCHASER" }, gm) && canManageGroup({ id: "c", role: "ADMIN" }, gm) && !canManageGroup({ id: "z", role: "OWNER" }, gm), "состав меняет владелец группы и OWNER/ADMIN из участников");
 ok(isUnread({ lastMessageAt: t0, lastMessageSide: "INTERNAL", kind: "GROUP" }, null, "INTERNAL") && !isUnread({ lastMessageAt: t0, lastMessageSide: "INTERNAL", kind: "GROUP" }, new Date(t0.getTime() + 1), "INTERNAL"), "в группе сообщение коллеги той же стороны — непрочитанное");

@@ -116,7 +116,7 @@ export async function searchEntitiesAction(type: string, q: string): Promise<{ i
 }
 
 /** Создать группу по теме с участниками (только сотрудники). */
-export async function createGroupAction(input: { name: string; topic: string; memberIds: string[]; entityType?: string; entityId?: string }): Promise<ChatState> {
+export async function createGroupAction(input: { name: string; topic: string; memberIds: string[]; entityType?: string; entityId?: string }, firstMessage?: string): Promise<ChatState> {
   const { createGroup } = await import("@/lib/chat");
   const v = await chatSession();
   let entity = null;
@@ -126,16 +126,21 @@ export async function createGroupAction(input: { name: string; topic: string; me
   }
   const r = await createGroup(v, { name: clip(input.name, 120), topic: clip(input.topic, 40), memberIds: (input.memberIds ?? []).slice(0, 100).map((x) => clip(x, 64)), entity });
   if ("error" in r) return { error: r.error };
+  const body = clip(firstMessage, 4000);
+  if (body) {
+    const { message } = await appendMessage({ threadId: r.threadId, organizationId: v.organizationId, authorId: v.id, authorName: v.name, authorSide: v.side, body, files: [] });
+    await markRead(v, r.threadId);
+    after(() => dispatchMessage(message.id).catch(() => {}));
+  }
   revalidatePath("/chat");
   return { ok: true, threadId: r.threadId };
 }
 
 /** Участники, которых можно позвать в группу этой темы. */
 export async function eligibleUsersAction(topic: string): Promise<{ id: string; name: string; role: string; isSupplier: boolean }[]> {
-  const { eligibleUsers } = await import("@/lib/chat");
+  const { eligibleFor } = await import("@/lib/chat");
   const v = await chatSession();
-  if (v.side === "SUPPLIER") return [];
-  return eligibleUsers(v.organizationId, clip(topic, 40));
+  return eligibleFor(v, clip(topic, 40));
 }
 
 /** Добавить / убрать участника (или выйти из группы). */

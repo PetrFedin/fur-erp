@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { canUseChat, groupMembers, loadReactions, loadThread, resolveEntity, supplierName, threadWhere, viewerOf } from "@/lib/chat";
-import { GROUP_TOPICS, TOPIC_OF_ENTITY, canCreateGroup, canManageGroup, eligibleForTopic, ENTITY_TYPES, REACTIONS, REQUEST_TYPES, SUPPLIER_ENTITY_TYPES, awaitsMyAnswer, entityHrefFor, isUnread } from "@/lib/chat-core";
+import { statusLabelFor, TOPIC_OF_ENTITY, createTopicsFor, canCreateGroup, canManageGroup, eligibleForTopic, ENTITY_TYPES, REACTIONS, REQUEST_TYPES, SUPPLIER_ENTITY_TYPES, awaitsMyAnswer, entityHrefFor, isUnread } from "@/lib/chat-core";
 import { cn } from "@/lib/utils";
 import { TelegramConnect } from "./telegram-connect";
 import { telegramToken } from "@/lib/channels/telegram";
@@ -12,7 +12,6 @@ import { ChatAutoRefresh, CloseButton, Composer, GroupMembers, ListFilters, NewG
 
 export const metadata = { title: "Чат" };
 
-const STATUS_LABEL = { OPEN: "Открыт", ANSWERED: "Ответ получен", CLOSED: "Закрыт" } as const;
 const STATUS_TONE = { OPEN: "bg-amber-100 text-amber-900", ANSWERED: "bg-emerald-100 text-emerald-800", CLOSED: "bg-neutral-200 text-neutral-700" } as const;
 const FILTERS = [
   { key: "", label: "Все" },
@@ -70,7 +69,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
     const [type, id] = gp.split(":");
     const ent = type && id ? await resolveEntity(v, type, id) : null;
     const topic = ent ? TOPIC_OF_ENTITY[ent.type] : undefined;
-    if (ent && topic && eligibleForTopic(topic, v.role)) groupPreset = { topic, name: `Группа: ${ent.label}`, type: ent.type, id: ent.id, label: ent.label };
+    if (ent && topic && createTopicsFor(v.role).includes(topic)) groupPreset = { topic, name: `Группа: ${ent.label}`, type: ent.type, id: ent.id, label: ent.label };
   }
 
   const where = {
@@ -131,7 +130,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
   const showForm = isNew || (!!preset && !selected);
   const showGroupForm = canCreateGroup(v.role) && (one(sp.newgroup) === "1" || !!groupPreset) && !selected;
   const members = selected?.kind === "GROUP" ? await groupMembers(selected.id) : [];
-  const topicsForMe = Object.keys(GROUP_TOPICS).filter((t) => eligibleForTopic(t, v.role));
+  const topicsForMe = createTopicsFor(v.role);
   const rightOpen = !!selected || showForm || showGroupForm;
   const filtered = !!(q || e || f);
 
@@ -214,7 +213,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
                     {selected.kind === "GROUP"
                       ? <span>Группа · {selected.topic} · участников: {members.length}</span>
                       : <span>Вы и {peerLabel}</span>}
-                    {selected.kind === "REQUEST" && <span className={cn("rounded px-1.5 py-px", STATUS_TONE[selected.status])}>{selected.requestType ? selected.requestType + " · " : ""}{STATUS_LABEL[selected.status]}</span>}
+                    {selected.kind === "REQUEST" && <span className={cn("rounded px-1.5 py-px", STATUS_TONE[selected.status])}>{selected.requestType ? selected.requestType + " · " : ""}{statusLabelFor(selected.status, selected.createdBySide, v.side)}</span>}
                     {selected.entityLabel && (entityHref
                       ? <Link href={entityHref} className="rounded bg-neutral-100 px-1.5 py-px text-neutral-900 underline">{selected.entityLabel} →</Link>
                       : <span className="rounded bg-neutral-100 px-1.5 py-px">{selected.entityLabel}</span>)}

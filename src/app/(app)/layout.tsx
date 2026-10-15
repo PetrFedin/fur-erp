@@ -3,6 +3,8 @@ import { requireSession } from "@/lib/session";
 import { Suspense } from "react";
 import { CommentWidget } from "@/components/comments/comment-widget";
 import { Sidebar } from "@/components/sidebar";
+import { countNewDecisions } from "@/lib/supplier-recent";
+import { RECENT_COOKIE } from "@/lib/supplier-recent-const";
 import { navLinksFor } from "@/components/nav-links";
 import { Topbar } from "@/components/topbar";
 import { VatDisplayProvider } from "@/lib/vat-display";
@@ -37,7 +39,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const years = availableYears(dataMaxYear);
   // Непрочитанное в чате — значок у пункта «Чат».
   const chatUnread = canUseChat(session.user.role) ? (await chatCounts(viewerOf(session)).catch(() => ({ unread: 0 }))).unread : 0;
-  const badges = { "/chat": chatUnread };
+  // Кабинет Веллмеха: «Что ждут» — число новых решений нашей стороны с его последнего просмотра «Недавнего».
+  const supNew = session.user.role === "SUPPLIER" && session.user.supplierId
+    ? await countNewDecisions(orgId, session.user.supplierId, Number(cookieStore.get(RECENT_COOKIE)?.value) || null).catch(() => 0)
+    : 0;
+  const badges = { "/chat": chatUnread, "/supplier": supNew };
   const c4Mode = parseCommission4Cookie(cookieStore.get("commission4Display")?.value);
 
   return (

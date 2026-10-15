@@ -8,7 +8,9 @@ import { prisma } from "@/lib/prisma";
 import { requireInboxViewer } from "@/lib/supplier-inbox";
 import { cleanSearch } from "@/lib/input";
 import { SUP_STAGES, supStage, type SupEntry } from "@/lib/supplier-calendar";
-import { WEEKDAYS, fmtRu, monthGridDays, monthTitle, parseMonth, shiftMonth, todayYmd, ymd } from "@/lib/calendar-grid";
+import { WEEKDAYS, addDays, fmtRu, monthGridDays, monthTitle, parseMonth, parseYmd, shiftMonth, startOfWeek, todayYmd, ymd } from "@/lib/calendar-grid";
+import { LAYER_STYLES } from "@/lib/calendar-actions";
+import { SUP_LAYERS, SUP_LAYER_DEFAULT, loadSupplierLayers } from "@/lib/supplier-calendar-layers";
 import { EntryForm, ImportBox, RowActions, StageBadge } from "./calendar-ui";
 import { AuctionForm, AuctionRow } from "./auction-ui";
 import { AUCTION_ACTION, toAuctionMark } from "@/lib/auction-calendar";
@@ -26,6 +28,12 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
   const fMonth = parseMonth(one(sp.m, 7)) ?? "";
   const fArticle = one(sp.q, 100).toLowerCase();
   const fStatus = SUP_STAGES.some((x) => x.key === one(sp.st)) ? one(sp.st) : "";
+  const view = ["month", "week", "list"].includes(one(sp.v, 5)) ? one(sp.v, 5) : "month";
+  const wParam = /^\d{4}-\d{2}-\d{2}$/.test(one(sp.w, 10)) && !Number.isNaN(parseYmd(one(sp.w, 10)).getTime()) ? one(sp.w, 10) : "";
+  const weekStart = startOfWeek(wParam || (today.startsWith(grid) ? today : `${grid}-01`));
+  const lRaw = (Array.isArray(sp.l) ? sp.l : sp.l ? [sp.l] : []).map((x) => cleanSearch(x, 10));
+  const layerKeys = sp.lf ? SUP_LAYERS.map((x) => x.key).filter((k) => lRaw.includes(k)) : SUP_LAYER_DEFAULT;
+  const layerSet = new Set<string>(layerKeys);
 
   // Поставщик — только свои записи; владелец/админ — просмотр записей поставщика.
   let supplierId = s.user.supplierId ?? null;
@@ -49,12 +57,17 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
   const shownAll = entries.filter((e) => (!fMonth || e.planDate.startsWith(fMonth) || e.factDate.startsWith(fMonth)) && (!fArticle || e.articleCode.toLowerCase().includes(fArticle)) && (!fStatus || e.status === fStatus));
   const shown = sortRows(shownAll, sort, { article: (e) => e.articleCode, color: (e) => e.color, size: (e) => e.size, qty: (e) => e.quantity, stage: (e) => SUP_STAGES.findIndex((x) => x.key === e.status), plan: (e) => e.planDate, fact: (e) => e.factDate, notes: (e) => e.notes });
 
-  const days = monthGridDays(grid);
+  const days = view === "week" ? Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)) : monthGridDays(grid);
+  const facts = supplierId ? await loadSupplierLayers(orgId, supplierId, layerSet, days[0], days[days.length - 1], today) : [];
+  // Отметки аукционов на сетке — те же, что список выше (слой «Аукционы» включён), с кнопкой правки только у Веллмеха.
+  const factsByDay = new Map<string, typeof facts>();
+  for (const f of facts) (factsByDay.get(f.date) ?? factsByDay.set(f.date, []).get(f.date)!).push(f);
   const byDay = new Map<string, SupEntry[]>();
   for (const e of entries) (byDay.get(e.planDate) ?? byDay.set(e.planDate, []).get(e.planDate)!).push(e);
   const q = (patch: Record<string, string>) => {
     const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ g: grid === today.slice(0, 7) ? "" : grid, m: fMonth, q: fArticle, st: fStatus, ...patch })) if (v) p.set(k, v);
+    for (const [k, v] of Object.entries({ g: grid === today.slice(0, 7) ? "" : grid, v: view === "month" ? "" : view, w: view === "week" ? weekStart : "", m: fMonth, q: fArticle, st: fStatus, ...patch })) if (v) p.set(k, v);
+    if (sp.lf) { p.set("lf", "1"); for (const k of layerKeys) p.append("l", k); }
     const t = p.toString();
     return `/supplier/calendar${t ? `?${t}` : ""}`;
   };
@@ -76,29 +89,77 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
       {isSup && <EntryForm models={modelNames} />}
       {isSup && <ImportBox />}
 
+      <form className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm" aria-label="Слои календаря">
+        <input type="hidden" name="lf" value="1" />
+        {view !== "month" && <input type="hidden" name="v" value={view} />}
+        {view === "week" && <input type="hidden" name="w" value={weekStart} />}
+        {grid !== today.slice(0, 7) && <input type="hidden" name="g" value={grid} />}
+        <span className="font-medium">Слои:</span>
+        {SUP_LAYERS.map((l) => (
+          <label key={l.key} className="inline-flex min-h-11 items-center gap-1.5">
+            <input type="checkbox" name="l" value={l.key} defaultChecked={layerSet.has(l.key)} className="size-4" />{l.label}
+          </label>
+        ))}
+        <button type="submit" className={buttonVariants({ size: "sm", variant: "outline" })}>Показать</button>
+      </form>
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={q({ g: shiftMonth(grid, -1) })} className={buttonVariants({ size: "sm", variant: "outline" })} aria-label="Назад">‹</Link>
-        <h2 className="min-w-40 text-center font-semibold">{monthTitle(grid)}</h2>
-        <Link href={q({ g: shiftMonth(grid, 1) })} className={buttonVariants({ size: "sm", variant: "outline" })} aria-label="Вперёд">›</Link>
-        <Link href={q({ g: "" })} className={buttonVariants({ size: "sm", variant: "outline" })}>Сегодня</Link>
-      </div>
-      <div className="overflow-x-auto">
-        <div className="grid min-w-[720px] grid-cols-7 gap-px rounded-md border border-neutral-200 bg-neutral-200 text-xs">
-          {WEEKDAYS.map((w) => <div key={w} className="bg-neutral-50 p-1 text-center font-medium">{w}</div>)}
-          {days.map((d) => {
-            const list = byDay.get(d) ?? [];
-            return (
-              <div key={d} className={`min-h-20 bg-white p-1 ${d.slice(0, 7) !== grid ? "opacity-50" : ""} ${d === today ? "ring-2 ring-inset ring-neutral-900" : ""}`}>
-                <div className="text-neutral-500">{Number(d.slice(8))}</div>
-                {list.slice(0, 4).map((e) => (
-                  <div key={e.id} className={`mt-0.5 truncate rounded border px-1 ${supStage(e.status).chip}`} title={`${e.articleCode} ${e.color} ${e.size} ×${e.quantity} — ${supStage(e.status).label}`}>{e.articleCode} ×{e.quantity}</div>
-                ))}
-                {list.length > 4 && <div className="text-neutral-500">+ ещё {list.length - 4}</div>}
-              </div>
-            );
-          })}
+        <div className="inline-flex overflow-hidden rounded-md border border-neutral-300 text-sm" role="group" aria-label="Вид">
+          {([["month", "Месяц"], ["week", "Неделя"], ["list", "Список"]] as const).map(([k, l]) => (
+            <Link key={k} href={q({ v: k === "month" ? "" : k, w: k === "week" ? weekStart : "" })} aria-current={view === k ? "page" : undefined} className={`inline-flex min-h-11 items-center px-3 ${view === k ? "bg-neutral-900 text-white" : "bg-white hover:bg-neutral-50"}`}>{l}</Link>
+          ))}
         </div>
+        {view === "week" ? (
+          <>
+            <Link href={q({ w: addDays(weekStart, -7), g: addDays(weekStart, -7).slice(0, 7) })} className={buttonVariants({ size: "sm", variant: "outline" })} aria-label="Назад">‹</Link>
+            <h2 className="min-w-40 text-center font-semibold">{fmtRu(days[0])} — {fmtRu(days[6])}</h2>
+            <Link href={q({ w: addDays(weekStart, 7), g: addDays(weekStart, 7).slice(0, 7) })} className={buttonVariants({ size: "sm", variant: "outline" })} aria-label="Вперёд">›</Link>
+            <Link href={q({ w: startOfWeek(today), g: "" })} className={buttonVariants({ size: "sm", variant: "outline" })}>Сегодня</Link>
+          </>
+        ) : (
+          <>
+            <Link href={q({ g: shiftMonth(grid, -1), w: "" })} className={buttonVariants({ size: "sm", variant: "outline" })} aria-label="Назад">‹</Link>
+            <h2 className="min-w-40 text-center font-semibold">{monthTitle(grid)}</h2>
+            <Link href={q({ g: shiftMonth(grid, 1), w: "" })} className={buttonVariants({ size: "sm", variant: "outline" })} aria-label="Вперёд">›</Link>
+            <Link href={q({ g: "", w: "" })} className={buttonVariants({ size: "sm", variant: "outline" })}>Сегодня</Link>
+          </>
+        )}
       </div>
+      {view === "list" ? (
+        <ul className="flex flex-col gap-2" aria-label="Список событий месяца">
+          {days.filter((d) => d.slice(0, 7) === grid && ((byDay.get(d)?.length ?? 0) + (factsByDay.get(d)?.length ?? 0)) > 0).map((d) => (
+            <li key={d} className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
+              <b className="tabular-nums">{fmtRu(d)}</b>
+              <div className="mt-1 flex flex-col gap-1">
+                {(byDay.get(d) ?? []).map((e) => <div key={e.id} className={`rounded border px-2 py-1 ${supStage(e.status).chip}`}>{e.articleCode} ×{e.quantity} · {supStage(e.status).label}{e.color ? ` · ${e.color}` : ""}</div>)}
+                {(factsByDay.get(d) ?? []).map((f) => <Link key={f.id} href={f.href} className={`rounded border px-2 py-1 ${LAYER_STYLES[f.kind].chip}`}><span className="font-medium">{f.kind === "auction" ? "Аукцион · " : ""}{f.title}</span>{f.qty != null ? ` ×${f.qty}` : ""} — {f.label}</Link>)}
+              </div>
+            </li>
+          ))}
+          {days.every((d) => d.slice(0, 7) !== grid || ((byDay.get(d)?.length ?? 0) + (factsByDay.get(d)?.length ?? 0)) === 0) && <li className="text-sm text-neutral-500">В этом месяце событий нет.</li>}
+        </ul>
+      ) : (
+        <div className="overflow-x-auto">
+          <div className="grid min-w-[720px] grid-cols-7 gap-px rounded-md border border-neutral-200 bg-neutral-200 text-xs">
+            {WEEKDAYS.map((w) => <div key={w} className="bg-neutral-50 p-1 text-center font-medium">{w}</div>)}
+            {days.map((d) => {
+              const list = byDay.get(d) ?? [];
+              const fl = factsByDay.get(d) ?? [];
+              const lim = view === "week" ? 99 : 4;
+              const rest = list.length + fl.length - lim;
+              return (
+                <div key={d} className={`${view === "week" ? "min-h-40" : "min-h-20"} bg-white p-1 ${view !== "week" && d.slice(0, 7) !== grid ? "opacity-50" : ""} ${d === today ? "ring-2 ring-inset ring-neutral-900" : ""}`}>
+                  <div className="text-neutral-500">{Number(d.slice(8))}</div>
+                  {fl.filter((f) => f.kind === "auction").map((f) => <Link key={f.id} href={f.href} className={`mt-0.5 block truncate rounded border px-1 font-medium ${LAYER_STYLES.auction.chip}`} title={`Аукцион: ${f.title} — ${f.label}`}>+ Аукцион · {f.title}</Link>)}
+                  {[...list.map((e) => ({ e })), ...fl.filter((f) => f.kind !== "auction").map((f) => ({ f }))].slice(0, Math.max(lim - fl.filter((f) => f.kind === "auction").length, 0)).map((it) => "e" in it
+                    ? <div key={it.e.id} className={`mt-0.5 truncate rounded border px-1 ${supStage(it.e.status).chip}`} title={`${it.e.articleCode} ${it.e.color} ${it.e.size} ×${it.e.quantity} — ${supStage(it.e.status).label}`}>{it.e.articleCode} ×{it.e.quantity}</div>
+                    : <Link key={it.f.id} href={it.f.href} className={`mt-0.5 block truncate rounded border px-1 ${LAYER_STYLES[it.f.kind].chip}`} title={`${it.f.title} — ${it.f.label}`}>{it.f.title} · {it.f.label}</Link>)}
+                  {rest > 0 && <div className="text-neutral-500">+ ещё {rest}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <h2 className="font-semibold">По артикулам</h2>
       <form className="flex flex-wrap items-end gap-3 text-sm">

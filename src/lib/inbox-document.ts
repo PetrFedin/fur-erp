@@ -19,7 +19,15 @@ export async function acceptDocumentInbox(s: { user: { id: string; organizationI
   if (!p || !type || !p.purchaseId) return { error: "Не удалось прочитать данные документа" };
   const purchase = await prisma.purchase.findFirst({ where: { id: p.purchaseId, organizationId: orgId, supplierId: row.supplierId }, select: { id: true } });
   if (!purchase) return { error: "Закупка не найдена" };
-  const lot = p.lotId ? await prisma.rawMaterialLot.findFirst({ where: { id: p.lotId, organizationId: orgId, purchaseId: purchase.id }, select: { id: true } }) : null;
+  // Лот: по id из документа; если его нет или он не связан с закупкой — по номеру лота внутри этой закупки, но только когда он один.
+  // Неоднозначно или не найден — документ ложится на закупку.
+  const ofPurchase = { OR: [{ purchaseId: purchase.id }, { purchaseItems: { some: { purchaseId: purchase.id } } }] };
+  let lot = p.lotId ? await prisma.rawMaterialLot.findFirst({ where: { id: p.lotId, organizationId: orgId, ...ofPurchase }, select: { id: true } }) : null;
+  const wantNo = (p.lotNumber ?? "").trim();
+  if (!lot && wantNo) {
+    const byNo = await prisma.rawMaterialLot.findMany({ where: { organizationId: orgId, lotNumber: { equals: wantNo, mode: "insensitive" }, ...ofPurchase }, select: { id: true }, take: 2 });
+    if (byNo.length === 1) lot = byNo[0];
+  }
   if (row.files.length === 0) return { error: "У входящего нет файлов" };
 
   const ru = p.date ? p.date.split("-").reverse().join(".") : "";
@@ -59,5 +67,6 @@ export async function acceptDocumentInbox(s: { user: { id: string; organizationI
     throw e;
   }
   invalidateControlCounts(orgId);
-  return { ok: true, type: "Purchase", ids: [purchase.id], message: `Документ прикреплён к закупке (файлов: ${stored.length})` };
+  const where = lot ? "лоту" + (wantNo ? ` ${wantNo}` : "") : "закупке";
+  return { ok: true, type: "Purchase", ids: [purchase.id], message: `Документ прикреплён к ${where} (файлов: ${stored.length})` };
 }

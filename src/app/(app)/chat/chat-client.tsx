@@ -317,6 +317,7 @@ export function NewGroupForm({ topics, preset }: { topics: string[]; preset?: { 
   const router = useRouter();
   const [topic, setTopic] = useState(preset?.topic ?? topics[0]);
   const [name, setName] = useState(preset?.name ?? "");
+  const [first, setFirst] = useState("");
   const [people, setPeople] = useState<Person[]>([]);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [q, setQ] = useState("");
@@ -331,7 +332,7 @@ export function NewGroupForm({ topics, preset }: { topics: string[]; preset?: { 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     start(async () => {
-      const r = await createGroupAction({ name, topic, memberIds: [...chosen], entityType: preset?.type, entityId: preset?.id });
+      const r = await createGroupAction({ name, topic, memberIds: [...chosen], entityType: preset?.type, entityId: preset?.id }, first);
       if (r.error) { setErr(r.error); return; }
       router.push(`/chat?thread=${r.threadId}`); router.refresh();
     });
@@ -359,6 +360,8 @@ export function NewGroupForm({ topics, preset }: { topics: string[]; preset?: { 
           ))}
         </ul>
       </div>
+      <label className="flex flex-col gap-1 text-sm"><span className="text-neutral-600">Первое сообщение (необязательно)</span>
+        <textarea aria-label="Первое сообщение" value={first} onChange={(e) => setFirst(e.target.value)} maxLength={4000} rows={3} className="rounded-md border border-neutral-300 px-3 py-2" /></label>
       <div className="flex items-center justify-end gap-2">
         {err && <span role="alert" className="text-xs text-red-700">{err}</span>}
         <Button type="submit" disabled={pending}>{pending ? "Создаю…" : "Создать группу"}</Button>
