@@ -209,7 +209,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
     {
       title: "Количество",
       fields: [
-        { label: "Получено", node: qty(l.recv), editor: mEd("qty", l.recv.toString(), "Получено", unit), note: poolNote ?? "остаток пересчитывается; ниже уже списанного нельзя" },
+        { label: "Получено", node: qty(l.recv), editor: mEd("qty", l.recv.toString(), "Получено", unit), note: poolNote ?? "остаток пересчитывается; не меньше списанного" },
         { label: "Остаток", node: qty(l.rem), editor: canEdit ? <LotRemainingField key="e" lotId={id} value={l.rem.toString()} /> : undefined, note: "ручная правка записывается движением «Корректировка»" },
         { label: "Единица", node: lining ? "метр" : "шкура (шт.)", note: "задаётся материалом" },
       ],
@@ -217,7 +217,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
     {
       title: "Цена",
       fields: [
-        { label: `Цена за ${unitWord}, ₽ (с НДС)`, node: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} />, editor: mEd("unitIncl", q2(l.unitIncl), `Цена за ${unitWord} с НДС`, "₽"), note: poolNote ?? <span className="text-[11px] text-neutral-500">единственное поле цены; без НДС {formatMoney(q2(l.unitExcl))} и сумма лота с НДС {formatMoney(q2(recvIncl))} считаются; правка пересчитывает сумму лота, списания и состав цены</span> },
+        { label: `Цена за ${unitWord}, ₽ (с НДС)`, node: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} />, editor: mEd("unitIncl", q2(l.unitIncl), `Цена за ${unitWord} с НДС`, "₽"), note: poolNote ?? <span className="text-[11px] text-neutral-500">без НДС {formatMoney(q2(l.unitExcl))} · сумма лота {formatMoney(q2(recvIncl))}; правка пересчитывает сумму, списания и состав цены</span> },
         { label: "НДС, %", node: `${formatQty(p.vatRate.toString())}%`, editor: mEd("vatRate", p.vatRate.toString(), "Ставка НДС лота", "%"), note: <>по дате документа {vatDefault}% ({vatPeriodLabel(byDate)}){vatRate !== vatDefault ? " — не совпадает" : ""} <InfoHint label="Ставка НДС в ТЗ" wide><p>В ТЗ берётся эта ставка лота; ставка строки списания может быть изменена в ТЗ. При смене ставки можно сохранить сумму с НДС (меняется выделение НДС) или цену без НДС (меняется сумма с НДС).</p></InfoHint></> },
         { label: "Сумма НДС, ₽", node: formatMoney(q2(vatTotalLot)), note: "считается из суммы лота и ставки" },
         ...(lining && row.rawMaterial.defaultVatRate != null ? [{ label: "Ставка по умолчанию материала", node: `${formatQty(row.rawMaterial.defaultVatRate.toString())}%`, note: <Link href={`/materials/${row.rawMaterial.id}`} className="text-blue-700 hover:underline">правится в карточке материала →</Link> }] : []),
@@ -303,7 +303,6 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
             <TileValue>{qty(l.rem)}</TileValue>
             <TileList items={[
               { k: "Сумма", v: <Money incl={q2(remIncl)} excl={q2(remExcl)} />, share: l.recv.greaterThan(0) ? l.rem.div(l.recv).toNumber() : null },
-              { k: `Цена за ${unitWord}`, v: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} /> },
             ]} />
             <VatLine v={{ [vatKey]: remIncl.sub(remExcl).toNumber() }} minRem={1} />
           </div>
@@ -316,7 +315,6 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
                 { k: "Молоток, $/шт.", v: usdListed != null ? `$${usdListed.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—" },
               ]} />
             )}
-            <div className="mt-2 text-[11px] leading-4 text-neutral-500">ставка НДС лота {formatQty(String(vatRate))}%</div>
           </div>
         </div>
       </WidgetRow>
@@ -339,7 +337,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
           attrIds={row.attrs.map((a) => a.attrId)}
         />
       </div>
-      <CollapsibleBlock title="Остальные поля лота" summary="идентификация, закупка, количество, цена, примечания · правка по месту">
+      <CollapsibleBlock title="Остальные поля лота" summary="правка по месту">
         <LotPassport
           lotId={id}
           sections={restSections}
@@ -409,7 +407,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Документы лота — свёрнуты */}
-      <CollapsibleBlock title="Документы" summary={`${lotDocs.length} шт. · УПД, счёт, спецификация`}>
+      <CollapsibleBlock title="Документы" summary={`${lotDocs.length} шт.`}>
         <div className="mb-2 flex items-center gap-2 text-xs text-neutral-500">О документах <InfoHint label="Документы лота" wide>
             <p>УПД, счёт и спецификацию пока не нужно заполнять — просто прикрепите файлы: перетащите на слот или нажмите «Загрузить файл» (PDF, XLSX, DOCX, JPEG, PNG до 25 МБ). Номера и суммы не требуются. Документы лота видны и в закупке-основании.</p>
           </InfoHint></div>

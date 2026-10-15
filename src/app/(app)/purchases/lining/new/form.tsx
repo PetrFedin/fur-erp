@@ -93,12 +93,12 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
             <Select id="lb-sup" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
               {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
-            <p className="mt-1 text-[11px] text-neutral-500">Нового поставщика добавьте в справочнике</p>
+            <p className="mt-1 text-[11px] text-neutral-500">Новый поставщик — в справочнике</p>
           </div>
           <div>
             <Label htmlFor="lb-batch">Аукцион / закупка</Label>
             <Input id="lb-batch" value={batchShown} onChange={(e) => { setBatchTouched(true); setBatchName(e.target.value); }} placeholder="Подкладка 05.26" />
-            <p className="mt-1 text-[11px] text-neutral-500">По умолчанию «Подкладка ММ.ГГ» по дате</p>
+            <p className="mt-1 text-[11px] text-neutral-500">По умолчанию «Подкладка ММ.ГГ»</p>
           </div>
           <div><Label htmlFor="lb-inv">№ счёта / УПД</Label><Input id="lb-inv" value={invoice} onChange={(e) => setInvoice(e.target.value)} /></div>
           <div><Label htmlFor="lb-invdate">Дата счёта</Label><Input id="lb-invdate" type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} /></div>

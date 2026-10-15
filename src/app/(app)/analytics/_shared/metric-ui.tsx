@@ -39,7 +39,7 @@ export function MetricCell({ col, m, total }: { col: ColKey; m: Metrics; total: 
         <div>
           <Money incl={d.hammerPerSkin.incl} excl={d.hammerPerSkin.excl} />
           {d.hammerSkinShare != null && d.hammerSkinShare < 0.999 && (
-            <div className="text-[11px] leading-tight text-neutral-500">данные у {pct0(d.hammerSkinShare)} шкур</div>
+            <div className="text-[11px] leading-tight text-neutral-500">по {pct0(d.hammerSkinShare)} шкур</div>
           )}
         </div>
       ) : m.skins > 0 ? (

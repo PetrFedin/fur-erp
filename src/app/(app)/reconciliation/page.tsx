@@ -137,9 +137,9 @@ function GroupBlock({ g, ids, live, ver }: { g: Group; ids: Set<string>; live: L
           <span className="text-xs text-neutral-500">счетов Веллмех нет</span>
         )}
         <span className="text-xs text-neutral-600">
-          {list.length > 0 ? `${list.length} сч.: ✓${t.closed} · ½${t.partial} · согл.${t.approved} · ✗${t.unpaid}` : ""}
+          {list.length > 0 ? `${list.length} сч.: ${[t.closed ? `✓${t.closed}` : "", t.partial ? `½${t.partial}` : "", t.approved ? `согл.${t.approved}` : "", t.unpaid ? `✗${t.unpaid}` : ""].filter(Boolean).join(" · ")}` : ""}
         </span>
-        <span className={cn("rounded-full border px-2 py-0.5 text-xs", st.cls)} title={st.hint}>Сверка: {st.label.toLowerCase()}</span>
+        <span className={cn("rounded-full border px-2 py-0.5 text-xs", st.cls)} title={st.hint}>{st.label}</span>
         {ver && (
           <Link href="/verify" className={cn("rounded-full border px-2 py-0.5 text-xs", ver.cls)} title="Подтверждение строки: откройте «Не подтверждено»">
             {ver.text}
@@ -151,6 +151,7 @@ function GroupBlock({ g, ids, live, ver }: { g: Group; ids: Set<string>; live: L
   );
 }
 
+const ruDate = (iso: string) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split("-").reverse().join(".") : iso);
 const signed = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${money(Math.abs(v))}`;
 
 /** Короткий мост «Реестр документов → разница по статьям → Главная» (по всем годам; чтение, данные не меняются). */
@@ -173,6 +174,7 @@ function BridgeCard({ b }: { b: ReconBridge }) {
         <InfoHint label="Откуда две суммы" wide>
           <p><b>Реестр</b> — Σ сумм всех счетов Веллмех из документов (закупки сырья и производство). <b>Главная</b> — «Общая стоимость» = оплачено + к оплате по сырью (мех, подкладка) и по работе: закупки и ТЗ в базе, а не счета.</p>
           <p className="mt-1">Разница — не ошибка расчёта: это разные меры одного и того же. «Есть в документах, нет в базе» ({money(b.missingInDb)}) — про оплаты, а не про суммы счетов, и в этот мост не входит. Мост строится по всем годам; цифры базы читаются при каждом заходе.</p>
+          <p className="mt-1">Реестр {money(sh.registry.total)} {signed(sh.sp + sh.sw)} = Главная {money(sh.main.total)}.</p>
         </InfoHint>
       </div>
       <table className="mt-2 w-full max-w-4xl">
@@ -186,7 +188,6 @@ function BridgeCard({ b }: { b: ReconBridge }) {
           <tr className="border-t border-neutral-300 font-semibold"><td className="py-1">Главная: сырьё {money(sh.main.raw)} + работа подрядчику {money(sh.main.work)}</td><td className="whitespace-nowrap py-1 text-right tabular-nums">{money(sh.main.total)}</td></tr>
         </tbody>
       </table>
-      <p className="mt-2 text-xs text-neutral-500">Реестр {money(sh.registry.total)} {signed(sh.sp + sh.sw)} = Главная {money(sh.main.total)}.</p>
     </Card>
   );
 }
@@ -249,7 +250,7 @@ export default async function ReconciliationPage() {
           <HowToRead />
         </div>
         <div className="mt-1 text-sm text-neutral-600">
-          Счета Веллмех и оплата по документам · сверено {data.checkedAt}
+          Счета Веллмех и оплата по документам · сверено {ruDate(data.checkedAt)}
           <InfoHint wide label="О сверке">
             <p>Каждый счёт Веллмех — с оплатой по документам, остатком и тем, что записано в базе. База читается при каждом заходе ({yearLabel(year)}).</p>
             <p className="mt-2 text-neutral-500">Строки собраны из счетов в документах; чтобы обновить сверку после новых документов, обратитесь к разработчику. Счетов в реестре: {ALL_INVOICES.length}.</p>
@@ -261,7 +262,7 @@ export default async function ReconciliationPage() {
         <Card className="border-neutral-200 bg-neutral-50 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-sm font-semibold">Перепроверка по актуальным документам · {RECHECK.date}</div>
+              <div className="text-sm font-semibold">Перепроверка по документам · {ruDate(RECHECK.date)}</div>
               <div className="mt-1 text-xs text-neutral-600">
                 Подтверждено: {RECHECK.found.length} · не найдено: {RECHECK.notFound.length} · решений владельца: {RECHECK.ownerDecisions.length}
                 {RECHECK.notFound.length > 0 && (
@@ -279,7 +280,7 @@ export default async function ReconciliationPage() {
       ) : null}
 
       <section className="space-y-2" aria-label="Итоги">
-        <WidgetRow id="recon" title="Сверка — итоги">
+        <WidgetRow id="recon" title="Итоги">
           <div className="space-y-2">
             <SummaryCard title="Всего, ₽ по всему реестру" t={totalAll} />
             <div className="grid gap-2 md:grid-cols-2">

@@ -175,7 +175,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         {details(a)}
       </div>
     ) : (
-      <Link href={openHref(a.key, idx)} scroll={false} className="text-xs text-neutral-500 underline underline-offset-2">Показать подробности: сводка, состав, лоты, ТЗ</Link>
+      <Link href={openHref(a.key, idx)} scroll={false} className="text-xs text-neutral-500 underline underline-offset-2" title="Сводка, состав, лоты, ТЗ">Подробности</Link>
     );
 
   const perUnit = (a: PriceAgg, x: number) => (a.unitsCosted > 0 ? x / a.unitsCosted : 0);
@@ -372,11 +372,9 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   );
 
   const rangeCell = (a: PriceAgg) =>
-    a.minUnitIncl != null && a.maxUnitIncl != null && a.costedOrders > 1 ? (
-      <div className="text-[11px] leading-tight text-neutral-500">
+    a.minUnitIncl != null && a.maxUnitIncl != null && a.costedOrders > 1 && Math.round(Number(a.minUnitIncl)) !== Math.round(Number(a.maxUnitIncl)) ? (
+      <div className="text-[11px] leading-tight text-neutral-500" title={`По ${a.costedOrders} ТЗ`}>
         от <Money incl={a.minUnitIncl} excl={a.minUnitExcl} /> до <Money incl={a.maxUnitIncl} excl={a.maxUnitExcl} />
-        <br />
-        по ТЗ ({a.costedOrders})
       </div>
     ) : null;
 
@@ -413,8 +411,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       return (
         <div className={c.belowCost ? "text-red-700" : ""}>
           <span className="font-semibold">×{c.markupX.toFixed(2).replace(".", ",")}</span>
-          <div className="text-[11px] text-neutral-500">маржа {pct1(c.marginPct ?? 0)}{c.belowCost ? " — ниже себестоимости" : ""}</div>
-          <div className="text-[11px] text-neutral-400">база: {p.base === "full" ? "с работой" : "сырьё без работы"}, завершённые ТЗ</div>
+          <div className="text-[11px] text-neutral-500" title={`База: ${p.base === "full" ? "с работой" : "сырьё без работы"}, завершённые ТЗ`}>маржа {pct1(c.marginPct ?? 0)}{c.belowCost ? " — ниже себестоимости" : ""}</div>
         </div>
       );
     }
@@ -433,7 +430,6 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       <div className="flex flex-col gap-1">
         <div>
           <span className="font-semibold"><Money incl={r.incl} excl={r.excl} /></span>
-          <div className="text-[11px] text-neutral-500">рекомендация, не факт · округлено до 100 ₽</div>
         </div>
         {canAccept && a.modelId && (
           <AcceptPriceButton modelId={a.modelId} modelName={a.label} price={String(r.incl)} priceText={formatMoney(r.incl.toFixed(2))} currentText={cur} basis={`${basis}; цена с НДС`} />
@@ -532,7 +528,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       {badInput && <span className="text-xs text-red-600">Наценка: введите число, например 350 — взято значение по умолчанию.</span>}
 
       {/* Сводка */}
-      <WidgetRow id="pricing" title="Цены и наценка — итоги">
+      <WidgetRow id="pricing" title="Итоги">
       <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-4">
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>Моделей с завершёнными ТЗ</TileHead>
@@ -680,7 +676,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                   {r && (
                     <div className="text-sm">
                       Рекомендуемая цена: <b><Money incl={r.incl} excl={r.excl} /></b>
-                      <span className="text-[11px] text-neutral-500"> — рекомендация, не факт</span>
+                      
                     </div>
                   )}
                   {recCell(a)}

@@ -36,7 +36,7 @@ export default async function NewPurchasePage() {
       <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Закупки", href: "/purchases" }, { label: "Новая закупка" }]} />
       <h1 className="text-xl font-semibold">Новая закупка</h1>
       <p className="rounded-lg bg-[var(--ui-soft)] px-3 py-2 text-sm text-neutral-900">
-        Нужны таблица лотов из Excel, расходы (транспорт, таможня, выделка, сборы) и состав цены до сохранения? Откройте единое окно:{" "}
+        Нужны лоты из Excel, расходы и состав цены до сохранения? Откройте единое окно:{" "}
         <Link href="/purchases/batch" className="font-medium underline">Закупка меха →</Link>
       </p>
       <Card>

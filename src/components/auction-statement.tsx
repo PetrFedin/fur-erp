@@ -23,7 +23,7 @@ export function StatementBlock({ st, source, action, note, cur = "₽" }: { st: 
         {action && <span className="ml-auto">{action}</span>}
       </div>
       {!st.detailed ? (
-        <p className="text-sm text-neutral-600">Расчёта с разбивкой по статьям нет — сумма по лотам: <b className="tabular-nums">{money(st.total)} {cur}</b>. Разбивка по каждому лоту — в строке лота ниже.</p>
+        <p className="text-sm text-neutral-600">Разбивки по статьям нет. Сумма по лотам: <b className="tabular-nums">{money(st.total)} {cur}</b>; разбивка — в строке лота.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -52,9 +52,8 @@ export function StatementBlock({ st, source, action, note, cur = "₽" }: { st: 
         </div>
       )}
       <p className="text-xs text-neutral-600">
-        Лотов {st.lots.length} · шкур {num(st.qty)}. Итог = сумма лотов{st.detailed ? " = сумма статей" : ""}: <b className="tabular-nums text-neutral-800">{money(st.total)} {cur}</b>
-        {st.detailed && Math.abs(st.gap) <= 0.005 && <span className="ml-1 text-green-800">· сходится</span>}
-        {st.detailed && Math.abs(st.gap) > 0.005 && <span className="ml-1 text-amber-900">· {money(st.gap)} {cur} не разнесено по статьям — сверьте формулу «себестоимость за единицу»</span>}
+        <span title={`Итог = сумма лотов${st.detailed ? " = сумма статей" : ""}`}>Лотов {st.lots.length} · шкур {num(st.qty)} · итого <b className="tabular-nums text-neutral-800">{money(st.total)} {cur}</b></span>
+        {st.detailed && Math.abs(st.gap) > 0.005 && <span className="ml-1 text-amber-900">· {money(st.gap)} {cur} не разнесено по статьям: сверьте формулу «себестоимость за единицу»</span>}
       </p>
       {note}
     </section>

@@ -264,13 +264,13 @@ export function lotBalances(l: RawLot): { journal: Decimal; lot: Decimal; calc: 
 /** Что именно не сходится у лота (пусто — всё сходится). Используется карточкой лота и страницей «Сверка». */
 export function lotIssues(l: RawLot): string[] {
   const out: string[] = [];
-  if (!l.jIn.equals(l.recv)) out.push("приход по журналу ≠ получено по лоту");
-  if (!l.jProdOut.equals(l.used)) out.push("списано в ТЗ по журналу ≠ Σ списаний ТЗ");
-  if (!l.jOtherOut.equals(l.otherOut)) out.push("списано иначе по журналу ≠ по лоту");
+  if (!l.jIn.equals(l.recv)) out.push("приход: журнал ≠ лот");
+  if (!l.jProdOut.equals(l.used)) out.push("списано в ТЗ: журнал ≠ Σ ТЗ");
+  if (!l.jOtherOut.equals(l.otherOut)) out.push("списано иначе: журнал ≠ лот");
   const b = lotBalances(l);
-  if (!b.journal.equals(b.lot) || !b.lot.equals(b.calc)) out.push("остаток: журнал, лот и «получено − ТЗ» разные");
-  if (l.itemsQty.greaterThan(0) && !l.itemsQty.equals(l.recv)) out.push("закуплено в позициях закупки ≠ получено по лоту");
-  if (l.used.greaterThan(l.recv)) out.push("использовано больше, чем получено");
+  if (!b.journal.equals(b.lot) || !b.lot.equals(b.calc)) out.push("остаток: журнал, лот и «получено − ТЗ» не равны");
+  if (l.itemsQty.greaterThan(0) && !l.itemsQty.equals(l.recv)) out.push("позиции закупки ≠ получено по лоту");
+  if (l.used.greaterThan(l.recv)) out.push("использовано больше полученного");
   return out;
 }
 

@@ -43,7 +43,7 @@ export function Progress({ t, db }: { t: Totals; db?: { paid: number; pct: numbe
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-        <b className="font-medium tabular-nums">подтверждено документами {pct(t.pct)}</b>
+        <b className="font-medium tabular-nums" title="Оплата, подтверждённая документами">по документам {pct(t.pct)}</b>
         <span className="tabular-nums text-neutral-600">
           на {money(t.paid)} из {money(t.amount)}
         </span>

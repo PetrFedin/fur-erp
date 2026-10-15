@@ -16,7 +16,7 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { isServiceAuction, NO_AUCTION_LABEL } from "@/lib/auction-names";
 import { auctionLabeler } from "@/lib/filter-options";
 import {
-  GROUPS, NO_AUCTION_KEY, aggOf, applyFilters, avgPrice, groupLots, groupUsage, isUsageBy, loadUsageRows, lotIssues, parseFilters, pctText, usedPct,
+  GROUPS, NO_AUCTION_KEY, SYNTHETIC_LABEL, aggOf, applyFilters, avgPrice, groupLots, groupUsage, isUsageBy, loadUsageRows, lotIssues, parseFilters, pctText, usedPct,
   type Agg, type Group, type GroupBy, type LotGroupBy, type RawFilters, type RawLot, type UsageGroup,
 } from "@/lib/raw-analytics";
 import { prisma } from "@/lib/prisma";
@@ -190,11 +190,11 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           </Check>,
       <Check key="c5" ok={data.movementsWithoutLot.count === 0} text={data.movementsWithoutLot.count === 0 ? "Списаний и приходов без лота нет." : `Движений без лота: ${data.movementsWithoutLot.count} (на ${ex(data.movementsWithoutLot.qty)}).`} />,
       <Check key="c6" ok={data.receivedItemsWithoutLot === 0} text={data.receivedItemsWithoutLot === 0 ? "У каждой позиции принятой закупки есть лот." : `Позиций принятых закупок без лота: ${data.receivedItemsWithoutLot}.`} />,
-      <Check key="c7" ok={noGrade.length === 0} warn text={noGrade.length === 0 ? "У всех лотов указан сорт или цвет." : `Лотов без сорта и цвета: ${noGrade.length} из ${data.lots.length} — их нельзя разнести по «Сорт / цвет»:`}>
+      <Check key="c7" ok={noGrade.length === 0} warn text={noGrade.length === 0 ? "У всех лотов указан сорт или цвет." : `Лотов без сорта и цвета: ${noGrade.length} из ${data.lots.length}:`}>
             {noGrade.length > 0 && lotList(noGrade)}
           </Check>,
-      <Check key="c8" ok={noSize.length === 0} warn text={noSize.length === 0 ? "У всех лотов меха распознан размер." : `Лотов меха без распознанного размера: ${noSize.length} — попадают в «Не указан» (размер ищется в тексте сорта: XXL, XL, L, M…).`} />,
-      <Check key="c9" ok={noAuction.length === 0} warn text={noAuction.length === 0 ? "Все лоты привязаны к аукциону." : `Лотов без реального аукциона («Нет информации», доп. закупки и т. п.): ${noAuction.length}.`} />
+      <Check key="c8" ok={noSize.length === 0} warn text={noSize.length === 0 ? "У всех лотов меха распознан размер." : `Лотов меха без размера: ${noSize.length} — в группе «Не указан».`} />,
+      <Check key="c9" ok={noAuction.length === 0} warn text={noAuction.length === 0 ? "Все лоты привязаны к аукциону." : `Лотов без аукциона: ${noAuction.length}.`} />
   ];
   return (
     <div className="flex flex-col gap-4">
@@ -203,11 +203,11 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Аналитика сырья</h1><YearNote year={year} />
           <Mode4Badge mode={c4} />
           <InfoHint label="О странице" wide>
-            <p>Куплено → использовано в ТЗ → остаток по аукционам, годам, видам меха, лотам, сортам и размерам. Источник — лоты склада: каждая принятая закупка создаёт лот, списания в ТЗ ссылаются на лот.</p>
-            <p className="mt-1">Год — общий, из шапки (по дате заказа закупки). Для выбранного года считаются лоты закупок этого года и всё, что из них списано в ТЗ (в любом году).</p>
-            <p className="mt-1">Деньги — по цене лота за единицу (с учётом курса, НДС и расходов закупки); «Без НДС» переключается в шапке. Среднее везде средневзвешенное: Σ(цена × кол-во) ÷ Σ кол-во. 4% (режим в шапке) показан справочной строкой «с 4%» и в самой цене лота не учтён.</p>
-            <p className="mt-1">Мех (шт.) и подкладка (м) считаются отдельно — единицы разные.</p>
-            <p className="mt-1">Сырьё здесь считается так же, как на Главной (общий расчёт): лоты склада + «Заказано, не получено» (лотов ещё нет) + «Шкуры подрядчика» (оплачены в составе пошива). Эти две позиции в таблицах — отдельными подписанными строками, поэтому плитки и итоги сходятся с Главной.</p>
+            <p>Куплено → использовано в ТЗ → остаток по аукционам, годам, видам меха, лотам, сортам и размерам. Источник — лоты склада: принятая закупка создаёт лот, списания в ТЗ ссылаются на лот.</p>
+            <p className="mt-1">Год — из шапки, по дате заказа закупки: берутся лоты закупок этого года и всё, что из них списано в ТЗ.</p>
+            <p className="mt-1">Деньги — по цене лота за единицу (курс, НДС, расходы закупки). Среднее везде средневзвешенное: Σ(цена × кол-во) ÷ Σ кол-во. 4% — справочная строка «с 4%», в цену лота не входит.</p>
+            <p className="mt-1">Мех (шт.) и подкладка (м) считаются отдельно.</p>
+            <p className="mt-1">Сырьё считается как на Главной: лоты склада + «Заказано, не получено» + «Шкуры подрядчика» отдельными строками, поэтому итоги сходятся.</p>
           </InfoHint></div>
         <div className="flex flex-wrap gap-2">
           <Link href="/analytics/raw/recon" className={buttonVariants({ variant: "outline", size: "sm" })}>
@@ -263,7 +263,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
       </div>
 
       {/* Итоги */}
-      <WidgetRow id="raw" title="Аналитика сырья — итоги" headerEnd={<Link href={fromPurchases ? "/purchases" : "/lots"} className="text-xs text-blue-700 hover:underline print:hidden">{fromPurchases ? "→ Закупки" : "→ Сырьё"}</Link>}>
+      <WidgetRow id="raw" title="Итоги" headerEnd={<Link href={fromPurchases ? "/purchases" : "/lots"} className="text-xs text-blue-700 hover:underline print:hidden">{fromPurchases ? "→ Закупки" : "→ Сырьё"}</Link>}>
       <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-5">
         <Tile unit={unit} c4={c4}
           title="Куплено"
@@ -581,7 +581,7 @@ function Cells({ a, unit, c4 }: { a: Agg; unit: string; c4: "on" | "off" }) {
       <span className="tabular-nums"><span className={lab}>% исп.</span>{pctText(usedPct(a))}</span>
       <span className="tabular-nums">
         <span className={lab}>Ср. цена закупки</span>
-        {p ? <><Money incl={q2(p.incl)} excl={q2(p.excl)} /></> : a.recvIncl.greaterThan(0) ? <><Money incl={q2(a.recvIncl)} excl={q2(a.recvExcl)} /><div className="text-xs text-neutral-500">всего, без шт.</div></> : "—"}
+        {p ? <><Money incl={q2(p.incl)} excl={q2(p.excl)} /></> : a.recvIncl.greaterThan(0) ? <><Money incl={q2(a.recvIncl)} excl={q2(a.recvExcl)} /><div className="text-xs text-neutral-500">без количества</div></> : "—"}
       </span>
       <span className="tabular-nums">
         <span className={lab}>Стоимость остатка</span>
@@ -604,7 +604,7 @@ function GroupRow({ g, by, f, unit, c4 }: { g: Group; by: GroupBy; f: RawFilters
           <span className="col-span-2 font-medium md:col-span-1">
             <span className="mr-1 inline-block text-neutral-500 transition-transform group-open:rotate-90">›</span>
             {g.label}
-            <span className="ml-1 text-xs font-normal text-neutral-500">· {g.agg.lots} лот.</span>
+            {g.label === SYNTHETIC_LABEL.ordered || g.label === SYNTHETIC_LABEL.hides ? null : <span className="ml-1 text-xs font-normal text-neutral-500">· {g.agg.lots} лот.</span>}
           </span>
           <Cells a={g.agg} unit={unit} c4={c4} />
         </summary>

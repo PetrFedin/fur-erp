@@ -100,18 +100,16 @@ export function Ref4({
   excl?: Decimal.Value | null;
   className?: string;
 }) {
+  // В режиме «С 4%» вызывающие передают те же цифры, что уже показаны рядом: строка «без 4%: …» была бы точным повтором.
+  if (mode === "on") return null;
   const k = new Decimal(1).add(COMMISSION_RATE);
-  const i = new Decimal(incl);
-  const e = excl != null ? new Decimal(excl) : null;
-  const altIncl = mode === "on" ? i : i.mul(k);
-  const altExcl = e == null ? null : mode === "on" ? e : e.mul(k);
+  const altIncl = new Decimal(incl).mul(k);
+  const altExcl = excl != null ? new Decimal(excl).mul(k) : null;
   return (
     <div className={`whitespace-nowrap text-xs font-normal text-neutral-500 ${className}`}>
-      {mode === "on" ? "без 4%" : "с 4%"}: <Money incl={altIncl.toFixed(2)} excl={altExcl?.toFixed(2) ?? null} />
+      с 4%: <Money incl={altIncl.toFixed(2)} excl={altExcl?.toFixed(2) ?? null} />
       <InfoHint label="Сравнение 4%">
-        <p>
-          Основная цифра показана в выбранном режиме. Здесь всегда показан противоположный вариант для быстрого сравнения: {mode === "on" ? "без комиссии 4%" : "с комиссией 4%"}.
-        </p>
+        <p>Основная цифра — без 4%; здесь та же сумма с 4%.</p>
         <p className="mt-1">4% применяется только к сырью и подкладке в ТЗ, где это разрешено; работа, закупка, оплаты и долг поставщику не меняются.</p>
       </InfoHint>
     </div>

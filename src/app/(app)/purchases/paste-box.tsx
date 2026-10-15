@@ -89,7 +89,7 @@ export function PasteBox({
           <span className="font-mono text-xs">Материал ⇥ Кол-во ⇥ Цена без НДС ⇥ НДС% ⇥ Лот ⇥ Сорт ⇥ Цвет</span>
         </p>
         <p className="text-xs text-neutral-500">
-          Лот, сорт, цвет — по желанию; пустой НДС% = по дате закупки (до 2026 — 20, с 2026 — {DEFAULT_PASTE_VAT_RATE}). Пример:{" "}
+          Лот, сорт, цвет — по желанию; пустой НДС% — по дате закупки (до 2026 — 20, с 2026 — {DEFAULT_PASTE_VAT_RATE}). Пример:{" "}
           <span className="font-mono">{EXAMPLE.replace(/\t/g, " ⇥ ")}</span>
         </p>
       </div>

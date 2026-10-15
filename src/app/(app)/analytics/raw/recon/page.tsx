@@ -175,10 +175,10 @@ export default async function ReconPage({ searchParams }: PageProps<"/analytics/
                       <Td className="text-right tabular-nums">{r.lotRecord ? qty(r.lotRecord.rem, r.lotRecord) : <span className="text-red-700">лот не найден</span>}</Td>
                       <Td className="max-w-[22rem] text-xs text-neutral-600">
                         {r.delta < 0
-                          ? `В производственном файле списано на ${formatQty(String(Math.abs(r.delta)))} шт. больше, чем объясняют перечисленные ТЗ — нужен источник списания.`
+                          ? `В файле списано на ${formatQty(String(Math.abs(r.delta)))} шт. больше, чем в ТЗ: нужен источник списания.`
                           : r.delta > 0
-                            ? `По ТЗ должно быть на ${formatQty(String(r.delta))} шт. меньше остатка — нужно проверить, почему расход не отражён в производственном файле.`
-                            : "Историческая строка сходится."}
+                            ? `По ТЗ остаток меньше на ${formatQty(String(r.delta))} шт.: расход не отражён в файле.`
+                            : "Сходится."}
                       </Td>
                     </Tr>
                   ))}

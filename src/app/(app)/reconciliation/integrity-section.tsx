@@ -51,7 +51,7 @@ export async function IntegritySection({ organizationId }: { organizationId: str
       {!r && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">Проверка не выполнилась (подробности в логе сервера). Нажмите «Проверить сейчас».</div>}
       {r && (
         <>
-          <WidgetRow id="integrity" title="Проверка данных — итоги">
+          <WidgetRow id="integrity" title="Итоги">
           <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 xl:grid-cols-5">
             {[
               { k: "Ошибок", v: r.failingErrors, tone: r.failingErrors ? "text-red-700" : "text-emerald-700" },
@@ -81,7 +81,7 @@ export async function IntegritySection({ organizationId }: { organizationId: str
                         <span className="min-w-0 flex-1 text-sm font-medium text-neutral-900">{c.title}</span>
                         <span className={cn("text-xs font-medium", t.cls)}>{t.label}</span>
                         <span className="text-xs tabular-nums text-neutral-600">{magnitude(c)}</span>
-                        <span className="text-xs text-neutral-500">проверено записей: {c.checked}</span>
+                        <span className="text-xs text-neutral-500">записей: {c.checked}</span>
                       </summary>
                       <div className="mt-2 space-y-2 pl-5 text-sm text-neutral-700">
                         <div className="text-xs text-neutral-500">
@@ -90,7 +90,7 @@ export async function IntegritySection({ organizationId }: { organizationId: str
                             <p className="mt-1"><b>Допуск:</b> {c.tolerance}.</p>
                             <p className="mt-1"><b>Где исправлять:</b> {c.fix}</p>
                           </InfoHint>
-                          <span className="ml-1">что проверяется и где исправлять</span>
+                          <span className="ml-1">что проверяется</span>
                         </div>
                         {c.error && <p className="text-red-700">Проверка не выполнилась: {c.error}</p>}
                         {c.violations.length > 0 && (

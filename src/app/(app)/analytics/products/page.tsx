@@ -1,5 +1,4 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { itemsSuffix, tzCountText } from "@/lib/tz-key";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { requireSession } from "@/lib/session";
@@ -296,44 +295,43 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       />
 
       {/* Сводка по статусам ТЗ: плитки в формате Главной */}
-      <WidgetRow id="products" title="Аналитика изделий — итоги">
+      <WidgetRow id="products" title="Итоги">
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="relative">
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
             <TileHead>В выпуске</TileHead>
             <TileValue>{formatQty(sOwn.m.units)} шт.</TileValue>
-            <TileCaption>{tzCountText(sOwn.m.orders, sOwn.m.items)} · {sAll.batches} {sAll.batches === 1 ? "партия" : "партий"} пошива{repairUnits > 0 ? ` · ремонт ${formatQty(repairUnits)} шт. отдельно` : ""}</TileCaption>
+            <TileCaption>{sOwn.m.orders} ТЗ · {sAll.batches} {sAll.batches === 1 ? "партия" : "партий"} пошива</TileCaption>
           </div>
           <div className="absolute right-3 top-3">
             <InfoHint label="Что такое «в выпуске»" wide align="right">
-              <p><b>В выпуске</b> — все ТЗ без отменённых и без ремонта (как на Главной за {year === "all" ? "все годы" : `${year} год`}). Остальные плитки (шкуры, работа, себестоимость, молоток) считаются по всем ТЗ года, включая ремонт, как «Полная себестоимость» на Главной.</p>
+              <p><b>В выпуске</b> — все ТЗ без отменённых и без ремонта (как на Главной за {year === "all" ? "все годы" : `${year} год`}). Остальные плитки считаются по всем ТЗ года, включая ремонт{repairUnits > 0 ? ` (${formatQty(repairUnits)} шт.)` : ""}. {sOwn.m.items} позиций ТЗ.</p>
             </InfoHint>
           </div>
         </div>
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>Шкур</TileHead>
           <TileValue>{formatQty(sAll.m.skins)}</TileValue>
-          <TileCaption>списано в ТЗ</TileCaption>
+          <TileCaption>в ТЗ</TileCaption>
         </div>
         <div className="relative">
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
             <TileHead>Работа</TileHead>
             <TileValue>{formatMoney(sAll.m.work.toFixed(2))}</TileValue>
-            <TileCaption>цена работы по ТЗ × количество</TileCaption>
-          </div>
+            </div>
           <div className="absolute right-3 top-3">
-            <InfoHint label="Что такое работа" align="right">Цена работы по ТЗ × количество (как в «Партиях» и на Главной). В себестоимость на этой странице не входит.</InfoHint>
+            <InfoHint label="Что такое работа" align="right">Цена работы по ТЗ × количество, как в «Партиях» и на Главной. В себестоимость здесь не входит.</InfoHint>
           </div>
         </div>
         <div className="relative">
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
             <TileHead>Себестоимость сырья{c4}</TileHead>
             <TileValue><Money incl={sAll.m.costIncl} excl={sAll.m.costExcl} /></TileValue>
-            <TileCaption>сырьё + подкладка + расходы ТЗ{c4Mode === "on" ? " + 4%" : ""}, без работы{contractorHides > 0.5 ? ` · без шкур подрядчика (${formatMoney(contractorHides.toFixed(2))} с НДС: на Главной входят в мех)` : ""}</TileCaption>
+            <TileCaption>без работы</TileCaption>
           </div>
           <div className="absolute right-3 top-3">
             <InfoHint label="Что в сумме" wide align="right">
-              Сумма по ТЗ, у которых себестоимость известна (больше 0): сырьё и подкладка + расходы ТЗ{c4Mode === "on" ? " + 4%" : ""}. У части ТЗ часто ещё нет списаний — они в сумму не попадают (см. «Качество данных»). Работа в эту плитку не входит — она отдельной плиткой рядом (на Главной «Полная себестоимость (с работой)» считается вместе с работой).
+              Сырьё + подкладка + расходы ТЗ{c4Mode === "on" ? " + 4%" : ""} по ТЗ с известной себестоимостью; ТЗ без списаний не входят («Качество данных»). Работа — отдельной плиткой (на Главной «Полная себестоимость» считается с ней).{contractorHides > 0.5 ? ` Без шкур подрядчика (${formatMoney(contractorHides.toFixed(2))} с НДС): на Главной они входят в мех.` : ""}
             </InfoHint>
           </div>
         </div>
@@ -341,7 +339,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
             <TileHead>Молоток, ср. за шкуру</TileHead>
             <TileValue>{sAll.d.hammerPerSkin ? <Money incl={sAll.d.hammerPerSkin.incl} excl={sAll.d.hammerPerSkin.excl} /> : <span className="text-neutral-500">нет данных</span>}</TileValue>
-            <TileCaption>{sAll.d.hammerPerSkin ? `по шкурам с данными: ${pct0(sAll.d.hammerSkinShare ?? 0)}` : "у лотов нет молотка"}</TileCaption>
+            <TileCaption>{sAll.d.hammerPerSkin ? `по ${pct0(sAll.d.hammerSkinShare ?? 0)} шкур` : "молотка нет"}</TileCaption>
           </div>
           <div className="absolute right-3 top-3">
             <InfoHint label="Молоток в сводке" wide align="right">Средневзвешенно по шкурам с данными (Σ молотка ÷ Σ шкур). Остальные лоты в среднее не входят: доля шкур с данными — под цифрой.</InfoHint>
@@ -353,7 +351,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       {/* Вид таблицы */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-neutral-500">
-          Группировка: <b className="text-neutral-800">{GROUPS[f.g]}{f.g2 ? ` → ${GROUPS[f.g2]}` : ""}</b> · ТЗ: {total.orders}{itemsSuffix(total.orders, total.items)} · единиц: {formatQty(total.units)}
+          <b className="text-neutral-800">{GROUPS[f.g]}{f.g2 ? ` → ${GROUPS[f.g2]}` : ""}</b> · ТЗ {total.orders} · единиц {formatQty(total.units)}
           {total.units === 0 && <span className="ml-2 text-neutral-500">нет данных за выбранный год и фильтры</span>}
         </div>
         <div className="flex flex-wrap items-center gap-2">

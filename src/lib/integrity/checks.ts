@@ -713,7 +713,7 @@ const CHECKS: CheckDef[] = [
         if (!p.verifiedAt) continue;
         n++;
         const ids = [p.id, ...p.items.map((i) => i.id), ...p.payments.map((x) => x.id), ...(h.lotsByPurchase.get(p.id) ?? []).map((l) => l.id)];
-        if (later(ids, p.verifiedAt)) v.push({ key: p.id, message: `${h.ref.purchase(p).label} подтверждена ${p.verifiedAt.toISOString().slice(0, 10)}, но после этого менялась`, delta: null, unit: "", entity: h.ref.purchase(p), href: h.href.purchase(p.id) });
+        if (later(ids, p.verifiedAt)) v.push({ key: p.id, message: `${h.ref.purchase(p).label} подтверждена ${p.verifiedAt.toISOString().slice(0, 10).split("-").reverse().join(".")}, но после этого менялась`, delta: null, unit: "", entity: h.ref.purchase(p), href: h.href.purchase(p.id) });
       }
       for (const o of d.orders) {
         if (!o.verifiedAt) continue;
@@ -724,7 +724,7 @@ const CHECKS: CheckDef[] = [
       for (const b of d.batches) {
         if (!b.verifiedAt) continue;
         n++;
-        if (later([b.id], b.verifiedAt)) v.push({ key: b.id, message: `${h.ref.batch(b).label} подтверждена ${b.verifiedAt.toISOString().slice(0, 10)}, но после этого менялась`, delta: null, unit: "", entity: h.ref.batch(b), href: h.href.batch(b.number) });
+        if (later([b.id], b.verifiedAt)) v.push({ key: b.id, message: `${h.ref.batch(b).label} подтверждена ${b.verifiedAt.toISOString().slice(0, 10).split("-").reverse().join(".")}, но после этого менялась`, delta: null, unit: "", entity: h.ref.batch(b), href: h.href.batch(b.number) });
       }
       return { checked: n, violations: v };
     },
@@ -750,7 +750,7 @@ const CHECKS: CheckDef[] = [
         if (!p.verifiedAt) continue;
         n++;
         const ids = [p.id, ...p.items.map((i) => i.id), ...p.payments.map((x) => x.id), ...(h.lotsByPurchase.get(p.id) ?? []).map((l) => l.id)];
-        if (p.updatedAt.getTime() > p.verifiedAt.getTime() + 60_000 && !later(ids, p.verifiedAt)) v.push({ key: p.id, message: `${h.ref.purchase(p).label} подтверждена ${p.verifiedAt.toISOString().slice(0, 10)}, но запись обновлена позже (updatedAt ${p.updatedAt.toISOString().slice(0, 10)}), а в журнале правок нет`, delta: null, unit: "", entity: h.ref.purchase(p), href: h.href.purchase(p.id) });
+        if (p.updatedAt.getTime() > p.verifiedAt.getTime() + 60_000 && !later(ids, p.verifiedAt)) v.push({ key: p.id, message: `${h.ref.purchase(p).label} подтверждена ${p.verifiedAt.toISOString().slice(0, 10).split("-").reverse().join(".")}, но запись обновлена позже (updatedAt ${p.updatedAt.toISOString().slice(0, 10)}), а в журнале правок нет`, delta: null, unit: "", entity: h.ref.purchase(p), href: h.href.purchase(p.id) });
       }
       for (const o of d.orders) {
         if (!o.verifiedAt) continue;

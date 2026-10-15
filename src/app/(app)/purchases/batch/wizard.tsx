@@ -413,8 +413,8 @@ export function BatchWizard({
 
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={header.receiveNow} onChange={(e) => set("receiveNow", e.target.checked)} />
-                Принять на склад сразу (мех появится в остатке)
-                <span className="text-xs text-neutral-500">— без галочки закупка останется черновиком, мех ещё в пути</span>
+                Принять на склад сразу
+                <span className="text-xs text-neutral-500">без галочки — черновик, мех в пути</span>
               </label>
 
               <details className="rounded-md border border-neutral-200 px-3 py-2">
