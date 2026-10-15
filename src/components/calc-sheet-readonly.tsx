@@ -14,7 +14,7 @@ export function CalcSheetReadonly({ p, t, rows, highlight, showTotals = true, ma
   const sh: Sheet = t.sheet;
   const idx = (rows ?? p.rows.map((_, i) => i)).filter((i) => sh.used[i]);
   return (
-    <div className="scroll-hint overflow-auto rounded-lg border border-neutral-300 bg-white" style={{ maxHeight }}>
+    <div className="table-keep scroll-hint overflow-auto rounded-lg border border-neutral-300 bg-white" style={{ maxHeight }}>
       <table className="border-separate border-spacing-0 text-sm">
         <thead>
           <tr>

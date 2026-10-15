@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 
@@ -10,6 +10,16 @@ const MONTHS = ["янв", "фев", "мар", "апр", "май", "июн", "и�
 const label = (m: string) => `${MONTHS[Number(m.slice(5)) - 1]} ${m.slice(2, 4)}`;
 
 /** Динамика закупок по месяцам: переключатель «шт / ₽» (одна ось, два отдельных графика, не двойная ось). Цвет — один, величина — высота. */
+/** Телефон (<768px): график рисуется в ширину экрана (viewBox ≈ 340), чтобы подписи не уменьшались масштабом. */
+const NARROW_Q = "(max-width: 767px)";
+function useNarrow() {
+  return useSyncExternalStore(
+    (cb) => { const m = window.matchMedia(NARROW_Q); m.addEventListener("change", cb); return () => m.removeEventListener("change", cb); },
+    () => window.matchMedia(NARROW_Q).matches,
+    () => false,
+  );
+}
+
 export function MonthlyChart({ points, unit }: { points: MonthPoint[]; unit: string }) {
   const { mode } = useVatDisplay();
   const [metric, setMetric] = useState<"qty" | "rub">("qty");
@@ -17,7 +27,8 @@ export function MonthlyChart({ points, unit }: { points: MonthPoint[]; unit: str
   const val = (p: MonthPoint) => (metric === "qty" ? p.qty : mode === "excl" ? p.excl : p.incl);
   const fmt = (v: number) => (metric === "qty" ? `${formatQty(v)} ${unit}` : formatMoney(v));
   const max = Math.max(1, ...points.map(val));
-  const W = 640, H = 170, padB = 22, padT = 16;
+  const narrow = useNarrow();
+  const W = narrow ? 340 : 640, H = 170, padB = 22, padT = 16;
   const slot = W / Math.max(points.length, 1);
   const bw = Math.min(28, slot * 0.6);
   const h = hover != null ? points[hover] : null;
@@ -54,8 +65,8 @@ export function MonthlyChart({ points, unit }: { points: MonthPoint[]; unit: str
                 d={`M${x},${H - padB} v${-(bh - r)} q0,${-r} ${r},${-r} h${bw - 2 * r} q${r},0 ${r},${r} v${bh - r} z`}
                 fill={hover === i ? "#115e59" : "#0f766e"}
               />
-              {points.length <= 18 || i % 2 === 0 ? (
-                <text x={i * slot + slot / 2} y={H - 6} textAnchor="middle" fontSize="10" fill="#737373">
+              {(narrow ? i % Math.max(1, Math.ceil(44 / slot)) === 0 : points.length <= 18 || i % 2 === 0) ? (
+                <text x={i * slot + slot / 2} y={H - 6} textAnchor="middle" fontSize={narrow ? 11 : 10} fill="#737373">
                   {label(p.month)}
                 </text>
               ) : null}

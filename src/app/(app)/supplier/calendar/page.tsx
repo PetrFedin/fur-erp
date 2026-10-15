@@ -139,7 +139,7 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
         </ul>
       ) : (
         <div className="overflow-x-auto">
-          <div className="grid min-w-[720px] grid-cols-7 gap-px rounded-md border border-neutral-200 bg-neutral-200 text-xs">
+          <div className="month-grid grid min-w-[720px] grid-cols-7 gap-px rounded-md border border-neutral-200 bg-neutral-200 text-xs">
             {WEEKDAYS.map((w) => <div key={w} className="bg-neutral-50 p-1 text-center font-medium">{w}</div>)}
             {days.map((d) => {
               const list = byDay.get(d) ?? [];

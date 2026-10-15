@@ -170,7 +170,7 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
   };
   return (
     <div className="flex flex-col gap-3">
-      <div className="scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+      <div className="table-keep scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full min-w-[760px] table-fixed text-left">
           <colgroup>
             <col style={{ width: 170 }} />

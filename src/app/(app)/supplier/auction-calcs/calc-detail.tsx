@@ -315,7 +315,7 @@ export function CalcDetail({ p, setP, t, ro, lockReason }: { p: CalcPayload; set
       </section>
 
       <FormulaBar p={p} setP={setP} sh={sh} act={act} ro={ro} lockReason={lockReason ?? null} fillInput={fillDown} />
-      <div ref={tableRef} className="scroll-hint max-h-[75vh] overflow-auto rounded-lg border border-neutral-300 bg-white">
+      <div ref={tableRef} className="table-keep scroll-hint max-h-[75vh] overflow-auto rounded-lg border border-neutral-300 bg-white">
         <table className="border-separate border-spacing-0 text-sm">
           <thead>
             <tr>

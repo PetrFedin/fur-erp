@@ -124,7 +124,7 @@ function MonthTable({ items, filters, my, href, cell, cardHref }: {
   };
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <div className="max-h-[75vh] max-w-full overflow-auto rounded-lg border border-neutral-200 bg-white scroll-hint">
+      <div className="table-keep max-h-[75vh] max-w-full overflow-auto rounded-lg border border-neutral-200 bg-white scroll-hint">
         <table className="border-separate border-spacing-0 text-sm" style={{ minWidth: 160 + (t.cols.length + 1) * COL_W }}>
           <thead>
             <tr>
@@ -260,7 +260,7 @@ function MonthGantt({ items, filters, my, href, cardHref, today, gall, gpage }: 
           <Link href={href({ gall: "1", gp: "" })} className="font-medium text-blue-700 hover:underline">Показать все {total}</Link>
         </div>
       )}
-      <div className="scroll-hint max-h-[75vh] max-w-full overflow-auto rounded-lg border border-neutral-200 bg-white">
+      <div className="table-keep scroll-hint max-h-[75vh] max-w-full overflow-auto rounded-lg border border-neutral-200 bg-white">
         <div style={{ minWidth: 240 + n * COL_W }} className="min-w-full">
           <div className="sticky top-0 z-20 flex border-b border-neutral-200 bg-white">
             <div className={`sticky left-0 z-30 ${LABEL} border-r border-neutral-200 bg-white px-2 py-1.5 text-xs font-medium text-neutral-500`}>ТЗ · артикул · шт.</div>

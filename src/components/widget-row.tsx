@@ -42,15 +42,15 @@ export function WidgetRow({ id, title = "Виджеты", children, className = 
       data-widget-row
       className={(pinned ? "sticky top-0 z-30 -mx-3 border-b border-neutral-200 bg-white/95 px-3 pb-2 pt-1 shadow-sm backdrop-blur max-sm:max-h-[40vh] max-sm:overflow-y-auto md:-mx-6 md:px-6 print:static print:shadow-none " : "") + "flex flex-col gap-2 " + className}
     >
-      <div className="flex items-start justify-between gap-2 print:hidden">
+      <div className="flex items-start justify-between gap-2 max-sm:flex-wrap print:hidden">
         <button type="button" onClick={toggleCollapsed} aria-expanded={!collapsed} data-touch-ok
           className={"inline-flex min-w-0 items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-900 " + titleClass}>
           <span aria-hidden className={"inline-block w-3 transition-transform " + (collapsed ? "" : "rotate-90")}>›</span>
           <span className="text-left max-sm:break-words sm:truncate">{title}</span>
         </button>
         {headerExtra ? <div className="flex min-w-0 flex-1 items-center gap-2">{headerExtra}</div> : null}
-        <div className={"flex shrink-0 gap-2 " + (headerEnd ? "flex-col items-end gap-1" : "items-center")}>
-          {headerEnd ? <div className="flex h-7 items-center">{headerEnd}</div> : null}
+        <div className={"flex shrink-0 gap-2 max-sm:min-w-0 max-sm:shrink " + (headerEnd ? "flex-col items-end gap-1 max-sm:w-full max-sm:items-start" : "items-center")}>
+          {headerEnd ? <div className="flex h-7 items-center max-sm:h-auto max-sm:min-w-0 max-sm:min-h-7">{headerEnd}</div> : null}
           <div className="flex items-center gap-2">
           <button type="button" onClick={toggleCollapsed} data-touch-ok aria-label={collapsed ? "Развернуть виджеты" : "Свернуть виджеты"} title={collapsed ? "Развернуть" : "Свернуть"}
             className={btn + " w-7 justify-center border-neutral-200 bg-white text-neutral-600"}><svg aria-hidden viewBox="0 0 16 16" className={"h-3.5 w-3.5 transition-transform " + (collapsed ? "rotate-180" : "")} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 10 8 5.5 12.5 10" /></svg></button>
