@@ -187,7 +187,7 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
 
       {canEdit && (
         <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-          <summary className="cursor-pointer text-sm font-medium">+ Добавить запись в план</summary>
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">+ Добавить запись в план</summary>
           <div className="mt-3">
             <AddSupplyPlanForm models={allModels} />
           </div>

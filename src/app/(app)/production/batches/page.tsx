@@ -273,8 +273,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 {formatQty(t.producedUnits.toString())}
                 {b.plannedUnits != null && <span className="block text-xs text-neutral-500">план {b.plannedUnits}</span>}
               </Td>
-              <Td className="hidden whitespace-nowrap md:table-cell">{t.cost.isZero() ? "—" : formatMoney(t.cost.toString())}
-                {c4Mode === "on" && !t.c4Applies && !t.cost.isZero() && <span className="block text-xs text-neutral-500">без 4%</span>}
+              <Td className="hidden whitespace-nowrap md:table-cell" title={c4Mode === "on" && !t.c4Applies && !t.cost.isZero() ? "4% не начислены" : undefined}>{t.cost.isZero() ? "—" : formatMoney(t.cost.toString())}
                 <TzVatBadge b={vatBreakdown(b.orders.filter((o) => o.status !== "CANCELLED").flatMap((o) => o.materialUsages), c4Mode)} compact hint={false} />
               </Td>
               <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() ? "—" : formatMoney(t.work.toString())}</Td>

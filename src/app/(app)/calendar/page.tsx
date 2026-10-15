@@ -402,7 +402,6 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         {[...byAction.entries()].map(([a, q]) => (
           <span key={a} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${actionDef(a).chip}`}>{a}: {formatQty(q)}</span>
         ))}
-        {periodTotal === 0 && <span className="text-neutral-500">Событий нет{year !== "all" ? ` (год ${year})` : ""}.</span>}
       </div>
       <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
         {CALENDAR_ACTIONS.map((a) => <span key={a.label} className="inline-flex items-center gap-1"><i className={`size-2 rounded-full ${a.dot}`} />{a.label}</span>)}

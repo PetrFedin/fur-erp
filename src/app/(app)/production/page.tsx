@@ -422,7 +422,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                 fields={[
                   {
                     label: <VatLabel base={`Себестоимость с работой${c4}`} />,
-                    value: full.incl.isZero() ? "—" : <><Money incl={full.incl} excl={full.excl} />{st.noC4 ? <span className="block whitespace-nowrap text-[11px] font-normal text-neutral-400">без 4%: <Money incl={st.noC4.incl} excl={st.noC4.excl} /></span> : null}</>,
+                    value: full.incl.isZero() ? "—" : <><Money incl={full.incl} excl={full.excl} /></>,
                     strong: true,
                   },
                   { label: "Изделий", value: st.units > 0 ? `${formatQty(st.units)} шт.` : "—" },
@@ -446,8 +446,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             const link = "block px-3 py-2";
             const num = `${cell} text-right tabular-nums`;
             const dash = <span className="text-neutral-300">—</span>;
-            const sub = (n: { incl: Decimal; excl: Decimal } | null) =>
-              n ? <span className="block whitespace-nowrap text-[11px] font-normal text-neutral-400">без 4%: <Money incl={n.incl} excl={n.excl} /></span> : null;
+            // «Без 4%» — не на экране, а в подсказке при наведении.
+            const nt = (n: { incl: Decimal; excl: Decimal } | null) => (n ? { title: `Без 4%: ${formatMoney(Math.round(n.incl.toNumber()))} ₽ с НДС` } : {});
             const tr = (
               <Tr key={o.id} className={child ? "cursor-pointer bg-neutral-50/70" : "cursor-pointer"}>
                 <Td className={`${cell} font-medium`}>
@@ -476,14 +476,13 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                 </Td>
                 <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.units > 0 ? formatQty(st.units) : dash}</Link></Td>
                 <Td className={num}><Link href={href} className={link}>{st.hides > 0 ? formatQty(st.hides) : dash}</Link></Td>
-                <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.fur.incl.isZero() ? dash : <Money incl={st.fur.incl} excl={st.fur.excl} />}{sub(st.furNoC4)}</Link></Td>
+                <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link} {...nt(st.furNoC4)}>{st.fur.incl.isZero() ? dash : <Money incl={st.fur.incl} excl={st.fur.excl} />}</Link></Td>
                 <Td className={num}><Link href={href} className={link}>{st.liningQty > 0 ? formatQty(st.liningQty) : dash}</Link></Td>
-                <Td className={num}><Link href={href} className={link}>{st.lining.incl.isZero() ? dash : <Money incl={st.lining.incl} excl={st.lining.excl} />}{sub(st.liningNoC4)}</Link></Td>
+                <Td className={num}><Link href={href} className={link} {...nt(st.liningNoC4)}>{st.lining.incl.isZero() ? dash : <Money incl={st.lining.incl} excl={st.lining.excl} />}</Link></Td>
                 <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.work > 0 ? formatMoney(Math.round(st.work)) : dash}</Link></Td>
                 <Td className={`${num} font-medium`}>
-                  <Link href={href} className={link}>
+                  <Link href={href} className={link} {...nt(st.noC4)}>
                     {full.incl.isZero() ? dash : <Money incl={full.incl} excl={full.excl} />}
-                    {sub(st.noC4)}
                   </Link>
                 </Td>
                 <Td className={cell}><Link href={href} className={`${link} whitespace-nowrap`}><TzVatBadge b={vatB} compact hint={false} /></Link></Td>

@@ -100,7 +100,7 @@ export default async function SeasonsOrdersPage({ searchParams }: PageProps<"/pl
         <Card>
           <CardContent className="flex flex-col gap-2 py-6">
             <p className="text-sm text-neutral-500">Сезонов ещё нет.</p>
-            <p className="text-sm text-neutral-500">Сначала заведите сезон на странице «План заказа» (блок «Сезоны» внизу), затем здесь присвойте сезон ТЗ.</p>
+            <p className="text-sm text-neutral-500">Сначала заведите сезон в «Плане заказа».</p>
             <Link href="/plan#seasons" className={buttonVariants({ variant: "default" }) + " self-start"}>Завести сезон</Link>
           </CardContent>
         </Card>

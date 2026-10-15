@@ -72,9 +72,8 @@ export function TzBreakdown({ orders, meta, latestId, c4 }: { orders: DrillOrder
             <tbody>
               {totalsRows.map((r) => (
                 <tr key={r.label} className="border-b border-neutral-100">
-                  <th scope="row" className="py-1.5 pr-3 text-left font-normal">
+                  <th scope="row" className="py-1.5 pr-3 text-left font-normal" title={r.src}>
                     {r.label}
-                    <span className="block text-[11px] leading-4 text-neutral-500">{r.src}</span>
                   </th>
                   <td className="py-1.5 text-right align-top font-medium tabular-nums">{r.value}</td>
                 </tr>

@@ -10,7 +10,7 @@ import { TileCaption, TileList, TileValue } from "@/app/(app)/dashboard/tile";
 export const PROD_GROUPS = ["Одежда", "Аксессуары"] as const;
 
 const money = (v: number) => formatMoney(v.toFixed(2));
-const share = (v: number, t: number) => (t ? v / t : null);
+const share = (v: number, t: number) => (t && Math.abs(v) > 0.005 ? v / t : null);
 const pctText = (v: number, t: number) => (t ? formatShare(v / t) : "—");
 
 const Empty = ({ loading }: { loading?: boolean }) => (

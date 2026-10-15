@@ -110,7 +110,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
 
       {isEmpty ? (
         <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-10 text-center text-sm text-neutral-500">
-          <p>Примерок пока нет. Здесь записывают итог примерки изделия по ТЗ и прикладывают фото.</p>
+          <p>Примерок пока нет.</p>
           {canEdit && (
             <Link href="/fittings/new" className={buttonVariants() + " btn-accent"}>
               + Примерка

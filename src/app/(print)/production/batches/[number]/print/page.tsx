@@ -113,7 +113,7 @@ export default async function BatchPrintPage({
             )}
             <tr>
               <td className={td + " font-semibold"} colSpan={3}>
-                Итого (без отменённых)
+                Итого
               </td>
               <td className={tdr + " font-semibold"}>{formatQty(t.producedUnits.toString())}</td>
               <td className={tdr + " font-semibold"}>{formatMoney(t.cost.toString())}</td>
@@ -130,11 +130,11 @@ export default async function BatchPrintPage({
               <td className={tdr}>{t.orders}{itemsSuffix(t.orders, t.items)}</td>
             </tr>
             <tr>
-              <td className={td}>В выпуске (все ТЗ без отменённых и без ремонта)</td>
+              <td className={td}>В выпуске, шт.</td>
               <td className={tdr}>{formatQty(t.producedUnits.toString())}</td>
             </tr>
             <tr>
-              <td className={td}>Себестоимость сырья{c4} (без работы)</td>
+              <td className={td}>Себестоимость сырья{c4}</td>
               <td className={tdr}>{formatMoney(t.cost.toString())}</td>
             </tr>
             <tr>
@@ -151,7 +151,7 @@ export default async function BatchPrintPage({
             </tr>
           </tbody>
         </table>
-        <p className="mt-1 text-right text-[11px] text-neutral-600">Суммы с НДС. Распечатано {formatDate(new Date())}.</p>
+        <p className="mt-1 text-right text-[11px] text-neutral-600">Суммы с НДС, без отменённых ТЗ. Распечатано {formatDate(new Date())}.</p>
       </article>
     </>
   );

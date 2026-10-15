@@ -171,7 +171,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
       {emptyPlan && (
         <Card>
           <CardContent className="flex flex-col gap-3 py-6">
-            <p className="text-sm text-neutral-500">План заказа пока пуст. {canEdit ? "Добавьте первую позицию: артикул, цвет, вид меха и количество по размерам." : "Позиций плана пока нет."}</p>
+            <p className="text-sm text-neutral-500">Позиций пока нет.</p>
             {canEdit && (
               <details>
                 <summary className={buttonVariants({ variant: "default" }) + " inline-flex cursor-pointer list-none"}>+ Добавить позицию плана</summary>
@@ -373,7 +373,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {seasons.length === 0 && <p className="text-sm text-neutral-500">Сезонов пока нет — добавьте первый, чтобы разнести ТЗ по сезонам.</p>}
+          {seasons.length === 0 && <p className="text-sm text-neutral-500">Сезонов пока нет.</p>}
           {canEdit ? seasons.map((s) => <SeasonEditForm key={s.id} season={s} />) : seasons.map((s) => <div key={s.id} className="text-sm font-medium">{s.code}{s.name ? ` — ${s.name}` : ""}</div>)}
           {canEdit && (seasons.length === 0 ? (
             <details>

@@ -144,7 +144,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   const lastText = (r: Row) => (r.last ? [`${r.last.title} · ${fmtWall(r.last.occurredAt, r.last.timeKnown)}`, respOf(r.last)].filter(Boolean).join(" · ") : "");
   const share = (part: number, whole: number, what: string) => {
     const s = shareOf(part, whole);
-    return s == null ? undefined : `${formatShare(s)} ${what}`.trim();
+    return s == null || part === 0 ? undefined : `${formatShare(s)} ${what}`.trim();
   };
 
   const createButton = canEdit ? (

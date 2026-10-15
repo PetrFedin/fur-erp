@@ -413,7 +413,7 @@ function FormBody({
             );
           })}
           {ls.length === 0 && (
-            <tr><td colSpan={8} className="px-2 py-3 text-center text-neutral-500">{kind === "fur" ? "Мех не добавлен — «+ Лот меха» или вставьте из Excel" : "Подкладка не добавлена (можно добавить позже на карточке)"}</td></tr>
+            <tr><td colSpan={8} className="px-2 py-3 text-center text-neutral-500">{kind === "fur" ? "Мех не добавлен" : "Подкладка не добавлена"}</td></tr>
           )}
         </tbody>
       </table>
@@ -459,7 +459,7 @@ function FormBody({
                 {model.retailPrice ? ` · цена продажи ${formatMoney(model.retailPrice)} — перейдёт в ТЗ` : " · цена продажи не задана"}
               </p>
             ) : (
-              <p className="mt-1 text-xs text-neutral-400">Категория и группа подтянутся из артикула</p>
+              <p className="mt-1 text-xs text-neutral-400">Категория и группа — из артикула</p>
             )}
           </Field>
     <Field htmlFor="workOrderNumber" label="№ ТЗ" hint="Предложен следующий свободный номер (наибольший числовой + 1); можно изменить. Если номер уже есть, перед сохранением спросим: позиции одного ТЗ допустимы.">
@@ -591,7 +591,7 @@ function FormBody({
           >
             + ещё артикул
           </Button>
-          <span className="ml-2 text-xs text-neutral-500">Общие поля (№ ТЗ, дата, заказчик, договор, партия) одни на все позиции.</span>
+          <span className="ml-2 text-xs text-neutral-500">Общие поля — на все позиции.</span>
         </div>
       </Step>
 
@@ -632,7 +632,7 @@ function FormBody({
             <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={() => setExps((p) => [...p, { key: nextKey(), categoryId: "", amount: "", desc: "" }])}>+ Расход</Button>
           </div>
           {exps.length === 0 ? (
-            <p className="text-sm text-neutral-500">Расходов нет — фурнитура, оплата труда и прочее можно добавить сейчас или позже на карточке.</p>
+            <p className="text-sm text-neutral-500">Расходов нет.</p>
           ) : (
             <div className="flex flex-col gap-2">
               {exps.map((x, i) => (

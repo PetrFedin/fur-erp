@@ -70,7 +70,7 @@ export function SizeChart({ rows }: { rows: SizeRow[] }) {
                 </tr>
               </tfoot>
             </table>
-            {known <= 0 && <p className="mt-2 text-sm text-neutral-600">В лотах этого артикула размер шкур не записан — разбить по размерам нечего.</p>}
+            {known <= 0 && <p className="mt-2 text-sm text-neutral-600">Размер шкур в лотах не записан.</p>}
           </>
         )}
       </CardContent>
