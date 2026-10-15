@@ -8,7 +8,7 @@ import { loadSupplierAuction } from "@/lib/supplier-auction";
 import { calcAll, ensureRowIds } from "@/lib/supplier-calc";
 import { buildStatement, groupLines, type Statement } from "@/lib/auction-statement";
 import { readSort } from "@/lib/table-sort";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatRate } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { AttachDocument } from "../attach";
 import { RawStagesBlock } from "@/components/raw-stages";
@@ -93,7 +93,11 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
   const facts: [string, React.ReactNode][] = [
     ["Аукционный дом", h?.seller || h?.auction || p.auction],
     ["Дата", formatDate(p.orderDate)],
-    ["Валюта и курс", `${p.currency}${h?.cbRate ? `, курс ЦБ ${h.cbRate}${h.agentPct ? ` + ${h.agentPct}%` : ""}` : p.rate !== 1 ? `, курс ${p.rate}` : ""}`],
+    ["Валюта и курс", t && t.rate > 0 ? (
+      <span key="rate" className="inline-flex items-center gap-1.5">{p.currency}, курс {formatRate(t.rate)}
+        {h?.cbRate ? <InfoHint label="Из чего курс">Курс, по которому считается себестоимость. Курс ЦБ на дату: {h.cbRate}{h.agentPct ? `; надбавка агента ${h.agentPct}%` : ""}.</InfoHint> : null}
+      </span>
+    ) : `${p.currency}${p.rate !== 1 ? `, курс ${formatRate(p.rate)}` : ""}`],
     ["Счета", invoices.map((i) => i.invoice || i.number).join(", ")],
     ...(t && payload ? ([
       ["Шкур", num(t.qty)],

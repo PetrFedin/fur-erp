@@ -12,7 +12,7 @@ import { cleanSearch } from "@/lib/input";
 import { Clamp } from "@/components/clamp";
 import { SortTh } from "@/components/sort-th";
 import { readSort, sortRows } from "@/lib/table-sort";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatRate } from "@/lib/utils";
 import { AttachDocument } from "./attach";
 import { RawChip } from "@/components/raw-stages";
 import { summarizeStages, summaryLine, sortStages, ruShort, STAGE_NAME, STAGE_STATUS_LABEL, type StageStatusKey } from "@/lib/raw-stage";
@@ -193,7 +193,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                           <span>шкур <b>{num(x.qty)}</b></span>
                           <span>итого <b>{money(x.total)} ₽</b></span>
                           <span>за шкуру <b>{money(x.avg)} ₽</b></span>
-                          {x.rate > 0 && <span>курс <b>{x.rate.toLocaleString("ru-RU", { maximumFractionDigits: 6 })}</b></span>}
+                          {x.rate > 0 && <span>курс <b>{formatRate(x.rate)}</b></span>}
                           {x.vat && <span>НДС <b>{x.vat}%</b></span>}
                           {x.advance > 0 && <span>аванс <b>{money(x.advance)} ₽</b></span>}
                           {x.interim > 0 && <span>платёж <b>{money(x.interim)} ₽</b></span>}
