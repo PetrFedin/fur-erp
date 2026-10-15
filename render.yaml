@@ -1,0 +1,46 @@
+# Демо-стенд для внешних тестировщиков на Render (бесплатно): New -> Blueprint -> выбрать этот репозиторий -> Apply.
+# Подробно: docs/HOSTING-FREE.md. Обезличенная демо-база вшита в образ и загружается сама при первом старте.
+services:
+  - type: web
+    name: fur-erp-demo
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    branch: main
+    autoDeploy: false # стенд меняется только кнопкой Manual Deploy, а не при каждом push
+    healthCheckPath: /healthz
+    envVars:
+      - key: DEMO_BUILD # попадает в сборку: вшитые реальные справочники заменяются пустыми
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fur-erp-demo-db
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: GATE_USER
+        value: tester
+      - key: GATE_PASS # пароль общего замка; значение смотрите в Environment сервиса
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_TRUST_HOST
+        value: "true"
+      - key: ALLOW_REGISTRATION
+        value: "false"
+      - key: ALLOW_DEMO_LOGIN
+        value: "false"
+      - key: ALLOW_ROLE_SWITCH
+        value: "false"
+      - key: UPLOAD_DIR
+        value: /tmp/uploads
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=192
+
+databases:
+  - name: fur-erp-demo-db
+    plan: free
+    databaseName: fur_erp_demo
+    user: fur_erp
+    ipAllowList: [] # доступ к базе только изнутри Render

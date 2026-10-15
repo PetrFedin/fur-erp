@@ -19,6 +19,7 @@ backups
 *.tar.gz
 *.sql
 *.sql.gz
+!deploy/demo/demo.sql.gz
 *.pem
 *.key
 # Служебное

@@ -20,6 +20,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runner
     restart: unless-stopped
     depends_on:
       db:
