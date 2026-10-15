@@ -405,7 +405,7 @@ export function FurSelectionTotal({
               {o.lot ? (
                 <InfoHint label="Источник молотка" align="right">{o.lot.hammerSource ? `Молоток: ${o.lot.hammerSource}.` : "Нет цены в $/молотка в расчёте лота."}</InfoHint>
               ) : f.hammerAvg != null && f.hammerQty > 0 && f.recvQty - f.hammerQty > 0.0005 ? (
-                <div className="text-[10px] font-normal leading-tight text-neutral-500" title={`Цена в $ есть у ${f.hammerLots} из ${f.lots} лотов`}>по части</div>
+                <div className="text-[10px] font-normal leading-tight text-neutral-500" title={`Цена в $ есть у ${f.hammerLots} из ${f.lots} лотов`}>{f.hammerLots} / {f.lots} лот.</div>
               ) : null}
             </Num>
           )}
@@ -418,7 +418,7 @@ export function FurSelectionTotal({
   const usdNote = (key: string, f: FlowFigures) => {
     const have = key === "recv" ? f.usdQty : key === "used" ? f.usdUsedQty : f.usdRemQty;
     const all = key === "recv" ? f.recvQty : key === "used" ? f.usedQty : f.remQty;
-    return have > 0 && all - have > 0.0005 ? <div className="text-[10px] font-normal leading-tight text-neutral-500" title={`Цена в $ есть у ${formatQty(have)} из ${formatQty(all)}`}>по части</div> : null;
+    return have > 0 && all - have > 0.0005 ? <div className="text-[10px] font-normal leading-tight text-neutral-500" title={`Цена в $ есть у ${formatQty(have)} из ${formatQty(all)}`}>{formatQty(have)} / {formatQty(all)}</div> : null;
   };
   const nCols = 1 + totalCols;
   // Ширины колонок рассчитаны под Inter (он шире Arial): сумма до 9 знаков + ₽ влезает без слипания с соседней колонкой.
