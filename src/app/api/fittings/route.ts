@@ -15,6 +15,10 @@ export async function POST(request: Request) {
   }
   const orgId = session.user.organizationId;
 
+  // Ограничение размера тела до чтения: multipart целиком попадает в память (без обратного прокси лимита нет).
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (declared > 60 * 1024 * 1024) return Response.json({ error: "Слишком большой запрос" }, { status: 413 });
+
   let form: FormData;
   try {
     form = await request.formData();

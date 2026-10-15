@@ -4,6 +4,7 @@ import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole, requireSession } from "@/lib/session";
 import { loadBudgetStats } from "@/lib/budget-stats";
+import { assertSafeZip } from "@/lib/zip-guard";
 import { DEFAULT_PARAMS, autoCalc, computeTree, grandTotal, nowPerUnit, perUnit, varPct, parseNodes, templateNodes, type BudgetNode, type BudgetParams, type BudgetStat, type NodeSrc } from "@/lib/budget-calc";
 
 const EDIT = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
@@ -240,7 +241,9 @@ export async function parseBudgetFile(fd: FormData): Promise<Res<{ rows: ImportR
     } else if (name.endsWith(".xlsx")) {
       const ExcelJS = (await import("exceljs")).default;
       const wb = new ExcelJS.Workbook();
-      await wb.xlsx.load(await file.arrayBuffer());
+      const xbuf = await file.arrayBuffer();
+      assertSafeZip(xbuf);
+      await wb.xlsx.load(xbuf);
       const ws = wb.worksheets.find((w) => /прикидка/i.test(w.name)) ?? wb.worksheets[0];
       if (!ws) return { ok: false, error: "В файле нет листов" };
       sheet = ws.name;

@@ -1,6 +1,7 @@
 import "server-only";
 import { inflateSync } from "node:zlib";
 import JSZip from "jszip";
+import { assertSafeZip } from "@/lib/zip-guard";
 import { parseTableFile } from "@/lib/table-file";
 
 /**
@@ -16,6 +17,7 @@ const decodeXml = (s: string) =>
   s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
 
 async function docxText(buf: Buffer): Promise<string> {
+  assertSafeZip(buf);
   const zip = await JSZip.loadAsync(buf);
   const f = zip.file("word/document.xml");
   if (!f) return "";

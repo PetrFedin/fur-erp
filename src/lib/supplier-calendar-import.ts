@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { assertSafeZip } from "@/lib/zip-guard";
 import { SUP_STAGES } from "@/lib/supplier-calendar";
 
 /** Одна строка предпросмотра импорта из «Таблицы по запуску изделий» Веллмеха. */
@@ -38,6 +39,7 @@ function dateOf(v: unknown): string {
 export async function parseLaunchTable(buf: Buffer): Promise<{ rows: ImportRow[]; skipped: number; error?: string }> {
   const wb = new ExcelJS.Workbook();
   try {
+    assertSafeZip(buf);
     await wb.xlsx.load(buf as unknown as ArrayBuffer);
   } catch {
     return { rows: [], skipped: 0, error: "Не удалось прочитать файл: нужен Excel (.xlsx)" };

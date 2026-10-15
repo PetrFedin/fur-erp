@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { passwordProblem } from "@/lib/password-policy";
 import { randomBytes } from "crypto";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -110,7 +111,8 @@ export async function createCabinetAccess(supplierId: string, _p: ContractorForm
   const typed = String(fd.get("password") ?? "");
   if (!z.string().email().safeParse(email).success) return { error: "Некорректный email" };
   if (name.length < 2) return { error: "Укажите имя пользователя кабинета" };
-  if (typed && typed.length < 8) return { error: "Пароль — минимум 8 символов" };
+  const weak = typed ? passwordProblem(typed, email) : null;
+  if (weak) return { error: weak };
   const sup = await prisma.supplier.findFirst({ where: { id: supplierId, organizationId: s.user.organizationId, isActive: true }, select: { id: true } });
   if (!sup) return { error: "Подрядчик не найден или в архиве" };
   if (await prisma.user.findUnique({ where: { email }, select: { id: true } })) return { error: "Пользователь с таким email уже существует" };

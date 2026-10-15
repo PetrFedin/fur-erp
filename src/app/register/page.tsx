@@ -87,8 +87,8 @@ export default function RegisterPage() {
           autoComplete="new-password"
           invalid={invalid("password")}
           errorId="register-error"
-          minLength={8}
-          hint="Минимум 8 символов"
+          minLength={10}
+          hint="Минимум 10 символов"
         />
 
         {state.error && <FormError id="register-error">{state.error}</FormError>}

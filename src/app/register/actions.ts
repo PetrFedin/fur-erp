@@ -4,12 +4,14 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signIn } from "@/auth";
+import { passwordProblem } from "@/lib/password-policy";
+import { registrationAllowed } from "@/lib/security-env";
 
 const registerSchema = z.object({
   companyName: z.string().trim().min(2, "Укажите название компании"),
   name: z.string().trim().min(2, "Укажите ваше имя"),
   email: z.string().trim().toLowerCase().email("Некорректный email"),
-  password: z.string().min(8, "Минимум 8 символов"),
+  password: z.string().min(10, "Минимум 10 символов"),
 });
 
 function slugify(input: string) {
@@ -47,7 +49,7 @@ export async function registerOrganization(
     name: String(formData.get("name") ?? ""),
     email: String(formData.get("email") ?? ""),
   };
-  if (process.env.ALLOW_REGISTRATION === "false") return { error: "Регистрация закрыта. Попросите администратора создать вам доступ.", values };
+  if (!registrationAllowed()) return { error: "Регистрация закрыта. Попросите администратора создать вам доступ.", values };
   const parsed = registerSchema.safeParse({
     companyName: formData.get("companyName"),
     name: formData.get("name"),
@@ -66,6 +68,8 @@ export async function registerOrganization(
   }
 
   const { companyName, name, email, password } = parsed.data;
+  const weak = passwordProblem(password, email);
+  if (weak) return { error: weak, field: "password", values };
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {

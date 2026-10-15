@@ -61,15 +61,28 @@ export const FUNCS: Record<string, { min: number; max: number }> = {
 const FUNC_ALIAS: Record<string, string> = { ОКРУГЛ: "ROUND", МИН: "MIN", МАКС: "MAX", ЕСЛИ: "IF", СУММ: "SUM", СРЗНАЧ: "AVERAGE", ПРОМЕЖУТОЧНЫЕ_ИТОГИ: "SUBTOTAL", ABS: "ABS" };
 const funcName = (n: string) => { const u = n.toUpperCase(); return FUNCS[u] ? u : FUNC_ALIAS[u] ?? null; };
 
+/** Пределы разбора: формулы приходят из браузера и из загруженных файлов — длинная или глубоко вложенная формула не должна валить сервер. */
+const MAX_FORMULA_LEN = 2000;
+const MAX_FORMULA_TOKENS = 600;
+const MAX_FORMULA_DEPTH = 40;
+
 export function parseFormula(src: string): Node {
+  if (src.length > MAX_FORMULA_LEN) throw new FormulaError(`Формула слишком длинная (не больше ${MAX_FORMULA_LEN} знаков)`);
   const toks = tokenize(src);
   if (toks.length === 0) throw new FormulaError("Формула пустая");
+  if (toks.length > MAX_FORMULA_TOKENS) throw new FormulaError("В формуле слишком много элементов");
   let i = 0;
+  let depth = 0;
+  const enter = () => { if (++depth > MAX_FORMULA_DEPTH) throw new FormulaError("Слишком глубокая вложенность в формуле"); };
   const peek = () => toks[i];
   const isOp = (v: string) => peek()?.t === "op" && (peek() as { v: string }).v === v;
   const expect = (v: string) => { if (!isOp(v)) throw new FormulaError(`Ожидалась «${v}»${peek() ? ` вместо «${(peek() as { v: string | number }).v}»` : " в конце формулы"}`); i++; };
 
   function cmp(): Node {
+    enter();
+    try { return cmp0(); } finally { depth--; }
+  }
+  function cmp0(): Node {
     let l = add();
     while (peek()?.t === "op" && [">", "<", ">=", "<=", "=", "<>"].includes((peek() as { v: string }).v)) {
       const op = (toks[i++] as { v: string }).v;
@@ -88,6 +101,10 @@ export function parseFormula(src: string): Node {
     return l;
   }
   function unary(): Node {
+    enter();
+    try { return unary0(); } finally { depth--; }
+  }
+  function unary0(): Node {
     if (isOp("-")) { i++; return { t: "neg", e: unary() }; }
     if (isOp("+")) { i++; return unary(); }
     let e = primary();

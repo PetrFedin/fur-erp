@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { passwordProblem } from "@/lib/password-policy";
 import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -22,7 +23,7 @@ const ROLE_VALUES = [
 const createSchema = z.object({
   name: z.string().trim().min(2, "Укажите имя").max(200, "Имя слишком длинное"),
   email: z.string().trim().toLowerCase().email("Некорректный email"),
-  password: z.string().min(8, "Минимум 8 символов").max(200, "Пароль слишком длинный"),
+  password: z.string().min(10, "Минимум 10 символов").max(200, "Пароль слишком длинный"),
   role: z.enum(ROLE_VALUES),
   /** Только для роли SUPPLIER: чей это кабинет. */
   supplierId: z.string().trim().max(64).optional(),
@@ -43,6 +44,8 @@ export async function createUser(
     supplierId: formData.get("supplierId") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const weak = passwordProblem(parsed.data.password, parsed.data.email);
+  if (weak) return { error: weak };
   if (parsed.data.role === "OWNER" && session.user.role !== "OWNER") {
     return { error: "Только владелец может создавать пользователей с ролью «Владелец»" };
   }

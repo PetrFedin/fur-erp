@@ -1,5 +1,6 @@
 import "server-only";
 import JSZip from "jszip";
+import { assertSafeZip } from "@/lib/zip-guard";
 
 /**
  * Читает таблицу из CSV/TXT (разделитель «;», «,» или табуляция, кавычки, BOM) или Excel .xlsx (первый лист)
@@ -58,6 +59,7 @@ function colIndex(ref: string): number {
 
 /** Общие строки книги и список файлов листов по порядку. */
 async function xlsxParts(buf: Buffer) {
+  assertSafeZip(buf);
   const zip = await JSZip.loadAsync(buf);
   const shared: string[] = [];
   const ss = zip.file("xl/sharedStrings.xml");

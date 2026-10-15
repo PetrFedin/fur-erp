@@ -1,5 +1,6 @@
 import "server-only";
 import JSZip from "jszip";
+import { assertSafeZip } from "@/lib/zip-guard";
 
 /**
  * Отрисованный текст DOCX и таблицы XLSX для окна DocViewer (без тяжёлых пакетов: только zip + разбор XML).
@@ -46,6 +47,7 @@ function runsText(xml: string): string {
 }
 
 export async function extractDocx(buf: Buffer): Promise<DocContent> {
+  assertSafeZip(buf);
   const zip = await JSZip.loadAsync(buf);
   const xml = await part(zip, "word/document.xml");
   if (!xml) return { kind: "text", text: "" };
@@ -63,6 +65,7 @@ function colIndex(ref: string): number {
 }
 
 export async function extractXlsx(buf: Buffer): Promise<DocContent> {
+  assertSafeZip(buf);
   const zip = await JSZip.loadAsync(buf);
   const shared: string[] = [];
   const ss = await part(zip, "xl/sharedStrings.xml");

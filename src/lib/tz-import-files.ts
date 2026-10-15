@@ -1,11 +1,13 @@
 import "server-only";
 import JSZip from "jszip";
+import { assertSafeZip } from "@/lib/zip-guard";
 import { inflateSync } from "node:zlib";
 import { parseTableFile } from "@/lib/table-file";
 import { draftsFromTable, draftsFromText, type TzDraft } from "@/lib/tz-import-core";
 
 /** Текст из .docx: абзацы — строки, ячейки таблицы — через табуляцию. */
 export async function docxText(buf: Buffer): Promise<string> {
+  assertSafeZip(buf);
   const zip = await JSZip.loadAsync(buf);
   const f = zip.file("word/document.xml");
   if (!f) return "";

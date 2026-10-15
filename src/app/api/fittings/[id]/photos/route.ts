@@ -19,6 +19,8 @@ export async function POST(request: Request, ctx: RouteContext<"/api/fittings/[i
   });
   if (!fitting) return Response.json({ error: "Примерка не найдена" }, { status: 404 });
 
+  if (Number(request.headers.get("content-length") ?? 0) > 60 * 1024 * 1024) return Response.json({ error: "Слишком большой запрос" }, { status: 413 });
+
   let form: FormData;
   try {
     form = await request.formData();

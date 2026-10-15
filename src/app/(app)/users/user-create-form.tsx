@@ -32,7 +32,7 @@ export function UserCreateForm({ suppliers }: { suppliers: { id: string; name: s
       </div>
       <div>
         <Label htmlFor="password">Пароль</Label>
-        <Input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" />
+        <Input id="password" name="password" type="password" required minLength={10} autoComplete="new-password" />
       </div>
       <div>
         <Label htmlFor="role">Роль</Label>

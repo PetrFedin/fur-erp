@@ -3,19 +3,17 @@
 import { headers } from "next/headers";
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
-import { loginKey, lockedSeconds, recordFailure, recordSuccess } from "@/lib/rate-limit";
+import { clientIpFrom, loginKeys, lockedSeconds } from "@/lib/rate-limit";
 
 export type LoginState = { error?: string; email?: string };
 
 async function clientIp() {
-  const h = await headers();
-  const fwd = h.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return (fwd || h.get("x-real-ip") || "unknown").slice(0, 64);
+  return clientIpFrom(await headers());
 }
 
 export async function loginAction(_prev: LoginState, formData: FormData): Promise<LoginState> {
   const email = String(formData.get("email") ?? "");
-  const key = loginKey(email, await clientIp());
+  const key = loginKeys(email, await clientIp());
 
   const wait = lockedSeconds(key);
   if (wait > 0) {
@@ -34,11 +32,10 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     return {};
   } catch (error) {
     if (error instanceof AuthError) {
-      recordFailure(key);
+      // Счётчик неудач ведёт сам вход (src/auth.ts) — так же считается и прямой POST на /api/auth.
       return { error: "Неверный email или пароль", email };
     }
-    // Успешный вход завершается redirect-исключением — сбрасываем счётчик.
-    recordSuccess(key);
+    // Успешный вход завершается redirect-исключением.
     throw error;
   }
 }

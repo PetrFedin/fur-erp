@@ -9,7 +9,7 @@ import { AuthShell, FIELD, FOOTER_LINK, FormError, PasswordField, SubmitButton }
 
 const initialState: LoginState = {};
 
-export function LoginForm({ demoEmail, demoPassword, supplierEmail, supplierPassword }: { demoEmail?: string; demoPassword?: string; supplierEmail?: string; supplierPassword?: string }) {
+export function LoginForm({ demoEmail, demoPassword, supplierEmail, supplierPassword, canRegister = false }: { demoEmail?: string; demoPassword?: string; supplierEmail?: string; supplierPassword?: string; canRegister?: boolean }) {
   const [state, formAction, pending] = useActionState(loginAction, initialState);
 
   // После неудачной попытки email остаётся в поле, а фокус сразу на пароле.
@@ -24,12 +24,14 @@ export function LoginForm({ demoEmail, demoPassword, supplierEmail, supplierPass
       title="Вход"
       description="Закупки, сырьё и себестоимость"
       footer={
-        <>
-          Нет аккаунта?{" "}
-          <Link href="/register" className={FOOTER_LINK}>
-            Зарегистрировать компанию
-          </Link>
-        </>
+        canRegister ? (
+          <>
+            Нет аккаунта?{" "}
+            <Link href="/register" className={FOOTER_LINK}>
+              Зарегистрировать компанию
+            </Link>
+          </>
+        ) : undefined
       }
     >
       <form
