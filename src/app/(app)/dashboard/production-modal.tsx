@@ -112,14 +112,13 @@ export function ProductionModal({
       >
         <div className="flex items-start justify-between gap-3 border-b border-neutral-200 p-4">
           <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Стоимость производства · {"факт списания по всем ТЗ"}</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Стоимость производства</div>
             <h2 id="prod-modal-title" className="mt-0.5 text-lg font-semibold">{title}</h2>
             <div className="mt-0.5 text-xs text-neutral-500">
               {vat === "incl" ? "С НДС" : "Без НДС"} · {data?.c4 === "on" ? "с 4%" : "без 4%"} · с работой
               <InfoHint label="Что в столбцах" wide>
-                <p><b>Полная себестоимость (с работой)</b> = мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ + работа. Столбец <b>«Работа и доп. расходы»</b> показывает работу подрядчику и доп. расходы ТЗ («Доп. расходы · статья»): у строки состава, которая сама является работой или доп. расходом, «Себестоимость» — «—», а в итог уровня она входит как раньше. «Шкур, шт.» и «Подкладка, м» — сколько использовано по списаниям.</p>
-                <p className="mt-1">Здесь все ТЗ: учитывается фактическое списание меха и подкладки, работа и 4%.</p>
-                <p className="mt-1">Сумма столбцов каждого уровня равна родительскому столбцу; на первом уровне — итогу плитки. Режимы НДС, 4% и год — те же, что в шапке.</p>
+                <p><b>Полная себестоимость (с работой)</b> = мех + подкладка + 4% (в режиме «С 4%») + расходы ТЗ + работа. «Работа и доп. расходы» — работа подрядчику и доп. расходы ТЗ; у такой строки «Себестоимость» — «—», а в итог уровня она входит. «Шкур» и «Подкладка» — расход по списаниям.</p>
+                <p className="mt-1">Учтены все ТЗ по факту списания. Сумма столбцов уровня равна родительскому столбцу, на первом уровне — итогу плитки. НДС, 4% и год — как в шапке.</p>
               </InfoHint>
             </div>
           </div>
@@ -213,14 +212,14 @@ export function ProductionModal({
                 })() : null}
                 {level.items.some((it) => it.key === "none" && /Вне партий/.test(it.label)) ? (
                   <p className="mt-2 text-xs text-neutral-600" data-testid="no-batch-note">
-                    <b>Вне партий</b> — ТЗ, которым партия пошива не нужна (по письму №135): отдельная поставка (ТЗ 117, кейп М057) и переделка (ТЗ 116, ремонт пальто, 7 шт.). Это не недоработка. Ремонт в «В выпуске» (штуки) не входит и показан отдельно.{" "}
+                    <b>Вне партий</b> — ТЗ без партии пошива (письмо №135): отдельная поставка (ТЗ 117) и переделка (ТЗ 116, ремонт, 7 шт.). Ремонт в «В выпуске» не входит.{" "}
                     <Link href="/production?batch=none" className="text-blue-700 underline-offset-2 hover:underline">Открыть эти ТЗ →</Link>
                   </p>
                 ) : null}
                 <div className="mt-2 min-h-[20px] text-xs text-neutral-700" aria-live="polite">
                   {shown ? (
                     <><b>{shown.label}</b>: <b className="tabular-nums">{formatMoney(shown.value)}</b>{shown.outside ? "" : <> · {pct(shown.share)} от уровня</>}{shown.qtyText ? <> · {shown.qtyText}</> : null}{shown.work ? <> · работа {formatMoney(shown.work)}</> : null}</>
-                  ) : <span className="text-neutral-500">Наведите на столбец — сумма и доля. Нажмите, чтобы раскрыть.</span>}
+                  ) : <span className="text-neutral-500">Наведите — сумма и доля, нажмите — раскрыть.</span>}
                 </div>
               </div>
 
@@ -320,7 +319,7 @@ export function ProductionModal({
 
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-600">
                 {matches != null ? (
-                  <span className={matches ? "text-emerald-700" : "text-red-700"}>{matches ? "✓ Σ столбцов равна итогу плитки" : `Σ столбцов ${formatMoney(level.total)} ≠ плитка ${formatMoney(tileTotal)} — число ТЗ в окне ограничено`}</span>
+                  <span className={matches ? "text-emerald-700" : "text-red-700"}>{matches ? "✓ Сходится с плиткой" : `Σ столбцов ${formatMoney(level.total)} ≠ плитка ${formatMoney(tileTotal)}: в окне ограничено число ТЗ`}</span>
                 ) : null}
                 {level.links.map((l) => <Link key={l.href} href={l.href} className="text-blue-700 underline-offset-2 hover:underline">{l.label} →</Link>)}
                 {level.kind === "composition" ? <span>Нажмите составляющую — лоты и закупки.</span> : null}

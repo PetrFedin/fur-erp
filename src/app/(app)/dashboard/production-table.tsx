@@ -243,7 +243,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
         <div role="tablist" aria-label="Разрез таблицы" className="inline-flex overflow-hidden rounded-lg border border-neutral-300 text-xs">
           {([["cat", "Категории → мех"], ["fur", "Мех → категории"]] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={by === id} onClick={() => { setBy(id); setOpen(new Set()); }}
-              className={"px-3 py-1.5 " + (by === id ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</button>
+              className={"px-3 py-1.5 max-md:min-h-11 " + (by === id ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</button>
           ))}
         </div>
       </div>

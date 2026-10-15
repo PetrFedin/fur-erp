@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { FUR_SRC_KEYS, FUR_SRC_LABEL, type FurSrc } from "@/components/fur-source-nav";
+import { InfoHint } from "@/components/info-hint";
 
 /**
  * Область действия переключателя «Вся закупка / На аукционах / У поставщика» на Главной: он меняет ТОЛЬКО блоки внутри
@@ -46,10 +47,14 @@ export function FurScope({ info, section = "home", children }: { /** Год и �
                 className={"min-h-[44px] whitespace-nowrap px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 " + (src === k ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-50")}>{FUR_SRC_LABEL[k]}</button>
             ))}
           </div>
-          <span className="min-w-0 text-xs text-neutral-600" data-testid="fur-scope-now" aria-live="polite">
-            Выбрано: <b className="font-semibold text-orange-700">{FUR_SRC_LABEL[src]}</b> · {info.year}{info.filters ? ` · ${info.filters}` : ""}
-            <span className="hidden sm:inline text-neutral-500">{section === "raw" ? " · действует на все данные раздела: плитки, закупки, лоты, годы и суммы; подкладка закупается у поставщика" : " · действует на сырьё, динамику и состав стоимости; производство и оплаты не меняются"}</span>
+          <span className="min-w-0 text-xs text-neutral-600" data-testid="fur-scope-now">
+            <span className="sr-only" aria-live="polite">Выбрано: {FUR_SRC_LABEL[src]}. </span>
+            {info.year}{info.filters ? ` · ${info.filters}` : ""}
           </span>
+          <InfoHint label={section === "raw" ? "Что меняет источник закупки" : "Что меняет источник меха"} wide>
+            <p>{section === "raw" ? "Источник действует на все данные раздела: плитки, закупки, лоты, годы и суммы. Подкладка закупается у поставщика." : "Источник действует на сырьё, динамику и состав стоимости меха. Производство и оплаты не меняются."}</p>
+            <p className="mt-1">Любая закупка — либо на аукционе, либо у поставщика: «На аукционах» + «У поставщика» = «Вся закупка».</p>
+          </InfoHint>
         </div>
         {children}
       </div>
@@ -88,7 +93,7 @@ export function ScopeEmpty({ title, text }: { title: string; text: string }) {
  */
 export function SupplierOnly({ what, children }: { /** Что это: «Партия подкладки», «Шкуры подрядчика». */ what: string; children: ReactNode }) {
   const src = useScopeSrc();
-  if (src === "auction") return <ScopeEmpty title={`${what}: это не аукцион`} text={`${what}: закупка у поставщика, не на аукционе, поэтому в режиме «На аукционах» этих данных нет. В режимах «У поставщика» и «Вся закупка» они показаны целиком.`} />;
+  if (src === "auction") return <ScopeEmpty title={`${what} — не с аукциона`} text="Закупка у поставщика: в режиме «На аукционах» данных нет." />;
   return <>{children}</>;
 }
 

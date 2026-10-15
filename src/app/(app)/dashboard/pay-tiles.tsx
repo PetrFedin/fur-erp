@@ -62,12 +62,11 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
         <TileHead>Общая стоимость</TileHead>
         <div className="absolute right-3 top-3">
           <InfoHint label="Что такое общая стоимость" align="right">
-            <p>Оплачено плюс осталось оплатить: сырьё (мех с шкурами подрядчика, подкладка) и работа по ТЗ. Всегда с НДС; 4% отдельно не добавляются.</p>
-            <p className="mt-1">Общая стоимость = Оплачено + К оплате. Доля — от общей стоимости.</p>
+            <p>Оплачено + К оплате: сырьё (мех с шкурами подрядчика, подкладка) и работа по ТЗ. Всегда с НДС, 4% отдельно не добавляются. Доля — от общей стоимости.</p>
           </InfoHint>
         </div>
         <TileValue compact={bare}>{money(totalAll)}</TileValue>
-        <TileList stack={bare} items={[...list(totalAll, T.fur, { stock: furD.stock, used: furD.used }, furD.c4, T.lining, { stock: linD.stock, used: linD.used }, linD.c4, T.work, true), ...(roundAll !== 0 ? [{ k: "округление (лоты и документы)", v: money(roundAll) }] : [])]} />
+        <TileList stack={bare} items={[...list(totalAll, T.fur, { stock: furD.stock, used: furD.used }, furD.c4, T.lining, { stock: linD.stock, used: linD.used }, linD.c4, T.work, true), ...(roundAll !== 0 ? [{ k: "Округление", v: money(roundAll) }] : [])]} />
       </div>
 
       <div key="paid" className={TILE_BOX}>
@@ -75,8 +74,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
         {inWork ? (
           <div className="absolute right-3 top-3">
             <InfoHint label="Чем «Оплачено всего» отличается от оплат по партиям" align="right">
-              <p>«Оплачено всего» — всё, что оплачено: сырьё и работа. В «Партиях пошива» и карточке партии — «Оплачено (разнесено на партии)»: меньше.</p>
-              <p className="mt-1">Разница = неразнесённый аванс {money(d.clientDebtInfo.unallocated)} (аванс подрядчику, ещё не отнесён к партиям).</p>
+              <p>«Оплачено всего» — всё оплаченное, сырьё и работа. В «Партиях пошива» и карточке партии показано меньше («Оплачено, разнесено на партии»): разница {money(d.clientDebtInfo.unallocated)} — аванс подрядчику, ещё не отнесённый к партиям.</p>
             </InfoHint>
           </div>
         ) : null}
@@ -96,15 +94,13 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
         <TileHead>К оплате всего</TileHead>
         <div className={"absolute right-3 top-3 flex items-center gap-1" + (only ? " hidden" : "")}>
           <BridgeHint label="Как сходится долг поставщику">
-            <p>К оплате всего = за мех и подкладку {money(L.fur + L.lining)} + за работу подрядчику {money(L.work)}.</p>
-            <p className="mt-1">Долг по работе подрядчику (общий баланс): работа по всем ТЗ минус все оплаты, включая авансы, ещё не привязанные к партиям — сколько предстоит заплатить, если все авансы отработают (договор №1605: аванс 70 %, доплата 30 % после сдачи).</p>
-            <p className="mt-1">Закупки всего <b>{mln(debt.total.toNumber())}</b> = мех получен <b>{mln(d.bridge.purchases.received)}</b> + ещё не получен <b>{mln(d.bridge.purchases.draft)}</b>. Минус оплачено <b>{mln(d.supplierCashPaid)}</b> = долг <b>{mln(debt.debt.toNumber())}</b>.</p>
-            <p className="mt-1">Части (по УПД, счёт не оплачен, ожидаемое) в сумме дают этот долг. Всегда с НДС.</p>
+            <p>К оплате всего = за мех и подкладку {money(L.fur + L.lining)} + за работу подрядчику {money(L.work)}. Всегда с НДС.</p>
+            <p className="mt-1">Долг по работе — общий баланс: работа по всем ТЗ минус все оплаты, включая авансы, ещё не привязанные к партиям (договор №1605: аванс 70%, доплата 30% после сдачи).</p>
+            <p className="mt-1">Долг поставщику: закупки {mln(debt.total.toNumber())} (мех получен {mln(d.bridge.purchases.received)} + ещё не получен {mln(d.bridge.purchases.draft)}) − оплачено {mln(d.supplierCashPaid)} = {mln(debt.debt.toNumber())}. Его части (по УПД, счёт не оплачен, ожидаемое) в сумме дают этот долг.</p>
           </BridgeHint>
           <SupplierDebtHint debt={debt} year={year} align="right" />
         </div>
         <TileValue compact={bare} className={leftAll > 0 ? "text-amber-700" : ""}>{money(leftAll)}</TileValue>
-        {inWork && !only ? <div className="text-xs text-neutral-500">за мех и подкладку {money(L.fur + L.lining)} + за работу подрядчику {money(L.work)}</div> : null}
         <TileList stack={bare} items={list(leftAll, L.fur, furLeftD, 0, L.lining, linLeftD, 0, L.work, true, "Долг по работе подрядчику")} />
         {d.invoiceDeadlines.length > 0 && !only ? (
           <div className="mt-2 border-t border-neutral-100 pt-2 text-xs text-neutral-600">

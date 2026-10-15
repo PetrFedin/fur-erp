@@ -9,7 +9,8 @@ import { PriceCompositionChart, useChartVat } from "@/components/price-compositi
 import { COMP_CATS, CAT_LABEL, COMP_COLOR, alignSlices, sliceList, type CompCat, type CompSlice } from "@/lib/price-composition";
 import type { PCLot } from "@/lib/price-composition-server";
 import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
-import { ScopeBadge, useFurScope } from "@/components/fur-scope";
+import { useFurScope } from "@/components/fur-scope";
+import { InfoHint } from "@/components/info-hint";
 import { useClientSort } from "@/lib/use-client-sort";
 import { lotCounts, lotCountsText, LOTS_RULE } from "@/lib/cost-labels";
 import { alignColumn, lrAllocate, roundRub } from "@/lib/money-round";
@@ -165,9 +166,8 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
           <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Вид меха</div>
           <h3 className="truncate text-base font-semibold leading-tight">{fur ?? totalTitle}</h3>
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-neutral-500 tabular-nums">
-            <span>{withVat ? "с НДС" : "без НДС"}</span>
             <span className="font-semibold text-neutral-900">{formatMoney(total)}</span>
-            <span>{a.qty > 0 ? `${formatQty(a.qty)} шт.` : "без количества"} · {lotsLine(lots)}</span>
+            <span title={lotsLine(lots)}>{a.qty > 0 ? `${formatQty(a.qty)} шт.` : "без количества"} · лотов {lotCounts(lots).lots}</span>
           </div>
         </div>
         {fur && !hideLink ? <Link href={href} className="shrink-0 text-xs text-blue-700 hover:underline print:hidden">→ {fur}</Link> : null}
@@ -182,7 +182,7 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
       {openSlice ? (
         <Modal title={`${openSlice.label} · ${label}`} onClose={() => setOpen(null)} returnTo={opener}>
           <p className="mb-2 text-xs text-neutral-500">
-            Лоты, где есть эта составляющая ({rows.length}); суммы {withVat && openSlice.key !== "vat" ? "без НДС (НДС — отдельная строка)" : "без НДС"}. {openSlice.hint}
+            Лотов: {rows.length}. Суммы без НДС{withVat && openSlice.key !== "vat" ? ", НДС отдельной строкой" : ""}.{openSlice.hint ? ` ${openSlice.hint}` : ""}
           </p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[34rem] table-fixed text-left text-sm">
@@ -223,7 +223,8 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
 }
 
 type Src = "all" | "auction" | "supplier";
-const SRC_LABEL: Record<Src, string> = { all: "Все", auction: "Куплено на аукционе", supplier: "Куплено у поставщика" };
+const SRC_LABEL: Record<Src, string> = { all: "Вся закупка", auction: "На аукционах", supplier: "У поставщика" };
+const SRC_SHORT: Record<Src, string> = { all: "Все", auction: "Аукцион", supplier: "Поставщик" };
 const SRC_KEYS: Src[] = ["all", "auction", "supplier"];
 
 /** `onlyFur` — страница вида меха («Сырьё → Мех → Лиса»): тот же блок и те же лоты, что на Главной, но один слайд этого вида. */
@@ -244,7 +245,7 @@ export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots" }
     const total = roundRub(ex.all);
     const [au, su] = lrAllocate([ex.auction, ex.supplier], total);
     const shown: Record<Src, number> = { all: total, auction: au, supplier: su };
-    return Object.fromEntries((["all", "auction", "supplier"] as Src[]).map((k) => [k, { v: shown[k], text: lotCountsText(lotCounts(rowsBy[k])) }])) as Record<Src, { v: number; text: string }>;
+    return Object.fromEntries((["all", "auction", "supplier"] as Src[]).map((k) => [k, { v: shown[k], lots: lotCounts(rowsBy[k]).lots, text: lotCountsText(lotCounts(rowsBy[k])) }])) as Record<Src, { v: number; lots: number; text: string }>;
   }, [allLots, withVat]);
   const lots = useMemo(() => (src === "all" ? allLots : allLots.filter((l) => l.src === src)), [allLots, src]);
   const furs = useMemo(() => {
@@ -255,23 +256,29 @@ export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots" }
   if (allLots.length === 0) return null;
   const label = SRC_LABEL[src];
   const slides = onlyFur ? [{ key: `${src}:fur:${onlyFur}`, label: onlyFur, body: <Slide lots={lots} fur={onlyFur} label={`${onlyFur} · ${label}`} withVat={withVat} hideLink /> }] : [
-    { key: `${src}:total`, label: src === "all" ? "Вся закупка" : label, body: <Slide lots={lots} fur={null} label={src === "all" ? "Вся закупка" : label} totalTitle={src === "all" ? "Вся закупка" : label} withVat={withVat} /> },
+    { key: `${src}:total`, label: label, body: <Slide lots={lots} fur={null} label={label} totalTitle={label} withVat={withVat} /> },
     ...furs.map((f) => ({ key: `${src}:fur:${f}`, label: f, body: <Slide lots={lots.filter((l) => l.fur === f)} fur={f} label={`${f} · ${label}`} withVat={withVat} /> })),
   ];
+  const chip = (k: Src) => `${SRC_SHORT[k]} · ${formatMoney(sums[k].v)} · лотов ${sums[k].lots}`;
+  const srcInfo = (
+    <InfoHint label="О переключателе источника" wide>
+      <p><b>Все = на аукционе + у поставщика:</b> {formatMoney(sums.auction.v)} + {formatMoney(sums.supplier.v)} = {formatMoney(sums.all.v)}.</p>
+      {SRC_KEYS.map((k) => <p key={k} className="mt-1">{SRC_LABEL[k]}: {sums[k].text}.</p>)}
+      <p className="mt-1">{LOTS_RULE}</p>
+      <p className="mt-1">Шкуры подрядчика лотов не имеют и в счёт лотов не входят.</p>
+    </InfoHint>
+  );
   const sourceSwitch = (
-    <div className="flex flex-col gap-1">
-      {scope ? <div className="flex flex-wrap gap-1.5" data-testid="pc-source-switch"><ScopeBadge />{SRC_KEYS.map((k) => <span key={k} className={"rounded-md border px-2 py-1 text-[11px] tabular-nums " + (src === k ? "border-orange-300 bg-orange-50 text-orange-900" : "border-neutral-200 text-neutral-600")}>{SRC_LABEL[k]}: {formatMoney(sums[k].v)} · {sums[k].text}</span>)}</div> : <div role="group" aria-label="Источник закупки" data-testid="pc-source-switch" className="flex flex-wrap gap-1.5 print:hidden">
+    <div className="flex flex-wrap items-center gap-1.5">
+      {scope ? <div className="flex flex-wrap gap-1.5" data-testid="pc-source-switch">{SRC_KEYS.map((k) => <span key={k} className={"rounded-md border px-2 py-1 text-[11px] tabular-nums " + (src === k ? "border-orange-300 bg-orange-50 text-orange-900" : "border-neutral-200 text-neutral-600")}>{chip(k)}</span>)}</div> : <div role="group" aria-label="Источник закупки" data-testid="pc-source-switch" className="flex flex-wrap gap-1.5 print:hidden">
         {SRC_KEYS.map((k) => (
           <button key={k} type="button" aria-pressed={src === k} onClick={() => setSrc(k)}
-            className={"inline-flex min-h-11 flex-col items-start justify-center rounded-md border px-3 py-1 text-left text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 " + (src === k ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>
-            <span className="font-medium">{SRC_LABEL[k]}</span>
-            <span className="tabular-nums opacity-80">{formatMoney(sums[k].v)} · {sums[k].text}</span>
+            className={"inline-flex min-h-11 items-center rounded-md border px-3 py-1 text-left text-xs tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 " + (src === k ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>
+            {chip(k)}
           </button>
         ))}
       </div>}
-      <p className="text-[11px] leading-4 text-neutral-500" data-testid="pc-source-check">
-        Все = на аукционе + у поставщика: {formatMoney(sums.auction.v)} + {formatMoney(sums.supplier.v)} = {formatMoney(sums.all.v)}. {LOTS_RULE}
-      </p>
+      {srcInfo}
     </div>
   );
   return (
@@ -284,10 +291,9 @@ export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots" }
           hintLabel="Из чего складывается стоимость меха"
           hint={
             <>
-              <p>Всё купленное сырьё по финальной рублёвой стоимости в разрезе составляющих: {COMP_CATS.map((c) => CAT_LABEL[c.key]).join(", ")}. Состав каждого лота — из его расчётного листа (карточка лота → «Из чего складывается цена»).</p>
-              <p className="mt-1">Суммы секторов без НДС (цена лота ÷ (1 + ставка лота)); в режиме «с НДС» добавляется сектор НДС, и итог равен «Куплено» меха на Главной. Сектор «Прочее» раскрывается: «Упаковка и прочее» и лоты, у которых нет расчётного листа (и шкуры подрядчика).</p>
-              <p className="mt-1"><b>Все / Куплено на аукционе / Куплено у поставщика</b> — переключатель источника; суммы статей пересчитываются под выбор. На аукционе — закупки, привязанные к аукциону справочника (включая заказанное, но не полученное); у поставщика — остальные и шкуры подрядчика. «Все» = на аукционе + у поставщика.</p>
-              <p className="mt-1">Наведите на сектор или строку — подсветится парная; клик открывает лоты с этой составляющей. Фильтры Главной действуют.</p>
+              <p>Вся закупка меха по составляющим: {COMP_CATS.map((c) => CAT_LABEL[c.key]).join(", ")}. Состав лота — из его расчётного листа (карточка лота → «Из чего складывается цена»).</p>
+              <p className="mt-1">Суммы без НДС; в режиме «с НДС» добавляется сектор НДС, и итог равен «Куплено» меха. Сектор «Прочее» раскрывается: упаковка и лоты без расчётного листа (в том числе шкуры подрядчика).</p>
+              <p className="mt-1">Источник (аукцион, поставщик) выбирается сверху; фильтры Главной действуют. Наведите на сектор или строку — подсветится парная; клик открывает лоты составляющей.</p>
             </>
           }
           slidesLabel="слайды: вся закупка и отдельные виды меха" dotsLabel="Вид меха"

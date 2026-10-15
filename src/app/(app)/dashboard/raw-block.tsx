@@ -19,7 +19,7 @@ import { TILE_BOX, TileHead } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
 import { useSlideWindow } from "@/components/slide-window";
 import { useClientSort } from "@/lib/use-client-sort";
-import { ScopeBadge, useFurScope } from "@/components/fur-scope";
+import { useFurScope } from "@/components/fur-scope";
 import { ALL_TYPES_LABEL, FUR_SRC_KEYS, FUR_SRC_LABEL, SegmentSwitch, TypeDots, useSrcTypeNav, type FurSrc } from "@/components/fur-source-nav";
 
 type Pair = { incl: FlowFigures; excl: FlowFigures };
@@ -164,8 +164,8 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   const usdTile = view === "fur";
 
   const usdBought = (() => {
-    if (view === "lining") return { main: "нет данных в USD", note: "подкладка закупается без цены в долларах" };
-    if (F.usdQty <= 0 || F.usdAvg == null) return { main: "нет данных в USD", note: "в выбранном срезе нет лотов с закупочной ценой в USD" };
+    if (view === "lining") return { main: <span title="Подкладка закупается без цены в долларах">—</span>, note: "подкладка закупается без цены в долларах" };
+    if (F.usdQty <= 0 || F.usdAvg == null) return { main: <span title="Нет лотов с ценой в USD">—</span>, note: "в выбранном срезе нет лотов с ценой в USD" };
     const share = F.recvQty > 0 ? (F.usdQty / F.recvQty) * 100 : 0;
     const b = F.usdBySource;
     const parts = [
@@ -175,7 +175,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
       b.calc > 0 ? `цена $ из расчётного листа — ${formatQty(b.calc)}` : null,
     ].filter(Boolean).join("; ");
     return {
-      main: `${usd(F.usdAvg)} / шт.`,
+      main: usd(F.usdAvg),
       note: `по ${formatQty(F.usdQty)} из ${formatQty(F.recvQty)} шт. с ценой в USD (${formatPercent(share)})`,
       hint: `Источники цены, шт.: ${parts || "—"}. Остальные лоты — без цены в USD (только рубли или нет курса в документах).`,
     };
@@ -246,7 +246,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
               </Duo>
               <Duo>
                 <Row k={`Цена, ₽/${priceUnit}`} v={usedQtyNow > 0 ? rub(usedNo4 / usedQtyNow) : "—"} sub={compact ? <SubLines n={1} lines={usedQtyNow > 0 ? [`с 4%: ${rub(usedWith4 / usedQtyNow)}`] : []} /> : usedQtyNow > 0 ? `с 4%: ${rub(usedWith4 / usedQtyNow)}` : undefined} />
-                {usdTile ? <Row k="Цена, $/шт." v={F.usdUsedAvg != null ? usd(F.usdUsedAvg) : "нет данных в USD"} /> : null}
+                {usdTile ? <Row k="Цена, $/шт." v={F.usdUsedAvg != null ? usd(F.usdUsedAvg) : <span title="Нет лотов с ценой в USD">—</span>} /> : null}
               </Duo>
               {vatRates ? <VatLine v={vatRates.used} minRem={compact ? 3 : 1} className="mt-auto pt-2" /> : null}
             </>
@@ -269,7 +269,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
               </Duo>
               <Duo>
                 <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.remAvg != null ? rub(cur.remAvg) : "—"} />
-                {usdTile ? <Row k="Цена, $/шт." v={F.usdRemAvg != null ? usd(F.usdRemAvg) : "нет данных в USD"} /> : null}
+                {usdTile ? <Row k="Цена, $/шт." v={F.usdRemAvg != null ? usd(F.usdRemAvg) : <span title="Нет лотов с ценой в USD">—</span>} /> : null}
               </Duo>
               {vatRates ? <VatLine v={vatRates.rem} minRem={compact ? 3 : 1} className="mt-auto pt-2" /> : null}
             </>
@@ -291,10 +291,11 @@ export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c
   const extra = (
     <>
       <InfoHint label="Как считаются плитки сырья" wide>
-        <p><b>Цена</b> — средневзвешенная: Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м), а не среднее цен лотов. Совпадает с таблицей «Сырьё». Нажмите на плитку — цены по видам сырья.</p>
-        <p className="mt-1"><b>Режимы.</b> Цены {vatW}; «Использовано» — {c4W}. 4% начисляется только при списании в ТЗ, поэтому «Куплено» и «Остаток» всегда без 4%. НДС берётся по ставке каждого лота (20% или 22%); под суммой каждой плитки — «в т.ч. НДС» по ставкам (при режиме «Без НДС» — НДС, который в сумму не входит). Бобр: закупленные лоты (если есть) показаны как обычный мех — пока в ТЗ не списаны, всё куплено лежит в остатке; бобр подрядчика (изделия в ТЗ без лотов закупки) смотрите в «Производство» и «Изделия».</p>
-        <p className="mt-1"><b>Как сходится.</b> Куплено = использовано (без 4%) + остаток — отдельно для меха (шт.) и для подкладки (м).</p>
-        <p className="mt-1"><b>Цена в долларах</b> — молоток за шкуру (до сборов), только из документов лота: строка в долларах; евро × записанный курс EUR→USD; молоток в ₽ ÷ записанный курс USD/RUB; цена $ из расчётного листа. У подкладки цен в долларах нет. Остальные лоты в среднюю $ не входят и по курсу ЦБ не пересчитываются.</p>
+        <p><b>Цена</b> — средневзвешенная: Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м), как в таблице «Сырьё». Нажмите на плитку — цены по видам.</p>
+        <p className="mt-1"><b>Режимы.</b> Цены {vatW}, «Использовано» — {c4W}. 4% начисляется при списании в ТЗ, поэтому «Куплено» и «Остаток» всегда без 4%. «в т.ч. НДС» — по ставке каждого лота (20% или 22%); при «Без НДС» эта сумма в цену не входит.</p>
+        <p className="mt-1"><b>Сходится:</b> куплено = использовано (без 4%) + остаток, отдельно для меха и подкладки.</p>
+        <p className="mt-1"><b>Цена в долларах</b> — молоток за шкуру из документов лота: доллары, евро по курсу EUR→USD, рубли по курсу USD/RUB или цена $ из расчётного листа. Лоты без таких данных в среднюю $ не входят. У подкладки цены в долларах нет.</p>
+        <p className="mt-1">Бобр подрядчика (без лотов закупки) смотрите в «Производство» и «Изделия».</p>
       </InfoHint>
       {orderFilters ? (
         <BridgeHint label="Фильтр по ТЗ" warn>
@@ -312,10 +313,10 @@ export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c
   const slidesF = [{ key: "", label: ALL_TYPES_LABEL, fur: block.total }, ...block.types.map((t) => ({ key: t.name, label: t.name, fur: t.pair }))];
   const slideNow = slidesF[Math.min(cur, slidesF.length - 1)];
   const pct = (a: number, b: number) => (b > 0 ? formatPercent((a / b) * 100) : "—");
-  const share = (p: Pair, of: Pair, what: string) => `${what}: ${pct(p[vat].recvQty, of[vat].recvQty)} по шт., ${pct(p[vat].recvValue, of[vat].recvValue)} по ₽`;
+  const share = (p: Pair, of: Pair, what: string, from: string) => <span title={`${what} в «${from}» по количеству и по сумме`}>{what}: {pct(p[vat].recvQty, of[vat].recvQty)} шт. · {pct(p[vat].recvValue, of[vat].recvValue)} ₽</span>;
   const noteOf = (key: string, p: Pair) => {
-    if (!key) return nav.src === "all" ? undefined : share(p, furSrc.all.total, "доля от «Вся закупка»");
-    return share(p, block.total, `доля вида в «${FUR_SRC_LABEL[nav.src]}»`);
+    if (!key) return nav.src === "all" ? undefined : share(p, furSrc.all.total, "Доля", FUR_SRC_LABEL.all);
+    return share(p, block.total, "Доля вида", FUR_SRC_LABEL[nav.src]);
   };
   const emptyVat = { recv: {}, used: {}, rem: {} } as VatTriple;
   const used$ = (f: FlowFigures) => (c4 === "on" ? f.usedValueOther : f.usedValue);
@@ -326,15 +327,15 @@ export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c
     && eqAll(furSrc.all.total[vat], sumFig([furSrc.auction.total[vat], furSrc.supplier.total[vat]]));
   const slideCtl = (
     <>
-      {scope ? <ScopeBadge /> : <SegmentSwitch label="Источник закупки меха" value={nav.src} onChange={nav.pick} options={FUR_SRC_KEYS.map((k) => ({ key: k, label: FUR_SRC_LABEL[k] }))} />}
+      {scope ? null : <SegmentSwitch label="Источник закупки меха" value={nav.src} onChange={nav.pick} options={FUR_SRC_KEYS.map((k) => ({ key: k, label: FUR_SRC_LABEL[k] }))} />}
       <TypeDots accent labels={slidesF.map((x) => x.label)} cur={cur} goTo={goTo} step={step} last={maxStart} />
     </>
   );
   const srcHint = (
     <InfoHint label="Что такое источник закупки и типы меха" align="left" wide>
-      <p><b>Вся закупка</b> — весь купленный мех. <b>На аукционах</b> — закупки, привязанные к настоящему аукциону справочника (SAGA, Kopenhagen, Fur Harvesters, AME, Союзпушнина, Русьпушнина); включая заказанное, но ещё не полученное (СП 09.26, FH 06.26): по нему лотов нет, поэтому остаток = заказанное количество, использовано 0.</p>
-      <p className="mt-1"><b>У поставщика</b> — закупки напрямую у поставщика или фермы без документов аукциона, а также шкуры подрядчика (сырьё Веллмех, оплаченное в составе счетов за пошив; учтены как «Свакара»).</p>
-      <p className="mt-1">Любая закупка — либо на аукционе, либо у поставщика. Внутри источника листаются типы меха: «Все типы» → Лиса → Норка → … (только те, по которым в источнике есть данные). Сумма типов = «Все типы» источника, «На аукционах» + «У поставщика» = «Вся закупка»{sumOk ? "" : " (с разницей округления)"}. Использовано — без 4%. Фильтры Главной, НДС и 4% применяются так же, как к слайду «Вся закупка». Определение то же, что на странице «Сырьё».</p>
+      <p><b>На аукционах</b> — закупки, привязанные к аукциону справочника (SAGA, Kopenhagen, Fur Harvesters, AME, Союзпушнина, Русьпушнина), включая заказанное, но не полученное: лотов по нему нет, остаток = заказанное количество.</p>
+      <p className="mt-1"><b>У поставщика</b> — закупки напрямую у поставщика или фермы и шкуры подрядчика (сырьё Веллмех в счетах за пошив; учтены как «Свакара»).</p>
+      <p className="mt-1">«На аукционах» + «У поставщика» = «Вся закупка»{sumOk ? "" : " (с разницей округления)"}; сумма типов = «Все типы» источника. Внутри источника листаются типы меха. НДС, 4% и фильтры применяются так же, как во всей закупке.</p>
     </InfoHint>
   );
   return (
