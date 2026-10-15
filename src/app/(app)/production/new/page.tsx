@@ -9,6 +9,7 @@ import { getColorOptions } from "@/lib/colors";
 import { ACCESS, hasRole } from "@/lib/access";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { batchLabel } from "@/lib/batch-label";
+import { loadContractors } from "@/lib/contractors";
 
 export const metadata = { title: "Новое ТЗ" };
 
@@ -27,7 +28,7 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
     );
   }
   const orgId = session.user.organizationId;
-  const [models, warehouses, clients, lots, contractRows, batches, expenseCategories, furs, colorOptions, numberRows] = await Promise.all([
+  const [models, warehouses, clients, lots, contractRows, batches, expenseCategories, furs, colorOptions, numberRows, contractors] = await Promise.all([
     prisma.productModel.findMany({
       where: { organizationId: orgId, isActive: true },
       select: { id: true, name: true, sellingPrice: true, category: true, categoryRef: { select: { group: true } } },
@@ -53,6 +54,7 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
     prisma.furRef.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: { name: "asc" } }),
     getColorOptions(orgId),
     prisma.productionOrder.findMany({ where: { organizationId: orgId, workOrderNumber: { not: null } }, select: { workOrderNumber: true } }),
+    loadContractors(orgId),
   ]);
 
   // № ТЗ: сколько позиций уже заведено под каждым номером (для предупреждения о дубле) и следующий свободный номер (наибольший числовой + 1).
@@ -100,6 +102,7 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
       models={models.map((m) => ({ id: m.id, name: m.name, retailPrice: m.sellingPrice?.toString() ?? null, category: m.category ?? null, group: m.categoryRef?.group ?? null }))}
       warehouses={warehouses.map((w) => ({ id: w.id, name: w.name, isDefault: w.isDefault }))}
       clients={clients}
+      contractors={contractors}
       lots={lotOpts}
       lastContractByClient={lastContractByClient}
       colorOptions={colorOptions}

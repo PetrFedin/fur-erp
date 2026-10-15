@@ -6,7 +6,7 @@ import { getFurIndex } from "@/lib/fur-ref-server";
 import { auctionName } from "@/lib/auction-payments";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { cleanNote } from "@/lib/note-tags";
-import { PAYER_NAME, contractorOfOrders, docNo } from "@/lib/payment-parties";
+import { PAYER_NAME, contractorOfPayment, docNo } from "@/lib/payment-parties";
 
 /** Куда разнесена оплата: закупка, ТЗ или «без привязки». Σ частей = сумма оплаты. */
 export type OverviewPart = { label: string; href?: string; amount: number; note?: string };
@@ -64,7 +64,7 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     }),
     prisma.productionPayment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, createdAt: true, paymentType: true, method: true, docRef: true, notes: true, confirmedAt: true, client: { select: { name: true } }, _count: { select: { driveDocuments: true } }, allocations: { select: { amount: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true } } } }, orders: { select: { productionOrderId: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true } } } } },
+      select: { id: true, amount: true, paidAt: true, createdAt: true, paymentType: true, method: true, docRef: true, notes: true, confirmedAt: true, client: { select: { name: true } }, contractor: { select: { name: true } }, _count: { select: { driveDocuments: true } }, allocations: { select: { amount: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true, contractor: { select: { name: true } } } } } }, orders: { select: { productionOrderId: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true, contractor: { select: { name: true } } } } } } },
       orderBy: { paidAt: "desc" },
     }),
     // Закупки партий: оплата партии делится между ними пропорционально сумме (так же, как «Оплачено» в списке закупок).
@@ -184,7 +184,7 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     const whatProd = p.paymentType === "ADVANCE" ? "Аванс" : p.paymentType === "PARTIAL" ? "Доплата" : "Оплата";
     const invP = invoiceOf(p.docRef);
     // Получатель — подрядчик по договору связанных ТЗ (client в ТЗ — это мы, заказчик по договору подряда).
-    const contractor = contractorOfOrders([...p.allocations.map((x) => x.productionOrder.contractNumber), ...p.orders.map((x) => x.productionOrder.contractNumber)]);
+    const contractor = contractorOfPayment(p, [...p.allocations.map((x) => x.productionOrder), ...p.orders.map((x) => x.productionOrder)]);
     const prodFields: [string, string][] = [
       ["Дата оплаты", ruDate(p.paidAt)],
       ["Сумма", money(amount)],

@@ -20,7 +20,7 @@ import type { FilterOption } from "@/lib/filters";
 
 export type { FilterOption };
 
-export const OPTION_KEYS = ["auction", "pyear", "fur", "color", "lotcolor", "batch", "supplier", "client", "season", "category", "model", "material", "attr"] as const;
+export const OPTION_KEYS = ["auction", "pyear", "fur", "color", "lotcolor", "batch", "supplier", "client", "contractor", "season", "category", "model", "material", "attr"] as const;
 export type OptionKey = (typeof OPTION_KEYS)[number];
 
 /** Только эти варианты зависят от общего года шапки. */
@@ -95,6 +95,10 @@ async function load(orgId: string, year: YearFilter, key: OptionKey): Promise<Fi
     }
     case "client": {
       const rows = await prisma.client.findMany({ where: { organizationId: orgId }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+      return rows.map((r) => ({ value: r.id, label: r.name }));
+    }
+    case "contractor": {
+      const rows = await prisma.supplier.findMany({ where: { organizationId: orgId, isContractor: true }, select: { id: true, name: true }, orderBy: { name: "asc" } });
       return rows.map((r) => ({ value: r.id, label: r.name }));
     }
     case "season": {

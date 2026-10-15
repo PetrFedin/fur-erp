@@ -1,4 +1,5 @@
 import { orderLabel } from "@/lib/order-label";
+import { loadContractors } from "@/lib/contractors";
 import { ChatLink, GroupLink } from "@/components/chat-link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { notFound } from "next/navigation";
@@ -159,7 +160,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
   // Списания и расходы правятся при любом статусе (исправление ошибки в завершённом ТЗ — норма, см. syncCompletedOrderCost).
   // allLots (без фильтра по остатку) нужен только выпадающему списку правки: свой лот списания часто выбран целиком.
-  const [availableLots, expenseCategories, models, warehouses, clients, categoryRefs, furRefs, articleTzCount] = await Promise.all([
+  const [availableLots, expenseCategories, models, warehouses, clients, categoryRefs, furRefs, articleTzCount, contractors] = await Promise.all([
     prisma.rawMaterialLot.findMany({
       where: { organizationId: orgId, warehouseId: order.rawWarehouseId, quantityRemaining: { gt: 0 } },
       include: { rawMaterial: true },
@@ -176,7 +177,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     canEdit ? prisma.categoryRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, group: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : Promise.resolve([]),
     canEdit ? prisma.furRef.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     prisma.productionOrder.count({ where: { organizationId: orgId, productModelId: order.productModelId } }),
+    loadContractors(orgId),
   ]);
+  // Текущий подрядчик ТЗ мог быть отправлен в архив — оставляем его в списке, иначе выбор молча подменится.
+  const curC = order.contractorId ? await prisma.supplier.findFirst({ where: { id: order.contractorId, organizationId: orgId }, select: { id: true, name: true } }) : null;
+  const contractorOptions = curC && !contractors.some((c) => c.id === curC.id) ? [curC, ...contractors] : contractors;
 
   // Текущие модель/клиент могли быть деактивированы — добавляем их в списки, иначе выбор молча подменится при сохранении.
   const modelOptions = (models.some((m) => m.id === order.productModelId)
@@ -336,6 +341,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     workOrderNumber: order.workOrderNumber ?? "",
     workOrderDate: iso(order.workOrderDate),
     contractNumber: order.contractNumber ?? "",
+    contractorId: order.contractorId ?? "",
     startDate: iso(order.startDate),
     endDate: order.endDate ? formatDate(order.endDate) : "",
     endDateIso: iso(order.endDate),
@@ -368,6 +374,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const paramsOptions: ParamsOptions = {
     models: modelOptions.map((m) => ({ value: m.id, label: articleLabel(m) })),
     clients: clientOptions.map((c) => ({ value: c.id, label: c.name })),
+    contractors: contractorOptions.map((c) => ({ value: c.id, label: c.name })),
     batches: batchOptions.map((b) => ({ value: b.id, label: b.label })),
     warehouses: warehouses.map((w) => ({ value: w.id, label: w.name })),
     colors: colorOptions,

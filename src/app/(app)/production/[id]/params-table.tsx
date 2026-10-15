@@ -24,6 +24,8 @@ export type ParamsData = {
   workOrderNumber: string;
   workOrderDate: string;
   contractNumber: string;
+  /** Подрядчик ТЗ (id поставщика с признаком подрядчика) или "". */
+  contractorId: string;
   startDate: string;
   endDate: string;
   /** Дата окончания в формате ГГГГ-ММ-ДД для правки. */
@@ -64,6 +66,7 @@ export type ParamsData = {
 export type ParamsOptions = {
   models: SelectOpt[];
   clients: SelectOpt[];
+  contractors: SelectOpt[];
   batches: SelectOpt[];
   warehouses: SelectOpt[];
   colors: ColorSelectOption[];
@@ -146,6 +149,11 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
             }}
           />
         </Row>
+        {o.contractors.length > 0 && (
+          <Row label="Подрядчик" to={d.contractorId ? `/settings/contractors/${d.contractorId}` : undefined} toTitle="Карточка подрядчика">
+            <SelectCell value={d.contractorId} options={o.contractors} onSave={save("contractorId")} readOnly={ro} label="Подрядчик" emptyLabel="Не указан" />
+          </Row>
+        )}
         <Row label="Договор подряда">
           <TextCell value={d.contractNumber} onSave={save("contractNumber")} readOnly={ro} label="Договор" />
         </Row>

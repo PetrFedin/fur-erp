@@ -256,6 +256,8 @@ export const FILTER_CATALOG = {
   verified: { kind: "multi", label: "Проверка", aliases: ["filter"] },
   supplier: { kind: "multi", label: "Поставщик" },
   client: { kind: "multi", label: "Заказчик" },
+  /** Подрядчик ТЗ (поставщик с признаком подрядчика); none — подрядчик не указан. */
+  contractor: { kind: "multi", label: "Подрядчик" },
   category: { kind: "multi", label: "Категория", aliases: ["cat"] },
   /** Группа категорий справочника: «Одежда», «Аксессуары»; none — без группы. */
   catgroup: { kind: "multi", label: "Группа категорий" },

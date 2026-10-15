@@ -65,7 +65,7 @@ const VERIFIED_OPTIONS = [
   { value: "no", label: "Не подтверждено" },
 ];
 const PROD_FILTERS = defineFilters({
-  ...pick(["q", "season", "batch", "model", "len", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view", "client"], {
+  ...pick(["q", "season", "batch", "model", "len", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view", "client", "contractor"], {
     size: { label: "Размер изделия" },
     batch: { pattern: /^(\d{1,6}|none)$/ },
     docs: { allowed: ["docs", "pay"] },
@@ -183,6 +183,11 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         auction: () => ({ id: { in: lotOrderIds ?? [] } }),
         fur: () => ({ id: { in: lotOrderIds ?? [] } }),
         client: (v) => ({ clientId: { in: v } }),
+        contractor: (v) => {
+          const none = v.includes("none");
+          const ids = v.filter((x) => x !== "none");
+          return { OR: [...(ids.length ? [{ contractorId: { in: ids } }] : []), ...(none ? [{ contractorId: null }] : [])] };
+        },
         verified: (v) => (v.includes("yes") && v.includes("no") ? undefined : v.includes("yes") ? { verifiedAt: { not: null } } : v.includes("no") ? { verifiedAt: null } : undefined),
         q: (text) => ({
           OR: [
@@ -206,6 +211,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         productModel: { select: { id: true, name: true, category: true, salesCode: true, salesName: true } },
         season: { select: { code: true } },
         client: { select: { name: true } },
+        contractor: { select: { name: true } },
         batch: { select: { number: true, year: true } },
         ...ORDER_COLORS_INCLUDE,
         materialUsages: {
@@ -229,7 +235,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   const attr = await loadOrderAttrOptions(orgId);
   const colorSel = splitNone(f.color);
   const sizeSel = splitNone(f.size);
-  const optsBase = await getFilterOptions(orgId, year, ["season", "batch", "model", "category", "auction", "fur", "attr", "client"]);
+  const optsBase = await getFilterOptions(orgId, year, ["season", "batch", "model", "category", "auction", "fur", "attr", "client", "contractor"]);
   const opts = { ...optsBase, fur: withOrderFurOptions(optsBase.fur, orderFurRows) };
   const hasFilters = filtersOn;
 
@@ -298,6 +304,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
 
   // Колонку заказчика показываем только если в списке больше одного заказчика.
   const showClient = new Set(orders.map((o) => o.client?.name ?? "")).size > 1;
+  // Подрядчик в строке ТЗ — когда в списке их больше одного.
+  const showContractor = new Set(orders.map((o) => o.contractor?.name ?? "")).size > 1;
 
   let sumIncl = new Decimal(0);
   let sumExcl = new Decimal(0);
@@ -463,7 +471,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                 <Td className={cell}>
                   <div className={`${link} max-w-[16rem]`}>
                     <Link href={`/models/${o.productModel.id}`} className="hover:underline" title="Открыть артикул"><ArticleName model={o.productModel} compact /></Link>
-                    <Link href={href} className="block truncate text-xs text-neutral-500 hover:underline">{[o.productModel.category?.trim(), orderColorNames(o).join("; "), showClient ? o.client?.name : ""].filter(Boolean).join(" · ")}</Link>
+                    <Link href={href} className="block truncate text-xs text-neutral-500 hover:underline">{[o.productModel.category?.trim(), orderColorNames(o).join("; "), showClient ? o.client?.name : "", showContractor ? o.contractor?.name : ""].filter(Boolean).join(" · ")}</Link>
                   </div>
                 </Td>
                 <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.units > 0 ? formatQty(st.units) : dash}</Link></Td>
@@ -636,6 +644,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           { type: "multi", name: "color", label: "Цвет изделия", more: true, options: attr.color, noneLabel: attr.noColor > 0 ? NO_COLOR_LABEL : undefined, hint: "Все цвета ТЗ: составное ТЗ попадает под каждый свой цвет" },
           ...(attr.size.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер изделия", more: true, options: attr.size, noneLabel: attr.noSize > 0 ? NO_SIZE_LABEL : undefined, hint: "Размеры из ТЗ: ТЗ с несколькими размерами попадает под каждый" }] : []),
           { type: "multi", name: "client", label: "Заказчик", options: opts.client, more: true },
+          ...(opts.contractor.length > 1 ? [{ type: "multi" as const, name: "contractor", label: "Подрядчик", options: opts.contractor, noneLabel: "Не указан", allLabel: "Все подрядчики" }] : []),
           { type: "multi", name: "docs", label: "Документы и оплата", aliases: ["need"], options: DOCS_OPTIONS, allLabel: "Все", more: true },
           { type: "multi", name: "verified", label: "Проверка", options: VERIFIED_OPTIONS, allLabel: "Любая", more: true },
           { type: "date", name: "from", label: "Дата ТЗ с", more: true },

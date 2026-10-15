@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 const SETTINGS_LINKS = [
   { href: "/materials", title: "Справочник материалов", description: "Названия, единицы измерения, категории" },
   { href: "/suppliers", title: "Поставщики", description: "Поставщики и их контакты" },
+  { href: "/settings/contractors", title: "Подрядчики", description: "Кто шьёт по ТЗ: реквизиты, договоры, доступ в кабинет, их ТЗ, оплаты и долг" },
   { href: "/clients", title: "Заказчики", description: "Кому шьём и кто платит" },
   { href: "/settings/colors", title: "Справочник цветов", description: "Единые названия цветов, синонимы, объединение и привязка" },
   { href: "/settings/categories", title: "Справочник категорий", description: "Пальто, полупальто, жакет… единые названия категорий изделий, синонимы, объединение и привязка моделей" },

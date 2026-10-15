@@ -31,7 +31,7 @@ type Extra = { key: number; modelId: string; qty: string; color: string; colorRe
 type ExpLine = { key: number; categoryId: string; amount: string; desc: string };
 /** Что остаётся в форме после «Сохранить и добавить ещё»: заказчик, договор, партия, даты, цвет, вид меха и т.п. (артикул, количество и строки очищаются). */
 type Carry = {
-  f: Record<string, string>; clientId: string; contract: string; contractTouched: boolean;
+  f: Record<string, string>; clientId: string; contractorId?: string; contract: string; contractTouched: boolean;
   batchSel: string; batchNew: string; furSel: string; furNew: string; vatSel: string; vatCustom: string; colorRefId: string;
 };
 
@@ -85,6 +85,8 @@ export function ProductionCreateForm(props: {
   models: ModelOption[];
   warehouses: { id: string; name: string; isDefault: boolean }[];
   clients: Opt[];
+  /** Подрядчики (поставщики с договором подряда): если один — подставляется сам. */
+  contractors?: Opt[];
   lots: LotOpt[];
   lastContractByClient: Record<string, string>;
   colorOptions: ColorSelectOption[];
@@ -128,7 +130,7 @@ export function ProductionCreateForm(props: {
 }
 
 function FormBody({
-  initialArticleId, initialBatchId, models, warehouses, clients, lots, lastContractByClient, colorOptions, canAddColor, canAddFur, batches, nextTzNumber = "", tzNumberCounts = {}, expenseCategories, furs,
+  initialArticleId, initialBatchId, models, warehouses, clients, contractors = [], lots, lastContractByClient, colorOptions, canAddColor, canAddFur, batches, nextTzNumber = "", tzNumberCounts = {}, expenseCategories, furs,
   state, formAction, pending, carry, carryRef,
 }: Parameters<typeof ProductionCreateForm>[0] & { state: CreateOrderState; formAction: (fd: FormData) => void; pending: boolean; carry: Carry | null; carryRef: { current: Carry | null } }) {
   const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
@@ -144,6 +146,7 @@ function FormBody({
   const [batchQuery, setBatchQuery] = useState("");
   const set = (k: string) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
   const [clientId, setClientId] = useState(carry?.clientId ?? "");
+  const [contractorId, setContractorId] = useState(carry?.contractorId ?? (contractors.length === 1 ? contractors[0].id : ""));
   const [contract, setContract] = useState(carry?.contract ?? "");
   const [contractTouched, setContractTouched] = useState(carry?.contractTouched ?? false);
   const [batchSel, setBatchSel] = useState(() => {
@@ -173,7 +176,7 @@ function FormBody({
   const errRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
-    carryRef.current = { f: { ...f, plannedQuantity: "" }, clientId, contract, contractTouched, batchSel, batchNew, furSel, furNew, vatSel, vatCustom, colorRefId: f.colorRefId ?? "" };
+    carryRef.current = { f: { ...f, plannedQuantity: "" }, clientId, contractorId, contract, contractTouched, batchSel, batchNew, furSel, furNew, vatSel, vatCustom, colorRefId: f.colorRefId ?? "" };
   });
 
   const model = models.find((m) => m.id === modelId) ?? null;
@@ -479,6 +482,14 @@ function FormBody({
           <Field htmlFor="contractNumber" label="Договор подряда">
             <Input id="contractNumber" name="contractNumber" placeholder="№ 1605 от 16.05.2025" value={contract} onChange={(e) => { setContract(e.target.value); setContractTouched(true); }} />
           </Field>
+          {contractors.length > 0 && (
+            <Field htmlFor="contractorId" label="Подрядчик" hint="Кто шьёт по этому ТЗ. Ему идут оплаты за работу. Если подрядчик один, он подставляется сам.">
+              <Select id="contractorId" name="contractorId" value={contractorId} onChange={(e) => setContractorId(e.target.value)}>
+                <option value="">Не указан</option>
+                {contractors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </Select>
+            </Field>
+          )}
           <Field label="Партия пошива" hint="Партия поставки. Партия 6 — без надбавки 4%. Можно выбрать из списка или завести новую по номеру.">
             {batches.length > 8 ? (
               <Input className="mb-1" placeholder="Поиск партии: номер или год" aria-label="Поиск партии пошива" value={batchQuery} onChange={(e) => setBatchQuery(e.target.value)} />

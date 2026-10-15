@@ -122,6 +122,8 @@ export type UnallocatedPayment = {
   id: string;
   clientId: string | null;
   clientName: string | null;
+  /** Получатель оплаты — подрядчик (Supplier.id); null — не указан. */
+  contractorId: string | null;
   paidAt: Date;
   amount: Decimal;
   allocated: Decimal;
@@ -138,7 +140,7 @@ export async function loadUnallocatedPayments(db: Db, orgId: string, opts: { cli
   const pays = await db.productionPayment.findMany({
     where: { organizationId: orgId, status: "COMPLETED", ...(opts.clientId ? { clientId: opts.clientId } : {}) },
     select: {
-      id: true, clientId: true, paidAt: true, amount: true, paymentType: true, docRef: true, notes: true,
+      id: true, clientId: true, contractorId: true, paidAt: true, amount: true, paymentType: true, docRef: true, notes: true,
       client: { select: { name: true } },
       orders: { select: { productionOrderId: true } },
       allocations: { select: { amount: true, productionOrder: { select: { status: true } } } },
@@ -153,7 +155,7 @@ export async function loadUnallocatedPayments(db: Db, orgId: string, opts: { cli
     const rest = new Decimal(p.amount).sub(allocated);
     if (rest.mul(100).lessThanOrEqualTo(EPS_CENTS)) continue;
     out.push({
-      id: p.id, clientId: p.clientId, clientName: p.client?.name ?? null, paidAt: p.paidAt, amount: new Decimal(p.amount), allocated, rest,
+      id: p.id, clientId: p.clientId, clientName: p.client?.name ?? null, contractorId: p.contractorId ?? null, paidAt: p.paidAt, amount: new Decimal(p.amount), allocated, rest,
       paymentType: p.paymentType, docRef: p.docRef, notes: p.notes, linkedOrders: p.orders.length,
       kind: unallocatedKind({ paymentType: p.paymentType, linkedOrders: p.orders.length }),
     });
@@ -212,6 +214,8 @@ export type ClientDebtScope = {
   orderFiltersActive?: boolean;
   /** Надбавка 4% за мех и подкладку по ТЗ (id → ₽ с НДС): добавляется к «К оплате» заказчика. */
   surcharge?: Map<string, number>;
+  /** Только работа и оплаты одного подрядчика: ТЗ с этим contractorId и платежи с этим получателем. Нет — все. */
+  contractorId?: string;
 };
 
 const n2 = (d: Decimal) => Math.round(d.toNumber() * 100) / 100;
@@ -224,7 +228,7 @@ export async function loadClientDebt(db: Db, orgId: string, scope: ClientDebtSco
   const year = scope.year;
   const filtersActive = Boolean(scope.orderFiltersActive);
   const orders: (OrderQty & { id: string; clientId: string; client: { name: string } })[] = await db.productionOrder.findMany({
-    where: { organizationId: orgId, clientId: { not: null }, status: { not: "CANCELLED" }, ...(scope.orderIds ? { id: { in: scope.orderIds } } : {}) },
+    where: { organizationId: orgId, clientId: { not: null }, status: { not: "CANCELLED" }, ...(scope.orderIds ? { id: { in: scope.orderIds } } : {}), ...(scope.contractorId ? { contractorId: scope.contractorId } : {}) },
     select: { id: true, status: true, plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true, clientId: true, client: { select: { name: true } } },
   });
   const orderIds = new Set(orders.map((o) => o.id));
@@ -264,7 +268,7 @@ export async function loadClientDebt(db: Db, orgId: string, scope: ClientDebtSco
   // Неразнесённые авансы: остаток платежей, не отнесённый ни к одному действующему ТЗ. По году — по дате оплаты.
   const payments = await loadUnallocatedPayments(db, orgId);
   const inYear = (d: Date) => year === "all" || new Date(d).getUTCFullYear() === Number(year);
-  const yearPayments = payments.filter((p) => inYear(p.paidAt));
+  const yearPayments = payments.filter((p) => inYear(p.paidAt) && (!scope.contractorId || p.contractorId === scope.contractorId));
   let unallocatedAll = 0;
   const byKind = { advance: 0, excess: 0 };
   let hidesTotal = 0;

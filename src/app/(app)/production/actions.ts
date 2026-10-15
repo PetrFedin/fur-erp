@@ -24,6 +24,7 @@ import { staleError, ORDER_V, PRODUCTION_PAYMENT_V, BATCH_V } from "@/lib/concur
 import { resetByProdPayment } from "@/lib/verification";
 import { autoAllocatePayment } from "@/lib/payment-alloc";
 import { isUniqueViolation } from "@/lib/input";
+import { resolveContractorId } from "@/lib/contractors";
 
 const optDate = (label: string) =>
   z.string().optional().refine((s) => !s || parseDateInput(s) !== null, label);
@@ -47,6 +48,7 @@ const orderSchema = z.object({
   notes: z.string().trim().max(5000).optional(),
   clientId: z.string().trim().optional(),
   contractNumber: z.string().trim().max(200).optional(),
+  contractorId: z.string().trim().optional(),
   workOrderNumber: z.string().trim().max(200).optional(),
   workOrderDate: optDate("Некорректная дата ТЗ"),
   clientWorkPricePerUnit: zNumOpt("Стоимость работ за ед."),
@@ -171,6 +173,7 @@ export async function createProductionOrder(
     notes: formData.get("notes") || undefined,
     clientId: formData.get("clientId") || undefined,
     contractNumber: formData.get("contractNumber") || undefined,
+    contractorId: formData.get("contractorId") || undefined,
     workOrderNumber: formData.get("workOrderNumber") || undefined,
     workOrderDate: formData.get("workOrderDate") || undefined,
     clientWorkPricePerUnit: formData.get("clientWorkPricePerUnit") || undefined,
@@ -178,6 +181,9 @@ export async function createProductionOrder(
     liningQuantity: formData.get("liningQuantity") || undefined,
   });
   if (!parsed.success) return { errors: parsed.error.issues.map((i) => i.message) };
+  const cr = await resolveContractorId(organizationId, parsed.data.contractorId);
+  if (cr.error) return { errors: [cr.error] };
+  const contractorId = cr.id;
 
   const { lines, errors } = parseLotLines(((formData.get("lots") as string | null) ?? "").toString());
 
@@ -307,6 +313,7 @@ export async function createProductionOrder(
           notes: parsed.data.notes,
           clientId: parsed.data.clientId || undefined,
           contractNumber: parsed.data.contractNumber,
+          contractorId: contractorId ?? undefined,
           workOrderNumber: parsed.data.workOrderNumber,
           workOrderDate: parsed.data.workOrderDate ? new Date(parsed.data.workOrderDate) : undefined,
           clientWorkPricePerUnit: parsed.data.clientWorkPricePerUnit,
@@ -416,6 +423,7 @@ export async function createProductionOrder(
               notes: parsed.data.notes,
               clientId: parsed.data.clientId || undefined,
               contractNumber: parsed.data.contractNumber,
+              contractorId: contractorId ?? undefined,
               workOrderNumber: parsed.data.workOrderNumber,
               workOrderDate: parsed.data.workOrderDate ? new Date(parsed.data.workOrderDate) : undefined,
               clientWorkPricePerUnit: x.clientWorkPricePerUnit,
@@ -576,6 +584,13 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
   const notes = (formData.get("notes") as string)?.trim() || null;
   const clientId = (formData.get("clientId") as string)?.trim() || null;
   const contractNumber = (formData.get("contractNumber") as string)?.trim() || null;
+  // Подрядчик меняется, только если поле пришло (пусто = «не указан»).
+  let contractorPatch: { contractorId?: string | null } = {};
+  if (formData.has("contractorId")) {
+    const cr = await resolveContractorId(session.user.organizationId, formData.get("contractorId") as string | null);
+    if (cr.error) return { error: cr.error };
+    contractorPatch = { contractorId: cr.id };
+  }
   const workOrderNumber = (formData.get("workOrderNumber") as string)?.trim() || null;
 
   const startDateRaw = (formData.get("startDate") as string)?.trim();
@@ -613,6 +628,7 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
     data: {
       ...batchPatch,
       ...retailPatch,
+      ...contractorPatch,
       productModelId: parsed.data.productModelId,
       rawWarehouseId: parsed.data.rawWarehouseId,
       finishedWarehouseId: parsed.data.finishedWarehouseId,
@@ -646,7 +662,7 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
 /** Поля ТЗ, которые правятся по месту в таблице «Параметры ТЗ» (одно поле за раз). */
 const PATCH_FIELDS = new Set([
   "productModelId", "rawWarehouseId", "finishedWarehouseId", "plannedQuantity", "producedQuantity", "colorRefId", "color", "size",
-  "materialDescription", "lining", "startDate", "notes", "clientId", "batchId", "contractNumber", "workOrderNumber",
+  "materialDescription", "lining", "startDate", "notes", "clientId", "batchId", "contractNumber", "contractorId", "workOrderNumber",
   "workOrderDate", "clientWorkPricePerUnit", "endDate",
 ]);
 
@@ -693,6 +709,7 @@ export async function patchProductionOrder(orderId: string, field: string, value
   fd.set("notes", order.notes ?? "");
   fd.set("clientId", order.clientId ?? "");
   fd.set("contractNumber", order.contractNumber ?? "");
+  fd.set("contractorId", order.contractorId ?? "");
   fd.set("workOrderNumber", order.workOrderNumber ?? "");
   fd.set("workOrderDate", day(order.workOrderDate));
   fd.set("clientWorkPricePerUnit", order.clientWorkPricePerUnit?.toString() ?? "");
