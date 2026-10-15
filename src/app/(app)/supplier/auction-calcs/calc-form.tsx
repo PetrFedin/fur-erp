@@ -19,7 +19,7 @@ import { attachInboxFile, deleteCalcDraft, parseCalcFile, removeInboxFile, saveC
 const money = (n: number) => (Number.isFinite(n) ? n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
 export type FileRow = { id: string; originalName: string; kind: string; sizeBytes: number };
 
-export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [] }: { id: string | null; initial: CalcPayload; readOnly: boolean; files: FileRow[]; reviewNote?: string | null; years?: number[] }) {
+export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [], lockReason }: { id: string | null; initial: CalcPayload; readOnly: boolean; files: FileRow[]; reviewNote?: string | null; years?: number[]; lockReason?: string | null }) {
   const router = useRouter();
   const [p, setP] = useState<CalcPayload>(initial);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
@@ -188,7 +188,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [] 
         ))}
       </div>
 
-      {tab === "detail" && <CalcDetail p={p} setP={setP} t={t} ro={ro} />}
+      {tab === "detail" && <CalcDetail p={p} setP={setP} t={t} ro={ro} lockReason={lockReason} />}
 
       {tab === "calc" && !ro && (
         <div className="flex flex-wrap items-center gap-2">

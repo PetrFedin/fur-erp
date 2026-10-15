@@ -39,9 +39,10 @@ function tokenize(src: string): Tok[] {
       out.push({ t: "num", v: Number(s.slice(i, j).replace(",", ".")), pos: i });
       i = j; continue;
     }
-    if (ID_START.test(c)) {
+    if (ID_START.test(c) || (c === "$" && /[A-Za-z$0-9]/.test(s[i + 1] ?? ""))) {
+      // «$» закрепляет столбец или строку в адресе ячейки ($H$3, H$3, $H3) — как в Excel
       let j = i + 1;
-      while (j < s.length && ID_PART.test(s[j])) j++;
+      while (j < s.length && (ID_PART.test(s[j]) || (s[j] === "$" && /[0-9]/.test(s[j + 1] ?? "")))) j++;
       out.push({ t: "id", v: s.slice(i, j), pos: i });
       i = j; continue;
     }
@@ -167,8 +168,67 @@ export function colIndex(letter: string): number {
 }
 /** Ссылка на ячейку «H3» → столбец и номер строки (с 1); иначе null. */
 export function cellRef(name: string): { col: string; row: number } | null {
-  const m = /^([A-Za-z]{1,3})(\d{1,4})$/.exec(name);
+  const m = /^\$?([A-Za-z]{1,3})\$?(\d{1,4})$/.exec(name);
   return m && Number(m[2]) >= 1 ? { col: m[1].toUpperCase(), row: Number(m[2]) } : null;
+}
+
+const SCAN_WORD = /^(\$?)([A-Za-z]{1,3})(\$?)(\d{1,4})$/;
+/** Обход слов формулы с сохранением остального текста: fn получает слово и признак «это вызов функции»; вернуть строку — подмена. */
+function mapWords(src: string, fn: (w: string, isCall: boolean, ctx: { fnStack: string[]; before: string; after: string }) => string | null): string {
+  let out = "";
+  let i = 0;
+  const fnStack: string[] = [];
+  let pending: string | null = null;
+  while (i < src.length) {
+    const c = src[i];
+    if (ID_START.test(c) || (c === "$" && /[A-Za-z$0-9]/.test(src[i + 1] ?? ""))) {
+      let j = i + 1;
+      while (j < src.length && (ID_PART.test(src[j]) || (src[j] === "$" && /[0-9]/.test(src[j + 1] ?? "")))) j++;
+      const w = src.slice(i, j);
+      const isCall = src.slice(j).trimStart().startsWith("(") && !!funcName(w);
+      if (isCall) { pending = funcName(w); out += w; } else out += fn(w, false, { fnStack, before: src.slice(0, i).trimEnd().slice(-1), after: src.slice(j).trimStart().slice(0, 1) }) ?? w;
+      i = j;
+    } else if (/[0-9]/.test(c)) {
+      let j = i + 1;
+      while (j < src.length && /[0-9.,]/.test(src[j])) j++;
+      out += src.slice(i, j); i = j;
+    } else {
+      if (c === "(") { fnStack.push(pending ?? ""); pending = null; }
+      else if (c === ")") fnStack.pop();
+      out += c; i++;
+    }
+  }
+  return out;
+}
+
+/**
+ * «Протянуть вниз»: сдвиг номеров строк в адресах ячеек на d (E1 → E2 при d=1), как копирование формулы в Excel.
+ * $ закрепляет: $E$1 и E$1 строку не сдвигают. Столбцы без номера (M), параметры и SUM(D) остаются как есть.
+ * Если адрес уходит выше первой строки — FormulaError.
+ */
+export function shiftFormula(src: string, d: number): string {
+  if (d === 0) return src;
+  return mapWords(src, (w) => {
+    const m = SCAN_WORD.exec(w);
+    if (!m) return null;
+    if (m[3] === "$") return null;
+    const row = Number(m[4]) + d;
+    if (row < 1) throw new FormulaError(`Ссылка ${w} уходит выше первой строки`);
+    return `${m[1]}${m[2]}${row}`;
+  });
+}
+
+/**
+ * Формула с явными номерами строк для показа: «=M+500» в строке 3 → «=M3+500». Столбцы целиком (SUM(D)) и диапазоны D:I не трогаем.
+ */
+export function explicitRowRefs(src: string, row: number, isColumn: (letter: string) => boolean): string {
+  const WHOLE = new Set(["SUM", "AVERAGE", "SUBTOTAL"]);
+  return mapWords(src, (w, _c, ctx) => {
+    if (!/^[A-Za-z]{1,3}$/.test(w) || !isColumn(w.toUpperCase())) return null;
+    if (ctx.before === ":" || ctx.after === ":") return null; // D:I — диапазон столбцов этой строки
+    if (WHOLE.has(ctx.fnStack[ctx.fnStack.length - 1] ?? "")) return null;
+    return `${w}${row}`;
+  });
 }
 /** Буквы столбцов от a до b включительно (D:I → D,E,F,G,H,I). */
 export function lettersBetween(a: string, b: string): string[] {

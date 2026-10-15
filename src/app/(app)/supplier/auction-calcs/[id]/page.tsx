@@ -27,6 +27,9 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
   const full = row.title;
   const shortTitle = shortInboxTitle(full);
   const readOnly = row.status !== "DRAFT" || s.user.role !== "SUPPLIER";
+  const lockReason = row.status !== "DRAFT"
+    ? `Расчёт ${row.status === "SENT" ? "отправлен и на проверке" : row.status === "ACCEPTED" ? "принят" : "возвращён"}: править нельзя${row.status === "REJECTED" ? ' — верните в черновик кнопкой выше' : ""}.`
+    : s.user.role !== "SUPPLIER" ? "Вы смотрите расчёт поставщика: править его может только поставщик." : null;
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Расчёты аукционов", href: "/supplier/auction-calcs" }, { label: shortTitle }]} />
@@ -40,7 +43,7 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
       {row.status === "REJECTED" && s.user.role === "SUPPLIER" && <ReopenButton id={row.id} />}
       {payload.stage === "PRELIM" && s.user.role === "SUPPLIER" && <FinalButton id={row.id} />}
       <CompareBlock s={s} payload={payload} />
-      <CalcForm id={row.id} initial={payload} readOnly={readOnly} files={row.files} reviewNote={row.reviewNote} years={years} />
+      <CalcForm id={row.id} initial={payload} readOnly={readOnly} files={row.files} reviewNote={row.reviewNote} years={years} lockReason={lockReason} />
     </div>
   );
 }

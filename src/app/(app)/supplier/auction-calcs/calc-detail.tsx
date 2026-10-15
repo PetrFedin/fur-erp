@@ -8,6 +8,7 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { QTY_COL, UNIT_COL, checkDiffs, rowFilled, columnUsers, newId, paramList, paramNameProblem, remapCustomRefs, syncLetters, type CalcPayload, type CalcTotals, type CustomCol, type SheetCol } from "@/lib/supplier-calc";
 import { applySheetTable, findHeaderRow, parseClipboardTable, type PasteResult } from "@/lib/sheet-paste";
 import { readCalcTable } from "./actions";
+import { FormulaBar } from "./formula-bar";
 import { ColumnEditor, draftFrom, draftProblem, newDraft, type Draft } from "./column-editor";
 
 const fmt = (n: number | null | undefined) => (n == null || !Number.isFinite(n) ? "" : n.toLocaleString("ru-RU", { maximumFractionDigits: 4 }));
@@ -17,7 +18,7 @@ const fmt = (n: number | null | undefined) => (n == null || !Number.isFinite(n) 
  * Белые ячейки — ввод, серые — формулы (вписанное вручную помечено), клик по названию своего столбца открывает конструктор формулы.
  * Tab/Enter/стрелки переходят по ячейкам, вставка из Excel заполняет столбцы ввода.
  */
-export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<SetStateAction<CalcPayload>>; t: CalcTotals; ro: boolean }) {
+export function CalcDetail({ p, setP, t, ro, lockReason }: { p: CalcPayload; setP: Dispatch<SetStateAction<CalcPayload>>; t: CalcTotals; ro: boolean; lockReason?: string | null }) {
   const sh = t.sheet;
   const isSheet = p.format === "SHEET";
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -313,19 +314,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
         )}
       </section>
 
-      {(() => {
-        const col = act ? sh.cols.find((x) => x.id === act.id) : null;
-        const cc = act ? (p.customColumns ?? []).find((x) => x.id === act.id) : null;
-        const ovr = act ? p.overrides?.[p.rows[act.i]?._id]?.[act.id] : undefined;
-        return (
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm">
-            <span className="font-mono text-xs text-neutral-500">{col && act ? `${col.letter}${act.i + 1}` : "ячейка"}</span>
-            {!ro && col && col.kind === "input" && act && <button type="button" className="rounded border border-neutral-300 bg-white px-2 text-xs hover:bg-neutral-100" title="Ctrl+D" onClick={() => fillDown(act.i, sh.cols.findIndex((x) => x.id === col.id))}>↓ Заполнить вниз</button>}
-            <span className="font-mono">{!col ? "нажмите на ячейку — здесь будет её формула" : ovr ? `${ovr.trim().startsWith("=") ? "" : "= "}${ovr} (вручную)` : cc && cc.kind !== "input" ? (cc.formula ? (cc.formula.startsWith("=") ? cc.formula : `=${cc.formula}`) : "правила по строкам") : col.kind === "input" ? "значение, введённое вручную" : "считается автоматически"}</span>
-            {!ro && col && col.kind !== "input" && <span className="text-xs text-neutral-500">Чтобы поправить эту ячейку, впишите число или формулу со знака «=», например <span className="font-mono">=M+500</span> или <span className="font-mono">=E1*2</span> (ссылка на ячейку: буква столбца и номер строки). «↩» вернёт формулу.</span>}
-          </div>
-        );
-      })()}
+      <FormulaBar p={p} setP={setP} sh={sh} act={act} ro={ro} lockReason={lockReason ?? null} fillInput={fillDown} />
       <div ref={tableRef} className="scroll-hint max-h-[75vh] overflow-auto rounded-lg border border-neutral-300 bg-white">
         <table className="border-separate border-spacing-0 text-sm">
           <thead>
@@ -370,17 +359,20 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
                   const ovr = p.overrides?.[r._id]?.[c.id];
                   const editable = !ro && (c.kind === "custom" || c.id === UNIT_COL);
                   if (!sh.used[i]) return <td key={c.id} className="border-b border-r border-neutral-200 bg-neutral-50" />;
+                  const isAct = act?.i === i && act.id === c.id;
                   return (
-                    <td key={c.id} className={`border-b border-r border-neutral-200 p-0 ${cell?.manual ? "bg-amber-100" : "bg-neutral-100"}`}>
+                    <td key={c.id} className={`border-b border-r border-neutral-200 p-0 ${isAct ? "outline outline-2 -outline-offset-2 outline-sky-400" : ""} ${cell?.manual ? "bg-amber-100" : "bg-neutral-100"} ${editable ? "hover:bg-sky-50" : ""}`}>
                       {editable ? (
                         <div className="flex items-center">
-                          <input data-cell={`${i}-${ci}`} value={ovr !== undefined ? ovr : fmt(cell?.v)} title={cell?.err ?? (cell?.manual ? "вручную" : "по формуле")}
+                          <input data-cell={`${i}-${ci}`} value={ovr !== undefined ? ovr : fmt(cell?.v)} title={cell?.err ?? (cell?.manual ? "Вручную. Нажмите, чтобы изменить; «↩» вернёт формулу" : "По формуле. Нажмите, чтобы изменить значение")}
                             onFocus={(e) => { e.target.select(); setAct({ i, id: c.id }); }} onChange={(e) => setOverride(r._id, c.id, e.target.value)} onKeyDown={(e) => onKey(e, i, ci)} inputMode="decimal"
-                            style={{ width: 104 }} className={`h-8 border-0 bg-transparent px-2 text-right text-sm tabular-nums outline-none focus:ring-2 focus:ring-inset focus:ring-sky-400 ${cell?.err ? "bg-red-50 text-red-700" : ""}`} />
-                          {cell?.manual && <button type="button" className="pr-1 text-[11px] text-blue-700" title="Вернуть формулу" onClick={() => setOverride(r._id, c.id, null)}>↩</button>}
+                            style={{ width: 104 }} className={`h-8 cursor-text border-0 bg-transparent px-2 text-right text-sm tabular-nums outline-none ${cell?.err ? "bg-red-50 text-red-700" : ""}`} />
+                          {cell?.manual && <button type="button" className="inline-flex min-h-8 items-center px-1.5 text-[11px] text-blue-700 max-md:min-h-11" title="Вернуть формулу" onClick={() => setOverride(r._id, c.id, null)}>↩</button>}
                         </div>
                       ) : (
-                        <span className={`block px-2 py-1 text-right tabular-nums ${cell?.err ? "text-red-700" : ""}`} title={cell?.err}>{cell?.err ? "ошибка" : fmt(c.id === "total" ? t.calcs[i].totalRub : cell?.v)}</span>
+                        <button type="button" data-cell={`${i}-${ci}`} onClick={() => setAct({ i, id: c.id })} onFocus={() => setAct({ i, id: c.id })} onKeyDown={(e) => onKey(e as unknown as KeyboardEvent<HTMLInputElement>, i, ci)}
+                          title={cell?.err ?? (ro ? "Нажмите, чтобы увидеть формулу" : "Считается по формуле формата, править нельзя; формула — в строке над таблицей")}
+                          className={`block min-h-8 w-full cursor-default px-2 py-1 text-right tabular-nums outline-none ${cell?.err ? "text-red-700" : ""}`}>{cell?.err ? "ошибка" : fmt(c.id === "total" ? t.calcs[i].totalRub : cell?.v)}</button>
                       )}
                       {cell?.err && <div className="max-w-[200px] px-2 pb-1 text-[11px] leading-tight text-red-600">{cell.err}</div>}
                     </td>
