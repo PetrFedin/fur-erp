@@ -113,7 +113,9 @@ function pairLine(k: string, v: [unknown, unknown], full: boolean): string {
   }
   if (full) return `${label}: ${isComplex(v[0]) ? JSON.stringify(v[0]) : showValue(v[0])} → ${isComplex(v[1]) ? JSON.stringify(v[1]) : showValue(v[1])}`;
   if (isComplex(v[0]) || isComplex(v[1]) || label === k) return `изменено: ${label}`;
-  return `${label}: ${showValue(v[0])} → ${showValue(v[1])}`;
+  const was = showValue(v[0]), now = showValue(v[1]);
+  if (was === now) return `изменено: ${label}`; // длинный текст обрезан одинаково — полный вид в «Подробнее»
+  return `${label}: ${was} → ${now}`;
 }
 
 /** Есть ли в записи изменения, свёрнутые в «изменено: <поле>» (для них нужен блок «Подробнее»). */

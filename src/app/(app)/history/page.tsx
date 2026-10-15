@@ -156,7 +156,7 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
                 <Td className="whitespace-nowrap text-xs">{fmtAt(r.at)}</Td>
                 <Td className="text-xs">{actorText(r)}</Td>
                 <Td className="text-xs">
-                  <div className="text-neutral-500">{entityTitle(r.model)}</div>
+                  {entityTitle(r.model) !== shown.text && <div className="text-neutral-500">{entityTitle(r.model)}</div>}
                   {href ? (
                     <Link href={href} className="text-blue-700 hover:underline" title={shown.title}>
                       {shown.text}
