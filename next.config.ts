@@ -45,6 +45,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // Второй dev-сервер (проверка на тестовой копии базы): NEXT_DIST_DIR=.next-test next dev -p 3204.
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  // Демо-сборка (DEMO_BUILD=true) заменяет вшитые JSON пустыми заготовками (scripts/demo-static-data.mjs): типы пустых списков не сходятся.
+  // Обычная сборка проверяет типы как всегда.
+  typescript: { ignoreBuildErrors: process.env.DEMO_BUILD === "true" },
   poweredByHeader: false, // не раскрываем «X-Powered-By: Next.js»
   // Загрузка документов закупки (до 25 МБ на файл + служебные байты multipart).
   experimental: {

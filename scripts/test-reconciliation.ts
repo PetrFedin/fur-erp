@@ -9,9 +9,11 @@ import { loadDebtInputs, supplierDebtFromInputs } from "../src/lib/supplier-debt
 
 const prisma = new PrismaClient();
 let fails = 0, checks = 0;
+// RECON_TOL_SCALE: на обезличенной демо-базе (деньги умножены на целый коэффициент K) допуски округления тоже умножаются на K.
+const TOL_SCALE = Number(process.env.RECON_TOL_SCALE) || 1;
 const eq = (what: string, got: number, want: number, tol = 1) => {
   checks++;
-  if (Math.abs(got - want) > tol) { fails++; console.log(`  ✗ ${what}: ${got.toFixed(2)} ≠ ${want.toFixed(2)} (Δ ${(got - want).toFixed(2)})`); }
+  if (Math.abs(got - want) > tol * TOL_SCALE) { fails++; console.log(`  ✗ ${what}: ${got.toFixed(2)} ≠ ${want.toFixed(2)} (Δ ${(got - want).toFixed(2)})`); }
 };
 const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[], batch: [] as string[], status: [] as string[], vat: [] as string[], attr: [] as string[], catgroup: [] as string[] };
 
