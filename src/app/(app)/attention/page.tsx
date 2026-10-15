@@ -101,7 +101,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
             <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", DOT.yellow)} aria-hidden />
             <span className="min-w-0 flex-1 text-sm font-medium text-neutral-900">
               От поставщика ждут проверки
-              <span className="block text-xs font-normal text-neutral-500">Расчёты аукционов, ТЗ и документы, которые прислал Веллмех: принять в учёт или вернуть с комментарием.</span>
+              <span className="ml-1.5 align-middle"><InfoHint wide label="Что проверять"><p>Расчёты аукционов, ТЗ и документы от Веллмеха: принять в учёт или вернуть с комментарием.</p></InfoHint></span>
             </span>
             <Link href="/inbox" className="inline-flex h-8 shrink-0 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Открыть входящие →</Link>
             <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", BADGE.yellow)}>{counts.inbox}</span>
@@ -115,7 +115,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
             <span className="min-w-0 flex-1 text-sm font-medium text-neutral-900">
               Чат: сообщения от Веллмеха
               <span className="block text-xs font-normal text-neutral-500">
-                {chat.awaiting > 0 ? `Ждут вашего ответа: ${chat.awaiting}. ` : ""}{chat.unread > 0 ? `Непрочитанных: ${chat.unread}.` : ""}
+                {[chat.awaiting > 0 ? `ждут ответа ${chat.awaiting}` : "", chat.unread > 0 ? `не прочитано ${chat.unread}` : ""].filter(Boolean).join(" · ")}
               </span>
             </span>
             <Link href={chat.awaiting > 0 ? "/chat?f=await" : "/chat"} className="inline-flex h-8 shrink-0 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Открыть чат →</Link>
@@ -127,7 +127,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
         <Card className="overflow-hidden">
           <div className="flex flex-col gap-1 p-3">
             <span className="text-sm font-medium text-neutral-900">Веллмех внёс за 7 дней
-              <span className="block text-xs font-normal text-neutral-500">Это видно у нас сразу, без приёмки. Что-то не так — откройте запись и напишите Веллмеху через «Написать / Запросить».</span>
+              <span className="ml-1.5 align-middle"><InfoHint wide label="Про внесённое"><p>Видно у нас сразу, без приёмки. Что-то не так — откройте запись и напишите Веллмеху через «Написать / Запросить».</p></InfoHint></span>
             </span>
             <ul className="mt-1 flex flex-wrap gap-2 text-sm">
               {supplierActivity.map((a) => (
