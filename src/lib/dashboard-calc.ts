@@ -148,7 +148,7 @@ export function prodTotals(rows: OrderRow[]): ProdTotals {
 export const isDone = (o: OrderRow) => o.status === "COMPLETED";
 
 /** Подпись ТЗ без партии пошива (ProductionOrder.batchNotRequired: отдельная поставка, ремонт и переделка — по письму №135): не недоработка, а отдельный вид пошива. */
-export const NO_BATCH_LABEL = "Вне партий (индивидуальный пошив, переделка)";
+export const NO_BATCH_LABEL = "Вне партий";
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
 /** Строка аналитики → ТЗ для окна «проваливания» (суммы строк в выбранном режиме 4%). */
