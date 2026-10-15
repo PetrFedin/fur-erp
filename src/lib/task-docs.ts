@@ -235,7 +235,7 @@ export async function loadTaskBlocks(db: Db, organizationId: string, now = new D
     const decision: Decision = base.id !== "advance-15-9" || advTotal <= 0 ? base : {
       ...base,
       title: `Аванс июль 2026: разнесено ${mln(advAlloc)}, без привязки ${advRest > 0.5 ? `остаётся ${rub(advRest)}` : "ничего не осталось"} из ${rub(advTotal)}`,
-      why: `По счетам №141 и №143 заказчик перечислил ${rub(advTotal)}; по ТЗ и партиям разнесено ${rub(advAlloc)}. ${advRest > 0.5 ? `Без привязки остаётся ${rub(advRest)}: ТЗ М023×6, М026×3, М001Е×1 и остаток по счёту №143 — это запрос Веллмеху. Разнести можно в «Оплаты → За производство → Неразнесённые авансы».` : "Весь аванс отнесён к ТЗ."} На долг заказчиков не влияет.`,
+      why: `По счетам №141 и №143 мы перечислили ${rub(advTotal)}; по ТЗ и партиям разнесено ${rub(advAlloc)}. ${advRest > 0.5 ? `Без привязки остаётся ${rub(advRest)}: ТЗ М023×6, М026×3, М001Е×1 и остаток по счёту №143 — это запрос Веллмеху. Разнести можно в «Оплаты → За работу → Неразнесённые авансы».` : "Весь аванс отнесён к ТЗ."} На долг по работе подрядчику не влияет.`,
       amount: advRest,
     };
     const v = stateByKey.get(DECISION_KEY_PREFIX + decision.id);

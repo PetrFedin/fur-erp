@@ -6,6 +6,7 @@ import { getFurIndex } from "@/lib/fur-ref-server";
 import { auctionName } from "@/lib/auction-payments";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { cleanNote } from "@/lib/note-tags";
+import { PAYER_NAME, contractorOfOrders, docNo } from "@/lib/payment-parties";
 
 /** Куда разнесена оплата: закупка, ТЗ или «без привязки». Σ частей = сумма оплаты. */
 export type OverviewPart = { label: string; href?: string; amount: number; note?: string };
@@ -63,7 +64,7 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     }),
     prisma.productionPayment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, createdAt: true, paymentType: true, method: true, docRef: true, notes: true, confirmedAt: true, client: { select: { name: true } }, _count: { select: { driveDocuments: true } }, allocations: { select: { amount: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true } } } }, orders: { select: { productionOrderId: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true } } } } },
+      select: { id: true, amount: true, paidAt: true, createdAt: true, paymentType: true, method: true, docRef: true, notes: true, confirmedAt: true, client: { select: { name: true } }, _count: { select: { driveDocuments: true } }, allocations: { select: { amount: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true } } } }, orders: { select: { productionOrderId: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true } } } } },
       orderBy: { paidAt: "desc" },
     }),
     // Закупки партий: оплата партии делится между ними пропорционально сумме (так же, как «Оплачено» в списке закупок).
@@ -109,13 +110,15 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     const rawFields: [string, string][] = [
       ["Дата оплаты", ruDate(p.paidAt)],
       ["Сумма", money(amount)],
-      ["Вид", whatRaw + (p.percent ? ` · ${formatPercent(Number(p.percent.toString()))} от суммы партии` : "")],
+      ["Вид оплаты", "За сырьё"],
+      ["Тип", whatRaw + (p.percent ? ` · ${formatPercent(Number(p.percent.toString()))} от суммы партии` : "")],
       ["Статья", `мех ${money(amount - lining)}` + (lining > 0.005 ? ` · подкладка ${money(lining)}` : "")],
-      ["Кому", p.supplier.name],
+      ["Плательщик", PAYER_NAME],
+      ["Получатель", p.supplier.name],
       ["За что", au ? `Партия «${au}»${p.purchase ? ` · закупка ${p.purchase.number}` : ""}` : p.purchase ? `Закупка ${p.purchase.number}` : "Без привязки к закупке (аванс)"],
       ["Способ", METHOD_RU[p.method] ?? p.method],
-      ["№ п/п", ppOf(p.docRef) ? `№ ${ppOf(p.docRef)}` : ""],
-      ["Счёт", inv ? `№${inv[1]}${inv[2] ? ` от ${inv[2]}` : ""}` : p.purchase?.invoiceNumber ? `№${p.purchase.invoiceNumber.replace(/^сч[её]т\s*/i, "")}` : ""],
+      ["П/п", ppOf(p.docRef) ?? ""],
+      ["Счёт", inv ? docNo(inv[1], inv[2]) : p.purchase?.invoiceNumber ? docNo(p.purchase.invoiceNumber.replace(/^сч[её]т\s*/i, "")) : ""],
       ["Основание", p.docRef?.trim() ?? ""],
       ["Заметка", cleanNote(p.notes) ?? ""],
       ["Подтверждение", p.confirmedAt ? `подтверждена ${ruDate(p.confirmedAt)}` : "ждёт платёжку / проверки"],
@@ -180,16 +183,20 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     for (const x of p.orders) if (!orderIds.has(x.productionOrder.id)) orderIds.set(x.productionOrder.id, x.productionOrder.workOrderNumber?.trim() || x.productionOrder.number);
     const whatProd = p.paymentType === "ADVANCE" ? "Аванс" : p.paymentType === "PARTIAL" ? "Доплата" : "Оплата";
     const invP = invoiceOf(p.docRef);
+    // Получатель — подрядчик по договору связанных ТЗ (client в ТЗ — это мы, заказчик по договору подряда).
+    const contractor = contractorOfOrders([...p.allocations.map((x) => x.productionOrder.contractNumber), ...p.orders.map((x) => x.productionOrder.contractNumber)]);
     const prodFields: [string, string][] = [
       ["Дата оплаты", ruDate(p.paidAt)],
       ["Сумма", money(amount)],
-      ["Вид", whatProd],
+      ["Вид оплаты", "За работу"],
+      ["Тип", whatProd],
       ["Статья", hides > 0 ? `работа ${money(amount - hides)} · шкуры подрядчика ${money(hides)}` : `работа ${money(amount)}`],
-      ["Кому", p.client?.name ?? "заказчик не указан"],
+      ["Плательщик", PAYER_NAME],
+      ["Получатель", contractor.name],
       ["За что", orderIds.size > 0 ? parts.filter((x) => x.label.startsWith("ТЗ ")).map((x) => x.label).join(", ") || Array.from(new Set(orderIds.values())).map((n) => `ТЗ ${n}`).join(", ") : "Без привязки к ТЗ (аванс)"],
       ["Способ", METHOD_RU[p.method] ?? p.method],
-      ["№ п/п", ppOf(p.docRef) ? `№ ${ppOf(p.docRef)}` : ""],
-      ["Счёт", invP ? `№${invP[1]}${invP[2] ? ` от ${invP[2]}` : ""}` : ""],
+      ["П/п", ppOf(p.docRef) ?? ""],
+      ["Счёт", invP ? docNo(invP[1], invP[2]) : ""],
       ["Основание", p.docRef?.trim() ?? ""],
       ["Заметка", cleanNote(p.notes) ?? ""],
       ["Подтверждение", p.confirmedAt ? `подтверждена ${ruDate(p.confirmedAt)}` : "ждёт платёжку / проверки"],

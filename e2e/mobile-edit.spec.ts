@@ -257,7 +257,7 @@ test.describe.serial("ТЗ на 375 px", () => {
     await page.screenshot({ path: `${SHOTS}/9-tz-expense.png`, fullPage: false });
     await ecard.getByRole("button", { name: "Удалить" }).tap();
     await expect.poll(() => sql(`select count(*) from "ProductionExpense" where "productionOrderId"='${TZ_ID}'`)).toBe("0");
-    // оплата заказчика
+    // оплата за работу подрядчику
     const paySec = page.locator("details#pay");
     if (!(await paySec.evaluate((e) => (e as HTMLDetailsElement).open))) await paySec.locator("summary").first().tap();
     await paySec.locator('input[name="amount"]').fill("50000");

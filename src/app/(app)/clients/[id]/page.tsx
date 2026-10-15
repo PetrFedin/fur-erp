@@ -90,7 +90,7 @@ export default async function EditClientPage({ params }: PageProps<"/clients/[id
         </CardHeader>
         <CardContent>
           {payments.length === 0 ? (
-            <p className="text-sm text-neutral-500">Оплат от заказчика пока нет.</p>
+            <p className="text-sm text-neutral-500">Оплат за работу пока нет.</p>
           ) : (
             <Table>
               <Thead><Tr><Th>Дата</Th><Th>Вид</Th><Th>Основание</Th><Th className="text-right" unit="₽">Сумма</Th><Th className="text-right" unit="₽">Не разнесено</Th><Th>Документы</Th></Tr></Thead>

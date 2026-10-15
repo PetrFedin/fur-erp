@@ -5,7 +5,7 @@ import { debtLabel, formatMoney, OVERPAY_FROM } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { Goods, SplitLine, type ClientPayRow, type PaidGood } from "./client-payments-table";
 
-/** Детализация даты на вкладке «За производство»: все оплаты этого дня и, за какой товар каждая из них пришла. */
+/** Детализация даты на вкладке «За работу»: все оплаты этого дня и, за какой товар каждая из них пришла. */
 export function ClientDateDetail({ date, rows, back, owedNote, owedGoods }: { date: string; rows: (ClientPayRow & { verifySlot?: ReactNode })[]; back: string; owedNote?: { orders: number; batches: string }; owedGoods?: PaidGood[] }) {
   const total = rows.reduce((s, r) => s + r.amount, 0);
   return (

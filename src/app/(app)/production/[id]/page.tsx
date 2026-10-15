@@ -408,7 +408,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col gap-2 rounded-md border border-neutral-200 bg-white p-2 shadow">
               <a href="#drive" className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Перейти к блоку «Документы-основания» внизу этой страницы">Документы-основания ↓</a>
               <Link href={`/documents?q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Документы ТЗ: приложение, акты, счета — в разделе «Документы»">Документы</Link>
-              {order.client && <Link href={payLink} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title={order.batch ? `Оплаты от заказчика по партии ${order.batch.number} (фильтра по одному ТЗ в оплатах нет); оплачено именно на это ТЗ — в строке «Оплата работы» ниже` : "Оплаты от заказчика, разнесение по ТЗ"}>Оплаты заказчика</Link>}
+              {order.client && <Link href={payLink} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title={order.batch ? `Оплаты за работу по партии ${order.batch.number} (фильтра по одному ТЗ в оплатах нет); оплачено именно на это ТЗ — в строке «Оплата работы» ниже` : "Оплаты за работу, разнесение по ТЗ"}>Оплаты за работу</Link>}
               <Link href={`/verify?tab=orders&q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Подтверждение ТЗ в разделе «Контроль → Подтвердить»">Подтверждение</Link>
               <Link href={`/history?model=ProductionOrder&q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="История изменений и комментарии — в разделе «Контроль»">История</Link>
               <a href={`/api/production/${id}/docx`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ, собранная системой из данных ТЗ (не присланный Word)">
@@ -472,7 +472,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <span>работа <b className="font-medium tabular-nums">{formatMoney((workCents / 100).toFixed(2))}</b></span>
           <span>оплачено <b className="font-medium tabular-nums">{formatMoney((paidCents / 100).toFixed(2))}</b></span>
           <span>{payRemainCents < -1 ? "оплачено сверх работы" : "остаток"} <b className={"font-medium tabular-nums " + (payRemainCents > 1 ? "text-amber-700" : "")}>{formatMoney((Math.abs(payRemainCents) / 100).toFixed(2))}</b></span>
-          {order.client ? <Link href={payLink} className="ml-auto text-xs text-blue-700 hover:underline" title="Оплаты заказчика: в оплатах нет фильтра по одному ТЗ, открывается список по партии этого ТЗ">{order.batch ? `оплаты партии ${order.batch.number} →` : "оплаты заказчиков →"}</Link> : null}
+          {order.client ? <Link href={payLink} className="ml-auto text-xs text-blue-700 hover:underline" title="Оплаты за работу: в оплатах нет фильтра по одному ТЗ, открывается список по партии этого ТЗ">{order.batch ? `оплаты партии ${order.batch.number} →` : "оплаты заказчиков →"}</Link> : null}
         </div>
       ) : null}
 

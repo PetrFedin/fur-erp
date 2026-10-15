@@ -148,7 +148,7 @@ test.describe.serial("ТЗ: регрессия", () => {
     // оплата
     await page.locator("input[name=amount]").last().fill("100");
     page.on("dialog", (d) => d.accept());
-    await page.getByRole("button", { name: "+ Добавить оплату от заказчика" }).click();
+    await page.getByRole("button", { name: "+ Добавить оплату за работу" }).click();
     await expect(page.getByText("ТЗ отменено — списывать сырьё").nth(1)).toBeVisible();
     expect(sql(`select count(*) from "ProductionPaymentOrder" where "productionOrderId"='${id}'`)).toBe("0");
     // пакетная вставка
@@ -162,7 +162,7 @@ test.describe.serial("ТЗ: регрессия", () => {
     for (const t of ["+ лот", "+ подкладка", "+ расход", "Списать сразу несколько лотов"]) {
       await expect(page.getByText(t, { exact: false })).toHaveCount(0);
     }
-    await expect(page.getByRole("button", { name: "+ Добавить оплату от заказчика" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "+ Добавить оплату за работу" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Завершить" })).toHaveCount(0);
     await expect(page.getByText("ТЗ отменено — списывать сырьё, добавлять расходы и оплаты нельзя.")).toBeVisible();
   });
@@ -281,18 +281,18 @@ test.describe.serial("ТЗ: регрессия", () => {
     // оплата 0
     await amt.last().evaluate((i) => i.closest("form")!.setAttribute("novalidate", ""));
     await amt.last().fill("0");
-    await page.getByRole("button", { name: "+ Добавить оплату от заказчика" }).click();
+    await page.getByRole("button", { name: "+ Добавить оплату за работу" }).click();
     await expect(page.getByText("значение должно быть больше 0").nth(1)).toBeVisible();
     expect(sql(`select count(*) from "ProductionPaymentOrder" where "productionOrderId"='${id}'`)).toBe("0");
     // переплата: 5000 при к оплате 1000 — отказ в confirm
     await amt.last().fill("5000");
-    await page.getByRole("button", { name: "+ Добавить оплату от заказчика" }).click();
+    await page.getByRole("button", { name: "+ Добавить оплату за работу" }).click();
     await page.waitForTimeout(600);
     expect(dialogs.at(-1)).toContain("больше остатка к оплате");
     expect(sql(`select count(*) from "ProductionPaymentOrder" where "productionOrderId"='${id}'`)).toBe("0");
     // согласие
     accept = true;
-    await page.getByRole("button", { name: "+ Добавить оплату от заказчика" }).click();
+    await page.getByRole("button", { name: "+ Добавить оплату за работу" }).click();
     await expect(page.locator("tr", { hasText: "5 000,00" })).toBeVisible();
     expect(sql(`select count(*) from "ProductionPaymentOrder" where "productionOrderId"='${id}'`)).toBe("1");
     // удаление: отказ, затем согласие
@@ -336,7 +336,7 @@ test.describe.serial("ТЗ: регрессия", () => {
       const id = sql(`select id from "ProductionOrder" where status='COMPLETED' and "clientId" is not null order by number limit 1`);
       await page.goto(`/production/${id}`);
       await page.waitForLoadState("networkidle");
-      for (const b of ["Изменить", "Завершить", "Сохранить", "Удалить", "+ Добавить оплату от заказчика", "+ Добавить расход"]) {
+      for (const b of ["Изменить", "Завершить", "Сохранить", "Удалить", "+ Добавить оплату за работу", "+ Добавить расход"]) {
         await expect(page.getByRole("button", { name: b }), `${role}: ${b}`).toHaveCount(0);
       }
       await expect(page.getByText("+ лот"), role).toHaveCount(0);

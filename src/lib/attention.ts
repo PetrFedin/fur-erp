@@ -86,7 +86,7 @@ const PRIORITY_ORDER: Record<AttentionPriority, number> = { red: 0, yellow: 1, g
  * Блоки «Требует внимания». Одна проблема — один блок. Что считается «записью для решения»:
  *  - kind "decision": каждая сущность (оплата, закупка, ТЗ, аукцион) — отдельная запись, по ней нужно ваше решение или документ;
  *  - kind "bulk": однотипный пробел, которого по природе нет в документах Drive (даты ТЗ 1–96, даты выпуска партий,
- *    партии без оплат заказчика, закупки без названия аукциона, лоты с датой импорта) — вся группа это ОДНА запись,
+ *    партии без оплат за работу, закупки без названия аукциона, лоты с датой импорта) — вся группа это ОДНА запись,
  *    её не исправить без новых документов; список раскрывается, ничего не потеряно;
  *  - kind "info": справочно (ожидаемые поставки, справочники) — в число не входит.
  */
@@ -139,7 +139,7 @@ export const GROUPS: Record<AttentionGroupId, AttentionGroupMeta> = {
   },
   "tz-requisites": {
     title: "ТЗ: не хватает данных", kind: "decision",
-    hint: "У ТЗ не указана партия или заказчик, нет списаний сырья (для ТЗ со склада) или у запланированного ТЗ нулевой остаток сырья — без этого не посчитать долг заказчика и остатки.",
+    hint: "У ТЗ не указана партия или заказчик, нет списаний сырья (для ТЗ со склада) или у запланированного ТЗ нулевой остаток сырья — без этого не посчитать долг по работе подрядчику и остатки.",
     link: { href: "/production", label: "ТЗ" },
   },
   "suspect-date": {
@@ -173,8 +173,8 @@ export const GROUPS: Record<AttentionGroupId, AttentionGroupMeta> = {
     link: { href: "/documents", label: "Документы" },
   },
   "batch-no-pay": {
-    title: "Партии без оплат заказчика", kind: "bulk",
-    hint: "По этим партиям нет ни платёжки, ни письма «оплачено» от заказчика, поэтому оплат в базе нет. Заведутся, когда появятся документы с датой. Одна запись на группу.",
+    title: "Партии без оплат за работу", kind: "bulk",
+    hint: "По этим партиям нет ни платёжки, ни письма «оплачено» от подрядчика, поэтому оплат в базе нет. Заведутся, когда появятся документы с датой. Одна запись на группу.",
     link: { href: "/reconciliation", label: "Сверка" },
   },
   "no-auction-info": {
@@ -572,7 +572,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
     }
   }
 
-  // Партии: без оплат заказчика
+  // Партии: без оплат за работу
   const paidOrderIds = new Set<string>();
   for (const p of productionPayments) for (const l of p.orders) paidOrderIds.add(l.productionOrderId);
   for (const b of batches) {
@@ -581,7 +581,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
       "batch",
       b.id,
       { title: `Партия ${b.number}${batchNameText(b.name) ? ` «${batchNameText(b.name)}»` : ""}`, sub: tzCountText(uniqueOrderCount(b.orders), b.orders.length), href: `/production/batches/${b.number}`, year: b.year ?? null },
-      { text: "оплат заказчика нет", priority: "yellow", group: "batch-no-pay" }
+      { text: "оплат за работу нет", priority: "yellow", group: "batch-no-pay" }
     );
   }
 

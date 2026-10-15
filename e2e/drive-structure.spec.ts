@@ -232,10 +232,10 @@ test.describe("Переключатель «Без 4% | С 4%»", () => {
     expect(on.sum).toBe(off.sum);
     expect(on.batches).toContain("Себестоимость (с 4%)".toUpperCase());
     expect(on.batches).not.toBe(off.batches);
-    // «Долг поставщикам» и «Долг заказчиков» не меняются, «Использовано в ТЗ» растёт
+    // «Долг поставщикам» и «Долг по работе подрядчику» не меняются, «Использовано в ТЗ» растёт
     const pick = (t: string, label: string) => num(new RegExp(label + "\\n([\\d\\s,]+)\\s*₽").exec(t)![1]);
     expect(pick(onDash, "Долг поставщикам")).toBe(pick(offDash, "Долг поставщикам"));
-    expect(pick(onDash, "Долг заказчиков")).toBe(pick(offDash, "Долг заказчиков"));
+    expect(pick(onDash, "Долг по работе подрядчику")).toBe(pick(offDash, "Долг по работе подрядчику"));
     expect(pick(onDash, "Использовано в ТЗ \\(с 4%\\)")).toBeGreaterThan(pick(offDash, "Использовано в ТЗ"));
     await setCookie(page, "commission4Display", "off");
   });

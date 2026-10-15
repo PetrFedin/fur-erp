@@ -63,6 +63,7 @@ import { ClientDebtBlock } from "./client-debt-block";
 import { PaymentLinesTable, PurchaseLinesTable, type PayLine, type PurchaseLine } from "./payment-lines";
 import { docCounts } from "@/lib/doc-links";
 import { loadPaymentsSourceDocs } from "@/lib/source-docs-server";
+import { docNo } from "@/lib/payment-parties";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
 const FLASH_ERRORS: Record<string, string> = {
@@ -117,10 +118,10 @@ const PAYMENT_TYPE_LABELS: Record<string, string> = {
 
 const INVOICE_RX = /сч[её]т[^№;·]*№\s*([^\s;·,()]+)(?:\s+от\s+(\d{2}\.\d{2}\.\d{4}))?/i;
 
-/** Счёт оплаты: «№103 от 03.07.2025» (слово «счёт» — в заголовке колонки). Берём из основания платежа, иначе из закупки. */
+/** Счёт оплаты: «103 от 03.07.2025» (слово «счёт» — в заголовке колонки). Берём из основания платежа, иначе из закупки. */
 function payInvoice(docRef: string | null, purchase?: { id: string; number: string; invoiceNumber: string | null } | null): { text: string; href?: string } | undefined {
   const m = INVOICE_RX.exec(docRef ?? "");
-  const text = m ? `№${m[1]}${m[2] ? ` от ${m[2]}` : ""}` : purchase?.invoiceNumber ? `№${purchase.invoiceNumber.replace(/^сч[её]т\s*/i, "")}` : "";
+  const text = m ? docNo(m[1], m[2]) : purchase?.invoiceNumber ? docNo(purchase.invoiceNumber.replace(/^сч[её]т\s*/i, "")) : "";
   if (!text) return undefined;
   return { text, href: purchase ? `/purchases/${purchase.id}` : undefined };
 }
@@ -142,7 +143,7 @@ export default async function PaymentsPage({
   const sp = await searchParams;
   const canPay = hasRole(session.user.role, ACCESS.supplierPayments);
   const flashError = typeof sp.error === "string" ? (FLASH_ERRORS[sp.error] ?? "") : "";
-  // Раздел: «Все» (по умолчанию), «За сырьё» (suppliers) или «За производство» (clients). Ссылки с параметрами аукциона ведут в «За сырьё».
+  // Раздел: «Все» (по умолчанию), «За сырьё» (suppliers) или «За работу» (clients). Ссылки с параметрами аукциона ведут в «За сырьё».
   const supplierParams = ["auction", "auc", "q", "dq", "supplier", "f", "noauction"].some((k) => sp[k] !== undefined);
   // По умолчанию — «Реестр» (одна таблица всех оплат); прежний разбор по статьям («Все») — ?tab=all.
   const tab: "registry" | "all" | "suppliers" | "clients" =
@@ -150,7 +151,7 @@ export default async function PaymentsPage({
   const orgId = session.user.organizationId;
   const year = await getYearFilter();
   if (tab === "registry") return <PaymentsRegistry sp={sp} orgId={orgId} year={year} canPay={canPay} flashError={flashError} />;
-  // Подтверждение оплат («Подтверждено ✓» по каждой строке): поставщику — вкладка «Поставщики», производства — «Заказчики».
+  // Подтверждение оплат («Подтверждено ✓» по каждой строке): поставщику — вкладка «Поставщики», производства — «За работу».
   const pv = await loadPaymentVerify(tab === "clients" ? "prodPayment" : "payment");
   const pf = parseFilters(PAY_FILTERS, sp);
   const clientsTab = tab === "clients";
@@ -520,7 +521,7 @@ export default async function PaymentsPage({
       .filter((d) => new RegExp(`№\\s*${num}(?!\\d)`).test(d.title) && d.docDate && d.docDate <= paidAt)
       .filter((d) => (seen.has(d.viewUrl!) ? false : (seen.add(d.viewUrl!), true)))
       .slice(0, 2)
-      .map((d) => ({ title: `счёт №${num}`, url: d.viewUrl! }));
+      .map((d) => ({ title: `счёт ${num}`, url: d.viewUrl! }));
   };
   const clientVerify: Record<string, React.ReactNode> = {};
   for (const p of clientPayments) if (pv.verify[p.id]) clientVerify[p.id] = <VerifyControl v={pv.verify[p.id]} canEdit={pv.canVerify} compact />;
@@ -587,7 +588,7 @@ export default async function PaymentsPage({
   const owedOrders: OwedOrder[] = Array.from(orderInfo.values())
       .filter((o) => o.clientName && o.work - (allocTotals.get(o.id) ?? 0) > 0.5 && (year === "all" || o.year === Number(year)))
     .map((o) => ({ id: o.id, label: orderLabel({ workOrderNumber: o.workOrderNumber, number: o.number, ...tzPos.get(o.id) }), article: o.modelName, fur: o.fur, batch: o.batchNumber, year: o.year, qty: o.qty, work: o.work, paid: allocTotals.get(o.id) ?? 0 }));
-  // «За производство»: общие виджеты — работа, оплачено, долг заказчиков и разбивка по партиям.
+  // «За работу»: общие виджеты — работа, оплачено, долг по работе подрядчику и разбивка по партиям.
   let goodsTotals: { work: number; hides: number; surcharge: number; total: number; paid: number; balance: number; unallocated: number; rows: BatchRow[] } | null = null;
   if (clientsTab) {
     const [cd, allAlloc] = await Promise.all([
@@ -646,7 +647,7 @@ export default async function PaymentsPage({
           tab === "all"
             ? [{ label: "Оплаты" }]
             : tab === "clients"
-              ? [{ label: "Оплаты", href: "/payments" }, { label: "За производство" }]
+              ? [{ label: "Оплаты", href: "/payments" }, { label: "За работу" }]
               : showNoAuction
                 ? [{ label: "Оплаты", href: "/payments" }, { label: "За сырьё", href: "/payments?tab=suppliers" }, { label: "Закупки без аукциона" }]
                 : [{ label: "Оплаты", href: "/payments" }, { label: "За сырьё" }]

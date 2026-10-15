@@ -21,7 +21,7 @@ const num = (s: string) => {
 };
 const lab = "mb-1 block text-xs text-neutral-500";
 
-export type PaymentPreset = Partial<Pick<Spec, "side" | "auction" | "purchaseId" | "supplierId" | "batchId" | "orderIds">> & { kind?: PayKind; /** Заказчик (карточка заказчика): мастер подставит его в «За производство». */ clientId?: string };
+export type PaymentPreset = Partial<Pick<Spec, "side" | "auction" | "purchaseId" | "supplierId" | "batchId" | "orderIds">> & { kind?: PayKind; /** Заказчик (карточка заказчика): мастер подставит его в «За работу». */ clientId?: string };
 
 /**
  * ЕДИНАЯ форма оплаты: шаг 1 «Что оплачиваем» → 2 «Вид, сумма, дата, основание» → 3 «Проверить и сохранить» → экран «Что пересчиталось».

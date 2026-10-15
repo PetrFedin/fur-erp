@@ -11,7 +11,7 @@ const KIND_LABEL = { advance: "аванс без разнесения", excess: 
 const PP = /п\/п\s*№?\s*\d+/i;
 
 /**
- * Вкладка «За производство» → «Неразнесённые авансы»: платежи заказчика, часть которых ещё не отнесена ни к одному ТЗ.
+ * Вкладка «За работу» → «Неразнесённые авансы»: платежи заказчика, часть которых ещё не отнесена ни к одному ТЗ.
  * Итог совпадает со строкой «Аванс без партии» на /production/batches (тот же loadClientDebt; шкуры подрядчика — это сырьё, их здесь нет).
  * Кнопка «Разнести…» открывает редактор разнесения по ТЗ (тот же, что в карточке ТЗ). Якорь #unallocated — для ссылок из Контроля.
  */
@@ -32,14 +32,14 @@ export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; ye
         <h2 className="block-title">
           <span className="inline-flex items-center gap-1.5">Неразнесённые авансы <span className="font-normal text-neutral-500">· {pays.length} на {formatMoney(total.toFixed(2))}</span>
             <InfoHint label="Про неразнесённые авансы" wide>
-              <p>Часть платежа заказчика, не отнесённая ни к одному ТЗ. В долге заказчиков она уже учтена отдельной строкой, поэтому разнесение итог долга не меняет — оно переносит аванс из «без партии» в конкретные ТЗ и партии. Эта сумма — «Аванс без партии» на странице «Партии».</p>
+              <p>Часть платежа за работу, не отнесённая ни к одному ТЗ. В долге по работе подрядчику она уже учтена отдельной строкой, поэтому разнесение итог долга не меняет — оно переносит аванс из «без партии» в конкретные ТЗ и партии. Эта сумма — «Аванс без партии» на странице «Партии».</p>
               <p className="mt-1">Платежи в счёт шкур подрядчика — это сырьё, а не оплата работы, их здесь нет.</p>
             </InfoHint></span>
         </h2>
         <Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии</Link>
       </div>
       {pays.length === 0 ? (
-        <p className="text-sm text-neutral-500">Все платежи заказчиков отнесены к ТЗ.</p>
+        <p className="text-sm text-neutral-500">Все платежи за работу отнесены к ТЗ.</p>
       ) : (
         <ul className="divide-y divide-neutral-100 text-sm">
           {pays.map((p) => {
@@ -49,7 +49,7 @@ export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; ye
                 <div className="min-w-0">
                   <div>
                     <Link href={`/payments/c-${p.id}`} className="text-blue-700 hover:underline">{formatDate(p.paidAt)}</Link>
-                    <span className="text-neutral-500"> · {PAYMENT_TYPE_LABELS_RU[p.paymentType] ?? p.paymentType} · {p.clientName ?? "без заказчика"}{pp ? ` · ${pp[0]}` : ""}</span>
+                    <span className="text-neutral-500"> · {PAYMENT_TYPE_LABELS_RU[p.paymentType] ?? p.paymentType} · оплата подрядчику за работу{pp ? ` · ${pp[0]}` : ""}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-neutral-500">
                     <span>разнесено {formatMoney(p.allocated.toFixed(2))} из {formatMoney(p.amount.toFixed(2))}</span>

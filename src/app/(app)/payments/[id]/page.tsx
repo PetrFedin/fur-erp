@@ -14,6 +14,7 @@ import { ACCESS, hasRole } from "@/lib/access";
 import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
 import { PAYMENT_CARD_V, PRODUCTION_CARD_V, rowVersion } from "@/lib/concurrency";
 import { PP_RX, INV_RX } from "@/lib/payment-refs";
+import { PAY_KIND_LABEL, bareNo, docNo } from "@/lib/payment-parties";
 import { siblingPayments } from "@/lib/payment-parts";
 import { prisma } from "@/lib/prisma";
 import { tidyDocRef } from "@/lib/pay-ref";
@@ -41,9 +42,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!parsed) return { title: "Оплата" };
   const p = parsed.kind === "raw"
     ? await prisma.payment.findFirst({ where: { id: parsed.id, organizationId: session.user.organizationId }, select: { amount: true, paidAt: true, supplier: { select: { name: true } } } })
-    : await prisma.productionPayment.findFirst({ where: { id: parsed.id, organizationId: session.user.organizationId }, select: { amount: true, paidAt: true, client: { select: { name: true } } } });
+    : await prisma.productionPayment.findFirst({ where: { id: parsed.id, organizationId: session.user.organizationId }, select: { amount: true, paidAt: true } });
   if (!p) return { title: "Оплата" };
-  const who = "supplier" in p ? p.supplier.name : (p as { client: { name: string } | null }).client?.name ?? "";
+  // Оплата за работу: получатель — подрядчик (в заголовок не выносим, он считается в реестре по ТЗ); клиент в базе — это мы.
+  const who = "supplier" in p ? (p as { supplier: { name: string } }).supplier.name : "за работу";
   return { title: `Оплата ${ruDate(p.paidAt.toISOString().slice(0, 10))} · ${money(Number(p.amount))}${who ? ` · ${who}` : ""}` };
 }
 
@@ -70,7 +72,7 @@ function Dl({ items }: { items: [string, ReactNode][] }) {
 }
 
 /**
- * Карточка оплаты. Код в адресе: s-… — оплата поставщику, c-… — оплата от заказчика.
+ * Карточка оплаты. Код в адресе: s-… — оплата за сырьё поставщику, c-… — оплата за работу подрядчику (платит всегда наша компания).
  * Правится на месте (кнопка «Изменить»; действия — card-actions.ts); № счёта и № п/п берутся из полей оплаты, а если они пусты — из строки основания.
  */
 async function loadEdit(parsed: { kind: "raw" | "prod"; id: string }, orgId: string) {
@@ -122,10 +124,10 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
   const dbRow = info?.row ?? null;
   const pp = dbRow?.ppNo ? null : PP_RX.exec(ov.doc ?? "");
   const inv = dbRow?.invoiceNo ? null : INV_RX.exec(ov.doc ?? "");
-  const ppText = dbRow?.ppNo ? `№ ${dbRow.ppNo}` : pp ? `№ ${pp[1]}${pp[2] ? ` от ${pp[2]}` : ""}` : r.pp || "—";
-  const invText = dbRow?.invoiceNo ? `№${dbRow.invoiceNo}` : inv ? `№${inv[1]}${inv[2] ? ` от ${inv[2]}` : ""}` : r.invoice || "—";
+  const ppText = dbRow?.ppNo ? bareNo(dbRow.ppNo) : pp ? docNo(pp[1], pp[2]) : r.pp || "—";
+  const invText = dbRow?.invoiceNo ? bareNo(dbRow.invoiceNo) : inv ? docNo(inv[1], inv[2]) : r.invoice || "—";
   const invHref = (await loadInvoiceLinks(orgId, [{ ...r, invoice: invText !== "—" ? invText : "" }])).get(r.code);
-  const cpHref = r.cpId ? `/${parsed.kind === "raw" ? "suppliers" : "clients"}/${r.cpId}` : null;
+  const cpHref = r.cpId ? `/suppliers/${r.cpId}` : null;
   const invRec = info?.invoice ?? null;
   const invOthers = invRec ? invRec.purchases.filter((x) => x.id !== info?.purchaseId) : [];
   const invoiceInBase: ReactNode | null = invRec ? (
@@ -160,7 +162,7 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
       <section className="rounded-lg border border-neutral-200 bg-white p-3 sm:p-4" aria-label="Оплата">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-xl font-semibold tabular-nums">{money(r.amount)}</h1>
-          <span className="text-sm text-neutral-600">{r.direction === "out" ? "Мы платим" : "Нам платят"} · {cpHref ? <Link href={cpHref} className="text-blue-700 hover:underline">{r.counterparty}</Link> : r.counterparty}</span>
+          <span className="text-sm text-neutral-600">{PAY_KIND_LABEL[r.kind]} · Плательщик: {r.payer} · Получатель: {cpHref ? <Link href={cpHref} className="text-blue-700 hover:underline">{r.counterparty}</Link> : r.counterparty}</span>
           {parsed.kind === "raw" && <ChatLink type="Payment" id={parsed.id} role={session.user.role} className="ml-auto" label="Запросить у Веллмеха" />}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
@@ -171,6 +173,8 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
 
       <Block title="Оплата">
         <Dl items={[
+                    ["Вид оплаты", PAY_KIND_LABEL[r.kind]],
+          ["Тип", r.what],
           ["Счёт", invHref ? <Link href={invHref} className="text-blue-700 hover:underline">{invText} ›</Link> : invText],
           ...(invoiceInBase ? [["Счёт в базе", invoiceInBase] as [string, ReactNode]] : []),
           ["П/п", ppText],

@@ -12,7 +12,7 @@ type Props = {
   paid: { total: number; rows: BarRow[]; unlinked: number };
   debt: { total: number; rows: BarRow[]; parts: { label: string; value: number }[] };
   paidHint?: ReactNode;
-  /** Шкуры подрядчика, оплаченные в составе счетов за пошив (вкладка «За производство»): сырьё, в сумму «Оплачено» этой вкладки не входят. */
+  /** Шкуры подрядчика, оплаченные в составе счетов за пошив (вкладка «За работу»): сырьё, в сумму «Оплачено» этой вкладки не входят. */
   hidesMemo?: number;
   debtHint?: ReactNode;
   deadlines?: ReactNode;

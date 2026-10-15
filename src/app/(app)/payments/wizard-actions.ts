@@ -358,7 +358,7 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
           const o = orders.find((y) => y.id === x.key)!;
           lines.push(`ТЗ ${o.workOrderNumber ?? o.number}: ${formatMoney(x.c / 100)}`);
         }
-        if (restC > 0) lines.push(`Не разнесено (аванс заказчика): ${formatMoney(restC / 100)}`);
+        if (restC > 0) lines.push(`Не разнесено (аванс подрядчику): ${formatMoney(restC / 100)}`);
         return { ok: true, paymentIds: [pay.id], summary: { lines, debtBefore: null, debtAfter: null } };
       },
       { timeout: 60000, maxWait: 15000 },

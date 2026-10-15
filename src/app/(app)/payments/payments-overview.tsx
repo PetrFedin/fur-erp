@@ -51,7 +51,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
     const yOpen = !closed.has(yk);
     const kinds = [
       { kind: "raw" as const, label: "За сырьё", list: raw, debt: l.raw },
-      { kind: "prod" as const, label: "За производство", list: prod, debt: l.prod },
+      { kind: "prod" as const, label: "За работу", list: prod, debt: l.prod },
     ].filter((k) => k.list.length > 0 || k.debt > 0.5);
     return (
       <Fragment key={y}>
@@ -139,7 +139,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
           <h2 id="pay-years" className="block-title">Оплаты по годам</h2>
           <InfoHint label="Как читать таблицу оплат" wide>
             <p><b>Год → вид → оплата → распределение.</b> Год оплаты сырья — год закупки партии, год оплаты работы — год платежа. Нажмите ›, чтобы раскрыть вглубь: сырьё и производство, платежи, а в платеже — на какие закупки партии или ТЗ он разнесён.</p>
-            <p className="mt-1"><b>Оплачено</b> = мех + подкладка + работа. <b>Задолженность</b> — сколько осталось оплатить (по сырью — долг поставщику, по работе — долг заказчика); у отдельного платежа её нет. «Итого» совпадает с плитками выше и с Главной.</p>
+            <p className="mt-1"><b>Оплачено</b> = мех + подкладка + работа. <b>Задолженность</b> — сколько осталось оплатить (по сырью — долг поставщику, по работе — долг по работе подрядчику); у отдельного платежа её нет. «Итого» совпадает с плитками выше и с Главной.</p>
             <p className="mt-1">Мех включает шкуры подрядчика, оплаченные в составе счетов за пошив. Оплата партии делится между её закупками пропорционально их сумме.</p>
           </InfoHint>
         </div>

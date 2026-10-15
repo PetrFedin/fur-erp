@@ -82,7 +82,7 @@ async function scopeOf(tx: Prisma.TransactionClient, orgId: string, link: { purc
   return { key: `p:${pu.id}`, label: `закупка ${pu.number}`, total: purchaseTotalInclVat(pu), paid: pu.payments.reduce((x, p) => x.add(p.amount), new Decimal(0)) };
 }
 
-/** Правка оплаты поставщику (s-…) и оплаты от заказчика (c-…). */
+/** Правка оплаты поставщику (s-…) и оплаты за работу подрядчику (c-…). */
 export async function updatePaymentCard(code: string, formData: FormData): Promise<CardState> {
   const session = await requireSession();
   const orgId = session.user.organizationId;

@@ -267,7 +267,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
           {locked && <p className="rounded-md bg-[var(--ui-soft)] px-3 py-2 text-sm" data-wizard-locked>Оплата по: <b>{presetKeys.map(labelOfKey).join(", ")}</b></p>}
           {!locked && <div className="flex flex-wrap gap-3 text-sm">
             {data.canSupplier && <label className="flex items-center gap-1.5"><input type="radio" checked={side === "supplier"} onChange={() => { setSide("supplier"); setLines([]); }} /> Поставщику</label>}
-            {data.canWork && <label className="flex items-center gap-1.5"><input type="radio" checked={side === "work"} onChange={() => { setSide("work"); setLines([]); }} /> За производство / от заказчика (по ТЗ)</label>}
+            {data.canWork && <label className="flex items-center gap-1.5"><input type="radio" checked={side === "work"} onChange={() => { setSide("work"); setLines([]); }} /> За работу подрядчику (по ТЗ)</label>}
           </div>}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {!locked && side === "supplier" && data.suppliers.length > 1 && (
@@ -354,13 +354,13 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
             <thead className="text-left text-xs text-neutral-500"><tr><th className="py-1">{side === "supplier" ? "Закупка / аукцион" : "ТЗ"}</th><th className="text-right">{side === "supplier" ? "Остаток к оплате" : "Остаток работы"}: было</th><th className="text-right">станет</th></tr></thead>
             <tbody>
               {lines.map((l) => { const before = remOf(l.key); const c = centsOf(l.amount); return (<tr key={l.key} className="border-t border-neutral-100"><td className="py-1">{labelOf(l.key)} <span className="text-xs text-neutral-500">(−{money(c)})</span></td><td className="text-right tabular-nums">{money(before)}</td><td className={"text-right tabular-nums " + (before - c < 0 ? "text-amber-800" : "")}>{money(before - c)}{before - c < 0 ? " (переплата)" : ""}</td></tr>); })}
-              {restC > 0 && <tr className="border-t border-neutral-100"><td className="py-1">{side === "supplier" ? "Аванс без привязки" : "Не разнесено (аванс заказчика)"}</td><td className="text-right">—</td><td className="text-right tabular-nums text-amber-800">{money(restC)}</td></tr>}
+              {restC > 0 && <tr className="border-t border-neutral-100"><td className="py-1">{side === "supplier" ? "Аванс без привязки" : "Не разнесено (аванс подрядчику)"}</td><td className="text-right">—</td><td className="text-right tabular-nums text-amber-800">{money(restC)}</td></tr>}
             </tbody>
           </table>
           {side === "supplier" ? (
             <div className="rounded-md bg-[var(--ui-soft)] px-3 py-2 text-sm">Долг поставщику (Главная, «Оплачено» / «К оплате»): {rub(data.debtNow)} → <b>{rub(data.debtNow == null ? null : Math.round((data.debtNow - amountC / 100) * 100) / 100)}</b>. «Оплачено» вырастет на {money(amountC)}, «К оплате» уменьшится на ту же сумму, включая аванс без привязки.</div>
           ) : (
-            <div className="rounded-md bg-[var(--ui-soft)] px-3 py-2 text-sm">Долг заказчика уменьшится на {money(amountC)}: на ТЗ разнесено {money(sumC)}{restC > 0 ? `, ещё ${money(restC)} учитывается отдельной строкой «неразнесённые авансы»` : ""}. В Контроле неразнесённое остаётся в списке авансов до разнесения.</div>
+            <div className="rounded-md bg-[var(--ui-soft)] px-3 py-2 text-sm">Долг по работе подрядчику уменьшится на {money(amountC)}: на ТЗ разнесено {money(sumC)}{restC > 0 ? `, ещё ${money(restC)} учитывается отдельной строкой «неразнесённые авансы»` : ""}. В Контроле неразнесённое остаётся в списке авансов до разнесения.</div>
           )}
           <p className="text-xs text-neutral-500">Подтверждение связанных закупок / ТЗ сбрасывается — проверьте их в «Подтвердить». Счёт № {invoiceNo}{file ? `; файл: ${file.name}` : "; файла нет — его можно приложить позже"}.</p>
         </div>

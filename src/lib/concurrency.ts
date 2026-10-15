@@ -51,7 +51,7 @@ export const MODEL_V = ["name", "sku", "category", "sellingPrice", "description"
 export const PAYMENT_V = ["supplierId", "amount", "method", "paidAt", "notes", "status", "kind", "percent"] as const;
 export const PURCHASE_EXPENSE_V = ["categoryId", "amount", "vatRate", "description"] as const;
 export const PAYMENT_EDIT_V = ["purchaseId", "amount", "method", "paidAt", "notes", "status", "docRef"] as const;
-/** Карточка оплаты /payments/[id]: все поля, которые она правит (оплата поставщику и оплата от заказчика). */
+/** Карточка оплаты /payments/[id]: все поля, которые она правит (оплата поставщику и оплата за работу). */
 export const PAYMENT_CARD_V = ["purchaseId", "auctionSession", "amount", "method", "paidAt", "notes", "docRef", "invoiceNo", "ppNo"] as const;
 export const PRODUCTION_CARD_V = ["amount", "method", "paidAt", "notes", "docRef", "invoiceNo", "ppNo"] as const;
 export const LOT_V = ["lotNumber", "grade", "sizeGrade", "color", "colorRefId", "notes"] as const;

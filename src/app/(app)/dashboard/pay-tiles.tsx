@@ -90,7 +90,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
           <div className="absolute right-3 top-3">
             <InfoHint label="Чем «Оплачено всего» отличается от оплат по партиям" align="right">
               <p>«Оплачено всего» — всё, что оплачено: сырьё и работа. В «Партиях пошива» и карточке партии — «Оплачено (разнесено на партии)»: меньше.</p>
-              <p className="mt-1">Разница = неразнесённый аванс {money(d.clientDebtInfo.unallocated)} (аванс заказчика, ещё не отнесён к партиям).</p>
+              <p className="mt-1">Разница = неразнесённый аванс {money(d.clientDebtInfo.unallocated)} (аванс подрядчику, ещё не отнесён к партиям).</p>
             </InfoHint>
           </div>
         ) : null}

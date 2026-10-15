@@ -104,7 +104,7 @@ export type DashboardData = {
   paidByItem: { fur: number; lining: number; work: number };
   /** Оплачено по типам платежа (аванс, доплата, окончательный расчёт, прочее): сумма и число платежей; Σ = fur + lining + work без фильтров. */
   paidByType: { type: "ADVANCE" | "PARTIAL" | "FINAL" | "OTHER"; amount: number; count: number }[];
-  /** Осталось оплатить: сырьё (долг поставщику) и производство (долг заказчика) — те же числа, что в «Оплаты → Все». */
+  /** Осталось оплатить: сырьё (долг поставщику) и производство (долг по работе подрядчику) — те же числа, что в «Оплаты → Все». */
   left: { raw: number; fur: number; lining: number; prod: number };
   /** Оплачено и долг по сырью — итог строки «Всего» в «Динамике по сырью» (те же числа, что в «Оплатах»). */
   /** Аукционы с переплатой: учтены в долге по сырью (зачтены поставщиком). */
@@ -140,7 +140,7 @@ export type DashboardData = {
     usedComparable: boolean;
     /** Закупки года с НДС, без отменённых: мех получен (= лоты «Куплено») и ещё не получен (черновики). */
     purchases: { received: number; draft: number };
-    /** Работа по ТЗ с заказчиком: завершённые, в работе, и работа по ТЗ без заказчика (в «Долг заказчиков» не входит). */
+    /** Работа по ТЗ с заказчиком: завершённые, в работе, и работа по ТЗ без заказчика (в «Долг по работе подрядчику» не входит). */
     clientWork: { done: number; work: number; noClient: number };
   };
 };
@@ -461,7 +461,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     .sort((a, b) => a.sort.localeCompare(b.sort))
     .map(({ auction, date, amount }) => ({ auction, date, amount }));
 
-  // Долг заказчиков (давальческие ТЗ): единая функция loadClientDebt (payment-alloc.ts) — работа выбранных ТЗ
+  // Долг по работе подрядчику (давальческие ТЗ): единая функция loadClientDebt (payment-alloc.ts) — работа выбранных ТЗ
   // минус оплачено, где оплачено = разнесено на эти ТЗ (PaymentAllocation) + неразнесённые авансы года.
   const filtersActive = Boolean(f.auction.length || f.fur.length || f.color.length || f.attr.length || f.vat.length || f.status.length || f.batch.length || f.catgroup?.length || f.kind?.length);
   const clientDebt = await loadClientDebt(prisma, orgId, { year, orderIds: ordersYear.map((o) => o.id), orderFiltersActive: filtersActive });
