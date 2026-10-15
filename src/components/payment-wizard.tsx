@@ -366,7 +366,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
           ) : (
             <div className="rounded-md bg-[var(--ui-soft)] px-3 py-2 text-sm">Долг по работе подрядчику уменьшится на {money(amountC)}: на ТЗ разнесено {money(sumC)}{restC > 0 ? `, ещё ${money(restC)} учитывается отдельной строкой «неразнесённые авансы»` : ""}. В Контроле неразнесённое остаётся в списке авансов до разнесения.</div>
           )}
-          <p className="text-xs text-neutral-500">Подтверждение связанных закупок / ТЗ сбрасывается — проверьте их в «Подтвердить». Счёт № {invoiceNo}{file ? `; файл: ${file.name}` : "; файла нет — его можно приложить позже"}.</p>
+          <p className="text-xs text-neutral-500">Подтверждение закупок / ТЗ сбросится — проверьте в «Подтвердить». Счёт № {invoiceNo}{file ? `; файл: ${file.name}` : "; файла нет"}.</p>
         </div>
       )}
 
