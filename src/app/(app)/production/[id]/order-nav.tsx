@@ -35,7 +35,7 @@ export function OrderNav({
   const items: Item[] = [
     { key: "tz", label: tzLabel, count: null, title: "Эта карточка ТЗ", active: true },
     batchNumber != null
-      ? { key: "batch", label: `Партия пошива № ${batchNumber}`, href: `/production/batches/${batchNumber}`, count: batchCount, unit: "ТЗ", title: `Партия пошива № ${batchNumber}: состав партии, итоги (в партии ${batchCount} ТЗ)` }
+      ? { key: "batch", label: `Партия ${batchNumber}`, href: `/production/batches/${batchNumber}`, count: batchCount, unit: "ТЗ", title: `Партия пошива № ${batchNumber}: состав партии, итоги (в партии ${batchCount} ТЗ)` }
       : { key: "batch", label: "Партия пошива", href: "#card-batch", count: null, title: "Партия не указана — выберите её в параметрах ТЗ" },
     ...(HIDDEN_MODULES.shipments ? [] : [{ key: "ship", label: "Отгрузки", href: `/shipments?q=${q}`, count: shipments, title: "Отгрузки с этим ТЗ" }]),
     ...(HIDDEN_MODULES.fittings ? [] : [{ key: "fit", label: "Примерки", href: `/fittings?q=${q}`, count: fittings, title: "Примерки этого ТЗ" }]),

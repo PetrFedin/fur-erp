@@ -295,7 +295,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         <TzBreakdown orders={slimForTiles(drill)} meta={tzMeta} latestId={latestId} c4={c4} />
       )}
 
-      <CollapsibleBlock title="Состав ТЗ по лотам и закупкам" summary={`${drill.length} ${drill.length === 1 ? "ТЗ" : "ТЗ"} · строки списания, расходы, работа`} autoOpen={false}>
+      <CollapsibleBlock title="Состав ТЗ по лотам и закупкам" summary={`${drill.length} ТЗ`} autoOpen={false}>
         <OrdersTree
           orders={drill}
           c4={c4}
@@ -321,7 +321,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         <summary className="block-title cursor-pointer">Отгрузки ({shipments.length})</summary>
         <div className="mt-2">
           {shipments.length === 0 ? (
-            <p className="text-sm text-neutral-500">Отгрузок пока нет</p>
+            <p className="text-sm text-neutral-500">Отгрузок нет</p>
           ) : (
             <ul className="flex flex-col divide-y divide-neutral-100">
               {shipments.map((sh) => {
@@ -370,7 +370,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         <summary className="block-title cursor-pointer">Документы ТЗ артикула ({docs.length})</summary>
         <div className="mt-2">
           {docs.length === 0 ? (
-            <p className="text-sm text-neutral-500">Документов, привязанных к ТЗ этого артикула, пока нет</p>
+            <p className="text-sm text-neutral-500">Документов нет</p>
           ) : (
             <Table>
               <Thead><Tr><Th>Документ</Th><Th>Тип</Th><Th>Дата</Th><Th>ТЗ</Th></Tr></Thead>
@@ -380,8 +380,8 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
                   return (
                     <Tr key={d.id}>
                       <Td>
-                        {d.storagePath ? <a href={`/api/drive-docs/${d.id}`} className="text-blue-700 hover:underline">{d.title}</a> : d.title}
-                        {d.docNumber ? <span className="ml-1 text-neutral-500">№{d.docNumber}</span> : null}
+                        <span className="inline-block max-w-[28rem] truncate align-bottom" title={d.title}>{d.storagePath ? <a href={`/api/drive-docs/${d.id}`} className="text-blue-700 hover:underline">{d.title}</a> : d.title}</span>
+                        {d.docNumber && !d.title.includes(d.docNumber) ? <span className="ml-1 text-neutral-500">№{d.docNumber}</span> : null}
                       </Td>
                       <Td className="text-neutral-600">{DRIVE_DOC_TYPE_LABELS[d.docType as DriveDocTypeKey] ?? d.docType}</Td>
                       <Td>{d.docDate ? formatDate(d.docDate) : "—"}</Td>

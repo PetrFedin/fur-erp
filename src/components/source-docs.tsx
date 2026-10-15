@@ -265,7 +265,7 @@ export function SourceDocs({
         )}
         {data.hiddenLinks > 0 && (
           <p className="text-xs text-neutral-500">
-            Ещё {data.hiddenLinks} документ(ов) привязаны только ссылкой (файла в приложении нет) — их список в разделе «Документы».
+            Ещё {data.hiddenLinks} — только ссылкой, без файла. Список в разделе «Документы».
           </p>
         )}
         {data.canUpload && data.target && <GeneralUpload target={data.target} />}
