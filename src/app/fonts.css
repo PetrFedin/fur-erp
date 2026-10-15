@@ -1,0 +1,5 @@
+:root {
+  --font-inter: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-theme: "Manrope Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-geist-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+}

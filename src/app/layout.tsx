@@ -1,25 +1,16 @@
 import type { Metadata } from "next";
-import { Inter, Geist_Mono, Manrope } from "next/font/google";
+import "@fontsource-variable/inter";
+import "@fontsource-variable/manrope";
+import "@fontsource-variable/geist-mono";
 import { cookies } from "next/headers";
 import { THEME_COOKIE, parseTheme } from "@/lib/ui-theme";
 import "./globals.css";
 import "./theme-customer.css";
+import "./fonts.css";
 import { DevAgentation } from "@/components/dev-agentation";
 
-// Основной шрифт — Inter с кириллицей (Geist без кириллицы, русский текст уходил на запасной шрифт).
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin", "cyrillic"],
-  display: "swap",
-});
-
-// Шрифт темы «Привычный стиль» (округлый гротеск, ближе всего к оформлению заказчика); применяется только внутри темы.
-const manrope = Manrope({ variable: "--font-theme", subsets: ["latin", "cyrillic"], display: "swap" });
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Шрифты лежат в проекте (пакеты @fontsource-variable: Inter с кириллицей, Manrope для темы «Привычный стиль», Geist Mono),
+// поэтому сборка и работа не зависят от сети и от fonts.gstatic.com. Имена переменных — как раньше (--font-inter, --font-theme, --font-geist-mono) в fonts.css.
 
 export const metadata: Metadata = {
   title: { default: "MVST FUR PRODUCTION", template: "%s — MVST FUR PRODUCTION" },
@@ -32,7 +23,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="ru"
       data-theme={theme}
-      className={`${inter.variable} ${geistMono.variable} ${manrope.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <body className="min-h-full flex flex-col bg-neutral-50 text-neutral-900">
         {children}
