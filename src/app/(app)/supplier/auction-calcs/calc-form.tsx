@@ -10,6 +10,7 @@ import { CalcDetail } from "./calc-detail";
 import { SimpleSteps } from "./simple-steps";
 import { FinalFigures } from "./final-figures";
 import { FormatPicker } from "./format-picker";
+import { InvoiceMaker } from "./invoice-maker";
 import { detectFormat, finalFigures, needsAdvanced } from "@/lib/supplier-calc-simple";
 import { FORMAT_LABEL, STAGE_LABEL, remapCustomRefs, syncLetters, calcAll, columnsFor, emptyRow, headerRate, missingRates, rowFilled, newId, rateCols, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
 import { attachInboxFile, deleteCalcDraft, parseCalcFile, removeInboxFile, saveCalcDraft, sendCalc } from "./actions";
@@ -271,6 +272,8 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
         <Button type="button" variant="outline" size="sm" disabled={pending} onClick={downloadXlsx}>Скачать Excel</Button>
         <span className="text-xs text-neutral-500">Детальный расчёт стоимости сырья, как в письмах: лист «ММ-расчёт» с живыми формулами и лист «Параметры» (курс, ставки).</span>
       </div>
+
+      <InvoiceMaker id={id} payload={out()} />
 
       <div className="text-sm"><button type="button" className="text-neutral-500 underline decoration-dotted hover:text-neutral-800" onClick={() => setAdvanced((v) => !v)}>{advanced ? "← Простой вид" : "Расширенный режим (свои столбцы и формулы)"}</button></div>
       {msg && <p role="status" className={msg.bad ? "text-sm text-red-600" : "text-sm text-green-700"}>{msg.text}</p>}
