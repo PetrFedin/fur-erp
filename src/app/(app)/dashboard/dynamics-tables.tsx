@@ -302,11 +302,11 @@ export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _i
             <NameCell arrow={flat ? undefined : arrow(r.key, r.label)} title={r.label}>
               {r.kind === "lining" && r.lotIds && r.lotIds.length > 0 ? (
                 <Link href={r.lotIds.length === 1 ? `/analytics/raw/lot/${r.lotIds[0]}` : `/lots?tab=lining&lmat=${encodeURIComponent(r.label)}`} className="font-medium hover:underline focus-visible:underline" title={r.lotIds.length === 1 ? "Открыть карточку лота: закупка, остаток, списания по ТЗ" : `Открыть лоты подкладки «${r.label}» (${r.lotIds.length})`}>
-                  {shortMaterialName(r.label)}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
+                  {shortMaterialName(r.label)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span>
                 </Link>
               ) : r.kind === "fur" && (r.lots > 0 || r.cells.incl.rq > 0) ? (
                 <Link href={`/lots/fur/${encodeURIComponent(r.label)}`} className="font-medium hover:underline focus-visible:underline" title={`Страница вида меха «${r.label}»: аукционы, лоты, ТЗ`}>
-                  {shortMaterialName(r.label)}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
+                  {shortMaterialName(r.label)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span>
                 </Link>
               ) : <span className="font-medium">{shortMaterialName(r.label)}</span>}
             </NameCell>
@@ -318,11 +318,11 @@ export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _i
               <NameCell indent title={a.label}>
                 {auctionLinkable(a.key) ? (
                   <Link href={r.kind === "lining" ? `/lots/lining/${encodeURIComponent(a.key)}` : `/lots?auction=${encodeURIComponent(a.key)}`} className="hover:underline focus-visible:underline" title={r.kind === "lining" ? "Открыть партию подкладки" : "Открыть аукцион: счета, лоты и себестоимость"}>
-                    {a.label}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
+                    {a.label}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span>
                   </Link>
                 ) : serviceHref(a.key) ? (
                   <Link href={serviceHref(a.key)!} className="hover:underline focus-visible:underline" title="Открыть закупки: что куплено, оплачено и чего нет">
-                    {a.label}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">→</span>
+                    {a.label}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">→</span>
                   </Link>
                 ) : a.label}
               </NameCell>

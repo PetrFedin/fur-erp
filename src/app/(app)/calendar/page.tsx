@@ -277,7 +277,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         <span className="flex flex-wrap items-center gap-x-1 text-[11px] opacity-90">
           {f.label}
           {p && f.kind === "order" && <StageChip stage={p.stage} word={p.stageWord} />}
-          {p?.expected && f.kind === "order" && <span className="text-[10px] opacity-70">{p.expected.source}</span>}
+          {p?.expected && f.kind === "order" && <span className="text-[11px] opacity-70">{p.expected.source}</span>}
         </span>
       </Link>
     );

@@ -52,9 +52,9 @@ export function LiningFabrics({ lots }: { lots: FurLot[] }) {
           {total ? <TotalLabel unit="₽" avg /> : (
             <>
               {ls.length === 1 ? (
-                <Link href={`/analytics/raw/lot/${ls[0].id}`} className="font-medium text-blue-700 hover:underline" title="Карточка лота">{shortMaterialName(item)}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link>
+                <Link href={`/analytics/raw/lot/${ls[0].id}`} className="font-medium text-blue-700 hover:underline" title="Карточка лота">{shortMaterialName(item)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link>
               ) : (
-                <Link href={`/lots?tab=lining&lmat=${encodeURIComponent(item)}`} className="font-medium text-blue-700 hover:underline" title="Лоты этой ткани">{shortMaterialName(item)}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link>
+                <Link href={`/lots?tab=lining&lmat=${encodeURIComponent(item)}`} className="font-medium text-blue-700 hover:underline" title="Лоты этой ткани">{shortMaterialName(item)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link>
               )}
               {ls.length > 1 ? <span className="ml-1.5 text-xs text-neutral-500">{ls.length} лот.</span> : null}
             </>
@@ -65,11 +65,11 @@ export function LiningFabrics({ lots }: { lots: FurLot[] }) {
         <td className={TD}>{money(val)}</td>
         <td className={TD + BL}>{v.rates.length ? v.rates.map((r) => `${r}%`).join(" · ") : <D />}</td>
         <td className={TD} title={v.detail}>{money(v.total)}</td>
-        <td className={TD + BL}>{s.used > 0 ? <>{formatQty(s.used)}<div className="text-[10px] font-normal text-neutral-500">{formatMoney(s.usedV)}</div></> : <D />}</td>
+        <td className={TD + BL}>{s.used > 0 ? <>{formatQty(s.used)}<div className="text-[11px] font-normal text-neutral-500">{formatMoney(s.usedV)}</div></> : <D />}</td>
         <td className={cn(TD, "w-28")}>{s.recv > 0 ? (
           total ? formatPercent(pct) : <LotUsageMini recv={s.recv} used={s.used} unit="м" className="ml-auto w-full max-w-24" />
         ) : <D />}</td>
-        <td className={TD + BL}>{s.rem > 0.0005 ? <>{formatQty(s.rem)}<div className="text-[10px] font-normal text-neutral-500">{formatMoney(s.remV)}</div></> : <D />}</td>
+        <td className={TD + BL}>{s.rem > 0.0005 ? <>{formatQty(s.rem)}<div className="text-[11px] font-normal text-neutral-500">{formatMoney(s.remV)}</div></> : <D />}</td>
       </tr>
     );
   };

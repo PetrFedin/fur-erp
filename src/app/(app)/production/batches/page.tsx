@@ -242,7 +242,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               <Mode4Badge mode={c4Mode} />
               <C4Hint mode={c4Mode} base={c4Lines ? c4Base.toFixed(2) : null} extra={c4Lines ? c4Extra.toFixed(2) : null} excluded={c4Excl.toFixed(2)} title="4% по партиям списка" />
             </>}>
-              <span className="inline-flex flex-col leading-tight">Себестоимость сырья<span className="text-[10px] font-normal opacity-80">₽ · без работы</span></span>
+              <span className="inline-flex flex-col leading-tight">Себестоимость сырья<span className="text-[11px] font-normal opacity-80">₽ · без работы</span></span>
             </Th>
             <Th {...th("work")} className="hidden md:table-cell" unit="₽">Работа</Th>
             <Th {...th("paid")} className="hidden lg:table-cell" unit="₽">Оплачено</Th>

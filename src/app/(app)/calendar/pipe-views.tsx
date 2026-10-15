@@ -193,7 +193,7 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
             {t.rows.map((r) => (
               <tr key={r.fur}>
                 <th scope="row" className="sticky left-0 z-10 bg-white px-2 py-1.5 text-left text-xs font-medium" title={r.fur}>
-                  <span className="flex items-center gap-1"><span className="min-w-0 flex-1 truncate">{r.fur}</span><Link href={`/production?fur=${encodeURIComponent(r.fur)}`} title="Открыть в «ТЗ» с этим видом меха" aria-label={`Открыть в ТЗ: ${r.fur}`} className="text-[10px] text-neutral-400 hover:text-neutral-900">↗</Link></span>
+                  <span className="flex items-center gap-1"><span className="min-w-0 flex-1 truncate">{r.fur}</span><Link href={`/production?fur=${encodeURIComponent(r.fur)}`} title="Открыть в «ТЗ» с этим видом меха" aria-label={`Открыть в ТЗ: ${r.fur}`} className="text-[11px] text-neutral-400 hover:text-neutral-900">↗</Link></span>
                 </th>
                 {stages.map((k, i) => (
                   <td key={k} className={`${td} ${i === 0 ? BL : ""} ${cStage === k && cFur === r.fur ? "bg-[var(--ui-soft)]" : ""}`}>

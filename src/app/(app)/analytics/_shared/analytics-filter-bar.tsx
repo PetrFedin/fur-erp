@@ -39,7 +39,7 @@ export function AnalyticsFilterBar({ opts, lead = [], title = "Фильтры", 
   ];
   return (
     <div className="print:hidden">
-      <FilterBar title={title} controls={controls} oneRow hideChips footer={<p className="mt-2 text-[11px] leading-4 text-neutral-500">Фильтры применяются сразу</p>} />
+      <FilterBar title={title} controls={controls} oneRow hideChips />
     </div>
   );
 }

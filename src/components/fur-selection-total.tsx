@@ -350,11 +350,11 @@ export function FurSelectionTotal({
       <>
         <Num first strong={o.strong} small={o.small}>
           {rates.length ? rates.map((r) => `${r}%`).join(" · ") : <span className="text-neutral-300">—</span>}
-          {o.single && l0 ? <div className="text-[10px] font-normal leading-tight text-neutral-500">{l0.year < 2026 ? "куплено до 2026" : "с 2026"}</div> : null}
+          {o.single && l0 ? <div className="text-[11px] font-normal leading-tight text-neutral-500">{l0.year < 2026 ? "куплено до 2026" : "с 2026"}</div> : null}
         </Num>
         <Num strong={o.strong} small={o.small} title={detail ? `в т.ч. ${detail}` : undefined}>
           {R(sum)}
-          {rates.length > 1 ? <div className="text-[10px] font-normal leading-tight text-neutral-500">{detail}</div> : null}
+          {rates.length > 1 ? <div className="text-[11px] font-normal leading-tight text-neutral-500">{detail}</div> : null}
         </Num>
       </>
     );
@@ -383,7 +383,7 @@ export function FurSelectionTotal({
                   <span role="img" aria-label={`Использовано ${formatPercent(o.usedBar)}`} className="h-1.5 w-full max-w-16 overflow-hidden rounded-full" style={{ background: "#e7e5e4" }}>
                     <span className="block h-full" style={{ width: `${o.usedBar}%`, background: "var(--ui-accent)" }} />
                   </span>
-                  <span className="text-[10px] font-normal text-neutral-500">{formatPercent(o.usedBar)}</span>
+                  <span className="text-[11px] font-normal text-neutral-500">{formatPercent(o.usedBar)}</span>
                 </div>
               ) : null}
             </Num>
@@ -405,7 +405,7 @@ export function FurSelectionTotal({
               {o.lot ? (
                 <InfoHint label="Источник молотка" align="right">{o.lot.hammerSource ? `Молоток: ${o.lot.hammerSource}.` : "Нет цены в $/молотка в расчёте лота."}</InfoHint>
               ) : f.hammerAvg != null && f.hammerQty > 0 && f.recvQty - f.hammerQty > 0.0005 ? (
-                <div className="text-[10px] font-normal leading-tight text-neutral-500" title={`Цена в $ есть у ${f.hammerLots} из ${f.lots} лотов`}>{f.hammerLots} / {f.lots} лот.</div>
+                <div className="text-[11px] font-normal leading-tight text-neutral-500" title={`Цена в $ есть у ${f.hammerLots} из ${f.lots} лотов`}>{f.hammerLots} / {f.lots} лот.</div>
               ) : null}
             </Num>
           )}
@@ -418,7 +418,7 @@ export function FurSelectionTotal({
   const usdNote = (key: string, f: FlowFigures) => {
     const have = key === "recv" ? f.usdQty : key === "used" ? f.usdUsedQty : f.usdRemQty;
     const all = key === "recv" ? f.recvQty : key === "used" ? f.usedQty : f.remQty;
-    return have > 0 && all - have > 0.0005 ? <div className="text-[10px] font-normal leading-tight text-neutral-500" title={`Цена в $ есть у ${formatQty(have)} из ${formatQty(all)}`}>{formatQty(have)} / {formatQty(all)}</div> : null;
+    return have > 0 && all - have > 0.0005 ? <div className="text-[11px] font-normal leading-tight text-neutral-500" title={`Цена в $ есть у ${formatQty(have)} из ${formatQty(all)}`}>{formatQty(have)} / {formatQty(all)}</div> : null;
   };
   const nCols = 1 + totalCols;
   // Ширины колонок рассчитаны под Inter (он шире Arial): сумма до 9 знаков + ₽ влезает без слипания с соседней колонкой.
@@ -512,7 +512,7 @@ export function FurSelectionTotal({
                 </span>
               )}
               {l.purchaseId ? (
-                <Link href={`/purchases/${l.purchaseId}`} onClick={(e) => e.stopPropagation()} className="ml-0.5 text-[10px] text-neutral-400 hover:text-blue-700 hover:underline" title={`Закупка ${purchaseTitle}`} aria-label={`Открыть закупку ${l.purchaseNumber ?? ""}`}>↗</Link>
+                <Link href={`/purchases/${l.purchaseId}`} onClick={(e) => e.stopPropagation()} className="ml-0.5 text-[11px] text-neutral-400 hover:text-blue-700 hover:underline" title={`Закупка ${purchaseTitle}`} aria-label={`Открыть закупку ${l.purchaseNumber ?? ""}`}>↗</Link>
               ) : null}
             </div>
             <div className="truncate pl-4 text-[11px] text-neutral-500" title={[sub, purchaseTitle].filter(Boolean).join(" · ")}>{sub}</div>
@@ -570,7 +570,7 @@ export function FurSelectionTotal({
               </button>
               {nameHref(level, row) ? (
                 <Link href={nameHref(level, row)!} onClick={(e) => e.stopPropagation()} title={row.label === shown(level, row) ? nameTitle(level, row) : row.label} className={cn(wrapName ? "line-clamp-2 whitespace-normal break-words leading-tight" : "truncate", "rounded-sm hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-900", depth === 0 ? "font-medium" : undefined)}>
-                  {shown(level, row)}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
+                  {shown(level, row)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span>
                 </Link>
               ) : (
                 <span className={cn(wrapName ? "line-clamp-2 whitespace-normal break-words leading-tight" : "truncate", depth === 0 ? "font-medium" : undefined)} title={row.label}>{shown(level, row)}</span>
@@ -766,7 +766,7 @@ export function FurSelectionTotal({
                 <td className="sticky left-0 z-10 bg-white py-2 pr-3" style={pad(0)}>
                   <div className="flex items-center whitespace-nowrap">
                     <span aria-hidden className="mr-1 inline-block w-3" />
-                    <Link href={`/lots/fur/${encodeURIComponent(k)}`} className="font-medium hover:underline">{k}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link>
+                    <Link href={`/lots/fur/${encodeURIComponent(k)}`} className="font-medium hover:underline">{k}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link>
                     <span className="ml-1.5 text-xs text-neutral-500">(сырьё подрядчика)</span>
                     <InfoHint label="Что такое строка без лотов" align="left">Закупок и лотов {k.toLowerCase()} нет; значения — по ТЗ изделий из этого меха (как на Главной). В итоги не входят.</InfoHint>
                   </div>
@@ -776,8 +776,8 @@ export function FurSelectionTotal({
                   const first = i === 0;
                   const base = cn("whitespace-nowrap px-2 py-2 text-right tabular-nums", first && "border-l border-neutral-100");
                   if (g.key === "used" && info && info.units > 0) {
-                    if (i === 0) return <td key={`${g.key}${i}`} className={base}>{info.units} изд.<div className="text-[10px] text-neutral-500">{info.orders} ТЗ</div></td>;
-                    if (i === 1) return <td key={`${g.key}${i}`} className={base}>{info.work > 0 ? formatMoney(info.work) : "—"}<div className="text-[10px] text-neutral-500">по ТЗ</div></td>;
+                    if (i === 0) return <td key={`${g.key}${i}`} className={base}>{info.units} изд.<div className="text-[11px] text-neutral-500">{info.orders} ТЗ</div></td>;
+                    if (i === 1) return <td key={`${g.key}${i}`} className={base}>{info.work > 0 ? formatMoney(info.work) : "—"}<div className="text-[11px] text-neutral-500">по ТЗ</div></td>;
                   }
                   return <td key={`${g.key}${i}`} className={cn(base, "text-neutral-300")}>—</td>;
                 }))}

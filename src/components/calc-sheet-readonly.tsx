@@ -21,7 +21,7 @@ export function CalcSheetReadonly({ p, t, rows, highlight, showTotals = true, ma
             <th className="sticky left-0 top-0 z-30 min-w-[44px] border-b border-r border-neutral-300 bg-neutral-200 px-2 py-1 text-center text-[11px] font-normal text-neutral-500" />
             {sh.cols.map((c) => (
               <th key={c.id} className="sticky top-0 z-20 min-w-[84px] border-b border-r border-neutral-300 bg-neutral-200 px-2 py-1 text-center font-mono text-[11px] font-normal text-neutral-600">
-                {c.letter}{c.id === sh.unitCol ? <span className="ml-1 rounded bg-emerald-200 px-1 text-[10px] text-emerald-900">в закупку</span> : null}
+                {c.letter}{c.id === sh.unitCol ? <span className="ml-1 rounded bg-emerald-200 px-1 text-[11px] text-emerald-900">в закупку</span> : null}
               </th>
             ))}
           </tr>
@@ -30,7 +30,7 @@ export function CalcSheetReadonly({ p, t, rows, highlight, showTotals = true, ma
             {sh.cols.map((c) => (
               <th key={c.id} title={c.formula ? `Формула: ${c.formula}` : c.hint} className="sticky top-[26px] z-20 border-b border-r border-neutral-300 bg-neutral-100 px-2 py-1 text-left align-bottom text-xs font-semibold leading-tight">
                 {c.title}{c.unit && !c.title.includes(c.unit) ? <span className="font-normal text-neutral-500">, {c.unit}</span> : null}
-                {c.kind !== "input" && <span className="block text-[10px] font-normal text-neutral-400">{c.formula ? c.formula.replace(/^=/, "= ") : "формула"}</span>}
+                {c.kind !== "input" && <span className="block text-[11px] font-normal text-neutral-400">{c.formula ? c.formula.replace(/^=/, "= ") : "формула"}</span>}
               </th>
             ))}
           </tr>
@@ -48,7 +48,7 @@ export function CalcSheetReadonly({ p, t, rows, highlight, showTotals = true, ma
                 const val = c.id === "total" ? t.calcs[i]?.totalRub : cell?.v;
                 return (
                   <td key={c.id} title={cell?.err} className={`border-b border-r border-neutral-200 px-2 py-1 text-right tabular-nums ${cell?.manual ? "bg-amber-100" : highlight === i ? "bg-amber-50" : "bg-neutral-50"} ${cell?.err ? "text-red-700" : ""}`}>
-                    {cell?.err ? "ошибка" : fmt(val)}{cell?.manual ? <span className="ml-1 text-[10px] text-amber-700">вруч.</span> : null}
+                    {cell?.err ? "ошибка" : fmt(val)}{cell?.manual ? <span className="ml-1 text-[11px] text-amber-700">вруч.</span> : null}
                   </td>
                 );
               })}

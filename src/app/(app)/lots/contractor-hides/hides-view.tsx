@@ -73,7 +73,6 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
           values={{ q: q ? [q] : [], batch: batch === "all" ? [] : [batch] }}
           onChange={(name, v) => { if (name === "q") setQ(v[0] ?? ""); else if (name === "batch") setBatch(v[0] ?? "all"); }}
           onReset={() => { setQ(""); setBatch("all"); }}
-          footer={<p className="mt-2 text-[11px] leading-4 text-neutral-500">Фильтры применяются сразу</p>}
         />
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="hides-tiles">
@@ -98,7 +97,7 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
             <tbody>
               {byBatch.map((b) => (
                 <tr key={`${b.batch}${b.payYear}`} className="border-t border-neutral-100">
-                  <td className="px-2 py-1.5 text-left"><Link href={`/production/batches/${b.batch}`} className="text-blue-700 hover:underline">Партия {b.batch}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link></td>
+                  <td className="px-2 py-1.5 text-left"><Link href={`/production/batches/${b.batch}`} className="text-blue-700 hover:underline">Партия {b.batch}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link></td>
                   <td className={TD}>{b.payYear}</td><td className={TD}>{b.n}</td>
                   <td className={TD + BL}>{money(b.excl)}</td><td className={TD}>{money(b.incl - b.excl)}</td><td className={TD}>{money(b.incl)}</td>
                 </tr>
@@ -127,7 +126,7 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
             <tbody>
               {ord.sort(shown).map((o) => (
                 <tr key={o.orderId} className="border-t border-neutral-100">
-                  <td className="px-2 py-1.5 text-left"><Link href={`/production/${o.orderId}`} className="text-blue-700 hover:underline" title={`Внутренний номер заказа ${o.number}`}>{o.label}</Link>{o.pinned ? <span className="ml-1.5 rounded-full bg-neutral-100 px-1.5 text-[10px] text-neutral-500" title="Сумма закреплена за этим ТЗ по документам">по документу</span> : null}</td>
+                  <td className="px-2 py-1.5 text-left"><Link href={`/production/${o.orderId}`} className="text-blue-700 hover:underline" title={`Внутренний номер заказа ${o.number}`}>{o.label}</Link>{o.pinned ? <span className="ml-1.5 rounded-full bg-neutral-100 px-1.5 text-[11px] text-neutral-500" title="Сумма закреплена за этим ТЗ по документам">по документу</span> : null}</td>
                   <td className={TD}>{o.batch}</td><td className={TD}>{o.payYear}</td>
                   <td className="truncate px-2 py-1.5 text-left text-xs" title={`${o.article} · ${o.category}`}>{o.article}<span className="text-neutral-500"> · {o.category}</span></td>
                   <td className={TD}>{o.units > 0 ? o.units : <D />}</td>
@@ -158,7 +157,7 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
               {shownPays.map((p) => (
                 <tr key={p.id} className="border-t border-neutral-100">
                   <td className="px-2 py-1.5 text-left tabular-nums">{p.date}</td>
-                  <td className="px-2 py-1.5 text-left"><Link href={p.href} className="text-blue-700 hover:underline">{p.label}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link></td>
+                  <td className="px-2 py-1.5 text-left"><Link href={p.href} className="text-blue-700 hover:underline">{p.label}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link></td>
                   <td className="truncate px-2 py-1.5 text-left text-xs" title={p.doc ?? ""}>{p.doc ?? <D />}</td>
                   <td className={TD + BL}>{money(p.amount)}</td><td className={TD}>{money(p.hides)}</td>
                   <td className={TD + " text-xs"}>{p.confirmed ? "да" : "ждёт"}</td>

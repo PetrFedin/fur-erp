@@ -91,7 +91,7 @@ function MonthTable({ items, filters, my, href, cell, cardHref }: {
                 <span className="block truncate text-sm font-semibold">{grand ? <TotalLabel unit="шт." /> : title}</span>
                 <span className="block text-[11px] font-normal text-neutral-500">Всего по плану, шт.</span>
               </Link>
-              {!grand && <Link href={`/production?fur=${encodeURIComponent(fur)}`} title="Открыть в «ТЗ» с этим видом меха" aria-label={`Открыть в ТЗ: ${fur}`} className="mt-2 text-[10px] text-neutral-400 hover:text-neutral-900">↗</Link>}
+              {!grand && <Link href={`/production?fur=${encodeURIComponent(fur)}`} title="Открыть в «ТЗ» с этим видом меха" aria-label={`Открыть в ТЗ: ${fur}`} className="mt-2 text-[11px] text-neutral-400 hover:text-neutral-900">↗</Link>}
             </div>
           </th>
           {cellsAll.map(({ c, s, bl }) => {

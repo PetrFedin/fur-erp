@@ -8,7 +8,7 @@ import { MULTI_KEYS, isBoundValid, multiValue, type Filters, type MultiKey, type
 import { useLots, useScope } from "./lots-state";
 
 const inputCls = "ui-field h-11 w-full min-w-0 rounded-lg border border-neutral-300 bg-white px-3 text-xs text-neutral-900 placeholder:text-neutral-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900";
-const labelCls = "mb-1 block min-w-0 break-words text-[10px] font-semibold uppercase leading-tight tracking-[0.02em] text-neutral-600";
+const labelCls = "mb-1 block min-w-0 break-words text-[11px] font-semibold uppercase leading-tight tracking-[0.02em] text-neutral-600";
 
 const MULTI_LABELS: Record<MultiKey, string> = { material: "Мех", size: "Размер / описание", op: "Операция" };
 

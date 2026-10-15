@@ -7,7 +7,7 @@ import { addSupplyPlanEntry, type FormState } from "./actions";
 import { STATUS_LABELS } from "./status";
 import { useKeepingForm } from "@/lib/use-keeping-form";
 
-const LBL = "text-[10px] font-semibold uppercase tracking-wide text-neutral-500";
+const LBL = "text-[11px] font-semibold uppercase tracking-wide text-neutral-500";
 const initialState: FormState = {};
 
 export function AddSupplyPlanForm({ models }: { models: { id: string; name: string }[] }) {

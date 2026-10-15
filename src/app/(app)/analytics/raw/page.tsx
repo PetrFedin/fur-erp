@@ -258,7 +258,6 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
             { type: "multi", name: "rest", label: "Остаток", single: true, allLabel: "Любой", options: [{ value: "1", label: "Только с остатком" }] },
           ]}
           resetExtra={["model", "m"]}
-          footer={<p className="mt-2 text-[11px] leading-4 text-neutral-500">Фильтры применяются сразу</p>}
         />
       </div>
 

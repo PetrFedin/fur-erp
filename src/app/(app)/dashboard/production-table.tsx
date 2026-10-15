@@ -222,7 +222,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
         </button>
       ) : depth === depthMax ? (
         <span className="inline-block w-4">
-          <Link href={articlesHref(here)} className="whitespace-nowrap hover:underline focus-visible:underline" title="Открыть в «Изделиях» с этими фильтрами">{r.label}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link>
+          <Link href={articlesHref(here)} className="whitespace-nowrap hover:underline focus-visible:underline" title="Открыть в «Изделиях» с этими фильтрами">{r.label}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link>
         </span>
       ) : <span className={depth > 0 ? "inline-block w-4" : ""}>{depth > 0 ? "" : null}{r.label}</span>;
       return (

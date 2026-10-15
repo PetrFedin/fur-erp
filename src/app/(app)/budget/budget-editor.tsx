@@ -371,7 +371,7 @@ export function BudgetEditor(p: Props) {
     const v = k === "upFur" ? e.fur : k === "upLining" ? e.lining : e.work;
     const own = k === "upFur" ? e.ownFur : k === "upLining" ? e.ownLining : e.ownWork;
     if (!v) return <span className="w-9 shrink-0" />;
-    return <span title={own ? "Надбавка задана на этой строке" : "Надбавка унаследована от уровня выше"} className={"w-11 shrink-0 text-right text-[10px] leading-none text-emerald-600 " + (own ? "font-bold underline" : "")}>{formatPercent(v, { sign: true })}</span>;
+    return <span title={own ? "Надбавка задана на этой строке" : "Надбавка унаследована от уровня выше"} className={"w-11 shrink-0 text-right text-[11px] leading-none text-emerald-600 " + (own ? "font-bold underline" : "")}>{formatPercent(v, { sign: true })}</span>;
   };
 
   const hasOwnUp = (n: BudgetNode) => [n.upFur, n.upLining, n.upWork].some((v) => typeof v === "number");
@@ -460,7 +460,7 @@ export function BudgetEditor(p: Props) {
         <td className={sumCell + " text-neutral-500"}>{mt(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
         <td className={sumCell + " text-sm font-semibold " + sepL}>
           {mt(a.total)}
-          <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-normal text-neutral-500">
+          <div className="mt-1 flex items-center justify-end gap-1.5 text-[11px] font-normal text-neutral-500">
             <span className="h-1 w-8 overflow-hidden 2xl:w-16 rounded-full bg-neutral-200"><span className="block h-1 rounded-full bg-neutral-700" style={{ width: `${Math.min(100, sh * 100)}%` }} /></span>
             <span className="w-8 text-right">{share(a.total, total.total)}</span>
           </div>

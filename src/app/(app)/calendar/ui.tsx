@@ -30,7 +30,7 @@ export function Segment({ label, items }: { label: string; items: SegItem[] }) {
 
 /** Подпись над группой сегментов (мини-подпись 10px, как у полей фильтров). */
 export function MiniLabel({ children }: { children: React.ReactNode }) {
-  return <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">{children}</span>;
+  return <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{children}</span>;
 }
 
 const STAGE_TILES: Stage[] = ["plan", "raw", "work", "ready", "shipped"];
