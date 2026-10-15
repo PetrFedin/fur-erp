@@ -13,6 +13,8 @@ export type TreePay = { id: string; date: string; amount: number; doc: string | 
 export type PurchaseStatus = "RECEIVED" | "DRAFT" | "CANCELLED";
 export type TreePurchase = {
   id: string; number: string; date: string; year: number; batchKey: string; batchLabel: string; auction: string | null;
+  /** Источник закупки: настоящий аукцион или поставщик (подкладка и шкуры подрядчика — поставщик); общий переключатель «Вся закупка / На аукционах / У поставщика». */
+  src: "auction" | "supplier";
   supplier: string; invoice: string | null; /** УПД из документа: «№ 77 от 16 мая 2025 г.». */ upd: string | null; status: PurchaseStatus;
   total: number; totalExcl: number; paid: number; rest: number;
   /** Часть «Оплачено», пришедшая из оплат партии целиком (не привязанных к закупке). */

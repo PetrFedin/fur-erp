@@ -31,6 +31,9 @@ import { NOT_SET, emptyFilters, filterLots, type FurLot } from "@/lib/fur-table"
 import { TILE_BOX, TileHead, TileValue, TileCaption, TileList } from "../dashboard/tile";
 import { VatLine } from "../dashboard/vat-line";
 import { PurchasesList, PurchasesTree, type ExtraRow } from "./purchases-tree";
+import { classifyPurchaseSource } from "@/lib/purchase-source";
+import { FurScope, ScopeEmpty, ScopeShow } from "@/components/fur-scope";
+import { FUR_SRC_KEYS, FUR_SRC_LABEL, type FurSrc } from "@/lib/fur-src";
 import { aggregate, type PurchaseStatus, type TreeBatch, type TreePurchase, type TreeYear } from "./purchases-agg";
 
 function firstLine(v: string | null) {
@@ -107,7 +110,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const [found, furLots, liningLots, opts, sizeRows] = await Promise.all([
     prisma.purchase.findMany({
       where,
-      include: { supplier: true, items: { include: { rawMaterial: true } }, expenses: { include: { category: true } }, payments: true },
+      include: { supplier: true, auction: true, items: { include: { rawMaterial: true } }, expenses: { include: { category: true } }, payments: true },
       orderBy: { number: "desc" },
     }),
     loadFurLots(prisma, orgId, { kind: "fur", year: "all", furIdx }),
@@ -166,6 +169,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     const unitIsM = (i: (typeof items)[number]) => i.unit === "м";
     return {
       id: p.id, number: p.number, date: formatDate(p.orderDate), year: p.orderDate.getUTCFullYear(),
+      src: p.isContractorRaw ? ("supplier" as const) : classifyPurchaseSource(p.auction),
       batchKey: an ?? "none", batchLabel: an ? shortAuctionName(firstLine(p.auctionSession)) : "Без аукциона", auction: an,
       supplier: p.supplier.name, invoice: p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : null, upd: p.transferDocument?.trim() || updFromDocs.get(p.id) || null, status,
       total: num(total), totalExcl: num(purchaseTotalExclVat(p)), paid: num(paidShare), rest: cancelled ? 0 : num(total.sub(paidShare)),
@@ -194,7 +198,6 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
 
   // Без фильтров к закупкам добавляются шкуры подрядчика (оплачены в составе пошива): тогда итог совпадает с Главной и «Оплатами».
   const hidesAll = hidesP ? new Decimal((await hidesP).filter((r) => year === "all" || r.year === Number(year)).reduce((a, r) => a + r.hides, 0)) : new Decimal(0);
-  const hides = sec === "lining" ? 0 : hidesAll.toNumber();
 
   // Часть закупки по виду (мех / подкладка): кол-во и позиции вида; сумма, оплата и долг — по доле стоимости позиций вида (расходы — пропорционально).
   // Закупка со смешанным составом попадает в обе секции своей частью; Σ секций = итог.
@@ -212,31 +215,18 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       remLining: kind === "lining" ? (ls.length > 0 ? ls.reduce((a, l) => a + l.rem, 0) : p.status === "DRAFT" ? p.lining : 0) : 0,
     };
   };
+  // Источник закупки (аукцион / поставщик) — признак самой закупки; по нему режим «На аукционах» / «У поставщика» раздела «Сырьё» отбирает строки, плитки и итоги.
+  const inSrc = (src: FurSrc, p: Pick<TreePurchase, "src">) => src === "all" || p.src === src;
+  const srcOfPurchase = new Map(all.map((p) => [p.id, p.src] as const));
   // Округление: у лота цена за единицу хранится округлённой, поэтому Σ лотов (так считает Главная) чуть отличается от Σ закупок по документам.
-  // Без фильтров показываем разницу отдельной строкой — тогда «Всего» совпадает с Главной до рубля.
-  const roundOf = (kind: "fur" | "lining") => {
+  // Без фильтров показываем разницу отдельной строкой — тогда «Всего» совпадает с Главной до рубля. По источникам считается так же: Σ источников = общее.
+  const roundOf = (kind: "fur" | "lining", src: FurSrc) => {
     if (filtersOn) return 0;
-    const lotsSum = (kind === "fur" ? furLots : liningLots).filter((l) => l.purchaseId && all.some((p) => p.id === l.purchaseId && p.status !== "CANCELLED")).reduce((a, l) => a + l.recvIncl, 0);
-    const docs = all.filter((p) => p.status === "RECEIVED").reduce((a, p) => a + (partOf(p, kind)?.total ?? 0), 0);
+    const lotsSum = (kind === "fur" ? furLots : liningLots).filter((l) => l.purchaseId && srcOfPurchase.has(l.purchaseId) && inSrc(src, { src: srcOfPurchase.get(l.purchaseId)! }) && all.some((p) => p.id === l.purchaseId && p.status !== "CANCELLED")).reduce((a, l) => a + l.recvIncl, 0);
+    const docs = all.filter((p) => p.status === "RECEIVED" && inSrc(src, p)).reduce((a, p) => a + (partOf(p, kind)?.total ?? 0), 0);
     const d = lotsSum - docs;
     return Math.abs(d) < 0.005 ? 0 : d;
   };
-  const roundFur = sec === "lining" ? 0 : roundOf("fur"), roundLin = sec === "fur" ? 0 : roundOf("lining");
-  // Набор для итогов, плиток и дерева: при выборе «Мех» / «Подкладка» — только часть закупки этого вида.
-  const rowsSel = sec ? rows.map((p) => partOf(p, sec)).filter((p): p is TreePurchase => p != null) : rows;
-  const live = rowsSel.filter((p) => p.status !== "CANCELLED");
-  const hidesRow: ExtraRow[] = hides > 0.5 ? [{
-    key: "hides", label: "Шкуры подрядчика", sub: "оплачены в составе счетов за пошив", href: "/lots/contractor-hides", sum: hides, paid: hides,
-    note: <>Шкуры подрядчика (партии 7 и 8): оплачены в составе счетов за пошив, закупки на них нет, в ТЗ не списаны. Есть на Главной в «Сырьё — мех» (использовано). Страница ↗ — детализация.</>,
-  }] : [];
-  const roundRow = (key: string, v: number): ExtraRow[] => (v !== 0 ? [{
-    key, label: "Округление", sum: v, paid: 0,
-    note: "Лоты хранят цену за единицу округлённой, поэтому сумма лотов (так считает Главная) отличается от суммы закупок по документам на копейки. Строка закрывает разницу: «Всего» = Главная.",
-  }] : []);
-  const furExtras = [...hidesRow, ...roundRow("round-fur", roundFur)];
-  const liningExtras = roundRow("round-lin", roundLin);
-  // В общей таблице «по годам и партиям» округление мех + подкладка — одной строкой (сумма та же).
-  const treeExtras = [...hidesRow, ...roundRow("round", roundFur + roundLin)];
   // Блоки верхних итогов: «Все» — Всего, Мех, Подкладка; «Мех» / «Подкладка» — только свой блок. Те же формулы, что для набора.
   const itemVat = new Map<string, [string, number]>();
   for (const p of found) for (const i of p.items) { const r = i.vatRate.toNumber(); if (r > 0) itemVat.set(i.id, [String(r), num(itemTotalInclVat(i, p.exchangeRate)) * r / (100 + r)]); }
@@ -248,18 +238,40 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     for (const p of rs) if (p.status !== "CANCELLED") for (const i of p.items) { const v = itemVat.get(i.id); if (v) vat[v[0]] = (vat[v[0]] ?? 0) + v[1]; }
     return { key, title, t, h, vat, bought, boughtExcl: t.totalExcl + h + rf + rl, paid: t.paid + h, rest: Math.abs(t.rest) <= 0.5 ? 0 : t.rest, kind: key === "lining" ? ("lining" as const) : key === "fur" ? ("fur" as const) : null };
   };
-  // «Все»: в одном виджете две секции — вверху Мех, внизу Подкладка; «Мех» / «Подкладка» — только своя секция. Общий итог — в шапке.
-  const grand = mkBlock("all", null, rowsSel, hides, roundFur, roundLin);
-  const blocks = sec
-    ? [mkBlock(sec, sec === "fur" ? "Мех" : "Подкладка", rowsSel, hides, roundFur, roundLin)]
-    : [
-        mkBlock("fur", "Мех", rows.map((p) => partOf(p, "fur")).filter((p): p is TreePurchase => p != null), hidesAll.toNumber(), roundFur, 0),
-        mkBlock("lining", "Подкладка", rows.map((p) => partOf(p, "lining")).filter((p): p is TreePurchase => p != null), 0, 0, roundLin),
-      ];
-
-  // Переплата по подкладке: в «К оплате» по меху не вычитается (на Главной — вычитается).
-  const liningBlock = blocks.find((x) => x.kind === "lining");
-  const liningOverpay = liningBlock && liningBlock.rest < -OVERPAY_FROM ? -liningBlock.rest : 0;
+  // Итоги, дерево-приложения и строки «Шкуры подрядчика» / «Округление» — отдельно для каждого источника (Σ «На аукционах» + «У поставщика» = «Вся закупка»).
+  // Шкуры подрядчика — сырьё поставщика (Веллмех), на аукционах их нет. Подкладка закупается у поставщика: при «На аукционах» её блока нет.
+  const variants = Object.fromEntries(FUR_SRC_KEYS.map((src) => {
+    const rowsS = rows.filter((p) => inSrc(src, p));
+    const rowsSelS = sec ? rowsS.map((p) => partOf(p, sec)).filter((p): p is TreePurchase => p != null) : rowsS;
+    const hidesAllS = src === "auction" ? 0 : hidesAll.toNumber();
+    const hidesS = sec === "lining" ? 0 : hidesAllS;
+    const roundFurS = sec === "lining" ? 0 : roundOf("fur", src), roundLinS = sec === "fur" ? 0 : roundOf("lining", src);
+    const grand = mkBlock("all", null, rowsSelS, hidesS, roundFurS, roundLinS);
+    const blocks = sec
+      ? [mkBlock(sec, sec === "fur" ? "Мех" : "Подкладка", rowsSelS, hidesS, roundFurS, roundLinS)]
+      : [
+          mkBlock("fur", "Мех", rowsS.map((p) => partOf(p, "fur")).filter((p): p is TreePurchase => p != null), hidesAllS, roundFurS, 0),
+          ...(src === "auction" ? [] : [mkBlock("lining", "Подкладка", rowsS.map((p) => partOf(p, "lining")).filter((p): p is TreePurchase => p != null), 0, 0, roundLinS)]),
+        ];
+    const hidesRow: ExtraRow[] = hidesS > 0.5 ? [{
+      key: "hides", label: "Шкуры подрядчика", sub: "оплачены в составе счетов за пошив", href: "/lots/contractor-hides", sum: hidesS, paid: hidesS,
+      note: <>Шкуры подрядчика (партии 7 и 8): оплачены в составе счетов за пошив, закупки на них нет, в ТЗ не списаны. Это сырьё поставщика (Веллмех), поэтому в режиме «На аукционах» строки нет. Есть на Главной в «Сырьё — мех» (использовано). Страница ↗ — детализация.</>,
+    }] : [];
+    const roundRow = (key: string, v: number): ExtraRow[] => (v !== 0 ? [{
+      key, label: "Округление", sum: v, paid: 0,
+      note: "Лоты хранят цену за единицу округлённой, поэтому сумма лотов (так считает Главная) отличается от суммы закупок по документам на копейки. Строка закрывает разницу: «Всего» = Главная.",
+    }] : []);
+    // Переплата по подкладке: в «К оплате» по меху не вычитается (на Главной — вычитается).
+    const liningBlock = blocks.find((x) => x.kind === "lining");
+    return [src, {
+      rows: rowsS, rowsSel: rowsSelS, grand, blocks, hidesS,
+      furExtras: [...hidesRow, ...roundRow("round-fur", roundFurS)], liningExtras: roundRow("round-lin", roundLinS), treeExtras: [...hidesRow, ...roundRow("round", roundFurS + roundLinS)],
+      liningOverpay: liningBlock && liningBlock.rest < -OVERPAY_FROM ? -liningBlock.rest : 0,
+    }];
+  })) as Record<FurSrc, { rows: TreePurchase[]; rowsSel: TreePurchase[]; grand: ReturnType<typeof mkBlock>; blocks: ReturnType<typeof mkBlock>[]; hidesS: number; furExtras: ExtraRow[]; liningExtras: ExtraRow[]; treeExtras: ExtraRow[]; liningOverpay: number }>;
+  const rowsSel = variants.all.rowsSel;
+  const live = rowsSel.filter((p) => p.status !== "CANCELLED");
+  const treeExtrasBy = Object.fromEntries(FUR_SRC_KEYS.map((k) => [k, variants[k].treeExtras])) as Record<FurSrc, ExtraRow[]>;
 
   // Дерево «год → партия → закупка → позиции / расходы / оплаты».
   const treeYears: TreeYear[] = [];
@@ -341,6 +353,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
 
       <PurchasesTabs />
 
+      <FurScope info={{ year: year === "all" ? "все годы" : `${year} год`, filters: filtersOn ? "с фильтрами закупок" : null }} section="raw">
+
       <div className="print:hidden">
         <FilterBar
           title="Фильтры закупок"
@@ -376,13 +390,26 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       </div>
 
       <WidgetRow id="purchases" title="Закупки — итоги" headerEnd={
-        <span className="text-xs text-neutral-500" data-testid="purchases-grand">
-          Всего куплено {formatMoney(grand.bought.toFixed(2))} · оплачено {formatMoney(grand.paid.toFixed(2))} · {grand.rest < -OVERPAY_FROM ? "переплата" : "к оплате"} {formatMoney(Math.abs(grand.rest).toFixed(2))}
-        </span>
+        <>
+          {FUR_SRC_KEYS.map((k) => {
+            const grand = variants[k].grand;
+            return (
+              <ScopeShow key={k} src={k}>
+                <span className="text-xs text-neutral-500" data-testid="purchases-grand">
+                  {k === "all" ? "" : `${FUR_SRC_LABEL[k]}: `}Всего куплено {formatMoney(grand.bought.toFixed(2))} · оплачено {formatMoney(grand.paid.toFixed(2))} · {grand.rest < -OVERPAY_FROM ? "переплата" : "к оплате"} {formatMoney(Math.abs(grand.rest).toFixed(2))}
+                </span>
+              </ScopeShow>
+            );
+          })}
+        </>
       }>
         <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[repeat(6,minmax(0,1fr))_10rem]" data-testid="purchases-totals">
           <div className="flex flex-col gap-3 xl:col-span-6">
-            {blocks.map((b) => (
+            {FUR_SRC_KEYS.map((srcK) => (
+            <ScopeShow key={srcK} src={srcK}>
+            {variants[srcK].blocks.length === 0 ? (
+              <ScopeEmpty title="Подкладки на аукционах нет" text="Подкладка закупается у поставщика, не на аукционе: в режиме «На аукционах» набор «Подкладка» пуст. В режимах «У поставщика» и «Вся закупка» подкладка показана целиком." />
+            ) : variants[srcK].blocks.map((b) => (
               <div key={b.key} className="flex flex-col gap-1.5" data-testid={`purchases-totals-${b.key}`}>
                 {b.title ? <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{b.title}</div> : null}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 print:grid-cols-3">
@@ -415,10 +442,13 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                   <div className={TILE_BOX}>
                     <TileHead>{b.rest < -OVERPAY_FROM ? "Переплата" : "К оплате"}</TileHead>
                     <TileValue className={b.rest > PAY_EPS.toNumber() ? "text-amber-700" : ""}>{formatMoney(Math.abs(b.rest).toFixed(2))}</TileValue>
-                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.rest / b.bought) * 100)} от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}{b.kind === "fur" && liningOverpay > 0.5 ? `. К оплате по меху; переплата по подкладке ${formatMoney(liningOverpay.toFixed(2))} не вычтена (на Главной она вычтена, поэтому там меньше)` : ""}</TileCaption>
+                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.rest / b.bought) * 100)} от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}{b.kind === "fur" && variants[srcK].liningOverpay > 0.5 ? `. К оплате по меху; переплата по подкладке ${formatMoney(variants[srcK].liningOverpay.toFixed(2))} не вычтена (на Главной она вычтена, поэтому там меньше)` : ""}</TileCaption>
                   </div>
                 </div>
               </div>
+            ))}
+            {srcK === "auction" && !sec ? <p className="text-[11px] leading-4 text-neutral-500" data-testid="lining-not-in-mode">Подкладка закупается у поставщика, не на аукционе, и в режиме «На аукционах» не участвует; шкуры подрядчика — тоже сырьё поставщика.</p> : null}
+            </ScopeShow>
             ))}
           </div>
           {/* Колонка действий справа. */}
@@ -449,24 +479,24 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           )}
         </p>
       ) : tree ? (
-        <PurchasesTree years={treeYears} extras={treeExtras} />
+        <PurchasesTree years={treeYears} extrasBySrc={treeExtrasBy} />
       ) : (
         <>
           {sections.map((sec) => {
-            const rowsSec = sec.all.slice(0, limit);
-            const ex = sec.k === "fur" ? furExtras : liningExtras;
+            const extrasBy = Object.fromEntries(FUR_SRC_KEYS.map((k) => [k, sec.k === "fur" ? variants[k].furExtras : variants[k].liningExtras])) as Record<FurSrc, ExtraRow[]>;
             return (
               <div key={sec.k} className="space-y-3">
                 <PurchasesList
                   id={`pur-list-${sec.k}`}
                   title={sec.title}
                   unitLabel={sec.unit}
-                  rows={rowsSec}
                   allRows={sec.all}
-                  extras={ex}
+                  extrasBySrc={extrasBy}
+                  limit={limit}
+                  moreHref={moreHref}
+                  moreStep={PAGE}
                   sort={{ key: sortKey, dir: sortDir }}
                   sortHrefs={sortHrefs}
-                  footer={sec.all.length > limit ? <Link href={moreHref} className={buttonVariants({ variant: "outline", size: "sm" })}>Показать ещё {PAGE}</Link> : null}
                 />
               </div>
             );
@@ -474,6 +504,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         </>
       )}
       <span className="hidden">{live.length}</span>
+      </FurScope>
     </div>
   );
 }

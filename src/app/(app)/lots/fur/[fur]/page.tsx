@@ -22,7 +22,7 @@ import { formatMoney } from "@/lib/utils";
 import { orderLabel } from "@/lib/order-label";
 import { loadTzPositions } from "@/lib/order-label-db";
 import { RawCards } from "../../../dashboard/raw-block";
-import { FurScope } from "@/components/fur-scope";
+import { FurScope, SupplierOnly } from "@/components/fur-scope";
 import { FilteredPayTiles } from "../../../dashboard/filtered-pay-tiles";
 import { PriceCompositionBlock } from "../../../dashboard/price-composition-block";
 import { priceComposition } from "@/lib/price-composition-server";
@@ -77,6 +77,8 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
           ))}
           <div className={TILE_BOX}><TileHead>Использовано</TileHead><TileValue compact>{units} изд.</TileValue><TileCaption>{ords.length} ТЗ · {formatMoney(ords.reduce((a, o) => a + o.work, 0))} по ТЗ</TileCaption></div>
         </div>
+        <FurScope info={{ year: year === "all" ? "все годы" : `${year} год`, filters: name }} section="raw">
+        <SupplierOnly what={`Сырьё «${name}» подрядчика`}>
         <section aria-labelledby="beaver-orders" className="space-y-2">
           <div className="flex items-center gap-2"><h2 id="beaver-orders" className="text-base font-semibold">Изделия из меха «{name}»</h2>
             <InfoHint label="Откуда данные" wide><p>Данные ТЗ (артикул, партия, количество изделий, работа). Это не списания сырья: расход по документам в системе не записан.</p></InfoHint></div>
@@ -101,6 +103,8 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
             </table>
           </div>
         </section>
+        </SupplierOnly>
+        </FurScope>
       </div>
     );
   }
@@ -140,7 +144,7 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
         </span>
       </div>
       {/* Общий переключатель источника (как на Главной): действует на плитки, «Из чего складывается стоимость» и таблицу аукционов и лотов этого вида. */}
-      <FurScope info={{ year: year === "all" ? "все годы" : `${year} год`, filters: name }}>
+      <FurScope info={{ year: year === "all" ? "все годы" : `${year} год`, filters: name }} section="raw">
       <FurSelectionTotal lots={own} kind="fur" globalYear={year} initialQuery={sp} lockItem={name} orderInfo={orderInfo} raw={{ tiles, c4, fur: pair, lining: dash.raw.lining, headerEnd, rows: rawRowsFromLots(own) }} />
       <PriceCompositionBlock lots={pcLots} onlyFur={name} />
       </FurScope>

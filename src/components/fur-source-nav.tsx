@@ -5,9 +5,8 @@ import { useSlideWindow } from "@/components/slide-window";
 import { CAROUSEL_ARROW } from "@/components/tile-carousel";
 
 /** Источник закупки меха: верхний уровень виджета «Мех» (переключатель), под ним — слайды по типам меха. */
-export type FurSrc = "all" | "auction" | "supplier";
-export const FUR_SRC_KEYS: FurSrc[] = ["all", "auction", "supplier"];
-export const FUR_SRC_LABEL: Record<FurSrc, string> = { all: "Вся закупка", auction: "На аукционах", supplier: "У поставщика" };
+import { FUR_SRC_KEYS, FUR_SRC_LABEL, type FurSrc } from "@/lib/fur-src";
+export { FUR_SRC_KEYS, FUR_SRC_LABEL, type FurSrc };
 /** Первый слайд каждого источника — итог по всем типам меха; ключ слайда пустой. */
 export const ALL_TYPES_LABEL = "Все типы";
 

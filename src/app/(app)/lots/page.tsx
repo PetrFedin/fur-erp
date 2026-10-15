@@ -27,6 +27,7 @@ import { loadDashboard } from "@/lib/dashboard-data";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { RawCards } from "../dashboard/raw-block";
 import { PayTiles } from "../dashboard/pay-tiles";
+import { FurScope, ScopeEmpty, ScopeShow } from "@/components/fur-scope";
 
 export const metadata = { title: "Сырьё" };
 
@@ -94,6 +95,8 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     : [];
 
   const canEditDocs = ["OWNER", "ADMIN", "PURCHASER"].includes(session.user.role);
+  // Весь раздел «Сырьё» внутри общего переключателя «Вся закупка / На аукционах / У поставщика» (как на Главной; ?fsrc= и sessionStorage).
+  const scopeInfo = { year: year === "all" ? "все годы" : `${year} год`, filters: null };
 
   // Фильтры не теряются при смене вкладки: общие значения переносятся (у каждой вкладки свой набор).
   const tabLink = (t: "fur" | "lining" | "summary", label: string) => {
@@ -144,6 +147,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           {tabLink("lining", "Подкладка")}
           {tabLink("summary", "Сводка по годам")}
         </div>
+        <FurScope info={scopeInfo} section="raw">
         {await (async () => {
           // «Сводка по годам» — те же таблицы и подписи, что на Главной: динамика по годам и по сырью (год → мех / подкладка, вид → партия).
           const sf = parseDashFilters(sp);
@@ -174,13 +178,14 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               <details className="group">
                 <summary className="cursor-pointer text-sm text-neutral-600 hover:text-neutral-900">Показать таблицы здесь</summary>
                 <div className="mt-3 flex flex-col gap-4">
-                  <YearsTable rows={d.years} c4={c4} info={info} />
-                  <RawTable rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4} info={info} orderFilters={orderFiltersOn(sf)} />
+                  <YearsTable rows={d.years} bySrc={d.yearsFurBySrc} c4={c4} info={info} />
+                  <RawTable auctionSrc={d.auctionSrc} rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4} info={info} orderFilters={orderFiltersOn(sf)} />
                 </div>
               </details>
             </>
           );
         })()}
+        </FurScope>
       </div>
     );
   }
@@ -188,22 +193,31 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   const furOptions = materials.filter((m) => m.unit !== "M").map((m) => ({ value: m.id, label: m.name }));
   // Основа — выпадающий список «Партия закупки» с мультивыбором (быстрых чипов партий нет). Годы закупки в режиме таблицы
   // выбираются в самой таблице (там же вид меха, цвет, размер, остаток): параметр один — pyear.
-  const filtersBlock = (
+  const filtersBlockFor = (list: typeof auctions) => (
     <div className="print:hidden">
     <FilterBar
       title="Фильтры меха"
       oneRow
       hideChips
       controls={[
-        { type: "multi", name: "auction", label: "Аукционы / закупки", options: auctions.map((a) => ({ value: a.name, label: aucOf(a.name).label, count: a.count, title: aucOf(a.name).title })), allLabel: "Все партии", hint: "Выберите одну или несколько партий — откроются их счета и лоты" },
+        { type: "multi", name: "auction", label: "Аукционы / закупки", options: list.map((a) => ({ value: a.name, label: aucOf(a.name).label, count: a.count, title: aucOf(a.name).title })), allLabel: "Все партии", hint: "Выберите одну или несколько партий — откроются их счета и лоты" },
         { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "№ лота, материал, цвет, сорт" },
         ...(auctionMode ? [{ type: "multi" as const, name: "material", label: "Материал", options: furOptions, allLabel: "Все материалы" }, { type: "multi" as const, name: "pyear", label: "Год закупки", aliases: ["py"], options: pyearOptions, hint: "Дополнительно к году в шапке: сужает выбор внутри него" }] : []),
       ]}
     />
     </div>
   );
+  const filtersBlock = filtersBlockFor(auctions);
 
   if (auctionMode) {
+    // Источник каждой партии (аукцион / поставщик) известен по закупкам; режим «На аукционах» / «У поставщика» оставляет только свои партии.
+    const srcOf = (n: string) => auctions.find((a) => a.name === n)?.src ?? "supplier";
+    const byName = { auction: auctionNames.filter((n) => srcOf(n) === "auction"), supplier: auctionNames.filter((n) => srcOf(n) === "supplier") };
+    const onlySrc = byName.auction.length === 0 ? "supplier" : byName.supplier.length === 0 ? "auction" : null;
+    const labelOf = (ns: string[]) => (ns.length === 1 ? ns[0] : `${ns.length} партий закупки`);
+    const view = (ns: string[], lbl: string) => (
+      <AuctionView organizationId={orgId} names={ns} label={lbl} q={q} materialIds={materialIds} pyear={f.pyear} canEdit={canEditDocs} view={auctionView} />
+    );
     return (
       <div className="flex flex-col gap-4">
         <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Мех", href: "/lots" }, { label: `Аукцион ${auctionLabel}` }]} />
@@ -233,7 +247,10 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           {tabLink("lining", "Подкладка")}
           {tabLink("summary", "Сводка по годам")}
         </div>
-        {filtersBlock}
+        <FurScope info={scopeInfo} section="raw">
+        <ScopeShow src="all">{filtersBlock}</ScopeShow>
+        <ScopeShow src="auction">{filtersBlockFor(auctions.filter((a) => a.src === "auction"))}</ScopeShow>
+        <ScopeShow src="supplier">{filtersBlockFor(auctions.filter((a) => a.src === "supplier"))}</ScopeShow>
         {auctionMissing.length > 0 && (
           <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
             {auctionMissing.length === 1 ? "Аукцион" : "Аукционы"} «{auctionMissing.join("», «")}» не найден{auctionMissing.length === 1 ? "" : "ы"}
@@ -245,17 +262,16 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           </p>
         )}
         {auctionNames.length > 0 && (
-          <AuctionView
-            organizationId={orgId}
-            names={auctionNames}
-            label={auctionLabel}
-            q={q}
-            materialIds={materialIds}
-            pyear={f.pyear}
-            canEdit={canEditDocs}
-            view={auctionView}
-          />
+          <>
+            {/* Одна партия — это либо аукцион, либо поставщик: в другом режиме её нет, и экран говорит об этом, а не молчит. */}
+            <ScopeShow src={onlySrc ? ["all", onlySrc] : "all"}>{view(auctionNames, auctionLabel)}</ScopeShow>
+            {!onlySrc && byName.auction.length > 0 ? <ScopeShow src="auction">{view(byName.auction, labelOf(byName.auction))}</ScopeShow> : null}
+            {!onlySrc && byName.supplier.length > 0 ? <ScopeShow src="supplier">{view(byName.supplier, labelOf(byName.supplier))}</ScopeShow> : null}
+            {onlySrc === "supplier" ? <ScopeShow src="auction"><ScopeEmpty title="Эта закупка не на аукционе" text={`${auctionLabel}: закупка у поставщика или фермы, не на аукционе. В режиме «На аукционах» её нет — переключите источник на «У поставщика» или «Вся закупка».`} /></ScopeShow> : null}
+            {onlySrc === "auction" ? <ScopeShow src="supplier"><ScopeEmpty title="Эта закупка на аукционе" text={`${auctionLabel}: закупка на аукционе. В режиме «У поставщика» её нет — переключите источник на «На аукционах» или «Вся закупка».`} /></ScopeShow> : null}
+          </>
         )}
+        </FurScope>
       </div>
     );
   }
@@ -359,6 +375,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         {tabLink("summary", "Сводка по годам")}
       </div>
 
+      <FurScope info={scopeInfo} section="raw">
       {tab === "fur" ? (
         <section aria-labelledby="raw-fur" className="space-y-3">
           <div className="flex items-center gap-2">
@@ -389,6 +406,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           />
         </section>
       )}
+      </FurScope>
     </div>
   );
 }

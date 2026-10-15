@@ -34,6 +34,7 @@ import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { AuctionDocsPay } from "./auction-docs-pay";
 import { AuctionVerify } from "../verify/verify-block";
+import { classifyPurchaseSource } from "@/lib/purchase-source";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
@@ -47,6 +48,8 @@ export type AuctionSummary = {
   draft: number;
   cancelled: number;
   lastDate: number;
+  /** Источник закупки: настоящий аукцион или поставщик (тот же признак, что у лотов на Главной). */
+  src: "auction" | "supplier";
 };
 
 export function auctionStatusText(a: Pick<AuctionSummary, "count" | "received" | "draft" | "cancelled">): string {
@@ -73,13 +76,14 @@ export function pluralPurchases(n: number): string {
 export async function loadAuctions(organizationId: string, year: YearFilter = "all"): Promise<AuctionSummary[]> {
   const rows = await prisma.purchase.findMany({
     where: { organizationId, auctionSession: { not: null }, ...purchaseYear(year) },
-    select: { auctionSession: true, status: true, orderDate: true },
+    select: { auctionSession: true, status: true, orderDate: true, isContractorRaw: true, auction: { select: { kind: true, house: true } } },
+    orderBy: { number: "asc" },
   });
   const map = new Map<string, AuctionSummary>();
   for (const r of rows) {
     const name = auctionName(r.auctionSession);
     if (!name) continue;
-    const a = map.get(name) ?? { name, count: 0, received: 0, draft: 0, cancelled: 0, lastDate: 0 };
+    const a = map.get(name) ?? { name, count: 0, received: 0, draft: 0, cancelled: 0, lastDate: 0, src: r.isContractorRaw ? ("supplier" as const) : classifyPurchaseSource(r.auction) };
     a.count++;
     if (r.status === "RECEIVED") a.received++;
     else if (r.status === "CANCELLED") a.cancelled++;

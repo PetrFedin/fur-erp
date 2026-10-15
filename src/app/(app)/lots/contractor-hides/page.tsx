@@ -10,6 +10,7 @@ import { allocateHides, hidesByPayYear } from "@/lib/contractor-hides";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { YearNote } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
+import { FurScope, SupplierOnly } from "@/components/fur-scope";
 import { HidesView, type HidesOrderRow, type HidesPayment } from "./hides-view";
 
 export const metadata = { title: "Шкуры подрядчика" };
@@ -52,7 +53,11 @@ export default async function ContractorHidesPage() {
           </InfoHint>
         </span>
       </div>
-      <HidesView orders={rows} payments={payments} />
+      <FurScope info={{ year: year === "all" ? "все годы" : `${year} год`, filters: "шкуры подрядчика" }} section="raw">
+        <SupplierOnly what="Шкуры подрядчика">
+          <HidesView orders={rows} payments={payments} />
+        </SupplierOnly>
+      </FurScope>
     </div>
   );
 }

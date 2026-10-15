@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { ScopeEmpty, useScopeSrc } from "@/components/fur-scope";
+import { FUR_SRC_LABEL, type FurSrc } from "@/components/fur-source-nav";
+import { buttonVariants } from "@/components/ui/button";
 import { cn, formatDebt, formatMoney, formatPercent, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
@@ -74,8 +77,12 @@ const TREE_COLS = [250, 84, 64, 60, 84, 88, 116, 104, 112, 116, 104];
 const NAME_CELL = "sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left align-top";
 const LINK = "text-blue-700 hover:underline";
 
-export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extras?: ExtraRow[] }) {
+export function PurchasesTree({ years: yearsAll, extrasBySrc }: { years: TreeYear[]; /** Служебные строки по источникам: «Шкуры подрядчика» только у поставщика, «Округление» — своё у каждого. */ extrasBySrc: Record<FurSrc, ExtraRow[]> }) {
   const { word, pick } = useSum();
+  // Общий переключатель источника раздела «Сырьё»: оставляем закупки выбранного источника; годы, партии, итоги и «Всего» пересчитываются по ним.
+  const scope = useScopeSrc();
+  const years = useMemo(() => (scope === "all" ? yearsAll : yearsAll.map((y) => ({ ...y, batches: y.batches.map((b) => ({ ...b, purchases: b.purchases.filter((p) => p.src === scope) })).filter((b) => b.purchases.length > 0) })).filter((y) => y.batches.length > 0)), [yearsAll, scope]);
+  const extras = extrasBySrc[scope];
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<Set<string>>(new Set());
   const flip = (set: Set<string>, k: string) => { const n = new Set(set); if (n.has(k)) n.delete(k); else n.add(k); return n; };
@@ -249,13 +256,13 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
                 </Fragment>
               );
             })}
-            {years.length === 0 ? <tr><td colSpan={11} className="px-3 py-6 text-center text-sm text-neutral-500">Закупок нет.</td></tr> : null}
-            {extras.map((x) => (
+            {years.length === 0 ? <tr><td colSpan={11} className="px-3 py-6 text-center text-sm text-neutral-500">{scope === "all" ? "Закупок нет." : `В режиме «${FUR_SRC_LABEL[scope]}» закупок за выбранный период нет — переключите источник на «Вся закупка».`}</td></tr> : null}
+            {years.length > 0 ? extras.map((x) => (
               <tr key={x.key} className={rowTone(1)}>
                 <td className={NAME_CELL + " pl-5"}><ExtraLabel x={x} /></td>
                 {empty(5)}<td className={TD}>{money(x.sum)}</td>{empty(2)}<td className={TD + BL}>{money(x.paid)}</td><td className={TD}><Dash /></td>
               </tr>
-            ))}
+            )) : null}
             {years.length > 0 ? (
               <tr className="row-total">
                 <td className="sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left"><TotalLabel /></td>
@@ -327,10 +334,14 @@ const LIST_COLS = [150, 62, 130, 84, 60, 84, 88, 116, 104, 112, 116, 104];
  * Одна секция режима «Списком» — закупки меха (шкуры, шт.) или подкладки (метры). Закупка со смешанным составом попадает в обе секции своей частью
  * (кол-во, сумма, оплата и долг делятся по стоимости позиций вида; расходы — пропорционально); суммы секций вместе дают общий итог.
  */
-export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = [], sort, sortHrefs, footer }: { id: string; title: string; unitLabel: string; rows: TreePurchase[]; /** Все строки секции (итог считается по ним, а не только по показанным). */ allRows?: TreePurchase[]; extras?: ExtraRow[]; sort: ListSort; sortHrefs: Record<string, string>; footer?: ReactNode }) {
+export function PurchasesList({ id, title, unitLabel, allRows: allRowsIn, extrasBySrc, limit, moreHref, moreStep, sort, sortHrefs }: { id: string; title: string; unitLabel: string; /** Все строки секции (итог считается по ним, а не только по показанным); источник отбирает общий переключатель раздела. */ allRows: TreePurchase[]; extrasBySrc: Record<FurSrc, ExtraRow[]>; /** Сколько строк показано; «Показать ещё» ведёт на moreHref. */ limit: number; moreHref: string; moreStep: number; sort: ListSort; sortHrefs: Record<string, string> }) {
   const router = useRouter();
   const { word, pick } = useSum();
-  const tot = aggregate(allRows ?? rows);
+  const scope = useScopeSrc();
+  const allRows = useMemo(() => (scope === "all" ? allRowsIn : allRowsIn.filter((p) => p.src === scope)), [allRowsIn, scope]);
+  const rows = allRows.slice(0, limit);
+  const extras = extrasBySrc[scope];
+  const tot = aggregate(allRows);
   const exSum = extras.reduce((a, x) => a + x.sum, 0);
   const exPaid = extras.reduce((a, x) => a + x.paid, 0);
   const isFurSec = unitLabel === "шт.";
@@ -338,6 +349,17 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
     <TH label={label} unit={o.unit} align={o.left ? "left" : "right"} sep={o.bl} sort={sort.key === k ? sort.dir : "none"} href={sortHrefs[k] ?? "#"} />
   );
   const qtyOf = (p: Pick<Agg, "fur" | "lining">) => (isFurSec ? p.fur : p.lining);
+  if (scope !== "all" && allRows.length === 0) {
+    return (
+      <section aria-labelledby={id} className="space-y-2" data-testid={id}>
+        <h2 id={id} className="text-base font-semibold">{title}</h2>
+        {!isFurSec && scope === "auction"
+          ? <ScopeEmpty title="Подкладки на аукционах нет" text="Подкладка закупается у поставщика, не на аукционе, поэтому в режиме «На аукционах» она не участвует. В режимах «У поставщика» и «Вся закупка» подкладка показана целиком." />
+          : <ScopeEmpty title={`В режиме «${FUR_SRC_LABEL[scope]}» закупок нет`} text="За выбранный период и фильтры закупок этого источника нет. Переключите источник на «Вся закупка», чтобы увидеть остальные." />}
+      </section>
+    );
+  }
+  const footer = allRows.length > limit ? <Link href={moreHref} className={buttonVariants({ variant: "outline", size: "sm" })}>Показать ещё {moreStep}</Link> : null;
   return (
     <section aria-labelledby={id} className="space-y-2" data-testid={id}>
       <div className="flex items-center gap-2">

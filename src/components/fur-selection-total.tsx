@@ -16,8 +16,9 @@ import { SortMark } from "@/components/table-head";
 import { useClientSort } from "@/lib/use-client-sort";
 import { sortRows, type SortVal } from "@/lib/table-sort";
 import { RawCards, type RawSlide } from "@/app/(app)/dashboard/raw-block";
-import { useFurScope } from "@/components/fur-scope";
+import { ScopeBadge, ScopeEmpty, useFurScope } from "@/components/fur-scope";
 import { alignFlowSet } from "@/lib/money-round";
+import { alignFurBySource } from "@/lib/fur-src-data";
 import { classifyLotSource } from "@/lib/purchase-source";
 import { FilteredPayTiles } from "@/app/(app)/dashboard/filtered-pay-tiles";
 import { rawRowsFromLots } from "@/lib/raw-rows";
@@ -100,8 +101,11 @@ export function FurSelectionTotal({
 }) {
   const router = useRouter();
   // Страница вида меха внутри FurScope: общий переключатель источника («Вся закупка / На аукционах / У поставщика») сужает лоты таблицы и плиток.
+  // Раздел «Сырьё» целиком внутри FurScope: источник сужает лоты таблицы, плиток, годов и дерева (подкладка не делится по источнику — см. liningOff).
   const scope = useFurScope();
-  const scopeSrc: FurSrc = lockItem && scope ? scope.src : "all";
+  const scopeSrc: FurSrc = scope && kind === "fur" ? scope.src : "all";
+  // Подкладка закупается у поставщика, а не на аукционе: в режиме «На аукционах» её нет (на экране это объяснено), в остальных режимах — вся подкладка.
+  const liningOff = kind === "lining" && scope?.src === "auction";
   const lots = useMemo(() => (scopeSrc === "all" ? lotsAll : lotsAll.filter((l) => inSrc(scopeSrc, l))), [lotsAll, scopeSrc]);
   const unit = kind === "lining" ? "м" : "шт.";
   // Как в таблицах Главной: «Использовано» всегда без 4% (4% — отдельно, в виджетах и себестоимости).
@@ -163,13 +167,17 @@ export function FurSelectionTotal({
 
   const needle = q.trim().toLowerCase();
   const isFiltered = hasFilters(filters) || Boolean(needle) || Boolean(dateFrom || dateTo);
-  const baseLots = useMemo(() => {
-    let list = needle ? lots.filter((l) => [l.lotNumber, l.materialName, l.item, l.color, l.size, l.grade, l.supplier, l.purchaseNumber, ...l.attrs].some((x) => (x ?? "").toLowerCase().includes(needle))) : lots;
+  // Поиск и даты применяются к лотам всех источников (baseLotsAllSrc — для сверки «аукцион + поставщик = вся закупка»), затем сужает источник (baseLots).
+  const baseLotsAllSrc = useMemo(() => {
+    let list = needle ? lotsAll.filter((l) => [l.lotNumber, l.materialName, l.item, l.color, l.size, l.grade, l.supplier, l.purchaseNumber, ...l.attrs].some((x) => (x ?? "").toLowerCase().includes(needle))) : lotsAll;
     // Дата заказа закупки: строки без даты (заказано без лота, шкуры подрядчика) при заданных датах не показываются.
     if (dateFrom || dateTo) list = list.filter((l) => l.orderDate != null && (!dateFrom || l.orderDate >= dateFrom) && (!dateTo || l.orderDate <= dateTo));
     return list;
-  }, [lots, needle, dateFrom, dateTo]);
+  }, [lotsAll, needle, dateFrom, dateTo]);
+  const baseLots = useMemo(() => (scopeSrc === "all" ? baseLotsAllSrc : baseLotsAllSrc.filter((l) => inSrc(scopeSrc, l))), [baseLotsAllSrc, scopeSrc]);
   const table = useMemo(() => buildFurTable({ lots: baseLots, filters, selected, onlySelected, mode }), [baseLots, filters, selected, onlySelected, mode]);
+  // Те же фильтры по лотам всех источников: слайды типов, доли и сверки «аукцион + поставщик = вся закупка» считаются по ним.
+  const tableAllSrc = useMemo(() => (scopeSrc === "all" ? table : buildFurTable({ lots: baseLotsAllSrc, filters, selected: [], onlySelected: false, mode })), [scopeSrc, table, baseLotsAllSrc, filters, mode]);
   // Слайды ряда плиток. Мех — два уровня: источник («Вся закупка | На аукционах | У поставщика») → слайды типов меха внутри него
   // («Все типы» → Лиса → Норка → …, только типы с данными). Ткань — один уровень: «Все ткани» → по тканям. Слайд меняет только плитки.
   const hasSlides = Boolean(raw) && !lockItem && kind === "fur"; // подкладка: один виджет «Все ткани» без слайдов по тканям
@@ -178,37 +186,47 @@ export function FurSelectionTotal({
     const out: Partial<Record<FurSrc, string[]>> = {};
     if (!hasSlides) return out;
     for (const sr of srcList) {
-      const have = Array.from(new Set(table.filteredLots.filter((l) => inSrc(sr, l)).map((l) => l.item))).sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
+      const have = Array.from(new Set(tableAllSrc.filteredLots.filter((l) => inSrc(sr, l)).map((l) => l.item))).sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
       const extra = kind === "fur" && sr === "all" ? (noLotsKinds ?? []).filter((k) => !have.includes(k) && (!filters.item.length || filters.item.includes(k))) : [];
       out[sr] = [...have, ...extra];
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasSlides, table.filteredLots, kind, noLotsKinds, filters.item]);
-  const nav = useSrcTypeNav(typesBySrc);
+  }, [hasSlides, tableAllSrc.filteredLots, kind, noLotsKinds, filters.item]);
+  const nav = useSrcTypeNav(typesBySrc, "all", scope && kind === "fur" && !lockItem ? scope : undefined);
   const sw = nav.sw;
   const src = nav.src;
   const slideKeys = useMemo(() => typesBySrc[src] ?? [], [typesBySrc, src]);
   const hasTypes = hasSlides && (typesBySrc.all?.length ?? 0) > 0;
   const slideIdx = hasTypes ? sw.cur : 0;
   const slideNow = slideIdx > 0 ? slideKeys[slideIdx - 1] ?? "" : "";
-  // Цифры (источник × тип) для долей и сверок: без фильтров «Вся закупка / Все типы» — плитки Главной (raw.fur), остальное — те же flowOf/figures по лотам.
+  // Мех по источникам и видам — в целых рублях, сходящихся вниз по иерархии (тем же alignRaw, что плитки Главной, src/lib/money-round.ts):
+  // «На аукционах» + «У поставщика» = «Вся закупка», сумма видов = «Все типы» источника. Без фильтров «Вся закупка» — плитки Главной (raw.fur).
+  const aligned = useMemo(() => {
+    if (!hasTypes || !raw || kind !== "fur") return null;
+    return alignFurBySource(tableAllSrc.filteredLots, typesBySrc, raw.c4, isFiltered ? null : { fur: raw.fur, lining: raw.lining });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasTypes, raw, typesBySrc, tableAllSrc.filteredLots, isFiltered, kind]);
+  /** Выровненные цифры (источник × тип; тип "" — «Все типы»). */
+  const alignedPair = (sr: FurSrc, k: string) => (aligned ? (k ? aligned.furSrc[sr].types.find((t) => t.name === k)?.pair : aligned.furSrc[sr].total) ?? null : null);
+  // Цифры (источник × тип) для долей и сверок «аукцион + поставщик = вся закупка».
   const grid = useMemo(() => {
     const g = new Map<string, FlowFigures>();
     if (!hasTypes || !raw) return g;
     const typeUnion = Array.from(new Set(srcList.flatMap((sr) => typesBySrc[sr] ?? [])));
     for (const sr of srcList) for (const k of ["", ...typeUnion]) {
-      const ls = table.filteredLots.filter((l) => inSrc(sr, l) && (!k || l.item === k));
-      g.set(`${sr}|${k}`, figures(flowOf(ls), { vat, c4: raw.c4 }));
+      const p = alignedPair(sr, k);
+      if (p) g.set(`${sr}|${k}`, p[vat]);
+      else g.set(`${sr}|${k}`, figures(flowOf(tableAllSrc.filteredLots.filter((l) => inSrc(sr, l) && (!k || l.item === k))), { vat, c4: raw.c4 }));
     }
-    if (!isFiltered) g.set("all|", raw.fur[vat]);
+    if (!isFiltered && !aligned) g.set("all|", raw.fur[vat]);
     return g;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasTypes, raw, typesBySrc, table.filteredLots, vat, isFiltered, kind]);
+  }, [hasTypes, raw, typesBySrc, tableAllSrc.filteredLots, vat, isFiltered, kind, aligned]);
   // Плитки одного набора лотов: те же flowOf/figures, что на Главной; деньги оплат — доли аукционов по стоимости лота.
-  const tilesOf = (ls: FurLot[], item: string) => {
+  const tilesOf = (ls: FurLot[], item: string, base?: { incl: FlowFigures; excl: FlowFigures } | null) => {
     const fl = flowOf(ls);
-    const pair = { incl: figures(fl, { vat: "incl", c4: raw?.c4 ?? "off" }), excl: figures(fl, { vat: "excl", c4: raw?.c4 ?? "off" }) };
+    const pair = base ? { ...base } : { incl: figures(fl, { vat: "incl", c4: raw?.c4 ?? "off" }), excl: figures(fl, { vat: "excl", c4: raw?.c4 ?? "off" }) };
     // Вид без лотов с $ (рысь): цена $ по расчёту позиций закупки — как в таблице и на Главной.
     const plan = item ? planUsdAvg(ls, fl) : null;
     if (plan != null) for (const v of ["incl", "excl"] as const) pair[v] = { ...pair[v], usdAvg: plan, usdRemAvg: plan, usdQty: pair[v].recvQty, usdRemQty: pair[v].remQty, usdBySource: { direct: 0, eur: 0, rub: 0, calc: pair[v].recvQty } };
@@ -218,13 +236,13 @@ export function FurSelectionTotal({
   };
   const slides = useMemo(() => {
     if (!raw || lockItem || !hasTypes) return null;
-    const base = table.filteredLots.filter((l) => inSrc(src, l));
+    const base = tableAllSrc.filteredLots.filter((l) => inSrc(src, l));
     return ["", ...slideKeys].map((k) => {
       const ls = k ? base.filter((l) => l.item === k) : base;
-      return { key: k, lots: ls, data: k || src !== "all" || isFiltered ? tilesOf(ls, k) : null };
+      return { key: k, lots: ls, data: k || src !== "all" || isFiltered ? tilesOf(ls, k, alignedPair(src, k)) : null };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [raw, lockItem, hasTypes, src, slideKeys, table.filteredLots, isFiltered]);
+  }, [raw, lockItem, hasTypes, src, slideKeys, tableAllSrc.filteredLots, isFiltered, aligned]);
   const tileData = useMemo(() => {
     if (!raw || !(isFiltered || scopeSrc !== "all") || !(lockItem || kind === "lining")) return null;
     return tilesOf(table.filteredLots, "");
@@ -575,7 +593,7 @@ export function FurSelectionTotal({
   // Управление слайдами: у меха — переключатель источника + ‹ › и точки типов; у ткани — только ‹ › и точки.
   const slideCtl = hasTypes ? (
     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 print:hidden" data-testid="fur-slide-ctl">
-      {kind === "fur" ? <SegmentSwitch label="Источник закупки меха" value={src} onChange={nav.pick} options={FUR_SRC_KEYS.map((k) => ({ key: k, label: FUR_SRC_LABEL[k] }))} /> : null}
+      {kind === "fur" ? (scope ? <ScopeBadge /> : <SegmentSwitch label="Источник закупки меха" value={src} onChange={nav.pick} options={FUR_SRC_KEYS.map((k) => ({ key: k, label: FUR_SRC_LABEL[k] }))} />) : null}
       <TypeDots accent labels={["", ...slideKeys].map((k) => k || (kind === "fur" ? ALL_TYPES_LABEL : "Все ткани"))} cur={slideIdx} goTo={sw.goTo} step={sw.step} last={sw.maxStart} ariaLabel={kind === "fur" ? "Тип меха" : "Ткань"}
         nowLabel={slideNow ? (kind === "fur" ? <Link href={`/lots/fur/${encodeURIComponent(slideNow)}`} className="hover:underline" title="Страница вида меха">{slideNow}↗</Link> : slideNow) : kind === "fur" ? ALL_TYPES_LABEL : "Все ткани"} />
     </div>
@@ -596,6 +614,8 @@ export function FurSelectionTotal({
     { type: "date", name: "from", label: "Дата закупки с", more: true },
     { type: "date", name: "to", label: "Дата закупки по", more: true },
   ];
+
+  if (liningOff) return <ScopeEmpty title="Подкладки на аукционах нет" text="Подкладка закупается у поставщика, не на аукционе, поэтому в режиме «На аукционах» она не участвует: ни таблица, ни плитки, ни оплаты подкладки здесь не показываются. В режимах «У поставщика» и «Вся закупка» подкладка показана целиком." />;
 
   return (
     <div className="space-y-3">
@@ -656,7 +676,7 @@ export function FurSelectionTotal({
             );
             const pane: RawSlide[] = slides.map((sl) => {
               const d = sl.data;
-              const fur = kind === "fur" && d ? d.pair : raw.fur;
+              const fur = kind === "fur" && d ? d.pair : kind === "fur" && aligned && !isFiltered ? aligned.fur : raw.fur;
               const lining = kind === "lining" && d ? d.pair : raw.lining;
               let recvNote: string | undefined;
               let below: ReactNode = null;
@@ -692,7 +712,7 @@ export function FurSelectionTotal({
           ) : raw.tiles}
           {isFiltered ? (
             <div className="px-1 text-[11px] leading-4 text-neutral-500" data-testid="tiles-filtered">
-              Плитки сырья и оплат посчитаны по выбранным фильтрам — лотов: {table.filteredLots.length}
+              Плитки сырья и оплат посчитаны по выбранным фильтрам{scopeSrc !== "all" ? ` и источнику «${FUR_SRC_LABEL[scopeSrc]}»` : ""} — лотов: {table.filteredLots.length}
               <InfoHint label="Как считаются плитки при фильтрах" wide>
                 <p>Куплено, Использовано и Остаток — по лотам, подходящим под фильтры (те же функции, что без фильтров). Оплачено и К оплате — доля оплат и долга партии закупки пропорционально стоимости лота, как строки «по сырью» на Главной при фильтрах.</p>
                 <p className="mt-1">Без фильтров показаны плитки Главной — цифры те же.</p>
@@ -744,7 +764,7 @@ export function FurSelectionTotal({
           </thead>
           <tbody>
             {group === "lots" ? flatLots.map((l) => renderLot(l, 0, "flat", "")) : topRows.map((r) => renderNode(r, 0, "g"))}
-            {kind === "fur" && group === "item" && !lockItem && (noLotsKinds ?? []).filter((k) => !filters.item.length || filters.item.includes(k)).map((k) => (
+            {kind === "fur" && scopeSrc !== "auction" && group === "item" && !lockItem && (noLotsKinds ?? []).filter((k) => !filters.item.length || filters.item.includes(k)).map((k) => (
               <tr key={`nolots:${k}`} className="border-t border-neutral-100 text-neutral-600" data-sub="no-lots">
                 <td className="sticky left-0 z-10 bg-white py-2 pr-3" style={pad(0)}>
                   <div className="flex items-center whitespace-nowrap">
@@ -775,7 +795,7 @@ export function FurSelectionTotal({
               </tr>
             )}
             {table.rows.length === 0 && (
-              <tr><td colSpan={nCols} className="px-3 py-6 text-center text-neutral-500">{lots.length === 0 ? "Закупок за выбранный период нет" : "Нет данных по выбранным фильтрам"}</td></tr>
+              <tr><td colSpan={nCols} className="px-3 py-6 text-center text-neutral-500">{lotsAll.length === 0 ? "Закупок за выбранный период нет" : lots.length === 0 && scopeSrc !== "all" ? `В режиме «${FUR_SRC_LABEL[scopeSrc]}» за выбранный период закупок нет — переключите источник на «Вся закупка»` : "Нет данных по выбранным фильтрам"}</td></tr>
             )}
           </tbody>
         </table>
