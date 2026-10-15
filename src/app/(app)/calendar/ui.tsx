@@ -60,7 +60,7 @@ export function SummaryTiles({ grand, overdue, overdueEvents, stageHref, activeS
         <div className={TILE_BOX}>
           <TileHead>События · {period.label}</TileHead>
           <TileValue>{num(period.total)}{period.total > 0 && <span className="ml-1 text-xs font-normal text-neutral-500">шт.</span>}</TileValue>
-          <TileCaption>{period.count > 0 ? `событий: ${formatQty(period.count)}` : "событий нет"}</TileCaption>
+          <TileCaption>{period.count > 0 ? `событий: ${formatQty(period.count)}` : null}</TileCaption>
         </div>
       )}
       <div className={TILE_BOX}>

@@ -326,10 +326,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           <span className="ml-2 inline-flex items-center gap-1 text-sm font-normal text-neutral-500">
             {year === "all" ? "· все годы" : `· ${year} год`}
             <InfoHint wide label="Как читать календарь">
-              <p>Здесь ваши события: артикул × количество, дата и действие (раскрой, пошив, сдача скорняку…). Пунктирные ярлыки — слои, их включают фильтром «Слои»: аукционы (даты, которые внёс Веллмех, и прошедшие из наших закупок), отгрузки, этапы сырья, даты по ТЗ; они только для просмотра.</p>
+              <p>Здесь ваши события: артикул × количество, дата и действие (раскрой, пошив, сдача скорняку…). Пунктирные ярлыки — слои из фильтра «Слои» (аукционы, отгрузки, этапы сырья, даты ТЗ); они только для просмотра.</p>
               <p className="mt-1">Красная рамка — дата прошла, а событие (или ТЗ) не выполнено. Итоги считаются по событиям один раз, в день начала. Общий год из шапки скрывает события других годов.</p>
               <p className="mt-1">Режимы: «Детально» — сетка с подписями (артикул, мех, количество, стадия, ожидаемая дата; клик по ТЗ открывает карточку), «По месяцам» — таблица видов меха по месяцам и стадиям, «Стадии» — путь изделия от плана до отгрузки со сроками.</p>
-              {canEdit && <p className="mt-1">Добавить событие — кнопкой ниже или нажатием на любой день в календаре.</p>}
+              {canEdit && <p className="mt-1">Добавить событие — кнопкой ниже или нажатием на день.</p>}
             </InfoHint>
           </span>
         </div>
@@ -367,8 +367,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           dropOnChange={["event", "new", "cell", "ord", "gp"]}
           footer={
             <div className="mt-2 flex items-center gap-1 text-[11px] leading-4 text-neutral-500">
-              Фильтры применяются сразу
-              <InfoHint label="Что фильтруется" wide>
+              <InfoHint label="Что фильтруется. Фильтры применяются сразу" wide>
                 {mode === "detail"
                   ? <p>Сезон, действие и артикул отбирают события календаря. {factsNote || "Факты из других разделов показываются, пока не выбран сезон или действие: у них их нет."}</p>
                   : <p>Группа, вид меха и статус отбирают ТЗ в плитках и таблице. Источник данных: ТЗ без отменённых{mode === "months" ? (myEff === "all" ? ", все годы" : `, год ${myEff}`) : year !== "all" ? `, год ${year}` : ", все годы"}; сроки — плановая дата ТЗ, событие календаря, поставка лота, план поставок; «—» — даты нет.</p>}
@@ -378,7 +377,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         />
       </div>
 
-      <WidgetRow id="cal-summary" title="Календарь — сводка" headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
+      <WidgetRow id="cal-summary" title="Сводка" headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
         <SummaryTiles grand={sumGrand} overdue={sumOverdue} overdueEvents={mode === "detail" ? overdueCount : undefined} stageHref={stageHref} activeStage={stageActive}
           period={mode === "detail" ? { label: view === "week" ? "неделя" : "месяц", total: periodTotal, count: periodEvents } : undefined} />
       </WidgetRow>
@@ -405,7 +404,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       </div>
       <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
         {CALENDAR_ACTIONS.map((a) => <span key={a.label} className="inline-flex items-center gap-1"><i className={`size-2 rounded-full ${a.dot}`} />{a.label}</span>)}
-        {(auctionOn || rawOn || (layersOn && !factsHidden)) && <span className="inline-flex items-center gap-1"><i className="size-2 rounded-full border border-dashed border-neutral-500" />пунктир — слои (только чтение)</span>}
+        {(auctionOn || rawOn || (layersOn && !factsHidden)) && <span className="inline-flex items-center gap-1"><i className="size-2 rounded-full border border-dashed border-neutral-500" />пунктир — слои</span>}
         <span className="text-neutral-300">|</span>
         <StageLegend only={["plan", "raw", "work", "ready", "shipped"]} />
       </div>
@@ -437,7 +436,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
             <div className="flex flex-col gap-1">{dayBlock(d, false)}</div>
           </div>
         ))}
-        {view !== "week" && listDays.length === 0 && <p className="rounded-lg border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">Событий в этом месяце нет.</p>}
+        {view !== "week" && listDays.length === 0 && <p className="rounded-lg border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">Нет событий.</p>}
       </div>
 
       {!factsHidden && !HIDDEN_MODULES.supplyPlan && layer.monthLevel.length > 0 && (
@@ -473,7 +472,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
               <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-3 [&>section+section]:border-t [&>section+section]:border-neutral-200 [&>section+section]:pt-3">
                 <section className="flex flex-col gap-2" aria-label="События дня">
                   <h3 className="block-title">События дня <InfoHint>События календаря на этот день (включая периоды, которые его захватывают). Серые пунктирные факты ниже — из ТЗ, поставок, отгрузок и примерок, они только для просмотра.</InfoHint></h3>
-                  {dayEvents.length === 0 && <p className="rounded-md border border-dashed border-neutral-300 p-3 text-center text-sm text-neutral-500">Событий нет.</p>}
+                  {dayEvents.length === 0 && <p className="rounded-md border border-dashed border-neutral-300 p-3 text-center text-sm text-neutral-500">Нет событий.</p>}
                   {dayEvents.map((e) => {
                     const def = e.supplierId ? supStage(e.status) : actionDef(e.action);
                     const pi = e.orderId ? pipeBy.get(e.orderId) : undefined;
@@ -510,7 +509,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                 {canEdit && (
                   <section className="flex flex-col gap-2" aria-label={editing ? "Правка события" : "Добавить в этот день"} id="event">
                     <h3 className="flex items-center gap-2 block-title">
-                      {editing ? `Правка: ${editing.articleCode} × ${editing.quantity}` : `Добавить в этот день · ${fmtRu(panelDay)}`}
+                      {editing ? `Правка: ${editing.articleCode} × ${editing.quantity}` : "Добавить в этот день"}
                       {editing && <Link href={dayHref} scroll={false} className="ml-auto text-xs font-normal text-neutral-500 hover:underline">Отмена</Link>}
                     </h3>
                     <EventForm key={editing ? editing.id : `new-${panelDay}`} initial={editing && editInitial ? editInitial : { ...newInitial, date: panelDay }} models={models} seasons={formSeasons} plans={formPlans} orders={formOrders} canCreateArticle={hasRole(session.user.role, ACCESS.models)} stay doneHref={dayHref} />
@@ -519,7 +518,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
                 <section className="flex flex-col gap-2" aria-label="Факты дня">
                   <h3 className="block-title">Факты дня <InfoHint>Из других разделов: окончание ТЗ, поставки, отгрузки, примерки. Нажмите — откроется карточка.</InfoHint></h3>
-                  {dayFacts.length === 0 && <p className="text-xs text-neutral-500">В этот день фактов нет.</p>}
+                  {dayFacts.length === 0 && <p className="text-xs text-neutral-500">Фактов нет.</p>}
                   {dayFacts.map((f) => {
                     const st = LAYER_STYLES[f.kind];
                     const pi = f.orderId ? pipeBy.get(f.orderId) : undefined;
@@ -556,12 +555,12 @@ function WeekRow({ wk, month, view, today, dayBlock, dayTotal, evByDay, canEdit,
       {wk.map((d) => {
         const outside = view === "month" && !d.startsWith(month);
         return (
-          <div key={d} className={`${view === "week" ? "min-h-48" : "min-h-28"} flex flex-col gap-1 p-1 ${outside ? "bg-neutral-50 text-neutral-500" : "bg-white"} ${d === today ? "ring-2 ring-inset ring-neutral-900" : ""}`}>
+          <div key={d} className={`group ${view === "week" ? "min-h-48" : "min-h-28"} flex flex-col gap-1 p-1 ${outside ? "bg-neutral-50 text-neutral-500" : "bg-white"} ${d === today ? "ring-2 ring-inset ring-neutral-900" : ""}`}>
             <div className="flex items-center justify-between text-xs">
               <Link href={href({ day: d, event: "" })} scroll={false} title="Открыть день" className={`rounded px-1 hover:bg-neutral-100 ${d === today ? "font-bold" : "font-medium"}`}>{Number(d.slice(8))}</Link>
               <span className="flex items-center gap-1">
                 {dayTotal(d) > 0 && <span className="rounded bg-neutral-100 px-1 text-[11px] text-neutral-700" title="Единиц за день">Σ {dayTotal(d)}</span>}
-                {canEdit && <Link href={href({ day: d, event: "" })} scroll={false} className="rounded px-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" title="Добавить в этот день" aria-label={`Добавить событие на ${d}`}>+</Link>}
+                {canEdit && <Link href={href({ day: d, event: "" })} scroll={false} className="rounded px-1 text-neutral-500 opacity-0 transition-opacity hover:bg-neutral-100 hover:text-neutral-900 focus-visible:opacity-100 group-hover:opacity-100 max-md:hidden" title="Добавить в этот день" aria-label={`Добавить событие на ${d}`}>+</Link>}
               </span>
             </div>
             <div className="flex flex-col gap-0.5">{dayBlock(d, view !== "week")}</div>
