@@ -199,9 +199,21 @@ export function ProductionModal({
                   })}
                   {level.items.length === 0 ? <p className="m-auto text-sm text-neutral-500">Нет данных за выбранный срез.</p> : null}
                 </div>
+                {level.kind === "dim" && level.dim === "batch" && level.items.some((it) => (it.repairQty ?? 0) > 0) ? (() => {
+                  const own = level.items.filter((it) => it.key !== "none");
+                  const ownQty = own.reduce((x, i) => x + (i.qty ?? 0), 0);
+                  const none = level.items.find((it) => it.key === "none");
+                  const noneQty = none?.qty ?? 0;
+                  const rep = level.items.reduce((x, i) => x + (i.repairQty ?? 0), 0);
+                  return (
+                    <p className="mt-2 text-xs font-medium text-neutral-800" data-testid="batch-sum-note">
+                      Партии {formatQty(ownQty)} + Вне партий {formatQty(noneQty)} = {formatQty(ownQty + noneQty)} шт. («В выпуске»); ремонт (ТЗ 116) — отдельно: {formatQty(rep)} шт.
+                    </p>
+                  );
+                })() : null}
                 {level.items.some((it) => it.key === "none" && /Вне партий/.test(it.label)) ? (
                   <p className="mt-2 text-xs text-neutral-600" data-testid="no-batch-note">
-                    <b>Вне партий</b> — ТЗ, которым партия пошива не нужна (по письму №135): отдельная поставка (ТЗ 117, кейп М057) и переделка (ТЗ 116, ремонт пальто, 7 шт.). Это не недоработка. Ремонт в «В выпуске» (штуки) не входит и считается отдельно, поэтому изделия по партиям + ремонт ТЗ 116 = выпуск + 7 шт.{" "}
+                    <b>Вне партий</b> — ТЗ, которым партия пошива не нужна (по письму №135): отдельная поставка (ТЗ 117, кейп М057) и переделка (ТЗ 116, ремонт пальто, 7 шт.). Это не недоработка. Ремонт в «В выпуске» (штуки) не входит и показан отдельно.{" "}
                     <Link href="/production?batch=none" className="text-blue-700 underline-offset-2 hover:underline">Открыть эти ТЗ →</Link>
                   </p>
                 ) : null}

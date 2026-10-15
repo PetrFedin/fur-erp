@@ -147,6 +147,8 @@ export type Item = {
   asWork?: boolean;
   /** Количество изделий (для строки таблицы). */
   qty?: number;
+  /** Ремонт внутри столбца, шт. (не входит в qty и в «В выпуске»). */
+  repairQty?: number;
   /** Столбец «Работа» — вне суммы. */
   outside?: boolean;
   tone?: "fur" | "lining" | "c4" | "exp" | "res" | "work";
@@ -176,9 +178,10 @@ function qtyTextOf(atoms: Atom[], dim: Dim): string {
   }
   if (atoms.length && atoms.every((a) => a.o.cat === "Ремонт")) return `ремонт · ${new Set(atoms.map((a) => a.o.id)).size} ТЗ`;
   const seen = new Set<string>();
-  let q = 0;
-  for (const a of atoms) if (!seen.has(a.o.id)) { seen.add(a.o.id); q += a.o.qty; }
-  return `${nf(q)} изд.`;
+  let q = 0, rq = 0;
+  for (const a of atoms) if (!seen.has(a.o.id)) { seen.add(a.o.id); if (a.o.cat === "Ремонт") rq += a.o.qty; else q += a.o.qty; }
+  // Ремонт — не изделия «в выпуске»: показываем отдельно, чтобы сумма по партиям сходилась с заголовком.
+  return rq > 0 ? `${nf(q)} изд. + ремонт ${nf(rq)} шт.` : `${nf(q)} изд.`;
 }
 
 /** Атомы узла: ТЗ и атомы, подходящие под выбранные шаги пути. */
@@ -293,7 +296,9 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
     const v = g.atoms.reduce((s, a) => s + val(a, vat), 0) + (whole ? work : 0);
     const part = (pred: (a: Atom) => boolean, f: (a: Atom) => number) => g.atoms.filter(pred).reduce((x, a) => x + f(a), 0);
     const qtyOrders = new Map<string, number>();
-    for (const a of g.atoms) qtyOrders.set(a.o.id, a.o.qty);
+    const repOrders = new Map<string, number>();
+    for (const a of g.atoms) if (a.o.cat === "Ремонт") repOrders.set(a.o.id, a.o.qty);
+    for (const a of g.atoms) if (a.o.cat !== "Ремонт") qtyOrders.set(a.o.id, a.o.qty);
     return {
       parts: {
         fur: part((a) => a.k === "f" || a.k === "h", (a) => val(a, vat) - c4val(a, vat)),
@@ -303,6 +308,7 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
         work: whole ? work : 0,
         exp: part((a) => a.k === "e", (a) => val(a, vat)),
       },
+      repairQty: dim === "fur" || dim === "auction" ? undefined : Array.from(repOrders.values()).reduce((x, y) => x + y, 0),
       furQ: part((a) => a.k === "f", (a) => a.q), liningQ: part((a) => a.k === "l", (a) => a.q),
       // Ремонт — не изделия: количество и «1 изд.» не показываем.
       qty: dim === "fur" || dim === "auction" || g.atoms.every((x) => x.o.cat === "Ремонт") ? undefined : Array.from(qtyOrders.values()).reduce((x, y) => x + y, 0),
