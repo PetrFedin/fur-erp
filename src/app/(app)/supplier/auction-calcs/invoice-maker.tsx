@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
-import { PAYMENT_KINDS, defaultDescription, suggestAmount, type PaymentKind } from "@/lib/vendor-invoice";
+import { PAYMENT_KINDS, defaultDescription, suggestAmount, type PaymentKind } from "@/lib/vendor-invoice-core";
 import { WELLMEKH_REQ } from "@/lib/vendor-requisites";
 import type { CalcPayload } from "@/lib/supplier-calc";
 
@@ -20,6 +21,8 @@ export function InvoiceMaker({ id, payload }: { id: string | null; payload: Calc
   const [amt, setAmt] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [attach, setAttach] = useState(true);
+  const router = useRouter();
   const autoAmount = suggestAmount(kind, payload);
   const description = desc ?? defaultDescription(kind, payload, specNumber, specDate, WELLMEKH_REQ);
   const amount = amt ?? (autoAmount ? String(autoAmount).replace(".", ",") : "");
@@ -32,14 +35,16 @@ export function InvoiceMaker({ id, payload }: { id: string | null; payload: Calc
     try {
       const res = await fetch(`/api/supplier/auction-calcs/${id ?? "new"}/invoice`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, number, date, specNumber, specDate, dueDate, description, amount: num, vat: payload.header.vat }),
+        body: JSON.stringify({ kind, number, date, specNumber, specDate, dueDate, description, amount: num, vat: payload.header.vat, attach: attach && !!id }),
       });
       if (!res.ok) return setMsg({ text: res.status === 422 ? "Для этого поставщика реквизиты счёта не заведены" : "Не удалось сформировать счёт", bad: true });
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement("a");
       a.href = url; a.download = `Счет на оплату № ${number} от ${date.split("-").reverse().join(".")}.xlsx`; a.click();
       URL.revokeObjectURL(url);
-      setMsg({ text: "Счёт скачан. Проверьте и при необходимости сохраните как PDF." });
+      const done = res.headers.get("X-Attached") === "1";
+      setMsg({ text: done ? "Счёт скачан и приложен к расчёту — уйдёт нам вместе с ним. Проверьте его; при необходимости сохраните как PDF." : "Счёт скачан. Проверьте и при необходимости сохраните как PDF." });
+      if (done) router.refresh();
     } finally { setBusy(false); }
   };
 
@@ -60,6 +65,7 @@ export function InvoiceMaker({ id, payload }: { id: string | null; payload: Calc
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={make}>Скачать счёт (Excel)</Button>
+          {id && <label className="flex items-center gap-1.5 text-xs text-neutral-600"><input type="checkbox" checked={attach} onChange={(e) => setAttach(e.target.checked)} />приложить к расчёту (уйдёт к нам вместе с ним)</label>}
           {msg && <span role="status" className={msg.bad ? "text-sm text-red-600" : "text-sm text-green-700"}>{msg.text}</span>}
         </div>
       </div>

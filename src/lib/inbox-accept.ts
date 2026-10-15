@@ -108,10 +108,11 @@ async function acceptCalc(s: Sess, row: Row): Promise<AcceptResult> {
   // вложения: как документы закупки (PurchaseDocument), копией в хранилище закупок
   // счета в расчёте с несколькими аукционными счетами: номер документа берём из имени файла («3017 ООО ВеллМех.pdf»), если он среди счетов расчёта
   const rowInvoices = [...new Set(payload.rows.map((x) => x.invoice).filter(Boolean))];
-  const numberFor = (name: string) => (rowInvoices.length > 1 ? rowInvoices.find((n) => new RegExp(`(^|[^\\d])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^\\d]|$)`).test(name)) ?? "" : p.header.invoice.trim());
+  const payNo = (name: string) => /№\s*(\d+)/.exec(name)?.[1] ?? "";
+  const numberFor = (name: string, kind?: string) => (kind === "PAYMENT_INVOICE" ? payNo(name) : rowInvoices.length > 1 ? rowInvoices.find((n) => new RegExp(`(^|[^\\d])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^\\d]|$)`).test(name)) ?? "" : p.header.invoice.trim());
   const docs: DocMeta[] = row.files.map((f, idx) => ({
     idx, name: f.originalName, kind: PURCHASE_DOC_KIND[f.kind] ?? "OTHER",
-    number: f.kind === "AUCTION_INVOICE" || f.kind === "PAYMENT_INVOICE" ? numberFor(f.originalName) : "", date: "", amount: "",
+    number: f.kind === "AUCTION_INVOICE" || f.kind === "PAYMENT_INVOICE" ? numberFor(f.originalName, f.kind) : "", date: "", amount: "",
   }));
   payload.docs = docs;
   // защита от дублей: закупка с этим номером счёта у поставщика уже есть (заведена вручную или раньше) — вторую не создаём
@@ -132,7 +133,7 @@ async function acceptCalc(s: Sess, row: Row): Promise<AcceptResult> {
     loadStored,
     before: (tx) => claim(tx, row, s.user.id),
     after: async (tx, created) => {
-      await tx.supplierInbox.update({ where: { id: row.id }, data: { createdEntityType: "Purchase", createdEntityId: created[0].id } });
+      await tx.supplierInbox.update({ where: { id: row.id }, data: { createdEntityType: "Purchase", createdEntityId: created.map((c) => c.id).join(",") } });
     },
     auditExtra: { inboxId: row.id, inboxTitle: row.title },
   });
@@ -198,6 +199,21 @@ async function planTz(orgId: string, p: TzPayload): Promise<{ error: string } | 
   return { items, client, groups: [...groups.values()] };
 }
 
+const DOC_LABEL: Record<string, [string, string, string]> = {
+  AUCTION_INVOICE: ["аукционный счёт", "аукционных счёта", "аукционных счетов"], PAYMENT_INVOICE: ["счёт Веллмеха на оплату", "счёта Веллмеха на оплату", "счетов Веллмеха на оплату"],
+  SPECIFICATION: ["спецификация", "спецификации", "спецификаций"], UPD: ["УПД", "УПД", "УПД"], OTHER: ["другой файл", "других файла", "других файлов"],
+};
+const pl = (n: number, f: [string, string, string]) => { const a = n % 100, b = n % 10; return a >= 11 && a <= 19 ? f[2] : b === 1 ? f[0] : b >= 2 && b <= 4 ? f[1] : f[2]; };
+/** Какие вложения придут и куда попадут: документы закупки (по номеру аукционного счёта) или документы аукциона целиком. */
+function docLines(row: Row, invoices: string[]): string[] {
+  if (row.files.length === 0) return ["Документов к расчёту не приложено — их можно добавить к закупкам позже"];
+  const by = new Map<string, number>();
+  for (const f of row.files) by.set(f.kind, (by.get(f.kind) ?? 0) + 1);
+  const parts = [...by.entries()].map(([k, n]) => `${n} ${DOC_LABEL[k] ? pl(n, DOC_LABEL[k]) : k}`).join(", ");
+  const many = new Set(invoices).size > 1;
+  return [`Документы (${row.files.length}): ${parts} — попадут в раздел «Документы»: ${many ? "аукционные счета — к закупке с тем же номером счёта, остальные — к документам аукциона" : "к созданной закупке"}`];
+}
+
 /** Что будет создано / что мешает принять — для карточки во «Входящих» (ничего не пишет). */
 export async function previewInbox(orgId: string, row: Row): Promise<{ problems: string[]; lines: string[]; links?: { href: string; label: string }[] }> {
   if (row.kind === "TZ") {
@@ -219,6 +235,7 @@ export async function previewInbox(orgId: string, row: Row): Promise<{ problems:
     `Будет создано закупок (черновиков): ${plan.purchases.length} — по одной на аукционный счёт (${plan.purchases.map((x) => x.invoice || "—").join(", ")}) · ${plan.auctionName}${m.payload.header.newAuction ? " — аукциона нет в справочнике, он будет создан" : ""}`,
     `Лотов ${t.lots}, шкур ${t.qty}, ${t.inclVat.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₽ с НДС; на склад не принимается`,
     ...m.warnings,
+    ...docLines(row, m.payload.rows.map((x) => x.invoice).filter(Boolean)),
   ];
   // «(шаг 2)» — подсказка мастера; здесь пишем сами ошибки строк.
   const rowErrs = plan.preview.validation.checks.flatMap((c, i) => c.errors.map((e) => `Лот ${p.rows[i] ? usedLot(m.payload!, c.n) : c.n}: ${e}`));

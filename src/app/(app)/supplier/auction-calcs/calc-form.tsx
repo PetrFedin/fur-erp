@@ -296,6 +296,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [] 
       <InvoiceMaker id={id} payload={out()} />
 
       <div className="text-sm"><button type="button" className="text-neutral-500 underline decoration-dotted hover:text-neutral-800" onClick={() => setAdvanced((v) => !v)}>{advanced ? "← Простой вид" : "Расширенный режим (свои столбцы и формулы)"}</button></div>
+      {!ro && <p className="text-xs text-neutral-500">«Сохранить черновик» — виден только вам. «Отправить нам» — расчёт и приложенные файлы уйдут нам на проверку; после отправки править нельзя, пока мы не вернём или не примем.</p>}
       {msg && <p role="status" className={msg.bad ? "text-sm text-red-600" : "text-sm text-green-700"}>{msg.text}</p>}
       {!advanced && (() => {
         const f = finalFigures(p, t);
@@ -306,8 +307,8 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [] 
             </div>
             {!ro && (
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" disabled={pending} onClick={save}>Сохранить черновик</Button>
-                <Button type="button" variant="outline" disabled={pending} onClick={send}>Отправить нам</Button>
+                <Button type="button" disabled={pending} onClick={save} title="Сохранить для себя: мы расчёт не увидим, пока вы его не отправите">Сохранить черновик</Button>
+                <Button type="button" variant="outline" disabled={pending} onClick={send} title="Расчёт и приложенные файлы уйдут нам на проверку. После отправки править нельзя, пока мы не вернём">Отправить нам</Button>
                 {id && <Button type="button" variant="ghost" disabled={pending} onClick={() => { if (confirm("Удалить черновик?")) run(() => deleteCalcDraft(id), "Удалено", () => router.replace("/supplier/auction-calcs")); }}>Удалить</Button>}
               </div>
             )}
@@ -316,8 +317,8 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [] 
       })()}
       {advanced && !ro && (
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" disabled={pending} onClick={save}>Сохранить черновик</Button>
-          <Button type="button" variant="outline" disabled={pending} onClick={send}>Отправить нам</Button>
+          <Button type="button" disabled={pending} onClick={save} title="Сохранить для себя: мы расчёт не увидим, пока вы его не отправите">Сохранить черновик</Button>
+          <Button type="button" variant="outline" disabled={pending} onClick={send} title="Расчёт и приложенные файлы уйдут нам на проверку. После отправки править нельзя, пока мы не вернём">Отправить нам</Button>
           {id && <Button type="button" variant="ghost" disabled={pending} onClick={() => { if (confirm("Удалить черновик?")) run(() => deleteCalcDraft(id), "Удалено", () => router.replace("/supplier/auction-calcs")); }}>Удалить черновик</Button>}
         </div>
       )}

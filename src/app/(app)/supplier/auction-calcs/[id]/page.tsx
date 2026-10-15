@@ -4,6 +4,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { ReopenButton } from "../../reopen-button";
 import { requireInboxViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
+import { INBOX_STATUS_HELP } from "@/lib/supplier-inbox-consts";
 import { STAGE_LABEL, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
 import { CompareBlock } from "../compare-block";
 import { FinalButton } from "../final-button";
@@ -33,6 +34,7 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
         <ChatLink type="SupplierInbox" id={row.id} role={s.user.role} />
         {payload.stage && <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">{STAGE_LABEL[payload.stage]}</span>}
       </div>
+      <p className="text-sm text-neutral-600" data-testid="status-help">{INBOX_STATUS_HELP[row.status]}{row.sentAt && row.status !== "DRAFT" ? ` Отправлено ${row.sentAt.toLocaleDateString("ru-RU")}.` : ""}</p>
       {row.status === "REJECTED" && s.user.role === "SUPPLIER" && <ReopenButton id={row.id} />}
       {payload.stage === "PRELIM" && s.user.role === "SUPPLIER" && <FinalButton id={row.id} />}
       <CompareBlock s={s} payload={payload} />

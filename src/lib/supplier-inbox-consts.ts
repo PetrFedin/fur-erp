@@ -5,4 +5,11 @@ export const INBOX_FILE_KINDS = [
   { key: "UPD", label: "УПД" },
   { key: "OTHER", label: "Другое" },
 ] as const;
-export const INBOX_STATUS_LABEL: Record<string, string> = { DRAFT: "Черновик", SENT: "Отправлено нам", ACCEPTED: "Принято", REJECTED: "Отклонено" };
+export const INBOX_STATUS_LABEL: Record<string, string> = { DRAFT: "Черновик", SENT: "Отправлено", ACCEPTED: "Принято нами", REJECTED: "Возвращено" };
+/** Что значит статус — одной фразой для поставщика (с учётом вида документа). */
+export const INBOX_STATUS_HELP: Record<string, string> = {
+  DRAFT: "Черновик: виден только вам. Когда всё готово — нажмите «Отправить нам».",
+  SENT: "Отправлено: расчёт и файлы у нас на проверке. Пока мы не ответили, править его нельзя.",
+  ACCEPTED: "Принято нами: по расчёту у нас создана закупка (черновик) с лотами и вашими документами. Править расчёт больше нельзя.",
+  REJECTED: "Возвращено: мы вернули расчёт на доработку, замечание ниже. Нажмите «Вернуть в черновик», исправьте и отправьте снова.",
+};
