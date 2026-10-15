@@ -4,7 +4,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
-import { requireInboxViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
+import { requireRawViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { STAGE_LABEL, calcAll, calcYear, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
 import { formatDate } from "@/lib/utils";
 import { SortTh } from "@/components/sort-th";
@@ -19,7 +19,7 @@ const yearOfRow = (r: { payload: unknown; updatedAt: Date }) => { const h = (r.p
 export default async function AuctionCalcsPage({ searchParams }: PageProps<"/supplier/auction-calcs">) {
   const sp = await searchParams;
   const sort = readSort(sp, ["auction", "invoice", "supplier", "qty", "total", "avg", "status", "date"]);
-  const s = await requireInboxViewer();
+  const s = await requireRawViewer();
   const isSup = s.user.role === "SUPPLIER";
   const rows = await prisma.supplierInbox.findMany({
     where: { kind: "AUCTION_CALC", ...inboxScope(s) },

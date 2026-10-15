@@ -204,6 +204,9 @@ export async function createTzBatch(formData: FormData): Promise<ImportResult> {
             }
             clientId = clientCache.get(k)!;
           }
+          // Подрядчик по умолчанию — единственный действующий.
+          const soleList = await tx.supplier.findMany({ where: { organizationId: orgId, isContractor: true, isActive: true }, select: { id: true }, take: 2 });
+          const soleContractor = soleList.length === 1 ? soleList[0].id : null;
           const model = await tx.productModel.findFirstOrThrow({ where: { id: articleId, organizationId: orgId }, select: { sellingPrice: true } });
           const compound = cols.length > 1 || cols.some((c) => c.qty != null || c.sizes);
           const number = await nextDocumentNumber(tx, "productionOrder", orgId, "П");
@@ -222,6 +225,7 @@ export async function createTzBatch(formData: FormData): Promise<ImportResult> {
               startDate: new Date(),
               notes: `Загружено мастером «Загрузить ТЗ»${d.source ? ` из «${d.source}»` : ""}`,
               clientId: clientId ?? undefined,
+              contractorId: soleContractor ?? undefined,
               workOrderNumber: d.number.trim(),
               clientWorkPricePerUnit: price,
               retailPrice: model.sellingPrice ?? undefined,

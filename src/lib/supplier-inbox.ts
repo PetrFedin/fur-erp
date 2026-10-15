@@ -16,6 +16,14 @@ export const inboxScope = (s: SupplierSess) => ({
   ...(s.user.role === "SUPPLIER" ? { supplierId: s.user.supplierId ?? "-" } : {}),
 });
 
+/** Поставляет ли сырьё поставщик кабинета (Supplier.suppliesRaw). Для владельца/админа (просмотр) — да. */
+export async function suppliesRawOf(s: SupplierSess): Promise<boolean> {
+  if (s.user.role !== "SUPPLIER") return true;
+  const { prisma } = await import("@/lib/prisma");
+  const sup = s.user.supplierId ? await prisma.supplier.findFirst({ where: { id: s.user.supplierId, organizationId: s.user.organizationId }, select: { suppliesRaw: true } }) : null;
+  return sup?.suppliesRaw ?? true;
+}
+
 export { INBOX_FILE_KINDS, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox-consts";
 
 /** Страницы /supplier/**: поставщик — свои; владелец и админ — просмотр всех; остальные уходят на главную. */
@@ -24,5 +32,12 @@ export async function requireInboxViewer() {
   const { redirect } = await import("next/navigation");
   const s = await requireSession({ allowSupplier: true });
   if (s.user.role !== "SUPPLIER" && s.user.role !== "OWNER" && s.user.role !== "ADMIN") redirect("/dashboard");
+  return s;
+}
+
+/** Разделы «Аукционы» и «Сырьё» кабинета: только для поставщика сырья; подрядчик без закупок уходит на «Что ждут». */
+export async function requireRawViewer() {
+  const s = await requireInboxViewer();
+  if (!(await suppliesRawOf(s))) (await import("next/navigation")).redirect("/supplier");
   return s;
 }

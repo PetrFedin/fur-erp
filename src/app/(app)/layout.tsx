@@ -43,6 +43,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const supNew = session.user.role === "SUPPLIER" && session.user.supplierId
     ? await countNewDecisions(orgId, session.user.supplierId, Number(cookieStore.get(RECENT_COOKIE)?.value) || null).catch(() => 0)
     : 0;
+  const suppliesRaw = isSupplier && session.user.supplierId
+    ? (await prisma.supplier.findFirst({ where: { id: session.user.supplierId, organizationId: orgId }, select: { suppliesRaw: true } }))?.suppliesRaw ?? true
+    : true;
+  const navLinks = navLinksFor(session.user.role, { suppliesRaw });
   const badges = { "/chat": chatUnread, "/supplier": supNew };
   const c4Mode = parseCommission4Cookie(cookieStore.get("commission4Display")?.value);
 
@@ -51,13 +55,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Commission4DisplayProvider initialMode={c4Mode}>
       <YearDisplayProvider initialYear={yearFilter} years={years}>
       <div className="flex h-dvh w-full overflow-hidden print:block print:h-auto print:overflow-visible">
-        <Sidebar links={navLinksFor(session.user.role)} badges={badges} />
+        <Sidebar links={navLinks} badges={badges} />
         <div className="flex min-w-0 flex-1 flex-col print:block">
           <Topbar
             organizationName={session.user.organizationName}
             userName={session.user.name}
             role={session.user.role}
-            links={navLinksFor(session.user.role)}
+            links={navLinks}
             badges={badges}
           />
           <main className="relative flex-1 overflow-y-auto p-3 pb-16 md:p-6 md:pb-16 print:overflow-visible print:p-0">

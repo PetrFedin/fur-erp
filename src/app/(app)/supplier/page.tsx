@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
-import { requireInboxViewer } from "@/lib/supplier-inbox";
+import { requireInboxViewer, suppliesRawOf } from "@/lib/supplier-inbox";
 import { supplierRawRows } from "@/lib/supplier-raw";
 import { chatCounts, viewerOf } from "@/lib/chat";
 import { summarizeStages, summaryLine } from "@/lib/raw-stage";
@@ -25,6 +25,7 @@ export default async function SupplierHomePage() {
     supplierId = sup?.id ?? null;
   }
   const orgId = s.user.organizationId;
+  const hasRaw = await suppliesRawOf(s);
   const sections: { title: string; empty: string; items: Item[] }[] = [];
 
   // 1. Не отправлено и возвращено нам на доработку
@@ -43,8 +44,8 @@ export default async function SupplierHomePage() {
   sections.push({ title: "Запросы от нас", empty: "Запросов без ответа нет.", items: awaiting > 0 ? [{ key: "chat", href: "/chat?f=await", text: `Ждут вашего ответа в чате: ${awaiting}` }] : [] });
 
   // 3. Сырьё: просроченные этапы и аукционы без отметки «где мех»
-  const stageRows = supplierId ? await prisma.supplierRawStage.findMany({ where: { organizationId: orgId, supplierId }, select: { purchaseId: true, stage: true, status: true, place: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true } }) : [];
-  const raw = supplierId ? await supplierRawRows(orgId, supplierId) : [];
+  const stageRows = supplierId && hasRaw ? await prisma.supplierRawStage.findMany({ where: { organizationId: orgId, supplierId }, select: { purchaseId: true, stage: true, status: true, place: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true } }) : [];
+  const raw = supplierId && hasRaw ? await supplierRawRows(orgId, supplierId) : [];
   const byPurchase = new Map<string, typeof raw>();
   for (const r of raw) (byPurchase.get(r.purchaseId) ?? byPurchase.set(r.purchaseId, []).get(r.purchaseId)!).push(r);
   const rawItems: Item[] = [];
@@ -62,8 +63,10 @@ export default async function SupplierHomePage() {
   }
   for (const [name, c] of noStage) rawItems.push({ key: "n" + name, href: c.n > 1 ? `/supplier/raw?auction=${encodeURIComponent(name)}` : `/supplier/raw/${c.pid}`, text: `${name}${c.n > 1 ? ` (счетов: ${c.n})` : ""}: не отмечено, где сейчас мех — добавьте этап.` });
   for (const [name, c] of missDoc) noDoc.push({ key: "d" + name, href: `/supplier/raw?auction=${encodeURIComponent(name)}`, text: `${name}: у ${c.lots} из ${c.of} лотов нет УПД / спецификации — приложите документ.` });
-  sections.push({ title: "Сырьё по аукционам", empty: "По всем аукционам указано, где мех, и сроки не просрочены.", items: rawItems });
-  sections.push({ title: "Документы к лотам", empty: "К лотам приложены УПД и спецификации.", items: noDoc.slice(0, 15) });
+  if (hasRaw) {
+    sections.push({ title: "Сырьё по аукционам", empty: "По всем аукционам указано, где мех, и сроки не просрочены.", items: rawItems });
+    sections.push({ title: "Документы к лотам", empty: "К лотам приложены УПД и спецификации.", items: noDoc.slice(0, 15) });
+  }
 
   // 4. Отгрузки: ожидаемые этапы Веллмеха с прошедшей датой
   const late = supplierId

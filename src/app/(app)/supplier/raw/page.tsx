@@ -3,7 +3,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
-import { requireInboxViewer, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
+import { requireRawViewer, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { supplierRawRows } from "@/lib/supplier-raw";
 import { cleanSearch } from "@/lib/input";
 import { SortTh } from "@/components/sort-th";
@@ -19,7 +19,7 @@ const num = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 3 
 const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default async function SupplierRawPage({ searchParams }: PageProps<"/supplier/raw">) {
-  const s = await requireInboxViewer();
+  const s = await requireRawViewer();
   const isSup = s.user.role === "SUPPLIER";
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => cleanSearch(Array.isArray(v) ? v[0] : v, 60);

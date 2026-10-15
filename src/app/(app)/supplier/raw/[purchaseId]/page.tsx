@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
-import { requireInboxViewer } from "@/lib/supplier-inbox";
+import { requireRawViewer } from "@/lib/supplier-inbox";
 import { loadSupplierAuction } from "@/lib/supplier-auction";
 import { calcAll, ensureRowIds } from "@/lib/supplier-calc";
 import { buildStatement, type Statement } from "@/lib/auction-statement";
@@ -27,7 +27,7 @@ const SORTS = ["invoice", "lot", "fur", "size", "qty", "unit", "total"];
 export default async function SupplierAuctionPage({ params, searchParams }: PageProps<"/supplier/raw/[purchaseId]">) {
   const { purchaseId } = await params;
   const sp = await searchParams;
-  const s = await requireInboxViewer();
+  const s = await requireRawViewer();
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(purchaseId)) notFound();
   const isSup = s.user.role === "SUPPLIER";
   // Поставщик — только своя закупка; владелец/админ смотрят глазами поставщика (как в списке «Сырья»).

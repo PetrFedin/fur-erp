@@ -3,7 +3,7 @@ import { ChatLink } from "@/components/chat-link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { ReopenButton } from "../../reopen-button";
-import { requireInboxViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
+import { requireRawViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { INBOX_STATUS_HELP } from "@/lib/supplier-inbox-consts";
 import { STAGE_LABEL, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
 import { CompareBlock } from "../compare-block";
@@ -15,7 +15,7 @@ export const metadata = { title: "Расчёт аукциона" };
 
 export default async function CalcPage({ params }: PageProps<"/supplier/auction-calcs/[id]">) {
   const { id } = await params;
-  const s = await requireInboxViewer();
+  const s = await requireRawViewer();
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) notFound();
   const row = await prisma.supplierInbox.findFirst({
     where: { id, kind: "AUCTION_CALC", ...inboxScope(s) },

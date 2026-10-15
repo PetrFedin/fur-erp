@@ -36,8 +36,9 @@ const SUPPLIER_NAV: readonly NavItem[] = [
 ];
 
 /** Пункты меню для роли: SUPPLIER получает усечённое меню, остальные — полное. Чистая функция. */
-export function navLinksFor(role: string | null | undefined): readonly NavItem[] {
-  if (role === "SUPPLIER") return SUPPLIER_NAV;
+export function navLinksFor(role: string | null | undefined, opts: { suppliesRaw?: boolean } = {}): readonly NavItem[] {
+  // Подрядчик, не поставляющий сырьё, не видит пустых «Аукционов» и «Сырья».
+  if (role === "SUPPLIER") return opts.suppliesRaw === false ? SUPPLIER_NAV.filter((l) => l.href !== "/supplier/auction-calcs" && l.href !== "/supplier/raw") : SUPPLIER_NAV;
   // «Чат» — только ролям с доступом (кладовщику и наблюдателю не показываем).
   return CHAT_ROLES.includes(role ?? "") ? NAV_LINKS : NAV_LINKS.filter((l) => l.href !== "/chat");
 }

@@ -317,6 +317,8 @@ async function acceptTz(s: Sess, row: Row): Promise<AcceptResult> {
     ids = await prisma.$transaction(
       async (tx) => {
         await claim(tx, row, s.user.id);
+        // ТЗ пришло из кабинета этого поставщика — он и есть подрядчик ТЗ (при первом ТЗ получает признак подрядчика).
+        await tx.supplier.updateMany({ where: { id: row.supplierId, organizationId: orgId, isContractor: false }, data: { isContractor: true } });
         const out: string[] = [];
         for (const g of groups) {
           const qty = g.rows.reduce((a, { it }) => a + num(it.qty), 0);
@@ -331,7 +333,7 @@ async function acceptTz(s: Sess, row: Row): Promise<AcceptResult> {
               size: uniq(g.rows.map(({ it }) => it.size)).join("; ").slice(0, 200) || undefined,
               materialDescription: uniq(g.rows.map(({ it }) => it.material)).join("; ").slice(0, 2000) || undefined,
               lining: uniq(g.rows.map(({ it }) => it.lining)).join("; ").slice(0, 2000) || undefined,
-              startDate: new Date(), notes, clientId: client.id, contractNumber: p.contract.trim() || undefined,
+              startDate: new Date(), notes, clientId: client.id, contractNumber: p.contract.trim() || undefined, contractorId: row.supplierId,
               workOrderNumber: p.number.trim(), workOrderDate: isoDate(p.date),
               clientWorkPricePerUnit: work > 0 ? work : undefined,
               retailPrice: models.find((m) => m.id === g.modelId)?.sellingPrice ?? undefined,

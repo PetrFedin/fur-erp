@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { requireInboxViewer } from "@/lib/supplier-inbox";
+import { requireRawViewer } from "@/lib/supplier-inbox";
 import { emptyPayload } from "@/lib/supplier-calc";
 import { payloadFromBase, startOptions } from "@/lib/supplier-calc-start";
 import { calcYearOptions } from "@/lib/supplier-calc-years";
@@ -10,7 +10,7 @@ import { StartFrom } from "../start-from";
 export const metadata = { title: "Новый расчёт аукциона" };
 
 export default async function NewCalcPage({ searchParams }: PageProps<"/supplier/auction-calcs/new">) {
-  const s = await requireInboxViewer();
+  const s = await requireRawViewer();
   if (s.user.role !== "SUPPLIER") redirect("/supplier/auction-calcs");
   const sp = await searchParams;
   const from = typeof sp.from === "string" ? sp.from : "";
