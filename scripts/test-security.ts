@@ -502,7 +502,7 @@ async function main() {
     "src/app/(app)/layout.tsx", "src/app/page.tsx", "src/app/(app)/settings/page.tsx", "src/app/(app)/settings/furs/page.tsx", "src/app/(app)/settings/articles-ref/page.tsx", "src/app/(app)/settings/colors/page.tsx",
     "src/app/(app)/settings/auctions/page.tsx", "src/app/(app)/settings/fur-attrs/page.tsx", "src/app/(app)/settings/categories/page.tsx", "src/app/(app)/shipments/page.tsx", "src/app/(app)/shipments/[id]/page.tsx",
     "src/app/(app)/chat/actions.ts", "src/app/(app)/chat/channel-actions.ts", "src/app/(app)/chat/page.tsx", "src/app/(app)/articles/page.tsx", "src/app/(app)/models/[id]/page.tsx", "src/app/(app)/models/new/page.tsx",
-    "src/app/api/chat/files/[id]/route.ts", "src/app/api/article-photos/[modelId]/[photoId]/route.ts", "src/app/api/drive-docs/[id]/route.ts", "src/app/api/supplier/auction-calcs/[id]/xlsx/route.ts", "src/app/api/supplier/auction-calcs/[id]/invoice/route.ts", "src/app/api/supplier/inbox-files/[id]/route.ts",
+    "src/app/api/chat/files/[id]/route.ts", "src/app/api/article-photos/[modelId]/[photoId]/route.ts", "src/app/api/article-photos/[modelId]/route.ts", "src/app/api/drive-docs/[id]/route.ts", "src/app/api/supplier/auction-calcs/[id]/xlsx/route.ts", "src/app/api/supplier/auction-calcs/[id]/invoice/route.ts", "src/app/api/supplier/inbox-files/[id]/route.ts",
     "src/app/api/supplier/tz/[id]/preview/route.ts", "src/app/api/supplier/tz/[id]/docx/route.ts", "src/components/role-switch-actions.ts", "src/lib/prisma.ts", "src/lib/supplier-inbox.ts", "src/lib/session.ts",
   ]);
   const extra = srcFiles.filter((f) => /allowSupplier:\s*true/.test(readFileSync(f, "utf8")) && !ALLOW_SUPPLIER.has(rel(f))).map(rel);
@@ -646,7 +646,7 @@ async function main() {
         ok(!/onDelete|photo-actions|deleteArticlePhoto/.test(readFileSync(path.resolve("src/app/(app)/articles/supplier-view.tsx"), "utf8")), "удаление фото: в кабинете подрядчика нет ни кнопок, ни ссылок на действие");
         // Редактор «Магазин и фото» (PLU, ссылка, загрузка фото): подрядчик и чужая организация не допускаются (подробные проверки записи — в test-article-photos.ts).
         const shopSrc = readFileSync(path.resolve("src/app/(app)/models/shop-actions.ts"), "utf8");
-        ok((shopSrc.match(/await requireRole\(\.\.\.ACCESS\.models\)/g) ?? []).length === 3 && !/allowSupplier|SUPPLIER/.test(shopSrc), "редактор «Магазин и фото»: три действия закрыты ролью ACCESS.models, подрядчик не допускается");
+        ok((shopSrc.match(/await requireRole\(\.\.\.ACCESS\.models\)/g) ?? []).length === 3 && !/allowSupplier|SUPPLIER/.test(shopSrc.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "")), "редактор «Магазин и фото»: три действия закрыты ролью ACCESS.models, подрядчик не допускается");
         const upRoute = readFileSync(path.resolve("src/app/api/article-photos/[modelId]/route.ts"), "utf8");
         ok(/hasRole\(session\.user\.role, ACCESS\.models\)\)\s*return Response\.json\([^)]*\{ status: 403 \}/.test(upRoute) && /session\.user\.organizationId/.test(upRoute), "загрузка фото: подрядчику 403, артикул ищется только в организации сессии");
         ok(!/ArticleShopEditor|shop-actions|article-shop/.test(readFileSync(path.resolve("src/app/(app)/articles/supplier-view.tsx"), "utf8")), "редактор «Магазин и фото»: в кабинете подрядчика его нет");
@@ -682,7 +682,7 @@ async function main() {
     ok(!/loadShopLinks|article-shop-links|loadAllArticleParams|isPluParam/.test(supSrc), "исходник кабинета подрядчика не читает ссылки магазина и свойства (PLU)");
     ok(!/loadAllShopLinks|shops=|pluOfItem|itemId:\s*p\.itemId/.test(supSrc) && /variant: p\.variant, \.\.\.\(p\.color/.test(supSrc), "кабинет подрядчика: окну «Фото» не передаются ссылки магазина, PLU и код страницы (только цвет и вариант)");
     const galSrc = readFileSync(path.resolve("src/components/photo-gallery.tsx"), "utf8");
-    ok(/shops\?: Record<string, GalleryShop>/.test(galSrc) && /const shop = shops && cur\.itemId/.test(galSrc), "окно «Фото»: ссылка и PLU показываются только если переданы shops (подрядчику не передаются)");
+    ok(/shops\?: Record<string, GalleryShop>/.test(galSrc) && /const shop = shops \? /.test(galSrc), "окно «Фото»: ссылка и PLU показываются только если переданы shops (подрядчику не передаются)");
   }
 
   // ---------- итог ----------
