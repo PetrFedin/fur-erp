@@ -7,13 +7,13 @@ import { cn, formatNum } from "@/lib/utils";
 const fmt = (v: number) => formatNum(Math.abs(v), 1);
 
 async function Body({ kind, id }: { kind?: string; id?: string }) {
+  // Общую плашку «Данные не сходятся» на Сводке не показываем (решение владельца: не пугать).
+  // Список расхождений остаётся на странице «Контроль → Сверка → Проверка данных» (/reconciliation#integrity).
+  // Отчёт при этом не считаем вовсе: раньше Главная каждую минуту пересчитывала все проверки ради пустого результата.
+  if (!kind || !id) return null;
   const session = await requireSession();
   const report = await getIntegrityReport(session.user.organizationId);
   if (!report) return null;
-
-  // Общую плашку «Данные не сходятся» на Сводке не показываем (решение владельца: не пугать).
-  // Список расхождений остаётся на странице «Контроль → Сверка → Проверка данных» (/reconciliation#integrity).
-  if (!kind || !id) return null;
 
   const v = violationsForEntity(report, kind, id);
   const k = knownForEntity(report, kind, id);
