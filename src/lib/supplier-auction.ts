@@ -31,7 +31,7 @@ export async function loadSupplierAuction(orgId: string, supplierId: string, pur
         where: { organizationId: orgId, supplierId, auctionId: p.auctionId, status: { not: "CANCELLED" }, id: { not: p.id } },
         orderBy: { number: "asc" },
         select: {
-          id: true, number: true, status: true, invoiceNumber: true,
+          id: true, number: true, status: true, invoiceNumber: true, exchangeRate: true,
           items: {
             orderBy: { lotNumber: "asc" },
             select: { id: true, lotNumber: true, grade: true, color: true, quantity: true, unitPrice: true, subtotal: true, costPlan: true, rawMaterial: { select: { name: true } }, lot: { select: { costBreakdown: true } } },
@@ -56,7 +56,7 @@ export async function loadSupplierAuction(orgId: string, supplierId: string, pur
     orderBy: { createdAt: "asc" },
     select: { id: true, title: true, status: true, files: { orderBy: { createdAt: "asc" }, select: { id: true, originalName: true, kind: true, sizeBytes: true } } },
   });
-  const mine = { id: p.id, number: p.number, status: p.status, invoiceNumber: p.invoiceNumber, items: p.items };
+  const mine = { id: p.id, number: p.number, status: p.status, invoiceNumber: p.invoiceNumber, exchangeRate: p.exchangeRate, items: p.items };
   const allPurchases = [mine, ...sibRows].sort((a, b) => a.number.localeCompare(b.number, "ru", { numeric: true }));
   const items = allPurchases.flatMap((pp) => pp.items.map((i) => ({ i, pp }))).map(({ i, pp }) => {
     const raw = (i.lot?.costBreakdown ?? (i.costPlan as { costBreakdown?: unknown } | null)?.costBreakdown) as unknown;
@@ -73,7 +73,7 @@ export async function loadSupplierAuction(orgId: string, supplierId: string, pur
       orderDate: p.orderDate, expectedDate: p.expectedDate, receivedDate: p.receivedDate, supplier: p.supplier.name,
     },
     items,
-    invoices: allPurchases.map((pp) => ({ id: pp.id, number: pp.number, invoice: pp.invoiceNumber ?? "", received: pp.status === "RECEIVED", status: pp.status })),
+    invoices: allPurchases.map((pp) => ({ id: pp.id, number: pp.number, invoice: pp.invoiceNumber ?? "", received: pp.status === "RECEIVED", status: pp.status, rate: Number(pp.exchangeRate) })),
     calc: calcRow ? { id: calcRow.id, title: calcRow.title, payload: calcRow.payload as unknown as CalcPayload } : null,
     docs: docRows,
   };

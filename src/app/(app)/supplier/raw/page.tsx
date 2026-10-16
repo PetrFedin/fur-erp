@@ -5,7 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { requireRawViewer, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { supplierRawRows, supplierAcceptedCalcs } from "@/lib/supplier-raw";
-import { calcAll, ensureRowIds } from "@/lib/supplier-calc";
+import { calcAll, calcVatPct, ensureRowIds, lotKey } from "@/lib/supplier-calc";
 import { buildStatement } from "@/lib/auction-statement";
 import { InfoHint } from "@/components/info-hint";
 import { cleanSearch } from "@/lib/input";
@@ -50,17 +50,17 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
   const cur = (c: string) => (c === "RUB" ? "₽" : c);
 
   // Расчёт аукциона (тот же, что в «Аукционах»): итог, средняя, курс, НДС, аванс, остаток и цена лота в ₽.
-  const calcInfo = new Map<string, { id: string; qty: number; total: number; avg: number; rate: number; vat: string; advance: number; interim: number; rest: number; pids: string[] }>();
+  const calcInfo = new Map<string, { id: string; qty: number; total: number; avg: number; rate: number; vat: number | null; advance: number; interim: number; rest: number; pids: string[] }>();
   const lotCalc = new Map<string, { unit: number; total: number }>();
   if (supplierId) {
     for (const c of await supplierAcceptedCalcs(s.user.organizationId, supplierId, all.map((r) => r.purchaseId).filter((v, i, a) => a.indexOf(v) === i))) {
       const pl = ensureRowIds(c.payload);
       const t = calcAll(pl);
       const st = buildStatement(pl, t);
-      const info = { id: c.id, qty: t.qty, total: t.totalRub, avg: t.qty ? t.totalRub / t.qty : 0, rate: t.rate, vat: pl.header.vat, advance: t.advance, interim: t.interim, rest: t.rest, pids: c.purchaseIds };
+      const info = { id: c.id, qty: t.qty, total: t.totalRub, avg: t.qty ? t.totalRub / t.qty : 0, rate: t.rate, vat: calcVatPct(pl), advance: t.advance, interim: t.interim, rest: t.rest, pids: c.purchaseIds };
       for (const pid of c.purchaseIds) {
         if (!calcInfo.has(pid)) calcInfo.set(pid, info);
-        for (const l of st.lots) if (l.lot && st.lots.filter((x) => x.lot === l.lot).length === 1 && !lotCalc.has(`${pid}|${l.lot}`)) lotCalc.set(`${pid}|${l.lot}`, { unit: l.unit, total: l.total });
+        for (const l of st.lots) if (l.lot && st.lots.filter((x) => lotKey(x.lot) === lotKey(l.lot)).length === 1 && !lotCalc.has(`${pid}|${lotKey(l.lot)}`)) lotCalc.set(`${pid}|${lotKey(l.lot)}`, { unit: l.unit, total: l.total });
       }
     }
   }
@@ -194,7 +194,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                           <span>итого <b>{money(x.total)} ₽</b></span>
                           <span>за шкуру <b>{money(x.avg)} ₽</b></span>
                           {x.rate > 0 && <span>курс <b>{formatRate(x.rate)}</b></span>}
-                          {x.vat && <span>НДС <b>{x.vat}%</b></span>}
+                          {x.vat != null && <span>НДС <b>{x.vat}%</b></span>}
                           {x.advance > 0 && <span>аванс <b>{money(x.advance)} ₽</b></span>}
                           {x.interim > 0 && <span>платёж <b>{money(x.interim)} ₽</b></span>}
                           {(x.advance > 0 || x.interim > 0) && <span>остаток <b>{money(x.rest)} ₽</b></span>}
@@ -227,12 +227,12 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                           <Th />
                         </Tr></Thead>
                         <Tbody>
-                          {sortRows(lots, sort, { invoice: (r) => r.invoice || r.purchaseNumber, lot: (r) => r.lotNumber, fur: (r) => r.fur, color: (r) => r.color, size: (r) => r.size, qty: (r) => r.quantity, price: (r) => r.unitPrice, unit: (r) => lotCalc.get(`${r.purchaseId}|${r.lotNumber}`)?.unit ?? null, total: (r) => lotCalc.get(`${r.purchaseId}|${r.lotNumber}`)?.total ?? null, doc: (r) => r.doc }).map((r) => (
+                          {sortRows(lots, sort, { invoice: (r) => r.invoice || r.purchaseNumber, lot: (r) => r.lotNumber, fur: (r) => r.fur, color: (r) => r.color, size: (r) => r.size, qty: (r) => r.quantity, price: (r) => r.unitPrice, unit: (r) => lotCalc.get(`${r.purchaseId}|${lotKey(r.lotNumber)}`)?.unit ?? null, total: (r) => lotCalc.get(`${r.purchaseId}|${lotKey(r.lotNumber)}`)?.total ?? null, doc: (r) => r.doc }).map((r) => (
                             <Tr key={r.itemId}>
                               <Td>{r.invoice || r.purchaseNumber}</Td><Td>{r.lotNumber || "—"}</Td><Td>{r.fur}</Td><Td className="max-w-[10rem]"><Clamp>{r.color || "—"}</Clamp></Td><Td className="max-w-[14rem]"><Clamp>{r.size || "—"}</Clamp></Td>
                               <Td className="tabular-nums">{num(r.quantity)}</Td>
                               <Td className="whitespace-nowrap tabular-nums">{money(r.unitPrice)} {cur(r.currency)}</Td>
-                              {(() => { const lc = lotCalc.get(`${r.purchaseId}|${r.lotNumber}`); return <><Td className="whitespace-nowrap tabular-nums">{lc ? money(lc.unit) : "—"}</Td><Td className="whitespace-nowrap tabular-nums">{lc ? money(lc.total) : "—"}</Td></>; })()}
+                              {(() => { const lc = lotCalc.get(`${r.purchaseId}|${lotKey(r.lotNumber)}`); return <><Td className="whitespace-nowrap tabular-nums">{lc ? money(lc.unit) : "—"}</Td><Td className="whitespace-nowrap tabular-nums">{lc ? money(lc.total) : "—"}</Td></>; })()}
                               <Td className="max-w-[12rem]">{r.doc ? <Clamp>{r.doc}</Clamp> : <span className="text-neutral-500">нет</span>}</Td>
                               <Td>{isSup && <AttachDocument purchaseId={r.purchaseId} itemId={r.itemId} label="Приложить" />}</Td>
                             </Tr>

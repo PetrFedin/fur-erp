@@ -12,6 +12,9 @@
  *  • люди: «подтвердил/принял/ответственный» → «Демо»; пользователи пересоздаются (владелец, технолог, закупщик, бухгалтер,
  *    Веллмех-демо) со СЛУЧАЙНЫМИ паролями — они пишутся только в файл с правами 600 и в чат не печатаются;
  *  • тексты: заметки, комментарии, примечания, решения владельца (SystemState), чаты, письма, комментарии, журнал изменений — удаляются;
+ *  • кабинет Веллмеха: ПРИНЯТЫЕ расчёты аукционов и ТЗ Веллмеха (SupplierInbox) сохраняются и согласуются с закупками/ТЗ заказчика:
+ *    деньги в них домножаются на тот же K (ставки, курсы, проценты, количества — нет), подписанты и реквизиты заменяются,
+ *    вложения становятся заглушками; черновики, отклонённые и отправленные-непринятые удаляются; этапы сырья остаются (без заметок);
  *  • файлы и документы: ссылки на Google Drive убираются, имена заменяются на «Документ №N», все файлы указывают на одну заглушку PDF;
  *    фото примерок, вложения чата и входящие поставщика удаляются;
  *  • реквизиты счетов/договоров: номера договоров и ссылки заменяются; номера счетов и п/п (нужны для связей) сохраняются.
@@ -24,6 +27,8 @@ import { randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { checkCalcScale, scaleCalcPayload, scaleTzPayload } from "./demo-inbox-scale";
+import type { CalcPayload } from "../src/lib/supplier-calc";
 
 const dbUrl = process.env.DATABASE_URL ?? "";
 if (!/\/[a-z0-9_]*_demo(\?|$)/i.test(dbUrl)) {
@@ -77,7 +82,7 @@ const PEOPLE: Record<string, string[]> = {
 /** Таблицы, которые очищаются целиком (переписка, журнал, вложения, обращения поставщика). */
 const WIPE = [
   "AuditLog", "CommentReply", "Comment", "ChatMessageReaction", "ChannelDelivery", "ChatAttachment", "ChatMessage", "ChatRead", "ChatMember",
-  "ChatThread", "ChannelBindCode", "ChannelLink", "FittingPhoto", "SupplierInboxFile", "SupplierInbox", "SupplierCalcTemplate",
+  "ChatThread", "ChannelBindCode", "ChannelLink", "FittingPhoto", "SupplierCalcTemplate",
 ];
 
 /** Фамилии и имена людей, которые встречаются в свободных текстах (этапы отгрузок, примечания). */
@@ -134,6 +139,8 @@ async function main() {
   // 1. Очистка таблиц целиком
   for (const t of WIPE) if (await tableExists(t)) await x(`delete from ${q(t)}`);
   await x(`delete from "SystemState" where key like 'owner-decision:%'`);
+  // Входящие поставщика: оставляем только ПРИНЯТЫЕ расчёты аукционов и ТЗ (из них созданы закупки и ТЗ заказчика); остальное — черновики и переписка
+  await x(`delete from "SupplierInbox" where not (status = 'ACCEPTED' and kind in ('AUCTION_CALC','TZ'))`);
   log("очищены переписка, журнал, вложения, обращения поставщика, решения владельца");
 
   // 2. Деньги
@@ -163,6 +170,32 @@ async function main() {
   await x(`update "Organization" set name='MVST Демо', slug='mvst-demo' where id=$1`, org.id);
   await x(`update "SupplierContract" set number = 'Д-' || substr(id, length(id) - 3)`).catch(() => undefined);
   log(`контрагенты: ${sups.length} поставщиков, ${clis.length} заказчиков`);
+
+  // 3б. Кабинет Веллмеха: принятые расчёты аукционов и ТЗ — те же лоты, счета и суммы ×K, что у заказчика
+  {
+    const inbox = await rows<{ id: string; kind: string; payload: unknown; createdEntityId: string | null }>(`select id, kind, payload, "createdEntityId" from "SupplierInbox"`);
+    const dests = new Map<string, string>();
+    const maskDest = (d: string) => dests.get(d) ?? dests.set(d, `Площадка №${dests.size + 1}`).get(d)!;
+    const cl = (await rows<{ name: string }>(`select name from "Client" order by "createdAt", id limit 1`))[0]?.name ?? "Заказчик №1";
+    const who = { customer: cl, customerPost: `Генеральный директор ${cl}`, contractorPost: "Генеральный директор Подрядчика", place: "Склад заказчика (демо)" };
+    let nCalc = 0, nTz = 0;
+    for (const r of inbox) {
+      const payload = r.kind === "AUCTION_CALC"
+        ? (() => {
+            const orig = r.payload as CalcPayload;
+            const scaled = scaleCalcPayload(orig, K, maskDest);
+            const bad = checkCalcScale(orig, scaled, K);
+            if (bad) throw new Error(`демо: расчёт ${r.id} не масштабируется линейно (${bad}) — дамп не создан`);
+            nCalc++;
+            return scaled;
+          })()
+        : (nTz++, scaleTzPayload(r.payload as Record<string, unknown>, K, who));
+      await x(`update "SupplierInbox" set payload = $1::jsonb, note = NULL, "reviewNote" = NULL where id = $2`, JSON.stringify(payload), r.id);
+    }
+    // вложения: имена и файлы — заглушки (сами файлы в демо не переносятся)
+    await x(`update "SupplierInboxFile" set "originalName" = 'Документ-' || substr(id, length(id) - 4) || '.pdf', "storagePath" = 'demo/stub.pdf', "mimeType" = 'application/pdf', "sizeBytes" = 1200`);
+    log(`кабинет Веллмеха: расчётов аукционов ${nCalc}, ТЗ ${nTz} (деньги ×K, линейность расчёта проверена)`);
+  }
 
   // 4. Свободные тексты и люди
   for (const [t, cols] of Object.entries(CLEAR)) for (const c of cols) await setText(t, c, null);
@@ -204,7 +237,10 @@ async function main() {
     }
   }
   // Веллмех-демо не должен превращаться в «Веллмех-демо-демо» при повторных заменах
-  for (const c of textCols) if (c.data_type !== "jsonb") await x(`update ${q(c.table_name)} set ${q(c.column_name)} = replace(${q(c.column_name)}, 'Веллмех-демо-демо', 'Веллмех-демо') where ${q(c.column_name)} like '%демо-демо%'`);
+  for (const c of textCols) {
+    if (c.data_type !== "jsonb") await x(`update ${q(c.table_name)} set ${q(c.column_name)} = replace(${q(c.column_name)}, 'Веллмех-демо-демо', 'Веллмех-демо') where ${q(c.column_name)} like '%демо-демо%'`);
+    else await x(`update ${q(c.table_name)} set ${q(c.column_name)} = replace(${q(c.column_name)}::text, 'Веллмех-демо-демо', 'Веллмех-демо')::jsonb where ${q(c.column_name)}::text like '%демо-демо%'`);
+  }
   log("старые названия вычищены из текстов");
 
   // 7. Пользователи
@@ -228,7 +264,7 @@ async function main() {
   }
   const dir = path.join(os.homedir(), "Backups", "fur-erp");
   mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, "demo-logins.txt");
+  const file = process.env.DEMO_LOGINS_FILE || path.join(dir, "demo-logins.txt");
   writeFileSync(file, `Демо-логины MVST (создано ${new Date().toISOString()}). Файл личный, не пересылать.\nАдрес: см. docs/DEPLOY.md (после публикации).\nСлужебное: коэффициент денег ${K} (для проверки: RECON_TOL_SCALE=${K} npx tsx scripts/test-reconciliation.ts); внешним не сообщать.\n\n${creds.join("\n\n")}\n`, { mode: 0o600 });
   chmodSync(file, 0o600);
   log(`пользователи пересозданы, логины записаны в ${file} (права 600)`);

@@ -11,7 +11,7 @@ import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { INBOX_FILE_KINDS, INBOX_STATUS_LABEL, shortInboxTitle } from "@/lib/supplier-inbox-consts";
 import { previewInbox } from "@/lib/inbox-accept";
-import { FORMAT_LABEL, STAGE_LABEL, calcAll, columnsFor, headerRate, rateCols, resolveRow, rowFilled, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
+import { FORMAT_LABEL, STAGE_LABEL, calcAll, calcVatPct, columnsFor, headerRate, rateCols, resolveRow, rowFilled, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
 import { TZ_KIND_LABEL, itemFilled, materialFilled, plainNum, ruDate, spacedNum, tzTotals, type TzPayload } from "@/lib/tz-vendor";
 import { cn, formatDate, formatNum, formatRate } from "@/lib/utils";
 import { DecideButtons } from "./decide";
@@ -72,7 +72,7 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
         <div className="mt-3 flex flex-col gap-4">
       <Dl items={[
         ["Формат", FORMAT_LABEL[p.format]], ["Аукцион", dash(h.auction)], ["Счёт №", dash(h.invoice)], ["Дата счёта", dash(h.invoiceDate)], ["Продавец", dash(h.seller)],
-        ["Валюта", h.currency], ["Курс ЦБ", dash(h.cbRate)], ["Надбавка агента, %", dash(h.agentPct)], ["Курс для расчёта", rateFmt(t.rate)], ["НДС, %", dash(h.vat)],
+        ["Валюта", h.currency], ["Курс ЦБ", dash(h.cbRate)], ["Надбавка агента, %", dash(h.agentPct)], ["Курс для расчёта", rateFmt(t.rate)], ["НДС, %", calcVatPct(p) != null ? String(calcVatPct(p)) : "—"],
         ["Покупатель", dash(h.buyer)], ["Куда", dash(h.dest)], ["Брокер", dash(h.broker)], ["Срок оплаты", dash(h.dueDate)],
         ["Аванс", h.advance ? `${h.advance}${h.advanceDate ? ` от ${h.advanceDate}` : ""}` : "—"], ["Промежуточный платёж", dash(h.interim)],
       ]} />

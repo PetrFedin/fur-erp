@@ -381,6 +381,29 @@ export function paramList(p: CalcPayload): { name: string; label: string; own: b
   return out;
 }
 
+/**
+ * НДС расчёта, % — одно значение для обеих сторон (кабинет Веллмеха, проверка у заказчика, сверка).
+ * В «своей таблице» (SHEET) шапка НДС не используется: ставка живёт в параметре («ндс», «ндс_проц»…), поэтому берём его (нет параметра — ставка не указана);
+ * в остальных форматах — поле шапки. Пусто — null (не указан).
+ */
+export function calcVatPct(p: CalcPayload): number | null {
+  if (p.format === "SHEET") {
+    for (const q of p.params ?? []) {
+      if (/^ндс/.test(paramKey(q.name))) { const v = evalNum(q.value); if (Number.isFinite(v)) return v; }
+    }
+    return null; // ставки НДС в таблице нет: «22» в шапке — значение по умолчанию, а не введённое поставщиком
+  }
+  const v = evalNum(p.header.vat);
+  return Number.isFinite(v) ? v : null;
+}
+
+/** Номер лота для сопоставления «лот Веллмеха ↔ лот заказчика»: у заказчика бывает приставка аукциона («FW26-30», «СП0926-4») или суффикс («1498-1») при совпадении номеров у разных аукционов. */
+export function lotKey(s: string | null | undefined): string {
+  const t = (s ?? "").trim().toLowerCase().replace(/ё/g, "е").replace(/\s+/g, "");
+  const m = /^[a-zа-я]+\d*-(\d+)$/.exec(t) ?? /^(\d+)-\d{1,2}$/.exec(t);
+  return m ? m[1] : t;
+}
+
 export const colLetterOf = colLetter;
 const LETTERS = /^[A-Za-z]{1,3}$/;
 

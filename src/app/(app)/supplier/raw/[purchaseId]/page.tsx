@@ -5,7 +5,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { requireRawViewer } from "@/lib/supplier-inbox";
 import { loadSupplierAuction } from "@/lib/supplier-auction";
-import { calcAll, ensureRowIds } from "@/lib/supplier-calc";
+import { calcAll, calcVatPct, ensureRowIds } from "@/lib/supplier-calc";
 import { buildStatement, groupLines, type Statement } from "@/lib/auction-statement";
 import { readSort } from "@/lib/table-sort";
 import { formatDate, formatRate } from "@/lib/utils";
@@ -93,17 +93,25 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
   const facts: [string, React.ReactNode][] = [
     ["Аукционный дом", h?.seller || h?.auction || p.auction],
     ["Дата", formatDate(p.orderDate)],
-    ["Валюта и курс", t && t.rate > 0 ? (
-      <span key="rate" className="inline-flex items-center gap-1.5">{p.currency}, курс {formatRate(t.rate)}
-        {h?.cbRate ? <InfoHint label="Из чего курс">Курс, по которому считается себестоимость. Курс ЦБ на дату: {h.cbRate}{h.agentPct ? `; надбавка агента ${h.agentPct}%` : ""}.</InfoHint> : null}
-      </span>
-    ) : `${p.currency}${p.rate !== 1 ? `, курс ${formatRate(p.rate)}` : ""}`],
+    ["Валюта и курс", (() => {
+      // Курс — как у заказчика: курс закупки (по счёту); курс расчёта показываем, если он есть. Разные курсы по счетам — перечисляем.
+      const rates = [...new Set(invoices.map((i) => i.rate))].filter((r) => r > 0 && (p.currency !== "RUB" || r !== 1));
+      const main = t && t.rate > 0 ? t.rate : rates[0];
+      if (p.currency === "RUB" && !(t && t.rate > 0)) return p.currency;
+      const differ = rates.length > 1 || (t && t.rate > 0 && rates.some((r) => Math.abs(r - t.rate) > 0.0005));
+      return (
+        <span key="rate" className="inline-flex flex-wrap items-center gap-1.5">{p.currency}, курс {main ? formatRate(main) : "—"}
+          {differ && <span className="text-neutral-600">(по счетам: {invoices.filter((i) => i.rate > 0).map((i) => `${i.invoice || i.number} — ${formatRate(i.rate)}`).join("; ")})</span>}
+          {h?.cbRate ? <InfoHint label="Из чего курс">Курс, по которому считается себестоимость. Курс ЦБ на дату: {h.cbRate}{h.agentPct ? `; надбавка агента ${h.agentPct}%` : ""}.</InfoHint> : null}
+        </span>
+      );
+    })()],
     ["Счета", invoices.map((i) => i.invoice || i.number).join(", ")],
     ...(t && payload ? ([
       ["Шкур", num(t.qty)],
       ["Итого", `${money(t.totalRub)} ₽`],
       ["За шкуру", t.qty ? `${money(t.totalRub / t.qty)} ₽` : ""],
-      ["НДС", payload.header.vat ? `${payload.header.vat}%` : ""],
+      ["НДС", calcVatPct(payload) != null ? `${calcVatPct(payload)}%` : ""],
       ["Расходы", payload.header.extras.filter((e) => e.name.trim() && e.amount.trim()).map((e) => `${e.name}: ${e.amount} ₽${e.mode === "perHide" ? "/шк." : ""}`).join("; ")],
       ["Аванс", t.advance > 0 ? `${money(t.advance)} ₽${payload.header.advanceDate ? ` от ${formatDate(new Date(payload.header.advanceDate))}` : ""}` : ""],
       ["Платёж", t.interim > 0 ? `${money(t.interim)} ₽` : ""],
