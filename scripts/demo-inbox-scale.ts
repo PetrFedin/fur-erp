@@ -9,7 +9,7 @@ type Json = Record<string, unknown>;
 /** Единицы столбцов, в которых лежат деньги (курсы «₽/$» и коэффициенты — нет). */
 export const isMoneyUnit = (u: unknown) => typeof u === "string" && /^(\$|EUR|₽)/.test(u.trim()) && u.trim() !== "₽/$";
 /** Параметры шапки «своей таблицы» с деньгами за шкуру (остальные — курсы и проценты). */
-export const isMoneyParam = (name: string) => /^(выделка|транспорт|упаковка|сбор_фикс)/.test(paramKey(name)) && !/проц|курс|коэф/.test(paramKey(name));
+export const isMoneyParam = (name: string) => /^(выделка|транспорт|перевозка|упаковка|сбор_фикс)/.test(paramKey(name)) && !/проц|курс|коэф/.test(paramKey(name));
 /** Денежные ячейки строки в встроенных форматах (СП/РП, SAGA, FH). */
 const BUILTIN_MONEY = new Set(["price", "dressing", "transport", "transit", "feeFixed", "packing", "dressingUsd", "base22", "base5", "trans1", "trans2", "customs", "air", "adj", "upd"]);
 
