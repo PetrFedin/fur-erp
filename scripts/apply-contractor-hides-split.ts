@@ -148,7 +148,7 @@ async function main() {
   }
 
   const anchor = await prisma.productionPayment.findFirst({ where: { id: { endsWith: "e2a53b" } }, select: { organizationId: true } });
-  if (!anchor) throw new Error("Не найден платёж …e2a53b (ожидалась боевая база MVST)");
+  if (!anchor) throw new Error("Не найден платёж …e2a53b (ожидалась боевая база)");
   const orgId = anchor.organizationId;
   const org = (await prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } }))!;
 

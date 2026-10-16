@@ -46,9 +46,9 @@ async function main() {
   }
 
   const org = await prisma.organization.findFirst();
-  if (org && org.name !== "MVST") {
-    await prisma.organization.update({ where: { id: org.id }, data: { name: "MVST" } });
-    console.log(`Renamed organization "${org.name}" -> "MVST"`);
+  if (org && org.name !== "THE FUR") {
+    await prisma.organization.update({ where: { id: org.id }, data: { name: "THE FUR" } });
+    console.log(`Renamed organization "${org.name}" -> "THE FUR"`);
   }
 }
 

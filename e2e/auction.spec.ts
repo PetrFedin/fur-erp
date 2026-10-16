@@ -300,7 +300,7 @@ test.describe("2a. документы: список, скачивание, от�
     await login(page);
     await page.goto(url(SP));
     await expect(page.getByText("Документы аукциона (11)")).toBeVisible();
-    const docs = sql(`select d.id, d."originalName", d."mimeType", d."sizeBytes", d."storagePath" from "PurchaseDocument" d where d."organizationId"=(select id from "Organization" where name='MVST') order by d."createdAt"`).split("\n").map((l) => l.split("|"));
+    const docs = sql(`select d.id, d."originalName", d."mimeType", d."sizeBytes", d."storagePath" from "PurchaseDocument" d where d."organizationId"=(select id from "Organization" order by "createdAt" limit 1) order by d."createdAt"`).split("\n").map((l) => l.split("|"));
     expect(docs.length).toBe(11);
     // ссылки «Скачать»/«Открыть» в таблице документов
     const hrefs = await page.locator('a[href*="/api/purchase-docs/"]').evaluateAll((as) => as.map((a) => [a.textContent?.trim(), a.getAttribute("href"), a.getAttribute("target")]));
