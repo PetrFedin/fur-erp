@@ -259,8 +259,14 @@ export async function buildLotPlan(db: Db, orgId: string, lotId: string, ch: Lot
 
   const movements: Writes["movements"] = [];
   if (moneyChanged) {
+    // Приход сдвигаем на изменение «получено», а не ставим всё q1: часть прихода может быть записана как ADJUSTMENT_IN.
+    let shifted = false;
     for (const m of lot.stockMovements) {
-      if (m.type === "PURCHASE_IN") movements.push({ id: m.id, quantity: q1, unitCost: U1, totalCost: T1 });
+      if (m.type === "PURCHASE_IN") {
+        const qty = shifted ? m.quantity : m.quantity.add(q1.sub(q0));
+        shifted = true;
+        movements.push({ id: m.id, quantity: qty, unitCost: U1, totalCost: qty.eq(q1) ? T1 : r2(qty.mul(U1)) });
+      }
       else movements.push({ id: m.id, unitCost: U1, totalCost: r2(m.quantity.mul(U1)) });
     }
   }
