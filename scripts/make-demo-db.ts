@@ -167,7 +167,7 @@ async function main() {
       `Заказчик №${i + 1} ${FICT[(i + 3) % FICT.length]}`, String(7800000000 + i * 17 + 1000000), `client${i + 1}@demo.invalid`, c.id);
   }
   await x(`update "Warehouse" set address = NULL where address is not null`).catch(() => undefined);
-  await x(`update "Organization" set name='MVST Демо', slug='mvst-demo' where id=$1`, org.id);
+  await x(`update "Organization" set name='THE FUR Демо', slug='the-fur-demo' where id=$1`, org.id);
   await x(`update "SupplierContract" set number = 'Д-' || substr(id, length(id) - 3)`).catch(() => undefined);
   log(`контрагенты: ${sups.length} поставщиков, ${clis.length} заказчиков`);
 
@@ -246,11 +246,11 @@ async function main() {
   // 7. Пользователи
   const pw = () => randomBytes(12).toString("base64url");
   const demoUsers = [
-    { key: "owner", email: "owner@demo.mvst", name: "Демо Владелец", role: "OWNER" },
-    { key: "technologist", email: "technologist@demo.mvst", name: "Демо Технолог", role: "TECHNOLOGIST" },
-    { key: "purchaser", email: "purchaser@demo.mvst", name: "Демо Закупщик", role: "PURCHASER" },
-    { key: "accountant", email: "accountant@demo.mvst", name: "Демо Бухгалтер", role: "ACCOUNTANT" },
-    { key: "supplier", email: "wellmekh@demo.mvst", name: "Веллмех-демо (кабинет)", role: "SUPPLIER" },
+    { key: "owner", email: "owner@demo.local", name: "Демо Владелец", role: "OWNER" },
+    { key: "technologist", email: "technologist@demo.local", name: "Демо Технолог", role: "TECHNOLOGIST" },
+    { key: "purchaser", email: "purchaser@demo.local", name: "Демо Закупщик", role: "PURCHASER" },
+    { key: "accountant", email: "accountant@demo.local", name: "Демо Бухгалтер", role: "ACCOUNTANT" },
+    { key: "supplier", email: "wellmekh@demo.local", name: "Веллмех-демо (кабинет)", role: "SUPPLIER" },
   ] as const;
   const supplierId = (await rows<{ id: string }>(`select id from "Supplier" where name like 'Веллмех%' order by "createdAt" limit 1`))[0]?.id ?? sups[0]?.id ?? null;
   await x(`delete from "User"`);
@@ -265,7 +265,7 @@ async function main() {
   const dir = path.join(os.homedir(), "Backups", "fur-erp");
   mkdirSync(dir, { recursive: true });
   const file = process.env.DEMO_LOGINS_FILE || path.join(dir, "demo-logins.txt");
-  writeFileSync(file, `Демо-логины MVST (создано ${new Date().toISOString()}). Файл личный, не пересылать.\nАдрес: см. docs/DEPLOY.md (после публикации).\nСлужебное: коэффициент денег ${K} (для проверки: RECON_TOL_SCALE=${K} npx tsx scripts/test-reconciliation.ts); внешним не сообщать.\n\n${creds.join("\n\n")}\n`, { mode: 0o600 });
+  writeFileSync(file, `Демо-логины THE FUR (создано ${new Date().toISOString()}). Файл личный, не пересылать.\nАдрес: см. docs/DEPLOY.md (после публикации).\nСлужебное: коэффициент денег ${K} (для проверки: RECON_TOL_SCALE=${K} npx tsx scripts/test-reconciliation.ts); внешним не сообщать.\n\n${creds.join("\n\n")}\n`, { mode: 0o600 });
   chmodSync(file, 0o600);
   log(`пользователи пересозданы, логины записаны в ${file} (права 600)`);
 

@@ -1,4 +1,4 @@
-# MVST FUR PRODUCTION (fur-erp)
+# THE FUR (fur-erp)
 
 > **Куда что класть:** единственная рабочая папка `/Users/petr/Projects/fur-erp`, единственная основная ветка `main`. Подробности и запуск с нуля — [docs/PROJECT-LAYOUT.md](docs/PROJECT-LAYOUT.md).
 

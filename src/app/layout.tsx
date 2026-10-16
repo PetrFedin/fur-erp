@@ -13,7 +13,7 @@ import { DevAgentation } from "@/components/dev-agentation";
 // поэтому сборка и работа не зависят от сети и от fonts.gstatic.com. Имена переменных — как раньше (--font-inter, --font-theme, --font-geist-mono) в fonts.css.
 
 export const metadata: Metadata = {
-  title: { default: "MVST FUR PRODUCTION", template: "%s — MVST FUR PRODUCTION" },
+  title: { default: "THE FUR", template: "%s — THE FUR" },
   description: "Закупки, сырьё и себестоимость",
 };
 

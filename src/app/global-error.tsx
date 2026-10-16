@@ -36,7 +36,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
       >
         <main style={{ width: "100%", maxWidth: 448 }}>
           <p style={{ margin: "0 0 24px", fontSize: 14, fontWeight: 600, letterSpacing: "0.18em" }}>
-            MVST FUR PRODUCTION
+            THE FUR
           </p>
           <div
             style={{

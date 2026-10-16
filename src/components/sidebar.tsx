@@ -33,7 +33,7 @@ export function Sidebar({ links, badges }: { links: readonly NavItem[]; badges?:
   return (
     <nav aria-label="Основное меню" className="hidden h-full w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-neutral-200 bg-white px-3 py-4 lg:flex print:!hidden">
       <div className="flex items-start justify-between gap-2 px-2">
-        <div className="text-lg font-semibold">MVST FUR PRODUCTION</div>
+        <div className="text-lg font-semibold">THE FUR</div>
         <button type="button" onClick={() => toggle(true)} aria-label="Свернуть меню" title="Свернуть меню" className="inline-flex size-7 shrink-0 max-xl:size-11 items-center justify-center rounded-md border border-neutral-300 text-neutral-600 hover:bg-neutral-50">‹</button>
       </div>
       <div className="flex flex-col gap-0.5">

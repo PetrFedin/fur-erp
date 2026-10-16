@@ -26,7 +26,7 @@ export function AuthShell({
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 px-4 py-10 text-neutral-900 selection:bg-neutral-900 selection:text-white">
       <div className="w-full max-w-md">
-        <p className="mb-6 text-sm font-semibold tracking-[0.18em] text-neutral-900">MVST FUR PRODUCTION</p>
+        <p className="mb-6 text-sm font-semibold tracking-[0.18em] text-neutral-900">THE FUR</p>
 
         <Card className="shadow-sm">
           <CardContent className="p-6 sm:p-8">
