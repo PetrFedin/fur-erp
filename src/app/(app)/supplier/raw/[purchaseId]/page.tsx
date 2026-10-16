@@ -162,7 +162,10 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
 
       <section id="lots" className="flex flex-col gap-2 scroll-mt-4">
         <h2 className="text-base font-semibold">Лоты</h2>
-        {!st && <p className="text-sm text-neutral-600">Нет расчёта{isSup && <> — внесите его в разделе «<Link href="/supplier/auction-calcs" className="text-blue-700 underline max-md:inline-block max-md:py-3">Аукционы</Link>»</>}.</p>}
+        {!st && (p.contractorRaw
+          // Сырьё подрядчика (оплачено в составе пошива): аукциона и его расчёта в природе нет — подсказку «внесите расчёт» не показываем
+          ? <p className="text-sm text-neutral-600">Сырьё подрядчика: расчёта аукциона нет.</p>
+          : <p className="text-sm text-neutral-600">Только УПД и счёт{isSup && <> · расчёт аукциона можно внести в разделе «<Link href="/supplier/auction-calcs" className="text-blue-700 underline max-md:inline-block max-md:py-3">Аукционы</Link>»</>}.</p>)}
         {lotRows.length === 0 ? (
           <p className="rounded-md border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">В закупке пока нет лотов.</p>
         ) : (

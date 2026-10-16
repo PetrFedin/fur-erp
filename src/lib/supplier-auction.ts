@@ -13,7 +13,7 @@ export async function loadSupplierAuction(orgId: string, supplierId: string, pur
     where: { id: purchaseId, organizationId: orgId, supplierId, status: { not: "CANCELLED" } },
     select: {
       id: true, number: true, status: true, currency: true, auctionId: true, exchangeRate: true, auctionSession: true, invoiceNumber: true, invoiceDate: true,
-      orderDate: true, expectedDate: true, receivedDate: true,
+      orderDate: true, expectedDate: true, receivedDate: true, isContractorRaw: true,
       auction: { select: { name: true } }, supplier: { select: { name: true } },
       items: {
         orderBy: { lotNumber: "asc" },
@@ -70,7 +70,7 @@ export async function loadSupplierAuction(orgId: string, supplierId: string, pur
     purchase: {
       id: p.id, number: p.number, status: RAW_STATUS_LABEL[p.status] ?? p.status, received: p.status === "RECEIVED", currency: p.currency,
       rate: Number(p.exchangeRate), auction: p.auction?.name ?? p.auctionSession ?? "", invoice: p.invoiceNumber ?? "", invoiceDate: p.invoiceDate,
-      orderDate: p.orderDate, expectedDate: p.expectedDate, receivedDate: p.receivedDate, supplier: p.supplier.name,
+      orderDate: p.orderDate, expectedDate: p.expectedDate, receivedDate: p.receivedDate, supplier: p.supplier.name, contractorRaw: p.isContractorRaw === true,
     },
     items,
     invoices: allPurchases.map((pp) => ({ id: pp.id, number: pp.number, invoice: pp.invoiceNumber ?? "", received: pp.status === "RECEIVED", status: pp.status, rate: Number(pp.exchangeRate) })),
