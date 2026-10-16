@@ -48,10 +48,14 @@ export function groupPhotosByColor<P extends PhotoLike>(photos: P[], refs: Color
 export const pluOfItem = (itemId: string): string | null => (/^HE\d{5,}$/i.test(itemId) ? itemId.toUpperCase() : null);
 
 /** Данные для окна «Фото»: группы-вкладки и (только заказчику) страницы магазина по коду страницы: ссылка и PLU. */
-export function galleryExtras(photos: PhotoLike[], links: { itemId: string; url: string }[] | null, refs: ColorRefLite[]) {
+export function galleryExtras(photos: PhotoLike[], links: { itemId: string; url: string; variant?: string }[] | null, refs: ColorRefLite[]) {
   const groups = groupPhotosByColor(photos, refs).map((g) => ({ key: g.key, label: g.label }));
   if (!links) return { groups };
   const shops: Record<string, { url: string; plu: string | null }> = {};
-  for (const l of links) if (l.itemId) shops[l.itemId.toUpperCase()] = { url: l.url, plu: pluOfItem(l.itemId) };
+  for (const l of links) {
+    if (l.itemId) shops[l.itemId.toUpperCase()] = { url: l.url, plu: pluOfItem(l.itemId) };
+    // Ссылка, внесённая вручную (без кода страницы), привязана к цвету-варианту: ключ «v:<вариант>» (первая ссылка варианта).
+    else if (typeof l.variant === "string" && !(("v:" + l.variant) in shops)) shops["v:" + l.variant] = { url: l.url, plu: null };
+  }
   return { groups, shops };
 }

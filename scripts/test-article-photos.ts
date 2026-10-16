@@ -120,8 +120,12 @@ async function main() {
   ok(pluOfItem("he00924906") === "HE00924906" && pluOfItem("7130192") === null, "PLU берётся только из кодов HE…, числовой код страницы PLU не считается");
   const ex = galleryExtras(ph, [{ itemId: "he1", url: "https://www.tsum.ru/product/he1/" }], refs);
   ok(ex.shops?.HE1?.url.startsWith("https://www.tsum.ru/") && galleryExtras(ph, null, refs).shops === undefined, "ссылки и PLU готовятся только заказчику (links=null → shops нет)");
+  const exM = galleryExtras(ph, [{ itemId: "", variant: "MINK BGL", url: "https://shop.example/manual" }], refs);
+  ok(exM.shops?.["v:MINK BGL"]?.url === "https://shop.example/manual" && exM.shops?.["v:MINK BGL"]?.plu === null, "вручную внесённая ссылка (без кода страницы) готовится по цвету-варианту — владельцу");
+  ok(galleryExtras(ph, null, refs).shops === undefined && !("shops" in galleryExtras(ph, null, refs)), "подрядчику (links=null) ручная ссылка не передаётся: shops нет вовсе");
   const gal2 = readFileSync(resolve("src/components/photo-gallery.tsx"), "utf8");
   ok(/aria-label="Цвета"/.test(gal2) && /Товар в магазине/.test(gal2) && /noopener noreferrer/.test(gal2) && /PLU \{shop\.plu\}/.test(gal2), "окно: вкладки цветов, PLU в шапке, кнопка «Товар в магазине» (noopener noreferrer)");
+  ok(/shops\["v:" \+ cur\.variant\]/.test(gal2), "окно: кнопка магазина берёт ссылку по цвету текущего фото, если у неё нет кода страницы");
   ok(!/shops=|itemId|pluOfItem|loadAllShopLinks/.test(sup), "кабинет подрядчика не получает shops, код страницы магазина и PLU");
   ok(/loadAllShopLinks/.test(readFileSync(resolve("src/app/(app)/articles/page.tsx"), "utf8")) && /min-h-11/.test(card), "список «Изделия» и карточка показывают ссылку/PLU заказчику, кнопка ≥44px");
   const listSrc = readFileSync(resolve("src/app/(app)/articles/page.tsx"), "utf8");

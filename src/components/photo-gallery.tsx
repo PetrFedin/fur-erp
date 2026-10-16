@@ -98,7 +98,8 @@ export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact,
 
   if (total === 0) return null;
   const cur = photos[Math.min(i, n - 1)];
-  const shop = shops && cur.itemId ? shops[cur.itemId] : undefined;
+  // Страница магазина: по коду страницы фото, а для вручную внесённой ссылки (без кода) — по цвету-варианту текущего фото.
+  const shop = shops ? ((cur.itemId ? shops[cur.itemId.toUpperCase()] : undefined) ?? shops["v:" + cur.variant]) : undefined;
   const group = groups.find((g) => g.key === activeKey);
   return (
     <>
