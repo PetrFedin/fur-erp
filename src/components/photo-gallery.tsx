@@ -66,7 +66,7 @@ export function PhotoGalleryButton({ modelId, photos, title, compact }: { modelI
         aria-label={`Фото артикула ${title}`}
         onClose={() => setOpen(false)}
         onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
-        className="m-auto h-dvh max-h-dvh w-screen max-w-none bg-black/90 p-0 text-white backdrop:bg-black/70 sm:h-[min(92dvh,900px)] sm:w-[min(96vw,1100px)] sm:rounded-2xl"
+        className="m-auto h-dvh max-h-dvh w-screen max-w-none bg-neutral-950 p-0 text-white backdrop:bg-black/70 sm:h-[min(92dvh,900px)] sm:w-[min(96vw,1100px)] sm:rounded-2xl"
       >
         {open && (
           <div
@@ -101,7 +101,7 @@ export function PhotoGalleryButton({ modelId, photos, title, compact }: { modelI
               )}
             </div>
             {n > 1 && (
-              <div className="flex gap-2 overflow-x-auto px-4 py-3" role="tablist" aria-label="Все фото">
+              <div className="flex shrink-0 flex-nowrap gap-2 overflow-x-auto px-4 py-3" role="tablist" data-keep-scroll aria-label="Все фото">
                 {photos.map((p, k) => (
                   <button
                     key={p.id}

@@ -206,7 +206,8 @@ async function main() {
   for (const x of withUrl) {
     const page: PageCache | null = existsSync(join(cacheDir(x.row.url!), "page.json")) ? JSON.parse(readFileSync(join(cacheDir(x.row.url!), "page.json"), "utf8")) : null;
     if (!page) { notDone.push(`стр. ${x.row.row} ${x.row.url}: страница не загружена (--fetch)`); continue; }
-    if (normArticle(page.mpn) !== normArticle(x.row.article)) { notDone.push(`стр. ${x.row.row} ${x.row.url}: артикул на странице «${page.mpn}» ≠ «${x.row.article}» — не вношу`); continue; }
+    const sameArt = (a: string, b: string) => normArticle(a).replace(/\s*\/\s*/g, "/") === normArticle(b).replace(/\s*\/\s*/g, "/"); // пробелы вокруг «/» не считаются отличием
+    if (!sameArt(page.mpn, x.row.article)) { notDone.push(`стр. ${x.row.row} ${x.row.url}: артикул на странице «${page.mpn}» ≠ «${x.row.article}» — не вношу`); continue; }
     const slugSku = slugOf(x.row.url!).split("-")[0].toUpperCase();
     if (page.sku.toUpperCase() !== slugSku) { notDone.push(`стр. ${x.row.row} ${x.row.url}: код на странице ${page.sku} ≠ ссылке ${slugSku} — не вношу`); continue; }
     const plan = photoPlan.get(x.modelId!) ?? { links: [], files: [] };
