@@ -502,7 +502,7 @@ async function main() {
     "src/app/(app)/layout.tsx", "src/app/page.tsx", "src/app/(app)/settings/page.tsx", "src/app/(app)/settings/furs/page.tsx", "src/app/(app)/settings/articles-ref/page.tsx", "src/app/(app)/settings/colors/page.tsx",
     "src/app/(app)/settings/auctions/page.tsx", "src/app/(app)/settings/fur-attrs/page.tsx", "src/app/(app)/settings/categories/page.tsx", "src/app/(app)/shipments/page.tsx", "src/app/(app)/shipments/[id]/page.tsx",
     "src/app/(app)/chat/actions.ts", "src/app/(app)/chat/channel-actions.ts", "src/app/(app)/chat/page.tsx", "src/app/(app)/articles/page.tsx", "src/app/(app)/models/[id]/page.tsx", "src/app/(app)/models/new/page.tsx",
-    "src/app/api/chat/files/[id]/route.ts", "src/app/api/drive-docs/[id]/route.ts", "src/app/api/supplier/auction-calcs/[id]/xlsx/route.ts", "src/app/api/supplier/auction-calcs/[id]/invoice/route.ts", "src/app/api/supplier/inbox-files/[id]/route.ts",
+    "src/app/api/chat/files/[id]/route.ts", "src/app/api/article-photos/[modelId]/[photoId]/route.ts", "src/app/api/drive-docs/[id]/route.ts", "src/app/api/supplier/auction-calcs/[id]/xlsx/route.ts", "src/app/api/supplier/auction-calcs/[id]/invoice/route.ts", "src/app/api/supplier/inbox-files/[id]/route.ts",
     "src/app/api/supplier/tz/[id]/preview/route.ts", "src/app/api/supplier/tz/[id]/docx/route.ts", "src/components/role-switch-actions.ts", "src/lib/prisma.ts", "src/lib/supplier-inbox.ts", "src/lib/session.ts",
   ]);
   const extra = srcFiles.filter((f) => /allowSupplier:\s*true/.test(readFileSync(f, "utf8")) && !ALLOW_SUPPLIER.has(rel(f))).map(rel);
