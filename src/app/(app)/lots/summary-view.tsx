@@ -221,14 +221,17 @@ export async function PurchaseSummary({
 }) {
   // Один источник правды — переключатель в шапке (cookie vatDisplay); ?vatmode= (старое ?vat=) — только переопределение ссылкой.
   const vatOverride: Mode | null = filters.vatmode === "excl" ? "excl" : filters.vatmode === "incl" ? "incl" : null;
-  const cookieMode: Mode = parseVatModeCookie((await cookies()).get("vatDisplay")?.value);
-  const mode: Mode = vatOverride ?? cookieMode;
-  const aucOf = await auctionLabeler(organizationId);
-  const [{ leaves: all, purchaseTotals }, advances, debt] = await Promise.all([
+  // Все независимые загрузки — одной пачкой (раньше шли в 3 захода).
+  const [cookieStore, aucOf, { leaves: all, purchaseTotals }, advances, debt, attrOpts] = await Promise.all([
+    cookies(),
+    auctionLabeler(organizationId),
     loadSummary(organizationId),
     loadUnlinkedAdvances(organizationId),
     loadSupplierDebt(prisma, organizationId, year),
+    getFilterOptions(organizationId, "all", ["attr"]),
   ]);
+  const cookieMode: Mode = parseVatModeCookie(cookieStore.get("vatDisplay")?.value);
+  const mode: Mode = vatOverride ?? cookieMode;
 
   const auctions = [...new Set(all.map(aKey))].sort(cmpAuction);
   const materials = [...new Set(all.map((l) => l.material))].sort(cmpRu);
@@ -236,7 +239,7 @@ export async function PurchaseSummary({
   const auctionF = filters.auction.filter((a) => auctions.includes(a));
   const materialF = filters.material.filter((m) => materials.includes(m));
   const yearsF = filters.pyear.map(Number);
-  const attrOptions = (await getFilterOptions(organizationId, "all", ["attr"])).attr;
+  const attrOptions = attrOpts.attr;
   const attrF = filters.attr;
   const byMaterial = materialF.length > 0;
 

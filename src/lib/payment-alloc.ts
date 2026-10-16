@@ -9,6 +9,7 @@
  * Правило: Σ разнесений платежа <= сумма платежа; остаток платежа — «неразнесённый аванс» и в долге заказчика учитывается отдельной строкой,
  * поэтому итог долга (работа − оплачено) не зависит от того, сколько уже разнесено.
  */
+import { memoRequest, jsonKey, objId } from "@/lib/req-memo";
 import { Decimal } from "@prisma/client/runtime/library";
 import { orderUnits } from "@/lib/production-totals";
 import { fromCents, splitByWeights, toCents, unallocatedKind, type AllocLine, type AllocOrderOpt, type UnallocatedKind } from "@/lib/payment-alloc-core";
@@ -224,7 +225,7 @@ const n2 = (d: Decimal) => Math.round(d.toNumber() * 100) / 100;
  * Долг по работе подрядчику = работа выбранных ТЗ − оплачено, где оплачено = разнесено на эти ТЗ + неразнесённые авансы выбранного года.
  * Без фильтров и при «все годы» результат равен прежнему «Σ работ − Σ всех платежей заказчика».
  */
-export async function loadClientDebt(db: Db, orgId: string, scope: ClientDebtScope): Promise<ClientDebt> {
+async function loadClientDebtImpl(db: Db, orgId: string, scope: ClientDebtScope): Promise<ClientDebt> {
   const year = scope.year;
   const filtersActive = Boolean(scope.orderFiltersActive);
   const orders: (OrderQty & { id: string; clientId: string; client: { name: string } })[] = await db.productionOrder.findMany({
@@ -352,3 +353,5 @@ export async function loadAllocEditorData(
   }
   return out;
 }
+
+export const loadClientDebt = memoRequest("clientDebt", loadClientDebtImpl, (db, orgId, scope) => `${objId(db)}|${orgId}|${jsonKey(scope)}`);

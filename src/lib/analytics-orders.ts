@@ -1,4 +1,5 @@
 import { orderUnits } from "@/lib/production-totals";
+import { memoRequest } from "@/lib/req-memo";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
@@ -151,7 +152,7 @@ function makeResolver(refs: Ref[]) {
   return (text: string | null | undefined) => (text && text.trim() ? (m.get(key(text)) ?? null) : null);
 }
 
-export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commission4Mode): Promise<OrderRow[]> {
+async function loadOrderRowsImpl(orgId: string, year: YearFilter, mode: Commission4Mode): Promise<OrderRow[]> {
   const [orders, colorRefs, furRefs] = await Promise.all([
     prisma.productionOrder.findMany({
       where: { organizationId: orgId, status: { not: "CANCELLED" }, AND: [orderYearWhere(year)] },
@@ -378,3 +379,5 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
     };
   });
 }
+
+export const loadOrderRows = memoRequest("orderRows", loadOrderRowsImpl, (orgId, year, mode) => `${orgId}|${year}|${mode}`);

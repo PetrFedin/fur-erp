@@ -33,6 +33,7 @@ import {
 import { RELIABILITY_NOTE } from "@/lib/reliability-note";
 import { CountsLine, INV_TONE, Progress, money } from "./parts";
 import { IntegritySection } from "./integrity-section";
+import { StreamBlock } from "../stream-block";
 
 export const metadata = { title: "Сверка" };
 export const dynamic = "force-dynamic"; // цифры «в базе» читаются из БД при каждом заходе
@@ -211,12 +212,17 @@ function SummaryCard({ title, t, hint }: { title: string; t: Totals; hint?: Reac
   );
 }
 
+/** Мост считается отдельно от реестра и подгружается потоком: реестр счетов виден сразу. */
+async function BridgeSection({ organizationId, live }: { organizationId: string; live: Live }) {
+  const bridge = await loadReconBridge(organizationId, live);
+  return <BridgeCard b={bridge} />;
+}
+
 export default async function ReconciliationPage() {
   const session = await requireSession(); // чтение — всем ролям
   const year = await getYearFilter();
-  const live = await loadLive(session.user.organizationId);
+  const [live, vf] = await Promise.all([loadLive(session.user.organizationId), loadVerifyFlags(prisma, session.user.organizationId)]);
   const { invs, ids, groups } = visibleFor(year);
-  const vf = await loadVerifyFlags(prisma, session.user.organizationId);
 
   const sections = [
     { key: "purchase", title: "Закупка меха и сырья ↔ счета ↔ оплата" },
@@ -235,7 +241,6 @@ export default async function ReconciliationPage() {
     })
     .filter((x) => x.miss > 1);
   const missingRub = missingInDb.reduce((a, x) => a + x.miss, 0);
-  const bridge = year === "all" ? await loadReconBridge(session.user.organizationId, live) : null;
 
   return (
     <div className="space-y-6">
@@ -291,7 +296,13 @@ export default async function ReconciliationPage() {
             </div>
           </div>
         </WidgetRow>
-        {bridge ? <BridgeCard b={bridge} /> : <Card className="p-3 text-sm text-neutral-600">Мост «реестр документов → Главная» строится по всем годам: выберите в шапке «Все годы».</Card>}
+        {year === "all" ? (
+          <StreamBlock label="Мост «реестр документов → Главная»">
+            <BridgeSection organizationId={session.user.organizationId} live={live} />
+          </StreamBlock>
+        ) : (
+          <Card className="p-3 text-sm text-neutral-600">Мост «реестр документов → Главная» строится по всем годам: выберите в шапке «Все годы».</Card>
+        )}
         <Card className="flex flex-wrap items-center gap-x-4 gap-y-1 p-3 text-sm">
           <span>
             Есть в документах, нет в базе: <b className="tabular-nums">{money(missingRub)}</b> по {missingInDb.length} счетам
@@ -365,7 +376,9 @@ export default async function ReconciliationPage() {
         );
       })}
 
-      <IntegritySection organizationId={session.user.organizationId} />
+      <StreamBlock label="Проверка данных">
+        <IntegritySection organizationId={session.user.organizationId} />
+      </StreamBlock>
     </div>
   );
 }

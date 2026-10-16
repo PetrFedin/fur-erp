@@ -1,4 +1,5 @@
 import "server-only";
+import { memoRequest, objId } from "@/lib/req-memo";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
@@ -219,7 +220,7 @@ export function computeSupplierDebt(
 
 /** Исходные данные для расчёта долга (отдельно, чтобы проверять расчёт на переименованных копиях — scripts/test-supplier-debt-rename.ts). */
 /** supplierId — долг только по этому поставщику (закупки, оплаты аукционов и авансы); без него — по всей организации. */
-export async function loadDebtInputs(db: Db, organizationId: string, supplierId?: string) {
+async function loadDebtInputsImpl(db: Db, organizationId: string, supplierId?: string) {
   const sup = supplierId ? { supplierId } : {};
   const [allPurchases, auctionPayments, advances, refs] = await Promise.all([
     // Отменённые тоже: деньги, ушедшие по ним в рамках аукциона, входят в оплаченное по аукциону.
@@ -270,6 +271,10 @@ export function supplierDebtFromInputs(inputs: DebtInputs, year: YearFilter = "a
 }
 
 /** Загружает данные организации и считает долг поставщику (при year ≠ "all" — за закупки этого года). */
-export async function loadSupplierDebt(db: Db, organizationId: string, year: YearFilter = "all", supplierId?: string): Promise<SupplierDebt> {
+async function loadSupplierDebtImpl(db: Db, organizationId: string, year: YearFilter = "all", supplierId?: string): Promise<SupplierDebt> {
   return supplierDebtFromInputs(await loadDebtInputs(db, organizationId, supplierId), year);
 }
+
+export const loadDebtInputs = memoRequest("debtInputs", loadDebtInputsImpl, (db, orgId, supplierId) => `${objId(db)}|${orgId}|${supplierId ?? ""}`);
+
+export const loadSupplierDebt = memoRequest("supplierDebt", loadSupplierDebtImpl, (db, orgId, year = "all", supplierId) => `${objId(db)}|${orgId}|${year}|${supplierId ?? ""}`);

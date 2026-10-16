@@ -1,5 +1,6 @@
 // Загрузка лотов для таблицы «Мех / Подкладка» (расчёт — в fur-table.ts). Без "server-only":
 // функцию вызывают и страницы (клиент БД — общий prisma), и scripts/test-fur-table.ts (свой PrismaClient).
+import { memoRequest, jsonKey, objId } from "@/lib/req-memo";
 import { orderLabel } from "@/lib/order-label";
 import { relabelOrders } from "@/lib/order-label-db";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -153,7 +154,7 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
  * Все лоты меха или подкладки организации за год (по дате закупки, общий фильтр года).
  * extraWhere — дополнительное условие (например, поиск по № лота на странице «Сырьё»).
  */
-export async function loadFurLots(
+async function loadFurLotsImpl(
   db: PrismaClient,
   organizationId: string,
   opts: { kind: FurKind; year: YearFilter; furIdx?: FurIndex; extraWhere?: Prisma.RawMaterialLotWhereInput },
@@ -205,3 +206,5 @@ export function flowOfRawLots(lots: RawLot[]): Flow {
     })),
   );
 }
+
+export const loadFurLots = memoRequest("furLots", loadFurLotsImpl, (db, orgId, opts) => `${objId(db)}|${orgId}|${opts.kind}|${opts.year}|${objId(opts.furIdx)}|${opts.extraWhere ? jsonKey(opts.extraWhere) : ""}`);

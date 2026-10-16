@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from "@prisma/client";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomBytes } from "node:crypto";
 import * as React from "react";
+import { invalidateRequestMemo } from "@/lib/req-memo";
 import { AUDITED_MODELS, DELETE_CHILDREN, deleteSnapshot, diffRows, labelFor, snapshot } from "@/lib/audit-core";
 
 /**
@@ -244,11 +245,27 @@ async function audited(
 
 function buildExtension(env: Env) {
   const { base } = env;
-  return Prisma.defineExtension({
+  const ext = Prisma.defineExtension({
     name: "audit-log",
     query: {
       $allModels: {
         async $allOperations(params) {
+          // Любая запись сбрасывает память запроса (req-memo.ts): перечитанное после правки не берётся из неё.
+          const isW = ["create", "createMany", "update", "updateMany", "upsert", "delete", "deleteMany"].includes(params.operation);
+          if (!isW) return runOperation(params);
+          invalidateRequestMemo();
+          try {
+            return await runOperation(params);
+          } finally {
+            invalidateRequestMemo();
+          }
+        },
+      },
+    },
+  });
+  return ext;
+
+  async function runOperation(params: { model: string; operation: string; args: any; query: (a: any) => Promise<unknown> }): Promise<unknown> { // eslint-disable-line @typescript-eslint/no-explicit-any
           const { model, operation, args, query } = params;
           const ops = AUDITED_MODELS[model];
           const isWrite = ["create", "createMany", "update", "updateMany", "upsert", "delete", "deleteMany"].includes(operation);
@@ -281,10 +298,7 @@ function buildExtension(env: Env) {
               audited(env, tx, model, operation, args, () => tx[lower(model)][operation === "createMany" ? "createManyAndReturn" : operation](args), { batchId, mode: "tx" }),
             { maxWait: 10_000, timeout: 60_000 },
           );
-        },
-      },
-    },
-  });
+  }
 }
 
 /** Обёртка над $transaction: запоминает tx, чтобы расширение писало журнал в ту же транзакцию, и даёт операции общий batchId. */
@@ -317,10 +331,28 @@ const globalForPrisma = globalThis as unknown as {
   prismaAudited: PrismaClient | undefined;
 };
 
+/**
+ * Настройки пула по умолчанию, если в DATABASE_URL их нет: ожидание свободного соединения 60 с вместо 10 (иначе при нескольких
+ * одновременных страницах на слабом хосте — ошибка P2024 «Timed out fetching a new connection» и страница 500) и 30 с на подключение
+ * (облачная база после сна просыпается медленно). Явные connection_limit / pool_timeout / connect_timeout в адресе главнее.
+ */
+function withPoolDefaults(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  const add = (name: string, value: string) => (new RegExp(`[?&]${name}=`).test(url) ? "" : `${url.includes("?") || added ? "&" : "?"}${name}=${value}`);
+  let added = false;
+  let out = url;
+  for (const [n, v] of [["pool_timeout", "60"], ["connect_timeout", "30"]] as const) {
+    const part = add(n, v);
+    if (part) { out += part; added = true; }
+  }
+  return out;
+}
+
 const baseClient =
   globalForPrisma.prismaBase ??
   globalForPrisma.prisma ??
   new PrismaClient({
+    datasourceUrl: withPoolDefaults(process.env.DATABASE_URL),
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 

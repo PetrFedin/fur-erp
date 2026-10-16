@@ -87,6 +87,19 @@ const DEFAULT_INDEX = buildFurIndex(SEED_FURS.map((f) => ({ ...f })));
 export function matchFurRef(text: string | null | undefined, index: FurIndex = DEFAULT_INDEX): FurRefLite | null {
   const t = furKey(text);
   if (!t) return null;
+  // Одинаковых написаний на странице сотни (лоты, ТЗ): результат для пары «индекс + ключ» запоминается (индекс не меняется после построения).
+  let byText = MATCH_CACHE.get(index);
+  if (!byText) MATCH_CACHE.set(index, (byText = new Map()));
+  const cached = byText.get(t);
+  if (cached !== undefined) return cached;
+  const found = matchFurRefUncached(t, index);
+  if (byText.size < 5000) byText.set(t, found);
+  return found;
+}
+
+const MATCH_CACHE = new WeakMap<FurIndex, Map<string, FurRefLite | null>>();
+
+function matchFurRefUncached(t: string, index: FurIndex): FurRefLite | null {
   const padded = ` ${t} `;
   let best: { ref: FurRefLite; at: number; len: number } | null = null;
   for (const p of index.phrases) {

@@ -1,6 +1,7 @@
 import "server-only";
 // Загрузка данных Сводки (/dashboard): всё, что нужно блокам, одним набором параллельных запросов.
 // Расчёты — в dashboard-calc.ts (чистые функции), сырьё — fur-table.ts, ТЗ — analytics-orders.ts, долг — supplier-debt.ts.
+import { memoRequest, jsonKey } from "@/lib/req-memo";
 import { Decimal } from "@prisma/client/runtime/library";
 import { loadPaymentsLeft, loadPaymentsOverview } from "@/lib/payments-overview";
 import { prisma } from "@/lib/prisma";
@@ -176,7 +177,7 @@ export async function loadDrillOrders(orgId: string, year: YearFilter, f: DashFi
 
 const DEADLINE_RE = /срок\s+(\d{2})\.(\d{2})\.(\d{4})/i;
 
-export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilters, c4: Commission4Mode): Promise<DashboardData> {
+async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters, c4: Commission4Mode): Promise<DashboardData> {
   const furIdx = await getFurIndex(orgId);
   const [furLotsAll, liningLotsAll, ordersAll, debtInputs, options, noColorLots, control, aucIds, labeler] = await Promise.all([
     loadFurLots(prisma, orgId, { kind: "fur", year: "all", furIdx }),
@@ -723,3 +724,5 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     },
   };
 }
+
+export const loadDashboard = memoRequest("dashboard", loadDashboardImpl, (orgId, year, f, c4) => `${orgId}|${year}|${c4}|${jsonKey(f)}`);

@@ -1,4 +1,5 @@
 import { formatPercent, formatMoney } from "@/lib/utils";
+import { memoRequest } from "@/lib/req-memo";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { loadFurLots } from "@/lib/fur-table-server";
@@ -52,7 +53,7 @@ const ppOf = (docRef: string | null) => /п\/п\s*№?\s*(\d+)/i.exec(docRef ?? 
 const invoiceOf = (docRef: string | null) => /сч[её]т[^№;·]*№\s*([^\s;·,()]+)(?:\s+от\s+(\d{2}\.\d{2}\.\d{4}))?/i.exec(docRef ?? "");
 
 /** Все проведённые оплаты (поставщику за сырьё и по производству) с разбивкой по статьям. */
-export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]> {
+async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
   const furIdx = await getFurIndex(orgId);
   const [lotsFur, lotsLining, pays, prod, auctionPurchases] = await Promise.all([
     loadFurLots(prisma, orgId, { kind: "fur", year: "all", furIdx }),
@@ -237,7 +238,7 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
 }
 
 /** Сколько ещё предстоит оплатить по годам: сырьё — остаток долга поставщику по аукционам (год из названия), производство — работа ТЗ минус оплаты и авансы. Те же числа, что на Главной. */
-export async function loadPaymentsLeft(orgId: string): Promise<{ byYear: Map<number, { raw: number; prod: number }>; raw: number; prod: number; overpaid: { name: string; amount: number }[] }> {
+async function loadPaymentsLeftImpl(orgId: string): Promise<{ byYear: Map<number, { raw: number; prod: number }>; raw: number; prod: number; overpaid: { name: string; amount: number }[] }> {
   const { loadSupplierDebt } = await import("@/lib/supplier-debt");
   const { loadClientDebt } = await import("@/lib/payment-alloc");
   const { loadOrderRows } = await import("@/lib/analytics-orders");
@@ -273,3 +274,7 @@ export async function loadPaymentsLeft(orgId: string): Promise<{ byYear: Map<num
   }
   return { byYear, raw: debt.debt.toNumber(), prod: cd.balance, overpaid: debt.overpaid.map((o) => ({ name: o.name, amount: o.amount.toNumber() })) };
 }
+
+export const loadPaymentsOverview = memoRequest("paymentsOverview", loadPaymentsOverviewImpl, (orgId) => orgId);
+
+export const loadPaymentsLeft = memoRequest("paymentsLeft", loadPaymentsLeftImpl, (orgId) => orgId);

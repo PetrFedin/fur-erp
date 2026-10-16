@@ -1,4 +1,5 @@
 import { uniqueOrderCount } from "@/lib/tz-key";
+import { memoRequest, jsonKey } from "@/lib/req-memo";
 import { batchNameText } from "@/lib/batch-name";
 import "server-only";
 // Единый загрузчик вариантов для выпадающих фильтров: getFilterOptions(orgId, year, keys).
@@ -172,7 +173,7 @@ export async function loadAuctionFilterOptions(orgId: string, year: YearFilter):
  * label — короткое имя справочника («СП 03.25»), title — полное название · дом · год. Название, которого нет в справочнике,
  * остаётся как есть. Так все фильтры «Аукцион / закупка» (lots, документы, аналитика, проверка…) подписаны одинаково.
  */
-export async function auctionLabeler(orgId: string): Promise<(name: string) => { label: string; title: string }> {
+async function auctionLabelerImpl(orgId: string): Promise<(name: string) => { label: string; title: string }> {
   const all = (await getFilterOptions(orgId, "all", ["auction"])).auction;
   const m = new Map(all.map((o) => [o.value, o] as const));
   return (name) => {
@@ -206,7 +207,7 @@ export function invalidateFilterOptions(orgId?: string) {
  * Закупки выбранных партий: точное название (как в списке вариантов); значение, которого нет среди названий, — вхождение
  * в название (старые ссылки с частью названия); none — закупки без аукциона. Общая для /purchases и /production.
  */
-export async function purchaseIdsByAuction(orgId: string, values: string[]): Promise<string[]> {
+async function purchaseIdsByAuctionImpl(orgId: string, values: string[]): Promise<string[]> {
   const [rows, list] = await Promise.all([
     prisma.purchase.findMany({ where: { organizationId: orgId }, select: { id: true, auctionSession: true, auctionId: true } }),
     prisma.auction.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true, isService: true, confirmed: true } }),
@@ -246,3 +247,7 @@ export async function furMaterialIdsByKind(orgId: string, kinds: string[]): Prom
   ]);
   return mats.filter((m) => kinds.includes(canonicalFur(m.name, idx)?.name ?? m.name)).map((m) => m.id);
 }
+
+export const purchaseIdsByAuction = memoRequest("purchaseIdsByAuction", purchaseIdsByAuctionImpl, (orgId, values) => `${orgId}|${jsonKey(values)}`);
+
+export const auctionLabeler = memoRequest("auctionLabeler", auctionLabelerImpl, (orgId) => orgId);
