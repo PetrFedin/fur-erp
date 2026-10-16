@@ -1,5 +1,5 @@
 {
- "_comment": "Цена шкуры в валюте аукциона из расчётов Drive для лотов, у которых в costBreakdown её нет. Ключ: «№ закупки|№ лота». Используется lotUsdPrice() (src/lib/lot-hammer.ts); отчёт — docs-inventory/usd-coverage.md.",
+ "_comment": "Цена шкуры в валюте аукциона из расчётов для лотов, у которых в costBreakdown её нет. Ключ: «№ закупки|№ лота». Используется lotUsdPrice() (src/lib/lot-hammer.ts); отчёт — docs-inventory/usd-coverage.md.",
  "lots": {
   "З-2026-0033|740503": {
    "currency": "EUR",

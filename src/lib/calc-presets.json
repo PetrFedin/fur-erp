@@ -2127,7 +2127,7 @@
       "rate": "курс"
     },
     "totalsRule": "X=SUM(X); аванс 1 + аванс 2 = счёт; аванс 3 «по факту затрат и комиссия РМ»",
-    "exampleFile": "185__расчеты LYNX MVST FW26.xlsx / лист рысь сырье",
+    "exampleFile": "185__расчеты LYNX THE FUR FW26.xlsx / лист рысь сырье",
     "check": [
       {
         "row": 3,
@@ -2973,7 +2973,7 @@
       "rate": null
     },
     "totalsRule": "W6=W5+W4+W3 (сложение строк вручную); X14=Y9+Z6+Y6; X16=AC6−X14 (контрольная прибыль)",
-    "exampleFile": "185__расчеты LYNX MVST FW26.xlsx / расчеты с MU 2",
+    "exampleFile": "185__расчеты LYNX THE FUR FW26.xlsx / расчеты с MU 2",
     "check": [
       {
         "row": 3,
