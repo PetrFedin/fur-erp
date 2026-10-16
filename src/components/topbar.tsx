@@ -49,7 +49,7 @@ export function Topbar({
     <header className="relative print:hidden flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-neutral-200 bg-white px-3 py-2 md:px-4">
       <div className="flex min-w-0 items-center gap-2 max-md:flex-wrap max-md:gap-y-1">
         <MobileNav links={links} badges={badges} />
-        <div className="truncate text-sm font-medium text-neutral-700 max-md:min-w-[3.25rem] max-md:whitespace-normal max-md:break-words max-md:text-xs max-md:leading-tight">{organizationName}</div>
+        <div className="truncate text-sm font-medium text-neutral-700 lg:hidden max-md:min-w-[3.25rem] max-md:whitespace-normal max-md:break-words max-md:text-xs max-md:leading-tight">{organizationName}</div>
         {isSupplier && <span className="shrink-0 rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-800 max-md:order-last max-md:max-w-full max-md:basis-full max-md:truncate max-md:shrink">{cabinetLabel ? `Кабинет: ${cabinetLabel}` : "Кабинет Веллмеха"}</span>}
       </div>
       <div className="flex shrink-0 items-center gap-2 md:gap-3">
