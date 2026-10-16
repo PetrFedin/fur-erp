@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireSupplierSession, inboxScope } from "@/lib/supplier-inbox";
+import { requireSupplierSession, inboxScope, actingNote } from "@/lib/supplier-inbox";
 import { tzProblems, tzTotals, plainNum, type TzPayload } from "@/lib/tz-vendor";
 
 type R = { error?: string; ok?: boolean; id?: string };
@@ -30,12 +30,14 @@ export async function saveTzDraft(id: string | null, json: string): Promise<R> {
     const cur = await prisma.supplierInbox.findFirst({ where: { id, kind: "TZ", ...inboxScope(s) }, select: { status: true } });
     if (!cur) return { error: "ТЗ не найдено" };
     if (cur.status !== "DRAFT") return { error: "Отправленное ТЗ править нельзя" };
-    await prisma.supplierInbox.update({ where: { id }, data });
+    // Правка только пока это черновик — и в самом запросе (если ТЗ успели отправить параллельно, оно не изменится).
+    const upd = await prisma.supplierInbox.updateMany({ where: { id, kind: "TZ", status: "DRAFT", ...inboxScope(s) }, data: { ...data, ...(actingNote(s) ? { note: actingNote(s) } : {}) } });
+    if (upd.count !== 1) return { error: "ТЗ уже отправлено — править нельзя" };
     revalidatePath("/supplier/tz");
     return { ok: true, id };
   }
   const row = await prisma.supplierInbox.create({
-    data: { ...data, organizationId: s.user.organizationId, supplierId: s.user.supplierId, createdById: s.user.id, kind: "TZ", status: "DRAFT" },
+    data: { ...data, organizationId: s.user.organizationId, supplierId: s.user.supplierId, createdById: s.user.id, kind: "TZ", status: "DRAFT", note: actingNote(s) },
     select: { id: true },
   });
   revalidatePath("/supplier/tz");
@@ -50,7 +52,7 @@ export async function sendTz(id: string, json: string): Promise<R> {
   if (problems.length) return { error: problems.slice(0, 4).join("; ") };
   const saved = await saveTzDraft(id, json);
   if (saved.error) return saved;
-  const r = await prisma.supplierInbox.updateMany({ where: { id, kind: "TZ", status: "DRAFT", ...inboxScope(s) }, data: { status: "SENT", sentAt: new Date() } });
+  const r = await prisma.supplierInbox.updateMany({ where: { id, kind: "TZ", status: "DRAFT", ...inboxScope(s) }, data: { status: "SENT", sentAt: new Date(), ...(actingNote(s) ? { note: actingNote(s) } : {}) } });
   if (r.count !== 1) return { error: "Не удалось отправить: ТЗ уже отправлено или не найдено" };
   revalidatePath("/supplier/tz");
   return { ok: true, id };
@@ -85,7 +87,7 @@ export async function copyTzAsDraft(id: string): Promise<R> {
   const { totals: _t, reopenedAt: _r, ...rest } = cur.payload as Record<string, unknown>;
   void _t; void _r;
   const row = await prisma.supplierInbox.create({
-    data: { organizationId: s.user.organizationId, supplierId: s.user.supplierId, createdById: s.user.id, kind: "TZ", status: "DRAFT", title: `${cur.title} (исправленное)`.slice(0, 160), payload: rest as object },
+    data: { organizationId: s.user.organizationId, supplierId: s.user.supplierId, createdById: s.user.id, kind: "TZ", status: "DRAFT", note: actingNote(s), title: `${cur.title} (исправленное)`.slice(0, 160), payload: rest as object },
     select: { id: true },
   });
   revalidatePath("/supplier/tz");

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireSupplierSession } from "@/lib/supplier-inbox";
+import { requireSupplierSession, actingNote } from "@/lib/supplier-inbox";
 import { readDocumentFiles, writeDocumentFiles } from "@/lib/purchase-files";
 import { removeStoredFiles } from "@/lib/fitting-files";
 import { invalidateControlCounts } from "@/lib/control-counts";
@@ -48,7 +48,7 @@ export async function attachDocument(_prev: AttachState, formData: FormData): Pr
   const id = (await prisma.supplierInbox.create({
     data: {
       organizationId: s.user.organizationId, supplierId: s.user.supplierId, createdById: s.user.id,
-      kind: "DOCUMENT", status: "SENT", sentAt: new Date(), title, payload: payload as never,
+      kind: "DOCUMENT", status: "SENT", sentAt: new Date(), title, payload: payload as never, note: actingNote(s),
     },
     select: { id: true },
   })).id;

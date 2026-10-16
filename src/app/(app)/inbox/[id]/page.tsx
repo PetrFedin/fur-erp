@@ -174,6 +174,7 @@ export default async function InboxCardPage({ params }: PageProps<"/inbox/[id]">
   if (row.kind === "DOCUMENT") return <DocumentCard row={row} />;
   const sent = row.status === "SENT";
   const preview = sent ? await previewInbox(s.user.organizationId, row) : null;
+  const author = await prisma.user.findFirst({ where: { id: row.createdById, organizationId: s.user.organizationId }, select: { name: true } });
   const decider = row.decidedById ? await prisma.user.findFirst({ where: { id: row.decidedById }, select: { name: true } }) : null;
   const created = (row.createdEntityId ?? "").split(",").filter(Boolean);
   const purchaseNums = row.createdEntityType === "Purchase" && created.length ? new Map((await prisma.purchase.findMany({ where: { id: { in: created }, organizationId: s.user.organizationId }, select: { id: true, number: true } })).map((x) => [x.id, x.number])) : new Map<string, string>();
@@ -189,10 +190,11 @@ export default async function InboxCardPage({ params }: PageProps<"/inbox/[id]">
         <span className={cn("rounded-full px-2.5 py-0.5 text-xs", sent ? "bg-amber-100 text-amber-900" : row.status === "ACCEPTED" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700")}>{row.status === "ACCEPTED" ? "Принято" : INBOX_STATUS_LABEL[row.status]}</span>
       </div>
       <p className="text-sm text-neutral-600">
-        Подрядчик: {row.supplier.name}{row.sentAt ? ` · отправлено ${formatDate(row.sentAt)}` : ""}
+        Подрядчик: {row.supplier.name}{author?.name ? ` · внёс ${author.name}` : ""}{row.sentAt ? ` · отправлено ${formatDate(row.sentAt)}` : ""}
         {row.decidedAt && <> · {row.status === "ACCEPTED" ? "принято" : "отклонено"} {formatDate(row.decidedAt)}{decider?.name ? ` (${decider.name})` : ""}</>}
       </p>
 
+      {row.note && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{row.note}</div>}
       {row.status === "REJECTED" && row.reviewNote && <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm">Комментарий при отклонении: {row.reviewNote}</div>}
       {row.status === "ACCEPTED" && createdLinks.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-green-300 bg-green-50 p-3 text-sm">

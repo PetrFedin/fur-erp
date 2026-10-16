@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireSupplierSession, inboxScope, INBOX_FILE_KINDS } from "@/lib/supplier-inbox";
+import { requireSupplierSession, inboxScope, actingNote, INBOX_FILE_KINDS } from "@/lib/supplier-inbox";
 import { calcAll, ensureRowIds, payloadFromTable, sendProblems, type CalcPayload, FORMAT_LABEL } from "@/lib/supplier-calc";
 import { copyForNext } from "@/lib/supplier-calc-start";
 import { parseTableFile } from "@/lib/table-file";
@@ -39,12 +39,14 @@ export async function saveCalcDraft(id: string | null, json: string): Promise<R>
     const cur = await prisma.supplierInbox.findFirst({ where: { id, kind: "AUCTION_CALC", ...inboxScope(s) }, select: { status: true } });
     if (!cur) return { error: "Расчёт не найден" };
     if (cur.status !== "DRAFT") return { error: "Отправленный расчёт править нельзя" };
-    await prisma.supplierInbox.update({ where: { id }, data });
+    // Правка только пока это черновик — и в самом запросе (если расчёт успели отправить параллельно, он не изменится).
+    const upd = await prisma.supplierInbox.updateMany({ where: { id, kind: "AUCTION_CALC", status: "DRAFT", ...inboxScope(s) }, data: { ...data, ...(actingNote(s) ? { note: actingNote(s) } : {}) } });
+    if (upd.count !== 1) return { error: "Расчёт уже отправлен — править нельзя" };
     revalidatePath("/supplier/auction-calcs");
     return { ok: true, id };
   }
   const row = await prisma.supplierInbox.create({
-    data: { ...data, organizationId: s.user.organizationId, supplierId: s.user.supplierId, createdById: s.user.id, kind: "AUCTION_CALC", status: "DRAFT" },
+    data: { ...data, organizationId: s.user.organizationId, supplierId: s.user.supplierId, createdById: s.user.id, kind: "AUCTION_CALC", status: "DRAFT", note: actingNote(s) },
     select: { id: true },
   });
   revalidatePath("/supplier/auction-calcs");
@@ -62,7 +64,7 @@ export async function sendCalc(id: string, json: string): Promise<R> {
   if (saved.error) return saved;
   const unknown = await unknownRefsForSend(s.user.organizationId, id);
   if (unknown.length) return { error: `В нашем справочнике нет: ${unknown.slice(0, 4).join(", ")}. Исправьте название на принятое у нас (справочник «Справочники») или нажмите «Написать / Запросить» и попросите нас завести его — иначе мы не сможем принять расчёт. Черновик сохранён.` };
-  const r = await prisma.supplierInbox.updateMany({ where: { id, kind: "AUCTION_CALC", status: "DRAFT", ...inboxScope(s) }, data: { status: "SENT", sentAt: new Date() } });
+  const r = await prisma.supplierInbox.updateMany({ where: { id, kind: "AUCTION_CALC", status: "DRAFT", ...inboxScope(s) }, data: { status: "SENT", sentAt: new Date(), ...(actingNote(s) ? { note: actingNote(s) } : {}) } });
   if (r.count !== 1) return { error: "Не удалось отправить: расчёт уже отправлен или не найден" };
   revalidatePath("/supplier/auction-calcs");
   return { ok: true, id };
@@ -149,7 +151,7 @@ export async function makeFinalCalc(id: string): Promise<R> {
   const np = copyForNext(p, id, "FINAL");
   const totals = calcAll(np);
   const row = await prisma.supplierInbox.create({
-    data: { title: titleOf(np), payload: { ...np, totals: { qty: totals.qty, totalRub: Math.round(totals.totalRub * 100) / 100 } } as object, organizationId: s.user.organizationId, supplierId: s.user.supplierId, createdById: s.user.id, kind: "AUCTION_CALC", status: "DRAFT" },
+    data: { title: titleOf(np), payload: { ...np, totals: { qty: totals.qty, totalRub: Math.round(totals.totalRub * 100) / 100 } } as object, organizationId: s.user.organizationId, supplierId: s.user.supplierId, createdById: s.user.id, kind: "AUCTION_CALC", status: "DRAFT", note: actingNote(s) },
     select: { id: true },
   });
   revalidatePath("/supplier/auction-calcs");

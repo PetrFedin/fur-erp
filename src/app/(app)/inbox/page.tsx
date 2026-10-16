@@ -14,7 +14,7 @@ import { cn, formatDate } from "@/lib/utils";
 export const metadata = { title: "Входящие" };
 
 const FILTERS = [
-  { key: "SENT", label: "Отправлено" },
+  { key: "SENT", label: "На проверке" },
   { key: "ACCEPTED", label: "Принято" },
   { key: "REJECTED", label: "Отклонено" },
   { key: "all", label: "Все" },

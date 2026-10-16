@@ -10,6 +10,14 @@ export async function requireSupplierSession() {
   return s as SupplierSess & { user: { supplierId: string } };
 }
 
+/**
+ * Пометка «внесено не самим подрядчиком»: в демо-режиме «смотрю как поставщик» владелец/админ действует от имени подрядчика.
+ * Такая запись попадает во «Входящие» с этой пометкой в note (видна при проверке), настоящий автор — в журнале изменений.
+ */
+export function actingNote(s: { user: { realUserId?: string; realUserName?: string } }): string | null {
+  return s.user.realUserId ? `Внесено владельцем (${s.user.realUserName ?? s.user.realUserId}) от имени подрядчика — демо-режим` : null;
+}
+
 /** Чьи входящие видны: поставщик — только свои (supplierId), владелец/админ — все организации (предпросмотр). */
 export const inboxScope = (s: SupplierSess) => ({
   organizationId: s.user.organizationId,
