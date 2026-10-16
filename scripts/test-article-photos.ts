@@ -97,6 +97,57 @@ async function main() {
   const card = readFileSync(resolve("src/app/(app)/models/[id]/page.tsx"), "utf8");
   ok(/role === "SUPPLIER"\) redirect\("\/articles"\)/.test(card) && card.indexOf("redirect(\"/articles\")") < card.indexOf("loadShopLinks("), "карточка артикула: подрядчик уходит на /articles до чтения ссылок");
 
+
+  console.log("\n== 5. Удаление фото (кнопка в окне «Фото»)");
+  const act = readFileSync(resolve("src/app/(app)/models/photo-actions.ts"), "utf8");
+  ok(/requireRole\(\.\.\.ACCESS\.models\)/.test(act) && !/allowSupplier|"SUPPLIER"/.test(act), "server action: роль проверяется на сервере (владелец/админ/технолог), подрядчик не допускается");
+  ok(!/onDelete|photo-actions/.test(sup), "кабинет подрядчика не получает функций удаления фото");
+  ok(/canEdit \? \{ onDelete/.test(card), "карточка артикула передаёт удаление только при праве редактирования");
+  const gal = readFileSync(resolve("src/components/photo-gallery.tsx"), "utf8");
+  ok(/Удалить это фото\?/.test(gal) && /Удалить все фото артикула/.test(gal) && /size-11/.test(gal), "окно: подтверждение «Удалить это фото?», пункт «Удалить все фото артикула», цели касания 44px");
+  const liveDb = /\/fur_erp(\?|$)/.test(process.env.DATABASE_URL ?? "");
+  if (liveDb) {
+    console.log("   (боевая база: проверка записи пропущена — запустите на scratch-базе)");
+  } else {
+    const { rawPrisma } = await import("../src/lib/prisma");
+    const { deleteArticlePhotos } = await import("../src/lib/article-photo-delete");
+    const { mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+    const org = await rawPrisma.organization.findFirstOrThrow({ orderBy: { createdAt: "asc" } });
+    const taken = new Set((await rawPrisma.systemState.findMany({ where: { key: { startsWith: PHOTOS_KEY } }, select: { key: true } })).map((r) => r.key.slice(PHOTOS_KEY.length)));
+    const model = (await rawPrisma.productModel.findMany({ where: { organizationId: org.id }, select: { id: true, name: true } })).find((m) => !taken.has(m.id));
+    if (!model) { ok(false, "нет артикула без фото для проверки"); } else {
+      const dirRel = join("article-photos", org.id, model.id);
+      mkdirSync(join(UPLOAD_ROOT, dirRel), { recursive: true });
+      const mk = (id: string) => { const f = join(dirRel, id + ".jpg"), t = join(dirRel, id + "-t.jpg"); writeFileSync(join(UPLOAD_ROOT, f), "x"); writeFileSync(join(UPLOAD_ROOT, t), "x"); return { id, file: f, thumb: t, w: 1, h: 1, variant: "" }; };
+      const ids = ["aaaaaaaa-0000-4000-8000-000000000001", "aaaaaaaa-0000-4000-8000-000000000002", "aaaaaaaa-0000-4000-8000-000000000003"];
+      const photos = ids.map(mk);
+      await rawPrisma.systemState.create({ data: { organizationId: org.id, key: PHOTOS_KEY + model.id, value: { photos } } });
+      const actor = { id: "test-user", name: "Тест", role: "OWNER", organizationId: org.id };
+      const stranger = { ...actor, organizationId: "other-org-000" };
+      const exists = (rel: string) => existsSync(join(UPLOAD_ROOT, rel));
+      const cur = async () => readPhotos((await rawPrisma.systemState.findUnique({ where: { organizationId_key: { organizationId: org.id, key: PHOTOS_KEY + model.id } } }))?.value);
+      const bad = await deleteArticlePhotos(rawPrisma, stranger, model.id, ids[0]);
+      ok(!bad.ok && (await cur()).length === 3 && exists(photos[0].file), "чужая организация: удаление отклонено, фото и файлы целы");
+      const none = await deleteArticlePhotos(rawPrisma, actor, model.id, "aaaaaaaa-0000-4000-8000-0000000000ff");
+      ok(!none.ok && (await cur()).length === 3, "несуществующее фото: ошибка, ничего не удалено");
+      const odd = await deleteArticlePhotos(rawPrisma, actor, model.id, "../../etc");
+      ok(!odd.ok, "некорректный id фото отклонён");
+      const r1 = await deleteArticlePhotos(rawPrisma, actor, model.id, ids[1]);
+      const after = await cur();
+      ok(r1.ok && r1.left === 2 && after.map((p) => p.id).join() === [ids[0], ids[2]].join(), "одно фото: в записи осталось 2, порядок сохранён");
+      ok(!exists(photos[1].file) && !exists(photos[1].thumb) && exists(photos[0].file) && exists(photos[2].thumb), "файлы удалённого фото (оригинал и миниатюра) стёрты, остальные целы");
+      const log = await rawPrisma.auditLog.findFirst({ where: { model: "ArticlePhoto", recordId: model.id }, orderBy: { at: "desc" } });
+      ok(!!log && log.action === "delete" && /Удалено фото артикула/.test(log.label ?? "") && log.actorId === "test-user" && log.organizationId === org.id, "журнал изменений: «Удалено фото артикула …», кто и когда");
+      const r2 = await deleteArticlePhotos(rawPrisma, actor, model.id, null);
+      const row = await rawPrisma.systemState.findUnique({ where: { organizationId_key: { organizationId: org.id, key: PHOTOS_KEY + model.id } } });
+      ok(r2.ok && r2.removed === 2 && !row && !exists(photos[0].file) && !exists(photos[2].file) && !existsSync(join(UPLOAD_ROOT, dirRel)), "«Удалить все»: запись и все файлы стёрты, пустой каталог убран");
+      const again = await deleteArticlePhotos(rawPrisma, actor, model.id, null);
+      ok(!again.ok, "у артикула без фото «удалить все» — понятная ошибка");
+      await rawPrisma.auditLog.deleteMany({ where: { model: "ArticlePhoto", recordId: model.id } });
+      rmSync(join(UPLOAD_ROOT, dirRel), { recursive: true, force: true });
+    }
+  }
+
   console.log(`\n${fails === 0 ? "ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ" : fails + " ПРОВЕРОК НЕ ПРОЙДЕНО"} (всего ${total})`);
   await prisma.$disconnect();
   process.exit(fails === 0 ? 0 : 1);

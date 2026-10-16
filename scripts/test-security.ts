@@ -636,6 +636,37 @@ async function main() {
           ok((await req(`/api/article-photos/${mid}/${pid}?size=thumb`, { cookie: A })).status === 200, "владелец видит миниатюру");
         }
       }
+
+      // Удаление фото артикула: подрядчик не допускается, чужая организация не может удалить чужое фото.
+      {
+        const actSrc = readFileSync(path.resolve("src/app/(app)/models/photo-actions.ts"), "utf8");
+        const { ACCESS: ACC, hasRole: hasR } = await import("../src/lib/access");
+        ok(/export async function deleteArticlePhoto\([^)]*\)[^{]*\{\s*const session = await requireRole\(\.\.\.ACCESS\.models\)/.test(actSrc) && /export async function deleteAllArticlePhotos\([^)]*\)[^{]*\{\s*const session = await requireRole\(\.\.\.ACCESS\.models\)/.test(actSrc), "удаление фото: оба server-действия начинаются с requireRole(ACCESS.models) (роль проверяется на сервере)");
+        ok(!hasR("SUPPLIER", ACC.models) && hasR("OWNER", ACC.models), "удаление фото: подрядчик (SUPPLIER) не входит в роли с правом править артикул — действие отклоняется (редирект в /supplier)");
+        ok(!/onDelete|photo-actions|deleteArticlePhoto/.test(readFileSync(path.resolve("src/app/(app)/articles/supplier-view.tsx"), "utf8")), "удаление фото: в кабинете подрядчика нет ни кнопок, ни ссылок на действие");
+        await import("./stubs/server-only-shim");
+        const { deleteArticlePhotos } = await import("../src/lib/article-photo-delete");
+        const { rawPrisma } = await import("../src/lib/prisma");
+        const keyP = "article-photos:" + probeModel.id;
+        const prevP = await prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: orgA, key: keyP } } });
+        const pid = "bbbbbbbb-0000-4000-8000-0000000000aa";
+        const fileRel = `article-photos/${orgA}/${probeModel.id}/${pid}.jpg`, thumbRel = `article-photos/${orgA}/${probeModel.id}/${pid}-t.jpg`;
+        try {
+          if (prevP) await prisma.systemState.delete({ where: { id: prevP.id } });
+          await prisma.systemState.create({ data: { organizationId: orgA, key: keyP, value: { photos: [{ id: pid, file: fileRel, thumb: thumbRel, w: 1, h: 1, variant: "" }] } } });
+          const ownerBu = { id: "sec-owner-b", name: "B", role: "OWNER", organizationId: orgB };
+          const bad = await deleteArticlePhotos(rawPrisma, ownerBu, probeModel.id, pid);
+          const still = await prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: orgA, key: keyP } } });
+          ok(!bad.ok && !!still, "удаление фото: владелец чужой организации не может удалить фото этого артикула (артикул не найден, запись цела)");
+          const good = await deleteArticlePhotos(rawPrisma, { ...ownerBu, id: "sec-owner-a", organizationId: orgA }, probeModel.id, pid);
+          const gone = await prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: orgA, key: keyP } } });
+          ok(good.ok && !gone, "удаление фото: владелец своей организации удаляет, запись снята");
+        } finally {
+          await prisma.systemState.deleteMany({ where: { organizationId: orgA, key: keyP } });
+          if (prevP) await prisma.systemState.create({ data: { organizationId: orgA, key: keyP, value: prevP.value as object } });
+          await prisma.auditLog.deleteMany({ where: { model: "ArticlePhoto", recordId: probeModel.id, actorId: { in: ["sec-owner-a", "sec-owner-b"] } } });
+        }
+      }
     } finally {
       if (prevLinks) await prisma.systemState.update({ where: { id: prevLinks.id }, data: { value: prevLinks.value as object } });
       else await prisma.systemState.deleteMany({ where: { organizationId: orgA, key: keyL } });

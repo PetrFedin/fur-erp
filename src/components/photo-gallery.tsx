@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type GalleryPhoto = { id: string; variant: string };
+/** Результат server action удаления: error — текст ошибки, left — сколько фото осталось. */
+export type DeleteResult = { error?: string; left?: number };
 
 const src = (modelId: string, id: string, thumb?: boolean) => `/api/article-photos/${modelId}/${id}${thumb ? "?size=thumb" : ""}`;
 
@@ -11,13 +13,49 @@ const src = (modelId: string, id: string, thumb?: boolean) => `/api/article-phot
  * Листание: ← / → и по краям, свайп, полоса миниатюр; закрытие: Esc, ×, клик вне фото. На телефоне — на весь экран.
  * Основа — нативный <dialog>.showModal(): фокус заперт внутри, фон неактивен, Esc из коробки.
  */
-export function PhotoGalleryButton({ modelId, photos, title, compact }: { modelId: string; photos: GalleryPhoto[]; title: string; compact?: boolean }) {
+export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact, onDelete, onDeleteAll }: {
+  modelId: string; photos: GalleryPhoto[]; title: string; compact?: boolean;
+  /** Только для сотрудников заказчика с правом править артикул (подрядчику не передаются — кнопок удаления нет). */
+  onDelete?: (modelId: string, photoId: string) => Promise<DeleteResult>;
+  onDeleteAll?: (modelId: string) => Promise<DeleteResult>;
+}) {
+  const [gone, setGone] = useState<string[]>([]);
+  const photos = allPhotos.filter((p) => !gone.includes(p.id));
+  const [mode, setMode] = useState<null | "menu" | "one" | "all">(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
   const ref = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
   const [i, setI] = useState(0);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const n = photos.length;
   const go = useCallback((d: number) => setI((cur) => (cur + d + n) % n), [n]);
+  const canDelete = Boolean(onDelete && onDeleteAll);
+
+  async function confirmDelete() {
+    if (busy || !onDelete || !onDeleteAll) return;
+    setBusy(true); setErr("");
+    try {
+      if (mode === "all") {
+        const r = await onDeleteAll(modelId);
+        if (r.error) { setErr(r.error); return; }
+        setGone(allPhotos.map((p) => p.id)); setMode(null); setOpen(false);
+      } else {
+        const id = photos[i]?.id;
+        if (!id) return;
+        const r = await onDelete(modelId, id);
+        if (r.error) { setErr(r.error); return; }
+        setGone((g) => [...g, id]);
+        setMode(null);
+        if (n <= 1) setOpen(false);
+        else setI((cur) => Math.min(cur, n - 2)); // после удаления окно листает дальше: на следующее фото (или на последнее)
+      }
+    } catch {
+      setErr("Не удалось удалить фото. Проверьте соединение и повторите.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     const dlg = ref.current;
@@ -47,7 +85,7 @@ export function PhotoGalleryButton({ modelId, photos, title, compact }: { modelI
   }, [open, i]);
 
   if (n === 0) return null;
-  const cur = photos[i];
+  const cur = photos[Math.min(i, n - 1)];
   return (
     <>
       <button
@@ -64,13 +102,13 @@ export function PhotoGalleryButton({ modelId, photos, title, compact }: { modelI
       <dialog
         ref={ref}
         aria-label={`Фото артикула ${title}`}
-        onClose={() => setOpen(false)}
+        onClose={() => { setOpen(false); setMode(null); setErr(""); }}
         onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
         className="m-auto h-dvh max-h-dvh w-screen max-w-none bg-neutral-950 p-0 text-white backdrop:bg-black/70 sm:h-[min(92dvh,900px)] sm:w-[min(96vw,1100px)] sm:rounded-2xl"
       >
         {open && (
           <div
-            className="flex h-full flex-col"
+            className="relative flex h-full flex-col"
             onTouchStart={(e) => { const t = e.touches[0]; touch.current = { x: t.clientX, y: t.clientY }; }}
             onTouchEnd={(e) => {
               const s = touch.current; touch.current = null;
@@ -87,6 +125,11 @@ export function PhotoGalleryButton({ modelId, photos, title, compact }: { modelI
               </p>
               <div className="flex items-center gap-2">
                 <span className="text-sm tabular-nums text-neutral-300">{i + 1} / {n}</span>
+                {canDelete && (
+                  <button type="button" onClick={() => { setErr(""); setMode(mode ? null : "menu"); }} aria-label="Удалить фото" aria-expanded={mode !== null} title="Удалить фото" className="inline-flex size-11 items-center justify-center rounded-full hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                    <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></svg>
+                  </button>
+                )}
                 <button type="button" autoFocus onClick={() => setOpen(false)} aria-label="Закрыть" className="inline-flex size-11 items-center justify-center rounded-full text-2xl hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">×</button>
               </div>
             </div>
@@ -117,6 +160,27 @@ export function PhotoGalleryButton({ modelId, photos, title, compact }: { modelI
                     <img src={src(modelId, p.id, true)} alt="" loading="lazy" className="h-14 w-11 rounded object-cover" />
                   </button>
                 ))}
+              </div>
+            )}
+            {canDelete && mode && (
+              <div role="alertdialog" aria-label="Удаление фото" className="absolute inset-x-0 bottom-0 z-10 border-t border-white/20 bg-white p-4 text-neutral-900 sm:inset-x-auto sm:right-4 sm:bottom-auto sm:top-16 sm:w-80 sm:rounded-xl sm:border sm:shadow-xl">
+                {mode === "menu" ? (
+                  <div className="flex flex-col gap-2">
+                    <button type="button" onClick={() => setMode("one")} className="min-h-11 rounded-lg px-3 text-left text-sm font-medium hover:bg-neutral-100">Удалить это фото</button>
+                    {n > 1 && <button type="button" onClick={() => setMode("all")} className="min-h-11 rounded-lg px-3 text-left text-sm font-medium hover:bg-neutral-100">Удалить все фото артикула ({n})</button>}
+                    <button type="button" onClick={() => setMode(null)} className="min-h-11 rounded-lg px-3 text-left text-sm text-neutral-600 hover:bg-neutral-100">Отмена</button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-sm font-medium">{mode === "all" ? `Удалить все фото артикула ${title} (${n})?` : "Удалить это фото?"}</p>
+                    <p className="text-xs text-neutral-600">{mode === "all" ? "Файлы будут стёрты, вернуть их нельзя." : "Файл будет стёрт, вернуть его нельзя."} Запись попадёт в журнал изменений.</p>
+                    {err && <p role="alert" className="text-sm text-red-700">{err}</p>}
+                    <div className="flex gap-2">
+                      <button type="button" disabled={busy} onClick={confirmDelete} autoFocus className="min-h-11 flex-1 rounded-lg bg-red-700 px-4 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-60">{busy ? "Удаляю…" : "Удалить"}</button>
+                      <button type="button" disabled={busy} onClick={() => { setMode(null); setErr(""); }} className="min-h-11 flex-1 rounded-lg border border-neutral-300 px-4 text-sm hover:bg-neutral-50">Отмена</button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

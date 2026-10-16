@@ -8,6 +8,8 @@
  *   $TSX scripts/import-article-photos-2026-10-16.ts --fetch              # скачать страницы и фото в docs-inventory/article-photos-cache (БД не трогает, 1 стр./с, 2 фото/с)
  *   $TSX scripts/import-article-photos-2026-10-16.ts --apply [--live]     # внести (на боевой — сам делает bash scripts/backup.sh)
  *   $TSX scripts/import-article-photos-2026-10-16.ts --rollback --apply [--live]
+ *   $TSX scripts/import-article-photos-2026-10-16.ts --accept-disputed [--apply [--live]]   # только 12 спорных строк (артикул на странице иначе); ДОБАВЛЯЕТ к уже внесённому, свой журнал *-disputed-*.json
+ *   $TSX scripts/import-article-photos-2026-10-16.ts --accept-disputed --rollback --apply [--live]
  *
  * Правила: сопоставление только при 100% совпадении кода артикула (src/lib/article-photo-match.ts); страница магазина обязана
  * подтвердить артикул (JSON-LD mpn = Article из файла), иначе пара в список «не внесено». PLU — только коды HE… (кириллица НЕ → HE).
@@ -24,12 +26,15 @@ const APPLY = process.argv.includes("--apply");
 const ROLLBACK = process.argv.includes("--rollback");
 const LIVE = process.argv.includes("--live");
 const FETCH = process.argv.includes("--fetch");
+/** Решение владельца 16.10.2026: 12 спорных ссылок (артикул на странице магазина написан иначе) вносим; ошибочное владелец уберёт сам (PLU и кнопка «Удалить фото»). */
+const ACCEPT = process.argv.includes("--accept-disputed");
+const DISPUTED_ROWS = new Set([20, 165, 190, 191, 192, 194, 195, 198, 199, 200, 201, 202]);
 const ACTOR = "script:article-photos";
 const ROOT = join(__dirname, "..");
 const INV = join(ROOT, "docs-inventory");
 const SRC_JSON = join(INV, "article-photo-links.json");
 const CACHE = join(INV, "article-photos-cache");
-const JOURNAL = join(INV, "article-photos-journal-2026-10-16.json");
+const JOURNAL = join(INV, ACCEPT ? "article-photos-journal-disputed-2026-10-16.json" : "article-photos-journal-2026-10-16.json");
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -37,7 +42,7 @@ type Row = { row: number; article: string; itemId: string; conf: number | null; 
 type PageCache = { url: string; mpn: string; sku: string; images: { src: string; n: number }[]; fetchedAt: string };
 type Journal = {
   script: string; status: "applied" | "rolled-back"; at: string;
-  models: { modelId: string; name: string; keys: string[]; files: string[]; attrsBefore: unknown; attrsAfter: unknown }[];
+  models: { modelId: string; name: string; keys: string[]; files: string[]; attrsBefore: unknown; attrsAfter: unknown; stateBefore?: Record<string, unknown | null> }[];
 };
 
 const slugOf = (url: string) => /\/product\/([^/?#]+)/.exec(url)?.[1] ?? "";
@@ -113,7 +118,11 @@ async function main() {
     if (APPLY) {
       if (isLive) backup();
       for (const m of j.models) {
-        await prisma.systemState.deleteMany({ where: { organizationId: orgId, key: { in: m.keys } } });
+        for (const k of m.keys) {
+          const was = m.stateBefore?.[k];
+          if (was === undefined || was === null) await prisma.systemState.deleteMany({ where: { organizationId: orgId, key: k } });
+          else await prisma.systemState.update({ where: { organizationId_key: { organizationId: orgId, key: k } }, data: { value: was as object } });
+        }
         const cur = await prisma.productModel.findUnique({ where: { id: m.modelId }, select: { attributes: true } });
         if (cur && JSON.stringify(cur.attributes) === JSON.stringify(m.attrsAfter)) await writeArticleParams(prisma, orgId, m.modelId, readParams(m.attrsBefore), false);
         else if (cur) console.log(`  ${m.name}: свойства менялись после скрипта — PLU не откатываю, проверьте вручную`);
@@ -203,17 +212,28 @@ async function main() {
 
   const photoPlan = new Map<string, { links: { variant: string; itemId: string; url: string }[]; files: { cache: string; variant: string }[] }>();
   const notDone: string[] = bad.map((x) => `стр. ${x.row.row} «${x.row.article}»: ${x.why}`);
+  const disputedLog: string[] = [];
   for (const x of withUrl) {
+    if (ACCEPT && !DISPUTED_ROWS.has(x.row.row)) continue; // режим спорных: остальное уже внесено прошлым запуском
     const page: PageCache | null = existsSync(join(cacheDir(x.row.url!), "page.json")) ? JSON.parse(readFileSync(join(cacheDir(x.row.url!), "page.json"), "utf8")) : null;
     if (!page) { notDone.push(`стр. ${x.row.row} ${x.row.url}: страница не загружена (--fetch)`); continue; }
     const sameArt = (a: string, b: string) => normArticle(a).replace(/\s*\/\s*/g, "/") === normArticle(b).replace(/\s*\/\s*/g, "/"); // пробелы вокруг «/» не считаются отличием
-    if (!sameArt(page.mpn, x.row.article)) { notDone.push(`стр. ${x.row.row} ${x.row.url}: артикул на странице «${page.mpn}» ≠ «${x.row.article}» — не вношу`); continue; }
+    if (ACCEPT) {
+      const same = sameArt(page.mpn, x.row.article);
+      disputedLog.push(`| ${x.row.row} | ${x.row.article} | ${page.mpn}${same ? " (совпал)" : ""} | ${x.row.url} | фото ${page.images.length} |`);
+    } else if (!sameArt(page.mpn, x.row.article)) { notDone.push(`стр. ${x.row.row} ${x.row.url}: артикул на странице «${page.mpn}» ≠ «${x.row.article}» — не вношу`); continue; }
     const slugSku = slugOf(x.row.url!).split("-")[0].toUpperCase();
     if (page.sku.toUpperCase() !== slugSku) { notDone.push(`стр. ${x.row.row} ${x.row.url}: код на странице ${page.sku} ≠ ссылке ${slugSku} — не вношу`); continue; }
     const plan = photoPlan.get(x.modelId!) ?? { links: [], files: [] };
     plan.links.push({ variant: x.variant, itemId: page.sku.toUpperCase(), url: x.row.url!.replace(/\/?$/, "/") });
     for (const im of page.images) plan.files.push({ cache: join(cacheDir(x.row.url!), String(im.n).padStart(2, "0")), variant: x.variant });
     photoPlan.set(x.modelId!, plan);
+  }
+  if (ACCEPT) {
+    console.log("\n## Спорные строки (решение владельца: вносить)\n| стр. | артикул файла | артикул на странице | ссылка | фото |\n|---|---|---|---|---|");
+    disputedLog.forEach((l) => console.log(l));
+    const miss = [...DISPUTED_ROWS].filter((r) => !disputedLog.some((l) => l.startsWith(`| ${r} |`)));
+    if (miss.length) console.log(`  НЕ найдены/не загружены строки: ${miss.join(", ")}`);
   }
   console.log(`\n## Фото к внесению: артикулов ${photoPlan.size}, ссылок ${[...photoPlan.values()].reduce((a, p) => a + p.links.length, 0)}, фото ${[...photoPlan.values()].reduce((a, p) => a + p.files.length, 0)}`);
   for (const [mid, p] of photoPlan) console.log(`  ${byId.get(mid)!.name}: ссылок ${p.links.length}, фото ${p.files.length}`);
@@ -222,7 +242,11 @@ async function main() {
   // Проверки перед записью
   const prev: Journal | null = existsSync(JOURNAL) ? JSON.parse(readFileSync(JOURNAL, "utf8")) : null;
   if (prev && prev.status === "applied") problems.push("журнал уже содержит применённое внесение — сначала --rollback --apply");
-  for (const mid of photoPlan.keys()) {
+  if (ACCEPT) {
+    const dm = new Set(withUrl.filter((x) => DISPUTED_ROWS.has(x.row.row)).map((x) => x.modelId!));
+    for (const k of [...attrsPlan.keys()]) if (!dm.has(k)) attrsPlan.delete(k); // PLU трогаем только у артикулов спорных строк
+  }
+  for (const mid of ACCEPT ? [] : photoPlan.keys()) {
     const exists = await prisma.systemState.findFirst({ where: { organizationId: orgId, key: { in: [PHOTOS_KEY + mid, LINKS_KEY + mid] } }, select: { key: true } });
     if (exists) problems.push(`${byId.get(mid)!.name}: фото/ссылки уже есть (${exists.key}) — скрипт не дублирует`);
   }
@@ -235,13 +259,27 @@ async function main() {
   const sharp = (await import("sharp")).default;
   const journal: Journal = { script: "import-article-photos-2026-10-16.ts", status: "applied", at: new Date().toISOString(), models: [] };
   const touched = new Set([...photoPlan.keys(), ...attrsPlan.keys()]);
+  if (ACCEPT) { // не дублируем: ссылка, уже записанная у артикула, пропускается вместе со своими фото
+    for (const [mid, plan] of photoPlan) {
+      const ln = await prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: orgId, key: LINKS_KEY + mid } }, select: { value: true } });
+      const have = new Set(((ln?.value as { links?: { url: string }[] } | null)?.links ?? []).map((l) => l.url));
+      const keepUrls = plan.links.filter((l) => !have.has(l.url));
+      if (!keepUrls.length) { photoPlan.delete(mid); touched.delete(mid); console.log(`  ${byId.get(mid)!.name}: ссылка уже внесена — пропуск`); }
+    }
+  }
   for (const mid of touched) {
-    const entry = { modelId: mid, name: byId.get(mid)!.name, keys: [] as string[], files: [] as string[], attrsBefore: byId.get(mid)!.attributes ?? null, attrsAfter: byId.get(mid)!.attributes ?? null as unknown };
+    const entry = { stateBefore: {} as Record<string, unknown | null>, modelId: mid, name: byId.get(mid)!.name, keys: [] as string[], files: [] as string[], attrsBefore: byId.get(mid)!.attributes ?? null, attrsAfter: byId.get(mid)!.attributes ?? null as unknown };
     const plan = photoPlan.get(mid);
     if (plan) {
       const dirRel = join("article-photos", orgId, mid);
       mkdirSync(join(UPLOAD_ROOT, dirRel), { recursive: true });
       const photos: { id: string; file: string; thumb: string; w: number; h: number; variant: string }[] = [];
+      const curPh = await prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: orgId, key: PHOTOS_KEY + mid } }, select: { value: true } });
+      const curLn = await prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: orgId, key: LINKS_KEY + mid } }, select: { value: true } });
+      entry.stateBefore[PHOTOS_KEY + mid] = curPh?.value ?? null;
+      entry.stateBefore[LINKS_KEY + mid] = curLn?.value ?? null;
+      const oldPhotos = ((curPh?.value as { photos?: typeof photos } | null)?.photos ?? []);
+      const oldLinks = ((curLn?.value as { links?: typeof plan.links } | null)?.links ?? []);
       for (const f of plan.files) {
         const id = randomUUID();
         const file = join(dirRel, `${id}.jpg`), thumb = join(dirRel, `${id}-t.jpg`);
@@ -251,8 +289,11 @@ async function main() {
         const meta = await sharp(join(UPLOAD_ROOT, file)).metadata();
         photos.push({ id, file, thumb, w: meta.width ?? 0, h: meta.height ?? 0, variant: f.variant });
       }
-      await prisma.systemState.create({ data: { organizationId: orgId, key: PHOTOS_KEY + mid, value: { photos } } });
-      await prisma.systemState.create({ data: { organizationId: orgId, key: LINKS_KEY + mid, value: { links: plan.links } } });
+      const allPhotos = [...oldPhotos, ...photos];
+      const allLinks = [...oldLinks, ...plan.links.filter((l) => !oldLinks.some((o) => o.url === l.url))];
+      for (const [k, v] of [[PHOTOS_KEY + mid, { photos: allPhotos }], [LINKS_KEY + mid, { links: allLinks }]] as const) {
+        await prisma.systemState.upsert({ where: { organizationId_key: { organizationId: orgId, key: k } }, create: { organizationId: orgId, key: k, value: v }, update: { value: v } });
+      }
       entry.keys.push(PHOTOS_KEY + mid, LINKS_KEY + mid);
     }
     const a = attrsPlan.get(mid);

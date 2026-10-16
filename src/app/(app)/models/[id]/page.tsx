@@ -45,6 +45,7 @@ import { groupOf, NO_GROUP } from "@/lib/category-groups";
 import { canEditProduction } from "@/lib/production-access";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
+import { deleteArticlePhoto, deleteAllArticlePhotos } from "../photo-actions";
 import { loadArticlePhotos, loadShopLinks } from "@/lib/article-photos";
 import { isPluParam } from "@/lib/article-photo-match";
 import { CollapsibleBlock } from "@/components/collapsible-block";
@@ -196,7 +197,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2" aria-label="Фото и магазин">
-        {photos.length > 0 ? <PhotoGalleryButton modelId={id} photos={photos.map((p) => ({ id: p.id, variant: p.variant }))} title={model.name} /> : <span className="text-sm text-neutral-500">Нет фото</span>}
+        {photos.length > 0 ? <PhotoGalleryButton modelId={id} photos={photos.map((p) => ({ id: p.id, variant: p.variant }))} title={model.name} {...(canEdit ? { onDelete: deleteArticlePhoto, onDeleteAll: deleteAllArticlePhotos } : {})} /> : <span className="text-sm text-neutral-500">Нет фото</span>}
         {shopLinks.map((l) => (
           <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-sm text-blue-700 hover:underline sm:min-h-0">
             Товар в магазине{l.variant ? ` · ${l.variant}` : ""}{l.itemId ? ` (${l.itemId})` : ""} ↗

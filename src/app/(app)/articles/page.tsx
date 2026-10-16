@@ -39,6 +39,7 @@ import { TotalLabel } from "@/components/total-label";
 import { LENGTH_OPTIONS } from "@/lib/length-class";
 import { loadAllArticleParams, modelIdsWithParams, paramFilterOptions } from "@/lib/article-params";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
+import { deleteArticlePhoto, deleteAllArticlePhotos } from "../models/photo-actions";
 import { loadPhotoSummary } from "@/lib/article-photos";
 import { pluMatchIds } from "@/lib/article-photo-match";
 import { SupplierArticles } from "./supplier-view";
@@ -343,7 +344,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 <Link href={`/models/${r.id}`} className="text-blue-700 hover:underline" title="Карточка артикула">
                   <ArticleName model={r.model} compact />
                 </Link>
-                {photoSummary.get(r.id) ? <span className="ml-2 inline-block align-middle"><PhotoGalleryButton modelId={r.id} photos={photoSummary.get(r.id)!} title={r.name} compact /></span> : null}
+                {photoSummary.get(r.id) ? <span className="ml-2 inline-block align-middle"><PhotoGalleryButton modelId={r.id} photos={photoSummary.get(r.id)!} title={r.name} compact {...(canCreate ? { onDelete: deleteArticlePhoto, onDeleteAll: deleteAllArticlePhotos } : {})} /></span> : null}
                 {r.bySupplier && <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800" title="Артикул завёл поставщик — проверьте и проставьте цену">внёс: Веллмех</span>}
                 {r.supplierNote && <span className="ml-2 text-xs font-normal text-neutral-500" title="Прислал Веллмех">{r.supplierNote}</span>}
               </Td>
