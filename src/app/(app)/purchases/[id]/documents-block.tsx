@@ -30,7 +30,7 @@ type Entry =
   | { type: "pair"; key: string; sort: number; title: string; d: FileDocRow; drives: DriveDocRow[] };
 
 /**
- * Записи документов закупки в группы: пара «загруженный файл + ссылка Drive» одного файла — одна строка,
+ * Записи документов закупки в группы: пара «прикреплённый файл + запись документа» одного файла — одна строка,
  * повторы (название без «(1)»/«копия»/расширения + тип + размер) — одной группой «×N».
  */
 export function buildDocGroups(files: FileDocRow[], drives: DriveDocRow[]): Entry[][] {
@@ -100,7 +100,7 @@ export function PurchaseDocumentsList({
           </span>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {stored ? <DocFileButtons href={`/api/purchase-docs/${d.id}`} mime={d.mimeType} title={d.title} /> : <span className="text-xs text-neutral-500">Файл не загружен</span>}
+          {stored ? <DocFileButtons href={`/api/purchase-docs/${d.id}`} mime={d.mimeType} title={d.title} /> : <span className="text-xs text-neutral-500">Не прикреплён</span>}
           {canEdit && !d.lotId && (
             <form
               action={async () => {

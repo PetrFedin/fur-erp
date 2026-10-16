@@ -61,7 +61,7 @@ async function pickFile(li: Locator, file: string) {
   await li.locator('input[type=file]').first().setInputFiles(file);
 }
 const dbById = (id: string) =>
-  sql(`select id,coalesce("storagePath",''),coalesce("storedMime",''),coalesce("storedName",''),coalesce("storedSize",0),coalesce("viewUrl",'') from "DriveDocument" where id='${id}'`).split("|");
+  sql(`select id,coalesce("storagePath",''),coalesce("storedMime",''),coalesce("storedName",''),coalesce("storedSize",0) from "DriveDocument" where id='${id}'`).split("|");
 const liOf = (page: Page, t: string) => page.locator("li").filter({ has: page.locator("span.font-medium", { hasText: t }) }).first();
 async function idOfLi(li: Locator): Promise<string> {
   const href = (await li.locator('a[href*="/api/drive-docs/"]').first().getAttribute("href")) ?? "";
@@ -108,7 +108,7 @@ async function uploadCycle(page: Page, name: string, url: string, errors: string
     const before = diskFiles().length;
     await pickFile(li, F(file));
     const li2 = page.locator("li").filter({ has: page.locator("span.font-medium", { hasText: t }) }).first();
-    await expect(li2.getByText("Файл в приложении")).toBeVisible({ timeout: 20000 });
+    await expect(li2.getByText("Прикреплён", { exact: true })).toBeVisible({ timeout: 20000 });
     const id = await idOfLi(li2);
     const [, sp, sm, sn, ss] = dbById(id);
     log(name, file, "->", id, sp, sm, sn, ss);
@@ -168,7 +168,7 @@ async function uploadCycle(page: Page, name: string, url: string, errors: string
       expect.soft(text, `${name} ${file} msg`).toMatch(rx);
       expect.soft(/[А-Яа-я]/.test(text), `${name} ${file} russian`).toBeTruthy();
       expect.soft(diskFiles().length).toBe(before);
-      await expect(li.getByText("Файл в приложении")).toBeHidden();
+      await expect(li.getByText("Прикреплён", { exact: true })).toBeHidden();
       await page.waitForTimeout(300);
     }
   } else log(name, "нет 5-го документа для отрицательных проверок");
@@ -186,26 +186,24 @@ async function uploadCycle(page: Page, name: string, url: string, errors: string
   expect.soft(existsSync(path.join(UP, oldPath)), `${name} old file removed`).toBeFalsy();
   expect.soft(existsSync(path.join(UP, newPath))).toBeTruthy();
   expect.soft(Number(ns)).toBe(statSync(F("ok2.pdf")).size);
-  // удалить файл у документа 2 (png): ссылка Drive остаётся, GET -> 302 drive.google.com
+  // удалить файл у документа 2 (png): запись остаётся «Не прикреплён», GET -> 404
   if (docs.length >= 2) {
     const t1 = titles[1];
     const [id1, sp1] = dbById(idByTitle[t1]);
     page.once("dialog", (d) => d.accept());
     const li = page.locator("li").filter({ has: page.locator("span.font-medium", { hasText: t1 }) }).first();
     await li.getByRole("button", { name: "Удалить файл" }).click();
-    await expect(page.locator("li").filter({ has: page.locator("span.font-medium", { hasText: t1 }) }).first().getByText("Файл в приложении")).toBeHidden({ timeout: 15000 });
-    const [, sp1b, , , , v1] = dbById(id1);
-    log(name, "DELETE FILE: storagePath after", JSON.stringify(sp1b), "viewUrl kept", !!v1, "disk removed", !existsSync(path.join(UP, sp1)));
+    await expect(page.locator("li").filter({ has: page.locator("span.font-medium", { hasText: t1 }) }).first().getByText("Прикреплён", { exact: true })).toBeHidden({ timeout: 15000 });
+    const [, sp1b] = dbById(id1);
+    log(name, "DELETE FILE: storagePath after", JSON.stringify(sp1b), "disk removed", !existsSync(path.join(UP, sp1)));
     expect.soft(sp1b).toBe("");
-    expect.soft(v1).toContain("drive.google.com");
     expect.soft(existsSync(path.join(UP, sp1))).toBeFalsy();
     const r = await page.request.get(`/api/drive-docs/${id1}`, { maxRedirects: 0 });
     log(name, "no-file GET", r.status(), r.headers()["location"]);
-    expect.soft(r.status()).toBe(302);
-    expect.soft(r.headers()["location"] ?? "").toContain("drive.google.com");
+    expect.soft(r.status()).toBe(404);
     const li3 = page.locator("li").filter({ has: page.locator("span.font-medium", { hasText: t1 }) }).first();
-    await expect(li3.getByText("Загрузить файл", { exact: true })).toBeVisible();
-    await expect(li3.getByRole("link", { name: "Открыть в Drive" })).toBeVisible();
+    await expect(li3.getByText("Не прикреплён", { exact: true }).first()).toBeVisible();
+    await expect(li3.getByRole("button", { name: "Прикрепить" })).toBeVisible();
   }
   return ids;
 }
@@ -227,10 +225,10 @@ for (const [name, url] of [["purchase", PURCHASE], ["tz", TZ], ["batch", BATCH],
   });
 }
 
-// ---------- 2. «+ Загрузить документ» ----------
+// ---------- 2. «+ Прикрепить документ» ----------
 const XSS = `<img src=x onerror="window.__xss=1">"'&`;
 for (const [name, url] of [["purchase", PURCHASE], ["tz", TZ], ["batch", BATCH], ["payments", PAYMENTS], ["auction", AUC]] as const) {
-  test(`2. + Загрузить документ: ${name}`, async ({ page }) => {
+  test(`2. + Прикрепить документ: ${name}`, async ({ page }) => {
     test.setTimeout(240_000);
     const errors = watchErrors(page);
     let dialogs = 0;
@@ -238,9 +236,9 @@ for (const [name, url] of [["purchase", PURCHASE], ["tz", TZ], ["batch", BATCH],
     await loginAs(page, "anna@qa-test.ru");
     await page.goto(url);
     await page.waitForLoadState("networkidle");
-    const summ = page.locator("summary", { hasText: /\+ Загрузить документ/ }).first();
+    const summ = page.locator("summary", { hasText: /\+ Прикрепить документ/ }).first();
     await expect(summ).toBeVisible();
-    const form = page.locator("details").filter({ has: page.locator(":scope > summary", { hasText: /\+ Загрузить документ/ }) }).first();
+    const form = page.locator("details").filter({ has: page.locator(":scope > summary", { hasText: /\+ Прикрепить документ/ }) }).first();
     const open = async () => { if (!(await form.locator("form").first().isVisible())) await summ.click(); };
     const submit = async (file: string, title: string, type?: string) => {
       await open();
@@ -318,7 +316,7 @@ const docWithFile = (where: string) =>
 
 test("3. 401 без входа, 404 чужой организации, заголовки X-Frame-Options", async ({ browser, playwright }) => {
   const id = docWithFile(`"purchaseId" is not null`);
-  const idNoFile = sql(`select id from "DriveDocument" where "storagePath" is null and "viewUrl" is not null limit 1`);
+  const idNoFile = sql(`select id from "DriveDocument" where "storagePath" is null and "driveFileId" not like 'local-%' limit 1`);
   const anon = await playwright.request.newContext({ baseURL: BASE });
   for (const [label, u] of [["file", `/api/drive-docs/${id}`], ["download", `/api/drive-docs/${id}?download=1`], ["nofile", `/api/drive-docs/${idNoFile}`], ["nonexistent", `/api/drive-docs/zzz`]] as const) {
     const r = await anon.get(u, { maxRedirects: 0 });
@@ -400,7 +398,7 @@ test("4. кнопки по ролям (UI)", async ({ browser }) => {
         заменить: await page.getByText("Заменить файл", { exact: true }).count(),
         удалитьФайл: await page.getByRole("button", { name: "Удалить файл" }).count(),
         убрать: await page.getByRole("button", { name: "Убрать", exact: true }).count(),
-        плюсДок: await cnt(/\+ Загрузить документ/),
+        плюсДок: await cnt(/\+ Прикрепить документ/),
         плюсСсылка: await cnt(/\+ Добавить ссылку на Drive/),
       };
       const any = Object.values(c).reduce((a, b) => a + b, 0) > 0;
@@ -444,9 +442,9 @@ test("5. права на сервере: server action по ролям", async (
   const owner = await ctxAs(browser, "anna@qa-test.ru");
   const po = owner.page;
   // «цели»: документ ТЗ (ссылка Drive) без файла, документ закупки без файла, документ с файлом и ссылкой
-  const tzDoc = sql(`select id from "DriveDocument" where "productionOrderId" is not null and "storagePath" is null and "viewUrl" is not null limit 1`);
-  const purDoc = sql(`select id from "DriveDocument" where "purchaseId" is not null and "storagePath" is null and "viewUrl" is not null limit 1`);
-  const payDoc = sql(`select id from "DriveDocument" where "paymentId" is not null and "storagePath" is null and "viewUrl" is not null limit 1`);
+  const tzDoc = sql(`select id from "DriveDocument" where "productionOrderId" is not null and "storagePath" is null and "driveFileId" not like 'local-%' limit 1`);
+  const purDoc = sql(`select id from "DriveDocument" where "purchaseId" is not null and "storagePath" is null and "driveFileId" not like 'local-%' limit 1`);
+  const payDoc = sql(`select id from "DriveDocument" where "paymentId" is not null and "storagePath" is null and "driveFileId" not like 'local-%' limit 1`);
   const orderId = sql(`select "productionOrderId" from "DriveDocument" where id='${tzDoc}'`);
   const purId = sql(`select "purchaseId" from "DriveDocument" where id='${purDoc}'`);
   const payId = sql(`select "paymentId" from "DriveDocument" where id='${payDoc}'`);
@@ -477,7 +475,7 @@ test("5. права на сервере: server action по ролям", async (
   async function capNew(url: string): Promise<Cap> {
     await po.goto(url);
     await po.waitForLoadState("networkidle");
-    const form = po.locator("details").filter({ has: po.locator(":scope > summary", { hasText: /\+ Загрузить документ/ }) }).first();
+    const form = po.locator("details").filter({ has: po.locator(":scope > summary", { hasText: /\+ Прикрепить документ/ }) }).first();
     await form.locator("summary").click();
     await form.locator("input[type=file]").setInputFiles(F("ok.pdf"));
     return capture(po, async () => { await form.getByRole("button", { name: "Загрузить" }).click(); });
@@ -527,7 +525,7 @@ test("5. права на сервере: server action по ролям", async (
   // --- removeDriveDocumentFile и removeDriveDocument: перехват из UI владельца (запрос не уходит), повтор от других ролей
   for (const t of ["tz", "purchase", "payment"] as const) {
     const col = t === "tz" ? "productionOrderId" : t === "purchase" ? "purchaseId" : "paymentId";
-    const [id, owner_] = sql(`select id, "${col}" from "DriveDocument" where "${col}" is not null and "storagePath" is not null and "viewUrl" is not null order by "storedAt" desc limit 1`).split("|");
+    const [id, owner_] = sql(`select id, "${col}" from "DriveDocument" where "${col}" is not null and "storagePath" is not null and "driveFileId" not like 'local-%' order by "storedAt" desc limit 1`).split("|");
     const url = t === "tz" ? `/production/${owner_}` : t === "purchase" ? `/purchases/${owner_}` : t === "payment" ? PAYMENTS : "";
     if (t === "payment") { /* оплата без привязки к закупке видна на /payments, иначе — на карточке закупки */ }
     await po.goto(url);
@@ -627,7 +625,7 @@ test("8. имена файлов: XSS, кириллица, длинное имя
   await loginAs(page, "anna@qa-test.ru");
   await page.goto(PURCHASE);
   await page.waitForLoadState("networkidle");
-  const form = page.locator("details").filter({ has: page.locator(":scope > summary", { hasText: /\+ Загрузить документ/ }) }).first();
+  const form = page.locator("details").filter({ has: page.locator(":scope > summary", { hasText: /\+ Прикрепить документ/ }) }).first();
   const long = "a".repeat(230) + ".pdf";
   for (const name of [long]) {
     await form.locator("summary").click().catch(() => {});

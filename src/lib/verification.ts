@@ -1,3 +1,4 @@
+import { storedFileExists } from "@/lib/stored-file-check";
 import { uniqueOrderCount } from "@/lib/tz-key";
 import { memoRequest, objId } from "@/lib/req-memo";
 import { orderUnits } from "@/lib/production-totals";
@@ -253,7 +254,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         documentId: true, purchaseId: true, auctionSession: true, notes: true,
         purchase: { select: { number: true } },
         supplier: { select: { name: true } },
-        driveDocuments: { select: { docType: true } },
+        driveDocuments: { select: { docType: true, storagePath: true } },
       },
       orderBy: { paidAt: "asc" },
     });
@@ -265,7 +266,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
     for (const p of pays) {
       const blockers: Blocker[] = [];
       const href = p.purchaseId ? `/purchases/${p.purchaseId}` : "/payments";
-      const hasFile = !!p.documentId || p.driveDocuments.some((d) => (PROOF_DOC_TYPES as readonly string[]).includes(d.docType));
+      const hasFile = !!p.documentId || p.driveDocuments.some((d) => (PROOF_DOC_TYPES as readonly string[]).includes(d.docType) && storedFileExists(d.storagePath));
       const ev = refEvidence(p.docRef);
       const ppNo = ppNoOf(p.docRef);
       const amount = Number(p.amount);
@@ -304,7 +305,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
       select: {
         id: true, amount: true, paidAt: true, status: true, paymentType: true, docRef: true, confirmed: true, confirmedAt: true, confirmedBy: true, notes: true,
         client: { select: { name: true } },
-        driveDocuments: { select: { docType: true } },
+        driveDocuments: { select: { docType: true, storagePath: true } },
         orders: { select: { productionOrder: { select: { id: true, batch: { select: { number: true } } } } } },
       },
       orderBy: { paidAt: "asc" },
@@ -318,7 +319,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
       const blockers: Blocker[] = [];
       const batches = [...new Set(p.orders.map((o) => o.productionOrder.batch?.number).filter((x): x is number => x != null))].sort((a, b) => a - b);
       const href = batches.length === 1 ? `/production/batches/${batches[0]}` : "/payments";
-      const hasFile = p.driveDocuments.some((d) => (PROOF_DOC_TYPES as readonly string[]).includes(d.docType));
+      const hasFile = p.driveDocuments.some((d) => (PROOF_DOC_TYPES as readonly string[]).includes(d.docType) && storedFileExists(d.storagePath));
       const ev = refEvidence(p.docRef);
       const ppNo = ppNoOf(p.docRef);
       const amount = Number(p.amount);
@@ -445,7 +446,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
       const href = `/production/${o.id}`;
       const own = m.docsByOrder.get(o.id) ?? [];
       if (!own.some((d) => d.docType === "TZ_APPENDIX"))
-        blockers.push({ text: "приложение к ТЗ не загружено", href, upload: { action: "driveDoc", entity: "order", id: o.id, docType: "TZ_APPENDIX", label: "Загрузить приложение ТЗ" } });
+        blockers.push({ text: "приложение к ТЗ не прикреплено", href, upload: { action: "driveDoc", entity: "order", id: o.id, docType: "TZ_APPENDIX", label: "Прикрепить приложение ТЗ" } });
       if (!o.workOrderDate) blockers.push({ text: "даты ТЗ нет (в приложении только шаблонная дата договора) — внести по оригиналу", href });
       else {
         const t = templateDateIssue(o.number, o.workOrderDate);

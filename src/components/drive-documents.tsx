@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { formatMb } from "@/lib/format-mb";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import {
   isDriveFileShared,
   removeDriveDocumentFile,
   updateDriveDocument,
+  uploadDriveDocumentFile,
 } from "@/app/(app)/drive-actions";
 import { EditDialog, Field } from "@/components/edit-dialog";
 import { DocFileButtons } from "@/components/doc-preview";
@@ -97,8 +98,9 @@ const smallBtn =
 function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; copies?: DriveDocView[] }) {
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
-  // Ссылку на внешний диск не показываем; признак нужен только для подтверждений («файл можно заменить, запись останется»).
-  const keepsRecord = !!d.hasLink;
+  const fileRef = useRef<HTMLInputElement>(null);
+  // Признак нужен для подтверждений: у заранее созданной записи файл можно удалить, запись («не прикреплён») останется.
+  const keepsRecord = !!d.keepsRecord;
   const date = fmtDate(d.docDate);
   // У свёрнутой группы правки — только внутри списка привязок (иначе непонятно, какую копию убираем).
   const editable = canEdit && d.canRemove !== false && !copies;
@@ -107,9 +109,9 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
     <li className="flex flex-col gap-2 px-3 py-2 text-sm sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium break-words" title={d.drivePath ? `Исходная папка: ${d.drivePath}` : undefined}>{stripServiceTags(d.title)}</span>
+          <span className="font-medium break-words">{stripServiceTags(d.title)}</span>
           <Badge>{DRIVE_DOC_TYPE_LABELS[d.docType]}</Badge>
-          {d.hasFile ? <Badge variant="success">Файл в приложении</Badge> : <Badge variant="warning">Файл не загружен</Badge>}
+          {d.hasFile ? <Badge variant="success">Прикреплён</Badge> : <Badge variant="warning">Не прикреплён</Badge>}
           {date && <span className="text-xs text-neutral-500">{date}</span>}
           {d.docNumber && <span className="text-xs text-neutral-500">№ {d.docNumber}</span>}
           {d.scope && !copies && <span className="text-xs text-neutral-500">· {d.scope}</span>}
@@ -147,7 +149,7 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
                 className={smallBtn}
                 disabled={pending}
                 onClick={() => {
-                  if (!window.confirm(`Удалить загруженный файл «${stripServiceTags(d.title)}»? Запись документа останется.`)) return;
+                  if (!window.confirm(`Удалить прикреплённый файл «${stripServiceTags(d.title)}»? Запись документа останется («не прикреплён»).`)) return;
                   start(async () => {
                     const res = await removeDriveDocumentFile(d.id);
                     setErr(res?.error ?? null);
@@ -159,7 +161,35 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
             )}
           </>
         ) : (
-          <span className="text-xs text-neutral-500">Файл не загружен</span>
+          <>
+            <span className="text-xs text-neutral-500">Не прикреплён</span>
+            {editable && (
+              <>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  hidden
+                  accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!file) return;
+                    const bad = clientFileError(file);
+                    if (bad) return void setErr(bad);
+                    const fd = new FormData();
+                    fd.set("file", file);
+                    start(async () => {
+                      const res = await uploadDriveDocumentFile(d.id, fd).catch(() => ({ error: "Не удалось прикрепить файл: сервер отклонил запрос или пропала связь" }));
+                      setErr(res?.error ?? null);
+                    });
+                  }}
+                />
+                <button type="button" className={smallBtn} disabled={pending} onClick={() => fileRef.current?.click()}>
+                  Прикрепить
+                </button>
+              </>
+            )}
+          </>
         )}
         {canEdit && d.canRemove === false && (
           <span className="text-xs text-neutral-500">Управляют владелец и администратор</span>
@@ -208,7 +238,7 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
                 const msg = shared
                   ? "Запись будет удалена; файл останется, пока на него ссылаются другие документы"
                   : d.hasFile
-                    ? `Убрать документ «${stripServiceTags(d.title)}» вместе с загруженным файлом?`
+                    ? `Убрать документ «${stripServiceTags(d.title)}» вместе с прикреплённым файлом?`
                     : `Убрать документ «${stripServiceTags(d.title)}»?`;
                 if (!window.confirm(msg)) return;
                 const res = await removeDriveDocument(d.id);

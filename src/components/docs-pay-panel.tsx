@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { InfoHint } from "@/components/info-hint";
 import { cn } from "@/lib/utils";
-import type { MarkTarget, Panel, PanelItem, PanelPayment, PanelMention } from "@/lib/doc-panel";
-import { addDriveDocument } from "@/app/(app)/drive-actions";
+import type { MarkTarget, Panel, PanelItem, PanelPayment } from "@/lib/doc-panel";
 import { deleteAuctionPayment } from "@/app/(app)/payments/actions";
 import { removePurchasePayment } from "@/app/(app)/purchases/actions";
 import { removeProductionPayment } from "@/app/(app)/production/actions";
@@ -60,37 +59,6 @@ function Msg({ msg, pending }: { msg: { error?: string; ok?: string }; pending?:
   );
 }
 
-function AttachMention({ m }: { m: PanelMention }) {
-  const { pending, msg, run } = useRun();
-  const a = m.attach;
-  return (
-    <li className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-700">
-      <span className="min-w-0 break-words">{m.text}</span>
-      {a && (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={pending}
-          title="Привязать этот документ к карточке: сопоставление делаете вы"
-          onClick={() => {
-            const fd = new FormData();
-            fd.set("link", a.fileId);
-            fd.set("title", a.title.slice(0, 200));
-            fd.set("docType", a.docType);
-            if (a.docNumber) fd.set("docNumber", a.docNumber);
-            if (a.docDate) fd.set("docDate", a.docDate);
-            run(() => addDriveDocument(a.entity, a.id, {}, fd), "Привязано");
-          }}
-        >
-          Привязать
-        </Button>
-      )}
-      <Msg msg={msg} pending={pending} />
-    </li>
-  );
-}
-
 function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
   const bad = it.need === "required" && !it.ok;
   const mark = it.ok ? "✓" : it.need === "required" ? "✗" : "○";
@@ -105,7 +73,7 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
             <span className={cn("text-base font-bold leading-none", markCls)} aria-hidden>{mark}</span>
             <span className="font-medium">{it.label}</span>
             {it.docs.length > 0 && <span className="text-xs text-emerald-700">есть: {it.docs.length}</span>}
-            {it.docs.some((d) => !d.href) && <span className="text-xs text-amber-700">файл не загружен: {it.docs.filter((d) => !d.href).length}</span>}
+            {it.docs.some((d) => !d.href) && <span className="text-xs text-amber-700">не прикреплён: {it.docs.filter((d) => !d.href).length}</span>}
             {it.note && <InfoHint wide label={`Пояснение: ${it.label}`}><p>{it.note}</p></InfoHint>}
             <span className="ml-auto text-xs text-neutral-500">документы ›</span>
           </summary>
@@ -120,7 +88,7 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
                     <a href={`${d.href}${d.href.includes("?") ? "&" : "?"}download=1`} className="text-blue-600 hover:underline">Скачать</a>
                   </>
                 ) : (
-                  <span className="text-neutral-500">файл не загружен</span>
+                  <span className="text-neutral-500">не прикреплён</span>
                 )}
               </li>
             ))}
@@ -206,9 +174,9 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
       )}
       {it.mentions.length > 0 && (
         <div className="rounded border border-dashed border-neutral-300 bg-white/70 px-2 py-1.5">
-          <p className="text-xs font-medium text-neutral-600">Упомянуто в документах, но не привязано здесь:</p>
+          <p className="text-xs font-medium text-neutral-600">Названо в данных, но не прикреплено:</p>
           <ul className="mt-1 flex flex-col gap-1">
-            {it.mentions.map((m, i) => (canUpload ? <AttachMention key={i} m={m} /> : <li key={i} className="text-xs text-neutral-700">{m.text}</li>))}
+            {it.mentions.map((m, i) => <li key={i} className="text-xs text-neutral-700">{m.text}</li>)}
           </ul>
         </div>
       )}

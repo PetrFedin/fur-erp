@@ -169,9 +169,9 @@ export function InvoiceRow({ c, db, groupId }: { c: InvCalc; db: InvDb | undefin
         {label("За что")}
         <span className="break-words">{inv.purpose || "—"}</span>
         {inv.fileId ? (
-          <span className="ml-1 text-neutral-500">счёт есть</span>
+          <span className="ml-1 text-neutral-500">счёт назван в реестре</span>
         ) : (
-          <span className="ml-1 text-red-700">счёта нет в документах</span>
+          <span className="ml-1 text-red-700">счёта нет в реестре</span>
         )}
         {inv.notes.map((n, i) => (
           <InfoHint key={i} label="Примечание" className="ml-1">{n}</InfoHint>

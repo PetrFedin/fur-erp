@@ -125,24 +125,16 @@ export default async function ReconPage({ searchParams }: PageProps<"/analytics/
         </CardContent>
       </Card>
 
-      {/* Историческая сверка из Drive */}
+      {/* Историческая сверка остатков */}
       <Card>
         <CardHeader>
           <CardTitle className="flex flex-wrap items-center gap-2">
-            Контроль по «Анализ остатков сырья.xlsx» {badge(auditOpen)}
+            Исторический контроль остатков сырья {badge(auditOpen)}
             <InfoHint label="Что это" wide>
-              <p>Исторический контрольный файл из папки «Мех», изменён 09.02.2026. Он сопоставляет закупленное количество, расход по перечисленным ТЗ и остаток в производственном файле.</p>
-              <p className="mt-1">Δ = остаток в производственном файле − остаток по ТЗ. Ненулевой Δ не исправляется автоматически: нужно найти недостающий ТЗ/списание либо подтвердить, что производственный файл был неполным.</p>
+              <p>Исторический контроль остатков от 09.02.2026. Он сопоставляет закупленное количество, расход по перечисленным ТЗ и остаток в исторической сверке.</p>
+              <p className="mt-1">Δ = остаток в исторической сверке − остаток по ТЗ. Ненулевой Δ не исправляется автоматически: нужно найти недостающий ТЗ/списание либо подтвердить, что историческая сверка была неполной.</p>
               <p className="mt-1 text-neutral-500">Текущий остаток ERP показан отдельно, потому что после 09.02.2026 были новые списания.</p>
             </InfoHint>
-            <a
-              href="https://docs.google.com/spreadsheets/d/1l3sj71hz5gWEdTWiNgReifzovmfJBDhb/edit"
-              target="_blank"
-              rel="noreferrer"
-              className="ml-auto text-xs font-medium text-blue-700 underline"
-            >
-              Открыть исходный файл ↗
-            </a>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -155,7 +147,7 @@ export default async function ReconPage({ searchParams }: PageProps<"/analytics/
                     <Th className="text-right">Закуплено</Th>
                     <Th className="text-right">Расход по ТЗ</Th>
                     <Th className="text-right">Остаток по ТЗ</Th>
-                    <Th className="text-right">Остаток в файле</Th>
+                    <Th className="text-right">Остаток в сверке</Th>
                     <Th className="text-right">Δ</Th>
                     <Th className="text-right">Сейчас ERP</Th>
                     <Th>Контроль</Th>
@@ -175,9 +167,9 @@ export default async function ReconPage({ searchParams }: PageProps<"/analytics/
                       <Td className="text-right tabular-nums">{r.lotRecord ? qty(r.lotRecord.rem, r.lotRecord) : <span className="text-red-700">лот не найден</span>}</Td>
                       <Td className="max-w-[22rem] text-xs text-neutral-600">
                         {r.delta < 0
-                          ? `В файле списано на ${formatQty(String(Math.abs(r.delta)))} шт. больше, чем в ТЗ: нужен источник списания.`
+                          ? `В сверке списано на ${formatQty(String(Math.abs(r.delta)))} шт. больше, чем в ТЗ: нужен источник списания.`
                           : r.delta > 0
-                            ? `По ТЗ остаток меньше на ${formatQty(String(r.delta))} шт.: расход не отражён в файле.`
+                            ? `По ТЗ остаток меньше на ${formatQty(String(r.delta))} шт.: расход не отражён в сверке.`
                             : "Сходится."}
                       </Td>
                     </Tr>
@@ -195,7 +187,7 @@ export default async function ReconPage({ searchParams }: PageProps<"/analytics/
                 fields={[
                   { label: "Закуплено", value: `${formatQty(String(r.purchased))} шт.` },
                   { label: "Остаток по ТЗ", value: `${formatQty(String(r.expectedByTz))} шт.` },
-                  { label: "В файле", value: `${formatQty(String(r.productionFileRemaining))} шт.` },
+                  { label: "В сверке", value: `${formatQty(String(r.productionFileRemaining))} шт.` },
                   { label: "Сейчас ERP", value: r.lotRecord ? qty(r.lotRecord.rem, r.lotRecord) : "лот не найден" },
                 ]}
                 extra={
@@ -203,7 +195,7 @@ export default async function ReconPage({ searchParams }: PageProps<"/analytics/
                     <p className="mt-2 text-xs text-red-700">
                       {r.delta < 0
                         ? `Не объяснено ТЗ: дополнительное списание ${formatQty(String(Math.abs(r.delta)))} шт.`
-                        : `Не отражено в производственном файле: ${formatQty(String(r.delta))} шт.`}
+                        : `Не отражено в исторической сверке: ${formatQty(String(r.delta))} шт.`}
                     </p>
                   ) : null
                 }

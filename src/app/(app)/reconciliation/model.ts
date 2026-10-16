@@ -43,9 +43,6 @@ export type Group = (typeof data.groups)[number] & {
   advanceRub?: number | null;
   /** Контрольные вопросы, которые нельзя закрыть автоматически по текущим первичным документам. */
   manualReview?: string[];
-  /** Текущий контур папки Drive после пересборки пользователем. */
-  folderPath?: string;
-  folderUrl?: string;
 };
 
 export const ALL_GROUPS = data.groups as unknown as Group[];

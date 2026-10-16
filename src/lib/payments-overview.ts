@@ -60,12 +60,12 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
     loadFurLots(prisma, orgId, { kind: "lining", year: "all", furIdx }),
     prisma.payment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, createdAt: true, purchaseId: true, auctionSession: true, confirmedAt: true, kind: true, docRef: true, notes: true, method: true, percent: true, documentId: true, supplier: { select: { name: true } }, _count: { select: { driveDocuments: true } }, purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true, invoiceNumber: true } } },
+      select: { id: true, amount: true, paidAt: true, createdAt: true, purchaseId: true, auctionSession: true, confirmedAt: true, kind: true, docRef: true, notes: true, method: true, percent: true, documentId: true, supplier: { select: { name: true } }, _count: { select: { driveDocuments: { where: { storagePath: { not: null } } } } }, purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true, invoiceNumber: true } } },
       orderBy: { paidAt: "desc" },
     }),
     prisma.productionPayment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, createdAt: true, paymentType: true, method: true, docRef: true, notes: true, confirmedAt: true, client: { select: { name: true } }, contractor: { select: { name: true } }, _count: { select: { driveDocuments: true } }, allocations: { select: { amount: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true, contractor: { select: { name: true } } } } } }, orders: { select: { productionOrderId: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true, contractor: { select: { name: true } } } } } } },
+      select: { id: true, amount: true, paidAt: true, createdAt: true, paymentType: true, method: true, docRef: true, notes: true, confirmedAt: true, client: { select: { name: true } }, contractor: { select: { name: true } }, _count: { select: { driveDocuments: { where: { storagePath: { not: null } } } } }, allocations: { select: { amount: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true, contractor: { select: { name: true } } } } } }, orders: { select: { productionOrderId: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true, contractor: { select: { name: true } } } } } } },
       orderBy: { paidAt: "desc" },
     }),
     // Закупки партий: оплата партии делится между ними пропорционально сумме (так же, как «Оплачено» в списке закупок).
@@ -123,7 +123,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       ["Основание", p.docRef?.trim() ?? ""],
       ["Заметка", cleanNote(p.notes) ?? ""],
       ["Подтверждение", p.confirmedAt ? `подтверждена ${ruDate(p.confirmedAt)}` : "ждёт платёжку / проверки"],
-      ["Документы", String((p.documentId ? 1 : 0) + p._count.driveDocuments)],
+      ["Прикреплено документов", String((p.documentId ? 1 : 0) + p._count.driveDocuments)],
       ["Распределено", unlinked ? "не распределён: 0,00 ₽ из " + money(amount) : `${money(amount)} из ${money(amount)}`],
       ["Остаток по платежу", unlinked ? money(amount) : "—"],
       ["Внесена", ruDate(p.createdAt)],
@@ -201,7 +201,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       ["Основание", p.docRef?.trim() ?? ""],
       ["Заметка", cleanNote(p.notes) ?? ""],
       ["Подтверждение", p.confirmedAt ? `подтверждена ${ruDate(p.confirmedAt)}` : "ждёт платёжку / проверки"],
-      ["Документы", String(p._count.driveDocuments)],
+      ["Прикреплено документов", String(p._count.driveDocuments)],
       ["Распределено", `${money(alloc)} из ${money(amount)}`],
       ["Остаток по платежу", Math.abs(rest) > 0.5 ? money(rest) : "—"],
       ["Внесена", ruDate(p.createdAt)],

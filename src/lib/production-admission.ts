@@ -71,7 +71,7 @@ export async function getProductionAdmission() {
     productionOrders: 0,
     productionPayments: 0,
     driveDocuments: 0,
-    driveDocumentsWithUrl: 0,
+    driveDocumentsWithFile: 0,
   };
 
   try {
@@ -93,7 +93,7 @@ export async function getProductionAdmission() {
       productionOrders,
       productionPayments,
       driveDocuments,
-      driveDocumentsWithUrl,
+      driveDocumentsWithFile,
     ] = await Promise.all([
       prisma.organization.count(),
       prisma.user.count(),
@@ -104,7 +104,7 @@ export async function getProductionAdmission() {
       prisma.productionOrder.count(),
       prisma.productionPayment.count(),
       prisma.driveDocument.count(),
-      prisma.driveDocument.count({ where: { viewUrl: { not: null } } }),
+      prisma.driveDocument.count({ where: { storagePath: { not: null } } }),
     ]);
 
     counts = {
@@ -117,7 +117,7 @@ export async function getProductionAdmission() {
       productionOrders,
       productionPayments,
       driveDocuments,
-      driveDocumentsWithUrl,
+      driveDocumentsWithFile,
     };
 
     try {
@@ -148,19 +148,18 @@ export async function getProductionAdmission() {
     counts.lots > 0 &&
     counts.productionOrders > 0;
 
-  const driveUrlCoverage =
-    counts.driveDocuments > 0 ? counts.driveDocumentsWithUrl / counts.driveDocuments : 0;
-  const driveAuthorityReady = counts.driveDocuments > 0 && driveUrlCoverage >= 0.95;
+  // Документы без прикреплённого файла — не блокер выпуска: это список «что прикрепить позже».
+  const attachedShare =
+    counts.driveDocuments > 0 ? counts.driveDocumentsWithFile / counts.driveDocuments : 0;
 
   const reconciliationReady = REC.groups.length > 0 && reconciliationFresh;
-  const productionReady = databaseReady && coreDataReady && driveAuthorityReady && reconciliationReady;
+  const productionReady = databaseReady && coreDataReady && reconciliationReady;
 
   const blockers: string[] = [];
   if (dbError) blockers.push("DATABASE_UNREACHABLE");
   if (missingTables.length) blockers.push("DATABASE_SCHEMA_INCOMPLETE");
   if (failedMigrations.length) blockers.push("DATABASE_MIGRATION_FAILED");
   if (!coreDataReady) blockers.push("PRODUCTION_DATA_NOT_LOADED");
-  if (!driveAuthorityReady) blockers.push("DRIVE_DOCUMENT_AUTHORITY_INCOMPLETE");
   if (!reconciliationReady) blockers.push("RECONCILIATION_DATASET_STALE_OR_EMPTY");
 
   return {
@@ -176,14 +175,10 @@ export async function getProductionAdmission() {
       failed_migrations: failedMigrations,
       counts,
     },
-    drive_document_authority: {
-      ready: driveAuthorityReady,
-      mode: "drive-linked-metadata",
-      documents: counts.driveDocuments,
-      documents_with_url: counts.driveDocumentsWithUrl,
-      url_coverage_pct: Math.round(driveUrlCoverage * 10_000) / 100,
-      online_sync: false,
-      note: "DriveDocument хранит проверенные fileId/path/url. Автоматическая онлайн-синхронизация Google Drive требует отдельной service-account/OAuth authority.",
+    documents: {
+      total: counts.driveDocuments,
+      attached: counts.driveDocumentsWithFile,
+      attached_pct: Math.round(attachedShare * 10_000) / 100,
     },
     reconciliation: {
       ready: reconciliationReady,

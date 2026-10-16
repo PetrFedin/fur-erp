@@ -48,7 +48,7 @@ import { defineFilters, filterHref, parseFilters, pick, stateParam } from "@/lib
 import { LazyDetails } from "../lots/lazy-details";
 import { loadDocGroup } from "./group-actions";
 import { loadCovVer, type VerMap } from "./ver-status";
-import { GroupCards, GroupTableRows, MatrixRow, MobileCard, OrigCell, RegGroupCell, sectionLayout, sortGroupRows } from "./matrix-rows";
+import { GroupCards, GroupTableRows, MatrixRow, MobileCard, RegGroupCell, sectionLayout, sortGroupRows } from "./matrix-rows";
 
 export const metadata = { title: "Документы" };
 
@@ -58,7 +58,7 @@ type SP = Record<string, string | string[] | undefined>;
 const DOC_FILTERS = defineFilters({
   ...pick(["q", "auction", "sort"], { auction: { label: "Аукцион / закупка", aliases: [] }, sort: { role: "filter", label: "Сортировка", allowed: ["gaps"] } }),
   section: { kind: "multi", label: "Раздел", allowed: SECTION_ORDER },
-  gaps: { kind: "multi", label: "Нужен файл", allowed: ["1"] },
+  gaps: { kind: "multi", label: "Не прикреплено", allowed: ["1"] },
   ver: { kind: "multi", label: "Подтверждение", allowed: ["yes", "no"] },
   dtype: { kind: "multi", label: "Тип документа" },
   dlink: { kind: "multi", label: "Привязан к" },
@@ -146,11 +146,11 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
             <span className="rounded-full bg-neutral-900 px-2.5 py-0.5 text-xs font-medium text-white">Год: {yf === "all" ? "все" : yf}</span>
             <InfoHint wide label="Что показывает страница и как считается процент">
               <div className="space-y-2">
-                <p>Какие документы нужны по правилам, какие уже есть и чего не хватает: по закупкам, ТЗ, партиям, оплатам и договорам. Считается по базе прямо сейчас — загрузили файл или добавили ссылку на карточке, и пробел исчезает.</p>
+                <p>Какие документы нужны по правилам, какие уже есть и чего не хватает: по закупкам, ТЗ, партиям, оплатам и договорам. Считается по базе прямо сейчас — прикрепили файл на карточке, и пробел исчезает.</p>
                 <p>
-                  <b>Процент</b> — «документы привязаны»: сколько обязательных документов уже есть из тех, что нужны по правилам (правила заданы в программе). «100 %» ставится только при нуле пробелов. <b>Оригинал</b> — лежит ли сам файл в приложении, а не только запись без файла: сейчас {withOriginal} из {docList.length} документов.
+                  <b>Процент</b> — «документы привязаны»: сколько обязательных документов уже есть из тех, что нужны по правилам (правила заданы в программе). «100 %» ставится только при нуле пробелов. Документ считается, только если к нему прикреплён файл; запись без файла — «не прикреплён»: сейчас файл прикреплён у {withOriginal} из {docList.length} записей.
                 </p>
-                <p>У записи две независимые отметки: <b>подтверждена</b> (данные проверены, файл для этого не нужен) и <b>нужен файл</b> (обязательного документа ещё нет). Фильтры «Нужен файл» и «Подтверждение» над таблицей. Нажмите на запись — откроется её карточка с документами.</p>
+                <p>У записи две независимые отметки: <b>подтверждена</b> (данные проверены, файл для этого не нужен) и <b>не прикреплено</b> (обязательного документа ещё нет). Фильтры «Не прикреплено» и «Подтверждение» над таблицей. Нажмите на запись — откроется её карточка с документами.</p>
                 <p>{RELIABILITY_NOTE}</p>
                 <p>
                   <b>Год</b> берётся из шапки (Все / 2025 / 2026): закупка — по дате закупки, ТЗ — по году партии или даты ТЗ, оплата — по дате оплаты, документ — по дате документа. Плитки сверху и таблицы пересчитываются.
@@ -177,7 +177,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
             { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "номер, название…" },
             { type: "multi", name: "section", label: "Раздел", options: SECTION_ORDER.map((k) => ({ value: k, label: SECTION_TITLES[k] })), allLabel: "Все разделы" },
             { type: "multi", name: "auction", label: "Аукцион / закупка", options: auctions.map((a) => ({ value: a, label: aucOf(a).label, title: aucOf(a).title })), allLabel: "Все партии" },
-            { type: "multi", name: "gaps", label: "Нужен файл", single: true, options: [{ value: "1", label: "Только где нужен файл" }], allLabel: "Все записи" },
+            { type: "multi", name: "gaps", label: "Не прикреплено", single: true, options: [{ value: "1", label: "Только где не прикреплено" }], allLabel: "Все записи" },
             { type: "multi", name: "ver", label: "Подтверждение", options: [{ value: "yes", label: "Подтверждена" }, { value: "no", label: "Не подтверждена" }], allLabel: "Любое" },
             { type: "multi", name: "sort", label: "Сортировка", more: true, single: true, options: [{ value: "gaps", label: "По числу пробелов" }], allLabel: "По порядку" },
           ]}
@@ -225,10 +225,10 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
           <h2 className="flex items-center gap-2 block-title">
             Все документы
             <span className="text-sm font-normal text-neutral-500">
-              {docsFiltered.length} файлов · не привязаны: <strong className={unlinked > 0 ? "text-amber-700" : ""}>{unlinked}</strong>
+              {docsFiltered.length} документов · с файлом: {docsFiltered.filter((d) => d.hasOriginal).length} · не привязаны: <strong className={unlinked > 0 ? "text-amber-700" : ""}>{unlinked}</strong>
             </span>
             <InfoHint wide label="Что в списке документов">
-              Все документы (файлы и записи без файла) вместе: {allGroups} файлов ({docList.length} привязок). Одинаковый файл, привязанный к нескольким записям, показан одной строкой «×N». Не привязаны ни к чему: {unlinked}. Год — из шапки.
+              Все документы вместе (с прикреплённым файлом и без него): {allGroups} документов ({docList.length} привязок), файл прикреплён у {withOriginal}. Одинаковый файл, привязанный к нескольким записям, показан одной строкой «×N». Не привязаны ни к чему: {unlinked}. Год — из шапки.
             </InfoHint>
           </h2>
         </div>
@@ -260,7 +260,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
                       <Th {...dth("number")} className="w-[10%] px-3 py-2 font-medium">№</Th>
                       <Th {...dth("date")} className="w-[9%] px-3 py-2 font-medium">Дата</Th>
                       <Th {...dth("links")} className="px-3 py-2 font-medium">Привязан к</Th>
-                      <Th {...dth("orig")} className="w-[9%] px-3 py-2 font-medium">Оригинал</Th>
+                      <Th {...dth("orig")} className="w-[12%] px-3 py-2 font-medium">Файл</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100">
@@ -282,7 +282,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
                         <td className="px-3 py-2">
                           <GroupLinks d={d} />
                         </td>
-                        <td className="px-3 py-2">{d.hasOriginal ? <span className="text-emerald-700">✓ в приложении</span> : <span className="text-neutral-500">файл не загружен</span>}</td>
+                        <td className="px-3 py-2">{d.hasOriginal ? <span className="text-emerald-700">✓ прикреплён</span> : <span className="text-neutral-500">не прикреплён</span>}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -295,7 +295,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
                 key={d.key}
                 title={<>{d.openHref ? <a href={d.openHref} target="_blank" rel="noreferrer" className="inline-block py-1.5 hover:underline">{d.title}</a> : d.title}{d.count > 1 ? <span className="ml-1.5 whitespace-nowrap text-xs font-medium text-neutral-500">×{d.count}</span> : null}</>}
                 subtitle={DRIVE_DOC_TYPE_LABELS[d.docType]}
-                badge={d.hasOriginal ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">файл</span> : <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">ссылка</span>}
+                badge={d.hasOriginal ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">прикреплён</span> : <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">не прикреплён</span>}
                 fields={[
                   { label: "№", value: d.number ?? "—" },
                   { label: "Дата", value: d.date ? formatDate(d.date) : (d.year ?? "—") },
@@ -377,7 +377,7 @@ function SummaryTile({ title, stat, href, strong }: { title: string; stat: Secti
         привязано {stat.have} из {stat.required}
       </div>
       <div className={cn("text-xs", stat.rowsWithGaps > 0 ? "text-red-600" : "text-emerald-700")}>
-        {stat.rowsWithGaps > 0 ? `нужен файл: ${stat.rowsWithGaps} из ${stat.rows}` : `без пробелов · ${stat.rows}`}
+        {stat.rowsWithGaps > 0 ? `не прикреплено: ${stat.rowsWithGaps} из ${stat.rows}` : `без пробелов · ${stat.rows}`}
       </div>
     </Link>
   );
@@ -431,7 +431,6 @@ function SectionMatrix({ section, rows, f, ver, verFilter }: { section: SectionK
         </span>
       ))}
       {withReg ? <span className="text-center" title="Есть ли запись в едином реестре (xlsx): лист и строка. Сверка от даты, указанной в блоке «Покрытие реестром»">Реестр</span> : null}
-      <span className="text-center">Оригинал</span>
     </div>
   );
 
@@ -452,7 +451,7 @@ function SectionMatrix({ section, rows, f, ver, verFilter }: { section: SectionK
                     <span className="block truncate text-sm font-medium" title={g.title}>{g.title}</span>
                     <span className="block text-xs text-neutral-500">
                       {g.rows.length} зап. ·{" "}
-                      <span className={gapsOf(g) > 0 ? "text-red-600" : "text-emerald-700"}>{gapsOf(g) > 0 ? `нужен файл: ${gapsOf(g)}` : "без пробелов"}</span>
+                      <span className={gapsOf(g) > 0 ? "text-red-600" : "text-emerald-700"}>{gapsOf(g) > 0 ? `не прикреплено: ${gapsOf(g)}` : "без пробелов"}</span>
                     </span>
                   </span>
                 </span>
@@ -466,7 +465,6 @@ function SectionMatrix({ section, rows, f, ver, verFilter }: { section: SectionK
                   );
                 })}
                 {withReg ? <RegGroupCell rows={g.rows} /> : null}
-                <OrigCell have={g.rows.reduce((s, r) => s + r.origHave, 0)} total={g.rows.reduce((s, r) => s + r.origTotal, 0)} />
               </summary>}
             >
               {openAll ? <GroupTableRows rows={g.rows} cols={cols.map((c) => c.key)} template={template} withReg={withReg} ver={ver} /> : null}

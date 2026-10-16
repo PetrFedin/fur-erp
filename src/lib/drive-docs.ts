@@ -1,4 +1,4 @@
-// Документы Google Drive: типы, подписи и разбор ссылок. Без обращения к БД —
+// Документы (DriveDocument): типы и подписи. Без обращения к БД —
 // можно импортировать и в клиентских компонентах.
 
 export const DRIVE_DOC_TYPES = [
@@ -36,14 +36,13 @@ export type DriveDocView = {
   docType: DriveDocTypeKey;
   docDate: string | null;
   docNumber: string | null;
-  /** Есть ли у записи внешняя ссылка (сама ссылка в интерфейс не отдаётся). */
-  hasLink?: boolean;
-  drivePath: string | null;
+  /** Запись создана заранее (документ назван, файла не было): «удалить файл» оставляет запись «не прикреплён». */
+  keepsRecord?: boolean;
   /** Подпись «к чему привязан», если документ показан не на своей странице. */
   scope?: string | null;
-  /** Может ли текущий пользователь убрать ссылку (undefined — решает canEdit списка). */
+  /** Может ли текущий пользователь убрать документ (undefined — решает canEdit списка). */
   canRemove?: boolean;
-  /** Есть ли оригинал файла в приложении (открывается через /api/drive-docs/<id>). */
+  /** Прикреплён ли файл (открывается через /api/drive-docs/<id>). */
   hasFile?: boolean;
   storedName?: string | null;
   storedMime?: string | null;
@@ -74,43 +73,4 @@ export function guessDocType(fileName: string): DriveDocTypeKey | null {
   ];
   for (const [re, t] of rules) if (re.test(n)) return t;
   return null;
-}
-
-/** Id файла Google Drive: 20+ символов [A-Za-z0-9_-]. */
-const ID_RE = /^[A-Za-z0-9_-]{20,}$/;
-/** Похоже на настоящий id: и буквы, и цифры (обычное слово или число id не считается). */
-const looksLikeId = (s: string) => ID_RE.test(s) && /[A-Za-z]/.test(s) && /\d/.test(s);
-const DRIVE_HOSTS = new Set(["drive.google.com", "docs.google.com", "drive.usercontent.google.com"]);
-
-/** Извлекает fileId и нормальную ссылку просмотра из ссылки Google Drive / Docs (или голого id). */
-export function parseDriveLink(raw: string): { fileId: string; viewUrl: string } | null {
-  const s = raw.trim();
-  if (!s) return null;
-  if (looksLikeId(s)) return { fileId: s, viewUrl: `https://drive.google.com/file/d/${s}/view` };
-  let u: URL;
-  try {
-    u = new URL(s);
-  } catch {
-    return null;
-  }
-  if (u.protocol !== "https:") return null;
-  const host = u.hostname.toLowerCase();
-  if (!DRIVE_HOSTS.has(host)) return null;
-  const m = /\/(?:d|folders)\/([A-Za-z0-9_-]{20,})/.exec(u.pathname);
-  const id = m?.[1] ?? u.searchParams.get("id");
-  if (!id || !looksLikeId(id)) return null;
-  const isFolder = /\/folders\//.test(u.pathname);
-  const viewUrl = isFolder ? `https://drive.google.com/drive/folders/${id}` : `https://drive.google.com/file/d/${id}/view`;
-  return { fileId: id, viewUrl };
-}
-
-/** Ссылку открываем только если она ведёт на Google (защита от подмены в данных). */
-export function safeViewUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  try {
-    const u = new URL(url);
-    return u.protocol === "https:" && (u.hostname === "google.com" || u.hostname.endsWith(".google.com")) ? u.toString() : null;
-  } catch {
-    return null;
-  }
 }

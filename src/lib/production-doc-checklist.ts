@@ -40,13 +40,14 @@ async function loadRaw(db: Db, organizationId: string) {
     db.driveDocument.findMany({
       where: { organizationId, OR: [{ productionBatchId: { not: null } }, { productionOrderId: { not: null } }, { productionPaymentId: { not: null } }] },
       select: {
-        id: true, driveFileId: true, docType: true, title: true, viewUrl: true, storagePath: true, docNumber: true, docDate: true,
+        id: true, driveFileId: true, docType: true, title: true, storagePath: true, docNumber: true, docDate: true,
         productionBatchId: true, productionOrderId: true, productionPaymentId: true,
       },
       orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
     }),
   ]);
-  return { batches, orders, docs };
+  // Документ «есть» только если файл физически прикреплён (запись без файла — «не прикреплён», в расчёт не идёт).
+  return { batches, orders, docs: docs.filter((d: { storagePath: string | null }) => storedFileExists(d.storagePath)) };
 }
 
 const orderTitle = (o: { workOrderNumber: string | null; number: string }) => orderLabel(o);
@@ -54,7 +55,7 @@ const orderTitle = (o: { workOrderNumber: string | null; number: string }) => or
 const toDoc = (d: DocRow): PanelDoc => ({
   id: d.id,
   title: d.title,
-  meta: `${DRIVE_DOC_TYPE_LABELS[d.docType]}${d.docNumber ? ` №${d.docNumber}` : ""}${d.docDate ? ` · ${formatDate(d.docDate)}` : ""}${storedFileExists(d.storagePath) ? " · файл в приложении" : " · файл не загружен"}`,
+  meta: `${DRIVE_DOC_TYPE_LABELS[d.docType]}${d.docNumber ? ` №${d.docNumber}` : ""}${d.docDate ? ` · ${formatDate(d.docDate)}` : ""}${storedFileExists(d.storagePath) ? " · прикреплён" : " · не прикреплён"}`,
   href: storedFileExists(d.storagePath) ? `/api/drive-docs/${d.id}` : null,
   replace: { action: "driveDoc", id: d.id },
 });
@@ -137,26 +138,20 @@ function paymentRowsOf(m: Model, orders: OrderRow[], rollbackOwner: string | nul
   return { rows, noProof, paid };
 }
 
-function mentionsFor(kinds: MentionDocKind[], docType: DriveDocTypeKey, batchNumber: number | null, driveIds: Set<string>, entity: "batch" | "order", id: string, shown: { n: number }): PanelMention[] {
+function mentionsFor(kinds: MentionDocKind[], batchNumber: number | null, shown: { n: number }): PanelMention[] {
   const m = batchNumber != null ? batchMentions(batchNumber) : null;
   if (!m) return [];
   const out: PanelMention[] = [];
   let more = 0;
   for (const d of m.docs.filter((x) => kinds.includes(x.kind))) {
-    if (d.fileId && driveIds.has(d.fileId)) continue;
     if (out.length >= MAX_MENTIONS) {
       more++;
       continue;
     }
-    out.push({
-      text: mentionDocText(d),
-            attach: d.fileId
-        ? { entity, id, fileId: d.fileId, title: d.title ?? mentionDocText(d), docType, docNumber: d.no, docDate: d.date && /^\d{4}-\d{2}-\d{2}$/.test(d.date) ? d.date : null }
-        : null,
-    });
+    out.push({ text: mentionDocText(d) });
   }
   shown.n += out.length;
-  if (more > 0) out.push({ text: `…и ещё ${more}`, attach: null });
+  if (more > 0) out.push({ text: `…и ещё ${more}` });
   return out;
 }
 
@@ -180,7 +175,6 @@ export function buildBatchPanel(m: Model, batch: Model["raw"]["batches"][number]
   const own = m.docsByBatch.get(batch.id) ?? [];
   const orderDocs = live.flatMap((o) => m.docsByOrder.get(o.id) ?? []);
   const poolRows = uniqueDocs([...own, ...orderDocs]);
-  const driveIds = new Set(poolRows.map((d) => d.driveFileId));
   const rules = batchRules();
   const shown = { n: 0 };
   const items: PanelItem[] = [];
@@ -210,7 +204,7 @@ export function buildBatchPanel(m: Model, batch: Model["raw"]["batches"][number]
   for (const d of defs) {
     const docs = poolRows.filter((x) => d.types.includes(x.docType));
     const ok = docs.length > 0;
-    const ment = !ok && d.need !== "na" ? mentionsFor(d.kinds, d.docType, batch.number, driveIds, "batch", batch.id, shown) : [];
+    const ment = !ok && d.need !== "na" ? mentionsFor(d.kinds, batch.number, shown) : [];
     items.push({
       key: d.key,
       label: d.label,
@@ -218,7 +212,7 @@ export function buildBatchPanel(m: Model, batch: Model["raw"]["batches"][number]
       ok,
       docs: docs.map(toDoc),
       mentions: ment,
-      missing: d.need === "required" && !ok ? `НЕТ — подгрузить: ${d.what}${ment.length > 0 ? " (в папке Drive такой документ назван — можно привязать)" : ""}` : null,
+      missing: d.need === "required" && !ok ? `НЕТ — подгрузить: ${d.what}${ment.length > 0 ? " (такой документ назван в данных — приложите файл)" : ""}` : null,
       note: null,
       uploads: [{ action: "driveDoc", entity: "batch", id: batch.id, docType: d.docType, label: `Загрузить ${d.what.split(" (")[0]}` }],
     });
@@ -260,7 +254,7 @@ export function buildBatchPanel(m: Model, batch: Model["raw"]["batches"][number]
     `К оплате заказчиком (работа): ${formatMoney(t.work.toString())} = цена работы × количество по ТЗ партии. Оплачено: ${formatMoney(pr.paid.toString())} — считаются суммы, разнесённые на ТЗ партии (неразнесённый аванс в партию не входит). Остаток: ${pay.remainingText}.`,
     `Себестоимость партии: ${formatMoney(t.cost.toString())}${ctx.c4Mode === "on" ? " (режим «С 4%»: надбавка 4% к сырью и подкладке уже включена)" : " (режим «Без 4%»)"}. Оплата за работу заказчику 4% не облагается, поэтому остаток к оплате от режима не зависит.`,
     "Правила документов — из «Покрытия документами»: у каждого ТЗ своё приложение, у партии — расчёт доплаты и счёт на аванс/доплату; платёжка по каждой оплате (или номер п/п в поле «документ»).",
-    mentions ? `Что названо в папке Drive: «${mentions.group}» (docs-inventory).` : "В инвентаризации Drive по этой партии записей нет.",
+    mentions ? `Что названо в данных по партии: «${mentions.group}».` : "В данных по этой партии документы не названы.",
     "Отметка оплаты создаёт запись «не подтверждена», пока не приложена платёжка; откатывается кнопкой «Откатить» здесь же.",
   ];
 
@@ -376,15 +370,13 @@ export async function loadOrderPanel(db: Db, organizationId: string, orderId: st
   if (!o) return null;
   const p = orderPieces(m, o, ctx);
   const items: PanelItem[] = [];
-  const driveIds = new Set(p.viaBatch.map((d) => d.driveFileId));
   const shown = { n: 0 };
   const bn = p.batch?.number ?? null;
-  const entity = "order" as const;
 
   const add = (key: string, label: string, types: DriveDocTypeKey[], pool: DocRow[], need: Need, what: string, docType: DriveDocTypeKey, kinds: MentionDocKind[], note: string | null) => {
     const docs = pool.filter((d) => types.includes(d.docType));
     const ok = docs.length > 0;
-    const ment = !ok && need !== "na" && key !== "TZ_APPENDIX" ? mentionsFor(kinds, docType, bn, driveIds, entity, o.id, shown) : [];
+    const ment = !ok && need !== "na" && key !== "TZ_APPENDIX" ? mentionsFor(kinds, bn, shown) : [];
     items.push({
       key,
       label,
@@ -392,7 +384,7 @@ export async function loadOrderPanel(db: Db, organizationId: string, orderId: st
       ok,
       docs: docs.map(toDoc),
       mentions: ment,
-      missing: need === "required" && !ok ? `НЕТ — подгрузить: ${what}${ment.length > 0 ? " (в папке Drive такой документ назван — можно привязать)" : ""}` : null,
+      missing: need === "required" && !ok ? `НЕТ — подгрузить: ${what}${ment.length > 0 ? " (такой документ назван в данных — приложите файл)" : ""}` : null,
       note,
       uploads: [{ action: "driveDoc", entity: "order", id: o.id, docType, label: `Загрузить ${what.split(" (")[0]}` }],
     });

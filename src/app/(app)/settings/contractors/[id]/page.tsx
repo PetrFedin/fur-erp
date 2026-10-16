@@ -46,7 +46,7 @@ export default async function ContractorPage({ params }: PageProps<"/settings/co
     prisma.supplierContract.findMany({ where: { organizationId: orgId, supplierId: id }, orderBy: [{ isActive: "desc" }, { date: "asc" }] }),
     prisma.user.findMany({ where: { organizationId: orgId, supplierId: id, role: "SUPPLIER" }, select: { id: true, name: true, email: true, isActive: true }, orderBy: { createdAt: "asc" } }),
     loadClientDebt(prisma, orgId, { year: "all", contractorId: id }),
-    prisma.driveDocument.count({ where: { organizationId: orgId, OR: [{ productionOrder: { contractorId: id } }, { productionPayment: { contractorId: id } }] } }),
+    prisma.driveDocument.count({ where: { organizationId: orgId, storagePath: { not: null }, OR: [{ productionOrder: { contractorId: id } }, { productionPayment: { contractorId: id } }] } }),
     prisma.supplierInbox.count({ where: { organizationId: orgId, supplierId: id, status: "SENT" } }),
     c.suppliesRaw ? prisma.supplierRawStage.count({ where: { organizationId: orgId, supplierId: id } }) : Promise.resolve(0),
   ]);
@@ -115,7 +115,7 @@ export default async function ContractorPage({ params }: PageProps<"/settings/co
       <section className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3" aria-label="Документы и этапы">
         <h2 className="text-base font-semibold">Документы и этапы</h2>
         <p className="text-sm text-neutral-700">
-          Документов к ТЗ и оплатам подрядчика: <b>{docCount}</b> (<Link href="/documents" className="text-blue-700 hover:underline">все документы</Link>). Присланное им на проверку: <b>{inboxNew}</b> (<Link href="/inbox" className="text-blue-700 hover:underline">Входящие</Link>).
+          Прикреплённых документов к ТЗ и оплатам подрядчика: <b>{docCount}</b> (<Link href="/documents" className="text-blue-700 hover:underline">все документы</Link>). Присланное им на проверку: <b>{inboxNew}</b> (<Link href="/inbox" className="text-blue-700 hover:underline">Входящие</Link>).
           {c.suppliesRaw && <> Этапов сырья: <b>{stages}</b>.</>}
         </p>
       </section>

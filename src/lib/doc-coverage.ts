@@ -19,9 +19,9 @@ import { articleLabel } from "@/lib/article-label";
  * purchaseRules, tzRules, batchRules, paymentRules, contractRules. Хотите изменить требования — правьте только их. Вторая половина файла
  * — механика: загрузка из БД, дедупликация, подсчёт, фильтры.
  *
- * Источники документов — две таблицы сразу: DriveDocument.docType (ссылки Drive)
- * и PurchaseDocument.kind (файлы, загруженные в приложение). Один и тот же
- * документ, попавший в обе, считается один раз (по типу и названию / id файла Drive).
+ * Источники документов — две таблицы сразу: DriveDocument.docType (документы ТЗ, партий, оплат)
+ * и PurchaseDocument.kind (документы закупок). Считаются только документы с прикреплённым файлом.
+ * Один и тот же документ, попавший в обе, считается один раз (по типу и названию / внутреннему ключу файла).
  * Отменённые закупки, ТЗ и оплаты не считаются.
  */
 
@@ -255,7 +255,7 @@ export function evaluate(rules: RowRules, docs: CovDoc[], docRef: boolean, docsF
 }
 
 async function computeDocCoverageImpl(db: PrismaClient, organizationId: string): Promise<DocCoverage> {
-  const [purchases, pdocs, ddocs, payments, batches, orders, prodPayments, suppliers, clients] = await Promise.all([
+  const [purchases, pdocsAll, ddocsAll, payments, batches, orders, prodPayments, suppliers, clients] = await Promise.all([
     db.purchase.findMany({
       where: { organizationId, status: { not: "CANCELLED" } },
       select: { id: true, number: true, status: true, auctionSession: true, orderDate: true, isContractorRaw: true, supplier: { select: { name: true } } },
@@ -309,6 +309,10 @@ async function computeDocCoverageImpl(db: PrismaClient, organizationId: string):
     db.supplier.findMany({ where: { organizationId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.client.findMany({ where: { organizationId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
+
+  // Документ «есть» только если файл физически прикреплён; записи без файла («не прикреплён») в расчёт не идут.
+  const pdocs = pdocsAll.filter((d) => storedFileExists(d.storagePath));
+  const ddocs = ddocsAll.filter((d) => storedFileExists(d.storagePath));
 
   // ---- индексы документов: к какой сущности что привязано
   const dPurchase = new Map<string, CovDoc[]>();

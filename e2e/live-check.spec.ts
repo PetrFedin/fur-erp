@@ -79,7 +79,7 @@ const PAYMENTS = "/payments";
 
 const rowOf = (page: Page, t: string) => page.locator("li").filter({ has: page.locator("span.font-medium", { hasText: t }) }).first();
 const dbById = (id: string) =>
-  sql(`select id,coalesce("storagePath",''),coalesce("storedMime",''),coalesce("storedName",''),coalesce("storedSize",0),coalesce("viewUrl",'') from "DriveDocument" where id='${id}'`).split("|");
+  sql(`select id,coalesce("storagePath",''),coalesce("storedMime",''),coalesce("storedName",''),coalesce("storedSize",0) from "DriveDocument" where id='${id}'`).split("|");
 async function idOfLi(li: Locator): Promise<string> {
   const href = (await li.locator('a[href*="/api/drive-docs/"]').first().getAttribute("href")) ?? "";
   return /drive-docs\/([^?/]+)/.exec(href)?.[1] ?? "";
@@ -130,7 +130,7 @@ async function verifyStored(page: Page, id: string, file: string, mime: string, 
 
 /** Интерфейс строки: бейдж, «Открыть» (iframe/img или скачивание), «Скачать» (настоящее скачивание, байты). */
 async function verifyRowUi(page: Page, li: Locator, id: string, file: string, mime: string, label: string) {
-  await expect(li.getByText("Файл в приложении"), `${label}: бейдж`).toBeVisible({ timeout: T });
+  await expect(li.getByText("Прикреплён", { exact: true }), `${label}: бейдж`).toBeVisible({ timeout: T });
   const src = readFileSync(F(file));
   if (mime === "application/pdf" || mime.startsWith("image/")) {
     await li.getByRole("button", { name: "Открыть" }).click();
@@ -174,7 +174,7 @@ async function cycle(page: Page, name: string, url: string) {
     const before = diskFiles().length;
     await rowOf(page, titles[i]).locator("input[type=file]").first().setInputFiles(F(file));
     const li = rowOf(page, titles[i]);
-    await expect(li.getByText("Файл в приложении")).toBeVisible({ timeout: T });
+    await expect(li.getByText("Прикреплён", { exact: true })).toBeVisible({ timeout: T });
     const id = await idOfLi(li);
     ids.push(id);
     expect.soft(diskFiles().length, `${name} A ${file}: на диске +1`).toBe(before + 1);
@@ -182,8 +182,8 @@ async function cycle(page: Page, name: string, url: string) {
     await verifyRowUi(page, li, id, file, mime, `${name} A ${file}`);
   }
   // отклонения на одном из свободных документов (если ещё остался), иначе на заменяемом ниже
-  // ---- B. «+ Загрузить документ» (новый документ без ссылки) ----
-  const sum = page.locator("summary", { hasText: /\+ Загрузить документ/ }).first();
+  // ---- B. «+ Прикрепить документ» (новый документ без ссылки) ----
+  const sum = page.locator("summary", { hasText: /\+ Прикрепить документ/ }).first();
   const det = sum.locator("xpath=..");
   await sum.click();
   const form = det.locator("form");
@@ -205,7 +205,7 @@ async function cycle(page: Page, name: string, url: string) {
     else log(name, "B", file, "документ создан, но в этом списке страницы не виден (привязан к другому объекту?)");
     if (!(await det.evaluate((e: HTMLDetailsElement) => e.open))) await sum.click();
   }
-  // ---- C. отклонения через форму «+ Загрузить документ» ----
+  // ---- C. отклонения через форму «+ Прикрепить документ» ----
   const dbMid = Number(sql(`select count(*) from "DriveDocument"`));
   for (const [file, rx] of REJECT) {
     const before = diskFiles().length;
@@ -221,7 +221,7 @@ async function cycle(page: Page, name: string, url: string) {
   }
   // ---- D. после перезагрузки файлы на месте ----
   await open(page, url);
-  for (let i = 0; i < titles.length; i++) await expect(rowOf(page, titles[i]).getByText("Файл в приложении"), `${name}: после перезагрузки A ${SET[i][0]}`).toBeVisible();
+  for (let i = 0; i < titles.length; i++) await expect(rowOf(page, titles[i]).getByText("Прикреплён", { exact: true }), `${name}: после перезагрузки A ${SET[i][0]}`).toBeVisible();
   for (const id of [...ids, ...newIds]) {
     const [, sp] = dbById(id);
     expect.soft(sp !== "" && existsSync(path.join(UP, sp)), `${name}: после перезагрузки ${id} на месте`).toBeTruthy();
@@ -241,7 +241,7 @@ async function cycle(page: Page, name: string, url: string) {
     expect.soft(text, `${name} E ${file}`).toMatch(rx);
     expect.soft(diskFiles().length, `${name} E ${file}: на диск не попало`).toBe(before);
     if (useReplace) expect.soft(dbById(ids[0])[1], `${name} E ${file}: старый файл остался`).toBe(oldSp);
-    else await expect(rowOf(page, tgt).getByText("Файл в приложении")).toBeHidden();
+    else await expect(rowOf(page, tgt).getByText("Прикреплён", { exact: true })).toBeHidden();
   }
   // ---- F. замена (старый файл удалён с диска) ----
   if (ids[0]) {
@@ -258,7 +258,7 @@ async function cycle(page: Page, name: string, url: string) {
     if (await btn.count()) {
       page.once("dialog", (d) => void d.accept());
       await btn.click();
-      await expect(rowOf(page, titles[1]).getByText("Файл в приложении")).toBeHidden({ timeout: T });
+      await expect(rowOf(page, titles[1]).getByText("Прикреплён", { exact: true })).toBeHidden({ timeout: T });
       const [, sp1b, , , , v1] = dbById(id1);
       expect.soft(sp1b, `${name} G: storagePath очищен`).toBe("");
       expect.soft(v1, `${name} G: ссылка Drive осталась`).toContain("drive.google.com");
@@ -269,7 +269,7 @@ async function cycle(page: Page, name: string, url: string) {
     } else log(name, "G: кнопки «Удалить файл» нет у этого документа");
   }
   await open(page, url);
-  if (ids[0]) await expect(rowOf(page, titles[0]).getByText("Файл в приложении")).toBeVisible();
+  if (ids[0]) await expect(rowOf(page, titles[0]).getByText("Прикреплён", { exact: true })).toBeVisible();
   log(name, "готово; записей DriveDocument +", Number(sql(`select count(*) from "DriveDocument"`)) - dbBefore);
 }
 

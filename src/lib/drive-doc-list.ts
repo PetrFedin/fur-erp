@@ -81,7 +81,7 @@ export async function loadDocList(db: PrismaClient, organizationId: string): Pro
     db.driveDocument.findMany({
       where: { organizationId },
       select: {
-        id: true, title: true, docType: true, docNumber: true, docDate: true, year: true, storagePath: true, viewUrl: true, createdAt: true, sizeBytes: true, storedSize: true,
+        id: true, title: true, docType: true, docNumber: true, docDate: true, year: true, storagePath: true, createdAt: true, sizeBytes: true, storedSize: true,
         purchase: { select: { id: true, number: true } },
         lot: { select: { purchaseId: true, lotNumber: true } },
         productionOrder: { select: { id: true, number: true, workOrderNumber: true } },

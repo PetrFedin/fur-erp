@@ -111,9 +111,9 @@ function FileLine({ f, canEdit, target, onDone }: { f: SourceDocFile; canEdit: b
               disabled={pending}
               className="h-7 px-2 text-xs text-red-700"
               onClick={async () => {
-                const keepsRecord = f.src === "drive" && f.hasLink;
+                const keepsRecord = f.src === "drive" && f.keepsRecord;
                 const msg = keepsRecord
-                  ? <>Удалить загруженный файл «{f.title}»? Запись о документе останется, строка снова станет «нужно загрузить».</>
+                  ? <>Удалить загруженный файл «{f.title}»? Запись о документе останется, строка снова станет «не прикреплён».</>
                   : <>Удалить документ «{f.title}» вместе с файлом? Это нельзя отменить.</>;
                 if (!(await ask(msg, { ok: "Удалить", danger: true }))) return;
                 await run(() => (f.src === "drive" ? (keepsRecord ? removeDriveDocumentFile(f.id) : removeDriveDocument(f.id)) : deletePurchaseDocument(target.id, f.id)));
@@ -134,7 +134,7 @@ function Row({ row }: { row: SourceDocRow }) {
   const { pending, error, setError, run } = useRun();
   const loaded = row.files.length > 0;
   const mark = loaded ? "✓" : "✗";
-  const status = loaded ? "загружен" : row.linkId ? "нужен файл (документ записан, самого файла пока нет)" : row.expected ? "нужен файл" : "";
+  const status = loaded ? "прикреплён" : row.expected ? "не прикреплён" : "";
   return (
     <li className={cn("flex flex-col gap-1.5 rounded-md border px-3 py-2 text-sm", loaded || !row.expected ? "border-neutral-200 bg-white" : "border-amber-300 bg-amber-50")}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -153,10 +153,10 @@ function Row({ row }: { row: SourceDocRow }) {
       {!loaded && row.expected && row.canUpload && (
         <div className="flex flex-wrap items-center gap-2 pl-5">
           <FilePick
-            label="Загрузить документ"
+            label="Прикрепить документ"
             disabled={pending}
             onInvalid={setError}
-            title={`Загрузить файл: ${row.label}`}
+            title={`Прикрепить файл: ${row.label}`}
             onFile={(file) => {
               const fd = new FormData();
               fd.set("file", file);
@@ -168,16 +168,16 @@ function Row({ row }: { row: SourceDocRow }) {
               void run(() => uploadDriveDocument(row.target.entity, row.target.id, fd));
             }}
           />
-          {pending && <span className="text-xs text-neutral-500">Загружаем…</span>}
+          {pending && <span className="text-xs text-neutral-500">Прикрепляем…</span>}
         </div>
       )}
-      {!loaded && row.expected && !row.canUpload && <p className="pl-5 text-xs text-neutral-500">Загружают роли, которые ведут эту запись.</p>}
+      {!loaded && row.expected && !row.canUpload && <p className="pl-5 text-xs text-neutral-500">Прикрепляют роли, которые ведут эту запись.</p>}
       {error && <p role="alert" className="pl-5 text-xs text-red-600">{error}</p>}
     </li>
   );
 }
 
-/** Загрузка документа «вообще»: тип, необязательный номер — и файл. Привязка — к записи, на которой стоит блок. */
+/** Прикрепление документа «вообще»: тип, необязательный номер — и файл. Привязка — к записи, на которой стоит блок. */
 function GeneralUpload({ target }: { target: SourceTarget }) {
   const { pending, error, setError, run } = useRun();
   const [type, setType] = useState<DriveDocTypeKey>("UPD");
@@ -193,7 +193,7 @@ function GeneralUpload({ target }: { target: SourceTarget }) {
         </select>
         <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="№ (необязательно)" maxLength={100} className="ui-field h-8 w-36 rounded-md border border-neutral-300 bg-white px-2 text-xs" aria-label="Номер документа" />
         <FilePick
-          label="Загрузить документ"
+          label="Прикрепить документ"
           disabled={pending}
           onInvalid={setError}
           onFile={(file) => {
@@ -211,7 +211,7 @@ function GeneralUpload({ target }: { target: SourceTarget }) {
             });
           }}
         />
-        {pending && <span className="text-xs text-neutral-500">Загружаем…</span>}
+        {pending && <span className="text-xs text-neutral-500">Прикрепляем…</span>}
       </div>
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
     </div>
@@ -219,8 +219,8 @@ function GeneralUpload({ target }: { target: SourceTarget }) {
 }
 
 /**
- * «Документы-основания»: свёрнутая строка «Документы-основания · 2 из 3 загружено ›». Внутри — документы, названные в данных
- * (УПД №…, счёт №…, спецификация №…, платёжка…), у каждого: загружен / нужно загрузить, открыть, скачать, заменить, «Загрузить документ».
+ * «Документы-основания»: свёрнутая строка «Документы-основания · 2 из 3 прикреплено ›». Внутри — документы, названные в данных
+ * (УПД №…, счёт №…, спецификация №…, платёжка…), у каждого: загружен / нужно загрузить, открыть, скачать, заменить, «Прикрепить документ».
  * Содержимое документов не показывается. Данные готовят loadPurchaseSourceDocs / loadBatchSourceDocs / loadOrderSourceDocs /
  * loadPaymentsSourceDocs / loadPurchasesSourceDocs из src/lib/source-docs-server.ts.
  */
@@ -249,7 +249,7 @@ export function SourceDocs({
         <span aria-hidden className="text-neutral-500 transition-transform group-open:rotate-90">›</span>
         {!compact && <span className="block-title">{title}</span>}
         <span className={cn("text-xs", missing > 0 ? "font-medium text-amber-800" : "text-neutral-600")}>
-          {s.total > 0 ? `${compact ? "" : "· "}${s.loaded} из ${s.total} загружено` : nothing ? `${compact ? "" : "· "}в данных не названы` : `${compact ? "" : "· "}приложено: ${s.extra}`}
+          {s.total > 0 ? `${compact ? "" : "· "}${s.loaded} из ${s.total} прикреплено` : nothing ? `${compact ? "" : "· "}в данных не названы` : `${compact ? "" : "· "}прикреплено: ${s.extra}`}
           {s.total > 0 && s.extra > 0 ? ` · прочих: ${s.extra}` : ""}
         </span>
       </summary>
@@ -265,7 +265,7 @@ export function SourceDocs({
         )}
         {data.hiddenLinks > 0 && (
           <p className="text-xs text-neutral-500">
-            Ещё {data.hiddenLinks} — только ссылкой, без файла. Список в разделе «Документы».
+            Ещё {data.hiddenLinks} — не прикреплены. Список в разделе «Документы».
           </p>
         )}
         {data.canUpload && data.target && <GeneralUpload target={data.target} />}
@@ -276,10 +276,10 @@ export function SourceDocs({
 }
 
 /**
- * Кнопка «Загрузить документ» для чек-листов и списков «Внимание», где написано «нет документа»:
+ * Кнопка «Прикрепить документ» для чек-листов и списков «Внимание», где написано «нет документа»:
  * тот же механизм, что в блоке выше (UploadTarget готовят auction-doc-checklist / production-doc-checklist).
  */
-export function UploadTargetButton({ upload, label = "Загрузить документ", className }: { upload: UploadTarget; label?: string; className?: string }) {
+export function UploadTargetButton({ upload, label = "Прикрепить документ", className }: { upload: UploadTarget; label?: string; className?: string }) {
   const { pending, error, setError, run } = useRun();
   return (
     <span className={cn("inline-flex flex-wrap items-center gap-2", className)}>
@@ -307,7 +307,7 @@ export function UploadTargetButton({ upload, label = "Загрузить док�
           }
         }}
       />
-      {pending && <span className="text-xs text-neutral-500">Загружаем…</span>}
+      {pending && <span className="text-xs text-neutral-500">Прикрепляем…</span>}
       {error && <span role="alert" className="text-xs text-red-600">{error}</span>}
     </span>
   );

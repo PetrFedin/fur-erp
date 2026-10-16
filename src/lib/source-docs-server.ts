@@ -50,7 +50,7 @@ type DriveRow = {
   storedName: string | null;
   storedMime: string | null;
   storedSize: number | null;
-  viewUrl: string | null;
+  driveFileId: string;
 };
 
 const isoDay = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
@@ -65,7 +65,7 @@ function fromDrive(d: DriveRow): PoolDoc {
         meta: [DRIVE_DOC_TYPE_LABELS[d.docType], d.docDate ? formatDate(d.docDate) : null, sizeText(d.storedSize)].filter(Boolean).join(" · "),
         href: `/api/drive-docs/${d.id}`,
         mime: d.storedMime,
-        hasLink: !!d.viewUrl,
+        keepsRecord: !d.driveFileId.startsWith("local-"),
       }
     : null;
   return { file, recordId: d.id, src: "drive", docType: d.docType, number: d.docNumber, date: isoDay(d.docDate), title: d.title };
@@ -82,7 +82,7 @@ function fromPurchaseDoc(d: PurchaseDocRow): PoolDoc {
       meta: [DRIVE_DOC_TYPE_LABELS[docType], formatDate(d.createdAt), sizeText(d.sizeBytes)].filter(Boolean).join(" · "),
       href: `/api/purchase-docs/${d.id}`,
       mime: d.mimeType,
-      hasLink: false,
+      keepsRecord: false,
     },
     recordId: d.id,
     src: "purchase",
@@ -93,7 +93,7 @@ function fromPurchaseDoc(d: PurchaseDocRow): PoolDoc {
   };
 }
 
-const DRIVE_SELECT = { id: true, title: true, docType: true, docNumber: true, docDate: true, storagePath: true, storedName: true, storedMime: true, storedSize: true, viewUrl: true } as const;
+const DRIVE_SELECT = { id: true, title: true, docType: true, docNumber: true, docDate: true, storagePath: true, storedName: true, storedMime: true, storedSize: true, driveFileId: true } as const;
 
 type RefSrc = { ref: DocRef; origin: string; target: SourceTarget };
 

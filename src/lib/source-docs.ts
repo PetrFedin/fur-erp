@@ -1,5 +1,5 @@
 // «Документы-основания»: какие документы упомянуты в данных (номера УПД, счетов, спецификаций, платёжек…)
-// и какие из них уже загружены. Чистые функции без обращения к БД — годятся и для клиента, и для сценария проверки.
+// и какие из них уже прикреплены. Чистые функции без обращения к БД — годятся и для клиента, и для сценария проверки.
 
 import type { DriveDocTypeKey } from "@/lib/drive-docs";
 
@@ -15,8 +15,8 @@ export type SourceDocFile = {
   meta: string;
   href: string;
   mime: string | null;
-  /** Для drive: есть ли у записи ссылка на Drive (тогда «удалить файл» оставляет запись). */
-  hasLink: boolean;
+  /** Для drive: запись создана заранее (документ назван, файла не было) — «удалить файл» оставляет запись «не прикреплён». */
+  keepsRecord: boolean;
 };
 
 export type SourceDocRow = {
@@ -30,9 +30,9 @@ export type SourceDocRow = {
   origin: string;
   /** false — документ приложен, но в данных не упомянут («Прочее»). */
   expected: boolean;
-  /** Загруженные файлы (есть оригинал в приложении). */
+  /** Прикреплённые файлы. */
   files: SourceDocFile[];
-  /** Запись документа без файла (ссылка на Drive есть, оригинала нет): файл «догружается» на неё. */
+  /** Запись документа без файла («не прикреплён»): файл прикрепляется к ней. */
   linkId: string | null;
   target: SourceTarget;
   canUpload: boolean;
@@ -43,7 +43,7 @@ export type SourceDocsData = {
   /** Куда привязывается документ, загруженный «вообще» (кнопка внизу блока). */
   target: SourceTarget | null;
   canUpload: boolean;
-  /** Сколько приложенных документов без файла в приложении не показано (только ссылки). */
+  /** Сколько записей документов без файла («не прикреплён») не показано. */
   hiddenLinks: number;
 };
 
@@ -173,7 +173,7 @@ export function matchRefs(refs: DocRef[], pool: PoolDoc[]): { results: MatchResu
   return { results, unclaimed: pool.filter((d) => !claimed.has(d)) };
 }
 
-/** Сводка для строки-заголовка: «2 из 3 загружено». */
+/** Сводка для строки-заголовка: «2 из 3 прикреплено». */
 export function sourceDocsSummary(rows: Pick<SourceDocRow, "expected" | "files">[]): { total: number; loaded: number; extra: number } {
   const exp = rows.filter((r) => r.expected);
   return { total: exp.length, loaded: exp.filter((r) => r.files.length > 0).length, extra: rows.length - exp.length };

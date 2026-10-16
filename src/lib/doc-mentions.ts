@@ -3,9 +3,10 @@ import { auctionKey } from "@/lib/auction-key";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { formatDate, formatMoney } from "@/lib/utils";
+import { cleanText } from "@/lib/clean-text";
 
 /**
- * «Где упомянута оплата» и «какие документы названы в папке Drive «мех»» — из инвентаризации docs-inventory
+ * «Где упомянута оплата» и «какие документы названы в данных» — из инвентаризации docs-inventory
  * (chain-p2025.json, chain-p2026.json, chain-production.json). Только чтение; нет файла — пусто (панель всё равно работает по базе).
  * Ничего не выдумываем: берём только то, что в JSON названо документом.
  */
@@ -18,7 +19,6 @@ export type MentionDoc = {
   date: string | null;
   amountRub: number | null;
   title: string | null;
-  fileId: string | null;
 };
 
 export type MentionPay = { date: string | null; amountRub: number | null; ppNo: string | null; forInvoiceNo: string | null; source: string };
@@ -63,7 +63,7 @@ function readDocs(documents: unknown, sections: [string, MentionDocKind][]): Men
     const list = d[key];
     if (!Array.isArray(list)) continue;
     for (const x of list as Raw[]) {
-      out.push({ kind, no: str(x.no), date: str(x.date), amountRub: num(x.amountRub), title: str(x.title), fileId: str(x.fileId) });
+      out.push({ kind, no: str(x.no), date: str(x.date), amountRub: num(x.amountRub), title: str(x.title) ? cleanText(str(x.title)!) : null });
     }
   }
   return out;
@@ -76,7 +76,7 @@ function readPays(list: unknown): MentionPay[] {
     amountRub: num(x.amountRub),
     ppNo: str(x.ppNo),
     forInvoiceNo: str(x.forInvoiceNo ?? x.invoice),
-    source: str(x.source) ?? "документы Drive",
+    source: cleanText(str(x.source) ?? "документы"),
   }));
 }
 
@@ -152,4 +152,3 @@ export function mentionPayText(p: MentionPay): string {
     .join(" ");
 }
 
-export const driveFileUrl = (fileId: string) => `https://drive.google.com/file/d/${fileId}/view`;

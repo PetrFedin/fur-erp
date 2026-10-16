@@ -33,6 +33,6 @@ export function suggestSeasons(orders: RuleOrder[], seasons: SeasonRange[]): Rul
 
 /** Подсказки названий сезонов по документам (docs-inventory): ничего не создаётся само, только предлагается. */
 export const SEASON_HINTS: ReadonlyArray<{ code: string; source: string }> = [
-  { code: "FW26/27", source: "закупка СП 09.26 (документы Drive)" },
-  { code: "FW25/26", source: "встречается в сводках по документам Drive (СП 12…)" },
+  { code: "FW26/27", source: "закупка СП 09.26 (по документам)" },
+  { code: "FW25/26", source: "встречается в сводках по документам (СП 12…)" },
 ];

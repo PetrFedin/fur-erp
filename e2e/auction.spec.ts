@@ -358,7 +358,7 @@ test.describe("2a. документы: список, скачивание, от�
 });
 
 async function uploadViaAuction(page: Page, opts: { name: string; buf: Buffer; kind?: string; scope?: "purchase" | "batch"; title?: string; purchaseLabel?: string }) {
-  const box = page.locator("div", { has: page.getByText("Загрузить документ", { exact: true }) }).last();
+  const box = page.locator("div", { has: page.getByText("Прикрепить документ", { exact: true }) }).last();
   if (opts.purchaseLabel) await box.locator("select").first().selectOption({ label: opts.purchaseLabel });
   await box.locator('input[name="files"]').setInputFiles({ name: opts.name, mimeType: "application/octet-stream", buffer: opts.buf });
   if (opts.kind) await box.locator('select[name="kind"]').selectOption(opts.kind);
@@ -530,7 +530,7 @@ test.describe("2c. документы партии и пакетная загр�
     await login(page);
     await page.goto(url(SP));
     const before = sql(`select count(*) from "PurchaseDocument"`);
-    const box = page.locator("div", { has: page.getByText("Загрузить документ", { exact: true }) }).last();
+    const box = page.locator("div", { has: page.getByText("Прикрепить документ", { exact: true }) }).last();
     await box.locator('input[name="files"]').setInputFiles([
       { name: "ok1.pdf", mimeType: "application/pdf", buffer: pdf("m1") },
       { name: "bad.txt", mimeType: "text/plain", buffer: Buffer.from("hello") },
@@ -599,7 +599,7 @@ async function newUserContext(browser: import("@playwright/test").Browser, email
   await loginAs(page, email);
   return { ctx, page };
 }
-const NO_EDIT_TEXT = ["Заменить файл", "Переименовать", "Загрузить документ", "Править закупку"];
+const NO_EDIT_TEXT = ["Заменить файл", "Переименовать", "Прикрепить документ", "Править закупку"];
 
 test.describe("2d. роли и чужая организация: документы", () => {
   test("права: UI и сервер", async ({ page, browser }) => {
@@ -698,7 +698,7 @@ test.describe("2d. роли и чужая организация: докумен
       sql(`update "PurchaseDocument" set title='ТЕСТ-роль', kind='OTHER' where id='${docId}'`);
       await p.goto(url(SP));
       await expect(p.getByRole("button", { name: "Заменить файл" }).first()).toBeVisible();
-      await expect(p.getByText("Загрузить документ")).toBeVisible();
+      await expect(p.getByText("Прикрепить документ")).toBeVisible();
       const r = await replay(ctx, cap.rename);
       expect(sql(`select title from "PurchaseDocument" where id='${docId}'`), `${label} rename`).toBe("ТЕСТ-роль-ВЗЛОМ");
       console.log(label, "rename OK", r.status);
@@ -1395,7 +1395,7 @@ test.describe("4. мобильная вёрстка", () => {
     // документы
     await page.getByText("Документы аукциона (11)").scrollIntoViewIfNeeded();
     await check("docs");
-    await page.getByText("Загрузить документ", { exact: true }).scrollIntoViewIfNeeded();
+    await page.getByText("Прикрепить документ", { exact: true }).scrollIntoViewIfNeeded();
     await check("docs-upload");
     // переименование
     await page.getByRole("button", { name: "Переименовать" }).first().click();

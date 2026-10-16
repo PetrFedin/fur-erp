@@ -156,7 +156,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
     },
     orderBy: { paidAt: "asc" },
   });
-  const [pdocs, ddocs] = await Promise.all([
+  const [pdocsAll, ddocsAll] = await Promise.all([
     db.purchaseDocument.findMany({
       where: { organizationId, OR: [{ purchaseId: { in: allIds } }, ...(auctionNames.length ? [{ batch: { in: auctionNames } }] : [])] },
       select: { id: true, storagePath: true, purchaseId: true, batch: true, kind: true, title: true, originalName: true, createdAt: true, sizeBytes: true },
@@ -172,12 +172,15 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
         ],
       },
       select: {
-        id: true, driveFileId: true, docType: true, title: true, viewUrl: true, storagePath: true, storedName: true,
+        id: true, driveFileId: true, docType: true, title: true, storagePath: true, storedName: true,
         docNumber: true, docDate: true, purchaseId: true, paymentId: true, lot: { select: { purchaseId: true } },
       },
       orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
     }),
   ]);
+  // Документ «есть» только если файл физически прикреплён; записи без файла («не прикреплён») в расчёт не идут.
+  const pdocs = pdocsAll.filter((d) => storedFileExists(d.storagePath));
+  const ddocs = ddocsAll.filter((d) => storedFileExists(d.storagePath));
 
   const out: AuctionPanelData[] = [];
   for (let ui = 0; ui < units.length; ui++) {
@@ -216,7 +219,6 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
     // --- документы единицы (по типу)
     const seen = new Set<string>();
     const docsByType = new Map<DriveDocTypeKey, PanelDoc[]>();
-    const driveFileIds = new Set<string>();
     const addDoc = (type: DriveDocTypeKey, keys: string[], d: PanelDoc) => {
       if (keys.some((k) => seen.has(k))) return;
       keys.forEach((k) => seen.add(k));
@@ -238,11 +240,10 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
       const pid = d.purchaseId ?? d.lot?.purchaseId ?? null;
       const mine = pid ? unitOf.get(pid) === ui : d.paymentId ? myPayIds.has(d.paymentId) : false;
       if (!mine) continue;
-      driveFileIds.add(d.driveFileId);
       addDoc(d.docType, [`${d.docType}|t:${normTitle(d.title)}`, `${d.docType}|f:${d.driveFileId}`], {
         id: d.id,
         title: d.title,
-        meta: `${DRIVE_DOC_TYPE_LABELS[d.docType]}${d.docNumber ? ` №${d.docNumber}` : ""}${d.docDate ? ` · ${formatDate(d.docDate)}` : ""}${storedFileExists(d.storagePath) ? " · файл в приложении" : " · файл не загружен"}`,
+        meta: `${DRIVE_DOC_TYPE_LABELS[d.docType]}${d.docNumber ? ` №${d.docNumber}` : ""}${d.docDate ? ` · ${formatDate(d.docDate)}` : ""}${storedFileExists(d.storagePath) ? " · прикреплён" : " · не прикреплён"}`,
         href: storedFileExists(d.storagePath) ? `/api/drive-docs/${d.id}` : null,
         replace: { action: "driveDoc", id: d.id },
       });
@@ -289,33 +290,19 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
       const docs = docsOf(def.types);
       const ok = docs.length > 0;
       const uploads: UploadTarget[] = def.uploadKinds.map((k) => ({ action: "purchaseDoc", purchaseId: anchor.id, kind: k.kind, scope, label: `Загрузить ${k.label}` }));
-      // Что названо в папке Drive, но здесь не привязано.
+      // Что названо в данных, но здесь не прикреплено.
       const ment: PanelMention[] = [];
       let mentionedMore = 0;
       if (!ok && need !== "na" && mentions) {
         for (const m of mentions.docs.filter((x) => def.mention.includes(x.kind))) {
-          if (m.fileId && driveFileIds.has(m.fileId)) continue;
           if (ment.length >= MAX_MENTIONS) {
             mentionedMore++;
             continue;
           }
-          ment.push({
-            text: mentionDocText(m),
-            attach: m.fileId
-              ? {
-                  entity: "purchase",
-                  id: anchor.id,
-                  fileId: m.fileId,
-                  title: m.title ?? mentionDocText(m),
-                  docType: def.types[0],
-                  docNumber: m.no,
-                  docDate: m.date && /^\d{4}-\d{2}-\d{2}$/.test(m.date) ? m.date : null,
-                }
-              : null,
-          });
+          ment.push({ text: mentionDocText(m) });
         }
       }
-      if (mentionedMore > 0) ment.push({ text: `…и ещё ${mentionedMore}`, attach: null });
+      if (mentionedMore > 0) ment.push({ text: `…и ещё ${mentionedMore}` });
       items.push({
         key: def.key,
         label: def.label,
@@ -323,7 +310,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
         ok,
         docs,
         mentions: ment,
-        missing: need === "required" && !ok ? `НЕТ — подгрузить: ${def.what}${ment.length > 0 ? " (в папке Drive такой документ назван — можно привязать)" : ""}` : null,
+        missing: need === "required" && !ok ? `НЕТ — подгрузить: ${def.what}${ment.length > 0 ? " (такой документ назван в данных — приложите файл)" : ""}` : null,
         note,
         uploads,
       });
@@ -386,7 +373,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
       `К оплате: ${formatMoney(total.toString())} (итоги закупок с НДС, без отменённых). Оплачено: ${formatMoney(paid.toString())}${planned.greaterThan(0) ? `; запланировано (в «оплачено» не входит): ${formatMoney(planned.toString())}` : ""}. Остаток: ${pay.remainingText}. Та же цифра, что «Остаток к оплате» и «Долг поставщикам».`,
       "Список обязательных документов берётся из правил «Покрытия документами» (страница «Документы»); «Счёт Веллмех на оплату» и платёжка по каждой оплате — отдельные пункты.",
       "Документ засчитан, если он привязан к любой закупке аукциона, к самому аукциону или к оплате. Платёжка по оплате засчитана, если оплата подтверждена и к ней приложен файл/ссылка либо указан номер платёжки.",
-      mentions ? `Что названо в папке Drive: группа «${mentions.group}» (docs-inventory).` : "В инвентаризации Drive по этому аукциону записей нет.",
+      mentions ? `Что названо в данных по аукциону: группа «${mentions.group}».` : "В данных по этому аукциону документы не названы.",
       "4%: на закупки не начисляется, режим «С 4%» эти суммы не меняет.",
     ];
 

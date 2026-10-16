@@ -102,8 +102,8 @@ export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; l
               <EvidenceStep
                 n={1}
                 title="Первичка / ТЗ"
-                value={`${g.files.length} файлов`}
-                detail={g.folderPath ? g.folderPath : g.files.length ? g.files.slice(0, 2).map((f) => f.title).join(" · ") : "Файлы не привязаны"}
+                value={`${g.files.length} документов`}
+                detail={g.files.length ? g.files.slice(0, 2).map((f) => f.title).join(" · ") : "Документы не названы"}
                 tone={g.files.length > 0 ? "ok" : "bad"}
               />
               <EvidenceStep
@@ -164,7 +164,6 @@ export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; l
               </ul>
             </div>
           ) : null}
-          {g.folderPath ? <InfoHint label="Исходная папка документов"><span className="break-all">{g.folderPath}</span></InfoHint> : null}
           <span>
             Документы: стоимость <b className="tabular-nums">{money(g.doc.costRub)}</b>, оплачено <b className="tabular-nums">{money(g.doc.paidRub)}</b>
           </span>

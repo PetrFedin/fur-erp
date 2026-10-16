@@ -6,7 +6,7 @@ import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
 import { parseDateInput } from "@/lib/input";
-import { DRIVE_DOC_TYPES, parseDriveLink, type DriveDocTypeKey } from "@/lib/drive-docs";
+import { DRIVE_DOC_TYPES, type DriveDocTypeKey } from "@/lib/drive-docs";
 import { driveDocRemoveRoles } from "@/lib/drive-docs-server";
 import { randomUUID } from "node:crypto";
 import { revalidateAll } from "@/lib/revalidate-all";
@@ -37,66 +37,6 @@ function revalidateFor(entity: Entity, id: string, extra?: string | number | nul
   }
 }
 
-const DUP_ERROR = "Эта ссылка уже добавлена к этому объекту";
-
-/** Добавляет ссылку на файл Google Drive к закупке / ТЗ / партии. */
-export async function addDriveDocument(
-  entity: Entity,
-  entityId: string,
-  _prev: DriveDocState,
-  formData: FormData,
-): Promise<DriveDocState> {
-  const session = await requireSession();
-  if (!(entity in ROLES)) return { error: "Неизвестный объект привязки" };
-  if (!hasRole(session.user.role, ROLES[entity])) return { error: "Недостаточно прав для добавления документов" };
-  const orgId = session.user.organizationId;
-
-  const link = parseDriveLink(String(formData.get("link") ?? ""));
-  if (!link) return { error: "Не удалось разобрать ссылку: вставьте ссылку на файл или папку Google Drive (https://drive.google.com/…)" };
-  const title = String(formData.get("title") ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 200);
-  if (!title) return { error: "Укажите название документа" };
-  const typeRaw = String(formData.get("docType") ?? "OTHER");
-  const docType: DriveDocTypeKey = (DRIVE_DOC_TYPES as readonly string[]).includes(typeRaw) ? (typeRaw as DriveDocTypeKey) : "OTHER";
-  const docNumber = String(formData.get("docNumber") ?? "").trim().slice(0, 100) || null;
-  const dateRaw = String(formData.get("docDate") ?? "").trim();
-  const docDate = dateRaw ? parseDateInput(dateRaw) : null;
-  if (dateRaw && !docDate) return { error: "Некорректная дата документа" };
-
-  const base = {
-    organizationId: orgId,
-    driveFileId: link.fileId,
-    viewUrl: link.viewUrl,
-    title,
-    docType,
-    docNumber,
-    docDate,
-    year: docDate ? docDate.getUTCFullYear() : null,
-  };
-
-  // Привязка выбирается после проверки, что объект принадлежит организации.
-  let batchNumber: number | null = null;
-  if (entity === "purchase") {
-    const p = await prisma.purchase.findFirst({ where: { id: entityId, organizationId: orgId }, select: { id: true } });
-    if (!p) return { error: "Закупка не найдена" };
-    if (await prisma.driveDocument.findFirst({ where: { organizationId: orgId, driveFileId: link.fileId, purchaseId: p.id }, select: { id: true } })) return { error: DUP_ERROR };
-    await prisma.driveDocument.create({ data: { ...base, purchaseId: p.id } });
-  } else if (entity === "order") {
-    const o = await prisma.productionOrder.findFirst({ where: { id: entityId, organizationId: orgId }, select: { id: true } });
-    if (!o) return { error: "ТЗ не найдено" };
-    if (await prisma.driveDocument.findFirst({ where: { organizationId: orgId, driveFileId: link.fileId, productionOrderId: o.id }, select: { id: true } })) return { error: DUP_ERROR };
-    await prisma.driveDocument.create({ data: { ...base, productionOrderId: o.id } });
-  } else {
-    const b = await prisma.productionBatch.findFirst({ where: { id: entityId, organizationId: orgId }, select: { id: true, number: true } });
-    if (!b) return { error: "Партия не найдена" };
-    batchNumber = b.number;
-    if (await prisma.driveDocument.findFirst({ where: { organizationId: orgId, driveFileId: link.fileId, productionBatchId: b.id }, select: { id: true } })) return { error: DUP_ERROR };
-    await prisma.driveDocument.create({ data: { ...base, productionBatchId: b.id } });
-  }
-  await resetByDriveDoc({ purchaseId: entity === "purchase" ? entityId : null, productionOrderId: entity === "order" ? entityId : null, productionBatchId: entity === "batch" ? entityId : null });
-  revalidateFor(entity, entityId, batchNumber);
-  return { ok: true };
-}
-
 /** Общий ли файл документа с другими записями (по storagePath): тогда «Убрать» не удалит сам файл. */
 export async function isDriveFileShared(documentId: string): Promise<boolean> {
   const session = await requireSession();
@@ -112,7 +52,7 @@ export async function isDriveFileShared(documentId: string): Promise<boolean> {
   return a + b > 0;
 }
 
-/** Удаляет только ссылку (файл в Google Drive не затрагивается). */
+/** Удаляет запись документа (и прикреплённый файл, если на него больше никто не ссылается). */
 export async function removeDriveDocument(documentId: string): Promise<DriveDocState> {
   const session = await requireSession();
   const orgId = session.user.organizationId;
@@ -201,8 +141,8 @@ const DOC_INCLUDE = {
 } as const;
 
 /**
- * «Загрузить документ» без ссылки: файл + название + тип. Создаёт DriveDocument с оригиналом в приложении
- * (driveFileId — служебный local-…, ссылки на Drive нет). entity: закупка / ТЗ / партия / оплата поставщику / оплата производства.
+ * «Прикрепить документ»: файл + название + тип. Создаёт DriveDocument с файлом в приложении
+ * (driveFileId — внутренний ключ local-…). entity: закупка / ТЗ / партия / оплата поставщику / оплата производства.
  */
 export async function uploadDriveDocument(
   entity: UploadEntity,
@@ -291,7 +231,7 @@ export async function uploadDriveDocument(
   return { ok: true };
 }
 
-/** Загружает / заменяет оригинал у уже существующего документа (ссылка на Drive остаётся). */
+/** Прикрепляет / заменяет файл у уже существующего документа (запись остаётся). */
 export async function uploadDriveDocumentFile(documentId: string, formData: FormData): Promise<DriveDocState> {
   const session = await requireSession();
   const orgId = session.user.organizationId;
@@ -319,7 +259,7 @@ export async function uploadDriveDocumentFile(documentId: string, formData: Form
   return { ok: true };
 }
 
-/** Удаляет только файл из приложения; запись и ссылка на Drive остаются. */
+/** Удаляет только файл; запись остаётся со статусом «не прикреплён». */
 export async function removeDriveDocumentFile(documentId: string): Promise<DriveDocState> {
   const session = await requireSession();
   const orgId = session.user.organizationId;
@@ -327,8 +267,8 @@ export async function removeDriveDocumentFile(documentId: string): Promise<Drive
   if (!doc) return { error: "Документ не найден" };
   if (!hasRole(session.user.role, driveDocRemoveRoles(doc))) return { error: "Недостаточно прав для удаления файла" };
   if (!doc.storagePath) return { ok: true };
-  // У документа без ссылки на Drive файл — единственное содержимое: убрать его можно только вместе с записью.
-  if (!doc.viewUrl) return { error: "Это единственное содержимое документа — удалите документ целиком («Убрать») либо замените файл" };
+  // У документа, созданного загрузкой, файл — единственное содержимое: убрать его можно только вместе с записью.
+  if (doc.driveFileId.startsWith("local-")) return { error: "Это единственное содержимое документа — удалите документ целиком («Убрать») либо замените файл" };
   await prisma.driveDocument.update({
     where: { id: doc.id },
     data: { storagePath: null, storedName: null, storedMime: null, storedSize: null, storedAt: null },
@@ -342,7 +282,7 @@ export async function removeDriveDocumentFile(documentId: string): Promise<Drive
 
 /**
  * Метаданные документа: название, тип, номер, дата, примечание (год берётся из даты).
- * Ссылку на Drive и файл здесь не меняем (файл — «Заменить файл»). Подтверждение того, к чему привязан документ, сбрасывается:
+ * Файл здесь не меняем (файл — «Заменить файл»). Подтверждение того, к чему привязан документ, сбрасывается:
  * тип/номер/дата документа входят в правила «все документы на месте».
  */
 export async function updateDriveDocument(documentId: string, formData: FormData): Promise<DriveDocState> {

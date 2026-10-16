@@ -7,22 +7,14 @@ import type { VerMap } from "./ver-status";
 
 // Строки матрицы покрытия: общий код страницы и серверного действия «раскрыть группу» (loadDocGroup).
 
-export function OrigCell({ have, total }: { have: number; total: number }) {
-  return (
-    <span className={cn("text-center text-xs tabular-nums", total === 0 ? "text-neutral-300" : have === total ? "text-emerald-700" : have === 0 ? "text-neutral-500" : "text-amber-700")} title="Сколько документов записи лежит в приложении файлом (остальные — файл ещё не загружен)">
-      {total === 0 ? "—" : `${have} из ${total}`}
-    </span>
-  );
-}
-
-/** Две отметки записи: «подтверждена» (не требует файла) и «нужен файл» (есть пробелы по документам). Без подтверждения в матрице — ничего. */
+/** Две отметки записи: «подтверждена» (не требует файла) и «не прикреплено» (обязательного документа ещё нет). Без подтверждения в матрице — ничего. */
 export function RowState({ r, ver }: { r: CovRow; ver?: VerMap }) {
   const v = ver?.get(r.id);
   if (v !== true && r.gaps.length === 0) return null;
   return (
     <span className="mt-0.5 flex flex-wrap gap-1 text-[11px]">
       {v === true && <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-800" title="Подтверждена: сумма и данные проверены. Файл для этого не обязателен.">подтверждена</span>}
-      {r.gaps.length > 0 && <span className="rounded-full bg-red-50 px-1.5 py-0.5 font-medium text-red-700" title={r.gaps.map((g) => g.label).join(", ")}>нужен файл: {r.gaps.length}</span>}
+      {r.gaps.length > 0 && <span className="rounded-full bg-red-50 px-1.5 py-0.5 font-medium text-red-700" title={r.gaps.map((g) => g.label).join(", ")}>не прикреплено: {r.gaps.length}</span>}
     </span>
   );
 }
@@ -44,7 +36,6 @@ export function MatrixRow({ r, cols, template, withReg, ver }: { r: CovRow; cols
         <CellView key={c} cell={r.cells[c]} />
       ))}
       {withReg ? <RegView reg={r.registry} /> : null}
-      <OrigCell have={r.origHave} total={r.origTotal} />
     </Link>
   );
 }
@@ -78,8 +69,7 @@ export function MobileCard({ r, ver }: { r: CovRow; ver?: VerMap }) {
       }
       fields={[
         ...(ver?.has(r.id) ? [{ label: "Подтверждение", value: ver.get(r.id) ? <span className="text-emerald-700">подтверждена</span> : <span>не подтверждена</span> }] : []),
-        { label: "Нужен файл", value: r.gaps.length > 0 ? <span className="font-medium text-red-700">{r.gaps.map((g) => g.label).join(", ")}</span> : <span className="text-emerald-700">всё есть</span> },
-        { label: "Оригинал", value: r.origTotal === 0 ? "—" : `${r.origHave} из ${r.origTotal}` },
+        { label: "Не прикреплено", value: r.gaps.length > 0 ? <span className="font-medium text-red-700">{r.gaps.map((g) => g.label).join(", ")}</span> : <span className="text-emerald-700">всё есть</span> },
         ...(r.registry.state !== "none" ? [{ label: "Реестр", value: <RegView reg={r.registry} inline /> }] : []),
       ]}
       details={[{ label: "Есть", value: have.length > 0 ? have.join(", ") : null }, ...(r.extras.length > 0 ? [{ label: "Оплаты", value: r.extras.map((e) => e.text).join("; ") }] : [])]}
@@ -128,7 +118,7 @@ export function sortGroupRows(section: SectionKey, rows: CovRow[], f: CovFilters
 export function sectionLayout(rows: CovRow[]) {
   const cols = COLUMNS.filter((c) => rows.some((r) => r.cells[c.key].need !== "na"));
   const withReg = rows.some((r) => r.registry.state !== "none");
-  const template = `minmax(0,1fr) repeat(${cols.length}, 4.75rem)${withReg ? " 9.5rem" : ""} 5.5rem`;
+  const template = `minmax(0,1fr) repeat(${cols.length}, 4.75rem)${withReg ? " 9.5rem" : ""}`;
   return { cols, withReg, template };
 }
 

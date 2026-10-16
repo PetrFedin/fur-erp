@@ -13,7 +13,7 @@ const MIME_EXT: Record<string, string> = {
 };
 
 /**
- * Выдача документа Drive по id. Есть файл в приложении — отдаём его (PDF и картинки открываются
+ * Выдача документа по id. Есть файл в приложении — отдаём его (PDF и картинки открываются
  * во вкладке, xlsx/docx скачиваются; ?download=1 — всегда скачивание). Файла нет — 404 (внешних ссылок приложение не отдаёт).
  * Путь берётся только из БД, доступ — только своей организации.
  */
@@ -39,7 +39,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/drive-docs/[
   }
   const buf = await readStoredFile(doc.storagePath);
   if (!buf || buf.length === 0) {
-    return fileNotLoaded("Файл не загружен: на диске его нет");
+    return fileNotLoaded();
   }
   const ext = MIME_EXT[doc.storedMime];
   const fileName = fixFileNameExt((doc.storedName || doc.title || "документ").replace(/["\u0000-\u001f]/g, "'"), ext);

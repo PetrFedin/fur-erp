@@ -1,3 +1,4 @@
+import { storedFileExists } from "@/lib/stored-file-check";
 import "server-only";
 import { memoRequest, objId } from "@/lib/req-memo";
 import type { Prisma, PrismaClient } from "@prisma/client";
@@ -16,7 +17,7 @@ import {
  * Задачи центра «Контроль → Задачи» по документам и решениям. Открыта или закрыта — вычисляется из данных на каждый запрос:
  *  - задача по конкретной оплате закрыта, когда оплата подтверждена (confirmed + confirmedAt) или к ней приложена платёжка;
  *  - задача по закупкам закрыта, когда на этих закупках (или их оплатах) появился документ нужного типа, добавленный
- *    после поиска в Drive (SEARCH_SINCE) — загруженный файл или ссылка на Drive.
+ *    после поиска документов (SEARCH_SINCE) — прикреплённый файл.
  * Ручного «закрыть» нет. Решения владельца хранятся в SystemState (ключ `owner-decision:<id>`), правка уходит в журнал изменений.
  * Долг поставщику не пересчитывается: сумма акта сверки берётся из loadSupplierDebt.
  */
@@ -102,8 +103,8 @@ async function loadTaskBlocksImpl(db: Db, organizationId: string, now = new Date
       select: { id: true, amount: true, paidAt: true, confirmed: true, confirmedAt: true, purchaseId: true, auctionSession: true, documentId: true },
     }),
     db.driveDocument.findMany({
-      where: { organizationId, createdAt: { gte: SEARCH_SINCE } },
-      select: { id: true, driveFileId: true, title: true, docNumber: true, docType: true, purchaseId: true, paymentId: true, lot: { select: { purchaseId: true } } },
+      where: { organizationId, storagePath: { not: null }, OR: [{ createdAt: { gte: SEARCH_SINCE } }, { storedAt: { gte: SEARCH_SINCE } }] },
+      select: { id: true, driveFileId: true, storagePath: true, title: true, docNumber: true, docType: true, purchaseId: true, paymentId: true, lot: { select: { purchaseId: true } } },
     }),
     db.purchaseDocument.findMany({
       where: { organizationId, createdAt: { gte: SEARCH_SINCE } },
@@ -115,8 +116,8 @@ async function loadTaskBlocksImpl(db: Db, organizationId: string, now = new Date
 
   const byNumber = new Map(purchases.map((p) => [p.number, p]));
 
-  // ---- документы (после SEARCH_SINCE) единым списком: ссылки Drive и файлы закупок
-  const docs: DocRow[] = driveDocs.map((d) => ({
+  // ---- документы (после SEARCH_SINCE) единым списком: документы с прикреплённым файлом и файлы закупок
+  const docs: DocRow[] = driveDocs.filter((d) => storedFileExists(d.storagePath)).map((d) => ({
     id: d.id, key: `d:${d.driveFileId}`, title: d.title, number: d.docNumber, type: d.docType,
     purchaseId: d.purchaseId ?? d.lot?.purchaseId ?? null, paymentId: d.paymentId,
   }));

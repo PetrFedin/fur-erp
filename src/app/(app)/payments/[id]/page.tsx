@@ -147,7 +147,7 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
   const allocated = r.amount - r.unallocated;
   const linked = ov.links.length > 0;
   const checks: { ok: boolean; label: string; detail: string }[] = [
-    { ok: r.fileOk, label: "Файл загружен", detail: r.fileOk ? files.filter((f) => f.ok).map((f) => f.name).join(", ") : files.length > 0 ? "запись о файле есть, но самого файла в приложении нет" : "платёжка или п/п не приложены" },
+    { ok: r.fileOk, label: "Платёжка прикреплена", detail: r.fileOk ? files.filter((f) => f.ok).map((f) => f.name).join(", ") : files.length > 0 ? "запись о документе есть, но файл не прикреплён" : "платёжка или п/п не приложены" },
     { ok: !!registryFact, label: "Сумма и дата сошлись", detail: registryFact ?? "сверка с документами эту оплату по сумме и дате не подтверждает" },
     { ok: linked, label: "Привязка", detail: linked ? ov.links.map((l) => l.label).join(", ") : parsed.kind === "raw" ? "не привязана к закупке или аукциону" : "не привязана к ТЗ" },
     { ok: r.unallocated <= 0.5, label: "Разнесена на 100 %", detail: r.unallocated <= 0.5 ? `разнесено ${money(allocated)} из ${money(r.amount)}` : `не разнесено ${money(r.unallocated)} из ${money(r.amount)}` },

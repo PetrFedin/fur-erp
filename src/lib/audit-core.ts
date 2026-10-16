@@ -54,8 +54,11 @@ export const AUDITED_MODELS: Record<string, Op[]> = {
   SupplierCalcTemplate: ALL,
 };
 
-/** Поля, которые не пишем никогда: технические и секреты. */
-export const IGNORED_FIELDS = new Set(["updatedAt", "passwordHash"]);
+/**
+ * Поля, которые не пишем никогда: технические и секреты. driveFileId / drivePath / viewUrl — служебный ключ файла
+ * и внешние пути/ссылки прежних импортов (с 16.10.2026 не показываются и не хранятся в журнале).
+ */
+export const IGNORED_FIELDS = new Set(["updatedAt", "passwordHash", "driveFileId", "drivePath", "viewUrl"]);
 
 /** Дочерние строки, которые уходят каскадом при удалении, — кладём в снимок удалённого, чтобы можно было восстановить вручную. */
 export const DELETE_CHILDREN: Record<string, Record<string, true>> = {
@@ -209,7 +212,7 @@ export const MODEL_TITLES: Record<string, string> = {
   Client: "Заказчик",
   User: "Пользователь",
   CustomField: "Свой столбец",
-  DriveDocument: "Документ Drive",
+  DriveDocument: "Документ",
   PurchaseDocument: "Документ закупки",
   Shipment: "Отгрузка",
   ShipmentLine: "Строка отгрузки",

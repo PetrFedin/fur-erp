@@ -22,7 +22,7 @@ export const TASK_LABELS: Record<TaskCategoryId, { label: string; action: string
 export function classifyBlocker(text: string): TaskCategoryId {
   const t = text.toLowerCase();
   if (/платёжк|п\/п|дата оплаты взята/.test(t)) return "receipt";
-  if (/нет документа|приложение к тз не загружено|нет панели документов/.test(t)) return "doc";
+  if (/нет документа|приложение к тз не прикреплено|нет панели документов/.test(t)) return "doc";
   if (/≠|не сошлось|не совпал|реестр/.test(t)) return "sum";
   if (/цена работы|сумма не задана/.test(t)) return "price";
   if (/дат[аы] тз|шаблон/.test(t)) return "date";

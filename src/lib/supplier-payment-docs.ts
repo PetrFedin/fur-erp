@@ -11,7 +11,7 @@ export async function paymentDocFlagsFor(orgId: string, supplierId: string, purc
   if (purchases.length === 0) return new Map();
   const pays = await prisma.payment.findMany({
     where: { organizationId: orgId, supplierId, status: { not: "CANCELLED" } },
-    select: { purchaseId: true, invoiceNo: true, documentId: true, driveDocuments: { where: { docType: { not: "PAYMENT_INVOICE" }, OR: [{ storagePath: { not: null } }, { viewUrl: { not: null } }] }, select: { id: true }, take: 1 } },
+    select: { purchaseId: true, invoiceNo: true, documentId: true, driveDocuments: { where: { docType: { not: "PAYMENT_INVOICE" }, storagePath: { not: null } }, select: { id: true }, take: 1 } },
   });
   const rows: PayRow[] = pays.map((x) => ({ purchaseId: x.purchaseId, invoiceNo: x.invoiceNo, hasDoc: Boolean(x.documentId) || x.driveDocuments.length > 0 }));
   return paymentDocFlags(purchases, rows);

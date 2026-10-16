@@ -133,8 +133,8 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
         <span>Ждут документа или проверки: <b className="tabular-nums">{waiting}</b></span>
         <InfoHint wide label="Статусы оплат">
           <p><b>Подтверждена</b> — есть документ-основание, оплата привязана, сумма и дата заданы; подтверждение поставлено.</p>
-          <p className="mt-1"><b>Ждёт документа</b> — файл платёжки не загружен. <b>Не подтверждено</b> — файл есть, подтверждения ещё нет. <b>Расходится</b> — п/п названа в документах сверки, но сумма или дата в базе с ними не совпали.</p>
-          <p className="mt-1">«✓ загружен» — файл есть в приложении, «○ загрузить» — файла нет.</p>
+          <p className="mt-1"><b>Ждёт документа</b> — платёжка не прикреплена. <b>Не подтверждено</b> — платёжка прикреплена, подтверждения ещё нет. <b>Расходится</b> — п/п названа в документах сверки, но сумма или дата в базе с ними не совпали.</p>
+          <p className="mt-1">«✓ прикреплён» — файл прикреплён, «○ прикрепить» — не прикреплён.</p>
         </InfoHint>
         <Link href="/payments?tab=all" className="ml-auto text-blue-700 hover:underline">Разбор оплат по статьям →</Link>
       </div>
@@ -202,7 +202,7 @@ function Card({ r, invHref }: { r: RegistryRow; invHref?: string }) {
       badge={<span className={"text-xs " + STATUS_TONE[r.status]}>{STATUS_MARK[r.status]} {PAY_STATUS_LABEL[r.status]}</span>}
       fields={[
         { label: "Тип", value: r.what },
-        { label: "Документ", value: r.fileOk ? <span className="text-emerald-700">✓ загружен</span> : <Link href={href + "#docs"} className="text-amber-700">○ загрузить</Link> },
+        { label: "Документ", value: r.fileOk ? <span className="text-emerald-700">✓ прикреплён</span> : <Link href={href + "#docs"} className="text-amber-700">○ прикрепить</Link> },
       ]}
       details={[
         { label: "Счёт", value: invHref && r.invoice ? <Link href={invHref} className="text-blue-700">{r.invoice}</Link> : r.invoice },
@@ -235,7 +235,7 @@ function Row({ r, invHref }: { r: RegistryRow; invHref?: string }) {
       </td>
       <td className={CELL + " whitespace-nowrap text-right tabular-nums"}>{money(r.amount)}</td>
       <td className={CELL + " whitespace-nowrap"}>
-        {r.fileOk ? <span className="text-emerald-700">✓ загружен</span> : <Link href={href + "#docs"} className="text-amber-700 hover:underline">○ загрузить</Link>}
+        {r.fileOk ? <span className="text-emerald-700">✓ прикреплён</span> : <Link href={href + "#docs"} className="text-amber-700 hover:underline">○ прикрепить</Link>}
       </td>
       <td className={CELL + " whitespace-nowrap " + STATUS_TONE[r.status]}>{STATUS_MARK[r.status]} {PAY_STATUS_LABEL[r.status]}</td>
     </tr>

@@ -25,7 +25,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/purchase-doc
   });
   if (!doc) return new Response("Not found", { status: 404 });
   const buf = await readStoredFile(doc.storagePath);
-  if (!buf || buf.length === 0) return fileNotLoaded("Файл не загружен: на диске его нет");
+  if (!buf || buf.length === 0) return fileNotLoaded();
   // RFC 5987: кодируем и «'», «(», «)», «*»; для старых клиентов — ASCII-запасной filename без кавычек.
   // Расширение — по реальному типу файла (у старых документов имя могло быть с подменённым расширением).
   const ext = MIME_EXT[doc.mimeType];

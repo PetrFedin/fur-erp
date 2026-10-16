@@ -161,7 +161,7 @@ export function LotsStep(p: Props) {
       )}
       {mode === "paste" && (
         <div className="flex flex-col gap-2 text-sm">
-          <p className="text-neutral-600">Скопируйте строки в Excel или Google-таблице и вставьте сюда (вместе с шапкой или без). Без шапки столбцы идут по порядку: Лот, Мех, Цвет, Размер/сорт, Кол-во, Цена, Валюта, НДС.</p>
+          <p className="text-neutral-600">Скопируйте строки в Excel или другой таблице и вставьте сюда (вместе с шапкой или без). Без шапки столбцы идут по порядку: Лот, Мех, Цвет, Размер/сорт, Кол-во, Цена, Валюта, НДС.</p>
           <Textarea rows={6} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={"Лот\tМех\tЦвет\tРазмер\tКол-во\tЦена\n101\tСоболь\tЧёрный\tXL\t30\t360"} aria-label="Вставка из таблицы" />
           <div>
             <Button type="button" variant="outline" size="sm" disabled={!paste.trim()} onClick={() => { load(parsePasteTable(paste), null); setPaste(""); }}>

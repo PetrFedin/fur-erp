@@ -3,20 +3,24 @@ import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
 import { Card } from "@/components/ui/card";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
-import { formatPercent } from "@/lib/utils";
 import { RELIABILITY_NOTE } from "@/lib/reliability-note";
 import { loadControlCounts } from "@/lib/control-counts";
 import type { YearFilter } from "@/lib/year-filter";
 import reconciliationData from "@/data/reconciliation.json";
-import driveSyncSnapshot from "@/data/drive-sync-snapshot.json";
+import { prisma } from "@/lib/prisma";
+import { formatQty as formatInt } from "@/lib/utils";
 
 /**
  * Раздел «Расхождения / документы для поиска» — бывшая страница «Анализ документов», перенесённая без новых плиток:
- * те же блоки (документы папки «Мех», расхождения цифр, документы для поиска, почему партии выглядят неоплаченными).
+ * те же блоки (документы, расхождения цифр, документы для поиска, почему партии выглядят неоплаченными).
  * Плитки «документы привязаны» и «где не хватает документа» не повторяются: это «Покрытие документами» выше.
  */
 export async function AnalysisSection({ organizationId, year }: { organizationId: string; year: YearFilter }) {
-  const counts = await loadControlCounts(organizationId, year);
+  const [counts, docsTotal, docsAttached] = await Promise.all([
+    loadControlCounts(organizationId, year),
+    prisma.driveDocument.count({ where: { organizationId } }),
+    prisma.driveDocument.count({ where: { organizationId, storagePath: { not: null } } }),
+  ]);
   const groups = reconciliationData.groups.filter((g) => year === "all" || g.year === Number(year));
   const conflicts = groups.filter((g) => g.status === "conflict").length;
   const reviews = groups.filter((g) => g.status === "review").length;
@@ -44,23 +48,23 @@ export async function AnalysisSection({ organizationId, year }: { organizationId
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="block-title">Расхождения / документы для поиска</h2>
         <InfoHint wide label="О разделе">
-          <p>Контур доказательств: папка документов «Мех» → первичные документы → оплаты → ТЗ/партии → ERP. Здесь находятся пробелы, расхождения и ручные проверки. Очередь дел — вкладка «Задачи».</p>
+          <p>Контур доказательств: первичные документы → оплаты → ТЗ/партии → ERP. Здесь находятся пробелы, расхождения и ручные проверки. Очередь дел — вкладка «Задачи».</p>
         </InfoHint>
       </div>
 
       <WidgetRow id="docs-summary" title="Итоги">
         <section className="grid items-stretch gap-3 sm:grid-cols-3">
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-            <TileHead>Документы папки «Мех»</TileHead>
-            <TileValue>{formatPercent(driveSyncSnapshot.meaningfulCoveragePct)}</TileValue>
+            <TileHead>Документы</TileHead>
+            <TileValue>{formatInt(docsAttached)} из {formatInt(docsTotal)}</TileValue>
             <TileCaption>
-              привязано файлов
+              файл прикреплён
               <InfoHint label="Подробности">
-                <p>{driveSyncSnapshot.dbUniqueDriveFiles} канонических файлов · {driveSyncSnapshot.recognizedDuplicateCopies} дублей распознано.</p>
+                <p>Считаются записи документов: у скольких из них прикреплён файл. Остальные — «не прикреплён», файл нужно будет прикрепить позже.</p>
                 <p className="mt-1">{RELIABILITY_NOTE}</p>
               </InfoHint>
             </TileCaption>
-            <div className={"mt-2 text-xs " + (driveSyncSnapshot.meaningfulUnlinkedFiles ? "text-red-700" : "text-emerald-700")}>Значимых непривязанных: {driveSyncSnapshot.meaningfulUnlinkedFiles}</div>
+            <div className={"mt-2 text-xs " + (docsTotal - docsAttached > 0 ? "text-amber-700" : "text-emerald-700")}>Не прикреплено: {formatInt(docsTotal - docsAttached)}</div>
           </div>
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
             <TileHead>Расхождения цифр</TileHead>
@@ -73,7 +77,7 @@ export async function AnalysisSection({ organizationId, year }: { organizationId
             <TileValue>{counts.docTasks}</TileValue>
             <TileCaption>
               срочных: {urgentDocs}
-              <InfoHint label="Подробности"><p>Документы, которых нет в Drive «мех» и которые надо запросить у бухгалтерии или Веллмех. Тот же счёт, что «Документы для поиска и загрузки» во вкладке «Задачи».</p></InfoHint>
+              <InfoHint label="Подробности"><p>Документы, которые не прикреплены и которые надо запросить у бухгалтерии или Веллмех. Тот же счёт, что «Документы для поиска и загрузки» во вкладке «Задачи».</p></InfoHint>
             </TileCaption>
             <Link href="/attention#doc-tasks" className="mt-2 inline-block text-xs text-blue-700 hover:underline">Открыть в «Задачах» →</Link>
           </div>

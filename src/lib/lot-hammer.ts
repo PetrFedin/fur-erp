@@ -15,7 +15,7 @@ export type Hammer = {
   /** $ за шкуру, если цена была в долларах. */
   usd: number | null;
   /** Откуда взято (для подсказки). */
-  source: "молоток в расчёте лота" | "цена × курс" | "расчётный лист" | "НДС на шкуры ÷ ставка НДС" | "цена из расчёта Drive × курсы";
+  source: "молоток в расчёте лота" | "цена × курс" | "расчётный лист" | "НДС на шкуры ÷ ставка НДС" | "цена из расчёта × курсы";
 };
 
 type Item = { label?: unknown; value?: unknown };
@@ -70,7 +70,7 @@ function fromSheetFallbacks(items: Item[], vatRate: number, ref: { currency: "US
   const fix = pick(items, "Курс ЦБ (фиксация)");
   if (ref && ref.price > 0 && fix != null && fix > 0 && (ref.currency === "USD" || (inv != null && inv > 0))) {
     const excl = (ref.currency === "EUR" ? ref.price * (inv ?? 0) : ref.price) * fix;
-    return { excl, incl: excl * k, usd, source: "цена из расчёта Drive × курсы" };
+    return { excl, incl: excl * k, usd, source: "цена из расчёта × курсы" };
   }
   return null;
 }
@@ -121,7 +121,7 @@ export const USD_SOURCE_LABEL: Record<UsdSource, string> = {
   direct: "строка в долларах в расчёте лота",
   "eur×rate": "цена в евро × курс EUR→USD из расчёта лота",
   "rub÷rate": "молоток в ₽ ÷ записанный в расчёте курс USD/RUB",
-  calc: "цена в $ из расчёта Drive (в лоте нет разбивки)",
+  calc: "цена в $ из расчёта (в лоте нет разбивки)",
   none: "нет цены в USD",
 };
 

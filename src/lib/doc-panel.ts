@@ -16,14 +16,13 @@ export type PanelDoc = {
   meta: string;
   /** Открыть оригинал в приложении. */
   href: string | null;
-  /** Заменить файл: файл закупки (PurchaseDocument) или документ Drive (DriveDocument). */
+  /** Заменить файл: файл закупки (PurchaseDocument) или документ (DriveDocument). */
   replace: { action: "purchaseDoc" | "driveDoc"; id: string } | null;
 };
 
-/** Документ, который упомянут в файлах Drive «мех», но в приложении не привязан: его можно привязать одним кликом. */
+/** Документ, названный в данных, но не прикреплённый: подсказка, что приложить. */
 export type PanelMention = {
   text: string;
-  attach: { entity: "purchase" | "order" | "batch"; id: string; fileId: string; title: string; docType: string; docNumber: string | null; docDate: string | null } | null;
 };
 
 /** Куда и как загружается файл. */
@@ -98,7 +97,7 @@ export type Panel = {
   href: string | null;
   pay: PanelPay;
   payments: PanelPayment[];
-  /** Оплаты, упомянутые в документах (Drive «мех»): что называет документ, чего нет в учёте. */
+  /** Оплаты, упомянутые в документах: что называет документ, чего нет в учёте. */
   mentionedPayments: string[];
   items: PanelItem[];
   /** Сколько обязательных документов нет. */

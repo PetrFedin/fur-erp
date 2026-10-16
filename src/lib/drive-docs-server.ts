@@ -7,7 +7,7 @@ import { ACCESS, hasRole } from "@/lib/access";
 import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
 
 /**
- * Кому разрешено убирать ссылку: закупка — как закупки; ТЗ/партия — как производство;
+ * Кому разрешено убирать документ: закупка — как закупки; ТЗ/партия — как производство;
  * документы оплат, лотов без закупки, клиентов и поставщиков — только OWNER/ADMIN.
  * Один источник правды для сервера (removeDriveDocument) и кнопки «Убрать».
  */
@@ -24,8 +24,7 @@ export function toDriveView(d: DriveDocument, scope?: string | null, role?: stri
     docType: d.docType,
     docDate: d.docDate ? d.docDate.toISOString() : null,
     docNumber: d.docNumber,
-    hasLink: !!d.viewUrl,
-    drivePath: d.drivePath,
+    keepsRecord: !d.driveFileId.startsWith("local-"),
     scope: scope ?? null,
     hasFile: storedFileExists(d.storagePath),
     storedName: d.storedName,

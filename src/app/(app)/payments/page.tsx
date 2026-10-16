@@ -1,3 +1,4 @@
+import { storedFileExists } from "@/lib/stored-file-check";
 import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { orderLabel, positionsOf } from "@/lib/order-label";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -526,12 +527,12 @@ export default async function PaymentsPage({
   }
   const owedWorkTotal = Array.from(orderInfo.values()).filter((o) => o.clientName && o.work - (allocTotals.get(o.id) ?? 0) > 0.5 && (year === "all" || o.year === Number(year))).reduce((a, o) => a + (o.work - (allocTotals.get(o.id) ?? 0)), 0);
   const advancesTotal = clientPayments.filter((p) => p.allocations.length === 0 && /сч[её]т/i.test(p.docRef ?? "") && !p.amount.isZero()).reduce((a, p) => a + p.amount.toNumber(), 0);
-  // Счета на оплату из Drive: у оплаты нет файлов напрямую, но счёт, названный в основании («Счёт №65»), лежит в Drive — показываем ссылку на него.
+  // Счета на оплату с прикреплённым файлом: у оплаты нет файлов напрямую, но счёт, названный в основании («Счёт №65»), прикреплён к системе — показываем ссылку на файл.
   const invoiceDocs = clientsTab
-    ? await prisma.driveDocument.findMany({
-        where: { organizationId: orgId, docType: "PAYMENT_INVOICE", viewUrl: { not: null }, docDate: { gte: new Date("2026-01-01T00:00:00Z") } },
-        select: { title: true, viewUrl: true, docDate: true },
-      })
+    ? (await prisma.driveDocument.findMany({
+        where: { organizationId: orgId, docType: "PAYMENT_INVOICE", storagePath: { not: null }, docDate: { gte: new Date("2026-01-01T00:00:00Z") } },
+        select: { id: true, title: true, storagePath: true, docDate: true },
+      })).filter((d) => storedFileExists(d.storagePath))
     : [];
   const invoiceLinkFor = (docRef: string | null, paidAt: Date) => {
     const m = INVOICE_RX.exec(docRef ?? "");
@@ -541,9 +542,9 @@ export default async function PaymentsPage({
     const seen = new Set<string>();
     return invoiceDocs
       .filter((d) => new RegExp(`№\\s*${num}(?!\\d)`).test(d.title) && d.docDate && d.docDate <= paidAt)
-      .filter((d) => (seen.has(d.viewUrl!) ? false : (seen.add(d.viewUrl!), true)))
+      .filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)))
       .slice(0, 2)
-      .map((d) => ({ title: `счёт ${num}`, url: d.viewUrl! }));
+      .map((d) => ({ title: `счёт ${num}`, url: `/api/drive-docs/${d.id}` }));
   };
   const clientVerify: Record<string, React.ReactNode> = {};
   for (const p of clientPayments) if (pv.verify[p.id]) clientVerify[p.id] = <VerifyControl v={pv.verify[p.id]} canEdit={pv.canVerify} compact />;
@@ -636,7 +637,7 @@ export default async function PaymentsPage({
   const noAuc = showNoAuction
     ? (await prisma.purchase.findMany({
         where: { organizationId: orgId, status: { not: "CANCELLED" } },
-        include: { items: true, expenses: true, payments: { where: { status: "COMPLETED" }, include: { driveDocuments: { select: { driveFileId: true } }, document: { select: { id: true } } }, orderBy: { paidAt: "asc" } } },
+        include: { items: true, expenses: true, payments: { where: { status: "COMPLETED" }, include: { driveDocuments: { select: { driveFileId: true, storagePath: true } }, document: { select: { id: true } } }, orderBy: { paidAt: "asc" } } },
         orderBy: { number: "asc" },
       })).filter((p) => !p.auctionSession || isServiceAuction(p.auctionSession))
     : [];
@@ -657,7 +658,7 @@ export default async function PaymentsPage({
       ppNo: /п\/п\s*№?\s*(\d+)/.exec(x.docRef ?? "")?.[1] ?? null,
       confirmed: x.confirmedAt != null,
       status: "COMPLETED" as const,
-      docCount: new Set(x.driveDocuments.map((d) => d.driveFileId)).size + (x.document ? 1 : 0),
+      docCount: new Set(x.driveDocuments.filter((d) => storedFileExists(d.storagePath)).map((d) => d.driveFileId)).size + (x.document ? 1 : 0),
       sourceDocs: srcDocs[x.id],
     })),
   );
@@ -926,7 +927,7 @@ export default async function PaymentsPage({
                 confirmed: p.confirmedAt != null,
                 status: p.status === "PENDING" ? "PENDING" : p.status === "COMPLETED" ? "COMPLETED" : "CANCELLED",
                 overdue: p.status === "PENDING" && p.paidAt.toISOString().slice(0, 10) < today,
-                docCount: new Set(p.driveDocuments.map((d) => d.driveFileId)).size + (p.document ? 1 : 0),
+                docCount: new Set(p.driveDocuments.filter((d) => storedFileExists(d.storagePath)).map((d) => d.driveFileId)).size + (p.document ? 1 : 0),
                 sourceDocs: srcDocs[p.id],
                 controls: own ? (canPay ? auctionPayControls(p, selected) : undefined) : p.purchaseId ? <Link href={`/purchases/${p.purchaseId}`} className="text-sm text-blue-700 hover:underline">Править в карточке закупки →</Link> : undefined,
               };

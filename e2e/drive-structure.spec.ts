@@ -2,9 +2,9 @@ import { test, expect, type Page } from "@playwright/test";
 import { login, watchErrors, expectNoErrors } from "./helpers";
 
 // Самодостаточные проверки новой структуры: «Сводка по годам», партии, переключатель «С 4%»,
-// документы Google Drive, оплаты. Идут против изолированной копии боевой базы
+// документы, оплаты. Идут против изолированной копии боевой базы
 // (scripts/e2e.sh up drv 3301; E2E_BASE_URL=http://localhost:3301). Данные не изменяются, кроме
-// тестов с пометкой «пишет»: они работают только с пустой партией (добавляют и тут же убирают ссылку).
+// тестов с пометкой «пишет».
 // Тесты с test.fail() фиксируют найденные ошибки: пока ошибка есть — тест «проходит как ожидаемо
 // падающий»; когда ошибку починят, он станет красным и пометку надо снять.
 
@@ -133,79 +133,6 @@ test.describe("Партии", () => {
     for (const bad of ["0", "999", "abc", "1.5", "99999999"]) {
       const r = await page.goto(`/production/batches/${bad}`);
       expect(r?.status()).toBe(404);
-    }
-  });
-
-  test("пишет: ссылка на Drive у пустой партии — добавление, отказ не-Google, XSS-название, удаление", async ({ page }) => {
-    page.on("dialog", (d) => d.accept());
-    await page.goto("/production/batches/15");
-    const blk = page.locator("[data-drive-docs]");
-    const before = await blk.locator("li").count();
-    await blk.locator("summary").click();
-    const add = async (link: string, title: string) => {
-      await blk.locator("input[name=link]").fill(link);
-      await blk.locator("input[name=title]").fill(title);
-      await blk.getByRole("button", { name: /Добавить$/ }).click();
-    };
-    for (const bad of ["https://evil.com/file/d/1AbCdEfGhIjKlMnOp/view", "https://drive.google.com.evil.com/file/d/1AbCdEfGhIjKlMnOp/view", "http://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view", "javascript:alert(1)"]) {
-      await add(bad, "не должно добавиться");
-      await expect(blk.getByText("Не удалось разобрать ссылку")).toBeVisible();
-    }
-    await add("https://drive.google.com/file/d/1XssTitleXssTitle1234567/view", `<img src=x onerror="window.__xss=1">`);
-    await expect(blk.getByText("Добавлено")).toBeVisible();
-    await expect(blk.locator("li")).toHaveCount(before + 1);
-    expect(await page.evaluate(() => (window as unknown as { __xss?: number }).__xss)).toBeUndefined();
-    const a = blk.locator("li a").first();
-    await expect(a).toHaveAttribute("href", /^https:\/\/drive\.google\.com\//);
-    await expect(a).toHaveAttribute("rel", /noreferrer/);
-    await expect(a).toHaveAttribute("target", "_blank");
-    await blk.locator("li").filter({ hasText: "onerror" }).getByRole("button", { name: "Убрать" }).click();
-    await expect(blk.locator("li")).toHaveCount(before);
-  });
-
-  // Была ошибка (исправлена): одну и ту же ссылку можно добавить к объекту сколько угодно раз; «голое слово» из 10+ знаков
-  // принимается как id файла и даёт нерабочую ссылку.
-  test("пишет: дубль ссылки и «не-ссылка» отклоняются", async ({ page }) => {
-    page.on("dialog", (d) => d.accept());
-    await page.goto("/production/batches/16");
-    const blk = page.locator("[data-drive-docs]");
-    await blk.locator("summary").click();
-    const add = async (link: string, title: string) => {
-      await blk.locator("input[name=link]").fill(link);
-      await blk.locator("input[name=title]").fill(title);
-      await blk.getByRole("button", { name: /Добавить$/ }).click();
-      await page.waitForTimeout(1000);
-    };
-    await add("not-a-link-at-all", "слово");
-    const wordAdded = await blk.locator("li").filter({ hasText: "слово" }).count();
-    await add("https://drive.google.com/file/d/1DupDupDupDupDupDup12345/view", "дубль");
-    await add("https://drive.google.com/file/d/1DupDupDupDupDupDup12345/view", "дубль");
-    const dups = await blk.locator("li").filter({ hasText: "дубль" }).count();
-    // уборка
-    for (const t of ["слово", "дубль"]) {
-      while (await blk.locator("li").filter({ hasText: t }).count()) {
-        await blk.locator("li").filter({ hasText: t }).first().getByRole("button", { name: "Убрать" }).click();
-        await page.waitForTimeout(800);
-      }
-    }
-    expect(wordAdded).toBe(0);
-    expect(dups).toBe(1);
-  });
-
-  test("ссылки «Открыть в Drive» на карточках закупки, ТЗ, партии и в режиме «Аукцион» — только google.com", async ({ page }) => {
-    const urls = ["/production/batches/1", "/lots?auction=" + encodeURIComponent("СП 03.25")];
-    await page.goto("/purchases");
-    urls.push((await page.locator("tbody a[href^='/purchases/']").first().getAttribute("href"))!);
-    await page.goto("/production");
-    urls.push((await page.locator("tbody a[href^='/production/']").first().getAttribute("href"))!);
-    for (const u of urls) {
-      await page.goto(u);
-      const links = await page.locator("[data-drive-docs] a").evaluateAll((as) => as.map((a) => ({ h: (a as HTMLAnchorElement).href, r: (a as HTMLAnchorElement).rel, t: (a as HTMLAnchorElement).target })));
-      for (const l of links) {
-        expect(l.h).toMatch(/^https:\/\/([a-z]+\.)?google\.com\//);
-        expect(l.r).toContain("noreferrer");
-        expect(l.t).toBe("_blank");
-      }
     }
   });
 });

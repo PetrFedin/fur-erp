@@ -330,9 +330,9 @@ export default async function ReconciliationPage() {
             </span>
           ) : null}
           {RECHECK ? (
-            <InfoHint label="Что перепроверено по Drive" wide>
+            <InfoHint label="Что перепроверено" wide>
               <div className="space-y-2">
-                <div className="font-semibold text-neutral-900">Перепроверка по документам Drive, {RECHECK.date}</div>
+                <div className="font-semibold text-neutral-900">Перепроверка по документам, {RECHECK.date}</div>
                 <div>Найдено:</div>
                 <ul className="list-disc space-y-1 pl-4">{RECHECK.found.map((x, i) => <li key={i}>{x}</li>)}</ul>
                 <div>Не найдено:</div>
