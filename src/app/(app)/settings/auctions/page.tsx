@@ -18,7 +18,11 @@ export default async function AuctionsPage() {
   const orgId = session.user.organizationId;
   const canEdit = hasRole(session.user.role, ACCESS.auctions);
   // Поставщику — только названия: без закупок, сумм и примечаний.
-  if (session.user.role === "SUPPLIER") return <SupplierAuctionsRef rows={await loadAuctionOptions(orgId)} />;
+  // Поля перечислены явно: суммы закупок, их число и примечания не должны попасть и в данные страницы (RSC-пейлоад).
+  if (session.user.role === "SUPPLIER") {
+    const own = (await loadAuctionOptions(orgId)).map((a) => ({ id: a.id, name: a.name, fullName: a.fullName, house: a.house, kind: a.kind, year: a.year, month: a.month, aliases: a.aliases, confirmed: a.confirmed }));
+    return <SupplierAuctionsRef rows={own} />;
+  }
 
   const [options, purchases, unlinked, direct] = await Promise.all([
     loadAuctionOptions(orgId),

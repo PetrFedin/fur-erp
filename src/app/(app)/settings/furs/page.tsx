@@ -21,9 +21,13 @@ export default async function FursPage({ searchParams }: PageProps<"/settings/fu
   const orgId = session.user.organizationId;
   const f = parseFilters(FUR_FILTERS, await searchParams);
   const canEdit = hasRole(session.user.role, ACCESS.furRefs);
+  // Поставщику — только названия и написания (в примечаниях и счётчиках использования бывают цены и наши закупки):
+  // из базы берём ровно эти поля, чтобы остальное не попало даже в данные страницы (RSC-пейлоад).
+  if (session.user.role === "SUPPLIER") {
+    const own = await prisma.furRef.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" }, select: { id: true, name: true, nameEn: true, aliases: true } });
+    return <SupplierFursRef rows={own} />;
+  }
   const refs = await prisma.furRef.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } });
-  // Поставщику — только названия и написания (в примечаниях и счётчиках использования бывают цены и наши закупки).
-  if (session.user.role === "SUPPLIER") return <SupplierFursRef rows={refs} />;
   const usage = await loadFurUsage(orgId, refs, buildFurIndex(refs));
   const rows: FurRow[] = refs.map((r) => {
     const u = usage.byRef.get(r.id);

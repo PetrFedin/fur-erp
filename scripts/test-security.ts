@@ -14,11 +14,12 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
-import { mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { SUPPLIER_DOC_TYPES, supplierMayUpload } from "../src/lib/supplier-docs";
 import { isOurPaymentDoc, paymentDocFlags } from "../src/lib/supplier-payment-docs-core";
+import { PAY_STATE_LABEL, isConfirmedForSupplier, payInfo, poolShares } from "../src/lib/supplier-pay-core";
 
 const BASE = (process.env.BASE_URL ?? "http://localhost:3420").replace(/\/$/, "");
 const dbUrl = process.env.DATABASE_URL ?? "";
@@ -94,6 +95,8 @@ async function main() {
   // ---------- фикстуры ----------
   const orgA = (await prisma.user.findFirstOrThrow({ where: { role: "OWNER" }, select: { organizationId: true } })).organizationId;
   const sup1 = (await prisma.supplier.findFirstOrThrow({ where: { organizationId: orgA }, orderBy: { createdAt: "asc" } })).id;
+  // Метка для проверок «чужая страница не показана»: полное название, а не слово «Веллмех» (оно есть в подсказках интерфейса у всех).
+  const sup1Name = (await prisma.supplier.findUniqueOrThrow({ where: { id: sup1 }, select: { name: true } })).name;
   const sup2 = (await prisma.supplier.upsert({
     where: { id: "sec-supplier-2" },
     update: {},
@@ -258,8 +261,8 @@ async function main() {
     { p: `/payments/s-${payment.id}` },
     { p: `/analytics/raw/lot/${lot.id}`, marker: lot.lotNumber ?? undefined },
     { p: `/shipments/${shipment.id}` },
-    { p: `/suppliers/${sup1}`, marker: "Веллмех" },
-    { p: `/settings/contractors/${sup1}`, marker: "Веллмех" },
+    { p: `/suppliers/${sup1}`, marker: sup1Name },
+    { p: `/settings/contractors/${sup1}`, marker: sup1Name },
     { p: `/inbox/${inbox.id}`, marker: inbox.title },
     { p: `/api/purchase-docs/${pdoc.id}` },
     { p: `/api/drive-docs/${ddocAny.id}` },
@@ -327,7 +330,7 @@ async function main() {
     { p: `/api/drive-docs/${ddocAny.id}` },
     { p: `/shipments/${shipment.id}` },
     { p: `/inbox/${inbox.id}` },
-    { p: `/suppliers/${sup1}`, marker: "Веллмех" },
+    { p: `/suppliers/${sup1}`, marker: sup1Name },
   ];
   if (ifile) cross.push({ p: `/api/supplier/inbox-files/${ifile.id}` });
   if (tzInbox) cross.push({ p: `/supplier/tz/${tzInbox.id}`, marker: tzInbox.title }, { p: `/api/supplier/tz/${tzInbox.id}/docx` }, { p: `/api/supplier/tz/${tzInbox.id}/preview` });
@@ -374,6 +377,137 @@ async function main() {
       await prisma.payment.delete({ where: { id: pay.id } }).catch(() => {});
     }
   }
+
+
+  // ---------- 5б. периметр SUPPLIER: данные страницы (RSC-пейлоад), прямые адреса, статус оплат ----------
+  console.log("\n== 5б. Поставщик: пейлоад страниц, прямые адреса, статус оплат");
+  // Канарейки в справочниках: примечания и суммы закупок не должны попасть в данные страниц подрядчика.
+  const fur = await prisma.furRef.findFirst({ where: { organizationId: orgA } });
+  const auc = await prisma.auction.findFirst({ where: { organizationId: orgA } });
+  if (fur) await prisma.furRef.update({ where: { id: fur.id }, data: { note: "SEC-FUR-NOTE-SECRET" } });
+  if (auc) await prisma.auction.update({ where: { id: auc.id }, data: { note: "SEC-AUCTION-NOTE-SECRET" } });
+  for (const p of ["/settings/furs", "/settings/auctions", "/settings/colors", "/settings/categories", "/settings/fur-attrs", "/settings/articles-ref", "/articles", "/shipments", "/chat", "/supplier"]) {
+    const r = await req(p, { cookie: S1 });
+    const leakKeys = ["SEC-FUR-NOTE-SECRET", "SEC-AUCTION-NOTE-SECRET", '\\"purchaseCount\\"', '\\"organizationId\\"', '\\"sellingPrice\\"', '\\"retailPrice\\"', '\\"clientWorkPricePerUnit\\"', '\\"avgUnitCost\\"'].filter((k) => r.text.includes(k));
+    ok(r.status === 200 && leakKeys.length === 0, `sup1 ${p}: в данных страницы нет примечаний, сумм закупок, цен${leakKeys.length ? " УТЕЧКА: " + leakKeys.join(",") : ""}`);
+  }
+  // Прямые адреса с реальными id: редирект/403/404 (страницы заказчика и их экспорт).
+  const idOf = async (m: string) => (await (prisma as unknown as Record<string, { findFirst: (a: unknown) => Promise<{ id: string } | null> }>)[m].findFirst({ where: { organizationId: orgA }, select: { id: true } }))?.id;
+  const direct: [string, string | undefined][] = [
+    ["/budget/", await idOf("budgetScenario")], ["/clients/", await idOf("client")], ["/materials/", await idOf("rawMaterial")], ["/models/", await idOf("productModel")],
+    ["/payments/", await idOf("payment")], ["/production/", order.id], ["/purchases/", await idOf("purchase")], ["/suppliers/", sup1], ["/settings/contractors/", sup1],
+    ["/warehouses/", await idOf("warehouse")], ["/analytics/raw/lot/", await idOf("rawMaterialLot")], ["/inbox/", inbox.id], ["/production/batches/", String((await prisma.productionBatch.findFirst({ where: { organizationId: orgA }, select: { number: true } }))?.number ?? "1")],
+    ["/lots/fur/", "Бобр"],
+  ];
+  let directBad = 0;
+  for (const [pre, id] of direct) {
+    if (!id) continue;
+    const r = await req(pre + encodeURIComponent(id), { cookie: S1 });
+    if (!denied(r)) { directBad++; console.log("   подрядчику открыто:", pre, r.status); }
+  }
+  ok(directBad === 0, `прямые адреса страниц заказчика (${direct.filter(([, i]) => i).length}) закрыты для подрядчика`);
+  const apiDirect = [`/api/production/${order.id}/docx`, `/api/production/${order.id}/word`, `/api/purchase-docs/${pdoc.id}`, "/api/doc-list", "/api/article-ref", "/api/search?q=%D0%BC", "/api/integrity", "/api/comments?mode=counts&path=/payments"];
+  for (const a of apiDirect) ok(denied(await req(a, { cookie: S1 })), `API заказчика закрыт для подрядчика: ${a.split("?")[0].replace(/[a-z0-9]{20,}/g, "<id>")}`);
+  // Экспорты Excel/Word со страниц заказчика (route.ts в (app)) — тоже закрыты.
+  const exports = ["/analytics/pricing/export", "/analytics/products/export", "/analytics/raw/export", "/analytics/raw/recon/export", "/comments/export", "/documents/export", "/history/export", "/settings/articles-ref/export"];
+  for (const x of exports) ok(denied(await req(x, { cookie: S1 })), `экспорт закрыт для подрядчика: ${x}`);
+
+  // Чистая логика статуса оплат.
+  ok(isConfirmedForSupplier({ status: "COMPLETED", confirmed: true, confirmedAt: new Date() }), "оплата проведена + подтверждена + отметка — видна подрядчику");
+  ok(!isConfirmedForSupplier({ status: "COMPLETED", confirmed: true, confirmedAt: null }) && !isConfirmedForSupplier({ status: "COMPLETED", confirmed: false, confirmedAt: new Date() })
+    && !isConfirmedForSupplier({ status: "PENDING", confirmed: true, confirmedAt: new Date() }) && !isConfirmedForSupplier({ status: "CANCELLED", confirmed: true, confirmedAt: new Date() }), "без отметки подтверждения, без флага, плановая и отменённая — не видны");
+  const L = (a: number, d: string, kind = "ADVANCE") => ({ kind, amount: a, paidAt: new Date(d) });
+  ok(payInfo(1000, []).state === "UNPAID" && payInfo(1000, [L(400, "2026-01-02")]).state === "PARTIAL" && payInfo(1000, [L(400, "2026-01-02"), L(600, "2026-02-03")]).state === "PAID" && payInfo(1000, [L(1200, "2026-01-02")]).state === "PAID", "статус: не оплачено / частично / оплачено (в том числе переплата)");
+  ok(payInfo(1000, [L(999.5, "2026-01-02")]).state === "PAID" && payInfo(1000, [L(998, "2026-01-02")]).state === "PARTIAL", "допуск «оплачено» — 1 ₽");
+  ok(payInfo(0, [L(500, "2026-01-02")], false).state === "PARTIAL", "цена работы не задана: при оплате — «Частично», не «Оплачено»");
+  ok(payInfo(1000, [L(100, "2026-01-02"), L(100, "2026-03-04")]).date?.toISOString().startsWith("2026-03-04") === true, "дата — последней подтверждённой оплаты");
+  ok(PAY_STATE_LABEL.PAID === "Оплачено" && PAY_STATE_LABEL.PARTIAL === "Частично" && PAY_STATE_LABEL.UNPAID === "Не оплачено", "подписи статусов");
+  const sh = poolShares([{ id: "a", need: 300 }, { id: "b", need: 500 }, { id: "c", need: 200 }], 650);
+  ok(sh.get("a") === 300 && sh.get("b") === 350 && sh.get("c") === 0, "оплата аукциона целиком добирает счета по порядку");
+
+  // Живая проверка: создать оплату → подтвердить → у подрядчика видно → снять подтверждение → пропало.
+  if (sup1Purchase) {
+    const AMT = 987654.32, NOTE = "SEC-PAYMENT-SECRET-NOTE";
+    const pageOf = `/supplier/raw/${sup1Purchase.id}`;
+    const sees = (t: string) => /987[\s  ,.]?65[34]/.test(t);
+    const pay = await prisma.payment.create({ data: { organizationId: orgA, supplierId: sup1, purchaseId: sup1Purchase.id, amount: AMT, kind: "ADVANCE", paidAt: new Date("2026-09-15"), notes: NOTE, status: "COMPLETED", confirmed: true, confirmedAt: null } });
+    try {
+      ok(!sees((await req(pageOf, { cookie: S1 })).text), "оплата без подтверждения у заказчика — подрядчик не видит");
+      await prisma.payment.update({ where: { id: pay.id }, data: { confirmed: false, confirmedAt: new Date() } });
+      ok(!sees((await req(pageOf, { cookie: S1 })).text), "флаг «подтверждена» снят — не видна");
+      await prisma.payment.update({ where: { id: pay.id }, data: { confirmed: true, status: "PENDING" } });
+      ok(!sees((await req(pageOf, { cookie: S1 })).text), "запланированная (PENDING) не считается оплаченной");
+      await prisma.payment.update({ where: { id: pay.id }, data: { status: "COMPLETED" } });
+      const seen = await req(pageOf, { cookie: S1 });
+      ok(sees(seen.text) && /data-testid="pay-status"/.test(seen.text) && /(Частично|Оплачено)/.test(seen.text) && /15\.09\.2026/.test(seen.text), "подтверждена → подрядчик видит статус, сумму и дату");
+      ok(!seen.text.includes(NOTE) && !seen.text.includes("SEC-PAYMENT-SCAN"), "…но не заметку и не платёжный файл");
+      const list = await req("/supplier/raw", { cookie: S1 });
+      ok(/data-testid="pay-status"/.test(list.text), "статус виден и в списке «Сырьё»");
+      const ctl = await req("/supplier", { cookie: S1 });
+      ok(sees(ctl.text) && /Оплата подтверждена \(аванс\)/.test(ctl.text), "и в «Контроль → Недавнее»");
+      ok(!sees((await req(pageOf, { cookie: S2 })).text) && !sees((await req("/supplier/raw", { cookie: S2 })).text) && !sees((await req("/supplier", { cookie: S2 })).text), "другой подрядчик оплату не видит");
+      await prisma.payment.update({ where: { id: pay.id }, data: { confirmedAt: null, confirmedBy: null } });
+      ok(!sees((await req(pageOf, { cookie: S1 })).text) && !sees((await req("/supplier", { cookie: S1 })).text), "подтверждение снято → статус и сумма пропали");
+      await prisma.payment.update({ where: { id: pay.id }, data: { confirmedAt: new Date(), status: "CANCELLED" } });
+      ok(!sees((await req(pageOf, { cookie: S1 })).text), "отменённая оплата не видна");
+    } finally {
+      await prisma.payment.delete({ where: { id: pay.id } }).catch(() => {});
+    }
+  }
+  // «За работу»: оплата, разнесённая на принятое ТЗ подрядчика.
+  const accTz = await prisma.supplierInbox.findFirst({ where: { organizationId: orgA, supplierId: sup1, kind: "TZ", status: "ACCEPTED", createdEntityType: "ProductionOrder" }, select: { id: true, createdEntityId: true } });
+  const accOrder = accTz?.createdEntityId ? accTz.createdEntityId.split(",")[0] : null;
+  if (accTz && accOrder) {
+    const WAMT = 321987.65;
+    const seesW = (t: string) => /321[\s  ,.]?98[78]/.test(t);
+    const pp = await prisma.productionPayment.create({ data: { organizationId: orgA, amount: WAMT, paymentType: "ADVANCE", status: "COMPLETED", paidAt: new Date("2026-09-16"), confirmed: true, confirmedAt: null, notes: "SEC-WORK-NOTE" } });
+    const al = await prisma.paymentAllocation.create({ data: { organizationId: orgA, productionPaymentId: pp.id, productionOrderId: accOrder, amount: WAMT } });
+    // неразнесённый аванс чужого ТЗ: подрядчик его не видит
+    try {
+      ok(!seesW((await req(`/supplier/tz/${accTz.id}`, { cookie: S1 })).text), "оплата работы без подтверждения — не видна");
+      await prisma.productionPayment.update({ where: { id: pp.id }, data: { confirmedAt: new Date() } });
+      const t1 = await req(`/supplier/tz/${accTz.id}`, { cookie: S1 });
+      ok(seesW(t1.text) && /data-testid="pay-status"/.test(t1.text) && !t1.text.includes("SEC-WORK-NOTE"), "подтверждена → на странице ТЗ статус и сумма, без заметки");
+      ok(!seesW((await req(`/supplier/tz/${accTz.id}`, { cookie: S2 })).text), "другой подрядчик не видит");
+      ok(/Оплата за работу подтверждена/.test((await req("/supplier", { cookie: S1 })).text), "и в «Контроль → Недавнее»");
+      await prisma.productionPayment.update({ where: { id: pp.id }, data: { confirmedAt: null } });
+      ok(!seesW((await req(`/supplier/tz/${accTz.id}`, { cookie: S1 })).text), "подтверждение снято → пропало");
+    } finally {
+      await prisma.paymentAllocation.delete({ where: { id: al.id } }).catch(() => {});
+      await prisma.productionPayment.delete({ where: { id: pp.id } }).catch(() => {});
+    }
+  }
+
+  // Статическая защита: каждое server-действие проверяет сессию/роль, а доступ подрядчика разрешён только в известных местах.
+  console.log("   — статика: проверка прав в server-действиях и allowSupplier:");
+  const srcFiles: string[] = [];
+  const walkSrc = (dir: string) => { for (const n of readdirSync(dir)) { const f = path.join(dir, n); if (statSync(f).isDirectory()) walkSrc(f); else if (/\.(ts|tsx)$/.test(n)) srcFiles.push(f); } };
+  walkSrc(path.resolve("src"));
+  const rel = (f: string) => path.relative(process.cwd(), f).replace(/\\/g, "/");
+  const NO_SESSION_OK = new Set(["src/app/login/actions.ts", "src/app/register/actions.ts"]);
+  const unguarded: string[] = [];
+  for (const f of srcFiles) {
+    const txt = readFileSync(f, "utf8");
+    if (!/^\s*["']use server["']/m.test(txt) || NO_SESSION_OK.has(rel(f))) continue;
+    for (const part of txt.split(/\nexport async function /).slice(1)) {
+      const name = part.split("(")[0];
+      if (!/require\w*\(|getFreshSession|auth\(\)|chatSession\(|actor\(\)|changeParams\(|ctxOf\(|uploadDriveDocument\(/.test(part.slice(0, 1800))) unguarded.push(`${rel(f)}:${name}`);
+    }
+  }
+  ok(unguarded.length === 0, `все server-действия проверяют сессию/роль на сервере${unguarded.length ? " — без проверки: " + unguarded.join(", ") : ""}`);
+  const ALLOW_SUPPLIER = new Set([
+    "src/app/(app)/layout.tsx", "src/app/page.tsx", "src/app/(app)/settings/page.tsx", "src/app/(app)/settings/furs/page.tsx", "src/app/(app)/settings/articles-ref/page.tsx", "src/app/(app)/settings/colors/page.tsx",
+    "src/app/(app)/settings/auctions/page.tsx", "src/app/(app)/settings/fur-attrs/page.tsx", "src/app/(app)/settings/categories/page.tsx", "src/app/(app)/shipments/page.tsx", "src/app/(app)/shipments/[id]/page.tsx",
+    "src/app/(app)/chat/actions.ts", "src/app/(app)/chat/channel-actions.ts", "src/app/(app)/chat/page.tsx", "src/app/(app)/articles/page.tsx", "src/app/(app)/models/[id]/page.tsx", "src/app/(app)/models/new/page.tsx",
+    "src/app/api/chat/files/[id]/route.ts", "src/app/api/drive-docs/[id]/route.ts", "src/app/api/supplier/auction-calcs/[id]/xlsx/route.ts", "src/app/api/supplier/auction-calcs/[id]/invoice/route.ts", "src/app/api/supplier/inbox-files/[id]/route.ts",
+    "src/app/api/supplier/tz/[id]/preview/route.ts", "src/app/api/supplier/tz/[id]/docx/route.ts", "src/components/role-switch-actions.ts", "src/lib/prisma.ts", "src/lib/supplier-inbox.ts", "src/lib/session.ts",
+  ]);
+  const extra = srcFiles.filter((f) => /allowSupplier:\s*true/.test(readFileSync(f, "utf8")) && !ALLOW_SUPPLIER.has(rel(f))).map(rel);
+  ok(extra.length === 0, `allowSupplier: true только в проверенных местах${extra.length ? " — новое, проверьте: " + extra.join(", ") : ""}`);
+  // Страницы кабинета подрядчика не берут поля цен/наценок/бюджета из базы.
+  const supplierSrc = srcFiles.filter((f) => /src\/(app\/\(app\)\/supplier\/|lib\/supplier-)/.test(rel(f)) && !/supplier-pay|supplier-debt|supplier-calc|supplier-payment-docs/.test(rel(f)));
+  const priceWords = supplierSrc.filter((f) => /\b(sellingPrice|retailPrice|clientWorkPricePerUnit|avgUnitCost|BudgetScenario|budgetScenario)\b/.test(readFileSync(f, "utf8")) && !/supplier-calc-start|tz-vendor/.test(rel(f))).map(rel);
+  ok(priceWords.length === 0, `код кабинета подрядчика не читает цены, наценки и бюджет заказчика${priceWords.length ? ": " + priceWords.join(", ") : ""}`);
 
   // ---------- 6. права внутренних ролей ----------
   console.log("\n== 6. Наблюдатель (VIEWER) и тяжёлые запросы");

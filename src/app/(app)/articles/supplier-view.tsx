@@ -51,10 +51,11 @@ export async function SupplierArticles({ orgId, q, noname, sp = {} }: { orgId: s
       ...m,
       furType: furTypes.get(m.id)?.fur ?? null,
       title: supplierArticleTitle(m.salesName, m.description),
-      fur: tz?.fur || own.fur || null,
-      lining: tz?.lining || own.lining || null,
-      sizes: own.sizes || null,
-      colors: own.colors || null,
+      // Строки из описания артикула проходят тот же фильтр денег, что и текст ТЗ: в описании у нас бывают цены.
+      fur: tz?.fur || supplierSafeText(own.fur, 200),
+      lining: tz?.lining || supplierSafeText(own.lining, 200),
+      sizes: supplierSafeText(own.sizes, 200),
+      colors: supplierSafeText(own.colors, 200),
     };
   });
   const unnamed = all.filter((m) => !m.title).length;
