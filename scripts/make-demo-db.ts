@@ -139,6 +139,10 @@ async function main() {
   // 1. Очистка таблиц целиком
   for (const t of WIPE) if (await tableExists(t)) await x(`delete from ${q(t)}`);
   await x(`delete from "SystemState" where key like 'owner-decision:%'`);
+  // Фото артикулов и ссылки «Товар в магазине» в обезличенную демо не входят (реальные карточки товаров; файлы в демо не копируются).
+  await x(`delete from "SystemState" where key like 'article-photos:%' or key like 'article-shop-links:%'`);
+  // PLU — внутренние коды заказчика: в демо пусто (свойства артикула «PLU…» убираются, остальные остаются).
+  await x(`update "ProductModel" set "attributes" = nullif((select coalesce(jsonb_agg(e), '[]'::jsonb) from jsonb_array_elements(case when jsonb_typeof("attributes") = 'array' then "attributes" else '[]'::jsonb end) e where e->>'name' !~* '^PLU( |$)'), '[]'::jsonb) where "attributes" is not null`);
   // Входящие поставщика: оставляем только ПРИНЯТЫЕ расчёты аукционов и ТЗ (из них созданы закупки и ТЗ заказчика); остальное — черновики и переписка
   await x(`delete from "SupplierInbox" where not (status = 'ACCEPTED' and kind in ('AUCTION_CALC','TZ'))`);
   log("очищены переписка, журнал, вложения, обращения поставщика, решения владельца");

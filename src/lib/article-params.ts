@@ -15,7 +15,7 @@ export const PARAM_SEP = "=";
 export type ArticleParam = { name: string; value: string };
 
 /** Типовые названия — те же понятия, что в фильтрах списка «Изделия» (категория и длина правятся в «Реквизитах», их тут нет). */
-export const STANDARD_PARAM_NAMES = ["Тип меха", "Цвет", "Размер", "Сезон", "Подкладка", "Фасон", "Стиль"] as const;
+export const STANDARD_PARAM_NAMES = ["Тип меха", "Цвет", "Размер", "Сезон", "Подкладка", "Фасон", "Стиль", "PLU"] as const;
 
 const clean = (v: unknown, max: number) =>
   (typeof v === "string" ? v : "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);

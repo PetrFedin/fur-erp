@@ -44,6 +44,9 @@ import { loadArticleFurTypes } from "@/lib/article-fur-type";
 import { groupOf, NO_GROUP } from "@/lib/category-groups";
 import { canEditProduction } from "@/lib/production-access";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
+import { PhotoGalleryButton } from "@/components/photo-gallery";
+import { loadArticlePhotos, loadShopLinks } from "@/lib/article-photos";
+import { isPluParam } from "@/lib/article-photo-match";
 import { CollapsibleBlock } from "@/components/collapsible-block";
 import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
 
@@ -169,6 +172,11 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
   const usedNames = Object.keys(valuesByName);
   const paramNames = [...STANDARD_PARAM_NAMES, ...usedNames.filter((n) => !STANDARD_PARAM_NAMES.some((s) => s.toLowerCase() === n.toLowerCase()))];
 
+  // Фото и ссылки «Товар в магазине» — только для сотрудников заказчика (подрядчик сюда не попадает: редирект выше).
+  const photos = await loadArticlePhotos(prisma, orgId, id);
+  const shopLinks = await loadShopLinks(prisma, orgId, id);
+  const pluParams = ownParams.filter((p) => isPluParam(p.name));
+
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Изделия", href: "/articles" }, { label: model.name }]} />
@@ -185,6 +193,15 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         {canEditProduction(session.user.role) && model.isActive ? (
           <Link href={newTzHref} className={buttonVariants({ size: "sm" }) + " btn-accent ml-auto print:hidden"}>+ Создать ТЗ на этот артикул</Link>
         ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2" aria-label="Фото и магазин">
+        {photos.length > 0 ? <PhotoGalleryButton modelId={id} photos={photos.map((p) => ({ id: p.id, variant: p.variant }))} title={model.name} /> : <span className="text-sm text-neutral-500">Нет фото</span>}
+        {shopLinks.map((l) => (
+          <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-sm text-blue-700 hover:underline sm:min-h-0">
+            Товар в магазине{l.variant ? ` · ${l.variant}` : ""}{l.itemId ? ` (${l.itemId})` : ""} ↗
+          </a>
+        ))}
       </div>
 
       <nav aria-label="Разделы артикула" className="flex flex-wrap gap-2">
@@ -262,6 +279,8 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 border-t border-neutral-100 pt-3 text-sm">
             <dt className="text-neutral-500">Категория → группа</dt>
             <dd>{model.category?.trim() || "—"}{group !== NO_GROUP ? <span className="ml-2 text-neutral-600">· {group}</span> : null}<Src href="/settings/categories" title="Справочник категорий и групп" /></dd>
+            <dt className="text-neutral-500">PLU</dt>
+            <dd>{pluParams.length ? pluParams.map((p) => (p.name.length > 3 ? `${p.name.slice(3).trim()}: ${p.value}` : p.value)).join("; ") : <span className="text-neutral-500">пока пусто</span>}</dd>
             <dt className="text-neutral-500">Тип меха</dt>
             <dd>{furType ? furType.fur : "—"}<Src href="/settings/furs" title="Справочник видов меха" /></dd>
             <dt className="text-neutral-500">Мех (по ТЗ)</dt>

@@ -11,7 +11,7 @@
  * скрытое демо-вход/регистрацию, заголовки безопасности, /api/ready, лимит тела, журнал входов.
  * База обязана называться *_sec / *_demo / *_test — иначе скрипт откажется работать.
  */
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
@@ -600,6 +600,50 @@ async function main() {
   // поставщик после попытки по-прежнему видит только своё
   const s2c = await actAs(S2, idSup1);
   ok(denied(await req(`/api/chat/files/${att.id}`, { cookie: s2c })), "поставщик после попытки подмены по-прежнему не видит чужие файлы");
+
+  // ---------- 12. Ссылки магазина и PLU: подрядчик их не получает ----------
+  console.log("\n== 12. Фото артикулов: ссылки магазина и PLU закрыты от подрядчика");
+  {
+    const probeModel = await prisma.productModel.findFirstOrThrow({ where: { organizationId: orgA, NOT: { category: "Ремонт" } }, orderBy: { createdAt: "asc" } });
+    const probeUrl = "https://www.tsum.ru/product/he00000000-sec-probe/";
+    const keyL = "article-shop-links:" + probeModel.id;
+    const prevLinks = await prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: orgA, key: keyL } } });
+    const prevAttrs = probeModel.attributes;
+    await prisma.systemState.upsert({ where: { organizationId_key: { organizationId: orgA, key: keyL } }, create: { organizationId: orgA, key: keyL, value: { links: [{ variant: "SEC", itemId: "HE00000000", url: probeUrl }] } }, update: { value: { links: [{ variant: "SEC", itemId: "HE00000000", url: probeUrl }] } } });
+    await prisma.productModel.update({ where: { id: probeModel.id }, data: { attributes: [{ name: "PLU", value: "HE00000000" }] } });
+    try {
+      const own = await req(`/models/${probeModel.id}`, { cookie: A });
+      ok(own.status === 200 && own.text.includes("he00000000-sec-probe"), "владелец видит «Товар в магазине» в карточке артикула");
+      ok(own.text.includes("HE00000000"), "владелец видит PLU в карточке артикула");
+      for (const who of [S1, S2]) {
+        const card = await req(`/models/${probeModel.id}`, { cookie: who });
+        ok(denied(card) || !/tsum\.ru|HE00000000|article-shop-links/.test(card.text), "подрядчик: карточка артикула не отдаёт ссылку магазина и PLU");
+        const list = await req(`/articles`, { cookie: who });
+        ok(list.status === 200 && !/tsum\.ru|HE00000000|article-shop-links|PLU/.test(list.text), "подрядчик: список «Изделия» (в т. ч. RSC-данные) без ссылок магазина и PLU");
+        const q = await req(`/articles?q=HE00000000`, { cookie: who });
+        ok(!/HE00000000/.test(q.text.replace(/value="HE00000000"/g, "")) || q.text.includes("Нет результатов"), "подрядчик: поиск по PLU ничего не находит");
+        ok(denied(await req(`/api/search?q=HE00000000`, { cookie: who })), "подрядчик: глобальный поиск по PLU закрыт");
+      }
+      ok(denied(await req(`/api/article-photos/${probeModel.id}/00000000-0000-0000-0000-000000000000`)), "фото артикула без входа закрыты");
+      const miss = await req(`/api/article-photos/${probeModel.id}/00000000-0000-0000-0000-000000000000`, { cookie: S1 });
+      ok(miss.status === 404, "подрядчик: несуществующее фото → 404 (путь берётся только из записи)");
+      const real = await prisma.systemState.findFirst({ where: { organizationId: orgA, key: { startsWith: "article-photos:" } } });
+      if (real) {
+        const mid = real.key.slice("article-photos:".length);
+        const pid = ((real.value as { photos?: { id: string }[] }).photos ?? [])[0]?.id;
+        if (pid) {
+          ok((await req(`/api/article-photos/${mid}/${pid}`, { cookie: S1 })).status === 200, "подрядчик видит фото изделия");
+          ok((await req(`/api/article-photos/${mid}/${pid}?size=thumb`, { cookie: A })).status === 200, "владелец видит миниатюру");
+        }
+      }
+    } finally {
+      if (prevLinks) await prisma.systemState.update({ where: { id: prevLinks.id }, data: { value: prevLinks.value as object } });
+      else await prisma.systemState.deleteMany({ where: { organizationId: orgA, key: keyL } });
+      await prisma.productModel.update({ where: { id: probeModel.id }, data: { attributes: prevAttrs ?? Prisma.DbNull } });
+    }
+    const supSrc = readFileSync(path.resolve("src/app/(app)/articles/supplier-view.tsx"), "utf8");
+    ok(!/loadShopLinks|article-shop-links|loadAllArticleParams|isPluParam/.test(supSrc), "исходник кабинета подрядчика не читает ссылки магазина и свойства (PLU)");
+  }
 
   // ---------- итог ----------
   console.log(`\n${fails === 0 ? "ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ" : fails + " ПРОВЕРОК НЕ ПРОЙДЕНО"} (всего ${total})`);

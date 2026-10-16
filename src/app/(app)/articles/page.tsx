@@ -38,6 +38,9 @@ import { CATEGORY_GROUPS, NO_GROUP, groupOf } from "@/lib/category-groups";
 import { TotalLabel } from "@/components/total-label";
 import { LENGTH_OPTIONS } from "@/lib/length-class";
 import { loadAllArticleParams, modelIdsWithParams, paramFilterOptions } from "@/lib/article-params";
+import { PhotoGalleryButton } from "@/components/photo-gallery";
+import { loadPhotoSummary } from "@/lib/article-photos";
+import { pluMatchIds } from "@/lib/article-photo-match";
 import { SupplierArticles } from "./supplier-view";
 import { loadSupplierArticleIds } from "@/lib/supplier-articles";
 
@@ -89,9 +92,14 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const paramIds = f.param.length ? modelIdsWithParams(allParams, f.param) : null;
   const modelIds = paramIds ? (f.model.length ? paramIds.filter((x) => f.model.includes(x)) : paramIds) : null;
 
+  // Поиск по PLU (свойство «PLU»): артикулы с подходящим PLU добавляются к обычному результату поиска.
+  const pluIds = q ? pluMatchIds(allParams, q) : [];
+  const fWhere = modelIds ? { ...f, model: modelIds.length ? modelIds : ["-"] } : f;
+  const qWhere = pluIds.length ? { OR: [articleModelWhere(orgId, fWhere), { AND: [articleModelWhere(orgId, { ...fWhere, q: "" }), { id: { in: pluIds } }] }] } : articleModelWhere(orgId, fWhere);
+  const photoSummary = await loadPhotoSummary(prisma, orgId);
   const models = await prisma.productModel.findMany({
     // Ремонт — не изделия: отдельная страница «Ремонт».
-    where: { AND: [articleModelWhere(orgId, modelIds ? { ...f, model: modelIds.length ? modelIds : ["-"] } : f), { OR: [{ category: null }, { category: { not: "Ремонт" } }] }] },
+    where: { AND: [qWhere, { OR: [{ category: null }, { category: { not: "Ремонт" } }] }] },
     select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, description: true, sellingPrice: true, supplierWorkPrice: true, supplierFurPerUnit: true, isActive: true, categoryRef: { select: { group: true } } },
     orderBy: { name: "asc" },
   });
@@ -261,7 +269,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         hideChips
         title="Фильтры изделий"
         controls={[
-          { type: "text", name: "q", label: "Поиск", aliases: ["article"], placeholder: "код, название, код продаж" },
+          { type: "text", name: "q", label: "Поиск", aliases: ["article"], placeholder: "код, название, код продаж, PLU" },
           { type: "multi", name: "model", label: "Артикул", options: articleOpts.model },
           { type: "multi", name: "len", label: "Длина", more: true, options: LENGTH_OPTIONS, allLabel: "Любая" },
           { type: "multi", name: "catgroup", label: "Группа", more: true, options: [...CATEGORY_GROUPS, NO_GROUP].map((g) => ({ value: g === NO_GROUP ? "none" : g, label: g })) },
@@ -335,6 +343,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 <Link href={`/models/${r.id}`} className="text-blue-700 hover:underline" title="Карточка артикула">
                   <ArticleName model={r.model} compact />
                 </Link>
+                {photoSummary.get(r.id) ? <span className="ml-2 inline-block align-middle"><PhotoGalleryButton modelId={r.id} photos={photoSummary.get(r.id)!} title={r.name} compact /></span> : null}
                 {r.bySupplier && <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800" title="Артикул завёл поставщик — проверьте и проставьте цену">внёс: Веллмех</span>}
                 {r.supplierNote && <span className="ml-2 text-xs font-normal text-neutral-500" title="Прислал Веллмех">{r.supplierNote}</span>}
               </Td>

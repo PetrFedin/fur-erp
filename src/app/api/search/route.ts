@@ -4,6 +4,8 @@ import { cleanSearch, escapeLike } from "@/lib/input";
 import { loadArticleList } from "@/lib/article-ref";
 import { searchArticleList } from "@/lib/article-key";
 import { paymentCode } from "@/lib/payments-registry";
+import { loadAllArticleParams } from "@/lib/article-params";
+import { pluMatchIds } from "@/lib/article-photo-match";
 import { formatMoney } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +63,12 @@ export async function GET(request: Request) {
     prisma.shipment.findMany({ where: { organizationId: orgId, name: like() }, select: { id: true, name: true, plannedDate: true, supplier: { select: { name: true } } }, orderBy: { plannedDate: "desc" }, take: LIMIT }),
   ]);
 
+  // PLU артикула (внутренний код заказчика, свойство «PLU»): находим и по нему.
+  const pluIds = pluMatchIds(await loadAllArticleParams(prisma, orgId), q);
+  const pluModels = pluIds.length ? await prisma.productModel.findMany({ where: { organizationId: orgId, id: { in: pluIds.slice(0, LIMIT) } }, select: { id: true, name: true, category: true } }) : [];
+  const articleHits = searchArticleList(articleList, q, LIMIT).map((h) => ({ href: `/models/${h.article.id}`, title: h.article.name, sub: [h.article.salesCode && `в продажах ${h.article.salesCode}`, h.article.category].filter(Boolean).join(" · ") }));
+  for (const m of pluModels) if (!articleHits.some((x) => x.href === `/models/${m.id}`)) articleHits.push({ href: `/models/${m.id}`, title: m.name, sub: ["PLU", m.category].filter(Boolean).join(" · ") });
+
   const payItems = [
     ...pays.map((p) => ({ at: p.paidAt, item: { href: `/payments/${paymentCode("raw", p.id)}`, title: `${ruDate(p.paidAt)} · ${money(p.amount)}`, sub: [p.supplier.name, p.ppNo && `п/п ${p.ppNo}`, p.invoiceNo && `счёт ${p.invoiceNo}`].filter(Boolean).join(" · ") } })),
     ...prodPays.map((p) => ({ at: p.paidAt, item: { href: `/payments/${paymentCode("prod", p.id)}`, title: `${ruDate(p.paidAt)} · ${money(p.amount)}`, sub: [p.client?.name, p.ppNo && `п/п ${p.ppNo}`, p.invoiceNo && `счёт ${p.invoiceNo}`].filter(Boolean).join(" · ") } })),
@@ -82,7 +90,7 @@ export async function GET(request: Request) {
     { key: "payments", label: "Оплаты", all: `/payments?rq=${enc}`, items: payItems },
     {
       key: "articles", label: "Артикулы", all: `/articles?q=${enc}`,
-      items: searchArticleList(articleList, q, LIMIT).map((h) => ({ href: `/models/${h.article.id}`, title: h.article.name, sub: [h.article.salesCode && `в продажах ${h.article.salesCode}`, h.article.category].filter(Boolean).join(" · ") })),
+      items: articleHits.slice(0, LIMIT),
     },
     {
       key: "shipments", label: "Отгрузки", all: `/shipments?q=${enc}`,

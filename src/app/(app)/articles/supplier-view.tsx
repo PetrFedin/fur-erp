@@ -7,6 +7,8 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Clamp } from "@/components/clamp";
 import { InfoHint } from "@/components/info-hint";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
+import { PhotoGalleryButton } from "@/components/photo-gallery";
+import { loadPhotoSummary } from "@/lib/article-photos";
 import { loadArticleFurTypes } from "@/lib/article-fur-type";
 import { readSort, sortRows, thSort, type SortParams } from "@/lib/table-sort";
 import { parseSupplierDescription, supplierArticleTitle, supplierSafeText } from "@/lib/supplier-article";
@@ -44,6 +46,8 @@ export async function SupplierArticles({ orgId, q, noname, sp = {} }: { orgId: s
     fromTz.set(o.productModelId, cur);
   }
   const furTypes = await loadArticleFurTypes(orgId);
+  // Фото изделий подрядчик видеть может; ссылок магазина и PLU здесь нет вообще (читаются только фото).
+  const photos = await loadPhotoSummary(prisma, orgId);
   const all = models.map((m) => {
     const own = parseSupplierDescription(m.description);
     const tz = fromTz.get(m.id);
@@ -102,7 +106,7 @@ export async function SupplierArticles({ orgId, q, noname, sp = {} }: { orgId: s
         <Tbody>
           {rows.map((m) => (
             <Tr key={m.id} className={m.isActive ? undefined : "text-neutral-400"}>
-              <Td className="font-medium">{m.name}{!m.isActive && <span className="ml-2 text-xs font-normal">не активен</span>}</Td>
+              <Td className="font-medium">{m.name}{photos.get(m.id) ? <span className="ml-2 inline-block align-middle"><PhotoGalleryButton modelId={m.id} photos={photos.get(m.id)!} title={m.name} compact /></span> : null}{!m.isActive && <span className="ml-2 text-xs font-normal">не активен</span>}</Td>
               <Td className="max-w-[20rem]">{m.title ? <Clamp>{m.title}</Clamp> : <span className="text-amber-800">Нет названия</span>}</Td>
               <Td>{m.category || "—"}</Td>
               <Td>{m.lengthClass || "—"}</Td>
