@@ -40,7 +40,7 @@
 | `docs/` | постоянная документация: `DEPLOY`, `TESTING`, `DATA-SAFETY`, `ROADMAP`, `PRODUCTION_ADMISSION`, `analysis/`, этот файл | да |
 | `docs/inventory/` | отобранные (curated) копии рабочих отчётов и журналов операций: Markdown-отчёты, `corrections-journal-*.json`, `dates-pending.json`, `crosscheck-pending.json`, `full-crosscheck.json`, `detail-audit.json` | да |
 | `docs/archive/` | снимки незавершённой работы других сессий (patch + описание) | да |
-| `docs-inventory/` | рабочие выгрузки и журналы операций, в т. ч. сырые выгрузки Drive (`extract/`, `drive-manifest*.json`, `drive-live-batch-*.json`, `*.pkl`) | **нет** (в `.gitignore`) |
+| `docs-inventory/` | рабочие выгрузки и журналы операций, в т. ч. сырые выгрузки документов (`extract/`, `*.pkl`) и журнал очистки от внешних ссылок | **нет** (в `.gitignore`) |
 | `uploads/` | загруженные файлы (документы закупок, фото примерок); копируются `scripts/backup.sh` | **нет** |
 | `deploy/` | боевой запуск: `Caddyfile`, `backup.sh`; `docker-compose.prod.yml` и `Dockerfile` в корне | да |
 | `e2e/` | сквозные тесты Playwright | да |

@@ -29,7 +29,7 @@ HTTP 503 означает, что хотя бы один обязательны�
 
 `GET /api/ready?details=1`
 
-добавляет диагностику БД, покрытие DriveDocument и reconciliation queue.
+добавляет диагностику БД, прикреплённость документов и reconciliation queue.
 
 ## 3. Обязательные слои
 
@@ -64,15 +64,11 @@ HTTP 503 означает, что хотя бы один обязательны�
 
 Пустая после migrations база не является production-ready.
 
-### Drive document authority
+### Документы
 
-DriveDocument — слой доказательств. Для production admission:
-
-- в БД должны существовать DriveDocument;
-- не менее 95% записей должны иметь проверенный `viewUrl`;
-- fileId/path/url должны указывать на актуальную структуру папки «Мех».
-
-Автоматическая онлайн-синхронизация Drive не считается включённой только из-за наличия ссылок. До отдельного OAuth/service-account authority поле `online_sync` остаётся false.
+DriveDocument (записи документов) — слой доказательств. Для production admission нужны только сами записи; прикреплённость файлов
+не блокирует запуск: документ без файла получает статус «не прикреплён» и попадает в список «что прикрепить позже».
+В `/api/ready?details=1` — блок `documents` (`total`, `attached`, `attached_pct`). Внешних ссылок и синхронизации с внешним диском нет.
 
 ### Reconciliation
 
@@ -98,7 +94,6 @@ DriveDocument — слой доказательств. Для production admissi
 - `DATABASE_SCHEMA_INCOMPLETE`
 - `DATABASE_MIGRATION_FAILED`
 - `PRODUCTION_DATA_NOT_LOADED`
-- `DRIVE_DOCUMENT_AUTHORITY_INCOMPLETE`
 - `RECONCILIATION_DATASET_STALE_OR_EMPTY`
 
 Production PASS только когда `blockers=[]`.
@@ -118,5 +113,5 @@ Production PASS только когда `blockers=[]`.
 
 ## 6. Источник текущего состояния
 
-На 05.10.2026 актуальная доказательная сверка синхронизирована с пересобранной папкой «Мех».
-Excel остаётся контрольным экспортом/внешним способом проверки, но операционная система истины после Production PASS — PostgreSQL + связанный Drive document authority.
+Доказательная сверка (`src/data/reconciliation.json`) собрана по документам компании.
+Excel остаётся контрольным экспортом/внешним способом проверки, но операционная система истины после Production PASS — PostgreSQL + прикреплённые документы.

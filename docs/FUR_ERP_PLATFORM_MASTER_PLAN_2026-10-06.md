@@ -30,7 +30,7 @@ Supporting authority includes:
 - purchase documents;
 - fittings/photos;
 - production batches;
-- Drive document references;
+- document records (attached files);
 - audit log;
 - multi-tenant organization scope.
 
