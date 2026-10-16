@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export type GalleryPhoto = { id: string; variant: string };
+export type GalleryPhoto = { id: string; variant: string; color?: string; itemId?: string };
+/** Цветовая группа (вариант) с готовой подписью; порядок = порядок вкладок, «Цвет не определён» — последней. */
+export type GalleryGroup = { key: string; label: string };
+/** Страница магазина для фото (по itemId): ссылка и PLU. Передаётся только сотрудникам заказчика — подрядчик ссылок и PLU не получает. */
+export type GalleryShop = { url: string; plu: string | null };
 /** Результат server action удаления: error — текст ошибки, left — сколько фото осталось. */
 export type DeleteResult = { error?: string; left?: number };
 
@@ -13,14 +17,22 @@ const src = (modelId: string, id: string, thumb?: boolean) => `/api/article-phot
  * Листание: ← / → и по краям, свайп, полоса миниатюр; закрытие: Esc, ×, клик вне фото. На телефоне — на весь экран.
  * Основа — нативный <dialog>.showModal(): фокус заперт внутри, фон неактивен, Esc из коробки.
  */
-export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact, onDelete, onDeleteAll }: {
+export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact, onDelete, onDeleteAll, groups: groupsProp, shops }: {
   modelId: string; photos: GalleryPhoto[]; title: string; compact?: boolean;
+  groups?: GalleryGroup[]; shops?: Record<string, GalleryShop>;
   /** Только для сотрудников заказчика с правом править артикул (подрядчику не передаются — кнопок удаления нет). */
   onDelete?: (modelId: string, photoId: string) => Promise<DeleteResult>;
   onDeleteAll?: (modelId: string) => Promise<DeleteResult>;
 }) {
   const [gone, setGone] = useState<string[]>([]);
-  const photos = allPhotos.filter((p) => !gone.includes(p.id));
+  const alive = allPhotos.filter((p) => !gone.includes(p.id));
+  const keys = [...new Set(alive.map((p) => p.variant))];
+  const groups = (groupsProp ?? keys.map((k) => ({ key: k, label: k || "Фото" }))).filter((g) => keys.includes(g.key));
+  const ordered = groups.flatMap((g) => alive.filter((p) => p.variant === g.key));
+  const [gk, setGk] = useState<string | null>(null);
+  const activeKey = groups.some((g) => g.key === gk) ? gk : (groups[0]?.key ?? "");
+  const photos = ordered.filter((p) => p.variant === activeKey);
+  const total = ordered.length;
   const [mode, setMode] = useState<null | "menu" | "one" | "all">(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -47,8 +59,8 @@ export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact,
         if (r.error) { setErr(r.error); return; }
         setGone((g) => [...g, id]);
         setMode(null);
-        if (n <= 1) setOpen(false);
-        else setI((cur) => Math.min(cur, n - 2)); // после удаления окно листает дальше: на следующее фото (или на последнее)
+        if (total <= 1) setOpen(false);
+        else setI((cur) => (n <= 1 ? 0 : Math.min(cur, n - 2))); // после удаления окно листает дальше: на следующее фото (или на последнее); опустела группа — на первую из оставшихся
       }
     } catch {
       setErr("Не удалось удалить фото. Проверьте соединение и повторите.");
@@ -84,20 +96,22 @@ export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact,
     if (open) ref.current?.querySelector<HTMLElement>("[data-active-thumb]")?.scrollIntoView({ block: "nearest", inline: "center" });
   }, [open, i]);
 
-  if (n === 0) return null;
+  if (total === 0) return null;
   const cur = photos[Math.min(i, n - 1)];
+  const shop = shops && cur.itemId ? shops[cur.itemId] : undefined;
+  const group = groups.find((g) => g.key === activeKey);
   return (
     <>
       <button
         type="button"
-        onClick={() => { setI(0); setOpen(true); }}
+        onClick={() => { setI(0); setGk(null); setOpen(true); }}
         className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-2 py-1 text-sm hover:bg-neutral-50 sm:min-h-9"
         aria-haspopup="dialog"
         title={`Фото артикула ${title}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src(modelId, photos[0].id, true)} alt="" loading="lazy" className={(compact ? "size-8" : "size-10") + " rounded object-cover"} />
-        <span>Фото <span className="tabular-nums text-neutral-500">({n})</span></span>
+        <img src={src(modelId, ordered[0].id, true)} alt="" loading="lazy" className={(compact ? "size-8" : "size-10") + " rounded object-cover"} />
+        <span>Фото <span className="tabular-nums text-neutral-500">({total})</span></span>
       </button>
       <dialog
         ref={ref}
@@ -120,8 +134,9 @@ export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact,
           >
             <div className="flex items-center justify-between gap-3 px-4 py-2">
               <p className="min-w-0 truncate text-sm" aria-live="polite">
-                <span className="font-medium">{title}</span>
-                {cur.variant ? <span className="text-neutral-300"> · {cur.variant}</span> : null}
+                <span className="font-medium">Артикул {title}</span>
+                {shop?.plu ? <span className="text-neutral-200"> · PLU {shop.plu}</span> : null}
+                {group && (group.label !== "Фото" || cur.variant) ? <span className="text-neutral-300"> · {group.label}{cur.variant && cur.variant !== group.label ? ` (${cur.variant})` : ""}</span> : null}
               </p>
               <div className="flex items-center gap-2">
                 <span className="text-sm tabular-nums text-neutral-300">{i + 1} / {n}</span>
@@ -133,6 +148,31 @@ export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact,
                 <button type="button" autoFocus onClick={() => setOpen(false)} aria-label="Закрыть" className="inline-flex size-11 items-center justify-center rounded-full text-2xl hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">×</button>
               </div>
             </div>
+            {(shop || groups.length > 1) && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pb-2">
+                {groups.length > 1 && (
+                  <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto" role="tablist" aria-label="Цвета" data-keep-scroll>
+                    {groups.map((g) => (
+                      <button
+                        key={g.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={g.key === activeKey}
+                        onClick={() => { setGk(g.key); setI(0); }}
+                        className={"min-h-11 shrink-0 rounded-full border px-4 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white " + (g.key === activeKey ? "border-white bg-white text-neutral-900" : "border-white/30 text-white/90 hover:bg-white/10")}
+                      >
+                        {g.label} <span className="tabular-nums opacity-70">· {ordered.filter((p) => p.variant === g.key).length}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {shop && (
+                  <a href={shop.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-white/40 px-4 text-sm font-medium hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                    Товар в магазине <span aria-hidden="true">↗</span>
+                  </a>
+                )}
+              </div>
+            )}
             <div className="relative min-h-0 flex-1">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img key={cur.id} src={src(modelId, cur.id)} alt={`${title}${cur.variant ? ", " + cur.variant : ""}, фото ${i + 1} из ${n}`} className="absolute inset-0 size-full object-contain" />
@@ -167,12 +207,12 @@ export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact,
                 {mode === "menu" ? (
                   <div className="flex flex-col gap-2">
                     <button type="button" onClick={() => setMode("one")} className="min-h-11 rounded-lg px-3 text-left text-sm font-medium hover:bg-neutral-100">Удалить это фото</button>
-                    {n > 1 && <button type="button" onClick={() => setMode("all")} className="min-h-11 rounded-lg px-3 text-left text-sm font-medium hover:bg-neutral-100">Удалить все фото артикула ({n})</button>}
+                    {total > 1 && <button type="button" onClick={() => setMode("all")} className="min-h-11 rounded-lg px-3 text-left text-sm font-medium hover:bg-neutral-100">Удалить все фото артикула ({total})</button>}
                     <button type="button" onClick={() => setMode(null)} className="min-h-11 rounded-lg px-3 text-left text-sm text-neutral-600 hover:bg-neutral-100">Отмена</button>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    <p className="text-sm font-medium">{mode === "all" ? `Удалить все фото артикула ${title} (${n})?` : "Удалить это фото?"}</p>
+                    <p className="text-sm font-medium">{mode === "all" ? `Удалить все фото артикула ${title} (${total})?` : "Удалить это фото?"}</p>
                     <p className="text-xs text-neutral-600">{mode === "all" ? "Файлы будут стёрты, вернуть их нельзя." : "Файл будет стёрт, вернуть его нельзя."} Запись попадёт в журнал изменений.</p>
                     {err && <p role="alert" className="text-sm text-red-700">{err}</p>}
                     <div className="flex gap-2">

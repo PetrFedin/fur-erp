@@ -40,7 +40,8 @@ import { LENGTH_OPTIONS } from "@/lib/length-class";
 import { loadAllArticleParams, modelIdsWithParams, paramFilterOptions } from "@/lib/article-params";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
 import { deleteArticlePhoto, deleteAllArticlePhotos } from "../models/photo-actions";
-import { loadPhotoSummary } from "@/lib/article-photos";
+import { loadPhotoSummary, loadAllShopLinks } from "@/lib/article-photos";
+import { galleryExtras, pluOfItem } from "@/lib/article-photo-color";
 import { pluMatchIds } from "@/lib/article-photo-match";
 import { SupplierArticles } from "./supplier-view";
 import { loadSupplierArticleIds } from "@/lib/supplier-articles";
@@ -98,6 +99,19 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const fWhere = modelIds ? { ...f, model: modelIds.length ? modelIds : ["-"] } : f;
   const qWhere = pluIds.length ? { OR: [articleModelWhere(orgId, fWhere), { AND: [articleModelWhere(orgId, { ...fWhere, q: "" }), { id: { in: pluIds } }] }] } : articleModelWhere(orgId, fWhere);
   const photoSummary = await loadPhotoSummary(prisma, orgId);
+  // Ссылки магазина, PLU и цвета фото — только сотрудникам заказчика (подрядчик уходит в supplier-view выше).
+  const shopLinksAll = photoSummary.size ? await loadAllShopLinks(prisma, orgId) : new Map<string, { variant: string; itemId: string; url: string; color?: string }[]>();
+  const colorRefs = photoSummary.size ? await prisma.colorRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true, note: true } }) : [];
+  /** PLU артикула по цветам: [{ plu, label }] — подпись цвета нужна, только если PLU разных цветов. */
+  const pluEntries = (id: string): { plu: string; label: string }[] => {
+    const links = shopLinksAll.get(id) ?? [];
+    const photos = photoSummary.get(id);
+    const labels = new Map(galleryExtras(photos ?? [], null, colorRefs).groups.map((g) => [g.key, g.label]));
+    const seen = new Set<string>();
+    const out: { plu: string; label: string }[] = [];
+    for (const l of links) { const plu = pluOfItem(l.itemId); if (plu && !seen.has(plu)) { seen.add(plu); out.push({ plu, label: labels.get(l.variant) ?? l.color ?? "" }); } }
+    return out;
+  };
   const models = await prisma.productModel.findMany({
     // Ремонт — не изделия: отдельная страница «Ремонт».
     where: { AND: [qWhere, { OR: [{ category: null }, { category: { not: "Ремонт" } }] }] },
@@ -153,7 +167,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       id: m.id,
       name: m.name,
       bySupplier: supplierMade.has(m.id),
-      supplierNote: [m.supplierWorkPrice ? `работа ${formatMoney(m.supplierWorkPrice.toString())}` : "", m.supplierFurPerUnit ? `шкур ${m.supplierFurPerUnit.toString()}` : ""].filter(Boolean).join(" · "),
+      // Заявка подрядчика по артикулу (не итог по ТЗ): цена работы за изделие и шкур на изделие — показываются в столбцах «Работа» и «Шкур» второй строкой.
+      supplierWork: m.supplierWorkPrice ? formatMoney(m.supplierWorkPrice.toString()) : null,
+      supplierFur: m.supplierFurPerUnit ? m.supplierFurPerUnit.toString() : null,
+      plus: pluEntries(m.id),
       model: { name: m.name, category: m.category, salesCode: m.salesCode, salesName: m.salesName, sku: m.sku },
       group: groupOf(m.categoryRef?.group),
       isActive: m.isActive,
@@ -183,9 +200,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     return wa - wb || compareModelNames(a.name, b.name);
   });
   // Сортировка по клику на заголовок (?sort=…&dir=…) поверх порядка по умолчанию (есть склад или ТЗ — выше, затем по названию).
-  const aSort = readSort(sp, ["name", "category", "fur", "color", "sizes", "lining", "qty", "furQty", "furSum", "liningQty", "liningSum", "work", "total", "unit", "price", "markup", "orders"]);
+  const aSort = readSort(sp, ["name", "photos", "plu", "category", "fur", "color", "sizes", "lining", "qty", "furQty", "furSum", "liningQty", "liningSum", "work", "total", "unit", "price", "markup", "orders"]);
   const rows = sortRows(rows1, aSort, {
-    name: (r) => r.name, category: (r) => r.model.category?.trim() || null, fur: (r) => r.primaryFur, color: (r) => r.colors[0] ?? null, sizes: (r) => r.sizes || null, lining: (r) => r.lining || null,
+    name: (r) => r.name, photos: (r) => photoSummary.get(r.id)?.length ?? 0, plu: (r) => r.plus.map((x) => x.plu).join(", ") || null, category: (r) => r.model.category?.trim() || null, fur: (r) => r.primaryFur, color: (r) => r.colors[0] ?? null, sizes: (r) => r.sizes || null, lining: (r) => r.lining || null,
     qty: (r) => r.qty, furQty: (r) => r.met.fur.qty, furSum: (r) => r.met.fur.on.incl, liningQty: (r) => r.met.lining.qty, liningSum: (r) => r.met.lining.on.incl,
     work: (r) => r.met.work, total: (r) => (r.costIncl > 0 ? r.met.total.on.incl : null), unit: (r) => r.met.unit?.on.incl ?? null,
     price: (r) => r.sellingPrice ?? null, markup: (r) => r.markup ?? null, orders: (r) => r.orderCount,
@@ -315,6 +332,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         <Thead>
           <Tr>
             <Th {...ath("name")}>Артикул</Th>
+            <Th {...ath("photos")}>Фото</Th>
+            <Th {...ath("plu")}>PLU</Th>
+            <Th><span className="sr-only">Ссылка на магазин</span></Th>
             <Th {...ath("category")}>Категория / группа</Th>
             <Th {...ath("fur")}>Тип меха</Th>
             <Th {...ath("color")}>Цвет</Th>
@@ -344,9 +364,22 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 <Link href={`/models/${r.id}`} className="text-blue-700 hover:underline" title="Карточка артикула">
                   <ArticleName model={r.model} compact />
                 </Link>
-                {photoSummary.get(r.id) ? <span className="ml-2 inline-block align-middle"><PhotoGalleryButton modelId={r.id} photos={photoSummary.get(r.id)!} title={r.name} compact {...(canCreate ? { onDelete: deleteArticlePhoto, onDeleteAll: deleteAllArticlePhotos } : {})} /></span> : null}
                 {r.bySupplier && <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800" title="Артикул завёл поставщик — проверьте и проставьте цену">внёс: Веллмех</span>}
-                {r.supplierNote && <span className="ml-2 text-xs font-normal text-neutral-500" title="Прислал Веллмех">{r.supplierNote}</span>}
+              </Td>
+              <Td>
+                {photoSummary.get(r.id) ? (() => {
+                  const ex = galleryExtras(photoSummary.get(r.id)!, shopLinksAll.get(r.id) ?? [], colorRefs);
+                  return <PhotoGalleryButton modelId={r.id} photos={photoSummary.get(r.id)!} groups={ex.groups} shops={ex.shops} title={r.name} compact {...(canCreate ? { onDelete: deleteArticlePhoto, onDeleteAll: deleteAllArticlePhotos } : {})} />;
+                })() : null}
+              </Td>
+              <Td className="text-xs tabular-nums text-neutral-700">
+                {r.plus.map((x) => <div key={x.plu} className="whitespace-nowrap">{x.plu}{r.plus.length > 1 && x.label ? <span className="text-[11px] text-neutral-400"> · {x.label}</span> : null}</div>)}
+              </Td>
+              <Td className="w-12">
+                {(() => {
+                  const links = shopLinksAll.get(r.id) ?? [];
+                  return links[0] ? <a href={links[0].url} target="_blank" rel="noopener noreferrer" aria-label="Товар в магазине" title={links.length > 1 ? `Товар в магазине (первая из ${links.length} страниц; остальные — в окне «Фото»)` : "Товар в магазине"} className="inline-flex size-11 items-center justify-center rounded-lg border border-neutral-300 bg-white text-sm hover:bg-neutral-50 sm:size-9">↗</a> : null;
+                })()}
               </Td>
               <Td className="text-neutral-700">
                 <div>{r.model.category?.trim() || "—"}</div>
@@ -366,6 +399,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <Td className="text-right tabular-nums">
                 {r.met.fur.qty > 0 ? formatQty(Math.round(r.met.fur.qty * 100) / 100) : "—"}
                 {r.met.fur.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.fur.qty, r.qty)} шк./изд.</div> : null}
+                {r.supplierFur ? <div className="text-[11px] text-neutral-400" title="Заявка подрядчика по артикулу, не итог по ТЗ">подрядчик: {r.supplierFur} шк./изд.</div> : null}
               </Td>
               <Td className="text-right"><CostTwo on={r.met.fur.on} off={r.met.fur.off} /></Td>
               <Td className="text-right tabular-nums">
@@ -373,7 +407,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 {r.met.lining.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.lining.qty, r.qty)} м/изд.</div> : null}
               </Td>
               <Td className="text-right"><CostTwo on={r.met.lining.on} off={r.met.lining.off} /></Td>
-              <Td className="text-right tabular-nums">{r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "—"}</Td>
+              <Td className="text-right tabular-nums">
+                {r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "—"}
+                {r.supplierWork ? <div className="text-[11px] text-neutral-400" title="Заявка подрядчика по артикулу, не итог по ТЗ">подрядчик: {r.supplierWork}/изд.</div> : null}
+              </Td>
               <Td className="text-right"><CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /></Td>
               <Td className="text-right"><CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /></Td>
               <Td className="whitespace-nowrap tabular-nums text-neutral-700" title="Ставки НДС в строках списания">{r.met.vatRates.length ? r.met.vatRates.map((v) => `${v}%`).join(", ") : "—"}</Td>
@@ -395,7 +432,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           {rows.length > 0 && (
             <Tr className="row-total">
               <Td><TotalLabel unit="шт." /></Td>
-              <Td /><Td /><Td />
+              <Td /><Td /><Td /><Td /><Td /><Td /><Td /><Td />
               <Td className="text-right tabular-nums">{totalQty > 0 ? formatQty(totalQty) : "—"}</Td>
               <Td className="text-right tabular-nums">{totalFurQty > 0 ? formatQty(Math.round(totalFurQty * 100) / 100) : "—"}</Td>
               <Td className="text-right"><CostTwo on={sumPair((r) => r.met.fur.on)} off={sumPair((r) => r.met.fur.off)} /></Td>
@@ -409,7 +446,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           )}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={19} className="py-8 text-center text-neutral-500">
+              <Td colSpan={22} className="py-8 text-center text-neutral-500">
                 {q || modelFilterOn || tzActive ? "Ничего не найдено" : year !== "all" ? emptyForYear(year, "ТЗ по артикулам", "") : emptyCount > 0 ? "Нет артикулов с ТЗ и остатком" : "Артикулов пока нет"}
               </Td>
             </Tr>
@@ -432,6 +469,15 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               { label: "ТЗ", value: r.orderCount > 0 ? <Link href={`/production?model=${r.id}`} className="underline">{r.orderCount}</Link> : "—" },
             ]}
             details={[
+              ...(photoSummary.get(r.id) ? (() => {
+                const ex = galleryExtras(photoSummary.get(r.id)!, shopLinksAll.get(r.id) ?? [], colorRefs);
+                const links = shopLinksAll.get(r.id) ?? [];
+                return [
+                  { label: "Фото", value: <PhotoGalleryButton modelId={r.id} photos={photoSummary.get(r.id)!} groups={ex.groups} shops={ex.shops} title={r.name} compact {...(canCreate ? { onDelete: deleteArticlePhoto, onDeleteAll: deleteAllArticlePhotos } : {})} /> },
+                  ...(r.plus.length ? [{ label: "PLU", value: r.plus.map((x) => x.plu + (r.plus.length > 1 && x.label ? ` · ${x.label}` : "")).join(", ") }] : []),
+                  ...(links[0] ? [{ label: "Товар в магазине", value: <a href={links[0].url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-blue-700 underline">Открыть ↗</a> }] : []),
+                ];
+              })() : []),
               { label: "Шкур, шт.", value: r.met.fur.qty > 0 ? `${formatQty(Math.round(r.met.fur.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.fur.qty, r.qty)}/изд.)` : ""}` : "—" },
               { label: "Шкуры, сумма", value: <CostTwo on={r.met.fur.on} off={r.met.fur.off} /> },
               { label: "Подкладка, м", value: r.met.lining.qty > 0 ? `${formatQty(Math.round(r.met.lining.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.lining.qty, r.qty)}/изд.)` : ""}` : "—" },

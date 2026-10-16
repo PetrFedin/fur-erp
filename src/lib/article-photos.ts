@@ -12,8 +12,9 @@ import { resolveInside } from "./fitting-files";
 export const PHOTOS_KEY = "article-photos:";
 export const LINKS_KEY = "article-shop-links:";
 
-export type ArticlePhoto = { id: string; file: string; thumb: string; w: number; h: number; variant: string };
-export type ShopLink = { variant: string; itemId: string; url: string };
+/** color — цвет товара на странице магазина (запасное название); itemId — код страницы магазина, с которой взято фото (связь с ShopLink). */
+export type ArticlePhoto = { id: string; file: string; thumb: string; w: number; h: number; variant: string; color?: string; itemId?: string };
+export type ShopLink = { variant: string; itemId: string; url: string; color?: string };
 type Db = Pick<PrismaClient, "systemState">;
 
 export function readPhotos(value: unknown): ArticlePhoto[] {
@@ -22,7 +23,8 @@ export function readPhotos(value: unknown): ArticlePhoto[] {
   const out: ArticlePhoto[] = [];
   for (const p of raw as Partial<ArticlePhoto>[]) {
     if (p && typeof p.id === "string" && /^[0-9a-f-]{8,40}$/i.test(p.id) && typeof p.file === "string" && typeof p.thumb === "string") {
-      out.push({ id: p.id, file: p.file, thumb: p.thumb, w: Number(p.w) || 0, h: Number(p.h) || 0, variant: typeof p.variant === "string" ? p.variant : "" });
+      out.push({ id: p.id, file: p.file, thumb: p.thumb, w: Number(p.w) || 0, h: Number(p.h) || 0, variant: typeof p.variant === "string" ? p.variant : "",
+        ...(typeof p.color === "string" && p.color ? { color: p.color.slice(0, 60) } : {}), ...(typeof p.itemId === "string" && /^[\w-]{3,40}$/.test(p.itemId) ? { itemId: p.itemId } : {}) });
     }
   }
   return out;
@@ -34,7 +36,7 @@ export function readLinks(value: unknown): ShopLink[] {
   const out: ShopLink[] = [];
   for (const l of raw as Partial<ShopLink>[]) {
     if (l && typeof l.url === "string" && /^https:\/\/www\.tsum\.ru\/product\/[\w%.-]+\/?$/.test(l.url)) {
-      out.push({ variant: typeof l.variant === "string" ? l.variant : "", itemId: typeof l.itemId === "string" ? l.itemId : "", url: l.url });
+      out.push({ variant: typeof l.variant === "string" ? l.variant : "", itemId: typeof l.itemId === "string" ? l.itemId : "", url: l.url, ...(typeof l.color === "string" && l.color ? { color: l.color.slice(0, 60) } : {}) });
     }
   }
   return out;
@@ -47,12 +49,12 @@ export async function loadArticlePhotos(db: Db, orgId: string, modelId: string):
 }
 
 /** Сводка для списка: id артикула -> фото (id и вариант) по порядку. Без ссылок магазина. */
-export async function loadPhotoSummary(db: Db, orgId: string): Promise<Map<string, { id: string; variant: string }[]>> {
+export async function loadPhotoSummary(db: Db, orgId: string): Promise<Map<string, { id: string; variant: string; color?: string; itemId?: string }[]>> {
   const rows = await db.systemState.findMany({ where: { organizationId: orgId, key: { startsWith: PHOTOS_KEY } }, select: { key: true, value: true } });
-  const out = new Map<string, { id: string; variant: string }[]>();
+  const out = new Map<string, { id: string; variant: string; color?: string; itemId?: string }[]>();
   for (const r of rows) {
     const list = readPhotos(r.value);
-    if (list.length) out.set(r.key.slice(PHOTOS_KEY.length), list.map((p) => ({ id: p.id, variant: p.variant })));
+    if (list.length) out.set(r.key.slice(PHOTOS_KEY.length), list.map((p) => ({ id: p.id, variant: p.variant, ...(p.color ? { color: p.color } : {}), ...(p.itemId ? { itemId: p.itemId } : {}) })));
   }
   return out;
 }
@@ -68,3 +70,12 @@ export async function readPhotoFile(rel: string): Promise<Buffer | null> {
   if (!abs || !rel.startsWith("article-photos" + path.sep) && !rel.startsWith("article-photos/")) return null;
   try { return await readFile(abs); } catch { return null; }
 }
+
+/** Все ссылки магазина организации: id артикула -> ссылки. ТОЛЬКО для сотрудников заказчика. */
+export async function loadAllShopLinks(db: Db, orgId: string): Promise<Map<string, ShopLink[]>> {
+  const rows = await db.systemState.findMany({ where: { organizationId: orgId, key: { startsWith: LINKS_KEY } }, select: { key: true, value: true } });
+  const out = new Map<string, ShopLink[]>();
+  for (const r of rows) { const l = readLinks(r.value); if (l.length) out.set(r.key.slice(LINKS_KEY.length), l); }
+  return out;
+}
+

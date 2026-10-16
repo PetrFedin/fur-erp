@@ -45,6 +45,7 @@ import { groupOf, NO_GROUP } from "@/lib/category-groups";
 import { canEditProduction } from "@/lib/production-access";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
+import { galleryExtras, pluOfItem } from "@/lib/article-photo-color";
 import { deleteArticlePhoto, deleteAllArticlePhotos } from "../photo-actions";
 import { loadArticlePhotos, loadShopLinks } from "@/lib/article-photos";
 import { isPluParam } from "@/lib/article-photo-match";
@@ -177,6 +178,9 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
   const photos = await loadArticlePhotos(prisma, orgId, id);
   const shopLinks = await loadShopLinks(prisma, orgId, id);
   const pluParams = ownParams.filter((p) => isPluParam(p.name));
+  const colorRefs = photos.length ? await prisma.colorRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true, note: true } }) : [];
+  const extras = galleryExtras(photos, shopLinks, colorRefs);
+  const groupLabel = new Map(extras.groups.map((g) => [g.key, g.label]));
 
   return (
     <div className="flex flex-col gap-4">
@@ -197,10 +201,15 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2" aria-label="Фото и магазин">
-        {photos.length > 0 ? <PhotoGalleryButton modelId={id} photos={photos.map((p) => ({ id: p.id, variant: p.variant }))} title={model.name} {...(canEdit ? { onDelete: deleteArticlePhoto, onDeleteAll: deleteAllArticlePhotos } : {})} /> : <span className="text-sm text-neutral-500">Нет фото</span>}
+        {photos.length > 0 ? <PhotoGalleryButton modelId={id} photos={photos.map((p) => ({ id: p.id, variant: p.variant, color: p.color, itemId: p.itemId }))} groups={extras.groups} shops={extras.shops} title={model.name} {...(canEdit ? { onDelete: deleteArticlePhoto, onDeleteAll: deleteAllArticlePhotos } : {})} /> : <span className="text-sm text-neutral-500">Нет фото</span>}
         {shopLinks.map((l) => (
-          <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-sm text-blue-700 hover:underline sm:min-h-0">
-            Товар в магазине{l.variant ? ` · ${l.variant}` : ""}{l.itemId ? ` (${l.itemId})` : ""} ↗
+          <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "outline" }) + " min-h-11 sm:min-h-9"} title={`Страница товара в магазине${l.variant ? ` · ${l.variant}` : ""}`}>
+            Товар в магазине ↗
+            {(shopLinks.length > 1 && (groupLabel.get(l.variant) || l.color)) || pluOfItem(l.itemId) ? (
+              <span className="font-normal text-neutral-500">
+                {shopLinks.length > 1 ? (groupLabel.get(l.variant) ?? l.color ?? "") : ""}{pluOfItem(l.itemId) ? `${shopLinks.length > 1 ? " · " : ""}PLU ${pluOfItem(l.itemId)}` : ""}
+              </span>
+            ) : null}
           </a>
         ))}
       </div>

@@ -98,6 +98,45 @@ async function main() {
   ok(/role === "SUPPLIER"\) redirect\("\/articles"\)/.test(card) && card.indexOf("redirect(\"/articles\")") < card.indexOf("loadShopLinks("), "карточка артикула: подрядчик уходит на /articles до чтения ссылок");
 
 
+
+  console.log("\n== 6. Цвета фото, PLU и ссылка-кнопка");
+  const { groupPhotosByColor, variantColorName, galleryExtras, pluOfItem } = await import("../src/lib/article-photo-color");
+  const refs = [
+    { id: "1", name: "Коричневый", aliases: ["BROWN"] }, { id: "2", name: "Блэкглама", aliases: ["BLACK GLAMA"] }, { id: "3", name: "Пастель", aliases: ["PASTEL"] },
+    { id: "4", name: "Чёрный", aliases: ["BLACK"] }, { id: "5", name: "Виолет", aliases: [] }, { id: "6", name: "Лаванда", aliases: ["LAVENDER"] },
+  ];
+  ok(variantColorName("MINK BGL", refs) === "Блэкглама" && variantColorName("MINK PST", refs) === "Пастель" && variantColorName("MINK LVD", refs) === "Лаванда", "сокращения BGL / PST / LVD → цвета справочника");
+  ok(variantColorName("MINK BROWN+CASHMERE", refs) === "Коричневый" && variantColorName("MINK VIOLET", refs) === "Виолет" && variantColorName("SABLE WILD SILVER 4-5", refs) === null, "цвет внутри варианта находится, серебристость соболя — не цвет");
+  const ph = [
+    { id: "a1", variant: "MINK BROWN", color: "Коричневый", itemId: "HE1" }, { id: "a2", variant: "MINK BROWN" }, { id: "b1", variant: "MINK BGL", color: "Черный" },
+    { id: "c1", variant: "SABLE WILD SILVER 5" }, { id: "c2", variant: "MINK BROWN+CASHMERE", color: "Коричневый" },
+  ];
+  const gr = groupPhotosByColor(ph, refs);
+  ok(gr.map((g) => g.photos.length).join() === "2,1,1,1", "фото разложены по вариантам, чужой цвет в группу не попадает");
+  ok(gr[0].label === "Коричневый · MINK BROWN" && gr[1].label === "Блэкглама", "подписи групп: из справочника цветов");
+  ok(gr[gr.length - 1].undetermined === true && gr[gr.length - 1].label === "Цвет не определён", "«Цвет не определён» — последней группой");
+  ok(gr.filter((g) => g.label.startsWith("Коричневый")).every((g) => g.label.includes("·")), "одинаковые названия цвета у разных вариантов различаются вариантом");
+  ok(groupPhotosByColor([{ id: "x", variant: "MINK BROWN" }], refs).length === 1, "один цвет — одна группа (переключатель не показывается)");
+  ok(pluOfItem("he00924906") === "HE00924906" && pluOfItem("7130192") === null, "PLU берётся только из кодов HE…, числовой код страницы PLU не считается");
+  const ex = galleryExtras(ph, [{ itemId: "he1", url: "https://www.tsum.ru/product/he1/" }], refs);
+  ok(ex.shops?.HE1?.url.startsWith("https://www.tsum.ru/") && galleryExtras(ph, null, refs).shops === undefined, "ссылки и PLU готовятся только заказчику (links=null → shops нет)");
+  const gal2 = readFileSync(resolve("src/components/photo-gallery.tsx"), "utf8");
+  ok(/aria-label="Цвета"/.test(gal2) && /Товар в магазине/.test(gal2) && /noopener noreferrer/.test(gal2) && /PLU \{shop\.plu\}/.test(gal2), "окно: вкладки цветов, PLU в шапке, кнопка «Товар в магазине» (noopener noreferrer)");
+  ok(!/shops=|itemId|pluOfItem|loadAllShopLinks/.test(sup), "кабинет подрядчика не получает shops, код страницы магазина и PLU");
+  ok(/loadAllShopLinks/.test(readFileSync(resolve("src/app/(app)/articles/page.tsx"), "utf8")) && /min-h-11/.test(card), "список «Изделия» и карточка показывают ссылку/PLU заказчику, кнопка ≥44px");
+  const listSrc = readFileSync(resolve("src/app/(app)/articles/page.tsx"), "utf8");
+  ok(/ath\("photos"\)\}>Фото<\/Th>/.test(listSrc) && /ath\("plu"\)\}>PLU<\/Th>/.test(listSrc) && /photos: \(r\) => photoSummary\.get\(r\.id\)\?\.length/.test(listSrc), "список «Изделия»: отдельные столбцы «Фото» (сортировка по числу) и «PLU» (по тексту), ссылка — узкий столбец");
+  ok(!/supplierNote/.test(listSrc) && /подрядчик: \{r\.supplierWork\}/.test(listSrc), "строка «работа … · шкур …» убрана из ячейки артикула и перенесена во вторые строки столбцов «Работа» и «Шкур»");
+  ok(/<Th>Фото<\/Th>/.test(sup) && !/PLU|plu|shopLinks|↗/.test(sup.replace(/\/\/.*$/gm, "")), "кабинет подрядчика: столбец «Фото» есть, PLU и ссылки нет");
+  const ps = await prisma.systemState.findMany({ where: { key: { startsWith: PHOTOS_KEY } }, select: { key: true, value: true } });
+  let noItem = 0, orphan = 0;
+  for (const r of ps) {
+    const links = readLinks((await prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: (await prisma.organization.findFirstOrThrow()).id, key: LINKS_KEY + r.key.slice(PHOTOS_KEY.length) } } }))?.value);
+    for (const p of readPhotos(r.value)) { if (!p.itemId) noItem++; else if (!links.some((l) => l.itemId.toUpperCase() === p.itemId)) orphan++; }
+  }
+  ok(orphan === 0, "каждое фото с кодом страницы ссылается на существующую ссылку магазина артикула");
+  console.log(`   (фото без кода страницы: ${noItem} — до запуска sync-article-photo-colors они в группе по варианту)`);
+
   console.log("\n== 5. Удаление фото (кнопка в окне «Фото»)");
   const act = readFileSync(resolve("src/app/(app)/models/photo-actions.ts"), "utf8");
   ok(/requireRole\(\.\.\.ACCESS\.models\)/.test(act) && !/allowSupplier|"SUPPLIER"/.test(act), "server action: роль проверяется на сервере (владелец/админ/технолог), подрядчик не допускается");

@@ -674,6 +674,9 @@ async function main() {
     }
     const supSrc = readFileSync(path.resolve("src/app/(app)/articles/supplier-view.tsx"), "utf8");
     ok(!/loadShopLinks|article-shop-links|loadAllArticleParams|isPluParam/.test(supSrc), "исходник кабинета подрядчика не читает ссылки магазина и свойства (PLU)");
+    ok(!/loadAllShopLinks|shops=|pluOfItem|itemId:\s*p\.itemId/.test(supSrc) && /variant: p\.variant, \.\.\.\(p\.color/.test(supSrc), "кабинет подрядчика: окну «Фото» не передаются ссылки магазина, PLU и код страницы (только цвет и вариант)");
+    const galSrc = readFileSync(path.resolve("src/components/photo-gallery.tsx"), "utf8");
+    ok(/shops\?: Record<string, GalleryShop>/.test(galSrc) && /const shop = shops && cur\.itemId/.test(galSrc), "окно «Фото»: ссылка и PLU показываются только если переданы shops (подрядчику не передаются)");
   }
 
   // ---------- итог ----------

@@ -9,6 +9,7 @@ import { InfoHint } from "@/components/info-hint";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
 import { loadPhotoSummary } from "@/lib/article-photos";
+import { galleryExtras } from "@/lib/article-photo-color";
 import { loadArticleFurTypes } from "@/lib/article-fur-type";
 import { readSort, sortRows, thSort, type SortParams } from "@/lib/table-sort";
 import { parseSupplierDescription, supplierArticleTitle, supplierSafeText } from "@/lib/supplier-article";
@@ -48,6 +49,9 @@ export async function SupplierArticles({ orgId, q, noname, sp = {} }: { orgId: s
   const furTypes = await loadArticleFurTypes(orgId);
   // Фото изделий подрядчик видеть может; ссылок магазина и PLU здесь нет вообще (читаются только фото).
   const photos = await loadPhotoSummary(prisma, orgId);
+  // Подрядчику — только цвета и вариант, без сведений о магазине.
+  const supRefs = photos.size ? await prisma.colorRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true, note: true } }) : [];
+  for (const [k, list] of photos) photos.set(k, list.map((p) => ({ id: p.id, variant: p.variant, ...(p.color ? { color: p.color } : {}) })));
   const all = models.map((m) => {
     const own = parseSupplierDescription(m.description);
     const tz = fromTz.get(m.id);
@@ -94,6 +98,7 @@ export async function SupplierArticles({ orgId, q, noname, sp = {} }: { orgId: s
         <Thead>
           <Tr>
             <Th {...th("name")}>Артикул</Th>
+            <Th>Фото</Th>
             <Th {...th("title")}>Название изделия</Th>
             <Th {...th("category")}>Категория</Th>
             <Th {...th("length")}>Длина</Th>
@@ -106,7 +111,8 @@ export async function SupplierArticles({ orgId, q, noname, sp = {} }: { orgId: s
         <Tbody>
           {rows.map((m) => (
             <Tr key={m.id} className={m.isActive ? undefined : "text-neutral-400"}>
-              <Td className="font-medium">{m.name}{photos.get(m.id) ? <span className="ml-2 inline-block align-middle"><PhotoGalleryButton modelId={m.id} photos={photos.get(m.id)!} title={m.name} compact /></span> : null}{!m.isActive && <span className="ml-2 text-xs font-normal">не активен</span>}</Td>
+              <Td className="font-medium">{m.name}{!m.isActive && <span className="ml-2 text-xs font-normal">не активен</span>}</Td>
+              <Td>{photos.get(m.id) ? <PhotoGalleryButton modelId={m.id} photos={photos.get(m.id)!} groups={galleryExtras(photos.get(m.id)!, null, supRefs).groups} title={m.name} compact /> : null}</Td>
               <Td className="max-w-[20rem]">{m.title ? <Clamp>{m.title}</Clamp> : <span className="text-amber-800">Нет названия</span>}</Td>
               <Td>{m.category || "—"}</Td>
               <Td>{m.lengthClass || "—"}</Td>
@@ -119,7 +125,7 @@ export async function SupplierArticles({ orgId, q, noname, sp = {} }: { orgId: s
             </Tr>
           ))}
           {rows.length === 0 && (
-            <Tr><Td colSpan={8} className="py-8 text-center text-neutral-500">{q ? "Нет результатов" : "Нет артикулов"}</Td></Tr>
+            <Tr><Td colSpan={9} className="py-8 text-center text-neutral-500">{q ? "Нет результатов" : "Нет артикулов"}</Td></Tr>
           )}
         </Tbody>
       </Table>
