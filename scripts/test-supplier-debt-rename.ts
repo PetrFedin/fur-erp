@@ -16,8 +16,6 @@ M._resolveFilename = function (this: unknown, req: unknown, ...rest: unknown[]) 
   return origResolve.call(this, req, ...rest);
 };
 
-const EXPECTED_DEBT = "186691785.22"; // долг на момент создания справочника (все годы)
-
 async function main() {
   const { PrismaClient } = await import("@prisma/client");
   const { computeSupplierDebt, loadDebtInputs, findInvoice, INVOICES_FOR_DRAFTS } = await import("../src/lib/supplier-debt");
@@ -40,7 +38,29 @@ async function main() {
 
     const base = computeSupplierDebt(allPurchases, auctionPayments, advances, refs);
     const b = parts(base);
-    ok(b.debt === EXPECTED_DEBT, `долг (все годы) = ${b.debt}`);
+    // Независимая проверка вместо зашитого числа: долг = Σ закупок − Σ оплат, посчитанные прямым SQL (не через computeSupplierDebt).
+    // Закупки: costPlan.unitCostInclVat × кол-во (если в costPlan есть unitCostInclVat, materialExclVat, expenseExclVat),
+    // иначе subtotal × курс × (1 + НДС%); плюс расходы amount × (1 + НДС%); отменённые закупки не берём.
+    // Равенство верно при условиях: (1) нет оплат COMPLETED по отменённым закупкам; (2) долг не обнуляется авансами сверх
+    // долга по частям (переплаты и авансы в обеих частях вычитаются одинаково). Условие (1) проверяется ниже.
+    const [ind] = await prisma.$queryRaw<{ purchases: string; expenses: string; paid: string; cancelledPaid: string }[]>`
+      SELECT
+        (SELECT COALESCE(SUM(CASE WHEN (pi."costPlan"->>'unitCostInclVat') IS NOT NULL AND (pi."costPlan"->>'materialExclVat') IS NOT NULL
+                                   AND (pi."costPlan"->>'expenseExclVat') IS NOT NULL
+                                  THEN (pi."costPlan"->>'unitCostInclVat')::numeric * pi.quantity
+                                  ELSE pi.subtotal * p."exchangeRate" * (1 + pi."vatRate" / 100) END), 0)::text
+           FROM "PurchaseItem" pi JOIN "Purchase" p ON p.id = pi."purchaseId"
+          WHERE p."organizationId" = ${org} AND p.status <> 'CANCELLED') AS purchases,
+        (SELECT COALESCE(SUM(e.amount * (1 + e."vatRate" / 100)), 0)::text
+           FROM "PurchaseExpense" e JOIN "Purchase" p ON p.id = e."purchaseId"
+          WHERE p."organizationId" = ${org} AND p.status <> 'CANCELLED') AS expenses,
+        (SELECT COALESCE(SUM(amount), 0)::text FROM "Payment" WHERE "organizationId" = ${org} AND status = 'COMPLETED') AS paid,
+        (SELECT COUNT(*)::text FROM "Payment" pay JOIN "Purchase" p ON p.id = pay."purchaseId"
+          WHERE pay."organizationId" = ${org} AND pay.status = 'COMPLETED' AND p.status = 'CANCELLED') AS "cancelledPaid"`;
+    ok(ind.cancelledPaid === "0", `условие: нет оплат COMPLETED по отменённым закупкам (${ind.cancelledPaid})`);
+    const indepDebt = Number(ind.purchases) + Number(ind.expenses) - Number(ind.paid);
+    ok(Math.abs(Number(b.debt) - indepDebt) < 0.05,
+      `долг (все годы) ${b.debt} = закупки ${Number(ind.purchases).toFixed(2)} + расходы ${Number(ind.expenses).toFixed(2)} − оплаты ${Number(ind.paid).toFixed(2)} = ${indepDebt.toFixed(2)}`);
     ok(INVOICES_FOR_DRAFTS.length === 4, "4 счёта на неполученные части");
 
     // 1) переименование по предложениям справочника (то, что делает apply-auction-names.ts): стабы не трогаем

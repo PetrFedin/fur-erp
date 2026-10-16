@@ -229,13 +229,14 @@ async function main() {
   ok(!!nxtBad.error && !nsEv.some((e) => e.title === "Следующий плохой") && (await raw.shipmentEvent.count({ where: { shipmentId: id, title: "Основной этап 3" } })) === 0, "неверное «на ком» следующего этапа — ошибка, ничего не создано");
   await raw.shipmentEvent.deleteMany({ where: { shipmentId: id, title: { in: ["Основной этап", "Основной этап 2", "Следующий по умолчанию", "Следующий у Веллмеха"] } } });
 
+  const olgaInCumBefore = (await (await import("../src/lib/shipment-data")).loadShipmentPeople(org.id)).CUM.includes("Ольга"); // в боевых данных Ольга может уже быть в ЦУМ
   const rAnna = await A.createEvent(id, {}, fd({ title: "Подтверждение исправлений", date: "2026-10-09", time: "19:07", responsible: user.name.toUpperCase(), side: "CUM" }));
   const rOlga = await A.createEvent(id, {}, fd({ title: "Ольга отправила УПД", date: "2026-10-12", time: "13:06", responsible: "Ольга", side: "WELLMEKH" }));
   ok(rAnna.ok === true && rOlga.ok === true, "этапы Анны и Ольги созданы");
   // список действующих лиц: вписанное имя попадает в список своей компании
   const SD = await import("../src/lib/shipment-data");
   const peopleNow = await SD.loadShipmentPeople(org.id);
-  ok(peopleNow.WELLMEKH.includes("Василий (Веллмех)") && peopleNow.CUM.includes("Ольга") === false, "список лиц: Веллмех содержит вписанного Василия; Ольга (Веллмех в этом тесте) не в ЦУМ");
+  ok(peopleNow.WELLMEKH.includes("Василий (Веллмех)") && (olgaInCumBefore || peopleNow.CUM.includes("Ольга") === false), "список лиц: Веллмех содержит вписанного Василия; вписанная в этом тесте Ольга (Веллмех) не попадает в ЦУМ");
   ok(peopleNow.WELLMEKH.includes("Ольга"), "список лиц: вписанная Ольга (Веллмех) есть в списке Веллмеха");
   ok(user.name && peopleNow.CUM.some((n) => n.toLowerCase() === user.name.toLowerCase()), "список лиц ЦУМ включает пользователей приложения");
   const rNew = await A.createEvent(id, {}, fd({ title: "Новый человек", date: "2026-10-10", responsible: "Тестовый Новичок", side: "CUM", nextTitle: "Дальше", nextDate: "2026-10-20", nextSide: "WELLMEKH", nextResponsible: "Геннадий (Веллмех)" }));
@@ -349,10 +350,15 @@ async function main() {
 
   // 7. Удаление строк и отгрузки
   console.log("7. Удаление строк и отгрузки");
-  ok(!!(await A.deleteShipment(id)).error, "отгрузку с этапами удалить нельзя");
   await A.saveLineAcceptance(id, [{ id: L.id, n: 1, accepted: 0, returned: 0, comment: null }]);
   const delOk = await A.deleteShipmentLine(L.id);
   ok(!delOk.error && !(await raw.shipmentLine.findUnique({ where: { id: L.id } })), "строку без приёмки (0 / 0) удалить можно");
+  // С 14.10.2026 (321280f) отгрузка удаляется вместе с этапами; нельзя только после закрытия приёмки.
+  const evCountDel = await raw.shipmentEvent.count({ where: { shipmentId: id } });
+  await raw.shipment.update({ where: { id }, data: { acceptedAt: new Date() } });
+  ok(!!(await A.deleteShipment(id)).error && !!(await raw.shipment.findUnique({ where: { id } })), "отгрузку с закрытой приёмкой удалить нельзя");
+  await raw.shipment.update({ where: { id }, data: { acceptedAt: null } });
+  ok(evCountDel > 0 && !(await A.deleteShipment(id)).error && !(await raw.shipment.findUnique({ where: { id } })) && (await raw.shipmentEvent.count({ where: { shipmentId: id } })) === 0, "отгрузка с этапами удаляется вместе с этапами");
 
   // 8. Журнал изменений и права
   console.log("8. Журнал и права");

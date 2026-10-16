@@ -3,8 +3,8 @@
  *   createdb fur_scratch_auc; pg_dump fur_erp | psql fur_scratch_auc
  *   SCRATCH_URL=postgresql://…/fur_scratch_auc node --env-file=.env node_modules/.bin/tsx scripts/test-auction-ref.ts
  * Отказывается работать с основной базой.
- * Рассчитан на копию базы ДО scripts/apply-auction-names.ts (имена предложены, не подтверждены, тексты — прежние написания);
- * на уже переименованной базе проверки про «Закупка меха 04-26» неприменимы (откат: apply-auction-names.ts --rollback на копии).
+ * Не зависит от того, применён ли apply-auction-names.ts: число закупок/оплат/документов берётся по текущему состоянию
+ * копии (связь auctionId и текущее имя), «неподтверждённость» имени проверяется на копии списка в памяти.
  */
 import { PrismaClient } from "@prisma/client";
 import {
@@ -26,19 +26,20 @@ async function main() {
   ok(findAuctionIn("сп 03-25", list0)?.name === "СП 03.25", "поиск по имени без учёта регистра и разделителя");
   ok(findAuctionIn("Закупка меха 04-26", list0)?.name === "РП 04.26", "поиск по алиасу");
   ok(findAuctionIn("Нет информации", list0)?.name === "Без аукциона", "заглушка → служебный аукцион");
-  ok(displayAuctionNameIn("Закупка меха 04-26", list0, { onlyConfirmed: true }) === "Закупка меха 04-26", "неподтверждённое имя не подменяет текст (onlyConfirmed)");
+  const unconfirmed0 = list0.map((a) => (a.name === "РП 04.26" ? { ...a, confirmed: false } : a));
+  ok(displayAuctionNameIn("Закупка меха 04-26", unconfirmed0, { onlyConfirmed: true }) === "Закупка меха 04-26", "неподтверждённое имя не подменяет текст (onlyConfirmed)");
   ok(displayAuctionNameIn("Закупка меха 04-26", list0, { onlyConfirmed: false }) === "РП 04.26", "displayAuctionName без фильтра подтверждения");
 
   // --- rename: РП 04.26 (6 закупок, 2 оплаты, текст «Закупка меха 04-26»)
   const rp = list0.find((a) => a.name === "РП 04.26")!;
   const before = {
-    p: await prisma.purchase.count({ where: { auctionSession: "Закупка меха 04-26" } }),
-    pay: await prisma.payment.count({ where: { auctionSession: "Закупка меха 04-26" } }),
+    p: await prisma.purchase.count({ where: { auctionId: rp.id } }),
+    pay: await prisma.payment.count({ where: { auctionSession: { in: [rp.name, ...rp.aliases] } } }),
   };
   const r = await renameAuctionIn(prisma, org, rp.id, "РП Апрель 26");
-  ok(r.synced.purchases === before.p && before.p === 6, `rename: закупок обновлено ${r.synced.purchases}`);
+  ok(r.synced.purchases === before.p && before.p > 0, `rename: закупок обновлено ${r.synced.purchases}`);
   ok(r.synced.payments === before.pay, `rename: оплат обновлено ${r.synced.payments} из ${before.pay}`);
-  ok((await prisma.purchase.count({ where: { auctionSession: "РП Апрель 26", auctionId: rp.id } })) === 6, "у закупок кэш-текст = новое имя");
+  ok((await prisma.purchase.count({ where: { auctionSession: "РП Апрель 26", auctionId: rp.id } })) === before.p, "у закупок кэш-текст = новое имя");
   ok((await prisma.payment.count({ where: { auctionSession: "РП Апрель 26" } })) === before.pay, "у оплат кэш-текст = новое имя");
   const after = await prisma.auction.findUniqueOrThrow({ where: { id: rp.id } });
   ok(after.aliases.includes("РП 04.26") && after.aliases.includes("Закупка меха 04-26") && after.confirmed, "старые имена в aliases, имя подтверждено");
@@ -46,9 +47,9 @@ async function main() {
   ok(findAuctionIn("Закупка меха 04-26", listR)?.id === rp.id, "реестр сверки/поиск находит аукцион по старому написанию после переименования");
   const sp = await prisma.auction.findFirstOrThrow({ where: { name: "СП 03.25" } });
   const spPay = await prisma.payment.count({ where: { auctionSession: "СП 03.25" } });
-  const spDocs = await prisma.purchaseDocument.count({ where: { batch: "СП 09-26" } });
   // документы партии
   const sp09 = await prisma.auction.findFirstOrThrow({ where: { name: "СП 09.26" } });
+  const spDocs = await prisma.purchaseDocument.count({ where: { batch: { in: [sp09.name, ...sp09.aliases] } } });
   const r2 = await renameAuctionIn(prisma, org, sp09.id, "СП Сентябрь 26");
   ok(r2.synced.documents === spDocs && spDocs > 0, `rename: документов партии обновлено ${r2.synced.documents} из ${spDocs}`);
   ok(spPay >= 0, "контрольная оплата СП 03.25 не затронута: " + (await prisma.payment.count({ where: { auctionSession: "СП 03.25" } })));
@@ -56,7 +57,7 @@ async function main() {
   ok(await throwsAuction(() => renameAuctionIn(prisma, org, sp.id, "СП 03-26 ".replace("26", "05").replace("05", "25") && "сп 05.25")), "rename: имя совпадает с другим по ключу (регистр/разделитель) → ошибка");
   // возврат имени
   await renameAuctionIn(prisma, org, rp.id, "РП 04.26");
-  ok((await prisma.purchase.count({ where: { auctionSession: "РП 04.26", auctionId: rp.id } })) === 6, "возврат имени работает");
+  ok((await prisma.purchase.count({ where: { auctionSession: "РП 04.26", auctionId: rp.id } })) === before.p, "возврат имени работает");
 
   // --- откат транзакции: ошибка внутри — ничего не изменилось
   const snap = await prisma.purchase.count({ where: { auctionSession: "СП 05.25" } });

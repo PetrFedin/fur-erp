@@ -62,7 +62,10 @@ async function main() {
 
   const targets = await P.getPaymentTargets();
   ok(targets.auctions.length > 0 && targets.batches.length > 0 && targets.orders.length > 0, `цели загружены: аукционов ${targets.auctions.length}, партий ${targets.batches.length}, ТЗ ${targets.orders.length}`);
-  const auc = targets.auctions.find((a) => a.remaining > 1000)!;
+  // Аукцион с самым большим остатком; процент — 30, но не больше доли остатка (иначе приложение просит подтвердить переплату).
+  const auc = [...targets.auctions].filter((a) => a.total > 0 && a.remaining > 1000).sort((x, y) => y.remaining / y.total - x.remaining / x.total)[0];
+  const PCT = Math.min(30, Math.floor((auc.remaining / auc.total) * 100));
+  ok(PCT >= 1, `есть аукцион с остатком не меньше 1% (${auc.name}: ${PCT}%)`);
   const q = await P.quotePaymentTarget({ side: "supplier", auction: auc.name });
   const [sum] = await loadAuctionSummaries(raw, org, [auc.name]);
   ok(q.total === Number(sum.total.toFixed(2)) && q.remaining === Number(sum.remaining.toFixed(2)), "сумма/оплачено/остаток аукциона = loadAuctionSummaries");
@@ -72,17 +75,17 @@ async function main() {
   const base = { side: "supplier", auction: auc.name, kind: "INVOICE", mode: "amount", amount: "1000", paidAt: "2026-10-01", method: "BANK_TRANSFER", note: "тест" };
 
   // 1) % от суммы + платёжка + счёт + письмо
-  const r1 = await P.savePayment(fd({ ...base, kind: "PERCENT", mode: "percent", percent: "30", ppNo: "43831" }, [[PDF(), "PAYMENT_PROOF"], [PDF2("Счёт на оплату 5.pdf"), "PAYMENT_INVOICE"], [PDF2("письмо.pdf"), "APPROVAL_EMAIL"]]));
-  ok(!!r1.ok, `оплата 30% записана: ${r1.error ?? ""}`);
+  const r1 = await P.savePayment(fd({ ...base, kind: "PERCENT", mode: "percent", percent: String(PCT), ppNo: "43831" }, [[PDF(), "PAYMENT_PROOF"], [PDF2("Счёт на оплату 5.pdf"), "PAYMENT_INVOICE"], [PDF2("письмо.pdf"), "APPROVAL_EMAIL"]]));
+  ok(!!r1.ok, `оплата процентом записана: ${r1.error ?? r1.confirm ?? JSON.stringify(r1)}`);
   const p1 = await raw.payment.findUniqueOrThrow({ where: { id: r1.paymentId! }, include: { driveDocuments: true } });
-  ok(Math.abs(Number(p1.amount) - Math.round(Number(sum.total) * 30) / 100) < 0.011 && Number(p1.percent) === 30, "сумма = 30% от стоимости аукциона");
+  ok(Math.abs(Number(p1.amount) - Math.round(Number(sum.total) * PCT) / 100) < 0.011 && Number(p1.percent) === PCT, "сумма = PCT% от стоимости аукциона");
   ok(!!p1.documentId && p1.confirmed && p1.docRef === "п/п № 43831 от 01.10.2026", "платёжка привязана, п/п записан");
   ok(p1.driveDocuments.map((d) => d.docType).sort().join() === "APPROVAL_EMAIL,PAYMENT_INVOICE", "счёт и письмо сохранены как документы оплаты");
   ok(!p1.confirmedAt && /Вид: процент от суммы/.test(p1.notes ?? ""), "без отметки — не подтверждено человеком; вид сохранён в пометке");
   ok(r1.recalc!.remainingAfter === Number((Number(sum.remaining) - Number(p1.amount)).toFixed(2)) && r1.recalc!.debtAfter != null && r1.recalc!.debtAfter < debt0, "«что пересчиталось»: остаток аукциона и долг уменьшились");
 
   // 2) дубль -> подтверждение
-  const dupFd = () => fd({ ...base, kind: "PERCENT", mode: "percent", percent: "30", ppNo: "43831" });
+  const dupFd = () => fd({ ...base, kind: "PERCENT", mode: "percent", percent: String(PCT), ppNo: "43831" });
   const rd = await P.savePayment(dupFd());
   ok(!!rd.confirm && /двойная отправка/.test(rd.confirm), "повтор той же оплаты за 2 минуты -> запрос подтверждения");
   ok((await raw.payment.count()) === payCount0 + 1, "дубль не записан");

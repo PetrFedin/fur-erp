@@ -97,7 +97,8 @@ async function main() {
   await prisma.paymentAllocation.deleteMany({});
   const debtOf = async (id = orgId) => (await A.loadClientDebt(prisma, id, { year: "all" }));
   const base = await debtOf();
-  ok(Math.abs(base.balance - 3377754.61) < 0.005, `исходный долг заказчиков без фильтров = 3 377 754,61 (получено ${base.balance})`);
+  // Не зашитое число: долг растёт с данными. Инвариант — долг = начислено − оплачено; дальше он сравнивается с base.
+  ok(Number.isFinite(base.balance) && Math.abs(base.balance - (base.billable - base.paid)) < 0.005, `исходный долг заказчиков без фильтров = к оплате − оплачено (${base.balance})`);
 
   // ---------- 2. Скрипт allocate-production-payments ----------
   const out = mkdtempSync(join(tmpdir(), "alloc-"));

@@ -28,7 +28,9 @@ const ok = (cond: unknown, msg: string) => {
     console.log("  FAIL", msg);
   }
 };
-const logs = (where: object = {}) => raw.auditLog.findMany({ where, orderBy: { at: "asc" } });
+// Только записи, сделанные этим прогоном: в копии боевой базы журнал уже содержит старые записи тех же моделей/действий.
+const startedAt = new Date(Date.now() - 2000);
+const logs = (where: object = {}) => raw.auditLog.findMany({ where: { ...where, at: { gte: startedAt } }, orderBy: { at: "asc" } });
 const tag = "AUDTEST-" + Date.now();
 
 async function main() {
