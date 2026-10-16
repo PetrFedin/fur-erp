@@ -141,6 +141,8 @@ const numCell = (s: string | undefined) => { const x = Number(String(s ?? "").re
 async function buildPlans(purchases: PurchaseRow[]): Promise<Plan[]> {
   const plans: Plan[] = [];
   const byNum = (nums: string[]) => purchases.filter((p) => nums.includes(p.number));
+  /** Номер лота нашей закупки с единственной позицией (в сводке по счёту лота нет — берём номер из закупки). */
+  const lotOf = (n: string) => (purchases.find((x) => x.number === n)?.items.length === 1 ? purchases.find((x) => x.number === n)!.items[0].lotNumber ?? "" : "");
   const add = (key: string, title: string, basis: string, payload: CalcPayload, targets: string[], lots: boolean) => {
     const c = compareInvoices(payload, purchases, byNum(targets), { lots });
     const missing = targets.filter((n) => !c.numbers.includes(n));
@@ -161,7 +163,7 @@ async function buildPlans(purchases: PurchaseRow[]): Promise<Plan[]> {
     const r = sheets[0][2];
     const qty = numCell(r[2]), hammer = numCell(r[4]), dress = numCell(r[7]), transp = numCell(r[8]);
     const p = summaryPayload("sp_rp_summary_2025", "КФХ Дуденко 07-25", { ндс_проц: "20", выделка_без_ндс: String(dress / 1.2 / qty), перевозка_на_шкуру: String(transp / qty), ком_проц: "4.5" },
-      [{ invoice: String(r[1]).trim(), fur: "Норка коричневая", k_C: String(qty), k_D: String(hammer), k_F: "0" }]);
+      [{ invoice: String(r[1]).trim(), fur: "Норка коричневая", lot: lotOf("З-2026-0005"), k_C: String(qty), k_D: String(hammer), k_F: "0" }]);
     add("duden5k7", "КФХ Дуденко 07-25 · 5К7", "счёт №117 от 29.07.2025, УПД, спецификация №3", p, ["З-2026-0005"], false);
   }
   // КФХ Дуденко: З-2026-0006, 0007 (счета 7 и 8, приложение 6, УПД №122 от 26.08.2025) — по «Для УПД»
@@ -172,7 +174,7 @@ async function buildPlans(purchases: PurchaseRow[]): Promise<Plan[]> {
       { inv: "8", fur: "Норка серебристо-голубая 50 M", qty: 70, price: 7481, hammer: 523670, dress: 28524, transp: 18.18181818, upd: 9722 },
     ];
     let p = summaryPayload("sp_rp_summary_2025", "КФХ Дуденко 07-25", { ндс_проц: "20", выделка_без_ндс: "0", перевозка_на_шкуру: "0", ком_проц: "4.5" },
-      rows.map((x) => ({ invoice: x.inv, fur: x.fur, k_C: String(x.qty), k_D: String(x.hammer), k_F: "0", ["@" + paramKey("выделка_без_ндс")]: String(x.dress / 1.2 / x.qty), ["@" + paramKey("перевозка_на_шкуру")]: String(x.transp / x.qty), k_upd: String(x.upd) })));
+      rows.map((x) => ({ invoice: x.inv, fur: x.fur, lot: lotOf(x.inv === "7" ? "З-2026-0006" : "З-2026-0007"), k_C: String(x.qty), k_D: String(x.hammer), k_F: "0", ["@" + paramKey("выделка_без_ндс")]: String(x.dress / 1.2 / x.qty), ["@" + paramKey("перевозка_на_шкуру")]: String(x.transp / x.qty), k_upd: String(x.upd) })));
     p = addCol(p, { id: "k_upd", title: "Цена для УПД, ₽", unit: "₽", kind: "input", formula: "" });
     p.unitCostColumn = "k_upd";
     add("duden78", "КФХ Дуденко 07-25 · 7, 8", "УПД №122 от 26.08.2025, счёт №122 от 04.08.2025, приложение 6", p, ["З-2026-0006", "З-2026-0007"], false);
