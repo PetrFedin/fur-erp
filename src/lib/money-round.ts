@@ -30,6 +30,15 @@ export function lrAllocate(values: number[], target?: number): number[] {
   const out = base.slice();
   // Порядок раздачи «+1»: по убыванию остатка, затем по убыванию модуля, затем по индексу.
   const order = values.map((_, i) => i).sort((a, b) => rem[b] - rem[a] || Math.abs(values[b]) - Math.abs(values[a]) || a - b);
+  // Полные круги «+1 всем» (или «−1 всем») применяются сразу: при target, далёком от Σ значений (например, строка не показывается
+  // и target = 0), прежний цикл делал сотни миллионов шагов, а на нечисловом значении не заканчивался. Результат тот же.
+  if (!Number.isFinite(need)) return out;
+  const rounds = Math.floor(Math.abs(need) / n) - 1;
+  if (rounds > 0) {
+    const sign = need > 0 ? 1 : -1;
+    for (let i = 0; i < n; i++) out[i] += sign * rounds;
+    need -= sign * rounds * n;
+  }
   let k = 0;
   while (need > 0) { out[order[k % n]] += 1; need -= 1; k += 1; }
   // Недобор в обратную сторону (target меньше Σ floor) — снимаем у тех, у кого остаток наименьший.
