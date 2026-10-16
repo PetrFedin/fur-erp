@@ -10,6 +10,8 @@ import { formatDate, formatNum } from "@/lib/utils";
 import { Clamp } from "@/components/clamp";
 import { SortTh } from "@/components/sort-th";
 import { readSort, sortRows } from "@/lib/table-sort";
+import { loadSupplierPayData, groupPayInfo } from "@/lib/supplier-pay";
+import { PayChip } from "@/components/pay-status";
 
 const money = (n: number) => formatNum(n, 1);
 
@@ -25,8 +27,11 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
   const rows = await prisma.supplierInbox.findMany({
     where: { kind: "AUCTION_CALC", ...inboxScope(s) },
     orderBy: { updatedAt: "desc" },
-    select: { id: true, title: true, status: true, reviewNote: true, updatedAt: true, sentAt: true, payload: true, supplier: { select: { name: true } } },
+    select: { id: true, title: true, status: true, reviewNote: true, updatedAt: true, sentAt: true, payload: true, supplierId: true, createdEntityType: true, createdEntityId: true, supplier: { select: { name: true } } },
   });
+  // Оплата принятых расчётов: по подтверждённым у заказчика оплатам (supplier-pay.ts), по созданным из расчёта закупкам.
+  const payBySupplier = new Map(await Promise.all([...new Set(rows.filter((r) => r.status === "ACCEPTED").map((r) => r.supplierId))].map(async (sid) => [sid, await loadSupplierPayData(s.user.organizationId, sid)] as const)));
+  const payOf = (r: (typeof rows)[number]) => (r.status === "ACCEPTED" && r.createdEntityType === "Purchase" && payBySupplier.has(r.supplierId) ? groupPayInfo(payBySupplier.get(r.supplierId)!, (r.createdEntityId ?? "").split(",").filter(Boolean)) : null);
   // годы — заголовками, новые сверху; внутри года — по дате изменения
   rows.sort((a, b) => yearOfRow(b) - yearOfRow(a) || b.updatedAt.getTime() - a.updatedAt.getTime());
   // цифры считаем один раз — по ним же сортируем (при выбранной сортировке годовые заголовки не показываются)
@@ -83,7 +88,7 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
                 <Td className="text-right tabular-nums">{qty || "—"}</Td>
                 <Td className="text-right tabular-nums">{qty ? money(total) : "—"}</Td>
                 <Td className="text-right tabular-nums">{qty ? money(total / qty) : "—"}</Td>
-                <Td>{INBOX_STATUS_LABEL[r.status]}{stage && <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${stage === "FINAL" ? "bg-green-50 text-green-800" : "bg-blue-50 text-blue-800"}`}>{STAGE_LABEL[stage]}</span>}</Td>
+                <Td>{INBOX_STATUS_LABEL[r.status]}<span className="ml-2"><PayChip info={payOf(r)} compact /></span>{stage && <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${stage === "FINAL" ? "bg-green-50 text-green-800" : "bg-blue-50 text-blue-800"}`}>{STAGE_LABEL[stage]}</span>}</Td>
                 <Td className="whitespace-nowrap tabular-nums">{formatDate(r.sentAt ?? r.updatedAt)}</Td>
               </Tr>
               </Fragment>

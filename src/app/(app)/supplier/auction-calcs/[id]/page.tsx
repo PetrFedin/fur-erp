@@ -10,6 +10,8 @@ import { CompareBlock } from "../compare-block";
 import { FinalButton } from "../final-button";
 import { calcYearOptions } from "@/lib/supplier-calc-years";
 import { CalcForm } from "../calc-form";
+import { loadSupplierPayData, groupPayInfo } from "@/lib/supplier-pay";
+import { PayChip, PayLines } from "@/components/pay-status";
 
 export const metadata = { title: "Расчёт аукциона" };
 
@@ -24,6 +26,9 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
   if (!row) notFound();
   const payload = ensureRowIds(row.payload as unknown as CalcPayload);
   const years = await calcYearOptions(s);
+  // Оплата: для принятого расчёта — по созданным из него закупкам; только подтверждённые у заказчика оплаты этого подрядчика.
+  const purchaseIds = row.status === "ACCEPTED" && row.createdEntityType === "Purchase" ? (row.createdEntityId ?? "").split(",").filter(Boolean) : [];
+  const pay = purchaseIds.length ? groupPayInfo(await loadSupplierPayData(row.organizationId, row.supplierId), purchaseIds) : null;
   const full = row.title;
   const shortTitle = shortInboxTitle(full);
   const readOnly = row.status !== "DRAFT" || s.user.role !== "SUPPLIER";
@@ -40,6 +45,12 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
         {payload.stage && <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">{STAGE_LABEL[payload.stage]}</span>}
       </div>
       <p className="text-sm text-neutral-600" data-testid="status-help">{INBOX_STATUS_HELP[row.status]}{row.sentAt && row.status !== "DRAFT" ? ` Отправлено ${row.sentAt.toLocaleDateString("ru-RU")}.` : ""}</p>
+      {pay && (
+        <div className="flex flex-col gap-1 text-sm">
+          <p className="flex flex-wrap items-center gap-2"><b>Оплата:</b> <PayChip info={pay} /></p>
+          <PayLines info={pay} />
+        </div>
+      )}
       {row.status === "REJECTED" && s.user.role === "SUPPLIER" && <ReopenButton id={row.id} />}
       {payload.stage === "PRELIM" && s.user.role === "SUPPLIER" && <FinalButton id={row.id} />}
       <CompareBlock s={s} payload={payload} />

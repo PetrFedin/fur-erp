@@ -9,6 +9,8 @@ import { formatDate } from "@/lib/utils";
 import { SortTh } from "@/components/sort-th";
 import { readSort, sortRows } from "@/lib/table-sort";
 import { tzTotals, type TzPayload } from "@/lib/tz-vendor";
+import { tzPayInfo } from "@/lib/supplier-pay";
+import { PayChip } from "@/components/pay-status";
 
 export const metadata = { title: "ТЗ поставщика" };
 
@@ -22,8 +24,10 @@ export default async function SupplierTzPage({ searchParams }: PageProps<"/suppl
   const isSup = s.user.role === "SUPPLIER";
   const rows = await prisma.supplierInbox.findMany({
     where: { kind: "TZ", ...inboxScope(s) }, orderBy: { updatedAt: "desc" },
-    select: { id: true, title: true, status: true, reviewNote: true, updatedAt: true, sentAt: true, payload: true, supplier: { select: { name: true } } },
+    select: { id: true, title: true, status: true, reviewNote: true, updatedAt: true, sentAt: true, payload: true, supplierId: true, createdEntityType: true, createdEntityId: true, supplier: { select: { name: true } } },
   });
+  // Оплата работы принятых ТЗ: подтверждённые у заказчика оплаты, разнесённые на ТЗ (supplier-pay.ts).
+  const pays = new Map(await Promise.all(rows.filter((r) => r.status === "ACCEPTED" && r.createdEntityType === "ProductionOrder").map(async (r) => [r.id, await tzPayInfo(s.user.organizationId, r.supplierId, (r.createdEntityId ?? "").split(",").filter(Boolean))] as const)));
   const groups = new Map<string, typeof rows>();
   for (const r of rows) {
     const b = String((r.payload as Pl)?.batch ?? "").trim();
@@ -75,7 +79,7 @@ export default async function SupplierTzPage({ searchParams }: PageProps<"/suppl
                       <Td><Link className="font-medium underline max-md:inline-block max-md:py-3" href={`/supplier/tz/${r.id}`}>{r.title}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 text-xs text-red-700">Замечание: {r.reviewNote}</div>}</Td>
                       {!isSup && <Td>{r.supplier.name}</Td>}
                       <Td className="text-right tabular-nums">{qty(r) || "—"}</Td>
-                      <Td>{INBOX_STATUS_LABEL[r.status]}</Td>
+                      <Td>{INBOX_STATUS_LABEL[r.status]}<span className="ml-2"><PayChip info={pays.get(r.id) ?? null} compact /></span></Td>
                       <Td className="tabular-nums">{formatDate(r.sentAt ?? r.updatedAt)}</Td>
                       <Td className="whitespace-nowrap"><Link href={`/supplier/tz/${r.id}`} className={buttonVariants({ size: "sm", variant: "outline" })}>Открыть</Link> <TzRowButtons id={r.id} /></Td>
                     </Tr>

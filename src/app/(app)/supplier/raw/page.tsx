@@ -15,6 +15,8 @@ import { readSort, sortRows } from "@/lib/table-sort";
 import { formatDate, formatRate } from "@/lib/utils";
 import { AttachDocument } from "./attach";
 import { RawChip } from "@/components/raw-stages";
+import { loadSupplierPayData, groupPayInfo } from "@/lib/supplier-pay";
+import { PayChip } from "@/components/pay-status";
 import { summarizeStages, summaryLine, sortStages, ruShort, STAGE_NAME, STAGE_STATUS_LABEL, type StageStatusKey } from "@/lib/raw-stage";
 
 export const metadata = { title: "Сырьё" };
@@ -64,6 +66,10 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
       }
     }
   }
+
+  // Статус оплаты по подтверждённым у заказчика оплатам (supplier-pay.ts): без остатков и платёжных файлов.
+  const payData = supplierId ? await loadSupplierPayData(s.user.organizationId, supplierId) : null;
+  const payOf = (ids: string[]) => (payData ? groupPayInfo(payData, ids) : null);
 
   const stageRows = supplierId
     ? await prisma.supplierRawStage.findMany({ where: { organizationId: s.user.organizationId, supplierId }, select: { purchaseId: true, stage: true, status: true, place: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true } })
@@ -153,6 +159,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                   {!mixedCur && <span className="tabular-nums">по УПД без НДС: <b>{money(as)} {cur(lots[0].currency)}</b></span>}
                   {cs.length > 0 && <span className="tabular-nums">себестоимость: <b>{money(ct)} ₽</b>{cq > 0 && <> · за шкуру <b>{money(ct / cq)} ₽</b></>}</span>}
                   {places.size === 1 ? <RawChip stages={stagesAll.length ? [...places.values()][0].st : []} /> : null}
+                  <PayChip info={payOf(invs.map((g) => g[0].purchaseId))} compact />
                   {allGot && stagesAll.length === 0 && <span className="whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">принято на склад</span>}
                   {places.size > 1 && <span className="whitespace-nowrap rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700">положение разное по счетам</span>}
                 </summary>
@@ -169,6 +176,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                             <Clamp className="max-w-xs font-bold">{`${ids.length > 1 ? "Счета" : "Счёт"} ${ids.join(", ")}`}</Clamp>
                             <span className="text-neutral-600">шкур {num(inv.flat().reduce((a, r) => a + r.quantity, 0))}</span>
                             {sm ? <span className={sm.overdue ? "text-red-800" : "text-neutral-700"}>{summaryLine(sm)}</span> : <span className="text-neutral-500">{head.received ? "принято на склад" : "нет этапов"}</span>}
+                            <PayChip info={payOf(inv.map((g) => g[0].purchaseId))} compact />
                             {isSup && <Link href={`/supplier/raw/${head.purchaseId}`} className="ml-auto text-blue-700 underline max-xl:inline-flex max-xl:min-h-11 max-xl:items-center">{sm ? "Этапы и детали →" : "+ Этап"}</Link>}
                           </div>
                           {st.length > 1 && (

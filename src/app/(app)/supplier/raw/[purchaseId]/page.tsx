@@ -17,6 +17,8 @@ import { ChatLink } from "@/components/chat-link";
 import { LotCompose, LotsTable, StatementBlock, type LotRow } from "@/components/auction-statement";
 import { InfoHint } from "@/components/info-hint";
 import { paymentDocFlagsFor } from "@/lib/supplier-payment-docs";
+import { loadSupplierPayData, groupPayInfo, invoicePayInfo } from "@/lib/supplier-pay";
+import { PayChip, PayLines } from "@/components/pay-status";
 import { summarizeStages, summaryLine } from "@/lib/raw-stage";
 
 export const metadata = { title: "Аукцион" };
@@ -121,6 +123,9 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
   ];
   // Только булев признак: есть ли у заказчика загруженный документ по оплате счёта (без сумм, дат и файла).
   const payFlags = await paymentDocFlagsFor(s.user.organizationId, supplierId, invoices.map((i) => ({ id: i.id, invoice: i.invoice, number: i.number })));
+  // Статус оплаты: по подтверждённым у заказчика оплатам этого подрядчика (supplier-pay.ts), без остатков и платёжных файлов.
+  const payData = await loadSupplierPayData(s.user.organizationId, supplierId);
+  const auctionPay = groupPayInfo(payData, invoices.map((i) => i.id));
   const docFiles = docs.flatMap((x) => x.files.map((f) => ({ ...f, title: x.title })));
 
   return (
@@ -139,6 +144,12 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
           ))}
         </dl>
         {nowLine && <p className="text-sm"><b>Сырьё сейчас:</b> {nowLine}</p>}
+        {auctionPay && (
+          <div className="flex flex-col gap-1 text-sm" aria-label="Оплата аукциона">
+            <p className="flex flex-wrap items-center gap-2"><b>Оплата:</b> <PayChip info={auctionPay} /></p>
+            <PayLines info={auctionPay} />
+          </div>
+        )}
         {(!st || Math.abs(itemsQty - totalQty) > 0.0005) && (
           <p className="border-t border-neutral-200 pt-2 text-sm">
             {!st && <>Лотов <b className="tabular-nums">{lotRows.length}</b> · шкур <b className="tabular-nums">{num(totalQty)}</b> · по УПД без НДС: <b className="tabular-nums">{money(totalSum)} {c}</b></>}
@@ -177,7 +188,7 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
           <div className="flex flex-col gap-1 rounded-md border border-neutral-200 p-2 text-sm" aria-label="Платёжные документы по счетам">
             <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
               Платёжный документ
-              <InfoHint label="О платёжных документах">Документы по оплате загружает заказчик.</InfoHint>
+              <InfoHint label="О платёжных документах">Документы по оплате загружает заказчик; вы видите только «есть / нет».</InfoHint>
             </div>
             <ul className="flex flex-col gap-0.5">
               {invoices.map((i) => {
@@ -185,6 +196,7 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
                 return (
                   <li key={i.id} className="flex flex-wrap items-center gap-x-2">
                     <span>Счёт {i.invoice || i.number}:</span>
+                    <PayChip info={invoicePayInfo(payData, i.id)} compact />
                     {has
                       ? <span className="font-medium text-green-800"><span aria-hidden>✓</span> есть</span>
                       : <span className="text-neutral-500"><span aria-hidden>—</span> нет</span>}
