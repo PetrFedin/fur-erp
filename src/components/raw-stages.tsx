@@ -4,6 +4,8 @@ import { AddStage, CopyChain, StageControls, type StageEdit } from "@/app/(app)/
 export type StageRow = {
   id: string; stage: string; status: string; place: string | null; lotNumber: string | null; qty: number | null; note: string | null;
   plannedStart: Date | null; plannedEnd: Date | null; factStart: Date | null; factEnd: Date | null;
+  /** Когда запись внесена или изменена (для подписи «внёс: Веллмех · обновлено …» у заказчика). */
+  updatedAt?: Date;
 };
 
 const ymd = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
@@ -43,7 +45,7 @@ export function RawStagesBlock({ stages, purchaseId, lots = [], siblings = 0, ed
     <section className="flex flex-col gap-2 rounded-md border border-neutral-300 bg-white p-3">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-sm font-semibold">{title}</h2>
-        {author && <span className="text-xs text-neutral-500">внёс: {author}</span>}
+        {author && <span className="text-xs text-neutral-500">внёс: {author}{stages.some((x) => x.updatedAt) ? ` · обновлено ${ruShort(new Date(Math.max(...stages.map((x) => x.updatedAt?.getTime() ?? 0))))}` : ""}</span>}
         {editable && <span className="ml-auto flex flex-wrap items-center gap-2">{stages.length === 0 && <CopyChain purchaseId={purchaseId} />}<AddStage purchaseId={purchaseId} lots={lots} siblings={siblings} /></span>}
       </div>
       {showNow && <RawNow stages={stages} />}

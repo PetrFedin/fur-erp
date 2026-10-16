@@ -131,7 +131,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
   const rawStages = await prisma.supplierRawStage.findMany({
     where: { organizationId: session.user.organizationId, purchaseId: purchase.id },
     orderBy: { createdAt: "asc" },
-    select: { id: true, stage: true, status: true, place: true, lotNumber: true, qty: true, note: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true },
+    select: { id: true, stage: true, status: true, place: true, lotNumber: true, qty: true, note: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true, updatedAt: true },
   });
 
   // Документы Google Drive: закупки, её лотов и оплат.

@@ -19,7 +19,7 @@ import http from "node:http";
 import path from "node:path";
 import { SUPPLIER_DOC_TYPES, supplierMayUpload } from "../src/lib/supplier-docs";
 import { isOurPaymentDoc, paymentDocFlags } from "../src/lib/supplier-payment-docs-core";
-import { PAY_STATE_LABEL, isConfirmedForSupplier, payInfo, poolShares } from "../src/lib/supplier-pay-core";
+import { PAY_STATE_LABEL, isConfirmedForSupplier, payInfo, poolShares, rawPayInfo } from "../src/lib/supplier-pay-core";
 
 const BASE = (process.env.BASE_URL ?? "http://localhost:3420").replace(/\/$/, "");
 const dbUrl = process.env.DATABASE_URL ?? "";
@@ -422,6 +422,9 @@ async function main() {
   ok(payInfo(0, [L(500, "2026-01-02")], false).state === "PARTIAL", "цена работы не задана: при оплате — «Частично», не «Оплачено»");
   ok(payInfo(1000, [L(100, "2026-01-02"), L(100, "2026-03-04")]).date?.toISOString().startsWith("2026-03-04") === true, "дата — последней подтверждённой оплаты");
   ok(PAY_STATE_LABEL.PAID === "Оплачено" && PAY_STATE_LABEL.PARTIAL === "Частично" && PAY_STATE_LABEL.UNPAID === "Не оплачено", "подписи статусов");
+  // Статус сырья — от суммы счёта Веллмеха, не от всей себестоимости (scripts/test-supplier-invoice-due.ts — на реальных СП 09-26 и SAGA 03-26).
+  ok(rawPayInfo(null, [L(500, "2026-01-02")]).state === "NOINVOICE" && rawPayInfo(null, []).state === "NOINVOICE" && PAY_STATE_LABEL.NOINVOICE === "Нет счёта", "нет суммы счёта — «Нет счёта», а не «Не оплачено»");
+  ok(rawPayInfo(1000, [L(1036.13, "2026-01-02")]).state === "PAID" && rawPayInfo(1000, [L(999.5, "2026-01-02")]).state === "PAID" && rawPayInfo(1000, [L(998, "2026-01-02")]).state === "PARTIAL", "сырьё: переплата — «Оплачено», допуск 1 ₽");
   const sh = poolShares([{ id: "a", need: 300 }, { id: "b", need: 500 }, { id: "c", need: 200 }], 650);
   ok(sh.get("a") === 300 && sh.get("b") === 350 && sh.get("c") === 0, "оплата аукциона целиком добирает счета по порядку");
 
@@ -439,7 +442,7 @@ async function main() {
       ok(!sees((await req(pageOf, { cookie: S1 })).text), "запланированная (PENDING) не считается оплаченной");
       await prisma.payment.update({ where: { id: pay.id }, data: { status: "COMPLETED" } });
       const seen = await req(pageOf, { cookie: S1 });
-      ok(sees(seen.text) && /data-testid="pay-status"/.test(seen.text) && /(Частично|Оплачено)/.test(seen.text) && /15\.09\.2026/.test(seen.text), "подтверждена → подрядчик видит статус, сумму и дату");
+      ok(sees(seen.text) && /data-testid="pay-status"/.test(seen.text) && /(Частично|Оплачено|Нет счёта)/.test(seen.text) && /15\.09\.2026/.test(seen.text), "подтверждена → подрядчик видит статус, сумму и дату");
       ok(!seen.text.includes(NOTE) && !seen.text.includes("SEC-PAYMENT-SCAN"), "…но не заметку и не платёжный файл");
       const list = await req("/supplier/raw", { cookie: S1 });
       ok(/data-testid="pay-status"/.test(list.text), "статус виден и в списке «Сырьё»");
@@ -504,6 +507,17 @@ async function main() {
   ]);
   const extra = srcFiles.filter((f) => /allowSupplier:\s*true/.test(readFileSync(f, "utf8")) && !ALLOW_SUPPLIER.has(rel(f))).map(rel);
   ok(extra.length === 0, `allowSupplier: true только в проверенных местах${extra.length ? " — новое, проверьте: " + extra.join(", ") : ""}`);
+  // Записи Веллмеха, которые видны сразу (этапы сырья, календарь, даты аукционов, этапы отгрузок), учёт заказчика не трогают:
+  // никаких записей в оплаты, закупки, лоты, склад, ТЗ и строки отгрузок. Всё, что влияет на учёт, идёт через «Входящие» / «Подтвердить».
+  const ACCOUNTING = /(?:prisma|tx)\.(?:payment|productionPayment|paymentAllocation|purchase|purchaseItem|purchaseExpense|rawMaterialLot|stockMovement|productionOrder|shipmentLine|shipment|supplyPlanEntry)\.(?:create|createMany|update|updateMany|upsert|delete|deleteMany)\b/;
+  const IMMEDIATE = ["src/app/(app)/supplier/raw/stage-actions.ts", "src/app/(app)/supplier/calendar/actions.ts", "src/app/(app)/supplier/calendar/auction-actions.ts"];
+  const touching = IMMEDIATE.filter((f) => ACCOUNTING.test(readFileSync(path.resolve(f), "utf8")));
+  ok(touching.length === 0, `«сразу видимые» записи Веллмеха (этапы сырья, календарь, аукционы) не пишут в учёт заказчика${touching.length ? ": " + touching.join(", ") : ""}`);
+  const marksSrc = readFileSync(path.resolve("src/app/(app)/shipments/marks-actions.ts"), "utf8");
+  const supplierMarksPart = marksSrc.slice(marksSrc.indexOf("export async function saveSupplierMarks"), marksSrc.indexOf("export async function confirmSupplierMark"));
+  ok(supplierMarksPart.length > 100 && !ACCOUNTING.test(supplierMarksPart) && !/acceptLinesByReview|sendLineToRework/.test(supplierMarksPart), "отметки примерки от Веллмеха пишутся только в хронологию; в учёт переходят лишь кнопкой «Подтвердить» у заказчика");
+  const confirmPart = marksSrc.slice(marksSrc.indexOf("export async function confirmSupplierMark"));
+  ok(/requireRole\("OWNER", "ADMIN", "TECHNOLOGIST"\)/.test(confirmPart), "«Подтвердить» отметку Веллмеха может только наша роль (не SUPPLIER)");
   // Страницы кабинета подрядчика не берут поля цен/наценок/бюджета из базы.
   const supplierSrc = srcFiles.filter((f) => /src\/(app\/\(app\)\/supplier\/|lib\/supplier-)/.test(rel(f)) && !/supplier-pay|supplier-debt|supplier-calc|supplier-payment-docs/.test(rel(f)));
   const priceWords = supplierSrc.filter((f) => /\b(sellingPrice|retailPrice|clientWorkPricePerUnit|avgUnitCost|BudgetScenario|budgetScenario)\b/.test(readFileSync(f, "utf8")) && !/supplier-calc-start|tz-vendor/.test(rel(f))).map(rel);

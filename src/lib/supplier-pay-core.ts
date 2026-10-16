@@ -1,12 +1,16 @@
 // Статус оплат для подрядчика (Веллмеха) — чистая часть (без базы, проверяется в scripts/test-security.ts).
 //
+// Сумма «к оплате» по сырью — это сумма СЧЁТА Веллмеха (supplier-invoice-due.ts: «К оплате…» из принятого расчёта, а если такого
+// столбца нет — весь расчёт, как в УПД), а не вся себестоимость закупки: выделка, перевозка, брокерские и комиссии третьим лицам
+// Веллмеху не платятся и в статус не входят. Нет суммы счёта — «Нет счёта» (не «Не оплачено»). Переплата и недоплата до 1 ₽ — «Оплачено».
+//
 // Правило: подрядчик видит «Оплачено / Частично / Не оплачено» ТОЛЬКО по своим счетам, аукционам и ТЗ и ТОЛЬКО по оплатам,
 // которые заказчик подтвердил у себя: проведена (COMPLETED) + флаг «подтверждена» + отметка подтверждения (confirmedAt).
 // Черновые, плановые (PENDING), отменённые и ещё не подтверждённые оплаты не считаются оплаченными. Остатки и долги заказчика,
 // неразнесённые авансы и оплаты других подрядчиков сюда не попадают вообще.
 
-export type PayState = "PAID" | "PARTIAL" | "UNPAID";
-export const PAY_STATE_LABEL: Record<PayState, string> = { PAID: "Оплачено", PARTIAL: "Частично", UNPAID: "Не оплачено" };
+export type PayState = "PAID" | "PARTIAL" | "UNPAID" | "NOINVOICE";
+export const PAY_STATE_LABEL: Record<PayState, string> = { PAID: "Оплачено", PARTIAL: "Частично", UNPAID: "Не оплачено", NOINVOICE: "Нет счёта" };
 /** Вид оплаты для подписи: аванс / доплата / расчёт. */
 export const PAY_KIND_LABEL: Record<string, string> = { ADVANCE: "Аванс", PARTIAL: "Доплата", FINAL: "Расчёт", OTHER: "Оплата" };
 
@@ -34,6 +38,18 @@ export function payInfo(total: number, lines: PayLine[], totalKnown = true): Pay
   if (paid <= 0.005) return { state: "UNPAID", paid: 0, date: null, lines: [] };
   const done = totalKnown && total - paid < PAY_DONE_EPS;
   return { state: done ? "PAID" : "PARTIAL", paid, date, lines: sorted };
+}
+
+/**
+ * Статус сырья по сумме СЧЁТА Веллмеха. due = null (или не больше нуля) — суммы счёта нет: «Нет счёта», оплаты (если есть) всё равно
+ * показываются. Дальше как payInfo: допуск 1 ₽, переплата — «Оплачено».
+ */
+export function rawPayInfo(due: number | null, lines: PayLine[]): PayInfo {
+  if (due == null || !(due > 0.005)) {
+    const base = payInfo(0, lines, false);
+    return { ...base, state: "NOINVOICE" };
+  }
+  return payInfo(due, lines);
 }
 
 /** Общий пул оплат аукциона делится между его счетами по порядку: каждый счёт добирает свой остаток. Возвращает долю пула на каждый счёт. */

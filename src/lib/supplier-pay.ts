@@ -3,17 +3,21 @@ import { prisma } from "@/lib/prisma";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { auctionName } from "@/lib/auction-names";
 import { orderWorkCents } from "@/lib/payment-alloc";
-import { CONFIRMED_WHERE, normInvoice, payInfo, poolShares, type PayInfo, type PayLine } from "@/lib/supplier-pay-core";
+import { CONFIRMED_WHERE, normInvoice, payInfo, poolShares, rawPayInfo, type PayInfo, type PayLine } from "@/lib/supplier-pay-core";
+import { supplierAcceptedCalcs } from "@/lib/supplier-raw";
+import { allocateDue, calcInvoiceDue } from "@/lib/supplier-invoice-due";
 
 /**
  * Статус оплат для подрядчика (Веллмеха): «Оплачено / Частично / Не оплачено» + дата и сумма — ТОЛЬКО его счетов, аукционов и ТЗ.
  * Единый источник — наши оплаты (Payment — «за сырьё», ProductionPayment + PaymentAllocation — «за работу»): статус пересчитывается
  * при каждом открытии страницы от ПОДТВЕРЖДЁННЫХ оплат (см. supplier-pay-core.ts), поэтому подтверждение и его снятие у заказчика
- * сразу меняют то, что видит подрядчик. Своей копии статусов нет. Остатки и долги заказчика, неразнесённые авансы, оплаты других
+ * сразу меняют то, что видит подрядчик. «К оплате» — сумма СЧЁТА Веллмеха (supplier-invoice-due.ts), а не вся себестоимость закупки;
+ * нет суммы счёта — «Нет счёта». Своей копии статусов нет. Остатки и долги заказчика, неразнесённые авансы, оплаты других
  * подрядчиков и сами платёжные документы наружу не выходят.
  */
 
-type PurchaseRow = { id: string; key: string | null; total: number; invoice: string; at: number; number: string };
+/** total — сумма СЧЁТА Веллмеха по этой закупке (supplier-invoice-due.ts); null — суммы счёта нет («Нет счёта»). cost — вся плановая себестоимость закупки, только для сверки в тестах. */
+type PurchaseRow = { id: string; key: string | null; total: number | null; cost: number; invoice: string; at: number; number: string };
 export type SupplierPayData = {
   purchases: Map<string, PurchaseRow>;
   /** Подтверждённые оплаты, привязанные к закупке напрямую (purchaseId или номер счёта). */
@@ -34,10 +38,20 @@ export async function loadSupplierPayData(orgId: string, supplierId: string): Pr
       select: { amount: true, kind: true, paidAt: true, purchaseId: true, invoiceNo: true, auctionSession: true },
     }),
   ]);
+  const calcs = await supplierAcceptedCalcs(orgId, supplierId, purchases.map((p) => p.id));
+  const costOf = new Map(purchases.map((p) => [p.id, Number(purchaseTotalInclVat(p))]));
+  // Сумма счёта по закупкам: из принятого расчёта (новейший по закупке); закупки без принятого расчёта суммы счёта не имеют.
+  const dueOf = new Map<string, number>();
+  for (const c of calcs) {
+    const fresh = purchases.filter((p) => c.purchaseIds.includes(p.id) && !dueOf.has(p.id));
+    const due = fresh.length ? calcInvoiceDue(c.payload) : null;
+    if (!due) continue;
+    for (const [id, v] of allocateDue(due, fresh.map((p) => ({ id: p.id, invoice: p.invoiceNumber ?? "", weight: costOf.get(p.id) ?? 0 })))) dueOf.set(id, v);
+  }
   const rows = new Map<string, PurchaseRow>();
   const byInvoice = new Map<string, string[]>();
   for (const p of purchases) {
-    rows.set(p.id, { id: p.id, key: auctionName(p.auctionSession), total: Number(purchaseTotalInclVat(p)), invoice: p.invoiceNumber ?? "", at: p.orderDate.getTime(), number: p.number });
+    rows.set(p.id, { id: p.id, key: auctionName(p.auctionSession), total: dueOf.get(p.id) ?? null, cost: costOf.get(p.id) ?? 0, invoice: p.invoiceNumber ?? "", at: p.orderDate.getTime(), number: p.number });
     const n = normInvoice(p.invoiceNumber);
     if (n) byInvoice.set(n, [...(byInvoice.get(n) ?? []), p.id]);
   }
@@ -65,7 +79,7 @@ const sum = (l: PayLine[]) => l.reduce((a, x) => a + x.amount, 0);
 function sharesFor(d: SupplierPayData, key: string): Map<string, number> {
   const inAuction = [...d.purchases.values()].filter((p) => p.key === key).sort((a, b) => a.at - b.at || a.number.localeCompare(b.number, "ru", { numeric: true }));
   const pool = sum(d.pools.get(key) ?? []);
-  return poolShares(inAuction.map((p) => ({ id: p.id, need: Math.max(0, p.total - sum(d.direct.get(p.id) ?? [])) })), pool);
+  return poolShares(inAuction.map((p) => ({ id: p.id, need: Math.max(0, (p.total ?? 0) - sum(d.direct.get(p.id) ?? [])) })), pool);
 }
 
 const poolDate = (d: SupplierPayData, key: string): Date | null => (d.pools.get(key) ?? []).reduce<Date | null>((a, x) => (!a || x.paidAt > a ? x.paidAt : a), null);
@@ -75,24 +89,29 @@ export function invoicePayInfo(d: SupplierPayData, purchaseId: string): PayInfo 
   const p = d.purchases.get(purchaseId);
   if (!p) return null;
   const lines = [...(d.direct.get(p.id) ?? [])];
-  const share = p.key ? sharesFor(d, p.key).get(p.id) ?? 0 : 0;
+  // Без суммы счёта доли не делим: единственная закупка аукциона видит весь пул, иначе — только свои прямые оплаты.
+  const alone = p.total == null && p.key && [...d.purchases.values()].filter((x) => x.key === p.key).length === 1;
+  const share = p.key ? (alone ? sum(d.pools.get(p.key) ?? []) : sharesFor(d, p.key).get(p.id) ?? 0) : 0;
   if (share > 0.004 && p.key) lines.push({ kind: "OTHER", amount: share, paidAt: poolDate(d, p.key)! });
-  return payInfo(p.total, lines);
+  return rawPayInfo(p.total, lines);
 }
 
 /** Статус группы счетов (карточка аукциона / расчёт): все оплаты этих счетов и пулы их аукционов. */
 export function groupPayInfo(d: SupplierPayData, purchaseIds: string[]): PayInfo | null {
-  const ps = [...new Set(purchaseIds)].map((id) => d.purchases.get(id)).filter((p): p is PurchaseRow => !!p);
-  if (ps.length === 0) return null;
+  const all = [...new Set(purchaseIds)].map((id) => d.purchases.get(id)).filter((p): p is PurchaseRow => !!p);
+  if (all.length === 0) return null;
+  // В статус входят только закупки с известной суммой счёта; если её нет ни у одной — «Нет счёта» (оплаты показываем как есть).
+  const known = all.filter((p) => p.total != null);
+  const ps = known.length ? known : all;
   const lines = ps.flatMap((p) => d.direct.get(p.id) ?? []);
   const keys = [...new Set(ps.map((p) => p.key).filter((k): k is string => !!k))];
   for (const k of keys) {
-    // пул считается целиком только если в группе все счета аукциона, иначе — долями этих счетов
+    // пул считается целиком только если в группе все счета аукциона, иначе — долями этих счетов; без суммы счёта делить нечем — пул целиком
     const shares = sharesFor(d, k);
-    const part = ps.filter((p) => p.key === k).reduce((a, p) => a + (shares.get(p.id) ?? 0), 0);
+    const part = known.length ? ps.filter((p) => p.key === k).reduce((a, p) => a + (shares.get(p.id) ?? 0), 0) : sum(d.pools.get(k) ?? []);
     if (part > 0.004) lines.push({ kind: "OTHER", amount: part, paidAt: poolDate(d, k)! });
   }
-  return payInfo(ps.reduce((a, p) => a + p.total, 0), lines);
+  return rawPayInfo(known.length ? known.reduce((a, p) => a + (p.total ?? 0), 0) : null, lines);
 }
 
 /** Статус работы по ТЗ подрядчика (принятому из «Входящих»): разнесённые на эти ТЗ подтверждённые оплаты против цены работы. */
