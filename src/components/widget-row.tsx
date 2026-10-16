@@ -51,7 +51,7 @@ export function WidgetRow({ id, title = "Виджеты", children, className = 
         {headerExtra ? <div className="flex min-w-0 flex-1 items-center gap-2">{headerExtra}</div> : null}
         <div className={"flex shrink-0 gap-2 max-sm:min-w-0 max-sm:shrink " + (headerEnd ? "flex-col items-end gap-1 max-sm:ml-auto max-sm:flex-row max-sm:items-center max-sm:gap-2" : "items-center")}>
           {headerEnd ? <div className="flex h-7 items-center max-sm:h-auto max-sm:min-w-0 max-sm:min-h-7">{headerEnd}</div> : null}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 max-xl:gap-4">
           <button type="button" onClick={toggleCollapsed} data-touch-ok aria-label={collapsed ? "Развернуть виджеты" : "Свернуть виджеты"} title={collapsed ? "Развернуть" : "Свернуть"}
             className={btn + " w-7 justify-center border-neutral-200 bg-white text-neutral-600"}><svg aria-hidden viewBox="0 0 16 16" className={"h-3.5 w-3.5 transition-transform " + (collapsed ? "rotate-180" : "")} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 10 8 5.5 12.5 10" /></svg></button>
           <button type="button" onClick={togglePinned} data-touch-ok aria-pressed={pinned} aria-label={pinned ? "Открепить виджеты" : "Закрепить виджеты: показывать всегда"} title={pinned ? "Открепить" : "Закрепить: показывать всегда при прокрутке"}

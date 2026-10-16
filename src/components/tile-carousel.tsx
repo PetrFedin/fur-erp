@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { useSlideWindow } from "@/components/slide-window";
+import { useSlideWindow, useActiveSlideHeight } from "@/components/slide-window";
 import { InfoHint } from "@/components/info-hint";
 import { grpBlock } from "@/lib/block-hover";
 import { TILE_BOX, TileHead } from "@/app/(app)/dashboard/tile";
@@ -49,6 +49,7 @@ export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickabl
 }) {
   const sw = useSlideWindow(slides.length, "(min-width: 1024px)", twoUp ? 2 : 1);
   const { scroller, perView, cur, maxStart, goTo, step, onScroll, dragProps } = sw;
+  useActiveSlideHeight(scroller, cur);
   const inWin = (i: number) => i >= cur && i < cur + perView;
   const arrow = CAROUSEL_ARROW;
   return (
@@ -58,7 +59,7 @@ export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickabl
         {toolbar}
         <div ref={scroller} onScroll={onScroll} {...dragProps} tabIndex={0}
           onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); step(1); } else if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); } }}
-          className={(twoUp ? "-mx-1.5 " : "-mx-1 ") + "mt-1 flex snap-x snap-mandatory items-stretch overflow-x-auto overscroll-x-contain motion-safe:scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden"}
+          className={(twoUp ? "-mx-1.5 " : "-mx-1 ") + "mt-1 flex snap-x snap-mandatory items-start md:items-stretch overflow-x-auto overscroll-x-contain motion-safe:scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden"}
           role="group" aria-roledescription="карусель" aria-label={`${title}: ${slidesLabel}`}>
           {slides.map((s, i) => (
             <div key={s.key} className={"snap-start " + (twoUp ? "min-w-full px-1.5 lg:min-w-[50%]" : "min-w-full px-1")} aria-hidden={!inWin(i)} role="group" aria-roledescription="слайд" aria-label={`${s.label}, ${i + 1} из ${slides.length}`}>{twoUp ? <div className={TILE_BOX + (clickable ? " tile-click" : "") + " shadow-sm print:shadow-none"}>{s.body}</div> : s.body}</div>

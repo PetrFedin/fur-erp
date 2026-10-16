@@ -85,3 +85,31 @@ export function useSlideWindow(count: number, wideQuery = "(min-width: 1024px)",
   const dragProps = { onPointerDown, onClickCapture };
   return { scroller, perView, cur, maxStart, goTo, step, onScroll, dragProps };
 }
+
+/**
+ * Телефон (<768px): лента слайдов не растягивается до самого высокого слайда — её высота равна высоте активного слайда
+ * (меняется вместе с ним и при перерисовке содержимого). На широком экране высота не трогается.
+ * Слайды в ленте должны быть выровнены по верху (items-start). Меняет style.height напрямую, без повторных рендеров.
+ */
+export function useActiveSlideHeight(scroller: { current: HTMLElement | null }, cur: number) {
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    let ro: ResizeObserver | null = null;
+    const apply = () => {
+      ro?.disconnect();
+      ro = null;
+      if (!mq.matches) { el.style.height = ""; el.style.overflowY = ""; return; }
+      const slide = el.children[cur] as HTMLElement | undefined;
+      if (!slide) return;
+      el.style.overflowY = "hidden";
+      el.style.height = `${slide.offsetHeight}px`;
+      ro = new ResizeObserver(() => { el.style.height = `${slide.offsetHeight}px`; });
+      ro.observe(slide);
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => { mq.removeEventListener("change", apply); ro?.disconnect(); el.style.height = ""; el.style.overflowY = ""; };
+  }, [scroller, cur]);
+}

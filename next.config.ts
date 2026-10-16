@@ -56,6 +56,13 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  // Старые адреса переезжают мгновенно, на уровне сервера: без загрузки страницы и без экрана «Загрузка…». Параметры запроса сохраняются.
+  async redirects() {
+    return [
+      { source: "/lining", destination: "/lots?tab=lining", permanent: false },
+      { source: "/integrity", destination: "/reconciliation#integrity", permanent: false },
+    ];
+  },
   async headers() {
     return [
       { source: "/((?!api/drive-docs/|api/purchase-docs/).*)", headers: securityHeaders },

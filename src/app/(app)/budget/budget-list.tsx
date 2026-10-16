@@ -12,7 +12,7 @@ export type BudgetSummary = {
   total: number; pcs: number; hides: number; perUnit: number | null; nowPerUnit: number | null; varPct: number | null; updatedAt: string; updatedBy: string | null;
 };
 
-const ICON = "btn-accent inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-50 md:h-7 md:w-7";
+const ICON = "btn-accent inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-50 md:h-7 md:w-7 max-xl:min-h-11 max-xl:min-w-11";
 
 type Dialog = { kind: "new" } | { kind: "compare" } | { kind: "rename"; b: BudgetSummary } | { kind: "delete"; b: BudgetSummary } | null;
 

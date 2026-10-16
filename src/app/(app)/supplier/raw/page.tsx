@@ -85,27 +85,27 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
       <p className="text-sm text-neutral-600">Приложите УПД, спецификацию или счёт.</p>
 
       <form className="flex flex-wrap items-end gap-3 text-sm">
-        <label className="flex flex-col gap-1">Аукцион
-          <select name="auction" defaultValue={fAuction} className="h-9 rounded-md border border-neutral-300 px-2">
+        <label className="flex flex-col gap-1 max-sm:w-full">Аукцион
+          <select name="auction" defaultValue={fAuction} className="h-9 rounded-md border border-neutral-300 px-2 max-sm:w-full">
             <option value="">Все</option>
             {auctions.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1">Вид меха
-          <select name="fur" defaultValue={fFur} className="h-9 rounded-md border border-neutral-300 px-2">
+        <label className="flex flex-col gap-1 max-sm:w-full">Вид меха
+          <select name="fur" defaultValue={fFur} className="h-9 rounded-md border border-neutral-300 px-2 max-sm:w-full">
             <option value="">Все</option>
             {furs.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1">Статус
-          <select name="st" defaultValue={fSt} className="h-9 rounded-md border border-neutral-300 px-2">
+        <label className="flex flex-col gap-1 max-sm:w-full">Статус
+          <select name="st" defaultValue={fSt} className="h-9 rounded-md border border-neutral-300 px-2 max-sm:w-full">
             <option value="">Все</option>
             <option value="transit">в пути / заказано</option>
             <option value="received">принято на склад</option>
           </select>
         </label>
-        <label className="flex flex-col gap-1">Лот
-          <input name="q" defaultValue={one(sp.q)} placeholder="Номер лота" className="h-9 w-36 rounded-md border border-neutral-300 px-2" />
+        <label className="flex flex-col gap-1 max-sm:w-full">Лот
+          <input name="q" defaultValue={one(sp.q)} placeholder="Номер лота" className="h-9 w-36 max-sm:w-full rounded-md border border-neutral-300 px-2" />
         </label>
         <button type="submit" className={buttonVariants({ size: "sm" })}>Показать</button>
         {filtered && <Link href="/supplier/raw" className={buttonVariants({ size: "sm", variant: "outline" })}>Сбросить</Link>}
@@ -169,7 +169,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                             <Clamp className="max-w-xs font-bold">{`${ids.length > 1 ? "Счета" : "Счёт"} ${ids.join(", ")}`}</Clamp>
                             <span className="text-neutral-600">шкур {num(inv.flat().reduce((a, r) => a + r.quantity, 0))}</span>
                             {sm ? <span className={sm.overdue ? "text-red-800" : "text-neutral-700"}>{summaryLine(sm)}</span> : <span className="text-neutral-500">{head.received ? "принято на склад" : "нет этапов"}</span>}
-                            {isSup && <Link href={`/supplier/raw/${head.purchaseId}`} className="ml-auto text-blue-700 underline max-md:inline-flex max-md:min-h-11 max-md:items-center">{sm ? "Этапы и детали →" : "+ Этап"}</Link>}
+                            {isSup && <Link href={`/supplier/raw/${head.purchaseId}`} className="ml-auto text-blue-700 underline max-xl:inline-flex max-xl:min-h-11 max-xl:items-center">{sm ? "Этапы и детали →" : "+ Этап"}</Link>}
                           </div>
                           {st.length > 1 && (
                             <ol className="mt-2 flex flex-col gap-0.5 border-l-2 border-neutral-200 pl-3 text-xs text-neutral-700">

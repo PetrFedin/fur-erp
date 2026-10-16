@@ -83,7 +83,7 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
    (кнопки с data-touch-ok: «Свернуть», «Закрепить», шевроны «›», а также самостоятельные ссылки вне текста, списков и таблиц). Десктоп не затрагивается. */
 @media (max-width: 1279px) {
   [data-touch-ok]:not(.absolute):not(.fixed):not(.sticky),
-  a[href]:not(p a):not(li a):not(td a):not(th a):not(label a):not(.info-i):not([data-touch-ok]):not(button a) {
+  a[href]:not(p a):not(li a):not(td a):not(th a):not(label a):not(.info-i):not([data-touch-ok]):not(button a):not(.absolute):not(.fixed):not(.sticky) {
     position: relative;
   }
   [data-touch-ok]::after,
@@ -124,7 +124,7 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
 
 /* Телефон: ссылки-кнопки и блочные ссылки в списках/абзацах (карточки «Задачи», строки списков) — невидимая зона 44 px, вид прежний. */
 @media (max-width: 1279px) {
-  :is(:is(div, li, span, section, article) > a[href], a[href][class*="max-md:inline-flex"]):not(td a):not(th a):not(nav a):not(.info-i):not([data-touch-ok]) { position: relative; }
+  :is(:is(div, li, span, section, article) > a[href], a[href][class*="max-md:inline-flex"]):not(td a):not(th a):not(nav a):not(.info-i):not([data-touch-ok]):not(.absolute):not(.fixed) { position: relative; }
   :is(:is(div, li, span, section, article) > a[href], a[href][class*="max-md:inline-flex"]):not(td a):not(th a):not(nav a):not(.info-i):not([data-touch-ok])::after {
     content: ""; position: absolute; top: 50%; left: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%);
   }
@@ -419,4 +419,20 @@ table thead th { line-height: 1.15; }
 @media (max-width: 767px) {
   .tile-box .subl { min-height: 0 !important; }
   .tile-box [aria-hidden="true"].invisible { display: none; }
+}
+
+/* Хлебные крошки: лента прокручивается (overflow обрезал невидимую зону касания ::after). Даём ленте вертикальный запас 14 px
+   внутри самой ленты и убираем его отрицательным полем: вид и высота страницы прежние, а зона касания 44 px не обрезается. */
+@media (max-width: 1279px) {
+  nav[aria-label="Путь"] ol { padding-block: 14px; margin-block: -14px; }
+}
+
+/* Планшет и телефон: подпись с флажком или переключателем — вся строка целевая, высота не меньше 44 px (сам флажок не растёт). */
+@media (max-width: 1279px) {
+  label:has(> input[type="checkbox"]), label:has(> input[type="radio"]) { min-height: 44px; }
+}
+
+/* Телефон и планшет: заголовок раскрывающегося блока (summary) — не ниже 44 px, как и на 768–1279. */
+@media (max-width: 1279px) {
+  summary { min-height: 44px; }
 }

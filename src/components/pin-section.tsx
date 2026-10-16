@@ -67,7 +67,7 @@ export function PinSection({ id, title, headerExtra, value, onRestore, children,
           </h2>
           {headerExtra}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 max-xl:gap-4">
           <button type="button" onClick={() => setCollapsed((v) => !v)} data-touch-ok aria-label={collapsed ? `Развернуть: ${title}` : `Свернуть до названия: ${title}`}
             title={collapsed ? "Показать таблицу" : "Скрыть таблицу, оставить только название"}
             className={btn + " w-7 justify-center border-neutral-200 bg-white text-neutral-600"}><svg aria-hidden viewBox="0 0 16 16" className={"h-3.5 w-3.5 transition-transform " + (collapsed ? "rotate-180" : "")} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 10 8 5.5 12.5 10" /></svg></button>

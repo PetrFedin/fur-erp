@@ -71,6 +71,8 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
     const t = p.toString();
     return `/supplier/calendar${t ? `?${t}` : ""}`;
   };
+  const offLayers = SUP_LAYERS.filter((l) => !layerSet.has(l.key));
+  const allLayersHref = (() => { const p = new URLSearchParams(); if (grid !== today.slice(0, 7)) p.set("g", grid); p.set("v", "list"); p.set("lf", "1"); for (const l of SUP_LAYERS) p.append("l", l.key); return `/supplier/calendar?${p.toString()}`; })();
   const months = Array.from(new Set(entries.flatMap((e) => [e.planDate.slice(0, 7), e.factDate.slice(0, 7)]).filter(Boolean))).sort();
 
   return (
@@ -96,7 +98,7 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
         {grid !== today.slice(0, 7) && <input type="hidden" name="g" value={grid} />}
         <span className="font-medium">Слои:</span>
         {SUP_LAYERS.map((l) => (
-          <label key={l.key} className="inline-flex min-h-11 items-center gap-1.5">
+          <label key={l.key} className="inline-flex min-h-11 items-center gap-1.5 max-xl:px-1.5">
             <input type="checkbox" name="l" value={l.key} defaultChecked={layerSet.has(l.key)} className="size-4" />{l.label}
           </label>
         ))}
@@ -135,7 +137,12 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
               </div>
             </li>
           ))}
-          {days.every((d) => d.slice(0, 7) !== grid || ((byDay.get(d)?.length ?? 0) + (factsByDay.get(d)?.length ?? 0)) === 0) && <li className="text-sm text-neutral-500">В этом месяце событий нет.</li>}
+          {days.every((d) => d.slice(0, 7) !== grid || ((byDay.get(d)?.length ?? 0) + (factsByDay.get(d)?.length ?? 0)) === 0) && (
+            <li className="flex flex-col items-start gap-2 rounded-md border border-dashed border-neutral-300 bg-white p-3 text-sm text-neutral-600">
+              <span>В этом месяце ({monthTitle(grid)}) событий нет{offLayers.length > 0 ? `, но слои выключены: ${offLayers.map((l) => `«${l.label}»`).join(", ")}. В них тоже могут быть записи.` : "."}</span>
+              {offLayers.length > 0 && <Link href={allLayersHref} className={buttonVariants({ size: "sm", variant: "outline" })}>Включить слои: {offLayers.map((l) => l.label).join(", ")}</Link>}
+            </li>
+          )}
         </ul>
       ) : (
         <div className="overflow-x-auto">
@@ -198,7 +205,7 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
                 {isSup && <Td><div className="flex items-center gap-1"><RowActions entry={e} models={modelNames} /><ChatLink type="CalendarEvent" id={e.id} role={s.user.role} label="Написать" className="!py-0.5 text-xs" /></div></Td>}
               </Tr>
             ))}
-            {shown.length === 0 && <Tr><Td colSpan={9} className="py-8 text-center text-neutral-500">{entries.length === 0 ? "Нет записей." : "Нет записей"}</Td></Tr>}
+            {shown.length === 0 && <Tr><Td colSpan={9} className="py-8 text-center text-neutral-500">{entries.length === 0 ? "Нет записей по артикулам." : "Нет записей по выбранным условиям"}</Td></Tr>}
           </Tbody>
         </Table>
       </div>

@@ -17,7 +17,7 @@ import { shortMaterialName } from "@/lib/material-name";
 import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
-import { useSlideWindow } from "@/components/slide-window";
+import { useSlideWindow, useActiveSlideHeight } from "@/components/slide-window";
 import { useClientSort } from "@/lib/use-client-sort";
 import { useFurScope } from "@/components/fur-scope";
 import { ALL_TYPES_LABEL, FUR_SRC_KEYS, FUR_SRC_LABEL, SegmentSwitch, TypeDots, useSrcTypeNav, type FurSrc } from "@/components/fur-source-nav";
@@ -88,6 +88,8 @@ export type RawSlide = { key: string; label: string; fur: Pair; lining: Pair; pa
 export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd, titleSuffix, headerExtra, slides, slideWindow }: { /** Слайды ряда: плитки всех слайдов лежат в одной ленте с прокруткой вправо-влево (колесо, тачпад, свайп, перетаскивание), заголовок ряда остаётся на месте. rows/fur/lining — текущего слайда (для окна цен). */ slides?: RawSlide[]; slideWindow?: ReturnType<typeof useSlideWindow>; /** Подпись текущего слайда в заголовке ряда («· Лиса»). */ titleSuffix?: string; /** Элементы рядом с заголовком (стрелки и точки слайдов). */ headerExtra?: React.ReactNode; view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; vatRates?: VatTriple; /** Плитки оплат (PayTiles bare) — вторая группа ряда. */ pay?: React.ReactNode; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** Устарело: заголовок ряда теперь всегда в WidgetRow. */ hideLabel?: boolean }) {
   const { mode: vat } = useVatDisplay();
   const [priceCol, setPriceCol] = useState<null | "recv" | "used" | "rem">(null);
+  const noScroller = useRef<HTMLDivElement>(null);
+  useActiveSlideHeight(slideWindow?.scroller ?? noScroller, slideWindow?.cur ?? 0);
   const modal = priceCol ? <PriceModal col={priceCol} rows={rows.filter((r) => r.kind === view)} vat={vat} fur={view === "lining" ? null : fur[vat]} lining={view === "fur" ? null : lining[vat]} c4={c4} onClose={() => setPriceCol(null)} /> : null;
   if (slides && slideWindow) {
     const { scroller, onScroll, dragProps, cur, step } = slideWindow;
@@ -309,6 +311,7 @@ export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c
   const scope = useFurScope();
   const nav = useSrcTypeNav({ all: furSrc.all.types.map((t) => t.name), auction: furSrc.auction.types.map((t) => t.name), supplier: furSrc.supplier.types.map((t) => t.name) }, "all", scope ?? undefined);
   const { scroller, onScroll, dragProps, cur, step, goTo, maxStart } = nav.sw;
+  useActiveSlideHeight(scroller, cur);
   const block = furSrc[nav.src];
   const slidesF = [{ key: "", label: ALL_TYPES_LABEL, fur: block.total }, ...block.types.map((t) => ({ key: t.name, label: t.name, fur: t.pair }))];
   const slideNow = slidesF[Math.min(cur, slidesF.length - 1)];
@@ -355,10 +358,10 @@ export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c
                     </div>
                     <div ref={scroller} onScroll={onScroll} {...dragProps} tabIndex={0} data-testid="fur-slides" role="group" aria-roledescription="карусель" aria-label={`Мех · ${FUR_SRC_LABEL[nav.src]}: слайды по типам меха`}
                       onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "ArrowRight") { e.preventDefault(); step(1); } else if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); } }}
-                      className="-mx-1 flex snap-x snap-mandatory items-stretch overflow-x-auto overscroll-x-contain motion-safe:scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden">
+                      className="-mx-1 flex snap-x snap-mandatory items-start md:items-stretch overflow-x-auto overscroll-x-contain motion-safe:scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden">
                       {slidesF.map((x, i) => (
-                        <div key={`${nav.src}:${x.key || "all"}`} data-slide={`${nav.src}:${x.key || "all"}`} role="group" aria-roledescription="слайд" aria-label={`${x.label}, ${i + 1} из ${slidesF.length}`} aria-hidden={i !== cur} className="h-full min-w-full max-w-full snap-start px-1">
-                          <div className="raw-tiles h-full">
+                        <div key={`${nav.src}:${x.key || "all"}`} data-slide={`${nav.src}:${x.key || "all"}`} role="group" aria-roledescription="слайд" aria-label={`${x.label}, ${i + 1} из ${slidesF.length}`} aria-hidden={i !== cur} className="min-w-full max-w-full snap-start px-1 md:h-full">
+                          <div className="raw-tiles md:h-full">
                             <RawTriple view="fur" fur={x.fur} lining={lining} c4={c4} compact onOpen={nav.src !== "all" || i > 0 ? () => setSrcOpen(true) : (col) => setPc({ view: "fur", col })} vatRates={nav.src === "all" && i === 0 ? vatRates?.fur : vatRates ? emptyVat : undefined} recvNote={noteOf(x.key, x.fur)} />
                           </div>
                         </div>
