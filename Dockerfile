@@ -54,7 +54,7 @@ USER root
 # Клиент PostgreSQL нужен для первичной загрузки вшитого демо-дампа (deploy/demo/demo.sql.gz).
 RUN apk add --no-cache postgresql-client
 COPY --chown=nextjs:nodejs deploy/demo-start.mjs ./deploy/demo-start.mjs
-COPY --chown=nextjs:nodejs deploy/demo/demo.sql.gz ./deploy/demo/demo.sql.gz
+COPY --chown=nextjs:nodejs deploy/demo/ ./deploy/demo/
 RUN mkdir -p /tmp/uploads && chown nextjs:nodejs /tmp/uploads
 ENV PORT=10000 \
     NODE_ENV=production \

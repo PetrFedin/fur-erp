@@ -171,6 +171,26 @@ async function boot() {
     else log(`миграции не применились (код ${r.status}); приложение всё равно запускается.\n   ${safe}\n   Подсказка: для Neon нужен адрес БЕЗ «-pooler» (прямое подключение).`);
   }
 
+  // Фото артикулов, ссылки магазина и PLU (deploy/demo/article-photos*): файлы в /tmp/uploads стираются при каждом старте — распаковываем всегда;
+  // SQL-патч идемпотентен (ON CONFLICT DO UPDATE), дамп заново не грузится. Сбой тут не мешает старту.
+  try {
+    const PACK = "deploy/demo/article-photos.tgz", PATCH = "deploy/demo/article-photos-patch.sql";
+    let files = 0;
+    if (existsSync(PACK)) {
+      const dir = `${appEnv.UPLOAD_DIR}/article-photos`;
+      const count = (d) => { let n = 0; try { for (const e of readdirSync(d, { withFileTypes: true })) n += e.isDirectory() ? count(`${d}/${e.name}`) : 1; } catch { /* нет каталога */ } return n; };
+      files = count(dir);
+      if (files < 100) { const t = await run("tar", ["-xzf", PACK, "-C", appEnv.UPLOAD_DIR], { timeout: 120_000 }); if (t.status !== 0) log(`пакет фото не распаковался: ${cleanErr(t)}`); files = count(dir); }
+    }
+    let arts = 0;
+    if (existsSync(PATCH)) {
+      const r = await psql(["-f", PATCH]);
+      if (r.status !== 0) log(`патч фото не применился (приложение запускается без него):\n   ${cleanErr(r)}`);
+      else { const c = await psql(["-tAc", `select count(*) from "SystemState" where key like 'article-photos:%'`]); arts = Number(c.stdout.trim()) || 0; }
+    }
+    if (existsSync(PACK) || existsSync(PATCH)) log(`фото артикулов: ${arts} артикулов, ${files} файлов`);
+  } catch (e) { log(`фото артикулов пропущены: ${e instanceof Error ? e.message : e}`); }
+
   // Приложение внутри контейнера
   log(`запуск приложения на 127.0.0.1:${UP}`);
   const app = spawn(process.execPath, ["server.js"], { env: appEnv, stdio: "inherit" });
