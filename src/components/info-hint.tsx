@@ -43,6 +43,19 @@ export function InfoHint({
     else setFlip(align);
   }, [open, align]);
 
+  // Окончательная страховка: после выбора стороны сдвигаем окно внутрь экрана (поля 8 px) на любой ширине от 768.
+  useLayoutEffect(() => {
+    const tip = tipRef.current;
+    if (!open || !tip || window.innerWidth < 768) return;
+    tip.style.transform = "";
+    const r = tip.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    let dx = 0;
+    if (r.right > vw - 8) dx = vw - 8 - r.right;
+    if (r.left + dx < 8) dx = 8 - r.left;
+    if (dx) tip.style.transform = `translateX(${Math.round(dx)}px)`;
+  }, [open, flip]);
+
   useEffect(() => {
     if (!pinned) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPinned(false);
@@ -73,7 +86,7 @@ export function InfoHint({
         onClick={() => setPinned((v) => !v)}
         onFocus={() => setHover(true)}
         onBlur={() => setHover(false)}
-        className="info-i relative inline-flex size-[18px] items-center after:absolute after:-inset-[11px] after:content-[''] justify-center rounded-full border border-neutral-400 bg-white text-[11px] font-semibold italic leading-none text-neutral-600 hover:border-neutral-700 hover:text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 max-md:size-5 max-md:after:-inset-[13px]"
+        className="info-i relative inline-flex size-[18px] items-center after:absolute after:-inset-[11px] after:content-[''] justify-center rounded-full border border-neutral-400 bg-white text-[11px] font-semibold italic leading-none text-neutral-600 hover:border-neutral-700 hover:text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 max-xl:size-5 max-xl:after:-inset-[13px]"
       >
         i
       </button>

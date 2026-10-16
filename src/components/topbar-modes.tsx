@@ -5,7 +5,7 @@ import { VatToggle } from "@/components/vat-toggle";
 import { Commission4Toggle } from "@/components/commission4-toggle";
 import { YearToggle } from "@/components/year-toggle";
 
-const QUERY = "(max-width: 399px)";
+const QUERY = "(max-width: 1279px)";
 
 function subscribe(cb: () => void) {
   const mq = window.matchMedia(QUERY);
@@ -13,7 +13,7 @@ function subscribe(cb: () => void) {
   return () => mq.removeEventListener("change", cb);
 }
 
-/** Узкий экран (< 400 px): переключатели НДС и 4% не помещаются в шапку рядом с меню и «Выйти». */
+/** Телефон и планшет (< 1280 px): переключатели Год/Цены/4% не помещаются в шапку рядом с меню, поиском и «Выйти». */
 function useNarrow() {
   return useSyncExternalStore(
     subscribe,
@@ -23,8 +23,8 @@ function useNarrow() {
 }
 
 /**
- * Переключатели режимов в шапке. На ширине >= 400 px — как раньше, в ряд; на уже — одна кнопка «Режимы»
- * с раскрывающейся панелью, чтобы шапка не налезала на меню и не выходила за экран (360 и 320 px).
+ * Переключатели режимов в шапке. На ширине >= 1280 px — в ряд; на уже — одна кнопка «Режимы»
+ * с панелью на всю ширину под шапкой, чтобы шапка не налезала на меню и не выходила за экран (360 и 320 px).
  */
 export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
   const narrow = useNarrow();
@@ -70,13 +70,13 @@ export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
     );
   }
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref}>
       <button
         type="button"
         aria-expanded={open}
         aria-haspopup="true"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 bg-white px-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+        className="inline-flex h-11 items-center gap-1 rounded-md border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
       >
         Режимы
         <span aria-hidden="true" className="text-neutral-500">
@@ -84,19 +84,27 @@ export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
         </span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-40 mt-1 flex w-max max-w-[calc(100vw-1.5rem)] flex-col gap-2 rounded-md border border-neutral-200 bg-white p-3 shadow-lg">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-neutral-500">Год: все, 2025 или 2026</span>
+        <div
+          role="dialog"
+          aria-label="Режимы показа"
+          className="absolute inset-x-0 top-full z-40 flex flex-col gap-3 border-b border-neutral-200 bg-white px-4 py-3 shadow-lg [&_button]:min-h-11 [&_button]:shrink-0 [&_button]:whitespace-nowrap [&_button]:px-4"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold text-neutral-900">Режимы показа</span>
+            <button type="button" onClick={() => setOpen(false)} aria-label="Закрыть" className="inline-flex size-11 items-center justify-center rounded-md text-lg text-neutral-600 hover:bg-neutral-100">✕</button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <span className="text-sm text-neutral-700">Год</span>
             <YearToggle supplier={yearOnly} />
           </div>
           {!yearOnly && (
             <>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-neutral-500">Цены: с НДС или без НДС</span>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <span className="text-sm text-neutral-700">Цены</span>
                 <VatToggle />
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-neutral-500">4% к сырью: без или с 4%</span>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <span className="text-sm text-neutral-700">4% к сырью</span>
                 <Commission4Toggle />
               </div>
             </>

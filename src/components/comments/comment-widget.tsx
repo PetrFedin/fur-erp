@@ -67,6 +67,21 @@ export function CommentWidget() {
   const pageUrl = pathname + (search ? `?${search}` : "");
 
   const [open, setOpen] = useState(false);
+  // Телефон/планшет: кнопка уезжает вниз при прокрутке вниз и возвращается при прокрутке вверх, чтобы не закрывать контент.
+  const [tuck, setTuck] = useState(false);
+  useEffect(() => {
+    const main = document.querySelector("main");
+    if (!main) return;
+    let last = main.scrollTop;
+    const onScroll = () => {
+      const t = main.scrollTop;
+      if (Math.abs(t - last) < 8) return;
+      setTuck(t > last && t > 80);
+      last = t;
+    };
+    main.addEventListener("scroll", onScroll, { passive: true });
+    return () => main.removeEventListener("scroll", onScroll);
+  }, []);
   const [everOpened, setEverOpened] = useState(false);
   const [tab, setTab] = useState<"new" | "here">("new");
   const [mode, setMode] = useState<Mode>("page");
@@ -418,11 +433,11 @@ export function CommentWidget() {
         onClick={() => (open ? setOpen(false) : openPanel())}
         aria-expanded={open}
         title="Оставить комментарий: замечание, ошибка, идея или вопрос к этой странице, записи или блоку"
-        className="fixed bottom-3 right-3 z-40 inline-flex h-11 items-center gap-1.5 rounded-full border border-neutral-300 bg-white/95 px-3.5 text-sm font-medium text-neutral-800 shadow-md backdrop-blur hover:bg-white max-sm:w-11 max-sm:justify-center max-sm:px-0"
+        className={cn("fixed bottom-3 right-3 z-40 inline-flex h-11 items-center gap-1.5 rounded-full border border-neutral-300 bg-white/95 px-3.5 text-sm font-medium text-neutral-800 shadow-md backdrop-blur transition-transform hover:bg-white max-lg:w-11 max-lg:justify-center max-lg:px-0", tuck && !open && "max-lg:translate-y-20")}
       >
         <MessageSquare aria-hidden className="h-[18px] w-[18px]" />
-        <span className="max-sm:sr-only">Комментарий</span>
-        {openCount > 0 && <span className="rounded-full bg-blue-600 px-1.5 text-xs font-semibold tabular-nums text-white max-sm:absolute max-sm:-right-1 max-sm:-top-1">{openCount}</span>}
+        <span className="max-lg:sr-only">Комментарий</span>
+        {openCount > 0 && <span className="rounded-full bg-blue-600 px-1.5 text-xs font-semibold tabular-nums text-white max-lg:absolute max-lg:-right-1 max-lg:-top-1">{openCount}</span>}
       </button>
 
       {/* Панель */}

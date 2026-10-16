@@ -41,7 +41,7 @@ function Card({ title, children, hint, onOpen, block }: { block?: string; title:
 const CompactCtx = createContext(false);
 /** Зарезервированные строки пояснения под цифрой: высота одинакова во всех плитках общего ряда. */
 function SubLines({ n, lines = [] }: { n: number; lines?: string[] }) {
-  return <div style={{ minHeight: `${n}rem` }}>{lines.map((l, i) => <div key={i} className="whitespace-nowrap">{l}</div>)}</div>;
+  return <div className="subl" style={{ minHeight: `${n}rem` }}>{lines.map((l, i) => <div key={i} className="whitespace-nowrap">{l}</div>)}</div>;
 }
 
 /** Строка плитки: подпись, цифра, пояснение — высоты зарезервированы, чтобы строки трёх плиток стояли на одном уровне. */

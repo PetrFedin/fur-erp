@@ -10,7 +10,7 @@ export function BackLink() {
   if (!from) return null;
   return (
     <p className="mb-2 text-xs print:hidden">
-      <Link href={from} className="text-blue-700 hover:underline" title={`Вернуться: ${from}`}>
+      <Link href={from} data-touch-ok className="text-blue-700 hover:underline" title={`Вернуться: ${from}`}>
         ‹ Назад к: {fromLabel(from)}
       </Link>
     </p>

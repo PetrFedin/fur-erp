@@ -2,8 +2,9 @@
 
 // Общий переключатель года в шапке. Данные фильтруются на сервере, поэтому
 // выбор пишет cookie и обновляет серверные компоненты (как переключатель 4%).
-import { createContext, useContext, useState, useCallback, useTransition, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { writeCookie } from "./cookie-write";
 import type { YearFilter } from "./year-filter";
 
 const COOKIE_NAME = "yearFilter";
@@ -14,12 +15,16 @@ export function YearDisplayProvider({ initialYear, years, children }: { initialY
   const [year, setYearState] = useState<YearFilter>(initialYear);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   const setYear = useCallback(
     (y: YearFilter) => {
       setYearState(y);
-      document.cookie = `${COOKIE_NAME}=${y}; path=/; max-age=31536000; samesite=lax`;
-      startTransition(() => router.refresh());
+      writeCookie(COOKIE_NAME, y);
+      // Быстрые нажатия подряд: обновление страницы одно, после короткой паузы (иначе гонка нескольких router.refresh).
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => startTransition(() => router.refresh()), 250);
     },
     [router],
   );

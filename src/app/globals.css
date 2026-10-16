@@ -70,7 +70,7 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
 }
 
 /* Телефон: все нажимаемые элементы — не ниже 44 px (значок «i» расширен невидимой зоной касания в самом компоненте). */
-@media (max-width: 767px), (max-width: 1023px) and (pointer: coarse) {
+@media (max-width: 1279px) {
   button:not(.info-i):not([data-touch-ok]),
   select,
   input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not([type="range"]) {
@@ -81,7 +81,7 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
 
 /* Телефон: цели нажатия не меньше 40 px без визуального увеличения — невидимая зона касания ::after у мелких элементов
    (кнопки с data-touch-ok: «Свернуть», «Закрепить», шевроны «›», а также самостоятельные ссылки вне текста, списков и таблиц). Десктоп не затрагивается. */
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   [data-touch-ok]:not(.absolute):not(.fixed):not(.sticky),
   a[href]:not(p a):not(li a):not(td a):not(th a):not(label a):not(.info-i):not([data-touch-ok]):not(button a) {
     position: relative;
@@ -123,7 +123,7 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
 }
 
 /* Телефон: ссылки-кнопки и блочные ссылки в списках/абзацах (карточки «Задачи», строки списков) — невидимая зона 44 px, вид прежний. */
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   :is(:is(div, li, span, section, article) > a[href], a[href][class*="max-md:inline-flex"]):not(td a):not(th a):not(nav a):not(.info-i):not([data-touch-ok]) { position: relative; }
   :is(:is(div, li, span, section, article) > a[href], a[href][class*="max-md:inline-flex"]):not(td a):not(th a):not(nav a):not(.info-i):not([data-touch-ok])::after {
     content: ""; position: absolute; top: 50%; left: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%);
@@ -131,7 +131,7 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
 }
 
 /* Телефон: ссылки сортировки в шапках таблиц — высота уже 44, ширину добираем невидимой зоной. */
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   th a[href] { position: relative; }
   th a[href]::after { content: ""; position: absolute; top: 50%; left: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%); }
 }
@@ -253,7 +253,7 @@ table thead th { line-height: 1.15; }
 }
 
 /* Телефон: значки-кнопки 28 px (ICON_BTN) — невидимая зона касания 44 px, без увеличения самого значка. */
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   .icon-btn { position: relative; }
   .icon-btn::after { content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
 }
@@ -358,7 +358,7 @@ table thead th { line-height: 1.15; }
   .mobile-sort button { border: 1px solid #d4d4d4; border-radius: 0.375rem; background: #fff; padding: 0 0.75rem; }
 
   /* Карусели слайдов: смахивать вбок нельзя (нет горизонтальной прокрутки) — слайды листают стрелки и точки, они уже есть. */
-  .snap-x { overflow-x: hidden !important; }
+  .snap-x { overflow-x: hidden !important; align-items: flex-start !important; }
   /* Закрепление ряда виджетов на телефоне не нужно (ряд не «зависает»). */
   button[aria-label^="Закрепить виджеты"], button[aria-label^="Открепить виджеты"] { display: none; }
 
@@ -403,4 +403,20 @@ table thead th { line-height: 1.15; }
     display: block; position: sticky; left: 0; z-index: 40; width: max-content; max-width: 100%;
     padding: 0.25rem 0.5rem; font-size: 0.6875rem; line-height: 1rem; color: #555; background: #fffbe6; border-bottom: 1px solid #eadf9a;
   }
+}
+
+/* Планшет и малый ноутбук (768–1279): кнопки и ссылки в таблицах, флажки и переключатели — зона касания 44 px без смены вида. */
+@media (min-width: 768px) and (max-width: 1279px) {
+  :is(td, th) :is(button:not(.info-i):not(.absolute):not(.fixed), a[href]):not(.absolute):not(.fixed) { position: relative; }
+  :is(td, th) :is(button:not(.info-i), a[href])::after {
+    content: ""; position: absolute; top: 50%; left: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%);
+  }
+  input[type="checkbox"]:not([data-touch-ok]), input[type="radio"]:not([data-touch-ok]) { margin-block: 14px; }
+  summary { min-height: 44px; }
+}
+
+/* Телефон: плитки стоят столбцом, выравнивать строки соседних плиток не нужно — резервы высоты («с 4%», «надбавка») убираем. */
+@media (max-width: 767px) {
+  .tile-box .subl { min-height: 0 !important; }
+  .tile-box [aria-hidden="true"].invisible { display: none; }
 }

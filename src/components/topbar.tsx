@@ -46,7 +46,7 @@ export function Topbar({
 }) {
   const isSupplier = role === "SUPPLIER";
   return (
-    <header className="print:hidden flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-neutral-200 bg-white px-3 py-2 md:px-4">
+    <header className="relative print:hidden flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-neutral-200 bg-white px-3 py-2 md:px-4">
       <div className="flex min-w-0 items-center gap-2">
         <MobileNav links={links} badges={badges} />
         <div className="truncate text-sm font-medium text-neutral-700 max-md:min-w-[3.25rem]">{organizationName}</div>

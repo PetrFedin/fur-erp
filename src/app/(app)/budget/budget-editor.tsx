@@ -616,7 +616,7 @@ export function BudgetEditor(p: Props) {
       );
     });
 
-  const savedTime = new Date(updatedAtState ?? p.savedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  const savedTime = new Date(updatedAtState ?? p.savedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" });
   const saveText = !canEdit ? (status === "APPROVED" ? "Утверждён: только просмотр" : "Только просмотр")
     : saveState === "saving" ? "Сохраняю…" : saveState === "error" ? `Не удалось сохранить${saveError ? `: ${saveError}` : ""}` : dirty ? "Есть несохранённые изменения" : `Сохранено ${savedTime}`;
   const grp = `${sepL} border-b border-neutral-200 px-2 py-0 align-middle text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500`;
@@ -638,7 +638,7 @@ export function BudgetEditor(p: Props) {
               </button>
             ) : null}
           </div>
-          <p className="mt-0.5 text-xs text-neutral-500">Создан {dateRu(p.createdAt)} · Обновлён {new Date(updatedAtState ?? p.savedAt).toLocaleString("ru-RU", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}{p.savedBy ? ` · ${p.savedBy}` : ""}</p>
+          <p className="mt-0.5 text-xs text-neutral-500">Создан {dateRu(p.createdAt)} · Обновлён {new Date(updatedAtState ?? p.savedAt).toLocaleString("ru-RU", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" })}{p.savedBy ? ` · ${p.savedBy}` : ""}</p>
           <p className={"text-[11px] " + (dirty || saveState === "error" ? "font-medium text-amber-700" : "text-neutral-400")} role="status">{saveText}</p>
         </div>
         {staff ? (

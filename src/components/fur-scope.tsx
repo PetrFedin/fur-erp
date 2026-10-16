@@ -39,7 +39,7 @@ export function FurScope({ info, section = "home", children }: { /** Год и �
     <FurScopeCtx.Provider value={{ src, setSrc }}>
       <div data-testid="fur-scope" className="flex flex-col gap-5">
         {/* Плашка прилипает к верху, пока на экране блоки области; на телефоне — две строки, кнопки ≥44px. */}
-        <div data-testid="fur-scope-bar" className="sticky top-0 z-30 -mx-1 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-neutral-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur print:hidden">
+        <div data-testid="fur-scope-bar" className="sticky top-0 z-30 md:-mx-1 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-neutral-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur print:hidden">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{section === "raw" ? "Источник закупки" : "Источник меха"}</span>
           <div role="group" aria-label={section === "raw" ? "Источник закупки для всего раздела «Сырьё»" : "Источник закупки меха для блоков сырья"} data-testid="fur-source-switch" className="inline-flex overflow-hidden rounded-md border border-neutral-300 text-xs">
             {FUR_SRC_KEYS.map((k) => (

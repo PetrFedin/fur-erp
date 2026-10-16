@@ -83,7 +83,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <form action={switchBack}><button type="submit" className="min-h-11 cursor-pointer rounded-md border border-amber-700 bg-white px-3 font-medium text-amber-950 hover:bg-amber-100">Вернуться</button></form>
             </div>
           )}
-          <main className="relative flex-1 overflow-y-auto p-3 pb-16 md:p-6 md:pb-16 print:overflow-visible print:p-0">
+          <main className="relative flex-1 overflow-y-auto p-3 pb-20 md:p-6 md:pb-20 lg:pb-16 print:overflow-visible print:p-0">
             <Suspense fallback={null}>
               <BackLink />
             </Suspense>

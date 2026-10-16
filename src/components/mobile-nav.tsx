@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { SECONDARY_NAV_HREFS, activeNavHref, type NavItem } from "./nav-links";
 
-/** Гамбургер и выезжающее меню для узких экранов (<768px); на десктопе скрыто. */
+/** Гамбургер и выезжающее меню для узких экранов (<1024px); на десктопе скрыто. */
 export function MobileNav({ links, badges }: { links: readonly NavItem[]; badges?: Record<string, number> }) {
   const pathname = usePathname();
   const [openAt, setOpenAt] = useState<string | null>(null);
@@ -24,13 +24,13 @@ export function MobileNav({ links, badges }: { links: readonly NavItem[]; badges
   }, [open]);
 
   return (
-    <div className="md:hidden">
+    <div className="lg:hidden">
       <button
         type="button"
         aria-label={open ? "Закрыть меню" : "Открыть меню"}
         aria-expanded={open}
         onClick={() => setOpenAt(open ? null : pathname)}
-        className="flex h-10 w-10 items-center justify-center rounded-md border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+        className="flex h-11 w-11 items-center justify-center rounded-md border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
           <path d="M2 4.5h14M2 9h14M2 13.5h14" />
@@ -42,7 +42,7 @@ export function MobileNav({ links, badges }: { links: readonly NavItem[]; badges
           <nav aria-label="Основное меню" className="absolute inset-y-0 left-0 flex w-64 max-w-[80vw] flex-col gap-6 overflow-y-auto bg-white px-3 py-4 shadow-xl">
             <div className="flex items-center justify-between px-2">
               <span className="text-lg font-semibold">MVST FUR PRODUCTION</span>
-              <button type="button" aria-label="Закрыть меню" onClick={() => setOpenAt(null)} className="text-neutral-500 hover:text-neutral-900">
+              <button type="button" aria-label="Закрыть меню" onClick={() => setOpenAt(null)} className="flex size-11 items-center justify-center text-neutral-500 hover:text-neutral-900">
                 ✕
               </button>
             </div>
@@ -56,7 +56,7 @@ export function MobileNav({ links, badges }: { links: readonly NavItem[]; badges
                     aria-current={active ? "page" : undefined}
                     onClick={() => setOpenAt(null)}
                     className={cn(
-                      "rounded-md px-2 py-2 text-sm transition-colors",
+                      "flex min-h-11 items-center rounded-md px-2 py-2 text-sm transition-colors",
                       active ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100"
                     )}
                   >

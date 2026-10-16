@@ -10,6 +10,7 @@
 // is shown.
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import type { VatMode } from "./vat-mode";
+import { writeCookie } from "./cookie-write";
 
 export type { VatMode } from "./vat-mode";
 
@@ -28,7 +29,7 @@ export function VatDisplayProvider({
 
   const setMode = useCallback((m: VatMode) => {
     setModeState(m);
-    document.cookie = `${COOKIE_NAME}=${m}; path=/; max-age=31536000; samesite=lax`;
+    writeCookie(COOKIE_NAME, m);
   }, []);
 
   return <VatDisplayContext.Provider value={{ mode, setMode }}>{children}</VatDisplayContext.Provider>;

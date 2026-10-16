@@ -49,7 +49,7 @@ export function WidgetRow({ id, title = "Виджеты", children, className = 
           <span className="text-left max-sm:break-words sm:truncate">{title}</span>
         </button>
         {headerExtra ? <div className="flex min-w-0 flex-1 items-center gap-2">{headerExtra}</div> : null}
-        <div className={"flex shrink-0 gap-2 max-sm:min-w-0 max-sm:shrink " + (headerEnd ? "flex-col items-end gap-1 max-sm:w-full max-sm:items-start" : "items-center")}>
+        <div className={"flex shrink-0 gap-2 max-sm:min-w-0 max-sm:shrink " + (headerEnd ? "flex-col items-end gap-1 max-sm:ml-auto max-sm:flex-row max-sm:items-center max-sm:gap-2" : "items-center")}>
           {headerEnd ? <div className="flex h-7 items-center max-sm:h-auto max-sm:min-w-0 max-sm:min-h-7">{headerEnd}</div> : null}
           <div className="flex items-center gap-2">
           <button type="button" onClick={toggleCollapsed} data-touch-ok aria-label={collapsed ? "Развернуть виджеты" : "Свернуть виджеты"} title={collapsed ? "Развернуть" : "Свернуть"}
