@@ -12,6 +12,7 @@
  *   node --env-file=.env node_modules/.bin/tsx scripts/fill-detail-links.ts [--apply|--rollback]
  * Журнал: docs-inventory/corrections-journal-detail-links.json
  */
+import "./lib/drive-links-disabled";
 import { join } from "path";
 import { PrismaClient, DriveDocType } from "@prisma/client";
 import { INV, readJson, writeJson } from "./detail-common";

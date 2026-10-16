@@ -15,6 +15,7 @@
  *  - счета №40, №46 → закупка З-2026-0002 (SAGA 03-25; были привязаны только к оплатам);
  *  - счёт №81 → З-2026-0005, №92 → З-2026-0003, №96 → З-2026-0009 (были привязаны только к оплатам).
  */
+import "./lib/drive-links-disabled";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { join, resolve } from "path";
 import { randomBytes } from "crypto";

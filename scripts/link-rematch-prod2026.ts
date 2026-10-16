@@ -16,6 +16,7 @@
  * organizationId + driveFileId + productionOrderId|productionBatchId|productionPaymentId).
  * Данные в БД не правятся — только таблица DriveDocument.
  */
+import "./lib/drive-links-disabled";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { randomBytes } from "crypto";

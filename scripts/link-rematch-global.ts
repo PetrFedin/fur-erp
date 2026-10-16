@@ -9,6 +9,7 @@
  *   node --env-file=.env node_modules/.bin/tsx scripts/link-rematch-global.ts --apply    # привязывает CANDIDATES (сейчас пуст)
  *   node --env-file=.env node_modules/.bin/tsx scripts/link-rematch-global.ts --rollback docs-inventory/corrections-journal-rematch-global.json
  */
+import "./lib/drive-links-disabled";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { join, resolve } from "path";
 import { randomBytes } from "crypto";

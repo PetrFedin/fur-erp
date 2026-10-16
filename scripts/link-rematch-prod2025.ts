@@ -9,6 +9,7 @@
  * Идемпотентность: ключ organizationId + driveFileId + (productionBatchId | productionPaymentId | supplierId).
  * Журнал: docs-inventory/corrections-journal-prod2025.json (откат удаляет только созданные строки).
  */
+import "./lib/drive-links-disabled";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { join, resolve } from "path";
 import { randomBytes } from "crypto";

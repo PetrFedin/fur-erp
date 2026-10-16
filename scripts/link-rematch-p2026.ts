@@ -9,6 +9,7 @@
  *   node --env-file=.env node_modules/.bin/tsx scripts/link-rematch-p2026.ts --apply    # перед этим: scripts/backup.sh
  *   node --env-file=.env node_modules/.bin/tsx scripts/link-rematch-p2026.ts --rollback docs-inventory/corrections-journal-p2026.json
  */
+import "./lib/drive-links-disabled";
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { join, resolve } from "path";
 import { randomBytes } from "crypto";

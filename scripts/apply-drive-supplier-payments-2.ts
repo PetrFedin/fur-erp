@@ -25,6 +25,7 @@
  * --rollback <журнал>: удаляет созданные платежи и DriveDocument, возвращает «было» (amount, auctionSession, notes),
  *   если поле с тех пор не менялось руками.
  */
+import "./lib/drive-links-disabled";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { PrismaClient, Prisma } from "@prisma/client";

@@ -37,6 +37,7 @@
  * этого ТЗ целиком не делается (ничего не выдумываем), ТЗ создаётся без
  * сырья, причина — в pending.
  */
+import "./lib/drive-links-disabled";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { randomBytes } from "crypto";

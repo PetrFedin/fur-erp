@@ -22,6 +22,7 @@
  * Журнал: docs-inventory/corrections-journal-drive-links-3.json (только __create__; откат удаляет созданные строки по id).
  * План: docs-inventory/drive-links-plan-quality.txt
  */
+import "./lib/drive-links-disabled";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { randomBytes } from "crypto";

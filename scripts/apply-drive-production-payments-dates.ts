@@ -39,6 +39,7 @@
  *      --rollback возвращает всё с конца (пропуская изменённое после скрипта).
  *   5. Спорное → docs-inventory/pending-decisions-production-payments.md.
  */
+import "./lib/drive-links-disabled";
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from "fs";
 import { join, resolve } from "path";
 import { randomBytes } from "crypto";

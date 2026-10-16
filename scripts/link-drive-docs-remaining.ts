@@ -17,6 +17,7 @@
  * Для DUP скрипт проверяет, что файл-оригинал действительно имеет DriveDocument в базе; иначе файл уходит в «ждёт оригинал».
  * Ключ идемпотентности: organizationId + driveFileId + purchaseId|supplierId. Журнал — corrections-journal-drive-links-2.json.
  */
+import "./lib/drive-links-disabled";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { randomBytes } from "crypto";

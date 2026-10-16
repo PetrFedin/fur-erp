@@ -13,6 +13,7 @@
  * confirmed / paidAt / docRef не меняются. З-2026-0058: количество 371 шт подтверждено УПД №253 и счётом №253 (376 — план), в notes
  * дописывается пометка [docs:ame-371]. Журнал: docs-inventory/corrections-journal-payment-evidence.json
  */
+import "./lib/drive-links-disabled";
 import { join } from "path";
 import { randomBytes } from "crypto";
 import { PrismaClient } from "@prisma/client";

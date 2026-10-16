@@ -32,6 +32,7 @@
  * C. ТОЛЬКО ПРЕДЛАГАЕТСЯ (скрипт не меняет): платёж 2 000 000 по счёту №96 — дата 27.06.2025 → 15.07.2025 (п/п 56327);
  *    аванс 30 666 300 (п/п 53423) — не разнесён между СП 05.25 и РП 05.25 (документа с разнесением нет).
  */
+import "./lib/drive-links-disabled";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { PrismaClient } from "@prisma/client";

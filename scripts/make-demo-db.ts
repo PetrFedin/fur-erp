@@ -15,7 +15,7 @@
  *  • кабинет Веллмеха: ПРИНЯТЫЕ расчёты аукционов и ТЗ Веллмеха (SupplierInbox) сохраняются и согласуются с закупками/ТЗ заказчика:
  *    деньги в них домножаются на тот же K (ставки, курсы, проценты, количества — нет), подписанты и реквизиты заменяются,
  *    вложения становятся заглушками; черновики, отклонённые и отправленные-непринятые удаляются; этапы сырья остаются (без заметок);
- *  • файлы и документы: ссылки на Google Drive убираются, имена заменяются на «Документ №N», все файлы указывают на одну заглушку PDF;
+ *  • файлы и документы: внешних ссылок и путей нет (в БД их больше не хранится), имена заменяются на «Документ №N», все файлы указывают на одну заглушку PDF;
  *    фото примерок, вложения чата и входящие поставщика удаляются;
  *  • реквизиты счетов/договоров: номера договоров и ссылки заменяются; номера счетов и п/п (нужны для связей) сохраняются.
  * Не маскируется (осознанно): даты, количества, названия видов меха/материалов/аукционов, артикулы и названия изделий,
@@ -209,11 +209,11 @@ async function main() {
 
   // 5. Документы и файлы: одна заглушка
   const STUB = "demo/stub.pdf";
-  await x(`update "DriveDocument" set title = 'Документ №' || substr(id, length(id) - 4), "drivePath" = 'demo/' || id, "viewUrl" = NULL,
+  await x(`update "DriveDocument" set title = 'Документ №' || substr(id, length(id) - 4), "drivePath" = NULL, "viewUrl" = NULL,
+           "driveFileId" = CASE WHEN "driveFileId" LIKE 'local-%' OR "driveFileId" LIKE 'doc-%' THEN "driveFileId" ELSE 'doc-' || substr(md5("driveFileId"), 1, 24) END,
            "storedName" = CASE WHEN "storagePath" is not null THEN 'Документ-' || substr(id, length(id) - 4) || '.pdf' ELSE "storedName" END,
            "storagePath" = CASE WHEN "storagePath" is not null THEN '${STUB}' ELSE NULL END,
            "storedMime" = CASE WHEN "storagePath" is not null THEN 'application/pdf' ELSE "storedMime" END`);
-  await x(`update "DriveDocument" set "fileId" = NULL`).catch(() => undefined);
   await x(`update "PurchaseDocument" set title = 'Документ №' || substr(id, length(id) - 4), "originalName" = 'Документ-' || substr(id, length(id) - 4) || '.pdf',
            "storagePath" = '${STUB}', "mimeType" = 'application/pdf', "sizeBytes" = 1200, batch = NULL`);
   log("документы заменены заглушками");
@@ -244,6 +244,13 @@ async function main() {
   for (const c of textCols) {
     if (c.data_type !== "jsonb") await x(`update ${q(c.table_name)} set ${q(c.column_name)} = replace(${q(c.column_name)}, 'Веллмех-демо-демо', 'Веллмех-демо') where ${q(c.column_name)} like '%демо-демо%'`);
     else await x(`update ${q(c.table_name)} set ${q(c.column_name)} = replace(${q(c.column_name)}::text, 'Веллмех-демо-демо', 'Веллмех-демо')::jsonb where ${q(c.column_name)}::text like '%демо-демо%'`);
+  }
+  // «MVST» → «THE FUR», упоминания Диска — вон (на случай, если в источнике что-то осталось)
+  for (const c of textCols) {
+    const col = q(c.column_name);
+    const t = c.data_type === "jsonb" ? `${col}::text` : col;
+    const wrap = (e: string) => (c.data_type === "jsonb" ? `(${e})::jsonb` : e);
+    await x(`update ${q(c.table_name)} set ${col} = ${wrap(`regexp_replace(regexp_replace(replace(replace(${t}, 'MVST', 'THE FUR'), 'mvst', 'the fur'), ' ?\\(?Google Drive\\)?', '', 'g'), '\\yDrive\\y', 'документы', 'g')`)} where ${t} ~ '(MVST|mvst|\\yDrive\\y|Google)'`);
   }
   log("старые названия вычищены из текстов");
 

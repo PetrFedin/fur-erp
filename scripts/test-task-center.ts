@@ -11,7 +11,8 @@
  */
 import Module from "module";
 import { join } from "path";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import path from "path";
 
 const M = Module as unknown as { _resolveFilename: (...a: unknown[]) => string };
 const orig = M._resolveFilename;
@@ -34,6 +35,12 @@ async function main() {
   const { DOC_TASKS, DECISIONS, DECISION_KEY_PREFIX, buildLetter } = await import("../src/lib/task-docs-catalog");
   const { loadSupplierDebt } = await import("../src/lib/supplier-debt");
   const db = new PrismaClient({ datasources: { db: { url } } });
+  // Документ «есть» только с прикреплённым файлом: проба кладёт крошечный PDF в UPLOAD_DIR (и убирает его в конце).
+  const upRoot = path.resolve(process.env.UPLOAD_DIR?.trim() || "./uploads");
+  const stubRel = "drive-docs/_task-test/proof.pdf";
+  mkdirSync(path.join(upRoot, "drive-docs/_task-test"), { recursive: true });
+  writeFileSync(path.join(upRoot, stubRel), "%PDF-1.4\n% проба\n");
+  const stub = { storagePath: stubRel, storedName: "proof.pdf", storedMime: "application/pdf", storedSize: 18, storedAt: new Date() };
   try {
     const org = (await db.organization.findFirstOrThrow()).id;
     const b0 = await loadTaskBlocks(db, org);
@@ -59,7 +66,7 @@ async function main() {
     // автозакрытие: платёжка к оплате SAGA 24 200 000
     const t1 = b0.docTasks.find((v) => v.task.id === "saga-93")!;
     ok(t1.open && t1.paymentIds.length === 1, "saga-93 открыта, оплата найдена");
-    const doc = await db.driveDocument.create({ data: { organizationId: org, driveFileId: "local-test-proof", title: "Проба платёжка", docType: "PAYMENT_PROOF", paymentId: t1.paymentIds[0] } });
+    const doc = await db.driveDocument.create({ data: { organizationId: org, driveFileId: "local-test-proof", title: "Проба платёжка", docType: "PAYMENT_PROOF", paymentId: t1.paymentIds[0], ...stub } });
     const b1 = await loadTaskBlocks(db, org);
     ok(!b1.docTasks.find((v) => v.task.id === "saga-93")!.open, "saga-93 закрылась после загрузки платёжки");
     ok(b1.openDocs === b0.openDocs - 1, `счётчик ${b0.openDocs} → ${b1.openDocs}`);
@@ -77,7 +84,7 @@ async function main() {
     const t3 = b0.docTasks.find((v) => v.task.id === "sp0926-271")!;
     ok(t3.open && (t3.overdueDays ?? 0) > 0 && t3.priority === "red", `sp0926-271: просрочена на ${t3.overdueDays} дн., срочная`);
     const p57 = await db.purchase.findFirstOrThrow({ where: { organizationId: org, number: "З-2026-0050" } });
-    const d3 = await db.driveDocument.create({ data: { organizationId: org, driveFileId: "local-test-271", title: "Проба п/п 271", docType: "PAYMENT_PROOF", purchaseId: p57.id } });
+    const d3 = await db.driveDocument.create({ data: { organizationId: org, driveFileId: "local-test-271", title: "Проба п/п 271", docType: "PAYMENT_PROOF", purchaseId: p57.id, ...stub } });
     ok(!(await loadTaskBlocks(db, org)).docTasks.find((v) => v.task.id === "sp0926-271")!.open, "sp0926-271 закрылась по документу на закупке");
     await db.driveDocument.delete({ where: { id: d3.id } });
 
@@ -93,7 +100,12 @@ async function main() {
     const mm = buildLetter("mm", lt("mm"), "2026-10-08");
     ok(mm.includes("Меркури Мода") && mm.includes("271"), `письмо для бухгалтерии: ${lt("mm").length} позиций`);
     ok(buildLetter("vellmex", lt("vellmex"), "2026-10-08").includes("Веллмех"), `письмо для Веллмех: ${lt("vellmex").length} позиций`);
+    // документ без файла («не прикреплён») задачу НЕ закрывает
+    const dNo = await db.driveDocument.create({ data: { organizationId: org, driveFileId: "local-test-nofile", title: "Проба без файла", docType: "PAYMENT_PROOF", paymentId: t1.paymentIds[0] } });
+    ok((await loadTaskBlocks(db, org)).docTasks.find((v) => v.task.id === "saga-93")!.open === t1.open, "запись документа без файла состояние задачи не меняет");
+    await db.driveDocument.delete({ where: { id: dNo.id } });
   } finally {
+    rmSync(path.join(upRoot, "drive-docs/_task-test"), { recursive: true, force: true });
     await db.$disconnect();
   }
   console.log(fails ? `\nПровалов: ${fails}` : "\nВсё в порядке");

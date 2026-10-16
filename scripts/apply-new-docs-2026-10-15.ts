@@ -282,7 +282,7 @@ async function main() {
       const u = await tx.driveDocument.create({
         data: {
           organizationId: orgId, driveFileId: `local-${randomUUID()}`, title: F_UPD, docType: "UPD", mimeType: "application/vnd.ms-excel", sizeBytes: statSync(pUpd).size, docNumber: TZ.upd.number, docDate: d(TZ.upd.date), year: 2026,
-          drivePath: `Загрузки/${F_UPD}`, productionOrderId: order.id,
+          productionOrderId: order.id,
           notes: `УПД ${TZ.upd.number} от ${ruDate(TZ.upd.date)}: продавец ООО «Меркури Мода» → покупатель ООО «ВЕЛЛМЕХ», договор б/н от 01.07.2025; ${TZ.lotName}, ${TZ.matQty} шт × ${TZ.matUnit.toLocaleString("ru-RU")} = ${rub(TZ.upd.net)} без НДС, НДС 22% ${rub(TZ.upd.vat)}, всего ${rub(TZ.upd.gross)}. Файл .xls в приложение не загружен (формат не поддерживается).`,
         },
         select: { id: true },

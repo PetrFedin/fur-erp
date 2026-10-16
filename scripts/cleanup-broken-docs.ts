@@ -26,6 +26,7 @@
  * Флаг --no-backup — только для проб на копии. Журнал: docs-inventory/corrections-journal-broken-docs-2026-10-13.json (старые значения целиком).
  * --rollback --apply: возвращает удалённые записи, очищенные поля и перенесённые файлы.
  */
+import "./lib/drive-links-disabled";
 import "./stubs/server-only-shim";
 import { PrismaClient } from "@prisma/client";
 import { execFileSync } from "node:child_process";

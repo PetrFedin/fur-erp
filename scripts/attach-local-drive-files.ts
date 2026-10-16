@@ -27,6 +27,7 @@
  * которые создал скрипт и на которые больше никто не ссылается.
  * Полный отчёт сопоставления — docs-inventory/local-files-report.txt.
  */
+import "./lib/drive-links-disabled";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { copyFile, readdir, readFile, stat, unlink } from "node:fs/promises";

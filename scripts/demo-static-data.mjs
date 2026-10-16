@@ -1,5 +1,5 @@
 // Для ДЕМО-сборки: файлы src/data/*.json и src/lib/data/article-tz-profile.json вшиваются в приложение при сборке и содержат
-// реальные коммерческие данные (счета, документы Drive, цены лотов, профили артикулов). Эта команда заменяет их пустыми
+// реальные коммерческие данные (счета, документы, цены лотов, профили артикулов). Эта команда заменяет их пустыми
 // заготовками той же формы, а затем обезличивает зашитые в код реквизиты и тексты (demo-sanitize.mjs). Запускается в Dockerfile при DEMO_BUILD=true ИЛИ вручную перед `next build` демо-стенда.
 // Меняет файлы в рабочей папке (для возврата: git checkout -- src/data src/lib/data).
 import { readFileSync, writeFileSync } from "node:fs";
@@ -9,7 +9,7 @@ import { sanitizeSources } from "./demo-sanitize.mjs";
 // Корень рабочей копии: первый аргумент (для проверок) или текущая папка.
 const ROOT = process.argv[2] ?? ".";
 
-const FILES = ["src/data/drive-sync-snapshot.json", "src/data/lot-usd-sources.json", "src/data/raw-audit-2026-02-09.json", "src/data/reconciliation.json", "src/data/registry-coverage.json", "src/lib/data/article-tz-profile.json"];
+const FILES = ["src/data/lot-usd-sources.json", "src/data/raw-audit-2026-02-09.json", "src/data/reconciliation.json", "src/data/registry-coverage.json", "src/lib/data/article-tz-profile.json"];
 const today = new Date().toISOString().slice(0, 10);
 
 function emptify(v, depth) {

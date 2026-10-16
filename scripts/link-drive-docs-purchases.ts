@@ -27,6 +27,7 @@
  *   5. Неоднозначное и не привязанное — docs-inventory/pending-links.md,
  *      полный план — docs-inventory/drive-links-plan-purchases.txt.
  */
+import "./lib/drive-links-disabled";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { randomBytes } from "crypto";
