@@ -8,6 +8,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import type { PrismaClient } from "@prisma/client";
 import { resolveInside } from "./fitting-files";
+import { isSafeShopUrl } from "./article-shop-core";
 
 export const PHOTOS_KEY = "article-photos:";
 export const LINKS_KEY = "article-shop-links:";
@@ -35,7 +36,8 @@ export function readLinks(value: unknown): ShopLink[] {
   if (!Array.isArray(raw)) return [];
   const out: ShopLink[] = [];
   for (const l of raw as Partial<ShopLink>[]) {
-    if (l && typeof l.url === "string" && /^https:\/\/www\.tsum\.ru\/product\/[\w%.-]+\/?$/.test(l.url)) {
+    // Ссылка — любая http/https без логина и пароля (раньше только tsum.ru/product: теперь ссылки вносит и сам сотрудник).
+    if (l && isSafeShopUrl(l.url)) {
       out.push({ variant: typeof l.variant === "string" ? l.variant : "", itemId: typeof l.itemId === "string" ? l.itemId : "", url: l.url, ...(typeof l.color === "string" && l.color ? { color: l.color.slice(0, 60) } : {}) });
     }
   }

@@ -42,7 +42,9 @@ import { PhotoGalleryButton } from "@/components/photo-gallery";
 import { deleteArticlePhoto, deleteAllArticlePhotos } from "../models/photo-actions";
 import { loadPhotoSummary, loadAllShopLinks } from "@/lib/article-photos";
 import { galleryExtras, pluOfItem } from "@/lib/article-photo-color";
-import { pluMatchIds } from "@/lib/article-photo-match";
+import { pluMatchIds, isPluParam } from "@/lib/article-photo-match";
+import { ArticleShopEditor } from "@/components/article-shop-editor";
+import { pluByVariant } from "@/lib/article-shop-core";
 import { SupplierArticles } from "./supplier-view";
 import { loadSupplierArticleIds } from "@/lib/supplier-articles";
 
@@ -100,16 +102,22 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const qWhere = pluIds.length ? { OR: [articleModelWhere(orgId, fWhere), { AND: [articleModelWhere(orgId, { ...fWhere, q: "" }), { id: { in: pluIds } }] }] } : articleModelWhere(orgId, fWhere);
   const photoSummary = await loadPhotoSummary(prisma, orgId);
   // Ссылки магазина, PLU и цвета фото — только сотрудникам заказчика (подрядчик уходит в supplier-view выше).
-  const shopLinksAll = photoSummary.size ? await loadAllShopLinks(prisma, orgId) : new Map<string, { variant: string; itemId: string; url: string; color?: string }[]>();
-  const colorRefs = photoSummary.size ? await prisma.colorRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true, note: true } }) : [];
-  /** PLU артикула по цветам: [{ plu, label }] — подпись цвета нужна, только если PLU разных цветов. */
+  const shopLinksAll = await loadAllShopLinks(prisma, orgId);
+  const colorRefs = photoSummary.size || shopLinksAll.size ? await prisma.colorRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true, note: true } }) : [];
+  /** PLU артикула по цветам: [{ plu, label }] — подпись цвета нужна, только если PLU разных цветов. Источник: свойства «PLU…» (их пишет и редактор), страницы магазина — запасной. */
   const pluEntries = (id: string): { plu: string; label: string }[] => {
     const links = shopLinksAll.get(id) ?? [];
     const photos = photoSummary.get(id);
     const labels = new Map(galleryExtras(photos ?? [], null, colorRefs).groups.map((g) => [g.key, g.label]));
     const seen = new Set<string>();
     const out: { plu: string; label: string }[] = [];
-    for (const l of links) { const plu = pluOfItem(l.itemId); if (plu && !seen.has(plu)) { seen.add(plu); out.push({ plu, label: labels.get(l.variant) ?? l.color ?? "" }); } }
+    const push = (plu: string, label: string) => { if (!seen.has(plu)) { seen.add(plu); out.push({ plu, label }); } };
+    const params = (allParams.get(id) ?? []).filter((x) => isPluParam(x.name));
+    const keys = [...new Set([...(photos ?? []).map((x) => x.variant), ...links.map((l) => l.variant)])];
+    const linkPlu = new Map<string, string>();
+    for (const l of links) { const plu = pluOfItem(l.itemId); if (plu && !linkPlu.has(l.variant)) linkPlu.set(l.variant, plu); }
+    for (const [variant, value] of pluByVariant(params, keys, linkPlu)) for (const plu of value.split(/\s*[,;]\s*/).filter(Boolean)) push(plu, labels.get(variant) ?? links.find((l) => l.variant === variant)?.color ?? variant);
+    for (const l of links) { const plu = pluOfItem(l.itemId); if (plu) push(plu, labels.get(l.variant) ?? l.color ?? ""); }
     return out;
   };
   const models = await prisma.productModel.findMany({
@@ -367,10 +375,13 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 {r.bySupplier && <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800" title="Артикул завёл поставщик — проверьте и проставьте цену">внёс: Веллмех</span>}
               </Td>
               <Td>
+                <div className="flex items-center gap-2 whitespace-nowrap">
                 {photoSummary.get(r.id) ? (() => {
                   const ex = galleryExtras(photoSummary.get(r.id)!, shopLinksAll.get(r.id) ?? [], colorRefs);
                   return <PhotoGalleryButton modelId={r.id} photos={photoSummary.get(r.id)!} groups={ex.groups} shops={ex.shops} title={r.name} compact {...(canCreate ? { onDelete: deleteArticlePhoto, onDeleteAll: deleteAllArticlePhotos } : {})} />;
                 })() : null}
+                {canCreate && <ArticleShopEditor modelId={r.id} title={r.name} />}
+                </div>
               </Td>
               <Td className="text-xs tabular-nums text-neutral-700">
                 {r.plus.map((x) => <div key={x.plu} className="whitespace-nowrap">{x.plu}{r.plus.length > 1 && x.label ? <span className="text-[11px] text-neutral-400"> · {x.label}</span> : null}</div>)}
@@ -469,15 +480,17 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               { label: "ТЗ", value: r.orderCount > 0 ? <Link href={`/production?model=${r.id}`} className="underline">{r.orderCount}</Link> : "—" },
             ]}
             details={[
-              ...(photoSummary.get(r.id) ? (() => {
-                const ex = galleryExtras(photoSummary.get(r.id)!, shopLinksAll.get(r.id) ?? [], colorRefs);
+              ...(() => {
+                const ph = photoSummary.get(r.id);
+                const ex = ph ? galleryExtras(ph, shopLinksAll.get(r.id) ?? [], colorRefs) : null;
                 const links = shopLinksAll.get(r.id) ?? [];
                 return [
-                  { label: "Фото", value: <PhotoGalleryButton modelId={r.id} photos={photoSummary.get(r.id)!} groups={ex.groups} shops={ex.shops} title={r.name} compact {...(canCreate ? { onDelete: deleteArticlePhoto, onDeleteAll: deleteAllArticlePhotos } : {})} /> },
+                  ...(ph && ex ? [{ label: "Фото", value: <PhotoGalleryButton modelId={r.id} photos={ph} groups={ex.groups} shops={ex.shops} title={r.name} compact {...(canCreate ? { onDelete: deleteArticlePhoto, onDeleteAll: deleteAllArticlePhotos } : {})} /> }] : []),
                   ...(r.plus.length ? [{ label: "PLU", value: r.plus.map((x) => x.plu + (r.plus.length > 1 && x.label ? ` · ${x.label}` : "")).join(", ") }] : []),
                   ...(links[0] ? [{ label: "Товар в магазине", value: <a href={links[0].url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-blue-700 underline">Открыть ↗</a> }] : []),
+                  ...(canCreate ? [{ label: "Магазин и фото", value: <ArticleShopEditor modelId={r.id} title={r.name} /> }] : []),
                 ];
-              })() : []),
+              })(),
               { label: "Шкур, шт.", value: r.met.fur.qty > 0 ? `${formatQty(Math.round(r.met.fur.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.fur.qty, r.qty)}/изд.)` : ""}` : "—" },
               { label: "Шкуры, сумма", value: <CostTwo on={r.met.fur.on} off={r.met.fur.off} /> },
               { label: "Подкладка, м", value: r.met.lining.qty > 0 ? `${formatQty(Math.round(r.met.lining.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.lining.qty, r.qty)}/изд.)` : ""}` : "—" },

@@ -128,6 +128,7 @@ export function ArticleForm({
           {noPrice ? <Link href="/articles" className="font-medium underline">К списку изделий →</Link> : (
             <>
               <Link href={`/models/${createdMsg.id}`} className="font-medium underline">Открыть карточку →</Link>{" "}
+              <Link href={`/models/${createdMsg.id}?shop=1`} className="font-medium underline">Магазин и фото →</Link>{" "}
               <Link href={`/production/new?article=${createdMsg.id}`} className="font-medium underline">Создать ТЗ →</Link>
             </>
           )}{" "}Форма очищена — вносите следующий.

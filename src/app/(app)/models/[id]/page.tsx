@@ -48,6 +48,7 @@ import { PhotoGalleryButton } from "@/components/photo-gallery";
 import { galleryExtras, pluOfItem } from "@/lib/article-photo-color";
 import { deleteArticlePhoto, deleteAllArticlePhotos } from "../photo-actions";
 import { loadArticlePhotos, loadShopLinks } from "@/lib/article-photos";
+import { ArticleShopEditor } from "@/components/article-shop-editor";
 import { isPluParam } from "@/lib/article-photo-match";
 import { CollapsibleBlock } from "@/components/collapsible-block";
 import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
@@ -79,8 +80,9 @@ function SectionLink({ href, label, count }: { href: string; label: string; coun
   );
 }
 
-export default async function EditModelPage({ params }: PageProps<"/models/[id]">) {
+export default async function EditModelPage({ params, searchParams }: PageProps<"/models/[id]">) {
   const { id } = await params;
+  const sp = await searchParams;
   const session = await requireSession({ allowSupplier: true });
   // В карточке артикула цены и себестоимость: поставщику она закрыта.
   if (session.user.role === "SUPPLIER") redirect("/articles");
@@ -212,6 +214,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
             ) : null}
           </a>
         ))}
+        {canEdit && <ArticleShopEditor modelId={id} title={model.name} defaultOpen={sp.shop === "1"} />}
       </div>
 
       <nav aria-label="Разделы артикула" className="flex flex-wrap gap-2">

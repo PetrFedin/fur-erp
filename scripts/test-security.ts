@@ -644,6 +644,12 @@ async function main() {
         ok(/export async function deleteArticlePhoto\([^)]*\)[^{]*\{\s*const session = await requireRole\(\.\.\.ACCESS\.models\)/.test(actSrc) && /export async function deleteAllArticlePhotos\([^)]*\)[^{]*\{\s*const session = await requireRole\(\.\.\.ACCESS\.models\)/.test(actSrc), "удаление фото: оба server-действия начинаются с requireRole(ACCESS.models) (роль проверяется на сервере)");
         ok(!hasR("SUPPLIER", ACC.models) && hasR("OWNER", ACC.models), "удаление фото: подрядчик (SUPPLIER) не входит в роли с правом править артикул — действие отклоняется (редирект в /supplier)");
         ok(!/onDelete|photo-actions|deleteArticlePhoto/.test(readFileSync(path.resolve("src/app/(app)/articles/supplier-view.tsx"), "utf8")), "удаление фото: в кабинете подрядчика нет ни кнопок, ни ссылок на действие");
+        // Редактор «Магазин и фото» (PLU, ссылка, загрузка фото): подрядчик и чужая организация не допускаются (подробные проверки записи — в test-article-photos.ts).
+        const shopSrc = readFileSync(path.resolve("src/app/(app)/models/shop-actions.ts"), "utf8");
+        ok((shopSrc.match(/await requireRole\(\.\.\.ACCESS\.models\)/g) ?? []).length === 3 && !/allowSupplier|SUPPLIER/.test(shopSrc), "редактор «Магазин и фото»: три действия закрыты ролью ACCESS.models, подрядчик не допускается");
+        const upRoute = readFileSync(path.resolve("src/app/api/article-photos/[modelId]/route.ts"), "utf8");
+        ok(/hasRole\(session\.user\.role, ACCESS\.models\)\)\s*return Response\.json\([^)]*\{ status: 403 \}/.test(upRoute) && /session\.user\.organizationId/.test(upRoute), "загрузка фото: подрядчику 403, артикул ищется только в организации сессии");
+        ok(!/ArticleShopEditor|shop-actions|article-shop/.test(readFileSync(path.resolve("src/app/(app)/articles/supplier-view.tsx"), "utf8")), "редактор «Магазин и фото»: в кабинете подрядчика его нет");
         await import("./stubs/server-only-shim");
         const { deleteArticlePhotos } = await import("../src/lib/article-photo-delete");
         const { rawPrisma } = await import("../src/lib/prisma");

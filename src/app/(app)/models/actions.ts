@@ -103,7 +103,7 @@ export async function saveArticleForm(id: string | null, _prev: ArticleSaveState
   revalidateAll(orgId);
   if (!id) {
     if (formData.get("intent") === "again") return { created: { id: r.id!, name: one(formData.get("name"), 100), at: Date.now() } };
-    redirect(`/models/${r.id}`);
+    redirect(`/models/${r.id}?shop=1`); // сразу открывается окно «Магазин и фото»: PLU, ссылка и фото нужны уже сейчас, когда есть id
   }
   return { saved: { at: Date.now() } };
 }

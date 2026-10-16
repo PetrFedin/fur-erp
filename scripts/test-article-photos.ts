@@ -187,6 +187,100 @@ async function main() {
     }
   }
 
+  console.log("\n== 7. Редактор «Магазин и фото»: правила");
+  const core = await import("../src/lib/article-shop-core");
+  ok(core.normalizePluToken("НЕ 00924905") === "HE00924905" && core.normalizePluToken(" he-12 ") === "HE-12" && core.normalizePluToken("a") === null && core.normalizePluToken("<script>") === null, "PLU: кириллица → латиница, пробелы убраны, верхний регистр, мусор отклонён");
+  const pl = core.parsePluList("НЕ00111222, he00111222 ; HE00222333");
+  ok("plus" in pl && pl.plus.join() === "HE00111222,HE00222333", "список PLU через запятую/;: повторы убраны");
+  ok("error" in core.parsePluList("HE1, ???"), "список PLU с мусором — ошибка");
+  for (const bad of ["javascript:alert(1)", "file:///etc/passwd", "https://user:pass@x.ru/a", "ftp://x.ru/a", "data:text/html,x", "https://x", "https://x.ru/" + "a".repeat(500), "https://x.ru/a b"]) ok("error" in core.validateShopUrl(bad), `ссылка отвергнута: ${bad.slice(0, 32)}`);
+  ok("url" in core.validateShopUrl("https://www.tsum.ru/product/x/") && "url" in core.validateShopUrl("http://shop.example.com/p?id=1") && (core.validateShopUrl("") as { url: string }).url === "", "https/http-ссылки и пустое значение допустимы");
+  ok(readLinks({ links: [{ variant: "", itemId: "", url: "javascript:alert(1)" }, { variant: "", itemId: "", url: "https://a.ru/p" }] }).length === 1, "чтение записи ссылок отбрасывает опасные адреса");
+  const bp = core.buildPluParams([{ variant: "A", plus: ["HE1111"] }, { variant: "B", plus: [] }]);
+  const bp2 = core.buildPluParams([{ variant: "A", plus: ["HE1111"] }, { variant: "B", plus: ["HE2222"] }]);
+  ok(Array.isArray(bp) && bp[0].name === "PLU" && Array.isArray(bp2) && bp2.map((x) => x.name).join() === "PLU A,PLU B", "свойства PLU: «PLU» для одного цвета, «PLU <цвет>» для нескольких");
+  const { processPhotoBuffer } = await import("../src/lib/article-photo-upload");
+  const sharp = (await import("sharp")).default;
+  const jpg = await sharp({ create: { width: 3000, height: 2000, channels: 3, background: "#a33" } }).jpeg().toBuffer();
+  const png = await sharp({ create: { width: 500, height: 800, channels: 4, background: "#3a3" } }).png().toBuffer();
+  const rj = await processPhotoBuffer(jpg), rp = await processPhotoBuffer(png);
+  ok(rj.ok && Math.max(rj.w, rj.h) === 1600 && (await sharp(rj.full).metadata()).format === "jpeg" && Math.max((await sharp(rj.thumb).metadata()).width!, (await sharp(rj.thumb).metadata()).height!) <= 400, "jpg: длинная сторона 1600, результат jpg, миниатюра ≤400");
+  ok(rp.ok && (await sharp(rp.full).metadata()).format === "jpeg" && rp.h === 800, "png → jpg без увеличения");
+  const exe = Buffer.concat([Buffer.from("MZ"), Buffer.alloc(300, 1)]);
+  ok(!(await processPhotoBuffer(exe)).ok, "exe под именем .jpg отклонён (проверка по содержимому)");
+  ok(!(await processPhotoBuffer(Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(50, 7)]))).ok, "битый jpeg с верной сигнатурой отклонён");
+  ok(!(await processPhotoBuffer(Buffer.alloc(core.PHOTO_MAX_BYTES + 1, 0xff))).ok && !(await processPhotoBuffer(Buffer.alloc(0))).ok, "лимит 15 МБ и пустой файл");
+  const actSrc = readFileSync(resolve("src/app/(app)/models/shop-actions.ts"), "utf8");
+  ok((actSrc.match(/requireRole\(\.\.\.ACCESS\.models\)/g) ?? []).length === 3 && !/allowSupplier|"SUPPLIER"/.test(actSrc), "все три действия редактора: роль на сервере, подрядчик не допускается");
+  const upSrc = readFileSync(resolve("src/app/api/article-photos/[modelId]/route.ts"), "utf8");
+  ok(/hasRole\(session\.user\.role, ACCESS\.models\)/.test(upSrc) && /status: 403/.test(upSrc), "загрузка фото по HTTP: подрядчику 403");
+  ok(!/ArticleShopEditor|shop-actions|article-shop/.test(sup), "кабинет подрядчика не содержит редактор");
+  ok(/sp\.shop === "1"/.test(card) && /canEdit && <ArticleShopEditor/.test(card), "карточка: редактор только при праве правки, открывается по ?shop=1 (после «+ Новый артикул»)");
+  ok(/canCreate && <ArticleShopEditor/.test(listSrc), "список «Изделия»: карандаш только при праве правки");
+
+  if (!liveDb) {
+    console.log("\n== 8. Редактор: запись (копия базы)");
+    const { rawPrisma } = await import("../src/lib/prisma");
+    const { Prisma } = await import("@prisma/client");
+    const { saveShop, loadShopEditor } = await import("../src/lib/article-shop");
+    const { stageArticlePhoto } = await import("../src/lib/article-photo-upload");
+    const { rmSync, writeFileSync, mkdirSync } = await import("node:fs");
+    const org = await rawPrisma.organization.findFirstOrThrow({ orderBy: { createdAt: "asc" } });
+    const models = await rawPrisma.productModel.findMany({ where: { organizationId: org.id }, select: { id: true, name: true, attributes: true } });
+    const taken = new Set((await rawPrisma.systemState.findMany({ where: { key: { startsWith: PHOTOS_KEY } }, select: { key: true } })).map((r) => r.key.slice(PHOTOS_KEY.length)));
+    const free = models.filter((m) => !taken.has(m.id));
+    const m1 = free[0], m2 = free[1];
+    if (!m1 || !m2) ok(false, "нужны два артикула без фото");
+    else {
+      const actor = { id: "test-user", name: "Тест", role: "OWNER", organizationId: org.id };
+      const stranger = { ...actor, organizationId: "other-org-000" };
+      const dir = join(UPLOAD_ROOT, "article-photos", org.id, m1.id);
+      const cleanup = async () => {
+        for (const m of [m1, m2]) {
+          await rawPrisma.systemState.deleteMany({ where: { organizationId: org.id, key: { in: [PHOTOS_KEY + m.id, LINKS_KEY + m.id] } } });
+          await rawPrisma.productModel.update({ where: { id: m.id }, data: { attributes: (m.attributes ?? Prisma.DbNull) as never } });
+        }
+        await rawPrisma.auditLog.deleteMany({ where: { model: "ArticlePhoto", recordId: { in: [m1.id, m2.id] } } });
+        rmSync(dir, { recursive: true, force: true });
+      };
+      try {
+        const st = await stageArticlePhoto(rawPrisma, org.id, m1.id, jpg);
+        const st2 = await stageArticlePhoto(rawPrisma, org.id, m1.id, png);
+        ok(st.ok && st2.ok && existsSync(join(dir, (st as { photo: { id: string } }).photo.id + ".jpg")) && existsSync(join(dir, (st as { photo: { id: string } }).photo.id + "-t.jpg")), "загрузка jpg и png: файл и миниатюра лежат в каталоге артикула организации");
+        ok(!(await stageArticlePhoto(rawPrisma, "other-org-000", m1.id, jpg)).ok, "чужая организация: загрузка отклонена");
+        ok(!(await stageArticlePhoto(rawPrisma, org.id, "../../etc", jpg)).ok, "путь вида ../ в id артикула отклонён");
+        const ids = [(st as { photo: { id: string } }).photo.id, (st2 as { photo: { id: string } }).photo.id];
+        const payload = (over: object = {}) => ({ rows: [{ key: "ТЕСТ", plu: "НЕ 00777001", url: "https://shop.example.com/p/1", label: "Тест" }], photos: ids.map((id) => ({ id, variant: "ТЕСТ", color: "Тест" })), known: [], ...over });
+        ok(!(await saveShop(rawPrisma, stranger, m1.id, payload())).ok, "чужая организация: сохранение отклонено");
+        ok(!(await saveShop(rawPrisma, actor, m1.id, payload({ photos: [{ id: "../../etc/passwd", variant: "" }] }))).ok, "path traversal в id фото отклонён");
+        ok(!(await saveShop(rawPrisma, actor, m1.id, payload({ photos: [{ id: "aaaaaaaa-0000-4000-8000-0000000000aa", variant: "ТЕСТ" }] }))).ok, "фото, которого не загружали, не принимается");
+        ok(!(await saveShop(rawPrisma, actor, m1.id, payload({ rows: [{ key: "ТЕСТ", plu: "HE1111", url: "javascript:alert(1)" }] }))).ok, "javascript:-ссылка не сохраняется");
+        ok(!(await saveShop(rawPrisma, actor, m1.id, payload({ photos: Array.from({ length: 61 }, (_, k) => ({ id: `bbbbbbbb-0000-4000-8000-${String(k).padStart(12, "0")}`, variant: "" })) }))).ok, "больше 60 фото на артикул — отказ");
+        const r = await saveShop(rawPrisma, actor, m1.id, payload());
+        const ph = readPhotos((await rawPrisma.systemState.findUnique({ where: { organizationId_key: { organizationId: org.id, key: PHOTOS_KEY + m1.id } } }))?.value);
+        const lk = readLinks((await rawPrisma.systemState.findUnique({ where: { organizationId_key: { organizationId: org.id, key: LINKS_KEY + m1.id } } }))?.value);
+        const at = readParams((await rawPrisma.productModel.findUnique({ where: { id: m1.id }, select: { attributes: true } }))?.attributes);
+        ok(r.ok && ph.length === 2 && ph[0].variant === "ТЕСТ" && ph[0].color === "Тест" && ph[0].w > 0, "сохранено: два фото с цветом, размеры записаны");
+        ok(lk.length === 1 && lk[0].url === "https://shop.example.com/p/1", "ссылка записана в article-shop-links");
+        ok(at.some((x) => x.name === "PLU" && x.value === "HE00777001"), "PLU записан свойством «PLU» с кириллицей → латиница");
+        const log = await rawPrisma.auditLog.findFirst({ where: { model: "ArticlePhoto", recordId: m1.id, action: "update" } });
+        ok(!!log && /^Изменены PLU\/ссылка\/фото артикула/.test(log.label ?? "") && log.actorId === "test-user" && !JSON.stringify(log.changes).includes("shop.example.com"), "журнал: «Изменены PLU/ссылка/фото…», автор есть, адреса ссылки нет");
+        ok((await saveShop(rawPrisma, actor, m1.id, { rows: [{ key: "ТЕСТ", plu: "HE00777001", url: "https://shop.example.com/p/1" }], photos: [...ids].reverse().map((id) => ({ id, variant: "ТЕСТ" })), known: ids })).ok && readPhotos((await rawPrisma.systemState.findUnique({ where: { organizationId_key: { organizationId: org.id, key: PHOTOS_KEY + m1.id } } }))?.value)[0].id === ids[1], "порядок фото меняется и сохраняется");
+        const d1 = await saveShop(rawPrisma, actor, m2.id, { rows: [{ key: "", plu: "HE00777001", url: "" }], photos: [], known: [] });
+        ok(!d1.ok && d1.dupes?.[0]?.article === m1.name, "тот же PLU у другого артикула: предупреждение с названием артикула");
+        const d2 = await saveShop(rawPrisma, actor, m2.id, { rows: [{ key: "", plu: "HE00777001", url: "" }], photos: [], known: [], allowDup: true });
+        ok(d2.ok, "после подтверждения дубль PLU сохраняется");
+        const ed = await loadShopEditor(rawPrisma, org.id, m1.id);
+        ok(ed?.rows[0]?.plu === "HE00777001" && ed.rows[0].url === "https://shop.example.com/p/1" && ed.photos.length === 2, "окно читает то, что записал редактор");
+        const rm = await saveShop(rawPrisma, actor, m1.id, { rows: [{ key: "ТЕСТ", plu: "", url: "" }], photos: [{ id: ids[0], variant: "ТЕСТ" }], known: ids });
+        ok(rm.ok && !existsSync(join(dir, ids[1] + ".jpg")) && !existsSync(join(dir, ids[1] + "-t.jpg")) && existsSync(join(dir, ids[0] + ".jpg")), "убранное фото: файлы стёрты, остальное цело; пустые PLU и ссылка очищены");
+        const lk2 = await rawPrisma.systemState.findUnique({ where: { organizationId_key: { organizationId: org.id, key: LINKS_KEY + m1.id } } });
+        ok(!lk2, "пустая ссылка — запись article-shop-links удалена");
+        void writeFileSync; void mkdirSync;
+      } finally { await cleanup(); }
+    }
+  }
+
   console.log(`\n${fails === 0 ? "ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ" : fails + " ПРОВЕРОК НЕ ПРОЙДЕНО"} (всего ${total})`);
   await prisma.$disconnect();
   process.exit(fails === 0 ? 0 : 1);
