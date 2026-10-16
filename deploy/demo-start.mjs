@@ -2,8 +2,8 @@
 // Без GATE_USER и GATE_PASS контейнер НЕ стартует. Снаружи доступен только замок; приложение наружу не торчит.
 import http from "node:http";
 import crypto from "node:crypto";
-import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, existsSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { mkdirSync, existsSync, readdirSync } from "node:fs";
 
 const log = (m) => console.log(`[демо] ${m}`);
 const die = (m) => { console.error(`[демо] ОШИБКА: ${m}`); process.exit(1); };
@@ -42,41 +42,7 @@ for (const k of ["ALLOW_REGISTRATION", "ALLOW_DEMO_LOGIN", "ALLOW_ROLE_SWITCH"])
 
 try { mkdirSync(appEnv.UPLOAD_DIR, { recursive: true }); } catch { log(`не удалось создать ${appEnv.UPLOAD_DIR}`); }
 
-// Первичная загрузка вшитого обезличенного демо-дампа: только если в базе ещё нет таблицы "User". Повторный старт ничего не трогает.
-const DUMP = process.env.DEMO_DUMP || "deploy/demo/demo.sql.gz";
-if (process.env.DEMO_RESTORE !== "false" && existsSync(DUMP)) {
-  const pgUrl = (() => { try { const u = new URL(process.env.DATABASE_URL); u.searchParams.delete("schema"); return u.toString(); } catch { return process.env.DATABASE_URL; } })();
-  const psql = (args, input) => spawnSync("psql", [pgUrl, "-X", "-q", "-v", "ON_ERROR_STOP=1", ...args], { input, encoding: "utf8", timeout: 600_000, env: process.env });
-  const cleanErr = (r) => ((r.stderr || "") + (r.stdout || "")).replace(/postgres(ql)?:\/\/[^\s"']+/g, "postgresql://***").trim().split("\n").slice(-5).join("\n   ");
-  // база может проснуться не сразу: до 6 попыток
-  let chk = null;
-  for (let i = 0; i < 6; i++) { chk = psql(["-tAc", `select to_regclass('public."User"') is not null`]); if (chk.status === 0) break; log(`база пока недоступна (попытка ${i + 1}/6)`); await new Promise((r) => setTimeout(r, 5000)); }
-  if (chk.status !== 0) log(`не удалось проверить базу:\n   ${cleanErr(chk)}`);
-  else if (chk.stdout.trim() === "t") log("база уже заполнена, дамп не загружается.");
-  else {
-    log("база пустая: загружаю демо-дамп (это один раз, 10-60 секунд)…");
-    const r = spawnSync("sh", ["-c", `gzip -dc "$DUMP" | grep -vE '^\\\\(un)?restrict ' | psql "$PGURL" -X -q --single-transaction -v ON_ERROR_STOP=1 -o /dev/null`], { env: { ...process.env, DUMP, PGURL: pgUrl }, encoding: "utf8", timeout: 600_000 });
-    if (r.status !== 0) die(`демо-дамп не загрузился (откат выполнен):\n   ${cleanErr(r)}`);
-    const c = psql(["-tAc", `select (select count(*) from "User") || ' пользователей, ' || (select count(*) from "Purchase") || ' закупок'`]);
-    log(`дамп загружен: ${c.stdout.trim()}`);
-  }
-}
-
-// Миграции: идемпотентно. В демо-дамп таблицы уже входят; если схема приложения новее дампа — доедут недостающие.
-if (process.env.DEMO_MIGRATE !== "false") {
-  log("проверка схемы базы (prisma migrate deploy)…");
-  const r = spawnSync(process.execPath, ["node_modules/prisma/build/index.js", "migrate", "deploy"], { env: appEnv, encoding: "utf8", timeout: 180_000 });
-  const tail = ((r.stdout || "") + (r.stderr || "")).split("\n").filter((l) => l.trim()).slice(-6).join("\n   ");
-  const safe = tail.replace(/postgres(ql)?:\/\/[^\s"']+/g, "postgresql://***");
-  if (r.status === 0) log(`схема актуальна.\n   ${safe}`);
-  else log(`миграции не применились (код ${r.status}); приложение всё равно запускается.\n   ${safe}\n   Подсказка: для Neon нужен адрес БЕЗ «-pooler» (прямое подключение).`);
-}
-
-// Приложение внутри контейнера
-log(`запуск приложения на 127.0.0.1:${UP}`);
-const app = spawn(process.execPath, ["server.js"], { env: appEnv, stdio: "inherit" });
-app.on("exit", (code) => { console.error(`[демо] приложение остановилось (код ${code}); перезапуск контейнера`); process.exit(code || 1); });
-for (const s of ["SIGTERM", "SIGINT"]) process.on(s, () => { app.kill(s); setTimeout(() => process.exit(0), 3000).unref(); });
+let appReady = false;
 
 // ---------- ЗАМОК ----------
 const sha = (s) => crypto.createHash("sha256").update(s).digest();
@@ -122,6 +88,12 @@ http.createServer((req, res) => {
   }
   fails.delete(ip);
 
+  // Стенд ещё просыпается (база, схема, запуск приложения): вместо ошибки показываем страницу, которая сама обновляется.
+  if (!appReady) {
+    res.writeHead(503, { "Retry-After": "10", "Content-Type": "text/html; charset=utf-8", ...baseHeaders });
+    return res.end('<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="8"><title>Стенд запускается</title></head><body style="font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:15vh auto;padding:0 16px;color:#262626"><h1 style="font-size:1.25rem">Стенд просыпается</h1><p>Бесплатный сервер засыпает без запросов и запускается около минуты. Страница обновится сама, ничего нажимать не нужно.</p></body></html>');
+  }
+
   const headers = {};
   for (const [k, v] of Object.entries(req.headers)) if (!HOP.has(k) && k !== "authorization") headers[k] = v;
   headers["x-forwarded-for"] = ip;
@@ -140,4 +112,82 @@ http.createServer((req, res) => {
   p.on("error", () => { if (!res.headersSent) res.writeHead(502, { "Content-Type": "text/plain; charset=utf-8", ...baseHeaders }); res.end("Приложение запускается или не отвечает. Обновите страницу через 30 секунд."); });
   res.on("close", () => p.destroy());
   req.pipe(p);
-}).listen(PORT, "0.0.0.0", () => log(`замок слушает порт ${PORT} → приложение :${UP}; проверка живости: /healthz`));
+}).listen(PORT, "0.0.0.0", () => {
+  log(`замок слушает порт ${PORT} → приложение :${UP}; проверка живости: /healthz`);
+  boot().catch((e) => die(`запуск не удался: ${e instanceof Error ? e.message : e}`));
+});
+
+// ---------- Запуск по шагам (замок уже слушает порт, поэтому Render не показывает 503 всю минуту старта) ----------
+/** Запуск команды без блокировки замка: { status, stdout, stderr }; по таймауту процесс убивается. */
+const run = (cmd, args, { input, timeout = 600_000, env = process.env } = {}) =>
+  new Promise((resolve) => {
+    const c = spawn(cmd, args, { env, stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "", stderr = "";
+    c.stdout.on("data", (d) => (stdout += d));
+    c.stderr.on("data", (d) => (stderr += d));
+    const t = setTimeout(() => c.kill("SIGKILL"), timeout);
+    c.on("error", (e) => { clearTimeout(t); resolve({ status: 1, stdout, stderr: stderr + String(e) }); });
+    c.on("close", (code) => { clearTimeout(t); resolve({ status: code, stdout, stderr }); });
+    c.stdin.on("error", () => {});
+    c.stdin.end(input ?? "");
+  });
+
+async function boot() {
+  // Первичная загрузка вшитого обезличенного демо-дампа: только если в базе ещё нет таблицы "User". Повторный старт ничего не трогает.
+  const DUMP = process.env.DEMO_DUMP || "deploy/demo/demo.sql.gz";
+  const pgUrl = (() => { try { const u = new URL(process.env.DATABASE_URL); u.searchParams.delete("schema"); return u.toString(); } catch { return process.env.DATABASE_URL; } })();
+  const psql = (args) => run("psql", [pgUrl, "-X", "-q", "-v", "ON_ERROR_STOP=1", ...args], { timeout: 600_000 });
+  const cleanErr = (r) => ((r.stderr || "") + (r.stdout || "")).replace(/postgres(ql)?:\/\/[^\s"']+/g, "postgresql://***").trim().split("\n").slice(-5).join("\n   ");
+  let schemaCurrent = false;
+  if (process.env.DEMO_RESTORE !== "false" && existsSync(DUMP)) {
+    // база может проснуться не сразу: до 6 попыток
+    let chk = null;
+    for (let i = 0; i < 6; i++) { chk = await psql(["-tAc", `select to_regclass('public."User"') is not null`]); if (chk.status === 0) break; log(`база пока недоступна (попытка ${i + 1}/6)`); await new Promise((r) => setTimeout(r, 5000)); }
+    if (chk.status !== 0) log(`не удалось проверить базу:\n   ${cleanErr(chk)}`);
+    else if (chk.stdout.trim() === "t") {
+      log("база уже заполнена, дамп не загружается.");
+      // Все миграции уже применены? Тогда долгий `prisma migrate deploy` (на 0,1 ЦП это десятки секунд) не нужен.
+      try {
+        const dirs = readdirSync("prisma/migrations", { withFileTypes: true }).filter((d) => d.isDirectory()).length;
+        const done = await psql(["-tAc", `select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null`]);
+        if (done.status === 0 && Number(done.stdout.trim()) === dirs && dirs > 0) { schemaCurrent = true; log(`схема актуальна: применено миграций ${dirs} из ${dirs}, проверка пропущена.`); }
+      } catch { /* не вышло сравнить — запустим migrate deploy как раньше */ }
+    } else {
+      log("база пустая: загружаю демо-дамп (это один раз, 10-60 секунд)…");
+      const r = await run("sh", ["-c", `gzip -dc "$DUMP" | grep -vE '^\\\\(un)?restrict ' | psql "$PGURL" -X -q --single-transaction -v ON_ERROR_STOP=1 -o /dev/null`], { env: { ...process.env, DUMP, PGURL: pgUrl } });
+      if (r.status !== 0) die(`демо-дамп не загрузился (откат выполнен):\n   ${cleanErr(r)}`);
+      const c = await psql(["-tAc", `select (select count(*) from "User") || ' пользователей, ' || (select count(*) from "Purchase") || ' закупок'`]);
+      log(`дамп загружен: ${c.stdout.trim()}`);
+    }
+  }
+
+  // Миграции: идемпотентно. В демо-дамп таблицы уже входят; если схема приложения новее дампа — доедут недостающие.
+  if (process.env.DEMO_MIGRATE !== "false" && !schemaCurrent) {
+    log("проверка схемы базы (prisma migrate deploy)…");
+    const r = await run(process.execPath, ["node_modules/prisma/build/index.js", "migrate", "deploy"], { env: appEnv, timeout: 180_000 });
+    const tail = ((r.stdout || "") + (r.stderr || "")).split("\n").filter((l) => l.trim()).slice(-6).join("\n   ");
+    const safe = tail.replace(/postgres(ql)?:\/\/[^\s"']+/g, "postgresql://***");
+    if (r.status === 0) log(`схема актуальна.\n   ${safe}`);
+    else log(`миграции не применились (код ${r.status}); приложение всё равно запускается.\n   ${safe}\n   Подсказка: для Neon нужен адрес БЕЗ «-pooler» (прямое подключение).`);
+  }
+
+  // Приложение внутри контейнера
+  log(`запуск приложения на 127.0.0.1:${UP}`);
+  const app = spawn(process.execPath, ["server.js"], { env: appEnv, stdio: "inherit" });
+  app.on("exit", (code) => { console.error(`[демо] приложение остановилось (код ${code}); перезапуск контейнера`); process.exit(code || 1); });
+  for (const s of ["SIGTERM", "SIGINT"]) process.on(s, () => { app.kill(s); setTimeout(() => process.exit(0), 3000).unref(); });
+
+  // Ждём, пока приложение начнёт отвечать, и прогреваем первый вызов (загрузка модулей Next и подключение к базе).
+  for (let i = 0; i < 180; i++) {
+    const ok = await new Promise((resolve) => {
+      const q = http.get({ host: "127.0.0.1", port: UP, path: "/login", timeout: 4000 }, (r) => { r.resume(); r.on("end", () => resolve(true)); });
+      q.on("error", () => resolve(false));
+      q.on("timeout", () => { q.destroy(); resolve(false); });
+    });
+    if (ok) { appReady = true; log("приложение отвечает."); return; }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  log("приложение не ответило за 3 минуты; замок продолжает пересылать запросы.");
+  appReady = true;
+}
+
