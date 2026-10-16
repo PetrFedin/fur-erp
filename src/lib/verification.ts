@@ -1,4 +1,5 @@
 import { uniqueOrderCount } from "@/lib/tz-key";
+import { memoRequest, objId } from "@/lib/req-memo";
 import { orderUnits } from "@/lib/production-totals";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -533,7 +534,7 @@ export type VerifyFlags = {
 };
 
 /** Лёгкая сводка «подтверждено / ждёт» для реестра сверки, «Что не заведено», Сводки и подсказки долга. */
-export async function loadVerifyFlags(db: Db, orgId: string, year?: string): Promise<VerifyFlags> {
+async function loadVerifyFlagsImpl(db: Db, orgId: string, year?: string): Promise<VerifyFlags> {
   const [purchases, batches, orders, pays, prodPays] = await Promise.all([
     db.purchase.findMany({ where: { organizationId: orgId, status: { not: "CANCELLED" } }, select: { number: true, orderDate: true, verifiedAt: true, verifiedBy: true } }),
     db.productionBatch.findMany({ where: { organizationId: orgId }, select: { number: true, year: true, verifiedAt: true, verifiedBy: true, orders: { select: { status: true } } } }),
@@ -797,3 +798,5 @@ export async function resetByPurchaseDoc(orgId: string, doc: { purchaseId?: stri
 
 /** Ссылка на документы строки — для подписей. */
 export const docTypeLabel = (t: keyof typeof DRIVE_DOC_TYPE_LABELS) => DRIVE_DOC_TYPE_LABELS[t];
+
+export const loadVerifyFlags = memoRequest("verifyFlags", loadVerifyFlagsImpl, (db, orgId, year) => `${objId(db)}|${orgId}|${year ?? ""}`);

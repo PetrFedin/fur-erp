@@ -1,4 +1,5 @@
 import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
+import { memoRequest, objId } from "@/lib/req-memo";
 import { loadSupplierArticleIds } from "@/lib/supplier-articles";
 import { batchNameText } from "@/lib/batch-name";
 import "server-only";
@@ -285,7 +286,7 @@ export function normalizeModelName(name: string): string {
 }
 
 
-export async function computeAttention(db: PrismaClient, organizationId: string, year: YearFilter = "all"): Promise<AttentionEntity[]> {
+async function computeAttentionImpl(db: PrismaClient, organizationId: string, year: YearFilter = "all"): Promise<AttentionEntity[]> {
   const today = new Date();
   const entities = new Map<string, AttentionEntity>();
   /** Сущность создаётся при первой проблеме; повторные проблемы дописываются в неё же. */
@@ -654,3 +655,5 @@ export function countAttention(entities: AttentionEntity[]) {
   }
   return { main, gray, red };
 }
+
+export const computeAttention = memoRequest("attention", computeAttentionImpl, (db, orgId, year = "all") => `${objId(db)}|${orgId}|${year}`);

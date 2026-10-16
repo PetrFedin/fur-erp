@@ -1,4 +1,5 @@
 import "server-only";
+import { memoRequest, objId } from "@/lib/req-memo";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { auctionKey } from "@/lib/auction-key";
 import { auctionName } from "@/lib/auction-payments";
@@ -92,7 +93,7 @@ function payHref(p: PayRow): string {
   return a ? `/payments?auction=${encodeURIComponent(a)}#auction-block` : "/payments";
 }
 
-export async function loadTaskBlocks(db: Db, organizationId: string, now = new Date()): Promise<TaskBlocks> {
+async function loadTaskBlocksImpl(db: Db, organizationId: string, now = new Date()): Promise<TaskBlocks> {
   const today = day(now);
   const [purchases, payments, driveDocs, fileDocs, states, debt] = await Promise.all([
     db.purchase.findMany({ where: { organizationId }, select: { id: true, number: true, auctionSession: true } }),
@@ -276,3 +277,5 @@ export function stripCoveredPayments(all: AttentionEntity[], coveredPaymentIds: 
   }
   return out;
 }
+
+export const loadTaskBlocks = memoRequest("taskBlocks", loadTaskBlocksImpl, (db, orgId, now) => (now ? null : `${objId(db)}|${orgId}`));

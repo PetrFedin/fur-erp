@@ -48,11 +48,15 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
   // Числа считаем свежо и кладём в кэш: вкладки и Сводка показывают то же, что этот экран.
   const counts = await loadControlCounts(session.user.organizationId, year, { fresh: true });
   const taskBlocks = counts.blocks!;
-  const supplierActivity = await loadSupplierActivity(prisma, session.user.organizationId).catch(() => []);
-  const chat = canUseChat(session.user.role) ? await chatCounts(viewerOf(session)).catch(() => ({ unread: 0, awaiting: 0 })) : { unread: 0, awaiting: 0 };
-  const all = stripCoveredPayments(await computeAttention(prisma, session.user.organizationId, year), taskBlocks.coveredPaymentIds);
-  // Единый центр задач: те же данные, что у «Подтвердить» (замечания строк), «Документов» и «Что не заведено», сложенные по категориям.
-  const model = await loadVerifyModel(prisma, session.user.organizationId, { userId: session.user.id as string, c4Mode: "off", canUpload: false, canMark: false });
+  // Независимые загрузки — одной пачкой (раньше шли по очереди; computeAttention уже посчитан внутри loadControlCounts и берётся из памяти запроса).
+  const [supplierActivity, chat, allRaw, model] = await Promise.all([
+    loadSupplierActivity(prisma, session.user.organizationId).catch(() => []),
+    canUseChat(session.user.role) ? chatCounts(viewerOf(session)).catch(() => ({ unread: 0, awaiting: 0 })) : Promise.resolve({ unread: 0, awaiting: 0 }),
+    computeAttention(prisma, session.user.organizationId, year),
+    // Единый центр задач: те же данные, что у «Подтвердить» (замечания строк), «Документов» и «Что не заведено», сложенные по категориям.
+    loadVerifyModel(prisma, session.user.organizationId, { userId: session.user.id as string, c4Mode: "off", canUpload: false, canMark: false }),
+  ]);
+  const all = stripCoveredPayments(allRaw, taskBlocks.coveredPaymentIds);
   const inYear = (r: VerifyRow) => year === "all" || r.year === Number(year);
   const center = buildTaskCategories(model.rows.filter(inYear));
   const blocks = buildAttentionBlocks(all);

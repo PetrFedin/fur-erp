@@ -1,4 +1,5 @@
 import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
+import { memoRequest, objId } from "@/lib/req-memo";
 import { batchNameText } from "@/lib/batch-name";
 import { storedFileExists } from "@/lib/stored-file-check";
 import "server-only";
@@ -253,7 +254,7 @@ export function evaluate(rules: RowRules, docs: CovDoc[], docRef: boolean, docsF
   return { cells, gaps, required, have };
 }
 
-export async function computeDocCoverage(db: PrismaClient, organizationId: string): Promise<DocCoverage> {
+async function computeDocCoverageImpl(db: PrismaClient, organizationId: string): Promise<DocCoverage> {
   const [purchases, pdocs, ddocs, payments, batches, orders, prodPayments, suppliers, clients] = await Promise.all([
     db.purchase.findMany({
       where: { organizationId, status: { not: "CANCELLED" } },
@@ -595,3 +596,5 @@ export function filterCovRows(rows: CovRow[], f: CovFilters): CovRow[] {
 }
 
 export const docCoverageHint = (col: ColKey) => COL_BY_KEY.get(col)?.attach ?? "";
+
+export const computeDocCoverage = memoRequest("docCoverage", computeDocCoverageImpl, (db, orgId) => `${objId(db)}|${orgId}`);
