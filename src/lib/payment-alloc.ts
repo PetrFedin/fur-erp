@@ -32,7 +32,10 @@ export function orderWorkCents(o: OrderQty): number {
 
 // ---------- Автоматическое разнесение ----------
 
-export type PlanPayment = { id: string; amountCents: number; paidAt: number; createdAt: number; linkedOrderIds: string[] };
+/** Основание платежа названо «шкурами подрядчика» — это сырьё, а не оплата работы: авторазнесению на ТЗ не подлежит. */
+export const isHidesBasis = (docRef: string | null | undefined, notes: string | null | undefined): boolean => /шкур/i.test(`${docRef ?? ""} ${notes ?? ""}`);
+
+export type PlanPayment = { id: string; amountCents: number; paidAt: number; createdAt: number; linkedOrderIds: string[]; docRef?: string | null; notes?: string | null };
 export type PlanOrder = { id: string; workCents: number; live: boolean };
 export type PlanResult = { paymentId: string; lines: AllocLine[]; unallocatedCents: number; why: string };
 
@@ -45,6 +48,7 @@ export function planAutoAllocations(payments: PlanPayment[], orders: Map<string,
   const used = new Map(existing);
   const sorted = [...payments].sort((a, b) => a.paidAt - b.paidAt || a.createdAt - b.createdAt || a.id.localeCompare(b.id));
   return sorted.map((p) => {
+    if (isHidesBasis(p.docRef, p.notes)) return { paymentId: p.id, lines: [], unallocatedCents: p.amountCents, why: "основание «шкурами подрядчика» — сырьё, не оплата работы: не разносится" };
     const linked = p.linkedOrderIds.map((id) => orders.get(id)).filter((o): o is PlanOrder => !!o && o.live);
     if (linked.length === 0) return { paymentId: p.id, lines: [], unallocatedCents: p.amountCents, why: p.linkedOrderIds.length === 0 ? "платёж не привязан к ТЗ" : "нет действующих ТЗ в наборе" };
     if (!linked.some((o) => o.workCents > 0)) return { paymentId: p.id, lines: [], unallocatedCents: p.amountCents, why: "у ТЗ набора не задана цена работы" };
@@ -91,7 +95,7 @@ export async function autoAllocatePayment(db: Db, orgId: string, paymentId: stri
   const pay = await db.productionPayment.findFirst({
     where: { id: paymentId, organizationId: orgId },
     select: {
-      id: true, amount: true, status: true, paidAt: true, createdAt: true,
+      id: true, amount: true, status: true, paidAt: true, createdAt: true, docRef: true, notes: true,
       orders: { select: { productionOrderId: true } },
       allocations: { select: { id: true, source: true } },
     },
@@ -105,7 +109,7 @@ export async function autoAllocatePayment(db: Db, orgId: string, paymentId: stri
   const existing = await allocatedCentsByOrder(db, orgId, ids, paymentId);
   const map = new Map(orders.map((o) => [o.id, { id: o.id, workCents: orderWorkCents(o), live: o.status !== "CANCELLED" }]));
   const [r] = planAutoAllocations(
-    [{ id: pay.id, amountCents: toCents(pay.amount), paidAt: new Date(pay.paidAt).getTime(), createdAt: new Date(pay.createdAt).getTime(), linkedOrderIds: ids }],
+    [{ id: pay.id, amountCents: toCents(pay.amount), paidAt: new Date(pay.paidAt).getTime(), createdAt: new Date(pay.createdAt).getTime(), linkedOrderIds: ids, docRef: pay.docRef, notes: pay.notes }],
     map,
     existing,
   );

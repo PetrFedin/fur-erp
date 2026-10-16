@@ -93,7 +93,7 @@ async function main() {
       for (const p of done) for (const a of p.allocations) existing.set(a.productionOrderId, (existing.get(a.productionOrderId) ?? 0) + toCents(a.amount));
 
       const plan = planAutoAllocations(
-        todo.map((p) => ({ id: p.id, amountCents: toCents(p.amount), paidAt: p.paidAt.getTime(), createdAt: p.createdAt.getTime(), linkedOrderIds: p.orders.map((o) => o.productionOrderId) })),
+        todo.map((p) => ({ id: p.id, amountCents: toCents(p.amount), paidAt: p.paidAt.getTime(), createdAt: p.createdAt.getTime(), linkedOrderIds: p.orders.map((o) => o.productionOrderId), docRef: p.docRef, notes: p.notes })),
         ordMap,
         existing,
       );
