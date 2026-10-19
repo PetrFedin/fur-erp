@@ -5,10 +5,12 @@ import Link from "next/link";
 import { formatMoney } from "@/lib/utils";
 import { toCsv } from "@/lib/csv";
 import { InfoHint } from "@/components/info-hint";
+import { MarginBlock } from "./margin-block";
+import type { MarginData } from "@/lib/margin";
 import { goodsHeadline, headline, seriesOf, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly } from "@/lib/cashflow";
 
 type ServicePart = { number: string; what: string; invoice: string | null; date: string; paid: number };
-type Props = { incl: CashflowData; ex: CashflowData; sales: SalesMonthly; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod };
+type Props = { incl: CashflowData; ex: CashflowData; sales: SalesMonthly; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; margin: MarginData | null };
 
 const SPEND = "#d93a0e", GET = "#1f7a4d", NAVY = "#1b2a5c", STOCK = "#8a6d1d";
 // Цвета статей трат: различимы между собой и без цвета (подписи в легенде, таблица рядом — текстовая альтернатива).
@@ -19,6 +21,8 @@ const full = (m: string) => `${mon(m)} ${m.slice(0, 4)}`;
 const dash = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? "—" : formatMoney(v));
 const pcs = (v: number) => (v === 0 ? "—" : v.toLocaleString("ru-RU"));
 const mln = (v: number) => (v / 1e6).toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " млн";
+/** Остаток «TTL Stock, PCS» из отчёта «отчет по товарам фото и цены» на 19.10.2026 (Report, строка Total). */
+const REPORT_STOCK = 379;
 const PERIODS: [CashflowPeriod, string][] = [["all", "Все"], ["2025", "2025"], ["2026", "2026"]];
 
 function niceMax(v: number) {
@@ -131,7 +135,7 @@ function Tile({ label, value, sub, hint, tone }: { label: string; value: string;
   );
 }
 
-export function CashflowView({ incl, ex, sales, vat, services, initialPeriod }: Props) {
+export function CashflowView({ incl, ex, sales, vat, services, initialPeriod, margin }: Props) {
   const [period, setPeriod] = useState<CashflowPeriod>(initialPeriod);
   const [exVat, setExVat] = useState(false);
   const [second, setSecond] = useState<"goods" | "work">("goods");
@@ -160,6 +164,7 @@ export function CashflowView({ incl, ex, sales, vat, services, initialPeriod }: 
   const { d, s, ser, h, g } = m;
   const months = d.months;
   const hasSales = sales.available;
+  const stockEnd = stockSeries(sales).stock.at(-1) ?? 0;
   const label = period === "all" ? "2025–2026" : period;
 
   const clearHot = () => { setHot(null); setActive(null); setYearHot(null); };
@@ -298,7 +303,7 @@ export function CashflowView({ incl, ex, sales, vat, services, initialPeriod }: 
             <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
               <Tile label="Приход, шт." value={pcs(g.received)} sub={`за ${label}`} hint={<p>Единицы, поступившие за период (выгрузка «поступления»; корректировки с минусом учтены).</p>} />
               <Tile label="Продано, шт." value={pcs(g.sold)} sub={`за ${label}`} hint={<p>Единицы проданные за период, возвраты вычтены.</p>} />
-              <Tile label="Остаток, шт." value={pcs(g.stock)} sub="на конец периода" hint={<p>Накопленный приход минус накопленные продажи с начала данных. В отчёте по товарам фактический остаток на 19.10.2026 — 379 шт., расчётный 385: разница 6 шт. — списания и перемещения, которых нет в файлах.</p>} />
+              <Tile label="Остаток, шт." value={pcs(g.stock)} sub="на конец периода" hint={<p>Накопленный приход минус накопленные продажи с начала данных. Фактический остаток по отчёту о товарах на 19.10.2026 — {REPORT_STOCK} шт.; расчётный на конец данных — {stockEnd} шт.{stockEnd !== REPORT_STOCK ? ` Разница ${stockEnd - REPORT_STOCK} шт. — списания и перемещения, которых нет в выгрузке поступлений и продаж.` : ""}</p>} />
               <Tile label="Sell-through" value={g.sellThrough === null ? "—" : g.sellThrough.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " %"} sub="продано / получено" hint={<p>Накопленные продажи ÷ накопленный приход с начала данных до конца периода.</p>} />
               <Tile label="Покрытие остатка" value={g.coverMonths === null ? "—" : g.coverMonths.toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " мес."} sub="остаток / продажи в месяц" hint={<p>Остаток на конец периода ÷ средние продажи в месяц (от первого до последнего месяца с продажами в периоде). Сезонность не учитывается.</p>} />
             </div>
@@ -313,6 +318,8 @@ export function CashflowView({ incl, ex, sales, vat, services, initialPeriod }: 
           </>
         ) : <p className="text-sm text-neutral-700">{noSalesNote}</p>}
       </section>
+
+      <MarginBlock data={margin} />
 
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <button type="button" aria-expanded={detail} onClick={() => setDetail((v) => !v)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm">{detail ? "Скрыть таблицу по месяцам" : "Показать таблицу по месяцам"}</button>
