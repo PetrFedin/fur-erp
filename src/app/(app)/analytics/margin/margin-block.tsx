@@ -13,9 +13,10 @@ type PhotoIdx = Record<string, { modelId: string; photos: { id: string; variant:
 type MKey = "conf" | "received" | "salesCost" | "sold" | "revenueEx" | "discountSum" | "discountGiven" | "grossProfit" | "grossMarginPct" | "stock" | "sellThrough" | "avgPrice" | "discountVsRetail" | "gpOfRetail" | "markupW";
 
 const nodata = "—";
-const money = (v: number | null) => (v === null ? nodata : formatMoney(v));
+const money = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? nodata : formatMoney(v));
+const n0 = (v: number) => (v === 0 ? nodata : String(v));
 const x2 = (v: number | null) => (v === null ? nodata : "×" + v.toFixed(2).replace(".", ","));
-const pc = (v: number | null, d = 0) => (v === null ? nodata : v.toLocaleString("ru-RU", { maximumFractionDigits: d, minimumFractionDigits: d }) + " %");
+const pc = (v: number | null, d = 0) => (v === null || v === 0 ? nodata : v.toLocaleString("ru-RU", { maximumFractionDigits: d, minimumFractionDigits: d }) + " %");
 const share = (v: number | null) => (v === null ? null : v * 100);
 /** Сезон словом: SS — лето, FW — осень–зима. */
 const seasonHead = (s: string) => `${s} · ${/^SS/i.test(s) ? "лето" : "осень–зима"}`;
@@ -23,22 +24,22 @@ const MON = ["янв", "фев", "мар", "апр", "май", "июн", "июл
 const monthHead = (m: string) => `${MON[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 
 type Cur = "rub" | "eur";
-const eur = (v: number | null) => (v === null ? nodata : Math.round(v).toLocaleString("ru-RU") + " €");
+const eur = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? nodata : Math.round(v).toLocaleString("ru-RU") + " €");
 /** money — мера в деньгах (подпись ₽/€ в шапке); rubOnly — только в рублях (себестоимость ТЗ в ₽, курс не задан). */
 type Measure = { key: MKey; label: string; hint: React.ReactNode; fmt: (m: Metrics, cur: Cur) => string; money?: boolean; rubOnly?: boolean };
 const signed = (v: number | null, d = 1) => (v === null ? nodata : (v > 0 ? "+" : "") + v.toLocaleString("ru-RU", { maximumFractionDigits: d, minimumFractionDigits: d }) + " %");
 /** Порядок мер как в отчёте о товарах (лист Report): Conf → Delivery → Sales cost (SC) → Sales PCS → Sales retail (NS) → Discount → маржа; затем дополнительные меры. */
 const MEASURES: Measure[] = [
   { key: "conf", label: "Conf, шт.", hint: <p>Conf (TTL Conf PCS в отчёте): подтверждено заказов, шт. Есть только в «Тотал» и для категорий (в отчёте нет дат и сезонов выгрузки; по артикулам написания разные), в остальных строках «—».</p>, fmt: () => nodata },
-  { key: "received", label: "Delivery, шт.", hint: <p>Delivery (TTL Delivery PCS): получено единиц по заказам группы, корректировки с минусом учтены.</p>, fmt: (m, _c) => String(m.received) },
+  { key: "received", label: "Delivery, шт.", hint: <p>Delivery (TTL Delivery PCS): получено единиц по заказам группы, корректировки с минусом учтены.</p>, fmt: (m, _c) => n0(m.received) },
   { key: "salesCost", money: true, rubOnly: true, label: "Sales cost", hint: <p>Sales cost (SC): себестоимость проданных единиц без НДС = себестоимость модели из ТЗ с работой × проданные штуки; только строки со штуками, где есть себестоимость. (В отчёте SC — в евро по стандартной себестоимости; здесь — наша себестоимость в рублях.)</p>, fmt: (m, _c) => money(m.salesCost) },
-  { key: "sold", label: "Sales pcs", hint: <p>Sales PCS: проданные единицы, возвраты минус.</p>, fmt: (m, _c) => String(m.sold) },
+  { key: "sold", label: "Sales pcs", hint: <p>Sales PCS: проданные единицы, возвраты минус.</p>, fmt: (m, _c) => n0(m.sold) },
   { key: "revenueEx", money: true, label: "Sales retail", hint: <p>Sales retail (NS RUR excl VAT): чистая розничная выручка без НДС после скидок, возвраты минус (Net Sales).</p>, fmt: (m, c) => (c === "eur" ? eur(m.revenueEur) : money(m.revenue)) },
   { key: "discountSum", money: true, label: "Discount", hint: <p>Discount RUR из выгрузки продаж: предоставленная скидка, ₽ с НДС (уже вычтена из Sales retail).</p>, fmt: (m, c) => (c === "eur" ? eur(m.discountEurSum) : money(m.discountSum)) },
   { key: "discountGiven", label: "Discount, %", hint: <p>Фактически предоставленная скидка от цены до скидки: Discount RUR ÷ (Retail RUR + Discount RUR), с НДС.</p>, fmt: (m, _c) => pc(share(m.discountGiven), 1) },
   { key: "grossProfit", rubOnly: true, label: "Маржа, ₽", hint: <p>Валовая прибыль = Net Sales − себестоимость (Sales retail − Sales cost) по строкам со штуками и себестоимостью.</p>, fmt: (m, _c) => money(m.grossProfit) },
   { key: "grossMarginPct", rubOnly: true, label: "Маржа, %", hint: <p>Валовая прибыль ÷ Net Sales тех же строк (строки продаж без штук в расчёт не входят — выручка по ним показана отдельно в «i» плитки «Валовая маржа»).</p>, fmt: (m, _c) => pc(m.grossMarginPct, 1) },
-  { key: "stock", label: "Stock, шт.", hint: <p>Остаток группы = Delivery − Sales pcs. По отчёту о товарам фактический остаток на 19.10.2026 — 379 шт., расчётный 385.</p>, fmt: (m, _c) => String(m.received - m.sold) },
+  { key: "stock", label: "Stock, шт.", hint: <p>Остаток группы = Delivery − Sales pcs. По отчёту о товарам фактический остаток на 19.10.2026 — 379 шт., расчётный 385.</p>, fmt: (m, _c) => n0(m.received - m.sold) },
   { key: "sellThrough", label: "Sell-through", hint: <><p>Продано ÷ получено, единицы (по заказам группы; в «Тотал» — за всё время). Без обрезки до 100%; получено 0 — «—».</p><p className="mt-1">«*» — продано больше получено: продажи включают остатки других поступлений. «†» — получено меньше 10 шт., процент неустойчив.</p></>, fmt: (m, _c) => (m.received > 0 ? pc(share(m.sellThrough)) + (sellNote(m) === "over" ? "*" : sellNote(m) === "small" ? "†" : "") : nodata) },
   { key: "avgPrice", money: true, label: "Средняя цена", hint: <p>Выручка с НДС (Retail RUR после скидки) ÷ проданные единицы.</p>, fmt: (m, c) => (c === "eur" ? eur(m.avgPriceEur) : money(m.avgPrice)) },
   { key: "discountVsRetail", rubOnly: true, label: "Цена к прайсу 19.10", hint: <p>Реальная цена продажи к нынешнему прайсу: выручка с НДС ÷ (штуки × текущая цена из прайса 19.10.2026) − 1. Отрицательное — продано дешевле прайса, положительное — дороже (в основном рост цен). Это не скидка: настоящая скидка — Discount.</p>, fmt: (m, _c) => signed(m.discountVsRetail === null ? null : -m.discountVsRetail * 100) },
@@ -283,7 +284,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
               {sizeRows.map((r) => (
                 <tr key={r.size} className="border-b border-neutral-200">
                   <th scope="row" className="px-2 py-1.5 text-left text-sm font-normal">{r.size}</th>
-                  <td className={td}>{r.received}</td><td className={td}>{r.sold}</td><td className={td}>{r.stock}</td>
+                  <td className={td}>{n0(r.received)}</td><td className={td}>{n0(r.sold)}</td><td className={td}>{n0(r.stock)}</td>
                   <td className={td}>{pc(share(r.sellThrough))}</td><td className={td}>{money(r.avgPrice)}</td><td className={td}>{money(r.revenueEx)}</td>
                 </tr>
               ))}

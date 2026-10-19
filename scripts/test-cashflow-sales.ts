@@ -7,7 +7,7 @@ import { homedir } from "os";
 import { join } from "path";
 import { PrismaClient } from "@prisma/client";
 import { loadPaymentsOverview } from "../src/lib/payments-overview";
-import { aggregateSales, buildCashflow, workByClass, goodsHeadline, headline, monthsOf, seriesOf, sliceData, sliceSales, stockSeries, vatShares, visibleMonths } from "../src/lib/cashflow";
+import { PROJECT_START_MONTH, workMonthIdx, aggregateSales, buildCashflow, workByClass, goodsHeadline, headline, monthsOf, seriesOf, sliceData, sliceSales, stockSeries, vatShares, visibleMonths } from "../src/lib/cashflow";
 import { workWindowStats, burnRate, flowPoints, groupSales, paybackMonths, payLites, spendByArticle, spendByType, topPays, workByTz } from "../src/lib/cashflow-detail";
 import { payDue } from "../src/lib/pay-display";
 import { loadOrderClasses, loadPurchaseVat, loadSalesLines } from "../src/lib/cashflow-server";
@@ -62,7 +62,19 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   eq("[детали] Σ по видам платежа = Потрачено (без НДС)", sum(spendByType(pl, ex.months, true).map((r) => r.total)), ex.total, 0.05);
   eq("[детали] Σ по статьям = Потрачено", sum(incl.articles.map((a) => a.total)), incl.total);
   ok("[детали] топ-5 платежей отсортированы и не больше 5", topPays(pl, incl.months, false).length <= 5 && topPays(pl, incl.months, false).every((p, i, a) => i === 0 || a[i - 1].amount >= p.amount));
+  const sc0 = (c: "clothes" | "acc" | "other") => aggregateSales(lines, months, c).recPcs;
   const s = aggregateSales(lines, months);
+  // Метрики работы: месяцы от PROJECT_START_MONTH до текущего включительно; ничего раньше августа 2025 (работа и приход).
+  eq("[работа] N месяцев авг 2025 – окт 2026 = 15", workMonthIdx(months, "2026-10", "all").length, 15, 0);
+  eq("[работа] 2026: янв–окт = 10", workMonthIdx(months, "2026-10", "2026").length, 10, 0);
+  eq("[работа] 2025: авг–дек = 5", workMonthIdx(months, "2026-10", "2025").length, 5, 0);
+  ok("[работа] первая оплата работы и первый приход не раньше PROJECT_START_MONTH", months.every((m, i) => m >= PROJECT_START_MONTH || (Math.abs(workArt[i]) < 0.005 && s.recPcs[i] === 0)));
+  {
+    const idx = workMonthIdx(months, "2026-10", "all");
+    const wsum = (a: number[]) => idx.reduce((t, i) => t + a[i], 0);
+    eq("[работа] Σ категорий + прочее = всего (месяцы проекта)", wsum(wc.clothes) + wsum(wc.acc) + wsum(wc.other), wsum(workArt), 0.05);
+    eq("[работа] Σ единиц категорий = всего (месяцы проекта)", wsum(sc0("clothes")) + wsum(sc0("acc")) + wsum(sc0("other")), wsum(s.recPcs), 0);
+  }
   const plc = payLites(ov, vs.share, await loadOrderClasses(org));
   for (const a of incl.articles) {
     const di = spendByArticle(plc, incl.months, false, a.key), de = spendByArticle(plc, ex.months, true, a.key);

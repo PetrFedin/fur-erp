@@ -8,13 +8,14 @@ import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
 import { DUE_LABEL, dueHint, payDue } from "@/lib/pay-display";
 import { ExpTable, PriceDetail, RecvDetail, SpendDetail } from "./drill";
-import { flowPoints, workWindowStats, groupSales, type PayLite } from "@/lib/cashflow-detail";
+import { workMonthIdx } from "@/lib/cashflow";
+import { PAY_TYPE_LABEL, spendByType, type PayType, flowPoints, workWindowStats, groupSales, type PayLite } from "@/lib/cashflow-detail";
 import type { SalesAggLine } from "@/lib/sales-receipts-core";
 import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly } from "@/lib/cashflow";
 
 type ServicePart = { number: string; what: string; invoice: string | null; date: string; paid: number };
 type Cat = "all" | "clothes" | "acc";
-type Props = { incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; initialSecond?: "goods" | "workunit" | "work"; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
+type Props = { incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; nowMonth: string; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; initialSecond?: "goods" | "workunit" | "work"; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
 
 const SPEND = "#d93a0e", GET = "#1f7a4d", NAVY = "#1b2a5c", STOCK = "#8a6d1d";
 // Цвета статей трат: различимы между собой и без цвета (подписи в легенде, таблица рядом — текстовая альтернатива).
@@ -237,50 +238,40 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-const rubOrDash = (v: number | null) => (v === null ? "—" : formatMoney(v));
+const rubOrDash = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? "—" : formatMoney(v));
 
-/** Таблица по месяцам окна работы: пустые месяцы (нет оплаты работы и прихода) не показываются при базе «только активные» и сворачиваются в «n пустых месяцев» при базе «все»; исключённые из базы месяцы серые. */
-function MonthRows({ months, work, units, st }: { months: string[]; work: number[]; units: number[]; st: ReturnType<typeof workWindowStats> }) {
-  const [openGap, setOpenGap] = useState<number[]>([]);
-  const empty = (i: number) => Math.abs(work[i]) < 0.005 && units[i] === 0;
-  const n1 = (v: number | null) => (v === null ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
-  type Item = { kind: "row"; i: number } | { kind: "gap"; from: number; to: number };
-  const items: Item[] = [];
-  for (let i = 0; i < months.length; i++) {
-    if (!empty(i)) { items.push({ kind: "row", i }); continue; }
-    let j = i;
-    while (j + 1 < months.length && empty(j + 1)) j++;
-    items.push({ kind: "gap", from: i, to: j });
-    i = j;
-  }
-  const row = (i: number) => (
-    <tr key={months[i]} className="border-b border-neutral-200">
-      <td className="px-2 py-1.5">{months[i]}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(Math.abs(work[i]) > 0.005 ? work[i] : null)}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums">{units[i] || "—"}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums">{units[i] > 0 ? rubOrDash(work[i] / units[i]) : "—"}</td>
-    </tr>
+type WorkBy = Record<"all" | "clothes" | "acc", { work: number[]; units: number[] }>;
+
+/** Сегмент «Все · Одежда · Аксессуары» внутри окна: по умолчанию = глобальный фильтр, переопределяется локально. «Прочее / без привязки к ТЗ» входит только в «Все». */
+function CatSwitch({ cat, setCat }: { cat: "all" | "clothes" | "acc"; setCat: (c: "all" | "clothes" | "acc") => void }) {
+  const seg = (on: boolean) => "inline-flex min-h-11 items-center rounded-md px-3 text-sm " + (on ? "bg-neutral-900 text-white" : "text-neutral-700 hover:text-neutral-900");
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <div role="group" aria-label="Категория" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+        {(["all", "clothes", "acc"] as const).map((k) => <button key={k} type="button" aria-pressed={cat === k} onClick={() => setCat(k)} className={seg(cat === k)}>{CAT_LABEL[k]}</button>)}
+      </div>
+      <span className="text-xs text-neutral-600">Работа без привязки к ТЗ и ТЗ без категории входят только в «Все».</span>
+    </div>
   );
+}
+
+/** Таблица по месяцам проекта: все N месяцев подряд, нули — прочерк. */
+function MonthRows({ months, work, units, st }: { months: string[]; work: number[]; units: number[]; st: ReturnType<typeof workWindowStats> }) {
+  const n1 = (v: number | null) => (v === null || v === 0 ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
   return (
     <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0}>
       <table className="w-full border-collapse text-sm">
-        <thead><tr className="border-b border-neutral-300">{["Месяц", "Оплата работы, ₽", "Единиц получено", "Работа на единицу, ₽"].map((h, k) => <th key={h} scope="col" className={"px-2 py-2 text-xs font-semibold " + (k === 0 ? "text-left" : "text-right")}>{h}</th>)}</tr></thead>
+        <thead><tr className="border-b border-neutral-300">{["Месяц", "Работа, ₽", "Единиц получено", "Работа на единицу, ₽"].map((h, k) => <th key={h} scope="col" className={"px-2 py-2 text-xs font-semibold " + (k === 0 ? "text-left" : "text-right")}>{h}</th>)}</tr></thead>
         <tbody>
-          {items.map((it) => {
-            if (it.kind === "row") return row(it.i);
-            const cnt = it.to - it.from + 1, isOpen = openGap.includes(it.from);
-            return (
-              <Fragment key={"g" + it.from}>
-                <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
-                  <td colSpan={4} className="px-2 py-0.5">
-                    <button type="button" aria-expanded={isOpen} onClick={() => setOpenGap(isOpen ? openGap.filter((x) => x !== it.from) : [...openGap, it.from])} className="inline-flex min-h-11 items-center gap-2 text-xs underline"><span aria-hidden>{isOpen ? "▾" : "▸"}</span>{cnt} {cnt === 1 ? "пустой месяц" : cnt < 5 ? "пустых месяца" : "пустых месяцев"} ({months[it.from]}{cnt > 1 ? ` – ${months[it.to]}` : ""})</button>
-                  </td>
-                </tr>
-                {isOpen && Array.from({ length: cnt }, (_, k) => row(it.from + k))}
-              </Fragment>
-            );
-          })}
-          <tr className="border-t-2 border-neutral-400 font-semibold"><td className="px-2 py-1.5">Итого</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.total)}</td><td className="px-2 py-1.5 text-right tabular-nums">{st.unitsTotal}</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.perUnit)}</td></tr>
+          {months.map((mo, i) => (
+            <tr key={mo} className="border-b border-neutral-200">
+              <td className="px-2 py-1.5">{mo}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(work[i])}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{units[i] || "—"}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{units[i] > 0 ? rubOrDash(work[i] / units[i]) : "—"}</td>
+            </tr>
+          ))}
+          <tr className="border-t-2 border-neutral-400 font-semibold"><td className="px-2 py-1.5">Итого</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.total)}</td><td className="px-2 py-1.5 text-right tabular-nums">{st.unitsTotal || "—"}</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.perUnit)}</td></tr>
           <tr className="font-semibold"><td className="px-2 py-1.5">Среднее в месяц ({st.n} мес.)</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.avgMonth)}</td><td className="px-2 py-1.5 text-right tabular-nums">{n1(st.avgUnits)}</td><td /></tr>
         </tbody>
       </table>
@@ -288,38 +279,42 @@ function MonthRows({ months, work, units, st }: { months: string[]; work: number
   );
 }
 
-/** Окно «Работа в месяц»: база месяцев, итоги и таблица по месяцам с отметкой активности; исключённые месяцы серые. */
-function WorkMonthWindow({ months, work, units }: { months: string[]; work: number[]; units: number[] }) {
-  const st = workWindowStats(work, units, [], "all");
-  const n1 = (v: number | null) => (v === null ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
+/** Окно «Работа в месяц»: сначала количества (единицы, штук в месяц), затем деньги; месяцы проекта (с августа 2025 по текущий); сегмент категории внутри. */
+function WorkMonthWindow({ months, by, initialCat }: { months: string[]; by: WorkBy; initialCat: "all" | "clothes" | "acc" }) {
+  const [cat, setCat] = useState(initialCat);
+  const st = workWindowStats(by[cat].work, by[cat].units, [], "all");
+  const n1 = (v: number | null) => (v === null || v === 0 ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
   return (
     <div className="flex flex-col gap-4">
+      <CatSwitch cat={cat} setCat={setCat} />
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+        <Stat label="Единиц получено, шт." value={st.unitsTotal ? String(st.unitsTotal) : "—"} />
+        <Stat label="Месяцев проекта" value={String(st.n)} sub="с августа 2025 по текущий; текущий месяц неполный" />
+        <Stat label="Штук в месяц (единицы ÷ месяцы)" value={n1(st.avgUnits)} />
         <Stat label="Работа всего, ₽" value={rubOrDash(st.total)} />
-        <Stat label="Месяцев проекта" value={String(st.n)} sub="от первого движения до последнего месяца данных" />
-        <Stat label="Среднее в месяц, ₽" value={rubOrDash(st.avgMonth)} />
-        <Stat label="Единиц получено, шт." value={String(st.unitsTotal)} />
-        <Stat label="Среднее единиц в месяц" value={n1(st.avgUnits)} />
+        <Stat label="Работа в месяц, ₽" value={rubOrDash(st.avgMonth)} />
         <Stat label="Работа на единицу, ₽" value={rubOrDash(st.perUnit)} />
       </div>
-      <MonthRows months={months} work={work} units={units} st={st} />
+      <MonthRows months={months} work={by[cat].work} units={by[cat].units} st={st} />
     </div>
   );
 }
 
-/** Окно «Работа на единицу»: компактные плитки (₽/шт. всего ÷ единиц, простое среднее месяцев, минимум, максимум, единицы, работа), мини-строки по категориям, таблица по месяцам свёрнута. */
-function WorkUnitWindow({ months, work, units, cls }: { months: string[]; work: number[]; units: number[]; cls: Record<"clothes" | "acc", { work: number[]; units: number[] }> }) {
+/** Окно «Работа на единицу»: плитки (₽/шт. всего ÷ единиц, простое среднее месяцев, минимум, максимум, единицы, работа), мини-строки категорий; сегмент категории; таблица свёрнута. */
+function WorkUnitWindow({ months, by, initialCat }: { months: string[]; by: WorkBy; initialCat: "all" | "clothes" | "acc" }) {
+  const [cat, setCat] = useState(initialCat);
   const [table, setTable] = useState(false);
-  const st = workWindowStats(work, units, [], "all");
-  const c1 = workWindowStats(cls.clothes.work, cls.clothes.units, [], "all"), c2 = workWindowStats(cls.acc.work, cls.acc.units, [], "all");
-  const catLine = (c: ReturnType<typeof workWindowStats>) => `${rubOrDash(c.perUnit)} · ${c.unitsTotal} шт.`;
+  const st = workWindowStats(by[cat].work, by[cat].units, [], "all");
+  const c1 = workWindowStats(by.clothes.work, by.clothes.units, [], "all"), c2 = workWindowStats(by.acc.work, by.acc.units, [], "all");
+  const catLine = (c: ReturnType<typeof workWindowStats>) => (c.perUnit === null ? "—" : `${rubOrDash(c.perUnit)} · ${c.unitsTotal} шт.`);
   return (
     <div className="flex flex-col gap-4">
+      <CatSwitch cat={cat} setCat={setCat} />
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         <div className="col-span-2 rounded-lg border border-neutral-300 p-3 md:col-span-1">
           <div className="text-xs text-neutral-600">Работа на единицу (всего ÷ единиц)</div>
           <div className="text-lg font-semibold tabular-nums">{rubOrDash(st.perUnit)}</div>
-          <div className="text-xs text-neutral-600">{formatMoney(st.total)} ÷ {st.unitsTotal} шт.</div>
+          <div className="text-xs text-neutral-600">{rubOrDash(st.total)} ÷ {st.unitsTotal || "—"} шт.</div>
           <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
             <div className="flex justify-between gap-2"><dt className="text-neutral-600">Одежда</dt><dd className="font-semibold tabular-nums">{catLine(c1)}</dd></div>
             <div className="flex justify-between gap-2"><dt className="text-neutral-600">Аксессуары</dt><dd className="font-semibold tabular-nums">{catLine(c2)}</dd></div>
@@ -328,13 +323,13 @@ function WorkUnitWindow({ months, work, units, cls }: { months: string[]; work: 
         <Stat label="Простое среднее по месяцам" value={rubOrDash(st.simpleAvg)} sub="месяцы с приходом" />
         <Stat label="Минимум месяца" value={st.min ? rubOrDash(st.min.v) : "—"} sub={st.min ? months[st.min.i] : undefined} />
         <Stat label="Максимум месяца" value={st.max ? rubOrDash(st.max.v) : "—"} sub={st.max ? months[st.max.i] : undefined} />
-        <Stat label="Единиц всего" value={String(st.unitsTotal)} sub={`месяцев проекта ${st.n}`} />
+        <Stat label="Единиц всего" value={st.unitsTotal ? String(st.unitsTotal) : "—"} sub={`месяцев проекта ${st.n}`} />
         <Stat label="Работа всего" value={rubOrDash(st.total)} />
       </div>
       <div>
         <button type="button" aria-expanded={table} onClick={() => setTable((v) => !v)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm">{table ? "Скрыть таблицу по месяцам" : "Таблица по месяцам"}</button>
       </div>
-      {table && <MonthRows months={months} work={work} units={units} st={st} />}
+      {table && <MonthRows months={months} work={by[cat].work} units={by[cat].units} st={st} />}
     </div>
   );
 }
@@ -482,7 +477,7 @@ function PriceTile({ lines, months, exVat, cat, vatNote, onOpen }: { lines: Sale
   );
 }
 
-function Tile({ label, value, sub, hint, tone, mini, spark, extra, expandId, onToggle }: { label: string; value: string; sub?: string; hint?: React.ReactNode; tone?: "bad" | "good"; /** Две мини-строки «Одежда … / Аксессуары …» со своими значениями. */ mini?: [string, string][]; spark?: number[]; extra?: string; expandId?: string; /** устарело, не используется */ openId?: string | null; onToggle?: (id: string) => void }) {
+function Tile({ label, value, sub, hint, tone, mini, spark, extra, after, expandId, onToggle }: { /** Второй блок под мини-строками: подпись, значение, мини-строки (деньги после количеств). */ after?: { label: string; value: string; mini?: [string, string][] }; label: string; value: string; sub?: string; hint?: React.ReactNode; tone?: "bad" | "good"; /** Две мини-строки «Одежда … / Аксессуары …» со своими значениями. */ mini?: [string, string][]; spark?: number[]; extra?: string; expandId?: string; /** устарело, не используется */ openId?: string | null; onToggle?: (id: string) => void }) {
   const clickable = !!expandId && !!onToggle;
   return (
     <div className={"relative flex min-w-0 flex-col rounded-lg border border-neutral-300 bg-white" + (clickable ? " tile-click" : "")}>
@@ -499,13 +494,20 @@ function Tile({ label, value, sub, hint, tone, mini, spark, extra, expandId, onT
             {mini.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{k}</dt><dd className="font-semibold tabular-nums text-neutral-900">{v}</dd></div>)}
           </dl>
         ) : null}
+        {after ? (
+          <div className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
+            <div className="text-neutral-600">{after.label}</div>
+            <div className="text-base font-semibold tabular-nums text-neutral-900">{after.value}</div>
+            {after.mini?.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><span className="text-neutral-600">{k}</span><span className="font-semibold tabular-nums">{v}</span></div>)}
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
 
 
-export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left, vat, services, initialPeriod, initialDetail, initialCat, initialSecond }: Props) {
+export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left, nowMonth, vat, services, initialPeriod, initialDetail, initialCat, initialSecond }: Props) {
   const [period, setPeriod] = useState<CashflowPeriod>(initialPeriod);
   const [exVat, setExVat] = useState(false);
   const [cat, setCat] = useState<Cat>(initialCat ?? "all");
@@ -561,6 +563,16 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   /** Месяц по категориям: выручка выбранного режима НДС, единицы прихода и продажи, остаток, работа подрядчика по ТЗ; траты по категориям не делятся. */
   const clsMonth = (c: "clothes" | "acc" | "other", gi: number) => ({ rev: (exVat ? salesBy[c].revEx : salesBy[c].revIncl)[gi], rec: salesBy[c].recPcs[gi], sale: salesBy[c].salePcs[gi], stock: stockBy[c][gi], work: workBy[c][gi] });
   const due = payDue(left.raw + left.prod, left.advance);
+  /** Виды платежей на плитке «Потрачено»: аванс / доплата / окончательный расчёт / прочее; Σ = главное число. */
+  const spendKinds = useMemo(() => (Object.keys(PAY_TYPE_LABEL) as PayType[]).filter((t) => t !== "OTHER" || spendByType(pays, months, exVat).some((r) => r.type === "OTHER")).map((t) => ({ type: t, short: t === "ADVANCE" ? "Авансы" : t === "PARTIAL" ? "Доплаты" : t === "FINAL" ? "Окончательный расчёт" : "Прочее / без вида", total: spendByType(pays, months, exVat).find((r) => r.type === t)?.total ?? 0 })), [pays, months, exVat]);
+  /** Метрики работы: месяцы от PROJECT_START_MONTH до текущего включительно (в границах периода); по категориям — работа по ТЗ и приход категории. */
+  const wm = useMemo(() => {
+    const idx = workMonthIdx(incl.months, nowMonth, period);
+    const pick = (a: number[]) => idx.map((i) => a[i]);
+    const workAllSeries = incl.articles.find((a) => a.key === "work")?.byMonth ?? incl.months.map(() => 0);
+    const by = { all: { work: pick(workAllSeries), units: pick(salesBy.all.recPcs) }, clothes: { work: pick(workBy.clothes), units: pick(salesBy.clothes.recPcs) }, acc: { work: pick(workBy.acc), units: pick(salesBy.acc.recPcs) } };
+    return { months: idx.map((i) => incl.months[i]), by, st: { all: workWindowStats(by.all.work, by.all.units, [], "all"), clothes: workWindowStats(by.clothes.work, by.clothes.units, [], "all"), acc: workWindowStats(by.acc.work, by.acc.units, [], "all") } };
+  }, [incl, nowMonth, period, salesBy, workBy]);
   const shownText = `${CAT_LABEL[cat]} · ${period === "all" ? "2025–2026" : period} · ${vatNote}`;
   const openFilters = () => { setFOpen(true); document.getElementById("cf-filters")?.scrollIntoView({ block: "start" }); };
   const monthLabel = (mo: string) => `${["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"][Number(mo.slice(5, 7)) - 1]} ${mo.slice(0, 4)}`;
@@ -615,7 +627,8 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const td = "px-2 py-1.5 text-right text-sm tabular-nums whitespace-nowrap";
   const sticky = "sticky left-0 z-[1] text-left";
   const noSalesNote = "Нет данных о продажах: выгрузка поступлений и продаж ещё не загружена.";
-  const money = (v: number) => formatMoney(v);
+  /** Нулевые суммы — прочерк; исключение — результат расчёта «К доплате» (formatMoney напрямую). */
+  const money = (v: number) => (Math.abs(v) < 0.5 ? "—" : formatMoney(v));
 
   return (
     <div className="flex flex-col gap-4">
@@ -658,7 +671,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
       )}
 
       <section aria-label="Ключевые показатели" className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <Tile label="Потрачено" value={money(h.spent)} sub={filtered ? "все траты, не по категории" : `${label}, ${vatNote}`} spark={ser.spend} expandId="spend" openId={openTile} onToggle={toggleTile}
+        <Tile label="Потрачено" value={money(h.spent)} sub={filtered ? "все траты, не по категории" : `${label}, ${vatNote}`} spark={ser.spend} mini={spendKinds.map((r) => [r.short, money(r.total)] as [string, string])} expandId="spend" openId={openTile} onToggle={toggleTile}
           hint={<p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p>} />
         <Tile label="Получено" value={hasSales ? money(h.received) : "—"} sub={hasSales ? `выручка, ${vatNote}` : "нет данных о продажах"} spark={hasSales ? ser.revenue : undefined}
           mini={mini((c) => `${money(m.per[c].h.received)} · ${h.received ? Math.round((m.per[c].h.received / h.received) * 100) : 0} %`)} expandId={hasSales ? "recv" : undefined} openId={openTile} onToggle={toggleTile}
@@ -671,17 +684,19 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
         ) : (
           <Tile label="Чистый поток / накопленный итог" value="—" sub={filtered ? "траты не делятся по категориям" : "нет данных о продажах"} hint={<p>Чистый денежный поток = получено − потрачено; накопленный итог — то же нарастающим итогом. При фильтре по категории траты не делятся, поэтому не считаются.</p>} />
         )}
-        <Tile label="Работа в месяц" mini={mini((c) => (m.per[c].h.workPerMonth === null ? "—" : money(m.per[c].h.workPerMonth)))} value={h.workPerMonth === null ? "—" : money(h.workPerMonth)} spark={ser.work}
-          sub={h.workMonths ? `в среднем за ${h.workMonths} мес. проекта` : undefined} extra={hasSales && h.unitsPerMonth !== null ? `единиц получено: ${pcs(h.unitsReceived)} шт., в среднем ${h.unitsPerMonth.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.` : undefined}
-          expandId="workMonth" openId={openTile} onToggle={toggleTile}
-          hint={<p>Вся работа подрядчику за период ÷ число календарных месяцев от первого месяца с движением (оплата, приход, продажа, отгрузка) до последнего месяца данных включительно: {h.recMonths} мес. Единицы: получено за период ÷ те же месяцы.</p>} />
-        <Tile label="Работа на единицу" mini={mini((c) => (m.per[c].h.workPerUnit === null ? "—" : money(m.per[c].h.workPerUnit)))} value={h.workPerUnit === null ? "—" : money(h.workPerUnit)} sub={hasSales ? `${pcs(h.unitsReceived)} шт. получено` : "нет данных о приходе"}
-          expandId="workUnit" openId={openTile} onToggle={toggleTile}
-          hint={<p>Оплаты «Работа подрядчику» за период ÷ единиц, полученных за период. Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее).</p>} />
+        <Tile label="Работа в месяц" value={wm.st[cat].avgUnits === null ? "—" : `${wm.st[cat].avgUnits!.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.`}
+          sub={wm.st[cat].n ? `средневзвешенно за ${wm.st[cat].n} мес. проекта, получено ${pcs(wm.st[cat].unitsTotal)} шт.` : undefined}
+          mini={[["Одежда", wm.st.clothes.avgUnits ? `${wm.st.clothes.avgUnits.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.` : "—"], ["Аксессуары", wm.st.acc.avgUnits ? `${wm.st.acc.avgUnits.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.` : "—"]]}
+          after={{ label: "Работа в месяц, ₽", value: rubOrDash(wm.st[cat].avgMonth), mini: [["Одежда", rubOrDash(wm.st.clothes.avgMonth)], ["Аксессуары", rubOrDash(wm.st.acc.avgMonth)]] }}
+          expandId="workMonth" onToggle={toggleTile}
+          hint={<p>Штук в месяц = единицы, полученные за период, ÷ число календарных месяцев проекта (общее число единиц, не среднее средних). Работа в месяц = вся работа подрядчику ÷ те же месяцы; по категориям — работа по ТЗ категории и приход категории ÷ N (работа без привязки к ТЗ — только в «Все»). Месяцы: от августа 2025 (первая оплата работы) до текущего включительно, в границах периода: {wm.st[cat].n} мес.; в расчёт входят и месяцы без работы и поставок, текущий месяц неполный.</p>} />
+        <Tile label="Работа на единицу" mini={[["Одежда", rubOrDash(wm.st.clothes.perUnit)], ["Аксессуары", rubOrDash(wm.st.acc.perUnit)]]} value={rubOrDash(wm.st[cat].perUnit)} sub={hasSales ? `${pcs(wm.st[cat].unitsTotal)} шт. получено` : "нет данных о приходе"}
+          expandId="workUnit" onToggle={toggleTile}
+          hint={<p>Вся работа подрядчику за период ÷ все единицы, полученные за период (без привязки к месяцам). Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее).</p>} />
         {hasSales ? <PriceTile lines={saleLines} months={months} exVat={exVat} cat={cat} vatNote={vatNote} onOpen={() => toggleTile("price")} /> : <Tile label="Средняя цена продажи" value="—" sub="нет данных о продажах" />}
         <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3 md:col-span-2">
           <div className="flex items-center gap-1 text-xs text-neutral-600">{DUE_LABEL}<InfoHint label={`Как считается: ${DUE_LABEL}`} wide><p>{DUE_LABEL} = сырьё + работа по заведённым ТЗ − аванс подрядчику, не меньше нуля. Долг до зачёта аванса: {money(due.gross)}.</p><p className="mt-1">{dueHint(money(due.gross), money(left.prod))}</p></InfoHint></div>
-          <div className={"text-lg font-semibold tabular-nums " + (due.net > 0 ? "text-amber-700" : "text-neutral-900")}>{money(due.net)}</div>
+          <div className={"text-lg font-semibold tabular-nums " + (due.net > 0 ? "text-amber-700" : "text-neutral-900")}>{formatMoney(due.net)}</div>
           {due.net <= 0 && due.creditLeft > 0 ? <div className="text-xs text-neutral-600">К доплате 0 ₽, аванс остаётся в зачёте {money(due.creditLeft)}</div> : null}
           <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
             <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Сырьё (Веллмех)</dt><dd className="font-semibold tabular-nums">{money(left.raw)}</dd></div>
@@ -705,8 +720,8 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
               <ExpTable head={["Месяц", "Потрачено", "Получено", "Чистый", "Накопленный"]} rows={months.map((mo, i) => ({ id: mo, cells: [monthLabel(mo), money(ser.spend[i]), money(ser.revenue[i]), money(ser.net[i]), money(ser.cumNet[i])], sub: (["clothes", "acc", "other"] as const).map((c) => [CAT_LABEL[c], "—", money(clsMonth(c, m.keep[i]).rev), "—", "—"]).filter((r) => r[2] !== "—") }))} total={["Итого", money(h.spent), money(h.received), money(h.net), money(m.cumNetEnd)]} />
             </div>
           )}
-          {openTile === "workMonth" && <WorkMonthWindow months={months} work={ser.work} units={s.recPcs} />}
-          {openTile === "workUnit" && <WorkUnitWindow months={months} work={ser.work} units={s.recPcs} cls={{ clothes: { work: m.keep.map((i) => workBy.clothes[i]), units: m.keep.map((i) => salesBy.clothes.recPcs[i]) }, acc: { work: m.keep.map((i) => workBy.acc[i]), units: m.keep.map((i) => salesBy.acc.recPcs[i]) } }} />}
+          {openTile === "workMonth" && <WorkMonthWindow months={wm.months} by={wm.by} initialCat={cat} />}
+          {openTile === "workUnit" && <WorkUnitWindow months={wm.months} by={wm.by} initialCat={cat} />}
           {openTile === "price" && <PriceDetail lines={saleLines} months={months} exVat={exVat} cat={catArg} />}
         </TileModal>
       )}

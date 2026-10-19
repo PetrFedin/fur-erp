@@ -23,6 +23,6 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
   const orderCls = await loadOrderClasses(org);
   const work = workByClass(rows, orderCls, months);
   return (
-    <CashflowView incl={incl} ex={ex} salesBy={salesBy} vat={{ vat: vs.vat, unknown: vs.unknown, total: incl.total + incl.outside }} services={services} initialPeriod={parsePeriod(sp.p)} workBy={work} pays={payLites(rows, vs.share, orderCls)} saleLines={lines.filter((l) => l.kind === "SALE")} left={{ raw: left.raw, prod: left.prod, advance: left.advance }} />
+    <CashflowView incl={incl} ex={ex} salesBy={salesBy} vat={{ vat: vs.vat, unknown: vs.unknown, total: incl.total + incl.outside }} services={services} initialPeriod={parsePeriod(sp.p)} workBy={work} pays={payLites(rows, vs.share, orderCls)} saleLines={lines.filter((l) => l.kind === "SALE")} nowMonth={new Date().toISOString().slice(0, 7)} left={{ raw: left.raw, prod: left.prod, advance: left.advance }} />
   );
 }

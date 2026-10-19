@@ -279,3 +279,10 @@ export function cumWorkPerUnit(work: number[], cumRec: number[], available: bool
   const c = cum(work);
   return c.map((v, i) => (available && cumRec[i] > 0 ? v / cumRec[i] : null));
 }
+
+/** Начало проекта для метрик работы (первая оплата работы подрядчику — август 2025, первый приход — сентябрь 2025). */
+export const PROJECT_START_MONTH = "2025-08";
+/** Индексы месяцев ряда `allMonths` для метрик работы: от начала проекта до текущего календарного месяца включительно (текущий — неполный), внутри выбранного периода. */
+export function workMonthIdx(allMonths: string[], nowMonth: string, period: CashflowPeriod): number[] {
+  return allMonths.map((m, i) => (m >= PROJECT_START_MONTH && m <= nowMonth && (period === "all" || m.startsWith(period)) ? i : -1)).filter((i) => i >= 0);
+}
