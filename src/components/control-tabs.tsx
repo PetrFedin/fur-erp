@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { TABS_NAV, tabCls } from "@/components/section-tabs";
 import { requireSession } from "@/lib/session";
 import { getYearFilter } from "@/lib/year-filter";
 import { loadControlCounts, type ControlCounts } from "@/lib/control-counts";
@@ -11,7 +12,7 @@ const TABS = [
   { key: "tasks", href: "/attention", label: "Задачи", hint: "Что требует действия — единый список" },
   { key: "verify", href: "/verify", label: "Подтвердить", hint: "Подтверждение оплат, закупок, ТЗ и партий" },
   { key: "documents", href: "/documents", label: "Документы", hint: "Каких документов не хватает; расхождения и документы для поиска" },
-  { key: "reconciliation", href: "/reconciliation", label: "Сверка", hint: "Что сходится на 100%, что нет; проверка данных: остатки, стоимости, оплаты, долг" },
+  { key: "reconciliation", href: "/reconciliation", label: "Сверка", hint: "Что сходится на 100 %, что нет; проверка данных: остатки, стоимости, оплаты, долг" },
   { key: "history", href: "/history", label: "История", hint: "Кто, когда и что изменил" },
   { key: "inbox", href: "/inbox", label: "Входящие", hint: "Расчёты и ТЗ, присланные поставщиком: проверить и принять" },
 ] as const;
@@ -37,7 +38,7 @@ function count(key: ControlTab, c: ControlCounts | null, integrity: { n: number;
 function Bar({ active, counts, integrity = null, showInbox = false }: { active: ControlTab; counts: ControlCounts | null; integrity?: { n: number; red: boolean } | null; showInbox?: boolean }) {
   const tabs = TABS.filter((t) => t.key !== "inbox" || showInbox || active === "inbox");
   return (
-    <nav aria-label="Контроль" className="flex items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-neutral-200 pb-2">
+    <nav aria-label="Контроль" className={TABS_NAV}>
       {tabs.map((t) => {
         const c = count(t.key, counts, integrity);
         const on = t.key === active;
@@ -47,10 +48,7 @@ function Bar({ active, counts, integrity = null, showInbox = false }: { active: 
             href={t.href}
             title={t.hint}
             aria-current={on ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 max-md:min-h-9",
-              on ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100",
-            )}
+            className={tabCls(on)}
           >
             {t.label}
             {c && c.n > 0 && (

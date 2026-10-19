@@ -5,6 +5,7 @@ import type { HTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from "react";
 
 /**
  * anchor / label — необязательный идентификатор таблицы для комментариев («table:fur»); без него таблица получает номер автоматически.
+ * stickyFirst — первый столбец закреплён слева при горизонтальной прокрутке.
  * stickyHeader — шапка остаётся на месте, пока длинную таблицу листают (таблица прокручивается внутри своей рамки, до 75% высоты экрана).
  * На любом экране у края видна тень, если справа или слева есть скрытые столбцы (класс scroll-hint).
  */
@@ -13,8 +14,9 @@ export function Table({
   anchor,
   label,
   stickyHeader = false,
+  stickyFirst = false,
   ...props
-}: HTMLAttributes<HTMLTableElement> & { anchor?: string; label?: string; stickyHeader?: boolean }) {
+}: HTMLAttributes<HTMLTableElement> & { anchor?: string; label?: string; stickyHeader?: boolean; /** Первый столбец остаётся на месте при горизонтальной прокрутке (широкие таблицы). */ stickyFirst?: boolean }) {
   return (
     <div
       data-comment-anchor={anchor}
@@ -24,7 +26,7 @@ export function Table({
         stickyHeader ? "max-h-[75vh] overflow-auto [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10" : "overflow-x-auto",
       )}
     >
-      <table className={cn("w-full text-sm", className)} {...props} />
+      <table data-sticky-first={stickyFirst ? "" : undefined} className={cn("w-full text-sm", className)} {...props} />
     </div>
   );
 }

@@ -436,3 +436,21 @@ table thead th { line-height: 1.15; }
 @media (max-width: 1279px) {
   summary { min-height: 44px; }
 }
+
+/* ── Единый вид таблиц (волна 1 унификации, 20.10.2026) ── */
+/* Первый столбец широкой таблицы закреплён слева (Table stickyFirst): фон совпадает со строкой, наведение и итог сохраняются. */
+table[data-sticky-first] > thead > tr > th:first-child,
+table[data-sticky-first] > tbody > tr > td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: #fff;
+  box-shadow: 1px 0 0 var(--color-neutral-200, #e5e5e5);
+}
+table[data-sticky-first] > thead > tr > th:first-child { z-index: 11; background-color: var(--color-neutral-50, #fafafa); }
+table[data-sticky-first] > tbody > tr:hover > td:first-child { background-color: var(--color-neutral-50, #fafafa); }
+table[data-sticky-first] > tbody > tr.row-total > td:first-child { background-color: var(--ui-soft); }
+@media (max-width: 767px) {
+  table[data-sticky-first] > thead > tr > th:first-child,
+  table[data-sticky-first] > tbody > tr > td:first-child { position: static; box-shadow: none; }
+}

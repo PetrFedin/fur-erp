@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SectionTabs } from "@/components/section-tabs";
 
 const TABS = [
   { href: "/analytics/raw", label: "Сырьё" },
@@ -13,24 +13,5 @@ const TABS = [
 /** Вкладки «Сырьё | Изделия | Цены | Маржа» раздела «Аналитика». Активная — по адресу. */
 export function AnalyticsTabs() {
   const path = usePathname();
-  return (
-    <nav aria-label="Разделы аналитики" className="flex gap-1 border-b border-neutral-200 pb-2">
-      {TABS.map((t) => {
-        const active = path === t.href || path.startsWith(`${t.href}/`);
-        return (
-          <Link
-            key={t.href}
-            href={t.href}
-            aria-current={active ? "page" : undefined}
-            className={
-              "rounded-md px-3 py-1.5 text-sm max-md:min-h-9 max-md:inline-flex max-md:items-center " +
-              (active ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")
-            }
-          >
-            {t.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  return <SectionTabs label="Разделы аналитики" items={TABS.map((t) => ({ key: t.href, href: t.href, label: t.label, on: path === t.href || path.startsWith(`${t.href}/`) }))} />;
 }
