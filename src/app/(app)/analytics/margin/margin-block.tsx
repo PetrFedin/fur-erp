@@ -246,7 +246,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
       </div>
 
       <div className="max-h-[75vh] w-full min-w-0 max-w-full overflow-auto rounded-lg border border-neutral-300" tabIndex={0} role="region" aria-label="Маржа: иерархия и меры по группам столбцов">
-        <table className="w-max min-w-full border-collapse">
+        <table className="table-keep w-max min-w-full border-collapse">
           <thead>
             <tr className="border-b border-neutral-300">
               <th scope="col" rowSpan={2} className={th + " sticky left-0 top-0 z-[3] w-12 min-w-12 bg-white text-center"}>Фото</th>

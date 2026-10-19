@@ -780,7 +780,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
 
       {detail && (
         <div className="max-h-[75vh] overflow-auto rounded-lg border border-neutral-300 bg-white" tabIndex={0} role="region" aria-label="Таблица Cashflow: строки — годы и месяцы, столбцы — статьи трат, деньги, единицы">
-          <table className="border-collapse" style={{ tableLayout: "fixed", width: 150 + 104 * (artCols.length + (group === "period" ? 3 : 1)) }} onMouseLeave={clearHot}>
+          <table className="table-keep border-collapse" style={{ tableLayout: "fixed", width: 150 + 104 * (artCols.length + (group === "period" ? 3 : 1)) }} onMouseLeave={clearHot}>
             <colgroup><col style={{ width: 150 }} />{Array.from({ length: artCols.length + (group === "period" ? 3 : 1) }, (_, i) => <col key={i} style={{ width: 104 }} />)}</colgroup>
             <thead>
               <tr className="border-b border-neutral-200">

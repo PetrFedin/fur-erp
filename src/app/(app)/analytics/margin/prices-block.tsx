@@ -25,7 +25,7 @@ export function PricesBlock({ models, canEdit }: { models: PriceModel[]; canEdit
       </h2>
       {models.length === 0 ? <p className="text-sm text-neutral-700">Прайс ещё не загружен.</p> : (
         <div className="max-h-[70vh] w-full min-w-0 max-w-full overflow-auto rounded-lg border border-neutral-300" tabIndex={0} role="region" aria-label="Цены по моделям">
-          <table className="w-max min-w-full border-collapse">
+          <table className="table-keep w-max min-w-full border-collapse">
             <thead>
               <tr className="border-b border-neutral-300">
                 <th scope="col" className={th + " sticky left-0 top-0 z-[2] bg-white text-left"}>Модель / артикул / цвет / размер</th>
