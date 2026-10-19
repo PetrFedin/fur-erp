@@ -1,11 +1,13 @@
 // Детализация плиток Cashflow: чистые функции над теми же рядами, что и сами плитки; итоги деталей равны значению плитки (проверяется тестом).
 import type { CatClass, SalesAggLine } from "@/lib/sales-receipts-core";
 import type { OverviewRow } from "@/lib/payments-overview";
+import { split, type ArticleKey } from "@/lib/cashflow";
 
 export type PayType = "ADVANCE" | "PARTIAL" | "FINAL" | "OTHER";
 export const PAY_TYPE_LABEL: Record<PayType, string> = { ADVANCE: "Аванс", PARTIAL: "Доплата", FINAL: "Окончательный расчёт", OTHER: "Прочее / без вида" };
 /** Платёж для детализации: сумма с НДС и без НДС (по правилу «Без НДС» из cashflow.ts), что оплачено и документ. */
-export type PayLite = { id: string; iso: string; amount: number; ex: number; label: string; doc: string | null; href: string; type: PayType };
+/** art — суммы платежа по статьям (с НДС; без НДС умножаются на ex/amount); tz — для оплат работы: доля работы по ТЗ с категорией ТЗ. */
+export type PayLite = { id: string; iso: string; amount: number; ex: number; label: string; doc: string | null; href: string; type: PayType; art: Partial<Record<ArticleKey, number>>; tz: { label: string; href: string; amount: number; cls: CatClass }[] };
 
 const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
 const inMonths = (iso: string, months: string[]) => months.includes(iso.slice(0, 7));
@@ -61,7 +63,43 @@ export function paybackMonths(cumNetEnd: number, net: number[], n = 3): number |
   return avg > 0.005 ? -cumNetEnd / avg : null;
 }
 
-/** Компактные платежи для клиента: сумма с НДС и без НДС (доля НДС платежа из vatShares). */
-export function payLites(rows: OverviewRow[], share: Map<string, number>): PayLite[] {
-  return rows.map((r) => ({ id: r.id, iso: r.iso, amount: r.amount, ex: r.amount * (1 - (share.get(r.id) ?? 0)), label: r.label, doc: r.doc, href: r.href, type: r.type }));
+/** Компактные платежи для клиента: сумма с НДС и без НДС (доля НДС платежа из vatShares), статьи и ТЗ. */
+export function payLites(rows: OverviewRow[], share: Map<string, number>, orderCls: Map<string, CatClass> = new Map()): PayLite[] {
+  return rows.map((r) => {
+    const art = split(r);
+    const k = r.amount !== 0 ? r.work / r.amount : 0;
+    const tz = r.kind === "prod" ? r.parts.filter((p) => p.href?.startsWith("/production/")).map((p) => ({ label: p.label, href: p.href!, amount: p.amount * k, cls: orderCls.get(p.href!.slice("/production/".length)) ?? ("other" as CatClass) })) : [];
+    return { id: r.id, iso: r.iso, amount: r.amount, ex: r.amount * (1 - (share.get(r.id) ?? 0)), label: r.label, doc: r.doc, href: r.href, type: r.type, art, tz };
+  });
+}
+
+/** Детализация одной статьи трат: по видам платежа (сумма, число), по месяцам, список платежей этой статьи. Итог = значение статьи в таблице. */
+export function spendByArticle(pays: PayLite[], months: string[], ex: boolean, key: ArticleKey) {
+  const list = pays.filter((p) => inMonths(p.iso, months) && (p.art[key] ?? 0) !== 0).map((p) => {
+    const f = ex && p.amount !== 0 ? p.ex / p.amount : 1;
+    return { pay: p, amount: (p.art[key] ?? 0) * f };
+  });
+  const total = sum(list.map((x) => x.amount));
+  const byType = (Object.keys(PAY_TYPE_LABEL) as PayType[]).map((t) => { const l = list.filter((x) => x.pay.type === t); return { type: t, label: PAY_TYPE_LABEL[t], total: sum(l.map((x) => x.amount)), count: l.length }; }).filter((r) => r.count > 0);
+  const byMonth = months.map((m) => ({ month: m, total: sum(list.filter((x) => x.pay.iso.startsWith(m)).map((x) => x.amount)) }));
+  return { total, byType, byMonth, list };
+}
+
+/** Работа по ТЗ (партиям): строки ТЗ с суммой работы и категорией; cls — фильтр категории («all» — все). */
+export function workByTz(pays: PayLite[], months: string[], cls: CatClass | "all") {
+  const by = new Map<string, { label: string; href: string; cls: CatClass; amount: number; count: number }>();
+  const unlinked = { amount: 0, count: 0 };
+  for (const p of pays) {
+    if (!inMonths(p.iso, months) || Math.abs(p.art.work ?? 0) < 0.005) continue;
+    const linked = sum(p.tz.map((t) => t.amount));
+    for (const t of p.tz) {
+      if (cls !== "all" && t.cls !== cls) continue;
+      const e = by.get(t.href) ?? { label: t.label, href: t.href, cls: t.cls, amount: 0, count: 0 };
+      e.amount += t.amount; e.count++; by.set(t.href, e);
+    }
+    const rest = (p.art.work ?? 0) - linked;
+    if (Math.abs(rest) > 0.005 && (cls === "all" || cls === "other")) { unlinked.amount += rest; unlinked.count++; }
+  }
+  const rows = [...by.values()].sort((a, b) => b.amount - a.amount);
+  return { rows, unlinked, total: sum(rows.map((r) => r.amount)) + unlinked.amount };
 }

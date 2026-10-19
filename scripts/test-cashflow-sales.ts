@@ -8,7 +8,7 @@ import { join } from "path";
 import { PrismaClient } from "@prisma/client";
 import { loadPaymentsOverview } from "../src/lib/payments-overview";
 import { aggregateSales, buildCashflow, workByClass, goodsHeadline, headline, monthsOf, seriesOf, sliceData, sliceSales, stockSeries, vatShares, visibleMonths } from "../src/lib/cashflow";
-import { burnRate, flowPoints, groupSales, paybackMonths, payLites, spendByType, topPays } from "../src/lib/cashflow-detail";
+import { burnRate, flowPoints, groupSales, paybackMonths, payLites, spendByArticle, spendByType, topPays, workByTz } from "../src/lib/cashflow-detail";
 import { loadOrderClasses, loadPurchaseVat, loadSalesLines } from "../src/lib/cashflow-server";
 import { modelCodeOfArticle, normCode, parseSheetRow } from "../src/lib/sales-receipts-core";
 
@@ -58,6 +58,16 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   eq("[детали] Σ по статьям = Потрачено", sum(incl.articles.map((a) => a.total)), incl.total);
   ok("[детали] топ-5 платежей отсортированы и не больше 5", topPays(pl, incl.months, false).length <= 5 && topPays(pl, incl.months, false).every((p, i, a) => i === 0 || a[i - 1].amount >= p.amount));
   const s = aggregateSales(lines, months);
+  const plc = payLites(ov, vs.share, await loadOrderClasses(org));
+  for (const a of incl.articles) {
+    const di = spendByArticle(plc, incl.months, false, a.key), de = spendByArticle(plc, ex.months, true, a.key);
+    eq(`[статья] ${a.key}: итог по платежам = в таблице (с НДС)`, di.total, a.total, 0.05);
+    eq(`[статья] ${a.key}: Σ по видам = итог`, sum(di.byType.map((t) => t.total)), di.total, 0.01);
+    eq(`[статья] ${a.key}: Σ по месяцам = итог`, sum(di.byMonth.map((t) => t.total)), di.total, 0.01);
+    eq(`[статья] ${a.key}: итог по платежам = в таблице (без НДС)`, de.total, ex.articles.find((x) => x.key === a.key)?.total ?? 0, 0.05);
+  }
+  eq("[работа] Σ ТЗ + неразнесённое = работа в таблице", workByTz(plc, incl.months, "all").total, incl.articles.find((a) => a.key === "work")?.total ?? 0, 0.05);
+  eq("[работа] одежда+аксессуары+прочее = всё", workByTz(plc, incl.months, "clothes").total + workByTz(plc, incl.months, "acc").total + workByTz(plc, incl.months, "other").total, workByTz(plc, incl.months, "all").total, 0.05);
   const saleOnly = lines.filter((l) => l.kind === "SALE");
   for (const [cat, f] of [["all", s], ["clothes", aggregateSales(lines, months, "clothes")], ["acc", aggregateSales(lines, months, "acc")]] as const) {
     eq(`[детали] Σ выручки по сезонам = Получено (${cat}, с НДС)`, sum(groupSales(saleOnly, months, false, (l) => l.season, cat).map((g) => g.rev)), sum(f.revIncl), 0.01);

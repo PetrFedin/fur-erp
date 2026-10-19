@@ -6,7 +6,8 @@ import { formatMoney } from "@/lib/utils";
 import { toCsv } from "@/lib/csv";
 import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
-import { burnRate, flowPoints, groupSales, paybackMonths, spendByType, topPays, type PayLite } from "@/lib/cashflow-detail";
+import { MiniTable, RecvDetail, SpendDetail, WorkDetail } from "./drill";
+import { burnRate, flowPoints, groupSales, paybackMonths, type PayLite } from "@/lib/cashflow-detail";
 import type { SalesAggLine } from "@/lib/sales-receipts-core";
 import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly } from "@/lib/cashflow";
 
@@ -285,19 +286,6 @@ function TileModal({ title, subtitle, onClose, children }: { title: string; subt
   );
 }
 
-function MiniTable({ head, rows, total }: { head: string[]; rows: React.ReactNode[][]; total?: React.ReactNode[] }) {
-  return (
-    <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0}>
-      <table className="w-full border-collapse text-sm">
-        <thead><tr className="border-b border-neutral-300">{head.map((h, i) => <th key={h} scope="col" className={"px-2 py-2 text-xs font-semibold " + (i === 0 ? "text-left" : "text-right")}>{h}</th>)}</tr></thead>
-        <tbody>
-          {rows.map((r, ri) => <tr key={ri} className="border-b border-neutral-200">{r.map((c, i) => <td key={i} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "text-left" : "text-right whitespace-nowrap")}>{c}</td>)}</tr>)}
-          {total ? <tr className="border-t-2 border-neutral-400 font-semibold">{total.map((c, i) => <td key={i} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "text-left" : "text-right whitespace-nowrap")}>{c}</td>)}</tr> : null}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 const sum0w = (keep: number[], a: number[]) => keep.reduce((t, i) => t + a[i], 0);
 
@@ -381,12 +369,10 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const catArg = cat === "all" ? "all" : cat;
   const recvBySeason = useMemo(() => groupSales(saleLines, months, exVat, (l) => l.season, catArg), [saleLines, months, exVat, catArg]);
   const recvByCls = useMemo(() => groupSales(saleLines, months, exVat, (l) => CAT_LABEL[l.cls], catArg), [saleLines, months, exVat, catArg]);
-  const recvByMonth = useMemo(() => groupSales(saleLines, months, exVat, (l) => l.iso.slice(0, 7), catArg), [saleLines, months, exVat, catArg]);
   const recvByArticle = useMemo(() => groupSales(saleLines, months, exVat, (l) => l.article, catArg), [saleLines, months, exVat, catArg]);
   const fp = useMemo(() => flowPoints(months, ser.net, ser.cumNet), [months, ser]);
   const burn = burnRate(ser.spend, 3);
   const payback = paybackMonths(m.cumNetEnd, ser.net, 3);
-  const workCls = { clothes: sum0w(m.keep, workBy.clothes), acc: sum0w(m.keep, workBy.acc), other: sum0w(m.keep, workBy.other) };
   const sum0 = (a: number[]) => a.reduce((x, y) => x + y, 0);
   const workTotalAll = sum0(workBy.clothes) + sum0(workBy.acc) + sum0(workBy.other);
   const workClassified = sum0(workBy.clothes) + sum0(workBy.acc);
@@ -519,24 +505,8 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
 
       {openTile && (
         <TileModal title={{ spend: "Потрачено", recv: "Получено", flow: "Денежный поток по месяцам", work: "Работа подрядчика", price: "Средняя цена продажи" }[openTile] ?? ""} subtitle={shownText} onClose={() => setOpenTile(null)}>
-          {openTile === "spend" && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <MiniTable head={["Статья", "Сумма"]} rows={d.articles.map((a) => [a.label, money(a.total)])} total={["Итого", money(h.spent)]} />
-              <MiniTable head={["Вид платежа", "Сумма"]} rows={spendByType(pays, months, exVat).map((r) => [r.label, money(r.total)])} total={["Итого", money(h.spent)]} />
-              <div className="md:col-span-2">
-                <p className="mb-1 text-xs font-semibold">Пять крупнейших платежей</p>
-                <MiniTable head={["Дата", "За что", "Документ", "Сумма"]} rows={topPays(pays, months, exVat).map((p) => [p.iso.split("-").reverse().join("."), <Link key={p.id} href={p.href} className="underline">{p.label}</Link>, p.doc ?? "—", money(exVat ? p.ex : p.amount)])} />
-              </div>
-            </div>
-          )}
-          {openTile === "recv" && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <MiniTable head={["Сезон", "шт.", "Выручка"]} rows={recvBySeason.map((g) => [g.key, String(g.pcs), money(g.rev)])} total={["Итого", String(recvBySeason.reduce((a, g) => a + g.pcs, 0)), money(h.received)]} />
-              <MiniTable head={["Категория", "шт.", "Выручка"]} rows={recvByCls.map((g) => [g.key, String(g.pcs), money(g.rev)])} total={["Итого", String(recvByCls.reduce((a, g) => a + g.pcs, 0)), money(h.received)]} />
-              <MiniTable head={["Топ-5 месяцев", "шт.", "Выручка"]} rows={recvByMonth.slice(0, 5).map((g) => [monthLabel(g.key), String(g.pcs), money(g.rev)])} />
-              <MiniTable head={["Топ-5 артикулов", "шт.", "Выручка"]} rows={recvByArticle.slice(0, 5).map((g) => [g.key, String(g.pcs), money(g.rev)])} />
-            </div>
-          )}
+          {openTile === "spend" && <SpendDetail pays={pays} months={months} exVat={exVat} d={d} total={h.spent} />}
+          {openTile === "recv" && <RecvDetail lines={saleLines} months={months} exVat={exVat} cat={catArg} total={h.received} />}
           {openTile === "flow" && (
             <div className="flex flex-col gap-3">
               <p className="text-xs text-neutral-800">
@@ -546,12 +516,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
               <MiniTable head={["Месяц", "Потрачено", "Получено", "Чистый", "Накопленный"]} rows={months.map((mo, i) => [monthLabel(mo), money(ser.spend[i]), money(ser.revenue[i]), money(ser.net[i]), money(ser.cumNet[i])])} total={["Итого", money(h.spent), money(h.received), money(h.net), money(m.cumNetEnd)]} />
             </div>
           )}
-          {openTile === "work" && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <MiniTable head={["Месяц оплат", "Работа", "шт. получено", "₽ / шт."]} rows={months.map((mo, i) => [mo, i] as const).filter(([, i]) => Math.abs(ser.work[i]) > 0.005).map(([mo, i]) => [monthLabel(mo), money(ser.work[i]), String(s.recPcs[i]), s.recPcs[i] > 0 ? money(ser.work[i] / s.recPcs[i]) : "—"])} total={["Итого", money(h.workTotal), String(h.unitsReceived), h.workPerUnit === null ? "—" : money(h.workPerUnit)]} />
-              <MiniTable head={["Категория (по ТЗ → модель)", "Работа"]} rows={[["Одежда", money(workCls.clothes)], ["Аксессуары", money(workCls.acc)], ["Прочее / без привязки к ТЗ", money(workCls.other)]]} total={["Итого", money(workCls.clothes + workCls.acc + workCls.other)]} />
-            </div>
-          )}
+          {openTile === "work" && <WorkDetail pays={pays} months={months} d={d} units={s.recPcs} />}
           {openTile === "price" && (
             <div className="grid gap-4 md:grid-cols-2">
               <MiniTable head={["Сезон", "шт.", "Средняя цена"]} rows={recvBySeason.map((g) => [g.key, String(g.pcs), g.pcs > 0 ? money(g.rev / g.pcs) : "—"])} total={["Итого", String(recvBySeason.reduce((a, g) => a + g.pcs, 0)), h.avgPrice === null ? "—" : money(h.avgPrice)]} />

@@ -41,7 +41,7 @@ export function monthsOf(period: CashflowPeriod): string[] {
 }
 
 /** Статья строки: у сырья мех (аукцион / закупка) / подкладка / услуги, у производства — работа и шкуры (в OverviewRow шкуры лежат в поле fur). */
-function split(r: OverviewRow): Record<ArticleKey, number> {
+export function split(r: OverviewRow): Record<ArticleKey, number> {
   const z = { furAuction: 0, furPurchase: 0, lining: 0, services: 0, work: 0, hides: 0 };
   if (r.kind === "raw") return { ...z, [r.edit === "auction" ? "furAuction" : "furPurchase"]: r.fur, lining: r.lining, services: r.services };
   return { ...z, work: r.work, hides: r.hides };
