@@ -7,7 +7,7 @@ import { toCsv } from "@/lib/csv";
 import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
 import { DUE_LABEL, dueHint, payDue } from "@/lib/pay-display";
-import { CategoryTable, ExpTable, MiniTable, PriceDetail, RecvDetail, SpendDetail } from "./drill";
+import { ExpTable, MiniTable, PriceDetail, RecvDetail, SpendDetail } from "./drill";
 import { PROJECT_START_MONTH, workMonthIdx } from "@/lib/cashflow";
 import { PAY_TYPE_LABEL, spendByType, type PayType, flowPoints, workWindowStats, groupSales, type PayLite } from "@/lib/cashflow-detail";
 import type { SalesAggLine } from "@/lib/sales-receipts-core";
@@ -758,10 +758,10 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
         {detail && group === "category" && <button type="button" onClick={() => { const ids = d.articles.flatMap((a) => [`a:${a.key}`, ...years.map((y) => `y:${a.key}:${y}`)]); setCatOpen(catOpen.length < ids.length ? ids : []); }} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs">{catOpen.length < d.articles.length * (1 + years.length) ? "Развернуть все" : "Свернуть все"}</button>}
       </div>
 
-      {detail && group === "category" && <CategoryTable d={d} open={catOpen} setOpen={setCatOpen} />}
-      {detail && group === "period" && (
+      {detail && (
         <div className="max-h-[75vh] overflow-auto rounded-lg border border-neutral-300 bg-white" tabIndex={0} role="region" aria-label="Таблица Cashflow: строки — годы и месяцы, столбцы — статьи трат, деньги, единицы">
-          <table className="w-full border-collapse" onMouseLeave={clearHot}>
+          <table className="border-collapse" style={{ tableLayout: "fixed", width: 150 + 104 * (artCols.length + 11) }} onMouseLeave={clearHot}>
+            <colgroup><col style={{ width: 150 }} />{Array.from({ length: artCols.length + 11 }, (_, i) => <col key={i} style={{ width: 104 }} />)}</colgroup>
             <thead>
               <tr className="border-b border-neutral-200">
                 <th scope="col" rowSpan={2} className={th.replace("text-right", "text-left") + " " + sticky + " top-0 z-[2] min-w-[8rem] bg-white"}>Период</th>
@@ -789,12 +789,50 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
                 <th scope="col" rowSpan={2} className={th}>Работа на единицу</th>
               </tr>
               <tr className="border-b border-neutral-300">
-                {artCols.map((c) => <th key={c.id} scope="col" className={th + " font-normal text-neutral-600 " + (c.strong ? "font-semibold" : "")}>{c.sub}</th>)}
+                {artCols.map((c) => <th key={c.id} scope="col" className={th.replace("whitespace-nowrap", "whitespace-normal") + " font-normal text-neutral-600 " + (c.strong ? "font-semibold" : "")}>{c.sub}</th>)}
                 <th scope="col" className={th + " border-l border-neutral-300 font-normal text-neutral-600"}>потрачено</th>
                 <th scope="col" className={th + " font-normal text-neutral-600"}>получено</th>
                 <th scope="col" className={th + " font-normal text-neutral-600"}>чистый</th>
               </tr>
             </thead>
+            {group === "category" ? (
+            <tbody>
+              {d.articles.map((a) => {
+                const aid = "a:" + a.key, aOpen = catOpen.includes(aid);
+                const mk = (idx: number[]): Row => ({ id: "x", label: "", kind: "month", idx });
+                const cellsFor = (idx: number[], first: React.ReactNode, cls2: string, bg2: string, key: string) => (
+                  <tr key={key} className={cls2}>
+                    <th scope="row" className={"px-2 py-1 text-sm " + sticky + " " + bg2}>{first}</th>
+                    {artCols.map((c) => <td key={c.id} className={td + (c.strong ? " font-semibold" : "")}>{c.art === a.key ? dash(c.get(mk(idx))) : "—"}</td>)}
+                    <td className={td + " border-l border-neutral-300 font-semibold"}>{dash(sum(mk(idx), (i) => a.byMonth[i]))}</td>
+                    {Array.from({ length: 10 }, (_, k) => <td key={k} className={td + (k === 2 || k === 5 || k === 8 ? " border-l border-neutral-300" : "")} title="Не делится по статьям">—</td>)}
+                  </tr>
+                );
+                const allIdx = months.map((_, i) => i);
+                return (
+                  <Fragment key={a.key}>
+                    {cellsFor(allIdx, <button type="button" aria-expanded={aOpen} aria-label={`${aOpen ? "Свернуть" : "Развернуть"}: ${a.label}`} onClick={() => setCatOpen(aOpen ? catOpen.filter((x) => x !== aid) : [...catOpen, aid])} className="inline-flex min-h-11 items-center gap-1.5 text-left font-semibold"><span aria-hidden>{aOpen ? "▾" : "▸"}</span><span title={a.label}>{SHORT[a.key] ?? a.label}</span></button>, "border-b border-neutral-300 bg-neutral-100 font-semibold", "bg-neutral-100", aid)}
+                    {aOpen && years.map((y) => {
+                      const yid = `y:${a.key}:${y}`, yOpen = catOpen.includes(yid);
+                      const yidx = months.map((mo, i) => (mo.startsWith(y) ? i : -1)).filter((i) => i >= 0);
+                      return (
+                        <Fragment key={yid}>
+                          {cellsFor(yidx, <button type="button" aria-expanded={yOpen} aria-label={`${yOpen ? "Свернуть" : "Развернуть"}: ${a.label} ${y}`} onClick={() => setCatOpen(yOpen ? catOpen.filter((x) => x !== yid) : [...catOpen, yid])} className="inline-flex min-h-11 items-center gap-1.5 pl-3 text-left font-medium"><span aria-hidden>{yOpen ? "▾" : "▸"}</span>{y}</button>, "border-b border-neutral-200", "bg-white", yid)}
+                          {yOpen && yidx.filter((i) => Math.abs(a.byMonth[i]) > 0.005).map((i) => cellsFor([i], <span className="pl-9 font-normal">{full(months[i])}</span>, "border-b border-neutral-100 text-sm", "bg-white", yid + i))}
+                        </Fragment>
+                      );
+                    })}
+                  </Fragment>
+                );
+              })}
+              <tr className="row-total border-t-2 border-neutral-400 font-bold">
+                <th scope="row" className={"px-2 py-1.5 text-sm " + sticky + " bg-white"}>Итого</th>
+                {artCols.map((c) => <td key={c.id} className={td + (c.strong ? " font-semibold" : "")}>{dash(c.get({ id: "all", label: "", kind: "total", idx: months.map((_, i) => i) }))}</td>)}
+                <td className={td + " border-l border-neutral-300 font-semibold"}>{dash(sum({ id: "all", label: "", kind: "total", idx: months.map((_, i) => i) }, (i) => ser.spend[i]))}</td>
+                {Array.from({ length: 10 }, (_, k) => <td key={k} className={td}>—</td>)}
+              </tr>
+            </tbody>
+            ) : (
             <tbody>
               {rows.filter((r) => r.kind !== "month" || open.includes(r.id.slice(0, 4))).map((r) => {
                 const cls = r.kind === "month" ? "border-b border-neutral-200" : r.kind === "year" ? "border-b border-neutral-300 bg-neutral-100 font-semibold" : "row-total border-t-2 border-neutral-400 font-bold";
@@ -852,6 +890,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
                 );
               })}
             </tbody>
+            )}
           </table>
         </div>
       )}
