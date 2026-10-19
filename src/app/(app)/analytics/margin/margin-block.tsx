@@ -5,7 +5,7 @@ import { formatMoney } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
 import { buildMargin, deserializeInput, type MarginInputS } from "@/lib/margin";
-import { buildTree, CUT_ORDER, makeCtx, metricsOf, seasonsOf, sizeAgg, type Cut, type Metrics, type MetricKey, type ReportSizeRow, type TreeNode } from "@/lib/margin-tree";
+import { buildTree, CUT_ORDER, makeCtx, metricsOf, sellNote, seasonsOf, sizeAgg, type Cut, type Metrics, type MetricKey, type ReportSizeRow, type TreeNode } from "@/lib/margin-tree";
 
 type Cat = "all" | "clothes" | "acc";
 type PhotoIdx = Record<string, { modelId: string; photos: { id: string; variant: string; color?: string; itemId?: string }[] }>;
@@ -26,7 +26,7 @@ type Row = { key: MetricKey | "soldRec"; label: string; hint?: React.ReactNode; 
 const ROWS: Row[] = [
   { key: "revenueEx", label: "Выручка без НДС", fmt: (m) => money(m.revenueEx), val: (m) => m.revenueEx },
   { key: "soldRec", label: "Продано / получено, шт.", fmt: (m) => `${m.sold} / ${m.received}`, val: () => null },
-  { key: "sellThrough", label: "Sell-through", hint: <p>Продано ÷ получено единиц (по заказам сезона; в «Тотал» — за всё время).</p>, fmt: (m) => pc(share(m.sellThrough)), val: (m) => share(m.sellThrough), goodUp: true, trend: true },
+  { key: "sellThrough", label: "Sell-through", hint: <><p>Sell-through = продано ÷ получено, единицы. Продано — чистые продажи (возвраты минус) по заказам сезона, получено — поступления по тем же заказам; в «Тотал» — за всё время. Без обрезки до 100%; если получено 0 — «—».</p><p className="mt-1">«*» — продано больше получено: продажи включают остатки других поступлений. «†» — получено меньше 10 шт., процент неустойчив. Для проверки: всего продано 232, получено 617, остаток 385 (по отчёту о товарах 379).</p></>, fmt: (m) => `${m.received > 0 ? pc(share(m.sellThrough)) : "—"}${sellNote(m) === "over" ? "*" : sellNote(m) === "small" ? "†" : ""}`, val: (m) => share(m.sellThrough), goodUp: true, trend: true },
   { key: "avgPrice", label: "Средняя цена продажи", hint: <p>Выручка с НДС ÷ проданные единицы (возвраты минус).</p>, fmt: (m) => money(m.avgPrice), val: () => null },
   { key: "discountVsRetail", label: "Скидка от текущей розницы", hint: <p>1 − выручка с НДС ÷ (штуки × текущая розница из прайса) по проданным позициям, у которых цена нашлась.</p>, fmt: (m) => pc(share(m.discountVsRetail), 1), val: (m) => share(m.discountVsRetail), goodUp: false, trend: true },
   { key: "grossProfit", label: "Валовая прибыль", hint: <p>Выручка без НДС − себестоимость проданных единиц без НДС (себестоимость модели из ТЗ с работой × проданные штуки).</p>, fmt: (m) => money(m.grossProfit), val: () => null },
@@ -34,7 +34,7 @@ const ROWS: Row[] = [
   { key: "gpOfRetail", label: "Прибыль / розница", hint: <p>Валовая прибыль ÷ розничная стоимость проданного без НДС (штуки × текущая розница ÷ 1,22), по позициям с ценой и себестоимостью.</p>, fmt: (m) => pc(share(m.gpOfRetail), 1), val: (m) => share(m.gpOfRetail), goodUp: true, trend: true },
   { key: "markupW", label: "Маркап прихода", hint: <p>Средневзвешенный по единицам прихода: Σ(розница × шт.) ÷ Σ(себестоимость с НДС × шт.). Розница — текущий прайс, себестоимость — из ТЗ.</p>, fmt: (m) => x2(m.markupW), val: (m) => m.markupW, goodUp: true, trend: true },
 ];
-const cellOf = (k: MetricKey, m: Metrics) => (k === "sold" ? String(m.sold) : ROWS.find((r) => r.key === k)!.fmt(m));
+const cellOf = (k: MetricKey, m: Metrics) => (k === "sold" ? String(m.sold) : k === "sellThrough" ? (m.received > 0 ? pc(share(m.sellThrough)) : "—") : ROWS.find((r) => r.key === k)!.fmt(m));
 
 function Tile({ label, value, sub, hint }: { label: string; value: string; sub?: string; hint: React.ReactNode }) {
   return (
@@ -107,7 +107,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos }: { in
               <span className="min-w-0 break-words">{n.label}</span>
             </span>
           </th>
-          {n.cols.map((m, i) => <td key={i} className={td}>{m.sold === 0 && m.received === 0 ? "—" : cellOf(metric, m)}</td>)}
+          {n.cols.map((m, i) => <td key={i} className={td}>{m.sold === 0 && m.received === 0 ? "—" : cellOf(metric, m) + (metric === "sellThrough" ? (sellNote(m) === "over" ? "*" : sellNote(m) === "small" ? "†" : "") : "")}</td>)}
         </tr>
         {isOpen && n.children.map((c) => renderNode(c, depth + 1))}
       </Fragment>
@@ -159,6 +159,8 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos }: { in
           </table>
         </div>
       )}
+
+      {cut === "seasons" && <p className="text-xs text-neutral-700">* продано больше получено: продажи включают остатки других поступлений. † получено меньше 10 шт., процент неустойчив.</p>}
 
       {cut !== "seasons" && cut !== "size" && (
         <>

@@ -5,7 +5,7 @@ import "./stubs/server-only-shim";
 import { PrismaClient } from "@prisma/client";
 import { loadMarginInput } from "../src/lib/margin-server";
 import { buildMargin, priceIndex, RETAIL_VAT_PCT } from "../src/lib/margin";
-import { buildTree, CUT_ORDER, makeCtx, metricsOf, seasonsOf, sizeAgg, type TreeNode } from "../src/lib/margin-tree";
+import { monthlyBySeason, sellNote, buildTree, CUT_ORDER, makeCtx, metricsOf, seasonsOf, sizeAgg, type TreeNode } from "../src/lib/margin-tree";
 import { loadReportSizes } from "../src/lib/margin-server";
 
 const prisma = new PrismaClient();
@@ -50,6 +50,20 @@ const pct = (v: number | null, d = 1) => (v === null ? "нет данных" : v
       seasons.forEach((sn, i) => { eq(`дерево ${cat}/${cut}: ${sn} выручка = таблица сезонов`, sum(tree.map((n) => n.cols[i + 1].revenueEx)), mm.seasons.find((x) => x.season === sn)!.revenueEx, 0.01); });
     }
   }
+  // Розница по месяцам: итог сезона = сумма месяцев; Σ сезонов = Σ продаж; sell-through без обрезки.
+  for (const cat of ["all", "clothes", "acc"] as const) {
+    const lines = cat === "all" ? inp.lines : inp.lines.filter((l) => l.cls === cat);
+    const mb = monthlyBySeason(ctx, lines, seasonsOf(lines));
+    for (const r of mb) for (const k of ["sold", "revenueEx", "revenueIncl"] as const) eq(`розница ${cat}/${r.season}: ${k} = Σ месяцев`, sum(r.months.map((x) => x.m[k])), r.total[k], 0.01);
+    eq(`розница ${cat}: Σ сезонов (шт.) = Σ продаж`, sum(mb.map((r) => r.total.sold)), tot(lines, "pcs", "SALE"), 0);
+    for (const sn of seasonsOf(lines)) {
+      const mt = metricsOf(ctx, lines.filter((l) => l.season === sn));
+      if (mt.received > 0) eq(`sell-through ${cat}/${sn} = продано/получено без обрезки`, mt.sellThrough, mt.sold / mt.received);
+      else eq(`sell-through ${cat}/${sn}: получено 0 → нет значения`, mt.sellThrough, null);
+      void sellNote;
+    }
+  }
+  if (Math.abs(tot(inp.lines, "pcs", "RECEIPT") - 617) < 0.5) { eq("продано = 232", tot(inp.lines, "pcs", "SALE"), 232, 0); eq("остаток = 385", tot(inp.lines, "pcs", "RECEIPT") - tot(inp.lines, "pcs", "SALE"), 385, 0); }
   // Размеры из отчёта о товарах (если загружены): Σ = итоги отчёта.
   const szRows = await loadReportSizes(org);
   if (szRows.length) {

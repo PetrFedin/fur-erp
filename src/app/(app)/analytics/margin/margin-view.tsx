@@ -7,6 +7,7 @@ import { CAT_LABEL } from "@/lib/sales-receipts-core";
 import type { MarginInputS } from "@/lib/margin";
 import type { ReportSizeRow } from "@/lib/margin-tree";
 import { MarginBlock } from "./margin-block";
+import { RetailMonthly } from "./retail-monthly";
 import { PricesBlock, type PriceModel } from "./prices-block";
 
 type Cat = "all" | "clothes" | "acc";
@@ -33,6 +34,7 @@ export function MarginView({ input, sizes, photos, priceModels, canEdit, initial
         </div>
       </div>
       <MarginBlock input={input} cat={cat} shown={CAT_LABEL[cat]} onChange={() => document.getElementById("margin-filters")?.scrollIntoView({ block: "start" })} sizes={sizes} photos={photos} />
+      <RetailMonthly input={input} cat={cat} shown={CAT_LABEL[cat]} />
       <PricesBlock models={priceModels} canEdit={canEdit} />
     </div>
   );

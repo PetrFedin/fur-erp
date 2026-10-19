@@ -117,3 +117,21 @@ export function sizeAgg(rows: ReportSizeRow[], keep: (r: ReportSizeRow) => boole
 }
 
 export type { RetailRow };
+
+/** Розница по месяцам продаж внутри сезонов: итог сезона = сумма месяцев (штуки, выручка). Месяц — по дате строки выгрузки. */
+export type MonthRow = { month: string; m: Metrics };
+export type SeasonMonths = { season: string; total: Metrics; months: MonthRow[] };
+export function monthlyBySeason(ctx: Ctx, lines: FullLine[], seasons: string[]): SeasonMonths[] {
+  return seasons.map((season) => {
+    const sl = lines.filter((l) => l.season === season);
+    const months = [...new Set(sl.filter((l) => l.kind === "SALE").map((l) => l.iso.slice(0, 7)))].sort();
+    return { season, total: metricsOf(ctx, sl.filter((l) => l.kind === "SALE")), months: months.map((month) => ({ month, m: metricsOf(ctx, sl.filter((l) => l.kind === "SALE" && l.iso.startsWith(month))) })) };
+  });
+}
+
+/** Sell-through сезона = продано ÷ получено единиц по заказам этого сезона (без обрезки до 100%). Пометки: «over» — продано больше получено (продажи включают остатки других поступлений), «small» — получено меньше 10 шт. */
+export function sellNote(m: { sold: number; received: number }): "over" | "small" | null {
+  if (m.received <= 0) return null;
+  if (m.sold > m.received) return "over";
+  return m.received < 10 ? "small" : null;
+}
