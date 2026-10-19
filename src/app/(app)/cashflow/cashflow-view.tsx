@@ -423,10 +423,10 @@ function TileModal({ title, subtitle, onClose, children }: { title: string; subt
 }
 
 
-type Page = { label: string; value: string; sub?: string; tone?: "bad" | "good"; spark?: number[]; sparkKind?: "line" | "bars" | "area"; hint?: React.ReactNode };
+type Page = { label: string; value: string; sub?: string; tone?: "bad" | "good"; spark?: number[]; sparkKind?: "line" | "bars" | "area"; hint?: React.ReactNode; /** Строки «подпись — значение» под значением (например деньги после количеств). */ rows?: [string, string][]; /** Подпись ряда под строками. */ foot?: string };
 
 /** Плитка-карусель: страницы листаются горизонтальным скроллом/свайпом (scroll-snap), стрелками ‹ › и точками (≥44px), клавишами ← →; клик по странице или «Подробнее» открывает окно. */
-function CarouselTile({ pages, onOpen }: { pages: Page[]; onOpen: () => void }) {
+function CarouselTile({ pages, onOpen, label = "Чистый поток и накопленный итог", initial = 0, controls }: { pages: Page[]; onOpen: (page: number) => void; label?: string; /** Страница по умолчанию (например по общему фильтру категории); меняется — карусель переходит на неё. */ initial?: number; controls?: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [i, setI] = useState(0);
   const go = (n: number) => {
@@ -437,18 +437,28 @@ function CarouselTile({ pages, onOpen }: { pages: Page[]; onOpen: () => void }) 
     el.scrollTo({ left: k * el.clientWidth, behavior: reduce ? "auto" : "smooth" });
     setI(k);
   };
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.scrollTo({ left: initial * el.clientWidth, behavior: "auto" });
+  }, [initial]);
   const btn = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100";
   return (
-    <div role="group" aria-roledescription="carousel" aria-label="Чистый поток и накопленный итог" className="tile-click relative flex min-w-0 flex-col rounded-lg border border-neutral-300 bg-white">
+    <div role="group" aria-roledescription="carousel" aria-label={label} className="tile-click relative flex min-w-0 flex-col rounded-lg border border-neutral-300 bg-white">
+      {controls ? <div className="relative px-3 pt-2">{controls}</div> : null}
       <div ref={ref} tabIndex={0} onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); go(i + 1); } else if (e.key === "ArrowLeft") { e.preventDefault(); go(i - 1); } }}
         onScroll={(e) => { const el = e.currentTarget; setI(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))); }}
         className="flex snap-x snap-mandatory overflow-x-auto motion-safe:scroll-smooth [scrollbar-width:none]" data-keep-scroll>
         {pages.map((p, k) => (
-          <div key={p.label} role="group" aria-roledescription="slide" aria-label={`${k + 1} из ${pages.length}: ${p.label}`} onClick={onOpen} className="flex w-full shrink-0 cursor-pointer snap-start flex-col gap-0.5 p-3">
+          <div key={p.label} role="group" aria-roledescription="slide" aria-label={`${k + 1} из ${pages.length}: ${p.label}`} onClick={() => onOpen(k)} className="flex w-full shrink-0 cursor-pointer snap-start flex-col gap-0.5 p-3">
             <div className="flex items-center gap-1 text-xs text-neutral-600">{p.label}{p.hint ? <span onClick={(e) => e.stopPropagation()}><InfoHint label={`Как считается: ${p.label}`} wide>{p.hint}</InfoHint></span> : null}</div>
             <div className={"text-lg font-semibold tabular-nums " + (p.tone === "bad" ? "text-[#b4310b]" : p.tone === "good" ? "text-[#17613c]" : "text-neutral-900")}>{p.value}</div>
             {p.sub ? <div className="text-xs text-neutral-600">{p.sub}</div> : null}
             {p.spark ? <Spark values={p.spark} kind={p.sparkKind} /> : null}
+            {p.rows?.length ? (
+              <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
+                {p.rows.map(([k2, v2]) => <div key={k2} className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{k2}</dt><dd className="font-semibold tabular-nums text-neutral-900">{v2}</dd></div>)}
+              </dl>
+            ) : null}
           </div>
         ))}
       </div>
@@ -473,18 +483,6 @@ function VatSeg({ choice, setChoice, globalEx }: { choice: VatChoice; setChoice:
       <button type="button" aria-pressed={!ex} onClick={() => setChoice("in")} className={seg(!ex)}>С НДС</button>
       <button type="button" aria-pressed={ex} onClick={() => setChoice("ex")} className={seg(ex)}>Без НДС</button>
     </div>
-  );
-}
-
-/** «Средняя цена продажи»: компактная плитка (значение за период, штуки, одна пара мини-строк); сезоны и детали — в окне по клику. */
-function PriceTile({ lines, months, exVat, cat, onOpen, controls }: { lines: SalesAggLine[]; months: string[]; exVat: boolean; cat: "all" | "clothes" | "acc"; onOpen: () => void; controls: React.ReactNode }) {
-  const vatNote = exVat ? "без НДС" : "с НДС";
-  const agg = (c: "all" | "clothes" | "acc") => { const g = groupSales(lines, months, exVat, () => "x", c)[0]; return g && g.pcs > 0 ? { v: g.rev / g.pcs, pcs: g.pcs } : null; };
-  const main = agg(cat), cl = agg("clothes"), ac = agg("acc");
-  const fmt = (x: { v: number; pcs: number } | null) => (x ? formatMoney(x.v) : "—");
-  return (
-    <Tile label="Средняя цена продажи" controls={controls} value={fmt(main)} sub={main ? `${pcs(main.pcs)} шт. продано, ${vatNote}` : "нет продаж"} mini={[["Одежда", fmt(cl)], ["Аксессуары", fmt(ac)]]}
-      expandId="price" openId="" onToggle={() => onOpen()} hint={<p>Выручка ({vatNote}) ÷ проданные единицы (возвраты минус) за выбранный период и категорию. Сезоны и детализация — в окне по клику.</p>} />
   );
 }
 
@@ -590,6 +588,10 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const recvEx = recvChoice === "global" ? exVat : recvChoice === "ex";
   const priceEx = priceChoice === "global" ? exVat : priceChoice === "ex";
   const recvSum = (c: "all" | "clothes" | "acc") => m.keep.reduce((t, i) => t + (recvEx ? salesBy[c].revEx[i] : salesBy[c].revIncl[i]), 0);
+  const catPages = ["all", "clothes", "acc"] as const;
+  const pageOf = { all: 0, clothes: 1, acc: 2 } as const;
+  const [winCat, setWinCat] = useState<"all" | "clothes" | "acc">("all");
+  const openFor = (id: string, page: number) => { setWinCat(catPages[page]); toggleTile(id); };
   const shownText = `${CAT_LABEL[cat]} · ${period === "all" ? "2025–2026" : period} · ${vatNote}`;
   const openFilters = () => { setFOpen(true); document.getElementById("cf-filters")?.scrollIntoView({ block: "start" }); };
   const monthLabel = (mo: string) => `${["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"][Number(mo.slice(5, 7)) - 1]} ${mo.slice(0, 4)}`;
@@ -701,16 +703,29 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
         ) : (
           <Tile label="Чистый поток / накопленный итог" value="—" sub={filtered ? "траты не делятся по категориям" : "нет данных о продажах"} hint={<p>Чистый денежный поток = получено − потрачено; накопленный итог — то же нарастающим итогом. При фильтре по категории траты не делятся, поэтому не считаются.</p>} />
         )}
-        <Tile label="Работа в месяц" value={wm.st[cat].avgUnits === null ? "—" : `${wm.st[cat].avgUnits!.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.`}
-          sub={wm.st[cat].n ? `средневзвешенно за ${wm.st[cat].n} мес. проекта, получено ${pcs(wm.st[cat].unitsTotal)} шт.` : undefined}
-          mini={[["Одежда", wm.st.clothes.avgUnits ? `${wm.st.clothes.avgUnits.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.` : "—"], ["Аксессуары", wm.st.acc.avgUnits ? `${wm.st.acc.avgUnits.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.` : "—"]]}
-          after={{ label: "Работа в месяц, ₽", value: rubOrDash(wm.st[cat].avgMonth), mini: [["Одежда", rubOrDash(wm.st.clothes.avgMonth)], ["Аксессуары", rubOrDash(wm.st.acc.avgMonth)]] }}
-          expandId="workMonth" onToggle={toggleTile}
-          hint={<p>Штук в месяц = единицы, полученные за период, ÷ число календарных месяцев проекта (общее число единиц, не среднее средних). Работа в месяц = вся работа подрядчику ÷ те же месяцы; по категориям — работа по ТЗ категории и приход категории ÷ N (работа без привязки к ТЗ — только в «Все»). Месяцы: от августа 2025 (первая оплата работы) до текущего включительно, в границах периода: {wm.st[cat].n} мес.; в расчёт входят и месяцы без работы и поставок, текущий месяц неполный.</p>} />
-        <Tile label="Работа на единицу" mini={[["Одежда", rubOrDash(wm.st.clothes.perUnit)], ["Аксессуары", rubOrDash(wm.st.acc.perUnit)]]} value={rubOrDash(wm.st[cat].perUnit)} sub={hasSales ? `${pcs(wm.st[cat].unitsTotal)} шт. получено` : "нет данных о приходе"}
-          expandId="workUnit" onToggle={toggleTile}
-          hint={<p>Вся работа подрядчику за период ÷ все единицы, полученные за период (без привязки к месяцам). Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее).</p>} />
-        {hasSales ? <PriceTile lines={saleLines} months={months} exVat={priceEx} cat={cat} onOpen={() => toggleTile("price")} controls={<VatSeg choice={priceChoice} setChoice={setPriceChoice} globalEx={exVat} />} /> : <Tile label="Средняя цена продажи" value="—" sub="нет данных о продажах" />}
+        <CarouselTile label="Работа в месяц" initial={pageOf[cat]} onOpen={(k) => openFor("workMonth", k)} pages={catPages.map((c) => { const st = wm.st[c]; return {
+          label: `Работа в месяц · ${c === "all" ? "Тотал" : CAT_LABEL[c]}`,
+          value: st.avgUnits === null || st.avgUnits === 0 ? "—" : `${st.avgUnits.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.`,
+          sub: st.n ? `средневзвешенно за ${st.n} мес. проекта, получено ${pcs(st.unitsTotal)} шт.` : undefined,
+          rows: [["Работа в месяц, ₽", rubOrDash(st.avgMonth)]] as [string, string][],
+          hint: <p>Штук в месяц = единицы, полученные за период, ÷ число календарных месяцев проекта (общее число единиц, не среднее средних). Работа в месяц = вся работа подрядчику ÷ те же месяцы; по категориям — работа по ТЗ категории и приход категории ÷ N (работа без привязки к ТЗ — только в «Тотал»). Месяцы: от августа 2025 (первая оплата работы) до текущего включительно, в границах периода: {st.n} мес.; в расчёт входят и месяцы без работы и поставок, текущий месяц неполный.</p>,
+        }; })} />
+        <CarouselTile label="Работа на единицу" initial={pageOf[cat]} onOpen={(k) => openFor("workUnit", k)} pages={catPages.map((c) => { const st = wm.st[c]; return {
+          label: `Работа на единицу · ${c === "all" ? "Тотал" : CAT_LABEL[c]}`,
+          value: rubOrDash(st.perUnit),
+          sub: hasSales ? `${rubOrDash(st.total)} ÷ ${st.unitsTotal || "—"} шт.` : "нет данных о приходе",
+          rows: [["Единиц всего", st.unitsTotal ? String(st.unitsTotal) : "—"], ["Работа всего", rubOrDash(st.total)]] as [string, string][],
+          hint: <p>Вся работа подрядчику за период ÷ все единицы, полученные за период (без привязки к месяцам). Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее). По категориям — работа по ТЗ категории ÷ приход категории.</p>,
+        }; })} />
+        {hasSales ? (
+          <CarouselTile label="Средняя цена продажи" initial={pageOf[cat]} onOpen={(k) => openFor("price", k)} controls={<VatSeg choice={priceChoice} setChoice={setPriceChoice} globalEx={exVat} />} pages={catPages.map((c) => { const g = groupSales(saleLines, months, priceEx, () => "x", c)[0]; return {
+            label: `Средняя цена продажи · ${c === "all" ? "Тотал" : CAT_LABEL[c]}`,
+            value: g && g.pcs > 0 ? formatMoney(g.rev / g.pcs) : "—",
+            sub: g && g.pcs > 0 ? `${pcs(g.pcs)} шт. продано, ${priceEx ? "без НДС" : "с НДС"}` : "нет продаж",
+            rows: [["Выручка", g ? money(g.rev) : "—"]] as [string, string][],
+            hint: <p>Выручка ({priceEx ? "без НДС" : "с НДС"}) ÷ проданные единицы (возвраты минус) за выбранный период и категорию.</p>,
+          }; })} />
+        ) : <Tile label="Средняя цена продажи" value="—" sub="нет данных о продажах" />}
         <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3 md:col-span-2">
           <div className="flex items-center gap-1 text-xs text-neutral-600">{DUE_LABEL}<InfoHint label={`Как считается: ${DUE_LABEL}`} wide><p>{DUE_LABEL} = сырьё + работа по заведённым ТЗ − аванс подрядчику, не меньше нуля. Долг до зачёта аванса: {money(due.gross)}.</p><p className="mt-1">{dueHint(money(due.gross), money(left.prod))}</p></InfoHint></div>
           <div className={"text-lg font-semibold tabular-nums " + (due.net > 0 ? "text-amber-700" : "text-neutral-900")}>{formatMoney(due.net)}</div>
@@ -737,9 +752,9 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
               <ExpTable head={["Месяц", "Потрачено", "Получено", "Чистый", "Накопленный"]} rows={months.map((mo, i) => ({ id: mo, cells: [monthLabel(mo), money(ser.spend[i]), money(ser.revenue[i]), money(ser.net[i]), money(ser.cumNet[i])], sub: (["clothes", "acc", "other"] as const).map((c) => [CAT_LABEL[c], "—", money(clsMonth(c, m.keep[i]).rev), "—", "—"]).filter((r) => r[2] !== "—") }))} total={["Итого", money(h.spent), money(h.received), money(h.net), money(m.cumNetEnd)]} />
             </div>
           )}
-          {openTile === "workMonth" && <WorkMonthWindow months={wm.months} by={wm.by} initialCat={cat} />}
-          {openTile === "workUnit" && <WorkUnitWindow months={wm.months} by={wm.by} initialCat={cat} />}
-          {openTile === "price" && <PriceDetail lines={saleLines} months={months} exVat={priceEx} cat={catArg} controls={<VatSeg choice={priceChoice} setChoice={setPriceChoice} globalEx={exVat} />} />}
+          {openTile === "workMonth" && <WorkMonthWindow months={wm.months} by={wm.by} initialCat={winCat} />}
+          {openTile === "workUnit" && <WorkUnitWindow months={wm.months} by={wm.by} initialCat={winCat} />}
+          {openTile === "price" && <PriceDetail lines={saleLines} months={months} exVat={priceEx} cat={winCat} controls={<VatSeg choice={priceChoice} setChoice={setPriceChoice} globalEx={exVat} />} />}
         </TileModal>
       )}
 
