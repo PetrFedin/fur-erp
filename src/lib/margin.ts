@@ -1,6 +1,6 @@
 // Маркап и валовая прибыль по моделям и сезонам: розница (прайс) × себестоимость (ТЗ) × приход и продажи (выгрузка).
 // Чистые функции без БД: данные собирает margin-server.ts. Всё считается из реальных данных; где не хватает себестоимости или цены — «нет данных» и охват.
-import type { SalesLineKindT } from "@/lib/sales-receipts-core";
+import type { CatClass, SalesLineKindT } from "@/lib/sales-receipts-core";
 
 /** Ключ прайса в SystemState (apply-retail-prices-2026-10-19.ts). Подрядчику не отдаётся. */
 export const RETAIL_PRICES_KEY = "retail-prices:2026-10-19";
@@ -10,7 +10,7 @@ export const RETAIL_VAT_PCT = 22;
 export type RetailRow = { acode: string; color: string; size: string; price: number; modelCode: string };
 /** Себестоимость единицы модели из ТЗ («Себестоимость с работой»): с НДС и без НДС, и выпуск, шт. */
 export type ModelCost = { name: string; unitIncl: number; unitExcl: number; qty: number };
-export type FullLine = { kind: SalesLineKindT; iso: string; season: string; modelCode: string | null; article: string; colorId: string | null; pcs: number; retailRub: number; retailRubExVat: number };
+export type FullLine = { kind: SalesLineKindT; iso: string; season: string; modelCode: string | null; article: string; colorId: string | null; pcs: number; retailRub: number; retailRubExVat: number; cls: CatClass };
 
 export type MarginInput = {
   lines: FullLine[];
@@ -73,7 +73,8 @@ const SEASON_ORDER = (s: string) => {
   return y + (/^SS/i.test(s) ? 0.2 : 0.7);
 };
 
-export function buildMargin(inp: MarginInput): MarginData {
+export function buildMargin(inp0: MarginInput, cls: CatClass | "all" = "all"): MarginData {
+  const inp = cls === "all" ? inp0 : { ...inp0, lines: inp0.lines.filter((l) => l.cls === cls) };
   const pidx = priceIndex(inp.prices);
   // Запасной ключ: код модели + цвет, если по всем артикулам этого цвета в прайсе одна и та же цена.
   const byMc = new Map<string, Set<number>>();
@@ -85,7 +86,9 @@ export function buildMargin(inp: MarginInput): MarginData {
     return s && s.size === 1 ? [...s][0] : null;
   };
   const rec = inp.lines.filter((l) => l.kind === "RECEIPT"), sale = inp.lines.filter((l) => l.kind === "SALE");
-  const codes = new Set<string>([...inp.costs.keys(), ...inp.lines.map((l) => l.modelCode).filter(Boolean) as string[], ...inp.modelPrice.keys()]);
+  const lineCodes = inp.lines.map((l) => l.modelCode).filter(Boolean) as string[];
+  // Для категории — только модели из её строк; для «Всё» — ещё модели с себестоимостью или ценой (без прихода).
+  const codes = new Set<string>(cls === "all" ? [...inp.costs.keys(), ...lineCodes, ...inp.modelPrice.keys()] : lineCodes);
 
   const models: ModelRow[] = [];
   for (const code of codes) {

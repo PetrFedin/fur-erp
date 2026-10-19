@@ -19,6 +19,18 @@ const pct = (v: number | null, d = 1) => (v === null ? "нет данных" : v
   const m = buildMargin(inp);
   const sale = inp.lines.filter((l) => l.kind === "SALE"), rec = inp.lines.filter((l) => l.kind === "RECEIPT");
   console.log(`Прайс: ${inp.prices.length} строк; моделей с себестоимостью ${inp.costs.size}; цен модели ${inp.modelPrice.size}`);
+  // 0. Категории: Σ(одежда)+Σ(аксессуары)+Σ(прочее) = Σ всё по единицам и выручке; маржа по категории пересчитывается из строк категории.
+  const byCls = (c: "clothes" | "acc" | "other") => inp.lines.filter((l) => l.cls === c);
+  const tot = (a: typeof inp.lines, k: "pcs" | "retailRubExVat", kind: "SALE" | "RECEIPT") => sum(a.filter((l) => l.kind === kind).map((l) => l[k]));
+  for (const [k, kind] of [["pcs", "SALE"], ["pcs", "RECEIPT"], ["retailRubExVat", "SALE"]] as const) {
+    eq(`категории: Σ одежда+аксессуары+прочее = всё (${k}, ${kind})`, tot(byCls("clothes"), k, kind) + tot(byCls("acc"), k, kind) + tot(byCls("other"), k, kind), tot(inp.lines, k, kind), 0.01);
+  }
+  for (const c of ["clothes", "acc"] as const) {
+    const mc = buildMargin(inp, c);
+    eq(`категория ${c}: проданных по сезонам = Σ строк`, sum(mc.seasons.map((x) => x.sold)), tot(byCls(c), "pcs", "SALE"));
+    eq(`категория ${c}: выручка без НДС по сезонам = Σ строк`, sum(mc.seasons.map((x) => x.revenueEx)), tot(byCls(c), "retailRubExVat", "SALE"), 0.01);
+    console.log(`${c}: проданных ${mc.totals.sold}, выручка без НДС ${Math.round(mc.totals.revenueEx)}, маржа ${mc.totals.grossMarginPct === null ? "—" : mc.totals.grossMarginPct.toFixed(1)} %, маркап по приходу ${mc.weightedByReceipts?.toFixed(2) ?? "—"}, по продажам ${mc.weightedBySales?.toFixed(2) ?? "—"}`);
+  }
   // 1. Σ по сезонам = итоги.
   eq("Σ проданных по сезонам = Σ строк", sum(m.seasons.map((s) => s.sold)), sum(sale.map((l) => l.pcs)));
   eq("Σ выручки без НДС по сезонам = Σ строк", sum(m.seasons.map((s) => s.revenueEx)), sum(sale.map((l) => l.retailRubExVat)), 0.01);

@@ -2,7 +2,7 @@ import "server-only";
 // Загрузка данных раздела Cashflow: доля НДС закупок, состав «Услуг по УПД», строки поступлений и продаж (если выгрузка загружена).
 import { prisma } from "@/lib/prisma";
 import type { OverviewRow } from "@/lib/payments-overview";
-import type { SalesAggLine } from "@/lib/sales-receipts-core";
+import { classOfGroup, classOfLevel2, type CatClass, type SalesAggLine } from "@/lib/sales-receipts-core";
 
 /** Доля НДС в сумме закупки (по позициям: Σ база·ставка / Σ база·(1+ставка); у закупок-услуг без позиций — по расходам). */
 export async function loadPurchaseVat(orgId: string): Promise<Map<string, number>> {
@@ -49,10 +49,16 @@ export async function loadSalesLines(orgId: string): Promise<SalesAggLine[]> {
   try {
     const rows = await prisma.salesReceiptLine.findMany({
       where: { organizationId: orgId },
-      select: { kind: true, date: true, pcs: true, retailRub: true, retailRubExVat: true, discountRub: true },
+      select: { kind: true, date: true, pcs: true, retailRub: true, retailRubExVat: true, discountRub: true, level2: true },
     });
-    return rows.map((r) => ({ kind: r.kind, iso: r.date.toISOString().slice(0, 10), pcs: r.pcs ?? 0, retailRub: r.retailRub?.toNumber() ?? 0, retailRubExVat: r.retailRubExVat?.toNumber() ?? 0, discountRub: r.discountRub?.toNumber() ?? 0 }));
+    return rows.map((r) => ({ kind: r.kind, iso: r.date.toISOString().slice(0, 10), pcs: r.pcs ?? 0, retailRub: r.retailRub?.toNumber() ?? 0, retailRubExVat: r.retailRubExVat?.toNumber() ?? 0, discountRub: r.discountRub?.toNumber() ?? 0, cls: classOfLevel2(r.level2) }));
   } catch {
     return [];
   }
+}
+
+/** ТЗ → класс по группе категории модели («Одежда» / «Аксессуары»); без группы — «прочее». */
+export async function loadOrderClasses(orgId: string): Promise<Map<string, CatClass>> {
+  const orders = await prisma.productionOrder.findMany({ where: { organizationId: orgId }, select: { id: true, productModel: { select: { categoryRef: { select: { group: true } } } } } });
+  return new Map(orders.map((o) => [o.id, classOfGroup(o.productModel.categoryRef?.group)]));
 }

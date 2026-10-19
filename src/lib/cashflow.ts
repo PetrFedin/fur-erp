@@ -1,7 +1,7 @@
 // Cashflow: оплаты по статьям и месяцам. Чистая агрегация поверх loadPaymentsOverview (единый источник «Оплачено всего»,
 // только COMPLETED); своей выборки и формул оплат здесь нет.
 import type { OverviewRow } from "@/lib/payments-overview";
-import type { SalesAggLine } from "@/lib/sales-receipts-core";
+import type { CatClass, SalesAggLine } from "@/lib/sales-receipts-core";
 
 export type CashflowPeriod = "2025" | "2026" | "all";
 export const CASHFLOW_YEARS = [2025, 2026] as const;
@@ -123,10 +123,11 @@ export type SalesMonthly = {
   discIncl: number[];
 };
 
-export function aggregateSales(lines: SalesAggLine[], months: string[]): SalesMonthly {
+export function aggregateSales(lines0: SalesAggLine[], months: string[], cls: CatClass | "all" = "all"): SalesMonthly {
+  const lines = cls === "all" ? lines0 : lines0.filter((l) => l.cls === cls);
   const idx = new Map(months.map((m, i) => [m, i]));
   const z = () => months.map(() => 0);
-  const o: SalesMonthly = { available: lines.length > 0, recPcs: z(), salePcs: z(), revIncl: z(), revEx: z(), discIncl: z() };
+  const o: SalesMonthly = { available: lines0.length > 0, recPcs: z(), salePcs: z(), revIncl: z(), revEx: z(), discIncl: z() };
   for (const l of lines) {
     const i = idx.get(l.iso.slice(0, 7));
     if (i === undefined) continue;
@@ -154,12 +155,13 @@ export type Headline = {
 };
 
 /** Ключевые показатели периода. `revenue` — выручка выбранного режима (с НДС / без НДС). Единый источник для плиток, таблицы и тестов. */
-export function headline(d: CashflowData, s: SalesMonthly, revenue: number[]): Headline {
+export function headline(d: CashflowData, s: SalesMonthly, revenue: number[], workSeries?: number[]): Headline {
   const spent = d.total;
   const received = sum(revenue);
   const work = d.articles.find((a) => a.key === "work");
-  const workTotal = work?.total ?? 0;
-  const active = d.monthTotals.map((v, i) => (Math.abs(v) > 0.005 ? i : -1)).filter((i) => i >= 0);
+  const ws = workSeries ?? work?.byMonth ?? [];
+  const workTotal = workSeries ? sum(workSeries) : work?.total ?? 0;
+  const active = (workSeries ? ws : d.monthTotals).map((v, i) => (Math.abs(v) > 0.005 ? i : -1)).filter((i) => i >= 0);
   const workMonths = active.length ? active[active.length - 1] - active[0] + 1 : 0;
   const unitsReceived = sum(s.recPcs), unitsSold = sum(s.salePcs);
   const disc = sum(s.discIncl), revIncl = sum(s.revIncl);
@@ -233,3 +235,37 @@ export function goodsHeadline(allSales: SalesMonthly, allMonths: string[], perio
   };
 }
 
+
+/**
+ * Работа подрядчика по категориям (ТЗ → модель → группа категории): доля платежа, разнесённая на ТЗ, делится по группе модели ТЗ.
+ * Неразнесённый аванс и ТЗ без группы — «прочее» (в категории не попадают). Σ классов = статья «Работа» по месяцам. НДС в оплате работы в данных нет.
+ */
+export type WorkByClass = { clothes: number[]; acc: number[]; other: number[]; /** Из «прочее»: без привязки к ТЗ. */ unlinked: number[] };
+export function workByClass(rows: OverviewRow[], orderClass: Map<string, CatClass>, months: string[]): WorkByClass {
+  const idx = new Map(months.map((m, i) => [m, i]));
+  const z = () => months.map(() => 0);
+  const o: WorkByClass = { clothes: z(), acc: z(), other: z(), unlinked: z() };
+  for (const r of rows) {
+    if (r.kind !== "prod" || Math.abs(r.work) < 0.005) continue;
+    const i = idx.get(r.iso.slice(0, 7));
+    if (i === undefined) continue;
+    const k = r.amount !== 0 ? r.work / r.amount : 0;
+    let linked = 0;
+    for (const part of r.parts) {
+      const id = part.href?.startsWith("/production/") ? part.href.slice("/production/".length) : null;
+      if (!id) continue;
+      const w = part.amount * k;
+      linked += part.amount;
+      o[orderClass.get(id) ?? "other"][i] += w;
+    }
+    const rest = r.work - linked * k;
+    o.other[i] += rest; o.unlinked[i] += rest;
+  }
+  return o;
+}
+
+/** Работа на единицу нарастающим итогом: накопленная работа / накопленные единицы прихода (null, пока единиц не было). */
+export function cumWorkPerUnit(work: number[], cumRec: number[], available: boolean): (number | null)[] {
+  const c = cum(work);
+  return c.map((v, i) => (available && cumRec[i] > 0 ? v / cumRec[i] : null));
+}

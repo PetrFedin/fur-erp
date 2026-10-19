@@ -48,5 +48,15 @@ export function parseSheetRow(kind: SalesLineKindT, r: RawSheetRow): ParsedLine 
   };
 }
 
+/** Категория строки: по Level 02 файла («Одежда» / «Аксессуары»), иначе «прочее» (нет категории). */
+export type CatClass = "clothes" | "acc" | "other";
+export const CAT_LABEL: Record<CatClass | "all", string> = { all: "Всё", clothes: "Одежда", acc: "Аксессуары", other: "Прочее" };
+export function classOfLevel2(level2: string | null | undefined): CatClass {
+  const v = (level2 ?? "").trim().toLowerCase();
+  return v === "одежда" ? "clothes" : v === "аксессуары" ? "acc" : "other";
+}
+/** Группа категории модели в системе (CategoryRef.group: «Одежда» / «Аксессуары») → класс. */
+export const classOfGroup = classOfLevel2;
+
 /** Строка для агрегатов (из БД или файла). */
-export type SalesAggLine = { kind: SalesLineKindT; iso: string; pcs: number; retailRub: number; retailRubExVat: number; discountRub: number };
+export type SalesAggLine = { kind: SalesLineKindT; iso: string; pcs: number; retailRub: number; retailRubExVat: number; discountRub: number; cls: CatClass };

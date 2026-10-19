@@ -7,8 +7,8 @@ import { homedir } from "os";
 import { join } from "path";
 import { PrismaClient } from "@prisma/client";
 import { loadPaymentsOverview } from "../src/lib/payments-overview";
-import { aggregateSales, buildCashflow, goodsHeadline, headline, monthsOf, seriesOf, sliceData, sliceSales, stockSeries, vatShares, visibleMonths } from "../src/lib/cashflow";
-import { loadPurchaseVat, loadSalesLines } from "../src/lib/cashflow-server";
+import { aggregateSales, buildCashflow, workByClass, goodsHeadline, headline, monthsOf, seriesOf, sliceData, sliceSales, stockSeries, vatShares, visibleMonths } from "../src/lib/cashflow";
+import { loadOrderClasses, loadPurchaseVat, loadSalesLines } from "../src/lib/cashflow-server";
 import { modelCodeOfArticle, normCode, parseSheetRow } from "../src/lib/sales-receipts-core";
 
 const prisma = new PrismaClient();
@@ -45,7 +45,19 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   eq("[срез] 2025 + 2026 = всё", sliceData(incl, incl.months.map((x, i) => (x.startsWith("2025") ? i : -1)).filter((i) => i >= 0)).total + sliceData(incl, incl.months.map((x, i) => (x.startsWith("2026") ? i : -1)).filter((i) => i >= 0)).total, incl.total);
 
   const months = monthsOf("all");
+  // Работа по категориям: Σ классов = статья «Работа» по месяцам; неразнесённое не теряется.
+  const wc = workByClass(ov, await loadOrderClasses(org), months);
+  const workArt = incl.articles.find((a) => a.key === "work")?.byMonth ?? months.map(() => 0);
+  for (const [i, m] of months.entries()) eq(`[категории] ${m}: работа одежда+аксессуары+прочее = работа всего`, wc.clothes[i] + wc.acc[i] + wc.other[i], workArt[i], 0.05);
+  ok("[категории] неразнесённая работа входит в «прочее»", wc.unlinked.every((v, i) => v <= wc.other[i] + 0.005));
   const s = aggregateSales(lines, months);
+  const sc = { clothes: aggregateSales(lines, months, "clothes"), acc: aggregateSales(lines, months, "acc"), other: aggregateSales(lines, months, "other") };
+  for (const [k, f] of [["recPcs", (x: typeof s) => x.recPcs], ["salePcs", (x: typeof s) => x.salePcs], ["revIncl", (x: typeof s) => x.revIncl], ["revEx", (x: typeof s) => x.revEx]] as const) {
+    eq(`[категории] Σ одежда+аксессуары+прочее = всё (${k})`, sum(f(sc.clothes)) + sum(f(sc.acc)) + sum(f(sc.other)), sum(f(s)), 0.01);
+    for (const [i, m] of months.entries()) eq(`[категории] ${m} ${k}`, f(sc.clothes)[i] + f(sc.acc)[i] + f(sc.other)[i], f(s)[i], 0.01);
+  }
+  if (s.available) console.log(`Категории (шт. прихода / продано / выручка с НДС): одежда ${sum(sc.clothes.recPcs)} / ${sum(sc.clothes.salePcs)} / ${Math.round(sum(sc.clothes.revIncl))}; аксессуары ${sum(sc.acc.recPcs)} / ${sum(sc.acc.salePcs)} / ${Math.round(sum(sc.acc.revIncl))}; прочее ${sum(sc.other.recPcs)} / ${sum(sc.other.salePcs)}`);
+  console.log(`Работа: одежда ${Math.round(sum(wc.clothes))}, аксессуары ${Math.round(sum(wc.acc))}, прочее ${Math.round(sum(wc.other))} (из них без привязки к ТЗ ${Math.round(sum(wc.unlinked))}); всего ${Math.round(sum(workArt))}`);
   if (!s.available) { console.log("Выгрузка продаж не загружена — проверки продаж пропущены."); }
   else {
     const rec = lines.filter((l) => l.kind === "RECEIPT"), sale = lines.filter((l) => l.kind === "SALE");
