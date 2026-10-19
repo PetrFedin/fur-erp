@@ -10,7 +10,7 @@ export const RETAIL_VAT_PCT = 22;
 export type RetailRow = { acode: string; color: string; size: string; price: number; modelCode: string };
 /** Себестоимость единицы модели из ТЗ («Себестоимость с работой»): с НДС и без НДС, и выпуск, шт. */
 export type ModelCost = { name: string; unitIncl: number; unitExcl: number; qty: number };
-export type FullLine = { kind: SalesLineKindT; iso: string; season: string; modelCode: string | null; article: string; colorId: string | null; fabric: string | null; level3: string | null; level4: string | null; pcs: number; retailRub: number; retailRubExVat: number; discountRub: number; cls: CatClass };
+export type FullLine = { kind: SalesLineKindT; iso: string; season: string; modelCode: string | null; article: string; colorId: string | null; fabric: string | null; level3: string | null; level4: string | null; pcs: number; retailRub: number; retailRubExVat: number; discountRub: number; discountRubExVat: number; retailEur: number; retailEurExVat: number; discountEur: number; discountEurExVat: number; cls: CatClass };
 
 export type MarginInput = {
   lines: FullLine[];

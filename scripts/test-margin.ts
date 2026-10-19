@@ -64,7 +64,9 @@ const pct = (v: number | null, d = 1) => (v === null ? "нет данных" : v
     walk(root);
     const sale = lines.filter((l) => l.kind === "SALE");
     const d = sum(sale.map((l) => l.discountRub)), r = sum(sale.map((l) => l.retailRub));
-    eq(`скидка при продаже ${cat} = Discount ÷ (Retail + Discount)`, root.cols[0].discountGiven, r + d > 0 ? d / (r + d) : null);
+    const dx = sum(sale.map((l) => l.discountRubExVat)), rx = sum(sale.map((l) => l.retailRubExVat));
+    eq(`скидка при продаже ${cat} = Discount ÷ (Retail + Discount), без НДС`, root.cols[0].discountGiven, rx + dx > 0 ? dx / (rx + dx) : null, 1e-9);
+    void d; void r;
   }
   // Обе структуры дерева (А: категория 1 → категория 2 → мех…, Б: мех → категории…): итог узла = сумма детей, столбцы Тотал/Сезоны.
   for (const key of ["a", "b"] as const) {
@@ -92,7 +94,23 @@ const pct = (v: number | null, d = 1) => (v === null ? "нет данных" : v
     eq("маржа: ВП ÷ выручка строк со штуками", mAll.totals.grossMarginPct, withU.length ? (sum(withU.map((l) => l.retailRubExVat - ctx2.unitExcl(l) * l.pcs)) / sum(withU.map((l) => l.retailRubExVat))) * 100 : null, 1e-9);
     eq("выручка вне ВП = выручка без НДС − выручка строк со штуками", mAll.totals.excludedRevenueEx, mAll.totals.revenueEx - sum(withU.map((l) => l.retailRubExVat)), 0.01);
     const sold = inp.lines.filter((l) => l.kind === "SALE");
-    eq("Discount: Σ строк = мера «Скидка»", metricsOf(ctx2, inp.lines).discountSum, sum(sold.map((l) => l.discountRub)), 0.01);
+    eq("Discount (без НДС): Σ строк = мера «Скидка»", metricsOf(ctx2, inp.lines).discountSum, sum(sold.map((l) => l.discountRubExVat)), 0.01);
+  }
+  // Режимы С НДС / Без НДС и ₽ / €: итог узла = сумма детей по всем мерам-суммам; ВП = выручка − себестоимость в режиме.
+  for (const vatMode of ["ex", "in"] as const) {
+    const cx = makeCtx(inp, vatMode);
+    const lines = inp.lines;
+    const root = totalNode(cx, lines, [], buildTreeBy(cx, lines, TREE_ORDERS.a, []));
+    const walk = (n: TreeNode) => {
+      if (n.children.length) for (const k of ["revenue", "revenueEur", "discountSum", "discountEurSum", "sold", "received"] as const) eq(`режим ${vatMode}/${n.label}: ${k} = Σ детей`, sum(n.children.map((x) => x.cols[0][k])), n.cols[0][k], 0.01);
+      n.children.forEach(walk);
+    };
+    walk(root);
+    const sale = lines.filter((l) => l.kind === "SALE");
+    eq(`режим ${vatMode}: выручка в ₽ из файла`, root.cols[0].revenue, sum(sale.map((l) => (vatMode === "in" ? l.retailRub : l.retailRubExVat))), 0.01);
+    eq(`режим ${vatMode}: выручка в € из файла`, root.cols[0].revenueEur, sum(sale.map((l) => (vatMode === "in" ? l.retailEur : l.retailEurExVat))), 0.01);
+    const withU = sale.filter((l) => l.pcs !== 0 && cx.hasCost(l));
+    eq(`режим ${vatMode}: ВП = выручка − себестоимость ТЗ в режиме`, root.cols[0].grossProfit, withU.length ? sum(withU.map((l) => (vatMode === "in" ? l.retailRub - cx.unitIncl(l) * l.pcs : l.retailRubExVat - cx.unitExcl(l) * l.pcs))) : null, 0.01);
   }
   // Розница по месяцам: итог сезона = сумма месяцев; Σ сезонов = Σ продаж; sell-through без обрезки.
   for (const cat of ["all", "clothes", "acc"] as const) {

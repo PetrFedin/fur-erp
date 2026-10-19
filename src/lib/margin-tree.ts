@@ -1,6 +1,6 @@
 // Разрезы маржи: показатели узла (набор строк) и дерево «категория → тип меха → артикул → цвет», размеры из отчёта о товарах.
 // Чистые функции без БД. Узел = набор строк выгрузки; суммы штук и выручки узла равны сумме детей (проверяется тестом), отношения считаются заново по узлу.
-import { exVatAt, priceIndex, type FullLine, type MarginInput, type RetailRow } from "@/lib/margin";
+import { exVatAt, priceIndex, vatPctAt, type FullLine, type MarginInput, type RetailRow } from "@/lib/margin";
 import { CAT_LABEL, type CatClass, colorOfLine, furTypeOfFabric, variantOfArticle } from "@/lib/sales-receipts-core";
 
 export type Metrics = {
@@ -11,19 +11,25 @@ export type Metrics = {
   discountGiven: number | null;
   /** Sales cost: себестоимость проданных единиц без НДС (ТЗ с работой × шт.) по строкам со штуками и себестоимостью; Discount файла, ₽ с НДС. */
   salesCost: number | null; discountSum: number;
+  /** Режим «С НДС / Без НДС»: выручка и скидка в евро из выгрузки (Sales Retail EUR, Discount EUR) и средняя цена в евро. */
+  revenueEur: number; discountEurSum: number; avgPriceEur: number | null;
+  /** Выручка выбранного режима НДС, ₽. */
+  revenue: number;
 };
 export const METRIC_KEYS = ["revenueEx", "sold", "sellThrough", "avgPrice", "discountVsRetail", "grossProfit", "grossMarginPct", "gpOfRetail", "markupW"] as const;
 export type MetricKey = (typeof METRIC_KEYS)[number];
 
 const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
 
-export type Ctx = { unitPrice: (l: FullLine) => number | null; hasCost: (l: FullLine) => boolean; unitExcl: (l: FullLine) => number; unitIncl: (l: FullLine) => number };
+export type VatMode = "ex" | "in";
+export type Ctx = { vat: VatMode; unitPrice: (l: FullLine) => number | null; hasCost: (l: FullLine) => boolean; unitExcl: (l: FullLine) => number; unitIncl: (l: FullLine) => number };
 
-export function makeCtx(inp: MarginInput): Ctx {
+export function makeCtx(inp: MarginInput, vat: VatMode = "ex"): Ctx {
   const pidx = priceIndex(inp.prices);
   const byMc = new Map<string, Set<number>>();
   for (const r of inp.prices) { const k = r.modelCode + "|" + r.color; (byMc.get(k) ?? byMc.set(k, new Set()).get(k)!).add(r.price); }
   return {
+    vat,
     unitPrice: (l) => {
       const exact = pidx.get(l.article + "|" + (l.colorId ?? ""));
       if (exact !== undefined) return exact;
@@ -38,27 +44,37 @@ export function makeCtx(inp: MarginInput): Ctx {
 
 /** Показатели набора строк: те же формулы, что в таблице по сезонам (см. подсказки «i»). */
 export function metricsOf(ctx: Ctx, lines: FullLine[]): Metrics {
+  const inc = ctx.vat === "in";
   const s = lines.filter((l) => l.kind === "SALE"), r = lines.filter((l) => l.kind === "RECEIPT");
   const sold = sum(s.map((l) => l.pcs)), received = sum(r.map((l) => l.pcs));
   const revenueIncl = sum(s.map((l) => l.retailRub)), revenueEx = sum(s.map((l) => l.retailRubExVat));
+  const revOf = (l: FullLine) => (inc ? l.retailRub : l.retailRubExVat);
+  const costOf = (l: FullLine) => (inc ? ctx.unitIncl(l) : ctx.unitExcl(l)) * l.pcs;
+  const revenue = inc ? revenueIncl : revenueEx;
   const withP = s.filter((l) => ctx.unitPrice(l) !== null && l.pcs !== 0);
   const retailVal = sum(withP.map((l) => ctx.unitPrice(l)! * l.pcs));
   const both = s.filter((l) => ctx.hasCost(l) && l.pcs !== 0);
-  const gp = both.length ? sum(both.map((l) => l.retailRubExVat - ctx.unitExcl(l) * l.pcs)) : null;
+  const gp = both.length ? sum(both.map((l) => revOf(l) - costOf(l))) : null;
   const bothP = both.filter((l) => ctx.unitPrice(l) !== null);
   const rP = r.filter((l) => ctx.unitPrice(l) !== null && ctx.hasCost(l) && l.pcs > 0);
   const costW = sum(rP.map((l) => ctx.unitIncl(l) * l.pcs));
-  const bothRev = sum(both.map((l) => l.retailRubExVat));
+  const bothRev = sum(both.map(revOf));
+  const discRub = sum(s.map((l) => (inc ? l.discountRub : l.discountRubExVat)));
+  const retRub = sum(s.map((l) => (inc ? l.retailRub : l.retailRubExVat)));
+  const revenueEur = sum(s.map((l) => (inc ? l.retailEur : l.retailEurExVat)));
+  const retailValBasis = (l: FullLine) => ctx.unitPrice(l)! * l.pcs / (inc ? 1 : 1 + vatPctAt(l.iso) / 100);
   return {
-    sold, received, revenueIncl, revenueEx, avgPrice: sold > 0 ? revenueIncl / sold : null,
+    sold, received, revenueIncl, revenueEx, revenue, avgPrice: sold > 0 ? revenue / sold : null,
     discountVsRetail: retailVal > 0 ? 1 - sum(withP.map((l) => l.retailRub)) / retailVal : null,
     grossProfit: gp, grossMarginPct: gp !== null && bothRev > 0 ? (gp / bothRev) * 100 : null,
-    gpOfRetail: bothP.length ? sum(bothP.map((l) => l.retailRubExVat - ctx.unitExcl(l) * l.pcs)) / sum(bothP.map((l) => exVatAt(ctx.unitPrice(l)!, l.iso) * l.pcs)) : null,
+    gpOfRetail: bothP.length ? sum(bothP.map((l) => revOf(l) - costOf(l))) / sum(bothP.map(retailValBasis)) : null,
     markupW: costW > 0 ? sum(rP.map((l) => ctx.unitPrice(l)! * l.pcs)) / costW : null,
     sellThrough: received > 0 ? sold / received : null,
-    salesCost: both.length ? sum(both.map((l) => ctx.unitExcl(l) * l.pcs)) : null,
-    discountSum: sum(s.map((l) => l.discountRub)),
-    discountGiven: revenueIncl + sum(s.map((l) => l.discountRub)) > 0 ? sum(s.map((l) => l.discountRub)) / (revenueIncl + sum(s.map((l) => l.discountRub))) : null,
+    salesCost: both.length ? sum(both.map(costOf)) : null,
+    discountSum: discRub,
+    discountGiven: retRub + discRub > 0 ? discRub / (retRub + discRub) : null,
+    revenueEur, discountEurSum: sum(s.map((l) => (inc ? l.discountEur : l.discountEurExVat))),
+    avgPriceEur: sold > 0 ? revenueEur / sold : null,
   };
 }
 
