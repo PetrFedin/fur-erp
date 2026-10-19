@@ -63,7 +63,7 @@ type Rec = { fmt: string; purchase: string; lot: string; qty: number; doc: numbe
       const goods = usd.usd * rate;
       r = row({
         price: usd.usd, vat: "0" /* ввозной НДС внутри «Аванса на таможню» */, fee: String(((v("Аукционный сбор") ?? 0) * rate / goods) * 100),
-        broker: String(((v("Комиссия РМ, 4,5%") ?? 0) / goods) * 100 + (v("Брокерская комиссия, %") ?? 0)),
+        broker: String((((v("Комиссия РМ, 4,5%") ?? 0) + (v("Брокерская комиссия, %") ?? 0) * rate) / goods) * 100), // «Брокерская комиссия, %» в листе — это $ за шкуру (= 2,602 % молотка у всех 19 лотов), а не процент
         dressing: String((v("Выделка/крашение/стрижка, $") ?? 0) + (v("Выделка/крашение/стрижка, ₽") ?? 0)),
         transport: String(v("Доставка ФИН-КЛД-МСК (авиа)") ?? 0), customs: String(v("Аванс на таможню (вкл. услуги перевозчика, 30,5%)") ?? 0), packing: String((v("Упаковка") ?? 0) * rate),
       });
@@ -132,6 +132,7 @@ type Rec = { fmt: string; purchase: string; lot: string; qty: number; doc: numbe
     const worst = ds.sort((a, b) => Math.abs(b.dl) - Math.abs(a.dl))[0];
     console.log(`${fmt}: лотов ${rs.length}, сходится (±1 ₽ на лот) ${ok}, макс. Δ за лот ${worst.dl.toFixed(2)} (${worst.x.purchase}/${worst.x.lot})`);
     if (verbose) for (const z of ds.filter((y) => Math.abs(y.dl) > 1 && Math.abs(y.d) > 0.01).slice(0, 400)) console.log(`   ${z.x.purchase} лот ${z.x.lot} шт ${z.x.qty}: документ ${z.x.doc.toFixed(2)} мастер ${z.x.wiz.toFixed(2)} Δ/шкуру ${z.d.toFixed(2)} Δ/лот ${z.dl.toFixed(2)} ${z.x.note}`);
+    if (fmt === "inv") console.log("   inv: остаточное расхождение — не ошибка мастера: «Брокерская комиссия, %» в листе = $ за шкуру (2,602 % молотка в $), мастер теперь так и считает; оставшиеся ~1–17 ₽/шкуру (рост с суммой лота) объяснить документами пока нельзя — деньги не правятся.");
     if (fmt !== "inv") bad += rs.length - ok;
   }
   const pick = ["З-2026-0029/3223", "З-2026-0004/15318", "З-2026-0002/720506", "З-2026-0044/FW26-1525", "З-2026-0048/3275", "З-2026-0053/889", "З-2026-0049/70160", "З-2026-0040/302127"];
