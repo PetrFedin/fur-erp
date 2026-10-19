@@ -154,8 +154,8 @@ async function main() {
   const ratio = free.map((o, i) => (toCents(pay.allocations.find((a) => a.productionOrderId === o.id)!.amount) / half) - work[i] / sumWork);
   ok(ratio.every((x) => Math.abs(x) < 0.0001), "доли пропорциональны работе ТЗ");
   // платёж больше всей работы набора → потолок, остаток неразнесён
-  r = await PR.addProductionPayment(free[0].id, fd({ amount: fromCents(sumWork * 2), paymentType: "FINAL", method: "BANK_TRANSFER", paidAt: "2026-09-02", orderIds: free.slice(1).map((o) => o.id) }));
-  const pay2 = await prisma.productionPayment.findFirstOrThrow({ where: { organizationId: orgId, paidAt: new Date("2026-09-02") }, include: { allocations: true } });
+  r = await PR.addProductionPayment(free[0].id, fd({ amount: fromCents(sumWork * 2), paymentType: "FINAL", method: "BANK_TRANSFER", paidAt: "2099-09-02", orderIds: free.slice(1).map((o) => o.id) }));
+  const pay2 = await prisma.productionPayment.findFirstOrThrow({ where: { organizationId: orgId, paidAt: new Date("2099-09-02") }, include: { allocations: true } });
   const s2 = pay2.allocations.reduce((s, a) => s + toCents(a.amount), 0);
   ok(s2 === sumWork - half, `второй платёж: разнесено только остаток работы набора (${fromCents(s2)} из ${fromCents(sumWork * 2)})`);
   const after = await prisma.productionOrder.findMany({ where: { id: { in: free.map((o) => o.id) } }, include: { payShares: true } });
