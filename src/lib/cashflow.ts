@@ -159,7 +159,7 @@ export type Headline = {
 /** Ключевые показатели периода. `revenue` — выручка выбранного режима (с НДС / без НДС). Единый источник для плиток, таблицы и тестов. */
 /** base: «pay» — месяцы с оплатой работы (прежнее правило), «all» — все месяцы периода, «active» — месяцы с оплатой работы ИЛИ с приходом (поставкой). */
 export type AvgBase = "pay" | "all" | "active";
-export function headline(d: CashflowData, s: SalesMonthly, revenue: number[], workSeries?: number[], base: AvgBase = "pay"): Headline {
+export function headline(d: CashflowData, s: SalesMonthly, revenue: number[], workSeries?: number[], base: AvgBase = "pay", mask?: boolean[]): Headline {
   const spent = d.total;
   const received = sum(revenue);
   const work = d.articles.find((a) => a.key === "work");
@@ -167,7 +167,7 @@ export function headline(d: CashflowData, s: SalesMonthly, revenue: number[], wo
   const workTotal = workSeries ? sum(workSeries) : work?.total ?? 0;
   // Месяцы, в которых были оплаты работы подрядчику (не календарные месяцы периода).
   const wsFull = ws.length ? ws : s.recPcs.map(() => 0);
-  const activeIdx = s.recPcs.map((v, i) => (v !== 0 || Math.abs(wsFull[i] ?? 0) > 0.005 ? i : -1)).filter((i) => i >= 0);
+  const activeIdx = s.recPcs.map((v, i) => (mask ? (mask[i] ? i : -1) : v !== 0 || Math.abs(wsFull[i] ?? 0) > 0.005 ? i : -1)).filter((i) => i >= 0);
   const workMonths = base === "all" ? s.recPcs.length : base === "active" ? activeIdx.length : ws.filter((v) => Math.abs(v) > 0.005).length;
   const unitsReceived = sum(s.recPcs), unitsSold = sum(s.salePcs);
   const disc = sum(s.discIncl), revIncl = sum(s.revIncl);
