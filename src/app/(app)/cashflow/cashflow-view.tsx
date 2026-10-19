@@ -6,11 +6,13 @@ import { formatMoney } from "@/lib/utils";
 import { toCsv } from "@/lib/csv";
 import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
+import { burnRate, flowPoints, groupSales, paybackMonths, spendByType, topPays, type PayLite } from "@/lib/cashflow-detail";
+import type { SalesAggLine } from "@/lib/sales-receipts-core";
 import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly } from "@/lib/cashflow";
 
 type ServicePart = { number: string; what: string; invoice: string | null; date: string; paid: number };
 type Cat = "all" | "clothes" | "acc";
-type Props = { incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; initialSecond?: "goods" | "workunit" | "work"; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
+type Props = { incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; initialSecond?: "goods" | "workunit" | "work"; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
 
 const SPEND = "#d93a0e", GET = "#1f7a4d", NAVY = "#1b2a5c", STOCK = "#8a6d1d";
 // Цвета статей трат: различимы между собой и без цвета (подписи в легенде, таблица рядом — текстовая альтернатива).
@@ -239,28 +241,63 @@ function ChartBox({ n, children }: { n: number; children: (colW: number) => Reac
   return <div ref={ref} className="w-full overflow-x-auto" data-keep-scroll>{children(colW)}</div>;
 }
 
-function Tile({ label, value, sub, hint, tone, mini }: { label: string; value: string; sub?: string; hint?: React.ReactNode; tone?: "bad" | "good"; /** Две мини-строки «Одежда … / Аксессуары …» со своими значениями. */ mini?: [string, string][] }) {
+function Spark({ values }: { values: number[] }) {
+  if (values.length < 2) return null;
+  const lo = Math.min(...values), hi = Math.max(...values), W = 100, H = 24;
+  const pts = values.map((v, i) => `${(i / (values.length - 1)) * W},${hi === lo ? H / 2 : H - 2 - ((v - lo) / (hi - lo)) * (H - 4)}`).join(" ");
+  return <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-6 w-full" aria-hidden><polyline points={pts} fill="none" stroke="#5a6a94" strokeWidth={1.5} vectorEffect="non-scaling-stroke" /></svg>;
+}
+
+function MiniTable({ head, rows, total }: { head: string[]; rows: React.ReactNode[][]; total?: React.ReactNode[] }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3">
+    <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0}>
+      <table className="w-full border-collapse text-sm">
+        <thead><tr className="border-b border-neutral-300">{head.map((h, i) => <th key={h} scope="col" className={"px-2 py-2 text-xs font-semibold " + (i === 0 ? "text-left" : "text-right")}>{h}</th>)}</tr></thead>
+        <tbody>
+          {rows.map((r, ri) => <tr key={ri} className="border-b border-neutral-200">{r.map((c, i) => <td key={i} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "text-left" : "text-right whitespace-nowrap")}>{c}</td>)}</tr>)}
+          {total ? <tr className="border-t-2 border-neutral-400 font-semibold">{total.map((c, i) => <td key={i} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "text-left" : "text-right whitespace-nowrap")}>{c}</td>)}</tr> : null}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const sum0w = (keep: number[], a: number[]) => keep.reduce((t, i) => t + a[i], 0);
+
+function Tile({ label, value, sub, hint, tone, mini, spark, extra, expandId, openId, onToggle }: { label: string; value: string; sub?: string; hint?: React.ReactNode; tone?: "bad" | "good"; /** Две мини-строки «Одежда … / Аксессуары …» со своими значениями. */ mini?: [string, string][]; spark?: number[]; extra?: string; expandId?: string; openId?: string | null; onToggle?: (id: string) => void }) {
+  const isOpen = !!expandId && openId === expandId;
+  return (
+    <div className={"flex min-w-0 flex-col gap-0.5 rounded-lg border bg-white p-3 " + (isOpen ? "border-neutral-900" : "border-neutral-300")}>
       <div className="flex items-center gap-1 text-xs text-neutral-600">{label}{hint ? <InfoHint label={`Как считается: ${label}`} wide>{hint}</InfoHint> : null}</div>
       <div className={"text-lg font-semibold tabular-nums " + (tone === "bad" ? "text-[#b4310b]" : tone === "good" ? "text-[#17613c]" : "text-neutral-900")}>{value}</div>
       {sub ? <div className="text-xs text-neutral-600">{sub}</div> : null}
+      {extra ? <div className="text-xs text-neutral-600">{extra}</div> : null}
+      {spark ? <Spark values={spark} /> : null}
       {mini ? (
         <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
           {mini.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{k}</dt><dd className="font-semibold tabular-nums text-neutral-900">{v}</dd></div>)}
         </dl>
       ) : null}
+      {expandId && onToggle ? <button type="button" aria-expanded={isOpen} aria-controls="cf-detail" onClick={() => onToggle(expandId)} className="mt-1 inline-flex min-h-11 items-center self-start rounded-md px-1 text-xs underline print:hidden">{isOpen ? "Скрыть детали ▴" : "Детали ▾"}</button> : null}
     </div>
   );
 }
 
-export function CashflowView({ incl, ex, salesBy, workBy, vat, services, initialPeriod, initialDetail, initialCat, initialSecond }: Props) {
+
+export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left, vat, services, initialPeriod, initialDetail, initialCat, initialSecond }: Props) {
   const [period, setPeriod] = useState<CashflowPeriod>(initialPeriod);
   const [exVat, setExVat] = useState(false);
   const [cat, setCat] = useState<Cat>(initialCat ?? "all");
   const [second, setSecond] = useState<"goods" | "workunit" | "work">(initialSecond ?? "goods");
   const [detail, setDetail] = useState(initialDetail ?? true);
   const [fOpen, setFOpen] = useState(false);
+  const [openTile, setOpenTile] = useState<string | null>(null);
+  const toggleTile = (id: string) => setOpenTile((cur) => (cur === id ? null : id));
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpenTile(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const [open, setOpen] = useState<string[]>([]);
   const [active, setActive] = useState<number | null>(null);
   const [hot, setHot] = useState<string | null>(null);
@@ -299,11 +336,22 @@ export function CashflowView({ incl, ex, salesBy, workBy, vat, services, initial
   const months = d.months;
   const hasSales = sales.available;
   const mini = (f: (c: "clothes" | "acc") => string): [string, string][] => [["Одежда", hasSales ? f("clothes") : "—"], ["Аксессуары", hasSales ? f("acc") : "—"]];
+  const soText = (x: { cumReceived: number; cumSold: number; sellThrough: number | null }) => (x.sellThrough === null ? "—" : x.sellThrough.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " %" + (x.cumSold > x.cumReceived ? "*" : x.cumReceived < 10 ? "†" : ""));
   const stockEnd = stockSeries(sales).stock.at(-1) ?? 0;
   const label = period === "all" ? "2025–2026" : period;
   const vatNote = exVat ? "без НДС" : "с НДС";
   const shownText = `${CAT_LABEL[cat]} · ${period === "all" ? "2025–2026" : period} · ${vatNote}`;
   const openFilters = () => { setFOpen(true); document.getElementById("cf-filters")?.scrollIntoView({ block: "start" }); };
+  const monthLabel = (mo: string) => `${["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"][Number(mo.slice(5, 7)) - 1]} ${mo.slice(0, 4)}`;
+  const catArg = cat === "all" ? "all" : cat;
+  const recvBySeason = useMemo(() => groupSales(saleLines, months, exVat, (l) => l.season, catArg), [saleLines, months, exVat, catArg]);
+  const recvByCls = useMemo(() => groupSales(saleLines, months, exVat, (l) => CAT_LABEL[l.cls], catArg), [saleLines, months, exVat, catArg]);
+  const recvByMonth = useMemo(() => groupSales(saleLines, months, exVat, (l) => l.iso.slice(0, 7), catArg), [saleLines, months, exVat, catArg]);
+  const recvByArticle = useMemo(() => groupSales(saleLines, months, exVat, (l) => l.article, catArg), [saleLines, months, exVat, catArg]);
+  const fp = useMemo(() => flowPoints(months, ser.net, ser.cumNet), [months, ser]);
+  const burn = burnRate(ser.spend, 3);
+  const payback = paybackMonths(m.cumNetEnd, ser.net, 3);
+  const workCls = { clothes: sum0w(m.keep, workBy.clothes), acc: sum0w(m.keep, workBy.acc), other: sum0w(m.keep, workBy.other) };
   const sum0 = (a: number[]) => a.reduce((x, y) => x + y, 0);
   const workTotalAll = sum0(workBy.clothes) + sum0(workBy.acc) + sum0(workBy.other);
   const workClassified = sum0(workBy.clothes) + sum0(workBy.acc);
@@ -395,21 +443,93 @@ export function CashflowView({ incl, ex, salesBy, workBy, vat, services, initial
         </div>
       )}
 
-      <section aria-label="Ключевые показатели" className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <Tile label="Потрачено" value={money(h.spent)} sub={filtered ? "все траты, не по категории" : `${label}, ${vatNote}`} hint={<p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p>} />
-        <Tile label="Получено" value={hasSales ? money(h.received) : "—"} sub={hasSales ? `выручка, ${vatNote}` : "нет данных о продажах"}
-          hint={<p>Розничная выручка из выгрузки продаж: чистые продажи после скидок, возвраты вычтены; по дате продажи. {noSalesNote}</p>} />
-        <Tile label="Чистый денежный поток" value={hasSales && !filtered ? money(h.net) : "—"} tone={hasSales && !filtered ? (h.net < 0 ? "bad" : "good") : undefined} sub={filtered ? "траты не делятся по категориям" : hasSales ? (h.net < 0 ? "в минусе за период" : "в плюсе за период") : "нет данных о продажах"}
+      <section aria-label="Ключевые показатели" className="grid grid-cols-2 gap-2 md:grid-cols-5">
+        <Tile label="Потрачено" value={money(h.spent)} sub={filtered ? "все траты, не по категории" : `${label}, ${vatNote}`} spark={ser.spend} expandId="spend" openId={openTile} onToggle={toggleTile}
+          hint={<p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p>} />
+        <Tile label="Получено" value={hasSales ? money(h.received) : "—"} sub={hasSales ? `выручка, ${vatNote}` : "нет данных о продажах"} spark={hasSales ? ser.revenue : undefined}
+          mini={mini((c) => `${money(m.per[c].h.received)} · ${h.received ? Math.round((m.per[c].h.received / h.received) * 100) : 0} %`)} expandId={hasSales ? "recv" : undefined} openId={openTile} onToggle={toggleTile}
+          hint={<p>Розничная выручка из выгрузки продаж: чистые продажи после скидок, возвраты вычтены; по дате продажи. Доля — от выручки всех категорий. {noSalesNote}</p>} />
+        <Tile label="Чистый денежный поток" value={hasSales && !filtered ? money(h.net) : "—"} tone={hasSales && !filtered ? (h.net < 0 ? "bad" : "good") : undefined} spark={hasSales && !filtered ? ser.net : undefined}
+          sub={filtered ? "траты не делятся по категориям" : hasSales ? (h.net < 0 ? "в минусе за период" : "в плюсе за период") : "нет данных о продажах"} expandId={hasSales && !filtered ? "flow" : undefined} openId={openTile} onToggle={toggleTile}
           hint={<p>Получено минус потрачено за период.</p>} />
-        <Tile label="Накопленный итог" value={hasSales && !filtered ? money(m.cumNetEnd) : "—"} tone={hasSales && !filtered ? (m.cumNetEnd < 0 ? "bad" : "good") : undefined} sub={filtered ? "траты не делятся по категориям" : hasSales ? "с начала данных на конец периода" : "нет данных о продажах"}
+        <Tile label="Накопленный итог" value={hasSales && !filtered ? money(m.cumNetEnd) : "—"} tone={hasSales && !filtered ? (m.cumNetEnd < 0 ? "bad" : "good") : undefined} spark={hasSales && !filtered ? ser.cumNet : undefined}
+          sub={filtered ? "траты не делятся по категориям" : hasSales ? "с начала данных на конец периода" : "нет данных о продажах"} expandId={hasSales && !filtered ? "flow" : undefined} openId={openTile} onToggle={toggleTile}
           hint={<p>Получено минус потрачено нарастающим итогом с первого месяца данных до конца выбранного периода.</p>} />
-        <Tile label="Работа в месяц" mini={mini((c) => (m.per[c].h.workPerMonth === null ? "—" : money(m.per[c].h.workPerMonth)))} value={h.workPerMonth === null ? "—" : money(h.workPerMonth)} sub={h.workMonths ? `в среднем за ${h.workMonths} мес.` : undefined}
-          hint={<p>Оплаты статьи «Работа подрядчику» за период ÷ число месяцев от первой до последней оплаты периода (месяцы без оплат входят).</p>} />
+        <Tile label="Срок возврата вложений" value={!hasSales || filtered || payback === null ? "—" : m.cumNetEnd >= 0 ? "вложения возвращены" : `${payback.toLocaleString("ru-RU", { maximumFractionDigits: 0 })} мес.`}
+          sub={!hasSales || filtered ? undefined : payback === null && m.cumNetEnd < 0 ? "чистый поток за 3 мес. не положительный" : "линейная оценка"}
+          hint={<p>Простая линейная оценка: накопленный минус ÷ средний чистый денежный поток за последние 3 месяца. Допущение: темп продаж и трат сохранится. Если средний чистый поток за 3 месяца не положительный — оценки нет.</p>} />
+        <Tile label="Работа в месяц" mini={mini((c) => (m.per[c].h.workPerMonth === null ? "—" : money(m.per[c].h.workPerMonth)))} value={h.workPerMonth === null ? "—" : money(h.workPerMonth)} spark={ser.work}
+          sub={h.workMonths ? `в среднем за ${h.workMonths} мес. оплат` : undefined} extra={hasSales && h.unitsPerMonth !== null ? `единиц получено: ${pcs(h.unitsReceived)} шт., в среднем ${h.unitsPerMonth.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.` : undefined}
+          expandId="work" openId={openTile} onToggle={toggleTile}
+          hint={<p>Оплаты статьи «Работа подрядчику» за период ÷ число месяцев, в которых были такие оплаты (месяцы без оплат не считаются). Единицы: получено за период ÷ число месяцев с приходом ({h.recMonths}).</p>} />
         <Tile label="Работа на единицу" mini={mini((c) => (m.per[c].h.workPerUnit === null ? "—" : money(m.per[c].h.workPerUnit)))} value={h.workPerUnit === null ? "—" : money(h.workPerUnit)} sub={hasSales ? `${pcs(h.unitsReceived)} шт. получено` : "нет данных о приходе"}
+          expandId="work" openId={openTile} onToggle={toggleTile}
           hint={<p>Оплаты «Работа подрядчику» за период ÷ единиц, полученных за период. Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее).</p>} />
         <Tile label="Средняя цена продажи" mini={mini((c) => (m.per[c].h.avgPrice === null ? "—" : money(m.per[c].h.avgPrice)))} value={h.avgPrice === null ? "—" : money(h.avgPrice)} sub={hasSales ? `${pcs(h.unitsSold)} шт. продано, ${vatNote}` : "нет данных о продажах"}
+          expandId={hasSales ? "price" : undefined} openId={openTile} onToggle={toggleTile}
           hint={<p>Выручка ({vatNote}) ÷ проданные единицы (возвраты минус).</p>} />
+        <Tile label="Траты в месяц" value={burn === null ? "—" : money(burn)} sub="среднее за последние 3 мес." spark={ser.spend.slice(-6)}
+          hint={<p>Burn rate: средние траты ({vatNote}) за последние 3 месяца с оплатами в выбранном периоде.</p>} />
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3">
+          <div className="flex items-center gap-1 text-xs text-neutral-600">К оплате<InfoHint label="Как считается: К оплате" wide><p>Остаток долга по сырью и остаток работы по заведённым ТЗ (как в «Оплатах»). Аванс подрядчику, не разнесённый на ТЗ, показан отдельно и в долг не входит.</p></InfoHint></div>
+          <div className="text-lg font-semibold tabular-nums text-neutral-900">{money(left.raw + left.prod)}</div>
+          <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
+            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Сырьё</dt><dd className="font-semibold tabular-nums">{money(left.raw)}</dd></div>
+            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Работа</dt><dd className="font-semibold tabular-nums">{money(left.prod)}</dd></div>
+            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Аванс подрядчику</dt><dd className="font-semibold tabular-nums">{money(left.advance)}</dd></div>
+          </dl>
+          <Link href="/payments" className="mt-1 inline-flex min-h-11 items-center self-start text-xs underline">Открыть «Оплаты»</Link>
+        </div>
       </section>
+
+      {openTile && (
+        <section id="cf-detail" aria-label="Детали плитки" className="rounded-lg border border-neutral-900 bg-white p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">{{ spend: "Потрачено: детали", recv: "Получено: детали", flow: "Денежный поток по месяцам", work: "Работа подрядчика: детали", price: "Средняя цена продажи: детали" }[openTile]} · {shownText}</h2>
+            <button type="button" onClick={() => setOpenTile(null)} className="inline-flex min-h-11 items-center rounded-md px-3 text-sm underline">Закрыть (Esc)</button>
+          </div>
+          {openTile === "spend" && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <MiniTable head={["Статья", "Сумма"]} rows={d.articles.map((a) => [a.label, money(a.total)])} total={["Итого", money(h.spent)]} />
+              <MiniTable head={["Вид платежа", "Сумма"]} rows={spendByType(pays, months, exVat).map((r) => [r.label, money(r.total)])} total={["Итого", money(h.spent)]} />
+              <div className="md:col-span-2">
+                <p className="mb-1 text-xs font-semibold">Пять крупнейших платежей</p>
+                <MiniTable head={["Дата", "За что", "Документ", "Сумма"]} rows={topPays(pays, months, exVat).map((p) => [p.iso.split("-").reverse().join("."), <Link key={p.id} href={p.href} className="underline">{p.label}</Link>, p.doc ?? "—", money(exVat ? p.ex : p.amount)])} />
+              </div>
+            </div>
+          )}
+          {openTile === "recv" && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <MiniTable head={["Сезон", "шт.", "Выручка"]} rows={recvBySeason.map((g) => [g.key, String(g.pcs), money(g.rev)])} total={["Итого", String(recvBySeason.reduce((a, g) => a + g.pcs, 0)), money(h.received)]} />
+              <MiniTable head={["Категория", "шт.", "Выручка"]} rows={recvByCls.map((g) => [g.key, String(g.pcs), money(g.rev)])} total={["Итого", String(recvByCls.reduce((a, g) => a + g.pcs, 0)), money(h.received)]} />
+              <MiniTable head={["Топ-5 месяцев", "шт.", "Выручка"]} rows={recvByMonth.slice(0, 5).map((g) => [monthLabel(g.key), String(g.pcs), money(g.rev)])} />
+              <MiniTable head={["Топ-5 артикулов", "шт.", "Выручка"]} rows={recvByArticle.slice(0, 5).map((g) => [g.key, String(g.pcs), money(g.rev)])} />
+            </div>
+          )}
+          {openTile === "flow" && (
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-neutral-800">
+                {fp.firstPositive ? `Первый месяц с положительным потоком: ${monthLabel(fp.firstPositive)}. ` : "Месяцев с положительным потоком нет. "}
+                Самый глубокий накопленный минус: {money(fp.deepest.cum)} ({monthLabel(fp.deepest.month)}). Максимальная просадка накопленного итога от пика: {money(fp.drawdown)}.
+              </p>
+              <MiniTable head={["Месяц", "Потрачено", "Получено", "Чистый", "Накопленный"]} rows={months.map((mo, i) => [monthLabel(mo), money(ser.spend[i]), money(ser.revenue[i]), money(ser.net[i]), money(ser.cumNet[i])])} total={["Итого", money(h.spent), money(h.received), money(h.net), money(m.cumNetEnd)]} />
+            </div>
+          )}
+          {openTile === "work" && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <MiniTable head={["Месяц оплат", "Работа", "шт. получено", "₽ / шт."]} rows={months.map((mo, i) => [mo, i] as const).filter(([, i]) => Math.abs(ser.work[i]) > 0.005).map(([mo, i]) => [monthLabel(mo), money(ser.work[i]), String(s.recPcs[i]), s.recPcs[i] > 0 ? money(ser.work[i] / s.recPcs[i]) : "—"])} total={["Итого", money(h.workTotal), String(h.unitsReceived), h.workPerUnit === null ? "—" : money(h.workPerUnit)]} />
+              <MiniTable head={["Категория (по ТЗ → модель)", "Работа"]} rows={[["Одежда", money(workCls.clothes)], ["Аксессуары", money(workCls.acc)], ["Прочее / без привязки к ТЗ", money(workCls.other)]]} total={["Итого", money(workCls.clothes + workCls.acc + workCls.other)]} />
+            </div>
+          )}
+          {openTile === "price" && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <MiniTable head={["Сезон", "шт.", "Средняя цена"]} rows={recvBySeason.map((g) => [g.key, String(g.pcs), g.pcs > 0 ? money(g.rev / g.pcs) : "—"])} total={["Итого", String(recvBySeason.reduce((a, g) => a + g.pcs, 0)), h.avgPrice === null ? "—" : money(h.avgPrice)]} />
+              <MiniTable head={["Категория", "шт.", "Средняя цена"]} rows={recvByCls.map((g) => [g.key, String(g.pcs), g.pcs > 0 ? money(g.rev / g.pcs) : "—"])} />
+              <div className="md:col-span-2"><MiniTable head={["Топ-5 артикулов по выручке", "шт.", "Средняя цена"]} rows={recvByArticle.slice(0, 5).map((g) => [g.key, String(g.pcs), g.pcs > 0 ? money(g.rev / g.pcs) : "—"])} /></div>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <button type="button" aria-expanded={detail} onClick={() => setDetail((v) => !v)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm">{detail ? "Скрыть таблицу" : "Показать таблицу"}</button>
@@ -537,12 +657,12 @@ export function CashflowView({ incl, ex, salesBy, workBy, vat, services, initial
         </div>
         {hasSales ? (
           <>
-            <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
+            <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-4">
               <Tile label="Приход, шт." mini={mini((c) => pcs(m.per[c].g.received))} value={pcs(g.received)} sub={`за ${label}`} hint={<p>Единицы, поступившие за период (выгрузка «поступления»; корректировки с минусом учтены).</p>} />
               <Tile label="Продано, шт." mini={mini((c) => pcs(m.per[c].g.sold))} value={pcs(g.sold)} sub={`за ${label}`} hint={<p>Единицы проданные за период, возвраты вычтены.</p>} />
-              <Tile label="Остаток, шт." value={pcs(g.stock)} sub="на конец периода" hint={<p>Накопленный приход минус накопленные продажи с начала данных. Фактический остаток по отчёту о товарах на 19.10.2026 — {REPORT_STOCK} шт.; расчётный на конец данных — {stockEnd} шт.{stockEnd !== REPORT_STOCK ? ` Разница ${stockEnd - REPORT_STOCK} шт. — списания и перемещения, которых нет в выгрузке поступлений и продаж.` : ""}</p>} />
-              <Tile label="Sell-through" value={g.sellThrough === null ? "—" : g.sellThrough.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " %"} sub="продано / получено" hint={<p>Накопленные продажи ÷ накопленный приход с начала данных до конца периода.</p>} />
-              <Tile label="Покрытие остатка" value={g.coverMonths === null ? "—" : g.coverMonths.toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " мес."} sub="остаток / продажи в месяц" hint={<p>Остаток на конец периода ÷ средние продажи в месяц (от первого до последнего месяца с продажами в периоде). Сезонность не учитывается.</p>} />
+              <Tile label="Остаток, шт." mini={mini((c) => pcs(m.per[c].g.stock))} value={pcs(g.stock)} sub="на конец периода" hint={<p>Накопленный приход минус накопленные продажи с начала данных. Фактический остаток по отчёту о товарах на 19.10.2026 — {REPORT_STOCK} шт.; расчётный на конец данных — {stockEnd} шт.{stockEnd !== REPORT_STOCK ? ` Разница ${stockEnd - REPORT_STOCK} шт. — списания и перемещения, которых нет в выгрузке поступлений и продаж.` : ""}</p>} />
+              <Tile label="SO, %" mini={mini((c) => soText(m.per[c].g))} value={soText(g)} sub="продано / получено"
+                hint={<><p>SO (sell-out, sell-through) = накопленные продажи ÷ накопленный приход, единицы, с начала данных до конца периода; возвраты минус. В листе Report колонки «SO» нет, смысл взят как «продано из полученного». Без обрезки до 100%; получено 0 — «—».</p><p className="mt-1">«*» — продано больше получено (продажи включают другие поступления). «†» — получено меньше 10 шт., процент неустойчив.</p></>} />
             </div>
             {second === "workunit" && (
               <div className="mb-2 min-h-[2.5rem] text-xs text-neutral-700" aria-live="polite">

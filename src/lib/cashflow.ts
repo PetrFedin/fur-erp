@@ -145,6 +145,8 @@ export type Headline = {
   unitsReceived: number; unitsSold: number;
   /** Среднее за месяц: работа подрядчику / число месяцев от первой до последней оплаты в периоде. */
   workPerMonth: number | null; workMonths: number;
+  /** Единицы прихода: месяцы с приходом и среднее за такой месяц. */
+  recMonths: number; unitsPerMonth: number | null;
   workTotal: number;
   /** Работа (оплачено) / единиц получено за период. */
   workPerUnit: number | null;
@@ -161,13 +163,15 @@ export function headline(d: CashflowData, s: SalesMonthly, revenue: number[], wo
   const work = d.articles.find((a) => a.key === "work");
   const ws = workSeries ?? work?.byMonth ?? [];
   const workTotal = workSeries ? sum(workSeries) : work?.total ?? 0;
-  const active = (workSeries ? ws : d.monthTotals).map((v, i) => (Math.abs(v) > 0.005 ? i : -1)).filter((i) => i >= 0);
-  const workMonths = active.length ? active[active.length - 1] - active[0] + 1 : 0;
+  // Месяцы, в которых были оплаты работы подрядчику (не календарные месяцы периода).
+  const workMonths = ws.filter((v) => Math.abs(v) > 0.005).length;
   const unitsReceived = sum(s.recPcs), unitsSold = sum(s.salePcs);
   const disc = sum(s.discIncl), revIncl = sum(s.revIncl);
   return {
     spent, received, net: received - spent, cumNet: received - spent,
     unitsReceived, unitsSold, workTotal, workMonths,
+    recMonths: s.recPcs.filter((v) => v !== 0).length,
+    unitsPerMonth: s.recPcs.some((v) => v !== 0) ? unitsReceived / s.recPcs.filter((v) => v !== 0).length : null,
     workPerMonth: workMonths && Math.abs(workTotal) > 0.005 ? workTotal / workMonths : null,
     workPerUnit: s.available && unitsReceived > 0 && Math.abs(workTotal) > 0.005 ? workTotal / unitsReceived : null,
     avgPrice: s.available && unitsSold > 0 ? received / unitsSold : null,
@@ -228,6 +232,8 @@ export function goodsHeadline(allSales: SalesMonthly, allMonths: string[], perio
   const perMonth = span ? sold / span : 0;
   return {
     received: recv, sold, stock,
+    /** Накопленные с начала данных до конца периода (для SO). */
+    cumReceived: last >= 0 ? st.cumRec[last] : 0, cumSold: last >= 0 ? st.cumSale[last] : 0,
     /** Продано / получено накопленно с начала данных до конца периода. */
     sellThrough: last >= 0 && st.cumRec[last] > 0 ? (st.cumSale[last] / st.cumRec[last]) * 100 : null,
     /** Остаток / средние продажи в месяц (от первого до последнего месяца продаж периода). */

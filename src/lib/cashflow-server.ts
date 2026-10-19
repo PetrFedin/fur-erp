@@ -49,9 +49,9 @@ export async function loadSalesLines(orgId: string): Promise<SalesAggLine[]> {
   try {
     const rows = await prisma.salesReceiptLine.findMany({
       where: { organizationId: orgId },
-      select: { kind: true, date: true, pcs: true, retailRub: true, retailRubExVat: true, discountRub: true, level2: true },
+      select: { kind: true, date: true, pcs: true, retailRub: true, retailRubExVat: true, discountRub: true, level2: true, season: true, article: true },
     });
-    return rows.map((r) => ({ kind: r.kind, iso: r.date.toISOString().slice(0, 10), pcs: r.pcs ?? 0, retailRub: r.retailRub?.toNumber() ?? 0, retailRubExVat: r.retailRubExVat?.toNumber() ?? 0, discountRub: r.discountRub?.toNumber() ?? 0, cls: classOfLevel2(r.level2) }));
+    return rows.map((r) => ({ kind: r.kind, iso: r.date.toISOString().slice(0, 10), pcs: r.pcs ?? 0, retailRub: r.retailRub?.toNumber() ?? 0, retailRubExVat: r.retailRubExVat?.toNumber() ?? 0, discountRub: r.discountRub?.toNumber() ?? 0, cls: classOfLevel2(r.level2), season: r.season, article: r.article }));
   } catch {
     return [];
   }

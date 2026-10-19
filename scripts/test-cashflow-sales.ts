@@ -8,6 +8,7 @@ import { join } from "path";
 import { PrismaClient } from "@prisma/client";
 import { loadPaymentsOverview } from "../src/lib/payments-overview";
 import { aggregateSales, buildCashflow, workByClass, goodsHeadline, headline, monthsOf, seriesOf, sliceData, sliceSales, stockSeries, vatShares, visibleMonths } from "../src/lib/cashflow";
+import { burnRate, flowPoints, groupSales, paybackMonths, payLites, spendByType, topPays } from "../src/lib/cashflow-detail";
 import { loadOrderClasses, loadPurchaseVat, loadSalesLines } from "../src/lib/cashflow-server";
 import { modelCodeOfArticle, normCode, parseSheetRow } from "../src/lib/sales-receipts-core";
 
@@ -50,7 +51,23 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   const workArt = incl.articles.find((a) => a.key === "work")?.byMonth ?? months.map(() => 0);
   for (const [i, m] of months.entries()) eq(`[категории] ${m}: работа одежда+аксессуары+прочее = работа всего`, wc.clothes[i] + wc.acc[i] + wc.other[i], workArt[i], 0.05);
   ok("[категории] неразнесённая работа входит в «прочее»", wc.unlinked.every((v, i) => v <= wc.other[i] + 0.005));
+  // Детали плиток: суммы деталей = значение плитки.
+  const pl = payLites(ov, vs.share);
+  eq("[детали] Σ по видам платежа = Потрачено (с НДС)", sum(spendByType(pl, incl.months, false).map((r) => r.total)), incl.total);
+  eq("[детали] Σ по видам платежа = Потрачено (без НДС)", sum(spendByType(pl, ex.months, true).map((r) => r.total)), ex.total, 0.05);
+  eq("[детали] Σ по статьям = Потрачено", sum(incl.articles.map((a) => a.total)), incl.total);
+  ok("[детали] топ-5 платежей отсортированы и не больше 5", topPays(pl, incl.months, false).length <= 5 && topPays(pl, incl.months, false).every((p, i, a) => i === 0 || a[i - 1].amount >= p.amount));
   const s = aggregateSales(lines, months);
+  const saleOnly = lines.filter((l) => l.kind === "SALE");
+  for (const [cat, f] of [["all", s], ["clothes", aggregateSales(lines, months, "clothes")], ["acc", aggregateSales(lines, months, "acc")]] as const) {
+    eq(`[детали] Σ выручки по сезонам = Получено (${cat}, с НДС)`, sum(groupSales(saleOnly, months, false, (l) => l.season, cat).map((g) => g.rev)), sum(f.revIncl), 0.01);
+    eq(`[детали] Σ выручки по артикулам = Получено (${cat}, без НДС)`, sum(groupSales(saleOnly, months, true, (l) => l.article, cat).map((g) => g.rev)), sum(f.revEx), 0.01);
+    eq(`[детали] Σ шт. по месяцам = Продано (${cat})`, sum(groupSales(saleOnly, months, false, (l) => l.iso.slice(0, 7), cat).map((g) => g.pcs)), sum(f.salePcs), 0);
+  }
+  eq("[детали] burn rate = среднее последних 3 месяцев", burnRate([0, 10, 20, 30, 0, 0], 3) ?? NaN, 20, 1e-9);
+  eq("[детали] срок возврата = минус ÷ средний поток", paybackMonths(-300, [0, 50, 100, 150], 3) ?? NaN, 3, 1e-9);
+  ok("[детали] срок возврата: нет оценки при отрицательном потоке", paybackMonths(-300, [-10, -20], 3) === null);
+  eq("[детали] первая положительная и просадка", flowPoints(["a", "b", "c"], [-5, 3, 2], [-5, -2, 0]).drawdown, 0, 1e-9);
   const sc = { clothes: aggregateSales(lines, months, "clothes"), acc: aggregateSales(lines, months, "acc"), other: aggregateSales(lines, months, "other") };
   for (const [k, f] of [["recPcs", (x: typeof s) => x.recPcs], ["salePcs", (x: typeof s) => x.salePcs], ["revIncl", (x: typeof s) => x.revIncl], ["revEx", (x: typeof s) => x.revEx]] as const) {
     eq(`[категории] Σ одежда+аксессуары+прочее = всё (${k})`, sum(f(sc.clothes)) + sum(f(sc.acc)) + sum(f(sc.other)), sum(f(s)), 0.01);

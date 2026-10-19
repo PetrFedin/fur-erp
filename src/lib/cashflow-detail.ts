@@ -1,0 +1,67 @@
+// Детализация плиток Cashflow: чистые функции над теми же рядами, что и сами плитки; итоги деталей равны значению плитки (проверяется тестом).
+import type { CatClass, SalesAggLine } from "@/lib/sales-receipts-core";
+import type { OverviewRow } from "@/lib/payments-overview";
+
+export type PayType = "ADVANCE" | "PARTIAL" | "FINAL" | "OTHER";
+export const PAY_TYPE_LABEL: Record<PayType, string> = { ADVANCE: "Аванс", PARTIAL: "Доплата", FINAL: "Окончательный расчёт", OTHER: "Прочее / без вида" };
+/** Платёж для детализации: сумма с НДС и без НДС (по правилу «Без НДС» из cashflow.ts), что оплачено и документ. */
+export type PayLite = { id: string; iso: string; amount: number; ex: number; label: string; doc: string | null; href: string; type: PayType };
+
+const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+const inMonths = (iso: string, months: string[]) => months.includes(iso.slice(0, 7));
+
+export function spendByType(pays: PayLite[], months: string[], ex: boolean) {
+  const ps = pays.filter((p) => inMonths(p.iso, months));
+  return (Object.keys(PAY_TYPE_LABEL) as PayType[]).map((t) => ({ type: t, label: PAY_TYPE_LABEL[t], total: sum(ps.filter((p) => p.type === t).map((p) => (ex ? p.ex : p.amount))) })).filter((r) => Math.abs(r.total) > 0.005);
+}
+export function topPays(pays: PayLite[], months: string[], ex: boolean, n = 5) {
+  return pays.filter((p) => inMonths(p.iso, months)).sort((a, b) => (ex ? b.ex - a.ex : b.amount - a.amount)).slice(0, n);
+}
+
+export type Grp = { key: string; pcs: number; rev: number };
+/** Продажи по ключу (сезон / категория / артикул / месяц) за месяцы периода; выручка — с НДС или без. */
+export function groupSales(lines: SalesAggLine[], months: string[], ex: boolean, key: (l: SalesAggLine) => string, cat: CatClass | "all" = "all"): Grp[] {
+  const by = new Map<string, Grp>();
+  for (const l of lines) {
+    if (l.kind !== "SALE" || !inMonths(l.iso, months) || (cat !== "all" && l.cls !== cat)) continue;
+    const k = key(l);
+    const g = by.get(k) ?? { key: k, pcs: 0, rev: 0 };
+    g.pcs += l.pcs; g.rev += ex ? l.retailRubExVat : l.retailRub;
+    by.set(k, g);
+  }
+  return [...by.values()].sort((a, b) => b.rev - a.rev);
+}
+
+/** Точки разворота чистого потока: первый месяц, когда накопленный итог стал расти (месячный чистый > 0), самый глубокий накопленный минус и максимальная просадка накопленного от пика. */
+export function flowPoints(months: string[], net: number[], cum: number[]) {
+  const firstPositive = months.find((_, i) => net[i] > 0.005) ?? null;
+  let deepest = { month: months[0] ?? "", cum: cum[0] ?? 0 };
+  let peak = cum[0] ?? 0, drawdown = 0;
+  cum.forEach((v, i) => { if (v < deepest.cum) deepest = { month: months[i], cum: v }; peak = Math.max(peak, v); drawdown = Math.max(drawdown, peak - v); });
+  return { firstPositive, deepest, drawdown };
+}
+
+/** Burn rate: средние траты в месяц за последние n месяцев ряда (месяцы без трат в конце не берутся). */
+export function burnRate(spend: number[], n = 3): number | null {
+  let last = spend.length - 1;
+  while (last >= 0 && Math.abs(spend[last]) < 0.005) last--;
+  if (last < 0) return null;
+  const from = Math.max(0, last - n + 1);
+  const part = spend.slice(from, last + 1);
+  return sum(part) / part.length;
+}
+
+/** Срок возврата вложений: линейная оценка — накопленный минус ÷ средний чистый поток за последние n месяцев; только при положительном среднем потоке. */
+export function paybackMonths(cumNetEnd: number, net: number[], n = 3): number | null {
+  if (cumNetEnd >= 0) return 0;
+  let last = net.length - 1;
+  while (last > 0 && Math.abs(net[last]) < 0.005) last--;
+  const part = net.slice(Math.max(0, last - n + 1), last + 1);
+  const avg = part.length ? sum(part) / part.length : 0;
+  return avg > 0.005 ? -cumNetEnd / avg : null;
+}
+
+/** Компактные платежи для клиента: сумма с НДС и без НДС (доля НДС платежа из vatShares). */
+export function payLites(rows: OverviewRow[], share: Map<string, number>): PayLite[] {
+  return rows.map((r) => ({ id: r.id, iso: r.iso, amount: r.amount, ex: r.amount * (1 - (share.get(r.id) ?? 0)), label: r.label, doc: r.doc, href: r.href, type: r.type }));
+}

@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/session";
-import { loadPaymentsOverview } from "@/lib/payments-overview";
+import { loadPaymentsOverview, loadPaymentsLeft } from "@/lib/payments-overview";
+import { payLites } from "@/lib/cashflow-detail";
 import { buildCashflow, vatShares, aggregateSales, monthsOf, parsePeriod, workByClass } from "@/lib/cashflow";
 import { loadPurchaseVat, loadServiceParts, loadSalesLines, loadOrderClasses } from "@/lib/cashflow-server";
 import { CashflowView } from "./cashflow-view";
@@ -18,8 +19,9 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
   const services = await loadServiceParts(org, rows);
   const months = monthsOf("all");
   const salesBy = { all: aggregateSales(lines, months), clothes: aggregateSales(lines, months, "clothes"), acc: aggregateSales(lines, months, "acc"), other: aggregateSales(lines, months, "other") };
+  const left = await loadPaymentsLeft(org);
   const work = workByClass(rows, await loadOrderClasses(org), months);
   return (
-    <CashflowView incl={incl} ex={ex} salesBy={salesBy} vat={{ vat: vs.vat, unknown: vs.unknown, total: incl.total + incl.outside }} services={services} initialPeriod={parsePeriod(sp.p)} workBy={work} />
+    <CashflowView incl={incl} ex={ex} salesBy={salesBy} vat={{ vat: vs.vat, unknown: vs.unknown, total: incl.total + incl.outside }} services={services} initialPeriod={parsePeriod(sp.p)} workBy={work} pays={payLites(rows, vs.share)} saleLines={lines.filter((l) => l.kind === "SALE")} left={{ raw: left.raw, prod: left.prod, advance: left.advance }} />
   );
 }

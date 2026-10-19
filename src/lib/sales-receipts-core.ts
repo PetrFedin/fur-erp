@@ -59,7 +59,7 @@ export function classOfLevel2(level2: string | null | undefined): CatClass {
 export const classOfGroup = classOfLevel2;
 
 /** Строка для агрегатов (из БД или файла). */
-export type SalesAggLine = { kind: SalesLineKindT; iso: string; pcs: number; retailRub: number; retailRubExVat: number; discountRub: number; cls: CatClass };
+export type SalesAggLine = { kind: SalesLineKindT; iso: string; pcs: number; retailRub: number; retailRubExVat: number; discountRub: number; cls: CatClass; season: string; article: string };
 
 /** Вариант артикула (часть после кода модели): «M001A/SABLE WILD SILVER 4-5» → «SABLE WILD SILVER 4-5»; как у фото артикулов. */
 export function variantOfArticle(article: string): string {
