@@ -7,6 +7,8 @@ export type Metrics = {
   sold: number; received: number; revenueIncl: number; revenueEx: number;
   avgPrice: number | null; discountVsRetail: number | null; grossProfit: number | null; grossMarginPct: number | null; gpOfRetail: number | null;
   markupW: number | null; sellThrough: number | null;
+  /** Скидка при продаже (Discount файла): Discount RUR ÷ (Retail RUR + Discount RUR) по строкам продаж. */
+  discountGiven: number | null;
 };
 export const METRIC_KEYS = ["revenueEx", "sold", "sellThrough", "avgPrice", "discountVsRetail", "grossProfit", "grossMarginPct", "gpOfRetail", "markupW"] as const;
 export type MetricKey = (typeof METRIC_KEYS)[number];
@@ -52,6 +54,7 @@ export function metricsOf(ctx: Ctx, lines: FullLine[]): Metrics {
     gpOfRetail: bothP.length ? sum(bothP.map((l) => l.retailRubExVat - ctx.unitExcl(l) * l.pcs)) / sum(bothP.map((l) => exVatOf(ctx.unitPrice(l)!) * l.pcs)) : null,
     markupW: costW > 0 ? sum(rP.map((l) => ctx.unitPrice(l)! * l.pcs)) / costW : null,
     sellThrough: received > 0 ? sold / received : null,
+    discountGiven: revenueIncl + sum(s.map((l) => l.discountRub)) > 0 ? sum(s.map((l) => l.discountRub)) / (revenueIncl + sum(s.map((l) => l.discountRub))) : null,
   };
 }
 
@@ -81,7 +84,10 @@ export function seasonsOf(lines: FullLine[]): string[] {
   return [...new Set(lines.map((l) => l.season))].sort((a, b) => rank(a) - rank(b));
 }
 
-export function buildTree(ctx: Ctx, lines: FullLine[], order: readonly Dim[], seasons: string[], path = "", inh: { modelCode: string | null; variant: string | null } = { modelCode: null, variant: null }): TreeNode[] {
+export type ColPred = (l: FullLine) => boolean;
+
+/** Дерево по произвольным столбцам-группам (сезоны, месяцы): cols[0] — Тотал, далее по одному на предикат. */
+export function buildTreeBy(ctx: Ctx, lines: FullLine[], order: readonly Dim[], preds: ColPred[], path = "", inh: { modelCode: string | null; variant: string | null } = { modelCode: null, variant: null }): TreeNode[] {
   if (!order.length) return [];
   const [d, ...rest] = order;
   const groups = new Map<string, { label: string; lines: FullLine[] }>();
@@ -89,15 +95,23 @@ export function buildTree(ctx: Ctx, lines: FullLine[], order: readonly Dim[], se
   const nodes: TreeNode[] = [...groups].map(([key, g]) => {
     const first = g.lines[0];
     const id = path + "/" + d + ":" + key;
-    return {
-      id, dim: d, label: g.label,
-      modelCode: d === "article" ? first.modelCode : inh.modelCode, variant: d === "article" ? variantOfArticle(first.article) : inh.variant,
-      cols: [metricsOf(ctx, g.lines), ...seasons.map((s) => metricsOf(ctx, g.lines.filter((l) => l.season === s)))],
-      children: buildTree(ctx, g.lines, rest, seasons, id, { modelCode: d === "article" ? first.modelCode : inh.modelCode, variant: d === "article" ? variantOfArticle(first.article) : inh.variant }),
-    };
+    const next = { modelCode: d === "article" ? first.modelCode : inh.modelCode, variant: d === "article" ? variantOfArticle(first.article) : inh.variant };
+    return { id, dim: d, label: g.label, modelCode: next.modelCode, variant: next.variant, cols: [metricsOf(ctx, g.lines), ...preds.map((p) => metricsOf(ctx, g.lines.filter(p)))], children: buildTreeBy(ctx, g.lines, rest, preds, id, next) };
   });
   return nodes.sort((a, b) => b.cols[0].revenueEx - a.cols[0].revenueEx || b.cols[0].received - a.cols[0].received || a.label.localeCompare(b.label));
 }
+
+export function buildTree(ctx: Ctx, lines: FullLine[], order: readonly Dim[], seasons: string[]): TreeNode[] {
+  return buildTreeBy(ctx, lines, order, seasons.map((sn) => (l: FullLine) => l.season === sn));
+}
+
+/** Строка «Всего»: те же показатели по всем строкам. */
+export function totalNode(ctx: Ctx, lines: FullLine[], preds: ColPred[], children: TreeNode[]): TreeNode {
+  return { id: "total", dim: "cls", label: "Всего", modelCode: null, variant: null, cols: [metricsOf(ctx, lines), ...preds.map((p) => metricsOf(ctx, lines.filter(p)))], children };
+}
+
+/** Порядок иерархии таблицы: категория → тип меха → артикул → цвет. */
+export const TREE_ORDER: readonly Dim[] = ["cls", "fur", "article", "color"];
 
 /** Размеры из отчёта о товарах (лист Report, строки артикул × цвет × размер). Сезонов и дат в нём нет — только итоги на 19.10.2026. */
 export type ReportSizeRow = { acode: string; color: string; size: string; modelCode: string | null; cls: CatClass; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number };

@@ -5,7 +5,7 @@ import "./stubs/server-only-shim";
 import { PrismaClient } from "@prisma/client";
 import { loadMarginInput } from "../src/lib/margin-server";
 import { buildMargin, priceIndex, RETAIL_VAT_PCT } from "../src/lib/margin";
-import { monthlyBySeason, sellNote, buildTree, CUT_ORDER, makeCtx, metricsOf, seasonsOf, sizeAgg, type TreeNode } from "../src/lib/margin-tree";
+import { buildTreeBy, totalNode, TREE_ORDER, monthlyBySeason, sellNote, buildTree, CUT_ORDER, makeCtx, metricsOf, seasonsOf, sizeAgg, type TreeNode } from "../src/lib/margin-tree";
 import { loadReportSizes } from "../src/lib/margin-server";
 
 const prisma = new PrismaClient();
@@ -49,6 +49,22 @@ const pct = (v: number | null, d = 1) => (v === null ? "нет данных" : v
       for (const k of ["sold", "received", "revenueEx"] as const) eq(`дерево ${cat}/${cut}: Σ верхнего уровня (${k}) = итог`, sum(tree.map((n) => n.cols[0][k])), metricsOf(ctx, lines)[k], 0.01);
       seasons.forEach((sn, i) => { eq(`дерево ${cat}/${cut}: ${sn} выручка = таблица сезонов`, sum(tree.map((n) => n.cols[i + 1].revenueEx)), mm.seasons.find((x) => x.season === sn)!.revenueEx, 0.01); });
     }
+  }
+  // Единая иерархия категория → тип меха → артикул → цвет, столбцы «Месяцы»: итоги уровня = сумма детей, «Всего» = Σ верхнего уровня; Discount файла.
+  for (const cat of ["all", "clothes", "acc"] as const) {
+    const lines = cat === "all" ? inp.lines : inp.lines.filter((l) => l.cls === cat);
+    const months = [...new Set(lines.map((l) => l.iso.slice(0, 7)))].sort();
+    const preds = months.map((mo) => (l: (typeof lines)[number]) => l.iso.startsWith(mo));
+    const top = buildTreeBy(ctx, lines, TREE_ORDER, preds);
+    const root = totalNode(ctx, lines, preds, top);
+    const walk = (n: TreeNode) => {
+      if (n.children.length) for (let c = 0; c < n.cols.length; c++) for (const k of ["sold", "received", "revenueEx", "revenueIncl"] as const) eq(`иерархия ${cat}/${n.label}/колонка ${c}: ${k} = Σ детей`, sum(n.children.map((x) => x.cols[c][k])), n.cols[c][k], 0.01);
+      n.children.forEach(walk);
+    };
+    walk(root);
+    const sale = lines.filter((l) => l.kind === "SALE");
+    const d = sum(sale.map((l) => l.discountRub)), r = sum(sale.map((l) => l.retailRub));
+    eq(`скидка при продаже ${cat} = Discount ÷ (Retail + Discount)`, root.cols[0].discountGiven, r + d > 0 ? d / (r + d) : null);
   }
   // Розница по месяцам: итог сезона = сумма месяцев; Σ сезонов = Σ продаж; sell-through без обрезки.
   for (const cat of ["all", "clothes", "acc"] as const) {
