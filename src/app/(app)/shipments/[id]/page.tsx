@@ -230,11 +230,15 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
     const inv = new Map<string, number>();
     for (const l of lines) { const wo = woOf(l); const r = lineRows.find((x) => x.id === l.id); if (wo && r?.sum) inv.set(wo, (inv.get(wo) ?? 0) + r.sum); }
     const rub = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const done = new Set<string>();
     for (const l of lines) {
       const wo = woOf(l); const r = lineRows.find((x) => x.id === l.id);
-      if (!wo || !r || !r.sum || !inv.has(wo) || !tzCost.has(wo)) continue;
+      if (!wo || !r || !r.sum || !inv.has(wo) || !tzCost.has(wo) || done.has(wo)) continue;
+      done.add(wo); // пометка один раз на ТЗ — в первой строке группы
       const tz = Math.round(tzCost.get(wo)! * 100) / 100, iv = Math.round(inv.get(wo)! * 100) / 100, diff = Math.round((tz - iv) * 100) / 100;
-      r.check = Math.abs(diff) <= 1 ? { ok: true, text: `= ТЗ ${wo}` } : { ok: false, text: `ТЗ ${wo}: ${rub(tz)} ₽ (${diff > 0 ? "+" : "−"}${rub(Math.abs(diff))})` };
+      const full = `ТЗ ${wo}: ${rub(tz)} ₽, накладные по ТЗ: ${rub(iv)} ₽ (${diff > 0 ? "+" : "−"}${rub(Math.abs(diff))})`;
+      r.check = Math.abs(diff) <= 1 ? { ok: true, text: "= ТЗ", full: `ТЗ ${wo}: ${rub(tz)} ₽ — совпало с накладными (допуск 1 ₽)` } : { ok: false, text: `≠ ТЗ ${diff > 0 ? "+" : "−"}${Math.round(Math.abs(diff)).toLocaleString("ru-RU")}`, full };
+      if (r.sumSrc) r.sumSrc.check = full;
     }
   }
 

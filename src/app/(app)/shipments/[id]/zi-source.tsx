@@ -8,6 +8,8 @@ export type ZiSumView = {
   /** ЗИ из файлов поставок, в которых есть эти строки. */
   zi: { supply: string; numbers: string[] }[];
   files: { supply: string; fileName: string; docId: string }[];
+  /** Сверка с ТЗ (полный текст), если это первая строка ТЗ. */
+  check?: string;
 };
 
 const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -46,6 +48,7 @@ export function ZiSumButton({ v, total }: { v: ZiSumView; total: number }) {
                 </li>
               ))}
             </ul>
+            {v.check && <p className="text-xs font-medium text-neutral-800">Сверка с ТЗ (себестоимость с работой, с НДС, с 4%): {v.check}</p>}
             <p className="text-xs text-neutral-600">Итого с НДС: {money(incl)} ₽ (без НДС {money(r2(v.items.reduce((t, i) => t + i.sum, 0)))} ₽). ЗИ в файлах: {v.zi.map((z) => `${z.supply} — ${z.numbers.join(", ")}`).join("; ")}. Какая строка к какому ЗИ относится, файл не говорит.</p>
           </div>
           <div className="flex justify-end gap-2 border-t border-neutral-200 px-4 py-3">

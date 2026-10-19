@@ -363,7 +363,7 @@ export type LineRow = {
   /** Откуда сумма накладной (окно «Откуда цифра»). */
   sumSrc?: ZiSumView;
   /** Сверка «накладная ↔ ТЗ»: совпало или нет. */
-  check?: { ok: boolean; text: string };
+  check?: { ok: boolean; text: string; full: string };
 };
 
 const parseQty = (s: string): number | null | undefined => {
@@ -424,7 +424,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
     return (
       <span className="inline-flex flex-col items-end">
         {r.sumSrc ? <ZiSumButton v={r.sumSrc} total={r.sum} /> : money(r.sum)}
-        {r.check && <span className={"text-[11px] " + (r.check.ok ? "text-emerald-700" : "text-red-700")} title="Сумма накладной по ТЗ против полной себестоимости ТЗ (с работой, с НДС, с 4%), допуск 1 ₽" data-tz-check={r.check.ok ? "ok" : "diff"}>{r.check.ok ? "✓ " : ""}{r.check.text}</span>}
+        {r.check && <span className={"text-[11px] " + (r.check.ok ? "text-emerald-700" : "text-red-700")} title={r.check.full} data-tz-check={r.check.ok ? "ok" : "diff"}>{r.check.ok ? "✓ " : ""}{r.check.text}</span>}
       </span>
     );
   };
