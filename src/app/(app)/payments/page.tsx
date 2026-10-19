@@ -51,6 +51,8 @@ import { GoodsTiles, type BatchRow, type OwedOrder } from "./goods-tiles";
 import { PaymentsOverview } from "./payments-overview";
 import { PayTiles } from "../dashboard/pay-tiles";
 import { PaymentsNav } from "./payments-nav";
+import { KindBar } from "./kind-bar";
+import { parseKind } from "@/lib/pay-kinds";
 import { PaymentsRegistry } from "./registry-tab";
 import { loadDashboard } from "@/lib/dashboard-data";
 import { DASH_FILTERS, type DashFilters } from "@/lib/dashboard-calc";
@@ -693,6 +695,13 @@ export default async function PaymentsPage({
 
       {tab === "all" ? (
         <>
+        {await (async () => {
+          const kind = parseKind(sp.kind);
+          const base = (await loadPaymentsOverview(orgId)).filter((r) => (year === "all" || r.year === Number(year)) && (pf.stat.length === 0 || pf.stat.includes(r.kind)) && (!pf.from || r.iso >= pf.from) && (!pf.to || r.iso <= pf.to));
+          const keep = Object.entries(sp).flatMap(([k, v]) => (k === "kind" || v === undefined ? [] : (Array.isArray(v) ? v : [v]).map((x) => [k, x] as [string, string])));
+          const href = (k: string | null) => { const q = new URLSearchParams(keep); if (k) q.set("kind", k); return `/payments?${q.toString()}`; };
+          return <KindBar rows={base} active={kind} hrefFor={href} />;
+        })()}
         <div className="print:hidden">
         <FilterBar
           title="Фильтры оплат"
@@ -711,7 +720,7 @@ export default async function PaymentsPage({
           const lf = await overviewLeft(orgId);
           const yearsLeft = Object.entries(lf.byYear).filter(([y]) => year === "all" || Number(y) === Number(year));
           const left = { byYear: Object.fromEntries(yearsLeft), raw: yearsLeft.reduce((a, [, v]) => a + v.raw, 0), prod: yearsLeft.reduce((a, [, v]) => a + v.prod, 0), advance: yearsLeft.reduce((a, [, v]) => a + v.adv, 0) };
-          const rows = (await loadPaymentsOverview(orgId)).filter((r) => (year === "all" || r.year === Number(year)) && (pf.stat.length === 0 || pf.stat.includes(r.kind)) && (!pf.from || r.iso >= pf.from) && (!pf.to || r.iso <= pf.to));
+          const rows = (await loadPaymentsOverview(orgId)).filter((r) => (year === "all" || r.year === Number(year)) && (pf.stat.length === 0 || pf.stat.includes(r.kind)) && (!pf.from || r.iso >= pf.from) && (!pf.to || r.iso <= pf.to) && (!parseKind(sp.kind) || r.type === parseKind(sp.kind)));
           // Кнопки правки и удаления в описании платежа: оплата партии / аванс — на месте; оплата закупки и производства — переход в карточку.
           const controls: Record<string, React.ReactNode> = {};
           const advTargets: AllocTarget[] = [];
