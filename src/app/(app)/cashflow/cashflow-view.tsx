@@ -320,9 +320,6 @@ function WorkUnitWindow({ months, by, initialCat }: { months: string[]; by: Work
             <div className="flex justify-between gap-2"><dt className="text-neutral-600">Аксессуары</dt><dd className="font-semibold tabular-nums">{catLine(c2)}</dd></div>
           </dl>
         </div>
-        <Stat label="Простое среднее по месяцам" value={rubOrDash(st.simpleAvg)} sub="месяцы с приходом" />
-        <Stat label="Минимум месяца" value={st.min ? rubOrDash(st.min.v) : "—"} sub={st.min ? months[st.min.i] : undefined} />
-        <Stat label="Максимум месяца" value={st.max ? rubOrDash(st.max.v) : "—"} sub={st.max ? months[st.max.i] : undefined} />
         <Stat label="Единиц всего" value={st.unitsTotal ? String(st.unitsTotal) : "—"} sub={`месяцев проекта ${st.n}`} />
         <Stat label="Работа всего" value={rubOrDash(st.total)} />
       </div>
