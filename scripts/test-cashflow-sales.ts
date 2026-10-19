@@ -91,6 +91,10 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
     eq(`[детали] Σ выручки по артикулам = Получено (${cat}, без НДС)`, sum(groupSales(saleOnly, months, true, (l) => l.article, cat).map((g) => g.rev)), sum(f.revEx), 0.01);
     eq(`[детали] Σ шт. по месяцам = Продано (${cat})`, sum(groupSales(saleOnly, months, false, (l) => l.iso.slice(0, 7), cat).map((g) => g.pcs)), sum(f.salePcs), 0);
   }
+  for (const exm of [false, true]) {
+    const g = groupSales(saleOnly, months, exm, () => "x", "all")[0];
+    if (g) eq(`[цена] средняя = выручка ÷ шт. (${exm ? "без НДС" : "с НДС"})`, g.rev / g.pcs, sum(saleOnly.map((l) => (exm ? l.retailRubExVat : l.retailRub))) / sum(saleOnly.map((l) => l.pcs)), 1e-6);
+  }
   eq("[детали] burn rate = среднее последних 3 месяцев", burnRate([0, 10, 20, 30, 0, 0], 3) ?? NaN, 20, 1e-9);
   eq("[детали] срок возврата = минус ÷ средний поток", paybackMonths(-300, [0, 50, 100, 150], 3) ?? NaN, 3, 1e-9);
   ok("[детали] срок возврата: нет оценки при отрицательном потоке", paybackMonths(-300, [-10, -20], 3) === null);
