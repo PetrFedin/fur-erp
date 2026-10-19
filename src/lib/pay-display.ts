@@ -21,7 +21,7 @@ export function payDue(gross: number, advance: number) {
   const net = Math.max(0, gross - adv);
   return { gross, adv, net, creditLeft: Math.max(0, adv - gross) };
 }
-export const DUE_LABEL = "К доплате после зачёта аванса";
+export { DUE_LABEL } from "@/lib/terms";
 /** Текст подсказки «i» (одинаковый везде, где есть этот показ). */
 export const dueHint = (grossText: string, workText: string) => `${grossText} — долг до зачёта аванса; если аванс окажется оплатой будущих изделий, а не текущих ТЗ, доплата за текущие ТЗ остаётся ${workText}; привязка авансов к ТЗ ждёт документов.`;
 
