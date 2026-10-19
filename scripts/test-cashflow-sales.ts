@@ -105,6 +105,14 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
     if (h.avgPrice !== null) eq("[плитки] средняя цена = выручка / шт.", h.avgPrice, sum(sale.map((l) => l.retailRub)) / sum(sale.map((l) => l.pcs)), 0.01);
     const ser = seriesOf(incl, s, s.revIncl);
     eq("[накопительно] чистый на конец = получено − потрачено", ser.cumNet[ser.cumNet.length - 1], sum(s.revIncl) - incl.total);
+    const wk = ser.work;
+    const act = keep.filter((i) => s.recPcs[i] !== 0 || Math.abs(wk[i]) > 0.005).length;
+    const hAct = headline(d, ss, keep.map((i) => s.revIncl[i]), keep.map((i) => wk[i]), "active");
+    const hAll = headline(d, ss, keep.map((i) => s.revIncl[i]), keep.map((i) => wk[i]), "all");
+    eq("[среднее] база «месяцы с оплатами и поставками»: N месяцев", hAct.workMonths, act, 0);
+    eq("[среднее] база «все месяцы»: N = число месяцев периода", hAll.workMonths, keep.length, 0);
+    eq("[среднее] работа в месяц = работа ÷ N (active)", hAct.workPerMonth ?? NaN, hAct.workTotal / act, 1e-6);
+    eq("[среднее] работа на единицу не зависит от базы", hAct.workPerUnit ?? NaN, hAll.workPerUnit ?? NaN, 1e-9);
     const hex = headline(sliceData(ex, keep, "all"), ss, keep.map((i) => s.revEx[i]));
     ok("[без НДС] выручка без НДС меньше выручки с НДС", hex.received < h.received);
     // Итоги файла выгрузки (лист «Общий итог»), если загружен именно он.

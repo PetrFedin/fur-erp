@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/utils";
 import { CASHFLOW_ARTICLES, type ArticleKey, type CashflowData } from "@/lib/cashflow";
@@ -20,6 +20,39 @@ export function MiniTable({ head, rows, total }: { head: string[]; rows: React.R
         <tbody>
           {rows.map((r, ri) => <tr key={ri} className="border-b border-neutral-200">{r.map((c, i) => <td key={i} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "text-left" : "text-right whitespace-nowrap")}>{c}</td>)}</tr>)}
           {total ? <tr className="border-t-2 border-neutral-400 font-semibold">{total.map((c, i) => <td key={i} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "text-left" : "text-right whitespace-nowrap")}>{c}</td>)}</tr> : null}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export type ExpRow = { id: string; cells: React.ReactNode[]; sub?: React.ReactNode[][] };
+/** Таблица по месяцам: строка раскрывается шевроном справа (aria-expanded, ≥44px) на подстроки «Одежда / Аксессуары / Прочее». */
+export function ExpTable({ head, rows, total }: { head: string[]; rows: ExpRow[]; total?: React.ReactNode[] }) {
+  const [open, setOpen] = useState<string[]>([]);
+  return (
+    <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0}>
+      <table className="w-full border-collapse text-sm">
+        <thead><tr className="border-b border-neutral-300">{head.map((h, i) => <th key={h + i} scope="col" className={"px-2 py-2 text-xs font-semibold " + (i === 0 ? "text-left" : "text-right")}>{h}</th>)}<th scope="col" className="w-11"><span className="sr-only">По категориям</span></th></tr></thead>
+        <tbody>
+          {rows.map((r) => {
+            const isOpen = open.includes(r.id);
+            return (
+              <Fragment key={r.id}>
+                <tr className="border-b border-neutral-200">
+                  {r.cells.map((c, i) => <td key={i} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "text-left" : "text-right whitespace-nowrap")}>{c}</td>)}
+                  <td className="w-11 text-right">{r.sub ? <button type="button" aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Показать"} по категориям: ${String(r.cells[0])}`} onClick={() => setOpen(isOpen ? open.filter((x) => x !== r.id) : [...open, r.id])} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md">{isOpen ? "▴" : "▾"}</button> : null}</td>
+                </tr>
+                {isOpen && r.sub?.map((sc, si) => (
+                  <tr key={r.id + si} className="border-b border-neutral-100 bg-neutral-50 text-xs">
+                    {sc.map((c, i) => <td key={i} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "pl-6 text-left" : "text-right whitespace-nowrap")}>{c}</td>)}
+                    <td />
+                  </tr>
+                ))}
+              </Fragment>
+            );
+          })}
+          {total ? <tr className="border-t-2 border-neutral-400 font-semibold">{total.map((c, i) => <td key={i} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "text-left" : "text-right whitespace-nowrap")}>{c}</td>)}<td /></tr> : null}
         </tbody>
       </table>
     </div>
@@ -100,7 +133,7 @@ export function RecvDetail({ lines, months, exVat, cat, total }: { lines: SalesA
       <Chips label="Категория" value={cls} options={[["all", "Все категории"], ["clothes", CAT_LABEL.clothes], ["acc", CAT_LABEL.acc], ["other", CAT_LABEL.other]]} onChange={setCls} />
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <MiniTable head={["Месяц", "шт.", "Выручка"]} rows={byMonth.map((g) => [monthLabel(g.key), String(g.pcs), money(g.rev)])} total={["Итого", String(sumPcs), money(isAll && cat === "all" ? total : sumRev)]} />
+          <ExpTable head={["Месяц", "шт.", "Выручка"]} rows={byMonth.map((g) => ({ id: g.key, cells: [monthLabel(g.key), String(g.pcs), money(g.rev)], sub: (["clothes", "acc", "other"] as const).map((c) => groupSales(base.filter((l) => l.cls === c), [g.key], exVat, () => g.key, cat)[0]).map((x, ci) => [CAT_LABEL[(["clothes", "acc", "other"] as const)[ci]], String(x?.pcs ?? 0), money(x?.rev ?? 0)]).filter((r) => r[1] !== "0" || r[2] !== "—") }))} total={["Итого", String(sumPcs), money(isAll && cat === "all" ? total : sumRev)]} />
           <Spark values={byMonth.map((g) => g.rev)} />
         </div>
         <MiniTable head={["Артикул", "шт.", "Выручка"]} rows={byArt.slice(0, 15).map((g) => [g.key, String(g.pcs), money(g.rev)])} total={["Итого (все артикулы)", String(byArt.reduce((a, g) => a + g.pcs, 0)), money(byArt.reduce((a, g) => a + g.rev, 0))]} />
@@ -120,7 +153,7 @@ export function WorkDetail({ pays, months, d, units }: { pays: PayLite[]; months
       <Chips label="Категория" value={cls} options={[["all", "Все категории"], ["clothes", CAT_LABEL.clothes], ["acc", CAT_LABEL.acc], ["other", "Прочее / без привязки"]]} onChange={setCls} />
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <MiniTable head={["Месяц оплат", "Работа", "шт. получено", "₽ / шт."]} rows={byMonth.map((x) => [monthLabel(x.m), money(x.v), cls === "all" ? String(units[x.i]) : "—", cls === "all" && units[x.i] > 0 ? money(x.v / units[x.i]) : "—"])} total={["Итого", money(det.total), "", ""]} />
+          <ExpTable head={["Месяц оплат", "Работа", "шт. получено", "₽ / шт."]} rows={byMonth.map((x) => ({ id: x.m, cells: [monthLabel(x.m), money(x.v), cls === "all" ? String(units[x.i]) : "—", cls === "all" && units[x.i] > 0 ? money(x.v / units[x.i]) : "—"], sub: (["clothes", "acc", "other"] as const).map((c) => [CAT_LABEL[c], money(workByTz(pays, [x.m], c).total), "—", "—"]).filter((r) => r[1] !== "—") }))} total={["Итого", money(det.total), "", ""]} />
           <Spark values={byMonth.map((x) => x.v)} />
         </div>
         <MiniTable head={["ТЗ (партия)", "Платежей", "Работа"]} rows={[...det.rows.map((r) => [<Link key={r.href} href={r.href} className="underline">{r.label}</Link>, String(r.count), money(r.amount)]), ...(Math.abs(det.unlinked.amount) > 0.005 ? [["Аванс без привязки к ТЗ", String(det.unlinked.count), money(det.unlinked.amount)]] : [])]} total={["Итого", "", money(det.total)]} />
