@@ -417,6 +417,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
   // Примечания: одинаковый текст — одна сноска, в строке только «прим. N» (полный текст в подсказке и в списке под таблицей).
   const noteOf = (r: LineRow) => r.comment.trim();
   const notes = [...new Set(rows.map(noteOf).filter(Boolean))];
+  const boutiqueText = (b?: string) => { const l = (b ?? "").split(", ").filter(Boolean); return l.length > 2 ? `${l.slice(0, 2).join(", ")} +${l.length - 2}` : l.join(", "); };
   const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sumCell = (r: LineRow) => {
     if (!r.sum) return <Dash />;
@@ -430,7 +431,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
   const noteCell = (r: LineRow) => {
     const t = noteOf(r);
     if (!t) return <Dash />;
-    return <span title={t} className="block max-w-[10rem] truncate text-xs text-neutral-700">прим. {notes.indexOf(t) + 1}</span>;
+    return <span title={t} aria-label={`Примечание ${notes.indexOf(t) + 1}: ${t}`} className="inline-flex h-5 w-5 cursor-help items-center justify-center rounded-full border border-neutral-300 text-[11px] text-neutral-600" tabIndex={0}>{notes.indexOf(t) + 1}</span>;
   };
 
   const acceptReview = (r: LineRow) => {
@@ -561,7 +562,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
     const openN = r.reworks.filter((x) => x.state !== "DONE").length;
     return (
       <div className="flex flex-col items-start gap-1" title={r.stageNote || undefined}>
-        <Badge variant={v.variant}>{v.label}{r.stage === "READY" && (r.accepted != null || r.returned != null) ? ` · ${r.accepted ?? 0}/${r.quantity}` : ""}</Badge>
+        <Badge variant={v.variant}>{v.key === "accepted" && v.label === "Принят" ? "принято" : v.key === "rejected" ? "не принято" : v.label}</Badge>
         {v.sub && <span className="text-[11px] text-neutral-600">{v.sub}</span>}
         {r.stage === "REWORK" && <span className="text-[11px] text-neutral-600">пунктов: {r.reworks.length}, не принято: {openN}</span>}
         {editable && r.stage === "REVIEW" && (
@@ -587,7 +588,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
       <LineDelete id={r.id} label={r.label} blockedReason={r.blockedReason} />
     </span>
   );
-  const cols = 10 + (staff ? 1 : 0) + (canEdit ? 1 : 0);
+  const cols = 9 + (staff ? 1 : 0) + (editable ? 1 : 0);
 
   return (
     <section className="flex flex-col gap-2" aria-label="Приёмка" data-accept-list>
@@ -624,39 +625,35 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
         {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         <ResponsiveRows
           table={
-            <Table className="min-w-[900px]">
+            <Table className="w-full">
               <Thead>
                 <Tr>
-                  <Th className="whitespace-nowrap" {...th("itemNo")}>№ изд.</Th>
-                  <Th className="whitespace-nowrap" {...th("order")}>ТЗ · поз.</Th>
-                  <Th className="whitespace-nowrap" {...th("article")}>Артикул</Th>
-                  <Th className="whitespace-nowrap" {...th("color")}>Цвет</Th>
-                  <Th className="whitespace-nowrap" {...th("size")}>Размер</Th>
-                  <Th className="whitespace-nowrap text-right" unit="шт." {...th("quantity")}>Шт.</Th>
-                  <Th className="whitespace-nowrap">Принято / не принято</Th>
-                  <Th className="whitespace-nowrap" {...th("supply")}>Поставка</Th>
-                  <Th className="whitespace-nowrap" {...th("boutique")}>Бутик</Th>
-                  {staff && <Th className="whitespace-nowrap text-right" unit="₽" {...th("sum")}>Сумма накладной с НДС</Th>}
-                  <Th className="whitespace-nowrap">Примечание</Th>
-                  {canEdit && <Th><span className="sr-only">Действия</span></Th>}
+                  <Th className="px-2 py-1.5 text-xs" {...th("order")}>ТЗ</Th>
+                  <Th className="px-2 py-1.5 text-xs" {...th("article")}>Артикул</Th>
+                  <Th className="w-12 px-2 py-1.5 text-right text-xs" {...th("size")}>Разм.</Th>
+                  <Th className="w-10 px-2 py-1.5 text-right text-xs" unit="шт." {...th("quantity")}>Шт.</Th>
+                  <Th className="px-2 py-1.5 text-xs">Принято</Th>
+                  <Th className="w-14 px-2 py-1.5 text-xs" {...th("supply")}>Постав.</Th>
+                  <Th className="px-2 py-1.5 text-xs" {...th("boutique")}>Бутик</Th>
+                  {staff && <Th className="w-24 px-2 py-1.5 text-right text-xs" unit="₽" {...th("sum")}>Накладная</Th>}
+                  <Th className="w-6 px-1 py-1.5 text-xs"><span className="sr-only">Примечание</span></Th>
+                  {editable && <Th className="px-2 py-1.5"><span className="sr-only">Действия</span></Th>}
                 </Tr>
               </Thead>
               <Tbody>
                 {shown.map((r) => (
                   <Tr key={r.id} id={`zi-row-${r.id}`} className={"target:bg-amber-50 " + (isDirty(r) ? "bg-amber-50/50" : "")}>
-                    <Td className="whitespace-nowrap tabular-nums">{r.itemNo || <Dash />}</Td>
-                    <Td className="whitespace-nowrap">{r.order}</Td>
-                    <Td className="whitespace-nowrap">{r.article}</Td>
-                    <Td className="whitespace-nowrap">{r.color ?? <Dash />}</Td>
-                    <Td className="whitespace-nowrap">{r.size ?? <Dash />}</Td>
-                    <Td className="text-right font-medium tabular-nums">{formatQty(r.quantity)}</Td>
-                    <Td className="min-w-56">{stageCell(r)}</Td>
-                    <Td className="whitespace-nowrap">{r.supply || <Dash />}</Td>
-                    <Td className="whitespace-nowrap">{r.boutique || <Dash />}</Td>
-                    {staff && <Td className="whitespace-nowrap text-right tabular-nums">{sumCell(r)}</Td>}
-                    <Td>{noteCell(r)}</Td>
-                    {canEdit && (
-                      <Td className="whitespace-nowrap">
+                    <Td className="px-2 py-1.5 text-xs">{r.order}{r.itemNo ? <span className="whitespace-nowrap text-neutral-500"> · №{r.itemNo}</span> : null}</Td>
+                    <Td className="px-2 py-1.5 text-xs"><div>{r.article}</div><div className="text-[11px] text-neutral-500">{r.color ?? ""}</div></Td>
+                    <Td className="px-2 py-1.5 text-right text-xs tabular-nums">{r.size ?? <Dash />}</Td>
+                    <Td className="px-2 py-1.5 text-right text-xs font-medium tabular-nums">{formatQty(r.quantity)}</Td>
+                    <Td className="px-2 py-1.5 text-xs">{stageCell(r)}</Td>
+                    <Td className="px-2 py-1.5 text-xs">{r.supply || <Dash />}</Td>
+                    <Td className="max-w-[9.5rem] px-2 py-1.5 text-xs" title={r.boutique || undefined}>{boutiqueText(r.boutique) || <Dash />}</Td>
+                    {staff && <Td className="px-2 py-1.5 text-right text-xs tabular-nums">{sumCell(r)}</Td>}
+                    <Td className="px-1 py-1.5 text-xs">{noteCell(r)}</Td>
+                    {editable && (
+                      <Td className="whitespace-nowrap px-2 py-1.5">
                         {rowActions(r)}
                         {r.blockedReason && <div className="text-[11px] text-neutral-500">есть приёмка</div>}
                       </Td>
@@ -665,12 +662,11 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
                 ))}
                 {rows.length > 0 && (
                   <Tr className="row-total">
-                    <Td colSpan={5} className="text-right"><TotalLabel unit="шт." /></Td>
-                    <Td className="text-right tabular-nums">{formatQty(totQty)}</Td>
-                    <Td className="tabular-nums">принято {formatQty(totAcc)} · не принято {formatQty(totRet)}</Td>
-                    <Td colSpan={2} />
-                    {staff && <Td className="text-right tabular-nums">{totSum ? totSum.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}</Td>}
-                    <Td colSpan={canEdit ? 2 : 1} />
+                    <Td colSpan={3} className="px-2 py-1.5 text-right text-xs"><TotalLabel unit="шт." /></Td>
+                    <Td className="px-2 py-1.5 text-right text-xs tabular-nums">{formatQty(totQty)}</Td>
+                    <Td colSpan={3} className="px-2 py-1.5 text-xs tabular-nums">принято {formatQty(totAcc)} · не принято {formatQty(totRet)}</Td>
+                    {staff && <Td className="px-2 py-1.5 text-right text-xs tabular-nums">{totSum ? money(totSum) : ""}</Td>}
+                    <Td colSpan={editable ? 2 : 1} />
                   </Tr>
                 )}
                 {rows.length === 0 && (
@@ -690,11 +686,11 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
               href={r.href}
               subtitle={r.subtitle}
               fields={[
-                { label: "Принято / не принято", value: stageCell(r) },
+                { label: "Принято", value: stageCell(r) },
                 { label: "Шт.", value: formatQty(r.quantity), strong: true },
                 { label: "Поставка", value: r.supply || "—" },
                 { label: "Бутик", value: r.boutique || "—" },
-                ...(staff ? [{ label: "Сумма накладной с НДС, ₽", value: sumCell(r) }] : []),
+                ...(staff ? [{ label: "Накладная, ₽", value: sumCell(r) }] : []),
                 { label: "Примечание", value: noteCell(r) },
               ]}
               extra={canEdit ? <div className="flex items-center gap-1">{rowActions(r)}{r.blockedReason && <span className="text-[11px] text-neutral-500">есть приёмка</span>}</div> : undefined}
