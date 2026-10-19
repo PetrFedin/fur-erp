@@ -8,6 +8,7 @@ import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead, TileValue, TileCaption, TileList, type TileItem } from "../dashboard/tile";
 import { TotalLabel } from "@/components/total-label";
+import { InfoHint } from "@/components/info-hint";
 
 /** ТЗ с неоплаченной работой: что именно не оплачено. */
 export type OwedOrder = { id: string; label: string; article: string; fur: string; batch: number | null; year: number | null; qty: number; work: number; work4?: number; paid: number };
@@ -115,6 +116,12 @@ function Tile({ label, value, onOpen, valueClass, hint, items, note }: { label: 
 }
 
 export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint }: Props) {
+  // «К оплате» — остаток работы по заведённым ТЗ (не меньше нуля); неразнесённый аванс — отдельной строкой, из долга не вычитается.
+  const left = Math.max(balance + unallocated, 0);
+  const advItem = unallocated > 0.5 ? [{
+    k: <span className="inline-flex items-center gap-1">Аванс подрядчику (неразнесённый)<InfoHint label="Что такое аванс подрядчику" align="right"><p>Оплачено сверх работы по заведённым ТЗ; погасится работой по будущим ТЗ.</p><p className="mt-1">Из «К оплате» не вычитается; входит в «Оплачено».</p></InfoHint></span>,
+    v: rub(unallocated),
+  }] : undefined;
   const [open, setOpen] = useState<null | "bars" | "debt">(null);
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -127,7 +134,7 @@ export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-goods-tiles>
         <Tile label="Общая стоимость" value={rub(total)} onOpen={() => setOpen("bars")} />
         <Tile label="Оплачено" value={rub(paid)} onOpen={() => setOpen("bars")} note={total > 0.5 ? `${formatPercent((paid / total) * 100)}` : undefined} />
-        <Tile label="К оплате" value={rub(balance)} onOpen={() => setOpen("debt")} valueClass={balance > 0.5 ? "text-amber-700" : ""} hint={hint} note={total > 0.5 ? `${formatPercent((balance / total) * 100)}` : undefined} />
+        <Tile label="К оплате" value={rub(left)} onOpen={() => setOpen("debt")} valueClass={left > 0.5 ? "text-amber-700" : ""} hint={hint} items={advItem} note={total > 0.5 ? `${formatPercent((left / total) * 100)}` : undefined} />
       </div>
       </WidgetRow>
       {open && (
@@ -136,12 +143,12 @@ export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint
             <div className="mb-3 flex items-start justify-between gap-3 border-b border-neutral-200 pb-3">
               <div>
                 <h2 id="goods-dlg-title" className="block-title">{open === "debt" ? "К оплате — за что не оплатили" : "Стоимость и оплачено — по партиям"}</h2>
-                {open === "debt" ? <div className="text-sm text-neutral-700">К оплате <span className="font-medium text-amber-700">{rub(balance)}</span></div> : null}
+                {open === "debt" ? <div className="text-sm text-neutral-700">К оплате <span className="font-medium text-amber-700">{rub(left)}</span></div> : null}
               </div>
               <button type="button" onClick={() => ref.current?.close()} autoFocus aria-label="Закрыть окно" className="btn-accent rounded-lg border border-neutral-300 px-3 py-1.5 text-sm">✕ Закрыть</button>
             </div>
             {open === "debt" ? (
-              <OwedTable owed={owed} advances={unallocated} balance={balance} />
+              <OwedTable owed={owed} advances={unallocated} />
             ) : (
               <BatchTable rows={rows} advances={unallocated} />
             )}
@@ -152,8 +159,8 @@ export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint
   );
 }
 
-/** Расшифровка остатка: все ТЗ, по которым работа оплачена не полностью, по партиям; минус авансы без ТЗ = остаток. */
-function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: number; balance: number }) {
+/** Расшифровка остатка: все ТЗ, по которым работа оплачена не полностью, по партиям; аванс без ТЗ — отдельной строкой. */
+function OwedTable({ owed, advances }: { owed: OwedOrder[]; advances: number }) {
   const batches = Array.from(new Set(owed.map((o) => o.batch))).sort((a, b) => (a ?? 9999) - (b ?? 9999));
   const left = (o: OwedOrder) => o.work - o.paid;
   const total = owed.reduce((s, o) => s + left(o), 0);
@@ -209,9 +216,8 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
         </table>
       </div>
       <dl className="grid max-w-md gap-1 text-sm">
-        <div className="flex justify-between gap-4"><dt className="text-neutral-600">Не оплачено по ТЗ ({uniqueLabelCount(owed)})</dt><dd className="tabular-nums">{rub(total)}</dd></div>
-        {advances > 0.5 ? <div className="flex justify-between gap-4"><dt className="text-neutral-600">Минус авансы без привязки к ТЗ</dt><dd className="tabular-nums text-emerald-700">−{rub(advances)}</dd></div> : null}
-        <div className="flex justify-between gap-4 border-t border-neutral-200 pt-1 font-semibold"><dt>К оплате</dt><dd className="tabular-nums text-amber-700">{rub(balance)}</dd></div>
+        <div className="flex justify-between gap-4 border-t border-neutral-200 pt-1 font-semibold"><dt>К оплате ({uniqueLabelCount(owed)} ТЗ)</dt><dd className="tabular-nums text-amber-700">{rub(total)}</dd></div>
+        {advances > 0.5 ? <div className="flex justify-between gap-4"><dt className="text-neutral-600">Аванс подрядчику (неразнесённый), не вычтен</dt><dd className="tabular-nums">{rub(advances)}</dd></div> : null}
       </dl>
     </div>
   );
