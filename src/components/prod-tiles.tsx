@@ -20,7 +20,7 @@ const money = (v: number) => formatMoney(v.toFixed(2));
  * Считаются из тех же ТЗ, что и дерево под ними и плитки «Производство» на Главной (при тех же фильтрах и годе).
  * `extra` — дополнительные плитки страницы (оплаты партий, маркап и т. п.); `perUnit` — замена плитки «На 1 изделие» (карусель на «Изделиях»).
  */
-export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCount = extra ? 1 : 0, id = "prod", title = "Производство", perUnit, carousel = false, headerEnd, hideProduced = false, hidePerUnit = false }: { hideProduced?: boolean; hidePerUnit?: boolean; headerEnd?: ReactNode; carousel?: boolean; id?: string; perUnit?: ReactNode; title?: string; orders: DrillOrder[]; c4: "on" | "off"; extra?: ReactNode; treeId?: string; extraCount?: number }) {
+export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCount = extra ? 1 : 0, id = "prod", title = "Производство", perUnit, carousel = false, headerEnd, hideProduced = false, hidePerUnit = false, defaultCollapsed = false }: { /** Свёрнуто, пока человек сам не развернул (итоги дублируют раздел «ТЗ»). */ defaultCollapsed?: boolean; hideProduced?: boolean; hidePerUnit?: boolean; headerEnd?: ReactNode; carousel?: boolean; id?: string; perUnit?: ReactNode; title?: string; orders: DrillOrder[]; c4: "on" | "off"; extra?: ReactNode; treeId?: string; extraCount?: number }) {
   const { mode: vat } = useVatDisplay();
   const all = sumOrders(orders, vat);
   const own = sumOrders(orders.filter((o) => o.cat !== "Ремонт"), vat);
@@ -41,12 +41,12 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
   const costTotal = (
     <>
       <TileValue>{money(total)}</TileValue>
-      {carousel ? <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-400">{c4 === "on" ? `${money(total - all.c4)} без 4%` : null}</div> : null}
-      <TileCaption>сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа{all.repairOrders > 0 ? " · с ремонтом, как на Главной" : ""}</TileCaption>
+      {carousel ? <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-400">{c4 === "on" ? `${money(total - all.c4)} без 4 %` : null}</div> : null}
+      <TileCaption>сырьё{c4 === "on" ? " + 4 %" : ""} + расходы ТЗ + работа{all.repairOrders > 0 ? " · с ремонтом, как на Главной" : ""}</TileCaption>
       <TileList items={[
         { k: "Мех", v: money(all.fur), share: share(all.fur, total) },
         { k: "Подкладка", v: money(all.lining), share: share(all.lining, total) },
-        ...(c4 === "on" ? [{ k: "Надбавка 4%", v: money(all.c4), share: share(all.c4, total) }] : []),
+        ...(c4 === "on" ? [{ k: "Надбавка 4 %", v: money(all.c4), share: share(all.c4, total) }] : []),
         ...(Math.abs(all.other) > 0.5 && Math.abs(all.other) >= total * 0.001 ? [{ k: "Расходы ТЗ и прочее", v: money(all.other), share: share(all.other, total) }] : []),
         { k: "Работа", v: money(all.work), share: share(all.work, total) },
         ...(all.repairOrders > 0 ? [
@@ -57,7 +57,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
     </>
   );
   return (
-    <WidgetRow id={id} title={title} headerEnd={headerEnd}>
+    <WidgetRow id={id} title={title} headerEnd={headerEnd} defaultCollapsed={defaultCollapsed}>
     <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (["xl:grid-cols-1", "xl:grid-cols-2", "xl:grid-cols-3", "xl:grid-cols-4", "xl:grid-cols-5"][Math.min(4, (hideProduced ? 0 : 1) + 1 + (hidePerUnit ? 0 : 1) + extraCount - 1)])}>
       {hideProduced ? null : carousel ? (
         <TileCarousel clickable hoverBlocks title={OUTPUT_LABEL} hintLabel="Что такое «в выпуске»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
@@ -81,7 +81,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
       )}
       {carousel ? (
         <TileCarousel clickable hoverBlocks title={COST_FULL_LABEL} hintLabel="Что такое полная себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
-          hint={<><p>Мех (с шкурами подрядчика) + подкладка + 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Всего» включает ремонт (строка «из них ремонт»); «Одежда» и «Аксессуары» — только изделия группы, в сумме дают «из них изделия». Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4% (мелко — без 4%)" : "без 4%"}.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
+          hint={<><p>Мех (с шкурами подрядчика) + подкладка + 4 % (в режиме «С 4 %») + расходы ТЗ и прочее + работа. «Всего» включает ремонт (строка «из них ремонт»); «Одежда» и «Аксессуары» — только изделия группы, в сумме дают «из них изделия». Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4 % (мелко — без 4 %)" : "без 4 %"}.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
           slides={[
             { key: "total", label: "Всего", body: <a href={`#${treeId}`} className={slideLink} aria-label="Полная себестоимость — перейти к составу">{costTotal}</a> },
             ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: <a href={`#${treeId}`} className={slideLink} aria-label={`Полная себестоимость: ${g} — перейти к составу`}><GroupCostSlide all={orders} grp={g} vat={vat} c4={c4} /></a> })),
@@ -94,7 +94,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
         </a>
         <div className="absolute right-3 top-3">
           <InfoHint label="Что такое себестоимость" wide align="right">
-            <p>Мех (с шкурами подрядчика) + подкладка + 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. Это та же «Полная себестоимость (с работой)», что в блоке «Производство» на Главной; без работы она называется «Себестоимость сырья» (таблица партий, «Аналитика → Изделия»); в неё входит ремонт (отдельной строкой «из них ремонт»). Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4%" : "без 4%"}.</p>
+            <p>Мех (с шкурами подрядчика) + подкладка + 4 % (в режиме «С 4 %») + расходы ТЗ и прочее + работа. Это та же «Полная себестоимость (с работой)», что в блоке «Производство» на Главной; без работы она называется «Себестоимость сырья» (таблица партий, «Аналитика → Изделия»); в неё входит ремонт (отдельной строкой «из них ремонт»). Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4 %" : "без 4 %"}.</p>
           </InfoHint>
         </div>
       </div>
@@ -107,7 +107,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
           {own.qty > 0 ? (
             <TileList items={[
               { k: "Сырьё (мех + подкладка)", v: money((own.fur + own.lining) / own.qty), share: share(own.fur + own.lining, totalOwn) },
-              ...(c4 === "on" ? [{ k: "Надбавка 4%", v: money(own.c4 / own.qty), share: share(own.c4, totalOwn) }] : []),
+              ...(c4 === "on" ? [{ k: "Надбавка 4 %", v: money(own.c4 / own.qty), share: share(own.c4, totalOwn) }] : []),
               ...(Math.abs(own.other) > 0.5 && Math.abs(own.other) >= totalOwn * 0.001 ? [{ k: "Расходы ТЗ и прочее", v: money(own.other / own.qty), share: share(own.other, totalOwn) }] : []),
               { k: "Работа", v: money(own.work / own.qty), share: share(own.work, totalOwn) },
             ]} />

@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { buttonVariants } from "@/components/ui/button";
-import { formatQty } from "@/lib/utils";
+import { formatQty, formatMarkup } from "@/lib/utils";
 import { Money } from "@/components/money";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { getYearFilter } from "@/lib/year-filter";
@@ -47,6 +47,7 @@ import { ArticleShopEditor } from "@/components/article-shop-editor";
 import { pluByVariant } from "@/lib/article-shop-core";
 import { SupplierArticles } from "./supplier-view";
 import { loadSupplierArticleIds } from "@/lib/supplier-articles";
+import { ColumnPicker, type PickerColumn } from "@/components/column-picker";
 
 export const metadata = { title: "Изделия" };
 
@@ -63,6 +64,31 @@ const ARTICLE_FILTERS = defineFilters({
   empty: stateParam("Состав списка", { allowed: ["1"] }),
   src: stateParam("Источник", { allowed: ["supplier"] }),
 });
+
+/** Колонки таблицы «Изделия»: на виду главные (артикул, фото, категория, мех, выпуск, себестоимость, цена, наценка, ТЗ), остальные — в «Колонки ▾». */
+const ARTICLE_COLUMNS: PickerColumn[] = [
+  { key: "name", label: "Артикул", fixed: true },
+  { key: "photos", label: "Фото", on: true },
+  { key: "plu", label: "PLU" },
+  { key: "shop", label: "Ссылка на магазин" },
+  { key: "category", label: "Категория / группа", on: true },
+  { key: "fur", label: "Тип меха", on: true },
+  { key: "color", label: "Цвет" },
+  { key: "sizes", label: "Размеры" },
+  { key: "lining", label: "Состав подкладки" },
+  { key: "qty", label: "В выпуске", on: true },
+  { key: "furQty", label: "Шкур, шт." },
+  { key: "furSum", label: "Шкуры, сумма" },
+  { key: "liningQty", label: "Подкладка, м" },
+  { key: "liningSum", label: "Подкладка, сумма" },
+  { key: "work", label: "Работа" },
+  { key: "total", label: "Полная себестоимость", on: true },
+  { key: "unit", label: "Себестоимость за ед.", on: true },
+  { key: "vat", label: "НДС" },
+  { key: "price", label: "Розничная цена", on: true },
+  { key: "markup", label: "Наценка", on: true },
+  { key: "orders", label: "ТЗ", on: true },
+];
 
 export default async function ArticlesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
@@ -249,7 +275,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     .filter((g) => g.total)
     .sort((x, y) => y.total.markup - x.total.markup);
   const markupTotal = aggOf(rows);
-  const fmtX = (v: number) => `×${v.toFixed(2).replace(".", ",")}`;
+  const fmtX = (v: number) => formatMarkup(v);
 
   // Плитки и дерево «артикул → ТЗ → состав» — из тех же ТЗ, что на Главной, по артикулам и ТЗ списка.
   // Ремонт в плитки «Себестоимость» добавляется отдельной строкой (как на Главной), если не выбраны фильтры списка.
@@ -271,12 +297,13 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             <p>Артикулы: сколько в выпуске (готово + в работе), что лежит на складе, полная себестоимость, розничная цена и наценка. Данные — те же ТЗ, что в «В выпуске» на Главной (без отменённых и без ремонта).</p>
             <p className="mt-1"><b>Год ({year === "all" ? "все годы" : year}):</b> «В выпуске» и полная себестоимость — по ТЗ выбранного года. Остаток на складе текущий, от года не зависит.</p>
             <p className="mt-1"><b>Средневзв. себестоимость</b> = полная себестоимость (с работой) всех ТЗ артикула ÷ «В выпуске». <b>Наценка</b> = розничная цена ÷ полная себестоимость за ед. (в «Аналитика → Цены» наценка считается от «Себестоимости сырья» по завершённым ТЗ — другая база, цифры не равны).</p>
-            <p className="mt-1">Режимы шапки «С НДС / Без НДС» и «С 4%» меняют все суммы. Ремонт — отдельная страница «Ремонт».</p>
+            <p className="mt-1">Режимы шапки «С НДС / Без НДС» и «С 4 %» меняют все суммы. Ремонт — отдельная страница «Ремонт».</p>
             {canCreate && <p className="mt-1">Розничную цену можно ввести прямо в таблице: Enter или переход в другое поле сохраняет её.</p>}
           </InfoHint>
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <ColumnPicker id="articles" columns={ARTICLE_COLUMNS} />
           <Link href="/repair" className={buttonVariants({ variant: "outline" })}>Ремонт</Link>
           <Link href="/analytics/products" className={buttonVariants({ variant: "outline" })}>
             Аналитика и цены
@@ -319,7 +346,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         c4={c4Mode}
         treeId="orders-tree"
         id="articles"
-        title="Изделия — итоги"
+        title="Итоги выпуска"
+        defaultCollapsed
         headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}
         extraCount={1}
         carousel
@@ -336,45 +364,45 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       )}
 
       <ResponsiveRows table={
-      <Table anchor="table:articles" label="Таблица изделий" stickyHeader className="min-w-[1640px]">
+      <Table anchor="table:articles" label="Таблица изделий" stickyHeader stickyFirst data-colset="articles" className="min-w-[960px]">
         <Thead>
           <Tr>
-            <Th {...ath("name")}>Артикул</Th>
-            <Th {...ath("photos")}>Фото</Th>
-            <Th {...ath("plu")}>PLU</Th>
-            <Th><span className="sr-only">Ссылка на магазин</span></Th>
-            <Th {...ath("category")}>Категория / группа</Th>
-            <Th {...ath("fur")}>Тип меха</Th>
-            <Th {...ath("color")}>Цвет</Th>
-            <Th {...ath("sizes")}>Размеры</Th>
-            <Th {...ath("lining")}>Состав подкладки</Th>
-            <Th {...ath("qty")} className="text-right" unit="шт." after={<InfoHint label="Что такое «в выпуске»">Все ТЗ артикула без отменённых и без ремонта: готово (завершённые) + в работе (план ТЗ «В работе» и «Запланировано») — как на Главной.</InfoHint>}>В выпуске</Th>
-            <Th {...ath("furQty")} className="text-right" unit="шт." after={<InfoHint label="Шкуры">Сколько шкур списано в ТЗ артикула и сколько в среднем на 1 изделие (шкур ÷ в выпуске).</InfoHint>}>Шкур</Th>
-            <Th {...ath("furSum")} className="text-right" unit="₽" after={<InfoHint label="Сумма шкур">Стоимость списанных шкур: основная цифра с 4%, мелко — без 4%. Включена в «Полную себестоимость итого». Цена за шкуру по видам меха — в карточке артикула.</InfoHint>}>Шкуры</Th>
-            <Th {...ath("liningQty")} className="text-right" unit="м">Подкладка</Th>
-            <Th {...ath("liningSum")} className="text-right" unit="₽">Подкладка</Th>
-            <Th {...ath("work")} className="text-right" unit="₽">Работа</Th>
-            <Th {...ath("total")} className="text-right" unit="₽" after={<InfoHint label="Из чего складывается">Шкуры + подкладка + 4% + расходы + работа по всем ТЗ артикула. Итог равен «Полной себестоимости (с работой)» изделий (без ремонта) на Главной. Основная цифра — с 4%, мелко — без 4%.</InfoHint>}>Себестоимость итого</Th>
-            <Th {...ath("unit")} className="text-right" unit="₽/шт." after={<InfoHint label="Полная себестоимость единицы">Полная себестоимость итого ÷ «В выпуске».</InfoHint>}>Средневзв. себестоимость</Th>
-            <Th>
+            <Th data-col="name" {...ath("name")}>Артикул</Th>
+            <Th data-col="photos" {...ath("photos")}>Фото</Th>
+            <Th data-col="plu" {...ath("plu")}>PLU</Th>
+            <Th data-col="shop"><span className="sr-only">Ссылка на магазин</span></Th>
+            <Th data-col="category" {...ath("category")}>Категория / группа</Th>
+            <Th data-col="fur" {...ath("fur")}>Тип меха</Th>
+            <Th data-col="color" {...ath("color")}>Цвет</Th>
+            <Th data-col="sizes" {...ath("sizes")}>Размеры</Th>
+            <Th data-col="lining" {...ath("lining")}>Состав подкладки</Th>
+            <Th data-col="qty" {...ath("qty")} className="text-right" unit="шт." after={<InfoHint label="Что такое «в выпуске»">Все ТЗ артикула без отменённых и без ремонта: готово (завершённые) + в работе (план ТЗ «В работе» и «Запланировано») — как на Главной.</InfoHint>}>В выпуске</Th>
+            <Th data-col="furQty" {...ath("furQty")} className="text-right" unit="шт." after={<InfoHint label="Шкуры">Сколько шкур списано в ТЗ артикула и сколько в среднем на 1 изделие (шкур ÷ в выпуске).</InfoHint>}>Шкур</Th>
+            <Th data-col="furSum" {...ath("furSum")} className="text-right" unit="₽" after={<InfoHint label="Сумма шкур">Стоимость списанных шкур: основная цифра с 4 %, мелко — без 4 %. Включена в «Полную себестоимость итого». Цена за шкуру по видам меха — в карточке артикула.</InfoHint>}>Шкуры</Th>
+            <Th data-col="liningQty" {...ath("liningQty")} className="text-right" unit="м">Подкладка</Th>
+            <Th data-col="liningSum" {...ath("liningSum")} className="text-right" unit="₽">Подкладка</Th>
+            <Th data-col="work" {...ath("work")} className="text-right" unit="₽">Работа</Th>
+            <Th data-col="total" {...ath("total")} className="text-right" unit="₽" after={<InfoHint label="Из чего складывается">Шкуры + подкладка + 4 % + расходы + работа по всем ТЗ артикула. Итог равен «Полной себестоимости (с работой)» изделий (без ремонта) на Главной. Основная цифра — с 4 %, мелко — без 4 %.</InfoHint>}>Себестоимость итого</Th>
+            <Th data-col="unit" {...ath("unit")} className="text-right" unit="₽/шт." after={<InfoHint label="Полная себестоимость единицы">Полная себестоимость итого ÷ «В выпуске».</InfoHint>}>Средневзв. себестоимость</Th>
+            <Th data-col="vat">
               НДС
               <InfoHint label="НДС">Ставки НДС в строках списания шкур и подкладки (из лотов или заданные в ТЗ). Все суммы в таблице показываются «с НДС» или «без НДС» по переключателю в шапке.</InfoHint>
             </Th>
-            <Th {...ath("price")} className="text-right" unit="₽" after={<InfoHint label="Розничная цена">Розничная цена артикула с НДС. Правится прямо здесь: Enter или переход в другое поле сохраняет, рядом появляется «Сохранено». Применяется к ТЗ в плане и в работе.</InfoHint>}>Цена с НДС</Th>
-            <Th {...ath("markup")} className="text-right" after={<InfoHint label="Как считается наценка">Розничная цена ÷ полная себестоимость за ед. (с работой, с НДС, с 4%) — по всем ТЗ артикула (завершённым и в работе). В «Аналитика → Цены» база другая: себестоимость сырья без работы, только завершённые ТЗ. Пример: цена 10 000 ₽ при себестоимости 4 000 ₽ — ×2,50.</InfoHint>}>Наценка</Th>
-            <Th {...ath("orders")} className="text-right">ТЗ</Th>
+            <Th data-col="price" {...ath("price")} className="text-right" unit="₽" after={<InfoHint label="Розничная цена">Розничная цена артикула с НДС. Правится прямо здесь: Enter или переход в другое поле сохраняет, рядом появляется «Сохранено». Применяется к ТЗ в плане и в работе.</InfoHint>}>Цена с НДС</Th>
+            <Th data-col="markup" {...ath("markup")} className="text-right" after={<InfoHint label="Как считается наценка">Розничная цена ÷ полная себестоимость за ед. (с работой, с НДС, с 4 %) — по всем ТЗ артикула (завершённым и в работе). В «Аналитика → Цены» база другая: себестоимость сырья без работы, только завершённые ТЗ. Пример: цена 10 000 ₽ при себестоимости 4 000 ₽ — ×2,50.</InfoHint>}>Наценка</Th>
+            <Th data-col="orders" {...ath("orders")} className="text-right">ТЗ</Th>
           </Tr>
         </Thead>
         <Tbody>
           {rows.map((r) => (
             <Tr key={r.id} className={r.isActive ? "" : "opacity-60"}>
-              <Td className="font-medium">
+              <Td data-col="name" className="font-medium">
                 <Link href={`/models/${r.id}`} className="text-blue-700 hover:underline" title="Карточка артикула">
                   <ArticleName model={r.model} compact />
                 </Link>
                 {r.bySupplier && <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800" title="Артикул завёл поставщик — проверьте и проставьте цену">внёс: Веллмех</span>}
               </Td>
-              <Td>
+              <Td data-col="photos">
                 <div className="flex items-center gap-2 whitespace-nowrap">
                 {photoSummary.get(r.id) ? (() => {
                   const ex = galleryExtras(photoSummary.get(r.id)!, shopLinksAll.get(r.id) ?? [], colorRefs);
@@ -383,53 +411,53 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 {canCreate && <ArticleShopEditor modelId={r.id} title={r.name} />}
                 </div>
               </Td>
-              <Td className="text-xs tabular-nums text-neutral-700">
+              <Td data-col="plu" className="text-xs tabular-nums text-neutral-700">
                 {r.plus.map((x) => <div key={x.plu} className="whitespace-nowrap">{x.plu}{r.plus.length > 1 && x.label ? <span className="text-[11px] text-neutral-400"> · {x.label}</span> : null}</div>)}
               </Td>
-              <Td className="w-12">
+              <Td data-col="shop" className="w-12">
                 {(() => {
                   const links = shopLinksAll.get(r.id) ?? [];
                   return links[0] ? <a href={links[0].url} target="_blank" rel="noopener noreferrer" aria-label="Товар в магазине" title={links.length > 1 ? `Товар в магазине (первая из ${links.length} страниц; остальные — в окне «Фото»)` : "Товар в магазине"} className="inline-flex size-11 items-center justify-center rounded-lg border border-neutral-300 bg-white text-sm hover:bg-neutral-50 sm:size-9">↗</a> : null;
                 })()}
               </Td>
-              <Td className="text-neutral-700">
+              <Td data-col="category" className="text-neutral-700">
                 <div>{r.model.category?.trim() || "—"}</div>
                 {r.group !== NO_GROUP ? <div className="text-[11px] text-neutral-400">{r.group}</div> : null}
               </Td>
-              <Td className="text-neutral-700" title={r.met.furNames.join(", ")}>
+              <Td data-col="fur" className="text-neutral-700" title={r.met.furNames.join(", ")}>
                 {r.primaryFur ?? "—"}
                 {r.met.furNames.length > 1 ? <span className="text-[11px] text-neutral-400"> +{r.met.furNames.length - 1}</span> : null}
               </Td>
-              <Td className="text-neutral-700" title={r.colors.join(", ")}>
+              <Td data-col="color" className="text-neutral-700" title={r.colors.join(", ")}>
                 {r.colors.length ? r.colors.slice(0, 2).join(", ") : "—"}
                 {r.colors.length > 2 ? <span className="text-[11px] text-neutral-400"> +{r.colors.length - 2}</span> : null}
               </Td>
-              <Td className="text-neutral-700 text-xs" title={r.sizes}>{r.sizes ? (r.sizes.length > 24 ? `${r.sizes.slice(0, 24)}…` : r.sizes) : "—"}</Td>
-              <Td className="text-neutral-700 text-xs" title={r.lining}>{r.lining ? (r.lining.length > 32 ? `${r.lining.slice(0, 32)}…` : r.lining) : "—"}</Td>
-              <Td className="text-right tabular-nums">{r.qty > 0 ? formatQty(r.qty) : "—"}</Td>
-              <Td className="text-right tabular-nums">
+              <Td data-col="sizes" className="text-neutral-700 text-xs" title={r.sizes}>{r.sizes ? (r.sizes.length > 24 ? `${r.sizes.slice(0, 24)}…` : r.sizes) : "—"}</Td>
+              <Td data-col="lining" className="text-neutral-700 text-xs" title={r.lining}>{r.lining ? (r.lining.length > 32 ? `${r.lining.slice(0, 32)}…` : r.lining) : "—"}</Td>
+              <Td data-col="qty" className="text-right tabular-nums">{r.qty > 0 ? formatQty(r.qty) : "—"}</Td>
+              <Td data-col="furQty" className="text-right tabular-nums">
                 {r.met.fur.qty > 0 ? formatQty(Math.round(r.met.fur.qty * 100) / 100) : "—"}
                 {r.met.fur.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.fur.qty, r.qty)} шк./изд.</div> : null}
                 {r.supplierFur ? <div className="text-[11px] text-neutral-400" title="Заявка подрядчика по артикулу, не итог по ТЗ">подрядчик: {r.supplierFur} шк./изд.</div> : null}
               </Td>
-              <Td className="text-right"><CostTwo on={r.met.fur.on} off={r.met.fur.off} /></Td>
-              <Td className="text-right tabular-nums">
+              <Td data-col="furSum" className="text-right"><CostTwo on={r.met.fur.on} off={r.met.fur.off} /></Td>
+              <Td data-col="liningQty" className="text-right tabular-nums">
                 {r.met.lining.qty > 0 ? formatQty(Math.round(r.met.lining.qty * 100) / 100) : "—"}
                 {r.met.lining.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.lining.qty, r.qty)} м/изд.</div> : null}
               </Td>
-              <Td className="text-right"><CostTwo on={r.met.lining.on} off={r.met.lining.off} /></Td>
-              <Td className="text-right tabular-nums">
+              <Td data-col="liningSum" className="text-right"><CostTwo on={r.met.lining.on} off={r.met.lining.off} /></Td>
+              <Td data-col="work" className="text-right tabular-nums">
                 {r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "—"}
                 {r.supplierWork ? <div className="text-[11px] text-neutral-400" title="Заявка подрядчика по артикулу, не итог по ТЗ">подрядчик: {r.supplierWork}/изд.</div> : null}
               </Td>
-              <Td className="text-right"><CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /></Td>
-              <Td className="text-right"><CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /></Td>
-              <Td className="whitespace-nowrap tabular-nums text-neutral-700" title="Ставки НДС в строках списания">{r.met.vatRates.length ? r.met.vatRates.map((v) => `${v}%`).join(", ") : "—"}</Td>
-              <Td className="text-right">
+              <Td data-col="total" className="text-right"><CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /></Td>
+              <Td data-col="unit" className="text-right"><CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /></Td>
+              <Td data-col="vat" className="whitespace-nowrap tabular-nums text-neutral-700" title="Ставки НДС в строках списания">{r.met.vatRates.length ? r.met.vatRates.map((v) => `${v} %`).join(", ") : "—"}</Td>
+              <Td data-col="price" className="text-right">
                 <ArticlePriceForm modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} canEdit={canCreate} />
               </Td>
-              <Td className="text-right tabular-nums">{r.markup ? fmtX(r.markup) : "—"}</Td>
-              <Td className="text-right tabular-nums">
+              <Td data-col="markup" className="text-right tabular-nums">{r.markup ? fmtX(r.markup) : "—"}</Td>
+              <Td data-col="orders" className="text-right tabular-nums">
                 {r.orderCount > 0 ? (
                   <Link href={`/production?model=${r.id}`} className="text-blue-700 hover:underline" title="ТЗ этого артикула">
                     {r.orderCount}
@@ -442,17 +470,17 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           ))}
           {rows.length > 0 && (
             <Tr className="row-total">
-              <Td><TotalLabel unit="шт." /></Td>
-              <Td /><Td /><Td /><Td /><Td /><Td /><Td /><Td />
-              <Td className="text-right tabular-nums">{totalQty > 0 ? formatQty(totalQty) : "—"}</Td>
-              <Td className="text-right tabular-nums">{totalFurQty > 0 ? formatQty(Math.round(totalFurQty * 100) / 100) : "—"}</Td>
-              <Td className="text-right"><CostTwo on={sumPair((r) => r.met.fur.on)} off={sumPair((r) => r.met.fur.off)} /></Td>
-              <Td className="text-right tabular-nums">{totalLiningQty > 0 ? formatQty(Math.round(totalLiningQty * 100) / 100) : "—"}</Td>
-              <Td className="text-right"><CostTwo on={sumPair((r) => r.met.lining.on)} off={sumPair((r) => r.met.lining.off)} /></Td>
-              <Td className="text-right tabular-nums"><Money incl={sum((r) => r.met.work).toFixed(2)} excl={sum((r) => r.met.work).toFixed(2)} /></Td>
-              <Td className="text-right"><CostTwo on={totalQty > 0 || totalCostIncl > 0 ? sumPair((r) => r.met.total.on) : null} off={sumPair((r) => r.met.total.off)} /></Td>
-              <Td className="text-right">{totalQty > 0 ? <CostTwo on={{ incl: totalCostIncl / totalQty, excl: totalCostExcl / totalQty }} off={{ incl: sumPair((r) => r.met.total.off).incl / totalQty, excl: sumPair((r) => r.met.total.off).excl / totalQty }} /> : "—"}</Td>
-              <Td /><Td /><Td /><Td />
+              <Td data-col="name"><TotalLabel unit="шт." /></Td>
+              <Td data-col="photos" /><Td data-col="plu" /><Td data-col="shop" /><Td data-col="category" /><Td data-col="fur" /><Td data-col="color" /><Td data-col="sizes" /><Td data-col="lining" />
+              <Td data-col="qty" className="text-right tabular-nums">{totalQty > 0 ? formatQty(totalQty) : "—"}</Td>
+              <Td data-col="furQty" className="text-right tabular-nums">{totalFurQty > 0 ? formatQty(Math.round(totalFurQty * 100) / 100) : "—"}</Td>
+              <Td data-col="furSum" className="text-right"><CostTwo on={sumPair((r) => r.met.fur.on)} off={sumPair((r) => r.met.fur.off)} /></Td>
+              <Td data-col="liningQty" className="text-right tabular-nums">{totalLiningQty > 0 ? formatQty(Math.round(totalLiningQty * 100) / 100) : "—"}</Td>
+              <Td data-col="liningSum" className="text-right"><CostTwo on={sumPair((r) => r.met.lining.on)} off={sumPair((r) => r.met.lining.off)} /></Td>
+              <Td data-col="work" className="text-right tabular-nums"><Money incl={sum((r) => r.met.work).toFixed(2)} excl={sum((r) => r.met.work).toFixed(2)} /></Td>
+              <Td data-col="total" className="text-right"><CostTwo on={totalQty > 0 || totalCostIncl > 0 ? sumPair((r) => r.met.total.on) : null} off={sumPair((r) => r.met.total.off)} /></Td>
+              <Td data-col="unit" className="text-right">{totalQty > 0 ? <CostTwo on={{ incl: totalCostIncl / totalQty, excl: totalCostExcl / totalQty }} off={{ incl: sumPair((r) => r.met.total.off).incl / totalQty, excl: sumPair((r) => r.met.total.off).excl / totalQty }} /> : "—"}</Td>
+              <Td data-col="vat" /><Td data-col="price" /><Td data-col="markup" /><Td data-col="orders" />
             </Tr>
           )}
           {rows.length === 0 && (
@@ -496,7 +524,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               { label: "Подкладка, м", value: r.met.lining.qty > 0 ? `${formatQty(Math.round(r.met.lining.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.lining.qty, r.qty)}/изд.)` : ""}` : "—" },
               { label: "Подкладка, сумма", value: <CostTwo on={r.met.lining.on} off={r.met.lining.off} /> },
               { label: "Работа", value: r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "—" },
-              { label: "НДС в списаниях", value: r.met.vatRates.length ? r.met.vatRates.map((v) => `${v}%`).join(", ") : "—" },
+              { label: "НДС в списаниях", value: r.met.vatRates.length ? r.met.vatRates.map((v) => `${v} %`).join(", ") : "—" },
             ]}
             extra={
               <div>

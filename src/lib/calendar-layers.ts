@@ -51,6 +51,8 @@ export async function loadFactLayer(organizationId: string, from: string, to: st
   const items: FactItem[] = [];
   const monthLevel: MonthLevelItem[] = [];
   for (const s of supply) {
+    // Скрытый модуль «План поставок» (HIDDEN_MODULES): его записи и ссылки на страницу в календарь не выводим.
+    if (HIDDEN_MODULES.supplyPlan) break;
     const label = STATUS_LABELS[s.status as SupplyPlanStatusValue] ?? s.status;
     if (s.eventDate) {
       items.push({ id: `sp-${s.id}`, kind: "supply", date: ymd(s.eventDate), title: articleLabel(s.productModel), qty: Number(s.quantity), label, href: "/supply-plan" });

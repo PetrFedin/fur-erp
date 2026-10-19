@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
+import { Segmented } from "@/components/segmented";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 import { STAGE_STYLES, type Stage } from "@/lib/calendar-actions";
 import { formatQty, formatShare } from "@/lib/utils";
@@ -14,18 +15,9 @@ export const FIELD = "ui-field h-10 rounded-lg text-xs";
 
 export type SegItem = { key: string; label: string; href: string; on: boolean; title?: string };
 
-/** Сегмент-переключатель режимов (ссылки): активный — акцентный (bg-neutral-900), остальные белые. */
+/** Сегмент-переключатель режимов (ссылки): общий компонент Segmented (как в Cashflow). */
 export function Segment({ label, items }: { label: string; items: SegItem[] }) {
-  return (
-    <div role="group" aria-label={label} className="inline-flex overflow-hidden rounded-lg border border-neutral-300 text-xs">
-      {items.map((it, i) => (
-        <Link key={it.key} href={it.href} title={it.title} aria-current={it.on ? "page" : undefined}
-          className={`inline-flex h-8 items-center whitespace-nowrap px-3 font-medium max-md:min-h-10 ${i > 0 ? "border-l border-neutral-300" : ""} ${it.on ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-50"}`}>
-          {it.label}
-        </Link>
-      ))}
-    </div>
-  );
+  return <Segmented label={label} size="sm" items={items.map((it) => ({ key: it.key, label: it.label, on: it.on, href: it.href, title: it.title }))} />;
 }
 
 /** Подпись над группой сегментов (мини-подпись 10px, как у полей фильтров). */
@@ -56,7 +48,7 @@ export function SummaryTiles({ grand, overdue, overdueEvents, stageHref, activeS
   const cols = period ? "xl:grid-cols-6" : "xl:grid-cols-5";
   return (
     <div className={`grid grid-cols-1 items-stretch gap-3 md:grid-cols-4 ${cols} print:grid-cols-4`}>
-      {period && (
+      {period && (period.total > 0 || period.count > 0) && (
         <div className={TILE_BOX}>
           <TileHead>События · {period.label}</TileHead>
           <TileValue>{num(period.total)}{period.total > 0 && <span className="ml-1 text-xs font-normal text-neutral-500">шт.</span>}</TileValue>
@@ -81,6 +73,8 @@ export function SummaryTiles({ grand, overdue, overdueEvents, stageHref, activeS
       {SHOWN_TILES.map((k) => {
         const st = STAGE_STYLES[k];
         const on = activeStage.length === 1 && activeStage[0] === k;
+        // Пустой месяц: плитки стадий без значения не рисуем (кроме выбранной — иначе фильтр нельзя снять).
+        if (grand[k] <= 0 && !on) return null;
         return (
           <Link key={k} href={stageHref(k)} title={st.hint} aria-current={on ? "true" : undefined} className={TILE_BOX + " tile-click"} style={on ? { borderColor: "var(--ui-accent)" } : undefined}>
             <TileHead><i className={`mt-1 size-2 shrink-0 rounded-full ${st.dot}`} aria-hidden />{st.label}</TileHead>
@@ -89,11 +83,11 @@ export function SummaryTiles({ grand, overdue, overdueEvents, stageHref, activeS
           </Link>
         );
       })}
-      <div className={TILE_BOX}>
+      {(overdue > 0 || (overdueEvents ?? 0) > 0) && <div className={TILE_BOX}>
         <TileHead>Просрочено</TileHead>
         <TileValue className={overdue > 0 ? "text-red-700" : ""}>{overdue > 0 ? formatQty(overdue) : "—"}{overdue > 0 && <span className="ml-1 text-xs font-normal text-neutral-500">ТЗ</span>}</TileValue>
         <TileCaption>{overdueEvents != null && overdueEvents > 0 ? `событий: ${formatQty(overdueEvents)}` : null}</TileCaption>
-      </div>
+      </div>}
     </div>
   );
 }

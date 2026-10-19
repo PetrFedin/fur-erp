@@ -322,14 +322,12 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       <Breadcrumbs items={[{ label: "Календарь", href: "/calendar" }, { label: mode === "months" ? "По месяцам" : mode === "stages" ? "Стадии" : `Детально · ${title}` }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center">
-          <h1 className="text-xl font-semibold">Производственный календарь</h1>
+          <h1 className="text-xl font-semibold">Календарь</h1>
           <span className="ml-2 inline-flex items-center gap-1 text-sm font-normal text-neutral-500">
             {year === "all" ? "· все годы" : `· ${year} год`}
             <InfoHint wide label="Как читать календарь">
-              <p>Здесь ваши события: артикул × количество, дата и действие (раскрой, пошив, сдача скорняку…). Пунктирные ярлыки — слои из фильтра «Слои» (аукционы, отгрузки, этапы сырья, даты ТЗ); они только для просмотра.</p>
-              <p className="mt-1">Красная рамка — дата прошла, а событие (или ТЗ) не выполнено. Итоги считаются по событиям один раз, в день начала. Общий год из шапки скрывает события других годов.</p>
-              <p className="mt-1">Режимы: «Детально» — сетка с подписями (артикул, мех, количество, стадия, ожидаемая дата; клик по ТЗ открывает карточку), «По месяцам» — таблица видов меха по месяцам и стадиям, «Стадии» — путь изделия от плана до отгрузки со сроками.</p>
-              {canEdit && <p className="mt-1">Добавить событие — кнопкой ниже или нажатием на день.</p>}
+              <p>События: артикул × количество, дата и действие. Пунктирные ярлыки — слои «Слои» (аукционы, отгрузки, этапы сырья, даты ТЗ), только для просмотра.</p>
+              <p className="mt-1">Красная рамка — дата прошла, а событие не выполнено. «По месяцам» и «Стадии» — таблицы ТЗ по меху и стадиям.{canEdit ? " Добавить событие — кнопкой или нажатием на день." : ""}</p>
             </InfoHint>
           </span>
         </div>
@@ -340,7 +338,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       </div>
 
       <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <Segment label="Режим календаря" items={([["detail", "Детально", view], ["months", "По месяцам", "months"], ["stages", "Стадии", "stages"]] as const).map(([m, t, v]) => ({ key: m, label: t, on: mode === m, href: href({ view: v, w: v === "week" ? weekStart : "", event: "", new: "", cell: "", ord: "" }) }))} />
+        <Segment label="Вид календаря" items={([["month", "Месяц"], ["week", "Неделя"], ["list", "Список"], ["months", "По месяцам"], ["stages", "Стадии"]] as const).map(([v, t]) => ({ key: v, label: t, on: mode === "detail" ? view === v : mode === v, href: href({ view: v, w: v === "week" ? weekStart : "", event: "", new: "", cell: "", ord: "" }) }))} />
         {mode === "detail" && canEdit && (
           <Link href={href({ day: today.startsWith(month) ? today : `${month}-01`, event: "" })} scroll={false} className="btn btn-accent ml-auto inline-flex h-8 items-center rounded-md border border-neutral-900 bg-neutral-900 px-3 text-xs font-medium text-white max-md:min-h-10">+ Добавить событие</Link>
         )}
@@ -391,7 +389,6 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       {/* Итоги и сетка */}
       {mode === "detail" && <>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <Segment label="Вид" items={([["month", "Месяц"], ["week", "Неделя"], ["list", "Список"]] as const).map(([v, t]) => ({ key: v, label: t, on: view === v, href: href({ view: v, w: v === "week" ? weekStart : "" }) }))} />
         <Link href={prev} className={BTN_ICON} aria-label="Назад">‹</Link>
         <h2 className="min-w-44 text-center block-title">{title}</h2>
         <Link href={next} className={BTN_ICON} aria-label="Вперёд">›</Link>
@@ -402,12 +399,15 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           <span key={a} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${actionDef(a).chip}`}>{a}: {formatQty(q)}</span>
         ))}
       </div>
-      <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
+      <details className="text-xs text-neutral-500">
+        <summary className="inline-flex min-h-8 cursor-pointer select-none items-center hover:text-neutral-800 max-md:min-h-11">Обозначения</summary>
+        <div className="mt-1 flex flex-wrap gap-2">
         {CALENDAR_ACTIONS.map((a) => <span key={a.label} className="inline-flex items-center gap-1"><i className={`size-2 rounded-full ${a.dot}`} />{a.label}</span>)}
         {(auctionOn || rawOn || (layersOn && !factsHidden)) && <span className="inline-flex items-center gap-1"><i className="size-2 rounded-full border border-dashed border-neutral-500" />пунктир — слои</span>}
         <span className="text-neutral-300">|</span>
         <StageLegend only={["plan", "raw", "work", "ready", "shipped"]} />
-      </div>
+        </div>
+      </details>
 
       {/* Сетка (≥ md): месяц и неделя */}
       {mode === "detail" && view !== "list" && (

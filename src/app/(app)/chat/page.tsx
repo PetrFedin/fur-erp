@@ -4,11 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { canUseChat, groupMembers, loadReactions, loadThread, recipientOptions, resolveEntity, supplierName, threadWhere, viewerOf } from "@/lib/chat";
 import { statusLabelFor, TOPIC_OF_ENTITY, GROUP_TOPICS, createTopicsFor, canCreateGroup, canManageGroup, eligibleForTopic, ENTITY_TYPES, REACTIONS, SUPPLIER_ENTITY_TYPES, awaitsMyAnswer, entityHrefFor, isUnread, mentionsUser, participantsLabel, splitMentions } from "@/lib/chat-core";
-import { cn } from "@/lib/utils";
+import { cn, formatFileSize } from "@/lib/utils";
 import { TelegramConnect } from "./telegram-connect";
 import { telegramToken } from "@/lib/channels/telegram";
 import { hasRole, ACCESS } from "@/lib/access";
 import { ChatAutoRefresh, ChatMenu, Composer, ListFilters, NewChatForm, Reactions, ScrollBottom } from "./chat-client";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 
 export const metadata = { title: "Чат" };
 
@@ -32,7 +33,7 @@ function dayLabel(d: Date, now: Date) {
   if (dayKey(d) === dayKey(new Date(now.getTime() - 86400000))) return "Вчера";
   return dayFmt.format(d);
 }
-const fileSize = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`);
+const fileSize = formatFileSize;
 const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
 
 export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
@@ -142,9 +143,10 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid h-[calc(100dvh-11rem)] min-h-[30rem] gap-3 md:h-[calc(100dvh-9.5rem)] lg:grid-cols-[22rem_minmax(0,1fr)]">
+      <Breadcrumbs items={[{ label: "Чат" }]} />
+      <div className="grid h-[calc(100dvh-12.5rem)] min-h-[30rem] gap-3 md:h-[calc(100dvh-11rem)] lg:grid-cols-[22rem_minmax(0,1fr)]">
         <section aria-label="Список чатов" className={cn("flex min-h-0 min-w-0 flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3", rightOpen && "max-lg:hidden")}>
-          <h1 className="text-lg font-semibold">Чаты</h1>
+          <h1 className="text-lg font-semibold">Чат</h1>
           {canCreateGroup(v.role) && <Link href="/chat?new=1" className="inline-flex h-10 items-center justify-center rounded-md bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-800 max-md:min-h-11">+ Новый чат</Link>}
           <ListFilters q={q} f={f} e={e} topics={Object.fromEntries(topicsAll.map((t) => [t, t]))} />
           <div className="flex flex-wrap gap-1.5">
@@ -156,7 +158,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
           <ul className="-mx-3 flex min-h-0 flex-1 flex-col divide-y divide-neutral-200 overflow-y-auto border-t border-neutral-200">
             {rows.length === 0 && (
               <li className="p-4 text-sm text-neutral-600">
-                {filtered ? "Нет результатов." : "Нет чатов."}
+                {filtered ? "Нет результатов." : canCreateGroup(v.role) ? "Нет чатов. Нажмите «+ Новый чат»." : "Нет чатов."}
               </li>
             )}
             {rows.map((t) => {
