@@ -5,21 +5,22 @@
  *   DATABASE_URL=postgresql://…/fur_erp_demo npx tsx scripts/make-demo-db.ts
  *
  * Что делается (подробности и ограничения — docs/DEPLOY.md, раздел «Демо-база»):
- *  • деньги: ВСЕ денежные суммы (оплаты, цены, стоимости, суммы счетов и расчётов) умножаются на один скрытый коэффициент —
- *    сверки (Σ частей = итог) сохраняются; курсы валют, ставки НДС, проценты и количества не меняются;
+ *  • деньги: по умолчанию НАСТОЯЩИЕ (коэффициент 1, ничего не умножается). Если нужно скрыть масштаб, задайте целый коэффициент
+ *    (DEMO_MONEY_SCALE=3…9 или --money-scale=N): тогда ВСЕ денежные суммы умножаются на него и сверки (Σ частей = итог) сохраняются;
+ *    курсы валют, ставки НДС, проценты и количества не меняются никогда;
  *  • контрагенты: названия → «Поставщик №N»/«Заказчик №N» (Веллмех → «Веллмех-демо»), ИНН/адреса/телефоны/почты — вымышленные;
  *    старые названия вычищаются из всех текстовых и JSON-полей;
  *  • люди: «подтвердил/принял/ответственный» → «Демо»; пользователи пересоздаются (владелец, технолог, закупщик, бухгалтер,
  *    Веллмех-демо) со СЛУЧАЙНЫМИ паролями — они пишутся только в файл с правами 600 и в чат не печатаются;
  *  • тексты: заметки, комментарии, примечания, решения владельца (SystemState), чаты, письма, комментарии, журнал изменений — удаляются;
  *  • кабинет Веллмеха: ПРИНЯТЫЕ расчёты аукционов и ТЗ Веллмеха (SupplierInbox) сохраняются и согласуются с закупками/ТЗ заказчика:
- *    деньги в них домножаются на тот же K (ставки, курсы, проценты, количества — нет), подписанты и реквизиты заменяются,
+ *    деньги в них при K>1 домножаются на тот же K (ставки, курсы, проценты, количества — нет), подписанты и реквизиты заменяются,
  *    вложения становятся заглушками; черновики, отклонённые и отправленные-непринятые удаляются; этапы сырья остаются (без заметок);
  *  • файлы и документы: внешних ссылок и путей нет (в БД их больше не хранится), имена заменяются на «Документ №N», все файлы указывают на одну заглушку PDF;
  *    фото примерок, вложения чата и входящие поставщика удаляются;
  *  • реквизиты счетов/договоров: номера договоров и ссылки заменяются; номера счетов и п/п (нужны для связей) сохраняются.
  * Не маскируется (осознанно): даты, количества, названия видов меха/материалов/аукционов, артикулы и названия изделий,
- * номера закупок/ТЗ/лотов, структура и пропорции цен (коэффициент один на всё).
+ * номера закупок/ТЗ/лотов, суммы (при коэффициенте 1) и пропорции цен.
  */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -40,9 +41,11 @@ const x = (sql: string, ...p: unknown[]) => prisma.$executeRawUnsafe(sql, ...p);
 const rows = <T = Record<string, unknown>>(sql: string, ...p: unknown[]) => prisma.$queryRawUnsafe<T[]>(sql, ...p);
 const q = (id: string) => `"${id.replace(/"/g, '""')}"`;
 
-// Деньги: один коэффициент на всё. Не сохраняется нигде.
-// Коэффициент — целое число (3…9): тогда произведения «цена × количество» и суммы остаются точными до копейки, и сверки сходятся без расхождений округления.
-const K = Number(process.env.DEMO_SCALE) || 3 + Math.floor(Math.random() * 7);
+// Деньги: коэффициент один на всё, по умолчанию 1 (суммы настоящие). Источники: --money-scale=N, DEMO_MONEY_SCALE (или старое DEMO_SCALE).
+// Коэффициент — целое число ≥ 1: тогда произведения «цена × количество» и суммы остаются точными до копейки, и сверки сходятся без расхождений округления.
+const argScale = process.argv.find((a) => a.startsWith("--money-scale="))?.split("=")[1];
+const K = Number(argScale ?? process.env.DEMO_MONEY_SCALE ?? process.env.DEMO_SCALE ?? 1);
+if (!Number.isInteger(K) || K < 1 || K > 99) { console.error("Отказ: коэффициент денег должен быть целым 1…99 (по умолчанию 1)."); process.exit(2); }
 
 const MONEY: Record<string, string[]> = {
   FinishedGoodsMovement: ["totalCost", "unitCost"],
@@ -147,16 +150,22 @@ async function main() {
   await x(`delete from "SupplierInbox" where not (status = 'ACCEPTED' and kind in ('AUCTION_CALC','TZ'))`);
   log("очищены переписка, журнал, вложения, обращения поставщика, решения владельца");
 
-  // 2. Деньги
-  for (const [t, cols] of Object.entries(MONEY)) {
+  // 1б. Логика приложения относит оплату к «шкурам подрядчика» по слову «шкур» в основании (docRef) ИЛИ в примечании (notes).
+  // Примечания в демо стираются, поэтому метка переносится в основание платежа — иначе оплата перейдёт из «шкур» в «работу», и суммы разойдутся с основной системой.
+  for (const t of ["Payment", "ProductionPayment"]) {
+    await x(`update ${q(t)} set "docRef" = case when coalesce("docRef", '') = '' then 'шкуры подрядчика' else "docRef" || ' · шкуры подрядчика' end where "notes" ~* 'шкур' and coalesce("docRef", '') !~* 'шкур'`);
+  }
+
+  // 2. Деньги (при K=1 — не трогаем вообще: суммы настоящие)
+  if (K !== 1) for (const [t, cols] of Object.entries(MONEY)) {
     for (const c of cols) await x(`update ${q(t)} set ${q(c)} = round((${q(c)} * ${K})::numeric, 2) where ${q(c)} is not null`);
   }
-  for (const [t, c] of [["RawMaterialLot", "costBreakdown"], ["PurchaseItem", "costPlan"]] as const) {
+  if (K !== 1) for (const [t, c] of [["RawMaterialLot", "costBreakdown"], ["PurchaseItem", "costPlan"]] as const) {
     const r = await rows<{ id: string; v: unknown }>(`select id, ${q(c)} as v from ${q(t)} where ${q(c)} is not null and jsonb_typeof(${q(c)}) = 'object'`);
     for (const row of r) await x(`update ${q(t)} set ${q(c)} = $1::jsonb where id = $2`, JSON.stringify(scaleJson(row.v)), row.id);
   }
   await x(`update "BudgetScenario" set lines = '[]'::jsonb, params = '{}'::jsonb, comment = NULL`);
-  log(`деньги домножены на скрытый коэффициент (в логе не печатается)`);
+  log(K === 1 ? "деньги не умножались (коэффициент 1, суммы настоящие)" : "деньги домножены на скрытый коэффициент (в логе не печатается)");
 
   // 3. Контрагенты
   let si = 0;
@@ -171,11 +180,11 @@ async function main() {
       `Заказчик №${i + 1} ${FICT[(i + 3) % FICT.length]}`, String(7800000000 + i * 17 + 1000000), `client${i + 1}@demo.invalid`, c.id);
   }
   await x(`update "Warehouse" set address = NULL where address is not null`).catch(() => undefined);
-  await x(`update "Organization" set name='THE FUR Демо', slug='the-fur-demo' where id=$1`, org.id);
+  await x(`update "Organization" set name='THE FUR', slug='the-fur-demo' where id=$1`, org.id);
   await x(`update "SupplierContract" set number = 'Д-' || substr(id, length(id) - 3)`).catch(() => undefined);
   log(`контрагенты: ${sups.length} поставщиков, ${clis.length} заказчиков`);
 
-  // 3б. Кабинет Веллмеха: принятые расчёты аукционов и ТЗ — те же лоты, счета и суммы ×K, что у заказчика
+  // 3б. Кабинет Веллмеха: принятые расчёты аукционов и ТЗ — те же лоты, счета и суммы (×K при K>1), что у заказчика
   {
     const inbox = await rows<{ id: string; kind: string; payload: unknown; createdEntityId: string | null }>(`select id, kind, payload, "createdEntityId" from "SupplierInbox"`);
     const dests = new Map<string, string>();
@@ -198,12 +207,17 @@ async function main() {
     }
     // вложения: имена и файлы — заглушки (сами файлы в демо не переносятся)
     await x(`update "SupplierInboxFile" set "originalName" = 'Документ-' || substr(id, length(id) - 4) || '.pdf', "storagePath" = 'demo/stub.pdf', "mimeType" = 'application/pdf', "sizeBytes" = 1200`);
-    log(`кабинет Веллмеха: расчётов аукционов ${nCalc}, ТЗ ${nTz} (деньги ×K, линейность расчёта проверена)`);
+    log(`кабинет Веллмеха: расчётов аукционов ${nCalc}, ТЗ ${nTz} (коэффициент денег ${K === 1 ? "1" : "скрыт"}, линейность расчёта проверена)`);
   }
 
   // 4. Свободные тексты и люди
   for (const [t, cols] of Object.entries(CLEAR)) for (const c of cols) await setText(t, c, null);
   for (const [t, cols] of Object.entries(PEOPLE)) for (const c of cols) await setText(t, c, "Демо");
+  // Имена пользователей внутри JSON состояния (например, shipment-zi: alloc.by) -> «Демо»
+  for (const u of oldUsers) {
+    const nm = (u.name ?? "").trim();
+    if (nm.length >= 3) await x(`update "SystemState" set "value" = replace("value"::text, $1, '"Демо"')::jsonb where "value"::text like $2`, JSON.stringify(nm), `%${JSON.stringify(nm).replace(/[%_\\]/g, "\\$&")}%`);
+  }
   await x(`update "ProductionOrder" set "contractNumber" = 'ДГ-ДЕМО' where "contractNumber" is not null`);
   log("заметки, примечания, имена людей очищены");
 
@@ -276,7 +290,7 @@ async function main() {
   const dir = path.join(os.homedir(), "Backups", "fur-erp");
   mkdirSync(dir, { recursive: true });
   const file = process.env.DEMO_LOGINS_FILE || path.join(dir, "demo-logins.txt");
-  writeFileSync(file, `Демо-логины THE FUR (создано ${new Date().toISOString()}). Файл личный, не пересылать.\nАдрес: см. docs/DEPLOY.md (после публикации).\nСлужебное: коэффициент денег ${K} (для проверки: RECON_TOL_SCALE=${K} npx tsx scripts/test-reconciliation.ts); внешним не сообщать.\n\n${creds.join("\n\n")}\n`, { mode: 0o600 });
+  writeFileSync(file, `Демо-логины THE FUR (создано ${new Date().toISOString()}). Файл личный, не пересылать.\nАдрес: см. docs/DEPLOY.md (после публикации).\nСлужебное: ${K === 1 ? "коэффициент денег 1 (суммы настоящие)" : `коэффициент денег ${K} (для проверки: RECON_TOL_SCALE=${K} npx tsx scripts/test-reconciliation.ts); внешним не сообщать`}.\n\n${creds.join("\n\n")}\n`, { mode: 0o600 });
   chmodSync(file, 0o600);
   log(`пользователи пересозданы, логины записаны в ${file} (права 600)`);
 

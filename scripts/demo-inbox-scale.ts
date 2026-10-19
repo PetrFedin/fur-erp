@@ -1,6 +1,7 @@
 // Обезличивание «входящих от поставщика» (принятые расчёты аукционов и ТЗ Веллмеха) для демо-базы.
-// Деньги в них домножаются на ТОТ ЖЕ целый коэффициент K, что и у заказчика (закупки, лоты, ТЗ), поэтому кабинет Веллмеха
-// на демо-стенде показывает те же лоты, счета и суммы ×K, а не «Расчётов пока нет». Ставки, проценты, курсы и количества не меняются.
+// Деньги в них домножаются на ТОТ ЖЕ коэффициент K, что и у заказчика (закупки, лоты, ТЗ). По умолчанию K = 1: суммы настоящие,
+// ничего не умножается (все функции возвращают значения как есть, обезличиваются только площадки, подписанты и реквизиты).
+// Ставки, проценты, курсы и количества не меняются никогда.
 // Чистые функции без БД: их же использует scripts/make-demo-db.ts и проверяет тест (расчёт по обезличенному payload = K × расчёт по исходному).
 import { calcAll, ensureRowIds, evalNum, paramKey, type CalcPayload } from "../src/lib/supplier-calc";
 
@@ -16,6 +17,7 @@ const BUILTIN_MONEY = new Set(["price", "dressing", "transport", "transit", "fee
 const r6 = (n: number) => Math.round(n * 1e6) / 1e6;
 /** Число или простая формула в ячейке → число × K (строкой, десятичная точка); пусто — как есть; не разобрать — ошибка. */
 function scaleCell(v: unknown, K: number, where: string): unknown {
+  if (K === 1) return v;
   if (typeof v !== "string" || v.trim() === "") return v;
   const n = evalNum(v);
   if (!Number.isFinite(n)) throw new Error(`демо: не удалось разобрать денежное значение «${v}» (${where})`);
@@ -41,7 +43,7 @@ export function scaleCalcPayload(src: CalcPayload, K: number, maskDest: (s: stri
   // параметры шапки
   for (const q of p.params ?? []) if (isMoneyParam(q.name)) { q.value = scaleCell(q.value, K, `параметр ${q.name}`) as string; q.hint = ""; }
   // формулы с денежной константой («=550/994*I*1.2»)
-  const fix = (f: string) => f.replace(/^=(\d+(?:[.,]\d+)?)(\/\d+\*)/, (_m, a: string, rest: string) => `=${r6(Number(a.replace(",", ".")) * K)}${rest}`);
+  const fix = (f: string) => K === 1 ? f : f.replace(/^=(\d+(?:[.,]\d+)?)(\/\d+\*)/, (_m, a: string, rest: string) => `=${r6(Number(a.replace(",", ".")) * K)}${rest}`);
   for (const c of p.customColumns ?? []) { c.formula = fix(c.formula); for (const r of c.rules ?? []) r.formula = fix(r.formula); }
   // шапка
   const h = p.header;
@@ -54,7 +56,7 @@ export function scaleCalcPayload(src: CalcPayload, K: number, maskDest: (s: stri
   h.rateComment = ""; h.broker = "";
   // сохранённые итоги
   const tot = (p as Json).totals as { qty?: number; totalRub?: number } | undefined;
-  if (tot && typeof tot.totalRub === "number") tot.totalRub = r6(tot.totalRub * K);
+  if (K !== 1 && tot && typeof tot.totalRub === "number") tot.totalRub = r6(tot.totalRub * K);
   return p;
 }
 
@@ -72,6 +74,7 @@ export function checkCalcScale(orig: CalcPayload, scaled: CalcPayload, K: number
 
 /** «383 330,44» → «1 149 991,32»: тот же вид записи (разделитель тысяч, запятая/точка, целые остаются целыми). */
 export function scaleMoneyStr(s: unknown, K: number): unknown {
+  if (K === 1) return s;
   if (typeof s !== "string" || s.trim() === "") return s;
   const t = s.trim();
   const sep = /\d([\s  ])\d{3}(\D|$)/.exec(t)?.[1] ?? "";

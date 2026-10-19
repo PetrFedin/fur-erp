@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "demo:rebuild": "bash scripts/rebuild-demo.sh",
     "lint": "eslint",
     "test:all": "bash scripts/run-all-tests.sh",
     "telegram": "node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/telegram-bridge.ts"
