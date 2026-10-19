@@ -1,10 +1,11 @@
 "use client";
 
-import { Fragment, useMemo, useState, useSyncExternalStore } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { formatMoney } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
 import { buildMargin, deserializeInput, type FullLine, type MarginInputS } from "@/lib/margin";
+import { colorOfLine } from "@/lib/sales-receipts-core";
 import { buildTreeBy, DIM_LABEL, makeCtx, sellNote, sizeAgg, totalNode, TREE_ORDERS, type Metrics, type ReportSizeRow, type TreeNode } from "@/lib/margin-tree";
 
 type Cat = "all" | "clothes" | "acc";
@@ -41,7 +42,7 @@ const MEASURES: Measure[] = [
   { key: "gpOfRetail", label: "Прибыль / розница", hint: <p>Валовая прибыль ÷ розничная стоимость проданного без НДС (штуки × текущая розница ÷ (1 + ставка НДС на дату продажи: 20% до 12.2025, 22% с 01.2026)), по позициям с ценой и себестоимостью.</p>, fmt: (m) => pc(share(m.gpOfRetail), 1) },
   { key: "markupW", label: "Маркап прихода", hint: <p>Средневзвешенный по единицам прихода: Σ(розница × шт.) ÷ Σ(себестоимость с НДС × шт.). Розница — текущий прайс, себестоимость — из ТЗ. Некоторые модели помечены (см. строки): у них маркап искажён данными ТЗ или ценой.</p>, fmt: (m) => x2(m.markupW) },
 ];
-const TOTAL_KEYS: MKey[] = ["conf", "received", "salesCost", "sold", "revenueEx", "discountSum", "grossProfit", "grossMarginPct"];
+const TOTAL_KEYS: MKey[] = ["received", "salesCost", "sold", "revenueEx", "discountSum", "grossProfit", "grossMarginPct"];
 const GROUP_KEYS: MKey[] = ["sold", "revenueEx", "discountGiven", "grossMarginPct"];
 const NARROW_KEYS: MKey[] = ["sold", "revenueEx"];
 /** Пометки по моделям (независимая проверка 19.10.2026): артефакты расчёта маркапа. */
@@ -57,6 +58,45 @@ function Tile({ label, value, sub, hint }: { label: string; value: string; sub?:
       <div className="flex items-center gap-1 text-xs text-neutral-600">{label}<InfoHint label={`Как считается: ${label}`} wide>{hint}</InfoHint></div>
       <div className="text-lg font-semibold tabular-nums text-neutral-900">{value}</div>
       {sub ? <div className="text-xs text-neutral-600">{sub}</div> : null}
+    </div>
+  );
+}
+
+/** Выпадающая панель «Настройки»: меры (чекбоксы) и «Развернуть до уровня»; закрывается по Esc и клику снаружи. */
+function Settings({ measures, keys, onKey, levels, onLevel, onCollapse }: { measures: { key: MKey; label: string }[]; keys: MKey[]; onKey: (k: MKey) => void; levels: [number, string][]; onLevel: (l: number) => void; onCollapse: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("mousedown", onDown);
+    return () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("mousedown", onDown); };
+  }, [open]);
+  const btn = "inline-flex min-h-11 items-center rounded-md border border-neutral-300 bg-white px-3 text-sm hover:bg-neutral-50";
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((v) => !v)} className={btn}>Настройки ▾</button>
+      {open && (
+        <div role="group" aria-label="Настройки таблицы" className="absolute left-0 z-30 mt-1 flex w-72 max-w-[85vw] flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3 shadow-lg">
+          <div>
+            <p className="mb-1 text-xs font-semibold">Меры</p>
+            <ul className="flex flex-col">
+              {measures.map((m) => (
+                <li key={m.key}><label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm"><input type="checkbox" className="size-5" checked={keys.includes(m.key)} onChange={() => onKey(m.key)} />{m.label}</label></li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-semibold">Развернуть до уровня</p>
+            <div className="flex flex-wrap gap-1">
+              {levels.map(([l, t]) => <button key={l} type="button" onClick={() => onLevel(l)} className={btn}>{t}</button>)}
+              <button type="button" onClick={onCollapse} className={btn}>Свернуть</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -107,18 +147,31 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
   }
   const { data, groups, tree, order } = view;
   const cov = (v: number | null) => (v === null ? "нет данных" : Math.round(v * 100) + " %");
-  const measures = MEASURES.filter((m) => keys.includes(m.key));
+  const confRows = sizes.filter((r) => cat === "all" || r.cls === cat);
+  const hasConf = confRows.some((r) => (r.conf ?? 0) > 0);
+  // Conf показываем, только если он есть в данных (отчёт о товарах загружен).
+  const available = MEASURES.filter((m) => m.key !== "conf" || hasConf);
+  const measures = available.filter((m) => keys.includes(m.key));
   const setKey = (k: MKey) => { setTouched(true); setPicked(keys.includes(k) ? (keys.length > 1 ? keys.filter((x) => x !== k) : keys) : [...keys, k]); };
   const toggle = (id: string) => setOpen((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id]));
+  /** Размеры как дочерний уровень цвета: из отчёта о товарах на 19.10 по коду модели и цвету; итоги размеров не обязаны совпадать с узлом (написания артикулов разные). */
+  const sizeKids = (n: TreeNode): TreeNode[] => {
+    if (n.dim !== "color" || !n.modelCode) return [];
+    const rows = sizes.filter((r) => r.modelCode === n.modelCode && colorOfLine(r.color) === n.label && (cat === "all" || r.cls === cat));
+    return rows.map((r) => {
+      const empty = { sold: 0, received: 0, revenueIncl: 0, revenueEx: 0, avgPrice: null, discountVsRetail: null, grossProfit: null, grossMarginPct: null, gpOfRetail: null, markupW: null, sellThrough: null, discountGiven: null, salesCost: null, discountSum: 0 } as Metrics;
+      const m: Metrics = { ...empty, sold: r.sold, received: r.deliv, revenueEx: r.nsRubEx, revenueIncl: r.nsRub, avgPrice: r.sold > 0 ? r.nsRub / r.sold : null, sellThrough: r.deliv > 0 ? r.sold / r.deliv : null };
+      return { id: `${n.id}/size:${r.size}:${r.acode}`, dim: "size" as const, label: `${r.size} · по Report 19.10`, modelCode: null, variant: null, cols: [m, ...groups.map(() => empty)], children: [] };
+    });
+  };
+  const hasKids = (n: TreeNode) => n.children.length > 0 || sizeKids(n).length > 0;
   const expandTo = (level: number) => {
     const ids: string[] = [];
-    const walk = (n: TreeNode, depth: number) => { if (depth < level && n.children.length) { ids.push(n.id); n.children.forEach((c) => walk(c, depth + 1)); } };
+    const walk = (n: TreeNode, depth: number) => { const kids = n.children.length ? n.children : sizeKids(n); if (depth < level && kids.length) { ids.push(n.id); kids.forEach((c) => walk(c, depth + 1)); } };
     walk(tree, 0);
     setOpen(ids);
   };
 
-  const confRows = sizes.filter((r) => cat === "all" || r.cls === cat);
-  const hasConf = confRows.some((r) => r.conf !== undefined);
   /** Conf из отчёта: только строка «Всего» и категории (сопоставимо по Level 02 отчёта). */
   const confOf = (n: TreeNode) => (!hasConf ? nodata : n.id === "total" ? String(confRows.reduce((a, r) => a + (r.conf ?? 0), 0)) : n.dim === "cls" && n.id.split("/").length === 2 ? String(confRows.filter((r) => r.cls === (n.label === "Одежда" ? "clothes" : n.label === "Аксессуары" ? "acc" : "other")).reduce((a, r) => a + (r.conf ?? 0), 0)) : nodata);
 
@@ -132,22 +185,22 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
     return (
       <Fragment key={n.id}>
         <tr className={"border-b border-neutral-200 " + (isTotal ? "bg-neutral-100 font-semibold" : "")}>
-          <td className={"sticky left-0 z-[1] w-14 min-w-14 px-1 py-1 text-center align-middle " + bg}>
+          <td className={"sticky left-0 z-[1] w-12 min-w-12 px-1 py-1 text-center align-middle " + bg}>
             {!isTotal && (n.dim === "article" || n.dim === "color") ? (
-              photo && vphotos.length > 0 ? <PhotoGalleryButton modelId={photo.modelId} photos={vphotos} title={n.label} compact thumbOnly /> : <span role="img" aria-label="Фото нет" className="mx-auto inline-block size-11 rounded border border-dashed border-neutral-300" />
+              photo && vphotos.length > 0 ? <PhotoGalleryButton modelId={photo.modelId} photos={vphotos} title={n.label} compact thumbOnly /> : <span role="img" aria-label="Фото нет" className="mx-auto inline-block size-10 rounded border border-dashed border-neutral-300" />
             ) : null}
           </td>
-          <th scope="row" className={"sticky left-14 z-[1] h-14 px-2 py-1 text-left text-sm " + (isTotal ? "font-semibold " : "font-normal ") + bg} style={{ paddingLeft: 8 + depth * 16 }}>
-            <span className="flex items-center gap-2">
-              {!isTotal && n.children.length ? (
-                <button type="button" aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Развернуть"}: ${n.label}`} onClick={() => toggle(n.id)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md">{isOpen ? "▾" : "▸"}</button>
-              ) : <span aria-hidden className="inline-block w-11" />}
-              <span className="min-w-0 break-words">{n.label}{note ? <span className="block text-xs font-normal text-neutral-600">{note}</span> : null}</span>
+          <th scope="row" className={"sticky left-12 z-[1] h-14 w-40 min-w-40 max-w-40 px-1 py-1 text-left text-sm sm:w-60 sm:min-w-60 sm:max-w-60 " + (isTotal ? "font-semibold " : "font-normal ") + bg} style={{ paddingLeft: 4 + depth * 12 }}>
+            <span className="flex items-center gap-1">
+              {!isTotal && hasKids(n) ? (
+                <button type="button" aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Развернуть"}: ${n.label}`} onClick={() => toggle(n.id)} className="inline-flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded-md">{isOpen ? "▾" : "▸"}</button>
+              ) : <span aria-hidden className="inline-block w-9 shrink-0" />}
+              <span className="min-w-0 flex-1" title={n.label + (note ? " — " + note : "")}><span className="block truncate">{n.label}</span>{note ? <span className="block truncate text-xs font-normal text-neutral-600">{note}</span> : null}</span>
             </span>
           </th>
           {n.cols.map((m, gi) => measures.map((ms) => <td key={gi + ms.key} className={td + (gi === 0 ? " border-r border-neutral-200 font-semibold" : "")}>{ms.key === "conf" ? (gi === 0 ? confOf(n) : nodata) : m.sold === 0 && m.received === 0 ? "—" : ms.fmt(m)}</td>))}
         </tr>
-        {isOpen && n.children.map((c) => renderNode(c, depth + 1))}
+        {isOpen && (n.children.length ? n.children : sizeKids(n)).map((c) => renderNode(c, depth + 1))}
       </Fragment>
     );
   };
@@ -166,43 +219,26 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
           hint={<><p>Валовая прибыль = Net Sales − себестоимость проданных единиц без НДС. Маржа = прибыль ÷ Net Sales строк со штуками и себестоимостью (без строк продаж без штук: {formatMoney(data.totals.excludedRevenueEx)} без НДС). К полной выручке маржа {pc(data.totals.marginFullPct, 1)}.</p><p className="mt-1">Охват данных: себестоимость нашлась у {cov(data.costCoverage)} проданных единиц, текущая розница из прайса — у {cov(data.priceCoverage)}. Остальное в расчёты не входит.</p></>} />
       </div>
 
-      <div className="flex flex-col gap-2 print:hidden">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-neutral-700">Столбцы:</span>
-          <div role="group" aria-label="Столбцы" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-            <button type="button" aria-pressed={mode === "total"} onClick={() => setMode("total")} className={seg(mode === "total")}>Тотал</button>
-            <button type="button" aria-pressed={mode === "seasons"} onClick={() => setMode("seasons")} className={seg(mode === "seasons")}>Сезоны</button>
-            <button type="button" aria-pressed={mode === "months"} onClick={() => setMode("months")} className={seg(mode === "months")}>Месяцы</button>
-          </div>
-          <span className="ml-2 text-xs text-neutral-700">Структура:</span>
-          <div role="group" aria-label="Структура" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-            <button type="button" aria-pressed={treeKey === "a"} onClick={() => onTree("a")} className={seg(treeKey === "a")}>Категории → мех</button>
-            <button type="button" aria-pressed={treeKey === "b"} onClick={() => onTree("b")} className={seg(treeKey === "b")}>Мех → категории</button>
-          </div>
-          <InfoHint label="Уровни структуры" wide><p>Категория 1 — KTT Level 02 файлов (Одежда / Аксессуары), {view.n1} шт. Категория 2 — Level 04 (Шубы, Куртки меховые, Шапка…; если Level 04 пуст — Level 03), {view.n2} шт. Тип меха — первое слово названия ткани, {view.n3} шт. Структура А: Категория 1 → Категория 2 → Тип меха → Артикул → Цвет; Б: Тип меха → Категория 1 → Категория 2 → Артикул → Цвет. Итог узла равен сумме детей. Размеры в дерево не входят (в отчёте о товарах написания артикулов отличаются) — они ниже отдельной таблицей.</p></InfoHint>
-          <span className="ml-2 text-xs text-neutral-700">Развернуть до уровня:</span>
-          <div role="group" aria-label="Уровень" className="inline-flex flex-wrap rounded-lg border border-neutral-300 bg-white p-0.5">
-            {order.slice(0, 4).map((d, i) => <button key={d} type="button" onClick={() => expandTo(i + 1)} className={seg(false)}>{DIM_LABEL[d]}</button>)}
-            <button type="button" onClick={() => setOpen([])} className={seg(false)}>Свернуть</button>
-          </div>
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
+        <div role="group" aria-label="Столбцы" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+          <button type="button" aria-pressed={mode === "total"} onClick={() => setMode("total")} className={seg(mode === "total")}>Тотал</button>
+          <button type="button" aria-pressed={mode === "seasons"} onClick={() => setMode("seasons")} className={seg(mode === "seasons")}>Сезоны</button>
+          <button type="button" aria-pressed={mode === "months"} onClick={() => setMode("months")} className={seg(mode === "months")}>Месяцы</button>
         </div>
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="text-xs text-neutral-700">Меры:</span>
-          {MEASURES.map((m) => (
-            <button key={m.key} type="button" aria-pressed={keys.includes(m.key)} onClick={() => setKey(m.key)}
-              className={"inline-flex min-h-11 items-center gap-1 rounded-full border px-3 text-xs " + (keys.includes(m.key) ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700")}>
-              <span aria-hidden>{keys.includes(m.key) ? "✓" : "+"}</span>{m.label}
-            </button>
-          ))}
+        <div role="group" aria-label="Структура" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+          <button type="button" aria-pressed={treeKey === "a"} onClick={() => onTree("a")} className={seg(treeKey === "a")}>Категории → мех</button>
+          <button type="button" aria-pressed={treeKey === "b"} onClick={() => onTree("b")} className={seg(treeKey === "b")}>Мех → категории</button>
         </div>
+        <InfoHint label="Уровни структуры" wide><p>Категория 1 — KTT Level 02 файлов (Одежда / Аксессуары), {view.n1} шт. Категория 2 — Level 04 (Шубы, Куртки меховые, Шапка…; если Level 04 пуст — Level 03), {view.n2} шт. Тип меха — первое слово названия ткани, {view.n3} шт. Структура А: Категория 1 → Категория 2 → Тип меха → Артикул → Цвет → Размер; Б: Тип меха → Категория 1 → Категория 2 → Артикул → Цвет → Размер. Итог узла равен сумме детей. Размеры берутся из отчёта о товарах на 19.10 (по коду модели и цвету) и могут не сходиться с итогом цвета: написания артикулов в отчёте и выгрузке разные; такие строки помечены «по Report 19.10».</p></InfoHint>
+        <Settings measures={available} keys={keys} onKey={setKey} levels={[...order.map((d, i) => [i + 1, DIM_LABEL[d]] as [number, string]), [order.length + 1, "Размер"]]} onLevel={expandTo} onCollapse={() => setOpen([])} />
       </div>
 
       <div className="max-h-[75vh] w-full min-w-0 max-w-full overflow-auto rounded-lg border border-neutral-300" tabIndex={0} role="region" aria-label="Маржа: иерархия и меры по группам столбцов">
         <table className="w-max min-w-full border-collapse">
           <thead>
             <tr className="border-b border-neutral-300">
-              <th scope="col" rowSpan={2} className={th + " sticky left-0 top-0 z-[3] w-14 min-w-14 bg-white text-center"}>Фото</th>
-              <th scope="col" rowSpan={2} className={th + " sticky left-14 top-0 z-[3] min-w-[14rem] bg-white text-left"}>{order.map((d) => DIM_LABEL[d]).join(" → ")}</th>
+              <th scope="col" rowSpan={2} className={th + " sticky left-0 top-0 z-[3] w-12 min-w-12 bg-white text-center"}>Фото</th>
+              <th scope="col" rowSpan={2} className={th + " sticky left-12 top-0 z-[3] w-40 min-w-40 max-w-40 bg-white text-left sm:w-60 sm:min-w-60 sm:max-w-60"}><span className="block truncate" title={order.map((d) => DIM_LABEL[d]).join(" → ")}>{order.map((d) => DIM_LABEL[d]).join(" → ")}</span></th>
               {heads.map((h, gi) => <th key={h} scope="colgroup" colSpan={measures.length} className={"sticky top-0 z-[2] h-9 bg-white px-2 text-center text-xs font-semibold " + (gi === 0 ? "border-r border-neutral-200" : "border-l border-neutral-200")}>{h}</th>)}
             </tr>
             <tr className="border-b border-neutral-300">

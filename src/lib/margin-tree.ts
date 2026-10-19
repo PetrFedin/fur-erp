@@ -62,7 +62,7 @@ export function metricsOf(ctx: Ctx, lines: FullLine[]): Metrics {
   };
 }
 
-export type Dim = "cls" | "c2" | "fur" | "article" | "color";
+export type Dim = "cls" | "c2" | "fur" | "article" | "color" | "size";
 /** Порядок уровней для разреза: «Категории» → вся цепочка, «Тип меха» — с типа меха и т.д. */
 export const CUT_ORDER = { cls: ["cls", "fur", "article", "color"], fur: ["fur", "article", "color"], article: ["article", "color"], color: ["color", "article"] } as const satisfies Record<string, readonly Dim[]>;
 export type Cut = keyof typeof CUT_ORDER;
@@ -119,7 +119,7 @@ export function totalNode(ctx: Ctx, lines: FullLine[], preds: ColPred[], childre
 export const TREE_ORDER: readonly Dim[] = ["cls", "fur", "article", "color"];
 /** Две структуры дерева: А — Категория 1 (Level 02) → Категория 2 (Level 04, иначе Level 03) → Тип меха → Артикул → Цвет; Б — Тип меха → Категория 1 → Категория 2 → Артикул → Цвет. */
 export const TREE_ORDERS: Record<"a" | "b", readonly Dim[]> = { a: ["cls", "c2", "fur", "article", "color"], b: ["fur", "cls", "c2", "article", "color"] };
-export const DIM_LABEL: Record<Dim, string> = { cls: "Категория 1", c2: "Категория 2", fur: "Тип меха", article: "Артикул", color: "Цвет" };
+export const DIM_LABEL: Record<Dim, string> = { cls: "Категория 1", c2: "Категория 2", fur: "Тип меха", article: "Артикул", color: "Цвет", size: "Размер" };
 
 /** Размеры из отчёта о товарах (лист Report, строки артикул × цвет × размер). Сезонов и дат в нём нет — только итоги на 19.10.2026. */
 export type ReportSizeRow = { conf?: number; acode: string; color: string; size: string; modelCode: string | null; cls: CatClass; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number };
