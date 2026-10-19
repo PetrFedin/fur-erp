@@ -46,7 +46,6 @@ import { articleLabel } from "@/lib/article-label";
 import { EditGuard } from "./edit-guard";
 import { removeMaterialUsage, removeProductionExpense, updateMaterialUsage, updateProductionExpense, updateUsageVat } from "../actions";
 import { TotalLabel } from "@/components/total-label";
-import { allocatedCentsByOrder } from "@/lib/payment-alloc";
 import { canonicalFur } from "@/lib/fur-ref";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
@@ -222,10 +221,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const producedOrPlanned = orderUnitsDec(order);
   const clientRevenue = order.clientWorkPricePerUnit ? order.clientWorkPricePerUnit.mul(producedOrPlanned) : null;
 
-  // Оплата работы: разнесено на этот ТЗ (PaymentAllocation, без отменённых платежей) против работы ТЗ.
-  const paidCents = (await allocatedCentsByOrder(prisma, orgId, [order.id])).get(order.id) ?? 0;
-  const workCents = clientRevenue ? Math.round(clientRevenue.toNumber() * 100) : 0;
-  const payRemainCents = workCents - paidCents;
   const payLink = `/payments?tab=clients${order.batch ? `&batch=${order.batch.number}` : ""}`;
 
   // Виды меха ТЗ для проверки лота при списании: ручной вид, материал и артикул ТЗ (по частям «соболь; норка»).
@@ -473,16 +468,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         />
       ) : cancelled ? (
         <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — в Главную, «Изделия» и сводки не входит; списания, расходы и параметры по-прежнему можно править.</p>
-      ) : null}
-
-      {workCents > 0 || paidCents > 0 ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm" id="work-pay">
-          <h2 className="block-title">Оплата работы</h2>
-          <span>работа <b className="font-medium tabular-nums">{formatMoney((workCents / 100).toFixed(2))}</b></span>
-          <span>оплачено <b className="font-medium tabular-nums">{formatMoney((paidCents / 100).toFixed(2))}</b></span>
-          <span>{payRemainCents < -1 ? "оплачено сверх работы" : "остаток"} <b className={"font-medium tabular-nums " + (payRemainCents > 1 ? "text-amber-700" : "")}>{formatMoney((Math.abs(payRemainCents) / 100).toFixed(2))}</b></span>
-          {order.client ? <Link href={payLink} className="ml-auto text-xs text-blue-700 hover:underline" title="Оплаты за работу: в оплатах нет фильтра по одному ТЗ, открывается список по партии этого ТЗ">{order.batch ? `оплаты партии ${order.batch.number} →` : "оплаты заказчиков →"}</Link> : null}
-        </div>
       ) : null}
 
       <ParamsTable d={paramsData} o={paramsOptions} />
