@@ -60,3 +60,25 @@ export const classOfGroup = classOfLevel2;
 
 /** Строка для агрегатов (из БД или файла). */
 export type SalesAggLine = { kind: SalesLineKindT; iso: string; pcs: number; retailRub: number; retailRubExVat: number; discountRub: number; cls: CatClass };
+
+/** Вариант артикула (часть после кода модели): «M001A/SABLE WILD SILVER 4-5» → «SABLE WILD SILVER 4-5»; как у фото артикулов. */
+export function variantOfArticle(article: string): string {
+  return article.replace(/^\s*[A-Za-zА-Яа-я]{1,4}[\s-]?\d{1,3}[A-Za-zА-Яа-я]?(?=$|[\s/])/, "").replace(/^[\s/]+/, "").trim();
+}
+
+/** Тип меха по названию ткани: первое слово («SABLE WILD…» → SABLE), «ARCTIC/ARTIC FOX» → ARCTIC FOX, «SILVER FOX», «WILD SABLE» → SABLE. */
+export function furTypeOfFabric(fabric: string | null | undefined): string {
+  const f = (fabric ?? "").toUpperCase().replace(/\s+/g, " ").trim();
+  if (!f) return "Не указан";
+  if (/^ART?CTIC FOX/.test(f)) return "ARCTIC FOX";
+  if (/^SILVER FOX/.test(f)) return "SILVER FOX";
+  if (/^WILD SABLE/.test(f)) return "SABLE";
+  return f.split(/[\s+/]/)[0];
+}
+
+/** Цвет из выгрузки без хвоста-кода и с общими написаниями («CLOUD 239264» → CLOUD, LAVANDER → LAVENDER, BLACKGLAMA → BLACK GLAMA). */
+export function colorOfLine(c: string | null | undefined): string {
+  const v = (c ?? "").toUpperCase().replace(/\s+\d+$/, "").trim();
+  if (!v) return "Не указан";
+  return v === "LAVANDER" ? "LAVENDER" : v === "BLACKGLAMA" ? "BLACK GLAMA" : v;
+}

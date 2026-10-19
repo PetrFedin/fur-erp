@@ -1,18 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/utils";
 import { toCsv } from "@/lib/csv";
 import { InfoHint } from "@/components/info-hint";
-import { MarginBlock } from "./margin-block";
-import type { MarginData } from "@/lib/margin";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
 import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly } from "@/lib/cashflow";
 
 type ServicePart = { number: string; what: string; invoice: string | null; date: string; paid: number };
 type Cat = "all" | "clothes" | "acc";
-type Props = { incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; marginBy: Record<Cat, MarginData | null>; workBy: WorkByClass; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; initialSecond?: "goods" | "workunit" | "work"; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
+type Props = { incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; initialSecond?: "goods" | "workunit" | "work"; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
 
 const SPEND = "#d93a0e", GET = "#1f7a4d", NAVY = "#1b2a5c", STOCK = "#8a6d1d";
 // Цвета статей трат: различимы между собой и без цвета (подписи в легенде, таблица рядом — текстовая альтернатива).
@@ -41,11 +39,14 @@ type ChartProps = {
   active: number | null; setActive: (i: number | null) => void; hot: string | null; setHot: (k: string | null) => void; yearHot: string | null;
   /** Фильтр по категории: траты не делятся, поэтому чистый итог не рисуем. */
   filtered: boolean;
+  /** Ширина колонки месяца: считается по ширине контейнера, чтобы график занимал всю ширину карточки. */
+  colW: number;
 };
 
-function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot, yearHot, filtered }: ChartProps) {
+function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot, yearHot, filtered, colW }: ChartProps) {
   const n = months.length;
-  const colW = 26, left = 58, right = 12, top = 12, bottom = 40, H = 250;
+  const left = 58, right = 12, top = 12, bottom = 40, H = 250;
+  const bw = Math.max(10, Math.min(40, Math.round(colW * 0.7)));
   const W = left + right + n * colW;
   const x = (i: number) => left + i * colW + colW / 2;
   // Диапазон оси Y по виду графика.
@@ -95,10 +96,10 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
               const y0 = y(-acc), y1 = y(-(acc + v));
               acc += v;
               const dim = hot ? hot !== a.key : (active !== null || yearHot !== null) && !sel;
-              return <rect key={a.key} x={x(i) - 9} width={18} y={y0} height={Math.max(0, y1 - y0)} fill={COLORS[a.key]} opacity={dim ? 0.25 : 1} stroke={hot === a.key ? "#111" : "none"}
+              return <rect key={a.key} x={x(i) - bw / 2} width={bw} y={y0} height={Math.max(0, y1 - y0)} fill={COLORS[a.key]} opacity={dim ? 0.25 : 1} stroke={hot === a.key ? "#111" : "none"}
                 onMouseEnter={() => setHot(a.key)} onMouseLeave={() => setHot(null)}><title>{`${a.label}, ${full(m)}: ${formatMoney(v)}`}</title></rect>;
             })}
-            {ser.revenue[i] > 0.5 && <rect x={x(i) - 9} width={18} y={y(ser.revenue[i])} height={Math.max(0, y(0) - y(ser.revenue[i]))} fill={GET} opacity={hot || ((active !== null || yearHot !== null) && !sel) ? 0.25 : 1} />}
+            {ser.revenue[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={y(ser.revenue[i])} height={Math.max(0, y(0) - y(ser.revenue[i]))} fill={GET} opacity={hot || ((active !== null || yearHot !== null) && !sel) ? 0.25 : 1} />}
           </g>
         );
       })}
@@ -115,8 +116,8 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
         <>
           {months.map((m, i) => (
             <g key={m}>
-              {s.recPcs[i] > 0 && <rect x={x(i) - 11} width={10} y={y(s.recPcs[i])} height={Math.max(0, y(0) - y(s.recPcs[i]))} fill={NAVY} opacity={active !== null && active !== i ? 0.35 : 1} />}
-              {s.salePcs[i] > 0 && <rect x={x(i) + 1} width={10} y={y(s.salePcs[i])} height={Math.max(0, y(0) - y(s.salePcs[i]))} fill={GET} opacity={active !== null && active !== i ? 0.35 : 1} />}
+              {s.recPcs[i] > 0 && <rect x={x(i) - bw / 2} width={bw / 2 - 1} y={y(s.recPcs[i])} height={Math.max(0, y(0) - y(s.recPcs[i]))} fill={NAVY} opacity={active !== null && active !== i ? 0.35 : 1} />}
+              {s.salePcs[i] > 0 && <rect x={x(i) + 1} width={bw / 2 - 1} y={y(s.salePcs[i])} height={Math.max(0, y(0) - y(s.salePcs[i]))} fill={GET} opacity={active !== null && active !== i ? 0.35 : 1} />}
             </g>
           ))}
           <path d={lineOf(stock)} fill="none" stroke={STOCK} strokeWidth={2.5} />
@@ -156,9 +157,10 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
 }
 
 /** «Работа на единицу» по месяцам: три полосы с общей осью месяцев — единицы получено (столбцы), работа за месяц (линия), работа на единицу за месяц (маркеры) и пунктир среднего за период. */
-function WorkUnitChart({ months, wu, active, setActive }: { months: string[]; wu: { work: number[]; units: number[]; avg: number | null }; active: number | null; setActive: (i: number | null) => void }) {
+function WorkUnitChart({ months, wu, active, setActive, colW }: { colW: number; months: string[]; wu: { work: number[]; units: number[]; avg: number | null }; active: number | null; setActive: (i: number | null) => void }) {
   const n = months.length;
-  const colW = 26, left = 58, right = 12, W = left + right + n * colW;
+  const left = 58, right = 12, W = left + right + n * colW;
+  const bw = Math.max(10, Math.min(40, Math.round(colW * 0.7)));
   const bands = [{ top: 14, h: 70 }, { top: 112, h: 70 }, { top: 210, h: 90 }];
   const H = 340;
   const x = (i: number) => left + i * colW + colW / 2;
@@ -188,7 +190,7 @@ function WorkUnitChart({ months, wu, active, setActive }: { months: string[]; wu
         <g key={m}>
           <text x={x(i)} y={H - 22} textAnchor="middle" fontSize={11} fill="#5a6a94">{mon(m)}</text>
           {(i === 0 || m.endsWith("-01")) && <text x={x(i)} y={H - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill={NAVY}>{m.slice(0, 4)}</text>}
-          {wu.units[i] > 0 && <rect x={x(i) - 9} width={18} y={yb(0, wu.units[i], maxU)} height={bands[0].top + bands[0].h - yb(0, wu.units[i], maxU)} fill={NAVY} opacity={active !== null && active !== i ? 0.35 : 1} />}
+          {wu.units[i] > 0 && <rect x={x(i) - bw / 2} width={bw} y={yb(0, wu.units[i], maxU)} height={bands[0].top + bands[0].h - yb(0, wu.units[i], maxU)} fill={NAVY} opacity={active !== null && active !== i ? 0.35 : 1} />}
         </g>
       ))}
       <path d={line(1, wu.work, maxW)} fill="none" stroke={SPEND} strokeWidth={2.5} />
@@ -211,6 +213,32 @@ function WorkUnitChart({ months, wu, active, setActive }: { months: string[]; wu
   );
 }
 
+/** «Показано: …» у блока: текущий выбор общих фильтров и кнопка смены (открывает закреплённую панель). Состояние общее, не отдельное. */
+function Shown({ text, onChange }: { text: string; onChange: () => void }) {
+  return (
+    <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-700 print:hidden">
+      <span>Показано: {text}</span>
+      <button type="button" onClick={onChange} className="inline-flex min-h-11 items-center rounded-md px-2 underline">Изменить</button>
+    </p>
+  );
+}
+
+/** Контейнер графика: измеряет свою ширину и отдаёт ширину колонки месяца, чтобы график занимал всю ширину; на узком экране — не уже 26 px на месяц с прокруткой внутри блока. */
+function ChartBox({ n, children }: { n: number; children: (colW: number) => React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setW(el.clientWidth);
+    const ro = new ResizeObserver(([e]) => setW(Math.floor(e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const colW = w > 0 ? Math.max(26, Math.min(80, Math.floor((w - 70) / Math.max(1, n)))) : 26;
+  return <div ref={ref} className="w-full overflow-x-auto" data-keep-scroll>{children(colW)}</div>;
+}
+
 function Tile({ label, value, sub, hint, tone }: { label: string; value: string; sub?: string; hint?: React.ReactNode; tone?: "bad" | "good" }) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3">
@@ -221,18 +249,18 @@ function Tile({ label, value, sub, hint, tone }: { label: string; value: string;
   );
 }
 
-export function CashflowView({ incl, ex, salesBy, marginBy, workBy, vat, services, initialPeriod, initialDetail, initialCat, initialSecond }: Props) {
+export function CashflowView({ incl, ex, salesBy, workBy, vat, services, initialPeriod, initialDetail, initialCat, initialSecond }: Props) {
   const [period, setPeriod] = useState<CashflowPeriod>(initialPeriod);
   const [exVat, setExVat] = useState(false);
   const [cat, setCat] = useState<Cat>(initialCat ?? "all");
   const [second, setSecond] = useState<"goods" | "workunit" | "work">(initialSecond ?? "goods");
-  const [detail, setDetail] = useState(!!initialDetail);
+  const [detail, setDetail] = useState(initialDetail ?? true);
+  const [fOpen, setFOpen] = useState(false);
   const [open, setOpen] = useState<string[]>([]);
   const [active, setActive] = useState<number | null>(null);
   const [hot, setHot] = useState<string | null>(null);
   const [yearHot, setYearHot] = useState<string | null>(null);
   const sales = salesBy[cat];
-  const margin = marginBy[cat];
   const filtered = cat !== "all";
 
   const m = useMemo(() => {
@@ -262,6 +290,9 @@ export function CashflowView({ incl, ex, salesBy, marginBy, workBy, vat, service
   const hasSales = sales.available;
   const stockEnd = stockSeries(sales).stock.at(-1) ?? 0;
   const label = period === "all" ? "2025–2026" : period;
+  const vatNote = exVat ? "без НДС" : "с НДС";
+  const shownText = `${CAT_LABEL[cat]} · ${period === "all" ? "2025–2026" : period} · ${vatNote}`;
+  const openFilters = () => { setFOpen(true); document.getElementById("cf-filters")?.scrollIntoView({ block: "start" }); };
   const sum0 = (a: number[]) => a.reduce((x, y) => x + y, 0);
   const workTotalAll = sum0(workBy.clothes) + sum0(workBy.acc) + sum0(workBy.other);
   const workClassified = sum0(workBy.clothes) + sum0(workBy.acc);
@@ -310,7 +341,6 @@ export function CashflowView({ incl, ex, salesBy, marginBy, workBy, vat, service
   const th = "px-2 py-2 text-right text-xs font-semibold whitespace-nowrap";
   const td = "px-2 py-1.5 text-right text-sm tabular-nums whitespace-nowrap";
   const sticky = "sticky left-0 z-[1] text-left";
-  const vatNote = exVat ? "без НДС" : "с НДС";
   const noSalesNote = "Нет данных о продажах: выгрузка поступлений и продаж ещё не загружена.";
   const money = (v: number) => formatMoney(v);
 
@@ -327,18 +357,23 @@ export function CashflowView({ incl, ex, salesBy, marginBy, workBy, vat, service
         </InfoHint>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 print:hidden">
-        <nav aria-label="Период" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-          {PERIODS.map(([k, t]) => <button key={k} type="button" aria-pressed={period === k} onClick={() => { setPeriod(k); clearHot(); }} className={seg(period === k)}>{t}</button>)}
-        </nav>
-        <div role="group" aria-label="НДС" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-          <button type="button" aria-pressed={!exVat} onClick={() => setExVat(false)} className={seg(!exVat)}>С НДС</button>
-          <button type="button" aria-pressed={exVat} onClick={() => setExVat(true)} className={seg(exVat)}>Без НДС</button>
+      <div id="cf-filters" className="sticky top-0 z-20 -mx-3 border-b border-neutral-300 bg-white/95 px-3 py-1 backdrop-blur print:hidden md:-mx-4 md:px-4">
+        <button type="button" aria-expanded={fOpen} aria-controls="cf-filters-panel" onClick={() => setFOpen((v) => !v)} className="flex min-h-11 w-full items-center justify-between text-left text-sm md:hidden">
+          <span><b>Фильтры:</b> {CAT_LABEL[cat]} · {period === "all" ? "2025–2026" : period} · {vatNote}</span><span aria-hidden>{fOpen ? "▴" : "▾"}</span>
+        </button>
+        <div id="cf-filters-panel" className={(fOpen ? "flex" : "hidden") + " flex-wrap items-center gap-2 pb-1 md:flex md:pb-0"}>
+          <nav aria-label="Период" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+            {PERIODS.map(([k, t]) => <button key={k} type="button" aria-pressed={period === k} onClick={() => { setPeriod(k); clearHot(); }} className={seg(period === k)}>{t}</button>)}
+          </nav>
+          <div role="group" aria-label="НДС" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+            <button type="button" aria-pressed={!exVat} onClick={() => setExVat(false)} className={seg(!exVat)}>С НДС</button>
+            <button type="button" aria-pressed={exVat} onClick={() => setExVat(true)} className={seg(exVat)}>Без НДС</button>
+          </div>
+          <div role="group" aria-label="Категория" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+            {(["all", "clothes", "acc"] as const).map((k) => <button key={k} type="button" aria-pressed={cat === k} onClick={() => { setCat(k); clearHot(); }} className={seg(cat === k)}>{CAT_LABEL[k]}</button>)}
+          </div>
+          <button type="button" onClick={csv} className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs">Скачать CSV</button>
         </div>
-        <div role="group" aria-label="Категория" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-          {(["all", "clothes", "acc"] as const).map((k) => <button key={k} type="button" aria-pressed={cat === k} onClick={() => { setCat(k); clearHot(); }} className={seg(cat === k)}>{CAT_LABEL[k]}</button>)}
-        </div>
-        <button type="button" onClick={csv} className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs">Скачать CSV</button>
       </div>
       {exVat && vat.unknown > 0.5 && <p className="text-xs text-neutral-700">НДС нет в данных по {money(vat.unknown)} оплат (работа подрядчику, авансы без привязки к закупке): в режиме «Без НДС» они показаны как есть.</p>}
 
@@ -367,94 +402,8 @@ export function CashflowView({ incl, ex, salesBy, marginBy, workBy, vat, service
           hint={<p>Скидка ÷ (выручка + скидка), по данным выгрузки продаж, с НДС.</p>} />
       </section>
 
-      <section aria-label="Деньги" className="rounded-lg border border-neutral-300 bg-white p-3">
-        <div className="mb-2 min-h-[2.5rem] text-xs text-neutral-700" aria-live="polite">
-          {active === null ? (
-            <span>Наведите курсор или коснитесь месяца. Вверх — полученные деньги, вниз — траты по статьям, чёрная линия — чистый поток{hasSales ? "" : " (нет данных о продажах)"}.</span>
-          ) : (
-            <span><b>{full(months[active])}</b>: потрачено {dash(ser.spend[active])}{hasSales ? <>, получено {dash(ser.revenue[active])}{filtered ? null : `, чистый ${dash(ser.net[active])}`}</> : null}, накопительно потрачено {dash(ser.cumSpend[active])}{hasSales ? <>, получено {dash(ser.cumRevenue[active])}{filtered ? null : `, чистый ${dash(ser.cumNet[active])}`}</> : null}
-              {d.articles.filter((a) => Math.abs(a.byMonth[active]) >= 0.5).map((a) => <span key={a.key}> · {a.label} {formatMoney(a.byMonth[active])}</span>)}</span>
-          )}
-        </div>
-        <h2 className="mb-1 text-sm font-semibold">Траты и полученные деньги по месяцам</h2>
-        <div className="overflow-x-auto" data-keep-scroll><Chart kind="money" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} /></div>
-        <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-          {d.articles.map((a) => (
-            <li key={a.key}>
-              <button type="button" aria-pressed={hot === a.key} aria-label={`${a.label}: ${formatMoney(a.total)} за период`} onMouseEnter={() => setHot(a.key)} onMouseLeave={() => setHot(null)} onFocus={() => setHot(a.key)} onBlur={() => setHot(null)} onClick={() => setHot(hot === a.key ? null : a.key)}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: COLORS[a.key] }} />{a.label}</button>
-            </li>
-          ))}
-          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Получено (вверх)</li>
-          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4 bg-neutral-900" />Чистый поток</li>
-        </ul>
-      </section>
-
-      <section aria-label="Накопительно" className="rounded-lg border border-neutral-300 bg-white p-3">
-        <h2 className="mb-1 flex items-center gap-1 text-sm font-semibold">Накопительно: потрачено и получено
-          <InfoHint label="Как читать накопительный график" wide><p>Две линии растут с первого месяца данных: оранжевая — сколько потрачено, зелёная — сколько получено. Пунктир — разрыв между ними: ниже нуля «в минусе», выше — «в плюсе».</p></InfoHint>
-        </h2>
-        <div className="overflow-x-auto" data-keep-scroll><Chart kind="cum" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} /></div>
-        <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: SPEND }} />Потрачено нарастающим итогом</li>
-          {hasSales && <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: GET }} />Получено нарастающим итогом</li>}
-          {hasSales && <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4 border-t-2 border-dashed" style={{ borderColor: NAVY }} />Чистый итог (получено − потрачено)</li>}
-        </ul>
-      </section>
-
-      <section aria-label="Товар" className="rounded-lg border border-neutral-300 bg-white p-3">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <h2 className="text-sm font-semibold">Товар и работа подрядчика</h2>
-          <div role="group" aria-label="График" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5 print:hidden">
-            <button type="button" aria-pressed={second === "goods"} onClick={() => setSecond("goods")} className={seg(second === "goods")}>Приход, продажи, остаток</button>
-            <button type="button" aria-pressed={second === "workunit"} onClick={() => setSecond("workunit")} className={seg(second === "workunit")}>Работа на единицу</button>
-            <button type="button" aria-pressed={second === "work"} onClick={() => setSecond("work")} className={seg(second === "work")}>Работа нарастающим итогом</button>
-          </div>
-        </div>
-        {hasSales ? (
-          <>
-            <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
-              <Tile label="Приход, шт." value={pcs(g.received)} sub={`за ${label}`} hint={<p>Единицы, поступившие за период (выгрузка «поступления»; корректировки с минусом учтены).</p>} />
-              <Tile label="Продано, шт." value={pcs(g.sold)} sub={`за ${label}`} hint={<p>Единицы проданные за период, возвраты вычтены.</p>} />
-              <Tile label="Остаток, шт." value={pcs(g.stock)} sub="на конец периода" hint={<p>Накопленный приход минус накопленные продажи с начала данных. Фактический остаток по отчёту о товарах на 19.10.2026 — {REPORT_STOCK} шт.; расчётный на конец данных — {stockEnd} шт.{stockEnd !== REPORT_STOCK ? ` Разница ${stockEnd - REPORT_STOCK} шт. — списания и перемещения, которых нет в выгрузке поступлений и продаж.` : ""}</p>} />
-              <Tile label="Sell-through" value={g.sellThrough === null ? "—" : g.sellThrough.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " %"} sub="продано / получено" hint={<p>Накопленные продажи ÷ накопленный приход с начала данных до конца периода.</p>} />
-              <Tile label="Покрытие остатка" value={g.coverMonths === null ? "—" : g.coverMonths.toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " мес."} sub="остаток / продажи в месяц" hint={<p>Остаток на конец периода ÷ средние продажи в месяц (от первого до последнего месяца с продажами в периоде). Сезонность не учитывается.</p>} />
-            </div>
-            {second === "workunit" && (
-              <div className="mb-2 min-h-[2.5rem] text-xs text-neutral-700" aria-live="polite">
-                {active === null ? (
-                  <span>Наведите курсор или коснитесь месяца: появятся единицы, работа за месяц, работа на единицу и среднее за период. {m.wu.avg === null ? "Нет прихода или оплат работы за период." : `Среднее за период: ${formatMoney(m.wu.avg)} на единицу.`}</span>
-                ) : (
-                  <span><b>{full(months[active])}</b>: получено {m.wu.units[active]} шт., работа за месяц {dash(m.wu.work[active])}, на единицу {m.wu.units[active] > 0 ? dash(m.wu.work[active] / m.wu.units[active]) : "— (нет прихода)"}, среднее за период {dash(m.wu.avg)}</span>
-                )}
-              </div>
-            )}
-            <div className="overflow-x-auto" data-keep-scroll>
-              {second === "workunit" ? <WorkUnitChart months={months} wu={m.wu} active={active} setActive={setActive} /> : <Chart kind={second} months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} />}
-            </div>
-            {second === "goods" ? (
-              <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: NAVY }} />Приход, шт.</li>
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Продано, шт.</li>
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: STOCK }} />Остаток нарастающим итогом, шт.</li>
-              </ul>
-            ) : second === "workunit" ? (
-              <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: NAVY }} />Единиц получено</li>
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: SPEND }} />Работа за месяц</li>
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-full" style={{ background: STOCK }} />Работа на единицу за месяц</li>
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4 border-t-2 border-dashed border-neutral-900" />Среднее за период</li>
-                <li className="inline-flex min-h-11 items-center px-2"><InfoHint label="Как читать" wide><p>Работа на единицу за месяц = оплаты подрядчику за месяц ÷ единицы, полученные в этом месяце. Оплата и поступление могут приходиться на разные месяцы (аванс за будущую партию), поэтому месяцы шумные; среднее за период = вся оплаченная работа ÷ все полученные единицы.{filtered ? " При фильтре работа берётся только по ТЗ выбранной категории." : ""}</p></InfoHint></li>
-              </ul>
-            ) : <p className="mt-2 text-xs text-neutral-700">Накопленная оплата работы ÷ накопленные полученные единицы, ₽ ({vatNote}). До первого прихода линии нет.</p>}
-          </>
-        ) : <p className="text-sm text-neutral-700">{noSalesNote}</p>}
-      </section>
-
-      <MarginBlock data={margin} />
-
       <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <button type="button" aria-expanded={detail} onClick={() => setDetail((v) => !v)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm">{detail ? "Скрыть таблицу по месяцам" : "Показать таблицу по месяцам"}</button>
+        <button type="button" aria-expanded={detail} onClick={() => setDetail((v) => !v)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm">{detail ? "Скрыть таблицу" : "Показать таблицу"}</button>
         {detail && <button type="button" onClick={() => setOpen(open.length < years.length ? years : [])} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs">{open.length < years.length ? "Развернуть годы" : "Свернуть годы"}</button>}
       </div>
 
@@ -530,6 +479,95 @@ export function CashflowView({ incl, ex, salesBy, marginBy, workBy, vat, service
           </table>
         </div>
       )}
+
+      <section aria-label="Деньги" className="rounded-lg border border-neutral-300 bg-white p-3">
+        <div className="mb-2 min-h-[2.5rem] text-xs text-neutral-700" aria-live="polite">
+          {active === null ? (
+            <span>Наведите курсор или коснитесь месяца. Вверх — полученные деньги, вниз — траты по статьям, чёрная линия — чистый поток{hasSales ? "" : " (нет данных о продажах)"}.</span>
+          ) : (
+            <span><b>{full(months[active])}</b>: потрачено {dash(ser.spend[active])}{hasSales ? <>, получено {dash(ser.revenue[active])}{filtered ? null : `, чистый ${dash(ser.net[active])}`}</> : null}, накопительно потрачено {dash(ser.cumSpend[active])}{hasSales ? <>, получено {dash(ser.cumRevenue[active])}{filtered ? null : `, чистый ${dash(ser.cumNet[active])}`}</> : null}
+              {d.articles.filter((a) => Math.abs(a.byMonth[active]) >= 0.5).map((a) => <span key={a.key}> · {a.label} {formatMoney(a.byMonth[active])}</span>)}</span>
+          )}
+        </div>
+        <h2 className="mb-1 text-sm font-semibold">Траты и полученные деньги по месяцам</h2>
+        <Shown text={shownText} onChange={openFilters} />
+        <ChartBox n={months.length}>{(colW) => <Chart kind="money" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
+        <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
+          {d.articles.map((a) => (
+            <li key={a.key}>
+              <button type="button" aria-pressed={hot === a.key} aria-label={`${a.label}: ${formatMoney(a.total)} за период`} onMouseEnter={() => setHot(a.key)} onMouseLeave={() => setHot(null)} onFocus={() => setHot(a.key)} onBlur={() => setHot(null)} onClick={() => setHot(hot === a.key ? null : a.key)}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: COLORS[a.key] }} />{a.label}</button>
+            </li>
+          ))}
+          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Получено (вверх)</li>
+          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4 bg-neutral-900" />Чистый поток</li>
+        </ul>
+      </section>
+
+      <section aria-label="Накопительно" className="rounded-lg border border-neutral-300 bg-white p-3">
+        <h2 className="mb-1 flex items-center gap-1 text-sm font-semibold">Накопительно: потрачено и получено
+          <InfoHint label="Как читать накопительный график" wide><p>Две линии растут с первого месяца данных: оранжевая — сколько потрачено, зелёная — сколько получено. Пунктир — разрыв между ними: ниже нуля «в минусе», выше — «в плюсе».</p></InfoHint>
+        </h2>
+        <Shown text={shownText} onChange={openFilters} />
+        <ChartBox n={months.length}>{(colW) => <Chart kind="cum" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
+        <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
+          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: SPEND }} />Потрачено нарастающим итогом</li>
+          {hasSales && <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: GET }} />Получено нарастающим итогом</li>}
+          {hasSales && <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4 border-t-2 border-dashed" style={{ borderColor: NAVY }} />Чистый итог (получено − потрачено)</li>}
+        </ul>
+      </section>
+
+      <section aria-label="Товар" className="rounded-lg border border-neutral-300 bg-white p-3">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-semibold">Товар и работа подрядчика</h2>
+          <div role="group" aria-label="График" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5 print:hidden">
+            <button type="button" aria-pressed={second === "goods"} onClick={() => setSecond("goods")} className={seg(second === "goods")}>Приход, продажи, остаток</button>
+            <button type="button" aria-pressed={second === "workunit"} onClick={() => setSecond("workunit")} className={seg(second === "workunit")}>Работа на единицу</button>
+            <button type="button" aria-pressed={second === "work"} onClick={() => setSecond("work")} className={seg(second === "work")}>Работа нарастающим итогом</button>
+          </div>
+        </div>
+        {hasSales ? (
+          <>
+            <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
+              <Tile label="Приход, шт." value={pcs(g.received)} sub={`за ${label}`} hint={<p>Единицы, поступившие за период (выгрузка «поступления»; корректировки с минусом учтены).</p>} />
+              <Tile label="Продано, шт." value={pcs(g.sold)} sub={`за ${label}`} hint={<p>Единицы проданные за период, возвраты вычтены.</p>} />
+              <Tile label="Остаток, шт." value={pcs(g.stock)} sub="на конец периода" hint={<p>Накопленный приход минус накопленные продажи с начала данных. Фактический остаток по отчёту о товарах на 19.10.2026 — {REPORT_STOCK} шт.; расчётный на конец данных — {stockEnd} шт.{stockEnd !== REPORT_STOCK ? ` Разница ${stockEnd - REPORT_STOCK} шт. — списания и перемещения, которых нет в выгрузке поступлений и продаж.` : ""}</p>} />
+              <Tile label="Sell-through" value={g.sellThrough === null ? "—" : g.sellThrough.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " %"} sub="продано / получено" hint={<p>Накопленные продажи ÷ накопленный приход с начала данных до конца периода.</p>} />
+              <Tile label="Покрытие остатка" value={g.coverMonths === null ? "—" : g.coverMonths.toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " мес."} sub="остаток / продажи в месяц" hint={<p>Остаток на конец периода ÷ средние продажи в месяц (от первого до последнего месяца с продажами в периоде). Сезонность не учитывается.</p>} />
+            </div>
+            {second === "workunit" && (
+              <div className="mb-2 min-h-[2.5rem] text-xs text-neutral-700" aria-live="polite">
+                {active === null ? (
+                  <span>Наведите курсор или коснитесь месяца: появятся единицы, работа за месяц, работа на единицу и среднее за период. {m.wu.avg === null ? "Нет прихода или оплат работы за период." : `Среднее за период: ${formatMoney(m.wu.avg)} на единицу.`}</span>
+                ) : (
+                  <span><b>{full(months[active])}</b>: получено {m.wu.units[active]} шт., работа за месяц {dash(m.wu.work[active])}, на единицу {m.wu.units[active] > 0 ? dash(m.wu.work[active] / m.wu.units[active]) : "— (нет прихода)"}, среднее за период {dash(m.wu.avg)}</span>
+                )}
+              </div>
+            )}
+            <ChartBox n={months.length}>
+              {(colW) => second === "workunit" ? <WorkUnitChart months={months} wu={m.wu} active={active} setActive={setActive} colW={colW} /> : <Chart kind={second} months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}
+            </ChartBox>
+            {second === "goods" ? (
+              <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
+                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: NAVY }} />Приход, шт.</li>
+                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Продано, шт.</li>
+                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: STOCK }} />Остаток нарастающим итогом, шт.</li>
+              </ul>
+            ) : second === "workunit" ? (
+              <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
+                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: NAVY }} />Единиц получено</li>
+                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: SPEND }} />Работа за месяц</li>
+                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-full" style={{ background: STOCK }} />Работа на единицу за месяц</li>
+                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4 border-t-2 border-dashed border-neutral-900" />Среднее за период</li>
+                <li className="inline-flex min-h-11 items-center px-2"><InfoHint label="Как читать" wide><p>Работа на единицу за месяц = оплаты подрядчику за месяц ÷ единицы, полученные в этом месяце. Оплата и поступление могут приходиться на разные месяцы (аванс за будущую партию), поэтому месяцы шумные; среднее за период = вся оплаченная работа ÷ все полученные единицы.{filtered ? " При фильтре работа берётся только по ТЗ выбранной категории." : ""}</p></InfoHint></li>
+              </ul>
+            ) : <p className="mt-2 text-xs text-neutral-700">Накопленная оплата работы ÷ накопленные полученные единицы, ₽ ({vatNote}). До первого прихода линии нет.</p>}
+          </>
+        ) : <p className="text-sm text-neutral-700">{noSalesNote}</p>}
+      </section>
+
+      <p className="text-sm"><Link href="/analytics/margin" className="inline-flex min-h-11 items-center underline">Маржа и наценка → в Изделиях</Link></p>
+
       <p className="text-xs text-neutral-600 print:hidden">Оплаты по статьям и документам — в разделе <Link href="/payments" className="underline">«Оплаты»</Link>.</p>
     </div>
   );

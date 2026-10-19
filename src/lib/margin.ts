@@ -10,7 +10,7 @@ export const RETAIL_VAT_PCT = 22;
 export type RetailRow = { acode: string; color: string; size: string; price: number; modelCode: string };
 /** Себестоимость единицы модели из ТЗ («Себестоимость с работой»): с НДС и без НДС, и выпуск, шт. */
 export type ModelCost = { name: string; unitIncl: number; unitExcl: number; qty: number };
-export type FullLine = { kind: SalesLineKindT; iso: string; season: string; modelCode: string | null; article: string; colorId: string | null; pcs: number; retailRub: number; retailRubExVat: number; cls: CatClass };
+export type FullLine = { kind: SalesLineKindT; iso: string; season: string; modelCode: string | null; article: string; colorId: string | null; fabric: string | null; pcs: number; retailRub: number; retailRubExVat: number; cls: CatClass };
 
 export type MarginInput = {
   lines: FullLine[];
@@ -22,7 +22,7 @@ export type MarginInput = {
 };
 
 const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
-const exVat = (priceIncl: number) => priceIncl / (1 + RETAIL_VAT_PCT / 100);
+export const exVatOf = (priceIncl: number) => priceIncl / (1 + RETAIL_VAT_PCT / 100);
 
 /** Цена артикула+цвета из прайса: одна уникальная цена по всем размерам, иначе null (неоднозначно — не выдумываем). */
 export function priceIndex(rows: RetailRow[]): Map<string, number> {
@@ -102,7 +102,7 @@ export function buildMargin(inp0: MarginInput, cls: CatClass | "all" = "all"): M
     const markup = price !== null && unitIncl ? price / unitIncl : null;
     models.push({
       code, name: c?.name ?? code, unitIncl, unitExcl, price, priceKind: kind, markup, markupPct: markup === null ? null : (markup - 1) * 100,
-      grossPerUnit: price !== null && unitExcl !== null ? exVat(price) - unitExcl : null, received: sum(r.map((l) => l.pcs)), sold: sum(s.map((l) => l.pcs)),
+      grossPerUnit: price !== null && unitExcl !== null ? exVatOf(price) - unitExcl : null, received: sum(r.map((l) => l.pcs)), sold: sum(s.map((l) => l.pcs)),
     });
   }
   models.sort((a, b) => b.received - a.received || a.code.localeCompare(b.code));
@@ -134,7 +134,7 @@ export function buildMargin(inp0: MarginInput, cls: CatClass | "all" = "all"): M
       season, sold, received, revenueIncl, revenueEx, avgPrice: sold > 0 ? revenueIncl / sold : null,
       discountVsRetail: retailVal > 0 ? 1 - sum(withP.map((l) => l.retailRub)) / retailVal : null,
       grossProfit: gp, grossMarginPct: gp !== null && sum(both.map((l) => l.retailRubExVat)) > 0 ? (gp / sum(both.map((l) => l.retailRubExVat))) * 100 : null,
-      gpOfRetail: bothP.length ? sum(bothP.map((l) => l.retailRubExVat - inp.costs.get(l.modelCode!)!.unitExcl * l.pcs)) / sum(bothP.map((l) => exVat(unitPrice(l)!) * l.pcs)) : null,
+      gpOfRetail: bothP.length ? sum(bothP.map((l) => l.retailRubExVat - inp.costs.get(l.modelCode!)!.unitExcl * l.pcs)) / sum(bothP.map((l) => exVatOf(unitPrice(l)!) * l.pcs)) : null,
       markupW: costW > 0 ? sum(rWithP.map((l) => unitPrice(l)! * l.pcs)) / costW : null,
       sellThrough: received > 0 ? sold / received : null,
       costCoverage: sold > 0 ? sum(s.filter(hasCost).map((l) => l.pcs)) / sold : null,
@@ -152,3 +152,8 @@ export function buildMargin(inp0: MarginInput, cls: CatClass | "all" = "all"): M
     totals: { sold: soldUnits, revenueEx: sum(sale.map((l) => l.retailRubExVat)), grossProfit: gpAll, grossMarginPct: gpAll !== null && sum(bothAll.map((l) => l.retailRubExVat)) > 0 ? (gpAll / sum(bothAll.map((l) => l.retailRubExVat))) * 100 : null },
   };
 }
+
+/** Вид для передачи в клиентский компонент (Map → массивы). */
+export type MarginInputS = { lines: FullLine[]; prices: RetailRow[]; modelPrice: [string, number][]; costs: [string, ModelCost][] };
+export const serializeInput = (i: MarginInput): MarginInputS => ({ lines: i.lines, prices: i.prices, modelPrice: [...i.modelPrice], costs: [...i.costs] });
+export const deserializeInput = (s: MarginInputS): MarginInput => ({ lines: s.lines, prices: s.prices, modelPrice: new Map(s.modelPrice), costs: new Map(s.costs) });

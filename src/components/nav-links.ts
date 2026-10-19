@@ -7,7 +7,7 @@ export const NAV_LINKS = [
   // «Сырьё» — один раздел с вкладками (<RawTabs>): Закупки · Мех · Подкладка · Сводка по годам. Закупки — первая вкладка.
   { href: "/lots", label: "Сырьё", also: ["/purchases", "/analytics"] },
   { href: "/production", label: "ТЗ", also: ["/fittings", "/plan", "/supply-plan"] },
-  { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/repair", "/analytics/products", "/analytics/pricing"] },
+  { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/repair", "/analytics/products", "/analytics/pricing", "/analytics/margin"] },
   { href: "/payments", label: "Оплаты", also: [] },
   { href: "/budget", label: "Бюджет", also: [] },
   { href: "/calendar", label: "Календарь", also: [] },

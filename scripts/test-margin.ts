@@ -5,6 +5,8 @@ import "./stubs/server-only-shim";
 import { PrismaClient } from "@prisma/client";
 import { loadMarginInput } from "../src/lib/margin-server";
 import { buildMargin, priceIndex, RETAIL_VAT_PCT } from "../src/lib/margin";
+import { buildTree, CUT_ORDER, makeCtx, metricsOf, seasonsOf, sizeAgg, type TreeNode } from "../src/lib/margin-tree";
+import { loadReportSizes } from "../src/lib/margin-server";
 
 const prisma = new PrismaClient();
 let fails = 0, checks = 0;
@@ -30,6 +32,31 @@ const pct = (v: number | null, d = 1) => (v === null ? "нет данных" : v
     eq(`категория ${c}: проданных по сезонам = Σ строк`, sum(mc.seasons.map((x) => x.sold)), tot(byCls(c), "pcs", "SALE"));
     eq(`категория ${c}: выручка без НДС по сезонам = Σ строк`, sum(mc.seasons.map((x) => x.revenueEx)), tot(byCls(c), "retailRubExVat", "SALE"), 0.01);
     console.log(`${c}: проданных ${mc.totals.sold}, выручка без НДС ${Math.round(mc.totals.revenueEx)}, маржа ${mc.totals.grossMarginPct === null ? "—" : mc.totals.grossMarginPct.toFixed(1)} %, маркап по приходу ${mc.weightedByReceipts?.toFixed(2) ?? "—"}, по продажам ${mc.weightedBySales?.toFixed(2) ?? "—"}`);
+  }
+  // Дерево разрезов: итоги узла = сумма детей (штуки, выручка), столбцы сезонов = таблица сезонов; для каждой категории и каждого разреза.
+  const ctx = makeCtx(inp);
+  for (const cat of ["all", "clothes", "acc"] as const) {
+    const lines = cat === "all" ? inp.lines : inp.lines.filter((l) => l.cls === cat);
+    const seasons = seasonsOf(lines);
+    const mm = buildMargin(inp, cat);
+    for (const cut of Object.keys(CUT_ORDER) as (keyof typeof CUT_ORDER)[]) {
+      const tree = buildTree(ctx, lines, CUT_ORDER[cut], seasons);
+      const walk = (n: TreeNode) => {
+        if (n.children.length) for (const k of ["sold", "received", "revenueEx", "revenueIncl"] as const) eq(`дерево ${cat}/${cut}/${n.label}: ${k} = Σ детей`, sum(n.children.map((c) => c.cols[0][k])), n.cols[0][k], 0.01);
+        n.children.forEach(walk);
+      };
+      tree.forEach(walk);
+      for (const k of ["sold", "received", "revenueEx"] as const) eq(`дерево ${cat}/${cut}: Σ верхнего уровня (${k}) = итог`, sum(tree.map((n) => n.cols[0][k])), metricsOf(ctx, lines)[k], 0.01);
+      seasons.forEach((sn, i) => { eq(`дерево ${cat}/${cut}: ${sn} выручка = таблица сезонов`, sum(tree.map((n) => n.cols[i + 1].revenueEx)), mm.seasons.find((x) => x.season === sn)!.revenueEx, 0.01); });
+    }
+  }
+  // Размеры из отчёта о товарах (если загружены): Σ = итоги отчёта.
+  const szRows = await loadReportSizes(org);
+  if (szRows.length) {
+    const agg = sizeAgg(szRows);
+    eq("размеры: Σ получено = 617 (итог отчёта)", sum(agg.map((x) => x.received)), sum(szRows.map((r) => r.deliv)), 0);
+    eq("размеры: Σ продано = Σ строк", sum(agg.map((x) => x.sold)), sum(szRows.map((r) => r.sold)), 0);
+    eq("размеры: категории дают всё", sum(["clothes", "acc", "other"].map((c) => sum(sizeAgg(szRows, (r) => r.cls === c).map((x) => x.sold)))), sum(agg.map((x) => x.sold)), 0);
   }
   // 1. Σ по сезонам = итоги.
   eq("Σ проданных по сезонам = Σ строк", sum(m.seasons.map((s) => s.sold)), sum(sale.map((l) => l.pcs)));

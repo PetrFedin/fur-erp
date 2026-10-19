@@ -78,7 +78,7 @@ async function main() {
   const imgUse = new Map<string, number>();
   for (const a of anchors) imgUse.set(a.img, (imgUse.get(a.img) ?? 0) + 1);
   for (const a of anchors) {
-    if ((imgUse.get(a.img) ?? 0) > 1) { ambiguous.push(`стр. ${a.row} «${a.a}»: одна и та же картинка (${a.img}) стоит у ${imgUse.get(a.img)} строк — какой вариант на ней, неясно, не вношу`); continue; }
+    if ((imgUse.get(a.img) ?? 0) > 1) { continue; } // разбор — в списке «кандидаты» ниже
     const code = modelCodeOfArticle(a.a);
     if (!code) { unmatched.push(`стр. ${a.row} «${a.a}»: код модели не распознан`); continue; }
     const c = byCode.get(code) ?? [];
@@ -93,6 +93,13 @@ async function main() {
     if (p.additions.some((x) => normVariant(x.variant) === normVariant(variant))) { dup.push(`стр. ${a.row} «${a.a}» → ${m.name}: вариант «${variant}» уже взят из строки ${p.additions.find((x) => normVariant(x.variant) === normVariant(variant))!.row}`); continue; }
     p.additions.push({ variant, img: a.img, row: a.row });
     plan.set(m.id, p);
+  }
+  // Кандидаты: одна картинка на нескольких строках листа «фото» — какой именно вариант на ней, по данным не определить (уверенность < 95%), не вносится; выбор за владельцем.
+  const shared = new Map<string, Anchor[]>();
+  for (const a of anchors) if ((imgUse.get(a.img) ?? 0) > 1) (shared.get(a.img) ?? shared.set(a.img, []).get(a.img)!).push(a);
+  if (shared.size) {
+    console.log(`\n## Кандидаты фото: ${shared.size} картинок стоят у нескольких строк (${[...shared.values()].reduce((x, l) => x + l.length, 0)} строк) — не вносятся`);
+    for (const [img, l] of shared) console.log(`  - ${img}: ${l.map((a) => `стр. ${a.row} «${a.a}»`).join("; ")}`);
   }
   const withoutBefore = models.filter((m) => !(have.get(m.id)?.photos.length));
   const nowWith = withoutBefore.filter((m) => plan.has(m.id));

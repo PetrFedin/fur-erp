@@ -7,9 +7,10 @@ const TABS = [
   { href: "/analytics/raw", label: "Сырьё" },
   { href: "/analytics/products", label: "Изделия" },
   { href: "/analytics/pricing", label: "Цены" },
+  { href: "/analytics/margin", label: "Маржа" },
 ] as const;
 
-/** Вкладки «Сырьё | Изделия | Цены» раздела «Аналитика». Активная — по адресу. */
+/** Вкладки «Сырьё | Изделия | Цены | Маржа» раздела «Аналитика». Активная — по адресу. */
 export function AnalyticsTabs() {
   const path = usePathname();
   return (
