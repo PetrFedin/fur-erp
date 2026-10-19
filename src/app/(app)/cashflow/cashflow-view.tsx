@@ -7,15 +7,15 @@ import { toCsv } from "@/lib/csv";
 import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
 import { DUE_LABEL, dueHint, payDue } from "@/lib/pay-display";
-import { CategoryTable, ExpTable, PriceDetail, RecvDetail, SpendDetail } from "./drill";
-import { workMonthIdx } from "@/lib/cashflow";
+import { CategoryTable, ExpTable, MiniTable, PriceDetail, RecvDetail, SpendDetail } from "./drill";
+import { PROJECT_START_MONTH, workMonthIdx } from "@/lib/cashflow";
 import { PAY_TYPE_LABEL, spendByType, type PayType, flowPoints, workWindowStats, groupSales, type PayLite } from "@/lib/cashflow-detail";
 import type { SalesAggLine } from "@/lib/sales-receipts-core";
 import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly } from "@/lib/cashflow";
 
 type ServicePart = { number: string; what: string; invoice: string | null; date: string; paid: number };
 type Cat = "all" | "clothes" | "acc";
-type Props = { incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; nowMonth: string; initialGroup?: "period" | "category"; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; initialSecond?: "goods" | "workunit" | "work"; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
+type Props = { incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; nowMonth: string; initialGroup?: "period" | "category"; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
 
 const SPEND = "#d93a0e", GET = "#1f7a4d", NAVY = "#1b2a5c", STOCK = "#8a6d1d";
 // Цвета статей трат: различимы между собой и без цвета (подписи в легенде, таблица рядом — текстовая альтернатива).
@@ -52,7 +52,7 @@ type ChartProps = {
 
 function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot, yearHot, filtered, colW }: ChartProps) {
   const n = months.length;
-  const left = 58, right = kind === "cum" ? 84 : 12, top = 12, bottom = 40, H = 250;
+  const left = 58, right = kind === "cum" ? 84 : kind === "goods" ? 44 : 12, top = 12, bottom = 40, H = 250;
   const bw = Math.max(10, Math.min(40, Math.round(colW * 0.7)));
   const W = left + right + n * colW;
   const x = (i: number) => left + i * colW + colW / 2;
@@ -131,6 +131,7 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
             </g>
           ))}
           <path d={lineOf(stock)} fill="none" stroke={STOCK} strokeWidth={2.5} />
+          {n > 0 && <text x={x(n - 1) + 8} y={y(stock[n - 1]) + 4} fontSize={11} fontWeight={700} fill={STOCK}>{stock[n - 1]}</text>}
         </>
       )}
       {kind === "work" && <path d={lineOf(ser.cumWorkPerUnit)} fill="none" stroke={SPEND} strokeWidth={2.5} />}
@@ -166,57 +167,38 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
   );
 }
 
-/** «Работа на единицу» по месяцам: три полосы с общей осью месяцев — единицы получено (столбцы), работа за месяц (линия), работа на единицу за месяц (маркеры) и пунктир среднего за период. */
-function WorkUnitChart({ months, wu, active, setActive, colW }: { colW: number; months: string[]; wu: { work: number[]; units: number[]; avg: number | null }; active: number | null; setActive: (i: number | null) => void }) {
+/** «Работа подрядчика по месяцам»: столбцы — оплата работы за месяц, ₽ (левая ось); линия с точками — получено единиц, шт. (правая ось): видно связь «заплатили ↔ получили». */
+function WorkMonthsChart({ months, work, units, active, setActive, colW }: { months: string[]; work: number[]; units: number[]; active: number | null; setActive: (i: number | null) => void; colW: number }) {
   const n = months.length;
-  const left = 58, right = 12, W = left + right + n * colW;
+  const left = 58, right = 44, top = 12, bottom = 40, H = 230;
+  const W = left + right + n * colW;
   const bw = Math.max(10, Math.min(40, Math.round(colW * 0.7)));
-  const bands = [{ top: 14, h: 70 }, { top: 112, h: 70 }, { top: 210, h: 90 }];
-  const H = 340;
   const x = (i: number) => left + i * colW + colW / 2;
-  const perUnit = wu.work.map((w, i) => (wu.units[i] > 0 ? w / wu.units[i] : null));
-  const maxU = niceMax(Math.max(...wu.units, 1)), maxW = niceMax(Math.max(...wu.work, 1)), maxP = niceMax(Math.max(...perUnit.map((v) => v ?? 0), wu.avg ?? 0, 1));
-  const yb = (b: number, v: number, max: number) => bands[b].top + bands[b].h * (1 - v / max);
-  const line = (b: number, a: (number | null)[], max: number) => a.map((v, i) => (v === null ? "" : `${i === 0 || a[i - 1] === null ? "M" : "L"}${x(i)},${yb(b, v, max)}`)).join(" ");
-  const k = (v: number) => (v / 1e3).toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " тыс";
-  const lab = ["Единиц получено, шт.", "Работа за месяц, ₽", "Работа на единицу за месяц, ₽"];
+  const maxW = niceMax(Math.max(...work, 1)), maxU = niceMax(Math.max(...units, 1));
+  const yw = (v: number) => top + (H - top - bottom) * (1 - v / maxW);
+  const yu = (v: number) => top + (H - top - bottom) * (1 - v / maxU);
+  const line = units.map((v, i) => `${i === 0 ? "M" : "L"}${x(i)},${yu(v)}`).join(" ");
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Работа на единицу: единицы получено, работа за месяц, работа на единицу и среднее за период" className="block">
-      {bands.map((b, bi) => {
-        const max = [maxU, maxW, maxP][bi];
-        return (
-          <g key={bi}>
-            <text x={left} y={b.top - 3} fontSize={11} fill="#1b2a5c" fontWeight={600}>{lab[bi]}</text>
-            {[0, 0.5, 1].map((t) => (
-              <g key={t}>
-                <line x1={left} x2={W - right} y1={yb(bi, t * max, max)} y2={yb(bi, t * max, max)} stroke="#d4d4d8" />
-                <text x={left - 6} y={yb(bi, t * max, max) + 4} textAnchor="end" fontSize={11} fill="#5a6a94">{bi === 0 ? Math.round(t * max) : bi === 1 ? mln(t * max) : k(t * max)}</text>
-              </g>
-            ))}
-          </g>
-        );
-      })}
-      {months.map((m, i) => (
-        <g key={m}>
-          <text x={x(i)} y={H - 22} textAnchor="middle" fontSize={11} fill="#5a6a94">{mon(m)}</text>
-          {(i === 0 || m.endsWith("-01")) && <text x={x(i)} y={H - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill={NAVY}>{m.slice(0, 4)}</text>}
-          {wu.units[i] > 0 && <rect x={x(i) - bw / 2} width={bw} y={yb(0, wu.units[i], maxU)} height={bands[0].top + bands[0].h - yb(0, wu.units[i], maxU)} fill={NAVY} opacity={active !== null && active !== i ? 0.35 : 1} />}
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Оплата работы подрядчика по месяцам и единицы товара, полученные в эти месяцы" className="block">
+      {[0, 0.5, 1].map((t) => (
+        <g key={t}>
+          <line x1={left} x2={W - right} y1={yw(t * maxW)} y2={yw(t * maxW)} stroke="#d4d4d8" />
+          <text x={left - 6} y={yw(t * maxW) + 4} textAnchor="end" fontSize={11} fill="#5a6a94">{t === 0 ? "0" : mln(t * maxW)}</text>
+          <text x={W - right + 6} y={yu(t * maxU) + 4} fontSize={11} fill={NAVY}>{Math.round(t * maxU)}</text>
         </g>
       ))}
-      <path d={line(1, wu.work, maxW)} fill="none" stroke={SPEND} strokeWidth={2.5} />
-      {wu.work.map((w, i) => <circle key={i} cx={x(i)} cy={yb(1, w, maxW)} r={active === i ? 5 : 3} fill={SPEND} />)}
-      {wu.avg !== null && (
-        <>
-          <line x1={left} x2={W - right} y1={yb(2, wu.avg, maxP)} y2={yb(2, wu.avg, maxP)} stroke="#111" strokeWidth={1.5} strokeDasharray="6 4" />
-          <text x={W - right} y={yb(2, wu.avg, maxP) - 4} textAnchor="end" fontSize={11} fontWeight={700} fill="#111">среднее за период {Math.round(wu.avg).toLocaleString("ru-RU")} ₽</text>
-        </>
-      )}
-      <path d={line(2, perUnit, maxP)} fill="none" stroke={STOCK} strokeWidth={1.5} opacity={0.6} />
-      {perUnit.map((v, i) => (v === null ? null : <circle key={i} cx={x(i)} cy={yb(2, v, maxP)} r={active === i ? 6 : 4} fill={STOCK} />))}
-      {active !== null && <line x1={x(active)} x2={x(active)} y1={10} y2={H - 38} stroke="#111" strokeWidth={1} opacity={0.35} />}
       {months.map((m, i) => (
-        <rect key={m} x={left + i * colW} y={10} width={colW} height={H - 48} fill="transparent" tabIndex={0}
-          aria-label={`${full(m)}: получено ${wu.units[i]} шт., работа за месяц ${dash(wu.work[i])}, на единицу ${dash(perUnit[i])}${wu.avg !== null ? `, среднее за период ${dash(wu.avg)}` : ""}`}
+        <g key={m}>
+          <text x={x(i)} y={H - bottom + 16} textAnchor="middle" fontSize={11} fill="#5a6a94">{mon(m)}</text>
+          {(i === 0 || m.endsWith("-01")) && <text x={x(i)} y={H - bottom + 30} textAnchor="middle" fontSize={11} fontWeight={700} fill={NAVY}>{m.slice(0, 4)}</text>}
+          {work[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={yw(work[i])} height={Math.max(0, yw(0) - yw(work[i]))} fill={SPEND} opacity={active !== null && active !== i ? 0.35 : 1} />}
+        </g>
+      ))}
+      <path d={line} fill="none" stroke={NAVY} strokeWidth={2} />
+      {units.map((v, i) => <circle key={i} cx={x(i)} cy={yu(v)} r={active === i ? 5 : 3} fill={NAVY} />)}
+      {active !== null && <line x1={x(active)} x2={x(active)} y1={top} y2={H - bottom} stroke="#111" opacity={0.35} />}
+      {months.map((m, i) => (
+        <rect key={m} x={left + i * colW} y={top} width={colW} height={H - top - bottom} fill="transparent" tabIndex={0} aria-label={`${full(m)}: работа ${dash(work[i])}, получено ${units[i]} шт.`}
           onMouseEnter={() => setActive(i)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(i)} onBlur={() => setActive(null)} onClick={() => setActive(i)} />
       ))}
     </svg>
@@ -513,13 +495,14 @@ function Tile({ label, value, sub, hint, tone, mini, spark, extra, after, contro
 }
 
 
-export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left, nowMonth, initialGroup, vat, services, initialPeriod, initialDetail, initialCat, initialSecond }: Props) {
+export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left, nowMonth, initialGroup, vat, services, initialPeriod, initialDetail, initialCat }: Props) {
   const [period, setPeriod] = useState<CashflowPeriod>(initialPeriod);
   const [exVat, setExVat] = useState(false);
   const [cat, setCat] = useState<Cat>(initialCat ?? "all");
-  const [second, setSecond] = useState<"goods" | "workunit" | "work">(initialSecond ?? "goods");
+  const [gTable, setGTable] = useState(false);
   const [detail, setDetail] = useState(initialDetail ?? true);
   const [fOpen, setFOpen] = useState(false);
+  const [gActive, setGActive] = useState<number | null>(null);
   const [recvChoice, setRecvChoice] = useState<VatChoice>("global");
   const [priceChoice, setPriceChoice] = useState<VatChoice>("global");
   const [openMonths, setOpenMonths] = useState<string[]>([]);
@@ -591,6 +574,13 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const pageOf = { all: 0, clothes: 1, acc: 2 } as const;
   const [winCat, setWinCat] = useState<"all" | "clothes" | "acc">("all");
   const openFor = (id: string, page: number) => { setWinCat(catPages[page]); toggleTile(id); };
+  // Блок «Товар и работа»: ось месяцев начинается с PROJECT_START_MONTH (до него нет ни товара, ни работы); значения остатка нарастающим итогом не меняются.
+  const gOff = (() => { const k = months.findIndex((mo) => mo >= PROJECT_START_MONTH); return k < 0 ? months.length : k; })();
+  const gMonths = months.slice(gOff);
+  const gS = { ...s, recPcs: s.recPcs.slice(gOff), salePcs: s.salePcs.slice(gOff), revIncl: s.revIncl.slice(gOff), revEx: s.revEx.slice(gOff), discIncl: s.discIncl.slice(gOff) };
+  const gSer = { ...ser, spend: ser.spend.slice(gOff), revenue: ser.revenue.slice(gOff), net: ser.net.slice(gOff), cumSpend: ser.cumSpend.slice(gOff), cumRevenue: ser.cumRevenue.slice(gOff), cumNet: ser.cumNet.slice(gOff), work: ser.work.slice(gOff), cumWorkPerUnit: ser.cumWorkPerUnit.slice(gOff) };
+  const gStock = m.stock.slice(gOff);
+  const gWu = { work: m.wu.work.slice(gOff), units: m.wu.units.slice(gOff), avg: m.wu.avg };
   const shownText = `${CAT_LABEL[cat]} · ${period === "all" ? "2025–2026" : period} · ${vatNote}`;
   const monthLabel = (mo: string) => `${["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"][Number(mo.slice(5, 7)) - 1]} ${mo.slice(0, 4)}`;
   const catArg = cat === "all" ? "all" : cat;
@@ -903,58 +893,50 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
         </ul>
       </section>
 
-      <section aria-label="Товар" className="rounded-lg border border-neutral-300 bg-white p-3">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <h2 className="text-sm font-semibold">Товар и работа подрядчика</h2>
-          <div role="group" aria-label="График" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5 print:hidden">
-            <button type="button" aria-pressed={second === "goods"} onClick={() => setSecond("goods")} className={seg(second === "goods")}>Приход, продажи, остаток</button>
-            <button type="button" aria-pressed={second === "workunit"} onClick={() => setSecond("workunit")} className={seg(second === "workunit")}>Работа на единицу</button>
-            <button type="button" aria-pressed={second === "work"} onClick={() => setSecond("work")} className={seg(second === "work")}>Работа нарастающим итогом</button>
-          </div>
-        </div>
+      <section aria-label="Товар" className="flex flex-col gap-4 rounded-lg border border-neutral-300 bg-white p-3">
+        <h2 className="text-sm font-semibold">Товар и работа подрядчика</h2>
         {hasSales ? (
           <>
-            <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
               <Tile label="Приход, шт." mini={mini((c) => pcs(m.per[c].g.received))} value={pcs(g.received)} sub={`за ${label}`} hint={<p>Единицы, поступившие за период (выгрузка «поступления»; корректировки с минусом учтены).</p>} />
               <Tile label="Продано, шт." mini={mini((c) => pcs(m.per[c].g.sold))} value={pcs(g.sold)} sub={`за ${label}`} hint={<p>Единицы проданные за период, возвраты вычтены.</p>} />
               <Tile label="Остаток, шт." mini={mini((c) => pcs(m.per[c].g.stock))} value={pcs(g.stock)} sub="на конец периода" hint={<p>Накопленный приход минус накопленные продажи с начала данных. Фактический остаток по отчёту о товарах на 19.10.2026 — {REPORT_STOCK} шт.; расчётный на конец данных — {stockEnd} шт.{stockEnd !== REPORT_STOCK ? ` Разница ${stockEnd - REPORT_STOCK} шт. — списания и перемещения, которых нет в выгрузке поступлений и продаж.` : ""}</p>} />
               <Tile label="SO, %" mini={mini((c) => soText(m.per[c].g))} value={soText(g)} sub="продано / получено"
                 hint={<><p>SO (sell-out, sell-through) = накопленные продажи ÷ накопленный приход, единицы, с начала данных до конца периода; возвраты минус. В листе Report колонки «SO» нет, смысл взят как «продано из полученного». Без обрезки до 100%; получено 0 — «—».</p><p className="mt-1">«*» — продано больше получено (продажи включают другие поступления). «†» — получено меньше 10 шт., процент неустойчив.</p></>} />
             </div>
-            {second === "workunit" && (
-              <div className="mb-2 min-h-[2.5rem] text-xs text-neutral-700" aria-live="polite">
-                {active === null ? (
-                  <span>Наведите курсор или коснитесь месяца: появятся единицы, работа за месяц, работа на единицу и среднее за период. {m.wu.avg === null ? "Нет прихода или оплат работы за период." : `Среднее за период: ${formatMoney(m.wu.avg)} на единицу.`}</span>
-                ) : (
-                  <span><b>{full(months[active])}</b>: получено {m.wu.units[active]} шт., работа за месяц {dash(m.wu.work[active])}, на единицу {m.wu.units[active] > 0 ? dash(m.wu.work[active] / m.wu.units[active]) : "— (нет прихода)"}, среднее за период {dash(m.wu.avg)}</span>
-                )}
-              </div>
-            )}
-            <ChartBox n={months.length}>
-              {(colW) => second === "workunit" ? <WorkUnitChart months={months} wu={m.wu} active={active} setActive={setActive} colW={colW} /> : <Chart kind={second} months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}
-            </ChartBox>
-            {second === "goods" ? (
-              <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: NAVY }} />Приход, шт.</li>
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Продано, шт.</li>
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: STOCK }} />Остаток нарастающим итогом, шт.</li>
+
+            <div>
+              <h3 className="text-sm font-semibold">Приход, продажи и остаток, шт.</h3>
+              <p className="mb-1 text-xs text-neutral-700">Остаток {pcs(g.stock)} шт., продано {soText(g)} от полученного.</p>
+              <div className="min-h-[1.5rem] text-xs text-neutral-700" aria-live="polite">{gActive !== null ? <span><b>{full(gMonths[gActive])}</b>: получено {pcs(gS.recPcs[gActive])} шт., продано {pcs(gS.salePcs[gActive])} шт., остаток {pcs(gStock[gActive])} шт.</span> : <span>Наведите курсор или коснитесь месяца.</span>}</div>
+              <ChartBox n={gMonths.length}>{(colW) => <Chart kind="goods" months={gMonths} d={d} s={gS} ser={gSer} stock={gStock} active={gActive} setActive={setGActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
+              <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
+                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: NAVY }} />Получено</li>
+                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Продано</li>
+                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: STOCK }} />Остаток на складе</li>
               </ul>
-            ) : second === "workunit" ? (
-              <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: NAVY }} />Единиц получено</li>
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: SPEND }} />Работа за месяц</li>
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-full" style={{ background: STOCK }} />Работа на единицу за месяц</li>
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4 border-t-2 border-dashed border-neutral-900" />Среднее за период</li>
-                <li className="inline-flex min-h-11 items-center px-2"><InfoHint label="Как читать" wide><p>Работа на единицу за месяц = оплаты подрядчику за месяц ÷ единицы, полученные в этом месяце. Оплата и поступление могут приходиться на разные месяцы (аванс за будущую партию), поэтому месяцы шумные; среднее за период = вся оплаченная работа ÷ все полученные единицы.{filtered ? " При фильтре работа берётся только по ТЗ выбранной категории." : ""}</p></InfoHint></li>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold">Работа подрядчика по месяцам, ₽</h3>
+              <p className="mb-1 text-xs text-neutral-700">Всего {rubOrDash(gWu.work.reduce((a, b) => a + b, 0))}, на единицу {rubOrDash(gWu.units.reduce((a, b) => a + b, 0) > 0 ? gWu.work.reduce((a, b) => a + b, 0) / gWu.units.reduce((a, b) => a + b, 0) : null)}.</p>
+              <div className="min-h-[1.5rem] text-xs text-neutral-700" aria-live="polite">{gActive !== null ? <span><b>{full(gMonths[gActive])}</b>: работа {dash(gWu.work[gActive])}, получено {pcs(gWu.units[gActive])} шт.</span> : <span>Наведите курсор или коснитесь месяца.</span>}</div>
+              <ChartBox n={gMonths.length}>{(colW) => <WorkMonthsChart months={gMonths} work={gWu.work} units={gWu.units} active={gActive} setActive={setGActive} colW={colW} />}</ChartBox>
+              <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
+                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: SPEND }} />Оплата работы, ₽ (слева)</li>
+                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-full" style={{ background: NAVY }} />Получено единиц, шт. (справа)</li>
               </ul>
-            ) : <p className="mt-2 text-xs text-neutral-700">Накопленная оплата работы ÷ накопленные полученные единицы, ₽ ({vatNote}). До первого прихода линии нет.</p>}
+            </div>
+
+            <div>
+              <button type="button" aria-expanded={gTable} onClick={() => setGTable((v) => !v)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm print:hidden">{gTable ? "Скрыть таблицу по месяцам" : "Таблица по месяцам"}</button>
+              {gTable && <div className="mt-2"><MiniTable head={["Месяц", "Получено, шт.", "Продано, шт.", "Остаток, шт.", "Работа, ₽"]} rows={gMonths.map((mo, i) => [full(mo), pcs(gS.recPcs[i]), pcs(gS.salePcs[i]), pcs(gStock[i]), dash(gWu.work[i])])} total={["Итого", pcs(gS.recPcs.reduce((a, b) => a + b, 0)), pcs(gS.salePcs.reduce((a, b) => a + b, 0)), pcs(gStock[gStock.length - 1] ?? 0), dash(gWu.work.reduce((a, b) => a + b, 0))]} /></div>}
+            </div>
           </>
         ) : <p className="text-sm text-neutral-700">{noSalesNote}</p>}
       </section>
 
-      <p className="text-sm"><Link href="/analytics/margin" className="inline-flex min-h-11 items-center underline">Маржа и наценка → в Изделиях</Link></p>
 
-      <p className="text-xs text-neutral-600 print:hidden">Оплаты по статьям и документам — в разделе <Link href="/payments" className="underline">«Оплаты»</Link>.</p>
     </div>
   );
 }
