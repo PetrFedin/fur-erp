@@ -86,6 +86,8 @@ const PEOPLE: Record<string, string[]> = {
 const WIPE = [
   "AuditLog", "CommentReply", "Comment", "ChatMessageReaction", "ChannelDelivery", "ChatAttachment", "ChatMessage", "ChatRead", "ChatMember",
   "ChatThread", "ChannelBindCode", "ChannelLink", "FittingPhoto", "SupplierCalcTemplate",
+  // Поступления и продажи (Cashflow, «Продажи») и прайс розницы — данные заказчика: в демо не входят, страница Cashflow там показывает «нет данных о продажах».
+  "SalesReceiptLine",
 ];
 
 /** Фамилии и имена людей, которые встречаются в свободных текстах (этапы отгрузок, примечания). */
@@ -141,7 +143,7 @@ async function main() {
 
   // 1. Очистка таблиц целиком
   for (const t of WIPE) if (await tableExists(t)) await x(`delete from ${q(t)}`);
-  await x(`delete from "SystemState" where key like 'owner-decision:%'`);
+  await x(`delete from "SystemState" where key like 'owner-decision:%' or key like 'retail-prices:%'`);
   // Фото артикулов и ссылки «Товар в магазине» в обезличенную демо не входят (реальные карточки товаров; файлы в демо не копируются).
   await x(`delete from "SystemState" where key like 'article-photos:%' or key like 'article-shop-links:%'`);
   // PLU — внутренние коды заказчика: в демо пусто (свойства артикула «PLU…» убираются, остальные остаются).
