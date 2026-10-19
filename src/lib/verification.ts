@@ -449,7 +449,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         blockers.push({ text: "приложение к ТЗ не прикреплено", href, upload: { action: "driveDoc", entity: "order", id: o.id, docType: "TZ_APPENDIX", label: "Прикрепить приложение ТЗ" } });
       if (!o.workOrderDate) blockers.push({ text: "даты ТЗ нет (в приложении только шаблонная дата договора) — внести по оригиналу", href });
       else {
-        const t = templateDateIssue(o.number, o.workOrderDate);
+        const t = templateDateIssue(o.workOrderNumber ?? o.number, o.workOrderDate); // номер ТЗ из документа, не внутренний П-2026-xxxx
         if (t) blockers.push({ text: t, href });
       }
       if (!batch && (o as { batchNotRequired?: boolean | null }).batchNotRequired !== true) blockers.push({ text: "партия не указана", href });

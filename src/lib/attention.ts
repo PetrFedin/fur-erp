@@ -523,7 +523,7 @@ async function computeAttentionImpl(db: PrismaClient, organizationId: string, ye
     // Даты ТЗ: нет даты / дата импорта / шаблонная дата (одна группа проблем)
     if (!o.workOrderDate) flagTz(o, { text: "даты ТЗ нет", priority: "yellow", group: "tz-no-date" });
     else {
-      const s = SUSPECT.get(tzOrdinal(o.number));
+      const s = SUSPECT.get(tzOrdinal(o.workOrderNumber ?? o.number)); // номер ТЗ из документа (113–115, 118), а не внутренний П-2026-xxxx
       const d = o.workOrderDate;
       if (s?.some(([y, m, day]) => d.getUTCFullYear() === y && d.getUTCMonth() + 1 === m && d.getUTCDate() === day))
         flagTz(o, { text: `дата ТЗ ${formatDate(d)} — похожа на шаблон, проверьте`, priority: "yellow", group: "suspect-date" });

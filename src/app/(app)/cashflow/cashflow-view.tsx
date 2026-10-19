@@ -1,20 +1,20 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/utils";
 import { toCsv } from "@/lib/csv";
 import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
 import { DUE_LABEL, dueHint, payDue } from "@/lib/pay-display";
-import { ExpTable, MiniTable, RecvDetail, SpendDetail } from "./drill";
+import { ExpTable, PriceDetail, RecvDetail, SpendDetail } from "./drill";
 import { flowPoints, workWindowStats, groupSales, type PayLite } from "@/lib/cashflow-detail";
 import type { SalesAggLine } from "@/lib/sales-receipts-core";
 import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly } from "@/lib/cashflow";
 
 type ServicePart = { number: string; what: string; invoice: string | null; date: string; paid: number };
 type Cat = "all" | "clothes" | "acc";
-type Props = { incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; shipMonths: string[]; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; initialSecond?: "goods" | "workunit" | "work"; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
+type Props = { incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; initialSecond?: "goods" | "workunit" | "work"; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
 
 const SPEND = "#d93a0e", GET = "#1f7a4d", NAVY = "#1b2a5c", STOCK = "#8a6d1d";
 // Цвета статей трат: различимы между собой и без цвета (подписи в легенде, таблица рядом — текстовая альтернатива).
@@ -227,19 +227,6 @@ function Shown({ text, onChange }: { text: string; onChange: () => void }) {
   );
 }
 
-type Flag = { work: boolean; goods: boolean; rec: boolean; ship: boolean; sale: boolean };
-const isActive = (f: Flag) => f.work || f.goods || f.rec || f.ship || f.sale;
-
-function BaseSwitch({ base, setBase }: { base: "all" | "active"; setBase: (b: "all" | "active") => void }) {
-  const seg = (on: boolean) => "inline-flex min-h-11 items-center rounded-md px-3 text-sm " + (on ? "bg-neutral-900 text-white" : "text-neutral-700 hover:text-neutral-900");
-  return (
-    <div role="group" aria-label="База месяцев" className="inline-flex flex-wrap rounded-lg border border-neutral-300 bg-white p-0.5">
-      <button type="button" aria-pressed={base === "all"} onClick={() => setBase("all")} className={seg(base === "all")}>Все месяцы проекта</button>
-      <button type="button" aria-pressed={base === "active"} onClick={() => setBase("active")} className={seg(base === "active")}>Только месяцы с оплатами и поставками</button>
-    </div>
-  );
-}
-
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-lg border border-neutral-300 p-3">
@@ -253,7 +240,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 const rubOrDash = (v: number | null) => (v === null ? "—" : formatMoney(v));
 
 /** Таблица по месяцам окна работы: пустые месяцы (нет оплаты работы и прихода) не показываются при базе «только активные» и сворачиваются в «n пустых месяцев» при базе «все»; исключённые из базы месяцы серые. */
-function MonthRows({ months, work, units, st, base }: { months: string[]; work: number[]; units: number[]; st: ReturnType<typeof workWindowStats>; base: "all" | "active" }) {
+function MonthRows({ months, work, units, st }: { months: string[]; work: number[]; units: number[]; st: ReturnType<typeof workWindowStats> }) {
   const [openGap, setOpenGap] = useState<number[]>([]);
   const empty = (i: number) => Math.abs(work[i]) < 0.005 && units[i] === 0;
   const n1 = (v: number | null) => (v === null ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
@@ -261,14 +248,13 @@ function MonthRows({ months, work, units, st, base }: { months: string[]; work: 
   const items: Item[] = [];
   for (let i = 0; i < months.length; i++) {
     if (!empty(i)) { items.push({ kind: "row", i }); continue; }
-    if (base === "active") continue;
     let j = i;
     while (j + 1 < months.length && empty(j + 1)) j++;
     items.push({ kind: "gap", from: i, to: j });
     i = j;
   }
   const row = (i: number) => (
-    <tr key={months[i]} className={"border-b border-neutral-200 " + (!st.inc[i] ? "bg-neutral-50 text-neutral-500" : "")}>
+    <tr key={months[i]} className="border-b border-neutral-200">
       <td className="px-2 py-1.5">{months[i]}</td>
       <td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(Math.abs(work[i]) > 0.005 ? work[i] : null)}</td>
       <td className="px-2 py-1.5 text-right tabular-nums">{units[i] || "—"}</td>
@@ -303,39 +289,32 @@ function MonthRows({ months, work, units, st, base }: { months: string[]; work: 
 }
 
 /** Окно «Работа в месяц»: база месяцев, итоги и таблица по месяцам с отметкой активности; исключённые месяцы серые. */
-function WorkMonthWindow({ months, work, units, flags, base, setBase }: { months: string[]; work: number[]; units: number[]; flags: Flag[]; base: "all" | "active"; setBase: (b: "all" | "active") => void }) {
-  const st = workWindowStats(work, units, flags.map(isActive), base);
+function WorkMonthWindow({ months, work, units }: { months: string[]; work: number[]; units: number[] }) {
+  const st = workWindowStats(work, units, [], "all");
   const n1 = (v: number | null) => (v === null ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
   return (
     <div className="flex flex-col gap-4">
-      <BaseSwitch base={base} setBase={setBase} />
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         <Stat label="Работа всего, ₽" value={rubOrDash(st.total)} />
-        <Stat label="Месяцев в базе" value={`${st.n} из ${st.m}`} sub={base === "active" ? "месяцы с движением" : "все месяцы проекта"} />
+        <Stat label="Месяцев проекта" value={String(st.n)} sub="от первого движения до последнего месяца данных" />
         <Stat label="Среднее в месяц, ₽" value={rubOrDash(st.avgMonth)} />
         <Stat label="Единиц получено, шт." value={String(st.unitsTotal)} />
         <Stat label="Среднее единиц в месяц" value={n1(st.avgUnits)} />
         <Stat label="Работа на единицу, ₽" value={rubOrDash(st.perUnit)} />
       </div>
-      <p className="text-xs text-neutral-700">
-        <InfoHint label="Какие месяцы входят в базу" wide><p>«Только месяцы с оплатами и поставками» — месяцы, в которых было хотя бы одно событие: оплата работы подрядчику, оплата за товар/сырьё/услуги, приход, продажи или отправка (дата отправки в «Отгрузках»). Месяцы без событий в среднее не входят и в таблице не показываются. «Все месяцы проекта» — все месяцы периода; подряд идущие пустые месяцы свёрнуты в одну строку.</p></InfoHint>
-        Таблица по месяцам: строки без оплат работы и без прихода свёрнуты.
-      </p>
-      <MonthRows months={months} work={work} units={units} st={st} base={base} />
+      <MonthRows months={months} work={work} units={units} st={st} />
     </div>
   );
 }
 
 /** Окно «Работа на единицу»: компактные плитки (₽/шт. всего ÷ единиц, простое среднее месяцев, минимум, максимум, единицы, работа), мини-строки по категориям, таблица по месяцам свёрнута. */
-function WorkUnitWindow({ months, work, units, flags, base, setBase, cls }: { months: string[]; work: number[]; units: number[]; flags: Flag[]; base: "all" | "active"; setBase: (b: "all" | "active") => void; cls: Record<"clothes" | "acc", { work: number[]; units: number[] }> }) {
+function WorkUnitWindow({ months, work, units, cls }: { months: string[]; work: number[]; units: number[]; cls: Record<"clothes" | "acc", { work: number[]; units: number[] }> }) {
   const [table, setTable] = useState(false);
-  const mask = flags.map(isActive);
-  const st = workWindowStats(work, units, mask, base);
-  const c1 = workWindowStats(cls.clothes.work, cls.clothes.units, mask, base), c2 = workWindowStats(cls.acc.work, cls.acc.units, mask, base);
+  const st = workWindowStats(work, units, [], "all");
+  const c1 = workWindowStats(cls.clothes.work, cls.clothes.units, [], "all"), c2 = workWindowStats(cls.acc.work, cls.acc.units, [], "all");
   const catLine = (c: ReturnType<typeof workWindowStats>) => `${rubOrDash(c.perUnit)} · ${c.unitsTotal} шт.`;
   return (
     <div className="flex flex-col gap-4">
-      <BaseSwitch base={base} setBase={setBase} />
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         <div className="col-span-2 rounded-lg border border-neutral-300 p-3 md:col-span-1">
           <div className="text-xs text-neutral-600">Работа на единицу (всего ÷ единиц)</div>
@@ -349,13 +328,13 @@ function WorkUnitWindow({ months, work, units, flags, base, setBase, cls }: { mo
         <Stat label="Простое среднее по месяцам" value={rubOrDash(st.simpleAvg)} sub="месяцы с приходом" />
         <Stat label="Минимум месяца" value={st.min ? rubOrDash(st.min.v) : "—"} sub={st.min ? months[st.min.i] : undefined} />
         <Stat label="Максимум месяца" value={st.max ? rubOrDash(st.max.v) : "—"} sub={st.max ? months[st.max.i] : undefined} />
-        <Stat label="Единиц всего" value={String(st.unitsTotal)} sub={`месяцев в базе ${st.n} из ${st.m}`} />
+        <Stat label="Единиц всего" value={String(st.unitsTotal)} sub={`месяцев проекта ${st.n}`} />
         <Stat label="Работа всего" value={rubOrDash(st.total)} />
       </div>
       <div>
         <button type="button" aria-expanded={table} onClick={() => setTable((v) => !v)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm">{table ? "Скрыть таблицу по месяцам" : "Таблица по месяцам"}</button>
       </div>
-      {table && <MonthRows months={months} work={work} units={units} st={st} base={base} />}
+      {table && <MonthRows months={months} work={work} units={units} st={st} />}
     </div>
   );
 }
@@ -376,10 +355,41 @@ function ChartBox({ n, children }: { n: number; children: (colW: number) => Reac
   return <div ref={ref} className="w-full overflow-x-auto" data-keep-scroll>{children(colW)}</div>;
 }
 
-function Spark({ values }: { values: number[] }) {
+/** Спарклайн плитки. «bars» — месячные значения столбиками со знаком; «area» — накопительная линия с нулевой осью и заливкой (плюс зелёным, минус красным), последняя точка отмечена; иначе обычная линия. */
+function Spark({ values, kind = "line" }: { values: number[]; kind?: "line" | "bars" | "area" }) {
+  const id = useId();
   if (values.length < 2) return null;
-  const lo = Math.min(...values), hi = Math.max(...values), W = 100, H = 24;
-  const pts = values.map((v, i) => `${(i / (values.length - 1)) * W},${hi === lo ? H / 2 : H - 2 - ((v - lo) / (hi - lo)) * (H - 4)}`).join(" ");
+  const W = 100, H = 28;
+  const lo = Math.min(...values, kind === "line" ? Infinity : 0), hi = Math.max(...values, kind === "line" ? -Infinity : 0);
+  const y = (v: number) => (hi === lo ? H / 2 : 2 + ((hi - v) / (hi - lo)) * (H - 4));
+  const x = (i: number) => (i / (values.length - 1)) * W;
+  if (kind === "bars") {
+    const bw = Math.max(1, W / values.length - 1);
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-7 w-full" role="img" aria-label="Месячные значения">
+        <line x1={0} x2={W} y1={y(0)} y2={y(0)} stroke="#a1a1aa" strokeWidth={0.5} vectorEffect="non-scaling-stroke" />
+        {values.map((v, i) => <rect key={i} x={x(i) - bw / 2} width={bw} y={Math.min(y(v), y(0))} height={Math.abs(y(v) - y(0))} fill={v < 0 ? "#b4310b" : "#17613c"} />)}
+      </svg>
+    );
+  }
+  const pts = values.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+  if (kind === "area") {
+    const z = y(0);
+    const poly = `0,${z} ${pts} ${W},${z}`;
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-7 w-full" role="img" aria-label="Накопленный итог по месяцам">
+        <defs>
+          <clipPath id={id + "up"}><rect x={0} y={0} width={W} height={z} /></clipPath>
+          <clipPath id={id + "dn"}><rect x={0} y={z} width={W} height={H - z} /></clipPath>
+        </defs>
+        <polygon points={poly} fill="#17613c" opacity={0.25} clipPath={`url(#${id}up)`} />
+        <polygon points={poly} fill="#b4310b" opacity={0.25} clipPath={`url(#${id}dn)`} />
+        <line x1={0} x2={W} y1={z} y2={z} stroke="#a1a1aa" strokeWidth={0.5} vectorEffect="non-scaling-stroke" />
+        <polyline points={pts} fill="none" stroke="#1b2a5c" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+        <circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r={1.6} fill="#1b2a5c" />
+      </svg>
+    );
+  }
   return <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-6 w-full" aria-hidden><polyline points={pts} fill="none" stroke="#5a6a94" strokeWidth={1.5} vectorEffect="non-scaling-stroke" /></svg>;
 }
 
@@ -421,7 +431,7 @@ function TileModal({ title, subtitle, onClose, children }: { title: string; subt
 }
 
 
-type Page = { label: string; value: string; sub?: string; tone?: "bad" | "good"; spark?: number[]; hint?: React.ReactNode };
+type Page = { label: string; value: string; sub?: string; tone?: "bad" | "good"; spark?: number[]; sparkKind?: "line" | "bars" | "area"; hint?: React.ReactNode };
 
 /** Плитка-карусель: страницы листаются горизонтальным скроллом/свайпом (scroll-snap), стрелками ‹ › и точками (≥44px), клавишами ← →; клик по странице или «Подробнее» открывает окно. */
 function CarouselTile({ pages, onOpen }: { pages: Page[]; onOpen: () => void }) {
@@ -437,7 +447,7 @@ function CarouselTile({ pages, onOpen }: { pages: Page[]; onOpen: () => void }) 
   };
   const btn = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100";
   return (
-    <div role="group" aria-roledescription="carousel" aria-label="Чистый поток и накопленный итог" className="relative flex min-w-0 flex-col rounded-lg border border-neutral-300 bg-white">
+    <div role="group" aria-roledescription="carousel" aria-label="Чистый поток и накопленный итог" className="tile-click relative flex min-w-0 flex-col rounded-lg border border-neutral-300 bg-white">
       <div ref={ref} tabIndex={0} onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); go(i + 1); } else if (e.key === "ArrowLeft") { e.preventDefault(); go(i - 1); } }}
         onScroll={(e) => { const el = e.currentTarget; setI(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))); }}
         className="flex snap-x snap-mandatory overflow-x-auto motion-safe:scroll-smooth [scrollbar-width:none]" data-keep-scroll>
@@ -446,7 +456,7 @@ function CarouselTile({ pages, onOpen }: { pages: Page[]; onOpen: () => void }) 
             <div className="flex items-center gap-1 text-xs text-neutral-600">{p.label}{p.hint ? <span onClick={(e) => e.stopPropagation()}><InfoHint label={`Как считается: ${p.label}`} wide>{p.hint}</InfoHint></span> : null}</div>
             <div className={"text-lg font-semibold tabular-nums " + (p.tone === "bad" ? "text-[#b4310b]" : p.tone === "good" ? "text-[#17613c]" : "text-neutral-900")}>{p.value}</div>
             {p.sub ? <div className="text-xs text-neutral-600">{p.sub}</div> : null}
-            {p.spark ? <Spark values={p.spark} /> : null}
+            {p.spark ? <Spark values={p.spark} kind={p.sparkKind} /> : null}
           </div>
         ))}
       </div>
@@ -455,45 +465,27 @@ function CarouselTile({ pages, onOpen }: { pages: Page[]; onOpen: () => void }) 
         <div className="flex items-center">
           {pages.map((p, k) => <button key={p.label} type="button" aria-label={`Страница ${k + 1}: ${p.label}`} aria-current={i === k} onClick={() => go(k)} className="inline-flex min-h-11 min-w-8 items-center justify-center"><span className={"block size-2 rounded-full " + (i === k ? "bg-neutral-900" : "bg-neutral-300")} /></button>)}
         </div>
-        <button type="button" onClick={onOpen} className="inline-flex min-h-11 items-center rounded-md px-2 text-xs underline">Подробнее ›</button>
         <button type="button" aria-label="Следующая страница" onClick={() => go(i + 1)} className={btn}>›</button>
       </div>
     </div>
   );
 }
 
-/** «Средняя цена продажи» с переключением Тотал | сезон внутри плитки; значение и штуки — по периоду, НДС и категории страницы; мини-строки — обе категории. */
+/** «Средняя цена продажи»: компактная плитка (значение за период, штуки, одна пара мини-строк); сезоны и детали — в окне по клику. */
 function PriceTile({ lines, months, exVat, cat, vatNote, onOpen }: { lines: SalesAggLine[]; months: string[]; exVat: boolean; cat: "all" | "clothes" | "acc"; vatNote: string; onOpen: () => void }) {
-  const seasons = useMemo(() => [...new Set(lines.map((l) => l.season))].sort((a, b) => { const y = (x: string) => { const m = /(\d{2,4})/.exec(x); return (m ? (Number(m[1]) < 100 ? 2000 + Number(m[1]) : Number(m[1])) : 0) + (/^SS/i.test(x) ? 0.2 : 0.7); }; return y(a) - y(b); }), [lines]);
-  const [sel, setSel] = useState("all");
-  const base = useMemo(() => lines.filter((l) => sel === "all" || l.season === sel), [lines, sel]);
-  const agg = (c: "all" | "clothes" | "acc") => { const g = groupSales(base, months, exVat, () => "x", c)[0]; return g && g.pcs > 0 ? { v: g.rev / g.pcs, pcs: g.pcs } : null; };
+  const agg = (c: "all" | "clothes" | "acc") => { const g = groupSales(lines, months, exVat, () => "x", c)[0]; return g && g.pcs > 0 ? { v: g.rev / g.pcs, pcs: g.pcs } : null; };
   const main = agg(cat), cl = agg("clothes"), ac = agg("acc");
   const fmt = (x: { v: number; pcs: number } | null) => (x ? formatMoney(x.v) : "—");
   return (
-    <div className="flex min-w-0 flex-col rounded-lg border border-neutral-300 bg-white p-3">
-      <div className="flex items-center gap-1 text-xs text-neutral-600">Средняя цена продажи<InfoHint label="Как считается: Средняя цена продажи" wide><p>Выручка ({vatNote}) ÷ проданные единицы (возвраты минус) за выбранный период, категорию и сезон заказа. «Тотал» — все сезоны.</p></InfoHint></div>
-      <div role="group" aria-label="Сезон" className="mt-1 flex flex-wrap gap-1">
-        {[["all", "Тотал"], ...seasons.map((x) => [x, x])].map(([k, t]) => (
-          <button key={k} type="button" aria-pressed={sel === k} onClick={() => setSel(k)} className={"inline-flex min-h-11 items-center rounded-md border px-2 text-xs " + (sel === k ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700")}>{t}</button>
-        ))}
-      </div>
-      <button type="button" aria-haspopup="dialog" onClick={onOpen} className="mt-1 flex flex-col items-start gap-0.5 rounded-md text-left">
-        <span className="text-lg font-semibold tabular-nums text-neutral-900">{fmt(main)}</span>
-        <span className="text-xs text-neutral-600">{main ? `${pcs(main.pcs)} шт. продано, ${vatNote}` : "нет продаж"} ›</span>
-      </button>
-      <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
-        <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Одежда</dt><dd className="font-semibold tabular-nums">{fmt(cl)}</dd></div>
-        <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Аксессуары</dt><dd className="font-semibold tabular-nums">{fmt(ac)}</dd></div>
-      </dl>
-    </div>
+    <Tile label="Средняя цена продажи" value={fmt(main)} sub={main ? `${pcs(main.pcs)} шт. продано, ${vatNote}` : "нет продаж"} mini={[["Одежда", fmt(cl)], ["Аксессуары", fmt(ac)]]}
+      expandId="price" openId="" onToggle={() => onOpen()} hint={<p>Выручка ({vatNote}) ÷ проданные единицы (возвраты минус) за выбранный период и категорию. Сезоны и детализация — в окне по клику.</p>} />
   );
 }
 
-function Tile({ label, value, sub, hint, tone, mini, spark, extra, expandId, openId, onToggle }: { label: string; value: string; sub?: string; hint?: React.ReactNode; tone?: "bad" | "good"; /** Две мини-строки «Одежда … / Аксессуары …» со своими значениями. */ mini?: [string, string][]; spark?: number[]; extra?: string; expandId?: string; openId?: string | null; onToggle?: (id: string) => void }) {
+function Tile({ label, value, sub, hint, tone, mini, spark, extra, expandId, onToggle }: { label: string; value: string; sub?: string; hint?: React.ReactNode; tone?: "bad" | "good"; /** Две мини-строки «Одежда … / Аксессуары …» со своими значениями. */ mini?: [string, string][]; spark?: number[]; extra?: string; expandId?: string; /** устарело, не используется */ openId?: string | null; onToggle?: (id: string) => void }) {
   const clickable = !!expandId && !!onToggle;
   return (
-    <div className={"relative flex min-w-0 flex-col rounded-lg border bg-white " + (openId && openId === expandId ? "border-neutral-900" : "border-neutral-300") + (clickable ? " hover:bg-neutral-50" : "")}>
+    <div className={"relative flex min-w-0 flex-col rounded-lg border border-neutral-300 bg-white" + (clickable ? " tile-click" : "")}>
       {/* Вся плитка — кнопка: клик открывает окно с деталями поверх страницы (как плитки на Главной); значок «i» и ссылки остаются отдельными. */}
       {clickable ? <button type="button" aria-haspopup="dialog" aria-label={`Подробнее: ${label}`} onClick={() => onToggle!(expandId!)} className="absolute inset-0 rounded-lg print:hidden" /> : null}
       <div className="pointer-events-none relative flex flex-col gap-0.5 p-3">
@@ -513,7 +505,7 @@ function Tile({ label, value, sub, hint, tone, mini, spark, extra, expandId, ope
 }
 
 
-export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left, shipMonths, vat, services, initialPeriod, initialDetail, initialCat, initialSecond }: Props) {
+export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left, vat, services, initialPeriod, initialDetail, initialCat, initialSecond }: Props) {
   const [period, setPeriod] = useState<CashflowPeriod>(initialPeriod);
   const [exVat, setExVat] = useState(false);
   const [cat, setCat] = useState<Cat>(initialCat ?? "all");
@@ -521,7 +513,6 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const [detail, setDetail] = useState(initialDetail ?? true);
   const [fOpen, setFOpen] = useState(false);
   const [openMonths, setOpenMonths] = useState<string[]>([]);
-  const [base, setBase] = useState<"all" | "active">("active");
   const [openTile, setOpenTile] = useState<string | null>(null);
   const toggleTile = (id: string) => setOpenTile(id);
   const [open, setOpen] = useState<string[]>([]);
@@ -546,10 +537,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
     const cumRec = stAll.cumRec;
     const cumWpu = cumWorkPerUnit(workAll, cumRec, sales.available);
     const ser: Ser = { spend: pick(serAll.spend), revenue, net: pick(serAll.net), cumSpend: pick(serAll.cumSpend), cumRevenue: pick(serAll.cumRevenue), cumNet: pick(serAll.cumNet), work: pick(workAll), cumWorkPerUnit: pick(cumWpu) };
-    // Активные месяцы = «движение»: оплата работы, любая оплата (товар/сырьё/услуги), приход, продажи или отправка (Shipment.shippedDate).
-    const ships = new Set(shipMonths);
-    const mask = keep.map((gi, k) => Math.abs(ser.work[k]) > 0.005 || Math.abs(serAll.spend[gi]) > 0.005 || salesBy.all.recPcs[gi] !== 0 || salesBy.all.salePcs[gi] !== 0 || ships.has(all.months[gi]));
-    const h = headline(d, s, revenue, ser.work, base, mask);
+    const h = headline(d, s, revenue, ser.work, "all");
     const g = goodsHeadline(sales, all.months, period);
     const last = keep.length ? keep[keep.length - 1] : -1;
     const wTot = ser.work.reduce((a, b) => a + b, 0), uTot = s.recPcs.reduce((a, b) => a + b, 0);
@@ -557,12 +545,11 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
     const per = (c: "clothes" | "acc") => {
       const sc = sliceSales(salesBy[c], keep);
       const rv = keep.map((i) => (exVat ? salesBy[c].revEx : salesBy[c].revIncl)[i]);
-      return { h: headline(d, sc, rv, keep.map((i) => workBy[c][i]), base, mask), g: goodsHeadline(salesBy[c], all.months, period) };
+      return { h: headline(d, sc, rv, keep.map((i) => workBy[c][i]), "all"), g: goodsHeadline(salesBy[c], all.months, period) };
     };
-    const flags = keep.map((gi, k) => ({ work: Math.abs(ser.work[k]) > 0.005, goods: Math.abs(serAll.spend[gi] - (serAll.work[gi] ?? 0)) > 0.005, rec: salesBy.all.recPcs[gi] !== 0, ship: ships.has(all.months[gi]), sale: salesBy.all.salePcs[gi] !== 0 }));
-    return { all, flags, keep, d, s, revenue, ser, stock: pick(stAll.stock), h, g, wu, per: { clothes: per("clothes"), acc: per("acc") }, cumNetEnd: last >= 0 ? serAll.cumNet[last] : 0 };
-  }, [exVat, period, cat, incl, ex, sales, salesBy, workBy, base, shipMonths]);
-  const { d, s, ser, h, g, flags } = m;
+    return { all, keep, d, s, revenue, ser, stock: pick(stAll.stock), h, g, wu, per: { clothes: per("clothes"), acc: per("acc") }, cumNetEnd: last >= 0 ? serAll.cumNet[last] : 0 };
+  }, [exVat, period, cat, incl, ex, sales, salesBy, workBy]);
+  const { d, s, ser, h, g } = m;
   const months = d.months;
   const hasSales = sales.available;
   const mini = (f: (c: "clothes" | "acc") => string): [string, string][] => [["Одежда", hasSales ? f("clothes") : "—"], ["Аксессуары", hasSales ? f("acc") : "—"]];
@@ -578,9 +565,6 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const openFilters = () => { setFOpen(true); document.getElementById("cf-filters")?.scrollIntoView({ block: "start" }); };
   const monthLabel = (mo: string) => `${["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"][Number(mo.slice(5, 7)) - 1]} ${mo.slice(0, 4)}`;
   const catArg = cat === "all" ? "all" : cat;
-  const recvBySeason = useMemo(() => groupSales(saleLines, months, exVat, (l) => l.season, catArg), [saleLines, months, exVat, catArg]);
-  const recvByCls = useMemo(() => groupSales(saleLines, months, exVat, (l) => CAT_LABEL[l.cls], catArg), [saleLines, months, exVat, catArg]);
-  const recvByArticle = useMemo(() => groupSales(saleLines, months, exVat, (l) => l.article, catArg), [saleLines, months, exVat, catArg]);
   const fp = useMemo(() => flowPoints(months, ser.net, ser.cumNet), [months, ser]);
   const sum0 = (a: number[]) => a.reduce((x, y) => x + y, 0);
   const workTotalAll = sum0(workBy.clothes) + sum0(workBy.acc) + sum0(workBy.other);
@@ -661,11 +645,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
           <div role="group" aria-label="Категория" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
             {(["all", "clothes", "acc"] as const).map((k) => <button key={k} type="button" aria-pressed={cat === k} onClick={() => { setCat(k); clearHot(); }} className={seg(cat === k)}>{CAT_LABEL[k]}</button>)}
           </div>
-          <div role="group" aria-label="Среднее по месяцам" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-          <button type="button" aria-pressed={base === "active"} onClick={() => setBase("active")} className={seg(base === "active")}>Среднее: только активные месяцы</button>
-          <button type="button" aria-pressed={base === "all"} onClick={() => setBase("all")} className={seg(base === "all")}>Всё время</button>
-        </div>
-        <button type="button" onClick={csv} className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs">Скачать CSV</button>
+          <button type="button" onClick={csv} className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs">Скачать CSV</button>
         </div>
       </div>
       {exVat && vat.unknown > 0.5 && <p className="text-xs text-neutral-700">НДС нет в данных по {money(vat.unknown)} оплат (работа подрядчику, авансы без привязки к закупке): в режиме «Без НДС» они показаны как есть.</p>}
@@ -685,16 +665,16 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
           hint={<p>Розничная выручка из выгрузки продаж: чистые продажи после скидок, возвраты вычтены; по дате продажи. Доля — от выручки всех категорий. {noSalesNote}</p>} />
         {hasSales && !filtered ? (
           <CarouselTile onOpen={() => toggleTile("flow")} pages={[
-            { label: "Чистый денежный поток", value: money(h.net), tone: h.net < 0 ? "bad" : "good", spark: ser.net, sub: h.net < 0 ? "в минусе за период" : "в плюсе за период", hint: <p>Получено минус потрачено за период.</p> },
-            { label: "Накопленный итог", value: money(m.cumNetEnd), tone: m.cumNetEnd < 0 ? "bad" : "good", spark: ser.cumNet, sub: "с начала данных на конец периода", hint: <p>Получено минус потрачено нарастающим итогом с первого месяца данных до конца выбранного периода.</p> },
+            { label: "Чистый денежный поток", value: money(h.net), tone: h.net < 0 ? "bad" : "good", spark: ser.net, sparkKind: "bars", sub: h.net < 0 ? "в минусе за период" : "в плюсе за период", hint: <p>Получено минус потрачено за период.</p> },
+            { label: "Накопленный итог", value: money(m.cumNetEnd), tone: m.cumNetEnd < 0 ? "bad" : "good", spark: ser.cumNet, sparkKind: "area", sub: "с начала данных на конец периода", hint: <p>Получено минус потрачено нарастающим итогом с первого месяца данных до конца выбранного периода.</p> },
           ]} />
         ) : (
           <Tile label="Чистый поток / накопленный итог" value="—" sub={filtered ? "траты не делятся по категориям" : "нет данных о продажах"} hint={<p>Чистый денежный поток = получено − потрачено; накопленный итог — то же нарастающим итогом. При фильтре по категории траты не делятся, поэтому не считаются.</p>} />
         )}
         <Tile label="Работа в месяц" mini={mini((c) => (m.per[c].h.workPerMonth === null ? "—" : money(m.per[c].h.workPerMonth)))} value={h.workPerMonth === null ? "—" : money(h.workPerMonth)} spark={ser.work}
-          sub={h.workMonths ? (base === "active" ? `в среднем за ${h.workMonths} активных мес. из ${months.length}` : `в среднем за ${h.workMonths} мес.`) : undefined} extra={hasSales && h.unitsPerMonth !== null ? `единиц получено: ${pcs(h.unitsReceived)} шт., в среднем ${h.unitsPerMonth.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.` : undefined}
+          sub={h.workMonths ? `в среднем за ${h.workMonths} мес. проекта` : undefined} extra={hasSales && h.unitsPerMonth !== null ? `единиц получено: ${pcs(h.unitsReceived)} шт., в среднем ${h.unitsPerMonth.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.` : undefined}
           expandId="workMonth" openId={openTile} onToggle={toggleTile}
-          hint={<p>Оплаты статьи «Работа подрядчику» за период ÷ число месяцев выбранной базы. Единицы: получено за период ÷ число месяцев той же базы ({h.recMonths}). База среднего (переключатель в панели фильтров): «только активные месяцы» (по умолчанию) — месяцы с движением: оплата работы подрядчику, любая оплата за товар/сырьё, приход, продажи или отправка (дата отправки в «Отгрузках»); месяцы без таких событий не считаются. «Всё время» — все месяцы периода, включая пустые. Работа на единицу = работа ÷ единицы за выбранные месяцы; она совпадает в обеих базах, потому что работа и приход лежат только в активных месяцах.</p>} />
+          hint={<p>Вся работа подрядчику за период ÷ число календарных месяцев от первого месяца с движением (оплата, приход, продажа, отгрузка) до последнего месяца данных включительно: {h.recMonths} мес. Единицы: получено за период ÷ те же месяцы.</p>} />
         <Tile label="Работа на единицу" mini={mini((c) => (m.per[c].h.workPerUnit === null ? "—" : money(m.per[c].h.workPerUnit)))} value={h.workPerUnit === null ? "—" : money(h.workPerUnit)} sub={hasSales ? `${pcs(h.unitsReceived)} шт. получено` : "нет данных о приходе"}
           expandId="workUnit" openId={openTile} onToggle={toggleTile}
           hint={<p>Оплаты «Работа подрядчику» за период ÷ единиц, полученных за период. Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее).</p>} />
@@ -725,15 +705,9 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
               <ExpTable head={["Месяц", "Потрачено", "Получено", "Чистый", "Накопленный"]} rows={months.map((mo, i) => ({ id: mo, cells: [monthLabel(mo), money(ser.spend[i]), money(ser.revenue[i]), money(ser.net[i]), money(ser.cumNet[i])], sub: (["clothes", "acc", "other"] as const).map((c) => [CAT_LABEL[c], "—", money(clsMonth(c, m.keep[i]).rev), "—", "—"]).filter((r) => r[2] !== "—") }))} total={["Итого", money(h.spent), money(h.received), money(h.net), money(m.cumNetEnd)]} />
             </div>
           )}
-          {openTile === "workMonth" && <WorkMonthWindow months={months} work={ser.work} units={s.recPcs} flags={flags} base={base} setBase={setBase} />}
-          {openTile === "workUnit" && <WorkUnitWindow months={months} work={ser.work} units={s.recPcs} flags={flags} base={base} setBase={setBase} cls={{ clothes: { work: m.keep.map((i) => workBy.clothes[i]), units: m.keep.map((i) => salesBy.clothes.recPcs[i]) }, acc: { work: m.keep.map((i) => workBy.acc[i]), units: m.keep.map((i) => salesBy.acc.recPcs[i]) } }} />}
-          {openTile === "price" && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <MiniTable head={["Сезон", "шт.", "Средняя цена"]} rows={recvBySeason.map((g) => [g.key, String(g.pcs), g.pcs > 0 ? money(g.rev / g.pcs) : "—"])} total={["Итого", String(recvBySeason.reduce((a, g) => a + g.pcs, 0)), h.avgPrice === null ? "—" : money(h.avgPrice)]} />
-              <MiniTable head={["Категория", "шт.", "Средняя цена"]} rows={recvByCls.map((g) => [g.key, String(g.pcs), g.pcs > 0 ? money(g.rev / g.pcs) : "—"])} />
-              <div className="md:col-span-2"><MiniTable head={["Топ-5 артикулов по выручке", "шт.", "Средняя цена"]} rows={recvByArticle.slice(0, 5).map((g) => [g.key, String(g.pcs), g.pcs > 0 ? money(g.rev / g.pcs) : "—"])} /></div>
-            </div>
-          )}
+          {openTile === "workMonth" && <WorkMonthWindow months={months} work={ser.work} units={s.recPcs} />}
+          {openTile === "workUnit" && <WorkUnitWindow months={months} work={ser.work} units={s.recPcs} cls={{ clothes: { work: m.keep.map((i) => workBy.clothes[i]), units: m.keep.map((i) => salesBy.clothes.recPcs[i]) }, acc: { work: m.keep.map((i) => workBy.acc[i]), units: m.keep.map((i) => salesBy.acc.recPcs[i]) } }} />}
+          {openTile === "price" && <PriceDetail lines={saleLines} months={months} exVat={exVat} cat={catArg} />}
         </TileModal>
       )}
 

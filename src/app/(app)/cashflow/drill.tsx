@@ -162,3 +162,48 @@ export function WorkDetail({ pays, months, d, units }: { pays: PayLite[]; months
     </div>
   );
 }
+
+type Agg = { pcs: number; rev: number; retailIncl: number; disc: number };
+const aggOf = (ls: SalesAggLine[], ex: boolean): Agg => ({ pcs: ls.reduce((a, l) => a + l.pcs, 0), rev: ls.reduce((a, l) => a + (ex ? l.retailRubExVat : l.retailRub), 0), retailIncl: ls.reduce((a, l) => a + l.retailRub, 0), disc: ls.reduce((a, l) => a + l.discountRub, 0) });
+
+/** «Средняя цена продажи»: чипы Тотал | сезон сверху; средняя цена, шт., выручка, скидка (Discount файла), категории, топ-артикулы и таблица по всем сезонам сразу. */
+export function PriceDetail({ lines, months, exVat, cat }: { lines: SalesAggLine[]; months: string[]; exVat: boolean; cat: CatClass | "all" }) {
+  const seasons = useMemo(() => [...new Set(lines.map((l) => l.season))], [lines]);
+  const [sel, setSel] = useState("all");
+  const inPeriod = useMemo(() => lines.filter((l) => l.kind === "SALE" && inM(l.iso, months) && (cat === "all" || l.cls === cat)), [lines, months, cat]);
+  const cur = inPeriod.filter((l) => sel === "all" || l.season === sel);
+  const a = aggOf(cur, exVat);
+  const avg = (x: Agg) => (x.pcs > 0 ? money(x.rev / x.pcs) : "—");
+  const discPct = (x: Agg) => (x.retailIncl + x.disc > 0 ? Math.round((x.disc / (x.retailIncl + x.disc)) * 1000) / 10 + " %" : "—");
+  const before = (x: Agg) => (x.pcs > 0 ? money((x.retailIncl + x.disc) / x.pcs) : "—");
+  const byArt = groupSales(cur, months, exVat, (l) => l.article, "all");
+  return (
+    <div className="flex flex-col gap-4">
+      <Chips label="Сезон" value={sel} options={[["all", "Тотал"], ...seasons.map((s) => [s, s] as [string, string])]} onChange={setSel} />
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+        <Stat2 label="Средняя цена продажи" value={avg(a)} sub={exVat ? "без НДС" : "с НДС"} />
+        <Stat2 label="Продано, шт." value={String(a.pcs)} />
+        <Stat2 label="Выручка" value={money(a.rev)} sub={exVat ? "без НДС" : "с НДС"} />
+        <Stat2 label="Цена до скидки (с НДС)" value={before(a)} sub="Retail + Discount файла ÷ шт." />
+        <Stat2 label="Скидка при продаже" value={discPct(a)} sub="Discount ÷ (Retail + Discount)" />
+        <Stat2 label="Цена к прайсу 19.10" value="см. «Маржа»" sub="считается в Изделиях → Маржа" />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <MiniTable head={["Категория", "шт.", "Средняя цена"]} rows={(["clothes", "acc", "other"] as const).map((c) => { const x = aggOf(cur.filter((l) => l.cls === c), exVat); return [CAT_LABEL[c], String(x.pcs), avg(x)]; }).filter((r) => r[1] !== "0")} total={["Итого", String(a.pcs), avg(a)]} />
+        <MiniTable head={["Сезон (все сразу)", "шт.", "Средняя цена", "Скидка"]} rows={seasons.map((s) => { const x = aggOf(inPeriod.filter((l) => l.season === s), exVat); return [s, String(x.pcs), avg(x), discPct(x)]; })} total={["Тотал", String(aggOf(inPeriod, exVat).pcs), avg(aggOf(inPeriod, exVat)), discPct(aggOf(inPeriod, exVat))]} />
+      </div>
+      <MiniTable head={["Топ-5 артикулов по выручке", "шт.", "Средняя цена"]} rows={byArt.slice(0, 5).map((g) => [g.key, String(g.pcs), g.pcs > 0 ? money(g.rev / g.pcs) : "—"])} />
+    </div>
+  );
+}
+
+const inM = (iso: string, months: string[]) => months.includes(iso.slice(0, 7));
+function Stat2({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="rounded-lg border border-neutral-300 p-3">
+      <div className="text-xs text-neutral-600">{label}</div>
+      <div className="text-lg font-semibold tabular-nums">{value}</div>
+      {sub ? <div className="text-xs text-neutral-600">{sub}</div> : null}
+    </div>
+  );
+}

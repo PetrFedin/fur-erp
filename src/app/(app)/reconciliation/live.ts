@@ -40,11 +40,11 @@ export async function loadLive(orgId: string): Promise<Live> {
   const [payments, prodPayments, purchases, batches, refAuctions] = await Promise.all([
     prisma.payment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, docRef: true, confirmed: true, auctionSession: true, purchase: { select: { number: true, isContractorRaw: true } } },
+      select: { id: true, amount: true, paidAt: true, docRef: true, ppNo: true, confirmed: true, auctionSession: true, purchase: { select: { number: true, isContractorRaw: true } } },
     }),
     prisma.productionPayment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, docRef: true, confirmed: true, notes: true },
+      select: { id: true, amount: true, paidAt: true, docRef: true, ppNo: true, confirmed: true, notes: true },
     }),
     prisma.purchase.findMany({
       where: { organizationId: orgId },
@@ -68,18 +68,32 @@ export async function loadLive(orgId: string): Promise<Live> {
     cur.pays.push(p);
     inv.set(i.id, cur);
   };
+  // Запасной путь: платёж без номера счёта в основании находит счёт по номеру п/п (банковский факт из реестра сверки), если п/п назван ровно у одного счёта.
+  const byPp = new Map<string, Set<Invoice>>();
+  for (const i of ALL_INVOICES) for (const f of i.paid) if (f.evidence === "fact" && f.ppNo) byPp.set(f.ppNo, (byPp.get(f.ppNo) ?? new Set<Invoice>()).add(i));
+  const viaPp = (ppNo: string | null): Invoice | null => {
+    const set = ppNo ? byPp.get(ppNo) : undefined;
+    return set && set.size === 1 ? [...set][0] : null;
+  };
   for (const p of payments) {
     const dp: DbPay = { amount: n(p.amount), paidAt: ymd(p.paidAt), docRef: p.docRef, confirmed: p.confirmed, label: p.purchase?.number ?? p.auctionSession ?? "без привязки" };
     const ref = docRefNo(p.docRef);
     // Оплата шкур подрядчика заведена как Payment закупки (З-…), а её счёт в реестре относится к «производству»: ищем в обоих разделах.
-    const hit = ref ? (p.purchase?.isContractorRaw ? pickInvoice(prodInv, ref, dp.paidAt) ?? pickInvoice(purchaseInv, ref, dp.paidAt) : pickInvoice(purchaseInv, ref, dp.paidAt)) : null;
-    if (hit) put(hit, dp);
+    // Платёж закупки может идти по счёту подрядчика на пошив (часть п/п 61001 по счёту №237 и п/п 65109 по счёту №265 — шкуры красной лисы по УПД №209, решение владельца):
+    // если счёта с таким номером среди счетов на сырьё нет, ищем его среди счетов на пошив — только по номеру и дате счёта из основания платежа (номера счетов 2025 и 2026 годов повторяются).
+    const hit = ref
+      ? p.purchase?.isContractorRaw
+        ? pickInvoice(prodInv, ref, dp.paidAt) ?? pickInvoice(purchaseInv, ref, dp.paidAt)
+        : pickInvoice(purchaseInv, ref, dp.paidAt) ?? (purchaseInv.some((i) => i.no === ref.no) || !ref.date ? null : prodInv.find((i) => i.no === ref.no && i.date === ref.date) ?? null)
+      : null;
+    const found = hit ?? viaPp(p.ppNo);
+    if (found) put(found, dp);
     else if (ref) orphans.push(dp);
   }
   for (const p of prodPayments) {
     const dp: DbPay = { amount: n(p.amount), paidAt: ymd(p.paidAt), docRef: p.docRef, confirmed: p.confirmed, label: "оплата производства" };
     const ref = docRefNo(p.docRef);
-    const hit = ref ? pickInvoice(prodInv, ref, dp.paidAt) : null;
+    const hit = (ref ? pickInvoice(prodInv, ref, dp.paidAt) : null) ?? viaPp(p.ppNo);
     if (hit) put(hit, dp);
     else if (ref) orphans.push(dp);
   }

@@ -184,7 +184,7 @@ div.row-total {
 
 /* Кликабельный виджет: рамка акцентного цвета при наведении, нажатии и фокусе с клавиатуры; раскладка не сдвигается (ширина рамки постоянна). */
 .tile-click { cursor: pointer; transition: border-color 0.14s ease, box-shadow 0.14s ease; }
-html:root .tile-click:is(:hover, :active, :focus-visible) {
+html:root .tile-click:is(:hover, :active, :focus-visible, :has(:focus-visible)) {
   border-color: var(--ui-accent);
   box-shadow: 0 0 0 0.5px var(--ui-accent);
   outline: none;
