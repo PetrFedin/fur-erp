@@ -10,7 +10,7 @@ import type { MarginData } from "@/lib/margin";
 import { goodsHeadline, headline, seriesOf, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly } from "@/lib/cashflow";
 
 type ServicePart = { number: string; what: string; invoice: string | null; date: string; paid: number };
-type Props = { incl: CashflowData; ex: CashflowData; sales: SalesMonthly; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; margin: MarginData | null };
+type Props = { incl: CashflowData; ex: CashflowData; sales: SalesMonthly; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; margin: MarginData | null; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
 
 const SPEND = "#d93a0e", GET = "#1f7a4d", NAVY = "#1b2a5c", STOCK = "#8a6d1d";
 // Цвета статей трат: различимы между собой и без цвета (подписи в легенде, таблица рядом — текстовая альтернатива).
@@ -50,9 +50,12 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
   else if (kind === "cum") { hi = Math.max(...ser.cumSpend, ...ser.cumRevenue, 0); lo = Math.min(...ser.cumNet, 0); }
   else if (kind === "goods") { hi = Math.max(...s.recPcs, ...s.salePcs, ...stock, 0); lo = Math.min(...stock, 0); }
   else { hi = Math.max(...ser.cumWorkPerUnit.map((v) => v ?? 0), 0); lo = 0; }
-  const top2 = niceMax(hi || 1), bot2 = lo < 0 ? -niceMax(-lo) : 0;
+  // Ось: шаг «круглый», ноль всегда на сетке (между тиками целое число шагов).
+  const span = (hi || 1) - Math.min(lo, 0);
+  const step = niceMax(span / 4);
+  const top2 = Math.ceil((hi || 1) / step) * step, bot2 = Math.floor(Math.min(lo, 0) / step) * step;
   const y = (v: number) => top + (H - top - bottom) * (1 - (v - bot2) / (top2 - bot2));
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => bot2 + t * (top2 - bot2));
+  const ticks = Array.from({ length: Math.round((top2 - bot2) / step) + 1 }, (_, i) => bot2 + i * step);
   const fmt = kind === "goods" ? (v: number) => String(Math.round(v)) : mln;
   const lineOf = (a: (number | null)[]) => a.map((v, i) => (v === null ? "" : `${i === 0 || a[i - 1] === null ? "M" : "L"}${x(i)},${y(v)}`)).join(" ");
   const label = { money: "Траты и поступления денег по месяцам", cum: "Накопительно: траты, полученные деньги, чистый итог", goods: "Приход, продажи и остаток в штуках по месяцам", work: "Работа подрядчику на одну единицу нарастающим итогом" }[kind];
@@ -135,11 +138,11 @@ function Tile({ label, value, sub, hint, tone }: { label: string; value: string;
   );
 }
 
-export function CashflowView({ incl, ex, sales, vat, services, initialPeriod, margin }: Props) {
+export function CashflowView({ incl, ex, sales, vat, services, initialPeriod, margin, initialDetail }: Props) {
   const [period, setPeriod] = useState<CashflowPeriod>(initialPeriod);
   const [exVat, setExVat] = useState(false);
   const [second, setSecond] = useState<"goods" | "work">("goods");
-  const [detail, setDetail] = useState(false);
+  const [detail, setDetail] = useState(!!initialDetail);
   const [open, setOpen] = useState<string[]>([]);
   const [active, setActive] = useState<number | null>(null);
   const [hot, setHot] = useState<string | null>(null);
@@ -265,7 +268,7 @@ export function CashflowView({ incl, ex, sales, vat, services, initialPeriod, ma
           )}
         </div>
         <h2 className="mb-1 text-sm font-semibold">Траты и полученные деньги по месяцам</h2>
-        <div className="overflow-x-auto"><Chart kind="money" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} /></div>
+        <div className="overflow-x-auto" data-keep-scroll><Chart kind="money" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} /></div>
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
           {d.articles.map((a) => (
             <li key={a.key}>
@@ -282,7 +285,7 @@ export function CashflowView({ incl, ex, sales, vat, services, initialPeriod, ma
         <h2 className="mb-1 flex items-center gap-1 text-sm font-semibold">Накопительно: потрачено и получено
           <InfoHint label="Как читать накопительный график" wide><p>Две линии растут с первого месяца данных: оранжевая — сколько потрачено, зелёная — сколько получено. Пунктир — разрыв между ними: ниже нуля «в минусе», выше — «в плюсе».</p></InfoHint>
         </h2>
-        <div className="overflow-x-auto"><Chart kind="cum" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} /></div>
+        <div className="overflow-x-auto" data-keep-scroll><Chart kind="cum" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} /></div>
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
           <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: SPEND }} />Потрачено нарастающим итогом</li>
           {hasSales && <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: GET }} />Получено нарастающим итогом</li>}
@@ -307,7 +310,7 @@ export function CashflowView({ incl, ex, sales, vat, services, initialPeriod, ma
               <Tile label="Sell-through" value={g.sellThrough === null ? "—" : g.sellThrough.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " %"} sub="продано / получено" hint={<p>Накопленные продажи ÷ накопленный приход с начала данных до конца периода.</p>} />
               <Tile label="Покрытие остатка" value={g.coverMonths === null ? "—" : g.coverMonths.toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " мес."} sub="остаток / продажи в месяц" hint={<p>Остаток на конец периода ÷ средние продажи в месяц (от первого до последнего месяца с продажами в периоде). Сезонность не учитывается.</p>} />
             </div>
-            <div className="overflow-x-auto"><Chart kind={second} months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} /></div>
+            <div className="overflow-x-auto" data-keep-scroll><Chart kind={second} months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} /></div>
             {second === "goods" ? (
               <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
                 <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: NAVY }} />Приход, шт.</li>

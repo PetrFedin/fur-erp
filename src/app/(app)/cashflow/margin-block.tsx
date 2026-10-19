@@ -54,7 +54,7 @@ export function MarginBlock({ data }: { data: MarginData | null }) {
     );
   };
   return (
-    <section aria-label="Маржа и наценка" className="flex flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3">
+    <section aria-label="Маржа и наценка" className="flex min-w-0 flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3">
       <h2 className="text-sm font-semibold">Маржа и наценка</h2>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
         <Tile label="Средний маркап" value={x2(data.avgMarkup)} sub={`простой по ${data.avgMarkupN} моделям`} hint={<p>Маркап модели = текущая розница с НДС ÷ себестоимость единицы с работой и НДС (как «Себестоимость» в «Изделиях»). Здесь — простое среднее по моделям, у которых есть и цена, и себестоимость. Наценка в % = (маркап − 1) × 100.</p>} />
@@ -64,8 +64,8 @@ export function MarginBlock({ data }: { data: MarginData | null }) {
         <Tile label="Охват данных" value={`${pc(share(data.costCoverage))} · ${pc(share(data.priceCoverage))}`} sub="проданные шт.: себестоимость · цена" hint={<p>Доля проданных единиц, по которым нашлась себестоимость модели в ТЗ, и текущая розница из прайса (по артикулу и цвету). Остальное в расчёты не входит — «нет данных».</p>} />
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-neutral-300" tabIndex={0} role="region" aria-label="Маржа по сезонам">
-        <table className="w-full border-collapse">
+      <div className="w-full min-w-0 max-w-full overflow-x-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0} role="region" aria-label="Маржа по сезонам">
+        <table className="w-max min-w-full border-collapse">
           <caption className="px-2 py-2 text-left text-xs text-neutral-600">По сезонам продаж (сезон заказа из выгрузки; FW — осень–зима, SS — весна–лето). Стрелка — к предыдущему сезону.</caption>
           <thead>
             <tr className="border-b border-neutral-300">
