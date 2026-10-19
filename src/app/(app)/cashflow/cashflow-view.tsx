@@ -439,11 +439,11 @@ function CarouselTile({ pages, onOpen, label = "Чистый поток и на�
   }, [initial]);
   const btn = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100";
   return (
-    <div role="group" aria-roledescription="carousel" aria-label={label} className="tile-click relative flex min-w-0 flex-col rounded-lg border border-neutral-300 bg-white">
+    <div role="group" aria-roledescription="carousel" aria-label={label} className="tile-click relative flex h-full min-w-0 flex-col rounded-lg border border-neutral-300 bg-white">
       {controls ? <div className="relative px-3 pt-2">{controls}</div> : null}
       <div ref={ref} tabIndex={0} onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); go(i + 1); } else if (e.key === "ArrowLeft") { e.preventDefault(); go(i - 1); } }}
         onScroll={(e) => { const el = e.currentTarget; setI(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))); }}
-        className="flex snap-x snap-mandatory overflow-x-auto motion-safe:scroll-smooth [scrollbar-width:none]" data-keep-scroll>
+        className="flex flex-1 snap-x snap-mandatory overflow-x-auto motion-safe:scroll-smooth [scrollbar-width:none]" data-keep-scroll>
         {pages.map((p, k) => (
           <div key={p.label} role="group" aria-roledescription="slide" aria-label={`${k + 1} из ${pages.length}: ${p.label}`} onClick={() => onOpen(k)} className="flex w-full shrink-0 cursor-pointer snap-start flex-col gap-0.5 p-3">
             <div className="flex items-center gap-1 text-xs text-neutral-600">{p.label}{p.hint ? <span onClick={(e) => e.stopPropagation()}><InfoHint label={`Как считается: ${p.label}`} wide>{p.hint}</InfoHint></span> : null}</div>
@@ -458,7 +458,7 @@ function CarouselTile({ pages, onOpen, label = "Чистый поток и на�
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-between px-1 pb-1 print:hidden">
+      <div className="mt-auto flex items-center justify-between px-1 pb-1 print:hidden">
         <button type="button" aria-label="Предыдущая страница" onClick={() => go(i - 1)} className={btn}>‹</button>
         <div className="flex items-center">
           {pages.map((p, k) => <button key={p.label} type="button" aria-label={`Страница ${k + 1}: ${p.label}`} aria-current={i === k} onClick={() => go(k)} className="inline-flex min-h-11 min-w-8 items-center justify-center"><span className={"block size-2 rounded-full " + (i === k ? "bg-neutral-900" : "bg-neutral-300")} /></button>)}
@@ -687,7 +687,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
         </div>
       )}
 
-      <section aria-label="Ключевые показатели" className="grid grid-cols-2 gap-2 md:grid-cols-4">
+      <section aria-label="Ключевые показатели" className="grid grid-cols-2 items-stretch gap-2 md:grid-cols-4">
         <Tile label="Потрачено" value={money(h.spent)} sub={filtered ? "все траты, не по категории" : `${label}, ${vatNote}`} spark={ser.spend} mini={spendKinds.map((r) => [r.short, money(r.total)] as [string, string])} expandId="spend" openId={openTile} onToggle={toggleTile}
           hint={<p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p>} />
         <Tile label="Получено" controls={hasSales ? <VatSeg choice={recvChoice} setChoice={setRecvChoice} globalEx={exVat} /> : undefined} value={hasSales ? money(recvSum(cat)) : "—"} sub={hasSales ? `выручка, ${recvEx ? "без НДС" : "с НДС"}` : "нет данных о продажах"} spark={hasSales ? m.keep.map((i) => (recvEx ? salesBy[cat].revEx[i] : salesBy[cat].revIncl[i])) : undefined}
