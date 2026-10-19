@@ -1,6 +1,6 @@
 // Разрезы маржи: показатели узла (набор строк) и дерево «категория → тип меха → артикул → цвет», размеры из отчёта о товарах.
 // Чистые функции без БД. Узел = набор строк выгрузки; суммы штук и выручки узла равны сумме детей (проверяется тестом), отношения считаются заново по узлу.
-import { exVatOf, priceIndex, type FullLine, type MarginInput, type RetailRow } from "@/lib/margin";
+import { exVatAt, priceIndex, type FullLine, type MarginInput, type RetailRow } from "@/lib/margin";
 import { CAT_LABEL, type CatClass, colorOfLine, furTypeOfFabric, variantOfArticle } from "@/lib/sales-receipts-core";
 
 export type Metrics = {
@@ -9,6 +9,8 @@ export type Metrics = {
   markupW: number | null; sellThrough: number | null;
   /** Скидка при продаже (Discount файла): Discount RUR ÷ (Retail RUR + Discount RUR) по строкам продаж. */
   discountGiven: number | null;
+  /** Sales cost: себестоимость проданных единиц без НДС (ТЗ с работой × шт.) по строкам со штуками и себестоимостью; Discount файла, ₽ с НДС. */
+  salesCost: number | null; discountSum: number;
 };
 export const METRIC_KEYS = ["revenueEx", "sold", "sellThrough", "avgPrice", "discountVsRetail", "grossProfit", "grossMarginPct", "gpOfRetail", "markupW"] as const;
 export type MetricKey = (typeof METRIC_KEYS)[number];
@@ -51,14 +53,16 @@ export function metricsOf(ctx: Ctx, lines: FullLine[]): Metrics {
     sold, received, revenueIncl, revenueEx, avgPrice: sold > 0 ? revenueIncl / sold : null,
     discountVsRetail: retailVal > 0 ? 1 - sum(withP.map((l) => l.retailRub)) / retailVal : null,
     grossProfit: gp, grossMarginPct: gp !== null && bothRev > 0 ? (gp / bothRev) * 100 : null,
-    gpOfRetail: bothP.length ? sum(bothP.map((l) => l.retailRubExVat - ctx.unitExcl(l) * l.pcs)) / sum(bothP.map((l) => exVatOf(ctx.unitPrice(l)!) * l.pcs)) : null,
+    gpOfRetail: bothP.length ? sum(bothP.map((l) => l.retailRubExVat - ctx.unitExcl(l) * l.pcs)) / sum(bothP.map((l) => exVatAt(ctx.unitPrice(l)!, l.iso) * l.pcs)) : null,
     markupW: costW > 0 ? sum(rP.map((l) => ctx.unitPrice(l)! * l.pcs)) / costW : null,
     sellThrough: received > 0 ? sold / received : null,
+    salesCost: both.length ? sum(both.map((l) => ctx.unitExcl(l) * l.pcs)) : null,
+    discountSum: sum(s.map((l) => l.discountRub)),
     discountGiven: revenueIncl + sum(s.map((l) => l.discountRub)) > 0 ? sum(s.map((l) => l.discountRub)) / (revenueIncl + sum(s.map((l) => l.discountRub))) : null,
   };
 }
 
-export type Dim = "cls" | "fur" | "article" | "color";
+export type Dim = "cls" | "c2" | "fur" | "article" | "color";
 /** Порядок уровней для разреза: «Категории» → вся цепочка, «Тип меха» — с типа меха и т.д. */
 export const CUT_ORDER = { cls: ["cls", "fur", "article", "color"], fur: ["fur", "article", "color"], article: ["article", "color"], color: ["color", "article"] } as const satisfies Record<string, readonly Dim[]>;
 export type Cut = keyof typeof CUT_ORDER;
@@ -74,6 +78,7 @@ export type TreeNode = {
 
 const keyOf = (l: FullLine, d: Dim): { key: string; label: string } => {
   if (d === "cls") return { key: l.cls, label: CAT_LABEL[l.cls] };
+  if (d === "c2") { const c = (l.level4 ?? l.level3 ?? "Без категории").trim(); return { key: c, label: c }; }
   if (d === "fur") { const f = furTypeOfFabric(l.fabric); return { key: f, label: f }; }
   if (d === "article") return { key: l.article, label: l.article };
   const c = colorOfLine(l.colorId); return { key: c, label: c };
@@ -112,9 +117,12 @@ export function totalNode(ctx: Ctx, lines: FullLine[], preds: ColPred[], childre
 
 /** Порядок иерархии таблицы: категория → тип меха → артикул → цвет. */
 export const TREE_ORDER: readonly Dim[] = ["cls", "fur", "article", "color"];
+/** Две структуры дерева: А — Категория 1 (Level 02) → Категория 2 (Level 04, иначе Level 03) → Тип меха → Артикул → Цвет; Б — Тип меха → Категория 1 → Категория 2 → Артикул → Цвет. */
+export const TREE_ORDERS: Record<"a" | "b", readonly Dim[]> = { a: ["cls", "c2", "fur", "article", "color"], b: ["fur", "cls", "c2", "article", "color"] };
+export const DIM_LABEL: Record<Dim, string> = { cls: "Категория 1", c2: "Категория 2", fur: "Тип меха", article: "Артикул", color: "Цвет" };
 
 /** Размеры из отчёта о товарах (лист Report, строки артикул × цвет × размер). Сезонов и дат в нём нет — только итоги на 19.10.2026. */
-export type ReportSizeRow = { acode: string; color: string; size: string; modelCode: string | null; cls: CatClass; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number };
+export type ReportSizeRow = { conf?: number; acode: string; color: string; size: string; modelCode: string | null; cls: CatClass; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number };
 export const REPORT_SIZES_KEY = "sales-report-sizes:2026-10-19";
 export type SizeAgg = { size: string; received: number; sold: number; stock: number; revenueEx: number; revenueIncl: number; sellThrough: number | null; avgPrice: number | null };
 

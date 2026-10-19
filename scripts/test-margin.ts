@@ -5,7 +5,7 @@ import "./stubs/server-only-shim";
 import { PrismaClient } from "@prisma/client";
 import { loadMarginInput } from "../src/lib/margin-server";
 import { buildMargin, priceIndex, RETAIL_VAT_PCT } from "../src/lib/margin";
-import { buildTreeBy, totalNode, TREE_ORDER, monthlyBySeason, sellNote, buildTree, CUT_ORDER, makeCtx, metricsOf, seasonsOf, sizeAgg, type TreeNode } from "../src/lib/margin-tree";
+import { buildTreeBy, totalNode, TREE_ORDER, TREE_ORDERS, monthlyBySeason, sellNote, buildTree, CUT_ORDER, makeCtx, metricsOf, seasonsOf, sizeAgg, type TreeNode } from "../src/lib/margin-tree";
 import { loadReportSizes } from "../src/lib/margin-server";
 
 const prisma = new PrismaClient();
@@ -65,6 +65,34 @@ const pct = (v: number | null, d = 1) => (v === null ? "нет данных" : v
     const sale = lines.filter((l) => l.kind === "SALE");
     const d = sum(sale.map((l) => l.discountRub)), r = sum(sale.map((l) => l.retailRub));
     eq(`скидка при продаже ${cat} = Discount ÷ (Retail + Discount)`, root.cols[0].discountGiven, r + d > 0 ? d / (r + d) : null);
+  }
+  // Обе структуры дерева (А: категория 1 → категория 2 → мех…, Б: мех → категории…): итог узла = сумма детей, столбцы Тотал/Сезоны.
+  for (const key of ["a", "b"] as const) {
+    const lines = inp.lines;
+    const seasons = seasonsOf(lines);
+    const preds = seasons.map((sn) => (l: (typeof lines)[number]) => l.season === sn);
+    const root = totalNode(ctx, lines, preds, buildTreeBy(ctx, lines, TREE_ORDERS[key], preds));
+    const walk = (n: TreeNode) => {
+      if (n.children.length) for (let c = 0; c < n.cols.length; c++) for (const k of ["sold", "received", "revenueEx", "revenueIncl", "discountSum"] as const) eq(`структура ${key}/${n.label}/колонка ${c}: ${k} = Σ детей`, sum(n.children.map((x) => x.cols[c][k])), n.cols[c][k], 0.01);
+      n.children.forEach(walk);
+    };
+    walk(root);
+    eq(`структура ${key}: продано во «Всего» = 232`, root.cols[0].sold, tot(lines, "pcs", "SALE"), 0);
+  }
+  // Прибыль/розница: розничная стоимость без НДС делится на ставку по дате строки (20% до 2026, 22% с 01.2026); маржа считается по строкам со штуками.
+  {
+    const ctx2 = makeCtx(inp);
+    const sale = inp.lines.filter((l) => l.kind === "SALE" && l.pcs !== 0 && ctx2.hasCost(l) && ctx2.unitPrice(l) !== null);
+    if (sale.length) {
+      const want = sum(sale.map((l) => l.retailRubExVat - ctx2.unitExcl(l) * l.pcs)) / sum(sale.map((l) => ctx2.unitPrice(l)! * l.pcs / (l.iso < "2026-01-01" ? 1.2 : 1.22)));
+      eq("прибыль/розница: НДС по дате строки (20%/22%)", metricsOf(ctx2, inp.lines).gpOfRetail, want, 1e-9);
+    }
+    const mAll = buildMargin(inp);
+    const withU = inp.lines.filter((l) => l.kind === "SALE" && l.pcs !== 0 && ctx2.hasCost(l));
+    eq("маржа: ВП ÷ выручка строк со штуками", mAll.totals.grossMarginPct, withU.length ? (sum(withU.map((l) => l.retailRubExVat - ctx2.unitExcl(l) * l.pcs)) / sum(withU.map((l) => l.retailRubExVat))) * 100 : null, 1e-9);
+    eq("выручка вне ВП = выручка без НДС − выручка строк со штуками", mAll.totals.excludedRevenueEx, mAll.totals.revenueEx - sum(withU.map((l) => l.retailRubExVat)), 0.01);
+    const sold = inp.lines.filter((l) => l.kind === "SALE");
+    eq("Discount: Σ строк = мера «Скидка»", metricsOf(ctx2, inp.lines).discountSum, sum(sold.map((l) => l.discountRub)), 0.01);
   }
   // Розница по месяцам: итог сезона = сумма месяцев; Σ сезонов = Σ продаж; sell-through без обрезки.
   for (const cat of ["all", "clothes", "acc"] as const) {

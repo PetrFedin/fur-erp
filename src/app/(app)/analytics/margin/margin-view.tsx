@@ -13,11 +13,14 @@ type Cat = "all" | "clothes" | "acc";
 type Photos = Record<string, { modelId: string; photos: { id: string; variant: string; color?: string; itemId?: string }[] }>;
 
 /** «Маржа и наценка» в разделе «Изделия»: закреплённый фильтр категории, разрезы, раскрытие по уровням, фото, розничные цены прайса. */
-export function MarginView({ input, sizes, photos, priceModels, canEdit, initialCat }: { initialCat: Cat; input: MarginInputS | null; sizes: ReportSizeRow[]; photos: Photos; priceModels: PriceModel[]; canEdit: boolean }) {
+export function MarginView({ input, sizes, photos, priceModels, canEdit, initialCat, initialTree }: { initialCat: Cat; initialTree: "a" | "b"; input: MarginInputS | null; sizes: ReportSizeRow[]; photos: Photos; priceModels: PriceModel[]; canEdit: boolean }) {
   const router = useRouter();
   const [cat, setCatState] = useState<Cat>(initialCat);
   // Выбор категории хранится в адресе (?cat=), чтобы им можно было поделиться ссылкой.
-  const setCat = (k: Cat) => { setCatState(k); router.replace(k === "all" ? "/analytics/margin" : `/analytics/margin?cat=${k}`, { scroll: false }); };
+  const [tree, setTreeState] = useState<"a" | "b">(initialTree);
+  const urlOf = (c: Cat, t: "a" | "b") => { const q = [c !== "all" ? `cat=${c}` : "", t !== "a" ? `tree=${t}` : ""].filter(Boolean).join("&"); return q ? `/analytics/margin?${q}` : "/analytics/margin"; };
+  const setCat = (k: Cat) => { setCatState(k); router.replace(urlOf(k, tree), { scroll: false }); };
+  const setTree = (t: "a" | "b") => { setTreeState(t); router.replace(urlOf(cat, t), { scroll: false }); };
   // Счётчики на кнопках — единицы прихода по строкам выгрузки (категория по Level 02, как в Cashflow).
   const count = (k: Cat) => (input ? input.lines.filter((l) => l.kind === "RECEIPT" && (k === "all" || l.cls === k)).reduce((a, l) => a + l.pcs, 0) : 0);
   const seg = (on: boolean) => "inline-flex min-h-11 items-center rounded-md px-3 text-sm " + (on ? "bg-neutral-900 text-white" : "text-neutral-700 hover:text-neutral-900");
@@ -32,7 +35,7 @@ export function MarginView({ input, sizes, photos, priceModels, canEdit, initial
           {(["all", "clothes", "acc"] as const).map((k) => <button key={k} type="button" aria-pressed={cat === k} onClick={() => setCat(k)} className={seg(cat === k)}>{CAT_LABEL[k]} <span className="ml-1 text-xs opacity-80">{count(k)} шт.</span></button>)}
         </div>
       </div>
-      <MarginBlock input={input} cat={cat} shown={CAT_LABEL[cat]} onChange={() => document.getElementById("margin-filters")?.scrollIntoView({ block: "start" })} sizes={sizes} photos={photos} />
+      <MarginBlock input={input} cat={cat} shown={CAT_LABEL[cat]} onChange={() => document.getElementById("margin-filters")?.scrollIntoView({ block: "start" })} sizes={sizes} photos={photos} tree={tree} onTree={setTree} />
       <PricesBlock models={priceModels} canEdit={canEdit} />
     </div>
   );

@@ -59,18 +59,18 @@ async function main() {
   const ws = wb.worksheets.find((w) => w.name === "Report");
   if (!ws) throw new Error("В файле нет листа Report");
   const num = (v: unknown) => { const x = v && typeof v === "object" && "result" in (v as object) ? (v as { result: unknown }).result : v; return x == null || x === "" ? 0 : Number(x); };
-  const rows: { acode: string; color: string; size: string; modelCode: string | null; cls: string; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number }[] = [];
-  let total = { deliv: 0, sold: 0, stock: 0, nsRub: 0, nsRubEx: 0 };
+  const rows: { acode: string; color: string; size: string; modelCode: string | null; cls: string; conf: number; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number }[] = [];
+  let total = { conf: 0, deliv: 0, sold: 0, stock: 0, nsRub: 0, nsRubEx: 0 };
   ws.eachRow((row, rn) => {
     if (rn < 14) return;
     const v = (row.values as unknown[]).slice(1);
-    if (v[6] === "Total") { total = { deliv: num(v[20]), sold: num(v[28]), stock: num(v[31]), nsRub: num(v[26]), nsRubEx: num(v[30]) }; return; }
+    if (v[6] === "Total") { total = { conf: num(v[18]), deliv: num(v[20]), sold: num(v[28]), stock: num(v[31]), nsRub: num(v[26]), nsRubEx: num(v[30]) }; return; }
     if (v[2] !== 1 || !v[7]) return; // только листовые строки
-    rows.push({ acode: String(v[7]), color: String(v[17] ?? ""), size: String(v[14] ?? ""), modelCode: modelCodeOfArticle(String(v[7])), cls: classOfLevel2(String(v[10] ?? "")), deliv: num(v[20]), sold: num(v[28]), stock: num(v[31]), nsRub: num(v[26]), nsRubEx: num(v[30]) });
+    rows.push({ acode: String(v[7]), color: String(v[17] ?? ""), size: String(v[14] ?? ""), modelCode: modelCodeOfArticle(String(v[7])), cls: classOfLevel2(String(v[10] ?? "")), conf: num(v[18]), deliv: num(v[20]), sold: num(v[28]), stock: num(v[31]), nsRub: num(v[26]), nsRubEx: num(v[30]) });
   });
-  const sum = (k: "deliv" | "sold" | "stock" | "nsRub" | "nsRubEx") => rows.reduce((a, r) => a + r[k], 0);
+  const sum = (k: "conf" | "deliv" | "sold" | "stock" | "nsRub" | "nsRubEx") => rows.reduce((a, r) => a + r[k], 0);
   let bad = 0;
-  for (const k of ["deliv", "sold", "stock", "nsRub", "nsRubEx"] as const) {
+  for (const k of ["conf", "deliv", "sold", "stock", "nsRub", "nsRubEx"] as const) {
     const ok = Math.abs(sum(k) - total[k]) < 0.01; if (!ok) bad++;
     console.log(`  ${ok ? "ОК " : "НЕТ"} ${k}: Σ строк ${sum(k).toLocaleString("ru-RU")} · Total ${total[k].toLocaleString("ru-RU")}`);
   }

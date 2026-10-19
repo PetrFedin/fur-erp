@@ -10,7 +10,7 @@ export const RETAIL_VAT_PCT = 22;
 export type RetailRow = { acode: string; color: string; size: string; price: number; modelCode: string };
 /** Себестоимость единицы модели из ТЗ («Себестоимость с работой»): с НДС и без НДС, и выпуск, шт. */
 export type ModelCost = { name: string; unitIncl: number; unitExcl: number; qty: number };
-export type FullLine = { kind: SalesLineKindT; iso: string; season: string; modelCode: string | null; article: string; colorId: string | null; fabric: string | null; pcs: number; retailRub: number; retailRubExVat: number; discountRub: number; cls: CatClass };
+export type FullLine = { kind: SalesLineKindT; iso: string; season: string; modelCode: string | null; article: string; colorId: string | null; fabric: string | null; level3: string | null; level4: string | null; pcs: number; retailRub: number; retailRubExVat: number; discountRub: number; cls: CatClass };
 
 export type MarginInput = {
   lines: FullLine[];
@@ -23,6 +23,10 @@ export type MarginInput = {
 
 const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
 export const exVatOf = (priceIncl: number) => priceIncl / (1 + RETAIL_VAT_PCT / 100);
+/** Ставка НДС розницы на дату строки: 20% до конца 2025, 22% с 01.2026 (как в выгрузке продаж). */
+export const vatPctAt = (iso: string) => (iso < "2026-01-01" ? 20 : 22);
+/** Цена с НДС → без НДС по ставке на дату строки. */
+export const exVatAt = (priceIncl: number, iso: string) => priceIncl / (1 + vatPctAt(iso) / 100);
 
 /** Цена артикула+цвета из прайса: одна уникальная цена по всем размерам, иначе null (неоднозначно — не выдумываем). */
 export function priceIndex(rows: RetailRow[]): Map<string, number> {
@@ -62,7 +66,8 @@ export type MarginData = {
   /** Охват: доля проданных единиц, у которых нашлась себестоимость, и цена. */
   costCoverage: number | null; priceCoverage: number | null;
   seasons: SeasonRow[];
-  totals: { sold: number; revenueEx: number; grossProfit: number | null; grossMarginPct: number | null };
+  /** Маржа = ВП ÷ выручка строк со штуками и себестоимостью; excluded — выручка без НДС строк продаж без штук или без себестоимости (в ВП не входит); marginFullPct — ВП ÷ вся выручка. */
+  totals: { sold: number; revenueEx: number; grossProfit: number | null; grossMarginPct: number | null; excludedRevenueEx: number; marginFullPct: number | null };
 };
 
 /** Хронологический порядок сезонов: «FW 25/26» — осень 2025, «SS 2026» — весна 2026. */
@@ -134,7 +139,7 @@ export function buildMargin(inp0: MarginInput, cls: CatClass | "all" = "all"): M
       season, sold, received, revenueIncl, revenueEx, avgPrice: sold > 0 ? revenueIncl / sold : null,
       discountVsRetail: retailVal > 0 ? 1 - sum(withP.map((l) => l.retailRub)) / retailVal : null,
       grossProfit: gp, grossMarginPct: gp !== null && sum(both.map((l) => l.retailRubExVat)) > 0 ? (gp / sum(both.map((l) => l.retailRubExVat))) * 100 : null,
-      gpOfRetail: bothP.length ? sum(bothP.map((l) => l.retailRubExVat - inp.costs.get(l.modelCode!)!.unitExcl * l.pcs)) / sum(bothP.map((l) => exVatOf(unitPrice(l)!) * l.pcs)) : null,
+      gpOfRetail: bothP.length ? sum(bothP.map((l) => l.retailRubExVat - inp.costs.get(l.modelCode!)!.unitExcl * l.pcs)) / sum(bothP.map((l) => exVatAt(unitPrice(l)!, l.iso) * l.pcs)) : null,
       markupW: costW > 0 ? sum(rWithP.map((l) => unitPrice(l)! * l.pcs)) / costW : null,
       sellThrough: received > 0 ? sold / received : null,
       costCoverage: sold > 0 ? sum(s.filter(hasCost).map((l) => l.pcs)) / sold : null,
@@ -149,7 +154,7 @@ export function buildMargin(inp0: MarginInput, cls: CatClass | "all" = "all"): M
     weightedByReceipts: wAvg((m) => m.received), weightedBySales: wAvg((m) => m.sold),
     costCoverage: covUnits(hasCost), priceCoverage: covUnits((l) => unitPrice(l) !== null),
     seasons,
-    totals: { sold: soldUnits, revenueEx: sum(sale.map((l) => l.retailRubExVat)), grossProfit: gpAll, grossMarginPct: gpAll !== null && sum(bothAll.map((l) => l.retailRubExVat)) > 0 ? (gpAll / sum(bothAll.map((l) => l.retailRubExVat))) * 100 : null },
+    totals: { sold: soldUnits, revenueEx: sum(sale.map((l) => l.retailRubExVat)), grossProfit: gpAll, grossMarginPct: gpAll !== null && sum(bothAll.map((l) => l.retailRubExVat)) > 0 ? (gpAll / sum(bothAll.map((l) => l.retailRubExVat))) * 100 : null, excludedRevenueEx: sum(sale.map((l) => l.retailRubExVat)) - sum(bothAll.map((l) => l.retailRubExVat)), marginFullPct: gpAll !== null && sum(sale.map((l) => l.retailRubExVat)) > 0 ? (gpAll / sum(sale.map((l) => l.retailRubExVat))) * 100 : null },
   };
 }
 

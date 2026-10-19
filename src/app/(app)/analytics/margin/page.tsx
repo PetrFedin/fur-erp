@@ -30,5 +30,5 @@ export default async function MarginPage({ searchParams }: { searchParams: Promi
     priceModels.push({ id: m.id, name: m.name, current: m.sellingPrice ? m.sellingPrice.toNumber() : null, rows: rows.filter((r) => r.modelCode === code).map((r) => ({ acode: r.acode, color: r.color, size: r.size, price: r.price })) });
   }
   priceModels.sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }));
-  return <MarginView input={input ? serializeInput(input) : null} sizes={sizes} photos={photos} priceModels={priceModels} canEdit={hasRole(session.user.role, ACCESS.models)} initialCat={initialCat} />;
+  return <MarginView input={input ? serializeInput(input) : null} sizes={sizes} photos={photos} priceModels={priceModels} canEdit={hasRole(session.user.role, ACCESS.models)} initialCat={initialCat} initialTree={sp.tree === "b" ? "b" : "a"} />;
 }
