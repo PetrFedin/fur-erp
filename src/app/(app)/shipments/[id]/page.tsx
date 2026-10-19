@@ -23,9 +23,11 @@ import { TimelineSection } from "./timeline-section";
 import { AddLinesButton, LinesTable, type LineRow } from "./lines-ui";
 import { STAGE_LABEL } from "@/lib/shipment-stage";
 import { loadShipmentPeople } from "@/lib/shipment-data";
-import { ZiDiffs } from "./zi-section";
+import { ZiSupplies } from "./zi-section";
+import { loadOrdersDrill } from "@/lib/orders-drill";
+import { sumOrders, sumTotal } from "@/lib/orders-sum";
 import { loadZi } from "@/lib/shipment-zi-db";
-import { matchZi, ziForSupplier, ziStatus, articleCode, ZI_SOURCE_NOTE, ZI_STAFF_ROLES } from "@/lib/shipment-zi";
+import { matchZi, ziForSupplier, ziStatus, ZI_SOURCE_NOTE, ZI_STAFF_ROLES } from "@/lib/shipment-zi";
 import { CreateAcceptanceButton, ClampText, DocRemove, EventActions, NewEventButton, type EventValues } from "./event-ui";
 
 export const metadata = { title: "Отгрузка" };
@@ -200,23 +202,41 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         ...(isSupplier ? {} : { boutiques: f?.boutiques ?? [], sum: f?.sum ?? 0 }),
       };
     });
-    const diffs = zi.priceDiffs.map((d) => {
-      const il = zi.lines.filter((z) => z.article === d.article);
-      return {
-        article: d.article, orderPrice: d.orderPrice, invoicePrice: d.invoicePrice, diff: d.diff,
-        fileName: d.src?.fileName ?? "", docId: zi.files?.find((f) => f.fileName === d.src?.fileName)?.docId ?? null,
-        sheet: d.src?.sheet ?? "Лист1", row: d.src?.row ?? 0, orderCell: d.src?.orderCell ?? "", invoiceCell: d.src?.invoiceCell ?? "", diffCell: d.src?.diffCell ?? "",
-        invoiceLines: il.map((z) => ({ supply: z.supply, boutique: z.boutique, size: z.size, sum: z.sum, vat: z.vat })),
-        zi: zi.supplies.filter((sp) => il.some((z) => z.supply === sp.code)).map((sp) => ({ supply: sp.code, numbers: sp.ziNumbers })),
-        anchors: rows.filter((r) => articleCode(r.article) === articleCode(d.article)).map((r) => `zi-row-${r.id}`),
-      };
-    });
     for (const r of lineRows) {
       const f = m.byLine.get(r.id);
-      if (f) { r.supply = f.supplies.join(", "); if (!isSupplier) { r.boutique = f.boutiques.join(", "); r.sum = f.sum; } }
+      if (f) {
+        r.supply = f.supplies.join(", ");
+        if (!isSupplier) {
+          r.boutique = f.boutiques.join(", "); r.sum = Math.round((f.sum + f.vat) * 100) / 100;
+          r.sumSrc = {
+            label: r.label,
+            items: f.items.map((z) => ({ supply: z.supply, boutique: z.boutique, size: z.size, sheet: z.sheet ?? "MVST", row: z.row ?? null, sum: z.sum, vat: z.vat })),
+            zi: zi.supplies.filter((sp) => f.supplies.includes(sp.code)).map((sp) => ({ supply: sp.code, numbers: sp.ziNumbers })),
+            files: ZI_STAFF_ROLES.includes(session.user.role) ? (zi.files ?? []).filter((x) => f.supplies.includes(x.supply)) : [],
+          };
+        }
+      }
     }
-    return { rows, supplies: zi.supplies, priceDiffs: isSupplier || !ZI_STAFF_ROLES.includes(session.user.role) ? [] : diffs, unmatched: m.unmatched.length };
+    return { rows, supplies: zi.supplies, unmatched: m.unmatched.length };
   })() : null;
+
+  // Сверка «накладная ↔ ТЗ» (только наша сторона): сумма накладной с НДС по ТЗ против полной себестоимости ТЗ (с работой, с НДС, с 4%) —
+  // той же функцией, что «Стоимость производства» и карточка ТЗ (loadOrdersDrill + sumOrders). Допуск 1 ₽.
+  if (ziView && !isSupplier && ZI_STAFF_ROLES.includes(session.user.role)) {
+    const woOf = (l: (typeof lines)[number]) => l.productionOrder?.workOrderNumber ?? null;
+    const drill = await loadOrdersDrill(orgId, "all", "on", { ids: new Set(orders.map((o) => o.id)) });
+    const tzCost = new Map<string, number>();
+    for (const d of drill) if (d.wo) tzCost.set(d.wo, (tzCost.get(d.wo) ?? 0) + sumTotal(sumOrders([d], "incl")));
+    const inv = new Map<string, number>();
+    for (const l of lines) { const wo = woOf(l); const r = lineRows.find((x) => x.id === l.id); if (wo && r?.sum) inv.set(wo, (inv.get(wo) ?? 0) + r.sum); }
+    const rub = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    for (const l of lines) {
+      const wo = woOf(l); const r = lineRows.find((x) => x.id === l.id);
+      if (!wo || !r || !r.sum || !inv.has(wo) || !tzCost.has(wo)) continue;
+      const tz = Math.round(tzCost.get(wo)! * 100) / 100, iv = Math.round(inv.get(wo)! * 100) / 100, diff = Math.round((tz - iv) * 100) / 100;
+      r.check = Math.abs(diff) <= 1 ? { ok: true, text: `= ТЗ ${wo}` } : { ok: false, text: `ТЗ ${wo}: ${rub(tz)} ₽ (${diff > 0 ? "+" : "−"}${rub(Math.abs(diff))})` };
+    }
+  }
 
   // Шаги новой отгрузки: подсказка с кнопками, пока не заведены состав примерки, этапы и приёмка в Коптево.
   const stepDone = [lines.length > 0, s.events.some((e) => !isAcceptanceEvent({ ...e, expected: true }) && !(e.expected && e.title === FITTING_TITLE)), !!s.acceptedAt || s.events.some((e) => isAcceptanceEvent({ ...e, expected: true }))];
@@ -424,7 +444,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         </TimelineSection>
 
 
-        {ziView && <ZiDiffs supplies={ziView.supplies} priceDiffs={ziView.priceDiffs} unmatched={ziView.unmatched} />}
+        {ziView && <ZiSupplies supplies={ziView.supplies} unmatched={ziView.unmatched} />}
 
       </section>
 

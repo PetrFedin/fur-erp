@@ -6,7 +6,7 @@
  *     пометку «нет в накладных ЗИ …» (причина по документам не названа);
  *   • строки «на доработке» (MH-06, MH-07, М038 р.44), которые целиком вошли в накладные, переводятся в «Готов к отгрузке»,
  *     их авто-пункт «Не вошло в список…» закрывается с пометкой «вошло в накладную ЗИ …»;
- *   • в SystemState «shipment-zi:<id>» кладутся строки накладных (бутик, размер, цвет, сумма) и расхождения «заказ ЦУМ ↔ накладная»;
+ *   • в SystemState «shipment-zi:<id>» кладутся строки накладных (бутик, размер, цвет, сумма, лист и строка в файле поставки);
  *   • этап хронологии «Накладные ЦУМ (ЗИ) по поставкам 21М, 22М, 23М» (сторона ЦУМ, 14.10.2026, время не указано).
  * Приёмка финализируется как кнопкой «ПРИНЯТО»: ожидаемый этап «Приёмка в Коптево» становится выполненным (дата — плановая 15.10.2026
  * самого этапа, время не указано; details — автосводка), у отгрузки acceptedAt/acceptedBy/acceptEventId, статус «Принята».
@@ -86,11 +86,10 @@ async function main() {
     console.log("Накладные уже внесены (этап есть). Для повторного внесения сначала --rollback --apply."); return;
   }
 
-  const rawLines = rj<Record<string, (Omit<ZiLine, "supply" | "boutique" | "article" | "size" | "colorRu"> & { b: string; art: string; size: string; colorRu: string; sheet: string; qty: number; sum: number; vat: number })[]>>("zi-lines.json");
+  const rawLines = rj<Record<string, (Omit<ZiLine, "supply" | "boutique" | "article" | "size" | "colorRu"> & { b: string; art: string; size: string; colorRu: string; sheet: string; row: number; qty: number; sum: number; vat: number })[]>>("zi-lines.json");
   const zi: ZiLine[] = [];
-  for (const [supply, arr] of Object.entries(rawLines)) for (const r of arr) if (r.sheet === "MVST") zi.push({ supply, boutique: r.b, article: r.art, size: r.size, colorRu: r.colorRu, sum: r.sum, vat: r.vat });
+  for (const [supply, arr] of Object.entries(rawLines)) for (const r of arr) if (r.sheet === "MVST") zi.push({ supply, boutique: r.b, article: r.art, size: r.size, colorRu: r.colorRu, sum: r.sum, vat: r.vat, sheet: r.sheet, row: r.row });
   const supplies = rj<{ code: string; ziNumbers: string[]; savedOn: string }[]>("zi-supplies.json");
-  const priceDiffs = rj<{ article: string; orderPrice: number; invoicePrice: number; diff: number }[]>("zi-price-diffs.json");
 
   const lines = await prisma.shipmentLine.findMany({
     where: { shipmentId: sh.id },
@@ -157,7 +156,7 @@ async function main() {
       await tx.shipmentLine.update({ where: { id: l.id }, data: { acceptedQty: qty, returnedQty: notIn, comment, ...(toReady ? { stage: "READY", stageChangedAt: STAGE_AT, stageChangedBy: STAGE_BY } : {}) } });
       if (toReady) for (const r of l.reworks) await tx.shipmentLineRework.update({ where: { id: r.id }, data: { state: "DONE", note: REWORK_DONE_NOTE, updatedById: owner.id } });
     }
-    const data = { version: 1, sourceNote: "Накладные ЦУМ ЗИ по поставкам 21М, 22М, 23М (Excel, сохранены 14.10.2026)", supplies, lines: zi, priceDiffs };
+    const data = { version: 1, sourceNote: "Накладные ЦУМ ЗИ по поставкам 21М, 22М, 23М (Excel, сохранены 14.10.2026)", supplies, lines: zi };
     await tx.systemState.upsert({ where: { organizationId_key: { organizationId: org.id, key: KEY } }, create: { organizationId: org.id, key: KEY, value: data as never }, update: { value: data as never } });
     await tx.shipmentEvent.update({ where: { id: accEv.id }, data: { expected: false, details: [`Принято ${acc} из ${planQty}, возврат ${rej}`, "По накладным ЦУМ (ЗИ 21М, 22М, 23М): не принято — нет в накладных (M018, 6 шт.); причина по документам не названа."].join("\n"), updatedById: owner.id } });
     await tx.shipment.update({ where: { id: sh.id }, data: { acceptedAt: accEv.occurredAt, acceptedBy: "по накладным ЦУМ (ЗИ)", acceptEventId: accEv.id, status: "ACCEPTED" } });

@@ -18,6 +18,9 @@ export type ZiLine = {
   /** Сумма по строке без НДС и НДС, ₽ (только наша сторона). */
   sum: number;
   vat: number;
+  /** Откуда строка: лист и номер строки в файле поставки (MVST — сводный лист). */
+  sheet?: string;
+  row?: number;
 };
 export type ZiSupply = {
   code: string;
@@ -25,15 +28,9 @@ export type ZiSupply = {
   /** Дата сохранения файла накладных (ISO, только дата). */
   savedOn: string;
 };
-/** Расхождение «заказ ЦУМ ↔ накладная поставщика»: цена за единицу, ₽ (накладная — с НДС). */
-export type ZiPriceDiff = {
-  article: string; orderPrice: number; invoicePrice: number; diff: number;
-  /** Откуда цифры: файл, лист, номер строки и адреса ячеек (колонки «заказ», «поставщик», «расхождения» листа сверки). */
-  src?: { fileName: string; sheet: string; row: number; orderCell: string; invoiceCell: string; diffCell: string };
-};
 /** Исходный файл накладных, прикреплённый к этапу (DriveDocument.id). */
 export type ZiFile = { supply: string; fileName: string; docId: string };
-export type ZiData = { version: 1; sourceNote: string; supplies: ZiSupply[]; lines: ZiLine[]; priceDiffs: ZiPriceDiff[]; files?: ZiFile[] };
+export type ZiData = { version: 1; sourceNote: string; supplies: ZiSupply[]; lines: ZiLine[]; files?: ZiFile[] };
 
 const norm = (s: string) => s.toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9]+/g, "");
 
@@ -48,9 +45,9 @@ export function articleCode(article: string): string {
 export type PlanLine = { id: string; code: string; size: string | null; color: string | null; quantity: number };
 
 /** Сколько штук по каждой строке отгрузки нашлось в накладных; остальное — в «нет в накладной». Жадно, по запасу количества строки. */
-export function matchZi(zi: readonly ZiLine[], plan: readonly PlanLine[]): { byLine: Map<string, { qty: number; supplies: string[]; boutiques: string[]; sum: number; vat: number }>; unmatched: ZiLine[] } {
+export function matchZi(zi: readonly ZiLine[], plan: readonly PlanLine[]): { byLine: Map<string, { qty: number; supplies: string[]; boutiques: string[]; sum: number; vat: number; items: ZiLine[] }>; unmatched: ZiLine[] } {
   const left = new Map(plan.map((p) => [p.id, p.quantity]));
-  const byLine = new Map<string, { qty: number; supplies: string[]; boutiques: string[]; sum: number; vat: number }>();
+  const byLine = new Map<string, { qty: number; supplies: string[]; boutiques: string[]; sum: number; vat: number; items: ZiLine[] }>();
   const unmatched: ZiLine[] = [];
   for (const z of zi) {
     const code = articleCode(z.article);
@@ -61,7 +58,8 @@ export function matchZi(zi: readonly ZiLine[], plan: readonly PlanLine[]): { byL
     const target = pool.find((p) => (left.get(p.id) ?? 0) > 0);
     if (!target) { unmatched.push(z); continue; }
     left.set(target.id, (left.get(target.id) ?? 0) - 1);
-    const cur = byLine.get(target.id) ?? { qty: 0, supplies: [], boutiques: [], sum: 0, vat: 0 };
+    const cur = byLine.get(target.id) ?? { qty: 0, supplies: [], boutiques: [], sum: 0, vat: 0, items: [] };
+    cur.items.push(z);
     cur.qty += 1; cur.sum += z.sum; cur.vat += z.vat;
     if (!cur.supplies.includes(z.supply)) cur.supplies.push(z.supply);
     if (!cur.boutiques.includes(z.boutique)) cur.boutiques.push(z.boutique);
@@ -79,7 +77,7 @@ export function parseZi(v: unknown): ZiData | null {
   if (!v || typeof v !== "object") return null;
   const o = v as Partial<ZiData>;
   if (o.version !== 1 || !Array.isArray(o.lines) || !Array.isArray(o.supplies)) return null;
-  return { version: 1, sourceNote: String(o.sourceNote ?? ""), supplies: o.supplies, lines: o.lines, priceDiffs: Array.isArray(o.priceDiffs) ? o.priceDiffs : [], files: Array.isArray(o.files) ? o.files : [] };
+  return { version: 1, sourceNote: String(o.sourceNote ?? ""), supplies: o.supplies, lines: o.lines, files: Array.isArray(o.files) ? o.files : [] };
 }
 
 /** Роли, которым доступны исходные файлы накладных ЦУМ и цены (подрядчику — нет). */
@@ -88,5 +86,5 @@ export const ZI_STAFF_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
 
 /** Для подрядчика: без сумм, НДС, бутиков и расхождений по ценам. */
 export function ziForSupplier(d: ZiData): ZiData {
-  return { ...d, lines: d.lines.map((l) => ({ ...l, boutique: "", sum: 0, vat: 0 })), priceDiffs: [], files: [] };
+  return { ...d, lines: d.lines.map((l) => ({ ...l, boutique: "", sum: 0, vat: 0, sheet: undefined, row: undefined })), files: [] };
 }

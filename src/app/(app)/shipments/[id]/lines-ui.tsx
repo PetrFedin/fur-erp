@@ -17,6 +17,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { Dash } from "@/components/tree-table";
 import { AcceptCloseButton } from "./event-ui";
+import { ZiSumButton, type ZiSumView } from "./zi-source";
 import { FoldHeader, useFold } from "./fold";
 import { useClientSort } from "@/lib/use-client-sort";
 import { TotalLabel } from "@/components/total-label";
@@ -359,6 +360,10 @@ export type LineRow = {
   supply?: string;
   boutique?: string;
   sum?: number | null;
+  /** Откуда сумма накладной (окно «Откуда цифра»). */
+  sumSrc?: ZiSumView;
+  /** Сверка «накладная ↔ ТЗ»: совпало или нет. */
+  check?: { ok: boolean; text: string };
 };
 
 const parseQty = (s: string): number | null | undefined => {
@@ -412,6 +417,16 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
   // Примечания: одинаковый текст — одна сноска, в строке только «прим. N» (полный текст в подсказке и в списке под таблицей).
   const noteOf = (r: LineRow) => r.comment.trim();
   const notes = [...new Set(rows.map(noteOf).filter(Boolean))];
+  const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sumCell = (r: LineRow) => {
+    if (!r.sum) return <Dash />;
+    return (
+      <span className="inline-flex flex-col items-end">
+        {r.sumSrc ? <ZiSumButton v={r.sumSrc} total={r.sum} /> : money(r.sum)}
+        {r.check && <span className={"text-[11px] " + (r.check.ok ? "text-emerald-700" : "text-red-700")} title="Сумма накладной по ТЗ против полной себестоимости ТЗ (с работой, с НДС, с 4%), допуск 1 ₽" data-tz-check={r.check.ok ? "ok" : "diff"}>{r.check.ok ? "✓ " : ""}{r.check.text}</span>}
+      </span>
+    );
+  };
   const noteCell = (r: LineRow) => {
     const t = noteOf(r);
     if (!t) return <Dash />;
@@ -621,7 +636,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
                   <Th className="whitespace-nowrap">Принято / не принято</Th>
                   <Th className="whitespace-nowrap" {...th("supply")}>Поставка</Th>
                   <Th className="whitespace-nowrap" {...th("boutique")}>Бутик</Th>
-                  {staff && <Th className="whitespace-nowrap text-right" unit="₽" {...th("sum")}>Сумма накладной</Th>}
+                  {staff && <Th className="whitespace-nowrap text-right" unit="₽" {...th("sum")}>Сумма накладной с НДС</Th>}
                   <Th className="whitespace-nowrap">Примечание</Th>
                   {canEdit && <Th><span className="sr-only">Действия</span></Th>}
                 </Tr>
@@ -638,7 +653,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
                     <Td className="min-w-56">{stageCell(r)}</Td>
                     <Td className="whitespace-nowrap">{r.supply || <Dash />}</Td>
                     <Td className="whitespace-nowrap">{r.boutique || <Dash />}</Td>
-                    {staff && <Td className="whitespace-nowrap text-right tabular-nums">{r.sum ? r.sum.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : <Dash />}</Td>}
+                    {staff && <Td className="whitespace-nowrap text-right tabular-nums">{sumCell(r)}</Td>}
                     <Td>{noteCell(r)}</Td>
                     {canEdit && (
                       <Td className="whitespace-nowrap">
@@ -679,7 +694,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
                 { label: "Шт.", value: formatQty(r.quantity), strong: true },
                 { label: "Поставка", value: r.supply || "—" },
                 { label: "Бутик", value: r.boutique || "—" },
-                ...(staff ? [{ label: "Сумма накладной, ₽", value: r.sum ? r.sum.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—" }] : []),
+                ...(staff ? [{ label: "Сумма накладной с НДС, ₽", value: sumCell(r) }] : []),
                 { label: "Примечание", value: noteCell(r) },
               ]}
               extra={canEdit ? <div className="flex items-center gap-1">{rowActions(r)}{r.blockedReason && <span className="text-[11px] text-neutral-500">есть приёмка</span>}</div> : undefined}

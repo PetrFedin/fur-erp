@@ -1,9 +1,9 @@
 /**
- * Происхождение цифр блока «Расхождения: заказ ЦУМ ↔ накладная» + исходные файлы накладных.
+ * Исходные файлы накладных ЦУМ (ЗИ) для окна «Откуда цифра» у суммы накладной.
  *   • три .xls (21М, 22М, 23М) копируются в UPLOAD_DIR/drive-docs/<организация>/<uuid>.xls и прикрепляются документами
  *     к этапу «Накладные ЦУМ (ЗИ) по поставкам 21М, 22М, 23М» (DriveDocument.notes = «zi-source» — подрядчику не отдаются);
- *   • в SystemState «shipment-zi:<id>» к каждому расхождению дописывается src (файл, лист «Лист1», строка, ячейки B/C/D)
- *     и список files (id документов).
+ *   • в SystemState «shipment-zi:<id>» дописывается список files (поставка, имя файла, id документа); к строкам накладных
+ *     добавляются лист и номер строки в файле, а прежнее поле расхождений «заказ ЦУМ» (priceDiffs) убирается — владелец признал его неактуальным.
  * Нужно, чтобы уже был внесён scripts/apply-zi-acceptance-2026-10-19.ts (есть этап и запись ЗИ). Идемпотентно.
  *   node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/apply-zi-sources-2026-10-19.ts            # пробный прогон
  *   ... --apply --live        # записать (на боевой — сам делает bash scripts/backup.sh)
@@ -60,21 +60,22 @@ async function main() {
   if (!state) throw new Error("Нет данных ЗИ — сначала scripts/apply-zi-acceptance-2026-10-19.ts");
   const ev = await prisma.shipmentEvent.findFirst({ where: { shipmentId: sh.id, title: EVENT_TITLE }, select: { id: true } });
   if (!ev) throw new Error("Нет этапа накладных ЦУМ — сначала scripts/apply-zi-acceptance-2026-10-19.ts");
-  const data = JSON.parse(JSON.stringify(state.value)) as { priceDiffs: { article: string; src?: unknown }[]; files?: { supply: string; fileName: string; docId: string }[] };
+  const data = JSON.parse(JSON.stringify(state.value)) as { lines: { supply: string; boutique: string; article: string; size: string; sum: number; vat: number; sheet?: string; row?: number }[]; priceDiffs?: unknown; files?: { supply: string; fileName: string; docId: string }[] };
   if (data.files?.length) { console.log("Файлы уже прикреплены — ничего не делаю."); return; }
 
   const names = readdirSync(DOWNLOADS).filter((n) => /^ЗИ\d+.*_(21|22|23)М\.xls$/.test(n)).sort();
   if (names.length !== 3) throw new Error(`Ожидалось 3 файла накладных в Загрузках, найдено ${names.length}`);
-  const srcDiffs = JSON.parse(readFileSync(join(INVDIR, "zi-2026-10-19", "zi-price-diffs.json"), "utf8")) as { article: string }[];
-  const file21 = names.find((n) => n.endsWith("_21М.xls"))!;
-  // Лист «Лист1» файла 21М: строка 1 — заголовки (артикул | заказ | поставщик | расхождения), данные с 2-й строки в порядке файла.
-  const withSrc = srcDiffs.map((d, i) => ({ article: d.article, row: i + 2 }));
-  for (const d of data.priceDiffs) {
-    const r = withSrc.find((x) => x.article === d.article);
-    if (!r) throw new Error(`нет строки листа для ${d.article}`);
-    d.src = { fileName: file21, sheet: "Лист1", row: r.row, orderCell: `B${r.row}`, invoiceCell: `C${r.row}`, diffCell: `D${r.row}` };
-    console.log(`  ${d.article.padEnd(30)} → ${file21.slice(-8)} · Лист1 · строка ${r.row} · B${r.row}/C${r.row}/D${r.row}`);
-  }
+  // Строки накладных: лист и номер строки из разбора файлов (тот же порядок, что при внесении приёмки).
+  const raw = JSON.parse(readFileSync(join(INVDIR, "zi-2026-10-19", "zi-lines.json"), "utf8")) as Record<string, { sheet: string; b: string; art: string; size: string; sum: number; vat: number; row: number }[]>;
+  const fresh = Object.entries(raw).flatMap(([supply, arr]) => arr.filter((r) => r.sheet === "MVST").map((r) => ({ supply, r })));
+  if (fresh.length !== data.lines.length) throw new Error(`строк в базе ${data.lines.length}, в разборе ${fresh.length} — не сходится`);
+  data.lines.forEach((l, i) => {
+    const f = fresh[i];
+    if (l.supply !== f.supply || l.boutique !== f.r.b || l.article !== f.r.art || l.size !== f.r.size || Math.abs(l.sum - f.r.sum) > 0.001) throw new Error(`строка ${i} не совпала с разбором`);
+    l.sheet = f.r.sheet; l.row = f.r.row;
+  });
+  delete data.priceDiffs;
+  console.log(`строк накладных с листом и номером строки: ${data.lines.length}; поле расхождений убрано`);
   for (const n of names) console.log(`файл: ${n} (${statSync(join(DOWNLOADS, n)).size} байт)`);
   if (!APPLY) return console.log("\nпробный прогон: БД и файлы не тронуты (--apply --live запишет)");
 
