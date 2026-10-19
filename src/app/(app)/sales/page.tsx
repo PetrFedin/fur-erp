@@ -1,0 +1,18 @@
+import { requireSession } from "@/lib/session";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { serializeInput } from "@/lib/margin";
+import { loadChain, loadSalesInput } from "@/lib/sales-server";
+import { todayMsk } from "@/lib/sales-section";
+import { parseUi } from "@/lib/sales-url";
+import { SalesView } from "./sales-view";
+
+export const metadata = { title: "Продажи и остатки" };
+
+export default async function SalesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  // requireSession без allowSupplier: внешнего поставщика (SUPPLIER) сюда не пускаем — ни страницу, ни данные.
+  const session = await requireSession();
+  const sp = await searchParams;
+  const c4 = await getCommission4Mode();
+  const [data, chain] = await Promise.all([loadSalesInput(session.user.organizationId, c4), loadChain(session.user.organizationId, c4)]);
+  return <SalesView input={serializeInput(data.input)} sizes={data.sizes} photos={data.photos} today={todayMsk()} initial={parseUi(sp)} chain={chain} />;
+}

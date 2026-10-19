@@ -1,13 +1,16 @@
-// Основное меню (11 пунктов: «Cashflow» сразу под «Главной» — по просьбе владельца, исключение из правила шести пунктов; «Настройки» сразу после «Календаря», «Контроль» внизу). `also` — вложенные и переехавшие разделы: на них
+// Основное меню (12 пунктов: «Cashflow» сразу под «Главной» — решение владельца 20.10.2026, отдельным пунктом; «Настройки» после «Отгрузок» и «Чата», «Контроль» внизу). `also` — вложенные и переехавшие разделы: на них
 // подсвечивается тот же пункт, чтобы человек не терял, "где он".
 export const NAV_LINKS = [
   { href: "/dashboard", label: "Главная", also: ["/scheme"] },
   // «Cashflow» — траты и полученные деньги по месяцам, единицы товара, средние. Закрыт для внешнего поставщика (его меню — SUPPLIER_NAV).
   { href: "/cashflow", label: "Cashflow", also: [] },
   // «Сырьё» — один раздел с вкладками (<RawTabs>): Закупки · Мех · Подкладка · Сводка по годам. Закупки — первая вкладка.
-  { href: "/lots", label: "Сырьё", also: ["/purchases", "/analytics"] },
-  { href: "/production", label: "ТЗ", also: ["/fittings", "/plan", "/supply-plan"] },
+  { href: "/lots", label: "Сырьё", also: ["/purchases", "/analytics/raw"] },
+  // Скрытые модули (/fittings, /plan, /supply-plan) в «also» не держим: недостижимые страницы не должны подсвечивать пункт (HIDDEN_MODULES).
+  { href: "/production", label: "ТЗ", also: [] },
   { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/repair", "/analytics/products", "/analytics/pricing", "/analytics/margin"] },
+  // «Продажи и остатки» — приход, продажи и остатки товара по сезонам, артикулам, заказам и периодам; закрыт для внешнего поставщика.
+  { href: "/sales", label: "Продажи и остатки", also: ["/sales/movement"] },
   { href: "/payments", label: "Оплаты", also: [] },
   { href: "/budget", label: "Бюджет", also: [] },
   { href: "/calendar", label: "Календарь", also: [] },
