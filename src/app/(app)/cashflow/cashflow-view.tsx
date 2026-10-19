@@ -521,11 +521,11 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const [detail, setDetail] = useState(initialDetail ?? true);
   const [fOpen, setFOpen] = useState(false);
   const [gActive, setGActive] = useState<number | null>(null);
-  const [recvChoice, setRecvChoice] = useState<VatChoice>("global");
-  const [priceChoice, setPriceChoice] = useState<VatChoice>("global");
+  /** НДС внутри окна «Получено» / «Средняя цена»: действует только в окне, при закрытии возврат к общей панели. */
+  const [modalEx, setModalEx] = useState<boolean | null>(null);
   const [openMonths, setOpenMonths] = useState<string[]>([]);
   const [openTile, setOpenTile] = useState<string | null>(null);
-  const toggleTile = (id: string) => setOpenTile(id);
+  const toggleTile = (id: string) => { setModalEx(null); setOpenTile(id); };
   const [open, setOpen] = useState<string[]>([]);
   const [group, setGroupState] = useState<"period" | "category">(initialGroup ?? "period");
   const [catOpen, setCatOpen] = useState<string[]>([]);
@@ -576,7 +576,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const clsMonth = (c: "clothes" | "acc" | "other", gi: number) => ({ rev: (exVat ? salesBy[c].revEx : salesBy[c].revIncl)[gi], rec: salesBy[c].recPcs[gi], sale: salesBy[c].salePcs[gi], stock: stockBy[c][gi], work: workBy[c][gi] });
   const due = payDue(left.raw + left.prod, left.advance);
   /** Виды платежей на плитке «Потрачено»: аванс / доплата / окончательный расчёт / прочее; Σ = главное число. */
-  const spendKinds = useMemo(() => (Object.keys(PAY_TYPE_LABEL) as PayType[]).filter((t) => t !== "OTHER" || spendByType(pays, months, exVat).some((r) => r.type === "OTHER")).map((t) => ({ type: t, short: t === "ADVANCE" ? "Авансы" : t === "PARTIAL" ? "Доплаты" : t === "FINAL" ? "Окончательный расчёт" : "Прочее / без вида", total: spendByType(pays, months, exVat).find((r) => r.type === t)?.total ?? 0 })), [pays, months, exVat]);
+  const spendKinds = useMemo(() => (Object.keys(PAY_TYPE_LABEL) as PayType[]).filter((t) => Math.abs(spendByType(pays, months, exVat).find((r) => r.type === t)?.total ?? 0) > 0.5).map((t) => ({ type: t, short: t === "ADVANCE" ? "Авансы" : t === "PARTIAL" ? "Доплаты" : t === "FINAL" ? "Окончательный расчёт" : "Прочее / без вида", total: spendByType(pays, months, exVat).find((r) => r.type === t)?.total ?? 0 })), [pays, months, exVat]);
   /** Метрики работы: месяцы от PROJECT_START_MONTH до текущего включительно (в границах периода); по категориям — работа по ТЗ и приход категории. */
   const wm = useMemo(() => {
     const idx = workMonthIdx(incl.months, nowMonth, period);
@@ -585,9 +585,9 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
     const by = { all: { work: pick(workAllSeries), units: pick(salesBy.all.recPcs) }, clothes: { work: pick(workBy.clothes), units: pick(salesBy.clothes.recPcs) }, acc: { work: pick(workBy.acc), units: pick(salesBy.acc.recPcs) } };
     return { months: idx.map((i) => incl.months[i]), by, st: { all: workWindowStats(by.all.work, by.all.units, [], "all"), clothes: workWindowStats(by.clothes.work, by.clothes.units, [], "all"), acc: workWindowStats(by.acc.work, by.acc.units, [], "all") } };
   }, [incl, nowMonth, period, salesBy, workBy]);
-  const recvEx = recvChoice === "global" ? exVat : recvChoice === "ex";
-  const priceEx = priceChoice === "global" ? exVat : priceChoice === "ex";
-  const recvSum = (c: "all" | "clothes" | "acc") => m.keep.reduce((t, i) => t + (recvEx ? salesBy[c].revEx[i] : salesBy[c].revIncl[i]), 0);
+  const modalExEff = modalEx ?? exVat;
+  const modalChoice: VatChoice = modalEx === null ? "global" : modalEx ? "ex" : "in";
+  const recvSum = (c: "all" | "clothes" | "acc", ex: boolean) => m.keep.reduce((t, i) => t + (ex ? salesBy[c].revEx[i] : salesBy[c].revIncl[i]), 0);
   const catPages = ["all", "clothes", "acc"] as const;
   const pageOf = { all: 0, clothes: 1, acc: 2 } as const;
   const [winCat, setWinCat] = useState<"all" | "clothes" | "acc">("all");
@@ -632,6 +632,8 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
     { id: a.key + "T", art: a.key, head: a.label, sub: a.types.length > 1 ? "Итого по статье" : a.types[0]?.label ?? "Итого", strong: a.types.length > 1, get: (r) => sum(r, (i) => a.byMonth[i]) },
   ]);
 
+  /** Тонкая вертикальная граница слева у первого подстолбца блока статьи (блоки статей и видов платежа отделены друг от друга). */
+  const blk = (c: Col) => { const k = artCols.findIndex((x) => x.id === c.id); return k === 0 || artCols[k - 1].art !== c.art ? " border-l border-neutral-300" : ""; };
   const csv = () => {
     const head = ["Период", ...artCols.map((c) => `${c.head}: ${c.sub}`), "Потрачено", "Получено", "Чистый поток", "Накопительно потрачено", "Накопительно получено", "Накопительно чистый", "Единиц получено", "Единиц продано", "Остаток, шт.", "Работа за период", "Работа на единицу"];
     const nf = (v: number | null) => (v === null ? "" : v.toFixed(2).replace(".", ","));
@@ -699,13 +701,13 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
       <section aria-label="Ключевые показатели" className="grid grid-cols-2 items-stretch gap-2 md:grid-cols-4">
         <Tile label="Потрачено" value={money(h.spent)} sub={filtered ? "все траты, не по категории" : `${label}, ${vatNote}`} spark={ser.spend} mini={spendKinds.map((r) => [r.short, money(r.total)] as [string, string])} expandId="spend" openId={openTile} onToggle={toggleTile}
           hint={<p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p>} />
-        <Tile label="Получено" controls={hasSales ? <VatSeg choice={recvChoice} setChoice={setRecvChoice} globalEx={exVat} /> : undefined} value={hasSales ? money(recvSum(cat)) : "—"} sub={hasSales ? `выручка, ${recvEx ? "без НДС" : "с НДС"}` : "нет данных о продажах"} spark={hasSales ? m.keep.map((i) => (recvEx ? salesBy[cat].revEx[i] : salesBy[cat].revIncl[i])) : undefined}
-          mini={mini((c) => `${money(recvSum(c))} · ${recvSum(cat) ? Math.round((recvSum(c) / recvSum(cat)) * 100) : 0} %`)} expandId={hasSales ? "recv" : undefined} onToggle={toggleTile}
-          hint={<p>Розничная выручка из выгрузки продаж: чистые продажи после скидок, возвраты вычтены; по дате продажи; С НДС / Без НДС — переключатель плитки (по умолчанию как общая панель). Доля — от выручки всех категорий. {noSalesNote}</p>} />
+        <Tile label="Получено" value={hasSales ? money(recvSum(cat, exVat)) : "—"} sub={hasSales ? `выручка, ${vatNote}` : "нет данных о продажах"} spark={hasSales ? m.keep.map((i) => (exVat ? salesBy[cat].revEx[i] : salesBy[cat].revIncl[i])) : undefined}
+          mini={mini((c) => `${money(recvSum(c, exVat))} · ${recvSum(cat, exVat) ? Math.round((recvSum(c, exVat) / recvSum(cat, exVat)) * 100) : 0} %`)} expandId={hasSales ? "recv" : undefined} onToggle={toggleTile}
+          hint={<p>Розничная выручка из выгрузки продаж: чистые продажи после скидок, возвраты вычтены; по дате продажи; режим НДС — как в панели фильтров (внутри окна его можно переключить только для окна). Доля — от выручки всех категорий. {noSalesNote}</p>} />
         {hasSales && !filtered ? (
           <CarouselTile onOpen={() => toggleTile("flow")} pages={[
-            { label: "Чистый денежный поток", value: money(h.net), tone: h.net < 0 ? "bad" : "good", spark: ser.net, sparkKind: "bars", sub: h.net < 0 ? "в минусе за период" : "в плюсе за период", hint: <p>Получено минус потрачено за период.</p> },
-            { label: "Накопленный итог", value: money(m.cumNetEnd), tone: m.cumNetEnd < 0 ? "bad" : "good", spark: ser.cumNet, sparkKind: "area", sub: "с начала данных на конец периода", hint: <p>Получено минус потрачено нарастающим итогом с первого месяца данных до конца выбранного периода.</p> },
+            { label: "Чистый денежный поток", value: money(h.net), tone: h.net < 0 ? "bad" : "good", spark: ser.net, sparkKind: "bars", sub: `${h.net < 0 ? "в минусе за период" : "в плюсе за период"}, ${vatNote}`, hint: <p>Получено минус потрачено за период, на одной базе НДС — как в панели фильтров ({vatNote}): «с НДС» — движение денег, «без НДС» — экономика.</p> },
+            { label: "Накопленный итог", value: money(m.cumNetEnd), tone: m.cumNetEnd < 0 ? "bad" : "good", spark: ser.cumNet, sparkKind: "area", sub: `с начала данных на конец периода, ${vatNote}`, hint: <p>Получено минус потрачено нарастающим итогом с первого месяца данных до конца выбранного периода.</p> },
           ]} />
         ) : (
           <Tile label="Чистый поток / накопленный итог" value="—" sub={filtered ? "траты не делятся по категориям" : "нет данных о продажах"} hint={<p>Чистый денежный поток = получено − потрачено; накопленный итог — то же нарастающим итогом. При фильтре по категории траты не делятся, поэтому не считаются.</p>} />
@@ -725,12 +727,12 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
           hint: <p>Вся работа подрядчику за период ÷ все единицы, полученные за период (без привязки к месяцам). Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее). По категориям — работа по ТЗ категории ÷ приход категории.</p>,
         }; })} />
         {hasSales ? (
-          <CarouselTile label="Средняя цена продажи" initial={pageOf[cat]} onOpen={(k) => openFor("price", k)} controls={<VatSeg choice={priceChoice} setChoice={setPriceChoice} globalEx={exVat} />} pages={catPages.map((c) => { const g = groupSales(saleLines, months, priceEx, () => "x", c)[0]; return {
+          <CarouselTile label="Средняя цена продажи" initial={pageOf[cat]} onOpen={(k) => openFor("price", k)} pages={catPages.map((c) => { const g = groupSales(saleLines, months, exVat, () => "x", c)[0]; return {
             label: `Средняя цена продажи · ${c === "all" ? "Тотал" : CAT_LABEL[c]}`,
             value: g && g.pcs > 0 ? formatMoney(g.rev / g.pcs) : "—",
-            sub: g && g.pcs > 0 ? `${pcs(g.pcs)} шт. продано, ${priceEx ? "без НДС" : "с НДС"}` : "нет продаж",
+            sub: g && g.pcs > 0 ? `${pcs(g.pcs)} шт. продано, ${vatNote}` : "нет продаж",
             rows: [["Выручка", g ? money(g.rev) : "—"]] as [string, string][],
-            hint: <p>Выручка ({priceEx ? "без НДС" : "с НДС"}) ÷ проданные единицы (возвраты минус) за выбранный период и категорию.</p>,
+            hint: <p>Выручка ({vatNote}) ÷ проданные единицы (возвраты минус) за выбранный период и категорию; режим НДС — как в панели (в окне его можно переключить только для окна).</p>,
           }; })} />
         ) : <Tile label="Средняя цена продажи" value="—" sub="нет данных о продажах" />}
         <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3 md:col-span-2">
@@ -747,9 +749,9 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
       </section>
 
       {openTile && (
-        <TileModal title={{ spend: "Потрачено", recv: "Получено", flow: "Денежный поток по месяцам", workMonth: "Работа в месяц", workUnit: "Работа на единицу", price: "Средняя цена продажи" }[openTile] ?? ""} subtitle={openTile === "recv" ? shownText.replace(/с НДС|без НДС/, recvEx ? "без НДС" : "с НДС") : openTile === "price" ? shownText.replace(/с НДС|без НДС/, priceEx ? "без НДС" : "с НДС") : shownText} onClose={() => setOpenTile(null)}>
+        <TileModal title={{ spend: "Потрачено", recv: "Получено", flow: "Денежный поток по месяцам", workMonth: "Работа в месяц", workUnit: "Работа на единицу", price: "Средняя цена продажи" }[openTile] ?? ""} subtitle={openTile === "recv" || openTile === "price" ? shownText.replace(/с НДС|без НДС/, modalExEff ? "без НДС" : "с НДС") : shownText} onClose={() => { setOpenTile(null); setModalEx(null); }}>
           {openTile === "spend" && <SpendDetail pays={pays} months={months} exVat={exVat} d={d} total={h.spent} />}
-          {openTile === "recv" && <RecvDetail lines={saleLines} months={months} exVat={recvEx} cat={catArg} total={recvSum(cat)} controls={<VatSeg choice={recvChoice} setChoice={setRecvChoice} globalEx={exVat} />} />}
+          {openTile === "recv" && <RecvDetail lines={saleLines} months={months} exVat={modalExEff} cat={catArg} total={recvSum(cat, modalExEff)} controls={<VatSeg choice={modalChoice} setChoice={(c) => setModalEx(c === "ex")} globalEx={exVat} />} />}
           {openTile === "flow" && (
             <div className="flex flex-col gap-3">
               <p className="text-xs text-neutral-800">
@@ -761,7 +763,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
           )}
           {openTile === "workMonth" && <WorkMonthWindow months={wm.months} by={wm.by} initialCat={winCat} />}
           {openTile === "workUnit" && <WorkUnitWindow months={wm.months} by={wm.by} initialCat={winCat} />}
-          {openTile === "price" && <PriceDetail lines={saleLines} months={months} exVat={priceEx} cat={winCat} controls={<VatSeg choice={priceChoice} setChoice={setPriceChoice} globalEx={exVat} />} />}
+          {openTile === "price" && <PriceDetail lines={saleLines} months={months} exVat={modalExEff} cat={winCat} controls={<VatSeg choice={modalChoice} setChoice={(c) => setModalEx(c === "ex")} globalEx={exVat} />} />}
         </TileModal>
       )}
 
@@ -779,13 +781,13 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
 
       {detail && (
         <div className="max-h-[75vh] overflow-auto rounded-lg border border-neutral-300 bg-white" tabIndex={0} role="region" aria-label="Таблица Cashflow: строки — годы и месяцы, столбцы — статьи трат, деньги, единицы">
-          <table className="border-collapse" style={{ tableLayout: "fixed", width: 150 + 104 * (artCols.length + 11) }} onMouseLeave={clearHot}>
-            <colgroup><col style={{ width: 150 }} />{Array.from({ length: artCols.length + 11 }, (_, i) => <col key={i} style={{ width: 104 }} />)}</colgroup>
+          <table className="border-collapse" style={{ tableLayout: "fixed", width: 150 + 104 * (artCols.length + (group === "period" ? 3 : 1)) }} onMouseLeave={clearHot}>
+            <colgroup><col style={{ width: 150 }} />{Array.from({ length: artCols.length + (group === "period" ? 3 : 1) }, (_, i) => <col key={i} style={{ width: 104 }} />)}</colgroup>
             <thead>
               <tr className="border-b border-neutral-200">
                 <th scope="col" rowSpan={2} className={th.replace("text-right", "text-left") + " " + sticky + " top-0 z-[2] min-w-[8rem] bg-white"}>Период</th>
                 {d.articles.map((a) => (
-                  <th key={a.key} scope="colgroup" tabIndex={0} onMouseEnter={() => setHot(a.key)} onFocus={() => setHot(a.key)} onBlur={clearHot} onClick={() => setHot(a.key)} colSpan={artCols.filter((c) => c.art === a.key).length} className="border-l border-neutral-200 px-2 py-2 text-center text-xs font-semibold">
+                  <th key={a.key} scope="colgroup" tabIndex={0} onMouseEnter={() => setHot(a.key)} onFocus={() => setHot(a.key)} onBlur={clearHot} onClick={() => setHot(a.key)} colSpan={artCols.filter((c) => c.art === a.key).length} className="border-b border-l border-neutral-300 px-2 py-2 text-center text-xs font-semibold">
                     <span aria-hidden className="mr-1.5 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: COLORS[a.key] }} /><span title={a.label}>{SHORT[a.key] ?? a.label}</span>
                     <InfoHint label={`За что платили: ${a.label}`} wide>
                       <p>{a.hint}</p>
@@ -798,20 +800,11 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
                   </th>
                 ))}
                 <th scope="col" rowSpan={2} className={th + " border-l border-neutral-300 font-bold"}>Потрачено</th>
-                <th scope="col" rowSpan={2} className={th + " font-bold"}>Получено</th>
-                <th scope="col" rowSpan={2} className={th + " font-bold"}>Чистый поток</th>
-                <th scope="colgroup" colSpan={3} className="border-l border-neutral-300 px-2 py-2 text-center text-xs font-semibold">Накопительно</th>
-                <th scope="col" rowSpan={2} className={th + " border-l border-neutral-300"}>Единиц получено</th>
-                <th scope="col" rowSpan={2} className={th}>Единиц продано</th>
-                <th scope="col" rowSpan={2} className={th}>Остаток, шт.</th>
-                <th scope="col" rowSpan={2} className={th + " border-l border-neutral-300"}>Работа за период</th>
-                <th scope="col" rowSpan={2} className={th}>Работа на единицу</th>
+                {group === "period" && <th scope="col" rowSpan={2} className={th + " border-l border-neutral-300 font-bold"}>Получено</th>}
+                {group === "period" && <th scope="col" rowSpan={2} className={th + " font-bold"}>Чистый поток</th>}
               </tr>
               <tr className="border-b border-neutral-300">
-                {artCols.map((c) => <th key={c.id} scope="col" className={th.replace("whitespace-nowrap", "whitespace-normal") + " font-normal text-neutral-600 " + (c.strong ? "font-semibold" : "")}>{c.sub}</th>)}
-                <th scope="col" className={th + " border-l border-neutral-300 font-normal text-neutral-600"}>потрачено</th>
-                <th scope="col" className={th + " font-normal text-neutral-600"}>получено</th>
-                <th scope="col" className={th + " font-normal text-neutral-600"}>чистый</th>
+                {artCols.map((c) => <th key={c.id} scope="col" className={th.replace("whitespace-nowrap", "whitespace-normal") + blk(c) + " font-normal text-neutral-600 " + (c.strong ? "font-semibold" : "")}>{c.sub}</th>)}
               </tr>
             </thead>
             {group === "category" ? (
@@ -822,9 +815,8 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
                 const cellsFor = (idx: number[], first: React.ReactNode, cls2: string, bg2: string, key: string) => (
                   <tr key={key} className={cls2}>
                     <th scope="row" className={"px-2 py-1 text-sm " + sticky + " " + bg2}>{first}</th>
-                    {artCols.map((c) => <td key={c.id} className={td + (c.strong ? " font-semibold" : "")}>{c.art === a.key ? dash(c.get(mk(idx))) : "—"}</td>)}
+                    {artCols.map((c) => <td key={c.id} className={td + blk(c) + (c.strong ? " font-semibold" : "")}>{c.art === a.key ? dash(c.get(mk(idx))) : "—"}</td>)}
                     <td className={td + " border-l border-neutral-300 font-semibold"}>{dash(sum(mk(idx), (i) => a.byMonth[i]))}</td>
-                    {Array.from({ length: 10 }, (_, k) => <td key={k} className={td + (k === 2 || k === 5 || k === 8 ? " border-l border-neutral-300" : "")} title="Не делится по статьям">—</td>)}
                   </tr>
                 );
                 const allIdx = months.map((_, i) => i);
@@ -846,9 +838,8 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
               })}
               <tr className="row-total border-t-2 border-neutral-400 font-bold">
                 <th scope="row" className={"px-2 py-1.5 text-sm " + sticky + " bg-white"}>Итого</th>
-                {artCols.map((c) => <td key={c.id} className={td + (c.strong ? " font-semibold" : "")}>{dash(c.get({ id: "all", label: "", kind: "total", idx: months.map((_, i) => i) }))}</td>)}
+                {artCols.map((c) => <td key={c.id} className={td + blk(c) + (c.strong ? " font-semibold" : "")}>{dash(c.get({ id: "all", label: "", kind: "total", idx: months.map((_, i) => i) }))}</td>)}
                 <td className={td + " border-l border-neutral-300 font-semibold"}>{dash(sum({ id: "all", label: "", kind: "total", idx: months.map((_, i) => i) }, (i) => ser.spend[i]))}</td>
-                {Array.from({ length: 10 }, (_, k) => <td key={k} className={td}>—</td>)}
               </tr>
             </tbody>
             ) : (
@@ -857,7 +848,6 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
                 const cls = r.kind === "month" ? "border-b border-neutral-200" : r.kind === "year" ? "border-b border-neutral-300 bg-neutral-100 font-semibold" : "row-total border-t-2 border-neutral-400 font-bold";
                 const bg = r.kind === "year" ? "bg-neutral-100" : "bg-white";
                 const aim = (art: string | null) => { setHot(art); if (r.kind === "month") { setActive(r.idx[0]); setYearHot(null); } else if (r.kind === "year") { setActive(null); setYearHot(r.id.slice(1)); } else { setActive(null); setYearHot(null); } };
-                const u = sum(r, (i) => s.recPcs[i]), w = sum(r, workOf);
                 const net = sum(r, (i) => ser.net[i]);
                 const mOpen = r.kind === "month" && openMonths.includes(r.id);
                 const gi = r.kind === "month" ? m.keep[r.idx[0]] : -1;
@@ -876,18 +866,10 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
                         </span>
                       ) : r.label}
                     </th>
-                    {artCols.map((c) => <td key={c.id} onMouseEnter={() => aim(c.art!)} onClick={() => aim(c.art!)} className={td + (c.strong ? " font-semibold" : "") + (hot === c.art && ((active !== null && r.idx.includes(active)) || (yearHot !== null && r.id === "y" + yearHot)) ? " bg-[var(--ui-soft)]" : "")}>{dash(c.get(r))}</td>)}
+                    {artCols.map((c) => <td key={c.id} onMouseEnter={() => aim(c.art!)} onClick={() => aim(c.art!)} className={td + blk(c) + (c.strong ? " font-semibold" : "") + (hot === c.art && ((active !== null && r.idx.includes(active)) || (yearHot !== null && r.id === "y" + yearHot)) ? " bg-[var(--ui-soft)]" : "")}>{dash(c.get(r))}</td>)}
                     <td className={td + " border-l border-neutral-300 font-semibold"}>{dash(sum(r, (i) => ser.spend[i]))}</td>
                     <td className={td}>{hasSales ? dash(sum(r, (i) => ser.revenue[i])) : "—"}</td>
                     <td className={td + (hasSales && !filtered && net < -0.5 ? " text-[#b4310b]" : "")}>{hasSales && !filtered ? dash(net) : "—"}</td>
-                    <td className={td + " border-l border-neutral-300"}>{dash(lastOf(r, ser.cumSpend))}</td>
-                    <td className={td}>{hasSales ? dash(lastOf(r, ser.cumRevenue)) : "—"}</td>
-                    <td className={td}>{hasSales && !filtered ? dash(lastOf(r, ser.cumNet)) : "—"}</td>
-                    <td className={td + " border-l border-neutral-300"}>{hasSales ? pcs(u) : "—"}</td>
-                    <td className={td}>{hasSales ? pcs(sum(r, (i) => s.salePcs[i])) : "—"}</td>
-                    <td className={td}>{hasSales ? pcs(lastOf(r, m.stock)) : "—"}</td>
-                    <td className={td + " border-l border-neutral-300"}>{dash(w)}</td>
-                    <td className={td}>{dash(perUnit(w, u))}</td>
                   </tr>
                   {mOpen && (["clothes", "acc", "other"] as const).map((c) => {
                     const x = clsMonth(c, gi);
@@ -896,12 +878,9 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
                     return (
                       <tr key={r.id + c} className="border-b border-neutral-100 bg-neutral-50 text-xs">
                         <th scope="row" className={"py-1.5 pl-8 pr-2 text-left font-normal " + sticky + " bg-neutral-50"}>{CAT_LABEL[c]}</th>
-                        {artCols.map((ac) => <td key={ac.id} className={td}>{ac.art === "work" && ac.id.endsWith("T") ? dash(x.work) : no}</td>)}
+                        {artCols.map((ac) => <td key={ac.id} className={td + blk(ac)}>{ac.art === "work" && ac.id.endsWith("T") ? dash(x.work) : no}</td>)}
                         <td className={td + " border-l border-neutral-300"}>{no}</td>
                         <td className={td}>{dash(x.rev)}</td><td className={td}>{no}</td>
-                        <td className={td + " border-l border-neutral-300"}>{no}</td><td className={td}>{no}</td><td className={td}>{no}</td>
-                        <td className={td + " border-l border-neutral-300"}>{pcs(x.rec)}</td><td className={td}>{pcs(x.sale)}</td><td className={td}>{pcs(x.stock)}</td>
-                        <td className={td + " border-l border-neutral-300"}>{dash(x.work)}</td><td className={td}>{dash(perUnit(x.work, x.rec))}</td>
                       </tr>
                     );
                   })}
@@ -981,7 +960,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
               <div className="min-h-[1.5rem] text-xs text-neutral-700" aria-live="polite">{gActive !== null ? <span><b>{full(gMonths[gActive])}</b>: работа {dash(gWu.work[gActive])}{KIND_ORDER.filter((k) => Math.abs(gKinds[k][gActive]) > 0.5).map((k) => `, ${PAY_TYPE_LABEL[k].toLowerCase()} ${dash(gKinds[k][gActive])}`).join("")}, получено {pcs(gWu.units[gActive])} шт.</span> : <span>Наведите курсор или коснитесь месяца.</span>}</div>
               <ChartBox n={gMonths.length}>{(colW) => <WorkMonthsChart months={gMonths} kinds={gKinds} units={gWu.units} active={gActive} setActive={setGActive} colW={colW} />}</ChartBox>
               <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-                {KIND_ORDER.map((k) => <li key={k} className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: k === "ADVANCE" || k === "OTHER" ? KIND_COLOR[k] : `repeating-linear-gradient(${k === "PARTIAL" ? "45deg" : "0deg"}, ${KIND_COLOR[k]} 0 3px, #fff 3px 5px)` }} />{PAY_TYPE_LABEL[k]} {dash(gKinds[k].reduce((a2, b2) => a2 + b2, 0))}</li>)}
+                {KIND_ORDER.filter((k) => Math.abs(gKinds[k].reduce((a2, b2) => a2 + b2, 0)) > 0.5).map((k) => <li key={k} className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: k === "ADVANCE" || k === "OTHER" ? KIND_COLOR[k] : `repeating-linear-gradient(${k === "PARTIAL" ? "45deg" : "0deg"}, ${KIND_COLOR[k]} 0 3px, #fff 3px 5px)` }} />{PAY_TYPE_LABEL[k]} {dash(gKinds[k].reduce((a2, b2) => a2 + b2, 0))}</li>)}
                 <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-full" style={{ background: NAVY }} />Получено единиц, шт. (справа)</li>
               </ul>
             </div>
