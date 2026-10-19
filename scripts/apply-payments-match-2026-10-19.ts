@@ -136,13 +136,14 @@ const NEW_PP: NewPP[] = [
 ];
 
 type Upd = { table: "Payment" | "ProductionPayment"; id: string; before: Record<string, unknown>; after: Record<string, unknown> };
-type Journal = { script: string; status: "applied" | "rolled-back"; at: string; db: string; created: { payments: string[]; links: string[]; allocations: string[] }; updates: Upd[] };
+type Journal = { script: string; status: "applied" | "rolled-back"; at: string; db: string; created: { payments: string[]; links: string[]; allocations: string[]; supplierPayments?: string[] }; updates: Upd[] };
 
 async function main() {
   const { createAuditedClient } = await import("../src/lib/prisma");
   const { INV, readJson, writeJson } = await import("./detail-common");
   const { planAutoAllocations, orderWorkCents, loadClientDebt, AUTO_NOTE } = await import("../src/lib/payment-alloc");
   const { loadSupplierDebt } = await import("../src/lib/supplier-debt");
+  const { purchaseTotalInclVat } = await import("../src/lib/purchase-totals");
   const { checkAllocation, fromCents, toCents } = await import("../src/lib/payment-alloc-core");
   const url = process.env.DATABASE_URL ?? "";
   const dbName = url.split("?")[0].split("/").pop() ?? "";
@@ -163,6 +164,7 @@ async function main() {
         await tx.paymentAllocation.deleteMany({ where: { id: { in: j.created.allocations } } });
         await tx.productionPaymentOrder.deleteMany({ where: { id: { in: j.created.links } } });
         await tx.productionPayment.deleteMany({ where: { id: { in: j.created.payments } } });
+        await tx.payment.deleteMany({ where: { id: { in: j.created.supplierPayments ?? [] } } });
         for (const u of j.updates) {
           const t = (u.table === "Payment" ? tx.payment : tx.productionPayment) as unknown as { findUnique: (a: unknown) => Promise<Record<string, unknown> | null>; update: (a: unknown) => Promise<unknown> };
           const cur = await t.findUnique({ where: { id: u.id } });
@@ -183,7 +185,7 @@ async function main() {
     return;
   }
 
-  const created: Journal["created"] = { payments: [], links: [], allocations: [] };
+  const created: Journal["created"] & { supplierPayments: string[] } = { payments: [], links: [], allocations: [], supplierPayments: [] };
   const updates: Upd[] = [];
   const table: string[][] = [];
   const problems: string[] = [];
@@ -191,7 +193,7 @@ async function main() {
   const now = new Date();
 
   const run = async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-    created.payments.length = 0; created.links.length = 0; created.allocations.length = 0; updates.length = 0; table.length = 0; problems.length = 0;
+    created.supplierPayments.length = 0; created.payments.length = 0; created.links.length = 0; created.allocations.length = 0; updates.length = 0; table.length = 0; problems.length = 0;
     const snap = async () => {
       const sd = await loadSupplierDebt(tx as never, org, "all");
       const cd = await loadClientDebt(tx, org, { year: "all" });
@@ -255,7 +257,16 @@ async function main() {
         const total = 1147622.54 + 927500;
         const diff = 2081387.54 - total; // 6 265,00
         if (Math.abs(diff - 6265) > 0.005) problems.push(`п/п 22618: разница с банком ${rub(diff)} вместо 6 265,00`);
-        const newAmount = (num(cur.amount) + diff).toFixed(2);
+        const p12 = await tx.purchase.findFirst({ where: { organizationId: org, number: "З-2026-0012" }, include: { items: true, expenses: true } });
+        const t12 = p12 ? purchaseTotalInclVat(p12).toNumber() : 0;
+        const moveFondue = !!p12 && Math.abs(t12 - 942900) < 1 && Math.abs(num(pay22.amount) - 927500) < 0.005;
+        if (moveFondue) {
+          const nn = `${pay22.notes ?? ""}\n${TAG} Сырьё подрядчика по цене 13 470 за шкуру (ТЗ 79): 927 500,00 → 942 900,00; 15 400,00 перенесены из оплаты производства п/п 22618.`;
+          await tx.payment.update({ where: { id: pay22.id }, data: { amount: "942900.00", notes: nn } });
+          updates.push({ table: "Payment", id: pay22.id, before: { amount: "927500.00", notes: pay22.notes }, after: { amount: "942900.00", notes: nn } });
+          table.push(["п/п 22618 · часть «сырьё подрядчика» (З-2026-0012)", "сумма", "927 500,00 → 942 900,00 (фондю 13 470; −15 400,00 в оплате производства)", "решение владельца по цене фондю"]);
+        } else table.push(["п/п 22618 · фондю 13 470", "перенос 15 400,00", "пропуск: З-2026-0012 ещё не пересчитана по 13 470 (сначала apply-tz-owner-answers --fondue-price)", "—"]);
+        const newAmount = (num(cur.amount) + diff - (moveFondue ? 15400 : 0)).toFixed(2);
         const after = {
           amount: newAmount, ppNo: "22618", docRef: `п/п №22618 от 21.01.2026; ${cur.docRef ?? "Счёт №1 от 15.01.2026"}`, confirmedAt: now,
           confirmedBy: `${SRC}: п/п №22618 от 21.01.2026, 2 081 387,54 ₽ (927 500,00 — сырьё подрядчика ТЗ 79 по З-2026-0012 + ${rub(newAmount)} — работа)`,
@@ -286,7 +297,7 @@ async function main() {
       const dd = ddmmyyyy(n.date);
       await tx.productionPayment.create({
         data: {
-          id, organizationId: org, clientId, contractorId, amount: n.amount, method: "BANK_TRANSFER", status: "COMPLETED", paidAt: new Date(`${n.date}T00:00:00.000Z`),
+          id, organizationId: org, clientId, contractorId, amount: n.pp === "61001" ? "2517795.00" : n.amount, method: "BANK_TRANSFER", status: "COMPLETED", paidAt: new Date(`${n.date}T00:00:00.000Z`),
           paymentType: n.type, confirmed: true, confirmedAt: now, ppNo: n.pp, invoiceNo: n.inv,
           confirmedBy: `${SRC}: п/п №${n.pp} от ${dd}, ${rub(n.amount)} ₽, счёт №${n.inv}`,
           docRef: `п/п №${n.pp} от ${dd}; Счёт №${n.inv} от ${n.invDate}`,
@@ -294,6 +305,16 @@ async function main() {
         },
       });
       created.payments.push(id);
+      if (n.pp === "61001") {
+        const p59 = await tx.purchase.findFirst({ where: { organizationId: org, number: "З-2026-0059" }, select: { id: true, supplierId: true, auctionSession: true } });
+        if (!p59) problems.push("п/п 61001: закупка З-2026-0059 (УПД №209) не найдена");
+        else {
+          const sid = randomBytes(12).toString("hex");
+          await tx.payment.create({ data: { id: "c" + sid, organizationId: org, supplierId: p59.supplierId, purchaseId: p59.id, amount: "880000.00", status: "COMPLETED", paidAt: new Date(`${n.date}T00:00:00.000Z`), kind: "PARTIAL", confirmed: true, confirmedAt: now, ppNo: n.pp, invoiceNo: n.inv, confirmedBy: `${SRC}: п/п №${n.pp} от ${dd}, ${rub(n.amount)} ₽ (в том числе 880 000,00 — шкуры красной лисы подрядчика, ТЗ 121)`, docRef: `п/п №${n.pp} от ${dd}; Счёт №${n.inv} от ${n.invDate}`, notes: `Шкуры красной лисы подрядчика (55 шт. × 16 000, ТЗ 121) в составе п/п №${n.pp} по счёту №${n.inv}: относятся к УПД/счёту №209 (З-2026-0059). ${TAG}` } });
+          created.supplierPayments.push("c" + sid);
+          table.push([`п/п 61001 · часть 880 000,00 (оплата сырья)`, "оплата закупки З-2026-0059 (УПД №209)", "нет → есть; долг по УПД №209 1 408 000,00 → 528 000,00", "письмо координатора: шкуры ТЗ 121 входят в счёт №237"]);
+        }
+      }
       if (set.length) {
         const links = set.map((o) => ({ id: cid(), productionPaymentId: id, productionOrderId: o.id }));
         await tx.productionPaymentOrder.createMany({ data: links });
@@ -302,13 +323,13 @@ async function main() {
       newRows.push({ n, id, set });
     }
     const plan = planAutoAllocations(
-      newRows.map((r) => ({ id: r.id, amountCents: toCents(r.n.amount), paidAt: new Date(`${r.n.date}T00:00:00.000Z`).getTime(), createdAt: now.getTime(), linkedOrderIds: r.set.map((o) => o.id) })),
+      newRows.map((r) => ({ id: r.id, amountCents: toCents(r.n.pp === "61001" ? "2517795.00" : r.n.amount), paidAt: new Date(`${r.n.date}T00:00:00.000Z`).getTime(), createdAt: now.getTime(), linkedOrderIds: r.set.map((o) => o.id) })),
       new Map(ordsRaw.map((o) => [o.id, { id: o.id, workCents: workOf(o), live: true }])),
       used,
     );
     for (const r of plan) {
       const nr = newRows.find((x) => x.id === r.paymentId)!;
-      const err = checkAllocation(toCents(nr.n.amount), r.lines);
+      const err = checkAllocation(toCents(nr.n.pp === "61001" ? "2517795.00" : nr.n.amount), r.lines);
       if (err) problems.push(`п/п ${nr.n.pp}: ${err}`);
       const arows = r.lines.map((l) => ({ id: cid(), organizationId: org, productionPaymentId: r.paymentId, productionOrderId: l.orderId, amount: fromCents(l.amountCents), source: "AUTO" as const, note: `${AUTO_NOTE} ${TAG}` }));
       if (arows.length) await tx.paymentAllocation.createMany({ data: arows });
@@ -327,17 +348,19 @@ async function main() {
     const after = await snap();
 
     // ---- 6) инварианты
-    if (Math.abs(after.supplierDebt - before.supplierDebt) > 0.005) problems.push(`долг поставщику изменился: ${before.supplierDebt} → ${after.supplierDebt} (подтверждение не должно менять долг)`);
+    const split61001 = created.supplierPayments.length ? 880000 : 0;
+    const dSup = Math.round((before.supplierDebt - after.supplierDebt) * 100) / 100;
+    if (Math.abs(dSup - split61001) > 0.01) problems.push(`долг поставщику изменился на ${rub(dSup)}, ожидалось ${rub(split61001)} (только оплата шкур ТЗ 121 по УПД №209)`);
     if (Math.abs(after.work - before.work) > 0.005) problems.push("работа по ТЗ изменилась");
     const newSum = newRows.reduce((s, r) => s + Number(r.n.amount), 0);
     const d22 = updates.find((u) => u.table === "ProductionPayment" && u.after.amount != null);
     const delta22 = d22 ? Number(d22.after.amount) - Number(d22.before.amount) : 0;
     // «сумма к оплате» по работе падает на новые оплаты; п/п 22618 (+6 265) уходит в «сырьё подрядчика» и в оплату работы не входит
-    const expectedWork = -newSum;
+    const expectedWork = -(newSum - split61001);
     const dWork = Math.round((after.workBalance - before.workBalance) * 100) / 100;
     if (Math.abs(dWork - expectedWork) > 0.01) problems.push(`долг по работе изменился на ${rub(dWork)}, ожидалось ${rub(expectedWork)}`);
     const dTotal = Math.round((after.sumP + after.sumPP - before.sumP - before.sumPP) * 100) / 100;
-    if (Math.abs(dTotal - (newSum + delta22)) > 0.01) problems.push(`Σ оплат изменилась на ${rub(dTotal)}, ожидалось ${rub(newSum + delta22)}`);
+    if (Math.abs(dTotal - (newSum + delta22)) > 0.01 && Math.abs(dTotal - (newSum + delta22 + 15400 * 0)) > 0.01) problems.push(`Σ оплат изменилась на ${rub(dTotal)}, ожидалось ${rub(newSum + delta22)}`);
     // каждый п/п реестра (кроме НЕ вносимых) = Σ базы по п/п; даты совпадают
     const allP = await tx.payment.findMany({ where: { organizationId: org, ppNo: { not: null } }, select: { ppNo: true, amount: true, paidAt: true } });
     const allPP = await tx.productionPayment.findMany({ where: { organizationId: org, ppNo: { not: null } }, select: { ppNo: true, amount: true, paidAt: true } });
@@ -377,7 +400,7 @@ async function main() {
   await prisma.$transaction(async (tx) => {
     const r2 = await run(tx);
     if (problems.length) throw new Error(problems.join("; "));
-    live.created = { payments: [...created.payments], links: [...created.links], allocations: [...created.allocations] };
+    live.created = { supplierPayments: [...created.supplierPayments], payments: [...created.payments], links: [...created.links], allocations: [...created.allocations] };
     live.updates = [...updates];
     writeJson(JOURNAL, live);
     void r2;
