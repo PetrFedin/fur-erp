@@ -1,7 +1,8 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import reconciliation from "@/data/reconciliation.json";
+import { loadRegistry, lastCheckInfo } from "@/lib/reconciliation-registry";
+import { JSON_REGISTRY, type Registry } from "@/app/(app)/reconciliation/model";
 
 const REQUIRED_TABLES = [
   "Organization",
@@ -18,19 +19,19 @@ const REQUIRED_TABLES = [
   "DriveDocument",
 ] as const;
 
-type ReconGroup = {
-  id: string;
-  title: string;
-  status: "ok" | "docs" | "unpaid" | "review" | "conflict" | "empty";
-  manualReview?: string[];
-};
+type ReconGroup = { status: "ok" | "docs" | "unpaid" | "review" | "conflict" | "empty" };
 
-type ReconData = {
-  checkedAt: string;
-  groups: ReconGroup[];
-};
-
-const REC = reconciliation as unknown as ReconData;
+/** Реестр сверки из базы (последняя отметка «сверка выполнена»); если таблиц ещё нет или база недоступна — прежний JSON. */
+async function readRegistry(): Promise<{ reg: Registry; lastBy: string | null }> {
+  try {
+    const org = await prisma.organization.findFirst({ select: { id: true }, orderBy: { createdAt: "asc" } });
+    if (!org) return { reg: JSON_REGISTRY, lastBy: null };
+    const [reg, last] = await Promise.all([loadRegistry(org.id), lastCheckInfo(org.id)]);
+    return { reg, lastBy: last?.byName ?? null };
+  } catch {
+    return { reg: JSON_REGISTRY, lastBy: null };
+  }
+}
 
 function ageDays(iso: string) {
   const t = Date.parse(iso);
@@ -39,6 +40,7 @@ function ageDays(iso: string) {
 }
 
 export async function getProductionAdmission() {
+  const { reg: REC, lastBy } = await readRegistry();
   const queue = {
     ok: 0,
     docs: 0,
@@ -55,7 +57,8 @@ export async function getProductionAdmission() {
   }
 
   const reconciliationAgeDays = ageDays(REC.checkedAt);
-  const reconciliationFresh = reconciliationAgeDays != null && reconciliationAgeDays <= 30;
+  // Устаревшая сверка (старше 30 дней) — предупреждение, а не отказ: дату обновляет кнопка «Отметить сверку выполненной».
+  const reconciliationStale = reconciliationAgeDays == null || reconciliationAgeDays > 30;
 
   let dbError: string | null = null;
   let tables: string[] = [];
@@ -152,7 +155,7 @@ export async function getProductionAdmission() {
   const attachedShare =
     counts.driveDocuments > 0 ? counts.driveDocumentsWithFile / counts.driveDocuments : 0;
 
-  const reconciliationReady = REC.groups.length > 0 && reconciliationFresh;
+  const reconciliationReady = REC.groups.length > 0;
   const productionReady = databaseReady && coreDataReady && reconciliationReady;
 
   const blockers: string[] = [];
@@ -160,12 +163,13 @@ export async function getProductionAdmission() {
   if (missingTables.length) blockers.push("DATABASE_SCHEMA_INCOMPLETE");
   if (failedMigrations.length) blockers.push("DATABASE_MIGRATION_FAILED");
   if (!coreDataReady) blockers.push("PRODUCTION_DATA_NOT_LOADED");
-  if (!reconciliationReady) blockers.push("RECONCILIATION_DATASET_STALE_OR_EMPTY");
+  if (!reconciliationReady) blockers.push("RECONCILIATION_DATASET_EMPTY");
 
   return {
     production_ready: productionReady,
     checked_at: new Date().toISOString(),
     blockers,
+    warnings: reconciliationStale ? ["RECONCILIATION_CHECK_OLDER_THAN_30_DAYS"] : [],
     database: {
       ready: databaseReady,
       error: dbError,
@@ -183,7 +187,10 @@ export async function getProductionAdmission() {
     reconciliation: {
       ready: reconciliationReady,
       checked_at: REC.checkedAt,
+      checked_by: lastBy,
+      source: REC.source,
       age_days: reconciliationAgeDays,
+      stale: reconciliationStale,
       tolerance_rub: 3.96,
       groups: REC.groups.length,
       queue,

@@ -1,6 +1,6 @@
 import "server-only";
 // Мост «Реестр документов → разница по статьям → Главная». Только чтение, ничего не пишет.
-// Реестр = Σ счетов Веллмех из документов (src/data/reconciliation.json). Главная = «Общая стоимость» сырья и работы: оплачено + к оплате
+// Реестр = Σ счетов Веллмех из документов (таблицы Reconciliation* в базе). Главная = «Общая стоимость» сырья и работы: оплачено + к оплате
 // (loadPaymentsOverview / loadPaymentsLeft — те же числа, что в виджетах Главной и в «Оплатах»). Мост строится по ВСЕМ годам.
 import { prisma } from "@/lib/prisma";
 import { loadPaymentsLeft, loadPaymentsOverview } from "@/lib/payments-overview";
@@ -10,7 +10,8 @@ import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { isServicePurchase } from "@/lib/service-purchase";
 import { parseDashFilters } from "@/lib/dashboard-calc";
 import type { Live } from "./live";
-import { ALL_GROUPS, ALL_INVOICES, calcInvoice, groupInvoices, totalsOf } from "./model";
+import { loadRegistry } from "@/lib/reconciliation-registry";
+import { calcInvoice, groupInvoices, totalsOf, type Registry } from "./model";
 
 export type BridgeRow = { label: string; value: number; note?: string };
 export type ReconBridge = {
@@ -27,7 +28,10 @@ export type ReconBridge = {
 const r2 = (v: number) => Math.round(v * 100) / 100;
 const SMALL = 500;
 
-export async function loadReconBridge(orgId: string, live: Live): Promise<ReconBridge> {
+export async function loadReconBridge(orgId: string, live: Live, rgIn?: Registry): Promise<ReconBridge> {
+  const rg = rgIn ?? (await loadRegistry(orgId));
+  const ALL_GROUPS = rg.groups;
+  const ALL_INVOICES = rg.invoices;
   const [ov, left, inp, dash] = await Promise.all([loadPaymentsOverview(orgId), loadPaymentsLeft(orgId), loadDebtInputs(prisma, orgId), loadDashboard(orgId, "all", parseDashFilters({}), "off")]);
   const sum = (k: "fur" | "lining" | "work" | "hides") => ov.reduce((a, r) => a + r[k], 0);
   // Закупки-услуги (УПД без позиций сырья) — отдельная статья «Услуги по УПД»: ни в «Куплено», ни в сырьё Главной не входят.
@@ -51,7 +55,7 @@ export async function loadReconBridge(orgId: string, live: Live): Promise<ReconB
   const purchase: BridgeRow[] = [];
   let dbGroups = 0, small = 0, smallN = 0;
   for (const g of ALL_GROUPS.filter((x) => x.section === "purchase")) {
-    const reg = totalsOf(groupInvoices(g, ids)).amount;
+    const reg = totalsOf(groupInvoices(g, ids, rg)).amount;
     const db = live.group.get(g.id);
     const cost = db?.cost ?? 0;
     dbGroups += cost;
@@ -77,7 +81,7 @@ export async function loadReconBridge(orgId: string, live: Live): Promise<ReconB
   let s1 = 0, s2 = 0, w2 = 0;
   const seenBatch = new Set<number>();
   for (const g of prodGroups) {
-    const reg = totalsOf(groupInvoices(g, ids)).amount;
+    const reg = totalsOf(groupInvoices(g, ids, rg)).amount;
     const b = g.dbLink.batch;
     if (b == null) { s1 += reg; continue; }
     s2 += reg;

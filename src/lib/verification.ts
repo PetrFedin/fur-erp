@@ -16,7 +16,8 @@ import type { Commission4Mode } from "@/lib/commission4-mode";
 import type { UploadTarget } from "@/lib/doc-panel";
 import { MANUAL_PREFIX } from "@/lib/doc-panel";
 import { formatDate, formatMoney } from "@/lib/utils";
-import { ALL_GROUPS, ALL_INVOICES, type Group } from "@/app/(app)/reconciliation/model";
+import type { Group, Registry } from "@/app/(app)/reconciliation/model";
+import { loadRegistry } from "@/lib/reconciliation-registry";
 import { loadLive, type Live } from "@/app/(app)/reconciliation/live";
 
 /**
@@ -131,13 +132,14 @@ export function refEvidence(ref: string | null | undefined): "pp" | "letter" | n
 // ----------------------------------------------------------------------------- факты оплат из реестра сверки (документы)
 
 type RegFact = { amount: number; date: string; ppNo: string | null; basis: string | null };
-let factsCache: { byPp: Map<string, RegFact[]>; all: RegFact[] } | null = null;
-function registryFacts() {
-  if (factsCache) return factsCache;
+const factsCache = new WeakMap<Registry, { byPp: Map<string, RegFact[]>; all: RegFact[] }>();
+function registryFacts(reg: Registry) {
+  const cached = factsCache.get(reg);
+  if (cached) return cached;
   const byPp = new Map<string, RegFact[]>();
   const all: RegFact[] = [];
   const seen = new Set<string>();
-  for (const inv of ALL_INVOICES) {
+  for (const inv of reg.invoices) {
     for (const p of inv.paid) {
       if (p.evidence !== "fact" || !p.date || p.dateApprox) continue;
       const k = `${p.ppNo ?? ""}|${p.date}|${p.amountRub}`;
@@ -148,13 +150,14 @@ function registryFacts() {
       if (p.ppNo) byPp.set(p.ppNo, [...(byPp.get(p.ppNo) ?? []), f]);
     }
   }
-  factsCache = { byPp, all };
-  return factsCache;
+  const built = { byPp, all };
+  factsCache.set(reg, built);
+  return built;
 }
 
 /** Названа ли такая п/п в документах реестра сверки (для статуса «расходится»: п/п есть, а сумма или дата не совпали). */
-export function registryKnowsPp(ppNo: string): boolean {
-  return registryFacts().byPp.has(ppNo);
+export function registryKnowsPp(ppNo: string, reg: Registry): boolean {
+  return registryFacts(reg).byPp.has(ppNo);
 }
 
 /**
@@ -162,8 +165,8 @@ export function registryKnowsPp(ppNo: string): boolean {
  * либо, если п/п в основании не назван, — оплата с той же датой и суммой. Только «факт» с датой, без приблизительных.
  * Возвращает описание либо null.
  */
-export function registryFactFor(p: { amount: number; paidIso: string; ppNo: string | null }, dbSumByPp: Map<string, number>): string | null {
-  const { byPp, all } = registryFacts();
+export function registryFactFor(p: { amount: number; paidIso: string; ppNo: string | null }, dbSumByPp: Map<string, number>, reg: Registry): string | null {
+  const { byPp, all } = registryFacts(reg);
   if (p.ppNo) {
     const facts = byPp.get(p.ppNo);
     if (!facts?.length) return null;
@@ -216,17 +219,11 @@ export type VerifyOpts = {
   only?: { kind: VerifyKind; id: string };
 };
 
-const groupOfPurchase = (() => {
-  let map: Map<string, Group> | null = null;
-  return (number: string): Group | null => {
-    if (!map) {
-      map = new Map();
-      for (const g of ALL_GROUPS) if (g.section === "purchase") for (const n of g.dbLink.purchases ?? []) map.set(n, g);
-    }
-    return map.get(number) ?? null;
-  };
-})();
-const batchGroup = (n: number): Group | null => ALL_GROUPS.find((g) => g.section === "production" && g.dbLink.batch === n) ?? null;
+const groupOfPurchase = (reg: Registry, number: string): Group | null => {
+  for (const g of reg.groups) if (g.section === "purchase" && (g.dbLink.purchases ?? []).includes(number)) return g;
+  return null;
+};
+const batchGroup = (reg: Registry, n: number): Group | null => reg.groups.find((g) => g.section === "production" && g.dbLink.batch === n) ?? null;
 
 const STATUS_BLOCKER: Record<string, string> = {
   docs: "сверка с документами: по документам сходится, но в базе копейки сверх допуска или оплата не привязана",
@@ -238,6 +235,7 @@ const STATUS_BLOCKER: Record<string, string> = {
 export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = {}): Promise<VerifyModel> {
   const want = new Set(opts.kinds ?? VERIFY_KINDS);
   const only = opts.only;
+  const reg0 = await loadRegistry(orgId);
   const users = await db.user.findMany({ where: { organizationId: orgId }, select: { id: true, name: true } });
   const names = new Map(users.map((u) => [u.id, u.name ?? "сотрудник"]));
   const userId = opts.userId ?? null;
@@ -281,7 +279,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
       if (APPROX_RE.test(`${p.docRef ?? ""} ${p.notes ?? ""}`)) blockers.push({ text: "дата оплаты взята по письму или расчёту, а не из платёжки — уточнить по выписке", href });
       if (!p.purchaseId && !p.auctionSession) blockers.push({ text: "оплата не привязана к закупке или аукциону", href: "/payments" });
       const paidIso = iso(p.paidAt);
-      const reg = registryFactFor({ amount, paidIso, ppNo }, sumByPp);
+      const reg = registryFactFor({ amount, paidIso, ppNo }, sumByPp, reg0);
       const st = stampOf(p.confirmedAt, p.confirmedBy, userId, names);
       const verified = p.confirmed && !!p.confirmedAt;
       const target = p.purchase?.number ? `закупка ${p.purchase.number}` : p.auctionSession ? `аукцион ${auctionName(p.auctionSession)}` : "без привязки";
@@ -334,7 +332,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
       if (APPROX_RE.test(`${p.docRef ?? ""} ${p.notes ?? ""}`)) blockers.push({ text: "дата оплаты взята по письму или расчёту, а не из платёжки — уточнить по выписке", href });
       if (p.orders.length === 0) blockers.push({ text: "оплата не привязана к ТЗ и партии (аванс без разнесения)", href: "/payments" });
       const paidIso = iso(p.paidAt);
-      const reg = registryFactFor({ amount, paidIso, ppNo }, sumByPp);
+      const reg = registryFactFor({ amount, paidIso, ppNo }, sumByPp, reg0);
       const st = stampOf(p.confirmedAt, p.confirmedBy, userId, names);
       const verified = p.confirmed && !!p.confirmedAt;
       rows.push({
@@ -359,8 +357,8 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
       orderBy: [{ orderDate: "asc" }, { number: "asc" }],
     });
     let live: Live | null = null;
-    const needLive = purchases.some((p) => groupOfPurchase(p.number));
-    if (needLive) live = await loadLive(orgId);
+    const needLive = purchases.some((p) => groupOfPurchase(reg0, p.number));
+    if (needLive) live = await loadLive(orgId, reg0);
     // Панели «документы и оплата»: аукционы — одним вызовом, закупки вне аукциона — по одной.
     const panelOf = new Map<string, AuctionPanelData>();
     const pOpts = { canUpload: !!opts.canUpload, canMark: !!opts.canMark };
@@ -382,7 +380,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
       const href = `/purchases/${p.id}`;
       if (p.status !== "RECEIVED") blockers.push({ text: "закупка в черновике: мех не принят, УПД ещё нет", href });
       if (p.items.length === 0) blockers.push({ text: "в закупке нет лотов", href });
-      const g = groupOfPurchase(p.number);
+      const g = groupOfPurchase(reg0, p.number);
       if (!g) blockers.push({ text: "закупки нет в реестре сверки: сумму проверить не с чем", href: "/reconciliation" });
       else {
         const gHref = `/reconciliation#${encodeURIComponent(g.id)}`;
@@ -460,7 +458,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
       const nonStock = NON_STOCK_RE.test(`${o.notes ?? ""} ${o.materialDescription ?? ""}`) || (o.materialUsages.length > 0 && o.materialUsages.every((u) => !u.commission4));
       if (o.materialUsages.length === 0 && !nonStock) blockers.push({ text: "состав материалов не задан (нет списаний сырья)", href });
       if (batch) {
-        const g = batchGroup(batch.number);
+        const g = batchGroup(reg0, batch.number);
         const chk = g?.checks?.find((c) => /ТЗ-приложения/.test(c.label));
         if (!g) blockers.push({ text: `партии ${batch.number} нет в реестре сверки: количество и работу сверить не с чем`, href: "/reconciliation" });
         else if (!chk || !chk.ok) blockers.push({ text: `в реестре сверки партии ${batch.number}: количество/работа не совпали с приложениями ТЗ`, href: `/reconciliation#${encodeURIComponent(g.id)}` });
@@ -502,7 +500,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         const pay = bp.panel.pay;
         if (pay.state !== "PAID") blockers.push({ text: `оплата за работу: ${pay.label}`, href });
         if (bp.panel.proofMissing > 0) blockers.push({ text: `оплат без платёжки/п/п: ${bp.panel.proofMissing}`, href });
-        const g = batchGroup(b.number);
+        const g = batchGroup(reg0, b.number);
         if (!g) blockers.push({ text: "партии нет в реестре сверки", href: "/reconciliation" });
         else {
           for (const c of (g.checks ?? []).filter((x) => !x.ok && !/ТЗ-приложения|Остаток по документам/.test(x.label))) blockers.push({ text: `не сошлось: ${c.label}`, href: `/reconciliation#${encodeURIComponent(g.id)}` });

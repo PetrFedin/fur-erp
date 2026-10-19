@@ -8,7 +8,8 @@ import { TILE_BOX } from "@/app/(app)/dashboard/tile";
 import { InfoHint } from "@/components/info-hint";
 import { cn } from "@/lib/utils";
 import { getYearFilter, yearLabel } from "@/lib/year-filter";
-import data from "@/data/reconciliation.json";
+import { loadRegistry } from "@/lib/reconciliation-registry";
+import { loadOutsidePurchases } from "@/lib/reconciliation-outside";
 import { loadLive, type Live } from "./live";
 import { prisma } from "@/lib/prisma";
 import { loadVerifyFlags, type VerifyFlags } from "@/lib/verification";
@@ -18,20 +19,20 @@ import { loadReconBridge, type BridgeRow, type ReconBridge } from "./bridge";
 import { alignBridge } from "@/lib/recon-bridge-align";
 
 import {
-  ALL_INVOICES,
-  RECHECK,
-  SUPERSEDED,
   calcInvoice,
   groupInvoices,
   totalsOf,
   visibleFor,
+  isOpenGroup,
   type Group,
   type InvCalc,
+  type Registry,
   type RecStatus,
   type Totals,
 } from "./model";
 import { RELIABILITY_NOTE } from "@/lib/reliability-note";
 import { CountsLine, INV_TONE, Progress, money } from "./parts";
+import { FromPurchaseButton, GroupFormButton, MarkCheckedButton } from "./recon-forms";
 import { IntegritySection } from "./integrity-section";
 import { StreamBlock } from "../stream-block";
 
@@ -107,8 +108,8 @@ function verifyMark(g: Group, vf: VerifyFlags): { text: string; cls: string } | 
   return { text: "Не подтверждено", cls: "border-amber-300 bg-amber-50 text-amber-900" };
 }
 
-function GroupBlock({ g, ids, live, ver }: { g: Group; ids: Set<string>; live: Live; ver: { text: string; cls: string } | null }) {
-  const list = groupInvoices(g, ids);
+function GroupBlock({ g, ids, live, ver, reg }: { g: Group; ids: Set<string>; live: Live; ver: { text: string; cls: string } | null; reg: Registry }) {
+  const list = groupInvoices(g, ids, reg);
   const t = totalsOf(list);
   const db = live.group.get(g.id);
   const tone = groupTone(list);
@@ -118,6 +119,7 @@ function GroupBlock({ g, ids, live, ver }: { g: Group; ids: Set<string>; live: L
     <LazyDetails
       className="group rounded-lg border border-neutral-200 bg-white"
       id={g.id}
+      refreshKey={`${reg.rev}|${t.amount}|${t.paid}|${db?.paid ?? ""}|${g.status}`}
       load={loadReconGroup.bind(null, g.id)}
       summary={
       <summary className="flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 text-sm [&::-webkit-details-marker]:hidden">
@@ -156,14 +158,14 @@ const ruDate = (iso: string) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split("-"
 const signed = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${money(Math.abs(v))}`;
 
 /** Короткий мост «Реестр документов → разница по статьям → Главная» (по всем годам; чтение, данные не меняются). */
-function BridgeCard({ b }: { b: ReconBridge }) {
+function BridgeCard({ b, invCount }: { b: ReconBridge; invCount: number }) {
   // Целые рубли, сходящиеся на экране (src/lib/recon-bridge-align.ts): реестр + разница = Главная ровно.
   const sh = alignBridge(b);
   const rows = (list: BridgeRow[], vals: number[]) => list.map((r, i) => (
-    <tr key={i} className="border-t border-neutral-100 align-top">
-      <td className="py-1 pl-4 pr-3">{r.label}{r.note ? <InfoHint label={r.label} wide>{r.note}</InfoHint> : null}</td>
-      <td className="whitespace-nowrap py-1 text-right tabular-nums">{signed(vals[i])}</td>
-    </tr>
+    <div key={i} className="flex items-baseline justify-between gap-3 border-t border-neutral-100">
+      <div className="min-w-0 flex-1 py-1 pl-4">{r.label}{r.note ? <InfoHint label={r.label} wide>{r.note}</InfoHint> : null}</div>
+      <div className="whitespace-nowrap py-1 text-right tabular-nums">{signed(vals[i])}</div>
+    </div>
   ));
   const sp = b.purchase.reduce((a, r) => a + r.value, 0), sw = b.production.reduce((a, r) => a + r.value, 0);
   const ok = Math.abs(b.registry.total + sp + sw - b.main.total) < 1;
@@ -178,17 +180,15 @@ function BridgeCard({ b }: { b: ReconBridge }) {
           <p className="mt-1">Реестр {money(sh.registry.total)} {signed(sh.sp + sh.sw)} = Главная {money(sh.main.total)}.</p>
         </InfoHint>
       </div>
-      <table className="mt-2 w-full max-w-4xl">
-        <tbody>
-          <tr className="border-t border-neutral-200 font-medium"><td className="py-1">Реестр документов ({ALL_INVOICES.length} счетов, все годы)</td><td className="whitespace-nowrap py-1 text-right tabular-nums">{money(sh.registry.total)}</td></tr>
-          <tr className="text-neutral-600"><td className="py-1 pl-4">в т. ч. закупки сырья {money(sh.registry.purchase)} · производство {money(sh.registry.production)}</td><td /></tr>
-          <tr className="font-medium"><td className="pt-2">Закупки сырья: Главная − реестр ({signed(sh.sp)})</td><td /></tr>
+      <div className="mt-2 w-full max-w-4xl">
+          <div className="flex items-baseline justify-between gap-3 border-t border-neutral-200 font-medium"><div className="min-w-0 py-1">Реестр документов ({invCount} счетов, все годы)</div><div className="min-w-0 whitespace-nowrap py-1 text-right tabular-nums">{money(sh.registry.total)}</div></div>
+          <div className="flex items-baseline justify-between gap-3 text-neutral-600"><div className="min-w-0 py-1 pl-4">в т. ч. закупки сырья {money(sh.registry.purchase)} · производство {money(sh.registry.production)}</div></div>
+          <div className="flex items-baseline justify-between gap-3 font-medium"><div className="min-w-0 pt-2">Закупки сырья: Главная − реестр ({signed(sh.sp)})</div></div>
           {rows(b.purchase, sh.purchase)}
-          <tr className="font-medium"><td className="pt-2">Работа подрядчику: Главная − реестр ({signed(sh.sw)})</td><td /></tr>
+          <div className="flex items-baseline justify-between gap-3 font-medium"><div className="min-w-0 pt-2">Работа подрядчику: Главная − реестр ({signed(sh.sw)})</div></div>
           {rows(b.production, sh.production)}
-          <tr className="border-t border-neutral-300 font-semibold"><td className="py-1">Главная: сырьё {money(sh.main.raw)} + работа подрядчику {money(sh.main.work)}</td><td className="whitespace-nowrap py-1 text-right tabular-nums">{money(sh.main.total)}</td></tr>
-        </tbody>
-      </table>
+          <div className="flex items-baseline justify-between gap-3 border-t border-neutral-300 font-semibold"><div className="min-w-0 py-1">Главная: сырьё {money(sh.main.raw)} + работа подрядчику {money(sh.main.work)}</div><div className="min-w-0 whitespace-nowrap py-1 text-right tabular-nums">{money(sh.main.total)}</div></div>
+      </div>
     </Card>
   );
 }
@@ -213,16 +213,21 @@ function SummaryCard({ title, t, hint }: { title: string; t: Totals; hint?: Reac
 }
 
 /** Мост считается отдельно от реестра и подгружается потоком: реестр счетов виден сразу. */
-async function BridgeSection({ organizationId, live }: { organizationId: string; live: Live }) {
-  const bridge = await loadReconBridge(organizationId, live);
-  return <BridgeCard b={bridge} />;
+async function BridgeSection({ organizationId, live, reg }: { organizationId: string; live: Live; reg: Registry }) {
+  const bridge = await loadReconBridge(organizationId, live, reg);
+  return <BridgeCard b={bridge} invCount={reg.invoices.length} />;
 }
 
 export default async function ReconciliationPage() {
   const session = await requireSession(); // чтение — всем ролям
   const year = await getYearFilter();
-  const [live, vf] = await Promise.all([loadLive(session.user.organizationId), loadVerifyFlags(prisma, session.user.organizationId)]);
-  const { invs, ids, groups } = visibleFor(year);
+  const orgId = session.user.organizationId;
+  const reg = await loadRegistry(orgId);
+  const [live, vf] = await Promise.all([loadLive(orgId, reg), loadVerifyFlags(prisma, orgId)]);
+  const { invs, ids, groups } = visibleFor(year, reg);
+  const canEdit = reg.source === "db" && (["OWNER", "ADMIN", "ACCOUNTANT"] as string[]).includes(session.user.role);
+  const outside = reg.source === "db" ? await loadOutsidePurchases(orgId, reg) : [];
+  const openGroups = groups.filter(isOpenGroup).length;
 
   const sections = [
     { key: "purchase", title: "Закупка меха и сырья ↔ счета ↔ оплата" },
@@ -255,24 +260,31 @@ export default async function ReconciliationPage() {
           <HowToRead />
         </div>
         <div className="mt-1 text-sm text-neutral-600">
-          Счета Веллмех и оплата по документам · сверено {ruDate(data.checkedAt)}
+          Счета Веллмех и оплата по документам · сверено {ruDate(reg.checkedAt)}
           <InfoHint wide label="О сверке">
             <p>Каждый счёт Веллмех — с оплатой по документам, остатком и тем, что записано в базе. База читается при каждом заходе ({yearLabel(year)}).</p>
-            <p className="mt-2 text-neutral-500">Строки собраны из счетов в документах; чтобы обновить сверку после новых документов, обратитесь к разработчику. Счетов в реестре: {ALL_INVOICES.length}.</p>
+            <p className="mt-2 text-neutral-500">{reg.source === "db" ? "Реестр хранится в базе: группы и счета добавляются и правятся кнопками на этой странице (владелец, администратор, бухгалтер); каждое изменение попадает в журнал." : "Реестр пока читается из файла: после переноса в базу появятся формы ввода."} Счетов в реестре: {reg.invoices.length}.</p>
           </InfoHint>
         </div>
       </div>
 
-      {RECHECK ? (
+      {canEdit ? (
+        <div className="flex flex-wrap items-center gap-2" data-testid="recon-toolbar">
+          <GroupFormButton />
+          <MarkCheckedButton lastLabel={ruDate(reg.checkedAt)} />
+        </div>
+      ) : null}
+
+      {reg.recheck ? (
         <Card className="border-neutral-200 bg-neutral-50 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-sm font-semibold">Перепроверка по документам · {ruDate(RECHECK.date)}</div>
+              <div className="text-sm font-semibold">Перепроверка по документам · {ruDate(reg.recheck.date)}</div>
               <div className="mt-1 text-xs text-neutral-600">
-                Подтверждено: {RECHECK.found.length} · не найдено: {RECHECK.notFound.length} · решений владельца: {RECHECK.ownerDecisions.length}
-                {RECHECK.notFound.length > 0 && (
+                Подтверждено: {reg.recheck.found.length} · не найдено: {reg.recheck.notFound.length} · решений владельца: {reg.recheck.ownerDecisions.length}
+                {reg.recheck.notFound.length > 0 && (
                   <InfoHint wide label="Что не найдено">
-                    <ul className="space-y-1">{RECHECK.notFound.map((x, i) => <li key={i}>• {x}</li>)}</ul>
+                    <ul className="space-y-1">{reg.recheck.notFound.map((x, i) => <li key={i}>• {x}</li>)}</ul>
                   </InfoHint>
                 )}
               </div>
@@ -298,12 +310,18 @@ export default async function ReconciliationPage() {
         </WidgetRow>
         {year === "all" ? (
           <StreamBlock label="Мост «реестр документов → Главная»">
-            <BridgeSection organizationId={session.user.organizationId} live={live} />
+            <BridgeSection organizationId={orgId} live={live} reg={reg} />
           </StreamBlock>
         ) : (
           <Card className="p-3 text-sm text-neutral-600">Мост «реестр документов → Главная» строится по всем годам: выберите в шапке «Все годы».</Card>
         )}
         <Card className="flex flex-wrap items-center gap-x-4 gap-y-1 p-3 text-sm">
+          <span data-testid="open-groups">
+            Не сходятся: <b className="tabular-nums">{openGroups}</b> из {groups.length}
+          </span>
+          <InfoHint label="Что значит «не сходятся»" wide>
+            Группы со статусом «Нет подтверждения оплаты», «Ручная проверка» или «Не сходится». Остальные сходятся по документам или полностью.
+          </InfoHint>
           <span>
             Есть в документах, нет в базе: <b className="tabular-nums">{money(missingRub)}</b> по {missingInDb.length} счетам
           </span>
@@ -329,22 +347,22 @@ export default async function ReconciliationPage() {
               </InfoHint>
             </span>
           ) : null}
-          {RECHECK ? (
+          {reg.recheck ? (
             <InfoHint label="Что перепроверено" wide>
               <div className="space-y-2">
-                <div className="font-semibold text-neutral-900">Перепроверка по документам, {RECHECK.date}</div>
+                <div className="font-semibold text-neutral-900">Перепроверка по документам, {reg.recheck.date}</div>
                 <div>Найдено:</div>
-                <ul className="list-disc space-y-1 pl-4">{RECHECK.found.map((x, i) => <li key={i}>{x}</li>)}</ul>
+                <ul className="list-disc space-y-1 pl-4">{reg.recheck.found.map((x, i) => <li key={i}>{x}</li>)}</ul>
                 <div>Не найдено:</div>
-                <ul className="list-disc space-y-1 pl-4">{RECHECK.notFound.map((x, i) => <li key={i}>{x}</li>)}</ul>
+                <ul className="list-disc space-y-1 pl-4">{reg.recheck.notFound.map((x, i) => <li key={i}>{x}</li>)}</ul>
                 <div>Нужно решение владельца:</div>
-                <ul className="list-disc space-y-1 pl-4">{RECHECK.ownerDecisions.map((x, i) => <li key={i}>{x}</li>)}</ul>
+                <ul className="list-disc space-y-1 pl-4">{reg.recheck.ownerDecisions.map((x, i) => <li key={i}>{x}</li>)}</ul>
               </div>
             </InfoHint>
           ) : null}
-          {SUPERSEDED.length > 0 ? (
+          {reg.superseded.length > 0 ? (
             <InfoHint label="Счета, заменённые новой редакцией" className="ml-auto">
-              Не учитываются в итогах: {SUPERSEDED.map((s) => `№${s.no} на ${money(s.amountRub)} (${s.date})`).join("; ")} — заменены новой редакцией и не оплачивались.
+              Не учитываются в итогах: {reg.superseded.map((s) => `№${s.no} на ${money(s.amountRub)} (${s.date})`).join("; ")} — заменены новой редакцией и не оплачивались.
             </InfoHint>
           ) : null}
         </Card>
@@ -353,7 +371,7 @@ export default async function ReconciliationPage() {
       {sections.map((sec) => {
         const list = groups.filter((g) => g.section === sec.key);
         const order = (g: Group) => {
-          const l = groupInvoices(g, ids);
+          const l = groupInvoices(g, ids, reg);
           const tone = groupTone(l);
           return tone === "unpaid" ? 0 : tone === "approved" ? 1 : tone === "partial" ? 2 : tone === "closed" ? 3 : 4;
         };
@@ -370,11 +388,39 @@ export default async function ReconciliationPage() {
               </InfoHint>
             </h2>
             <div className="space-y-2">
-              {sorted.length === 0 ? <p className="text-sm text-neutral-500">Нет групп за выбранный год — выберите «Все годы» в шапке.</p> : sorted.map((g) => <GroupBlock key={g.id} g={g} ids={ids} live={live} ver={verifyMark(g, vf)} />)}
+              {sorted.length === 0 ? <p className="text-sm text-neutral-500">Нет групп за выбранный год — выберите «Все годы» в шапке.</p> : sorted.map((g) => <GroupBlock key={g.id} g={g} ids={ids} live={live} ver={verifyMark(g, vf)} reg={reg} />)}
             </div>
           </section>
         );
       })}
+
+      {reg.source === "db" ? (
+        <section id="outside" className="space-y-2" aria-label="Закупки вне групп">
+          <h2 className="flex items-center gap-1.5 text-base font-semibold">
+            Закупки вне групп
+            <span className="text-sm font-normal text-neutral-500" data-testid="outside-count">· {outside.length}</span>
+            <InfoHint label="Что это" wide>
+              Закупки из базы, которые не входят ни в одну группу реестра: по ним ещё нет сверки со счетами. Кнопка подставляет контрагента, номер, дату и сумму из закупки и привязывает её к новой или существующей группе. Новая закупка попадает сюда сразу после создания.
+            </InfoHint>
+          </h2>
+          {outside.length === 0 ? (
+            <p className="text-sm text-neutral-500">Все закупки базы входят в группы реестра.</p>
+          ) : (
+            <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white">
+              {outside.map((b) => (
+                <div key={b.key} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-sm" data-outside={b.key}>
+                  <span className="min-w-0 flex-1 basis-56 font-medium">{b.title}<span className="ml-2 text-xs font-normal text-neutral-500">{b.counterparty}</span></span>
+                  <span className="text-xs text-neutral-600">{b.numbers.length > 3 ? `${b.numbers.slice(0, 3).join(", ")} и ещё ${b.numbers.length - 3}` : b.numbers.join(", ")}</span>
+                  <span className="tabular-nums">{money(b.total)}</span>
+                  {canEdit ? (
+                    <FromPurchaseButton b={b} groups={reg.groups.filter((g) => g.section === "purchase" && g.dbId).map((g) => ({ dbId: g.dbId!, title: g.title }))} />
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
 
       <StreamBlock label="Проверка данных">
         <IntegritySection organizationId={session.user.organizationId} />

@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { loadVerifyFlags } from "@/lib/verification";
-import { calcInvoice, totalsOf, visibleFor } from "@/app/(app)/reconciliation/model";
+import { calcInvoice, totalsOf } from "@/app/(app)/reconciliation/model";
+import { loadRegistry } from "@/lib/reconciliation-registry";
 import type { DashboardData } from "@/lib/dashboard-data";
 
 /** Надёжность данных: те же числа, что в «Контроль → Сверка» (реестр счетов, все годы) и «Ждёт проверки». Ничего не пересчитывается заново. */
@@ -20,7 +21,7 @@ export type ReliabilityData = {
 };
 
 export async function loadReliability(orgId: string, d: DashboardData): Promise<ReliabilityData> {
-  const t = totalsOf(visibleFor("all").invs.map((i) => calcInvoice(i)));
+  const t = totalsOf((await loadRegistry(orgId)).invoices.map((i) => calcInvoice(i)));
   const vf = await loadVerifyFlags(prisma, orgId);
   const rows = Object.values(vf.counts).reduce((s, c) => ({ total: s.total + c.total, verified: s.verified + c.verified }), { total: 0, verified: 0 });
   return {

@@ -6,7 +6,7 @@ import { TILE_BOX, TileCaption, TileHead, TileValue } from "@/app/(app)/dashboar
 import { RELIABILITY_NOTE } from "@/lib/reliability-note";
 import { loadControlCounts } from "@/lib/control-counts";
 import type { YearFilter } from "@/lib/year-filter";
-import reconciliationData from "@/data/reconciliation.json";
+import { loadRegistry } from "@/lib/reconciliation-registry";
 import { prisma } from "@/lib/prisma";
 import { formatQty as formatInt } from "@/lib/utils";
 
@@ -21,7 +21,8 @@ export async function AnalysisSection({ organizationId, year }: { organizationId
     prisma.driveDocument.count({ where: { organizationId } }),
     prisma.driveDocument.count({ where: { organizationId, storagePath: { not: null } } }),
   ]);
-  const groups = reconciliationData.groups.filter((g) => year === "all" || g.year === Number(year));
+  const reg = await loadRegistry(organizationId);
+  const groups = reg.groups.filter((g) => year === "all" || g.year === Number(year));
   const conflicts = groups.filter((g) => g.status === "conflict").length;
   const reviews = groups.filter((g) => g.status === "review").length;
   const urgentDocs = counts.blocks?.urgentDocs ?? 0;
@@ -41,7 +42,7 @@ export async function AnalysisSection({ organizationId, year }: { organizationId
       title: "Ранее «Нет информации»",
       conclusion: "Это не аукцион, а шкуры подрядчика (6,40679 млн ₽): по решению владельца 08.10.2026 закупки сохранены, а их оплата выделена из доплат производства (счета №235, №239, №1, №7) отдельными оплатами закупок; остаток шкур партии 7 (189 966,22 ₽) — проверить.",
     },
-  ].map((c) => ({ ...c, group: reconciliationData.groups.find((g) => g.id === c.key) }));
+  ].map((c) => ({ ...c, group: reg.groups.find((g) => g.id === c.key) }));
 
   return (
     <section id="analysis" aria-label="Расхождения и документы для поиска" className="flex scroll-mt-4 flex-col gap-3">

@@ -14,6 +14,8 @@ export type Pay = {
   source: string;
   fileId?: string | null;
   note?: string;
+  /** id строки оплаты в базе (только у реестра из базы). */
+  id?: string;
 };
 export type Invoice = {
   id: string;
@@ -32,6 +34,19 @@ export type Invoice = {
   superseded?: boolean;
   noInvoice?: boolean;
   notes: string[];
+  /** Поля, которые есть только у счетов из базы (в JSON-реестре их нет). */
+  dbId?: string;
+  vatRate?: number | null;
+  vatRub?: number | null;
+  currency?: string;
+  updNo?: string | null;
+  updDate?: string | null;
+  refPurchase?: string | null;
+  refBatch?: number | null;
+  refTz?: string | null;
+  refDocumentId?: string | null;
+  note?: string | null;
+  source?: string;
 };
 export type RecStatus = "ok" | "docs" | "unpaid" | "review" | "conflict" | "empty";
 export type Group = (typeof data.groups)[number] & {
@@ -43,13 +58,66 @@ export type Group = (typeof data.groups)[number] & {
   advanceRub?: number | null;
   /** Контрольные вопросы, которые нельзя закрыть автоматически по текущим первичным документам. */
   manualReview?: string[];
+  /** Только у групп из базы. */
+  dbId?: string;
+  period?: string | null;
+  contract?: string | null;
+  note?: string | null;
+  source?: string;
 };
 
-export const ALL_GROUPS = data.groups as unknown as Group[];
-export const ALL_INVOICES = (data.invoices as unknown as Invoice[]).filter((i) => !i.superseded);
-export const SUPERSEDED = (data.invoices as unknown as Invoice[]).filter((i) => i.superseded);
-export const RECHECK =
-  (data as unknown as { recheck?: { date: string; found: string[]; notFound: string[]; ownerDecisions: string[] } | null }).recheck ?? null;
+export type Recheck = { date: string; found: string[]; notFound: string[]; ownerDecisions: string[] };
+
+/**
+ * Реестр целиком: группы, счета (без заменённых), заменённые счета, блок перепроверки и дата сверки.
+ * Источник — таблицы Reconciliation* (src/lib/reconciliation-registry.ts, loadRegistry) либо, пока таблицы пусты, прежний src/data/reconciliation.json.
+ */
+export type Registry = {
+  groups: Group[];
+  invoices: Invoice[];
+  superseded: Invoice[];
+  recheck: Recheck | null;
+  /** Дата последней сверки (ГГГГ-ММ-ДД): для базы — последняя отметка «сверка выполнена». */
+  checkedAt: string;
+  note: string;
+  source: "db" | "json";
+  /** Метка версии реестра (id последней записи журнала по сверке): меняется после любой правки формой. */
+  rev: string;
+};
+
+export function makeRegistry(
+  raw: { groups: Group[]; invoices: Invoice[]; recheck: Recheck | null; checkedAt: string; note?: string },
+  source: Registry["source"],
+): Registry {
+  return {
+    groups: raw.groups,
+    invoices: raw.invoices.filter((i) => !i.superseded),
+    superseded: raw.invoices.filter((i) => i.superseded),
+    recheck: raw.recheck ?? null,
+    checkedAt: raw.checkedAt,
+    note: raw.note ?? "",
+    source,
+    rev: "",
+  };
+}
+
+/** Прежний реестр из JSON: запасной источник, пока таблицы в базе пусты, и эталон для проверки переноса. */
+export const JSON_REGISTRY: Registry = makeRegistry(
+  {
+    groups: data.groups as unknown as Group[],
+    invoices: data.invoices as unknown as Invoice[],
+    recheck: (data as unknown as { recheck?: Recheck | null }).recheck ?? null,
+    checkedAt: data.checkedAt,
+    note: data.note,
+  },
+  "json",
+);
+
+/** Устарело: только JSON-реестр. Код приложения берёт реестр из loadRegistry(orgId). Оставлено для разовых скриптов и тестов переноса. */
+export const ALL_GROUPS = JSON_REGISTRY.groups;
+export const ALL_INVOICES = JSON_REGISTRY.invoices;
+export const SUPERSEDED = JSON_REGISTRY.superseded;
+export const RECHECK = JSON_REGISTRY.recheck;
 
 export type InvStatus = "closed" | "partial" | "unpaid" | "approved";
 export type Confirm = "docs" | "letter" | "approved" | "none";
@@ -153,23 +221,24 @@ export const inYearSel = (y: number | null, sel: YearSel) => sel === "all" || (y
  * Что видно при выбранном годе. Счёт — по году даты счёта (счёт №37 без даты — по году письма).
  * Группа видна, если в ней есть счёт этого года; группа без счетов — по году аукциона/партии.
  */
-export function visibleFor(sel: YearSel) {
-  const invs = ALL_INVOICES.filter((i) => inYearSel(i.year, sel));
+export function visibleFor(sel: YearSel, reg: Registry) {
+  const invs = reg.invoices.filter((i) => inYearSel(i.year, sel));
   const ids = new Set(invs.map((i) => i.id));
-  const groups = ALL_GROUPS.filter((g) => {
+  const groups = reg.groups.filter((g) => {
     const has = g.invoiceIds.some((id) => ids.has(id));
-    const own = ALL_INVOICES.some((i) => i.groupIds.includes(g.id));
+    const own = reg.invoices.some((i) => i.groupIds.includes(g.id));
     return has || (!own && inYearSel(g.year, sel));
   });
   return { invs, ids, groups };
 }
 
 /** Счета группы: (счёт, доля группы). Для общего счёта — доля по разнесению. */
-export function groupInvoices(g: Group, ids: Set<string>): InvCalc[] {
+export function groupInvoices(g: Group, ids: Set<string>, reg: Registry): InvCalc[] {
   const out: InvCalc[] = [];
+  const byId = new Map(reg.invoices.map((i) => [i.id, i]));
   for (const id of g.invoiceIds) {
     if (!ids.has(id)) continue;
-    const inv = ALL_INVOICES.find((i) => i.id === id);
+    const inv = byId.get(id);
     if (!inv) continue;
     const share = inv.shares[g.id] ?? inv.amountRub;
     out.push(calcInvoice(inv, inv.amountRub > 0 ? share / inv.amountRub : 1));
@@ -203,3 +272,6 @@ export function docRefNo(ref: string | null | undefined): { no: string; date: st
   if (!m) return null;
   return { no: m[1], date: m[2] ? `${m[4]}-${m[3]}-${m[2]}` : null };
 }
+
+/** Группа «не сходится», если нужна ручная работа: конфликт цифр, ручная проверка, нет подтверждения оплаты. */
+export const isOpenGroup = (g: Pick<Group, "status">) => g.status === "unpaid" || g.status === "review" || g.status === "conflict";

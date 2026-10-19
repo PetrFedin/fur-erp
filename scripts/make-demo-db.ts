@@ -88,6 +88,8 @@ const WIPE = [
   "ChatThread", "ChannelBindCode", "ChannelLink", "FittingPhoto", "SupplierCalcTemplate",
   // Поступления и продажи (Cashflow, «Продажи») и прайс розницы — данные заказчика: в демо не входят, страница Cashflow там показывает «нет данных о продажах».
   "SalesReceiptLine",
+  // Реестр сверки (счета Веллмех, оплаты, группы) — реальные коммерческие данные: в демо не входит (страница «Сверка» там пустая, как с обезличенным файлом).
+  "ReconciliationPaymentLink", "ReconciliationInvoicePayment", "ReconciliationInvoiceGroup", "ReconciliationInvoice", "ReconciliationGroup", "ReconciliationCheck",
 ];
 
 /** Фамилии и имена людей, которые встречаются в свободных текстах (этапы отгрузок, примечания). */

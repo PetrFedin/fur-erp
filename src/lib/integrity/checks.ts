@@ -7,7 +7,6 @@ import { purchaseTotalInclVat } from "../purchase-totals";
 import { isServicePurchase } from "../service-purchase";
 import { auctionName } from "../auction-names";
 import { auctionKey } from "../auction-key";
-import recon from "../../data/reconciliation.json";
 import { r2, type IntegrityData, type IPurchase, type IOrder } from "./data";
 import type { Severity, Violation, EntityRef } from "./types";
 import { formatNum } from "@/lib/utils";
@@ -803,8 +802,7 @@ const CHECKS: CheckDef[] = [
     what: "Для групп реестра сверки (аукцион/закупка и партия) сумма из УПД/расчёта подрядчика совпадает с суммой по записям в базе (закупки с НДС; работа партии).",
     fix: "Контроль → Сверка: группа с расхождением; исправить закупку/ТЗ либо зафиксировать решение владельца в реестре.",
     run: ({ d, helpers: h }) => {
-      type G = { id: string; section: string; title: string; doc: { costRub: number | null }; dbLink: { purchases?: string[]; batch?: number } };
-      const groups = (recon as unknown as { groups: G[] }).groups;
+      const groups = d.recon;
       const byNo = new Map(d.purchases.map((p) => [p.number, p]));
       const v: Violation[] = [];
       let n = 0;

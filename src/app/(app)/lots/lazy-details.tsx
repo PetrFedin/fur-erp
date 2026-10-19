@@ -17,6 +17,7 @@ export function LazyDetails({
   defaultOpen = false,
   className,
   id,
+  refreshKey,
 }: {
   summary: ReactNode;
   children?: ReactNode;
@@ -24,6 +25,8 @@ export function LazyDetails({
   defaultOpen?: boolean;
   className?: string;
   id?: string;
+  /** Смена значения заново грузит уже раскрытое содержимое (после правки данных формой); раскрытый блок не мигает «Загружаем…». */
+  refreshKey?: string;
 }) {
   const ref = useRef<HTMLDetailsElement>(null);
   const [shown, setShown] = useState(defaultOpen);
@@ -45,15 +48,25 @@ export function LazyDetails({
     }
   }, [id, defaultOpen]);
 
-  function fetchContent() {
-    setState("loading");
+  function fetchContent(silent = false) {
+    if (!silent) setState("loading");
     load!()
       .then((node) => {
         setLoaded(node);
         setState("done");
       })
-      .catch(() => setState("error"));
+      .catch(() => {
+        if (!silent) setState("error");
+      });
   }
+
+  const lastKey = useRef(refreshKey);
+  useEffect(() => {
+    if (refreshKey === lastKey.current) return;
+    lastKey.current = refreshKey;
+    if (load && state === "done" && ref.current?.open) fetchContent(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   return (
     <details
@@ -75,7 +88,7 @@ export function LazyDetails({
             {state === "error" && (
               <div className="border-t border-neutral-100 bg-neutral-50 px-3 py-3 text-sm text-red-600">
                 Не удалось загрузить.{" "}
-                <button type="button" className="underline" onClick={fetchContent}>
+                <button type="button" className="underline" onClick={() => fetchContent()}>
                   Повторить
                 </button>
               </div>

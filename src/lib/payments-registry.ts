@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { loadPaymentsOverview, type OverviewRow } from "@/lib/payments-overview";
+import { loadRegistry } from "@/lib/reconciliation-registry";
 import { loadVerifyRows, ppNoOf, registryKnowsPp, type VerifyRow } from "@/lib/verification";
 import { storedFileExists } from "@/lib/stored-file-check";
 import { PAYER_NAME, bareNo } from "@/lib/payment-parties";
@@ -62,6 +63,7 @@ export type RegistryFull = {
 const field = (ov: OverviewRow, k: string) => ov.fields.find((f) => f[0] === k)?.[1] ?? "";
 
 export async function loadPaymentsRegistryFull(orgId: string): Promise<RegistryFull[]> {
+  const reg = await loadRegistry(orgId);
   const [ov, vPay, vProd, payFiles, prodFiles] = await Promise.all([
     loadPaymentsOverview(orgId),
     loadVerifyRows(prisma, orgId, "payment"),
@@ -91,7 +93,7 @@ export async function loadPaymentsRegistryFull(orgId: string): Promise<RegistryF
     const pp = ppNoOf(o.doc);
     const registryFact = v?.registryFact ?? null;
     // Расходится: п/п названа и есть в документах сверки, но сумма или дата в базе с ними не совпали.
-    const mismatch = !o.confirmed && !!pp && registryKnowsPp(pp) && !registryFact;
+    const mismatch = !o.confirmed && !!pp && registryKnowsPp(pp, reg) && !registryFact;
     const status: PayStatus = o.confirmed ? "verified" : mismatch ? "mismatch" : fileOk ? "check" : "docs";
     const targets = o.links.length > 0
       ? o.links.slice(0, 4)

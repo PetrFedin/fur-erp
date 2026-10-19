@@ -52,6 +52,12 @@ export const AUDITED_MODELS: Record<string, Op[]> = {
   SupplierInbox: ALL,
   SupplierInboxFile: ALL,
   SupplierCalcTemplate: ALL,
+  ReconciliationGroup: ALL,
+  ReconciliationInvoice: ALL,
+  ReconciliationInvoiceGroup: ALL,
+  ReconciliationInvoicePayment: ALL,
+  ReconciliationPaymentLink: ALL,
+  ReconciliationCheck: ALL,
 };
 
 /**
@@ -186,6 +192,12 @@ function day(v: unknown): string {
 }
 
 export const MODEL_TITLES: Record<string, string> = {
+  ReconciliationGroup: "Группа сверки",
+  ReconciliationInvoice: "Счёт в сверке",
+  ReconciliationInvoiceGroup: "Счёт в группе сверки",
+  ReconciliationInvoicePayment: "Оплата счёта по документам",
+  ReconciliationPaymentLink: "Привязка платежа к счёту",
+  ReconciliationCheck: "Отметка «сверка выполнена»",
   Purchase: "Закупка",
   PurchaseItem: "Позиция закупки",
   PurchaseExpense: "Расход закупки",
@@ -271,6 +283,10 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
     case "ProductionExpense": return `Расход ТЗ ${money(r.amount)}`.trim();
     case "Comment": return `Комментарий: ${(s("text") ?? "").slice(0, 60)}${s("pageTitle") ? " · " + s("pageTitle") : ""}`.trim();
     case "CommentReply": return `Ответ: ${(s("text") ?? "").slice(0, 60)}`.trim();
+    case "ReconciliationGroup": return `Группа сверки ${s("title") ?? ""}`.trim();
+    case "ReconciliationInvoice": return `Счёт в сверке №${s("no") ?? "—"} ${money(r.amountRub)}${s("date") ? " от " + day(r.date) : ""}`.trim();
+    case "ReconciliationInvoicePayment": return `Оплата счёта по документам ${money(r.amountRub)}${r.paidAt ? " " + day(r.paidAt) : ""}`.trim();
+    case "ReconciliationCheck": return `Сверка выполнена ${day(r.checkedDate)}`.trim();
     case "SystemState": return `Решение владельца: ${(s("key") ?? "").replace("owner-decision:", "")}`.trim();
     default: return `${t} ${s("id") ?? ""}`.trim();
   }
@@ -278,6 +294,10 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
 
 /** Русские названия полей для страницы /history; нет в списке — показываем имя поля как есть. */
 export const FIELD_LABELS: Record<string, string> = {
+  amountRub: "сумма, ₽", no: "номер счёта", counterparty: "контрагент", contract: "договор / акт", period: "период",
+  vatRub: "НДС, ₽", updNo: "УПД №", updDate: "дата УПД", refPurchase: "закупка", refBatch: "партия", refTz: "ТЗ",
+  refDocumentId: "документ", dbPurchases: "закупки базы", dbBatch: "партия базы", deletedAt: "удалено", deleteReason: "причина удаления",
+  ppNo: "п/п №", evidence: "основание оплаты", checkedDate: "дата сверки", shareRub: "доля, ₽",
   number: "номер", name: "название", status: "статус", amount: "сумма", paidAt: "дата оплаты", notes: "заметка",
   quantity: "количество", plannedQuantity: "план, шт", producedQuantity: "произведено (факт), шт", size: "размер", color: "цвет",
   supplierId: "поставщик", clientId: "заказчик", purchaseId: "закупка", currency: "валюта", exchangeRate: "курс",

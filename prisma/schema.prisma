@@ -199,6 +199,9 @@ model Organization {
   rawStages SupplierRawStage[]
   supplierContracts SupplierContract[]
   salesReceiptLines SalesReceiptLine[]
+  reconciliationGroups ReconciliationGroup[]
+  reconciliationInvoices ReconciliationInvoice[]
+  reconciliationChecks ReconciliationCheck[]
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
@@ -2088,4 +2091,183 @@ model SalesReceiptLine {
   @@index([organizationId, kind, date])
   @@index([organizationId, modelCode])
   @@index([organizationId, season])
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Реестр сверки (Контроль → Сверка). Раньше жил в src/data/reconciliation.json; с 2026-10-20 — в базе, правится формами.
+// Платежи Payment / ProductionPayment на эти таблицы жёстких внешних ключей не имеют: связь «мягкая» (ReconciliationPaymentLink).
+// ---------------------------------------------------------------------------------------------------------------------
+
+/// Группа реестра: аукцион/закупка (section = purchase) или партия/аванс подрядчика (section = production).
+model ReconciliationGroup {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Стабильный ключ группы («P:СП 03.25», «W:Партия 7»): по нему перенос и ссылки из кода идемпотентны.
+  key            String
+  /// "purchase" | "production"
+  section        String
+  title          String
+  /// Контрагент (посредник/дом): Союзпушнина, Русьпушнина, Веллмех…
+  counterparty   String?
+  /// Договор / акт / спецификация, по которым идёт сверка.
+  contract       String?
+  year           Int?
+  /// Период группы свободным текстом («март 2025»).
+  period         String?
+  /// "ok" | "docs" | "unpaid" | "review" | "conflict" | "empty"
+  status         String       @default("empty")
+  note           String?
+  sortOrder      Int          @default(0)
+  /// Номера закупок базы (З-2026-…), по которым группа считает «в базе».
+  dbPurchases    String[]
+  /// Номер партии производства, если группа — партия.
+  dbBatch        Int?
+  advanceRub     Decimal?     @db.Decimal(14, 2)
+  /// doc, db, checks, diffs, agreements, files, notes, manualReview — как в прежнем реестре (структура сверки с документами).
+  details        Json         @default("{}")
+  /// "import:reconciliation.json" | "ui" | "purchase:<номер>"
+  source         String       @default("ui")
+  createdById    String?
+  createdByName  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  /// Мягкое удаление: строка остаётся в базе, из сверки исчезает.
+  deletedAt      DateTime?
+  deletedByName  String?
+  deleteReason   String?
+
+  invoices ReconciliationInvoiceGroup[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId, section])
+}
+
+/// Счёт Веллмех (или другого контрагента) в реестре.
+model ReconciliationInvoice {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Стабильный ключ («purchase:31:2025-02-27»).
+  key            String
+  section        String
+  no             String?
+  date           DateTime?    @db.Date
+  year           Int?
+  amountRub      Decimal      @db.Decimal(14, 2)
+  /// Ставка НДС в счёте, %: 20 до 2026, 22 с 2026 (по дате счёта); пусто — не указана.
+  vatRate        Decimal?     @db.Decimal(5, 2)
+  vatRub         Decimal?     @db.Decimal(14, 2)
+  currency       String       @default("RUB")
+  purpose        String       @default("")
+  fileId         String?
+  fileTitle      String?
+  /// Документ-основание: УПД / акт и его дата.
+  updNo          String?
+  updDate        DateTime?    @db.Date
+  /// Ссылки на закупку, партию, ТЗ и документ Drive в базе.
+  refPurchase    String?
+  refBatch       Int?
+  refTz          String?
+  refDocumentId  String?
+  noInvoice      Boolean      @default(false)
+  superseded     Boolean      @default(false)
+  /// Порядок счетов в реестре.
+  sortOrder      Int          @default(0)
+  /// [{date, by, note}] — согласования в переписке.
+  approvals      Json         @default("[]")
+  /// string[] — примечания из документов.
+  notes          Json         @default("[]")
+  note           String?
+  source         String       @default("ui")
+  createdById    String?
+  createdByName  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+  deletedByName  String?
+  deleteReason   String?
+
+  groups   ReconciliationInvoiceGroup[]
+  payments ReconciliationInvoicePayment[]
+  links    ReconciliationPaymentLink[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId, section])
+}
+
+/// Счёт ↔ группа (общий счёт делится между группами долями).
+model ReconciliationInvoiceGroup {
+  id             String                @id @default(cuid())
+  organizationId String
+  invoiceId    String
+  invoice      ReconciliationInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  groupId      String
+  group        ReconciliationGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  /// Доля счёта в этой группе; пусто — счёт целиком.
+  shareRub     Decimal?              @db.Decimal(14, 2)
+  /// Порядок счёта внутри группы и группы внутри счёта.
+  posInGroup   Int                   @default(0)
+  posInInvoice Int                   @default(0)
+
+  @@unique([invoiceId, groupId])
+  @@index([groupId])
+}
+
+/// Оплата счёта по документам (платёжка, п/п, баланс, письмо): банковский факт.
+model ReconciliationInvoicePayment {
+  id             String                @id @default(cuid())
+  organizationId String
+  invoiceId  String
+  invoice    ReconciliationInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  sortOrder  Int                   @default(0)
+  paidAt     DateTime?             @db.Date
+  dateApprox Boolean               @default(false)
+  amountRub  Decimal               @db.Decimal(14, 2)
+  ppNo       String?
+  /// "pp" | "balance" | "upd" | "registry" | "calc" | "letter" | "credit"
+  basis      String?
+  /// "fact" | "approved" | "planned"
+  evidence   String                @default("fact")
+  source     String                @default("")
+  fileId     String?
+  note       String?
+
+  @@index([invoiceId])
+}
+
+/// Явная привязка платежа базы (Payment / ProductionPayment) к счёту реестра. Сильнее, чем поиск по тексту «счёт №N» в платеже.
+model ReconciliationPaymentLink {
+  id                  String                @id @default(cuid())
+  organizationId      String
+  invoiceId           String
+  invoice             ReconciliationInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paymentId           String?
+  productionPaymentId String?
+  createdById         String?
+  createdByName       String?
+  createdAt           DateTime              @default(now())
+
+  @@unique([invoiceId, paymentId])
+  @@unique([invoiceId, productionPaymentId])
+  @@index([organizationId])
+}
+
+/// Отметка «сверка выполнена»: дата последней проверки реестра (её читает /api/ready) и перепроверка по документам.
+model ReconciliationCheck {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Дата сверки (календарная, по Москве).
+  checkedDate    DateTime     @db.Date
+  checkedAt      DateTime     @default(now())
+  /// "import" (перенос из прежнего реестра) | "manual" (кнопка «Отметить сверку выполненной»)
+  kind           String       @default("manual")
+  byUserId       String?
+  byName         String?
+  note           String?
+  /// Блок «Перепроверка по документам» {date, found[], notFound[], ownerDecisions[]} и общее примечание реестра.
+  details        Json?
+
+  @@index([organizationId, checkedDate])
 }

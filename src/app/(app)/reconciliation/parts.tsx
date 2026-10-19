@@ -11,6 +11,10 @@ import {
   type Totals,
 } from "./model";
 import type { GroupDb, InvDb } from "./live";
+import { DeleteButton, InvoiceFormButton, LinkDocButton, LinkPaymentButton, PaidRowButton, type PayCandidateView } from "./recon-forms";
+
+/** Что нужно строке счёта для правки: кандидаты платежей и документов, уже сделанные привязки. Нет — кнопок нет (чтение). */
+export type InvEdit = { candidates: PayCandidateView[]; docs: { id: string; title: string }[]; links: { id: string; label: string }[] };
 
 export const money = (v: number | null | undefined) => (v == null ? "—" : formatMoney(v));
 const dmy = (d: string | null, approx?: boolean) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}${approx ? " (≈)" : ""}` : "дата не найдена");
@@ -134,7 +138,7 @@ function dbCell(c: InvCalc, db: InvDb | undefined) {
   return { text: dbPaid > TOL ? money(dbPaid) : "—", sub: dbPaid > TOL ? "сходится" : "", tone: dbPaid > TOL ? "text-emerald-700" : "text-neutral-500" };
 }
 
-export function InvoiceRow({ c, db, groupId }: { c: InvCalc; db: InvDb | undefined; groupId: string }) {
+export function InvoiceRow({ c, db, groupId, ed }: { c: InvCalc; db: InvDb | undefined; groupId: string; ed?: InvEdit }) {
   const { inv } = c;
   const shared = inv.groupIds.length > 1;
   const cell = dbCell(c, db);
@@ -205,6 +209,31 @@ export function InvoiceRow({ c, db, groupId }: { c: InvCalc; db: InvDb | undefin
         <b className="text-sm font-medium">{cell.text}</b>
         {cell.sub ? <span className="block">{cell.sub}</span> : null}
       </div>
+      {ed && inv.dbId ? (
+        <div className="col-span-full flex flex-wrap items-center gap-1.5 border-t border-dashed border-neutral-200 pt-2" style={{ order: 10000 }} data-testid="invoice-actions">
+          <InvoiceFormButton
+            invoice={{ dbId: inv.dbId, no: inv.no, date: inv.date, amountRub: inv.amountRub, vatRate: inv.vatRate ?? null, vatRub: inv.vatRub ?? null, purpose: inv.purpose, updNo: inv.updNo ?? null, updDate: inv.updDate ?? null, refPurchase: inv.refPurchase ?? null, refBatch: inv.refBatch ?? null, refTz: inv.refTz ?? null, note: inv.note ?? null }}
+          />
+          <PaidRowButton invoiceId={inv.dbId} />
+          <LinkPaymentButton invoiceId={inv.dbId} candidates={ed.candidates} hint={`Остаток по счёту ${money(c.remaining)}. Выше в списке — платежи, близкие по сумме и дате; уже учтённых в других счетах здесь нет.`} />
+          <LinkDocButton invoiceId={inv.dbId} candidates={ed.docs} currentTitle={inv.fileTitle} />
+          {inv.paid.map((p, i) => p.id ? (
+            <span key={p.id} className="inline-flex items-center gap-1 rounded border border-neutral-200 px-1.5 text-xs text-neutral-600">
+              оплата {i + 1}: {money(p.amountRub)}
+              <PaidRowButton invoiceId={inv.dbId!} label="Изменить" row={{ id: p.id, date: p.date, amountRub: p.amountRub, ppNo: p.ppNo, basis: p.basis, evidence: p.evidence, source: p.source, dateApprox: !!p.dateApprox }} />
+              <DeleteButton kind="paid" id={p.id} label="×" what={`Убрать строку оплаты ${money(p.amountRub)} (${dmy(p.date, p.dateApprox)}) из сверки?`} />
+            </span>
+          ) : null)}
+          {ed.links.map((l) => (
+            <span key={l.id} className="inline-flex items-center gap-1 rounded border border-sky-200 bg-sky-50 px-1.5 text-xs text-sky-900">
+              {l.label}
+              <DeleteButton kind="link" id={l.id} label="Отвязать" what="Платёж перестанет считаться оплатой этого счёта в строке «В базе»." />
+            </span>
+          ))}
+          <span className="ml-auto" />
+          <DeleteButton kind="invoice" id={inv.dbId} what={`Удалить счёт №${inv.no ?? "—"} на ${money(inv.amountRub)} из сверки?`} />
+        </div>
+      ) : null}
     </div>
   );
 }

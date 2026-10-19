@@ -1,3 +1,4 @@
+import { loadRegistryWith } from "@/lib/reconciliation-registry";
 // Загрузка данных для проверок: ТОЛЬКО чтение (findMany / groupBy), без записи. Числа приведены к number —
 // допуски проверок (копейки, 50 ₽) заведомо больше ошибки плавающей точки.
 import type { PrismaClient } from "@prisma/client";
@@ -61,9 +62,12 @@ export type IntegrityData = {
   auditAfter: { model: string; recordId: string; at: Date }[];
   /** Сумма разнесений (PaymentAllocation) по оплатам подрядчику. */
   allocByPayment: Map<string, number>;
+  /** Группы реестра сверки (из базы; пока таблицы пусты — из прежнего JSON). */
+  recon: { id: string; section: string; title: string; doc: { costRub: number | null }; dbLink: { purchases?: string[]; batch?: number } }[];
 };
 
 export async function loadIntegrityData(db: PrismaClient, orgId: string): Promise<IntegrityData> {
+  const reg = await loadRegistryWith(db, orgId);
   const [purchases, lots, usages, expGroups, orders, batches, payments, prodPayments, models, auctions, fgStock, fgMoves, driveLinks, allocGroups] = await Promise.all([
     db.purchase.findMany({
       where: { organizationId: orgId },
@@ -148,6 +152,7 @@ export async function loadIntegrityData(db: PrismaClient, orgId: string): Promis
 
   return {
     orgId,
+    recon: reg.groups.map((g) => ({ id: g.id, section: g.section, title: g.title, doc: { costRub: g.doc?.costRub ?? null }, dbLink: g.dbLink })),
     purchases: purchases.map((p) => ({
       ...p,
       exchangeRate: num(p.exchangeRate),

@@ -5,7 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { auctionName } from "@/lib/auction-payments";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { batchTotals, loadBatchesWithOrders } from "@/lib/batch-stats";
-import { ALL_GROUPS, ALL_INVOICES, docRefNo, type Group, type Invoice } from "./model";
+import { loadRegistry } from "@/lib/reconciliation-registry";
+import { docRefNo, type Group, type Invoice, type Registry } from "./model";
 
 // ЖИВОЙ расчёт «в базе»: при каждом заходе читаем Payment / ProductionPayment / закупки / партии из БД.
 // Строки документов (счета, платежи по документам) берутся из JSON; цифры базы — только отсюда. Запись в БД не выполняется.
@@ -18,6 +19,8 @@ export type Live = {
   group: Map<string, GroupDb>;
   /** Платежи БД со ссылкой на счёт Веллмех, которого нет в реестре. */
   orphans: DbPay[];
+  /** Платежи базы, попавшие в какой-либо счёт реестра: «p:<id>» (Payment) и «q:<id>» (ProductionPayment). */
+  matchedPay: Set<string>;
   loadedAt: string;
 };
 
@@ -36,8 +39,11 @@ function pickInvoice(cands: Invoice[], ref: { no: string; date: string | null },
   return before[0] ?? same[0];
 }
 
-export async function loadLive(orgId: string): Promise<Live> {
-  const [payments, prodPayments, purchases, batches, refAuctions] = await Promise.all([
+export async function loadLive(orgId: string, regIn?: Registry): Promise<Live> {
+  const reg = regIn ?? (await loadRegistry(orgId));
+  const ALL_INVOICES = reg.invoices;
+  const ALL_GROUPS = reg.groups;
+  const [payments, prodPayments, purchases, batches, refAuctions, links] = await Promise.all([
     prisma.payment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
       select: { id: true, amount: true, paidAt: true, docRef: true, ppNo: true, confirmed: true, auctionSession: true, purchase: { select: { number: true, isContractorRaw: true } } },
@@ -56,10 +62,16 @@ export async function loadLive(orgId: string): Promise<Live> {
     }),
     loadBatchesWithOrders(orgId),
     prisma.auction.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true, isService: true } }),
+    // Явные привязки платежей к счетам, сделанные формой «Привязать платёж» (сильнее поиска по тексту основания).
+    reg.source === "db" ? prisma.reconciliationPaymentLink.findMany({ where: { organizationId: orgId }, select: { invoiceId: true, paymentId: true, productionPaymentId: true, invoice: { select: { key: true } } } }) : Promise.resolve([]),
   ]);
+  const linkOfPay = new Map<string, string>();
+  for (const l of links) linkOfPay.set(`${l.paymentId ? "p" : "q"}:${l.paymentId ?? l.productionPaymentId}`, l.invoice.key);
+  const invByKey = new Map(ALL_INVOICES.map((i) => [i.id, i]));
 
   const inv = new Map<string, InvDb>();
   const orphans: DbPay[] = [];
+  const matchedPay = new Set<string>();
   const purchaseInv = ALL_INVOICES.filter((i) => i.section === "purchase");
   const prodInv = ALL_INVOICES.filter((i) => i.section === "production");
   const put = (i: Invoice, p: DbPay) => {
@@ -86,15 +98,17 @@ export async function loadLive(orgId: string): Promise<Live> {
         ? pickInvoice(prodInv, ref, dp.paidAt) ?? pickInvoice(purchaseInv, ref, dp.paidAt)
         : pickInvoice(purchaseInv, ref, dp.paidAt) ?? (purchaseInv.some((i) => i.no === ref.no) || !ref.date ? null : prodInv.find((i) => i.no === ref.no && i.date === ref.date) ?? null)
       : null;
-    const found = hit ?? viaPp(p.ppNo);
-    if (found) put(found, dp);
+    const forced = invByKey.get(linkOfPay.get(`p:${p.id}`) ?? "") ?? null;
+    const found = forced ?? hit ?? viaPp(p.ppNo);
+    if (found) { put(found, dp); matchedPay.add(`p:${p.id}`); }
     else if (ref) orphans.push(dp);
   }
   for (const p of prodPayments) {
     const dp: DbPay = { amount: n(p.amount), paidAt: ymd(p.paidAt), docRef: p.docRef, confirmed: p.confirmed, label: "оплата производства" };
     const ref = docRefNo(p.docRef);
-    const hit = (ref ? pickInvoice(prodInv, ref, dp.paidAt) : null) ?? viaPp(p.ppNo);
-    if (hit) put(hit, dp);
+    const forced = invByKey.get(linkOfPay.get(`q:${p.id}`) ?? "") ?? null;
+    const hit = forced ?? (ref ? pickInvoice(prodInv, ref, dp.paidAt) : null) ?? viaPp(p.ppNo);
+    if (hit) { put(hit, dp); matchedPay.add(`q:${p.id}`); }
     else if (ref) orphans.push(dp);
   }
 
@@ -143,5 +157,5 @@ export async function loadLive(orgId: string): Promise<Live> {
       group.set(g.id, { cost: null, paid, pays: invs.reduce((a, i) => a + (inv.get(i.id)?.pays.length ?? 0), 0), note: invs.length ? "платежи по счетам группы" : "в базе нет данных" });
     }
   }
-  return { inv, group, orphans, loadedAt: new Date().toISOString() };
+  return { inv, group, orphans, matchedPay, loadedAt: new Date().toISOString() };
 }

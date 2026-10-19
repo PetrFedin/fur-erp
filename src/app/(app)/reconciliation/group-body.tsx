@@ -3,8 +3,9 @@ import { stripServiceTags } from "@/lib/note-tags";
 import { InfoHint } from "@/components/info-hint";
 import { cn } from "@/lib/utils";
 import type { Live } from "./live";
-import { groupInvoices, totalsOf, TOL, type Group } from "./model";
-import { GroupDbLine, InvoiceHeader, InvoiceRow, money } from "./parts";
+import { groupInvoices, totalsOf, TOL, type Group, type Registry } from "./model";
+import { GroupDbLine, InvoiceHeader, InvoiceRow, money, type InvEdit } from "./parts";
+import { DeleteButton, GroupFormButton, InvoiceFormButton } from "./recon-forms";
 
 /** Документы и оплата по группе — те же панели и статусы, что в карточках аукциона/партии и на «Документах». */
 export type DocInfo = { href: string; label: string; missing: number; proofMissing: number; dot: string };
@@ -63,8 +64,8 @@ function Mark({ ok }: { ok: boolean | null }) {
 }
 
 /** Раскрытое содержимое группы реестра: счета, строка «в базе», проверки и расхождения, документы. Грузится при раскрытии. */
-export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; live: Live; doc: DocInfo | null }) {
-  const list = groupInvoices(g, ids);
+export function GroupBody({ g, ids, live, doc, reg, ed }: { g: Group; ids: Set<string>; live: Live; doc: DocInfo | null; reg: Registry; /** Есть права на правку и реестр уже в базе: id счёта → данные для кнопок. */ ed?: Map<string, InvEdit> }) {
+  const list = groupInvoices(g, ids, reg);
   const t = totalsOf(list);
   const db = live.group.get(g.id);
   const failedChecks = g.checks.filter((c) => c.ok === false).length;
@@ -73,11 +74,21 @@ export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; l
   const reconTone = g.status === "ok" || g.status === "docs" ? "ok" : g.status === "conflict" ? "bad" : "warn";
   return (
       <div className="border-t border-neutral-100">
+        {ed && g.dbId ? (
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-neutral-100 bg-neutral-50/60 px-3 py-2" data-testid="group-actions">
+            <InvoiceFormButton groupDbId={g.dbId} groupTitle={g.title} />
+            <GroupFormButton
+              group={{ dbId: g.dbId, section: g.section, title: g.title, counterparty: g.house || null, contract: g.contract ?? null, year: g.year ?? null, period: g.period ?? null, status: g.status, note: g.note ?? null, dbPurchases: g.dbLink.purchases ?? [], dbBatch: g.dbLink.batch ?? null }}
+            />
+            <span className="ml-auto" />
+            <DeleteButton kind="group" id={g.dbId} what={`Удалить группу «${g.title}» из сверки?${g.invoiceIds.length ? ` В ней ещё ${g.invoiceIds.length} счёт(ов): сначала удалите их.` : ""}`} />
+          </div>
+        ) : null}
         {list.length > 0 ? (
           <>
             <InvoiceHeader />
             {list.map((c) => (
-              <InvoiceRow key={c.inv.id} c={c} db={live.inv.get(c.inv.id)} groupId={g.id} />
+              <InvoiceRow key={c.inv.id} c={c} db={live.inv.get(c.inv.id)} groupId={g.id} ed={ed?.get(c.inv.id)} />
             ))}
           </>
         ) : (
