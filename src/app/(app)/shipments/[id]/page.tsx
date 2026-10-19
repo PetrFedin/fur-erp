@@ -23,6 +23,9 @@ import { TimelineSection } from "./timeline-section";
 import { AcceptList, AddLinesButton, LinesTable, type LineRow } from "./lines-ui";
 import { STAGE_LABEL } from "@/lib/shipment-stage";
 import { loadShipmentPeople } from "@/lib/shipment-data";
+import { ZiSection, type ZiRow } from "./zi-section";
+import { loadZi } from "@/lib/shipment-zi-db";
+import { matchZi, ziForSupplier, ziStatus } from "@/lib/shipment-zi";
 import { CreateAcceptanceButton, ClampText, DocRemove, EventActions, NewEventButton, SummaryShell, type EventValues } from "./event-ui";
 
 export const metadata = { title: "Отгрузка" };
@@ -184,6 +187,23 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   const reworkedLines = lines.filter((l) => l.reworks.length > 0);
   const accEv = s.acceptEventId ? s.events.find((e) => e.id === s.acceptEventId) : null;
   const status = SHIPMENT_STATUS[s.status];
+
+  // Накладные ЗИ (приёмка в ЦУМ): подрядчику — без бутиков, сумм и расхождений по ценам.
+  const ziRaw = await loadZi(orgId, s.id);
+  const ziView = ziRaw ? (() => {
+    const zi = isSupplier ? ziForSupplier(ziRaw) : ziRaw;
+    const m = matchZi(zi.lines, lines.map((l) => ({ id: l.id, code: l.productionOrder?.productModel.salesCode ?? articleOfLine(l), size: l.size, color: l.color, quantity: l.quantity })));
+    const rows: ZiRow[] = lines.map((l) => {
+      const f = m.byLine.get(l.id);
+      const inZi = f?.qty ?? 0;
+      return {
+        id: l.id, label: labelOf(l), article: l.productionOrder?.productModel.salesCode ?? articleOfLine(l), color: l.color ?? "", size: l.size ?? "", quantity: l.quantity, inZi,
+        status: ziStatus(l.quantity, inZi), supplies: f?.supplies ?? [],
+        ...(isSupplier ? {} : { boutiques: f?.boutiques ?? [], sum: f?.sum ?? 0 }),
+      };
+    });
+    return { rows, supplies: zi.supplies, priceDiffs: zi.priceDiffs, unmatched: m.unmatched.length };
+  })() : null;
 
   // Шаги новой отгрузки: подсказка с кнопками, пока не заведены состав примерки, этапы и приёмка в Коптево.
   const stepDone = [lines.length > 0, s.events.some((e) => !isAcceptanceEvent({ ...e, expected: true }) && !(e.expected && e.title === FITTING_TITLE)), !!s.acceptedAt || s.events.some((e) => isAcceptanceEvent({ ...e, expected: true }))];
@@ -394,6 +414,10 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           closeProps={{ rows: acceptRows, totals, names }}
           createEvent={canEdit ? <CreateAcceptanceButton shipmentId={s.id} /> : null}
         />
+
+        {ziView && (
+          <ZiSection rows={ziView.rows} supplies={ziView.supplies} priceDiffs={ziView.priceDiffs} unmatched={ziView.unmatched} staff={!isSupplier} />
+        )}
 
         {s.acceptedAt && summary && (
           <SummaryShell
