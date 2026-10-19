@@ -10,7 +10,9 @@ import type { PriceModel } from "./prices-block";
 
 export const metadata = { title: "Маржа и наценка" };
 
-export default async function MarginPage() {
+export default async function MarginPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const initialCat = sp.cat === "clothes" || sp.cat === "acc" ? sp.cat : "all";
   // Внешний поставщик (SUPPLIER) сюда не попадает: requireSession без allowSupplier.
   const session = await requireSession();
   const org = session.user.organizationId;
@@ -28,5 +30,5 @@ export default async function MarginPage() {
     priceModels.push({ id: m.id, name: m.name, current: m.sellingPrice ? m.sellingPrice.toNumber() : null, rows: rows.filter((r) => r.modelCode === code).map((r) => ({ acode: r.acode, color: r.color, size: r.size, price: r.price })) });
   }
   priceModels.sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }));
-  return <MarginView input={input ? serializeInput(input) : null} sizes={sizes} photos={photos} priceModels={priceModels} canEdit={hasRole(session.user.role, ACCESS.models)} />;
+  return <MarginView input={input ? serializeInput(input) : null} sizes={sizes} photos={photos} priceModels={priceModels} canEdit={hasRole(session.user.role, ACCESS.models)} initialCat={initialCat} />;
 }

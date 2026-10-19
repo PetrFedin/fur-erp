@@ -94,13 +94,17 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos }: { in
     return (
       <Fragment key={n.id}>
         <tr className="border-b border-neutral-200">
-          <th scope="row" className="sticky left-0 z-[1] bg-white px-2 py-1 text-left text-sm font-normal" style={{ paddingLeft: 8 + depth * 16 }}>
+          <td className="sticky left-0 z-[1] w-14 min-w-14 bg-white px-1 py-1 text-center align-middle">
+            {n.dim === "article" || n.dim === "color" ? (
+              photo && vphotos.length > 0 ? <PhotoGalleryButton modelId={photo.modelId} photos={vphotos} title={n.label} compact thumbOnly /> : <span role="img" aria-label="Фото нет" className="mx-auto inline-block size-11 rounded border border-dashed border-neutral-300" />
+            ) : null}
+          </td>
+          <th scope="row" className="sticky left-14 z-[1] h-14 bg-white px-2 py-1 text-left text-sm font-normal" style={{ paddingLeft: 8 + depth * 16 }}>
             <span className="flex items-center gap-2">
               {n.children.length ? (
                 <button type="button" aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Развернуть"}: ${n.label}`} onClick={() => toggle(n.id)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-left">{isOpen ? "▾" : "▸"}</button>
               ) : <span aria-hidden className="inline-block w-11" />}
               <span className="min-w-0 break-words">{n.label}</span>
-              {photo && vphotos.length > 0 ? <PhotoGalleryButton modelId={photo.modelId} photos={vphotos} title={n.label} compact /> : n.dim === "article" ? <span className="text-xs text-neutral-600">Фото нет</span> : null}
             </span>
           </th>
           {n.cols.map((m, i) => <td key={i} className={td}>{m.sold === 0 && m.received === 0 ? "—" : cellOf(metric, m)}</td>)}
@@ -168,7 +172,8 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos }: { in
             <table className="w-max min-w-full border-collapse">
               <thead>
                 <tr className="border-b border-neutral-300">
-                  <th scope="col" className={th + " sticky left-0 top-0 z-[2] bg-white text-left"}>{CUTS.find(([k]) => k === cut)![1]} — по клику раскрывается следующий уровень</th>
+                  <th scope="col" className={th + " sticky left-0 top-0 z-[2] w-14 min-w-14 bg-white text-center"}>Фото</th>
+                  <th scope="col" className={th + " sticky left-14 top-0 z-[2] bg-white text-left"}>{CUTS.find(([k]) => k === cut)![1]} — по клику раскрывается следующий уровень</th>
                   {heads.map((h) => <th key={h} scope="col" className={th + " sticky top-0 bg-white"}>{h}</th>)}
                 </tr>
               </thead>

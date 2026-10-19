@@ -239,12 +239,17 @@ function ChartBox({ n, children }: { n: number; children: (colW: number) => Reac
   return <div ref={ref} className="w-full overflow-x-auto" data-keep-scroll>{children(colW)}</div>;
 }
 
-function Tile({ label, value, sub, hint, tone }: { label: string; value: string; sub?: string; hint?: React.ReactNode; tone?: "bad" | "good" }) {
+function Tile({ label, value, sub, hint, tone, mini }: { label: string; value: string; sub?: string; hint?: React.ReactNode; tone?: "bad" | "good"; /** Две мини-строки «Одежда … / Аксессуары …» со своими значениями. */ mini?: [string, string][] }) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3">
       <div className="flex items-center gap-1 text-xs text-neutral-600">{label}{hint ? <InfoHint label={`Как считается: ${label}`} wide>{hint}</InfoHint> : null}</div>
       <div className={"text-lg font-semibold tabular-nums " + (tone === "bad" ? "text-[#b4310b]" : tone === "good" ? "text-[#17613c]" : "text-neutral-900")}>{value}</div>
       {sub ? <div className="text-xs text-neutral-600">{sub}</div> : null}
+      {mini ? (
+        <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
+          {mini.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{k}</dt><dd className="font-semibold tabular-nums text-neutral-900">{v}</dd></div>)}
+        </dl>
+      ) : null}
     </div>
   );
 }
@@ -283,11 +288,17 @@ export function CashflowView({ incl, ex, salesBy, workBy, vat, services, initial
     const last = keep.length ? keep[keep.length - 1] : -1;
     const wTot = ser.work.reduce((a, b) => a + b, 0), uTot = s.recPcs.reduce((a, b) => a + b, 0);
     const wu = { work: ser.work, units: s.recPcs, avg: sales.available && uTot > 0 && Math.abs(wTot) > 0.005 ? wTot / uTot : null };
-    return { all, keep, d, s, revenue, ser, stock: pick(stAll.stock), h, g, wu, cumNetEnd: last >= 0 ? serAll.cumNet[last] : 0 };
-  }, [exVat, period, cat, incl, ex, sales, salesBy.all, workBy]);
+    const per = (c: "clothes" | "acc") => {
+      const sc = sliceSales(salesBy[c], keep);
+      const rv = keep.map((i) => (exVat ? salesBy[c].revEx : salesBy[c].revIncl)[i]);
+      return { h: headline(d, sc, rv, keep.map((i) => workBy[c][i])), g: goodsHeadline(salesBy[c], all.months, period) };
+    };
+    return { all, keep, d, s, revenue, ser, stock: pick(stAll.stock), h, g, wu, per: { clothes: per("clothes"), acc: per("acc") }, cumNetEnd: last >= 0 ? serAll.cumNet[last] : 0 };
+  }, [exVat, period, cat, incl, ex, sales, salesBy, workBy]);
   const { d, s, ser, h, g } = m;
   const months = d.months;
   const hasSales = sales.available;
+  const mini = (f: (c: "clothes" | "acc") => string): [string, string][] => [["Одежда", hasSales ? f("clothes") : "—"], ["Аксессуары", hasSales ? f("acc") : "—"]];
   const stockEnd = stockSeries(sales).stock.at(-1) ?? 0;
   const label = period === "all" ? "2025–2026" : period;
   const vatNote = exVat ? "без НДС" : "с НДС";
@@ -392,14 +403,12 @@ export function CashflowView({ incl, ex, salesBy, workBy, vat, services, initial
           hint={<p>Получено минус потрачено за период.</p>} />
         <Tile label="Накопленный итог" value={hasSales && !filtered ? money(m.cumNetEnd) : "—"} tone={hasSales && !filtered ? (m.cumNetEnd < 0 ? "bad" : "good") : undefined} sub={filtered ? "траты не делятся по категориям" : hasSales ? "с начала данных на конец периода" : "нет данных о продажах"}
           hint={<p>Получено минус потрачено нарастающим итогом с первого месяца данных до конца выбранного периода.</p>} />
-        <Tile label="Работа в месяц" value={h.workPerMonth === null ? "—" : money(h.workPerMonth)} sub={h.workMonths ? `в среднем за ${h.workMonths} мес.` : undefined}
+        <Tile label="Работа в месяц" mini={mini((c) => (m.per[c].h.workPerMonth === null ? "—" : money(m.per[c].h.workPerMonth)))} value={h.workPerMonth === null ? "—" : money(h.workPerMonth)} sub={h.workMonths ? `в среднем за ${h.workMonths} мес.` : undefined}
           hint={<p>Оплаты статьи «Работа подрядчику» за период ÷ число месяцев от первой до последней оплаты периода (месяцы без оплат входят).</p>} />
-        <Tile label="Работа на единицу" value={h.workPerUnit === null ? "—" : money(h.workPerUnit)} sub={hasSales ? `${pcs(h.unitsReceived)} шт. получено` : "нет данных о приходе"}
+        <Tile label="Работа на единицу" mini={mini((c) => (m.per[c].h.workPerUnit === null ? "—" : money(m.per[c].h.workPerUnit)))} value={h.workPerUnit === null ? "—" : money(h.workPerUnit)} sub={hasSales ? `${pcs(h.unitsReceived)} шт. получено` : "нет данных о приходе"}
           hint={<p>Оплаты «Работа подрядчику» за период ÷ единиц, полученных за период. Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее).</p>} />
-        <Tile label="Средняя цена продажи" value={h.avgPrice === null ? "—" : money(h.avgPrice)} sub={hasSales ? `${pcs(h.unitsSold)} шт. продано, ${vatNote}` : "нет данных о продажах"}
+        <Tile label="Средняя цена продажи" mini={mini((c) => (m.per[c].h.avgPrice === null ? "—" : money(m.per[c].h.avgPrice)))} value={h.avgPrice === null ? "—" : money(h.avgPrice)} sub={hasSales ? `${pcs(h.unitsSold)} шт. продано, ${vatNote}` : "нет данных о продажах"}
           hint={<p>Выручка ({vatNote}) ÷ проданные единицы (возвраты минус).</p>} />
-        <Tile label="Скидка" value={h.discountPct === null ? "—" : h.discountPct.toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " %"} sub={hasSales ? "от цены до скидки" : "нет данных о продажах"}
-          hint={<p>Скидка ÷ (выручка + скидка), по данным выгрузки продаж, с НДС.</p>} />
       </section>
 
       <div className="flex flex-wrap items-center gap-2 print:hidden">
@@ -529,8 +538,8 @@ export function CashflowView({ incl, ex, salesBy, workBy, vat, services, initial
         {hasSales ? (
           <>
             <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
-              <Tile label="Приход, шт." value={pcs(g.received)} sub={`за ${label}`} hint={<p>Единицы, поступившие за период (выгрузка «поступления»; корректировки с минусом учтены).</p>} />
-              <Tile label="Продано, шт." value={pcs(g.sold)} sub={`за ${label}`} hint={<p>Единицы проданные за период, возвраты вычтены.</p>} />
+              <Tile label="Приход, шт." mini={mini((c) => pcs(m.per[c].g.received))} value={pcs(g.received)} sub={`за ${label}`} hint={<p>Единицы, поступившие за период (выгрузка «поступления»; корректировки с минусом учтены).</p>} />
+              <Tile label="Продано, шт." mini={mini((c) => pcs(m.per[c].g.sold))} value={pcs(g.sold)} sub={`за ${label}`} hint={<p>Единицы проданные за период, возвраты вычтены.</p>} />
               <Tile label="Остаток, шт." value={pcs(g.stock)} sub="на конец периода" hint={<p>Накопленный приход минус накопленные продажи с начала данных. Фактический остаток по отчёту о товарах на 19.10.2026 — {REPORT_STOCK} шт.; расчётный на конец данных — {stockEnd} шт.{stockEnd !== REPORT_STOCK ? ` Разница ${stockEnd - REPORT_STOCK} шт. — списания и перемещения, которых нет в выгрузке поступлений и продаж.` : ""}</p>} />
               <Tile label="Sell-through" value={g.sellThrough === null ? "—" : g.sellThrough.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " %"} sub="продано / получено" hint={<p>Накопленные продажи ÷ накопленный приход с начала данных до конца периода.</p>} />
               <Tile label="Покрытие остатка" value={g.coverMonths === null ? "—" : g.coverMonths.toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " мес."} sub="остаток / продажи в месяц" hint={<p>Остаток на конец периода ÷ средние продажи в месяц (от первого до последнего месяца с продажами в периоде). Сезонность не учитывается.</p>} />

@@ -17,7 +17,9 @@ const src = (modelId: string, id: string, thumb?: boolean) => `/api/article-phot
  * Листание: ← / → и по краям, свайп, полоса миниатюр; закрытие: Esc, ×, клик вне фото. На телефоне — на весь экран.
  * Основа — нативный <dialog>.showModal(): фокус заперт внутри, фон неактивен, Esc из коробки.
  */
-export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact, onDelete, onDeleteAll, groups: groupsProp, shops }: {
+export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact, onDelete, onDeleteAll, groups: groupsProp, shops, thumbOnly }: {
+  /** Только миниатюра 44×44 (для узкой колонки таблицы): клик открывает окно с большим фото. */
+  thumbOnly?: boolean;
   modelId: string; photos: GalleryPhoto[]; title: string; compact?: boolean;
   groups?: GalleryGroup[]; shops?: Record<string, GalleryShop>;
   /** Только для сотрудников заказчика с правом править артикул (подрядчику не передаются — кнопок удаления нет). */
@@ -106,13 +108,14 @@ export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact,
       <button
         type="button"
         onClick={() => { setI(0); setGk(null); setOpen(true); }}
-        className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-2 py-1 text-sm hover:bg-neutral-50 sm:min-h-9"
+        className={thumbOnly ? "inline-flex size-11 items-center justify-center overflow-hidden rounded border border-neutral-300 bg-white p-0 hover:bg-neutral-50" : "inline-flex min-h-11 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-2 py-1 text-sm hover:bg-neutral-50 sm:min-h-9"}
         aria-haspopup="dialog"
+        aria-label={`Фото артикула ${title}${thumbOnly ? ` (${total})` : ""}`}
         title={`Фото артикула ${title}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src(modelId, ordered[0].id, true)} alt="" loading="lazy" className={(compact ? "size-8" : "size-10") + " rounded object-cover"} />
-        <span>Фото <span className="tabular-nums text-neutral-500">({total})</span></span>
+        <img src={src(modelId, ordered[0].id, true)} alt="" loading="lazy" className={thumbOnly ? "size-11 object-cover" : (compact ? "size-8" : "size-10") + " rounded object-cover"} />
+        {thumbOnly ? null : <span>Фото <span className="tabular-nums text-neutral-500">({total})</span></span>}
       </button>
       <dialog
         ref={ref}
