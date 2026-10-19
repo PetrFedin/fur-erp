@@ -248,6 +248,43 @@ function Spark({ values }: { values: number[] }) {
   return <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-6 w-full" aria-hidden><polyline points={pts} fill="none" stroke="#5a6a94" strokeWidth={1.5} vectorEffect="non-scaling-stroke" /></svg>;
 }
 
+/** Окно с деталями поверх страницы — тот же паттерн, что у плиток Главной (ProductionModal): затемнение, role=dialog, Esc, ✕, клик по фону, фокус-ловушка, возврат фокуса; на телефоне во весь экран. */
+function TileModal({ title, subtitle, onClose, children }: { title: string; subtitle: string; onClose: () => void; children: React.ReactNode }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
+      if (e.key !== "Tab" || !dialogRef.current) return;
+      const f = Array.from(dialogRef.current.querySelectorAll<HTMLElement>("button, a[href], [tabindex]:not([tabindex='-1'])")).filter((el) => !el.hasAttribute("disabled"));
+      if (f.length === 0) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    window.addEventListener("keydown", onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = overflow; prev?.focus?.(); };
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[100] flex items-stretch justify-center bg-black/45 sm:items-center sm:p-4 print:hidden" onMouseDown={onClose}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="cf-modal-title" className="flex h-dvh max-h-dvh w-full max-w-4xl flex-col overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-[94vh] sm:rounded-2xl" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 border-b border-neutral-200 p-4">
+          <div className="min-w-0">
+            <h2 id="cf-modal-title" className="text-lg font-semibold">{title}</h2>
+            <div className="mt-0.5 text-xs text-neutral-500">{subtitle}</div>
+          </div>
+          <button ref={closeRef} type="button" onClick={onClose} aria-label="Закрыть окно" className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-neutral-300 px-3 text-sm hover:bg-neutral-50">✕ Закрыть</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 function MiniTable({ head, rows, total }: { head: string[]; rows: React.ReactNode[][]; total?: React.ReactNode[] }) {
   return (
     <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0}>
@@ -265,20 +302,23 @@ function MiniTable({ head, rows, total }: { head: string[]; rows: React.ReactNod
 const sum0w = (keep: number[], a: number[]) => keep.reduce((t, i) => t + a[i], 0);
 
 function Tile({ label, value, sub, hint, tone, mini, spark, extra, expandId, openId, onToggle }: { label: string; value: string; sub?: string; hint?: React.ReactNode; tone?: "bad" | "good"; /** Две мини-строки «Одежда … / Аксессуары …» со своими значениями. */ mini?: [string, string][]; spark?: number[]; extra?: string; expandId?: string; openId?: string | null; onToggle?: (id: string) => void }) {
-  const isOpen = !!expandId && openId === expandId;
+  const clickable = !!expandId && !!onToggle;
   return (
-    <div className={"flex min-w-0 flex-col gap-0.5 rounded-lg border bg-white p-3 " + (isOpen ? "border-neutral-900" : "border-neutral-300")}>
-      <div className="flex items-center gap-1 text-xs text-neutral-600">{label}{hint ? <InfoHint label={`Как считается: ${label}`} wide>{hint}</InfoHint> : null}</div>
-      <div className={"text-lg font-semibold tabular-nums " + (tone === "bad" ? "text-[#b4310b]" : tone === "good" ? "text-[#17613c]" : "text-neutral-900")}>{value}</div>
-      {sub ? <div className="text-xs text-neutral-600">{sub}</div> : null}
-      {extra ? <div className="text-xs text-neutral-600">{extra}</div> : null}
-      {spark ? <Spark values={spark} /> : null}
-      {mini ? (
-        <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
-          {mini.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{k}</dt><dd className="font-semibold tabular-nums text-neutral-900">{v}</dd></div>)}
-        </dl>
-      ) : null}
-      {expandId && onToggle ? <button type="button" aria-expanded={isOpen} aria-controls="cf-detail" onClick={() => onToggle(expandId)} className="mt-1 inline-flex min-h-11 items-center self-start rounded-md px-1 text-xs underline print:hidden">{isOpen ? "Скрыть детали ▴" : "Детали ▾"}</button> : null}
+    <div className={"relative flex min-w-0 flex-col rounded-lg border bg-white " + (openId && openId === expandId ? "border-neutral-900" : "border-neutral-300") + (clickable ? " hover:bg-neutral-50" : "")}>
+      {/* Вся плитка — кнопка: клик открывает окно с деталями поверх страницы (как плитки на Главной); значок «i» и ссылки остаются отдельными. */}
+      {clickable ? <button type="button" aria-haspopup="dialog" aria-label={`Подробнее: ${label}`} onClick={() => onToggle!(expandId!)} className="absolute inset-0 rounded-lg print:hidden" /> : null}
+      <div className="pointer-events-none relative flex flex-col gap-0.5 p-3">
+        <div className="flex items-center gap-1 text-xs text-neutral-600">{label}{hint ? <span className="pointer-events-auto"><InfoHint label={`Как считается: ${label}`} wide>{hint}</InfoHint></span> : null}{clickable ? <span aria-hidden className="ml-auto text-neutral-500">›</span> : null}</div>
+        <div className={"text-lg font-semibold tabular-nums " + (tone === "bad" ? "text-[#b4310b]" : tone === "good" ? "text-[#17613c]" : "text-neutral-900")}>{value}</div>
+        {sub ? <div className="text-xs text-neutral-600">{sub}</div> : null}
+        {extra ? <div className="text-xs text-neutral-600">{extra}</div> : null}
+        {spark ? <Spark values={spark} /> : null}
+        {mini ? (
+          <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
+            {mini.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{k}</dt><dd className="font-semibold tabular-nums text-neutral-900">{v}</dd></div>)}
+          </dl>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -292,12 +332,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const [detail, setDetail] = useState(initialDetail ?? true);
   const [fOpen, setFOpen] = useState(false);
   const [openTile, setOpenTile] = useState<string | null>(null);
-  const toggleTile = (id: string) => setOpenTile((cur) => (cur === id ? null : id));
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpenTile(null); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  const toggleTile = (id: string) => setOpenTile(id);
   const [open, setOpen] = useState<string[]>([]);
   const [active, setActive] = useState<number | null>(null);
   const [hot, setHot] = useState<string | null>(null);
@@ -483,11 +518,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
       </section>
 
       {openTile && (
-        <section id="cf-detail" aria-label="Детали плитки" className="rounded-lg border border-neutral-900 bg-white p-3">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold">{{ spend: "Потрачено: детали", recv: "Получено: детали", flow: "Денежный поток по месяцам", work: "Работа подрядчика: детали", price: "Средняя цена продажи: детали" }[openTile]} · {shownText}</h2>
-            <button type="button" onClick={() => setOpenTile(null)} className="inline-flex min-h-11 items-center rounded-md px-3 text-sm underline">Закрыть (Esc)</button>
-          </div>
+        <TileModal title={{ spend: "Потрачено", recv: "Получено", flow: "Денежный поток по месяцам", work: "Работа подрядчика", price: "Средняя цена продажи" }[openTile] ?? ""} subtitle={shownText} onClose={() => setOpenTile(null)}>
           {openTile === "spend" && (
             <div className="grid gap-4 md:grid-cols-2">
               <MiniTable head={["Статья", "Сумма"]} rows={d.articles.map((a) => [a.label, money(a.total)])} total={["Итого", money(h.spent)]} />
@@ -528,7 +559,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
               <div className="md:col-span-2"><MiniTable head={["Топ-5 артикулов по выручке", "шт.", "Средняя цена"]} rows={recvByArticle.slice(0, 5).map((g) => [g.key, String(g.pcs), g.pcs > 0 ? money(g.rev / g.pcs) : "—"])} /></div>
             </div>
           )}
-        </section>
+        </TileModal>
       )}
 
       <div className="flex flex-wrap items-center gap-2 print:hidden">
