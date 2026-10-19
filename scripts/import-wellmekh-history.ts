@@ -56,7 +56,7 @@ const dbNameOf = (/\/([^/?]+)(\?|$)/.exec(process.env.DATABASE_URL ?? "")?.[1] ?
 const JOURNAL = join(__dirname, "..", "docs-inventory", `corrections-journal-wellmekh-history-2026-10-15${dbNameOf === "fur_erp" ? "" : `-${dbNameOf}`}.json`);
 const MAIL = join(homedir(), "Downloads", "MEH_PST_EXTRACT", "_INDEX");
 const DOWNLOADS = join(homedir(), "Downloads");
-const SUPPLIER_EMAIL = "wellmekh@demo.mvst";
+const SUPPLIER_EMAIL = "wellmekh@demo.local";
 
 const out: string[] = [];
 const say = (s = "") => { out.push(s); console.log(s); };

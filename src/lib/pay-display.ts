@@ -25,6 +25,14 @@ export const DUE_LABEL = "К доплате после зачёта аванса
 /** Текст подсказки «i» (одинаковый везде, где есть этот показ). */
 export const dueHint = (grossText: string, workText: string) => `${grossText} — долг до зачёта аванса; если аванс окажется оплатой будущих изделий, а не текущих ТЗ, доплата за текущие ТЗ остаётся ${workText}; привязка авансов к ТЗ ждёт документов.`;
 
+/**
+ * ГОД ПЛАТЕЖА = ГОД ДАТЫ ОПЛАТЫ (решение владельца 2026-10-20). Единая функция для «Оплат по годам», Главной, сводки закупок и Cashflow.
+ * Дата оплаты хранится как 00:00 UTC (03:00 МСК того же дня), поэтому UTC-год совпадает с московским. Год закупки остаётся только в разрезе закупок (долг по аукциону).
+ */
+export function paymentYear(paidAt: Date | string): number {
+  return typeof paidAt === "string" ? Number(paidAt.slice(0, 4)) : paidAt.getUTCFullYear();
+}
+
 export function payNumbers(d: PayInput, c4Mode: "on" | "off", only?: "fur" | "lining" | "raw") {
   const prodPaid = d.paidByItem.work;
   const bo = c4Mode === "on";

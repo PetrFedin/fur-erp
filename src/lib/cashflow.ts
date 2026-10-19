@@ -61,13 +61,27 @@ export function split(r: OverviewRow): Record<ArticleKey, number> {
 export type RowVatShare = Map<string, number>;
 
 /**
- * Правило «Без НДС» (документированное): НДС платежа по сырью = Σ по закупкам, на которые разнесён платёж, часть × доля НДС закупки
- * (ставка позиций: 20% или 22%, взвешено по сумме позиций; у закупок-услуг без позиций — ставка расходов). Платёж без привязки к закупке и
- * оплата производства (работа, шкуры в счёте подрядчика) — НДС в данных нет, суммы остаются как есть и считаются в `unknown`.
+ * НДС в оплате работы подрядчику (Веллмех, Договор подряда №1605). ДОКУМЕНТЫ (проверено 20.10.2026): каждый счёт Веллмеха на пошив содержит строку «В том числе НДС r%: X», где X = сумма счёта × r / (100 + r),
+ * то есть НДС ВХОДИТ в оплачиваемую сумму (счета №170, 209, 235, 239 — 20%; №7, 41, 193, 247 и все остальные 2026 г. — 22%; в реестре сверки НДС указан у 26 из 29 счетов, у остальных — по дате счёта).
+ * Ставка — по ДАТЕ СЧЁТА из основания платежа («Счёт №N от дд.мм.гггг»): до 31.12.2025 — 20 %, с 01.01.2026 — 22 % (так во всех счетах, где ставка напечатана). Шкуры подрядчика внутри счёта (счёт №235, №237, №265)
+ * облагаются по той же ставке: строка НДС счёта считается от всей суммы счёта. Нет даты счёта в основании — ставка неизвестна (null), сумма остаётся в «НДС нет в данных».
+ * Оплата частями (аванс 70 %, доплата 30 %, разнесение по ТЗ) делит НДС пропорционально: НДС части = часть × r / (100 + r).
  */
-export function vatShares(rows: OverviewRow[], purchaseVat: Map<string, number>): { share: RowVatShare; vat: number; unknown: number } {
+export function workPaymentVatRate(doc: string | null | undefined): 20 | 22 | null {
+  const m = /сч[её]т[^№;·]*№\s*[^\s;·,()]+\s+от\s+(\d{2})\.(\d{2})\.(\d{4})/i.exec(doc ?? "");
+  if (!m) return null;
+  const year = Number(m[3]);
+  return year <= 2025 ? 20 : 22;
+}
+
+/**
+ * Правило «Без НДС» (документированное): НДС платежа по сырью = Σ по закупкам, на которые разнесён платёж, часть × доля НДС закупки
+ * (ставка позиций: 20% или 22%, взвешено по сумме позиций; у закупок-услуг без позиций — ставка расходов). Оплата производства (работа подрядчику и шкуры в его счёте) —
+ * НДС по счёту подрядчика (workPaymentVatRate: ставка по дате счёта, НДС включён в сумму). Платёж без привязки к закупке и без счёта в основании — НДС в данных нет, сумма остаётся как есть и идёт в `unknown`.
+ */
+export function vatShares(rows: OverviewRow[], purchaseVat: Map<string, number>): { share: RowVatShare; vat: number; unknown: number; workVat: number } {
   const share: RowVatShare = new Map();
-  let vat = 0, unknown = 0;
+  let vat = 0, unknown = 0, workVat = 0;
   for (const r of rows) {
     let v = 0, known = 0;
     if (r.kind === "raw") {
@@ -76,12 +90,15 @@ export function vatShares(rows: OverviewRow[], purchaseVat: Map<string, number>)
         const f = id ? purchaseVat.get(id) : undefined;
         if (f !== undefined) { v += part.amount * f; known += part.amount; }
       }
+    } else {
+      const rate = workPaymentVatRate(r.doc);
+      if (rate !== null) { v = (r.amount * rate) / (100 + rate); known = r.amount; workVat += v; }
     }
     unknown += r.amount - known;
     if (r.amount !== 0) share.set(r.id, v / r.amount);
     vat += v;
   }
-  return { share, vat, unknown };
+  return { share, vat, unknown, workVat };
 }
 
 export function buildCashflow(rows: OverviewRow[], period: CashflowPeriod, vatShare?: RowVatShare): CashflowData {
@@ -127,6 +144,11 @@ export type SalesMonthly = {
   /** Поступило единиц (Delivery PCS) и продано единиц (чистых, возврат минус) по месяцам. */
   recPcs: number[];
   salePcs: number[];
+  /** Продано валовое (только положительные строки продаж, шт.), возвраты (шт., положительным числом) и возвраты в рублях с НДС / без НДС (положительным числом). salePcs = grossPcs − returnsPcs. */
+  grossPcs: number[];
+  returnsPcs: number[];
+  returnsRub: number[];
+  returnsRubEx: number[];
   /** Выручка (чистые розничные продажи после скидки) с НДС и без НДС; скидка с НДС. */
   revIncl: number[];
   revEx: number[];
@@ -137,12 +159,15 @@ export function aggregateSales(lines0: SalesAggLine[], months: string[], cls: Ca
   const lines = cls === "all" ? lines0 : lines0.filter((l) => l.cls === cls);
   const idx = new Map(months.map((m, i) => [m, i]));
   const z = () => months.map(() => 0);
-  const o: SalesMonthly = { available: lines0.length > 0, recPcs: z(), salePcs: z(), revIncl: z(), revEx: z(), discIncl: z() };
+  const o: SalesMonthly = { available: lines0.length > 0, recPcs: z(), salePcs: z(), grossPcs: z(), returnsPcs: z(), returnsRub: z(), returnsRubEx: z(), revIncl: z(), revEx: z(), discIncl: z() };
   for (const l of lines) {
     const i = idx.get(l.iso.slice(0, 7));
     if (i === undefined) continue;
     if (l.kind === "RECEIPT") o.recPcs[i] += l.pcs;
-    else { o.salePcs[i] += l.pcs; o.revIncl[i] += l.retailRub; o.revEx[i] += l.retailRubExVat; o.discIncl[i] += l.discountRub; }
+    else {
+      if (l.pcs > 0) o.grossPcs[i] += l.pcs;
+      else if (l.pcs < 0) { o.returnsPcs[i] += -l.pcs; o.returnsRub[i] += -l.retailRub; o.returnsRubEx[i] += -l.retailRubExVat; }
+      o.salePcs[i] += l.pcs; o.revIncl[i] += l.retailRub; o.revEx[i] += l.retailRubExVat; o.discIncl[i] += l.discountRub; }
   }
   return o;
 }
@@ -152,7 +177,8 @@ const cum = (a: number[]) => { let r = 0; return a.map((v) => (r += v)); };
 
 export type Headline = {
   spent: number; received: number; net: number; cumNet: number;
-  unitsReceived: number; unitsSold: number;
+  /** unitsSold — НЕТТО (продано минус возвраты); unitsGross — валовое «продано», unitsReturns — возвраты (шт.). unitsSold = unitsGross − unitsReturns. */
+  unitsReceived: number; unitsSold: number; unitsGross: number; unitsReturns: number;
   /** Среднее за месяц: работа подрядчику / число месяцев от первой до последней оплаты в периоде. */
   workPerMonth: number | null; workMonths: number;
   /** Единицы прихода: месяцы с приходом и среднее за такой месяц. */
@@ -183,7 +209,7 @@ export function headline(d: CashflowData, s: SalesMonthly, revenue: number[], wo
   const disc = sum(s.discIncl), revIncl = sum(s.revIncl);
   return {
     spent, received, net: received - spent, cumNet: received - spent,
-    unitsReceived, unitsSold, workTotal, workMonths,
+    unitsReceived, unitsSold, unitsGross: sum(s.grossPcs), unitsReturns: sum(s.returnsPcs), workTotal, workMonths,
     recMonths: base === "all" ? s.recPcs.length : base === "active" ? activeIdx.length : s.recPcs.filter((v) => v !== 0).length,
     unitsPerMonth: s.recPcs.some((v) => v !== 0) ? unitsReceived / (base === "all" ? s.recPcs.length : base === "active" ? activeIdx.length : s.recPcs.filter((v) => v !== 0).length) : null,
     workPerMonth: workMonths && Math.abs(workTotal) > 0.005 ? workTotal / workMonths : null,
@@ -217,7 +243,7 @@ export function sliceData(all: CashflowData, keep: number[], period: CashflowPer
 
 export function sliceSales(s: SalesMonthly, keep: number[]): SalesMonthly {
   const f = (a: number[]) => keep.map((i) => a[i]);
-  return { available: s.available, recPcs: f(s.recPcs), salePcs: f(s.salePcs), revIncl: f(s.revIncl), revEx: f(s.revEx), discIncl: f(s.discIncl) };
+  return { available: s.available, recPcs: f(s.recPcs), salePcs: f(s.salePcs), grossPcs: f(s.grossPcs), returnsPcs: f(s.returnsPcs), returnsRub: f(s.returnsRub), returnsRubEx: f(s.returnsRubEx), revIncl: f(s.revIncl), revEx: f(s.revEx), discIncl: f(s.discIncl) };
 }
 
 /** Месяцы, которые показываем: год периода, от первого до последнего месяца, где есть хоть какие-то траты, деньги или единицы. */
@@ -244,8 +270,12 @@ export function goodsHeadline(allSales: SalesMonthly, allMonths: string[], perio
   const span = sellIdx.length ? sellIdx[sellIdx.length - 1] - sellIdx[0] + 1 : 0;
   const stock = last >= 0 ? st.stock[last] : 0;
   const perMonth = span ? sold / span : 0;
+  const grossSold = keep.reduce((t, i) => t + allSales.grossPcs[i], 0), returnsPcs = keep.reduce((t, i) => t + allSales.returnsPcs[i], 0);
+  const returnsRub = keep.reduce((t, i) => t + allSales.returnsRub[i], 0), returnsRubEx = keep.reduce((t, i) => t + allSales.returnsRubEx[i], 0);
   return {
     received: recv, sold, stock,
+    /** «Продано» на плитке — нетто (sold). Для окна деталей: валовое продано, возвраты (шт., ₽ с НДС и без НДС); sold = grossSold − returnsPcs. */
+    grossSold, returnsPcs, returnsRub, returnsRubEx,
     /** Накопленные с начала данных до конца периода (для SO). */
     cumReceived: last >= 0 ? st.cumRec[last] : 0, cumSold: last >= 0 ? st.cumSale[last] : 0,
     /** Продано / получено накопленно с начала данных до конца периода. */

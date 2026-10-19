@@ -32,7 +32,7 @@ async function main() {
     if (APPLY) await prisma.supplierInbox.delete({ where: { id: j.id } });
     return console.log(APPLY ? "откат выполнен" : "пробный откат");
   }
-  const user = await prisma.user.findFirstOrThrow({ where: { email: "wellmekh@demo.mvst", role: "SUPPLIER" }, select: { id: true, organizationId: true, supplierId: true, name: true } });
+  const user = await prisma.user.findFirstOrThrow({ where: { email: "wellmekh@demo.local", role: "SUPPLIER" }, select: { id: true, organizationId: true, supplierId: true, name: true } });
   if (!user.supplierId) throw new Error("у пользователя нет поставщика");
   const exists = await prisma.supplierInbox.findFirst({ where: { organizationId: user.organizationId, supplierId: user.supplierId, kind: "TZ", title: { contains: `№ ${p.number}` } } });
   if (exists) return console.log("уже заведено:", exists.id);

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getFreshSession } from "@/lib/session";
+import { orderUnits } from "@/lib/production-totals";
 import { csvNum, csvResponse, toCsv } from "@/lib/csv";
 
 /** CSV справочника артикулов (UTF-8 с BOM, «;»): те же колонки, что понимает импорт («Наш код», «Код в продажах», …). */
@@ -14,16 +15,17 @@ export async function GET() {
       where: { organizationId: orgId, status: { not: "CANCELLED" } },
       _count: { _all: true },
     }),
-    prisma.productionOrder.groupBy({
-      by: ["productModelId"],
-      where: { organizationId: orgId, status: "COMPLETED" },
-      _sum: { producedQuantity: true },
+    prisma.productionOrder.findMany({
+      where: { organizationId: orgId, status: { not: "CANCELLED" } },
+      select: { productModelId: true, status: true, plannedQuantity: true, producedQuantity: true },
     }),
   ]);
   const stat = new Map(grouped.map((g) => [g.productModelId, g]));
-  const producedBy = new Map(producedGrouped.map((g) => [g.productModelId, Number(g._sum.producedQuantity ?? 0)]));
+  // «Произведено» — как на странице справочника и на Главной (production-totals.ts): выпуск завершённых + план ТЗ в работе, без отменённых.
+  const producedBy = new Map<string, number>();
+  for (const o of producedGrouped) producedBy.set(o.productModelId, (producedBy.get(o.productModelId) ?? 0) + orderUnits(o));
   const body = toCsv(
-    ["Наш код", "Наше название", "Наш SKU", "Код в продажах", "Название в продажах", "Прочие написания", "Длина", "Цена продажи, ₽", "ТЗ", "Произведено (завершённые ТЗ), шт.", "Активен"],
+    ["Наш код", "Наше название", "Наш SKU", "Код в продажах", "Название в продажах", "Прочие написания", "Длина", "Цена продажи, ₽", "ТЗ", "Произведено, шт.", "Активен"],
     models.map((m) => [
       m.name,
       (m.category ?? "").replace(/\s+/g, " ").trim(),

@@ -8,6 +8,7 @@ import { auctionName } from "@/lib/auction-payments";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { cleanNote } from "@/lib/note-tags";
 import { isServicePurchaseByCount } from "@/lib/service-purchase";
+import { paymentYear } from "@/lib/pay-display";
 import { PAYER_NAME, contractorOfPayment, docNo } from "@/lib/payment-parties";
 
 /** Куда разнесена оплата: закупка, ТЗ или «без привязки». Σ частей = сумма оплаты. */
@@ -141,8 +142,8 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       unallocated: unlinked ? amount : 0,
       links: rawLinks,
       edit: unlinked ? "advance" : p.purchaseId ? "purchase" : "auction",
-      // Год сырьевой оплаты — год закупки (без аукциона: год заказа закупки): тогда по году «куплено − оплачено = долг» и все разделы сходятся.
-      id: p.id, kind: "raw", iso: p.paidAt.toISOString().slice(0, 10), year: (!au && p.purchase?.orderDate ? p.purchase.orderDate.getUTCFullYear() : p.paidAt.getUTCFullYear()), amount,
+      // Год оплаты — год ДАТЫ ОПЛАТЫ (как в Cashflow; решение владельца 2026-10-20). Год закупки — только в разрезе закупок/долга по аукциону.
+      id: p.id, kind: "raw", iso: p.paidAt.toISOString().slice(0, 10), year: paymentYear(p.paidAt), amount,
       fur: service ? 0 : amount - lining, lining, services: service ? amount : 0, work: 0, hides: 0,
       label: au ?? p.purchase?.number ?? "Аванс без привязки",
       confirmed: p.confirmedAt != null,
@@ -227,7 +228,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
         return ls;
       })(),
       edit: "prod",
-      id: p.id, kind: "prod", iso, year: p.paidAt.getUTCFullYear(), amount,
+      id: p.id, kind: "prod", iso, year: paymentYear(p.paidAt), amount,
       fur: hides, lining: 0, services: 0, work: amount - hides, hides,
       label: p.paymentType === "ADVANCE" ? "Аванс за пошив" : p.paymentType === "PARTIAL" ? "Доплата за пошив" : "Оплата за пошив",
       confirmed: p.confirmedAt != null,
@@ -275,7 +276,7 @@ async function loadPaymentsLeftImpl(orgId: string): Promise<{ byYear: Map<number
   // Неразнесённые авансы подрядчику — отдельной строкой («Аванс подрядчику»), а не минусом в долге: «К оплате» по работе = остаток работы по ТЗ, не меньше нуля.
   for (const p of cd.payments) {
     if (/шкур/i.test(`${p.docRef ?? ""} ${p.notes ?? ""}`) && p.rest.toNumber() > 1) continue;
-    add(p.paidAt.getUTCFullYear(), "adv", p.rest.toNumber());
+    add(paymentYear(p.paidAt), "adv", p.rest.toNumber());
   }
   const sumBy = (k: "prod" | "adv") => Array.from(byYear.values()).reduce((a, v) => a + v[k], 0);
   return { byYear, raw: debt.debt.toNumber(), prod: sumBy("prod"), advance: sumBy("adv"), overpaid: debt.overpaid.map((o) => ({ name: o.name, amount: o.amount.toNumber() })) };

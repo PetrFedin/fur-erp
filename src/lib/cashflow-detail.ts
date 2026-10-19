@@ -20,15 +20,18 @@ export function topPays(pays: PayLite[], months: string[], ex: boolean, n = 5) {
   return pays.filter((p) => inMonths(p.iso, months)).sort((a, b) => (ex ? b.ex - a.ex : b.amount - a.amount)).slice(0, n);
 }
 
-export type Grp = { key: string; pcs: number; rev: number };
+/** pcs — нетто (после возвратов); grossPcs — валовое продано; returnsPcs/returnsRub — возвраты (положительным числом; ₽ с НДС или без — как rev). pcs = grossPcs − returnsPcs. */
+export type Grp = { key: string; pcs: number; rev: number; grossPcs: number; returnsPcs: number; returnsRub: number };
 /** Продажи по ключу (сезон / категория / артикул / месяц) за месяцы периода; выручка — с НДС или без. */
 export function groupSales(lines: SalesAggLine[], months: string[], ex: boolean, key: (l: SalesAggLine) => string, cat: CatClass | "all" = "all"): Grp[] {
   const by = new Map<string, Grp>();
   for (const l of lines) {
     if (l.kind !== "SALE" || !inMonths(l.iso, months) || (cat !== "all" && l.cls !== cat)) continue;
     const k = key(l);
-    const g = by.get(k) ?? { key: k, pcs: 0, rev: 0 };
+    const g = by.get(k) ?? { key: k, pcs: 0, rev: 0, grossPcs: 0, returnsPcs: 0, returnsRub: 0 };
     g.pcs += l.pcs; g.rev += ex ? l.retailRubExVat : l.retailRub;
+    if (l.pcs > 0) g.grossPcs += l.pcs;
+    else if (l.pcs < 0) { g.returnsPcs += -l.pcs; g.returnsRub += -(ex ? l.retailRubExVat : l.retailRub); }
     by.set(k, g);
   }
   return [...by.values()].sort((a, b) => b.rev - a.rev);

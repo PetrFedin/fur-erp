@@ -30,7 +30,7 @@ const REPORT = process.argv.includes("--report") ? process.argv[process.argv.ind
 const dbNameOf = /\/([^/?]+)(\?|$)/.exec(process.env.DATABASE_URL ?? "")?.[1] ?? "?";
 const JOURNAL = join(__dirname, "..", "docs-inventory", `corrections-journal-wellmekh-inbound-2026-10-16${dbNameOf === "fur_erp" ? "" : `-${dbNameOf}`}.json`);
 const SRC = join(__dirname, "..", "docs-inventory", "inbound-2026-10-16");
-const SUPPLIER_EMAIL = "wellmekh@demo.mvst";
+const SUPPLIER_EMAIL = "wellmekh@demo.local";
 const SENT = new Date("2026-10-16T09:00:00Z");
 
 const out: string[] = [];

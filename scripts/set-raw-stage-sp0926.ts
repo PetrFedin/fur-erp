@@ -16,7 +16,7 @@ import { join } from "path";
 
 const APPLY = process.argv.includes("--apply"), LIVE = process.argv.includes("--live"), ROLLBACK = process.argv.includes("--rollback");
 const JOURNAL = join(__dirname, "../docs-inventory/corrections-journal-raw-stage-sp0926-2026-10-15.json");
-const SUPPLIER_EMAIL = "wellmekh@demo.mvst";
+const SUPPLIER_EMAIL = "wellmekh@demo.local";
 
 async function main() {
   const { createAuditedClient } = await import("../src/lib/prisma");

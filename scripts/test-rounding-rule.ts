@@ -10,7 +10,7 @@ import { loadDashboard } from "../src/lib/dashboard-data";
 import { parseDashFilters } from "../src/lib/dashboard-calc";
 import { priceComposition } from "../src/lib/price-composition-server";
 import { COMP_CATS, alignSlices, sliceList, type CompCat } from "../src/lib/price-composition";
-import { alignColumn, alignFlowMoney, alignKindsTop, alignSet, cellOf, flowCell, lrAllocate, roundRub } from "../src/lib/money-round";
+import { alignColumn, alignFlowMoney, alignKindsTop, alignSet, cellOf, flowCell, lrAllocate, roundQty, roundRub } from "../src/lib/money-round";
 import { alignRaw, alignRawTable, alignYears, FUR_SRC_KEYS_RD } from "../src/lib/raw-display";
 import { payNumbers } from "../src/lib/pay-display";
 import { alignBridge } from "../src/lib/recon-bridge-align";
@@ -19,7 +19,7 @@ import { loadLive } from "../src/app/(app)/reconciliation/live";
 import { loadOrderRows } from "../src/lib/analytics-orders";
 import { toDrillOrder } from "../src/lib/dashboard-calc";
 import { addOrder, blank, build, type Agg } from "../src/app/(app)/dashboard/production-table";
-import { alignTree, sum5, type Money5 } from "../src/lib/production-display";
+import { alignTree, showTotals, sum5, type Money5 } from "../src/lib/production-display";
 import { loadReconBridge } from "../src/app/(app)/reconciliation/bridge";
 
 const prisma = new PrismaClient();
@@ -177,7 +177,11 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
         eq(`${t} ${k}: оплачено = за остаток + за использованное`, pd.stock + pd.used, N.P[k]);
         eq(`${t} ${k}: к оплате = за остаток + за использованное`, ld.stock + ld.used, N.L[k]);
         eq(`${t} ${k}: остаток + использовано = «Куплено» (одно число с плитками)`, D.stock + D.used, k === "fur" ? A.fur.incl.recvValue : A.lining.incl.recvValue);
-        eq(`${t} ${k}: «Общая стоимость» = плитка «Куплено» (если сходится с документами)`, N.T[k], k === "fur" ? A.fur.incl.recvValue : A.lining.incl.recvValue, N.roundAll === 0 ? 0 : 0);
+        // С фильтром по году «Оплачено» считается по ГОДУ ОПЛАТЫ (решение владельца 2026-10-20), «Куплено» и долг — по году закупки: платежи за закупки другого года (З-2026-0012/-0013/-0066) сдвигают
+        // «оплачено + к оплате» относительно «Куплено» ровно на эти суммы. Для «Все годы» тождество строгое.
+        const recvK = k === "fur" ? A.fur.incl.recvValue : A.lining.incl.recvValue;
+        if (sl.year === "all" || Math.abs(N.T[k] - recvK) <= 1) eq(`${t} ${k}: «Общая стоимость» = плитка «Куплено» (если сходится с документами)`, N.T[k], recvK, 0);
+        else console.log(`  (${t} ${k}: «Общая стоимость» ${N.T[k]} ≠ «Куплено» ${recvK}: платежи года за закупки другого года, год оплаты — по дате)`);
         if (sl.year === "all") eq(`${t} ${k}: общая стоимость = оплачено + к оплате (± строка «округление»)`, Math.abs(N.T[k] - N.P[k] - N.L[k]) <= 1 ? 0 : 1, 0);
         else console.log(`  (${t} ${k}: при фильтре по году лоты и документы расходятся: общая ${N.T[k]}, оплачено ${N.P[k]} + к оплате ${N.L[k]})`);
       }
@@ -190,6 +194,17 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
     }
   }
 
+
+  // ───── 2.4 Количества без шума плавающей запятой (подкладка «Куплено»: 1 867 м и 1 866 м на разных блоках) ─────
+  {
+    eq("roundQty: 1866,4999999999998 → 1866,5", roundQty(1866.4999999999998), 1866.5);
+    eq("roundQty: 0,1+0,2 → 0,3", roundQty(0.1 + 0.2), 0.3);
+    eq("roundQty: −0 → 0", Object.is(roundQty(-1e-9), 0) ? 1 : 0, 1);
+    const d = await loadDashboard(org, "all", parseDashFilters({}), "on");
+    const linRows = d.rawTable.filter((r) => r.kind === "lining");
+    eq("[подкладка, м] «Куплено» таблицы сырья = «Динамика по годам»", roundQty(linRows.reduce((a, r) => a + r.cells.incl.rq, 0)), roundQty(d.years.find((y) => y.key === "all")!.lining.incl.rq));
+    eq("[подкладка, м] «Использовано» таблицы сырья = «Динамика по годам»", roundQty(linRows.reduce((a, r) => a + r.cells.incl.uq, 0)), roundQty(d.years.find((y) => y.key === "all")!.lining.incl.uq));
+  }
 
   // ───── 2.5 «Объёмы по группам меха и категориям» (дерево: группа → категория → мех; мех → группа → категория) ─────
   for (const c4 of ["on", "off"] as const) for (const vat of ["incl", "excl"] as const) {
@@ -205,6 +220,8 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
       alignTree(top, total, repair, all, out);
       const cols = ["fur", "lining", "work", "c4", "other"] as const;
       const m = (g: Agg) => out.get(g)!;
+      // плитка «Производство» берёт показанные колонки итога из showTotals — то же, что строка «Всего с ремонтом» таблицы (раньше 4 %: 6 926 132 и 6 926 133)
+      { const st = showTotals(all); for (const c of cols) eq(`${tag} плитка (showTotals) = «Всего с ремонтом» таблицы (${c})`, st[c], m(all)[c]); }
       eq(`${tag} «Всего с ремонтом» = round(точной суммы)`, sum5(m(all)), roundRub(all.fur + all.lining + all.work + all.c4 + all.other), 0);
       for (const c of cols) eq(`${tag} «без ремонта» + «ремонт» = «с ремонтом» (${c})`, m(total)[c] + m(repair)[c], m(all)[c]);
       const walk = (parent: Money5, nodes: Agg[], where: string) => {

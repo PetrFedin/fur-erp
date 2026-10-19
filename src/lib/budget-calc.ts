@@ -299,7 +299,7 @@ export function legacyToNodes(lines: LegacyLine[]): BudgetNode[] {
 const mk = (id: string, fur: string, cat: string, pcs: number, statFur: string, statCat: string): LegacyLine => ({ id, fur, cat, pcs, statFur, statCat, locked: false, hides: 0, hidePrice: 0, meters: 0, meterPrice: 0, work: 0, base: null, sample: 0 });
 const lynx = (id: string, cat: string, pcs: number, statCat: string, v: Pick<LegacyLine, "hides" | "hidePrice" | "meters" | "meterPrice" | "work">, base: BudgetBase): LegacyLine => ({ ...mk(id, "Рысь", cat, pcs, "Рысь", statCat), locked: true, ...v, base, sample: 0 });
 
-/** Бюджет FW27 (Budget PCS, 880 изд.) и соответствие категорий бюджета категориям системы. Рысь — вручную (расчёт LYNX MVST FW26), остальное — по данным системы. */
+/** Бюджет FW27 (Budget PCS, 880 изд.) и соответствие категорий бюджета категориям системы. Рысь — вручную (расчёт LYNX FW26), остальное — по данным системы. */
 export function defaultLines(): LegacyLine[] {
   return [
     mk("s1", "Соболь", "Шубы", 86, "Соболь", "Пальто"), mk("s2", "Соболь", "Жилет меховой", 26, "Соболь", "Жилет"), mk("s3", "Соболь", "Куртки меховые", 10, "Соболь", "Куртка"),
@@ -317,7 +317,7 @@ export function defaultLines(): LegacyLine[] {
   ];
 }
 
-/** Шаблон «по Budget PCS FW27» как дерево; Рысь остаётся вручную (замок закрыт, значения из расчёта LYNX MVST FW26). */
+/** Шаблон «по Budget PCS FW27» как дерево; Рысь остаётся вручную (замок закрыт, значения из расчёта LYNX FW26). */
 export function templateNodes(): BudgetNode[] {
   const base = legacyToNodes(defaultLines());
   const out: BudgetNode[] = [];

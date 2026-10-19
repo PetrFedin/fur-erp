@@ -1,6 +1,6 @@
 // Сквозные тождества по оплатам (Главная ↔ Оплаты ↔ Закупки ↔ Сводка ↔ Сверка ↔ партии). Только чтение.
 //   node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/test-payments-consistency.ts
-// I16 (Cashflow) проверяется отдельным агентом: здесь только информация, в счётчик расхождений не входит.
+// I16: год платежа = год даты оплаты; «Оплаты по годам» = Cashflow по годам (проверка).
 import "./stubs/server-only-shim";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -69,7 +69,14 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => { checks++; 
   checks++; const zero = pays.filter((p) => p.amount.toNumber() === 0).length + pp.filter((p) => p.amount.toNumber() === 0).length; console.log(`${zero ? "INFO" : "OK  "} I15 нулевых платежей: ${zero} (счётчики «Оплат: N» на карточках считают их, «Оплаты по годам» — нет)`);
   // года
   const cashY = (y: number) => sum(pays.filter((p) => p.paidAt.getUTCFullYear() === y).map((p) => p.amount.toNumber())) + sum(pp.filter((p) => p.paidAt.getUTCFullYear() === y).map((p) => p.amount.toNumber()));
-  for (const y of [2025, 2026]) { const a = sum(ov.filter((r) => r.year === y).map((r) => r.amount)), b = cashY(y); console.log(`INFO I16 ${y}: «Оплаты по годам» ${f(a)} · по дате оплаты ${f(b)} (Δ ${f(a - b)}) — Cashflow проверяется отдельным агентом`); }
+  // I16 (решение владельца 2026-10-20): год платежа = год ДАТЫ ОПЛАТЫ везде. «Оплаты по годам» (ov.year) = по дате в БД = Cashflow по годам.
+  const { buildCashflow } = await import("../src/lib/cashflow");
+  for (const y of [2025, 2026]) {
+    const a = sum(ov.filter((r) => r.year === y).map((r) => r.amount)), b = cashY(y), c = buildCashflow(ov, String(y)).total;
+    eq(`I16 ${y}: «Оплаты по годам» = оплаты по дате в БД`, a, b, 0.01);
+    eq(`I16 ${y}: «Оплаты по годам» = Cashflow за год`, a, c, 0.01);
+  }
+  eq("I16 Σ по годам = Cashflow «за всё время»", sum(ov.map((r) => r.amount)), buildCashflow(ov, "all").total + buildCashflow(ov, "all").outside, 0.01);
   // I17: карточка лота подкладки, «Закупки» и «Сводка закупок» считают «оплачено по закупке» одной функцией purchasePaidShare
   const allP = await prisma.purchase.findMany({ where: { status: { not: "CANCELLED" } }, include: { items: true, expenses: true, payments: true } });
   const shareOf = (p: (typeof allP)[number]) => purchasePaidShare(aus.find((x) => x.name === auctionName(p.auctionSession)), p.id, new Decimal(sum(p.payments.filter((x) => x.status === "COMPLETED").map((x) => x.amount.toNumber()))));

@@ -42,7 +42,7 @@ async function main() {
   const prisma = createAuditedClient("script:set-vat");
   console.log(`База: ${dbName}${dbName === "fur_erp" ? " (БОЕВАЯ)" : ""}; режим: ${ROLLBACK ? "откат" : "внесение"}${APPLY ? " — ПРИМЕНЕНИЕ" : " — пробный прогон"}`);
   if (APPLY && dbName === "fur_erp" && !LIVE) { console.log("Боевая база: нужен --live. Ничего не изменено."); process.exitCode = 1; return; }
-  const user = await prisma.user.findFirstOrThrow({ where: { email: "wellmekh@demo.mvst", role: "SUPPLIER" }, select: { organizationId: true, supplierId: true } });
+  const user = await prisma.user.findFirstOrThrow({ where: { email: "wellmekh@demo.local", role: "SUPPLIER" }, select: { organizationId: true, supplierId: true } });
   const where = { organizationId: user.organizationId, supplierId: user.supplierId!, kind: "AUCTION_CALC" as const, status: "ACCEPTED" as const };
 
   if (ROLLBACK) {

@@ -1,7 +1,7 @@
 // Показ сырья на Главной в целых рублях, сходящихся по иерархии (правило — src/lib/money-round.ts).
 // Чистые функции без React и без базы: их вызывают блоки Главной, а scripts/test-rounding-rule.ts проверяет на реальных данных,
 // что сумма показанных частей равна показанному итогу. Данные не меняются — меняется только то, что рисуем.
-import { addCells as addMoney, alignFlowSet, alignKindsTop, alignSet, cellOf, subCells, type Cell } from "@/lib/money-round";
+import { roundQty, addCells as addMoney, alignFlowSet, alignKindsTop, alignSet, cellOf, subCells, type Cell } from "@/lib/money-round";
 import type { FlowFigures } from "@/lib/fur-table";
 import type { Cells, CellsPair, RawTableRow, YearRow } from "@/lib/dashboard-data";
 
@@ -83,6 +83,8 @@ export function alignRawTable(a: { rows: RawTableRow[]; vat: "incl" | "excl"; se
   const addC = (list: Cells[]): Cells => {
     const s = list.reduce((x, c) => ({ rq: x.rq + c.rq, rv: x.rv + c.rv, uq: x.uq + c.uq, uv: x.uv + c.uv, mq: x.mq + c.mq, mv: x.mv + c.mv, uo: x.uo + c.uo }), { rq: 0, rv: 0, uq: 0, uv: 0, mq: 0, mv: 0, uo: 0 });
     const r = (v: number, q: number) => (q > 0 ? v / q : null);
+    // количества — без шума плавающей запятой (1866,4999999999998 ≠ 1866,5 на экране): единое правило roundQty (money-round.ts)
+    s.rq = roundQty(s.rq); s.uq = roundQty(s.uq); s.mq = roundQty(s.mq);
     return { ...s, ra: r(s.rv, s.rq), ua: r(s.uv, s.uq), ma: r(s.mv, s.mq), uoa: r(s.uo, s.uq) };
   };
   const furEx = rows.filter((r) => r.kind === "fur");
