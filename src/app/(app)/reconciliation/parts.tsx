@@ -130,7 +130,7 @@ function dbCell(c: InvCalc, db: InvDb | undefined) {
   const diff = docs - dbPaid;
   if (diff > TOL && dbPaid <= TOL) return { text: "нет в базе", sub: docs > TOL ? "есть в документах" : "", tone: docs > TOL ? "text-red-700" : "text-neutral-500" };
   if (diff > TOL) return { text: money(dbPaid), sub: `не хватает ${money(diff)}`, tone: "text-amber-700" };
-  if (diff < -TOL) return { text: money(dbPaid), sub: `больше, чем в документах на ${money(-diff)}`, tone: "text-amber-700" };
+  if (diff < -TOL) return { text: money(dbPaid), sub: `больше, чем в документах на ${money(-diff)}: расхождение с документом, решение владельца`, tone: "text-amber-700" };
   return { text: dbPaid > TOL ? money(dbPaid) : "—", sub: dbPaid > TOL ? "сходится" : "", tone: dbPaid > TOL ? "text-emerald-700" : "text-neutral-500" };
 }
 

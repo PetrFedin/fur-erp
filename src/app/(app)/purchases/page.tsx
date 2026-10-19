@@ -15,7 +15,7 @@ import { VatLabel } from "@/components/vat-label";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { activeCount, defineFilters, filterHref, parseFilters, pick, stateParam, toWhere, dateRange } from "@/lib/filters";
 import { furMaterialIdsByKind, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
-import { loadAuctionSummaries, auctionName, PAY_EPS } from "@/lib/auction-payments";
+import { loadAuctionSummaries, auctionName, purchasePaidShare, PAY_EPS } from "@/lib/auction-payments";
 import { escapeLike } from "@/lib/input";
 import { getYearFilter } from "@/lib/year-filter";
 import { purchaseYear } from "@/lib/year-scope";
@@ -150,7 +150,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     const cancelled = p.status === "CANCELLED";
     const an = auctionName(p.auctionSession);
     const ap = auctionPays.get(an ?? "");
-    const paidShare = cancelled ? new Decimal(0) : ap && ap.total.greaterThan(0) ? ap.paid.mul(total).div(ap.total) : ownSum;
+    const paidShare = cancelled ? new Decimal(0) : purchasePaidShare(ap, p.id, ownSum);
     const ls = lotsOf.get(p.id) ?? [];
     const status: PurchaseStatus = cancelled ? "CANCELLED" : p.status === "RECEIVED" ? "RECEIVED" : "DRAFT";
     const items = p.items.map((i) => {

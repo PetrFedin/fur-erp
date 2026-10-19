@@ -40,7 +40,7 @@ export async function loadLive(orgId: string): Promise<Live> {
   const [payments, prodPayments, purchases, batches, refAuctions] = await Promise.all([
     prisma.payment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, docRef: true, confirmed: true, auctionSession: true, purchase: { select: { number: true } } },
+      select: { id: true, amount: true, paidAt: true, docRef: true, confirmed: true, auctionSession: true, purchase: { select: { number: true, isContractorRaw: true } } },
     }),
     prisma.productionPayment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
@@ -71,7 +71,8 @@ export async function loadLive(orgId: string): Promise<Live> {
   for (const p of payments) {
     const dp: DbPay = { amount: n(p.amount), paidAt: ymd(p.paidAt), docRef: p.docRef, confirmed: p.confirmed, label: p.purchase?.number ?? p.auctionSession ?? "без привязки" };
     const ref = docRefNo(p.docRef);
-    const hit = ref ? pickInvoice(purchaseInv, ref, dp.paidAt) : null;
+    // Оплата шкур подрядчика заведена как Payment закупки (З-…), а её счёт в реестре относится к «производству»: ищем в обоих разделах.
+    const hit = ref ? (p.purchase?.isContractorRaw ? pickInvoice(prodInv, ref, dp.paidAt) ?? pickInvoice(purchaseInv, ref, dp.paidAt) : pickInvoice(purchaseInv, ref, dp.paidAt)) : null;
     if (hit) put(hit, dp);
     else if (ref) orphans.push(dp);
   }

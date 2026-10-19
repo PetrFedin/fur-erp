@@ -69,6 +69,19 @@ export type AuctionPay = {
   perPurchase: { id: string; supplierId: string; status: string; total: Decimal; paid: Decimal }[];
 };
 
+/**
+ * Единая формула «оплачено по закупке» (Закупки, Сводка закупок, карточка лота): собственные оплаты закупки
+ * + доля оплат аукциона целиком пропорционально стоимости закупки. Сумма по партии равна её оплатам.
+ * Закупка вне аукциона (a не задан) — свои оплаты (ownFallback); отменённая закупка аукциона в расчёт не входит (0).
+ */
+export function purchasePaidShare(a: AuctionPay | undefined, purchaseId: string, ownFallback: Decimal): Decimal {
+  if (!a) return ownFallback;
+  const pp = a.perPurchase.find((x) => x.id === purchaseId);
+  if (!pp) return new Decimal(0);
+  if (a.paidByAuction.greaterThan(0) && a.total.greaterThan(0)) return pp.paid.add(a.paidByAuction.mul(pp.total).div(a.total));
+  return pp.paid;
+}
+
 /** Для подписи статуса остаток меньше рубля (копейки округления) — это «Оплачен», а не «Частично»/«Переплата». */
 export const STATUS_EPS = new Decimal(1);
 

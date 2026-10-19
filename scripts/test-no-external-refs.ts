@@ -63,7 +63,7 @@ async function main() {
     ok((await db.driveDocument.count({ where: { viewUrl: { not: null } } })) === 0, `DriveDocument.viewUrl пуст (записей ${total})`);
     ok((await db.driveDocument.count({ where: { drivePath: { not: null } } })) === 0, "DriveDocument.drivePath пуст");
     const keys = await db.driveDocument.findMany({ select: { driveFileId: true }, distinct: ["driveFileId"] });
-    ok(keys.every((k) => /^(doc-[0-9a-f]{24}|local-.+)$/.test(k.driveFileId) || /^[A-Za-z0-9_-]{1,40}$/.test(k.driveFileId) && !/^1[A-Za-z0-9_-]{32}$/.test(k.driveFileId)), `driveFileId — внутренние ключи (разных: ${keys.length})`);
+    ok(keys.every((k) => /^(doc-[0-9a-f]{24}|local-.+|zi-source-.+)$/.test(k.driveFileId) || /^[A-Za-z0-9_-]{1,40}$/.test(k.driveFileId) && !/^1[A-Za-z0-9_-]{32}$/.test(k.driveFileId)), `driveFileId — внутренние ключи (разных: ${keys.length})`);
     const rows = await db.$queryRawUnsafe<{ t: string; c: string; n: bigint }[]>(`
       select c.table_name t, c.column_name c, 0::bigint n from information_schema.columns c
       join information_schema.tables tb on tb.table_name = c.table_name and tb.table_schema = 'public' and tb.table_type = 'BASE TABLE'

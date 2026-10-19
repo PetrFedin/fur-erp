@@ -99,7 +99,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
           <BridgeHint label="Как сходится долг поставщику">
             <p>К оплате всего = за мех и подкладку {money(L.fur + L.lining)}{inServ ? ` + за услуги по УПД ${money(L.services)}` : ""} + за работу подрядчику {money(L.work)}. Всегда с НДС.</p>
             <p className="mt-1">Долг по работе — остаток работы по заведённым ТЗ (не меньше нуля; договор №1605: аванс 70%, доплата 30% после сдачи). Неразнесённый аванс подрядчику из него не вычитается, он показан отдельной строкой.</p>
-            <p className="mt-1">Долг поставщику: закупки {mln(debt.total.toNumber())} (мех получен {mln(d.bridge.purchases.received)} + ещё не получен {mln(d.bridge.purchases.draft)}) − оплачено {mln(d.supplierCashPaid)} = {mln(debt.debt.toNumber())}. Его части (по УПД, счёт не оплачен, ожидаемое) в сумме дают этот долг.</p>
+            <p className="mt-1">Долг поставщику: закупки {mln(debt.total.toNumber())} (мех получен {mln(d.bridge.purchases.received)} + ещё не получен {mln(d.bridge.purchases.draft)}) − оплачено {mln(d.supplierCashPaid)} = {mln(debt.debt.toNumber())}.{d.supplierOverpaid >= 1 ? <> В «оплачено» входят переплаты, зачтённые в долг: {money(d.supplierOverpaid)} (оплата аукциона или закупки сверх её стоимости).</> : null} Его части (по УПД, счёт не оплачен, ожидаемое) в сумме дают этот долг.</p>
           </BridgeHint>
           <SupplierDebtHint debt={debt} year={year} align="right" />
         </div>

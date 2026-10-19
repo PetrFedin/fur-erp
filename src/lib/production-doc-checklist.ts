@@ -106,12 +106,12 @@ type PayRowsResult = { rows: PanelPayment[]; noProof: number; paid: Decimal };
 
 function paymentRowsOf(m: Model, orders: OrderRow[], rollbackOwner: string | null): PayRowsResult {
   const pays = new Map<string, OrderRow["paymentAllocations"][number]["productionPayment"]>();
-  for (const o of orders) for (const a of o.paymentAllocations) if (a.productionPayment.status !== "CANCELLED") pays.set(a.productionPayment.id, a.productionPayment);
+  for (const o of orders) for (const a of o.paymentAllocations) if (a.productionPayment.status === "COMPLETED") pays.set(a.productionPayment.id, a.productionPayment);
   const rows: PanelPayment[] = [];
   let noProof = 0;
   // Оплачено по этим ТЗ = суммы, РАЗНЕСЁННЫЕ на них (PaymentAllocation), а не валовая сумма платежей: неразнесённый аванс в партию не входит.
   let paid = new Decimal(0);
-  for (const o of orders) for (const sh of o.payShares) if (sh.productionPayment.status !== "CANCELLED") paid = paid.add(sh.amount);
+  for (const o of orders) for (const sh of o.payShares) if (sh.productionPayment.status === "COMPLETED") paid = paid.add(sh.amount);
   for (const p of [...pays.values()].sort((a, b) => a.paidAt.getTime() - b.paidAt.getTime())) {
     const driveProofs = (m.docsByPayment.get(p.id) ?? []).filter((d) => PROOF_TYPES.includes(d.docType));
     const hasProof = p.confirmed && (driveProofs.length > 0 || !!p.docRef?.trim());

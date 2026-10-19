@@ -24,6 +24,7 @@ import { COMP_CATS, emptyCats } from "@/lib/price-composition";
 import { lotHammerListed, lotUsdListed } from "@/lib/lot-hammer";
 import { shortMaterialName } from "@/lib/material-name";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
+import { auctionName, loadAuctionSummaries, purchasePaidShare } from "@/lib/auction-payments";
 import { DRIVE_DOC_TYPE_LABELS } from "@/lib/drive-docs";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 import { rawSheetItems, sheetRowsOf } from "@/lib/lot-sheet";
@@ -67,7 +68,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
       driveDocuments: { select: { id: true, title: true, docType: true, docNumber: true, storagePath: true } },
       purchase: {
         select: {
-          transferDocument: true, notes: true, exchangeRate: true, supplierId: true, auctionId: true, orderDate: true, invoiceNumber: true,
+          id: true, auctionSession: true, transferDocument: true, notes: true, exchangeRate: true, supplierId: true, auctionId: true, orderDate: true, invoiceNumber: true,
           documents: { where: { lotId: null }, select: { id: true, title: true, kind: true } },
           driveDocuments: { select: { id: true, title: true, docType: true, docNumber: true, storagePath: true } },
           items: { select: { subtotal: true, vatRate: true, quantity: true, costPlan: true, unitPrice: true, lotId: true } },
@@ -114,7 +115,10 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
   // Платежи и документы закупки.
   const pu = row.purchase;
   const auctionHref = l.auction === NO_AUCTION_KEY ? undefined : l.auction.startsWith("Шкуры подрядчика") ? "/lots/contractor-hides" : lining ? `/lots/lining/${encodeURIComponent(l.auction)}` : `/lots?auction=${encodeURIComponent(l.auction)}`;
-  const paid = pu ? pu.payments.filter((x) => x.status === "COMPLETED").reduce((s, x) => s.add(x.amount), new Decimal(0)) : null;
+  // Оплаты закупки с аукционом ведутся по партии целиком — берём долю оплаты партии, как «Закупки» и «Сводка закупок».
+  const puAuction = pu ? auctionName(pu.auctionSession) : null;
+  const puAuctionPay = puAuction ? (await loadAuctionSummaries(prisma, orgId, [puAuction]))[0] : undefined;
+  const paid = pu ? purchasePaidShare(puAuctionPay, pu.id, pu.payments.filter((x) => x.status === "COMPLETED").reduce((s, x) => s.add(x.amount), new Decimal(0))) : null;
   const purTotal = pu ? purchaseTotalInclVat({ exchangeRate: pu.exchangeRate, items: pu.items, expenses: pu.expenses }) : null;
   const docMap = new Map<string, { href: string | null; text: string }>();
   for (const d of [...(pu?.driveDocuments ?? []), ...row.driveDocuments]) docMap.set("d" + d.id, { href: d.storagePath ? `/api/drive-docs/${d.id}` : null, text: `${DRIVE_DOC_TYPE_LABELS[d.docType] ?? d.docType}${d.docNumber ? ` №${d.docNumber}` : ""} — ${d.title}` });
@@ -200,7 +204,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         { label: "УПД №", node: pu?.transferDocument ?? "—", editor: canEdit && pu ? <LotPurchaseText key="e" lotId={id} kind="transferDocument" value={pu.transferDocument ?? ""} label="УПД №" /> : undefined, note: canEdit && pu ? purchaseWide : undefined },
         { label: "Дата закупки", node: p.purchaseDate ? formatDate(p.purchaseDate) : "—", editor: canEdit && pu ? <LotDateField key="e" lotId={id} kind="order" value={isoDay(pu.orderDate)} label="Дата закупки" /> : undefined },
         ...(!lining || (p.currency && p.currency !== "RUB") ? [{ label: "Валюта · курс", node: p.currency ? `${p.currency}${p.exchangeRate ? ` · ${formatQty(p.exchangeRate.toString())}` : ""}` : "—", note: "общие для всей закупки — меняются в закупке" }] : []),
-        ...(lining && paid && purTotal ? (paid.lte(purTotal) ? [
+        ...(lining && paid && purTotal ? (paid.lte(purTotal.add(1)) ? [
           { label: "Оплачено по закупке", node: <Money incl={q2(paid)} /> },
           { label: "Долг по закупке", node: <Money incl={q2(Decimal.max(purTotal.sub(paid), zeroD))} />, note: <Link href="/payments" className="text-blue-700 hover:underline">→ Оплаты</Link> },
         ] : [{ label: "Оплаты", node: "ведутся по партии целиком", note: <Link href="/payments" className="text-blue-700 hover:underline">→ Оплаты</Link> }]) : []),

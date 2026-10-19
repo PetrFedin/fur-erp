@@ -286,7 +286,7 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
       // 0,05 ₽: дробные копейки долей лотов при распределении долга по годам (≈1,4 коп.) — не ошибка расчёта.
       if (!anyOn) {
         eq(`${tag} итог долга по годам = плитка «все годы»`, tot.debt, a.debt.debt.toNumber(), 0.05);
-        eq(`${tag} итог оплат по годам = деньги поставщику (без услуг по УПД) + шкуры подрядчика + зачтённые переплаты`, tot.paid, a.supplierCashPaid - a.paidByItem.services + a.hides.incl + a.overpaid.reduce((x, o) => x + o.amount, 0), 0.05);
+        eq(`${tag} итог оплат по годам = деньги поставщику (без услуг по УПД, переплаты входят в «оплачено») + шкуры подрядчика`, tot.paid, a.supplierCashPaid - a.paidByItem.services + a.hides.incl, 0.05);
       } else if (!lotOn) eq(`${tag} долг по годам при фильтре по ТЗ = общему долгу`, tot.debt, a.debt.debt.toNumber(), 0.05);
       // та же величина на разных блоках: годы 2025+2026 по закупкам = закупки «все годы»
       const d25 = await dd("2025", f, c4), d26 = await dd("2026", f, c4);
@@ -370,7 +370,8 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
     // оплаты: SQL — все COMPLETED оплаты поставщику (закупки + аукционы + авансы) = «Оплачено поставщику»
     const [pay] = await prisma.$queryRawUnsafe<{ s: number }[]>(`select coalesce(sum(amount),0)::float s from "Payment" where "organizationId"='${org}' and status='COMPLETED'`);
     console.log(`  (оплаты поставщику в БД, все COMPLETED: ${pay.s.toFixed(2)}; на Сводке: ${allD.supplierCashPaid.toFixed(2)} — разница = переплата аукционов/закупок сверх их стоимости)`);
-    checks++; if (allD.supplierCashPaid > pay.s + 0.01) { fails++; console.log("  ✗ оплачено на Сводке больше, чем есть оплат в БД"); }
+    eq("оплачено на Сводке = Σ оплат в БД; из них переплаты, зачтённые в долг, показаны отдельно", allD.supplierCashPaid, pay.s, 0.05);
+    eq("подсказка долга: закупки − оплачено = долг поставщику", allD.bridge.purchases.received + allD.bridge.purchases.draft - allD.supplierCashPaid, allD.debt.debt.toNumber(), 0.05);
     // долг заказчиков: SQL — работа ТЗ с заказчиком, оплаты заказчика
     const [cl] = await prisma.$queryRawUnsafe<{ b: number; p: number }[]>(`
       select (select coalesce(sum(o."clientWorkPricePerUnit"*case when o.status='COMPLETED' then o."producedQuantity" when o.status in ('PLANNED','IN_PROGRESS') then o."plannedQuantity" else 0 end),0)::float from "ProductionOrder" o where o."organizationId"='${org}' and o."clientId" is not null) b,

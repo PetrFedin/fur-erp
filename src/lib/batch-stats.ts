@@ -109,13 +109,13 @@ export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = DEFAUL
     cost = cost.add(s.cost);
     work = work.add(s.work);
     for (const a of o.paymentAllocations) {
-      if (a.productionPayment.status === "CANCELLED") continue;
+      if (a.productionPayment.status !== "COMPLETED") continue;
       pay.set(a.productionPayment.id, a.productionPayment.amount);
       const done = a.productionPayment.allocations.reduce((x, y) => x.add(y.amount), new Decimal(0));
       const left = a.productionPayment.amount.sub(done);
       rest.set(a.productionPayment.id, left.greaterThan(0) ? left : new Decimal(0));
     }
-    for (const sh of o.payShares) if (sh.productionPayment.status !== "CANCELLED") shared = shared.add(sh.amount);
+    for (const sh of o.payShares) if (sh.productionPayment.status === "COMPLETED") shared = shared.add(sh.amount);
   }
   const paidGross = Array.from(pay.values()).reduce((s, v) => s.add(v), new Decimal(0));
   const unallocated = Array.from(rest.values()).reduce((s, v) => s.add(v), new Decimal(0));

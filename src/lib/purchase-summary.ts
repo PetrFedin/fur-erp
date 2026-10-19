@@ -5,7 +5,7 @@ import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
 
 import { expenseInclVat, lotUnitCostExclVat, purchaseTotalExclVat, purchaseTotalInclVat } from "@/lib/purchase-totals";
-import { auctionName, loadAuctionSummaries } from "@/lib/auction-payments";
+import { auctionName, loadAuctionSummaries, purchasePaidShare } from "@/lib/auction-payments";
 
 /**
  * Сводка закупок: Год (по orderDate закупки) → Аукцион → Тип сырья (RawMaterial) → лоты.
@@ -179,12 +179,8 @@ export async function loadSummary(organizationId: string): Promise<SummaryData> 
 
     // Оплачено по этой закупке: её собственные оплаты + доля оплат аукциона целиком.
     const a = byName.get(auction);
-    const pp = a?.perPurchase.find((x) => x.id === p.id);
     // Закупка вне аукциона в byName не попадает (buildAuctionSummaries пропускает записи без аукциона): её оплаты — p.payments.
-    let paid = pp?.paid ?? (a ? zero() : p.payments.reduce((s, x) => s.add(x.amount), zero()));
-    if (a && a.paidByAuction.greaterThan(0) && a.total.greaterThan(0) && pp) {
-      paid = paid.add(a.paidByAuction.mul(pp.total).div(a.total));
-    }
+    const paid = purchasePaidShare(a, p.id, p.payments.reduce((s, x) => s.add(x.amount), zero()));
 
     // «С расходами» не меньше «Цены шкур по счетам»: у принятого лота стоимость хранится округлённой до копеек,
     // а цена по счёту — нет; различие в пределах 1 ₽ — это округление, выравниваем на цену.

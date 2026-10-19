@@ -102,6 +102,8 @@ export type DashboardData = {
   auctionSrc: Record<string, "auction" | "supplier">;
   debt: SupplierDebt;
   supplierCashPaid: number;
+  /** Переплаты аукционов/закупок сверх их стоимости: входят в supplierCashPaid и зачтены в долг. */
+  supplierOverpaid: number;
   /** Оплачено по статьям: сырьё (мех / подкладка), услуги по УПД (закупки без позиций сырья), работа подрядчику (в ней неразнесённый аванс), расчётная надбавка 4%. */
   paidByItem: { fur: number; lining: number; services: number; work: number };
   /** Оплачено по типам платежа (аванс, доплата, окончательный расчёт, прочее): сумма и число платежей; Σ = fur + lining + services + work без фильтров. */
@@ -481,7 +483,9 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
   const workOf = (pred: (o: OrderRow) => boolean) => ordersYear.filter(pred).reduce((a, o) => a + o.work, 0);
 
   // Оплачено по статьям — те же числа, что в «Оплаты → Все»: мех (с шкурами подрядчика), подкладка, работа. 4% отдельной суммой не добавляется (учтены в оплатах).
-  const supplierCashPaid = debt.paid.add(debt.unlinkedAdvances).toNumber();
+  // «Оплачено» = реальная сумма оплат (с переплатами): закупки − оплачено = долг; переплаты, зачтённые в долг, показаны отдельно.
+  const supplierOverpaid = debt.overpaid.reduce((a, o) => a.add(o.amount), new Decimal(0));
+  const supplierCashPaid = debt.paid.add(debt.unlinkedAdvances).add(supplierOverpaid).toNumber();
   const ovLeft = ovLeftAll;
   const ovYear = ovAll.filter((r) => year === "all" || r.year === Number(year));
   const sumOv = (k: "fur" | "lining" | "services" | "work") => ovYear.reduce((a, r) => a + r[k], 0);
@@ -724,6 +728,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
     prod: { done: prodTotals(ordersYear.filter(isDone)), work: prodTotals(ordersYear.filter((o) => !isDone(o))), all: prodTotals(ordersYear) },
     rawTable, rawTableTotal: rawTableTotalAll, years, yearsFurBySrc, auctionSrc, debt,
     supplierCashPaid,
+    supplierOverpaid: supplierOverpaid.toNumber(),
     clientDebts, clientDebtInfo: { allocated: clientDebt.allocated, unallocated: clientDebt.unallocated, unallocatedAll: clientDebt.unallocatedAll, unallocatedApplied: clientDebt.unallocatedApplied, unallocatedByKind: clientDebt.unallocatedByKind }, invoiceDeadlines, control, options: { ...options, fur: withOrderFurOptions(options.fur, ordersAll) }, noColorLots,
     noGroup: { repair: ordersAll.filter((o) => !o.categoryGroup && o.category === REPAIR_CATEGORY).length, other: ordersAll.filter((o) => !o.categoryGroup && o.category !== REPAIR_CATEGORY).length },
     orderIds: ordersYear.map((o) => o.id),

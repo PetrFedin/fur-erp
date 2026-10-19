@@ -85,6 +85,7 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
   const payMap = new Map<string, { p: (typeof orders)[number]["paymentAllocations"][number]["productionPayment"]; tz: string[] }>();
   for (const o of orders) {
     for (const a of o.paymentAllocations) {
+      if (a.productionPayment.status !== "COMPLETED") continue;
       const e = payMap.get(a.productionPayment.id) ?? { p: a.productionPayment, tz: [] };
       const tzNo = o.workOrderNumber?.trim() || `Заказ ${o.number}`;
       if (!e.tz.includes(tzNo)) e.tz.push(tzNo);
@@ -97,7 +98,7 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
   const paidByOrder = new Map<string, Decimal>();
   for (const o of orders) {
     for (const sh of o.payShares) {
-      if (sh.productionPayment.status === "CANCELLED") continue;
+      if (sh.productionPayment.status !== "COMPLETED") continue;
       shareByPay.set(sh.productionPaymentId, (shareByPay.get(sh.productionPaymentId) ?? new Decimal(0)).add(sh.amount));
       paidByOrder.set(o.id, (paidByOrder.get(o.id) ?? new Decimal(0)).add(sh.amount));
     }
