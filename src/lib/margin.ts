@@ -2,7 +2,7 @@
 // Чистые функции без БД: данные собирает margin-server.ts. Всё считается из реальных данных; где не хватает себестоимости или цены — «нет данных» и охват.
 import type { CatClass, SalesLineKindT } from "@/lib/sales-receipts-core";
 
-/** Ключ прайса в SystemState (apply-retail-prices-2026-10-19.ts). Подрядчику не отдаётся. */
+/** Прежний зашитый ключ прайса (его пишет только старый скрипт apply-retail-prices-2026-10-19.ts). Код читает версию через src/lib/import-keys.ts (указатель retail-prices:current). Подрядчику не отдаётся. */
 export const RETAIL_PRICES_KEY = "retail-prices:2026-10-19";
 /** Ставка НДС розницы в текущем прайсе (с января 2026 — 22%). */
 export const RETAIL_VAT_PCT = 22;
@@ -41,7 +41,9 @@ export type ModelRow = {
   code: string; name: string;
   unitIncl: number | null; unitExcl: number | null;
   /** Текущая розница с НДС: средневзвешенная по приходу артикулов с ценой; нет прихода — цена модели. */
-  price: number | null; priceKind: "прайс" | "цена модели" | null;
+  price: number | null; priceKind: "прайс" | "цена модели" | "карточка" | null;
+  /** «Цена по карточке (главная)» = ProductModel.sellingPrice и «Цена прайса» (средневзвешенная по приходу) — обе с НДС, для сравнения. Без продаж маркап и маржа считаются от карточки. */
+  cardPrice: number | null; listPrice: number | null;
   markup: number | null; markupPct: number | null; grossPerUnit: number | null;
   received: number; sold: number;
 };
@@ -103,10 +105,13 @@ export function buildMargin(inp0: MarginInput, cls: CatClass | "all" = "all"): M
     let price: number | null = null, kind: ModelRow["priceKind"] = null;
     if (pr.length) { price = sum(pr.map((x) => x.p * x.w)) / sum(pr.map((x) => x.w)); kind = "прайс"; }
     else if (inp.modelPrice.has(code)) { price = inp.modelPrice.get(code)!; kind = "цена модели"; }
+    const cardPrice = inp.modelPrice.get(code) ?? null, listPrice = pr.length ? sum(pr.map((x) => x.p * x.w)) / sum(pr.map((x) => x.w)) : null;
+    // Главная цена — карточка: нет продаж у модели — маркап и маржа от цены карточки, а не прайса.
+    if (cardPrice !== null && sum(s.map((l) => l.pcs)) <= 0) { price = cardPrice; kind = "карточка"; }
     const unitIncl = c && c.qty > 0 ? c.unitIncl : null, unitExcl = c && c.qty > 0 ? c.unitExcl : null;
     const markup = price !== null && unitIncl ? price / unitIncl : null;
     models.push({
-      code, name: c?.name ?? code, unitIncl, unitExcl, price, priceKind: kind, markup, markupPct: markup === null ? null : (markup - 1) * 100,
+      code, name: c?.name ?? code, unitIncl, unitExcl, price, priceKind: kind, cardPrice, listPrice, markup, markupPct: markup === null ? null : (markup - 1) * 100,
       grossPerUnit: price !== null && unitExcl !== null ? exVatOf(price) - unitExcl : null, received: sum(r.map((l) => l.pcs)), sold: sum(s.map((l) => l.pcs)),
     });
   }

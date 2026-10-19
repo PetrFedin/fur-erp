@@ -15,6 +15,25 @@ export type Metrics = {
   revenueEur: number; discountEurSum: number; avgPriceEur: number | null;
   /** Выручка выбранного режима НДС, ₽. */
   revenue: number;
+} & Partial<PriceMetrics>;
+
+/**
+ * Цены узла (решение владельца 2026-10-20): ГЛАВНАЯ розница — цена артикула/модели (ProductModel.sellingPrice, «карточка»); прайс-лист — справочная цена (кнопка «Взять из прайса» — в интерфейсе).
+ * Все цены — в режиме НДС узла (с НДС или без НДС по ставке даты строки), средневзвешенные ПО ШТУКАМ: по проданным (pcs > 0), а если продаж нет — по полученным.
+ * Суммы-основы (…Val, …Pcs) аддитивны: у узла они равны сумме детей (проверяется тестом), цены и проценты — отношения этих сумм.
+ */
+export type PriceMetrics = {
+  /** «Цена по карточке (главная)». */
+  cardPrice: number | null; cardVal: number; cardPcs: number;
+  /** «Цена прайса» (справочная). */
+  listPrice: number | null; listVal: number; listPcs: number;
+  /** «Фактическая цена продажи»: выручка ÷ проданные штуки (нетто возвратов), с НДС и без НДС. */
+  actualPriceIncl: number | null; actualPriceEx: number | null;
+  /** «К карточке %» / «К прайсу %»: фактическая выручка ÷ (цена × штуки) по проданным строкам, у которых есть эта цена; …Rev — числитель, …Basis — знаменатель. */
+  toCardPct: number | null; toCardRev: number; toCardBasis: number;
+  toListPct: number | null; toListRev: number; toListBasis: number;
+  /** Без продаж: маркап и маржа от цены КАРТОЧКИ по полученным строкам с себестоимостью (цена ÷ себестоимость; (цена без НДС − себестоимость без НДС) ÷ цена без НДС). */
+  cardMarkup: number | null; cardMarginPct: number | null; cardCostIncl: number; cardCostEx: number; cardRecVal: number; cardRecValEx: number;
 };
 export const METRIC_KEYS = ["revenueEx", "sold", "sellThrough", "avgPrice", "discountVsRetail", "grossProfit", "grossMarginPct", "gpOfRetail", "markupW"] as const;
 export type MetricKey = (typeof METRIC_KEYS)[number];
@@ -22,7 +41,7 @@ export type MetricKey = (typeof METRIC_KEYS)[number];
 const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
 
 export type VatMode = "ex" | "in";
-export type Ctx = { vat: VatMode; unitPrice: (l: FullLine) => number | null; hasCost: (l: FullLine) => boolean; unitExcl: (l: FullLine) => number; unitIncl: (l: FullLine) => number };
+export type Ctx = { vat: VatMode; /** Цена по карточке (ProductModel.sellingPrice, с НДС) по коду модели строки. */ cardPrice?: (l: FullLine) => number | null; unitPrice: (l: FullLine) => number | null; hasCost: (l: FullLine) => boolean; unitExcl: (l: FullLine) => number; unitIncl: (l: FullLine) => number };
 
 export function makeCtx(inp: MarginInput, vat: VatMode = "ex"): Ctx {
   const pidx = priceIndex(inp.prices);
@@ -30,6 +49,7 @@ export function makeCtx(inp: MarginInput, vat: VatMode = "ex"): Ctx {
   for (const r of inp.prices) { const k = r.modelCode + "|" + r.color; (byMc.get(k) ?? byMc.set(k, new Set()).get(k)!).add(r.price); }
   return {
     vat,
+    cardPrice: (l) => (l.modelCode ? inp.modelPrice.get(l.modelCode) ?? null : null),
     unitPrice: (l) => {
       const exact = pidx.get(l.article + "|" + (l.colorId ?? ""));
       if (exact !== undefined) return exact;
@@ -39,6 +59,38 @@ export function makeCtx(inp: MarginInput, vat: VatMode = "ex"): Ctx {
     hasCost: (l) => !!l.modelCode && (inp.costs.get(l.modelCode)?.qty ?? 0) > 0,
     unitExcl: (l) => inp.costs.get(l.modelCode!)!.unitExcl,
     unitIncl: (l) => inp.costs.get(l.modelCode!)!.unitIncl,
+  };
+}
+
+/** Цены узла (см. PriceMetrics). Чистая функция: тесты пересчитывают независимо. */
+export function priceMetricsOf(ctx: Ctx, lines: FullLine[]): PriceMetrics {
+  const inc = ctx.vat === "in";
+  const pv = (l: FullLine, price: number) => (inc ? price : exVatAt(price, l.iso));
+  const revOf = (l: FullLine) => (inc ? l.retailRub : l.retailRubExVat);
+  const sold = lines.filter((l) => l.kind === "SALE" && l.pcs > 0), rec = lines.filter((l) => l.kind === "RECEIPT" && l.pcs > 0);
+  const card = (l: FullLine) => ctx.cardPrice?.(l) ?? null;
+  const agg = (price: (l: FullLine) => number | null) => {
+    const ls = sold.filter((l) => price(l) !== null), lr = rec.filter((l) => price(l) !== null);
+    const sv = sum(ls.map((l) => pv(l, price(l)!) * l.pcs)), sp = sum(ls.map((l) => l.pcs));
+    const rv = sum(lr.map((l) => pv(l, price(l)!) * l.pcs)), rp = sum(lr.map((l) => l.pcs));
+    // основа: по проданным; нет продаж с этой ценой — по полученным
+    const useSold = sp > 0;
+    return { val: useSold ? sv : rv, pcs: useSold ? sp : rp, rev: sum(ls.map(revOf)), basis: sv };
+  };
+  const c = agg(card), p = agg(ctx.unitPrice);
+  const soldNet = sum(lines.filter((l) => l.kind === "SALE").map((l) => l.pcs));
+  const rIncl = sum(lines.filter((l) => l.kind === "SALE").map((l) => l.retailRub)), rEx = sum(lines.filter((l) => l.kind === "SALE").map((l) => l.retailRubExVat));
+  const rc = rec.filter((l) => card(l) !== null && ctx.hasCost(l));
+  const cardRecVal = sum(rc.map((l) => card(l)! * l.pcs)), cardRecValEx = sum(rc.map((l) => exVatAt(card(l)!, l.iso) * l.pcs));
+  const cardCostIncl = sum(rc.map((l) => ctx.unitIncl(l) * l.pcs)), cardCostEx = sum(rc.map((l) => ctx.unitExcl(l) * l.pcs));
+  return {
+    cardPrice: c.pcs > 0 ? c.val / c.pcs : null, cardVal: c.val, cardPcs: c.pcs,
+    listPrice: p.pcs > 0 ? p.val / p.pcs : null, listVal: p.val, listPcs: p.pcs,
+    actualPriceIncl: soldNet > 0 ? rIncl / soldNet : null, actualPriceEx: soldNet > 0 ? rEx / soldNet : null,
+    toCardRev: c.rev, toCardBasis: c.basis, toCardPct: c.basis > 0 ? (c.rev / c.basis) * 100 : null,
+    toListRev: p.rev, toListBasis: p.basis, toListPct: p.basis > 0 ? (p.rev / p.basis) * 100 : null,
+    cardMarkup: cardCostIncl > 0 ? cardRecVal / cardCostIncl : null, cardMarginPct: cardRecValEx > 0 ? ((cardRecValEx - cardCostEx) / cardRecValEx) * 100 : null,
+    cardCostIncl, cardCostEx, cardRecVal, cardRecValEx,
   };
 }
 
@@ -75,6 +127,7 @@ export function metricsOf(ctx: Ctx, lines: FullLine[]): Metrics {
     discountGiven: retRub + discRub > 0 ? discRub / (retRub + discRub) : null,
     revenueEur, discountEurSum: sum(s.map((l) => (inc ? l.discountEur : l.discountEurExVat))),
     avgPriceEur: sold > 0 ? revenueEur / sold : null,
+    ...priceMetricsOf(ctx, lines),
   };
 }
 
@@ -139,6 +192,7 @@ export const DIM_LABEL: Record<Dim, string> = { cls: "Категория 1", c2:
 
 /** Размеры из отчёта о товарах (лист Report, строки артикул × цвет × размер). Сезонов и дат в нём нет — только итоги на 19.10.2026. */
 export type ReportSizeRow = { conf?: number; acode: string; color: string; size: string; modelCode: string | null; cls: CatClass; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number };
+/** Прежний зашитый ключ размеров (старый скрипт); код читает версию через src/lib/import-keys.ts (указатель sales-report-sizes:current). */
 export const REPORT_SIZES_KEY = "sales-report-sizes:2026-10-19";
 export type SizeAgg = { size: string; received: number; sold: number; stock: number; revenueEx: number; revenueIncl: number; sellThrough: number | null; avgPrice: number | null };
 

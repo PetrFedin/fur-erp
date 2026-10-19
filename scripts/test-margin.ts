@@ -155,6 +155,35 @@ const pct = (v: number | null, d = 1) => (v === null ? "нет данных" : v
   }
   const ok = m.models.filter((x) => x.markup !== null);
   eq("простой средний маркап", m.avgMarkup, ok.length ? sum(ok.map((x) => x.markup!)) / ok.length : null);
+  // 3b. Цены (решение владельца 2026-10-20): главная — карточка (ProductModel.sellingPrice), прайс — справочная; фактическая — средневзвешенная по штукам.
+  const lines = inp.lines, seasons = seasonsOf(lines);
+  for (const vat of ["in", "ex"] as const) for (const key of ["a", "b"] as const) {
+    const cx = makeCtx(inp, vat);
+    const preds = seasons.map((sn) => (l: (typeof lines)[number]) => l.season === sn);
+    const root = totalNode(cx, lines, preds, buildTreeBy(cx, lines, TREE_ORDERS[key], preds));
+    const tag = `[цены ${key}|${vat}]`;
+    const walk = (n: TreeNode) => {
+      if (n.children.length) for (const c of ["cardVal", "cardPcs", "listVal", "listPcs", "toCardRev", "toCardBasis", "toListRev", "toListBasis"] as const) {
+        // основы цен у узла = сумма детей (по каждому столбцу: Тотал и сезоны)
+        n.cols.forEach((col, i) => eq(`${tag} «${n.label}» ${c} (столбец ${i}) = Σ детей`, col[c] ?? 0, sum(n.children.map((ch) => ch.cols[i][c] ?? 0)), 0.01));
+      }
+      n.children.forEach(walk);
+    };
+    walk(root);
+    // независимый пересчёт цены карточки и прайса для всего набора (средневзвешенно по проданным штукам)
+    const modelPrice = (l: (typeof lines)[number]) => (l.modelCode ? inp.modelPrice.get(l.modelCode) ?? null : null);
+    const pvx = (l: (typeof lines)[number], p: number) => (vat === "in" ? p : p / (1 + (l.iso < "2026-01-01" ? 20 : 22) / 100));
+    const ls = lines.filter((l) => l.kind === "SALE" && l.pcs > 0 && modelPrice(l) !== null);
+    if (ls.length) {
+      eq(`${tag} цена по карточке (средневзв.)`, root.cols[0].cardPrice ?? null, sum(ls.map((l) => pvx(l, modelPrice(l)!) * l.pcs)) / sum(ls.map((l) => l.pcs)), 1e-6);
+      eq(`${tag} «К карточке %»`, root.cols[0].toCardPct ?? null, (sum(ls.map((l) => (vat === "in" ? l.retailRub : l.retailRubExVat))) / sum(ls.map((l) => pvx(l, modelPrice(l)!) * l.pcs))) * 100, 1e-6);
+    }
+    const sl = lines.filter((l) => l.kind === "SALE");
+    const soldNet = sum(sl.map((l) => l.pcs));
+    if (soldNet > 0) eq(`${tag} фактическая цена = выручка ÷ штуки (${vat === "in" ? "с НДС" : "без НДС"})`, (vat === "in" ? root.cols[0].actualPriceIncl : root.cols[0].actualPriceEx) ?? null, sum(sl.map((l) => (vat === "in" ? l.retailRub : l.retailRubExVat))) / soldNet, 1e-6);
+  }
+  for (const mr of m.models) if (mr.sold <= 0 && mr.cardPrice !== null) { eq(`модель ${mr.code}: без продаж цена = карточка`, mr.price, mr.cardPrice, 1e-9); }
+
   // 4. Валовая прибыль по сезонам из сырых строк.
   for (const s of m.seasons) {
     const l = sale.filter((x) => x.season === s.season && x.modelCode && (inp.costs.get(x.modelCode)?.qty ?? 0) > 0 && x.pcs !== 0);
