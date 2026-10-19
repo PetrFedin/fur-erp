@@ -47,7 +47,7 @@ export function PurchaseItemForm({
   const vatShown = vat ?? String(auto.rate);
   const vatNum = Number(vatShown.replace(",", "."));
   const vatWarn = purchaseDate && Number.isFinite(vatNum) && vatNum !== auto.byDate
-    ? `Ставка ${vatNum}% не совпадает с датой закупки (${vatPeriodLabel(purchaseDate)} → ${auto.byDate}%)`
+    ? `Ставка ${vatNum} % не совпадает с датой закупки (${vatPeriodLabel(purchaseDate)} → ${auto.byDate} %)`
     : auto.warning;
 
   // onSubmit вместо action: у <form action> React после действия сбрасывает поля даже при ошибке,

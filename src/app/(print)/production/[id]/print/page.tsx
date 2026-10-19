@@ -84,7 +84,7 @@ export default async function TzPrintPage({
 
   const q = (c4: string, vat: string) => `/production/${id}/print?c4=${c4}&vat=${vat}`;
   const vatNote = vatMode === "excl" ? "без НДС" : "с НДС";
-  const c4Note = d.c4Applied ? ", с учётом 4%" : "";
+  const c4Note = d.c4Applied ? ", с учётом 4 %" : "";
 
   return (
     <>
@@ -92,8 +92,8 @@ export default async function TzPrintPage({
         backHref={`/production/${id}`}
         docxHref={`/api/production/${id}/docx?c4=${c4Mode}&vat=${vatMode}`}
         switches={[
-          { label: "Без 4%", href: q("off", vatMode), active: c4Mode === "off" },
-          { label: "С 4%", href: q("on", vatMode), active: c4Mode === "on" },
+          { label: "Без 4 %", href: q("off", vatMode), active: c4Mode === "off" },
+          { label: "С 4 %", href: q("on", vatMode), active: c4Mode === "on" },
           { label: "С НДС", href: q(c4Mode, "incl"), active: vatMode === "incl" },
           { label: "Без НДС", href: q(c4Mode, "excl"), active: vatMode === "excl" },
         ]}

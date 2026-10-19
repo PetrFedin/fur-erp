@@ -284,9 +284,9 @@ export function FurSelectionTotal({
 
   // Колонки по показателям: Куплено (шт., ₽, ср. цена) → Использовано (…) → Остаток (…); режим шт./₽/Все прячет лишнее.
   const GROUPS = [
-    { key: "recv", title: "Куплено", what: "закупки", extra: "4% к закупке не применяется.", qty: (f: FlowFigures) => f.recvQty, val: (f: FlowFigures) => f.recvValue, avg: (f: FlowFigures) => f.recvAvg, usd: (f: FlowFigures) => f.usdAvg },
-    { key: "used", title: "Использовано", what: "использования", extra: "4% начисляется только на строки списания, где оно разрешено.", qty: (f: FlowFigures) => f.usedQty, val: (f: FlowFigures) => f.usedValue, avg: (f: FlowFigures) => f.usedAvg, usd: (f: FlowFigures) => f.usdUsedAvg },
-    { key: "rem", title: "Остаток", what: "остатка", extra: "4% к остатку не применяется (оно начисляется при списании в ТЗ).", qty: (f: FlowFigures) => f.remQty, val: (f: FlowFigures) => f.remValue, avg: (f: FlowFigures) => f.remAvg, usd: (f: FlowFigures) => f.usdRemAvg },
+    { key: "recv", title: "Куплено", what: "закупки", extra: "4 % к закупке не применяется.", qty: (f: FlowFigures) => f.recvQty, val: (f: FlowFigures) => f.recvValue, avg: (f: FlowFigures) => f.recvAvg, usd: (f: FlowFigures) => f.usdAvg },
+    { key: "used", title: "Использовано", what: "использования", extra: "4 % начисляется только на строки списания, где оно разрешено.", qty: (f: FlowFigures) => f.usedQty, val: (f: FlowFigures) => f.usedValue, avg: (f: FlowFigures) => f.usedAvg, usd: (f: FlowFigures) => f.usdUsedAvg },
+    { key: "rem", title: "Остаток", what: "остатка", extra: "4 % к остатку не применяется (оно начисляется при списании в ТЗ).", qty: (f: FlowFigures) => f.remQty, val: (f: FlowFigures) => f.remValue, avg: (f: FlowFigures) => f.remAvg, usd: (f: FlowFigures) => f.usdRemAvg },
   ] as const;
   // Средневзвешенные цены: ₽ — всегда; $ — только по лотам, у которых цена в $ записана в расчёте лота (lotUsdPrice); нет ни у одного — «—» (курс не придумываем).
   const showUsd = kind !== "lining"; // у подкладки цены в $ нет — колонок $ нет
@@ -344,12 +344,12 @@ export function FurSelectionTotal({
     for (const l of ls) byRate.set(l.vatRate, (byRate.get(l.vatRate) ?? 0) + (l.recvIncl - l.recvExcl));
     const rates = [...byRate.keys()].sort((a, b) => a - b);
     const sum = [...byRate.values()].reduce((a, v) => a + v, 0);
-    const detail = rates.map((r) => `${r}%: ${formatMoney(byRate.get(r) ?? 0)}`).join(" · ");
+    const detail = rates.map((r) => `${r} %: ${formatMoney(byRate.get(r) ?? 0)}`).join(" · ");
     const l0 = ls[0];
     return (
       <>
         <Num first strong={o.strong} small={o.small}>
-          {rates.length ? rates.map((r) => `${r}%`).join(" · ") : <span className="text-neutral-300">—</span>}
+          {rates.length ? rates.map((r) => `${r} %`).join(" · ") : <span className="text-neutral-300">—</span>}
           {o.single && l0 ? <div className="text-[11px] font-normal leading-tight text-neutral-500">{l0.year < 2026 ? "куплено до 2026" : "с 2026"}</div> : null}
         </Num>
         <Num strong={o.strong} small={o.small} title={detail ? `в т.ч. ${detail}` : undefined}>
@@ -390,7 +390,7 @@ export function FurSelectionTotal({
           )}
           {showMoney && (
             g.key === "used" ? (
-              <Num first={!showQty} strong={o.strong} small={o.small} title={`${c4 === "on" ? "без 4%" : "с 4%"}: ${formatMoney(f.usedValueOther)}`}>
+              <Num first={!showQty} strong={o.strong} small={o.small} title={`${c4 === "on" ? "без 4 %" : "с 4 %"}: ${formatMoney(f.usedValueOther)}`}>
                 <div>{R(f.usedValue)}</div>
                 
               </Num>
@@ -474,7 +474,7 @@ export function FurSelectionTotal({
             {showQty && <Num first small muted>{g.key === "used" ? Q(u.qty) : <span className="text-neutral-300">—</span>}</Num>}
             {showMoney && (
               <Num first={!showQty} small muted>
-                {g.key === "used" ? <><div>{R(sumU)}</div>{extra > 0.005 ? <div className="text-[11px] text-neutral-500">4%: {R(extra)}</div> : null}</> : <span className="text-neutral-300">—</span>}
+                {g.key === "used" ? <><div>{R(sumU)}</div>{extra > 0.005 ? <div className="text-[11px] text-neutral-500">4 %: {R(extra)}</div> : null}</> : <span className="text-neutral-300">—</span>}
               </Num>
             )}
             <Num small muted>{g.key === "used" && u.qty > 0 ? A(sumU / u.qty) : <span className="text-neutral-300">—</span>}</Num>
@@ -648,7 +648,7 @@ export function FurSelectionTotal({
         <>
           {slides ? (() => {
             const G = (sr: FurSrc, k: string) => grid.get(`${sr}|${k}`) as FlowFigures;
-            const used$ = (f: FlowFigures) => (raw.c4 === "on" ? f.usedValueOther : f.usedValue); // «Использовано» без 4% — как в плитке
+            const used$ = (f: FlowFigures) => (raw.c4 === "on" ? f.usedValueOther : f.usedValue); // «Использовано» без 4 % — как в плитке
             const chk: [string, (f: FlowFigures) => number, boolean][] = [["куплено", (f) => f.recvQty, false], ["куплено", (f) => f.recvValue, true], ["использовано", (f) => f.usedQty, false], ["использовано", used$, true], ["остаток", (f) => f.remQty, false], ["остаток", (f) => f.remValue, true]];
             const pctOf = (a: number, b: number) => (b > 0 ? formatPercent((a / b) * 100) : "—");
             const shareNote = (of: FlowFigures, f: FlowFigures, what: string, from: string) => <span title={`${what} в «${from}» по количеству и по сумме`}>{what}: {pctOf(f.recvQty, of.recvQty)} шт. · {pctOf(f.recvValue, of.recvValue)} ₽</span>;
@@ -667,7 +667,7 @@ export function FurSelectionTotal({
               <InfoHint label="Что значат источники" align="left" wide>
                 <p><b>На аукционах</b> — закупки, привязанные к аукциону справочника (SAGA, Kopenhagen, Fur Harvesters, AME, Союзпушнина, Русьпушнина). Включая заказанное, но не полученное (СП 09.26, FH 06.26): лотов по нему нет, остаток = заказанное, использовано 0.</p>
                 <p className="mt-1"><b>У поставщика</b> — закупки без аукциона: напрямую у поставщика или фермы (КФХ), белая норка №80/№96, красная лиса со склада и шкуры подрядчика (сырьё Веллмех в счетах за пошив).</p>
-                <p className="mt-1">«На аукционах» + «У поставщика» = «Вся закупка», сумма типов = «Все типы» источника (до рубля и штуки). «Использовано» — без 4%.</p>
+                <p className="mt-1">«На аукционах» + «У поставщика» = «Вся закупка», сумма типов = «Все типы» источника (до рубля и штуки). «Использовано» — без 4 %.</p>
               </InfoHint>
             );
             const pane: RawSlide[] = slides.map((sl) => {
@@ -747,7 +747,7 @@ export function FurSelectionTotal({
         )}
       </div>
 
-      {/* Шапка (обе строки) остаётся на месте при прокрутке: таблица листается внутри рамки, до 75% высоты экрана. */}
+      {/* Шапка (обе строки) остаётся на месте при прокрутке: таблица листается внутри рамки, до 75 % высоты экрана. */}
       <div className="scroll-hint max-h-[75vh] overflow-auto rounded-xl border border-neutral-200 [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-20">
         <table className={cn("w-full table-fixed text-sm tabular-nums", widthClass)}>
           <colgroup>

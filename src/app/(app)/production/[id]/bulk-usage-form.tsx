@@ -44,10 +44,10 @@ export function BulkUsageForm({ orderId, defaultCommission4 = true }: { orderId:
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-<label className="flex items-center gap-2 text-xs text-neutral-600 max-md:min-h-8 max-md:py-1" title="4% — наценка подрядчику на мех и подкладку в ТЗ. Не комиссия Веллмеха (его 4,5% за закупку сырья — отдельно). Работа, расходы и фурнитура не облагаются">
+<label className="flex items-center gap-2 text-xs text-neutral-600 max-md:min-h-8 max-md:py-1" title="4 % — наценка подрядчику на мех и подкладку в ТЗ. Не комиссия Веллмеха (его 4,5 % за закупку сырья — отдельно). Работа, расходы и фурнитура не облагаются">
         <input type="hidden" name="c4form" value="1" />
         <input type="checkbox" name="commission4" defaultChecked={defaultCommission4} className="h-4 w-4 max-md:h-5 max-md:w-5" />
-        Начислять 4%
+        Начислять 4 %
       </label>
         <div className="flex items-center gap-2">
           <Button type="submit" variant="outline" size="sm" disabled={pending}>

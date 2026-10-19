@@ -12,7 +12,7 @@ import { cleanSearch } from "@/lib/input";
 import { Clamp } from "@/components/clamp";
 import { SortTh } from "@/components/sort-th";
 import { readSort, sortRows } from "@/lib/table-sort";
-import { formatDate, formatRate } from "@/lib/utils";
+import { formatDate, formatRate, formatDecimal, formatMoney } from "@/lib/utils";
 import { AttachDocument } from "./attach";
 import { RawChip } from "@/components/raw-stages";
 import { loadSupplierPayData, groupPayInfo } from "@/lib/supplier-pay";
@@ -21,8 +21,8 @@ import { summarizeStages, summaryLine, sortStages, ruShort, STAGE_NAME, STAGE_ST
 
 export const metadata = { title: "Сырьё" };
 
-const num = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 3 });
-const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const num = (n: number) => formatDecimal(n, 3, { trim: true });
+const money = (n: number) => formatMoney(n);
 
 export default async function SupplierRawPage({ searchParams }: PageProps<"/supplier/raw">) {
   const s = await requireRawViewer();
@@ -202,7 +202,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                           <span>итого <b>{money(x.total)} ₽</b></span>
                           <span>за шкуру <b>{money(x.avg)} ₽</b></span>
                           {x.rate > 0 && <span>курс <b>{formatRate(x.rate)}</b></span>}
-                          {x.vat != null && <span>НДС <b>{x.vat}%</b></span>}
+                          {x.vat != null && <span>НДС <b>{x.vat} %</b></span>}
                           {x.advance > 0 && <span>аванс <b>{money(x.advance)} ₽</b></span>}
                           {x.interim > 0 && <span>платёж <b>{money(x.interim)} ₽</b></span>}
                           {(x.advance > 0 || x.interim > 0) && <span>остаток <b>{money(x.rest)} ₽</b></span>}

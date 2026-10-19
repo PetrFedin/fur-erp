@@ -42,7 +42,7 @@ export function ChangeView({ title, fields, pv }: { title: string; fields: Chang
           {pv.lots?.map((l) => (
             <Line key={l.name} label={`Остаток лота: ${l.name}`} before={`${formatQty(l.before)} ${UNIT_LABELS[l.unit] ?? l.unit}`} after={`${formatQty(l.after)} ${UNIT_LABELS[l.unit] ?? l.unit}`} />
           ))}
-          {pv.cost ? <Line label="Себестоимость ТЗ (с 4% и работой)" before={money(pv.cost.before)} after={money(pv.cost.after)} /> : null}
+          {pv.cost ? <Line label="Себестоимость ТЗ (с 4 % и работой)" before={money(pv.cost.before)} after={money(pv.cost.after)} /> : null}
           {pv.unit ? <Line label="На 1 изделие" before={money(pv.unit.before)} after={money(pv.unit.after)} /> : null}
           {pv.stock ? <Line label="Стоимость готовой продукции на складе" before={money(pv.stock.before)} after={money(pv.stock.after)} /> : null}
         </tbody>

@@ -14,6 +14,7 @@ import { ArticleForm } from "@/app/(app)/models/article-form";
 import { saveArticleForm } from "@/app/(app)/models/actions";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { ICON_BTN, IconPencil } from "@/components/icons";
+import { formatMoney, formatQty } from "@/lib/utils";
 
 export type ArticleRow = {
   id: string;
@@ -36,8 +37,8 @@ export type ArticleRow = {
 };
 
 type SortKey = "name" | "category" | "salesCode" | "price" | "tz" | "produced";
-const fmtPrice = (n: number | null) => (n == null ? "—" : n.toLocaleString("ru-RU") + " ₽");
-const fmtQty = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
+const fmtPrice = (n: number | null) => (n == null ? "—" : formatMoney(n));
+const fmtQty = (n: number) => formatQty(n);
 
 function MergePanel({ source, rows, onClose }: { source: ArticleRow; rows: ArticleRow[]; onClose: () => void }) {
   const [q, setQ] = useState("");

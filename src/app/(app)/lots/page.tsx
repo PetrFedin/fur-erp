@@ -332,7 +332,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             <InfoHint label="О странице «Сырьё»" wide>
               <p>Куплено → использовано в ТЗ → остаток по видам меха (или тканям подкладки). Клик по названию раскрывает партии и лоты; галочка выбирает строку для итога.</p>
               <p className="mt-1">Год ({year === "all" ? "все годы" : year}): лоты закупок с датой заказа в этом году; «Год закупки» в таблице сужает выбор.</p>
-              <p className="mt-1">Стоимость = Σ(количество × цена лота), цена — как в закупке (курс, НДС, расходы). Средняя цена = Σ ₽ ÷ Σ шт. (м). 4% считается только при списании в ТЗ; «С 4%» меняет «использовано».</p>
+              <p className="mt-1">Стоимость = Σ(количество × цена лота), цена — как в закупке (курс, НДС, расходы). Средняя цена = Σ ₽ ÷ Σ шт. (м). 4 % считается только при списании в ТЗ; «С 4 %» меняет «использовано».</p>
               <p className="mt-1">«Лиса красная» — вид «Лиса», цвет «Красный».</p>
             </InfoHint>
             </span>
@@ -377,7 +377,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           <div className="flex items-center gap-2">
             <h2 id="raw-fur" className="text-base font-semibold">{kindTitle}</h2>
             <InfoHint label="Как читать плитки сырья" wide>
-              <p>Цифры те же, что на Главной: <b>Куплено = Использовано + Остаток</b> (без 4%). Нажмите на плитку — цены по видам. Справа: Оплачено и К оплате по меху (с НДС).</p>
+              <p>Цифры те же, что на Главной: <b>Куплено = Использовано + Остаток</b> (без 4 %). Нажмите на плитку — цены по видам. Справа: Оплачено и К оплате по меху (с НДС).</p>
             </InfoHint>
           </div>
           <FurSelectionTotal noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
@@ -387,7 +387,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           <div className="flex items-center gap-2">
             <h2 id="raw-lining" className="text-base font-semibold">{kindTitle}</h2>
             <InfoHint label="Как читать плитки подкладки" wide>
-              <p>Цифры те же, что на Главной: <b>Куплено = Использовано + Остаток</b> (м и ₽, без 4%). Справа: Оплачено и К оплате по подкладке (с НДС).</p>
+              <p>Цифры те же, что на Главной: <b>Куплено = Использовано + Остаток</b> (м и ₽, без 4 %). Справа: Оплачено и К оплате по подкладке (с НДС).</p>
             </InfoHint>
           </div>
           {/* Порядок: фильтры → ряд виджетов (плитки + формы подкладки) → таблица — это задаёт FurSelectionTotal. */}

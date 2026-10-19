@@ -24,7 +24,7 @@ import { cancelAcceptance } from "../actions";
 import { FoldHeader, useFold } from "./fold";
 import { useClientSort } from "@/lib/use-client-sort";
 import { TotalLabel } from "@/components/total-label";
-import { formatQty } from "@/lib/utils";
+import { formatQty, formatMoneyExact } from "@/lib/utils";
 import { ACCEPT_NEEDS_READY, REWORK_STATE_LABEL, STAGE_LABEL, VIEW_LABEL, lineView, reworkRemainText, rowsText, type ReworkState, type Stage, type ViewKey } from "@/lib/shipment-stage";
 
 /** «+ Добавить из ТЗ»: окно со списком позиций загруженных ТЗ (не отменённых). */
@@ -423,7 +423,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, canReopen = false
   // Примечания: одинаковый текст — одна сноска, в строке только «прим. N» (полный текст в подсказке и в списке под таблицей).
   const noteOf = (r: LineRow) => r.comment.trim();
   const notes = [...new Set(rows.map(noteOf).filter(Boolean))];
-    const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const money = (n: number) => formatMoneyExact(n).replace(/\u00a0₽$/, "");
   const sumCell = (r: LineRow) => {
     if (!r.sum) return <Dash />;
     return (

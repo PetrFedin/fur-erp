@@ -11,7 +11,7 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { TotalLabel } from "@/components/total-label";
 
 /** Один заказ (ТЗ), за который заказчик платил: что за изделие и сколько. */
-export type PaidGood = { id: string; number: string; /** Номер ТЗ как в карточке («96»); нет — внутренний номер. */ label?: string; model: string; qty: number; batch: number | null; /** Часть этой оплаты, отнесённая на ТЗ (разнесение), ₽. */ paid: number | null; article?: string | null; fur?: string | null; /** Себестоимость ТЗ с 4% и НДС, ₽. */ cost?: number | null; /** Работа по ТЗ (к оплате заказчиком), ₽. */ work?: number | null; /** Оплачено по ТЗ всеми платежами, ₽. */ paidTotal?: number | null };
+export type PaidGood = { id: string; number: string; /** Номер ТЗ как в карточке («96»); нет — внутренний номер. */ label?: string; model: string; qty: number; batch: number | null; /** Часть этой оплаты, отнесённая на ТЗ (разнесение), ₽. */ paid: number | null; article?: string | null; fur?: string | null; /** Себестоимость ТЗ с 4 % и НДС, ₽. */ cost?: number | null; /** Работа по ТЗ (к оплате заказчиком), ₽. */ work?: number | null; /** Оплачено по ТЗ всеми платежами, ₽. */ paidTotal?: number | null };
 
 export type ClientPayRow = {
   id: string;
@@ -96,7 +96,7 @@ export function Goods({ goods }: { goods: PaidGood[] }) {
             <Head label="Кол-во" unit="шт." align="right" className="px-2" />
             <Head label="Стоимость" unit="₽" align="right" className="px-2" />
             <Head label="Оплачено" unit="₽" align="right" className="px-2" />
-            <Head label="Задолженность" unit="₽" align="right" className="px-2" />
+            <Head label="Остаток" unit="₽" align="right" className="px-2" />
           </tr>
         </thead>
         <tbody>
@@ -158,7 +158,7 @@ export function ClientPaymentsTable({ rows, rest }: { rows: ClientPayRow[]; rest
             <th className="px-3 py-2 font-medium">Тип</th>
             <Head label="Стоимость" unit="₽" align="right" sep className="px-3" />
             <Head label="Оплачено" unit="₽" align="right" className="px-3" />
-            <Head label="Задолженность" unit="₽" align="right" className="px-3" />
+            <Head label="Остаток" unit="₽" align="right" className="px-3" />
             <th className="border-l border-neutral-200 px-3 py-2 font-medium">Подтверждение</th>
             <th className="px-3 py-2 font-medium">Счёт</th>
           </tr>

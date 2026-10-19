@@ -344,7 +344,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             <p>Закупки сырья и подкладки: поставщик, партия, счёт, сумма, оплата и использование лотов в ТЗ. Откройте закупку — позиции, расходы, цена и документы.</p>
             <p className="mt-1">Год ({year === "all" ? "все годы" : year}) — по дате заказа; «с / по» сужают выбор внутри года.</p>
             <p className="mt-1">Оплаты внутри партии ведутся по партии целиком: «оплачено из» — сумма всего аукциона. «Принято на склад» — по закупке уже есть лоты.</p>
-            <p className="mt-1">4% к закупкам, оплатам и долгу поставщику не применяется: это наценка в ТЗ.</p>
+            <p className="mt-1">4 % к закупкам, оплатам и долгу поставщику не применяется: это наценка в ТЗ.</p>
           </InfoHint>
           </span>
         </div>
@@ -439,9 +439,9 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                     <TileCaption>{b.bought > 0 ? `${formatPercent((b.paid / b.bought) * 100)} от куплено` : "—"}</TileCaption>
                   </div>
                   <div className={TILE_BOX}>
-                    <TileHead>{b.rest < -OVERPAY_FROM ? "Переплата" : "К оплате"}</TileHead>
+                    <TileHead>{b.rest < -OVERPAY_FROM ? "Переплата" : "Долг по сырью"}</TileHead>
                     <div className="absolute right-3 top-3">
-                      <InfoHint label="О «К оплате»" align="right">
+                      <InfoHint label="О долге по сырью" align="right">
                         <p>Куплено − Оплачено.{b.kind === "fur" && variants[srcK].liningOverpay > 0.5 ? ` Это долг по меху: переплата по подкладке ${formatMoney(variants[srcK].liningOverpay.toFixed(2))} не вычтена (на Главной вычтена, поэтому там меньше).` : ""}</p>
                       </InfoHint>
                     </div>

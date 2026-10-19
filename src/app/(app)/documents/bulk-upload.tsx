@@ -9,6 +9,7 @@ import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/
 import { TH_LEFT } from "@/components/tree-table";
 import { analyzeBulkDocument, searchBulkTargets, uploadBulkDocument } from "./bulk-actions";
 import type { BulkEntity, BulkTarget } from "@/lib/bulk-doc-match";
+import { formatFileSize } from "@/lib/utils";
 
 const ENTITY_LABEL: Record<BulkEntity, string> = { purchase: "Закупка", payment: "Оплата поставщику", productionPayment: "Оплата производства", order: "ТЗ", batch: "Партия", lot: "Лот" };
 const ENTITIES = Object.keys(ENTITY_LABEL) as BulkEntity[];
@@ -30,7 +31,7 @@ type Row = {
   picking: boolean;
 };
 
-const size = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`);
+const size = formatFileSize;
 const cell = "h-8 rounded border border-neutral-300 bg-white px-1.5 text-xs";
 
 /** Массовая загрузка документов: выбрать/перетащить файлы → таблица «файл → привязка → тип → номер/дата» → «Загрузить и привязать». */

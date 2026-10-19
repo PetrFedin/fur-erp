@@ -24,7 +24,7 @@ import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { deleteArticle } from "@/app/(app)/settings/articles-ref/actions";
 import { articleDeleteBlocker } from "@/lib/article-save";
 import { saveArticleForm } from "../actions";
-import { formatMoney, formatDate, formatQty } from "@/lib/utils";
+import { formatMoney, formatDate, formatQty, formatMarkup } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { orderLabel, truncate } from "@/lib/fittings";
 import { summarizeLines } from "@/lib/shipments";
@@ -243,7 +243,7 @@ export default async function EditModelPage({ params, searchParams }: PageProps<
               <TileValue>{price ? formatMoney(price.toFixed(2)) : "—"}</TileValue>
               <TileCaption>розничная цена, с НДС</TileCaption>
               <TileList items={[
-                { k: "Наценка", v: markup ? `×${markup.toFixed(2).replace(".", ",")}` : "—" },
+                { k: "Наценка", v: markup ? formatMarkup(markup) : "—" },
               ]} />
             </div>
             <div className="absolute right-3 top-3">
@@ -301,7 +301,7 @@ export default async function EditModelPage({ params, searchParams }: PageProps<
             <dt className="text-neutral-500">Цвет (по ТЗ)</dt>
             <dd>{colors.length ? colors.join(", ") : "—"}<Src href="/settings/colors" title="Справочник цветов" /></dd>
             <dt className="text-neutral-500">НДС в списаниях</dt>
-            <dd>{met.vatRates.length ? met.vatRates.map((v) => `${v}%`).join(", ") : "—"}</dd>
+            <dd>{met.vatRates.length ? met.vatRates.map((v) => `${v} %`).join(", ") : "—"}</dd>
             <dt className="text-neutral-500">Цена в ценообразовании</dt>
             <dd>{price ? formatMoney(price.toFixed(2)) : "не задана"}<Src href="/analytics/pricing" title="Ценообразование: какую цену заводить для нужной наценки" /></dd>
             <dt className="text-neutral-500">Создан / изменён</dt>

@@ -73,8 +73,8 @@ export function MaterialForm({
         <Label htmlFor="vatMode">НДС в ТЗ и закупках</Label>
         <Select id="vatMode" value={vatMode} onChange={(e) => setVatMode(e.target.value as typeof vatMode)}>
           <option value="">По лоту / по дате документа</option>
-          <option value="20">20% (до 2026)</option>
-          <option value="22">22% (с 2026)</option>
+          <option value="20">20 % (до 2026)</option>
+          <option value="22">22 % (с 2026)</option>
           <option value="custom">Своя ставка…</option>
         </Select>
         {vatMode === "custom" ? (
@@ -83,7 +83,7 @@ export function MaterialForm({
           <input type="hidden" name="defaultVatRate" value={vatMode} />
         )}
         <p className="mt-1 text-xs text-neutral-500">
-          Для новых закупок и строк ТЗ. Пусто — ставка берётся из лота (в ТЗ) и по дате документа (до 01.01.2026 — 20%, с 2026 — 22%).
+          Для новых закупок и строк ТЗ. Пусто — ставка берётся из лота (в ТЗ) и по дате документа (до 01.01.2026 — 20 %, с 2026 — 22 %).
         </p>
       </div>
       <details

@@ -114,7 +114,7 @@ export function UsageRow({
     const fields: { label: string; before: string; after: string }[] = [];
     if (lotId !== usage.lotId) fields.push({ label: "Лот", before: usage.lotLabel, after: lotLabel });
     if (qtyDirty) fields.push({ label: "Количество", before: `${formatQty(usage.quantity)} ${unit}`, after: `${formatQty(quantity)} ${unit}` });
-    if (c4 !== usage.commission4) fields.push({ label: "4%", before: usage.commission4 ? "начисляется" : "нет", after: c4 ? "начисляется" : "нет" });
+    if (c4 !== usage.commission4) fields.push({ label: "4 %", before: usage.commission4 ? "начисляется" : "нет", after: c4 ? "начисляется" : "нет" });
     await ch.run(
       `Изменить списание: ${usage.rawMaterialName}`,
       { kind: "usage", usageId: usage.id, lotId, quantity, commission4: c4 },
@@ -166,7 +166,7 @@ export function UsageRow({
           step="0.01"
           min="0"
           align="right"
-          label={`НДС, %. В лоте ${Number(usage.lotVatRate)}%${usage.purchaseNumber ? ` (закупка ${usage.purchaseNumber})` : ""}. Пусто — как в лоте`}
+          label={`НДС, %. В лоте ${Number(usage.lotVatRate)} %${usage.purchaseNumber ? ` (закупка ${usage.purchaseNumber})` : ""}. Пусто — как в лоте`}
           suffix="%"
           readOnly={readOnly}
           className={usage.vatOwn ? "font-semibold text-amber-700" : undefined}
@@ -176,7 +176,7 @@ export function UsageRow({
             return vatAction(fd);
           }}
         />
-        {usage.vatOwn ? <span className="block text-right text-[11px] text-amber-700" title={`В лоте ${Number(usage.lotVatRate)}%`}>изм. (лот {Number(usage.lotVatRate)}%)</span> : null}
+        {usage.vatOwn ? <span className="block text-right text-[11px] text-amber-700" title={`В лоте ${Number(usage.lotVatRate)} %`}>изм. (лот {Number(usage.lotVatRate)} %)</span> : null}
       </Td>
       <Td className="text-center">
         <input
@@ -184,8 +184,8 @@ export function UsageRow({
           checked={c4}
           disabled={readOnly || busy || ch.busy}
           className="h-4 w-4 max-md:h-5 max-md:w-5"
-          aria-label="Начислять 4%"
-          title="4% — наценка при купле-продаже меха и подкладки подрядчику (не комиссия Веллмеха): +4% к цене меха и подкладки в ТЗ; работа и расходы не облагаются"
+          aria-label="Начислять 4 %"
+          title="4 % — наценка при купле-продаже меха и подкладки подрядчику (не комиссия Веллмеха): +4 % к цене меха и подкладки в ТЗ; работа и расходы не облагаются"
           onChange={(e) => setC4(e.target.checked)}
         />
       </Td>
@@ -195,7 +195,7 @@ export function UsageRow({
         <DraftBar dirty={dirty} busy={ch.busy} error={ch.error} onSave={save} onCancel={cancel} />
         {ch.node}
         {usage.c4Mode === "on" && !usage.commission4 && (
-          <span className="ml-1 whitespace-nowrap text-xs font-normal text-neutral-500" title="4% к этому списанию не применяется">без 4%</span>
+          <span className="ml-1 whitespace-nowrap text-xs font-normal text-neutral-500" title="4 % к этому списанию не применяется">без 4 %</span>
         )}
         {usage.costBreakdown != null && (
           <CostBreakdownToggle breakdown={usage.costBreakdown as never} unitCostExcl={usage.lotUnitCostExcl} unitCostIncl={usage.lotUnitCostIncl} />

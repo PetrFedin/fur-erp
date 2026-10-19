@@ -13,7 +13,7 @@ import { INBOX_FILE_KINDS, INBOX_STATUS_LABEL, shortInboxTitle } from "@/lib/sup
 import { previewInbox } from "@/lib/inbox-accept";
 import { FORMAT_LABEL, STAGE_LABEL, calcAll, calcVatPct, columnsFor, headerRate, rateCols, resolveRow, rowFilled, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
 import { TZ_KIND_LABEL, itemFilled, materialFilled, plainNum, ruDate, spacedNum, tzTotals, type TzPayload } from "@/lib/tz-vendor";
-import { cn, formatDate, formatNum, formatRate } from "@/lib/utils";
+import { cn, formatDate, formatNum, formatRate, formatFileSize } from "@/lib/utils";
 import { DecideButtons } from "./decide";
 import { FinalFigures } from "../../supplier/auction-calcs/final-figures";
 import { finalFigures } from "@/lib/supplier-calc-simple";
@@ -27,7 +27,7 @@ export const metadata = { title: "Входящее" };
 const money = (n: number) => (Number.isFinite(n) ? formatNum(n, 1) : "—");
 const rateFmt = (n: number) => (Number.isFinite(n) && n > 0 ? formatRate(n) : "—");
 const dash = (s: string | undefined) => (s && s.trim() ? s : "—");
-const kb = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`);
+const kb = formatFileSize;
 
 function Dl({ items }: { items: [string, string][] }) {
   return (

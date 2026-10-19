@@ -6,12 +6,12 @@ import { useVatDisplay } from "@/lib/vat-display";
 export function VatLabel({ base }: { base: string }) {
   const { mode } = useVatDisplay();
   // Подпись режима 4% (« (с 4%)») сливаем в одни скобки: «Маржа (с НДС, с 4%)», без двойных скобок.
-  const c4 = base.endsWith(" (с 4%)");
-  const name = c4 ? base.slice(0, -" (с 4%)".length) : base;
+  const c4 = base.endsWith(" (с 4 %)");
+  const name = c4 ? base.slice(0, -" (с 4 %)".length) : base;
   return (
     <>
       {name} ({mode === "excl" ? "без НДС" : "с НДС"}
-      {c4 ? ", с 4%" : ""})
+      {c4 ? ", с 4 %" : ""})
     </>
   );
 }

@@ -59,7 +59,7 @@ export function WorkRow({
       <Td className="min-w-[8.5rem]">
         <DraftInput value={price} draft={draft} onChange={setDraft} onEnter={save} onEscape={cancel} step="0.01" min="0" align="right" label="Стоимость работ за шт." suffix="₽" readOnly={readOnly} disabled={ch.busy} />
       </Td>
-      <Td colSpan={2} className="text-xs text-neutral-400">без НДС и без 4%</Td>
+      <Td colSpan={2} className="text-xs text-neutral-400">без НДС и без 4 %</Td>
       <Td className="whitespace-nowrap text-right font-medium tabular-nums">
         {live != null ? <Money incl={live} excl={live} /> : <span className="text-neutral-300">—</span>}
         {changed ? <span className="ml-1 text-xs font-normal text-neutral-400" title="Предварительно, до сохранения">~</span> : null}

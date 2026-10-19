@@ -117,7 +117,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
     if (to === 3) {
       if (!paidAt || Number.isNaN(Date.parse(paidAt))) return setError("Укажите дату оплаты");
       if (requireYear && paidAt.slice(0, 4) !== payYear) return setError(`Дата оплаты должна быть в ${payYear} году — измените дату или год`);
-      if (mode === "amount" && !(Math.abs(amountNum) > 0)) return setError("Укажите сумму или нажмите 30% / 50% / 70% / остаток");
+      if (mode === "amount" && !(Math.abs(amountNum) > 0)) return setError("Укажите сумму или нажмите 30 % / 50 % / 70 % / остаток");
       if (mode === "amount" && kind !== "REFUND" && amountNum < 0.01) return setError("Сумма должна быть больше нуля");
       if ((kind === "OTHER" || kind === "REFUND") && fullNote.length < 3) return setError("Для «Другое» и «Возврат / зачёт» напишите пометку");
     }
@@ -348,7 +348,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
             <div className="flex flex-wrap gap-2" aria-label="Быстрая сумма">
               {PRESET_PERCENTS.map((p) => (
                 <Button key={p} type="button" variant="outline" size="sm" onClick={() => { setMode("percent"); setPercent(String(p)); setAmount(String(percentAmount(base, p)).replace(".", ",")); }} className={mode === "percent" && num(percent) === p ? "border-neutral-900" : ""}>
-                  {p}% · {money(percentAmount(base, p))}
+                  {p} % · {money(percentAmount(base, p))}
                 </Button>
               ))}
               <Button type="button" variant="outline" size="sm" disabled={rest <= 0} onClick={() => { setMode("rest"); setAmount(String(rest).replace(".", ",")); }} className={mode === "rest" ? "border-neutral-900" : ""}>

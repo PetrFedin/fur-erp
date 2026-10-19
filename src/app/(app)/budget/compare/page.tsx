@@ -9,6 +9,7 @@ import { TILE_BOX, TileCaption, TileHead, TileValue } from "../../dashboard/tile
 import { money, pct, qty } from "../format";
 import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
+import { formatMoneySigned } from "@/lib/utils";
 
 export const metadata = { title: "Сравнение бюджетов" };
 
@@ -36,7 +37,7 @@ function byFur(s: Side) {
   return furs;
 }
 
-const dRub = (a: number, b: number) => `${b - a > 0 ? "+" : ""}${Math.round(b - a).toLocaleString("ru-RU")} ₽`;
+const dRub = (a: number, b: number) => formatMoneySigned(b - a);
 const dPct = (a: number, b: number) => (a > 0 ? pct((b / a - 1) * 100) : b > 0 ? "новое" : "—");
 
 export default async function ComparePage({ searchParams }: { searchParams: Promise<{ a?: string; b?: string }> }) {

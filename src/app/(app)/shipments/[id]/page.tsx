@@ -9,7 +9,7 @@ import { requireSession } from "@/lib/session";
 import { ArticleName } from "@/components/article-name";
 import { Badge } from "@/components/ui/badge";
 import { SummaryTiles } from "../../production/summary-tiles";
-import { formatDate, formatQty, formatShare } from "@/lib/utils";
+import { formatDate, formatQty, formatShare, formatMoneyExact } from "@/lib/utils";
 import { orderLabel, orderHint } from "@/lib/order-label";
 import { loadTzPositions } from "@/lib/order-label-db";
 import { ORDER_COLORS_INCLUDE } from "@/lib/order-colors";
@@ -233,7 +233,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
     for (const d of drill) if (d.wo) cost.set(d.wo, (cost.get(d.wo) ?? 0) + sumTotal(sumOrders([d], "incl")));
     const inv = new Map<string, number>();
     for (const l of lines) { const wo = woOf(l); const r = lineRows.find((x) => x.id === l.id); if (wo && r?.sum) inv.set(wo, (inv.get(wo) ?? 0) + r.sum); }
-    const rub = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const rub = (n: number) => formatMoneyExact(n).replace(/\u00a0₽$/, "");
     const done = new Set<string>();
     for (const l of lines) {
       const wo = woOf(l); const r = lineRows.find((x) => x.id === l.id);

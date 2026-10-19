@@ -428,7 +428,7 @@ export async function PurchaseSummary({
               <p>С НДС, {year === "all" ? "все годы" : `${year} год`}. Остаток по закупкам {money(debt.total.sub(debt.paid))} − авансы без привязки {money(debt.unlinkedAdvances)}
                 {debt.total.sub(debt.paid).sub(debt.unlinkedAdvances).lessThan(0) ? " (авансы больше остатка — долг не ниже нуля)" : ""}.</p>
               <p className="mt-1">Стоимость закупок {money(debt.total)}, оплачено {money(debt.paid)} — те же суммы, что на Сводке и в «Оплатах».</p>
-              <p className="mt-1">Считается за общий год из шапки: закупки года и их оплаты; фильтры аукциона и материала и 4% на это число не влияют.</p>
+              <p className="mt-1">Считается за общий год из шапки: закупки года и их оплаты; фильтры аукциона и материала и 4 % на это число не влияют.</p>
               {!filtered && mode === "incl" && grand.paidIncl.sub(debt.paid).abs().greaterThan(0.005) ? (
                 <p className="mt-1">В таблице «Оплачено» {money(grand.paidIncl)} — фактически внесено, включая переплату по отдельным закупкам ({money(grand.paidIncl.sub(debt.paid))}); в долге переплата одной закупки не гасит остаток другой.</p>
               ) : null}

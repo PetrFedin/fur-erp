@@ -142,7 +142,7 @@ export function PasteBox({
                   </td>
                   <td className="px-2 py-1 text-right">{formatQty(String(r.quantity))}</td>
                   <td className="px-2 py-1 text-right">{formatCurrency(String(r.unitPrice), currency)}</td>
-                  <td className="px-2 py-1 text-right">{r.vatRate}%</td>
+                  <td className="px-2 py-1 text-right">{r.vatRate} %</td>
                   <td className="px-2 py-1 text-right">{formatCurrency(String(r.quantity * r.unitPrice), currency)}</td>
                   <td className="px-2 py-1">
                     {r.isNewMaterial ? (

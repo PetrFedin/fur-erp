@@ -435,7 +435,7 @@ export function BatchWizard({
                   <div>
                     <Label htmlFor="serviceVat">НДС на сборы аукциона и выделку, %</Label>
                     <Input id="serviceVat" inputMode="decimal" placeholder={`по дате: ${serviceVatPctFor(header.orderDate)}`} value={header.serviceVat ?? ""} onChange={(e) => set("serviceVat", e.target.value)} />
-                    <p className="mt-1 text-xs text-neutral-500">Пусто — 22% (закупки до 2026 года — 20%). Для иностранного аукциона со ввозным НДС в таможенных платежах укажите 0, а НДС строк — 0, платежи — в «Таможне».</p>
+                    <p className="mt-1 text-xs text-neutral-500">Пусто — 22 % (закупки до 2026 года — 20 %). Для иностранного аукциона со ввозным НДС в таможенных платежах укажите 0, а НДС строк — 0, платежи — в «Таможне».</p>
                   </div>
                   <div className="sm:col-span-2">
                     <Label htmlFor="notes">Заметки</Label>

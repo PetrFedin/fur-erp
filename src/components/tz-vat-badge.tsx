@@ -28,7 +28,7 @@ export function TzVatBadge({ b, compact = false, hint = true, className = "" }: 
       </span>
       {b.kind === "mixed" && !compact && (
         <span className="text-xs text-neutral-600">
-          доля 20%: <Money incl={b.share20.incl} excl={b.share20.excl} />
+          доля 20 %: <Money incl={b.share20.incl} excl={b.share20.excl} />
         </span>
       )}
       {hint && <InfoHint label="Ставки НДС в списаниях ТЗ">

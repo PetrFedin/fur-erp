@@ -8,7 +8,7 @@ import { loadSupplierAuction } from "@/lib/supplier-auction";
 import { calcAll, calcVatPct, ensureRowIds } from "@/lib/supplier-calc";
 import { buildStatement, groupLines, type Statement } from "@/lib/auction-statement";
 import { readSort } from "@/lib/table-sort";
-import { formatDate, formatRate } from "@/lib/utils";
+import { formatDate, formatRate, formatDecimal, formatMoney } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { AttachDocument } from "../attach";
 import { RawStagesBlock } from "@/components/raw-stages";
@@ -23,8 +23,8 @@ import { summarizeStages, summaryLine } from "@/lib/raw-stage";
 
 export const metadata = { title: "Аукцион" };
 
-const num = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 3 });
-const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const num = (n: number) => formatDecimal(n, 3, { trim: true });
+const money = (n: number) => formatMoney(n);
 const cur = (c: string) => (c === "RUB" ? "₽" : c === "USD" ? "$" : c);
 const KIND: Record<string, string> = { AUCTION_INVOICE: "Аукционный счёт", PAYMENT_INVOICE: "Счёт", SPECIFICATION: "Спецификация", UPD: "УПД", OTHER: "Документ" };
 const SORTS = ["invoice", "lot", "fur", "size", "qty", "unit", "total"];
@@ -104,7 +104,7 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
       return (
         <span key="rate" className="inline-flex flex-wrap items-center gap-1.5">{p.currency}, курс {main ? formatRate(main) : "—"}
           {differ && <span className="text-neutral-600">(по счетам: {invoices.filter((i) => i.rate > 0).map((i) => `${i.invoice || i.number} — ${formatRate(i.rate)}`).join("; ")})</span>}
-          {h?.cbRate ? <InfoHint label="Из чего курс">Курс, по которому считается себестоимость. Курс ЦБ на дату: {h.cbRate}{h.agentPct ? `; надбавка агента ${h.agentPct}%` : ""}.</InfoHint> : null}
+          {h?.cbRate ? <InfoHint label="Из чего курс">Курс, по которому считается себестоимость. Курс ЦБ на дату: {h.cbRate}{h.agentPct ? `; надбавка агента ${h.agentPct} %` : ""}.</InfoHint> : null}
         </span>
       );
     })()],
@@ -113,7 +113,7 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
       ["Шкур", num(t.qty)],
       ["Итого", `${money(t.totalRub)} ₽`],
       ["За шкуру", t.qty ? `${money(t.totalRub / t.qty)} ₽` : ""],
-      ["НДС", calcVatPct(payload) != null ? `${calcVatPct(payload)}%` : ""],
+      ["НДС", calcVatPct(payload) != null ? `${calcVatPct(payload)} %` : ""],
       ["Расходы", payload.header.extras.filter((e) => e.name.trim() && e.amount.trim()).map((e) => `${e.name}: ${e.amount} ₽${e.mode === "perHide" ? "/шк." : ""}`).join("; ")],
       ["Аванс", t.advance > 0 ? `${money(t.advance)} ₽${payload.header.advanceDate ? ` от ${formatDate(new Date(payload.header.advanceDate))}` : ""}` : ""],
       ["Платёж", t.interim > 0 ? `${money(t.interim)} ₽` : ""],

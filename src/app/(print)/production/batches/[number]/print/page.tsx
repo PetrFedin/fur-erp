@@ -59,8 +59,8 @@ export default async function BatchPrintPage({
       <PrintToolbar
         backHref={`/production/batches/${number}`}
         switches={[
-          { label: "Без 4%", href: q("off"), active: c4Mode === "off" },
-          { label: "С 4%", href: q("on"), active: c4Mode === "on" },
+          { label: "Без 4 %", href: q("off"), active: c4Mode === "off" },
+          { label: "С 4 %", href: q("on"), active: c4Mode === "on" },
         ]}
       />
       <article className="print-sheet mx-auto my-4 w-[210mm] max-w-full bg-white p-[15mm] text-[13px] leading-snug text-black shadow">

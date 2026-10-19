@@ -216,7 +216,7 @@ export function PurchaseItemRow({
                 ) : (
                   <>
                     <input type="hidden" name="vatRate" value={defaults.vatRate} />
-                    <div className="flex h-9 items-center text-sm text-neutral-500">{defaults.vatRate}%</div>
+                    <div className="flex h-9 items-center text-sm text-neutral-500">{defaults.vatRate} %</div>
                   </>
                 )}
               </div>

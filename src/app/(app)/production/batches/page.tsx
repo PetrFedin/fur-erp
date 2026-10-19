@@ -157,7 +157,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               <b>Остаток</b> = работа подрядчика (цена за ед. × количество) минус оплаты за работу по ТЗ партии; каждая оплата учитывается один раз.
             </p>
             <p className="mt-1">
-              <b>Себестоимость сырья</b> = сырьё и подкладка + расходы ТЗ (без работы); <b>полная себестоимость</b> = она + работа подрядчика. «С 4%» добавляет 4% к сырью и подкладке (работа не облагается); оплаты и остаток от 4% не меняются. Суммы партий всегда с НДС: переключатель «Без НДС» вверху на них не действует (в списке ТЗ и в аналитике он работает).
+              <b>Себестоимость сырья</b> = сырьё и подкладка + расходы ТЗ (без работы); <b>полная себестоимость</b> = она + работа подрядчика. «С 4 %» добавляет 4 % к сырью и подкладке (работа не облагается); оплаты и остаток от 4 % не меняются. Суммы партий всегда с НДС: переключатель «Без НДС» вверху на них не действует (в списке ТЗ и в аналитике он работает).
             </p>
             <p className="mt-1">
               Группировка ТЗ по партиям — этот экран; список ТЗ — на странице <Link href="/production" className="underline">ТЗ</Link>.
@@ -238,9 +238,9 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               В выпуске
             </Th>
             <Th {...th("cost")} className="hidden md:table-cell" after={<>
-              <InfoHint label="Чем отличается от «Полная себестоимость (с работой)»">Здесь себестоимость сырья: мех, подкладка и 4 % (при включённом «С 4%»), плюс расходы ТЗ — без работы подрядчика. В таблице «Партии → ТЗ → состав» ниже столбец «Полная себестоимость (с работой)» — это та же сумма плюс работа, поэтому цифры по одной партии там больше.</InfoHint>
+              <InfoHint label="Чем отличается от «Полная себестоимость (с работой)»">Здесь себестоимость сырья: мех, подкладка и 4 % (при включённом «С 4 %»), плюс расходы ТЗ — без работы подрядчика. В таблице «Партии → ТЗ → состав» ниже столбец «Полная себестоимость (с работой)» — это та же сумма плюс работа, поэтому цифры по одной партии там больше.</InfoHint>
               <Mode4Badge mode={c4Mode} />
-              <C4Hint mode={c4Mode} base={c4Lines ? c4Base.toFixed(2) : null} extra={c4Lines ? c4Extra.toFixed(2) : null} excluded={c4Excl.toFixed(2)} title="4% по партиям списка" />
+              <C4Hint mode={c4Mode} base={c4Lines ? c4Base.toFixed(2) : null} extra={c4Lines ? c4Extra.toFixed(2) : null} excluded={c4Excl.toFixed(2)} title="4 % по партиям списка" />
             </>}>
               <span className="inline-flex flex-col leading-tight">Себестоимость сырья<span className="text-[11px] font-normal opacity-80">₽ · без работы</span></span>
             </Th>
@@ -273,7 +273,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 {formatQty(t.producedUnits.toString())}
                 {b.plannedUnits != null && <span className="block text-xs text-neutral-500">план {b.plannedUnits}</span>}
               </Td>
-              <Td className="hidden whitespace-nowrap md:table-cell" title={c4Mode === "on" && !t.c4Applies && !t.cost.isZero() ? "4% не начислены" : undefined}>{t.cost.isZero() ? "—" : formatMoney(t.cost.toString())}
+              <Td className="hidden whitespace-nowrap md:table-cell" title={c4Mode === "on" && !t.c4Applies && !t.cost.isZero() ? "4 % не начислены" : undefined}>{t.cost.isZero() ? "—" : formatMoney(t.cost.toString())}
                 <TzVatBadge b={vatBreakdown(b.orders.filter((o) => o.status !== "CANCELLED").flatMap((o) => o.materialUsages), c4Mode)} compact hint={false} />
               </Td>
               <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() ? "—" : formatMoney(t.work.toString())}</Td>

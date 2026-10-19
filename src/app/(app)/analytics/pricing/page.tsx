@@ -16,7 +16,7 @@ import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 import { YearNote } from "@/components/year-note";
 import { Mode4Badge } from "@/components/c4-note";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
-import { formatMoney, formatPercent, formatQty, formatShare, formatMarkupPct } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty, formatShare, formatMarkupPct, formatMarkup } from "@/lib/utils";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import {
   VIEW_LABEL,
@@ -56,7 +56,7 @@ function segments(a: PriceAgg): Seg[] {
   return [
     { key: "fur", label: "Мех", value: a.furExcl, cls: "bg-emerald-600" },
     { key: "lin", label: "Подкладка", value: a.liningExcl, cls: "bg-sky-500" },
-    { key: "c4", label: "4%", value: a.c4Excl, cls: "bg-amber-500" },
+    { key: "c4", label: "4 %", value: a.c4Excl, cls: "bg-amber-500" },
     { key: "vat", label: "НДС в материалах", value: a.vat, cls: "bg-neutral-400" },
     { key: "exp", label: "Расходы ТЗ", value: a.expenses, cls: "bg-violet-500" },
     { key: "work", label: "Работа", value: a.work, cls: "bg-rose-500" },
@@ -208,10 +208,10 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
           {row("Мех (по лотам, см. ниже)", a.furIncl, a.furExcl, a.furIncl)}
           {row("Подкладка", a.liningIncl, a.liningExcl, a.liningIncl)}
           {c4Mode === "on" ? (
-            row(`4% на сырьё и подкладку`, a.c4Incl, a.c4Excl, a.c4Incl)
+            row(`4 % на сырьё и подкладку`, a.c4Incl, a.c4Excl, a.c4Incl)
           ) : (
             <Tr className="text-neutral-500">
-              <Td>4% — не включено (режим «Без 4%»)</Td>
+              <Td>4 % — не включено (режим «Без 4 %»)</Td>
               <Td className="text-right tabular-nums">+{rub(u(c4Excluded))}</Td>
               <Td className="text-right tabular-nums">+{rub(c4Excluded)}</Td>
               <Td className="text-right">—</Td>
@@ -331,7 +331,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     if (a.modelId) {
       items.push(
         ["Цена", a.price ? formatMoney(a.price.toFixed(2)) : <span className="text-amber-700">не задана</span>],
-        ["Наценка", c.markupX != null ? <>×{c.markupX.toFixed(2).replace(".", ",")} (+{formatMarkupPct(c.markupPct ?? 0)}), маржа {pct1(c.marginPct ?? 0)}</> : dash],
+        ["Наценка", c.markupX != null ? <>{formatMarkup(c.markupX)} (+{formatMarkupPct(c.markupPct ?? 0)}), маржа {pct1(c.marginPct ?? 0)}</> : dash],
         ["Рекомендуемая цена", r ? <><Money incl={r.incl} excl={r.excl} /> <span className="text-neutral-500">(при наценке {formatMarkupPct(target ?? 0)}, не факт)</span></> : dash],
       );
     }
@@ -410,14 +410,14 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       if (c.markupX == null) return "—";
       return (
         <div className={c.belowCost ? "text-red-700" : ""}>
-          <span className="font-semibold">×{c.markupX.toFixed(2).replace(".", ",")}</span>
+          <span className="font-semibold">{formatMarkup(c.markupX)}</span>
           <div className="text-[11px] text-neutral-500" title={`База: ${p.base === "full" ? "с работой" : "сырьё без работы"}, завершённые ТЗ`}>маржа {pct1(c.marginPct ?? 0)}{c.belowCost ? " — ниже себестоимости" : ""}</div>
         </div>
       );
     }
     if (p.view !== "category") return "—";
     const m = catMarkup.get(a.label);
-    return m?.pct != null ? <div>средняя ×{(1 + m.pct / 100).toFixed(2).replace(".", ",")}<div className="text-[11px] text-neutral-500">по моделям с ценой</div></div> : "—";
+    return m?.pct != null ? <div>средняя {formatMarkup(1 + m.pct / 100)}<div className="text-[11px] text-neutral-500">по моделям с ценой</div></div> : "—";
   };
 
   const recOf = (a: PriceAgg) => recommend(a, p.base, target);
@@ -489,9 +489,9 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Себестоимость и цены</h1><YearNote year={year} />
           <Mode4Badge mode={c4Mode} />
           <InfoHint label="О странице" wide>
-            <p>Из чего складывается себестоимость единицы по моделям (артикулам), категориям и видам меха, сколько в ней мех, подкладка, 4%, расходы и работа, сколько шкур и метров подкладки уходит на единицу, какой был молоток закупки и какую цену заводить, чтобы получить нужную наценку. Считается по <b>завершённым</b> ТЗ выбранного года.</p>
+            <p>Из чего складывается себестоимость единицы по моделям (артикулам), категориям и видам меха, сколько в ней мех, подкладка, 4 %, расходы и работа, сколько шкур и метров подкладки уходит на единицу, какой был молоток закупки и какую цену заводить, чтобы получить нужную наценку. Считается по <b>завершённым</b> ТЗ выбранного года.</p>
             <p className="mt-1">
-              <b>Себестоимость сырья единицы</b> (без работы) = (мех + подкладка + 4% + расходы ТЗ) ÷ произведено единиц — средневзвешенная: Σ сумм ÷ Σ единиц. Мех и подкладка — по лотам, из которых списано в ТЗ. 4% ({COMMISSION_RATE * 100}% — наценка при купле-продаже меха и подкладки подрядчику, не комиссия Веллмеха) добавляется к сырью и подкладке в режиме «С 4%»; работа им не облагается. НДС входит в цены лотов; «Без НДС» переключается в шапке.
+              <b>Себестоимость сырья единицы</b> (без работы) = (мех + подкладка + 4 % + расходы ТЗ) ÷ произведено единиц — средневзвешенная: Σ сумм ÷ Σ единиц. Мех и подкладка — по лотам, из которых списано в ТЗ. 4 % ({COMMISSION_RATE * 100} % — наценка при купле-продаже меха и подкладки подрядчику, не комиссия Веллмеха) добавляется к сырью и подкладке в режиме «С 4 %»; работа им не облагается. НДС входит в цены лотов; «Без НДС» переключается в шапке.
             </p>
             <p className="mt-1">
               <b>Среднее — только средневзвешенное:</b> стоимость шкуры и молоток — вес в шкурах; шкуры, подкладка, работа и себестоимость на единицу — вес в единицах изделия. Формула каждой колонки — в подсказке у её заголовка. <b>Молоток</b> — цена шкуры на аукционе до сборов и выделки; лоты без молотка («нет данных») в среднее не входят.
@@ -504,7 +504,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             </p>
             {exampleModel && exCalc && exCalc.baseIncl && exampleModel.price && (
               <p className="mt-1">
-                Пример — модель {exampleModel.label}: цена {formatMoney(exampleModel.price.toFixed(2))} ÷ себестоимость {formatMoney(exCalc.baseIncl.toFixed(2))} = ×{exCalc.markupX!.toFixed(2).replace(".", ",")}, наценка +{formatPercent(exCalc.markupPct!)}, маржа {pct1(exCalc.marginPct!)}. При целевой наценке {target ?? "—"}% рекомендуемая цена = себестоимость × {(1 + (target ?? 0) / 100).toFixed(2).replace(".", ",")}, округлённая до 100 ₽.
+                Пример — модель {exampleModel.label}: цена {formatMoney(exampleModel.price.toFixed(2))} ÷ себестоимость {formatMoney(exCalc.baseIncl.toFixed(2))} = ×{exCalc.markupX!.toFixed(2).replace(".", ",")}, наценка +{formatPercent(exCalc.markupPct!)}, маржа {pct1(exCalc.marginPct!)}. При целевой наценке {target ?? "—"} % рекомендуемая цена = себестоимость × {(1 + (target ?? 0) / 100).toFixed(2).replace(".", ",")}, округлённая до 100 ₽.
               </p>
             )}
             <p className="mt-1">Целевая наценка по умолчанию — средневзвешенная по моделям, у которых цена уже есть (вес — себестоимость партии). <b>Рекомендация — расчёт, а не факт</b>: рынок и скидки в нём не учтены.</p>
@@ -541,16 +541,16 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>
             Средняя наценка
-            <InfoHint label="Как посчитана" wide>Средневзвешенная по {def.count} моделям с ценой: Σ(наценка × себестоимость партии) ÷ Σ себестоимость партии. База — {baseLabel}{c4Mode === "on" ? ", с 4%" : ", без 4%"}.</InfoHint>
+            <InfoHint label="Как посчитана" wide>Средневзвешенная по {def.count} моделям с ценой: Σ(наценка × себестоимость партии) ÷ Σ себестоимость партии. База — {baseLabel}{c4Mode === "on" ? ", с 4 %" : ", без 4 %"}.</InfoHint>
           </TileHead>
-          <TileValue>{def.pct != null ? `×${(1 + def.pct / 100).toFixed(2).replace(".", ",")}` : "—"}</TileValue>
+          <TileValue>{def.pct != null ? formatMarkup(1 + def.pct / 100) : "—"}</TileValue>
         </div>
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>
             Целевая наценка
-            <InfoHint label="О целевой наценке">Для рекомендаций по цене. {target != null ? `×${(1 + target / 100).toFixed(2).replace(".", ",")} = +${formatMarkupPct(target)}. ` : ""}{typed != null ? "Введена вручную." : defRounded != null ? "По умолчанию — из данных." : "Цен ещё нет — введите вручную."} В поле ниже наценка вводится в процентах: 300 значит цена в 4 раза выше себестоимости (×4).</InfoHint>
+            <InfoHint label="О целевой наценке">Для рекомендаций по цене. {target != null ? `${formatMarkup(1 + target / 100)} = +${formatMarkupPct(target)}. ` : ""}{typed != null ? "Введена вручную." : defRounded != null ? "По умолчанию — из данных." : "Цен ещё нет — введите вручную."} В поле ниже наценка вводится в процентах: 300 значит цена в 4 раза выше себестоимости (×4).</InfoHint>
           </TileHead>
-          <TileValue>{target != null ? `×${(1 + target / 100).toFixed(2).replace(".", ",")}` : "не задана"}</TileValue>
+          <TileValue>{target != null ? formatMarkup(1 + target / 100) : "не задана"}</TileValue>
         </div>
       </div>
       </WidgetRow>
@@ -565,7 +565,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
           {[
             ["bg-emerald-600", "Мех"],
             ["bg-sky-500", "Подкладка"],
-            ["bg-amber-500", "4%"],
+            ["bg-amber-500", "4 %"],
             ["bg-neutral-400", "НДС в материалах"],
             ["bg-violet-500", "Расходы ТЗ"],
             ["bg-rose-500", "Работа"],
@@ -575,7 +575,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
               {l}
             </span>
           ))}
-          <InfoHint label="О диаграмме" align="right">Структура полной стоимости единицы (материалы без НДС, НДС отдельно, 4%, расходы, работа) — сравнение «работа vs расходы vs материалы». Диаграмма всегда считается с НДС.</InfoHint>
+          <InfoHint label="О диаграмме" align="right">Структура полной стоимости единицы (материалы без НДС, НДС отдельно, 4 %, расходы, работа) — сравнение «работа vs расходы vs материалы». Диаграмма всегда считается с НДС.</InfoHint>
         </div>
       </div>
 

@@ -78,9 +78,9 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="hides-tiles">
         <div className={TILE_BOX}><TileHead>Сумма, ₽</TileHead><TileValue compact>{formatMoney(val(all).toFixed(2))}</TileValue><TileCaption>{vat === "excl" ? "без НДС" : "с НДС"}</TileCaption></div>
         {vat === "excl" ? <div className={TILE_BOX}><TileHead>С НДС, ₽</TileHead><TileValue compact>{formatMoney(all.incl.toFixed(2))}</TileValue><TileCaption>как в «Оплатах»</TileCaption></div> : null}
-        <div className={TILE_BOX}><TileHead>НДС, ₽</TileHead><TileValue compact>{formatMoney((all.incl - all.excl).toFixed(2))}</TileValue><TileCaption><span title="Партия 8 — 20%, партия 7 — 22%">20% · 22%</span></TileCaption></div>
+        <div className={TILE_BOX}><TileHead>НДС, ₽</TileHead><TileValue compact>{formatMoney((all.incl - all.excl).toFixed(2))}</TileValue><TileCaption><span title="Партия 8 — 20 %, партия 7 — 22 %">20 % · 22 %</span></TileCaption></div>
         <div className={TILE_BOX}><TileHead>Оплачено, ₽</TileHead><TileValue compact>{formatMoney(paidTotal.toFixed(2))}</TileValue><TileCaption>в счетах за пошив</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>К оплате, ₽</TileHead><TileValue compact>—</TileValue><TileCaption>долга нет</TileCaption></div>
+        <div className={TILE_BOX}><TileHead>Долг, ₽</TileHead><TileValue compact>—</TileValue><TileCaption>долга нет</TileCaption></div>
         <div className={TILE_BOX}><TileHead>Платежей / ТЗ</TileHead><TileValue compact>{payments.length} / {orders.length}</TileValue><TileCaption>партий: {batches.length}</TileCaption></div>
       </div>
 

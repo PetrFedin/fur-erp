@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { formatMoneyExact } from "@/lib/utils";
 
 export type ZiSumView = {
   label: string;
@@ -12,7 +13,7 @@ export type ZiSumView = {
   check?: string;
 };
 
-const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n: number) => formatMoneyExact(n).replace(/\u00a0₽$/, "");
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Сумма накладной — ссылка: по клику окно «Откуда цифра» (строки накладных ЗИ, арифметика, файл). */
@@ -44,11 +45,11 @@ export function ZiSumButton({ v, total }: { v: ZiSumView; total: number }) {
             <ul className="flex flex-col gap-1 text-xs" data-zi-invoice-lines>
               {v.items.map((l, i) => (
                 <li key={i} className="rounded border border-neutral-200 px-2 py-1">
-                  <span className="font-medium">{l.supply}</span> · {l.boutique} · р. {l.size} · {l.sheet}{l.row ? `, строка ${l.row}` : ""}: {money(l.sum)} без НДС + НДС {money(l.vat)} ({l.sum ? Math.round((l.vat / l.sum) * 100) : 0}%) = <b>{money(r2(l.sum + l.vat))}</b> ₽ с НДС
+                  <span className="font-medium">{l.supply}</span> · {l.boutique} · р. {l.size} · {l.sheet}{l.row ? `, строка ${l.row}` : ""}: {money(l.sum)} без НДС + НДС {money(l.vat)} ({l.sum ? Math.round((l.vat / l.sum) * 100) : 0} %) = <b>{money(r2(l.sum + l.vat))}</b> ₽ с НДС
                 </li>
               ))}
             </ul>
-            {v.check && <p className="text-xs font-medium text-neutral-800">Сверка с ТЗ (себестоимость с работой, с НДС, с 4%): {v.check}</p>}
+            {v.check && <p className="text-xs font-medium text-neutral-800">Сверка с ТЗ (себестоимость с работой, с НДС, с 4 %): {v.check}</p>}
             <p className="text-xs text-neutral-600">Итого с НДС: {money(incl)} ₽ (без НДС {money(r2(v.items.reduce((t, i) => t + i.sum, 0)))} ₽). ЗИ в файлах: {v.zi.map((z) => `${z.supply} — ${z.numbers.join(", ")}`).join("; ")}. Какая строка к какому ЗИ относится, файл не говорит.</p>
           </div>
           <div className="flex justify-end gap-2 border-t border-neutral-200 px-4 py-3">

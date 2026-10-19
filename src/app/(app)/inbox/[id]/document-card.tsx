@@ -4,10 +4,10 @@ import { ControlTabs } from "@/components/control-tabs";
 import { buttonVariants } from "@/components/ui/button";
 import { INBOX_FILE_KINDS, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox-consts";
 import { SUPPLIER_DOC_TYPES, type DocumentPayload } from "@/lib/supplier-docs";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, formatFileSize } from "@/lib/utils";
 import { DecideButtons } from "./decide";
 
-const kb = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`);
+const kb = formatFileSize;
 
 type Row = {
   id: string; title: string; status: string; sentAt: Date | null; decidedAt: Date | null; reviewNote: string | null; payload: unknown;

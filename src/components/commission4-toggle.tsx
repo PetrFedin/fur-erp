@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useCommission4Display } from "@/lib/commission4-display";
 
 const HINT =
-  "4% — наценка подрядчику на мех и подкладку в ТЗ. Не комиссия Веллмеха (его 4,5% за закупку сырья — отдельно). Работа, расходы и фурнитура не облагаются; закупки, оплаты и долги не меняются.";
+  "4 % — наценка подрядчику на мех и подкладку в ТЗ. Не комиссия Веллмеха (его 4,5 % за закупку сырья — отдельно). Работа, расходы и фурнитура не облагаются; закупки, оплаты и долги не меняются.";
 
 /** Переключатель «Без 4% | С 4%» в шапке, рядом с «С НДС / Без НДС». По умолчанию включено «С 4%». */
 export function Commission4Toggle() {
@@ -31,8 +31,8 @@ function Commission4ToggleLegacy() {
       title={HINT}
       className={cn("flex items-center rounded-md border border-neutral-300 bg-white p-0.5 text-xs", pending && "opacity-70")}
     >
-      {btn("off", "Без 4%")}
-      {btn("on", "С 4%")}
+      {btn("off", "Без 4 %")}
+      {btn("on", "С 4 %")}
     </div>
   );
 }

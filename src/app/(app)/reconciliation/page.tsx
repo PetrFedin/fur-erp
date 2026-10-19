@@ -39,7 +39,7 @@ export const metadata = { title: "Сверка" };
 export const dynamic = "force-dynamic"; // цифры «в базе» читаются из БД при каждом заходе
 
 const STATUS: Record<RecStatus, { label: string; hint: string; cls: string }> = {
-  ok: { label: "Сходится на 100%", hint: "документы = база = оплата", cls: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+  ok: { label: "Сходится на 100 %", hint: "документы = база = оплата", cls: "bg-emerald-50 text-emerald-800 border-emerald-200" },
   docs: { label: "По документам сходится", hint: "в базе копейки или оплата не привязана", cls: "bg-lime-50 text-lime-800 border-lime-200" },
   unpaid: { label: "Нет подтверждения оплаты", hint: "стоимость сходится, оплату нечем подтвердить", cls: "bg-amber-50 text-amber-800 border-amber-200" },
   review: { label: "Ручная проверка", hint: "арифметика понятна, но нужен первичный документ или решение человека", cls: "bg-orange-50 text-orange-900 border-orange-300" },

@@ -153,7 +153,7 @@ export function OrdersTree({
           {l.au ? <> · {l.au}</> : null}
           {" · "}{formatQty(l.q)} {unit}{l.q > 0 ? <> по {formatMoney(Math.round(base / l.q))}</> : null}
           {Math.abs(vatPart) > 0.5 ? <> · НДС {formatMoney(Math.round(vatPart))}</> : null}
-          {c > 0.5 ? <> · 4% {formatMoney(Math.round(c))}</> : null}
+          {c > 0.5 ? <> · 4 % {formatMoney(Math.round(c))}</> : null}
         </>,
         l.k === "l" ? { lining: base, c4: c } : { fur: base, c4: c },
         `l${i}`,
@@ -166,8 +166,8 @@ export function OrdersTree({
     if (Math.abs(o.exp) > 0.5) {
       const xs = (o.xs ?? []).filter((x) => Math.abs(x.a) > 0.005);
       const rest = o.exp - xs.reduce((a, x) => a + x.a, 0);
-      xs.forEach((x, i) => out.push(cell(`Доп. расходы · ${x.n}`, "без НДС и без 4%", { work: x.a }, `e${i}`, undefined, true)));
-      if (Math.abs(rest) > 0.5 || xs.length === 0) out.push(cell("Доп. расходы", "без НДС и без 4%", { work: rest }, "e", undefined, true));
+      xs.forEach((x, i) => out.push(cell(`Доп. расходы · ${x.n}`, "без НДС и без 4 %", { work: x.a }, `e${i}`, undefined, true)));
+      if (Math.abs(rest) > 0.5 || xs.length === 0) out.push(cell("Доп. расходы", "без НДС и без 4 %", { work: rest }, "e", undefined, true));
     }
     const res = v === "incl" ? o.resI : o.resE;
     if (Math.abs(res) > 0.5) out.push(cell("Прочее", "разница между итогом ТЗ и суммой строк", { res }, "r"));
@@ -296,7 +296,7 @@ export function OrdersTree({
           <InfoHint label={`Как читать: ${title}`} wide>
             {hint}
             <p className="mt-1">Нажмите ›, чтобы раскрыть вглубь: группа → ТЗ → состав (мех и подкладка по лотам со ссылками на лот и закупку, шкуры подрядчика, работа и доп. расходы). Номер ТЗ ведёт в карточку ТЗ.</p>
-            <p className="mt-1"><b>Полная себестоимость (с работой)</b> = мех + подкладка + 4%{c4 === "on" ? "" : " (сейчас «Без 4%»)"} + расходы ТЗ + работа. В столбце «Работа и доп. расходы» — работа подрядчику и доп. расходы ТЗ («Доп. расходы · статья»); у таких строк состава «Полная себестоимость» — «—», а в итог узла они входят как раньше. «Шкур, шт.» и «Подкладка, м» — сколько использовано по списаниям. «Изд., шт.» — без ремонта. Режим «С НДС / Без НДС» — общий переключатель в шапке.</p>
+            <p className="mt-1"><b>Полная себестоимость (с работой)</b> = мех + подкладка + 4%{c4 === "on" ? "" : " (сейчас «Без 4 %»)"} + расходы ТЗ + работа. В столбце «Работа и доп. расходы» — работа подрядчику и доп. расходы ТЗ («Доп. расходы · статья»); у таких строк состава «Полная себестоимость» — «—», а в итог узла они входят как раньше. «Шкур, шт.» и «Подкладка, м» — сколько использовано по списаниям. «Изд., шт.» — без ремонта. Режим «С НДС / Без НДС» — общий переключатель в шапке.</p>
           </InfoHint>
         </div>
         {modes.length > 1 ? (
@@ -332,9 +332,9 @@ export function OrdersTree({
               <Head label="Мех" unit="₽" align="right" {...hs("fur")} />
               <Head label="Подкладка" unit="₽" align="right" {...hs("lining")} />
               <Head label="Работа и расходы" unit="₽" align="right" {...hs("work")} after={<InfoHint label="Что в столбце «Работа и доп. расходы»" wide><p>Работа подрядчику (цена работы × количество — это «Работа» в плитках, оплатах и карточке заказчика) плюс доп. расходы ТЗ (фурнитура, прочее — строки «Доп. расходы · статья»). Поэтому итог столбца больше плитки «Работа» ровно на доп. расходы ТЗ, а оплачивается подрядчику только работа.</p></InfoHint>} />
-              {c4 === "on" ? <Head label="4%" unit="₽" align="right" {...hs("c4")} after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} /> : null}
+              {c4 === "on" ? <Head label="4 %" unit="₽" align="right" {...hs("c4")} after={<InfoHint label="Что такое 4 %"><p>Надбавка 4 % к сырью (меху и подкладке).</p></InfoHint>} /> : null}
               {showRes ? <Head label="Прочее" unit="₽" align="right" {...hs("res")} /> : null}
-              {showPay ? <><Head label="Оплачено" unit="₽" align="right" sep {...hs("paid")} /><Head label="К оплате" unit="₽" align="right" {...hs("left")} /></> : null}
+              {showPay ? <><Head label="Оплачено" unit="₽" align="right" sep {...hs("paid")} /><Head label="Остаток работы" unit="₽" align="right" {...hs("left")} /></> : null}
             </tr>
           </thead>
           <tbody>

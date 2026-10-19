@@ -300,7 +300,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
           </div>
           {locked && (
             <div className="flex flex-wrap gap-2" aria-label="Быстрая сумма">
-              {PRESET_PERCENTS.map((pc) => <Button key={pc} type="button" size="sm" variant="outline" onClick={() => { setAmount(rubOf(Math.round((presetBase * pc) / 100))); setLines([]); }}>{pc}% · {money(Math.round((presetBase * pc) / 100))}</Button>)}
+              {PRESET_PERCENTS.map((pc) => <Button key={pc} type="button" size="sm" variant="outline" onClick={() => { setAmount(rubOf(Math.round((presetBase * pc) / 100))); setLines([]); }}>{pc} % · {money(Math.round((presetBase * pc) / 100))}</Button>)}
               <Button type="button" size="sm" variant="outline" disabled={presetRest <= 0} onClick={() => { setAmount(rubOf(presetRest)); setLines([]); }}>Остаток · {money(presetRest)}</Button>
             </div>
           )}

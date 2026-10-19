@@ -27,7 +27,7 @@ const FIELDS: { name: keyof CostPlanEditorItem; label: string; hint?: string }[]
   { name: "quantity", label: "Количество, шт." },
   { name: "price", label: "Цена лота" },
   { name: "feePct", label: "Сборы аукциона, %", hint: "по умолчанию 7,35 = 5,5 + 1,25 + 0,6 из счёта" },
-  { name: "dressing", label: "Выделка, ₽ (с НДС 22%)" },
+  { name: "dressing", label: "Выделка, ₽ (с НДС 22 %)" },
   { name: "transport", label: "Транспорт на выделку, ₽" },
   { name: "brokerPct", label: "Брокерский %", hint: "по умолчанию 4,5" },
   { name: "transit", label: "Комиссия за транзит, ₽" },

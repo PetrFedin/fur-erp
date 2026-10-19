@@ -702,7 +702,7 @@ function NewForm({
       {state?.ok && !pending && text === "" && <p role="status" className="rounded-md bg-emerald-50 px-2 py-1.5 text-sm text-emerald-800">Комментарий сохранён.</p>}
 
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-neutral-500">Esc — закрыть, текст сохранится. В снимок попадут адрес с фильтрами, год, НДС, 4%.</span>
+        <span className="text-xs text-neutral-500">Esc — закрыть, текст сохранится. В снимок попадут адрес с фильтрами, год, НДС, 4 %.</span>
         <button type="submit" disabled={pending || !text.trim()} className="shrink-0 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50">
           {pending ? "Сохраняю…" : "Сохранить"}
         </button>

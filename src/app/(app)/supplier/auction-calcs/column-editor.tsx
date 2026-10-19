@@ -161,7 +161,7 @@ export function ColumnEditor({ draft, setDraft, p, cols, canInput, manualCount, 
                 {pv.error ? `Ошибка: ${pv.error}` : `Пример на строке ${pv.rowNo}: ${pv.text}`}
               </p>
             )}
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-500">Как писать формулу<InfoHint label="Как писать формулу" wide>Как в Excel: буква столбца берёт значение этой строки, H3 — конкретную ячейку, имя параметра — число из блока «Параметры». + − * / ( ), проценты 4,5%, ROUND(x;2), MIN, MAX, IF(условие;a;b), SUM(H) — итог по столбцу, SUM(D:I) — сумма столбцов строки, AVERAGE, SUBTOTAL(9;H). Аргументы через «;».</InfoHint></p>
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-500">Как писать формулу<InfoHint label="Как писать формулу" wide>Как в Excel: буква столбца берёт значение этой строки, H3 — конкретную ячейку, имя параметра — число из блока «Параметры». + − * / ( ), проценты 4,5 %, ROUND(x;2), MIN, MAX, IF(условие;a;b), SUM(H) — итог по столбцу, SUM(D:I) — сумма столбцов строки, AVERAGE, SUBTOTAL(9;H). Аргументы через «;».</InfoHint></p>
           </div>
 
           <div className="flex flex-col gap-2">

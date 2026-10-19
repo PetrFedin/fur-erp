@@ -44,7 +44,7 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
       { label: "Подкладка, м", src: "списано по лотам", value: qty(T.liningQ, "м") },
       { label: "Подкладка", src: "списания подкладки", value: money(T.lining) },
     ] : []),
-    ...(showC4 ? [{ label: "Надбавка 4%", src: "к меху и подкладке", value: money(T.c4) }] : []),
+    ...(showC4 ? [{ label: "Надбавка 4 %", src: "к меху и подкладке", value: money(T.c4) }] : []),
     ...(showOther ? [{ label: "Расходы ТЗ и прочее", src: "расходы из карточек ТЗ", value: money(T.other) }] : []),
     { label: "Работа", src: "цена работы × изделий", value: money(T.work) },
   ];
@@ -63,7 +63,7 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
             Показатели по ТЗ всего
             <InfoHint label="Как читать показатели" wide>
               <p>Сверху вниз к итогу: сначала всего по артикулу, ниже — те же статьи по каждому ТЗ, в конце итог и среднее на изделие. Итог всегда равен сумме строк.</p>
-              <p className="mt-1">Основная цифра — с 4% (так мы платим); «с НДС / без НДС» — по переключателю в шапке. Суммы в таблицах — в целых рублях, сумма строк подогнана под итог плиток.</p>
+              <p className="mt-1">Основная цифра — с 4 % (так мы платим); «с НДС / без НДС» — по переключателю в шапке. Суммы в таблицах — в целых рублях, сумма строк подогнана под итог плиток.</p>
               <p className="mt-1">Куда уходят: «Ценообразование» (какую цену заводить), «Сырьё» (использование), план закупок мех/подкладка.</p>
             </InfoHint>
           </CardTitle>
@@ -96,7 +96,7 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
           <CardTitle as="h2" className="flex items-center gap-1">
             ТЗ артикула и их состав
             <InfoHint label="Что в таблице" wide>
-              <p>По строке на ТЗ: сколько изделий, сколько шкур меха и подкладки списано, во что обошлись мех, подкладка, 4%, расходы и работа. Номер ТЗ открывает его карточку, «Word» — финальный Word этого ТЗ (сохранённый, а если его нет — собранный из данных ТЗ).</p>
+              <p>По строке на ТЗ: сколько изделий, сколько шкур меха и подкладки списано, во что обошлись мех, подкладка, 4 %, расходы и работа. Номер ТЗ открывает его карточку, «Word» — финальный Word этого ТЗ (сохранённый, а если его нет — собранный из данных ТЗ).</p>
               <p className="mt-1">Строка «Итого» — сумма строк, «На изделие» — итого ÷ изделий (средневзвешенное по количеству, не среднее по ТЗ).</p>
             </InfoHint>
           </CardTitle>
@@ -119,7 +119,7 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
                   <SortableTH label="Мех" unit="₽" {...th("fur")} />
                   {showLining && <SortableTH label="Подкладка" unit="м" {...th("liningQ")} />}
                   {showLining && <SortableTH label="Подкладка" unit="₽" {...th("lining")} />}
-                  {showC4 && <SortableTH label="4%" unit="₽" {...th("c4")} />}
+                  {showC4 && <SortableTH label="4 %" unit="₽" {...th("c4")} />}
                   {showOther && <SortableTH label="Расходы" unit="₽" {...th("other")} />}
                   <SortableTH label="Работа" unit="₽" {...th("work")} />
                   <SortableTH label="Итого" unit="₽" sep {...th("total")} />

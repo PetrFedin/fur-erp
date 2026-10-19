@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { formatPercent, formatNum } from "@/lib/utils";
+import { formatPercent, formatNum, formatDateTime, formatMoney, formatMoneySigned } from "@/lib/utils";
 import { useConfirm } from "@/components/confirm-dialog";
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
@@ -250,7 +250,7 @@ export function BudgetEditor(p: Props) {
       const ok = await askConfirm(
         <div className="space-y-1">
           <div className="font-semibold">Автоматический расчёт{scopeId ? " блока" : ""}</div>
-          <div>Итог: было {Math.round(prevTotal).toLocaleString("ru-RU")} ₽ → станет {Math.round(nextTotal).toLocaleString("ru-RU")} ₽ ({delta > 0 ? "+" : ""}{Math.round(delta).toLocaleString("ru-RU")} ₽)</div>
+          <div>Итог: было {formatMoney(prevTotal)} → станет {formatMoney(nextTotal)} ({formatMoneySigned(delta)})</div>
           <div>Изменится строк: {changed}. С замком, не тронуты: {locked}{lockedNames.length ? ` (${lockedNames.slice(0, 4).join(", ")} заперт${lockedNames.length > 1 ? "ы" : "а"})` : ""}.</div>
           <div className="text-xs text-neutral-500">Это черновик: в базу попадёт после «Сохранить».</div>
         </div>,
@@ -638,7 +638,7 @@ export function BudgetEditor(p: Props) {
               </button>
             ) : null}
           </div>
-          <p className="mt-0.5 text-xs text-neutral-500">Создан {dateRu(p.createdAt)} · Обновлён {new Date(updatedAtState ?? p.savedAt).toLocaleString("ru-RU", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" })}{p.savedBy ? ` · ${p.savedBy}` : ""}</p>
+          <p className="mt-0.5 text-xs text-neutral-500">Создан {dateRu(p.createdAt)} · Обновлён {formatDateTime(updatedAtState ?? p.savedAt)}{p.savedBy ? ` · ${p.savedBy}` : ""}</p>
           <p className={"text-[11px] " + (dirty || saveState === "error" ? "font-medium text-amber-700" : "text-neutral-400")} role="status">{saveText}</p>
         </div>
         {staff ? (
@@ -667,7 +667,7 @@ export function BudgetEditor(p: Props) {
             </InfoHint>
           </div>
           <div className="flex gap-2">
-            {([["upFur", "Шкура"], ["upLining", "Подкладка"], ["upWork", "Работа"], ["c4", "4% на сырьё"]] as const).map(([k, label]) => (
+            {([["upFur", "Шкура"], ["upLining", "Подкладка"], ["upWork", "Работа"], ["c4", "4 % на сырьё"]] as const).map(([k, label]) => (
               <label key={k} className="flex w-[74px] flex-col gap-0.5 text-[11px] text-neutral-500">{label}
                 <NumInput value={params[k]} ariaLabel={`${label}, %`} disabled={!canEdit} onChange={(v) => setParam(k, v)} className="!py-0.5 !text-sm" />
               </label>
@@ -735,8 +735,8 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Мех = шкуры × цена шкуры" className={sepL} unit="₽">Мех</Th>
                   <Th tip="Подкладка = метры × цена за метр" unit="₽">Подкладка</Th>
                   <Th tip="Работа = изделия × работа на изделие" unit="₽">Работа</Th>
-                  <Th tip="Надбавка на мех и подкладку" unit="₽">4%</Th>
-                  <Th tip="Мех + подкладка + работа + 4%; под цифрой доля в общем итоге" className={sepL} unit="₽">Всего</Th>
+                  <Th tip="Надбавка на мех и подкладку" unit="₽">4 %</Th>
+                  <Th tip="Мех + подкладка + работа + 4 %; под цифрой доля в общем итоге" className={sepL} unit="₽">Всего</Th>
                   <Th tip="Всего, ₽ ÷ изделий" unit="₽/шт.">На 1 изд.</Th>
                 </tr>
               </thead>
@@ -769,8 +769,8 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Мех = всего шкур × цена шкуры" className={sepL} unit="₽">Мех</Th>
                   <Th tip="Подкладка = бюджет × м на изделие × цена за метр" unit="₽">Подкладка</Th>
                   <Th tip="Работа = бюджет × работа на изделие" unit="₽">Работа</Th>
-                  <Th tip="Надбавка на мех и подкладку (по умолчанию 4%)" unit="₽">4%</Th>
-                  <Th tip="Мех + подкладка + работа + 4%" unit="₽">Всего</Th>
+                  <Th tip="Надбавка на мех и подкладку (по умолчанию 4 %)" unit="₽">4 %</Th>
+                  <Th tip="Мех + подкладка + работа + 4 %" unit="₽">Всего</Th>
                   <Th tip="Всего, ₽ ÷ бюджет изделий" unit="₽/шт.">На 1 изд.</Th>
                 </tr>
               </thead>

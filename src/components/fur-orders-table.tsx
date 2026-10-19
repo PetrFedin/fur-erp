@@ -135,7 +135,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
     <TH label={label} unit={unit} align={o.left ? "left" : "right"} sep={o.bl} after={o.after} sort={sort.key === k ? sort.dir : "none"} onSort={() => setSort((s) => ({ key: k, dir: s.key === k && s.dir === "desc" ? "asc" : "desc" }))} />
   );
   const usdNote = (have: number, qty: number) => (have > 0 && qty - have > 0.0005 ? <div className="text-[11px] font-normal text-neutral-500" title={`Цена в $ есть у ${formatQty(have)} из ${formatQty(qty)}`}>{formatQty(have)} / {formatQty(qty)}</div> : null);
-  const rateText = (rates: number[]) => `${vat === "excl" ? "без НДС" : "с НДС"} ${rates.sort((a, b) => a - b).map((r) => `${r}%`).join(" · ")}`;
+  const rateText = (rates: number[]) => `${vat === "excl" ? "без НДС" : "с НДС"} ${rates.sort((a, b) => a - b).map((r) => `${r} %`).join(" · ")}`;
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const perUnit = (qty: number, units: number) => (units > 0 ? qty / units : null);
   
@@ -145,7 +145,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
         <h2 id="fur-orders" className="block-title">Использование по ТЗ</h2>
         <InfoHint label="Как читать использование по ТЗ" wide>
           <p>Одна строка — одно ТЗ: сколько шкур (метров) этого вида ушло в него, на какую сумму, по какой средневзвешенной цене (₽ и $), сколько на изделие и сколько ещё лежит в лотах, из которых брало это ТЗ. Для ТЗ из нескольких видов меха — только списания этого вида. Фильтры таблицы выше действуют и здесь.</p>
-          <p className="mt-1"><b>Сумма</b> — без 4% (режим «с НДС / без НДС» из шапки), мелко — с 4%. <b>Цена $</b> — только по лотам, где цена в $ записана в расчёте; «по N из M» — охват. «›» раскрывает лоты и аукционы ТЗ.</p>
+          <p className="mt-1"><b>Сумма</b> — без 4 % (режим «с НДС / без НДС» из шапки), мелко — с 4 %. <b>Цена $</b> — только по лотам, где цена в $ записана в расчёте; «по N из M» — охват. «›» раскрывает лоты и аукционы ТЗ.</p>
           <p className="mt-1">Сумма по всем ТЗ = «Использовано» в таблице выше.</p>
         </InfoHint>
       </div>
@@ -155,8 +155,8 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
         <div className={TILE_BOX}><TileHead>{kind === "lining" ? "Метров всего" : "Шкур всего"}</TileHead><TileValue compact>{formatQty(T.qty)}</TileValue><TileCaption>{unit}</TileCaption></div>
         <div className={TILE_BOX}><TileHead>{kind === "lining" ? "Метров на изделие" : "Шкур на изделие"}</TileHead><TileValue compact>{T.units > 0 ? formatQty(Math.round((T.qty / T.units) * 100) / 100) : "—"}</TileValue><TileCaption>в среднем</TileCaption></div>
         <div className={TILE_BOX}><TileHead>Ср. цена, ₽/{unit}</TileHead><TileValue compact>{T.qty > 0 ? formatMoney(Math.round((totBase / T.qty) * 100) / 100) : "—"}</TileValue><TileCaption><span title={T.usdQty > 0 ? `Цена в $ есть у ${formatQty(T.usdQty)} из ${formatQty(T.qty)}` : undefined}>{T.usdQty > 0 ? `${usd(T.usdSum / T.usdQty)} · ${formatQty(T.usdQty)} / ${formatQty(T.qty)}` : "—"}</span></TileCaption></div>
-        <div className={TILE_BOX}><TileHead>Сумма, ₽</TileHead><TileValue compact>{formatMoney(totBase)}</TileValue><TileCaption>без 4%</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>Сумма с 4%, ₽</TileHead><TileValue compact>{formatMoney(totC4)}</TileValue><TileCaption>надбавка {formatMoney(totC4 - totBase)}</TileCaption></div>
+        <div className={TILE_BOX}><TileHead>Сумма, ₽</TileHead><TileValue compact>{formatMoney(totBase)}</TileValue><TileCaption>без 4 %</TileCaption></div>
+        <div className={TILE_BOX}><TileHead>Сумма с 4 %, ₽</TileHead><TileValue compact>{formatMoney(totC4)}</TileValue><TileCaption>надбавка {formatMoney(totC4 - totBase)}</TileCaption></div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-neutral-500">
@@ -208,7 +208,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
               {head("qty", kind === "lining" ? "Метров" : "Шкур", unit, { bl: true })}
               {head("lots", "Лотов")}
               <TH label="Аукц." />
-              {head("sum", "Сумма", `${UNIT.rub} · без 4%`)}
+              {head("sum", "Сумма", `${UNIT.rub} · без 4 %`)}
               {head("avg", "Ср. цена", `₽/${unit}`, { after: <InfoHint label="Что такое средневзвешенная цена" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ.</InfoHint> })}
               <TH className="!px-1" label={grp === "all" ? "Доля" : "Доля от группы"} unit={UNIT.pct} />
               <TH label="Ср. цена" unit={`$/${unit}`} sort={sort.key === "usd" ? sort.dir : "none"} onSort={() => setSort((s) => ({ key: "usd", dir: s.key === "usd" && s.dir === "desc" ? "asc" : "desc" }))} after={<InfoHint label="Что такое средневзвешенная цена в долларах" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ — только по лотам с ценой в $ (охват «по N из M»).</InfoHint>} />
@@ -236,7 +236,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                     <td className={TD + BL}>{formatQty(r.qty)}</td>
                     <td className={TD}>{r.lots.size}</td>
                     <td className={TD}>{r.auctions.size}</td>
-                    <td className={TD} title={`в т.ч. НДС: ${formatMoney(r.incl - r.excl)}`}>{money(sum)}<div className="text-[11px] font-normal text-neutral-500">с 4%: {money(withC4(r))}</div><div className="text-[11px] font-normal text-neutral-500">{rateText([...r.vatBy.keys()])}</div></td>
+                    <td className={TD} title={`в т.ч. НДС: ${formatMoney(r.incl - r.excl)}`}>{money(sum)}<div className="text-[11px] font-normal text-neutral-500">с 4 %: {money(withC4(r))}</div><div className="text-[11px] font-normal text-neutral-500">{rateText([...r.vatBy.keys()])}</div></td>
                     <td className={TD}>{r.qty > 0 ? formatMoney(Math.round((sum / r.qty) * 100) / 100) : <D />}</td>
                     <td className="whitespace-nowrap px-1 py-1.5 text-right tabular-nums text-neutral-600">{T.qty > 0 ? formatPercent((r.qty / T.qty) * 100) : <D />}</td>
                     <td className={TD}>{r.usdQty > 0 ? usd(r.usdSum / r.usdQty) : <D />}{usdNote(r.usdQty, r.qty)}</td>
@@ -253,7 +253,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                       </td>
                       <td className={TD + BL}>{formatQty(qty)}</td>
                       <td className={TD} colSpan={2} />
-                      <td className={TD}>{money(vat === "excl" ? excl : incl)}<div className="text-[11px] font-normal text-neutral-500">НДС {lot.vatRate}%{lot.year < 2026 ? ", куплено до 2026" : ", с 2026"}</div></td>
+                      <td className={TD}>{money(vat === "excl" ? excl : incl)}<div className="text-[11px] font-normal text-neutral-500">НДС {lot.vatRate} %{lot.year < 2026 ? ", куплено до 2026" : ", с 2026"}</div></td>
                       <td className={TD}>{qty > 0 ? formatMoney(Math.round(((vat === "excl" ? excl : incl) / qty) * 100) / 100) : <D />}</td>
                       <td className="px-1" />
                       <td className={TD}>{lot.usdPrice != null ? usd(lot.usdPrice) : <D />}</td>
@@ -271,7 +271,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                 <td className={TD} />
                 <td className={TD + BL}>{formatQty(T.qty)}</td>
                 <td className={TD} /><td className={TD} />
-                <td className={TD} title={`в т.ч. НДС: ${formatMoney(T.incl - T.excl)}`}>{money(totBase)}<div className="text-[11px] font-normal opacity-80">с 4%: {money(totC4)}</div><div className="text-[11px] font-normal opacity-80">{[...totVat.keys()].sort((a, b) => a - b).map((r) => `${r}%`).join(" · ")}</div><div className="text-[11px] font-normal opacity-80">НДС: {[...totVat.keys()].sort((a, b) => a - b).map((r) => `${r}% — ${formatMoney(totVat.get(r) ?? 0)}`).join(" · ")}</div></td>
+                <td className={TD} title={`в т.ч. НДС: ${formatMoney(T.incl - T.excl)}`}>{money(totBase)}<div className="text-[11px] font-normal opacity-80">с 4 %: {money(totC4)}</div><div className="text-[11px] font-normal opacity-80">{[...totVat.keys()].sort((a, b) => a - b).map((r) => `${r} %`).join(" · ")}</div><div className="text-[11px] font-normal opacity-80">НДС: {[...totVat.keys()].sort((a, b) => a - b).map((r) => `${r} % — ${formatMoney(totVat.get(r) ?? 0)}`).join(" · ")}</div></td>
                 <td className={TD}>{T.qty > 0 ? formatMoney(Math.round((totBase / T.qty) * 100) / 100) : <D />}</td>
                 <td className="whitespace-nowrap px-1 py-1.5 text-right tabular-nums">{T.qty > 0 ? formatPercent(100) : <D />}</td>
                 <td className={TD}>{T.usdQty > 0 ? usd(T.usdSum / T.usdQty) : <D />}{usdNote(T.usdQty, T.qty)}</td>

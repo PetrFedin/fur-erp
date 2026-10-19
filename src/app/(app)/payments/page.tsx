@@ -468,7 +468,7 @@ export default async function PaymentsPage({
           <Th {...ath("total")} className="text-right" unit="₽">Стоимость</Th>
           <Th {...ath("paid")} className="text-right" unit="₽">Оплачено</Th>
           {anyPlanned && <Th {...ath("planned")} className="text-right" unit="₽">Запланировано</Th>}
-          <Th {...ath("rem")} className="text-right" unit="₽">Задолженность</Th>
+          <Th {...ath("rem")} className="text-right" unit="₽">Долг</Th>
         </Tr>
       </Thead>
       <Tbody>
@@ -850,7 +850,7 @@ export default async function PaymentsPage({
                 }}
                 paidHint={
                   <InfoHint wide label="Из чего состоит «Оплачено»" align="right">
-                    <p>Та же цифра, что «Оплачено поставщику» на Главной (с НДС, от фильтров и 4% не зависит): по закупкам и аукционам {formatMoney(debt.paid.toString())} + авансы без привязки {formatMoney(debt.unlinkedAdvances.toString())}.</p>
+                    <p>Та же цифра, что «Оплачено поставщику» на Главной (с НДС, от фильтров и 4 % не зависит): по закупкам и аукционам {formatMoney(debt.paid.toString())} + авансы без привязки {formatMoney(debt.unlinkedAdvances.toString())}.</p>
                   </InfoHint>
                 }
                 debtHint={<SupplierDebtHint debt={debt} year={year} align="right" />}

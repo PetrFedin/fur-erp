@@ -955,7 +955,7 @@ function Unit4Note({ incl, excl, source }: { incl: number; excl: number; source?
   if (mode !== "on" && !source) return null;
   return (
     <InfoHint label="Пояснение к цене лота" align="right">
-      {mode === "on" ? <p>С 4%: <Money incl={incl * k} excl={excl * k} />. {COMMISSION4_HINT}</p> : null}
+      {mode === "on" ? <p>С 4 %: <Money incl={incl * k} excl={excl * k} />. {COMMISSION4_HINT}</p> : null}
       {source ? <p className={mode === "on" ? "mt-1" : undefined}>Цена по цене лота, без расчёта.</p> : null}
     </InfoHint>
   );

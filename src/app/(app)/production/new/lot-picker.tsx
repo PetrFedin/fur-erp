@@ -84,7 +84,7 @@ export function LotPicker({
                 >
                   <span className="font-medium">{lotTitle(l)}</span>
                   <span className="block text-xs text-neutral-500">
-                    ост. {formatQty(l.remaining)}{left !== l.remaining ? ` (свободно ${formatQty(left)})` : ""} · {formatQty(l.unitCost)} ₽/ед. · НДС {l.materialVat != null && l.materialVat !== l.vatRate ? `${l.materialVat}% (в лоте ${l.vatRate}%)` : `${l.vatRate}%`} · {vatPeriodLabel(l.purchaseDate)}
+                    ост. {formatQty(l.remaining)}{left !== l.remaining ? ` (свободно ${formatQty(left)})` : ""} · {formatQty(l.unitCost)} ₽/ед. · НДС {l.materialVat != null && l.materialVat !== l.vatRate ? `${l.materialVat} % (в лоте ${l.vatRate} %)` : `${l.vatRate} %`} · {vatPeriodLabel(l.purchaseDate)}
                     {l.purchaseNumber ? ` · закупка ${l.purchaseNumber}` : ""}{l.auction ? ` · ${l.auction}` : ""}
                   </span>
                 </button>

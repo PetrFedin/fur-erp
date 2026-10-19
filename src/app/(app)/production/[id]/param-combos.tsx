@@ -205,14 +205,14 @@ export function VatCell({
 }) {
   const uniform = rates.length === 1 ? String(rates[0]) : "";
   const std = ["22", "20"];
-  const opts: SelectOpt[] = [...std.map((r) => ({ value: r, label: `${r}%` }))];
-  if (uniform && !std.includes(uniform)) opts.push({ value: uniform, label: `${uniform}%` });
+  const opts: SelectOpt[] = [...std.map((r) => ({ value: r, label: `${r} %` }))];
+  if (uniform && !std.includes(uniform)) opts.push({ value: uniform, label: `${uniform} %` });
   if (lines === 0) return <span className="block px-1.5 py-0.5 text-sm text-neutral-400">нет списаний — ставку задать некому</span>;
   return (
     <PickOrAdd
       value={uniform}
       options={opts}
-      emptyLabel={rates.length > 1 ? `Разные: ${rates.map((r) => `${r}%`).join(" / ")} (как в лотах)` : "Как в лотах"}
+      emptyLabel={rates.length > 1 ? `Разные: ${rates.map((r) => `${r} %`).join(" / ")} (как в лотах)` : "Как в лотах"}
       label="НДС ТЗ, %"
       onPick={(v) => onSave(v)}
       confirmPick={confirmPick}

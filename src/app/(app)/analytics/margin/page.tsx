@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { ACCESS, hasRole } from "@/lib/access";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { loadMarginInput, loadReportSizes, loadModelPhotos } from "@/lib/margin-server";
-import { RETAIL_PRICES_KEY, serializeInput, type RetailRow } from "@/lib/margin";
+import { loadRetailPricesState } from "@/lib/import-keys";
+import { serializeInput, type RetailRow } from "@/lib/margin";
 import { normCode } from "@/lib/sales-receipts-core";
 import { MarginView } from "./margin-view";
 import type { PriceModel } from "./prices-block";
@@ -18,7 +19,7 @@ export default async function MarginPage({ searchParams }: { searchParams: Promi
   const org = session.user.organizationId;
   const [input, sizes, photos, state, models] = await Promise.all([
     loadMarginInput(org, await getCommission4Mode()), loadReportSizes(org), loadModelPhotos(org),
-    prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: org, key: RETAIL_PRICES_KEY } }, select: { value: true } }),
+    loadRetailPricesState(org),
     prisma.productModel.findMany({ where: { organizationId: org }, select: { id: true, name: true, sellingPrice: true } }),
   ]);
   const rows = ((state?.value as { rows?: RetailRow[] } | null)?.rows ?? []).filter((r) => r && typeof r.price === "number");

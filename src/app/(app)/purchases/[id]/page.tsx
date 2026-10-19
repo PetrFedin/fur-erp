@@ -373,7 +373,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                     fields: [
                       { label: "Кол-во", value: `${formatQty(item.quantity.toString())} ${UNIT_LABELS[item.rawMaterial.unit]}` },
                       { label: hasPlan ? `Цена лота, ${currencySym}` : "Цена без НДС", value: formatCurrency(item.unitPrice.toString(), purchase.currency) },
-                      { label: "НДС", value: `${item.vatRate.toString()}% · ${vatPeriodLabel(purchase.orderDate)}` },
+                      { label: "НДС", value: `${item.vatRate.toString()} % · ${vatPeriodLabel(purchase.orderDate)}` },
                       ...(hasPlan ? [{ label: <VatLabel key="unit-label" base="Себестоимость ед." />, value: unitNode ?? "—" }] : []),
                       { label: <VatLabel key="total-label" base={hasPlan ? "Всего, ₽" : `Сумма${isForeignCurrency ? ", RUB" : ""}`} />, value: totalNode, strong: true },
                     ],
@@ -456,8 +456,8 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                       </Td>
                       <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
                       <Td>
-                        {item.vatRate.toString()}%
-                        <span className={`block text-[11px] ${Number(item.vatRate) === vatRateForDate(purchase.orderDate) ? "text-neutral-400" : "text-amber-700"}`} title={Number(item.vatRate) === vatRateForDate(purchase.orderDate) ? undefined : `По дате закупки ${formatDate(purchase.orderDate)} должна быть ${vatRateForDate(purchase.orderDate)}%`}>{vatPeriodLabel(purchase.orderDate)}</span>
+                        {item.vatRate.toString()} %
+                        <span className={`block text-[11px] ${Number(item.vatRate) === vatRateForDate(purchase.orderDate) ? "text-neutral-400" : "text-amber-700"}`} title={Number(item.vatRate) === vatRateForDate(purchase.orderDate) ? undefined : `По дате закупки ${formatDate(purchase.orderDate)} должна быть ${vatRateForDate(purchase.orderDate)} %`}>{vatPeriodLabel(purchase.orderDate)}</span>
                       </Td>
                       {planInfo ? (
                         <>
@@ -523,7 +523,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
           <div className="flex flex-col gap-2">
             <InfoHint label="О расчёте себестоимости" wide>
                 Себестоимость единицы в таблице позиций — предварительный расчёт из расчётного листа. При приёме на склад она
-                переходит в лот, а расходы закупки (блок «Расходы») добавляются сверху пропорционально стоимости лотов. 4% сюда не входит: оно добавляется только при списании в ТЗ.
+                переходит в лот, а расходы закупки (блок «Расходы») добавляются сверху пропорционально стоимости лотов. 4 % сюда не входит: оно добавляется только при списании в ТЗ.
               </InfoHint>
             
             <div className="flex items-center gap-1 text-xs text-neutral-600">
@@ -608,7 +608,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
               purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}${purchase.invoiceDate ? ` от ${formatDate(purchase.invoiceDate)}` : ""}` : purchase.invoiceDate ? `счёт от ${formatDate(purchase.invoiceDate)}` : null,
               purchase.transferDocument ? `УПД ${purchase.transferDocument}` : null,
               isForeignCurrency ? `валюта позиций ${purchase.currency}, курс ${formatRate(Number(purchase.exchangeRate.toString()))}` : null,
-              vatRatesText ? `НДС ${vatRatesText}%` : null,
+              vatRatesText ? `НДС ${vatRatesText} %` : null,
             ].filter(Boolean).map((t) => (
               <span key={t} className="flex items-center gap-x-1.5"><span aria-hidden>·</span>{t}</span>
             ))}
@@ -862,7 +862,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                   </summary>
                   <div className="border-t border-neutral-100 px-2 py-2 text-sm">
                     {items.length === 0 ? (
-                      <p className="text-neutral-500">Расчётного листа по лоту нет: цена внесена как есть — {formatMoney(item.unitPrice.toFixed(2))} за ед. без НДС, НДС {item.vatRate.toString()}%.</p>
+                      <p className="text-neutral-500">Расчётного листа по лоту нет: цена внесена как есть — {formatMoney(item.unitPrice.toFixed(2))} за ед. без НДС, НДС {item.vatRate.toString()} %.</p>
                     ) : (
                       <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-0.5 sm:max-w-xl">
                         {items.map((b, i) => (
@@ -919,7 +919,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                     <Td>{e.category.name}</Td>
                     <Td>{e.description ?? "—"}</Td>
                     <Td>{formatMoney(e.amount.toString())}</Td>
-                    <Td>{e.vatRate.toString()}%</Td>
+                    <Td>{e.vatRate.toString()} %</Td>
                     <Td>
                       <Money incl={expenseInclVat(e)} excl={e.amount} />
                     </Td>
@@ -960,7 +960,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                   subtitle={e.description}
                   fields={[
                     { label: "Сумма (без НДС)", value: formatMoney(e.amount.toString()) },
-                    { label: "НДС", value: `${e.vatRate.toString()}%` },
+                    { label: "НДС", value: `${e.vatRate.toString()} %` },
                     { label: <VatLabel base="Сумма" />, value: <Money incl={expenseInclVat(e)} excl={e.amount} />, strong: true },
                   ]}
                   extra={

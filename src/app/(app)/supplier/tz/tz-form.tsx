@@ -177,7 +177,7 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
         <F label="Подрядчик — должность" v={p.signers.contractorPost} on={(v) => setSigner("contractorPost", v)} ro={ro} />
         <F label="Подрядчик — подписант" v={p.signers.contractorName} on={(v) => setSigner("contractorName", v)} ro={ro} />
       </div>
-      <p className="text-sm font-semibold">Общая стоимость ТЗ: <span className="tabular-nums">{money(t.total)}</span> руб. в т.ч. НДС {p.vatPct}%</p>
+      <p className="text-sm font-semibold">Общая стоимость ТЗ: <span className="tabular-nums">{money(t.total)}</span> руб. в т.ч. НДС {p.vatPct} %</p>
 
       <div className="flex flex-wrap items-center gap-2">
         {!ro && <Button type="button" disabled={pending} onClick={save}>Сохранить черновик</Button>}

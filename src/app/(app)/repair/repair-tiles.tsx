@@ -38,11 +38,11 @@ export function RepairTiles({ orders, c4, filtered = false }: { orders: DrillOrd
       <a href="#orders-tree" aria-label="Полная себестоимость ремонта — перейти к составу ТЗ" className={TILE_BOX + " w-full shadow-sm tile-click print:shadow-none"}>
         <TileHead>Полная себестоимость ремонта</TileHead>
         <TileValue>{money(total)}</TileValue>
-        <TileCaption>сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа</TileCaption>
+        <TileCaption>сырьё{c4 === "on" ? " + 4 %" : ""} + расходы ТЗ + работа</TileCaption>
         <TileList items={[
           { k: "Материалы: мех", v: money(s.fur), share: share(s.fur) },
           ...(Math.abs(s.lining) > 0.5 ? [{ k: "Материалы: подкладка", v: money(s.lining), share: share(s.lining) }] : []),
-          ...(c4 === "on" ? [{ k: "Надбавка 4%", v: money(s.c4), share: share(s.c4) }] : []),
+          ...(c4 === "on" ? [{ k: "Надбавка 4 %", v: money(s.c4), share: share(s.c4) }] : []),
           ...(Math.abs(s.other) > 0.5 && Math.abs(s.other) >= total * 0.001 ? [{ k: "Расходы ТЗ и прочее", v: money(s.other), share: share(s.other) }] : []),
           { k: "Работа", v: money(s.work), share: share(s.work) },
         ]} />
@@ -52,7 +52,7 @@ export function RepairTiles({ orders, c4, filtered = false }: { orders: DrillOrd
       </a>
         <div className="absolute right-3 top-3">
           <InfoHint label="Как считается ремонт" wide align="right">
-            <p>Те же формулы, что в блоке «Производство» на Главной: материалы — списания в ТЗ (с 4% в режиме «С 4%»), работа — цена работы подрядчика × количество. Режим НДС — общий переключатель шапки ({vat === "incl" ? "с НДС" : "без НДС"}).</p>
+            <p>Те же формулы, что в блоке «Производство» на Главной: материалы — списания в ТЗ (с 4 % в режиме «С 4 %»), работа — цена работы подрядчика × количество. Режим НДС — общий переключатель шапки ({vat === "incl" ? "с НДС" : "без НДС"}).</p>
           </InfoHint>
         </div>
       </div>

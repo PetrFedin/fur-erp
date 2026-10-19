@@ -352,7 +352,7 @@ export async function AuctionView({
             <InfoHint label="Об этом аукционе" wide>
               <p>Счета, лоты, документы и расчёт цены выбранного аукциона.</p>
               <p className="mt-1">Год: {year === "all" ? "все годы" : `${year} — закупки с датой заказа в ${year} году`}. Оплаты и остаток считаются по аукциону целиком.</p>
-              <p className="mt-1">Закупок {counted.length}, лотов {totalLots}, шкур {formatQty(totalQty.toString())}. По счетам {formatMoney(priceIncl.toString())}, с расходами {formatMoney(fullIncl.toString())} (с НДС). 4% здесь не начисляется: это наценка в ТЗ.</p>
+              <p className="mt-1">Закупок {counted.length}, лотов {totalLots}, шкур {formatQty(totalQty.toString())}. По счетам {formatMoney(priceIncl.toString())}, с расходами {formatMoney(fullIncl.toString())} (с НДС). 4 % здесь не начисляется: это наценка в ТЗ.</p>
             </InfoHint>
           </CardTitle>
         </CardHeader>
@@ -402,7 +402,7 @@ export async function AuctionView({
             </div>
             {paySummaries.length > 0 && (
               <div>
-                <dt className="text-xs text-neutral-500">{payRemaining.lessThan(-OVERPAY_FROM) ? "Переплата" : "К оплате"}</dt>
+                <dt className="text-xs text-neutral-500">{payRemaining.lessThan(-OVERPAY_FROM) ? "Переплата" : "Долг"}</dt>
                 <dd className={"text-lg font-semibold " + (payRemaining.greaterThan(0.005) && !payDust ? "text-amber-700" : "")}>
                   {payDust ? <span title={`округление (${formatMoney(payRemaining.abs().toFixed(2))})`} className="cursor-help">оплачено</span> : formatMoney(payRemaining.lessThan(-OVERPAY_FROM) ? payRemaining.neg().toString() : payRemaining.toString())}
                 </dd>

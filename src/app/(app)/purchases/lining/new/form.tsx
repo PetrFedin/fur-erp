@@ -50,7 +50,7 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
     const excl = priceIncl ? price / (1 + vat / 100) : price;
     const sumExcl = Math.round(meters * Math.round(excl * 100) / 100 * 100) / 100;
     const nds = Math.round(sumExcl * vat) / 100;
-    return { auto, vat, meters, sumExcl, nds, sumIncl: sumExcl + nds, warn: date && l.vatTouched && l.vat !== "" && vat !== auto.byDate ? `Ставка ${vat}% не совпадает с датой (${vatPeriodLabel(date)} → ${auto.byDate}%)` : null };
+    return { auto, vat, meters, sumExcl, nds, sumIncl: sumExcl + nds, warn: date && l.vatTouched && l.vat !== "" && vat !== auto.byDate ? `Ставка ${vat} % не совпадает с датой (${vatPeriodLabel(date)} → ${auto.byDate} %)` : null };
   });
   const tot = calc.reduce((a, c) => ({ m: a.m + c.meters, excl: a.excl + c.sumExcl, nds: a.nds + c.nds, incl: a.incl + c.sumIncl }), { m: 0, excl: 0, nds: 0, incl: 0 });
   const setLine = (key: number, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));

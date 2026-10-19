@@ -103,7 +103,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
   const { ask, node: confirmNode } = useConfirm();
   const [articleKey, setArticleKey] = useState(0);
   const vatEdit = useDraftEdit(d.orderId);
-  const vatNow = d.vat.length === 0 ? "—" : d.vat.map((r) => `${r.rate}%`).join(" / ");
+  const vatNow = d.vat.length === 0 ? "—" : d.vat.map((r) => `${r.rate} %`).join(" / ");
   return (
     <section aria-label="Параметры ТЗ" className="flex flex-col gap-2" id="params">
       <div className="flex items-center gap-2">
@@ -111,7 +111,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
         <InfoHint label="Как читать: Параметры ТЗ" wide>
           <p>Что заведено в ТЗ. Клик по значению — правка по месту: у нефинансовых полей Enter или уход курсора сохраняет, Esc отменяет; у финансовых — «Сохранить» / «Отменить». После сохранения пересчитываются итоги страницы, «В выпуске», разделы ТЗ, Изделия, Партии и Главная.</p>
           <p className="mt-1">Любое поле можно выбрать из списка или внести своё: артикул, категория и группа, вид меха, НДС. Категория принадлежит артикулу (меняется у всех его ТЗ), «Вид меха» по умолчанию определяется по списанным лотам. Финансовые поля (кол-во по плану и по факту, работа, НДС) сохраняются кнопкой «Сохранить» после окна «что изменится» (Enter в поле = Сохранить, Esc = отмена); остальные (даты, размер, подкладка, примечание…) сохраняются сразу, рядом появляется «✓ сохранено».</p>
-          <p className="mt-1"><b>Партия</b> — поставка пошива: итоги партии, оплаты по партии, Главная; партия 6 — без 4%. Смена партии или заказчика пересчитывает долг по партиям и спрашивает подтверждение. <b>Работа, ₽ за шт.</b> × количество — входит в себестоимость и оплаты за работу (без НДС и 4%). <b>Кол-во по факту</b> — только у ТЗ с оприходованной продукцией: меняет себестоимость единицы и остаток готовой продукции. <b>Окончание</b> — от него зависит год ТЗ в сводках. Сумма НДС списаний — в плитке «НДС в списаниях».</p>
+          <p className="mt-1"><b>Партия</b> — поставка пошива: итоги партии, оплаты по партии, Главная; партия 6 — без 4 %. Смена партии или заказчика пересчитывает долг по партиям и спрашивает подтверждение. <b>Работа, ₽ за шт.</b> × количество — входит в себестоимость и оплаты за работу (без НДС и 4 %). <b>Кол-во по факту</b> — только у ТЗ с оприходованной продукцией: меняет себестоимость единицы и остаток готовой продукции. <b>Окончание</b> — от него зависит год ТЗ в сводках. Сумма НДС списаний — в плитке «НДС в списаниях».</p>
         </InfoHint>
       </div>
       <div className="grid grid-cols-1 overflow-hidden rounded-lg border border-neutral-200 bg-white md:grid-cols-2 md:[&>*:nth-child(odd)]:border-r md:[&>*:nth-child(odd)]:border-neutral-100">
@@ -246,14 +246,14 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
         </Row>
         <Row label="НДС">
           {ro ? (
-            <span className="block px-1.5 py-0.5 text-sm">{d.vat.length === 0 ? <span className="text-neutral-300">—</span> : d.vat.map((r) => `${r.rate}%`).join(" / ")}</span>
+            <span className="block px-1.5 py-0.5 text-sm">{d.vat.length === 0 ? <span className="text-neutral-300">—</span> : d.vat.map((r) => `${r.rate} %`).join(" / ")}</span>
           ) : (
             <>
               <VatCell
                 rates={d.vat.map((r) => r.rate)}
                 lines={d.vat.reduce((n, r) => n + r.lines, 0)}
                 onSave={(v) => setOrderVat(d.orderId, v)}
-                confirmPick={(v) => vatEdit.run("Изменить НДС ТЗ", { kind: "vat", rate: v }, [{ label: "НДС списаний", before: vatNow, after: v.trim() === "" ? "как в лотах" : `${v.trim()}%` }], async () => undefined)}
+                confirmPick={(v) => vatEdit.run("Изменить НДС ТЗ", { kind: "vat", rate: v }, [{ label: "НДС списаний", before: vatNow, after: v.trim() === "" ? "как в лотах" : `${v.trim()} %` }], async () => undefined)}
               />
               {vatEdit.error ? <span className="block px-1.5 text-xs text-red-600">{vatEdit.error}</span> : null}
               {vatEdit.node}

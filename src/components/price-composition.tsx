@@ -176,7 +176,7 @@ export function PriceCompositionChart({ slices, total, qty, qtyVals, unitName = 
             {qtyVals ? <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vQty}>{qty > 0 ? formatQty(qty) : "—"}</td> : null}
             <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(total)}</td>
             <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vAvg}>{perUnit(total)}</td>
-            <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{total !== 0 ? "100,0%" : "—"}</td>
+            <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{total !== 0 ? "100,0 %" : "—"}</td>
           </tr>
         </tbody>
       </table>

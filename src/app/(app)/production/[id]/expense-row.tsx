@@ -72,7 +72,7 @@ export function ExpenseRow({
       <Td>
         <DraftInput type="text" value={expense.description ?? ""} draft={desc} onChange={setDesc} onEnter={save} onEscape={cancel} label="Описание" placeholder="описание" readOnly={readOnly} disabled={ch.busy} />
       </Td>
-      <Td colSpan={4} className="text-xs text-neutral-400">без НДС и без 4%</Td>
+      <Td colSpan={4} className="text-xs text-neutral-400">без НДС и без 4 %</Td>
       <Td className="min-w-[8.5rem]">
         <DraftInput value={expense.amount} draft={amount} onChange={setAmount} onEnter={save} onEscape={cancel} step="0.01" min="0" align="right" label="Сумма" suffix="₽" readOnly={readOnly} disabled={ch.busy} />
         <DraftBar dirty={dirty} busy={ch.busy} error={ch.error} onSave={save} onCancel={cancel} />

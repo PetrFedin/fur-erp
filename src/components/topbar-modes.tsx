@@ -61,7 +61,7 @@ export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
               <VatToggle />
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="hidden text-xs text-neutral-500 xl:inline">4% к сырью:</span>
+              <span className="hidden text-xs text-neutral-500 xl:inline">4 % к сырью:</span>
               <Commission4Toggle />
             </div>
           </>
@@ -104,7 +104,7 @@ export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
                 <VatToggle />
               </div>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                <span className="text-sm text-neutral-700">4% к сырью</span>
+                <span className="text-sm text-neutral-700">4 % к сырью</span>
                 <Commission4Toggle />
               </div>
             </>

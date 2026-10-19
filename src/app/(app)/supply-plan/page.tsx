@@ -153,7 +153,7 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
             <p className="mt-1">
               Год ({year === "all" ? "все годы" : year}): по месяцу плана. {year === "all" ? `Таблица показывает период с ${MONTH_NAMES[windowStart.getMonth()]} ${windowStart.getFullYear()} по ${MONTH_NAMES[windowEnd.getMonth()]} ${windowEnd.getFullYear()}; остальные записи — отдельным списком.` : `Таблица показывает январь–декабрь ${year}.`}
             </p>
-            <p className="mt-1">В плане только количество, стоимости нет — переключатель «С 4%» на эту страницу не влияет.</p>
+            <p className="mt-1">В плане только количество, стоимости нет — переключатель «С 4 %» на эту страницу не влияет.</p>
             <p className="mt-1">Те же даты по дням — в <Link href="/calendar" className="text-blue-700 hover:underline">производственном календаре</Link>, количества по размерам — в <Link href="/plan" className="text-blue-700 hover:underline">плане заказа</Link>.</p>
           </InfoHint></div>
       </div>

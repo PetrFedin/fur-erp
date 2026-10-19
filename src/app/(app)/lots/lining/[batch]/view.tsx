@@ -35,7 +35,7 @@ export function LiningFabrics({ lots }: { lots: FurLot[] }) {
     const m = new Map<number, number>();
     for (const l of ls) m.set(l.vatRate, (m.get(l.vatRate) ?? 0) + (l.recvIncl - l.recvExcl));
     const rates = [...m.keys()].sort((a, b) => a - b);
-    return { rates, total: [...m.values()].reduce((a, v) => a + v, 0), detail: rates.map((r) => `${r}%: ${formatMoney(m.get(r) ?? 0)}`).join(" · ") };
+    return { rates, total: [...m.values()].reduce((a, v) => a + v, 0), detail: rates.map((r) => `${r} %: ${formatMoney(m.get(r) ?? 0)}`).join(" · ") };
   };
   // Сортировка по клику на заголовок (▲/▼, повторный клик — наоборот).
   const val0 = (ls: FurLot[]) => { const t = sum(ls); return vat === "excl" ? t.excl : t.incl; };
@@ -63,7 +63,7 @@ export function LiningFabrics({ lots }: { lots: FurLot[] }) {
         <td className={TD + BL}>{formatQty(s.recv)}</td>
         <td className={TD}>{s.recv > 0 ? formatMoney(Math.round((val / s.recv) * 100) / 100) : <D />}</td>
         <td className={TD}>{money(val)}</td>
-        <td className={TD + BL}>{v.rates.length ? v.rates.map((r) => `${r}%`).join(" · ") : <D />}</td>
+        <td className={TD + BL}>{v.rates.length ? v.rates.map((r) => `${r} %`).join(" · ") : <D />}</td>
         <td className={TD} title={v.detail}>{money(v.total)}</td>
         <td className={TD + BL}>{s.used > 0 ? <>{formatQty(s.used)}<div className="text-[11px] font-normal text-neutral-500">{formatMoney(s.usedV)}</div></> : <D />}</td>
         <td className={cn(TD, "w-28")}>{s.recv > 0 ? (
@@ -78,7 +78,7 @@ export function LiningFabrics({ lots }: { lots: FurLot[] }) {
       <div className="flex items-center gap-2">
         <h2 id="lb-fabrics" className="text-base font-semibold">Ткани партии</h2>
         <InfoHint label="Как читать таблицу тканей" wide>
-          <p>Что куплено в этой партии: метры, средневзвешенная цена ₽/м и сумма (режим «с НДС / без НДС» из шапки), ставка НДС и НДС в сумме, сколько метров использовано в ТЗ (без 4%) и что осталось. Название ткани — ссылка на карточку лота (если ткань в партии одной строкой) или на её лоты.</p>
+          <p>Что куплено в этой партии: метры, средневзвешенная цена ₽/м и сумма (режим «с НДС / без НДС» из шапки), ставка НДС и НДС в сумме, сколько метров использовано в ТЗ (без 4 %) и что осталось. Название ткани — ссылка на карточку лота (если ткань в партии одной строкой) или на её лоты.</p>
         </InfoHint>
       </div>
       <div className="scroll-hint overflow-x-auto rounded-xl border border-neutral-200 bg-white">

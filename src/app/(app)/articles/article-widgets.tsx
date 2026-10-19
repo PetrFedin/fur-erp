@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatMarkup } from "@/lib/utils";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 import { sumOrders, sumTotal } from "@/lib/orders-sum";
 import { GroupSwitch, TileCarousel, type GroupSel } from "@/components/tile-carousel";
@@ -41,11 +41,11 @@ export function PerUnitCarousel({ orders, c4 }: { orders: DrillOrder[]; c4: "on"
     return (
       <>
         <TileValue>{money(total / s.qty)}</TileValue>
-        <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-400">{c4 === "on" ? `${money((total - s.c4) / s.qty)} без 4%` : null}</div>
+        <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-400">{c4 === "on" ? `${money((total - s.c4) / s.qty)} без 4 %` : null}</div>
         <TileCaption>себестоимость с работой · {formatQty(s.qty)} шт. · без ремонта · {vat === "incl" ? "с НДС" : "без НДС"}</TileCaption>
         <TileList items={[
           { k: "Сырьё (мех + подкладка)", v: moneyNz((s.fur + s.lining) / s.qty), share: share(s.fur + s.lining) },
-          ...(c4 === "on" ? [{ k: "Надбавка 4%", v: moneyNz(s.c4 / s.qty), share: share(s.c4) }] : []),
+          ...(c4 === "on" ? [{ k: "Надбавка 4 %", v: moneyNz(s.c4 / s.qty), share: share(s.c4) }] : []),
           ...(Math.abs(s.other) > 0.5 && Math.abs(s.other) >= total * 0.001 ? [{ k: "Расходы ТЗ и прочее", v: money(s.other / s.qty), share: share(s.other) }] : []),
           { k: "Работа", v: moneyNz(s.work / s.qty), share: share(s.work) },
         ]} />
@@ -60,7 +60,7 @@ export function PerUnitCarousel({ orders, c4 }: { orders: DrillOrder[]; c4: "on"
       hint={
         <>
           <p>Σ себестоимость с работой без ремонта ÷ Σ изделий выбранного меха и группы. Не среднее по ТЗ, а общая сумма на общее количество. «Все виды меха» — все изделия страницы, цифры те же, что были в одной плитке.</p>
-          <p className="mt-1">Листайте вправо-влево, стрелками или точками: слайд на каждый вид меха ТЗ (как в дереве ниже; смешанные ТЗ — отдельным слайдом, например «Норка + Соболь»). Кнопки «Одежда / Аксессуары» меняют группу на любом слайде. Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4% (мелко — без 4%)" : "без 4%"}.</p>
+          <p className="mt-1">Листайте вправо-влево, стрелками или точками: слайд на каждый вид меха ТЗ (как в дереве ниже; смешанные ТЗ — отдельным слайдом, например «Норка + Соболь»). Кнопки «Одежда / Аксессуары» меняют группу на любом слайде. Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4 % (мелко — без 4 %)" : "без 4 %"}.</p>
         </>
       }
       toolbar={<GroupSwitch value={group} onChange={setGroup} label={`Группа изделий: ${GROUP_NOUN[group]}`} />}
@@ -70,7 +70,7 @@ export function PerUnitCarousel({ orders, c4 }: { orders: DrillOrder[]; c4: "on"
 }
 
 export type MarkupRow = { fur: string | null; grp: string; price: number | null; unit: number | null; qty: number; orders: number };
-const fmtX = (v: number) => `×${v.toFixed(2).replace(".", ",")}`;
+const fmtX = (v: number) => formatMarkup(v);
 
 /** Средневзвешенные по выпуску: цена = Σ(цена × выпуск) ÷ Σ выпуск; маркап = Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск). Артикулы с ценой и себестоимостью. */
 function aggOf(list: MarkupRow[]) {

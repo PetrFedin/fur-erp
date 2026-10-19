@@ -8,6 +8,7 @@ import { createThreadBindCode } from "./channel-actions";
 import { changeMemberAction, createChatAction, eligibleUsersAction, markThreadRead, searchEntitiesAction, sendMessage, setThreadClosed, toggleReactionAction, updateThreadAction, type NewChatState } from "./actions";
 import { planNewChat } from "@/lib/chat-core";
 import type { RecipientOption } from "@/lib/chat";
+import { formatFileSize } from "@/lib/utils";
 
 const FILE_ACCEPT = ".pdf,.xlsx,.docx,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf";
 
@@ -58,7 +59,7 @@ function FilePick({ names, onChange, name = "files" }: { names: string[]; onChan
 const MAX_FILES = 10;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const OK_EXT = /\.(pdf|xlsx|docx|jpe?g|png)$/i;
-const fmtSize = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`);
+const fmtSize = formatFileSize;
 
 /** Поле ввода: Enter отправляет, Shift+Enter — перенос; файлы — скрепкой, перетаскиванием на окно переписки или вставкой из буфера. */
 export function Composer({ threadId, people = [] }: { threadId: string; people?: string[] }) {

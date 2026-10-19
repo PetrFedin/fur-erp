@@ -222,9 +222,9 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
       title: "Цена",
       fields: [
         { label: `Цена за ${unitWord}, ₽ (с НДС)`, node: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} />, editor: mEd("unitIncl", q2(l.unitIncl), `Цена за ${unitWord} с НДС`, "₽"), note: poolNote ?? <span className="text-[11px] text-neutral-500">без НДС {formatMoney(q2(l.unitExcl))} · сумма лота {formatMoney(q2(recvIncl))}; правка пересчитывает сумму, списания и состав цены</span> },
-        { label: "НДС, %", node: `${formatQty(p.vatRate.toString())}%`, editor: mEd("vatRate", p.vatRate.toString(), "Ставка НДС лота", "%"), note: <>по дате документа {vatDefault}% ({vatPeriodLabel(byDate)}){vatRate !== vatDefault ? " — не совпадает" : ""} <InfoHint label="Ставка НДС в ТЗ" wide><p>В ТЗ берётся эта ставка лота; ставка строки списания может быть изменена в ТЗ. При смене ставки можно сохранить сумму с НДС (меняется выделение НДС) или цену без НДС (меняется сумма с НДС).</p></InfoHint></> },
+        { label: "НДС, %", node: `${formatQty(p.vatRate.toString())} %`, editor: mEd("vatRate", p.vatRate.toString(), "Ставка НДС лота", "%"), note: <>по дате документа {vatDefault} % ({vatPeriodLabel(byDate)}){vatRate !== vatDefault ? " — не совпадает" : ""} <InfoHint label="Ставка НДС в ТЗ" wide><p>В ТЗ берётся эта ставка лота; ставка строки списания может быть изменена в ТЗ. При смене ставки можно сохранить сумму с НДС (меняется выделение НДС) или цену без НДС (меняется сумма с НДС).</p></InfoHint></> },
         { label: "Сумма НДС, ₽", node: formatMoney(q2(vatTotalLot)), note: "считается из суммы лота и ставки" },
-        ...(lining && row.rawMaterial.defaultVatRate != null ? [{ label: "Ставка по умолчанию материала", node: `${formatQty(row.rawMaterial.defaultVatRate.toString())}%`, note: <Link href={`/materials/${row.rawMaterial.id}`} className="text-blue-700 hover:underline">правится в карточке материала →</Link> }] : []),
+        ...(lining && row.rawMaterial.defaultVatRate != null ? [{ label: "Ставка по умолчанию материала", node: `${formatQty(row.rawMaterial.defaultVatRate.toString())} %`, note: <Link href={`/materials/${row.rawMaterial.id}`} className="text-blue-700 hover:underline">правится в карточке материала →</Link> }] : []),
         ...(itemOfLot ? [{ label: `Цена в закупке (без НДС)${p.currency && p.currency !== "RUB" ? `, ${p.currency}` : ", ₽"}`, node: p.currency && p.currency !== "RUB" ? `${formatCurrency(itemOfLot.unitPrice.toString(), p.currency)}${p.exchangeRate ? ` · курс ${formatQty(p.exchangeRate.toString())}` : ""}` : formatMoney(itemOfLot.unitPrice.toString()), editor: mEd("unitPrice", itemOfLot.unitPrice.toString(), "Цена в закупке без НДС") }] : []),
         ...(lining ? [] : [
           { label: "Молоток, ₽/шт.", node: hammerLot ? <Money incl={q2(new Decimal(hammerLot.incl))} excl={q2(new Decimal(hammerLot.excl))} /> : "—", note: hammerLot ? "строка расчётного листа" : "в расчётном листе лота не указан", editor: hammerLot && hasHammerRow ? mEd("hammerExcl", q2(new Decimal(hammerLot.excl)), "Молоток без НДС", "₽ без НДС") : undefined },
@@ -276,7 +276,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         <Mode4Badge mode={c4} />
         <ChatLink type="RawMaterialLot" id={id} role={session.user.role} />
         <InfoHint label="О карточке" wide>
-          <p>Один купленный лот: сколько куплено, использовано и осталось, из чего состоит цена и в каких изделиях он участвует. Карточка не зависит от года в шапке. Деньги — «С НДС / Без НДС» из шапки; 4% добавляется только к списаниям, где оно применяется.</p>
+          <p>Один купленный лот: сколько куплено, использовано и осталось, из чего состоит цена и в каких изделиях он участвует. Карточка не зависит от года в шапке. Деньги — «С НДС / Без НДС» из шапки; 4 % добавляется только к списаниям, где оно применяется.</p>
         </InfoHint>
       </div>
 
@@ -296,8 +296,8 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
             <TileHead>Использовано</TileHead>
             <TileValue>{qty(l.used)}</TileValue>
             <TileList items={[
-              { k: "Сумма без 4%", v: <Money incl={q2(l.usedIncl)} excl={q2(l.usedExcl)} />, share: usedPctV != null ? usedPctV / 100 : null },
-              { k: "с 4%", v: <Money incl={q2(l.usedIncl.add(l.usedExtraIncl))} excl={q2(l.usedExcl.add(l.usedExtraExcl))} />, sub: true },
+              { k: "Сумма без 4 %", v: <Money incl={q2(l.usedIncl)} excl={q2(l.usedExcl)} />, share: usedPctV != null ? usedPctV / 100 : null },
+              { k: "с 4 %", v: <Money incl={q2(l.usedIncl.add(l.usedExtraIncl))} excl={q2(l.usedExcl.add(l.usedExtraExcl))} />, sub: true },
               { k: `Цена за ${unitWord}`, v: <Money incl={q2(usedUnitIncl)} excl={q2(usedUnitExcl)} /> },
             ]} />
             <VatLine v={{ [vatKey]: l.usedIncl.sub(l.usedExcl).toNumber() }} minRem={1} />
@@ -359,7 +359,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
           <h2 className={H2 + " flex items-center gap-2"}>
             Из чего состоит цена лота
             <InfoHint label="Из чего состоит цена лота" wide>
-              <p>Цена лота по долям (график) и все строки расчётного листа (таблица). График строится только по строкам, которым в таблице назначена категория; всё остальное — «Не распределено». Суммы приведены к цене лота без НДС; НДС — отдельно. 4% в цену лота не входит — оно начисляется при списании в ТЗ.</p>
+              <p>Цена лота по долям (график) и все строки расчётного листа (таблица). График строится только по строкам, которым в таблице назначена категория; всё остальное — «Не распределено». Суммы приведены к цене лота без НДС; НДС — отдельно. 4 % в цену лота не входит — оно начисляется при списании в ТЗ.</p>
             </InfoHint>
           </h2>
           {sheetRows.length > 0 && explicitRows > 0 ? (

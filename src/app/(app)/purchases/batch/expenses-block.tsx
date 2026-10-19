@@ -71,7 +71,7 @@ export function ExpensesBlock({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div><Label>Сборы аукциона (% от товара или ₽)</Label>{unit(e.feeMode, "fee")}</div>
         <div><Label>Брокерский (% от товара или ₽)</Label>{unit(e.brokerMode, "broker")}</div>
-        <div><Label htmlFor="ex-dressing">Выделка, ₽ с НДС 22%</Label><Input id="ex-dressing" inputMode="decimal" value={e.dressing} onChange={(ev) => set("dressing", ev.target.value)} /></div>
+        <div><Label htmlFor="ex-dressing">Выделка, ₽ с НДС 22 %</Label><Input id="ex-dressing" inputMode="decimal" value={e.dressing} onChange={(ev) => set("dressing", ev.target.value)} /></div>
         <div><Label htmlFor="ex-transport">Транспорт, ₽</Label><Input id="ex-transport" inputMode="decimal" value={e.transport} onChange={(ev) => set("transport", ev.target.value)} /></div>
         <div><Label htmlFor="ex-customs">Таможня, ₽</Label><Input id="ex-customs" inputMode="decimal" value={e.customs} onChange={(ev) => set("customs", ev.target.value)} /></div>
         <div><Label htmlFor="ex-transit">Комиссия за транзит денег, ₽</Label><Input id="ex-transit" inputMode="decimal" value={e.transit} onChange={(ev) => set("transit", ev.target.value)} /></div>
@@ -105,7 +105,7 @@ export function CompositionTable({ c, live = false, serverTotal }: { c: Composit
     ["Товар (молоток × курс)", c.goods],
     ["Сборы аукциона", c.fee],
     ["Брокерский", c.broker],
-    ["Выделка (с НДС 22%)", c.dressing],
+    ["Выделка (с НДС 22 %)", c.dressing],
     ["Транспорт", c.transport],
     ["Таможня", c.customs],
     ["Упаковка и прочее", c.packing],
@@ -120,7 +120,7 @@ export function CompositionTable({ c, live = false, serverTotal }: { c: Composit
         <table className="w-full text-sm">
           <tbody>
             {lines.map(([label, v]) => (
-              <tr key={label} className="border-b border-neutral-100"><td className="py-1 text-neutral-600">{label}</td><td className="py-1 text-right tabular-nums">{money(v)}</td><td className="w-14 py-1 text-right text-xs tabular-nums text-neutral-500">{c.totalIncl > 0 ? `${fmt((v / c.totalIncl) * 100, 0)}%` : ""}</td></tr>
+              <tr key={label} className="border-b border-neutral-100"><td className="py-1 text-neutral-600">{label}</td><td className="py-1 text-right tabular-nums">{money(v)}</td><td className="w-14 py-1 text-right text-xs tabular-nums text-neutral-500">{c.totalIncl > 0 ? `${fmt((v / c.totalIncl) * 100, 0)} %` : ""}</td></tr>
             ))}
             <tr><td className="py-1 font-semibold">Итого с НДС</td><td className="py-1 text-right font-semibold tabular-nums">{money(c.totalIncl)}</td><td /></tr>
             <tr><td className="py-1 text-neutral-600">Итого без НДС</td><td className="py-1 text-right tabular-nums">{money(c.totalExcl)}</td><td /></tr>

@@ -4,6 +4,7 @@ import { InfoHint } from "@/components/info-hint";
 import { debtLabel, formatMoney, OVERPAY_FROM } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { Goods, SplitLine, type ClientPayRow, type PaidGood } from "./client-payments-table";
+import { TERMS } from "@/lib/terms";
 
 /** Детализация даты на вкладке «За работу»: все оплаты этого дня и, за какой товар каждая из них пришла. */
 export function ClientDateDetail({ date, rows, back, owedNote, owedGoods }: { date: string; rows: (ClientPayRow & { verifySlot?: ReactNode })[]; back: string; owedNote?: { orders: number; batches: string }; owedGoods?: PaidGood[] }) {
@@ -24,12 +25,12 @@ export function ClientDateDetail({ date, rows, back, owedNote, owedGoods }: { da
         const due = rows.reduce((a, r) => a + r.due, 0);
         const paid = rows.reduce((a, r) => a + r.paid, 0);
         return (
-          <section className="rounded-lg border border-neutral-200 bg-white p-4" aria-label="К оплате, оплачено, остаток">
+          <section className="rounded-lg border border-neutral-200 bg-white p-4" aria-label="Стоимость работы, оплачено, остаток работы">
             <div className="mb-2 flex items-center gap-1.5 text-xs text-neutral-500">Авансы под {owedNote.orders} ТЗ{owedNote.batches ? `, партии ${owedNote.batches}` : ""}<InfoHint label="Что это за ТЗ" wide><p>Работа ТЗ, под которую внесены авансы: {owedNote.orders} ТЗ{owedNote.batches ? `, партии ${owedNote.batches}` : ""}.</p></InfoHint></div>
             <dl className="grid gap-2 sm:grid-cols-3">
-              <div className="rounded-md bg-neutral-50 px-3 py-2"><dt className="text-xs text-neutral-500">К оплате</dt><dd className="font-medium tabular-nums">{formatMoney(due.toFixed(2))}</dd></div>
+              <div className="rounded-md bg-neutral-50 px-3 py-2"><dt className="text-xs text-neutral-500">Стоимость работы</dt><dd className="font-medium tabular-nums">{formatMoney(due.toFixed(2))}</dd></div>
               <div className="rounded-md bg-neutral-50 px-3 py-2"><dt className="text-xs text-neutral-500">Оплачено</dt><dd className="font-medium tabular-nums">{formatMoney(paid.toFixed(2))}</dd></div>
-              <div className="rounded-md border border-amber-300 bg-neutral-50 px-3 py-2"><dt className="text-xs text-neutral-500">{debtLabel(due - paid, "Остаток к оплате")}</dt><dd className="font-medium tabular-nums text-amber-700">{formatMoney((due - paid < -OVERPAY_FROM ? paid - due : due - paid).toFixed(2))}</dd></div>
+              <div className="rounded-md border border-amber-300 bg-neutral-50 px-3 py-2"><dt className="text-xs text-neutral-500">{debtLabel(due - paid, TERMS.workRest)}</dt><dd className="font-medium tabular-nums text-amber-700">{formatMoney((due - paid < -OVERPAY_FROM ? paid - due : due - paid).toFixed(2))}</dd></div>
             </dl>
             {owedGoods && owedGoods.length > 0 ? (
               <details className="mt-3 border-t border-neutral-100 pt-3 text-sm">

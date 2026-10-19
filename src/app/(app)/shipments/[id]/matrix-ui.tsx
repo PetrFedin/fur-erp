@@ -7,11 +7,12 @@ import { Input, Select } from "@/components/ui/input";
 import { useConfirm } from "@/components/confirm-dialog";
 import { clearAlloc, fillAllocFromZi, saveAlloc } from "../alloc-actions";
 import { ALLOC_SITES, fmtDelta, lineDiff, sumDiff, validateAlloc, type AllocState, type ZiSite } from "@/lib/shipment-alloc";
+import { formatMoneyExact } from "@/lib/utils";
 
 export type MatrixRow = { id: string; label: string; article: string; color: string; size: string; order: string; quantity: number; accepted: number; returned: number; ziSites: ZiSite[] };
 type DRej = { id: string; site: string; size: string; qty: string; reason: string };
 
-const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n: number) => formatMoneyExact(n).replace(/\u00a0₽$/, "");
 const uid = () => Math.random().toString(36).slice(2, 12);
 const num = (s: string | undefined) => { const n = Number((s ?? "").replace(/\s/g, "")); return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0; };
 const norm = (s: string) => s.toLowerCase().replace(/ё/g, "е").trim();

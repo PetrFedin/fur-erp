@@ -108,7 +108,7 @@ export function UsageForm({ orderId, materials, defaultCommission4 = true, expec
               {[l.grade, l.color].filter(Boolean).length > 0
                 ? ` (${[l.grade, l.color].filter(Boolean).join(", ")})`
                 : ""}{" "}
-              — остаток {formatQty(l.quantityRemaining)} по {formatMoney(l.unitCost)} (НДС {Number(l.vatRate)}%)
+              — остаток {formatQty(l.quantityRemaining)} по {formatMoney(l.unitCost)} (НДС {Number(l.vatRate)} %)
             </option>
           ))}
         </Select>
@@ -117,10 +117,10 @@ export function UsageForm({ orderId, materials, defaultCommission4 = true, expec
         <label className="mb-1 block text-xs text-neutral-500">Количество</label>
         <Input name="quantity" type="number" step="0.001" min="0" required />
       </div>
-<label className="flex items-center gap-2 text-xs text-neutral-600 max-md:min-h-8 max-md:py-1" title="4% — наценка подрядчику на мех и подкладку в ТЗ. Не комиссия Веллмеха (его 4,5% за закупку сырья — отдельно). Работа, расходы и фурнитура не облагаются">
+<label className="flex items-center gap-2 text-xs text-neutral-600 max-md:min-h-8 max-md:py-1" title="4 % — наценка подрядчику на мех и подкладку в ТЗ. Не комиссия Веллмеха (его 4,5 % за закупку сырья — отдельно). Работа, расходы и фурнитура не облагаются">
         <input type="hidden" name="c4form" value="1" />
         <input type="checkbox" name="commission4" defaultChecked={defaultCommission4} className="h-4 w-4 max-md:h-5 max-md:w-5" />
-        Начислять 4%
+        Начислять 4 %
       </label>
       <Button type="submit" variant="outline" size="sm" disabled={pending}>
         {pending ? "Списываем..." : "+ Списать"}

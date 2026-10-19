@@ -10,7 +10,7 @@ export function CostCell({ incl, excl, extraIncl, extraExcl, c4 }: { incl: Decim
       <Money incl={q2(incl)} excl={q2(excl)} />
       {c4 === "on" && !extraIncl.isZero() && (
         <span className="block text-xs text-neutral-500">
-          с 4%: <Money incl={q2(incl.add(extraIncl))} excl={q2(excl.add(extraExcl))} />
+          с 4 %: <Money incl={q2(incl.add(extraIncl))} excl={q2(excl.add(extraExcl))} />
         </span>
       )}
     </>

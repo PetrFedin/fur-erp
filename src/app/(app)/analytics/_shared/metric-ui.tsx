@@ -85,7 +85,7 @@ export function MetricCell({ col, m, total }: { col: ColKey; m: Metrics; total: 
         <div className="whitespace-nowrap text-left text-[11px] leading-tight text-neutral-600">
           мех {pct0(d.shFur)} · подкл. {pct0(d.shLining ?? 0)}
           <br />
-          4% {pct0(d.shC4 ?? 0)} · работа {pct0(d.shWork ?? 0)} · расх. {pct0(d.shExpenses ?? 0)}
+          4 % {pct0(d.shC4 ?? 0)} · работа {pct0(d.shWork ?? 0)} · расх. {pct0(d.shExpenses ?? 0)}
         </div>
       );
   }

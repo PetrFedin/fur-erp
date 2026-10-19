@@ -123,7 +123,7 @@ export function LotSheetTable({
                     {canEdit ? (
                       <input aria-label={`Значение: ${r.label}`} inputMode="decimal" className={FIELD + " text-right tabular-nums"} value={d.value} onChange={(e) => patch(r, "value", e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") patch(r, "value", orig.get(r.idx)!.value); }} />
                     ) : (
-                      <span className="whitespace-nowrap">{r.unit === "курс" ? num2.format(r.value) : r.unit === "%" ? `${num2.format(r.value)}%` : `${num2.format(r.value)}${r.unit === "$" ? " $" : ""}`}</span>
+                      <span className="whitespace-nowrap">{r.unit === "курс" ? num2.format(r.value) : r.unit === "%" ? `${num2.format(r.value)} %` : `${num2.format(r.value)}${r.unit === "$" ? " $" : ""}`}</span>
                     )}
                   </td>
                   <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(r.perUnit)}</td>

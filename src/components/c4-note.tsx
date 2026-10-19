@@ -14,12 +14,12 @@ export function Mode4Badge({ mode, className = "" }: { mode: Commission4Mode; cl
         mode === "on" ? "border-amber-300 bg-amber-50 text-amber-800" : "border-neutral-300 bg-neutral-50 text-neutral-500"
       } ${className}`}
     >
-      {mode === "on" ? "с 4%" : "без 4%"}
+      {mode === "on" ? "с 4 %" : "без 4 %"}
     </span>
   );
 }
 
-const pct = `${COMMISSION_RATE * 100}%`;
+const pct = `${COMMISSION_RATE * 100} %`;
 
 /**
  * Подсказка «откуда 4%»: сырьё/подкладка × 4% = надбавка. Числа — строки с рублями (уже посчитанные на сервере),
@@ -32,7 +32,7 @@ export function C4Hint({
   excluded,
   total,
   formula,
-  title = "Расчёт 4%",
+  title = "Расчёт 4 %",
   children,
   align,
 }: {
@@ -56,26 +56,26 @@ export function C4Hint({
     <InfoHint label={title} align={align}>
       <b>{title}</b>
       <p className="mt-1">
-        «4%» — наценка подрядчику на мех и подкладку в ТЗ: 4% от цены без НДС, затем НДС по ставке лота. Это не комиссия Веллмеха (его 4,5% за закупку сырья считаются отдельно). Работа, расходы, фурнитура и шкуры подрядчика не облагаются; закупки, оплаты и долги не меняются.
+        «4 %» — наценка подрядчику на мех и подкладку в ТЗ: 4 % от цены без НДС, затем НДС по ставке лота. Это не комиссия Веллмеха (его 4,5 % за закупку сырья считаются отдельно). Работа, расходы, фурнитура и шкуры подрядчика не облагаются; закупки, оплаты и долги не меняются.
       </p>
       {formula ? (
         <p className="mt-1">{formula}</p>
       ) : base == null || extra == null ? (
-        <p className="mt-1 font-medium text-amber-700">Нет данных: по этой строке нельзя посчитать 4%.</p>
+        <p className="mt-1 font-medium text-amber-700">Нет данных: по этой строке нельзя посчитать 4 %.</p>
       ) : (
         <p className="mt-1">
-          Сырьё и подкладка с 4%: {f(base)} × {pct} = <b>{f(extra)}</b>
-          {mode === "on" ? " — уже включено в цифру." : " — добавится в режиме «С 4%»."}
+          Сырьё и подкладка с 4 %: {f(base)} × {pct} = <b>{f(extra)}</b>
+          {mode === "on" ? " — уже включено в цифру." : " — добавится в режиме «С 4 %»."}
           {excluded != null && Number(excluded) !== 0 && (
             <>
               <br />
-              Без 4% (лоскут, партия 6 и др.): {f(excluded)} — 4% не начисляется.
+              Без 4 % (лоскут, партия 6 и др.): {f(excluded)} — 4 % не начисляется.
             </>
           )}
           {total != null && (
             <>
               <br />
-              Всего, ₽ {mode === "on" ? "с 4%" : "без 4%"}: <b>{f(total)}</b>
+              Всего, ₽ {mode === "on" ? "с 4 %" : "без 4 %"}: <b>{f(total)}</b>
             </>
           )}
         </p>
@@ -107,10 +107,10 @@ export function Ref4({
   const altExcl = excl != null ? new Decimal(excl).mul(k) : null;
   return (
     <div className={`whitespace-nowrap text-xs font-normal text-neutral-500 ${className}`}>
-      с 4%: <Money incl={altIncl.toFixed(2)} excl={altExcl?.toFixed(2) ?? null} />
-      <InfoHint label="Сравнение 4%">
-        <p>Основная цифра — без 4%; здесь та же сумма с 4%.</p>
-        <p className="mt-1">4% применяется только к сырью и подкладке в ТЗ, где это разрешено; работа, закупка, оплаты и долг поставщику не меняются.</p>
+      с 4 %: <Money incl={altIncl.toFixed(2)} excl={altExcl?.toFixed(2) ?? null} />
+      <InfoHint label="Сравнение 4 %">
+        <p>Основная цифра — без 4 %; здесь та же сумма с 4 %.</p>
+        <p className="mt-1">4 % применяется только к сырью и подкладке в ТЗ, где это разрешено; работа, закупка, оплаты и долг поставщику не меняются.</p>
       </InfoHint>
     </div>
   );

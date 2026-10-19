@@ -212,7 +212,7 @@ export function TzImportWizard() {
                       </p>
                     ))}
                     <p className="text-neutral-600">
-                      {a.qty != null ? `${qtyFmt(a.qty)} шт.` : "кол-во не определено"} · списаний: {a.lots.length} · сырьё {money(a.costBase)} (с 4%: {money(a.costWith4)}) · работа {money(a.work)}
+                      {a.qty != null ? `${qtyFmt(a.qty)} шт.` : "кол-во не определено"} · списаний: {a.lots.length} · сырьё {money(a.costBase)} (с 4 %: {money(a.costWith4)}) · работа {money(a.work)}
                     </p>
                   </div>
                 )}
@@ -257,7 +257,7 @@ function ResultView({ r }: { r: ImportResult }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-neutral-500">
-              <th className="pr-3">ТЗ</th><Head label="Кол-во" unit="шт." align="left" /><Head label="Себестоимость сырья" unit="₽" align="left" /><Head label="С 4%" unit="₽" align="left" /><Head label="Работа" unit="₽" align="left" /><th>Не хватает документов</th>
+              <th className="pr-3">ТЗ</th><Head label="Кол-во" unit="шт." align="left" /><Head label="Себестоимость сырья" unit="₽" align="left" /><Head label="С 4 %" unit="₽" align="left" /><Head label="Работа" unit="₽" align="left" /><th>Не хватает документов</th>
             </tr>
           </thead>
           <tbody>

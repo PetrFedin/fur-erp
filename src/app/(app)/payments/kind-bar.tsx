@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, formatMoneyCompact } from "@/lib/utils";
 import { KIND_BUTTON_LABEL, PAY_KINDS, kindTotals, type PayType } from "@/lib/pay-kinds";
 
-const mln = (v: number) => (v / 1e6).toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " млн ₽";
+const mln = (v: number) => formatMoneyCompact(v);
 
 /** Кнопки «Все · Авансы · Доплаты · Окончательный расчёт · Прочее» над плитками «Оплат»: число и сумма на каждой; выбор в адресе (?kind=). Плитки и «К доплате» не фильтруются. */
 export function KindBar({ rows, active, hrefFor }: { rows: { type: string; amount: number }[]; active: PayType | null; hrefFor: (k: PayType | null) => string }) {

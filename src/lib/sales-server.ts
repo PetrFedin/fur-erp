@@ -3,7 +3,8 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 import { classOfLevel2, normCode } from "@/lib/sales-receipts-core";
-import { RETAIL_PRICES_KEY, type MarginInput, type RetailRow } from "@/lib/margin";
+import { loadRetailPricesState } from "@/lib/import-keys";
+import { type MarginInput, type RetailRow } from "@/lib/margin";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { isRepair } from "@/lib/orders-sum";
 import { loadModelCosts, loadModelPhotos, loadReportSizes } from "@/lib/margin-server";
@@ -31,7 +32,7 @@ export async function loadSalesLines(orgId: string, where: { article?: string; m
 /** Прайс 19.10, цены моделей и себестоимость из ТЗ — для расчёта цены к прайсу, себестоимости и маркапа. */
 export async function loadPricing(orgId: string, c4: Commission4Mode): Promise<{ prices: RetailRow[]; modelPrice: Map<string, number>; costs: MarginInput["costs"]; models: Record<string, { id: string; name: string }> }> {
   const [state, models, costs] = await Promise.all([
-    prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: orgId, key: RETAIL_PRICES_KEY } }, select: { value: true } }),
+    loadRetailPricesState(orgId),
     prisma.productModel.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, sellingPrice: true } }),
     loadModelCosts(orgId, c4),
   ]);

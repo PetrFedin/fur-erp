@@ -285,7 +285,7 @@ function ShopDialog({ modelId, title, onClose }: { modelId: string; title: strin
                               <img src={thumb(modelId, p.id)} alt={`Фото ${k + 1}, ${r.label}`} className="size-full object-cover" />
                             ) : (
                               <div className="flex size-full flex-col items-center justify-center gap-1 px-1 text-center text-[11px] text-neutral-700" role="status">
-                                <span className="tabular-nums">{p.progress}%</span>
+                                <span className="tabular-nums">{p.progress} %</span>
                                 <span className="h-1.5 w-full overflow-hidden rounded bg-neutral-300"><span className="block h-full bg-neutral-800 motion-reduce:transition-none" style={{ width: `${p.progress}%` }} /></span>
                               </div>
                             )}

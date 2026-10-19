@@ -13,7 +13,7 @@ export function TzVatHintBody({ rows, total }: { rows: TzVatHintRow[]; total: Om
     <>
       <b>Ставки НДС в списаниях этого ТЗ</b>
       <p className="mt-1">
-        Ставка НДС — у лота: закупки 2025 г. — 20%, 2026 г. и далее — 22% (по УПД). В одном ТЗ могут быть лоты разных закупок и лет, поэтому и ставки разные.
+        Ставка НДС — у лота: закупки 2025 г. — 20 %, 2026 г. и далее — 22 % (по УПД). В одном ТЗ могут быть лоты разных закупок и лет, поэтому и ставки разные.
       </p>
       <table className="mt-1 w-full text-xs">
         <thead>
@@ -28,7 +28,7 @@ export function TzVatHintBody({ rows, total }: { rows: TzVatHintRow[]; total: Om
         <tbody>
           {rows.map((r) => (
             <tr key={r.rate}>
-              <td className="pr-2">{r.rate}%</td>
+              <td className="pr-2">{r.rate} %</td>
               <td className="pr-2">{r.lines}</td>
               <td className="pr-2 text-right">{r.incl}</td>
               <td className="pr-2 text-right">{r.excl}</td>
