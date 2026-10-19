@@ -1,6 +1,6 @@
 import { formatMoney } from "@/lib/utils";
 import { alignColumn, roundRub } from "@/lib/money-round";
-import { payNumbers } from "@/lib/pay-display";
+import { DUE_LABEL, dueHint, payNumbers } from "@/lib/pay-display";
 import type { YearFilter } from "@/lib/year-filter";
 import { InfoHint } from "@/components/info-hint";
 import { SupplierDebtHint } from "@/components/supplier-debt-hint";
@@ -30,7 +30,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
   // Деньги — целые рубли, сходящиеся на экране (src/lib/money-round.ts): мех + подкладка выровнены вместе с плитками «Куплено / Использовано / Остаток»,
   // оплачено и к оплате делятся по статьям так, чтобы Σ статей == показанному итогу.
   const N = payNumbers(d, c4Mode, only);
-  const { furD, linD, inFur, inLin, inWork, inServ, adv, P, L, T, paidAll, leftAll, roundAll, totalAll, furPaidD, linPaidD, furLeftD, linLeftD } = N;
+  const { furD, linD, inFur, inLin, inWork, inServ, adv, P, L, T, paidAll, leftAll, due, roundAll, totalAll, furPaidD, linPaidD, furLeftD, linLeftD } = N;
   const part = (v: number, whole: number) => (whole > 0.5 ? v / whole : null);
   const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, serv: number, work: number, warn?: boolean, workLabel = "Работа подрядчику"): TileItem[] => [
     ...(inFur ? [
@@ -94,22 +94,23 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
       </div>
 
       <div key="left" className={TILE_BOX} data-testid="debt-bridge">
-        <TileHead>К оплате всего</TileHead>
+        <TileHead>{inWork ? DUE_LABEL : "К оплате всего"}</TileHead>
         <div className={"absolute right-3 top-3 flex items-center gap-1" + (only ? " hidden" : "")}>
           <BridgeHint label="Как сходится долг поставщику">
-            <p>К оплате всего = за мех и подкладку {money(L.fur + L.lining)}{inServ ? ` + за услуги по УПД ${money(L.services)}` : ""} + за работу подрядчику {money(L.work)}. Всегда с НДС.</p>
-            <p className="mt-1">Долг по работе — остаток работы по заведённым ТЗ (не меньше нуля; договор №1605: аванс 70%, доплата 30% после сдачи). Неразнесённый аванс подрядчику из него не вычитается, он показан отдельной строкой.</p>
+            {inWork ? <p><b>{DUE_LABEL}</b> = долг до зачёта аванса {money(leftAll)} − аванс подрядчику {money(due.adv)}, не меньше нуля. {dueHint(money(leftAll), money(L.work))}</p> : null}
+            <p>К оплате всего (до зачёта аванса) = за мех и подкладку {money(L.fur + L.lining)}{inServ ? ` + за услуги по УПД ${money(L.services)}` : ""} + за работу подрядчику {money(L.work)}. Всегда с НДС.</p>
+            <p className="mt-1">Долг по работе — остаток работы по заведённым ТЗ (не меньше нуля; договор №1605: аванс 70%, доплата 30% после сдачи). Неразнесённый аванс подрядчику вычитается в главном числе (брутто в расчётах не меняется).</p>
             <p className="mt-1">Долг поставщику: закупки {mln(debt.total.toNumber())} (мех получен {mln(d.bridge.purchases.received)} + ещё не получен {mln(d.bridge.purchases.draft)}) − оплачено {mln(d.supplierCashPaid)} = {mln(debt.debt.toNumber())}.{d.supplierOverpaid >= 1 ? <> В «оплачено» входят переплаты, зачтённые в долг: {money(d.supplierOverpaid)} (оплата аукциона или закупки сверх её стоимости).</> : null} Его части (по УПД, счёт не оплачен, ожидаемое) в сумме дают этот долг.</p>
           </BridgeHint>
           <SupplierDebtHint debt={debt} year={year} align="right" />
         </div>
-        <TileValue compact={bare} className={leftAll > 0 ? "text-amber-700" : ""}>{money(leftAll)}</TileValue>
+        <TileValue compact={bare} className={(inWork ? due.net : leftAll) > 0 ? "text-amber-700" : ""}>{money(inWork ? due.net : leftAll)}</TileValue>
         <TileList stack={bare} items={list(leftAll, L.fur, furLeftD, 0, L.lining, linLeftD, 0, L.services, L.work, true, "Долг по работе подрядчику")} />
         {inWork && adv >= 1 ? (
           <div data-testid="advance-line" className="mt-2 border-t border-neutral-100 pt-2">
             <TileList stack={bare} items={[{
-              k: <span className="inline-flex items-center gap-1">Аванс подрядчику (неразнесённый)<InfoHint label="Что такое аванс подрядчику" align="right"><p>Оплачено сверх работы по заведённым ТЗ; погасится работой по будущим ТЗ.</p><p className="mt-1">В «К оплате всего» не вычитается; входит в «Оплачено всего». Его можно разнести по ТЗ, когда ТЗ на эти изделия появятся.</p></InfoHint></span>,
-              v: money(adv),
+              k: <span className="inline-flex items-center gap-1">Аванс подрядчику<InfoHint label="Что такое аванс подрядчику" align="right"><p>Оплачен, ТЗ ещё не привязаны: погасится работой по будущим ТЗ. Вычтен из главного числа; входит в «Оплачено всего». {dueHint(money(leftAll), money(L.work))}</p></InfoHint></span>,
+              v: `−${money(adv)}${due.net <= 0 && due.creditLeft > 0 ? ` (К доплате 0, аванс остаётся в зачёте ${money(due.creditLeft)})` : ""}`,
             }]} />
           </div>
         ) : null}

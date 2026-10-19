@@ -9,6 +9,7 @@ import { PrismaClient } from "@prisma/client";
 import { loadPaymentsOverview } from "../src/lib/payments-overview";
 import { aggregateSales, buildCashflow, workByClass, goodsHeadline, headline, monthsOf, seriesOf, sliceData, sliceSales, stockSeries, vatShares, visibleMonths } from "../src/lib/cashflow";
 import { burnRate, flowPoints, groupSales, paybackMonths, payLites, spendByArticle, spendByType, topPays, workByTz } from "../src/lib/cashflow-detail";
+import { payDue } from "../src/lib/pay-display";
 import { loadOrderClasses, loadPurchaseVat, loadSalesLines } from "../src/lib/cashflow-server";
 import { modelCodeOfArticle, normCode, parseSheetRow } from "../src/lib/sales-receipts-core";
 
@@ -51,6 +52,10 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   const workArt = incl.articles.find((a) => a.key === "work")?.byMonth ?? months.map(() => 0);
   for (const [i, m] of months.entries()) eq(`[категории] ${m}: работа одежда+аксессуары+прочее = работа всего`, wc.clothes[i] + wc.acc[i] + wc.other[i], workArt[i], 0.05);
   ok("[категории] неразнесённая работа входит в «прочее»", wc.unlinked.every((v, i) => v <= wc.other[i] + 0.005));
+  // «К доплате после зачёта аванса»: нетто = брутто − аванс (не меньше 0), остаток аванса в зачёте.
+  eq("[к доплате] 7 495 755 + 9 354 005 − 15 111 600 = 1 738 160", payDue(7495755 + 9354005, 15111600).net, 1738160, 0);
+  eq("[к доплате] аванс больше долга: нетто 0, остаток аванса", payDue(100, 250).creditLeft, 150, 0);
+  eq("[к доплате] нетто не меньше нуля", payDue(100, 250).net, 0, 0);
   // Детали плиток: суммы деталей = значение плитки.
   const pl = payLites(ov, vs.share);
   eq("[детали] Σ по видам платежа = Потрачено (с НДС)", sum(spendByType(pl, incl.months, false).map((r) => r.total)), incl.total);

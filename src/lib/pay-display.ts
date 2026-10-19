@@ -12,6 +12,19 @@ export type PayInput = {
 };
 type Item = "fur" | "lining" | "services" | "work";
 
+/**
+ * «К доплате после зачёта аванса» — единый показ «К оплате всего» (Главная, Оплаты, Cashflow): брутто (долг до зачёта аванса) − аванс подрядчику, не меньше нуля.
+ * Брутто остаётся в расчётах и тождествах (долг = документы − оплаты); показ главным числом — нетто. Если аванс больше долга — «К доплате 0, аванс остаётся в зачёте X».
+ */
+export function payDue(gross: number, advance: number) {
+  const adv = Math.max(0, advance);
+  const net = Math.max(0, gross - adv);
+  return { gross, adv, net, creditLeft: Math.max(0, adv - gross) };
+}
+export const DUE_LABEL = "К доплате после зачёта аванса";
+/** Текст подсказки «i» (одинаковый везде, где есть этот показ). */
+export const dueHint = (grossText: string, workText: string) => `${grossText} — долг до зачёта аванса; если аванс окажется оплатой будущих изделий, а не текущих ТЗ, доплата за текущие ТЗ остаётся ${workText}; привязка авансов к ТЗ ждёт документов.`;
+
 export function payNumbers(d: PayInput, c4Mode: "on" | "off", only?: "fur" | "lining" | "raw") {
   const prodPaid = d.paidByItem.work;
   const bo = c4Mode === "on";
@@ -52,5 +65,6 @@ export function payNumbers(d: PayInput, c4Mode: "on" | "off", only?: "fur" | "li
   const totalAll = items.reduce((a, k) => a + T[k], 0);
   const furPaidD = split(furD, paidEx.fur, P.fur), linPaidD = split(linD, paidEx.lining, P.lining);
   const furLeftD = split(furD, leftEx.fur, L.fur), linLeftD = split(linD, leftEx.lining, L.lining);
-  return { top, furD, linD, inFur, inLin, inWork, inServ, adv, items, P, L, T, paidAll, leftAll, roundAll, totalAll, furPaidD, linPaidD, furLeftD, linLeftD };
+  const due = payDue(leftAll, adv);
+  return { due, top, furD, linD, inFur, inLin, inWork, inServ, adv, items, P, L, T, paidAll, leftAll, roundAll, totalAll, furPaidD, linPaidD, furLeftD, linLeftD };
 }

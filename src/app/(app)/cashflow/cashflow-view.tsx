@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/utils";
 import { toCsv } from "@/lib/csv";
 import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
+import { DUE_LABEL, dueHint, payDue } from "@/lib/pay-display";
 import { ExpTable, MiniTable, RecvDetail, SpendDetail, WorkDetail } from "./drill";
 import { flowPoints, groupSales, type PayLite } from "@/lib/cashflow-detail";
 import type { SalesAggLine } from "@/lib/sales-receipts-core";
@@ -438,6 +439,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const stockBy = useMemo(() => ({ clothes: stockSeries(salesBy.clothes).stock, acc: stockSeries(salesBy.acc).stock, other: stockSeries(salesBy.other).stock }), [salesBy]);
   /** Месяц по категориям: выручка выбранного режима НДС, единицы прихода и продажи, остаток, работа подрядчика по ТЗ; траты по категориям не делятся. */
   const clsMonth = (c: "clothes" | "acc" | "other", gi: number) => ({ rev: (exVat ? salesBy[c].revEx : salesBy[c].revIncl)[gi], rec: salesBy[c].recPcs[gi], sale: salesBy[c].salePcs[gi], stock: stockBy[c][gi], work: workBy[c][gi] });
+  const due = payDue(left.raw + left.prod, left.advance);
   const shownText = `${CAT_LABEL[cat]} · ${period === "all" ? "2025–2026" : period} · ${vatNote}`;
   const openFilters = () => { setFOpen(true); document.getElementById("cf-filters")?.scrollIntoView({ block: "start" }); };
   const monthLabel = (mo: string) => `${["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"][Number(mo.slice(5, 7)) - 1]} ${mo.slice(0, 4)}`;
@@ -563,15 +565,14 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
           expandId="work" openId={openTile} onToggle={toggleTile}
           hint={<p>Оплаты «Работа подрядчику» за период ÷ единиц, полученных за период. Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее).</p>} />
         {hasSales ? <PriceTile lines={saleLines} months={months} exVat={exVat} cat={cat} vatNote={vatNote} onOpen={() => toggleTile("price")} /> : <Tile label="Средняя цена продажи" value="—" sub="нет данных о продажах" />}
-        <Tile label="Товар, шт." value={hasSales ? `${pcs(g.received)} / ${pcs(g.sold)}` : "—"} sub={hasSales ? `получено / продано, остаток ${pcs(g.stock)}` : "нет данных о продажах"} mini={mini((c) => `${pcs(m.per[c].g.received)} / ${pcs(m.per[c].g.sold)}`)}
-          hint={<p>Единицы за период: получено (приход) и продано (возвраты минус); остаток на конец периода = накопленный приход − накопленные продажи с начала данных.</p>} />
-        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3">
-          <div className="flex items-center gap-1 text-xs text-neutral-600">К оплате<InfoHint label="Как считается: К оплате" wide><p>Остаток долга по сырью и остаток работы по заведённым ТЗ (как в «Оплатах»). Аванс подрядчику, не разнесённый на ТЗ, показан отдельно и в долг не входит.</p></InfoHint></div>
-          <div className="text-lg font-semibold tabular-nums text-neutral-900">{money(left.raw + left.prod)}</div>
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3 md:col-span-2">
+          <div className="flex items-center gap-1 text-xs text-neutral-600">{DUE_LABEL}<InfoHint label={`Как считается: ${DUE_LABEL}`} wide><p>{DUE_LABEL} = сырьё + работа по заведённым ТЗ − аванс подрядчику, не меньше нуля. Долг до зачёта аванса: {money(due.gross)}.</p><p className="mt-1">{dueHint(money(due.gross), money(left.prod))}</p></InfoHint></div>
+          <div className={"text-lg font-semibold tabular-nums " + (due.net > 0 ? "text-amber-700" : "text-neutral-900")}>{money(due.net)}</div>
+          {due.net <= 0 && due.creditLeft > 0 ? <div className="text-xs text-neutral-600">К доплате 0 ₽, аванс остаётся в зачёте {money(due.creditLeft)}</div> : null}
           <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
-            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Сырьё</dt><dd className="font-semibold tabular-nums">{money(left.raw)}</dd></div>
-            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Работа</dt><dd className="font-semibold tabular-nums">{money(left.prod)}</dd></div>
-            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Аванс подрядчику</dt><dd className="font-semibold tabular-nums">{money(left.advance)}</dd></div>
+            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Сырьё (Веллмех)</dt><dd className="font-semibold tabular-nums">{money(left.raw)}</dd></div>
+            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Работа по заведённым ТЗ</dt><dd className="font-semibold tabular-nums">{money(left.prod)}</dd></div>
+            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Аванс подрядчику (оплачен, ТЗ ещё не привязаны)</dt><dd className="font-semibold tabular-nums">−{money(left.advance)}</dd></div>
           </dl>
           <Link href="/payments" className="mt-1 inline-flex min-h-11 items-center self-start text-xs underline">Открыть «Оплаты»</Link>
         </div>
