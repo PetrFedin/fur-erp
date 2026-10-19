@@ -232,3 +232,4 @@ export function goodsHeadline(allSales: SalesMonthly, allMonths: string[], perio
     coverMonths: perMonth > 0 ? stock / perMonth : null,
   };
 }
+
