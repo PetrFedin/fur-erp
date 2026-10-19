@@ -8,7 +8,7 @@ import { join } from "path";
 import { PrismaClient } from "@prisma/client";
 import { loadPaymentsOverview } from "../src/lib/payments-overview";
 import { aggregateSales, buildCashflow, workByClass, goodsHeadline, headline, monthsOf, seriesOf, sliceData, sliceSales, stockSeries, vatShares, visibleMonths } from "../src/lib/cashflow";
-import { burnRate, flowPoints, groupSales, paybackMonths, payLites, spendByArticle, spendByType, topPays, workByTz } from "../src/lib/cashflow-detail";
+import { workWindowStats, burnRate, flowPoints, groupSales, paybackMonths, payLites, spendByArticle, spendByType, topPays, workByTz } from "../src/lib/cashflow-detail";
 import { payDue } from "../src/lib/pay-display";
 import { loadOrderClasses, loadPurchaseVat, loadSalesLines } from "../src/lib/cashflow-server";
 import { modelCodeOfArticle, normCode, parseSheetRow } from "../src/lib/sales-receipts-core";
@@ -119,6 +119,15 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
     eq("[среднее] работа в месяц = работа ÷ N (active)", hAct.workPerMonth ?? NaN, hAct.workTotal / act, 1e-6);
     const mk = keep.map((i) => Math.abs(incl.monthTotals[i]) > 0.005 || s.recPcs[i] !== 0 || s.salePcs[i] !== 0);
     eq("[среднее] активные месяцы = оплата, приход или продажа", headline(d, ss, keep.map((i) => s.revIncl[i]), keep.map((i) => wk[i]), "active", mk).workMonths, mk.filter(Boolean).length, 0);
+    const unitsK = keep.map((i) => s.recPcs[i]);
+    for (const b of ["all", "active"] as const) {
+      const w = workWindowStats(keep.map((_, k) => wk[k]), unitsK, mk, b);
+      const hh = headline(d, ss, keep.map((i) => s.revIncl[i]), keep.map((_, k) => wk[k]), b, mk);
+      eq(`[окно работы] ${b}: итого = плитка`, w.total, hh.workTotal, 0.01);
+      eq(`[окно работы] ${b}: среднее в месяц = плитка`, w.avgMonth ?? NaN, hh.workPerMonth ?? NaN, 1e-6);
+      eq(`[окно работы] ${b}: на единицу = плитка`, w.perUnit ?? NaN, hh.workPerUnit ?? NaN, 1e-9);
+      eq(`[окно работы] ${b}: единиц = плитка`, w.unitsTotal, hh.unitsReceived, 0);
+    }
     eq("[среднее] работа на единицу не зависит от базы", hAct.workPerUnit ?? NaN, hAll.workPerUnit ?? NaN, 1e-9);
     const hex = headline(sliceData(ex, keep, "all"), ss, keep.map((i) => s.revEx[i]));
     ok("[без НДС] выручка без НДС меньше выручки с НДС", hex.received < h.received);

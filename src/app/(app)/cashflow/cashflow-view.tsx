@@ -7,8 +7,8 @@ import { toCsv } from "@/lib/csv";
 import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
 import { DUE_LABEL, dueHint, payDue } from "@/lib/pay-display";
-import { ExpTable, MiniTable, RecvDetail, SpendDetail, WorkDetail } from "./drill";
-import { flowPoints, groupSales, type PayLite } from "@/lib/cashflow-detail";
+import { ExpTable, MiniTable, RecvDetail, SpendDetail } from "./drill";
+import { flowPoints, workWindowStats, groupSales, type PayLite } from "@/lib/cashflow-detail";
 import type { SalesAggLine } from "@/lib/sales-receipts-core";
 import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly } from "@/lib/cashflow";
 
@@ -227,6 +227,96 @@ function Shown({ text, onChange }: { text: string; onChange: () => void }) {
   );
 }
 
+type Flag = { work: boolean; goods: boolean; rec: boolean; ship: boolean; sale: boolean };
+const flagText = (f: Flag) => [f.work && "оплата работы", f.goods && "оплата товара", f.rec && "приход", f.ship && "отгрузка", f.sale && "продажи"].filter(Boolean).join(", ") || "нет событий";
+const isActive = (f: Flag) => f.work || f.goods || f.rec || f.ship || f.sale;
+
+function BaseSwitch({ base, setBase }: { base: "all" | "active"; setBase: (b: "all" | "active") => void }) {
+  const seg = (on: boolean) => "inline-flex min-h-11 items-center rounded-md px-3 text-sm " + (on ? "bg-neutral-900 text-white" : "text-neutral-700 hover:text-neutral-900");
+  return (
+    <div role="group" aria-label="База месяцев" className="inline-flex flex-wrap rounded-lg border border-neutral-300 bg-white p-0.5">
+      <button type="button" aria-pressed={base === "all"} onClick={() => setBase("all")} className={seg(base === "all")}>Все месяцы проекта</button>
+      <button type="button" aria-pressed={base === "active"} onClick={() => setBase("active")} className={seg(base === "active")}>Только месяцы с оплатами и поставками</button>
+    </div>
+  );
+}
+
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="rounded-lg border border-neutral-300 p-3">
+      <div className="text-xs text-neutral-600">{label}</div>
+      <div className="text-lg font-semibold tabular-nums">{value}</div>
+      {sub ? <div className="text-xs text-neutral-600">{sub}</div> : null}
+    </div>
+  );
+}
+
+const rubOrDash = (v: number | null) => (v === null ? "—" : formatMoney(v));
+
+/** Окно «Работа в месяц»: база месяцев, итоги и таблица по месяцам с отметкой активности; исключённые месяцы серые. */
+function WorkMonthWindow({ months, work, units, flags, base, setBase }: { months: string[]; work: number[]; units: number[]; flags: Flag[]; base: "all" | "active"; setBase: (b: "all" | "active") => void }) {
+  const st = workWindowStats(work, units, flags.map(isActive), base);
+  const n1 = (v: number | null) => (v === null ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
+  return (
+    <div className="flex flex-col gap-4">
+      <BaseSwitch base={base} setBase={setBase} />
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+        <Stat label="Работа всего, ₽" value={rubOrDash(st.total)} />
+        <Stat label="Месяцев в базе" value={`${st.n} из ${st.m}`} sub={base === "active" ? "месяцы с движением" : "все месяцы проекта"} />
+        <Stat label="Среднее в месяц, ₽" value={rubOrDash(st.avgMonth)} />
+        <Stat label="Единиц получено, шт." value={String(st.unitsTotal)} />
+        <Stat label="Среднее единиц в месяц" value={n1(st.avgUnits)} />
+        <Stat label="Работа на единицу, ₽" value={rubOrDash(st.perUnit)} />
+      </div>
+      <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0}>
+        <table className="w-full border-collapse text-sm">
+          <thead><tr className="border-b border-neutral-300">{["Месяц", "Оплата работы, ₽", "Единиц получено", "Работа на единицу, ₽", "Активный (события)"].map((h, i) => <th key={h} scope="col" className={"px-2 py-2 text-xs font-semibold " + (i === 0 || i === 4 ? "text-left" : "text-right")}>{h}</th>)}</tr></thead>
+          <tbody>
+            {months.map((mo, i) => {
+              const out = !st.inc[i];
+              return (
+                <tr key={mo} className={"border-b border-neutral-200 " + (out ? "bg-neutral-50 text-neutral-500" : "")}>
+                  <td className="px-2 py-1.5">{mo}{out ? " · не в базе" : ""}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(Math.abs(work[i]) > 0.005 ? work[i] : null)}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{units[i] || "—"}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{units[i] > 0 ? rubOrDash(work[i] / units[i]) : "—"}</td>
+                  <td className="px-2 py-1.5 text-xs">{flagText(flags[i])}</td>
+                </tr>
+              );
+            })}
+            <tr className="border-t-2 border-neutral-400 font-semibold"><td className="px-2 py-1.5">Итого</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.total)}</td><td className="px-2 py-1.5 text-right tabular-nums">{st.unitsTotal}</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.perUnit)}</td><td /></tr>
+            <tr className="font-semibold"><td className="px-2 py-1.5">Среднее в месяц ({st.n} мес.)</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.avgMonth)}</td><td className="px-2 py-1.5 text-right tabular-nums">{n1(st.avgUnits)}</td><td /><td /></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/** Окно «Работа на единицу»: ₽/шт. всего и по месяцам, простое и взвешенное среднее, минимум/максимум, график и разбивка по категориям. */
+function WorkUnitWindow({ months, work, units, flags, base, setBase, cls, active, setActive }: { months: string[]; work: number[]; units: number[]; flags: Flag[]; base: "all" | "active"; setBase: (b: "all" | "active") => void; cls: Record<"clothes" | "acc", { work: number[]; units: number[] }>; active: number | null; setActive: (i: number | null) => void }) {
+  const mask = flags.map(isActive);
+  const st = workWindowStats(work, units, mask, base);
+  const c1 = workWindowStats(cls.clothes.work, cls.clothes.units, mask, base), c2 = workWindowStats(cls.acc.work, cls.acc.units, mask, base);
+  const wu = { work, units, avg: st.perUnit };
+  return (
+    <div className="flex flex-col gap-4">
+      <BaseSwitch base={base} setBase={setBase} />
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+        <Stat label="Работа на единицу, ₽ (всего ÷ всего единиц)" value={rubOrDash(st.perUnit)} sub={`${formatMoney(st.total)} ÷ ${st.unitsTotal} шт.`} />
+        <Stat label="Простое среднее месячных значений" value={rubOrDash(st.simpleAvg)} sub="месяцы с приходом" />
+        <Stat label="Взвешенное среднее" value={rubOrDash(st.perUnit)} sub="= всего ÷ всего единиц" />
+        <Stat label="Минимум, ₽/шт." value={st.min ? rubOrDash(st.min.v) : "—"} sub={st.min ? months[st.min.i] : undefined} />
+        <Stat label="Максимум, ₽/шт." value={st.max ? rubOrDash(st.max.v) : "—"} sub={st.max ? months[st.max.i] : undefined} />
+        <Stat label="Месяцев в базе" value={`${st.n} из ${st.m}`} />
+      </div>
+      <div className="min-h-[2rem] text-xs text-neutral-700" aria-live="polite">{active === null ? "Наведите курсор на месяц: единицы, работа за месяц, ₽/шт. и среднее." : `${months[active]}: получено ${units[active]} шт., работа ${rubOrDash(Math.abs(work[active]) > 0.005 ? work[active] : null)}, на единицу ${units[active] > 0 ? rubOrDash(work[active] / units[active]) : "—"}.`}</div>
+      <ChartBox n={months.length}>{(colW) => <WorkUnitChart months={months} wu={wu} active={active} setActive={setActive} colW={colW} />}</ChartBox>
+      <MiniTable head={["Категория (по ТЗ → модель)", "Работа", "Единиц", "₽ / шт."]} rows={[["Одежда", rubOrDash(c1.total), String(c1.unitsTotal), rubOrDash(c1.perUnit)], ["Аксессуары", rubOrDash(c2.total), String(c2.unitsTotal), rubOrDash(c2.perUnit)]]} total={["Итого с прочим", rubOrDash(st.total), String(st.unitsTotal), rubOrDash(st.perUnit)]} />
+    </div>
+  );
+}
+
 /** Контейнер графика: измеряет свою ширину и отдаёт ширину колонки месяца, чтобы график занимал всю ширину; на узком экране — не уже 26 px на месяц с прокруткой внутри блока. */
 function ChartBox({ n, children }: { n: number; children: (colW: number) => React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -426,9 +516,10 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
       const rv = keep.map((i) => (exVat ? salesBy[c].revEx : salesBy[c].revIncl)[i]);
       return { h: headline(d, sc, rv, keep.map((i) => workBy[c][i]), base, mask), g: goodsHeadline(salesBy[c], all.months, period) };
     };
-    return { all, keep, d, s, revenue, ser, stock: pick(stAll.stock), h, g, wu, per: { clothes: per("clothes"), acc: per("acc") }, cumNetEnd: last >= 0 ? serAll.cumNet[last] : 0 };
+    const flags = keep.map((gi, k) => ({ work: Math.abs(ser.work[k]) > 0.005, goods: Math.abs(serAll.spend[gi] - (serAll.work[gi] ?? 0)) > 0.005, rec: salesBy.all.recPcs[gi] !== 0, ship: ships.has(all.months[gi]), sale: salesBy.all.salePcs[gi] !== 0 }));
+    return { all, flags, keep, d, s, revenue, ser, stock: pick(stAll.stock), h, g, wu, per: { clothes: per("clothes"), acc: per("acc") }, cumNetEnd: last >= 0 ? serAll.cumNet[last] : 0 };
   }, [exVat, period, cat, incl, ex, sales, salesBy, workBy, base, shipMonths]);
-  const { d, s, ser, h, g } = m;
+  const { d, s, ser, h, g, flags } = m;
   const months = d.months;
   const hasSales = sales.available;
   const mini = (f: (c: "clothes" | "acc") => string): [string, string][] => [["Одежда", hasSales ? f("clothes") : "—"], ["Аксессуары", hasSales ? f("acc") : "—"]];
@@ -559,10 +650,10 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
         )}
         <Tile label="Работа в месяц" mini={mini((c) => (m.per[c].h.workPerMonth === null ? "—" : money(m.per[c].h.workPerMonth)))} value={h.workPerMonth === null ? "—" : money(h.workPerMonth)} spark={ser.work}
           sub={h.workMonths ? (base === "active" ? `в среднем за ${h.workMonths} активных мес. из ${months.length}` : `в среднем за ${h.workMonths} мес.`) : undefined} extra={hasSales && h.unitsPerMonth !== null ? `единиц получено: ${pcs(h.unitsReceived)} шт., в среднем ${h.unitsPerMonth.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.` : undefined}
-          expandId="work" openId={openTile} onToggle={toggleTile}
-          hint={<p>Оплаты статьи «Работа подрядчику» за период ÷ число месяцев, в которых были такие оплаты (месяцы без оплат не считаются). Единицы: получено за период ÷ число месяцев той же базы ({h.recMonths}). База среднего (переключатель в панели фильтров): «только активные месяцы» (по умолчанию) — месяцы с движением: оплата работы подрядчику, любая оплата за товар/сырьё, приход, продажи или отправка (дата отправки в «Отгрузках»); месяцы без таких событий не считаются. «Всё время» — все месяцы периода, включая пустые. Работа на единицу = работа ÷ единицы за выбранные месяцы; она совпадает в обеих базах, потому что работа и приход лежат только в активных месяцах.</p>} />
+          expandId="workMonth" openId={openTile} onToggle={toggleTile}
+          hint={<p>Оплаты статьи «Работа подрядчику» за период ÷ число месяцев выбранной базы. Единицы: получено за период ÷ число месяцев той же базы ({h.recMonths}). База среднего (переключатель в панели фильтров): «только активные месяцы» (по умолчанию) — месяцы с движением: оплата работы подрядчику, любая оплата за товар/сырьё, приход, продажи или отправка (дата отправки в «Отгрузках»); месяцы без таких событий не считаются. «Всё время» — все месяцы периода, включая пустые. Работа на единицу = работа ÷ единицы за выбранные месяцы; она совпадает в обеих базах, потому что работа и приход лежат только в активных месяцах.</p>} />
         <Tile label="Работа на единицу" mini={mini((c) => (m.per[c].h.workPerUnit === null ? "—" : money(m.per[c].h.workPerUnit)))} value={h.workPerUnit === null ? "—" : money(h.workPerUnit)} sub={hasSales ? `${pcs(h.unitsReceived)} шт. получено` : "нет данных о приходе"}
-          expandId="work" openId={openTile} onToggle={toggleTile}
+          expandId="workUnit" openId={openTile} onToggle={toggleTile}
           hint={<p>Оплаты «Работа подрядчику» за период ÷ единиц, полученных за период. Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее).</p>} />
         {hasSales ? <PriceTile lines={saleLines} months={months} exVat={exVat} cat={cat} vatNote={vatNote} onOpen={() => toggleTile("price")} /> : <Tile label="Средняя цена продажи" value="—" sub="нет данных о продажах" />}
         <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3 md:col-span-2">
@@ -579,7 +670,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
       </section>
 
       {openTile && (
-        <TileModal title={{ spend: "Потрачено", recv: "Получено", flow: "Денежный поток по месяцам", work: "Работа подрядчика", price: "Средняя цена продажи" }[openTile] ?? ""} subtitle={shownText} onClose={() => setOpenTile(null)}>
+        <TileModal title={{ spend: "Потрачено", recv: "Получено", flow: "Денежный поток по месяцам", workMonth: "Работа в месяц", workUnit: "Работа на единицу", price: "Средняя цена продажи" }[openTile] ?? ""} subtitle={shownText} onClose={() => setOpenTile(null)}>
           {openTile === "spend" && <SpendDetail pays={pays} months={months} exVat={exVat} d={d} total={h.spent} />}
           {openTile === "recv" && <RecvDetail lines={saleLines} months={months} exVat={exVat} cat={catArg} total={h.received} />}
           {openTile === "flow" && (
@@ -591,7 +682,8 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
               <ExpTable head={["Месяц", "Потрачено", "Получено", "Чистый", "Накопленный"]} rows={months.map((mo, i) => ({ id: mo, cells: [monthLabel(mo), money(ser.spend[i]), money(ser.revenue[i]), money(ser.net[i]), money(ser.cumNet[i])], sub: (["clothes", "acc", "other"] as const).map((c) => [CAT_LABEL[c], "—", money(clsMonth(c, m.keep[i]).rev), "—", "—"]).filter((r) => r[2] !== "—") }))} total={["Итого", money(h.spent), money(h.received), money(h.net), money(m.cumNetEnd)]} />
             </div>
           )}
-          {openTile === "work" && <WorkDetail pays={pays} months={months} d={d} units={s.recPcs} />}
+          {openTile === "workMonth" && <WorkMonthWindow months={months} work={ser.work} units={s.recPcs} flags={flags} base={base} setBase={setBase} />}
+          {openTile === "workUnit" && <WorkUnitWindow months={months} work={ser.work} units={s.recPcs} flags={flags} base={base} setBase={setBase} cls={{ clothes: { work: m.keep.map((i) => workBy.clothes[i]), units: m.keep.map((i) => salesBy.clothes.recPcs[i]) }, acc: { work: m.keep.map((i) => workBy.acc[i]), units: m.keep.map((i) => salesBy.acc.recPcs[i]) } }} active={active} setActive={setActive} />}
           {openTile === "price" && (
             <div className="grid gap-4 md:grid-cols-2">
               <MiniTable head={["Сезон", "шт.", "Средняя цена"]} rows={recvBySeason.map((g) => [g.key, String(g.pcs), g.pcs > 0 ? money(g.rev / g.pcs) : "—"])} total={["Итого", String(recvBySeason.reduce((a, g) => a + g.pcs, 0)), h.avgPrice === null ? "—" : money(h.avgPrice)]} />

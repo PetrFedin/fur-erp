@@ -103,3 +103,21 @@ export function workByTz(pays: PayLite[], months: string[], cls: CatClass | "all
   const rows = [...by.values()].sort((a, b) => b.amount - a.amount);
   return { rows, unlinked, total: sum(rows.map((r) => r.amount)) + unlinked.amount };
 }
+
+/** Окна «Работа в месяц» / «Работа на единицу»: показатели по выбранной базе месяцев. base «all» — все месяцы проекта, «active» — месяцы с движением (маска). */
+export function workWindowStats(work: number[], units: number[], mask: boolean[], base: "all" | "active") {
+  const inc = work.map((_, i) => (base === "all" ? true : !!mask[i]));
+  const n = inc.filter(Boolean).length;
+  const total = sum(work.filter((_, i) => inc[i]));
+  const unitsTotal = sum(units.filter((_, i) => inc[i]));
+  const ratios = work.map((w, i) => (inc[i] && units[i] > 0 ? { i, v: w / units[i] } : null)).filter((x): x is { i: number; v: number } => x !== null);
+  const sorted = [...ratios].sort((a, b) => a.v - b.v);
+  return {
+    inc, n, m: work.length, total, unitsTotal,
+    avgMonth: n ? total / n : null, avgUnits: n ? unitsTotal / n : null,
+    perUnit: unitsTotal > 0 ? total / unitsTotal : null,
+    /** Простое среднее месячных значений ₽/шт. (месяцы с приходом) — в отличие от взвешенного perUnit. */
+    simpleAvg: ratios.length ? sum(ratios.map((r) => r.v)) / ratios.length : null,
+    min: sorted[0] ?? null, max: sorted[sorted.length - 1] ?? null,
+  };
+}
