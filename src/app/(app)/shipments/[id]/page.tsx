@@ -23,11 +23,13 @@ import { TimelineSection } from "./timeline-section";
 import { AddLinesButton, LinesTable, type LineRow } from "./lines-ui";
 import { STAGE_LABEL } from "@/lib/shipment-stage";
 import { loadShipmentPeople } from "@/lib/shipment-data";
+import { parseAlloc, ziBySite } from "@/lib/shipment-alloc";
+import { type MatrixRow } from "./matrix-ui";
 import { ZiSupplies } from "./zi-section";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { sumOrders, sumTotal } from "@/lib/orders-sum";
 import { loadZi } from "@/lib/shipment-zi-db";
-import { matchZi, ziForSupplier, ziStatus, ZI_SOURCE_NOTE, ZI_STAFF_ROLES } from "@/lib/shipment-zi";
+import { matchZi, sheetLabel, ziForSupplier, ziStatus, ZI_SOURCE_NOTE, ZI_STAFF_ROLES } from "@/lib/shipment-zi";
 import { CreateAcceptanceButton, ClampText, DocRemove, EventActions, NewEventButton, type EventValues } from "./event-ui";
 
 export const metadata = { title: "Отгрузка" };
@@ -210,7 +212,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           r.boutique = f.boutiques.join(", "); r.sum = Math.round((f.sum + f.vat) * 100) / 100;
           r.sumSrc = {
             label: r.label,
-            items: f.items.map((z) => ({ supply: z.supply, boutique: z.boutique, size: z.size, sheet: z.sheet ?? "MVST", row: z.row ?? null, sum: z.sum, vat: z.vat })),
+            items: f.items.map((z) => ({ supply: z.supply, boutique: z.boutique, size: z.size, sheet: sheetLabel(z.sheet), row: z.row ?? null, sum: z.sum, vat: z.vat })),
             zi: zi.supplies.filter((sp) => f.supplies.includes(sp.code)).map((sp) => ({ supply: sp.code, numbers: sp.ziNumbers })),
             files: ZI_STAFF_ROLES.includes(session.user.role) ? (zi.files ?? []).filter((x) => f.supplies.includes(x.supply)) : [],
           };
@@ -222,24 +224,44 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
 
   // Сверка «накладная ↔ ТЗ» (только наша сторона): сумма накладной с НДС по ТЗ против полной себестоимости ТЗ (с работой, с НДС, с 4%) —
   // той же функцией, что «Стоимость производства» и карточка ТЗ (loadOrdersDrill + sumOrders). Допуск 1 ₽.
+  let tzByWo: Map<string, number> | null = null;
+  let tzCost: Map<string, number> | null = null;
   if (ziView && !isSupplier && ZI_STAFF_ROLES.includes(session.user.role)) {
     const woOf = (l: (typeof lines)[number]) => l.productionOrder?.workOrderNumber ?? null;
     const drill = await loadOrdersDrill(orgId, "all", "on", { ids: new Set(orders.map((o) => o.id)) });
-    const tzCost = new Map<string, number>();
-    for (const d of drill) if (d.wo) tzCost.set(d.wo, (tzCost.get(d.wo) ?? 0) + sumTotal(sumOrders([d], "incl")));
+    const cost = new Map<string, number>(); tzCost = cost; tzByWo = cost;
+    for (const d of drill) if (d.wo) cost.set(d.wo, (cost.get(d.wo) ?? 0) + sumTotal(sumOrders([d], "incl")));
     const inv = new Map<string, number>();
     for (const l of lines) { const wo = woOf(l); const r = lineRows.find((x) => x.id === l.id); if (wo && r?.sum) inv.set(wo, (inv.get(wo) ?? 0) + r.sum); }
     const rub = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const done = new Set<string>();
     for (const l of lines) {
       const wo = woOf(l); const r = lineRows.find((x) => x.id === l.id);
-      if (!wo || !r || !r.sum || !inv.has(wo) || !tzCost.has(wo) || done.has(wo)) continue;
+      if (!wo || !r || !r.sum || !inv.has(wo) || !cost.has(wo) || done.has(wo)) continue;
       done.add(wo); // пометка один раз на ТЗ — в первой строке группы
-      const tz = Math.round(tzCost.get(wo)! * 100) / 100, iv = Math.round(inv.get(wo)! * 100) / 100, diff = Math.round((tz - iv) * 100) / 100;
+      const tz = Math.round(cost.get(wo)! * 100) / 100, iv = Math.round(inv.get(wo)! * 100) / 100, diff = Math.round((tz - iv) * 100) / 100;
       const full = `ТЗ ${wo}: ${rub(tz)} ₽, накладные по ТЗ: ${rub(iv)} ₽ (${diff > 0 ? "+" : "−"}${rub(Math.abs(diff))})`;
       r.check = Math.abs(diff) <= 1 ? { ok: true, text: "= ТЗ", full: `ТЗ ${wo}: ${rub(tz)} ₽ — совпало с накладными (допуск 1 ₽)` } : { ok: false, text: `≠ ТЗ ${diff > 0 ? "+" : "−"}${Math.round(Math.abs(diff)).toLocaleString("ru-RU")}`, full };
       if (r.sumSrc) r.sumSrc.check = full;
     }
+  }
+
+  // Уровень 2 «По площадкам» — только наша сторона (на сервере: подрядчику и прочим ролям данные не передаются).
+  let matrix: { rows: MatrixRow[]; state: ReturnType<typeof parseAlloc>; ziOrder: string[]; invoiceTotal: number; tzTotal: number | null } | undefined;
+  if (ziRaw && !isSupplier && ZI_STAFF_ROLES.includes(session.user.role)) {
+    const mm = matchZi(ziRaw.lines, lines.map((l) => ({ id: l.id, code: l.productionOrder?.productModel.salesCode ?? articleOfLine(l), size: l.size, color: l.color, quantity: l.quantity })));
+    const woSet = new Set<string>();
+    for (const l of lines) if (l.productionOrder?.workOrderNumber && mm.byLine.has(l.id)) woSet.add(l.productionOrder.workOrderNumber);
+    matrix = {
+      rows: lines.filter((l) => l.stage === "READY" || (l.acceptedQty ?? 0) > 0 || (l.returnedQty ?? 0) > 0).map((l) => ({
+        id: l.id, label: lineText(l), article: l.productionOrder?.productModel.salesCode ?? articleOfLine(l), color: l.color ?? "", size: l.size ?? "", order: labelOf(l),
+        quantity: l.quantity, accepted: l.acceptedQty ?? 0, returned: l.returnedQty ?? 0, ziSites: ziBySite(mm.byLine.get(l.id)?.items ?? []),
+      })),
+      state: parseAlloc(ziRaw.alloc),
+      ziOrder: [...new Set(ziRaw.lines.map((z) => z.boutique))],
+      invoiceTotal: Math.round(ziRaw.lines.reduce((t, z) => t + z.sum + z.vat, 0) * 100) / 100,
+      tzTotal: tzByWo ? Math.round([...woSet].reduce((t, wo) => t + (tzByWo!.get(wo) ?? 0), 0) * 100) / 100 : null,
+    };
   }
 
   // Шаги новой отгрузки: подсказка с кнопками, пока не заведены состав примерки, этапы и приёмка в Коптево.
@@ -326,6 +348,8 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             rows={lineRows}
             canEdit={canEdit}
             staff={!isSupplier}
+            matrix={matrix}
+            canReopen={["OWNER", "ADMIN"].includes(session.user.role)}
             waiting={{ rework: reworkQty, review: reviewQty }}
             event={acceptEvent ? { id: acceptEvent.id, stamp: fmtWall(acceptEvent.occurredAt, acceptEvent.timeKnown) } : null}
             closed={s.acceptedAt && summary ? `${summary.accepted.stamp}${s.acceptedBy && !isSupplier ? `, принял ${s.acceptedBy}` : ""}` : null}

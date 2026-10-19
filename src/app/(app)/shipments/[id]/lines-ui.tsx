@@ -18,6 +18,9 @@ import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { Dash } from "@/components/tree-table";
 import { AcceptCloseButton } from "./event-ui";
 import { ZiSumButton, type ZiSumView } from "./zi-source";
+import { SitesMatrix, type MatrixRow } from "./matrix-ui";
+import type { AllocState } from "@/lib/shipment-alloc";
+import { cancelAcceptance } from "../actions";
 import { FoldHeader, useFold } from "./fold";
 import { useClientSort } from "@/lib/use-client-sort";
 import { TotalLabel } from "@/components/total-label";
@@ -377,8 +380,10 @@ const parseQty = (s: string): number | null | undefined => {
  * поставка и бутик по накладным ЦУМ (ЗИ). Пока приёмка открыта, у готовых к отгрузке строк те же кнопки «Принято» / «Не принято»,
  * у строк на просмотре — «Принято» / «На доработку»; когда приёмка закрыта, таблица только для просмотра.
  */
-export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, defaultOpen = true, waiting, event, closed, closeProps, createEvent }: {
-  shipmentId: string; rows: LineRow[]; canEdit: boolean; staff: boolean; addButton?: ReactNode; hint?: ReactNode; defaultOpen?: boolean;
+export function LinesTable({ shipmentId, rows, canEdit, staff, canReopen = false, matrix, addButton, hint, defaultOpen = true, waiting, event, closed, closeProps, createEvent }: {
+  shipmentId: string; rows: LineRow[]; canEdit: boolean; staff: boolean; canReopen?: boolean;
+  /** Уровень 2 — матрица по площадкам (только наша сторона). */
+  matrix?: { rows: MatrixRow[]; state: AllocState | null; ziOrder: string[]; invoiceTotal: number; tzTotal: number | null }; addButton?: ReactNode; hint?: ReactNode; defaultOpen?: boolean;
   waiting: { rework: number; review: number };
   /** Ожидаемый этап приёмки в хронологии; null — этапа нет. */
   event: { id: string; stamp: string } | null;
@@ -396,6 +401,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
   const [seg, setSeg] = useState<SegKey>("all");
   const { ask, node: confirmNode } = useConfirm();
   const editable = canEdit && !closed;
+  const [mode, setMode] = useState<"kopt" | "sites">("kopt");
 
   const viewOf = (r: LineRow) => lineView({ stage: r.stage, quantity: r.quantity, acceptedQty: r.accepted, returnedQty: r.returned });
   const counts = rows.reduce<Record<ViewKey, number>>((c, r) => { c[viewOf(r).key]++; return c; }, { review: 0, rework: 0, ready: 0, accepted: 0, rejected: 0 });
@@ -406,7 +412,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
   const needle = q.trim().toLowerCase();
   const { th, sort } = useClientSort<LineRow>({
     itemNo: (r) => r.itemNo, order: (r) => r.orderText, article: (r) => r.articleText, color: (r) => r.color, size: (r) => r.size,
-    quantity: (r) => r.quantity, supply: (r) => r.supply ?? "", boutique: (r) => r.boutique ?? "", sum: (r) => r.sum ?? 0,
+    quantity: (r) => r.quantity, sum: (r) => r.sum ?? 0,
   });
   const shown = sort(rows.filter((r) => {
     if (seg !== "all" && viewOf(r).key !== seg) return false;
@@ -417,8 +423,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
   // Примечания: одинаковый текст — одна сноска, в строке только «прим. N» (полный текст в подсказке и в списке под таблицей).
   const noteOf = (r: LineRow) => r.comment.trim();
   const notes = [...new Set(rows.map(noteOf).filter(Boolean))];
-  const boutiqueText = (b?: string) => { const l = (b ?? "").split(", ").filter(Boolean); return l.length > 2 ? `${l.slice(0, 2).join(", ")} +${l.length - 2}` : l.join(", "); };
-  const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sumCell = (r: LineRow) => {
     if (!r.sum) return <Dash />;
     return (
@@ -588,7 +593,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
       <LineDelete id={r.id} label={r.label} blockedReason={r.blockedReason} />
     </span>
   );
-  const cols = 9 + (staff ? 1 : 0) + (editable ? 1 : 0);
+  const cols = 7 + (staff ? 1 : 0) + (editable ? 1 : 0);
 
   return (
     <section className="flex flex-col gap-2" aria-label="Приёмка" data-accept-list>
@@ -605,11 +610,29 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
         </>}
       />
       <div className={open ? "flex flex-col gap-2" : "hidden"}>
-        {closed && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900" data-accept-closed>Приёмка закрыта {closed}</p>}
+        {closed && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900" data-accept-closed>
+            <span>Приёмка закрыта {closed}</span>
+            {canReopen && (
+              <Button type="button" size="sm" variant="outline" className="max-md:h-11" disabled={pending}
+                onClick={async () => {
+                  if (!(await ask("Открыть приёмку заново? Этап снова станет ожидаемым, отметки «принято / не принято» по строкам сохранятся. Действие попадёт в журнал изменений.", { ok: "Открыть заново", danger: true }))) return;
+                  start(async () => { setError(null); const res = await cancelAcceptance(shipmentId); if (res.error) return setError(res.error); router.refresh(); });
+                }}>Открыть заново</Button>
+            )}
+          </div>
+        )}
         <p className="text-sm text-neutral-800" data-stage-counts>
           <b>Принято {formatQty(totAcc)} из {formatQty(totQty)}</b> · не принято {formatQty(totRet)}
           {waiting.rework || waiting.review ? <span className="text-neutral-600"> · ещё не в списке приёмки: {[waiting.rework ? `на доработке ${formatQty(waiting.rework)}` : "", waiting.review ? `на просмотре ${formatQty(waiting.review)}` : ""].filter(Boolean).join(", ")}</span> : null}
         </p>
+        {matrix && matrix.state && <p className="text-xs text-neutral-700" data-site-totals>По площадкам: {matrix.state.sites.map((st) => `${st} ${Object.values(matrix.state!.lines).reduce((t, l) => t + (l.cells[st] ?? 0), 0)}`).join(", ")}</p>}
+        {matrix && (
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Уровень приёмки">
+            <Button type="button" size="sm" variant={mode === "kopt" ? "default" : "outline"} className="max-md:h-11" aria-pressed={mode === "kopt"} onClick={() => setMode("kopt")}>Коптево</Button>
+            <Button type="button" size="sm" variant={mode === "sites" ? "default" : "outline"} className="max-md:h-11" aria-pressed={mode === "sites"} onClick={() => setMode("sites")}>По площадкам</Button>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <Input className="h-8 w-56 max-md:h-10" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: №, ТЗ, артикул, цвет" aria-label="Поиск по таблице" />
           <div className="flex flex-wrap gap-1" role="group" aria-label="Фильтр по статусу">
@@ -623,6 +646,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
         </div>
         {editable && panel}
         {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {mode === "sites" && matrix ? <SitesMatrix key={matrix.state?.at ?? "none"} shipmentId={shipmentId} rows={matrix.rows} state={matrix.state} ziOrder={matrix.ziOrder} invoiceTotal={matrix.invoiceTotal} tzTotal={matrix.tzTotal} /> : (
         <ResponsiveRows
           table={
             <Table className="w-full">
@@ -633,9 +657,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
                   <Th className="w-12 px-2 py-1.5 text-right text-xs" {...th("size")}>Разм.</Th>
                   <Th className="w-10 px-2 py-1.5 text-right text-xs" unit="шт." {...th("quantity")}>Шт.</Th>
                   <Th className="px-2 py-1.5 text-xs">Принято</Th>
-                  <Th className="w-14 px-2 py-1.5 text-xs" {...th("supply")}>Постав.</Th>
-                  <Th className="px-2 py-1.5 text-xs" {...th("boutique")}>Бутик</Th>
-                  {staff && <Th className="w-24 px-2 py-1.5 text-right text-xs" unit="₽" {...th("sum")}>Накладная</Th>}
+                                    {staff && <Th className="w-24 px-2 py-1.5 text-right text-xs" unit="₽" {...th("sum")}>Накладная</Th>}
                   <Th className="w-6 px-1 py-1.5 text-xs"><span className="sr-only">Примечание</span></Th>
                   {editable && <Th className="px-2 py-1.5"><span className="sr-only">Действия</span></Th>}
                 </Tr>
@@ -648,8 +670,6 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
                     <Td className="px-2 py-1.5 text-right text-xs tabular-nums">{r.size ?? <Dash />}</Td>
                     <Td className="px-2 py-1.5 text-right text-xs font-medium tabular-nums">{formatQty(r.quantity)}</Td>
                     <Td className="px-2 py-1.5 text-xs">{stageCell(r)}</Td>
-                    <Td className="px-2 py-1.5 text-xs">{r.supply || <Dash />}</Td>
-                    <Td className="max-w-[9.5rem] px-2 py-1.5 text-xs" title={r.boutique || undefined}>{boutiqueText(r.boutique) || <Dash />}</Td>
                     {staff && <Td className="px-2 py-1.5 text-right text-xs tabular-nums">{sumCell(r)}</Td>}
                     <Td className="px-1 py-1.5 text-xs">{noteCell(r)}</Td>
                     {editable && (
@@ -664,7 +684,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
                   <Tr className="row-total">
                     <Td colSpan={3} className="px-2 py-1.5 text-right text-xs"><TotalLabel unit="шт." /></Td>
                     <Td className="px-2 py-1.5 text-right text-xs tabular-nums">{formatQty(totQty)}</Td>
-                    <Td colSpan={3} className="px-2 py-1.5 text-xs tabular-nums">принято {formatQty(totAcc)} · не принято {formatQty(totRet)}</Td>
+                    <Td colSpan={1} className="px-2 py-1.5 text-xs tabular-nums">принято {formatQty(totAcc)} · не принято {formatQty(totRet)}</Td>
                     {staff && <Td className="px-2 py-1.5 text-right text-xs tabular-nums">{totSum ? money(totSum) : ""}</Td>}
                     <Td colSpan={editable ? 2 : 1} />
                   </Tr>
@@ -688,9 +708,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
               fields={[
                 { label: "Принято", value: stageCell(r) },
                 { label: "Шт.", value: formatQty(r.quantity), strong: true },
-                { label: "Поставка", value: r.supply || "—" },
-                { label: "Бутик", value: r.boutique || "—" },
-                ...(staff ? [{ label: "Накладная, ₽", value: sumCell(r) }] : []),
+                                ...(staff ? [{ label: "Накладная, ₽", value: sumCell(r) }] : []),
                 { label: "Примечание", value: noteCell(r) },
               ]}
               extra={canEdit ? <div className="flex items-center gap-1">{rowActions(r)}{r.blockedReason && <span className="text-[11px] text-neutral-500">есть приёмка</span>}</div> : undefined}
@@ -698,6 +716,7 @@ export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, 
           ))}
           {rows.length === 0 && <p className="py-6 text-center text-sm text-neutral-500">Пока пусто</p>}
         </ResponsiveRows>
+        )}
         {notes.length > 0 && (
           <ol className="flex flex-col gap-0.5 text-xs text-neutral-600" data-notes>
             {notes.map((t, i) => <li key={i}>прим. {i + 1}: {t}</li>)}

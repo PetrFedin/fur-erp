@@ -18,7 +18,7 @@ export type ZiLine = {
   /** Сумма по строке без НДС и НДС, ₽ (только наша сторона). */
   sum: number;
   vat: number;
-  /** Откуда строка: лист и номер строки в файле поставки (MVST — сводный лист). */
+  /** Откуда строка: лист и номер строки в файле поставки (сводный лист файла хранится под служебным именем). */
   sheet?: string;
   row?: number;
 };
@@ -30,7 +30,9 @@ export type ZiSupply = {
 };
 /** Исходный файл накладных, прикреплённый к этапу (DriveDocument.id). */
 export type ZiFile = { supply: string; fileName: string; docId: string };
-export type ZiData = { version: 1; sourceNote: string; supplies: ZiSupply[]; lines: ZiLine[]; files?: ZiFile[] };
+export type ZiData = { version: 1; sourceNote: string; supplies: ZiSupply[]; lines: ZiLine[]; files?: ZiFile[];
+  /** Раскладка принятого по площадкам, правки пользователей: id строки отгрузки → LineAlloc (см. shipment-alloc.ts). Только наша сторона. */
+  alloc?: Record<string, unknown> };
 
 const norm = (s: string) => s.toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9]+/g, "");
 
@@ -77,7 +79,7 @@ export function parseZi(v: unknown): ZiData | null {
   if (!v || typeof v !== "object") return null;
   const o = v as Partial<ZiData>;
   if (o.version !== 1 || !Array.isArray(o.lines) || !Array.isArray(o.supplies)) return null;
-  return { version: 1, sourceNote: String(o.sourceNote ?? ""), supplies: o.supplies, lines: o.lines, files: Array.isArray(o.files) ? o.files : [] };
+  return { version: 1, sourceNote: String(o.sourceNote ?? ""), supplies: o.supplies, lines: o.lines, files: Array.isArray(o.files) ? o.files : [], alloc: o.alloc && typeof o.alloc === "object" ? o.alloc : {} };
 }
 
 /** Роли, которым доступны исходные файлы накладных ЦУМ и цены (подрядчику — нет). */
@@ -86,5 +88,8 @@ export const ZI_STAFF_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
 
 /** Для подрядчика: без сумм, НДС, бутиков и расхождений по ценам. */
 export function ziForSupplier(d: ZiData): ZiData {
-  return { ...d, lines: d.lines.map((l) => ({ ...l, boutique: "", sum: 0, vat: 0, sheet: undefined, row: undefined })), files: [] };
+  return { ...d, lines: d.lines.map((l) => ({ ...l, boutique: "", sum: 0, vat: 0, sheet: undefined, row: undefined })), files: [], alloc: undefined };
 }
+
+/** Как называть лист файла на экране: сводный лист показываем так, листы бутиков — по названию. */
+export const sheetLabel = (sheet: string | undefined | null): string => (!sheet || sheet.trim().toLowerCase() === "mvst" ? "сводный лист" : sheet);

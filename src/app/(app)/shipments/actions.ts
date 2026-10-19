@@ -537,7 +537,7 @@ export async function confirmAcceptance(shipmentId: string, eventId: string, fd:
 
 /** «Отменить приёмку»: этап снова ожидаемый, acceptedAt снимается, статус — «Запланирована». */
 export async function cancelAcceptance(shipmentId: string): Promise<{ error?: string }> {
-  const session = await requireRole(...EDIT_ROLES);
+  const session = await requireRole("OWNER", "ADMIN");
   const orgId = session.user.organizationId;
   const sh = await prisma.shipment.findFirst({ where: { id: shipmentId, organizationId: orgId }, select: { id: true, acceptedAt: true, acceptEventId: true } });
   if (!sh) return { error: "Отгрузка не найдена" };

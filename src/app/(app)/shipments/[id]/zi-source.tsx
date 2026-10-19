@@ -44,7 +44,7 @@ export function ZiSumButton({ v, total }: { v: ZiSumView; total: number }) {
             <ul className="flex flex-col gap-1 text-xs" data-zi-invoice-lines>
               {v.items.map((l, i) => (
                 <li key={i} className="rounded border border-neutral-200 px-2 py-1">
-                  <span className="font-medium">{l.supply}</span> · {l.boutique} · р. {l.size} · лист {l.sheet}{l.row ? `, строка ${l.row}` : ""}: {money(l.sum)} без НДС + НДС {money(l.vat)} ({l.sum ? Math.round((l.vat / l.sum) * 100) : 0}%) = <b>{money(r2(l.sum + l.vat))}</b> ₽ с НДС
+                  <span className="font-medium">{l.supply}</span> · {l.boutique} · р. {l.size} · {l.sheet}{l.row ? `, строка ${l.row}` : ""}: {money(l.sum)} без НДС + НДС {money(l.vat)} ({l.sum ? Math.round((l.vat / l.sum) * 100) : 0}%) = <b>{money(r2(l.sum + l.vat))}</b> ₽ с НДС
                 </li>
               ))}
             </ul>
