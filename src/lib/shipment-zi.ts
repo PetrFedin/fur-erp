@@ -26,8 +26,14 @@ export type ZiSupply = {
   savedOn: string;
 };
 /** Расхождение «заказ ЦУМ ↔ накладная поставщика»: цена за единицу, ₽ (накладная — с НДС). */
-export type ZiPriceDiff = { article: string; orderPrice: number; invoicePrice: number; diff: number };
-export type ZiData = { version: 1; sourceNote: string; supplies: ZiSupply[]; lines: ZiLine[]; priceDiffs: ZiPriceDiff[] };
+export type ZiPriceDiff = {
+  article: string; orderPrice: number; invoicePrice: number; diff: number;
+  /** Откуда цифры: файл, лист, номер строки и адреса ячеек (колонки «заказ», «поставщик», «расхождения» листа сверки). */
+  src?: { fileName: string; sheet: string; row: number; orderCell: string; invoiceCell: string; diffCell: string };
+};
+/** Исходный файл накладных, прикреплённый к этапу (DriveDocument.id). */
+export type ZiFile = { supply: string; fileName: string; docId: string };
+export type ZiData = { version: 1; sourceNote: string; supplies: ZiSupply[]; lines: ZiLine[]; priceDiffs: ZiPriceDiff[]; files?: ZiFile[] };
 
 const norm = (s: string) => s.toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9]+/g, "");
 
@@ -73,10 +79,14 @@ export function parseZi(v: unknown): ZiData | null {
   if (!v || typeof v !== "object") return null;
   const o = v as Partial<ZiData>;
   if (o.version !== 1 || !Array.isArray(o.lines) || !Array.isArray(o.supplies)) return null;
-  return { version: 1, sourceNote: String(o.sourceNote ?? ""), supplies: o.supplies, lines: o.lines, priceDiffs: Array.isArray(o.priceDiffs) ? o.priceDiffs : [] };
+  return { version: 1, sourceNote: String(o.sourceNote ?? ""), supplies: o.supplies, lines: o.lines, priceDiffs: Array.isArray(o.priceDiffs) ? o.priceDiffs : [], files: Array.isArray(o.files) ? o.files : [] };
 }
+
+/** Роли, которым доступны исходные файлы накладных ЦУМ и цены (подрядчику — нет). */
+export const ZI_SOURCE_NOTE = "zi-source";
+export const ZI_STAFF_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
 
 /** Для подрядчика: без сумм, НДС, бутиков и расхождений по ценам. */
 export function ziForSupplier(d: ZiData): ZiData {
-  return { ...d, lines: d.lines.map((l) => ({ ...l, boutique: "", sum: 0, vat: 0 })), priceDiffs: [] };
+  return { ...d, lines: d.lines.map((l) => ({ ...l, boutique: "", sum: 0, vat: 0 })), priceDiffs: [], files: [] };
 }

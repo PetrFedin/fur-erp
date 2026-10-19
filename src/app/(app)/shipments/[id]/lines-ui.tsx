@@ -355,6 +355,10 @@ export type LineRow = {
   title: ReactNode;
   href: string;
   subtitle: string;
+  /** Накладные ЦУМ (ЗИ): поставка, бутик, сумма без НДС (сумма — только наша сторона). */
+  supply?: string;
+  boutique?: string;
+  sum?: number | null;
 };
 
 const parseQty = (s: string): number | null | undefined => {
@@ -364,10 +368,20 @@ const parseQty = (s: string): number | null | undefined => {
 };
 
 /**
- * Примерка: список изделий, показанных на примерке. У каждой строки стадия («Принято» по просмотру / «На доработку»), поиск, фильтр по стадии
- * и счётчики. Приёмка в Коптево (принято / не принято) — отдельный блок AcceptList под составом.
+ * «Приёмка» — одна итоговая таблица: строка = изделие (строка отгрузки). Стадия просмотра, приёмка в Коптево (принято / не принято),
+ * поставка и бутик по накладным ЦУМ (ЗИ). Пока приёмка открыта, у готовых к отгрузке строк те же кнопки «Принято» / «Не принято»,
+ * у строк на просмотре — «Принято» / «На доработку»; когда приёмка закрыта, таблица только для просмотра.
  */
-export function LinesTable({ shipmentId, rows, canEdit, addButton, hint, defaultOpen = true }: { shipmentId: string; rows: LineRow[]; canEdit: boolean; addButton?: ReactNode; hint?: ReactNode; defaultOpen?: boolean }) {
+export function LinesTable({ shipmentId, rows, canEdit, staff, addButton, hint, defaultOpen = true, waiting, event, closed, closeProps, createEvent }: {
+  shipmentId: string; rows: LineRow[]; canEdit: boolean; staff: boolean; addButton?: ReactNode; hint?: ReactNode; defaultOpen?: boolean;
+  waiting: { rework: number; review: number };
+  /** Ожидаемый этап приёмки в хронологии; null — этапа нет. */
+  event: { id: string; stamp: string } | null;
+  /** Приёмка закрыта: «<дата-время>, принял <кто>»; null — не закрыта. */
+  closed: string | null;
+  closeProps: Omit<Parameters<typeof AcceptCloseButton>[0], "shipmentId" | "event" | "disabled" | "disabledReason">;
+  createEvent: ReactNode;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -376,22 +390,33 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint, default
   const [q, setQ] = useState("");
   const [seg, setSeg] = useState<SegKey>("all");
   const { ask, node: confirmNode } = useConfirm();
+  const editable = canEdit && !closed;
 
   const viewOf = (r: LineRow) => lineView({ stage: r.stage, quantity: r.quantity, acceptedQty: r.accepted, returnedQty: r.returned });
   const counts = rows.reduce<Record<ViewKey, number>>((c, r) => { c[viewOf(r).key]++; return c; }, { review: 0, rework: 0, ready: 0, accepted: 0, rejected: 0 });
-
-  const totQtyAll = rows.reduce((t, r) => t + r.quantity, 0);
-  const qtyBy = (st: Stage) => rows.filter((r) => r.stage === st).reduce((t, r) => t + r.quantity, 0);
+  const totQty = rows.reduce((t, r) => t + r.quantity, 0);
+  const totAcc = rows.reduce((t, r) => t + (r.accepted ?? 0), 0);
+  const totRet = rows.reduce((t, r) => t + (r.returned ?? 0), 0);
+  const totSum = rows.reduce((t, r) => t + (r.sum ?? 0), 0);
   const needle = q.trim().toLowerCase();
   const { th, sort } = useClientSort<LineRow>({
-    itemNo: (r) => r.itemNo, order: (r) => r.orderText, article: (r) => r.articleText, color: (r) => r.color, size: (r) => r.size, furKind: (r) => r.furKind,
-    inTz: (r) => r.inTz, quantity: (r) => r.quantity,
+    itemNo: (r) => r.itemNo, order: (r) => r.orderText, article: (r) => r.articleText, color: (r) => r.color, size: (r) => r.size,
+    quantity: (r) => r.quantity, supply: (r) => r.supply ?? "", boutique: (r) => r.boutique ?? "", sum: (r) => r.sum ?? 0,
   });
   const shown = sort(rows.filter((r) => {
     if (seg !== "all" && viewOf(r).key !== seg) return false;
     if (!needle) return true;
     return [r.itemNo, r.orderText, r.articleText, r.color ?? ""].some((x) => x.toLowerCase().includes(needle));
   }));
+
+  // Примечания: одинаковый текст — одна сноска, в строке только «прим. N» (полный текст в подсказке и в списке под таблицей).
+  const noteOf = (r: LineRow) => r.comment.trim();
+  const notes = [...new Set(rows.map(noteOf).filter(Boolean))];
+  const noteCell = (r: LineRow) => {
+    const t = noteOf(r);
+    if (!t) return <Dash />;
+    return <span title={t} className="block max-w-[10rem] truncate text-xs text-neutral-700">прим. {notes.indexOf(t) + 1}</span>;
+  };
 
   const acceptReview = (r: LineRow) => {
     setError(null);
@@ -404,7 +429,7 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint, default
   const acceptAllReview = async () => {
     setError(null);
     const n = counts.review;
-    if (!(await ask(`Принять по просмотру ${rowsText(n)}? Товар просмотрен и полностью устраивает. В хронологии появится один этап.`, { ok: "Принято" }))) return;
+    if (!(await ask(`Принять по просмотру ${rowsText(n)}? Товар просмотрен и полностью устраивает. В хронологии появится один этап.`, { ok: "Принять", danger: false }))) return;
     start(async () => {
       const res = await acceptAllOnReview(shipmentId);
       if (res.error) return setError(res.error);
@@ -412,214 +437,9 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint, default
     });
   };
 
-  const totQty = rows.reduce((t, r) => t + r.quantity, 0);
-
-  /** Статус строки и кнопки действий по стадии. */
-  const stageCell = (r: LineRow) => {
-    const v = viewOf(r);
-    const openN = r.reworks.filter((x) => x.state !== "DONE").length;
-    return (
-      <div className="flex flex-col items-start gap-1" title={r.stageNote || undefined}>
-        <Badge variant={v.variant}>{v.label}</Badge>
-        {v.sub && <span className="text-[11px] text-neutral-600">{v.sub}</span>}
-        {r.stage === "REWORK" && <span className="text-[11px] text-neutral-600">пунктов: {r.reworks.length}, не принято: {openN}</span>}
-        {canEdit && r.stage === "REVIEW" && (
-          <div className="flex flex-wrap gap-1">
-            <Button type="button" size="sm" onClick={() => acceptReview(r)} disabled={pending} title="Товар просмотрен и полностью устраивает">Принято</Button>
-            <CreateDialog label="На доработку" title="Отправить на доработку" hint={r.label} size="sm" variant="outline"><SendReworkBody line={r} returning={false} /></CreateDialog>
-          </div>
-        )}
-        {canEdit && r.stage === "REWORK" && (
-          <CreateDialog label="Что дорабатывать" title="Что дорабатывать" hint={r.label} size="sm" variant="outline" wide><ReworkBody line={r} /></CreateDialog>
-        )}
-        {canEdit && r.stage === "READY" && r.accepted == null && r.returned == null && (
-          <CreateDialog label="Вернуть на доработку" title="Вернуть на доработку" hint={r.label} size="sm" variant="ghost"><SendReworkBody line={r} returning /></CreateDialog>
-        )}
-      </div>
-    );
-  };
-  const editValues = (r: LineRow): LineEditValues => ({ id: r.id, label: r.label, quantity: r.quantity, size: r.size ?? "", comment: r.comment, accepted: r.accepted == null ? "" : String(r.accepted), returned: r.returned == null ? "" : String(r.returned), itemNo: r.itemNo, stage: r.stage });
-
-  return (
-    <section className="flex flex-col gap-2" aria-label="Примерка">
-      {confirmNode}
-      <FoldHeader
-        title="Примерка"
-        fold={fold}
-        hint={hint ? <InfoHint label="О примерке">{hint}</InfoHint> : null}
-        actions={<>
-          {canEdit && counts.review > 0 && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllReview()} disabled={pending}>Принято всё, что на просмотре</Button>}
-          {canEdit && addButton}
-        </>}
-      />
-      <div className={open ? "flex flex-col gap-2" : "hidden"}>
-        <p className="text-xs text-neutral-600" data-stage-counts>
-          На примерке {formatQty(totQtyAll)} ед. · к отгрузке {formatQty(qtyBy("READY"))}{qtyBy("REWORK") ? ` · на доработке ${formatQty(qtyBy("REWORK"))}` : ""}{qtyBy("REVIEW") ? ` · на просмотре ${formatQty(qtyBy("REVIEW"))}` : ""}
-        </p>
-        <p className="text-xs text-neutral-500">«Принято» — изделие идёт в список «Готов к отгрузке» (приёмка в Коптево); «На доработку» — не принято, возвращается после исправления.</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Input className="h-8 w-56 max-md:h-10" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: №, ТЗ, артикул, цвет" aria-label="Поиск по примерке" />
-          <div className="flex flex-wrap gap-1" role="group" aria-label="Фильтр по стадии">
-            {SEGMENTS.map((k) => (
-              <Button key={k} type="button" size="sm" variant={seg === k ? "default" : "outline"} aria-pressed={seg === k} onClick={() => setSeg(k)}>
-                {k === "all" ? "Все" : VIEW_LABEL[k]}
-              </Button>
-            ))}
-          </div>
-          {(needle || seg !== "all") && <span className="text-xs text-neutral-500">показано {shown.length} из {rows.length}</span>}
-        </div>
-        {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-        <ResponsiveRows
-          table={
-            <Table className="min-w-[1000px]">
-              <Thead>
-                <Tr>
-                  <Th className="whitespace-nowrap" {...th("itemNo")}>№ изд.</Th>
-                  <Th className="whitespace-nowrap" {...th("order")}>ТЗ · поз.</Th>
-                  <Th className="whitespace-nowrap" {...th("article")}>Артикул</Th>
-                  <Th className="whitespace-nowrap" {...th("color")}>Цвет</Th>
-                  <Th className="whitespace-nowrap" {...th("size")}>Размер</Th>
-                  <Th className="whitespace-nowrap" {...th("furKind")}>Вид меха</Th>
-                  <Th className="whitespace-nowrap text-right" unit="шт." {...th("inTz")}>В ТЗ</Th>
-                  <Th className="whitespace-nowrap text-right" unit="шт." {...th("quantity")}>В отгрузке</Th>
-                  <Th className="whitespace-nowrap">Статус</Th>
-                  {canEdit && <Th><span className="sr-only">Действия</span></Th>}
-                </Tr>
-              </Thead>
-              <Tbody>
-                {shown.map((r) => (
-                  <Tr key={r.id}>
-                    <Td className="whitespace-nowrap tabular-nums">{r.itemNo || <Dash />}</Td>
-                    <Td className="whitespace-nowrap">{r.order}</Td>
-                    <Td className="whitespace-nowrap">{r.article}</Td>
-                    <Td className="whitespace-nowrap">{r.color ?? <Dash />}</Td>
-                    <Td className="whitespace-nowrap">{r.size ?? <Dash />}</Td>
-                    <Td className="whitespace-nowrap">{r.furKind ?? <Dash />}</Td>
-                    <Td className="text-right tabular-nums">{r.inTz != null ? formatQty(r.inTz) : <Dash />}</Td>
-                    <Td className="text-right font-medium tabular-nums">{formatQty(r.quantity)}</Td>
-                    <Td className="min-w-56">{stageCell(r)}</Td>
-                    {canEdit && (
-                      <Td className="whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1">
-                          <LineEdit v={editValues(r)} />
-                          <LineDelete id={r.id} label={r.label} blockedReason={r.blockedReason} />
-                        </span>
-                        {r.blockedReason && <div className="text-[11px] text-neutral-500">есть приёмка</div>}
-                      </Td>
-                    )}
-                  </Tr>
-                ))}
-                {rows.length > 0 && (
-                  <Tr className="row-total">
-                    <Td colSpan={7} className="text-right"><TotalLabel unit="шт." /></Td>
-                    <Td className="text-right tabular-nums">{formatQty(totQty)}</Td>
-                    <Td colSpan={canEdit ? 2 : 1} />
-                  </Tr>
-                )}
-                {rows.length === 0 && (
-                  <Tr>
-                    <Td colSpan={canEdit ? 10 : 9} className="py-8 text-center text-neutral-500">Примерка пока пуста{canEdit ? " — добавьте позиции кнопкой «+ Добавить из ТЗ» (или свой артикул, если его нет в ТЗ)" : ""}</Td>
-                  </Tr>
-                )}
-                {rows.length > 0 && shown.length === 0 && (
-                  <Tr>
-                    <Td colSpan={canEdit ? 10 : 9} className="py-6 text-center text-neutral-500">Ничего не найдено</Td>
-                  </Tr>
-                )}
-              </Tbody>
-            </Table>
-          }
-        >
-          {shown.map((r) => (
-            <RowCard
-              key={r.id}
-              title={r.itemNo ? <>№{r.itemNo} · {r.title}</> : r.title}
-              href={r.href}
-              subtitle={r.subtitle}
-              fields={[
-                { label: "Статус", value: stageCell(r) },
-                { label: "В ТЗ, шт.", value: r.inTz != null ? formatQty(r.inTz) : "—" },
-                { label: "В отгрузке, шт.", value: formatQty(r.quantity), strong: true },
-              ]}
-              extra={
-                canEdit ? (
-                  <div className="flex items-center gap-1">
-                    <LineEdit v={editValues(r)} />
-                    <LineDelete id={r.id} label={r.label} blockedReason={r.blockedReason} />
-                    {r.blockedReason && <span className="text-[11px] text-neutral-500">есть приёмка</span>}
-                  </div>
-                ) : undefined
-              }
-            />
-          ))}
-          {rows.length === 0 && <p className="py-6 text-center text-sm text-neutral-500">Примерка пока пуста</p>}
-        </ResponsiveRows>
-      </div>
-    </section>
-  );
-}
-
-// ───────────── «Приёмка в Коптево»: список товаров на приёмке, «Принято» / «Не принято» по строкам ─────────────
-
-type Mode = "none" | "accepted" | "rejected" | "partial";
-type AD = { mode: Mode; acc: string; ret: string; comment: string };
-
-function baseDraft(r: LineRow): AD {
-  const a = r.accepted, b = r.returned;
-  if (a == null && b == null) return { mode: "none", acc: "", ret: "", comment: r.comment };
-  if ((a ?? 0) === r.quantity && (b ?? 0) === 0) return { mode: "accepted", acc: String(r.quantity), ret: "0", comment: r.comment };
-  if ((a ?? 0) === 0 && (b ?? 0) === r.quantity) return { mode: "rejected", acc: "0", ret: String(r.quantity), comment: r.comment };
-  return { mode: "partial", acc: a == null ? "" : String(a), ret: b == null ? "" : String(b), comment: r.comment };
-}
-
-/** Что уйдёт в базу из выбора; undefined — ввод неверный. */
-function effOf(d: AD, qty: number): { a: number | null; b: number | null; comment: string | null } | undefined {
-  const comment = d.comment.trim() || null;
-  if (d.mode === "none") return { a: null, b: null, comment };
-  if (d.mode === "accepted") return { a: qty, b: 0, comment };
-  if (d.mode === "rejected") return { a: 0, b: qty, comment };
-  const a = parseQty(d.acc), b = parseQty(d.ret);
-  if (a == null || b == null) return undefined;
-  return { a, b, comment };
-}
-
-function adError(d: AD, qty: number): string | null {
-  if (d.mode === "none" || d.mode === "accepted") return null;
-  const e = effOf(d, qty);
-  if (!e) return "укажите целые числа «принято» и «не принято»";
-  if (d.mode === "partial" && (e.a ?? 0) + (e.b ?? 0) !== qty) return `сумма должна быть ${qty}`;
-  if ((e.b ?? 0) > 0 && !e.comment) return "укажите, почему не принято";
-  return null;
-}
-
-const sameEff = (x: ReturnType<typeof effOf>, y: ReturnType<typeof effOf>) => !!x && !!y && x.a === y.a && x.b === y.b && x.comment === y.comment;
-
-/**
- * «Список товаров на приёмке в Коптево» = строки примерки со стадией «Готов к отгрузке». По каждой — «Принято» / «Не принято»
- * (у «Не принято» — обязательная причина; у строк с шт. > 1 — «частично»). Выбор копится черновиком и сохраняется общей панелью.
- */
-export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, closeProps, createEvent }: {
-  shipmentId: string;
-  rows: LineRow[];
-  canEdit: boolean;
-  waiting: { rework: number; review: number };
-  /** Ожидаемый этап приёмки в хронологии; null — этапа нет. */
-  event: { id: string; stamp: string } | null;
-  /** Приёмка закрыта: «<дата-время>, принял <кто>»; null — не закрыта. */
-  closed: string | null;
-  closeProps: Omit<Parameters<typeof AcceptCloseButton>[0], "shipmentId" | "event" | "disabled" | "disabledReason">;
-  createEvent: ReactNode;
-}) {
-  const router = useRouter();
   const ready = rows.filter((r) => r.stage === "READY");
   const [edits, setEdits] = useState<Record<string, AD>>({});
   const [committed, setCommitted] = useState<Record<string, AD>>({});
-  const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-  const fold = useFold("accept");
-  const open = fold.open;
-  const { ask, node: confirmNode } = useConfirm();
-  const editable = canEdit && !closed;
 
   const sig = ready.map((r) => `${r.id}:${r.quantity}:${r.accepted}:${r.returned}:${r.comment}`).join("|");
   const [prevSig, setPrevSig] = useState(sig);
@@ -666,8 +486,6 @@ export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, 
     setEdits((p) => { const n = { ...p }; for (const r of ready) n[r.id] = { ...(p[r.id] ?? base(r)), mode: "accepted" }; return n; });
   };
 
-  const qtyReady = ready.reduce((t, r) => t + r.quantity, 0);
-  const notIn = [waiting.rework ? `на доработке ${formatQty(waiting.rework)} шт.` : "", waiting.review ? `на просмотре ${formatQty(waiting.review)} шт.` : ""].filter(Boolean).join(", ");
   const panel = dirtyRows.length > 0 && (
     <div role="status" className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm" data-unsaved-panel>
       <span className="mr-auto font-medium text-amber-900">Не сохранено: {rowsText(dirtyRows.length)}</span>
@@ -686,58 +504,17 @@ export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, 
       <AcceptCloseButton shipmentId={shipmentId} event={event} disabled={!!blocked} disabledReason={blocked ?? undefined} {...closeProps} />
     </div>
   ) : createEvent);
-  const seg = "h-8 max-md:h-10";
-  return (
-    <section className="flex flex-col gap-2" aria-label="Приёмка в Коптево" data-accept-list>
-      {guard}
-      {confirmNode}
-      <FoldHeader
-        title="Приёмка в Коптево"
-        fold={fold}
-        actions={editable && (
-          <>
-            <AddLinesButton shipmentId={shipmentId} asReady />
-            {ready.length > 0 && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllList()} disabled={pending}>Принять все по списку</Button>}
-          </>
-        )}
-      />
-      <div className={open ? "flex flex-col gap-2" : "hidden"}>
-        {!event && !closed && <p className="text-sm text-neutral-700" data-accept-none>Приёмка в Коптево не создана{canEdit ? " — добавьте ожидаемый этап, потом по нему закрывается приёмка." : "."}</p>}
-        {closed && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900" data-accept-closed>Приёмка закрыта {closed}</p>}
-        <p className="text-xs text-neutral-600">На приёмке {rowsText(ready.length)} · {formatQty(qtyReady)} шт.{notIn ? ` · ${notIn} не в списке` : ""}</p>
-        {editable && panel}
-        {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-        {ready.length === 0 && <p className="text-sm text-neutral-600" data-accept-empty>Список пуст: сюда попадают изделия, принятые на примерке («Принято» в блоке «Примерка»), и артикулы, добавленные кнопкой «+ Добавить артикул».</p>}
-        <Table className="min-w-[760px]">
-          <Thead>
-            <Tr>
-              <Th>№ изд.</Th>
-              <Th>ТЗ · поз.</Th>
-              <Th>Артикул</Th>
-              <Th>Цвет</Th>
-              <Th>Размер</Th>
-              <Th className="text-right" unit="шт.">Шт.</Th>
-              <Th>Приёмка</Th>
-              {editable && <Th><span className="sr-only">Действия</span></Th>}
-            </Tr>
-          </Thead>
-          <Tbody>
-            {ready.map((r) => {
-              const d = cur(r);
-              const err = adError(d, r.quantity);
-              const showErr = d.mode !== "none" && err;
-              const needComment = d.mode === "rejected" || (d.mode === "partial" && (parseQty(d.ret) ?? 0) > 0);
-              return (
-                <Tr key={r.id} className={isDirty(r) ? "bg-amber-50/50" : ""}>
-                  <Td className="whitespace-nowrap tabular-nums">{r.itemNo || <Dash />}</Td>
-                  <Td className="whitespace-nowrap">{r.order}</Td>
-                  <Td>{r.article}</Td>
-                  <Td>{r.color ?? <Dash />}</Td>
-                  <Td>{r.size ?? <Dash />}</Td>
-                  <Td className="text-right font-medium tabular-nums">{formatQty(r.quantity)}</Td>
-                  <Td className="min-w-72">
-                    {editable ? (
-                      <div className="flex flex-col gap-1">
+
+  const segCls = "h-8 max-md:h-10";
+  /** Приёмка в Коптево по готовой строке: кнопки пока приёмка открыта, иначе итог текстом. */
+  const acceptCell = (r: LineRow) => {
+    const d = cur(r);
+    const err = adError(d, r.quantity);
+    const showErr = d.mode !== "none" && err;
+    const needComment = d.mode === "rejected" || (d.mode === "partial" && (parseQty(d.ret) ?? 0) > 0);
+    const seg = segCls;
+    return (
+      <div className="flex flex-col gap-1">
                         <div className="flex flex-wrap items-center gap-1">
                           <Button type="button" size="sm" className={seg + (d.mode === "accepted" ? " bg-emerald-600 text-white hover:bg-emerald-700" : "")} variant={d.mode === "accepted" ? "default" : "outline"} aria-pressed={d.mode === "accepted"} onClick={() => pick(r, "accepted")}>Принято</Button>
                           <Button type="button" size="sm" className={seg + (d.mode === "rejected" ? " bg-red-600 text-white hover:bg-red-700" : "")} variant={d.mode === "rejected" ? "default" : "outline"} aria-pressed={d.mode === "rejected"} onClick={() => pick(r, "rejected")}>Не принято</Button>
@@ -759,24 +536,200 @@ export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, 
                         )}
                         {showErr && <span className="text-[11px] text-red-700">{err}</span>}
                       </div>
-                    ) : (
-                      <span className="text-sm">{r.accepted == null && r.returned == null ? "—" : `принято ${r.accepted ?? 0}, не принято ${r.returned ?? 0}${r.comment ? ` — ${r.comment}` : ""}`}</span>
-                    )}
-                  </Td>
-                  {editable && (
-                    <Td className="whitespace-nowrap">
-                      <LineEdit v={{ id: r.id, label: r.label, quantity: r.quantity, size: r.size ?? "", comment: r.comment, accepted: r.accepted == null ? "" : String(r.accepted), returned: r.returned == null ? "" : String(r.returned), itemNo: r.itemNo, stage: r.stage }} />
-                      <LineDelete id={r.id} label={r.label} blockedReason={r.blockedReason} />
-                    </Td>
-                  )}
+
+    );
+  };
+
+  /** Статус строки и кнопки действий по стадии. */
+  const stageCell = (r: LineRow) => {
+    const v = viewOf(r);
+    const openN = r.reworks.filter((x) => x.state !== "DONE").length;
+    return (
+      <div className="flex flex-col items-start gap-1" title={r.stageNote || undefined}>
+        <Badge variant={v.variant}>{v.label}{r.stage === "READY" && (r.accepted != null || r.returned != null) ? ` · ${r.accepted ?? 0}/${r.quantity}` : ""}</Badge>
+        {v.sub && <span className="text-[11px] text-neutral-600">{v.sub}</span>}
+        {r.stage === "REWORK" && <span className="text-[11px] text-neutral-600">пунктов: {r.reworks.length}, не принято: {openN}</span>}
+        {editable && r.stage === "REVIEW" && (
+          <div className="flex flex-wrap gap-1">
+            <Button type="button" size="sm" onClick={() => acceptReview(r)} disabled={pending} title="Товар просмотрен и полностью устраивает">Принято</Button>
+            <CreateDialog label="На доработку" title="Отправить на доработку" hint={r.label} size="sm" variant="outline"><SendReworkBody line={r} returning={false} /></CreateDialog>
+          </div>
+        )}
+        {canEdit && r.stage === "REWORK" && (
+          <CreateDialog label="Что дорабатывать" title="Что дорабатывать" hint={r.label} size="sm" variant="outline" wide><ReworkBody line={r} /></CreateDialog>
+        )}
+        {editable && r.stage === "READY" && acceptCell(r)}
+        {editable && r.stage === "READY" && r.accepted == null && r.returned == null && (
+          <CreateDialog label="Вернуть на доработку" title="Вернуть на доработку" hint={r.label} size="sm" variant="ghost"><SendReworkBody line={r} returning /></CreateDialog>
+        )}
+      </div>
+    );
+  };
+  const editValues = (r: LineRow): LineEditValues => ({ id: r.id, label: r.label, quantity: r.quantity, size: r.size ?? "", comment: r.comment, accepted: r.accepted == null ? "" : String(r.accepted), returned: r.returned == null ? "" : String(r.returned), itemNo: r.itemNo, stage: r.stage });
+  const rowActions = (r: LineRow) => (
+    <span className="inline-flex items-center gap-1">
+      <LineEdit v={editValues(r)} />
+      <LineDelete id={r.id} label={r.label} blockedReason={r.blockedReason} />
+    </span>
+  );
+  const cols = 10 + (staff ? 1 : 0) + (canEdit ? 1 : 0);
+
+  return (
+    <section className="flex flex-col gap-2" aria-label="Приёмка" data-accept-list>
+      {guard}
+      {confirmNode}
+      <FoldHeader
+        title="Приёмка"
+        fold={fold}
+        hint={hint ? <InfoHint label="О приёмке">{hint}</InfoHint> : null}
+        actions={<>
+          {editable && counts.review > 0 && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllReview()} disabled={pending}>Принято всё, что на просмотре</Button>}
+          {editable && ready.length > 0 && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllList()} disabled={pending}>Принять все по списку</Button>}
+          {editable && addButton}
+        </>}
+      />
+      <div className={open ? "flex flex-col gap-2" : "hidden"}>
+        {closed && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900" data-accept-closed>Приёмка закрыта {closed}</p>}
+        <p className="text-sm text-neutral-800" data-stage-counts>
+          <b>Принято {formatQty(totAcc)} из {formatQty(totQty)}</b> · не принято {formatQty(totRet)}
+          {waiting.rework || waiting.review ? <span className="text-neutral-600"> · ещё не в списке приёмки: {[waiting.rework ? `на доработке ${formatQty(waiting.rework)}` : "", waiting.review ? `на просмотре ${formatQty(waiting.review)}` : ""].filter(Boolean).join(", ")}</span> : null}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input className="h-8 w-56 max-md:h-10" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: №, ТЗ, артикул, цвет" aria-label="Поиск по таблице" />
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Фильтр по статусу">
+            {SEGMENTS.map((k) => (
+              <Button key={k} type="button" size="sm" variant={seg === k ? "default" : "outline"} aria-pressed={seg === k} onClick={() => setSeg(k)}>
+                {k === "all" ? "Все" : VIEW_LABEL[k]}
+              </Button>
+            ))}
+          </div>
+          {(needle || seg !== "all") && <span className="text-xs text-neutral-500">показано {shown.length} из {rows.length}</span>}
+        </div>
+        {editable && panel}
+        {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        <ResponsiveRows
+          table={
+            <Table className="min-w-[900px]">
+              <Thead>
+                <Tr>
+                  <Th className="whitespace-nowrap" {...th("itemNo")}>№ изд.</Th>
+                  <Th className="whitespace-nowrap" {...th("order")}>ТЗ · поз.</Th>
+                  <Th className="whitespace-nowrap" {...th("article")}>Артикул</Th>
+                  <Th className="whitespace-nowrap" {...th("color")}>Цвет</Th>
+                  <Th className="whitespace-nowrap" {...th("size")}>Размер</Th>
+                  <Th className="whitespace-nowrap text-right" unit="шт." {...th("quantity")}>Шт.</Th>
+                  <Th className="whitespace-nowrap">Принято / не принято</Th>
+                  <Th className="whitespace-nowrap" {...th("supply")}>Поставка</Th>
+                  <Th className="whitespace-nowrap" {...th("boutique")}>Бутик</Th>
+                  {staff && <Th className="whitespace-nowrap text-right" unit="₽" {...th("sum")}>Сумма накладной</Th>}
+                  <Th className="whitespace-nowrap">Примечание</Th>
+                  {canEdit && <Th><span className="sr-only">Действия</span></Th>}
                 </Tr>
-              );
-            })}
-          </Tbody>
-        </Table>
+              </Thead>
+              <Tbody>
+                {shown.map((r) => (
+                  <Tr key={r.id} id={`zi-row-${r.id}`} className={"target:bg-amber-50 " + (isDirty(r) ? "bg-amber-50/50" : "")}>
+                    <Td className="whitespace-nowrap tabular-nums">{r.itemNo || <Dash />}</Td>
+                    <Td className="whitespace-nowrap">{r.order}</Td>
+                    <Td className="whitespace-nowrap">{r.article}</Td>
+                    <Td className="whitespace-nowrap">{r.color ?? <Dash />}</Td>
+                    <Td className="whitespace-nowrap">{r.size ?? <Dash />}</Td>
+                    <Td className="text-right font-medium tabular-nums">{formatQty(r.quantity)}</Td>
+                    <Td className="min-w-56">{stageCell(r)}</Td>
+                    <Td className="whitespace-nowrap">{r.supply || <Dash />}</Td>
+                    <Td className="whitespace-nowrap">{r.boutique || <Dash />}</Td>
+                    {staff && <Td className="whitespace-nowrap text-right tabular-nums">{r.sum ? r.sum.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : <Dash />}</Td>}
+                    <Td>{noteCell(r)}</Td>
+                    {canEdit && (
+                      <Td className="whitespace-nowrap">
+                        {rowActions(r)}
+                        {r.blockedReason && <div className="text-[11px] text-neutral-500">есть приёмка</div>}
+                      </Td>
+                    )}
+                  </Tr>
+                ))}
+                {rows.length > 0 && (
+                  <Tr className="row-total">
+                    <Td colSpan={5} className="text-right"><TotalLabel unit="шт." /></Td>
+                    <Td className="text-right tabular-nums">{formatQty(totQty)}</Td>
+                    <Td className="tabular-nums">принято {formatQty(totAcc)} · не принято {formatQty(totRet)}</Td>
+                    <Td colSpan={2} />
+                    {staff && <Td className="text-right tabular-nums">{totSum ? totSum.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}</Td>}
+                    <Td colSpan={canEdit ? 2 : 1} />
+                  </Tr>
+                )}
+                {rows.length === 0 && (
+                  <Tr><Td colSpan={cols} className="py-8 text-center text-neutral-500">Пока пусто{canEdit ? " — добавьте позиции кнопкой «+ Добавить из ТЗ»" : ""}</Td></Tr>
+                )}
+                {rows.length > 0 && shown.length === 0 && (
+                  <Tr><Td colSpan={cols} className="py-6 text-center text-neutral-500">Ничего не найдено</Td></Tr>
+                )}
+              </Tbody>
+            </Table>
+          }
+        >
+          {shown.map((r) => (
+            <RowCard
+              key={r.id}
+              title={r.itemNo ? <>№{r.itemNo} · {r.title}</> : r.title}
+              href={r.href}
+              subtitle={r.subtitle}
+              fields={[
+                { label: "Принято / не принято", value: stageCell(r) },
+                { label: "Шт.", value: formatQty(r.quantity), strong: true },
+                { label: "Поставка", value: r.supply || "—" },
+                { label: "Бутик", value: r.boutique || "—" },
+                ...(staff ? [{ label: "Сумма накладной, ₽", value: r.sum ? r.sum.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—" }] : []),
+                { label: "Примечание", value: noteCell(r) },
+              ]}
+              extra={canEdit ? <div className="flex items-center gap-1">{rowActions(r)}{r.blockedReason && <span className="text-[11px] text-neutral-500">есть приёмка</span>}</div> : undefined}
+            />
+          ))}
+          {rows.length === 0 && <p className="py-6 text-center text-sm text-neutral-500">Пока пусто</p>}
+        </ResponsiveRows>
+        {notes.length > 0 && (
+          <ol className="flex flex-col gap-0.5 text-xs text-neutral-600" data-notes>
+            {notes.map((t, i) => <li key={i}>прим. {i + 1}: {t}</li>)}
+          </ol>
+        )}
         {editable && panel}
         {footer}
       </div>
     </section>
   );
 }
+
+// ───────────── «Приёмка в Коптево»: список товаров на приёмке, «Принято» / «Не принято» по строкам ─────────────
+
+type Mode = "none" | "accepted" | "rejected" | "partial";
+type AD = { mode: Mode; acc: string; ret: string; comment: string };
+
+function baseDraft(r: LineRow): AD {
+  const a = r.accepted, b = r.returned;
+  if (a == null && b == null) return { mode: "none", acc: "", ret: "", comment: r.comment };
+  if ((a ?? 0) === r.quantity && (b ?? 0) === 0) return { mode: "accepted", acc: String(r.quantity), ret: "0", comment: r.comment };
+  if ((a ?? 0) === 0 && (b ?? 0) === r.quantity) return { mode: "rejected", acc: "0", ret: String(r.quantity), comment: r.comment };
+  return { mode: "partial", acc: a == null ? "" : String(a), ret: b == null ? "" : String(b), comment: r.comment };
+}
+
+/** Что уйдёт в базу из выбора; undefined — ввод неверный. */
+function effOf(d: AD, qty: number): { a: number | null; b: number | null; comment: string | null } | undefined {
+  const comment = d.comment.trim() || null;
+  if (d.mode === "none") return { a: null, b: null, comment };
+  if (d.mode === "accepted") return { a: qty, b: 0, comment };
+  if (d.mode === "rejected") return { a: 0, b: qty, comment };
+  const a = parseQty(d.acc), b = parseQty(d.ret);
+  if (a == null || b == null) return undefined;
+  return { a, b, comment };
+}
+
+function adError(d: AD, qty: number): string | null {
+  if (d.mode === "none" || d.mode === "accepted") return null;
+  const e = effOf(d, qty);
+  if (!e) return "укажите целые числа «принято» и «не принято»";
+  if (d.mode === "partial" && (e.a ?? 0) + (e.b ?? 0) !== qty) return `сумма должна быть ${qty}`;
+  if ((e.b ?? 0) > 0 && !e.comment) return "укажите, почему не принято";
+  return null;
+}
+
+const sameEff = (x: ReturnType<typeof effOf>, y: ReturnType<typeof effOf>) => !!x && !!y && x.a === y.a && x.b === y.b && x.comment === y.comment;

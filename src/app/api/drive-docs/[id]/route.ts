@@ -2,10 +2,12 @@ import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { readStoredFile } from "@/lib/fitting-files";
 import { fixFileNameExt } from "@/lib/purchase-files";
+import { ZI_SOURCE_NOTE, ZI_STAFF_ROLES } from "@/lib/shipment-zi";
 import { fileNotLoaded } from "@/lib/stored-file-check";
 
 const MIME_EXT: Record<string, string> = {
   "application/pdf": "pdf",
+  "application/vnd.ms-excel": "xls",
   "image/jpeg": "jpg",
   "image/png": "png",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
@@ -30,9 +32,11 @@ export async function GET(request: Request, ctx: RouteContext<"/api/drive-docs/[
       organizationId: session.user.organizationId,
       ...(session.user.role === "SUPPLIER" ? { shipmentEvent: { shipment: { supplierId: session.user.supplierId ?? "-" } } } : {}),
     },
-    select: { storagePath: true, storedName: true, storedMime: true, title: true },
+    select: { storagePath: true, storedName: true, storedMime: true, title: true, notes: true },
   });
   if (!doc) return new Response("Not found", { status: 404 });
+  // Исходные файлы накладных ЦУМ (цены ЦУМ) — только владелец, администратор, технолог.
+  if (doc.notes === ZI_SOURCE_NOTE && !ZI_STAFF_ROLES.includes(session.user.role)) return new Response("Not found", { status: 404 });
 
   if (!doc.storagePath || !doc.storedMime || !(doc.storedMime in MIME_EXT)) {
     return fileNotLoaded();

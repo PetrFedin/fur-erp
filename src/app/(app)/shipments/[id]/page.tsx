@@ -15,18 +15,18 @@ import { loadTzPositions } from "@/lib/order-label-db";
 import { ORDER_COLORS_INCLUDE } from "@/lib/order-colors";
 import { orderSortKey, SHIPMENT_STATUS } from "@/lib/shipments";
 import {
-  ACCEPTANCE_TITLE, FITTING_TITLE, candidateRows, compareEvents, deliverySummary, fmtWall, groupByOrder, groupEventsByDay, intervalNotes, isAcceptanceEvent, lineKey, parseDocLinks, shareOf, shipmentTotals,
+  ACCEPTANCE_TITLE, FITTING_TITLE, candidateRows, compareEvents, deliverySummary, fmtWall, groupEventsByDay, intervalNotes, isAcceptanceEvent, lineKey, parseDocLinks, shareOf, shipmentTotals,
   SIDE_LABEL, wallDateIso, wallDateRu, wallNow, wallTimeHm,
 } from "@/lib/shipment-calc";
 import { HeaderDelete, HeaderEdit } from "./header-ui";
 import { TimelineSection } from "./timeline-section";
-import { AcceptList, AddLinesButton, LinesTable, type LineRow } from "./lines-ui";
+import { AddLinesButton, LinesTable, type LineRow } from "./lines-ui";
 import { STAGE_LABEL } from "@/lib/shipment-stage";
 import { loadShipmentPeople } from "@/lib/shipment-data";
-import { ZiSection, type ZiRow } from "./zi-section";
+import { ZiDiffs } from "./zi-section";
 import { loadZi } from "@/lib/shipment-zi-db";
-import { matchZi, ziForSupplier, ziStatus } from "@/lib/shipment-zi";
-import { CreateAcceptanceButton, ClampText, DocRemove, EventActions, NewEventButton, SummaryShell, type EventValues } from "./event-ui";
+import { matchZi, ziForSupplier, ziStatus, articleCode, ZI_SOURCE_NOTE, ZI_STAFF_ROLES } from "@/lib/shipment-zi";
+import { CreateAcceptanceButton, ClampText, DocRemove, EventActions, NewEventButton, type EventValues } from "./event-ui";
 
 export const metadata = { title: "Отгрузка" };
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
@@ -66,10 +66,12 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           },
         },
       },
-      events: { include: { documents: { select: { id: true, title: true, storagePath: true } } } },
+      events: { include: { documents: { select: { id: true, title: true, storagePath: true, notes: true } } } },
     },
   });
   if (!s) notFound();
+  // Исходные файлы накладных ЦУМ (с ценами) — только нашей стороне.
+  if (!ZI_STAFF_ROLES.includes(session.user.role)) for (const e of s.events) e.documents = e.documents.filter((d) => d.notes !== ZI_SOURCE_NOTE);
 
   const [users, titleGroups, nameGroups, people, batchChoices, suppliers] = await Promise.all([
     prisma.user.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, isActive: true, role: true, supplier: { select: { name: true } } }, orderBy: { name: "asc" } }),
@@ -182,10 +184,6 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   const summary = s.acceptedAt
     ? deliverySummary({ plannedDate: s.plannedDate, acceptedAt: s.acceptedAt, acceptEventId: s.acceptEventId, events: s.events })
     : null;
-  const groups = summary ? groupByOrder(readyLines.map((l) => ({ orderKey: l.productionOrderId ?? `custom|${l.customArticle ?? ""}`, label: labelOf(l), article: articleOfLine(l), quantity: l.quantity, acceptedQty: l.acceptedQty, returnedQty: l.returnedQty, comment: l.comment }))) : [];
-  const returnLines = readyLines.filter((l) => (l.returnedQty ?? 0) > 0);
-  const reworkedLines = lines.filter((l) => l.reworks.length > 0);
-  const accEv = s.acceptEventId ? s.events.find((e) => e.id === s.acceptEventId) : null;
   const status = SHIPMENT_STATUS[s.status];
 
   // Накладные ЗИ (приёмка в ЦУМ): подрядчику — без бутиков, сумм и расхождений по ценам.
@@ -193,7 +191,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   const ziView = ziRaw ? (() => {
     const zi = isSupplier ? ziForSupplier(ziRaw) : ziRaw;
     const m = matchZi(zi.lines, lines.map((l) => ({ id: l.id, code: l.productionOrder?.productModel.salesCode ?? articleOfLine(l), size: l.size, color: l.color, quantity: l.quantity })));
-    const rows: ZiRow[] = lines.map((l) => {
+    const rows = lines.map((l) => {
       const f = m.byLine.get(l.id);
       const inZi = f?.qty ?? 0;
       return {
@@ -202,7 +200,22 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         ...(isSupplier ? {} : { boutiques: f?.boutiques ?? [], sum: f?.sum ?? 0 }),
       };
     });
-    return { rows, supplies: zi.supplies, priceDiffs: zi.priceDiffs, unmatched: m.unmatched.length };
+    const diffs = zi.priceDiffs.map((d) => {
+      const il = zi.lines.filter((z) => z.article === d.article);
+      return {
+        article: d.article, orderPrice: d.orderPrice, invoicePrice: d.invoicePrice, diff: d.diff,
+        fileName: d.src?.fileName ?? "", docId: zi.files?.find((f) => f.fileName === d.src?.fileName)?.docId ?? null,
+        sheet: d.src?.sheet ?? "Лист1", row: d.src?.row ?? 0, orderCell: d.src?.orderCell ?? "", invoiceCell: d.src?.invoiceCell ?? "", diffCell: d.src?.diffCell ?? "",
+        invoiceLines: il.map((z) => ({ supply: z.supply, boutique: z.boutique, size: z.size, sum: z.sum, vat: z.vat })),
+        zi: zi.supplies.filter((sp) => il.some((z) => z.supply === sp.code)).map((sp) => ({ supply: sp.code, numbers: sp.ziNumbers })),
+        anchors: rows.filter((r) => articleCode(r.article) === articleCode(d.article)).map((r) => `zi-row-${r.id}`),
+      };
+    });
+    for (const r of lineRows) {
+      const f = m.byLine.get(r.id);
+      if (f) { r.supply = f.supplies.join(", "); if (!isSupplier) { r.boutique = f.boutiques.join(", "); r.sum = f.sum; } }
+    }
+    return { rows, supplies: zi.supplies, priceDiffs: isSupplier || !ZI_STAFF_ROLES.includes(session.user.role) ? [] : diffs, unmatched: m.unmatched.length };
   })() : null;
 
   // Шаги новой отгрузки: подсказка с кнопками, пока не заведены состав примерки, этапы и приёмка в Коптево.
@@ -288,6 +301,12 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             shipmentId={s.id}
             rows={lineRows}
             canEdit={canEdit}
+            staff={!isSupplier}
+            waiting={{ rework: reworkQty, review: reviewQty }}
+            event={acceptEvent ? { id: acceptEvent.id, stamp: fmtWall(acceptEvent.occurredAt, acceptEvent.timeKnown) } : null}
+            closed={s.acceptedAt && summary ? `${summary.accepted.stamp}${s.acceptedBy && !isSupplier ? `, принял ${s.acceptedBy}` : ""}` : null}
+            closeProps={{ rows: acceptRows, totals, names }}
+            createEvent={canEdit ? <CreateAcceptanceButton shipmentId={s.id} /> : null}
             addButton={<AddLinesButton shipmentId={s.id} />}
             hint={<p>Список изделий, показанных на примерке; здесь по каждой строке отмечается просмотр: «Принято» (устраивает полностью) или «На доработку». Строки берутся из позиций загруженных ТЗ: цвет, размер и вид меха — копия на момент добавления. Принятие в Коптево («Принято» / «Не принято» и причина) — в блоке «Приёмка в Коптево» под хронологией, только для строк «Готов к отгрузке».</p>}
           />
@@ -404,108 +423,9 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         )}
         </TimelineSection>
 
-        <AcceptList
-          shipmentId={s.id}
-          rows={lineRows}
-          canEdit={canEdit}
-          waiting={{ rework: reworkQty, review: reviewQty }}
-          event={acceptEvent ? { id: acceptEvent.id, stamp: fmtWall(acceptEvent.occurredAt, acceptEvent.timeKnown) } : null}
-          closed={s.acceptedAt && summary ? `${summary.accepted.stamp}${s.acceptedBy && !isSupplier ? `, принял ${s.acceptedBy}` : ""}` : null}
-          closeProps={{ rows: acceptRows, totals, names }}
-          createEvent={canEdit ? <CreateAcceptanceButton shipmentId={s.id} /> : null}
-        />
 
-        {ziView && (
-          <ZiSection rows={ziView.rows} supplies={ziView.supplies} priceDiffs={ziView.priceDiffs} unmatched={ziView.unmatched} staff={!isSupplier} />
-        )}
+        {ziView && <ZiDiffs supplies={ziView.supplies} priceDiffs={ziView.priceDiffs} unmatched={ziView.unmatched} />}
 
-        {s.acceptedAt && summary && (
-          <SummaryShell
-            shipmentId={s.id}
-            canEdit={canEdit}
-            subtitle={`${summary.accepted.title} · ${summary.accepted.stamp}${s.acceptedBy && !isSupplier ? ` · принял: ${s.acceptedBy}` : ""}${accEv?.side ? ` · на ком: ${SIDE_LABEL[accEv.side] ?? accEv.side}` : ""}`}
-          >
-            <div>
-              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Объёмы</h3>
-              <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                <div><dt className="text-xs text-neutral-500">К отгрузке</dt><dd className="text-lg font-semibold tabular-nums">{formatQty(totals.inShipment)} шт.</dd></div>
-                <div><dt className="text-xs text-neutral-500">Принято</dt><dd className="text-lg font-semibold tabular-nums">{formatQty(totals.accepted)} шт.<span className="ml-1 text-xs font-normal text-neutral-500">{sharePct(totals.accepted) ?? ""}</span></dd></div>
-                <div><dt className="text-xs text-neutral-500">Возврат (не принято)</dt><dd className="text-lg font-semibold tabular-nums">{formatQty(totals.returned)} шт.<span className="ml-1 text-xs font-normal text-neutral-500">{sharePct(totals.returned) ?? ""}</span></dd></div>
-                <div><dt className="text-xs text-neutral-500">Ещё ждёт приёмки</dt><dd className="text-lg font-semibold tabular-nums">{formatQty(totals.remaining)} шт.</dd></div>
-              </dl>
-              {allQty - totals.inShipment > 0 && (
-                <p className="mt-2 text-sm text-neutral-700" data-not-in-list>Не вошло в список приёмки (на доработке / просмотре): <span className="font-medium tabular-nums">{formatQty(allQty - totals.inShipment)} шт.</span></p>
-              )}
-              <div className="mt-3 overflow-x-auto rounded-md border border-neutral-200 bg-white">
-                <table className="w-full min-w-[560px] text-xs">
-                  <thead className="bg-neutral-50 text-left text-neutral-500">
-                    <tr><th className="px-2 py-1.5">ТЗ</th><th className="px-2 py-1.5">Артикул</th><th className="px-2 py-1.5 text-right">К отгрузке</th><th className="px-2 py-1.5 text-right">Принято</th><th className="px-2 py-1.5 text-right">Не принято</th><th className="px-2 py-1.5">Причина</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100">
-                    {groups.map((g) => (
-                      <tr key={g.key}>
-                        <td className="whitespace-nowrap px-2 py-1.5">{g.label}</td>
-                        <td className="px-2 py-1.5">{g.article}</td>
-                        <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(g.quantity)}</td>
-                        <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(g.accepted)}</td>
-                        <td className="px-2 py-1.5 text-right tabular-nums">{g.returned ? formatQty(g.returned) : "—"}</td>
-                        <td className="px-2 py-1.5">{g.reasons.join("; ")}</td>
-                      </tr>
-                    ))}
-                    <tr className="bg-neutral-50 font-medium">
-                      <td className="px-2 py-1.5" colSpan={2}>Всего, шт.</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(totals.inShipment)}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(totals.accepted)}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(totals.returned)}</td>
-                      <td />
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {reworkedLines.length > 0 && (
-              <p className="text-sm" data-reworked>Прошли доработку: <span className="font-medium">{reworkedLines.length} {reworkedLines.length === 1 ? "строка" : reworkedLines.length % 10 >= 2 && reworkedLines.length % 10 <= 4 && (reworkedLines.length % 100 < 12 || reworkedLines.length % 100 > 14) ? "строки" : "строк"}</span></p>
-            )}
-
-            <div>
-              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Сроки</h3>
-              <dl className="grid grid-cols-[10rem_1fr] gap-y-1 text-sm sm:grid-cols-[14rem_1fr]">
-                <dt className="text-neutral-500">Первая запись → приёмка</dt>
-                <dd>{summary.firstToAccept ? <><span className="font-medium">{summary.firstToAccept}</span> <span className="text-xs text-neutral-500">({summary.first?.title}, {summary.first?.stamp} → {summary.accepted.stamp})</span></> : "—"}</dd>
-                <dt className="text-neutral-500">План → факт</dt>
-                <dd><span className="tabular-nums">{summary.plan.planned} → {summary.plan.actual}</span> · <span className={"font-medium " + (summary.plan.days > 0 ? "text-red-700" : "text-emerald-800")}>{summary.plan.text}</span></dd>
-                {summary.chain.length > 0 && (
-                  <>
-                    <dt className="text-neutral-500">Ключевые интервалы</dt>
-                    <dd>
-                      <ul className="flex flex-col gap-0.5">
-                        {summary.chain.map((c, k) => (
-                          <li key={k}>{c.from} → {c.to}: <span className="font-medium">{c.text}</span></li>
-                        ))}
-                      </ul>
-                    </dd>
-                  </>
-                )}
-              </dl>
-            </div>
-
-            <div>
-              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Следующие действия</h3>
-              {returnLines.length === 0 ? (
-                <p className="text-sm text-neutral-600">Возвратов нет — действий не требуется.</p>
-              ) : (
-                <ul className="flex flex-col gap-1 text-sm">
-                  {returnLines.map((l) => (
-                    <li key={l.id}>
-                      <span className="font-medium">{lineText(l)}</span> — {formatQty(l.returnedQty ?? 0)} шт.: {l.comment ? l.comment : <span className="text-neutral-500">причина не указана</span>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </SummaryShell>
-        )}
       </section>
 
       <p className="text-xs text-neutral-500">Журнал пути партии, остатки не меняет.</p>
