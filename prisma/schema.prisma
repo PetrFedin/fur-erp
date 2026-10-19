@@ -198,6 +198,7 @@ model CalendarEvent {
 model Organization {
   rawStages SupplierRawStage[]
   supplierContracts SupplierContract[]
+  salesReceiptLines SalesReceiptLine[]
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
@@ -2036,4 +2037,55 @@ model ChannelDelivery {
 
   @@unique([messageId, channel, externalChatId])
   @@unique([channel, externalChatId, externalMessageId])
+}
+
+/// Поступления товара (единицы) и розничные продажи по датам из выгрузки «поступления и продажи» (листы «постапления» и «продажи»).
+/// Одна строка файла = одна запись: дата, артикул (как в файле), заказ, сезон, штуки, суммы в евро и рублях с НДС и без НДС, скидка.
+/// Размера в этих листах нет (размеры есть только в отчёте по товарам без дат). Загружается скриптом scripts/import-receipts-sales-2026-10-19.ts.
+enum SalesLineKind {
+  RECEIPT
+  SALE
+}
+
+model SalesReceiptLine {
+  id               String        @id @default(cuid())
+  organizationId   String
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Ключ строки источника (вид|заказ|артикул|цвет|дата) — идемпотентность импорта.
+  sourceKey        String
+  kind             SalesLineKind
+  /// «Номер заказа» (заказ на поставку), «Сезон» (FW 25/26, SS 2026, FW 26/27).
+  orderNo          String
+  season           String
+  /// «Article» целиком, как в файле, и «Fabric», «OrderColorID».
+  article          String
+  fabric           String?
+  colorId          String?
+  /// Код модели из начала артикула, приведённый к латинице без дефисов (M001A, MH07): для связи с «Изделиями» (ProductModel.name).
+  modelCode        String?
+  /// Level 02–05 файла: Одежда/Аксессуары → Одежда меховая/Шарфы… → Шубы/Шапка… → подвид.
+  level2           String?
+  level3           String?
+  level4           String?
+  level5           String?
+  date             DateTime      @db.Date
+  /// Штуки: поступило (Delivery PCS) или продано (Sales PCS); возврат — отрицательное число.
+  pcs              Int?
+  /// Только у продаж. «Sales Retail» = чистые продажи после скидки (в файле «NS»), «Discount» — уже вычтенная скидка.
+  retailEur        Decimal?      @db.Decimal(16, 4)
+  retailEurExVat   Decimal?      @db.Decimal(16, 4)
+  retailRub        Decimal?      @db.Decimal(16, 4)
+  retailRubExVat   Decimal?      @db.Decimal(16, 4)
+  discountEur      Decimal?      @db.Decimal(16, 4)
+  discountEurExVat Decimal?      @db.Decimal(16, 4)
+  discountRub      Decimal?      @db.Decimal(16, 4)
+  discountRubExVat Decimal?      @db.Decimal(16, 4)
+  /// Метка импорта (для отката).
+  importTag        String
+  createdAt        DateTime      @default(now())
+
+  @@unique([organizationId, sourceKey])
+  @@index([organizationId, kind, date])
+  @@index([organizationId, modelCode])
+  @@index([organizationId, season])
 }
