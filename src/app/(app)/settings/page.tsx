@@ -1,6 +1,7 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
+import { ACCESS, hasRole } from "@/lib/access";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 const SETTINGS_LINKS = [
@@ -16,6 +17,7 @@ const SETTINGS_LINKS = [
   { href: "/settings/articles-ref", title: "Справочник артикулов", description: "Коды и написания" },
   { href: "/warehouses", title: "Склады", description: "Сырьё и готовая продукция" },
   { href: "/settings/expense-categories", title: "Статьи расходов", description: "Дополнительные расходы" },
+  { href: "/settings/import", title: "Загрузка данных", description: "Продажи, прайс, размеры из Excel" },
   { href: "/users", title: "Пользователи", description: "Сотрудники и их роли" },
   { href: "/settings/channels", title: "Каналы: Telegram, WhatsApp", description: "Боты и привязки" },
 ];
@@ -28,7 +30,7 @@ const SUPPLIER_LINKS = ["/settings/colors", "/settings/categories", "/settings/f
 export default async function SettingsPage() {
   const session = await requireSession({ allowSupplier: true });
   const isSup = session.user.role === "SUPPLIER";
-  const links = isSup ? SETTINGS_LINKS.filter((l) => SUPPLIER_LINKS.includes(l.href)) : SETTINGS_LINKS;
+  const links = isSup ? SETTINGS_LINKS.filter((l) => SUPPLIER_LINKS.includes(l.href)) : SETTINGS_LINKS.filter((l) => l.href !== "/settings/import" || hasRole(session.user.role, ACCESS.dataImport));
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: isSup ? "Справочники" : "Настройки" }]} />

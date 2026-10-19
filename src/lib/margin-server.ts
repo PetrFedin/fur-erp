@@ -5,7 +5,8 @@ import { loadOrdersDrill } from "@/lib/orders-drill";
 import { isRepair, sumOrders, sumTotal } from "@/lib/orders-sum";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 import { classOfLevel2, normCode } from "@/lib/sales-receipts-core";
-import { RETAIL_PRICES_KEY, type FullLine, type MarginInput, type ModelCost, type RetailRow } from "@/lib/margin";
+import { loadRetailPricesState, loadReportSizesState } from "@/lib/import-keys";
+import { type FullLine, type MarginInput, type ModelCost, type RetailRow } from "@/lib/margin";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 
 /** Себестоимость единицы по моделям: Σ полной себестоимости ТЗ ÷ выпуск (как столбец «Себестоимость на 1 изделие» в «Изделиях»). Ключ — нормализованный код модели. */
@@ -29,7 +30,7 @@ export async function loadMarginInput(orgId: string, c4: Commission4Mode): Promi
   try {
     const [rows, state, models, costs] = await Promise.all([
       prisma.salesReceiptLine.findMany({ where: { organizationId: orgId }, select: { kind: true, date: true, season: true, level2: true, level3: true, level4: true, fabric: true, modelCode: true, article: true, colorId: true, pcs: true, retailRub: true, retailRubExVat: true, discountRub: true, discountRubExVat: true, retailEur: true, retailEurExVat: true, discountEur: true, discountEurExVat: true } }),
-      prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: orgId, key: RETAIL_PRICES_KEY } }, select: { value: true } }),
+      loadRetailPricesState(orgId),
       prisma.productModel.findMany({ where: { organizationId: orgId, sellingPrice: { not: null } }, select: { name: true, sellingPrice: true } }),
       loadModelCosts(orgId, c4),
     ]);
@@ -42,12 +43,12 @@ export async function loadMarginInput(orgId: string, c4: Commission4Mode): Promi
   }
 }
 
-import { REPORT_SIZES_KEY, type ReportSizeRow } from "@/lib/margin-tree";
+import { type ReportSizeRow } from "@/lib/margin-tree";
 import { loadPhotoSummary } from "@/lib/article-photos";
 
 /** Размеры из отчёта о товарах (apply-report-sizes-2026-10-19.ts); нет ключа — пусто. */
 export async function loadReportSizes(orgId: string): Promise<ReportSizeRow[]> {
-  const st = await prisma.systemState.findUnique({ where: { organizationId_key: { organizationId: orgId, key: REPORT_SIZES_KEY } }, select: { value: true } });
+  const st = await loadReportSizesState(orgId);
   const rows = (st?.value as { rows?: ReportSizeRow[] } | null)?.rows;
   return Array.isArray(rows) ? rows : [];
 }

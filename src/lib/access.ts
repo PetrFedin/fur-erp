@@ -35,6 +35,8 @@ export const ACCESS = {
   chat: ["OWNER", "ADMIN", "TECHNOLOGIST", "PURCHASER", "ACCOUNTANT"],
   // Каналы мессенджеров (/settings/channels): токен, привязки, WhatsApp.
   channels: ["OWNER", "ADMIN"],
+  // «Загрузка данных» (/settings/import): загрузка продаж, прайса и размеров из xlsx, откат по журналу.
+  dataImport: ["OWNER", "ADMIN"],
   taskDecisions: ["OWNER", "ADMIN"],
 } as const satisfies Record<string, readonly UserRole[]>;
 
