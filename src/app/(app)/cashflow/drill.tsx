@@ -118,7 +118,7 @@ export function SpendDetail({ pays, months, exVat, d, total }: { pays: PayLite[]
 }
 
 /** «Получено»: выбор сезона и категории → месяцы и артикулы. */
-export function RecvDetail({ lines, months, exVat, cat, total }: { lines: SalesAggLine[]; months: string[]; exVat: boolean; cat: CatClass | "all"; total: number }) {
+export function RecvDetail({ lines, months, exVat, cat, total, controls }: { lines: SalesAggLine[]; months: string[]; exVat: boolean; cat: CatClass | "all"; total: number; controls?: React.ReactNode }) {
   const seasons = useMemo(() => [...new Set(lines.map((l) => l.season))], [lines]);
   const [season, setSeason] = useState("all");
   const [cls, setCls] = useState<"all" | CatClass>("all");
@@ -129,6 +129,7 @@ export function RecvDetail({ lines, months, exVat, cat, total }: { lines: SalesA
   const isAll = season === "all" && cls === "all";
   return (
     <div className="flex flex-col gap-4">
+      {controls}
       <Chips label="Сезон" value={season} options={[["all", "Все сезоны"], ...seasons.map((s) => [s, s] as [string, string])]} onChange={setSeason} />
       <Chips label="Категория" value={cls} options={[["all", "Все категории"], ["clothes", CAT_LABEL.clothes], ["acc", CAT_LABEL.acc], ["other", CAT_LABEL.other]]} onChange={setCls} />
       <div className="grid gap-4 md:grid-cols-2">
@@ -167,7 +168,7 @@ type Agg = { pcs: number; rev: number; retailIncl: number; disc: number };
 const aggOf = (ls: SalesAggLine[], ex: boolean): Agg => ({ pcs: ls.reduce((a, l) => a + l.pcs, 0), rev: ls.reduce((a, l) => a + (ex ? l.retailRubExVat : l.retailRub), 0), retailIncl: ls.reduce((a, l) => a + l.retailRub, 0), disc: ls.reduce((a, l) => a + l.discountRub, 0) });
 
 /** «Средняя цена продажи»: чипы Тотал | сезон сверху; средняя цена, шт., выручка, скидка (Discount файла), категории, топ-артикулы и таблица по всем сезонам сразу. */
-export function PriceDetail({ lines, months, exVat, cat }: { lines: SalesAggLine[]; months: string[]; exVat: boolean; cat: CatClass | "all" }) {
+export function PriceDetail({ lines, months, exVat, cat, controls }: { lines: SalesAggLine[]; months: string[]; exVat: boolean; cat: CatClass | "all"; controls?: React.ReactNode }) {
   const seasons = useMemo(() => [...new Set(lines.map((l) => l.season))], [lines]);
   const [sel, setSel] = useState("all");
   const inPeriod = useMemo(() => lines.filter((l) => l.kind === "SALE" && inM(l.iso, months) && (cat === "all" || l.cls === cat)), [lines, months, cat]);
@@ -177,6 +178,7 @@ export function PriceDetail({ lines, months, exVat, cat }: { lines: SalesAggLine
   const byArt = groupSales(cur, months, exVat, (l) => l.article, "all");
   return (
     <div className="flex flex-col gap-4">
+      {controls}
       <Chips label="Сезон" value={sel} options={[["all", "Тотал"], ...seasons.map((s) => [s, s] as [string, string])]} onChange={setSel} />
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         <Stat2 label="Средняя цена продажи" value={avg(a)} sub={exVat ? "без НДС" : "с НДС"} />

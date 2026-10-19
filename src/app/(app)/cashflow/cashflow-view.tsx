@@ -725,9 +725,9 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
       </section>
 
       {openTile && (
-        <TileModal title={{ spend: "Потрачено", recv: "Получено", flow: "Денежный поток по месяцам", workMonth: "Работа в месяц", workUnit: "Работа на единицу", price: "Средняя цена продажи" }[openTile] ?? ""} subtitle={shownText} onClose={() => setOpenTile(null)}>
+        <TileModal title={{ spend: "Потрачено", recv: "Получено", flow: "Денежный поток по месяцам", workMonth: "Работа в месяц", workUnit: "Работа на единицу", price: "Средняя цена продажи" }[openTile] ?? ""} subtitle={openTile === "recv" ? shownText.replace(/с НДС|без НДС/, recvEx ? "без НДС" : "с НДС") : openTile === "price" ? shownText.replace(/с НДС|без НДС/, priceEx ? "без НДС" : "с НДС") : shownText} onClose={() => setOpenTile(null)}>
           {openTile === "spend" && <SpendDetail pays={pays} months={months} exVat={exVat} d={d} total={h.spent} />}
-          {openTile === "recv" && <RecvDetail lines={saleLines} months={months} exVat={recvEx} cat={catArg} total={recvSum(cat)} />}
+          {openTile === "recv" && <RecvDetail lines={saleLines} months={months} exVat={recvEx} cat={catArg} total={recvSum(cat)} controls={<VatSeg choice={recvChoice} setChoice={setRecvChoice} globalEx={exVat} />} />}
           {openTile === "flow" && (
             <div className="flex flex-col gap-3">
               <p className="text-xs text-neutral-800">
@@ -739,7 +739,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
           )}
           {openTile === "workMonth" && <WorkMonthWindow months={wm.months} by={wm.by} initialCat={cat} />}
           {openTile === "workUnit" && <WorkUnitWindow months={wm.months} by={wm.by} initialCat={cat} />}
-          {openTile === "price" && <PriceDetail lines={saleLines} months={months} exVat={priceEx} cat={catArg} />}
+          {openTile === "price" && <PriceDetail lines={saleLines} months={months} exVat={priceEx} cat={catArg} controls={<VatSeg choice={priceChoice} setChoice={setPriceChoice} globalEx={exVat} />} />}
         </TileModal>
       )}
 
