@@ -20,9 +20,10 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
   // Закупки вне аукциона: Σ оплат листьев = Σ завершённых оплат этих закупок (SQL)
   const ps = await prisma.purchase.findMany({
     where: { organizationId: org, status: { not: "CANCELLED" } },
-    select: { auctionSession: true, payments: { where: { status: "COMPLETED" }, select: { amount: true } } },
+    select: { auctionSession: true, _count: { select: { items: true, expenses: true } }, payments: { where: { status: "COMPLETED" }, select: { amount: true } } },
   });
-  const noAuc = ps.filter((p) => auctionName(p.auctionSession) == null && p.payments.length > 0);
+  // Закупки-услуги (УПД без позиций сырья) в сводке по сырью — листьев нет: их оплаты идут отдельной статьёй «Услуги по УПД» (см. test-reconciliation).
+  const noAuc = ps.filter((p) => auctionName(p.auctionSession) == null && p.payments.length > 0 && !(p._count.items === 0 && p._count.expenses > 0));
   const r = { s: noAuc.reduce((t, p) => t + p.payments.reduce((x, y) => x + Number(y.amount), 0), 0), n: noAuc.length };
   const got = leaves.filter((l) => l.auction === NO_AUCTION).reduce((s, l) => s + l.paidIncl.toNumber(), 0);
   eq("закупки вне аукциона: Σ «Оплачено» листьев = Σ оплат закупок (SQL)", got, r.s, 0.05);

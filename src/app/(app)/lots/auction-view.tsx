@@ -15,7 +15,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatDate, formatQty } from "@/lib/utils";
 import { Money } from "@/components/money";
-import { lotUnitCostExclVat } from "@/lib/purchase-totals";
+import { lotUnitCostExclVat, expenseInclVat } from "@/lib/purchase-totals";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 import { DocEditControls, ToggleAllPurchases } from "./auction-controls";
 import { buildAuctionRows } from "./auction-rows";
@@ -256,7 +256,7 @@ export async function AuctionView({
       return { i, unitIncl, unitExcl, totalIncl, totalExcl, lotPriceIncl, base, breakdown, source };
     });
     // Расходы закупки у принятой уже распределены по лотам; у черновика — отдельной строкой.
-    const expIncl = p.expenses.reduce((s, e) => s.add(grossUp(e.amount, e.vatRate)), zero());
+    const expIncl = p.expenses.reduce((s, e) => s.add(expenseInclVat(e)), zero());
     const expExcl = p.expenses.reduce((s, e) => s.add(e.amount), zero());
     const unallocated = p.status !== "RECEIVED" && p.status !== "CANCELLED" && !filtering;
     const sum = (f: (l: (typeof lines)[number]) => Decimal) => lines.reduce((acc, l) => acc.add(f(l)), zero());

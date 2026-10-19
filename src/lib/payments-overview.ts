@@ -7,6 +7,7 @@ import { getFurIndex } from "@/lib/fur-ref-server";
 import { auctionName } from "@/lib/auction-payments";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { cleanNote } from "@/lib/note-tags";
+import { isServicePurchaseByCount } from "@/lib/service-purchase";
 import { PAYER_NAME, contractorOfPayment, docNo } from "@/lib/payment-parties";
 
 /** Куда разнесена оплата: закупка, ТЗ или «без привязки». Σ частей = сумма оплаты. */
@@ -19,9 +20,10 @@ export type OverviewRow = {
   iso: string;
   year: number;
   amount: number;
-  /** Статьи: мех и подкладка — для сырья; работа и шкуры подрядчика — для производства. Σ = amount. */
+  /** Статьи: мех и подкладка — для сырья; услуги по УПД (закупки без позиций) — отдельно от меха; работа и шкуры подрядчика — для производства. Σ = amount. */
   fur: number;
   lining: number;
+  services: number;
   work: number;
   hides: number;
   /** Что оплачено: аукцион/закупка или «Аванс · ТЗ …». */
@@ -60,7 +62,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
     loadFurLots(prisma, orgId, { kind: "lining", year: "all", furIdx }),
     prisma.payment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, createdAt: true, purchaseId: true, auctionSession: true, confirmedAt: true, kind: true, docRef: true, notes: true, method: true, percent: true, documentId: true, supplier: { select: { name: true } }, _count: { select: { driveDocuments: { where: { storagePath: { not: null } } } } }, purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true, invoiceNumber: true } } },
+      select: { id: true, amount: true, paidAt: true, createdAt: true, purchaseId: true, auctionSession: true, confirmedAt: true, kind: true, docRef: true, notes: true, method: true, percent: true, documentId: true, supplier: { select: { name: true } }, _count: { select: { driveDocuments: { where: { storagePath: { not: null } } } } }, purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true, invoiceNumber: true, status: true, _count: { select: { items: true, expenses: true } } } } },
       orderBy: { paidAt: "desc" },
     }),
     prisma.productionPayment.findMany({
@@ -96,7 +98,9 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
   for (const p of pays) {
     const amount = p.amount.toNumber();
     const lots = p.purchaseId ? byPurchase.get(p.purchaseId) : p.auctionSession ? byAuction.get(p.auctionSession) : undefined;
-    const lining = lots ? amount * share(lots) : 0;
+    // Оплата закупки-услуги (УПД без позиций сырья): не мех и не подкладка — отдельная статья «Услуги по УПД».
+    const service = !!p.purchase && isServicePurchaseByCount(p.purchase);
+    const lining = lots && !service ? amount * share(lots) : 0;
     const au = auctionName(p.auctionSession ?? p.purchase?.auctionSession ?? null);
     const group = au ? purchasesOfAuction.get(au) ?? [] : [];
     const groupTotal = group.reduce((a, x) => a + x.total, 0);
@@ -111,9 +115,9 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
     const rawFields: [string, string][] = [
       ["Дата оплаты", ruDate(p.paidAt)],
       ["Сумма", money(amount)],
-      ["Вид оплаты", "За сырьё"],
+      ["Вид оплаты", service ? "За услуги" : "За сырьё"],
       ["Тип", whatRaw + (p.percent ? ` · ${formatPercent(Number(p.percent.toString()))} от суммы партии` : "")],
-      ["Статья", `мех ${money(amount - lining)}` + (lining > 0.005 ? ` · подкладка ${money(lining)}` : "")],
+      ["Статья", service ? `услуги по УПД ${money(amount)}` : `мех ${money(amount - lining)}` + (lining > 0.005 ? ` · подкладка ${money(lining)}` : "")],
       ["Плательщик", PAYER_NAME],
       ["Получатель", p.supplier.name],
       ["За что", au ? `Партия «${au}»${p.purchase ? ` · закупка ${p.purchase.number}` : ""}` : p.purchase ? `Закупка ${p.purchase.number}` : "Без привязки к закупке (аванс)"],
@@ -139,7 +143,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       edit: unlinked ? "advance" : p.purchaseId ? "purchase" : "auction",
       // Год сырьевой оплаты — год закупки (без аукциона: год заказа закупки): тогда по году «куплено − оплачено = долг» и все разделы сходятся.
       id: p.id, kind: "raw", iso: p.paidAt.toISOString().slice(0, 10), year: (!au && p.purchase?.orderDate ? p.purchase.orderDate.getUTCFullYear() : p.paidAt.getUTCFullYear()), amount,
-      fur: amount - lining, lining, work: 0, hides: 0,
+      fur: service ? 0 : amount - lining, lining, services: service ? amount : 0, work: 0, hides: 0,
       label: au ?? p.purchase?.number ?? "Аванс без привязки",
       confirmed: p.confirmedAt != null,
       doc: p.docRef?.trim() || null,
@@ -224,7 +228,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       })(),
       edit: "prod",
       id: p.id, kind: "prod", iso, year: p.paidAt.getUTCFullYear(), amount,
-      fur: hides, lining: 0, work: amount - hides, hides,
+      fur: hides, lining: 0, services: 0, work: amount - hides, hides,
       label: p.paymentType === "ADVANCE" ? "Аванс за пошив" : p.paymentType === "PARTIAL" ? "Доплата за пошив" : "Оплата за пошив",
       confirmed: p.confirmedAt != null,
       doc: p.docRef?.trim() || null,
@@ -238,7 +242,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
 }
 
 /** Сколько ещё предстоит оплатить по годам: сырьё — остаток долга поставщику по аукционам (год из названия), производство — работа ТЗ минус оплаты и авансы. Те же числа, что на Главной. */
-async function loadPaymentsLeftImpl(orgId: string): Promise<{ byYear: Map<number, { raw: number; prod: number }>; raw: number; prod: number; overpaid: { name: string; amount: number }[] }> {
+async function loadPaymentsLeftImpl(orgId: string): Promise<{ byYear: Map<number, { raw: number; prod: number; adv: number }>; raw: number; prod: number; advance: number; overpaid: { name: string; amount: number }[] }> {
   const { loadSupplierDebt } = await import("@/lib/supplier-debt");
   const { loadClientDebt } = await import("@/lib/payment-alloc");
   const { loadOrderRows } = await import("@/lib/analytics-orders");
@@ -248,9 +252,9 @@ async function loadPaymentsLeftImpl(orgId: string): Promise<{ byYear: Map<number
     loadOrderRows(orgId, "all", "on"),
     prisma.paymentAllocation.groupBy({ by: ["productionOrderId"], where: { organizationId: orgId, productionPayment: { status: "COMPLETED" } }, _sum: { amount: true } }),
   ]);
-  const byYear = new Map<number, { raw: number; prod: number }>();
-  const add = (y: number, k: "raw" | "prod", v: number) => {
-    const cur = byYear.get(y) ?? { raw: 0, prod: 0 };
+  const byYear = new Map<number, { raw: number; prod: number; adv: number }>();
+  const add = (y: number, k: "raw" | "prod" | "adv", v: number) => {
+    const cur = byYear.get(y) ?? { raw: 0, prod: 0, adv: 0 };
     cur[k] += v;
     byYear.set(y, cur);
   };
@@ -268,11 +272,13 @@ async function loadPaymentsLeftImpl(orgId: string): Promise<{ byYear: Map<number
     const left = o.work - (al.get(o.id) ?? 0);
     if (left > 0.5) add(o.year ?? 2026, "prod", left);
   }
+  // Неразнесённые авансы подрядчику — отдельной строкой («Аванс подрядчику»), а не минусом в долге: «К оплате» по работе = остаток работы по ТЗ, не меньше нуля.
   for (const p of cd.payments) {
     if (/шкур/i.test(`${p.docRef ?? ""} ${p.notes ?? ""}`) && p.rest.toNumber() > 1) continue;
-    add(p.paidAt.getUTCFullYear(), "prod", -p.rest.toNumber());
+    add(p.paidAt.getUTCFullYear(), "adv", p.rest.toNumber());
   }
-  return { byYear, raw: debt.debt.toNumber(), prod: cd.balance, overpaid: debt.overpaid.map((o) => ({ name: o.name, amount: o.amount.toNumber() })) };
+  const sumBy = (k: "prod" | "adv") => Array.from(byYear.values()).reduce((a, v) => a + v[k], 0);
+  return { byYear, raw: debt.debt.toNumber(), prod: sumBy("prod"), advance: sumBy("adv"), overpaid: debt.overpaid.map((o) => ({ name: o.name, amount: o.amount.toNumber() })) };
 }
 
 export const loadPaymentsOverview = memoRequest("paymentsOverview", loadPaymentsOverviewImpl, (orgId) => orgId);

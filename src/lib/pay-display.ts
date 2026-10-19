@@ -5,10 +5,12 @@ import type { FlowFigures } from "@/lib/fur-table";
 
 export type PayInput = {
   raw: { fur: { incl: FlowFigures }; lining: { incl: FlowFigures } };
-  paidByItem: { fur: number; lining: number; work: number };
-  left: { fur: number; lining: number; prod: number };
+  paidByItem: { fur: number; lining: number; services: number; work: number };
+  left: { fur: number; lining: number; services: number; prod: number };
+  /** Аванс подрядчику (неразнесённый): входит в «Оплачено» за работу, в «К оплате» и «Общую стоимость» — нет (отдельная строка). */
+  advance: number;
 };
-type Item = "fur" | "lining" | "work";
+type Item = "fur" | "lining" | "services" | "work";
 
 export function payNumbers(d: PayInput, c4Mode: "on" | "off", only?: "fur" | "lining" | "raw") {
   const prodPaid = d.paidByItem.work;
@@ -26,12 +28,14 @@ export function payNumbers(d: PayInput, c4Mode: "on" | "off", only?: "fur" | "li
   };
 
   const inFur = only !== "lining", inLin = only !== "fur", inWork = !only;
-  const items: Item[] = [...(inFur ? ["fur" as const] : []), ...(inLin ? ["lining" as const] : []), ...(inWork ? ["work" as const] : [])];
-  const paidEx: Record<Item, number> = { fur: d.paidByItem.fur, lining: d.paidByItem.lining, work: prodPaid };
-  const leftEx: Record<Item, number> = { fur: d.left.fur, lining: d.left.lining, work: d.left.prod };
+  // Услуги по УПД (закупки без позиций сырья) — отдельная статья; только когда они есть, и не в срезах «только мех» / «только подкладка».
+  const inServ = (only === undefined || only === "raw") && (Math.abs(d.paidByItem.services) >= 0.5 || Math.abs(d.left.services) >= 0.5);
+  const items: Item[] = [...(inFur ? ["fur" as const] : []), ...(inLin ? ["lining" as const] : []), ...(inServ ? ["services" as const] : []), ...(inWork ? ["work" as const] : [])];
+  const paidEx: Record<Item, number> = { fur: d.paidByItem.fur, lining: d.paidByItem.lining, services: d.paidByItem.services, work: prodPaid };
+  const leftEx: Record<Item, number> = { fur: d.left.fur, lining: d.left.lining, services: d.left.services, work: d.left.prod };
   const alPaid = alignColumn(items.map((k) => paidEx[k]));
   const alLeft = alignColumn(items.map((k) => leftEx[k]));
-  const P = { fur: 0, lining: 0, work: 0 }, L = { fur: 0, lining: 0, work: 0 };
+  const P = { fur: 0, lining: 0, services: 0, work: 0 }, L = { fur: 0, lining: 0, services: 0, work: 0 };
   items.forEach((k, i) => { P[k] = alPaid.values[i]; L[k] = alLeft.values[i]; });
   const paidAll = alPaid.total, leftAll = alLeft.total;
   // Общая стоимость по статье: сырьё — как «Куплено» на Главной (сумма лотов), если оно сходится с документами до пяти рублей (копеечное округление цен лотов);
@@ -41,10 +45,12 @@ export function payNumbers(d: PayInput, c4Mode: "on" | "off", only?: "fur" | "li
     const diff = exact - (paidEx[k] + leftEx[k]);
     return Math.abs(diff) < 0.005 || Math.abs(diff) > 5 ? null : (k === "fur" ? top.fur.r : top.lin.r);
   };
-  const T = { fur: recvTotal("fur") ?? P.fur + L.fur, lining: recvTotal("lining") ?? P.lining + L.lining, work: P.work + L.work };
+  // Работа: «Общая стоимость» = работа по ТЗ = разнесённое + остаток; неразнесённый аванс — предоплата будущих ТЗ, в стоимость не входит (отдельная строка).
+  const adv = inWork ? Math.max(0, Math.min(Math.round(d.advance), P.work)) : 0;
+  const T = { fur: recvTotal("fur") ?? P.fur + L.fur, lining: recvTotal("lining") ?? P.lining + L.lining, services: P.services + L.services, work: P.work - adv + L.work };
   const roundAll = (inFur ? T.fur - P.fur - L.fur : 0) + (inLin ? T.lining - P.lining - L.lining : 0);
   const totalAll = items.reduce((a, k) => a + T[k], 0);
   const furPaidD = split(furD, paidEx.fur, P.fur), linPaidD = split(linD, paidEx.lining, P.lining);
   const furLeftD = split(furD, leftEx.fur, L.fur), linLeftD = split(linD, leftEx.lining, L.lining);
-  return { top, furD, linD, inFur, inLin, inWork, items, P, L, T, paidAll, leftAll, roundAll, totalAll, furPaidD, linPaidD, furLeftD, linLeftD };
+  return { top, furD, linD, inFur, inLin, inWork, inServ, adv, items, P, L, T, paidAll, leftAll, roundAll, totalAll, furPaidD, linPaidD, furLeftD, linLeftD };
 }

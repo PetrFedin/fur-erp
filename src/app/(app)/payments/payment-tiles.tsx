@@ -18,21 +18,23 @@ type Props = {
   deadlines?: ReactNode;
   debtWarn?: boolean;
   /** Мех / подкладка: оплачено и к оплате (те же числа, что на Главной). */
-  split?: { paid: { fur: number; lining: number }; debt: { fur: number; lining: number } };
+  split?: { paid: { fur: number; lining: number; services?: number }; debt: { fur: number; lining: number; services?: number } };
   /** Копеечное округление «Куплено» (сумма лотов) против документов: добавляется к «Общей стоимости» отдельной строкой, чтобы итог совпал с Главной. */
   rounding?: number;
   /** Целые рубли, сходящиеся на экране (src/lib/pay-display.ts): те же числа, что в плитках оплат на Главной. Нет — точные суммы, как раньше. */
-  shown?: { total: number; paid: number; left: number; round: number; totalFur: number; totalLining: number; paidFur: number; paidLining: number; leftFur: number; leftLining: number };
+  shown?: { total: number; paid: number; left: number; round: number; totalFur: number; totalLining: number; paidFur: number; paidLining: number; leftFur: number; leftLining: number; totalServices?: number; paidServices?: number; leftServices?: number };
 };
 
 const rub = (v: number) => formatMoney(Math.abs(v - Math.round(v)) < 0.005 ? Math.round(v) : v.toFixed(2));
 
 /** Мех и подкладка с долей от суммы плитки. */
-function stat(_value: number, whole: number, fur: number, lining: number, warn = false): TileItem[] {
+function stat(_value: number, whole: number, fur: number, lining: number, warn = false, services = 0): TileItem[] {
   const part = (v: number) => (whole > 0.5 ? v / whole : null);
   return [
     { k: "Мех", v: rub(fur), share: part(fur), tone: warn && fur > 0 ? "text-amber-700" : undefined },
     { k: "Подкладка", v: rub(lining), share: part(lining), tone: warn && lining > 0 ? "text-amber-700" : undefined },
+    // Закупки-услуги (УПД без позиций сырья) — отдельной строкой, не в меху; только когда они есть.
+    ...(Math.abs(services) >= 0.5 ? [{ k: "Услуги по УПД", v: rub(services), share: part(services), tone: warn && services > 0 ? "text-amber-700" : undefined }] : []),
   ];
 }
 
@@ -102,9 +104,9 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
     <>
       <WidgetRow id="payments" title="Итоги" headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-pay-tiles>
-        <Tile label="Общая стоимость" value={rub(shown ? shown.total : paid.total + debt.total + rounding)} hint={<InfoHint label="Что такое общая стоимость" align="right"><p>Оплачено плюс осталось оплатить за сырьё (мех с шкурами подрядчика, подкладка). Всегда с НДС; 4% отдельно не добавляются.</p></InfoHint>} items={shown ? [...stat(shown.total, shown.total, shown.totalFur, shown.totalLining), ...(shown.round !== 0 ? [{ k: "округление (лоты и документы)", v: rub(shown.round) }] : [])] : split ? [...stat(paid.total + debt.total, paid.total + debt.total, split.paid.fur + split.debt.fur, split.paid.lining + split.debt.lining), ...(rounding !== 0 ? [{ k: "Округление", v: rub(rounding) }] : [])] : undefined} />
-        <Tile label="Оплачено" value={rub(shown ? shown.paid : paid.total)} hint={paidHint} onOpen={() => setOpen("paid")} items={shown ? stat(shown.paid, shown.paid, shown.paidFur, shown.paidLining) : split ? stat(paid.total, paid.total, split.paid.fur, split.paid.lining) : undefined} />
-        <Tile label="К оплате" value={rub(shown ? shown.left : debt.total)} hint={debtHint} onOpen={() => setOpen("debt")} valueClass={debtWarn ? "text-amber-700" : ""} items={shown ? stat(shown.left, shown.left, shown.leftFur, shown.leftLining, true) : split ? stat(debt.total, debt.total, split.debt.fur, split.debt.lining, true) : undefined}>
+        <Tile label="Общая стоимость" value={rub(shown ? shown.total : paid.total + debt.total + rounding)} hint={<InfoHint label="Что такое общая стоимость" align="right"><p>Оплачено плюс осталось оплатить за сырьё (мех с шкурами подрядчика, подкладка) и услуги по УПД (если есть). Всегда с НДС; 4% отдельно не добавляются.</p></InfoHint>} items={shown ? [...stat(shown.total, shown.total, shown.totalFur, shown.totalLining, false, shown.totalServices), ...(shown.round !== 0 ? [{ k: "округление (лоты и документы)", v: rub(shown.round) }] : [])] : split ? [...stat(paid.total + debt.total, paid.total + debt.total, split.paid.fur + split.debt.fur, split.paid.lining + split.debt.lining, false, (split.paid.services ?? 0) + (split.debt.services ?? 0)), ...(rounding !== 0 ? [{ k: "Округление", v: rub(rounding) }] : [])] : undefined} />
+        <Tile label="Оплачено" value={rub(shown ? shown.paid : paid.total)} hint={paidHint} onOpen={() => setOpen("paid")} items={shown ? stat(shown.paid, shown.paid, shown.paidFur, shown.paidLining, false, shown.paidServices) : split ? stat(paid.total, paid.total, split.paid.fur, split.paid.lining, false, split.paid.services) : undefined} />
+        <Tile label="К оплате" value={rub(shown ? shown.left : debt.total)} hint={debtHint} onOpen={() => setOpen("debt")} valueClass={debtWarn ? "text-amber-700" : ""} items={shown ? stat(shown.left, shown.left, shown.leftFur, shown.leftLining, true, shown.leftServices) : split ? stat(debt.total, debt.total, split.debt.fur, split.debt.lining, true, split.debt.services) : undefined}>
           {deadlines}
         </Tile>
       </div>

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
 
-import { lotUnitCostExclVat, purchaseTotalExclVat, purchaseTotalInclVat } from "@/lib/purchase-totals";
+import { expenseInclVat, lotUnitCostExclVat, purchaseTotalExclVat, purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { auctionName, loadAuctionSummaries } from "@/lib/auction-payments";
 
 /**
@@ -165,7 +165,7 @@ export async function loadSummary(organizationId: string): Promise<SummaryData> 
     // Расходы закупки у принятой уже внутри собственных лотов; у черновика и у позиций общих лотов
     // раскладываем по позициям пропорционально цене.
     if (p.expenses.length > 0 && lines.length > 0) {
-      const expIncl = p.expenses.reduce((s, e) => s.add(grossUp(e.amount, e.vatRate)), zero());
+      const expIncl = p.expenses.reduce((s, e) => s.add(expenseInclVat(e)), zero());
       const expExcl = p.expenses.reduce((s, e) => s.add(e.amount), zero());
       const sumBase = lines.reduce((s, l) => s.add(l.base), zero());
       for (const l of lines) {

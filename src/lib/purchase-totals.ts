@@ -26,6 +26,14 @@ export function grossUp(base: Prisma.Decimal, vatRate: Prisma.Decimal) {
 }
 
 /**
+ * Расход закупки (услуга, доставка…) с НДС — в копейках: сумма в счёте/УПД всегда с копейками, поэтому
+ * 20 416,67 + 20 % даёт 24 500,00, а не 24 500,004 (иначе у полностью оплаченной закупки остаётся «долг» в доли копейки).
+ */
+export function expenseInclVat(e: { amount: Prisma.Decimal; vatRate: Prisma.Decimal }) {
+  return grossUp(e.amount, e.vatRate).toDecimalPlaces(2);
+}
+
+/**
  * Item prices/expense amounts are entered excluding VAT; this computes the
  * VAT-inclusive RUB total a purchase actually costs (what's owed to the
  * supplier), matching the landed-cost calculation in purchases/actions.ts.
@@ -39,7 +47,7 @@ export function purchaseTotalInclVat(purchase: {
     (s, i) => s.add(planUnit(i)?.incl ?? grossUp(i.subtotal.mul(purchase.exchangeRate), i.vatRate)),
     new Decimal(0)
   );
-  const expensesInclVat = purchase.expenses.reduce((s, e) => s.add(grossUp(e.amount, e.vatRate)), new Decimal(0));
+  const expensesInclVat = purchase.expenses.reduce((s, e) => s.add(expenseInclVat(e)), new Decimal(0));
   return itemsInclVatRub.add(expensesInclVat);
 }
 

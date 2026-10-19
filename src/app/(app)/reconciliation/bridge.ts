@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { loadPaymentsLeft, loadPaymentsOverview } from "@/lib/payments-overview";
 import { loadDebtInputs, supplierDebtFromInputs } from "@/lib/supplier-debt";
 import { loadDashboard } from "@/lib/dashboard-data";
+import { purchaseTotalInclVat } from "@/lib/purchase-totals";
+import { isServicePurchase } from "@/lib/service-purchase";
 import { parseDashFilters } from "@/lib/dashboard-calc";
 import type { Live } from "./live";
 import { ALL_GROUPS, ALL_INVOICES, calcInvoice, groupInvoices, totalsOf } from "./model";
@@ -28,12 +30,15 @@ const SMALL = 500;
 export async function loadReconBridge(orgId: string, live: Live): Promise<ReconBridge> {
   const [ov, left, inp, dash] = await Promise.all([loadPaymentsOverview(orgId), loadPaymentsLeft(orgId), loadDebtInputs(prisma, orgId), loadDashboard(orgId, "all", parseDashFilters({}), "off")]);
   const sum = (k: "fur" | "lining" | "work" | "hides") => ov.reduce((a, r) => a + r[k], 0);
-  const mainRawDocs = sum("fur") + sum("lining") + Array.from(left.byYear.values()).reduce((a, v) => a + v.raw, 0);
+  // Закупки-услуги (УПД без позиций сырья) — отдельная статья «Услуги по УПД»: ни в «Куплено», ни в сырьё Главной не входят.
+  const servicesCost = inp.allPurchases.filter((p) => isServicePurchase(p)).reduce((a, p) => a + purchaseTotalInclVat(p).toNumber(), 0);
+  const mainRawDocs = sum("fur") + sum("lining") + Array.from(left.byYear.values()).reduce((a, v) => a + v.raw, 0) - dash.left.services;
   // Сырьё «Главной» = «Куплено» мех + подкладка (сумма лотов). Документы отличаются от лотов на копейки (цена за единицу в лоте округлена): это отдельная строка «Прочее (округление)».
   // Больше пяти рублей — уже не округление (неполученный мех, фильтры): тогда берём документы, как раньше.
   const mainRawLots = dash.raw.fur.incl.recvValue + dash.raw.lining.incl.recvValue;
   const mainRaw = Math.abs(mainRawLots - mainRawDocs) <= 5 ? mainRawLots : mainRawDocs;
-  const mainWork = sum("work") + Array.from(left.byYear.values()).reduce((a, v) => a + v.prod, 0);
+  // Работа = оплачено за работу (с неразнесённым авансом) − неразнесённый аванс + остаток работы по ТЗ: аванс — предоплата будущих ТЗ, в стоимость работы не входит.
+  const mainWork = sum("work") - Array.from(left.byYear.values()).reduce((a, v) => a + v.adv, 0) + Array.from(left.byYear.values()).reduce((a, v) => a + v.prod, 0);
   const debtTotal = supplierDebtFromInputs(inp, "all").total.toNumber();
   const hides = sum("hides");
 
@@ -61,7 +66,7 @@ export async function loadReconBridge(orgId: string, live: Live): Promise<ReconB
   }
   purchase.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
   if (smallN > 0) purchase.push({ label: `Мелкие расхождения до ${SMALL} ₽ (округление), групп: ${smallN}`, value: r2(small) });
-  const outside = r2(debtTotal - dbGroups);
+  const outside = r2(debtTotal - servicesCost - dbGroups);
   if (Math.abs(outside) >= 0.005) purchase.push({ label: "Закупки в базе вне групп реестра", value: outside, note: "закупки, которые не привязаны ни к одной группе реестра" });
   if (Math.abs(hides) >= 0.005) purchase.push({ label: "Шкуры подрядчика", value: r2(hides), note: "оплачены в составе счетов за пошив; на Главной входят в сырьё («Использовано» меха), в реестре закупок их нет" });
   const purchaseRest = r2(mainRaw - regPurchase - purchase.reduce((a, r) => a + r.value, 0));

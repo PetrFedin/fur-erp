@@ -21,6 +21,7 @@ import { overpayTarget } from "@/lib/overpay-notes";
 import { allocateHides, hidesApply, hidesByPayYear } from "@/lib/contractor-hides";
 import { loadDebtInputs, supplierDebtFromInputs, type SupplierDebt } from "@/lib/supplier-debt";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
+import { isServicePurchase } from "@/lib/service-purchase";
 import { loadControlCounts, type ControlCounts } from "@/lib/control-counts";
 import { availableYears, inYear, type YearFilter } from "@/lib/year-filter";
 import type { Commission4Mode } from "@/lib/commission4-mode";
@@ -101,12 +102,17 @@ export type DashboardData = {
   auctionSrc: Record<string, "auction" | "supplier">;
   debt: SupplierDebt;
   supplierCashPaid: number;
-  /** Оплачено по статьям: сырьё (мех / подкладка), работа подрядчику, расчётная надбавка 4%. */
-  paidByItem: { fur: number; lining: number; work: number };
-  /** Оплачено по типам платежа (аванс, доплата, окончательный расчёт, прочее): сумма и число платежей; Σ = fur + lining + work без фильтров. */
+  /** Оплачено по статьям: сырьё (мех / подкладка), услуги по УПД (закупки без позиций сырья), работа подрядчику (в ней неразнесённый аванс), расчётная надбавка 4%. */
+  paidByItem: { fur: number; lining: number; services: number; work: number };
+  /** Оплачено по типам платежа (аванс, доплата, окончательный расчёт, прочее): сумма и число платежей; Σ = fur + lining + services + work без фильтров. */
   paidByType: { type: "ADVANCE" | "PARTIAL" | "FINAL" | "OTHER"; amount: number; count: number }[];
   /** Осталось оплатить: сырьё (долг поставщику) и производство (долг по работе подрядчику) — те же числа, что в «Оплаты → Все». */
-  left: { raw: number; fur: number; lining: number; prod: number };
+  left: { raw: number; fur: number; lining: number; services: number; prod: number };
+  /**
+   * Аванс подрядчику (неразнесённый): оплачено по ТЗ, которых ещё нет в базе (авансы на будущие партии). Он входит в «Оплачено» (paidByItem.work),
+   * но НЕ вычитается из «К оплате»: left.prod — остаток работы по заведённым ТЗ, не меньше нуля. Без фильтров панели; при фильтрах — 0.
+   */
+  advance: number;
   /** Оплачено и долг по сырью — итог строки «Всего» в «Динамике по сырью» (те же числа, что в «Оплатах»). */
   /** Аукционы с переплатой: учтены в долге по сырью (зачтены поставщиком). */
   overpaid: { name: string; amount: number }[];
@@ -478,11 +484,11 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
   const supplierCashPaid = debt.paid.add(debt.unlinkedAdvances).toNumber();
   const ovLeft = ovLeftAll;
   const ovYear = ovAll.filter((r) => year === "all" || r.year === Number(year));
-  const sumOv = (k: "fur" | "lining" | "work") => ovYear.reduce((a, r) => a + r[k], 0);
-  const paidByItem = { fur: sumOv("fur"), lining: sumOv("lining"), work: sumOv("work") };
+  const sumOv = (k: "fur" | "lining" | "services" | "work") => ovYear.reduce((a, r) => a + r[k], 0);
+  const paidByItem = { fur: sumOv("fur"), lining: sumOv("lining"), services: sumOv("services"), work: sumOv("work") };
   const paidByType = (["ADVANCE", "PARTIAL", "FINAL", "OTHER"] as const).map((type) => {
     const rs = ovYear.filter((r) => r.type === type);
-    return { type, amount: rs.reduce((a, r) => a + r.fur + r.lining + r.work, 0), count: rs.length };
+    return { type, amount: rs.reduce((a, r) => a + r.fur + r.lining + r.services + r.work, 0), count: rs.length };
   });
   const leftYears = Array.from(ovLeft.byYear.entries()).filter(([y]) => year === "all" || y === Number(year));
   const leftRaw = leftYears.reduce((a, [, v]) => a + v.raw, 0);
@@ -495,7 +501,12 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
     return tot > 0 ? ls.filter((l) => l.kind === "lining").reduce((a, l) => a + l.recvIncl, 0) / tot : 0;
   };
   const leftLining = debt.byAuction.reduce((a, x) => a + x.due.toNumber() * liningShare(x.name), 0) ;
-  const left = { raw: leftRaw, fur: leftRaw - leftLining, lining: leftLining, prod: leftYears.reduce((a, [, v]) => a + v.prod, 0) };
+  // Закупки-услуги (УПД без позиций сырья): неоплаченная часть — отдельной статьёй, не в меху.
+  const leftServices = debtInputs.allPurchases.filter((p) => isServicePurchase(p) && inYear(p.orderDate, year))
+    .reduce((a, p) => a + Math.max(purchaseTotalInclVat(p).sub(p.payments.filter((x) => x.status === "COMPLETED").reduce((s, x) => s.add(x.amount), new Decimal(0))).toNumber(), 0), 0);
+  // «К оплате» по работе — остаток работы по заведённым ТЗ (не меньше нуля); неразнесённые авансы подрядчику — отдельной строкой (advance), а не минусом.
+  const left = { raw: leftRaw, fur: leftRaw - leftLining - leftServices, lining: leftLining, services: leftServices, prod: leftYears.reduce((a, [, v]) => a + v.prod, 0) };
+  const advance = leftYears.reduce((a, [, v]) => a + v.adv, 0);
 
   // «Прочее» (закупки без аукциона, шкуры подрядчика, поправки) — это конкретные виды меха: переносим в их строки.
   // Долг — по лотам своей закупки; оплаты (шкуры подрядчика) — по доле лотов без аукциона.
@@ -609,10 +620,10 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
   // Фильтры панели: деньги по сырью — сумма строк таблицы (они уже по выбранным лотам), «Работа» — по выбранным ТЗ.
   const moneyFromRows = lotFiltersOn(f) || orderFiltersOn(f);
   const sumRows = (kind: "fur" | "lining", k: "paid" | "due") => rawTable.filter((r) => r.kind === kind).reduce((a, r) => a + r[k], 0);
-  let paidOut = paidByItem, leftOut = left;
+  let paidOut = paidByItem, leftOut = left, advanceOut = advance;
   if (moneyFromRows) {
-    paidOut = { ...paidByItem, fur: sumRows("fur", "paid"), lining: sumRows("lining", "paid") };
-    leftOut = { ...left, fur: sumRows("fur", "due"), lining: sumRows("lining", "due"), raw: sumRows("fur", "due") + sumRows("lining", "due") };
+    paidOut = { ...paidByItem, services: 0, fur: sumRows("fur", "paid"), lining: sumRows("lining", "paid") };
+    leftOut = { ...left, services: 0, fur: sumRows("fur", "due"), lining: sumRows("lining", "due"), raw: sumRows("fur", "due") + sumRows("lining", "due") };
   }
   if (moneyFromRows) {
     const alloc = new Map((await prisma.paymentAllocation.groupBy({ by: ["productionOrderId"], where: { organizationId: orgId, productionPayment: { status: "COMPLETED" } }, _sum: { amount: true } })).map((x) => [x.productionOrderId, x._sum.amount?.toNumber() ?? 0]));
@@ -624,6 +635,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
     }
     paidOut = { ...paidOut, work: wPaid };
     leftOut = { ...leftOut, prod: wLeft };
+    advanceOut = 0; // при фильтрах «Оплачено за работу» — только разнесённое на выбранные ТЗ, аванс без ТЗ к срезу не относится
   }
   if (moneyFromRows) {
     // Годы: оплата и долг строки делятся по годам закупки лотов пропорционально их стоимости; строки без лотов (заказано, шкуры) — в последний год.
@@ -668,6 +680,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
     paidByItem: paidOut,
     paidByType,
     left: leftOut,
+    advance: advanceOut,
     overpaid: debt.overpaid.map((o) => ({ name: o.name, amount: o.amount.toNumber() })),
     hides: hidesTotal,
     ordered: orderedAll,

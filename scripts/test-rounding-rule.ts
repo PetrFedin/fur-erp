@@ -164,7 +164,13 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
       eq(`${t}: Σ статей «Оплачено» = итог`, sum(N.items.map((k) => N.P[k])), N.paidAll);
       eq(`${t}: Σ статей «К оплате» = итог`, sum(N.items.map((k) => N.L[k])), N.leftAll);
       eq(`${t}: Σ статей «Общая стоимость» = итог`, sum(N.items.map((k) => N.T[k])), N.totalAll);
-      eq(`${t}: «Оплачено» = round(точной суммы)`, N.paidAll, roundRub(sum(N.items.map((k) => (k === "fur" ? d.paidByItem.fur : k === "lining" ? d.paidByItem.lining : d.paidByItem.work)))));
+      eq(`${t}: «Оплачено» = round(точной суммы)`, N.paidAll, roundRub(sum(N.items.map((k) => d.paidByItem[k]))));
+      // Аванс подрядчику (неразнесённый) — предоплата будущих ТЗ: в «Оплачено» есть, в «К оплате» и «Общую стоимость» не входит; «К оплате» по работе не отрицательна
+      if (!only) {
+        eq(`${t}: «К оплате» по работе не меньше нуля`, Math.min(N.L.work, 0), 0);
+        eq(`${t}: аванс подрядчику = round(неразнесённого аванса)`, N.adv, Math.min(roundRub(d.advance), N.P.work));
+        eq(`${t}: «Общая стоимость» = «Оплачено» + «К оплате» − аванс + округление`, N.totalAll, N.paidAll + N.leftAll - N.adv + N.roundAll);
+      }
       for (const k of ["fur", "lining"] as const) {
         if (!N.items.includes(k)) continue;
         const D = k === "fur" ? N.furD : N.linD, pd = k === "fur" ? N.furPaidD : N.linPaidD, ld = k === "fur" ? N.furLeftD : N.linLeftD;

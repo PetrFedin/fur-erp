@@ -37,7 +37,7 @@ export type StripData = {
   fur: { recvQty: number; recvValue: Pair; usedQty: number; remQty: number };
   lining: { recvQty: number; recvValue: Pair; remQty: number };
   prod: { qty: number; orders: number; cost: Pair; avg: Pair | null; work: number };
-  work: { accrued: number; paid: number; left: number };
+  work: { accrued: number; paid: number; left: number; /** Аванс подрядчику (неразнесённый): входит в paid, не входит в accrued и left. */ advance: number };
   supplier: { paid: number; debt: number };
   total: { paid: number; left: number; all: number };
   overdue: { count: number; amount: number; nextDate: string | null; nextAmount: number };
@@ -61,8 +61,9 @@ export function buildStrip(d: DashboardData, c4: "on" | "off"): StripData {
   void c4;
   const rawLeft = d.left.fur + d.left.lining;
   const prodPaid = d.paidByItem.work;
-  const paidAll = d.paidByItem.fur + d.paidByItem.lining + prodPaid;
-  const leftAll = rawLeft + d.left.prod;
+  const paidAll = d.paidByItem.fur + d.paidByItem.lining + d.paidByItem.services + prodPaid;
+  // «К оплате» = долг по сырью и услугам + остаток работы по ТЗ (не меньше нуля); неразнесённый аванс подрядчику — отдельно (advance), в «Всего» не входит.
+  const leftAll = rawLeft + d.left.services + d.left.prod;
   const late = d.invoiceDeadlines.filter((x) => isPastRu(x.date));
   const next = d.invoiceDeadlines.find((x) => !isPastRu(x.date));
   return {
@@ -74,9 +75,9 @@ export function buildStrip(d: DashboardData, c4: "on" | "off"): StripData {
       avg: qty > 0 ? pair((costIncl - repIncl) / qty, (costExcl - repExcl) / qty) : null,
       work: workSum,
     },
-    work: { accrued: prodPaid + d.left.prod, paid: prodPaid, left: d.left.prod },
-    supplier: { paid: d.paidByItem.fur + d.paidByItem.lining, debt: rawLeft },
-    total: { paid: paidAll, left: leftAll, all: paidAll + leftAll },
+    work: { accrued: prodPaid - d.advance + d.left.prod, paid: prodPaid, left: d.left.prod, advance: d.advance },
+    supplier: { paid: d.paidByItem.fur + d.paidByItem.lining + d.paidByItem.services, debt: rawLeft + d.left.services },
+    total: { paid: paidAll, left: leftAll, all: paidAll + leftAll - d.advance },
     overdue: { count: late.length, amount: late.reduce((a, x) => a + x.amount, 0), nextDate: next?.date ?? null, nextAmount: next?.amount ?? 0 },
   };
 }

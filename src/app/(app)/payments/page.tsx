@@ -60,7 +60,7 @@ import { loadPaymentsOverview, loadPaymentsLeft } from "@/lib/payments-overview"
 
 async function overviewLeft(orgId: string) {
   const l = await loadPaymentsLeft(orgId);
-  return { byYear: Object.fromEntries(l.byYear), raw: l.raw, prod: l.prod };
+  return { byYear: Object.fromEntries(l.byYear), raw: l.raw, prod: l.prod, advance: l.advance };
 }
 import { loadClientDebt } from "@/lib/payment-alloc";
 import { ClientDebtBlock } from "./client-debt-block";
@@ -335,7 +335,7 @@ export default async function PaymentsPage({
     />
   );
   const ovRows = tab === "suppliers" ? (await loadPaymentsOverview(orgId)).filter((r) => year === "all" || r.year === Number(year)) : [];
-  const rawPaidAll = ovRows.reduce((a, r) => a + r.fur + r.lining, 0);
+  const rawPaidAll = ovRows.reduce((a, r) => a + r.fur + r.lining + r.services, 0);
   // Мех / подкладка в плитках — те же числа, что на Главной (одна функция).
   const supDash = tab === "suppliers" ? await loadDashboard(orgId, year, { status: [], ...parseFilters(DASH_FILTERS, {}) } as unknown as DashFilters, await getCommission4Mode()) : null;
   // Целые рубли, сходящиеся на экране (те же числа, что в плитках оплат на Главной): мех + подкладка без работы.
@@ -710,7 +710,7 @@ export default async function PaymentsPage({
           const dash = await loadDashboard(orgId, year, { status: [], ...parseFilters(DASH_FILTERS, {}) } as unknown as DashFilters, await getCommission4Mode());
           const lf = await overviewLeft(orgId);
           const yearsLeft = Object.entries(lf.byYear).filter(([y]) => year === "all" || Number(y) === Number(year));
-          const left = { byYear: Object.fromEntries(yearsLeft), raw: yearsLeft.reduce((a, [, v]) => a + v.raw, 0), prod: yearsLeft.reduce((a, [, v]) => a + v.prod, 0) };
+          const left = { byYear: Object.fromEntries(yearsLeft), raw: yearsLeft.reduce((a, [, v]) => a + v.raw, 0), prod: yearsLeft.reduce((a, [, v]) => a + v.prod, 0), advance: yearsLeft.reduce((a, [, v]) => a + v.adv, 0) };
           const rows = (await loadPaymentsOverview(orgId)).filter((r) => (year === "all" || r.year === Number(year)) && (pf.stat.length === 0 || pf.stat.includes(r.kind)) && (!pf.from || r.iso >= pf.from) && (!pf.to || r.iso <= pf.to));
           // Кнопки правки и удаления в описании платежа: оплата партии / аванс — на месте; оплата закупки и производства — переход в карточку.
           const controls: Record<string, React.ReactNode> = {};
@@ -811,10 +811,10 @@ export default async function PaymentsPage({
             <>
               {!selected && !showNoAuction && (
               <PaymentTiles
-                split={supDash ? { paid: { fur: supDash.paidByItem.fur, lining: supDash.paidByItem.lining }, debt: { fur: supDash.left.fur, lining: supDash.left.lining } } : undefined}
+                split={supDash ? { paid: { fur: supDash.paidByItem.fur, lining: supDash.paidByItem.lining, services: supDash.paidByItem.services }, debt: { fur: supDash.left.fur, lining: supDash.left.lining, services: supDash.left.services } } : undefined}
                 hidesMemo={hidesMemo}
                 rounding={supDash ? rawRounding(supDash) : 0}
-                shown={rawPay ? { total: rawPay.totalAll, paid: rawPay.paidAll, left: rawPay.leftAll, round: rawPay.roundAll, totalFur: rawPay.T.fur, totalLining: rawPay.T.lining, paidFur: rawPay.P.fur, paidLining: rawPay.P.lining, leftFur: rawPay.L.fur, leftLining: rawPay.L.lining } : undefined}
+                shown={rawPay ? { total: rawPay.totalAll, paid: rawPay.paidAll, left: rawPay.leftAll, round: rawPay.roundAll, totalFur: rawPay.T.fur, totalLining: rawPay.T.lining, paidFur: rawPay.P.fur, paidLining: rawPay.P.lining, leftFur: rawPay.L.fur, leftLining: rawPay.L.lining, totalServices: rawPay.T.services, paidServices: rawPay.P.services, leftServices: rawPay.L.services } : undefined}
                 paid={{
                   // Та же сумма, что «Оплачено → За сырьё» в разделе «Все» (мех и подкладка по оплатам, с шкурами подрядчика и зачётом переплат).
                   total: rawPaidAll,

@@ -7,7 +7,7 @@ import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
 import { LOTS_RULE } from "@/lib/cost-labels";
 import { formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM } from "@/lib/utils";
-import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, grossUp } from "@/lib/purchase-totals";
+import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, expenseInclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { Money } from "@/components/money";
@@ -181,7 +181,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       remLining: ls.length > 0 ? ls.filter((l) => l.kind === "lining").reduce((a, l) => a + l.rem, 0) : status === "DRAFT" ? items.filter(unitIsM).reduce((a, i) => a + i.qty, 0) : 0,
       items,
       raw: rawInfo.get(p.id) ?? null,
-      expenses: p.expenses.map((e) => ({ id: e.id, label: e.category.name + (e.description ? ` · ${e.description}` : ""), sum: num(grossUp(e.amount, e.vatRate)) })),
+      expenses: p.expenses.map((e) => ({ id: e.id, label: e.category.name + (e.description ? ` · ${e.description}` : ""), sum: num(expenseInclVat(e)) })),
       pays: own.map((x) => ({ id: x.id, date: formatDate(x.paidAt), amount: num(x.amount), doc: x.docRef?.trim() || null })),
     };
   });
@@ -228,6 +228,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     return Math.abs(d) < 0.005 ? 0 : d;
   };
   // Блоки верхних итогов: «Все» — Всего, Мех, Подкладка; «Мех» / «Подкладка» — только свой блок. Те же формулы, что для набора.
+  const isServiceRow = (p: TreePurchase) => p.status !== "CANCELLED" && p.items.length === 0 && p.expenses.length > 0;
   const itemVat = new Map<string, [string, number]>();
   for (const p of found) for (const i of p.items) { const r = i.vatRate.toNumber(); if (r > 0) itemVat.set(i.id, [String(r), num(itemTotalInclVat(i, p.exchangeRate)) * r / (100 + r)]); }
   const mkBlock = (key: string, title: string | null, rs: TreePurchase[], h: number, rf: number, rl: number) => {
@@ -252,6 +253,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       : [
           mkBlock("fur", "Мех", rowsS.map((p) => partOf(p, "fur")).filter((p): p is TreePurchase => p != null), hidesAllS, roundFurS, 0),
           ...(src === "auction" ? [] : [mkBlock("lining", "Подкладка", rowsS.map((p) => partOf(p, "lining")).filter((p): p is TreePurchase => p != null), 0, 0, roundLinS)]),
+          // Закупки-услуги (УПД без позиций сырья): отдельный блок, чтобы «Всего» = мех + подкладка + услуги; в меху и подкладке их нет.
+          ...(rowsS.some(isServiceRow) ? [mkBlock("services", "Услуги по УПД", rowsS.filter(isServiceRow), 0, 0, 0)] : []),
         ];
     const hidesRow: ExtraRow[] = hidesS > 0.5 ? [{
       key: "hides", label: "Шкуры подрядчика", sub: "оплачены в составе счетов за пошив", href: "/lots/contractor-hides", sum: hidesS, paid: hidesS,
@@ -421,13 +424,13 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                       </InfoHint>
                     </div>
                     <TileValue><Money incl={b.bought.toFixed(2)} excl={b.boughtExcl.toFixed(2)} /></TileValue>
-                    <TileCaption>{`${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · лотов ${b.t.lots - b.t.ordered} · ${formatQty(b.kind === "lining" ? b.t.lining : b.t.fur)} ${b.kind === "lining" ? "м" : "шт."}`}</TileCaption>
-                    <TileList items={[{
+                    <TileCaption>{b.key === "services" ? `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · УПД без позиций сырья, лотов нет` : `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · лотов ${b.t.lots - b.t.ordered} · ${formatQty(b.kind === "lining" ? b.t.lining : b.t.fur)} ${b.kind === "lining" ? "м" : "шт."}`}</TileCaption>
+                    {b.key === "services" ? null : <TileList items={[{
                       k: `Цена, ₽/${b.kind === "lining" ? "м" : "шт."} (ср.)`,
                       v: (b.kind === "lining" ? b.t.lining : b.t.fur) > 0
                         ? <Money incl={(b.t.total / (b.kind === "lining" ? b.t.lining : b.t.fur)).toFixed(2)} excl={(b.t.totalExcl / (b.kind === "lining" ? b.t.lining : b.t.fur)).toFixed(2)} />
                         : "—",
-                    }]} />
+                    }]} />}
                     <VatLine v={b.vat} className="mt-1" />
                   </div>
                   <div className={TILE_BOX}>

@@ -10,10 +10,10 @@ import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH_LEFT, row
 import { TotalLabel } from "@/components/total-label";
 
 const fmtDate = (iso: string) => iso.split("-").reverse().join(".");
-const sum = (rows: OverviewRow[], k: "fur" | "lining" | "work" | "hides" | "amount") => rows.reduce((a, r) => a + r[k], 0);
+const sum = (rows: OverviewRow[], k: "fur" | "lining" | "services" | "work" | "hides" | "amount") => rows.reduce((a, r) => a + r[k], 0);
 const m = (v: number) => (Math.abs(v) < 0.005 ? <Dash /> : formatMoney(v.toFixed(2)));
 
-type Left = { byYear: Record<number, { raw: number; prod: number }>; raw: number; prod: number };
+type Left = { byYear: Record<number, { raw: number; prod: number; adv?: number }>; raw: number; prod: number; advance?: number };
 
 /**
  * Раздел «Все»: всё, что оплачено — за сырьё и за производство. Год → вид (сырьё / производство) → оплата → распределение
@@ -21,6 +21,8 @@ type Left = { byYear: Record<number, { raw: number; prod: number }>; raw: number
  */
 export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: ReactNode; rows: OverviewRow[]; left: Left; controls: Record<string, ReactNode> }) {
   const years = Array.from(new Set([...rows.map((r) => r.year), ...Object.keys(left.byYear).map(Number)])).sort((a, b) => a - b);
+  // Колонка «Услуги» (закупки-услуги по УПД, не мех) — только когда такие оплаты есть.
+  const hasSvc = rows.some((r) => Math.abs(r.services) >= 0.005);
   // Годы развёрнуты до вида (сырьё / производство); оплаты и распределение раскрываются по клику.
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -32,10 +34,11 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
     <button type="button" onClick={onClick} aria-expanded={isOpen} aria-label={`Раскрыть: ${label}`}><Chevron open={isOpen} /></button>
   );
   const debtTd = (v: number, cls = "") => <td className={TD + cls + (v > 0.5 && !isRoundingRest(v) ? " text-amber-700" : "")}>{isRoundingRest(v) ? <span title={roundingRestHint(v)} className="cursor-help">—</span> : v < -OVERPAY_FROM ? formatDebt(v) : m(v)}</td>;
-  const figures = (r: { fur: number; lining: number; work: number; paid: number; debt: number | null }, cls = "") => (
+  const figures = (r: { fur: number; lining: number; services?: number; work: number; paid: number; debt: number | null }, cls = "") => (
     <>
       <td className={TD + " border-l border-neutral-200" + cls}>{m(r.fur)}</td>
       <td className={TD + cls}>{m(r.lining)}</td>
+      {hasSvc ? <td className={TD + cls}>{m(r.services ?? 0)}</td> : null}
       <td className={TD + cls}>{m(r.work)}</td>
       <td className={TD + " border-l border-neutral-200" + cls}>{m(r.paid)}</td>
       {r.debt == null ? <td className={TD}><Dash /></td> : debtTd(r.debt, cls)}
@@ -58,7 +61,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
         <tr className={rowTone(0) + " font-semibold"}>
           <td className={ARROW_TD}>{arrow(yOpen, () => toggleClosed(yk), String(y))}</td>
           <td className="px-2 py-1.5 text-left">{y}</td>
-          {figures({ fur: sum(list, "fur"), lining: sum(list, "lining"), work: sum(list, "work"), paid: sum(list, "amount"), debt: l.raw + l.prod })}
+          {figures({ fur: sum(list, "fur"), lining: sum(list, "lining"), services: sum(list, "services"), work: sum(list, "work"), paid: sum(list, "amount"), debt: l.raw + l.prod })}
         </tr>
         {yOpen ? kinds.map((k) => {
           const kk = `${yk}:${k.kind}`;
@@ -68,7 +71,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
               <tr className={rowTone(1, kOpen)}>
                 <td className={ARROW_TD}>{k.list.length > 0 ? arrow(kOpen, () => toggle(kk), k.label) : null}</td>
                 <td className={`py-1.5 pr-2 text-left ${INDENT[0]}`}>{k.label}<span className="ml-1.5 text-xs text-neutral-500">{k.list.length > 0 ? `${k.list.length} ${k.list.length === 1 ? "оплата" : k.list.length < 5 ? "оплаты" : "оплат"}` : "оплат нет"}</span></td>
-                {figures({ fur: sum(k.list, "fur"), lining: sum(k.list, "lining"), work: sum(k.list, "work"), paid: sum(k.list, "amount"), debt: k.debt })}
+                {figures({ fur: sum(k.list, "fur"), lining: sum(k.list, "lining"), services: sum(k.list, "services"), work: sum(k.list, "work"), paid: sum(k.list, "amount"), debt: k.debt })}
               </tr>
               {kOpen ? k.list.map((r) => {
                 const pk = `p:${r.id}`;
@@ -85,12 +88,12 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
                         <Link href={r.links[0]?.href ?? r.href} title="Открыть закупку / ТЗ / партию" className="ml-2 text-[11px] text-neutral-500 hover:underline">↗ {r.links[0]?.label ?? (r.kind === "raw" ? "За сырьё" : "За производство")}</Link>
                         {r.doc ? <div className="mt-0.5 max-w-[34rem] truncate text-xs text-neutral-500" title={r.doc}>{r.doc}</div> : null}
                       </td>
-                      {figures({ fur: r.fur, lining: r.lining, work: r.work, paid: r.amount, debt: null })}
+                      {figures({ fur: r.fur, lining: r.lining, services: r.services, work: r.work, paid: r.amount, debt: null })}
                     </tr>
                     {pOpen ? (
                       <tr className={rowTone(3)}>
                         <td className={ARROW_TD} />
-                        <td colSpan={6} className={`py-2 pr-3 text-left text-xs ${INDENT[2]}`}>
+                        <td colSpan={hasSvc ? 7 : 6} className={`py-2 pr-3 text-left text-xs ${INDENT[2]}`}>
                           <dl className="grid max-w-3xl grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-[max-content_1fr]">
                             {r.fields.map(([k, v]) => (
                               <Fragment key={k}>
@@ -115,7 +118,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
                           {x.href ? <Link href={x.href} className="text-blue-700 hover:underline">{x.label}</Link> : x.label}
                           {x.note ? <span className="ml-1.5 text-neutral-400">{x.note}</span> : null}
                         </td>
-                        <td className={TD + " border-l border-neutral-200"} colSpan={3} />
+                        <td className={TD + " border-l border-neutral-200"} colSpan={hasSvc ? 4 : 3} />
                         <td className={TD + " border-l border-neutral-200"}>{m(x.amount)}</td>
                         <td className={TD} />
                       </tr>
@@ -139,17 +142,17 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
           <h2 id="pay-years" className="block-title">Оплаты по годам</h2>
           <InfoHint label="Как читать таблицу оплат" wide>
             <p><b>Год → вид → оплата → распределение.</b> Год оплаты сырья — год закупки партии, год оплаты работы — год платежа. Нажмите ›, чтобы раскрыть вглубь: сырьё и производство, платежи, а в платеже — на какие закупки партии или ТЗ он разнесён.</p>
-            <p className="mt-1"><b>Оплачено</b> = мех + подкладка + работа. <b>Задолженность</b> — сколько осталось оплатить (по сырью — долг поставщику, по работе — долг по работе подрядчику); у отдельного платежа её нет. «Итого» совпадает с плитками выше и с Главной.</p>
+            <p className="mt-1"><b>Оплачено</b> = мех + подкладка + услуги по УПД (если есть) + работа. <b>Задолженность</b> — сколько осталось оплатить (по сырью — долг поставщику, по работе — остаток работы по заведённым ТЗ; неразнесённый аванс подрядчику сюда не входит, он показан отдельной строкой на плитке «К оплате всего»); у отдельного платежа её нет. «Итого» совпадает с плитками выше и с Главной.</p>
             <p className="mt-1">Мех включает шкуры подрядчика, оплаченные в составе счетов за пошив. Оплата партии делится между её закупками пропорционально их сумме.</p>
           </InfoHint>
         </div>
         <div className={SCROLL_BOX}>
           <table className="w-full min-w-[820px] table-fixed text-sm">
-            <colgroup><col className="w-6" /><col className="w-[190px]" /><col /><col /><col /><col /><col /></colgroup>
+            <colgroup><col className="w-6" /><col className="w-[190px]" /><col /><col /><col /><col /><col />{hasSvc ? <col /> : null}</colgroup>
             <thead>
               <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
                 <th colSpan={2} />
-                <THGroup colSpan={3}>Состав оплаты</THGroup>
+                <THGroup colSpan={hasSvc ? 4 : 3}>Состав оплаты</THGroup>
                 <THGroup colSpan={2}>Оплата и долг</THGroup>
               </tr>
               <tr className="border-b border-neutral-200">
@@ -157,6 +160,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
                 <th className={TH_LEFT}>Год / оплата</th>
                 <Head label="Мех" unit="₽" align="right" sep />
                 <Head label="Подкладка" unit="₽" align="right" />
+                {hasSvc ? <Head label="Услуги по УПД" unit="₽" align="right" /> : null}
                 <Head label="Работа подрядчику" unit="₽" align="right" />
                 <Head label="Оплачено" unit="₽" align="right" sep />
                 <Head label="Задолженность" unit="₽" align="right" />
@@ -164,12 +168,12 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
             </thead>
             <tbody>
               {years.map(yearBlock)}
-              {years.length === 0 ? <tr><td colSpan={7} className="px-3 py-6 text-center text-sm text-neutral-500">Оплат за выбранный период нет.</td></tr> : null}
+              {years.length === 0 ? <tr><td colSpan={hasSvc ? 8 : 7} className="px-3 py-6 text-center text-sm text-neutral-500">Оплат за выбранный период нет.</td></tr> : null}
               {years.length > 0 ? (
                 <tr className="row-total">
                   <td className={ARROW_TD} />
                   <td className="px-2 py-1.5 text-left"><TotalLabel /></td>
-                  {figures({ fur: sum(rows, "fur"), lining: sum(rows, "lining"), work: sum(rows, "work"), paid: sum(rows, "amount"), debt: left.raw + left.prod })}
+                  {figures({ fur: sum(rows, "fur"), lining: sum(rows, "lining"), services: sum(rows, "services"), work: sum(rows, "work"), paid: sum(rows, "amount"), debt: left.raw + left.prod })}
                 </tr>
               ) : null}
             </tbody>

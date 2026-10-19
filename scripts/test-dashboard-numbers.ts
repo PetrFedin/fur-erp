@@ -286,7 +286,7 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
       // 0,05 ₽: дробные копейки долей лотов при распределении долга по годам (≈1,4 коп.) — не ошибка расчёта.
       if (!anyOn) {
         eq(`${tag} итог долга по годам = плитка «все годы»`, tot.debt, a.debt.debt.toNumber(), 0.05);
-        eq(`${tag} итог оплат по годам = деньги поставщику + шкуры подрядчика + зачтённые переплаты`, tot.paid, a.supplierCashPaid + a.hides.incl + a.overpaid.reduce((x, o) => x + o.amount, 0), 0.05);
+        eq(`${tag} итог оплат по годам = деньги поставщику (без услуг по УПД) + шкуры подрядчика + зачтённые переплаты`, tot.paid, a.supplierCashPaid - a.paidByItem.services + a.hides.incl + a.overpaid.reduce((x, o) => x + o.amount, 0), 0.05);
       } else if (!lotOn) eq(`${tag} долг по годам при фильтре по ТЗ = общему долгу`, tot.debt, a.debt.debt.toNumber(), 0.05);
       // та же величина на разных блоках: годы 2025+2026 по закупкам = закупки «все годы»
       const d25 = await dd("2025", f, c4), d26 = await dd("2026", f, c4);

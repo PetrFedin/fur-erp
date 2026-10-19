@@ -4,6 +4,7 @@
 // Допуски: ROUND_TOL_RUB = 50 ₽ — как в src/lib/verification.ts (округление лотов против УПД); остальные — копейки округления колонок БД.
 import { Decimal } from "@prisma/client/runtime/library";
 import { purchaseTotalInclVat } from "../purchase-totals";
+import { isServicePurchase } from "../service-purchase";
 import { auctionName } from "../auction-names";
 import { auctionKey } from "../auction-key";
 import recon from "../../data/reconciliation.json";
@@ -272,6 +273,7 @@ const CHECKS: CheckDef[] = [
       let n = 0;
       for (const p of d.purchases) {
         if (p.status !== "RECEIVED") continue;
+        if (isServicePurchase(p)) continue; // закупка-услуга (УПД без позиций сырья): лотов нет по определению
         n++;
         const lots = h.lotsByPurchase.get(p.id) ?? [];
         const sum = lots.reduce((s, l) => s + l.totalCost, 0);

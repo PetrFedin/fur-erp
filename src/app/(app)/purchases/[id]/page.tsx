@@ -20,7 +20,8 @@ import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatCurrency, formatDate, formatMoney, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint, formatRate, formatNum } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
-import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
+import { purchaseTotalInclVat, purchaseTotalExclVat, expenseInclVat } from "@/lib/purchase-totals";
+import { isServicePurchase } from "@/lib/service-purchase";
 import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
 import { vatPeriodLabel, vatRateForDate } from "@/lib/vat-by-date";
@@ -260,7 +261,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
   const itemsTotalInclVatRub = purchaseTotalInclVat(itemsOnly);
   const expensesTotalExclVat = purchase.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
   const expensesTotalInclVat = purchase.expenses.reduce(
-    (s, e) => s.add(grossUp(e.amount, e.vatRate)),
+    (s, e) => s.add(expenseInclVat(e)),
     new Decimal(0)
   );
   const grandTotalRub = itemsTotalInclVatRub.add(expensesTotalInclVat);
@@ -920,7 +921,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                     <Td>{formatMoney(e.amount.toString())}</Td>
                     <Td>{e.vatRate.toString()}%</Td>
                     <Td>
-                      <Money incl={grossUp(e.amount, e.vatRate)} excl={e.amount} />
+                      <Money incl={expenseInclVat(e)} excl={e.amount} />
                     </Td>
                     {editable && (
                       <Td>
@@ -960,7 +961,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                   fields={[
                     { label: "Сумма (без НДС)", value: formatMoney(e.amount.toString()) },
                     { label: "НДС", value: `${e.vatRate.toString()}%` },
-                    { label: <VatLabel base="Сумма" />, value: <Money incl={grossUp(e.amount, e.vatRate)} excl={e.amount} />, strong: true },
+                    { label: <VatLabel base="Сумма" />, value: <Money incl={expenseInclVat(e)} excl={e.amount} />, strong: true },
                   ]}
                   extra={
                     editable && (
@@ -985,7 +986,9 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
           {purchase.expenses.length === 0 && planExpenseLines(purchase.items).lines.length === 0 && <p className="text-sm text-neutral-500">Расходов нет</p>}
           {!statusEditable && canEditRole && purchase.expenses.length > 0 && (
             <p className="text-xs text-neutral-500">
-              Расходы принятой закупки уже распределены по лотам и здесь не правятся.
+              {isServicePurchase(purchase)
+                ? "Закупка-услуга: УПД без позиций сырья — в лоты не раскладывается, в «Куплено» меха и подкладки не входит (показана отдельной статьёй «Услуги по УПД»)."
+                : "Расходы принятой закупки уже распределены по лотам и здесь не правятся."}
             </p>
           )}
         </CardContent>

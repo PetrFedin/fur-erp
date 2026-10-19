@@ -20,7 +20,7 @@ const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[]
 (async () => {
   const org = (await prisma.organization.findFirst())!.id;
   const [ov, left, inp] = await Promise.all([loadPaymentsOverview(org), loadPaymentsLeft(org), loadDebtInputs(prisma, org)]);
-  const sumOv = (k: "fur" | "lining" | "work" | "hides", y?: string) => ov.filter((r) => !y || y === "all" || r.year === Number(y)).reduce((a, r) => a + r[k], 0);
+  const sumOv = (k: "fur" | "lining" | "services" | "work" | "hides", y?: string) => ov.filter((r) => !y || y === "all" || r.year === Number(y)).reduce((a, r) => a + r[k], 0);
 
   for (const y of ["all", "2025", "2026"] as const) {
     for (const c4 of ["on", "off"] as const) {
@@ -32,6 +32,10 @@ const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[]
       // 1. Оплачено: виджет = «Оплаты → Все» = таблица по сырью = таблица по годам
       eq(`${tag} оплачено мех: виджет = Оплаты→Все`, d.paidByItem.fur, sumOv("fur", y));
       eq(`${tag} оплачено подкладка: виджет = Оплаты→Все`, d.paidByItem.lining, sumOv("lining", y));
+      // Услуги по УПД (закупки без позиций сырья) — отдельная статья: не в меху, не в подкладке, в сумму оплат входят
+      eq(`${tag} оплачено услуги по УПД: виджет = Оплаты→Все`, d.paidByItem.services, sumOv("services", y));
+      eq(`${tag} оплачено всего: мех + подкладка + услуги + работа = Σ оплат Оплаты→Все`, d.paidByItem.fur + d.paidByItem.lining + d.paidByItem.services + d.paidByItem.work, ov.filter((r) => y === "all" || r.year === Number(y)).reduce((a, r) => a + r.amount, 0));
+      eq(`${tag} оплаты по типам: Σ типов = Σ статей`, d.paidByType.reduce((a, t) => a + t.amount, 0), d.paidByItem.fur + d.paidByItem.lining + d.paidByItem.services + d.paidByItem.work);
       eq(`${tag} оплачено сырьё: Σ строк таблицы + «не получен» = виджет`, paidRows + d.rawMoneyTotal.unreceived.paid, d.rawMoneyTotal.paid);
       eq(`${tag} оплачено подкладка: строка таблицы = виджет`, linRows.reduce((a, r) => a + r.paid, 0), d.paidByItem.lining);
       eq(`${tag} оплачено мех: Σ видов = виджет`, furRows.reduce((a, r) => a + r.paid, 0), d.paidByItem.fur);
@@ -39,7 +43,14 @@ const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[]
 
       // 2. Долг (К оплате): виджет = таблица = годы = Оплаты→Все = расчёт долга
       eq(`${tag} долг сырьё: Σ строк таблицы + «не получен» = виджет`, dueRows + d.rawMoneyTotal.unreceived.due, d.left.raw);
-      eq(`${tag} долг: мех + подкладка = сырьё`, d.left.fur + d.left.lining, d.left.raw);
+      eq(`${tag} долг: мех + подкладка + услуги = сырьё`, d.left.fur + d.left.lining + d.left.services, d.left.raw);
+      // «К оплате» по работе — остаток работы по заведённым ТЗ, не меньше нуля; неразнесённый аванс подрядчику — отдельной строкой, не минусом
+      eq(`${tag} долг по работе не отрицателен (аванс отдельной строкой)`, Math.min(d.left.prod, 0), 0, 0.005);
+      if (y === "all") {
+        eq(`${tag} аванс подрядчику: виджет = Оплаты→Все`, d.advance, left.advance);
+        eq(`${tag} аванс подрядчику = неразнесённые авансы расчёта долга по работе`, d.advance, d.clientDebtInfo.unallocated, 1);
+        eq(`${tag} оплачено за работу − аванс = разнесено на ТЗ`, d.paidByItem.work - d.advance, d.clientDebtInfo.allocated, 1);
+      }
       eq(`${tag} долг подкладки: строка таблицы = виджет`, linRows.reduce((a, r) => a + r.due, 0), d.left.lining);
       eq(`${tag} долг меха: Σ видов = виджет`, furRows.reduce((a, r) => a + r.due, 0), d.left.fur);
       if (y === "all") {
@@ -100,7 +111,7 @@ const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[]
         eq(`${tag} себестоимость: мех (с шкурами подрядчика) = использовано меха без 4%`, all("furIncl") + d.hides.incl, usedNo4, 5);
         eq(`${tag} себестоимость: подкладка = использовано подкладки без 4%`, all("liningIncl"), usedNo4L, 5);
         if (c4 === "on") eq(`${tag} себестоимость: 4% = использовано с 4% − без 4%`, all("c4Incl"), Math.abs(F.usedValue - F.usedValueOther) + Math.abs(L.usedValue - L.usedValueOther), 5);
-        eq(`${tag} себестоимость: работа = Производство (оплачено + к оплате)`, all("work"), sumOv("work", y) + d.left.prod, 5);
+        eq(`${tag} себестоимость: работа = Производство (оплачено − аванс + к оплате)`, all("work"), sumOv("work", y) - d.advance + d.left.prod, 5);
       }
     }
   }
@@ -127,7 +138,7 @@ const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[]
     eq(`${tag} годы: оплачено = виджет`, tot.paid, d.paidByItem.fur + d.paidByItem.lining, 2);
     eq(`${tag} годы: долг = виджет`, tot.debt, d.left.raw, 2);
     eq(`${tag} годы: куплено меха = виджет`, tot.fur.incl.rv, F.recvValue, 2);
-    eq(`${tag} себестоимость: работа = Работа в оплатах`, d.prod.done.workSum + d.prod.work.workSum, d.paidByItem.work + d.left.prod, 5);
+    eq(`${tag} себестоимость: работа = Работа в оплатах`, d.prod.done.workSum + d.prod.work.workSum, d.paidByItem.work - d.advance + d.left.prod, 5);
   }
   console.log(`\nСверка по статьям: проверок ${checks}, расхождений ${fails}`);
   process.exit(fails ? 1 : 0);
