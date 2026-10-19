@@ -5,6 +5,7 @@ import "./stubs/server-only-shim";
 import { PrismaClient } from "@prisma/client";
 import { loadDashboard } from "../src/lib/dashboard-data";
 import { loadPaymentsOverview, loadPaymentsLeft } from "../src/lib/payments-overview";
+import { buildCashflow } from "../src/lib/cashflow";
 import { loadDebtInputs, supplierDebtFromInputs } from "../src/lib/supplier-debt";
 
 const prisma = new PrismaClient();
@@ -139,6 +140,31 @@ const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[]
     eq(`${tag} годы: долг = виджет`, tot.debt, d.left.raw, 2);
     eq(`${tag} годы: куплено меха = виджет`, tot.fur.incl.rv, F.recvValue, 2);
     eq(`${tag} себестоимость: работа = Работа в оплатах`, d.prod.done.workSum + d.prod.work.workSum, d.paidByItem.work - d.advance + d.left.prod, 5);
+  }
+  // Cashflow (/payments/cashflow): Σ по месяцам и статьям = «Оплачено всего» (одна выборка loadPaymentsOverview, только COMPLETED).
+  {
+    const dAll = await loadDashboard(org, "all", E0, "on");
+    const paidAllDash = dAll.paidByItem.fur + dAll.paidByItem.lining + dAll.paidByItem.services + dAll.paidByItem.work;
+    const sumAll = ov.reduce((a, r) => a + r.amount, 0);
+    const cfAll = buildCashflow(ov, "all");
+    const art = (c: typeof cfAll, k: string) => c.articles.find((a) => a.key === k)?.total ?? 0;
+    eq("[Cashflow] Σ 2025–2026 + оплаты вне периода = Σ оплат Оплаты→Все", cfAll.total + cfAll.outside, sumAll);
+    eq("[Cashflow] Σ 2025–2026 + вне периода = «Оплачено всего» (Главная)", cfAll.total + cfAll.outside, paidAllDash);
+    eq("[Cashflow] накопительно в конце = Итого", cfAll.cumulative[cfAll.cumulative.length - 1], cfAll.total, 0.01);
+    eq("[Cashflow] Σ «Всего за месяц» = Σ статей", cfAll.monthTotals.reduce((a, v) => a + v, 0), cfAll.articles.reduce((a, x) => a + x.total, 0), 0.01);
+    eq("[Cashflow] 2025 + 2026 = 2025–2026", buildCashflow(ov, "2025").total + buildCashflow(ov, "2026").total, cfAll.total, 0.01);
+    if (cfAll.outside < 0.5) {
+      eq("[Cashflow] мех (с шкурами подрядчика) = Оплачено мех", art(cfAll, "furAuction") + art(cfAll, "furPurchase") + art(cfAll, "hides"), dAll.paidByItem.fur);
+      eq("[Cashflow] подкладка = Оплачено подкладка", art(cfAll, "lining"), dAll.paidByItem.lining);
+      eq("[Cashflow] услуги по УПД = Оплачено услуги", art(cfAll, "services"), dAll.paidByItem.services);
+      eq("[Cashflow] работа = Оплачено работа", art(cfAll, "work"), dAll.paidByItem.work - 0 , 1);
+    }
+    eq("[Cashflow] Σ видов платежа = Σ статей", cfAll.articles.reduce((a, x) => a + x.types.reduce((b, t) => b + t.total, 0), 0), cfAll.total, 0.01);
+    for (const m of cfAll.months) {
+      const i = cfAll.months.indexOf(m);
+      eq(`[Cashflow] ${m}: Σ статей = всего за месяц`, cfAll.articles.reduce((a, x) => a + x.byMonth[i], 0), cfAll.monthTotals[i], 0.01);
+      eq(`[Cashflow] ${m}: = Σ оплат месяца`, cfAll.monthTotals[i], ov.filter((r) => r.iso.startsWith(m)).reduce((a, r) => a + r.amount, 0), 0.01);
+    }
   }
   console.log(`\nСверка по статьям: проверок ${checks}, расхождений ${fails}`);
   process.exit(fails ? 1 : 0);
