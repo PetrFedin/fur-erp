@@ -9,7 +9,7 @@ import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
 import { DUE_LABEL, dueHint, payDue } from "@/lib/pay-display";
 import { ExpTable, MiniTable, PriceDetail, RecvDetail, SpendDetail } from "./drill";
 import { PROJECT_START_MONTH, workMonthIdx } from "@/lib/cashflow";
-import { PAY_TYPE_LABEL, spendByType, type PayType, flowPoints, workWindowStats, groupSales, type PayLite } from "@/lib/cashflow-detail";
+import { PAY_TYPE_LABEL, spendByType, workKindsByMonth, type PayType, flowPoints, workWindowStats, groupSales, type PayLite } from "@/lib/cashflow-detail";
 import type { SalesAggLine } from "@/lib/sales-receipts-core";
 import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly } from "@/lib/cashflow";
 
@@ -167,19 +167,28 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
   );
 }
 
-/** «Работа подрядчика по месяцам»: столбцы — оплата работы за месяц, ₽ (левая ось); линия с точками — получено единиц, шт. (правая ось): видно связь «заплатили ↔ получили». */
-function WorkMonthsChart({ months, work, units, active, setActive, colW }: { months: string[]; work: number[]; units: number[]; active: number | null; setActive: (i: number | null) => void; colW: number }) {
+const KIND_COLOR: Record<PayType, string> = { ADVANCE: "#d93a0e", PARTIAL: "#2f7f8f", FINAL: "#7a4a8c", OTHER: "#71717a" };
+const KIND_ORDER: PayType[] = ["ADVANCE", "PARTIAL", "FINAL", "OTHER"];
+
+/** «Работа подрядчика по месяцам»: стековые столбцы по видам платежа (аванс / доплата / окончательный / прочее; разные цвета и штриховка) — левая ось, ₽; линия с точками — получено единиц (правая ось). */
+function WorkMonthsChart({ months, kinds, units, active, setActive, colW }: { months: string[]; kinds: Record<PayType, number[]>; units: number[]; active: number | null; setActive: (i: number | null) => void; colW: number }) {
   const n = months.length;
   const left = 58, right = 44, top = 12, bottom = 40, H = 230;
   const W = left + right + n * colW;
   const bw = Math.max(10, Math.min(40, Math.round(colW * 0.7)));
   const x = (i: number) => left + i * colW + colW / 2;
-  const maxW = niceMax(Math.max(...work, 1)), maxU = niceMax(Math.max(...units, 1));
+  const total = (i: number) => KIND_ORDER.reduce((t, k) => t + kinds[k][i], 0);
+  const maxW = niceMax(Math.max(...months.map((_, i) => total(i)), 1)), maxU = niceMax(Math.max(...units, 1));
   const yw = (v: number) => top + (H - top - bottom) * (1 - v / maxW);
   const yu = (v: number) => top + (H - top - bottom) * (1 - v / maxU);
   const line = units.map((v, i) => `${i === 0 ? "M" : "L"}${x(i)},${yu(v)}`).join(" ");
+  const tip = (i: number) => `${full(months[i])}: работа ${dash(total(i))}${KIND_ORDER.filter((k) => Math.abs(kinds[k][i]) > 0.5).map((k) => `, ${PAY_TYPE_LABEL[k].toLowerCase()} ${dash(kinds[k][i])}`).join("")}; получено ${units[i]} шт.`;
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Оплата работы подрядчика по месяцам и единицы товара, полученные в эти месяцы" className="block">
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Оплата работы подрядчика по месяцам по видам платежа и единицы товара, полученные в эти месяцы" className="block">
+      <defs>
+        <pattern id="hatch-partial" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill={KIND_COLOR.PARTIAL} /><line x1="0" y1="0" x2="0" y2="6" stroke="#fff" strokeWidth="2" /></pattern>
+        <pattern id="dots-final" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill={KIND_COLOR.FINAL} /><circle cx="3" cy="3" r="1.2" fill="#fff" /></pattern>
+      </defs>
       {[0, 0.5, 1].map((t) => (
         <g key={t}>
           <line x1={left} x2={W - right} y1={yw(t * maxW)} y2={yw(t * maxW)} stroke="#d4d4d8" />
@@ -187,18 +196,27 @@ function WorkMonthsChart({ months, work, units, active, setActive, colW }: { mon
           <text x={W - right + 6} y={yu(t * maxU) + 4} fontSize={11} fill={NAVY}>{Math.round(t * maxU)}</text>
         </g>
       ))}
-      {months.map((m, i) => (
-        <g key={m}>
-          <text x={x(i)} y={H - bottom + 16} textAnchor="middle" fontSize={11} fill="#5a6a94">{mon(m)}</text>
-          {(i === 0 || m.endsWith("-01")) && <text x={x(i)} y={H - bottom + 30} textAnchor="middle" fontSize={11} fontWeight={700} fill={NAVY}>{m.slice(0, 4)}</text>}
-          {work[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={yw(work[i])} height={Math.max(0, yw(0) - yw(work[i]))} fill={SPEND} opacity={active !== null && active !== i ? 0.35 : 1} />}
-        </g>
-      ))}
+      {months.map((m, i) => {
+        let acc = 0;
+        return (
+          <g key={m}>
+            <text x={x(i)} y={H - bottom + 16} textAnchor="middle" fontSize={11} fill="#5a6a94">{mon(m)}</text>
+            {(i === 0 || m.endsWith("-01")) && <text x={x(i)} y={H - bottom + 30} textAnchor="middle" fontSize={11} fontWeight={700} fill={NAVY}>{m.slice(0, 4)}</text>}
+            {KIND_ORDER.map((k) => {
+              const v = kinds[k][i];
+              if (v <= 0.5) return null;
+              const y0 = yw(acc), y1 = yw(acc + v);
+              acc += v;
+              return <rect key={k} x={x(i) - bw / 2} width={bw} y={y1} height={Math.max(0, y0 - y1)} fill={k === "PARTIAL" ? "url(#hatch-partial)" : k === "FINAL" ? "url(#dots-final)" : KIND_COLOR[k]} opacity={active !== null && active !== i ? 0.35 : 1}><title>{`${PAY_TYPE_LABEL[k]}: ${formatMoney(v)}`}</title></rect>;
+            })}
+          </g>
+        );
+      })}
       <path d={line} fill="none" stroke={NAVY} strokeWidth={2} />
       {units.map((v, i) => <circle key={i} cx={x(i)} cy={yu(v)} r={active === i ? 5 : 3} fill={NAVY} />)}
       {active !== null && <line x1={x(active)} x2={x(active)} y1={top} y2={H - bottom} stroke="#111" opacity={0.35} />}
       {months.map((m, i) => (
-        <rect key={m} x={left + i * colW} y={top} width={colW} height={H - top - bottom} fill="transparent" tabIndex={0} aria-label={`${full(m)}: работа ${dash(work[i])}, получено ${units[i]} шт.`}
+        <rect key={m} x={left + i * colW} y={top} width={colW} height={H - top - bottom} fill="transparent" tabIndex={0} aria-label={tip(i)}
           onMouseEnter={() => setActive(i)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(i)} onBlur={() => setActive(null)} onClick={() => setActive(i)} />
       ))}
     </svg>
@@ -580,6 +598,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const gS = { ...s, recPcs: s.recPcs.slice(gOff), salePcs: s.salePcs.slice(gOff), revIncl: s.revIncl.slice(gOff), revEx: s.revEx.slice(gOff), discIncl: s.discIncl.slice(gOff) };
   const gSer = { ...ser, spend: ser.spend.slice(gOff), revenue: ser.revenue.slice(gOff), net: ser.net.slice(gOff), cumSpend: ser.cumSpend.slice(gOff), cumRevenue: ser.cumRevenue.slice(gOff), cumNet: ser.cumNet.slice(gOff), work: ser.work.slice(gOff), cumWorkPerUnit: ser.cumWorkPerUnit.slice(gOff) };
   const gStock = m.stock.slice(gOff);
+  const gKinds = useMemo(() => workKindsByMonth(pays, gMonths, cat), [pays, gMonths, cat]);
   const gWu = { work: m.wu.work.slice(gOff), units: m.wu.units.slice(gOff), avg: m.wu.avg };
   const shownText = `${CAT_LABEL[cat]} · ${period === "all" ? "2025–2026" : period} · ${vatNote}`;
   const monthLabel = (mo: string) => `${["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"][Number(mo.slice(5, 7)) - 1]} ${mo.slice(0, 4)}`;
@@ -959,10 +978,10 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
             <div>
               <h3 className="text-sm font-semibold">Работа подрядчика по месяцам, ₽</h3>
               <p className="mb-1 text-xs text-neutral-700">Всего {rubOrDash(gWu.work.reduce((a, b) => a + b, 0))}, на единицу {rubOrDash(gWu.units.reduce((a, b) => a + b, 0) > 0 ? gWu.work.reduce((a, b) => a + b, 0) / gWu.units.reduce((a, b) => a + b, 0) : null)}.</p>
-              <div className="min-h-[1.5rem] text-xs text-neutral-700" aria-live="polite">{gActive !== null ? <span><b>{full(gMonths[gActive])}</b>: работа {dash(gWu.work[gActive])}, получено {pcs(gWu.units[gActive])} шт.</span> : <span>Наведите курсор или коснитесь месяца.</span>}</div>
-              <ChartBox n={gMonths.length}>{(colW) => <WorkMonthsChart months={gMonths} work={gWu.work} units={gWu.units} active={gActive} setActive={setGActive} colW={colW} />}</ChartBox>
+              <div className="min-h-[1.5rem] text-xs text-neutral-700" aria-live="polite">{gActive !== null ? <span><b>{full(gMonths[gActive])}</b>: работа {dash(gWu.work[gActive])}{KIND_ORDER.filter((k) => Math.abs(gKinds[k][gActive]) > 0.5).map((k) => `, ${PAY_TYPE_LABEL[k].toLowerCase()} ${dash(gKinds[k][gActive])}`).join("")}, получено {pcs(gWu.units[gActive])} шт.</span> : <span>Наведите курсор или коснитесь месяца.</span>}</div>
+              <ChartBox n={gMonths.length}>{(colW) => <WorkMonthsChart months={gMonths} kinds={gKinds} units={gWu.units} active={gActive} setActive={setGActive} colW={colW} />}</ChartBox>
               <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: SPEND }} />Оплата работы, ₽ (слева)</li>
+                {KIND_ORDER.map((k) => <li key={k} className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: k === "ADVANCE" || k === "OTHER" ? KIND_COLOR[k] : `repeating-linear-gradient(${k === "PARTIAL" ? "45deg" : "0deg"}, ${KIND_COLOR[k]} 0 3px, #fff 3px 5px)` }} />{PAY_TYPE_LABEL[k]} {dash(gKinds[k].reduce((a2, b2) => a2 + b2, 0))}</li>)}
                 <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-full" style={{ background: NAVY }} />Получено единиц, шт. (справа)</li>
               </ul>
             </div>

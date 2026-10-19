@@ -8,7 +8,7 @@ import { join } from "path";
 import { PrismaClient } from "@prisma/client";
 import { loadPaymentsOverview } from "../src/lib/payments-overview";
 import { PROJECT_START_MONTH, workMonthIdx, aggregateSales, buildCashflow, workByClass, goodsHeadline, headline, monthsOf, seriesOf, sliceData, sliceSales, stockSeries, vatShares, visibleMonths } from "../src/lib/cashflow";
-import { workWindowStats, burnRate, flowPoints, groupSales, paybackMonths, payLites, spendByArticle, spendByType, topPays, workByTz } from "../src/lib/cashflow-detail";
+import { workKindsByMonth, workWindowStats, burnRate, flowPoints, groupSales, paybackMonths, payLites, spendByArticle, spendByType, topPays, workByTz } from "../src/lib/cashflow-detail";
 import { kindTotals } from "../src/lib/pay-kinds";
 import { payDue } from "../src/lib/pay-display";
 import { loadOrderClasses, loadPurchaseVat, loadSalesLines } from "../src/lib/cashflow-server";
@@ -86,6 +86,10 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
     eq(`[статья] ${a.key}: Σ по месяцам = итог`, sum(di.byMonth.map((t) => t.total)), di.total, 0.01);
     eq(`[статья] ${a.key}: итог по платежам = в таблице (без НДС)`, de.total, ex.articles.find((x) => x.key === a.key)?.total ?? 0, 0.05);
   }
+  { const wk = workKindsByMonth(plc, incl.months, "all"); const wsum = Object.values(wk).reduce((t, a) => t + a.reduce((x, y) => x + y, 0), 0);
+    eq("[работа по видам] Σ видов = работа всего", wsum, incl.articles.find((a) => a.key === "work")?.total ?? 0, 0.05);
+    for (const c of ["clothes", "acc"] as const) eq(`[работа по видам] ${c}: Σ видов = работа категории`, Object.values(workKindsByMonth(plc, incl.months, c)).reduce((t, a) => t + a.reduce((x, y) => x + y, 0), 0), wc[c].reduce((x, y) => x + y, 0), 0.05);
+    for (const [i, m] of incl.months.entries()) eq(`[работа по видам] ${m}: Σ видов = работа месяца`, wk.ADVANCE[i] + wk.PARTIAL[i] + wk.FINAL[i] + wk.OTHER[i], workArt[i], 0.05); }
   eq("[работа] Σ ТЗ + неразнесённое = работа в таблице", workByTz(plc, incl.months, "all").total, incl.articles.find((a) => a.key === "work")?.total ?? 0, 0.05);
   eq("[работа] одежда+аксессуары+прочее = всё", workByTz(plc, incl.months, "clothes").total + workByTz(plc, incl.months, "acc").total + workByTz(plc, incl.months, "other").total, workByTz(plc, incl.months, "all").total, 0.05);
   const saleOnly = lines.filter((l) => l.kind === "SALE");

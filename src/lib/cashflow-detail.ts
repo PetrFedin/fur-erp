@@ -121,3 +121,18 @@ export function workWindowStats(work: number[], units: number[], mask: boolean[]
     min: sorted[0] ?? null, max: sorted[sorted.length - 1] ?? null,
   };
 }
+
+/** Оплата работы по месяцам и видам платежа (аванс / доплата / окончательный / прочее); cls — категория по ТЗ→модель («all» — вся работа, включая без привязки). Σ видов по месяцу = работа за месяц. */
+export function workKindsByMonth(pays: PayLite[], months: string[], cls: CatClass | "all"): Record<PayType, number[]> {
+  const out: Record<PayType, number[]> = { ADVANCE: months.map(() => 0), PARTIAL: months.map(() => 0), FINAL: months.map(() => 0), OTHER: months.map(() => 0) };
+  const idx = new Map(months.map((m, i) => [m, i]));
+  for (const p of pays) {
+    const i = idx.get(p.iso.slice(0, 7));
+    if (i === undefined) continue;
+    const w = cls === "all" ? (p.art.work ?? 0) : p.tz.filter((t) => t.cls === cls).reduce((a, t) => a + t.amount, 0);
+    if (Math.abs(w) < 0.005) continue;
+    const k: PayType = p.type in out ? p.type : "OTHER";
+    out[k][i] += w;
+  }
+  return out;
+}
