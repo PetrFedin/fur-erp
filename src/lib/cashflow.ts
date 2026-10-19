@@ -3,8 +3,18 @@
 import type { OverviewRow } from "@/lib/payments-overview";
 import type { CatClass, SalesAggLine } from "@/lib/sales-receipts-core";
 
-export type CashflowPeriod = "2025" | "2026" | "all";
-export const CASHFLOW_YEARS = [2025, 2026] as const;
+export type CashflowPeriod = "all" | (string & {});
+export const CASHFLOW_FIRST_YEAR = 2025;
+/** Годы ряда: с 2025 до текущего (минимум 2026), чтобы каждый новый год/месяц появлялся сам и платежи не уходили в «вне периода». */
+export function cashflowYears(nowYear: number = new Date().getUTCFullYear()): number[] {
+  const last = Math.max(2026, nowYear);
+  return Array.from({ length: last - CASHFLOW_FIRST_YEAR + 1 }, (_, i) => CASHFLOW_FIRST_YEAR + i);
+}
+/** Текущий месяц «YYYY-MM» по Москве (граница месяца не уезжает от UTC). */
+export function currentMonthMsk(now: Date = new Date()): string {
+  const m = new Date(now.getTime() + 3 * 3600 * 1000).toISOString().slice(0, 7);
+  return m;
+}
 
 export const CASHFLOW_ARTICLES = [
   { key: "furAuction", label: "Мех: аукционы", hint: "Оплата партий меха по аукционам (SAGA, FH и др.) поставщику." },
@@ -32,11 +42,11 @@ export type CashflowData = {
 };
 
 export function parsePeriod(v: string | string[] | undefined): CashflowPeriod {
-  return v === "2025" || v === "2026" ? v : "all";
+  return typeof v === "string" && /^\d{4}$/.test(v) && cashflowYears().includes(Number(v)) ? v : "all";
 }
 
 export function monthsOf(period: CashflowPeriod): string[] {
-  const ys = period === "all" ? CASHFLOW_YEARS : [Number(period)];
+  const ys = period === "all" ? cashflowYears() : [Number(period)];
   return ys.flatMap((y) => Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, "0")}`));
 }
 

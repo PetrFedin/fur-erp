@@ -8,7 +8,7 @@ import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
 import { DUE_LABEL, dueHint, payDue } from "@/lib/pay-display";
 import { ExpTable, MiniTable, PriceDetail, RecvDetail, SpendDetail } from "./drill";
-import { PROJECT_START_MONTH, workMonthIdx } from "@/lib/cashflow";
+import { PROJECT_START_MONTH, workMonthIdx, cashflowYears } from "@/lib/cashflow";
 import { PAY_TYPE_LABEL, spendByType, workKindsByMonth, type PayType, flowPoints, workWindowStats, groupSales, type PayLite } from "@/lib/cashflow-detail";
 import type { SalesAggLine } from "@/lib/sales-receipts-core";
 import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly } from "@/lib/cashflow";
@@ -30,7 +30,6 @@ const pcs = (v: number) => (v === 0 ? "—" : v.toLocaleString("ru-RU"));
 const mln = (v: number) => (v / 1e6).toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " млн";
 /** Остаток «TTL Stock, PCS» из отчёта «отчет по товарам фото и цены» на 19.10.2026 (Report, строка Total). */
 const REPORT_STOCK = 379;
-const PERIODS: [CashflowPeriod, string][] = [["all", "Все"], ["2025", "2025"], ["2026", "2026"]];
 
 function niceMax(v: number) {
   if (v <= 0) return 1;
@@ -328,7 +327,7 @@ function WorkUnitWindow({ months, by, initialCat }: { months: string[]; by: Work
 }
 
 /** Контейнер графика: измеряет свою ширину и отдаёт ширину колонки месяца, чтобы график занимал всю ширину; на узком экране — не уже 26 px на месяц с прокруткой внутри блока. */
-function ChartBox({ n, children }: { n: number; children: (colW: number) => React.ReactNode }) {
+function ChartBox({ n, extra = 70, children }: { n: number; extra?: number; children: (colW: number) => React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
   useEffect(() => {
@@ -339,7 +338,7 @@ function ChartBox({ n, children }: { n: number; children: (colW: number) => Reac
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const colW = w > 0 ? Math.max(26, Math.min(80, Math.floor((w - 70) / Math.max(1, n)))) : 26;
+  const colW = w > 0 ? Math.max(26, Math.min(80, Math.floor((w - extra) / Math.max(1, n)))) : 26;
   return <div ref={ref} className="w-full overflow-x-auto" data-keep-scroll>{children(colW)}</div>;
 }
 
@@ -497,7 +496,7 @@ function Tile({ label, value, sub, hint, tone, mini, spark, extra, after, contro
         {spark ? <Spark values={spark} /> : null}
         {mini ? (
           <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
-            {mini.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{k}</dt><dd className="font-semibold tabular-nums text-neutral-900">{v}</dd></div>)}
+            {mini.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{k}</dt><dd className="font-semibold tabular-nums whitespace-nowrap text-neutral-900">{v}</dd></div>)}
           </dl>
         ) : null}
         {after ? (
@@ -677,7 +676,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
         </button>
         <div id="cf-filters-panel" className={(fOpen ? "flex" : "hidden") + " flex-wrap items-center gap-2 pb-1 md:flex md:pb-0"}>
           <nav aria-label="Период" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-            {PERIODS.map(([k, t]) => <button key={k} type="button" aria-pressed={period === k} onClick={() => { setPeriod(k); clearHot(); }} className={seg(period === k)}>{t}</button>)}
+            {([["all", "Все"], ...cashflowYears().map((y) => [String(y), String(y)])] as [CashflowPeriod, string][]).map(([k, t]) => <button key={k} type="button" aria-pressed={period === k} onClick={() => { setPeriod(k); clearHot(); }} className={seg(period === k)}>{t}</button>)}
           </nav>
           <div role="group" aria-label="НДС" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
             <button type="button" aria-pressed={!exVat} onClick={() => setExVat(false)} className={seg(!exVat)}>С НДС</button>
@@ -698,7 +697,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
         </div>
       )}
 
-      <section aria-label="Ключевые показатели" className="grid grid-cols-2 items-stretch gap-2 md:grid-cols-4">
+      <section aria-label="Ключевые показатели" className="grid grid-cols-1 items-stretch gap-2 min-[480px]:grid-cols-2 md:grid-cols-4">
         <Tile label="Потрачено" value={money(h.spent)} sub={filtered ? "все траты, не по категории" : `${label}, ${vatNote}`} spark={ser.spend} mini={spendKinds.map((r) => [r.short, money(r.total)] as [string, string])} expandId="spend" openId={openTile} onToggle={toggleTile}
           hint={<p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p>} />
         <Tile label="Получено" value={hasSales ? money(recvSum(cat, exVat)) : "—"} sub={hasSales ? `выручка, ${vatNote}` : "нет данных о продажах"} spark={hasSales ? m.keep.map((i) => (exVat ? salesBy[cat].revEx[i] : salesBy[cat].revIncl[i])) : undefined}
@@ -735,7 +734,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
             hint: <p>Выручка ({vatNote}) ÷ проданные единицы (возвраты минус) за выбранный период и категорию; режим НДС — как в панели (в окне его можно переключить только для окна).</p>,
           }; })} />
         ) : <Tile label="Средняя цена продажи" value="—" sub="нет данных о продажах" />}
-        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3 md:col-span-2">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3 md:col-span-2 min-[480px]:col-span-2">
           <div className="flex items-center gap-1 text-xs text-neutral-600">{DUE_LABEL}<InfoHint label={`Как считается: ${DUE_LABEL}`} wide><p>{DUE_LABEL} = сырьё + работа по заведённым ТЗ − аванс подрядчику, не меньше нуля. Долг до зачёта аванса: {money(due.gross)}.</p><p className="mt-1">{dueHint(money(due.gross), money(left.prod))}</p></InfoHint></div>
           <div className={"text-lg font-semibold tabular-nums " + (due.net > 0 ? "text-amber-700" : "text-neutral-900")}>{formatMoney(due.net)}</div>
           {due.net <= 0 && due.creditLeft > 0 ? <div className="text-xs text-neutral-600">К доплате 0 ₽, аванс остаётся в зачёте {money(due.creditLeft)}</div> : null}
@@ -896,14 +895,13 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
       <section aria-label="Деньги" className="rounded-lg border border-neutral-300 bg-white p-3">
         <div className="mb-2 min-h-[2.5rem] text-xs text-neutral-700" aria-live="polite">
           {active === null ? (
-            <span>Наведите курсор или коснитесь месяца. Вверх — полученные деньги, вниз — траты по статьям, чёрная линия — чистый поток{hasSales ? "" : " (нет данных о продажах)"}.</span>
+            null
           ) : (
             <span><b>{full(months[active])}</b>: потрачено {dash(ser.spend[active])}{hasSales ? <>, получено {dash(ser.revenue[active])}{filtered ? null : `, чистый ${dash(ser.net[active])}`}</> : null}, накопительно потрачено {dash(ser.cumSpend[active])}{hasSales ? <>, получено {dash(ser.cumRevenue[active])}{filtered ? null : `, чистый ${dash(ser.cumNet[active])}`}</> : null}
               {d.articles.filter((a) => Math.abs(a.byMonth[active]) >= 0.5).map((a) => <span key={a.key}> · {a.label} {formatMoney(a.byMonth[active])}</span>)}</span>
           )}
         </div>
         <h2 className="mb-1 text-sm font-semibold">Траты и полученные деньги по месяцам</h2>
-        <p className="mb-1 text-xs text-neutral-600">{shownText}</p>
         <ChartBox n={months.length}>{(colW) => <Chart kind="money" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
           {d.articles.map((a) => (
@@ -921,8 +919,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
         <h2 className="mb-1 flex items-center gap-1 text-sm font-semibold">Накопительно: потрачено и получено
           <InfoHint label="Как читать накопительный график" wide><p>Две линии растут с первого месяца данных: оранжевая — сколько потрачено, зелёная — сколько получено. Пунктир — разрыв между ними: ниже нуля «в минусе», выше — «в плюсе».</p></InfoHint>
         </h2>
-        <p className="mb-1 text-xs text-neutral-600">{shownText}</p>
-        <ChartBox n={months.length}>{(colW) => <Chart kind="cum" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
+        <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="cum" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
           <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: SPEND }} />Потрачено нарастающим итогом</li>
           {hasSales && <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: GET }} />Получено нарастающим итогом</li>}
@@ -934,19 +931,18 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
         <h2 className="text-sm font-semibold">Товар и работа подрядчика</h2>
         {hasSales ? (
           <>
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 md:grid-cols-4">
               <Tile label="Приход, шт." mini={mini((c) => pcs(m.per[c].g.received))} value={pcs(g.received)} sub={`за ${label}`} hint={<p>Единицы, поступившие за период (выгрузка «поступления»; корректировки с минусом учтены).</p>} />
               <Tile label="Продано, шт." mini={mini((c) => pcs(m.per[c].g.sold))} value={pcs(g.sold)} sub={`за ${label}`} hint={<p>Единицы проданные за период, возвраты вычтены.</p>} />
-              <Tile label="Остаток, шт." mini={mini((c) => pcs(m.per[c].g.stock))} value={pcs(g.stock)} sub="на конец периода" hint={<p>Накопленный приход минус накопленные продажи с начала данных. Фактический остаток по отчёту о товарах на 19.10.2026 — {REPORT_STOCK} шт.; расчётный на конец данных — {stockEnd} шт.{stockEnd !== REPORT_STOCK ? ` Разница ${stockEnd - REPORT_STOCK} шт. — списания и перемещения, которых нет в выгрузке поступлений и продаж.` : ""}</p>} />
+              <Tile label="Остаток, шт." mini={mini((c) => pcs(m.per[c].g.stock))} value={pcs(g.stock)} sub="на конец периода" hint={<p>Накопленный приход минус накопленные продажи с начала данных. Фактический остаток по отчёту о товарах на 19.10.2026 — {REPORT_STOCK} шт.; расчётный на конец данных — {stockEnd} шт.{stockEnd !== REPORT_STOCK ? ` Разница ${stockEnd - REPORT_STOCK} шт.: в выгрузке поступлений и продаж причина не видна.` : ""}</p>} />
               <Tile label="SO, %" mini={mini((c) => soText(m.per[c].g))} value={soText(g)} sub="продано / получено"
                 hint={<><p>SO (sell-out, sell-through) = накопленные продажи ÷ накопленный приход, единицы, с начала данных до конца периода; возвраты минус. В листе Report колонки «SO» нет, смысл взят как «продано из полученного». Без обрезки до 100%; получено 0 — «—».</p><p className="mt-1">«*» — продано больше получено (продажи включают другие поступления). «†» — получено меньше 10 шт., процент неустойчив.</p></>} />
             </div>
 
             <div>
               <h3 className="text-sm font-semibold">Приход, продажи и остаток, шт.</h3>
-              <p className="mb-1 text-xs text-neutral-700">Остаток {pcs(g.stock)} шт., продано {soText(g)} от полученного.</p>
-              <div className="min-h-[1.5rem] text-xs text-neutral-700" aria-live="polite">{gActive !== null ? <span><b>{full(gMonths[gActive])}</b>: получено {pcs(gS.recPcs[gActive])} шт., продано {pcs(gS.salePcs[gActive])} шт., остаток {pcs(gStock[gActive])} шт.</span> : <span>Наведите курсор или коснитесь месяца.</span>}</div>
-              <ChartBox n={gMonths.length}>{(colW) => <Chart kind="goods" months={gMonths} d={d} s={gS} ser={gSer} stock={gStock} active={gActive} setActive={setGActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
+              <div className="min-h-[1.5rem] text-xs text-neutral-700" aria-live="polite">{gActive !== null ? <span><b>{full(gMonths[gActive])}</b>: получено {pcs(gS.recPcs[gActive])} шт., продано {pcs(gS.salePcs[gActive])} шт., остаток {pcs(gStock[gActive])} шт.</span> : null}</div>
+              <ChartBox n={gMonths.length} extra={102}>{(colW) => <Chart kind="goods" months={gMonths} d={d} s={gS} ser={gSer} stock={gStock} active={gActive} setActive={setGActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
               <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
                 <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: NAVY }} />Получено</li>
                 <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Продано</li>
@@ -956,9 +952,8 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
 
             <div>
               <h3 className="text-sm font-semibold">Работа подрядчика по месяцам, ₽</h3>
-              <p className="mb-1 text-xs text-neutral-700">Всего {rubOrDash(gWu.work.reduce((a, b) => a + b, 0))}, на единицу {rubOrDash(gWu.units.reduce((a, b) => a + b, 0) > 0 ? gWu.work.reduce((a, b) => a + b, 0) / gWu.units.reduce((a, b) => a + b, 0) : null)}.</p>
-              <div className="min-h-[1.5rem] text-xs text-neutral-700" aria-live="polite">{gActive !== null ? <span><b>{full(gMonths[gActive])}</b>: работа {dash(gWu.work[gActive])}{KIND_ORDER.filter((k) => Math.abs(gKinds[k][gActive]) > 0.5).map((k) => `, ${PAY_TYPE_LABEL[k].toLowerCase()} ${dash(gKinds[k][gActive])}`).join("")}, получено {pcs(gWu.units[gActive])} шт.</span> : <span>Наведите курсор или коснитесь месяца.</span>}</div>
-              <ChartBox n={gMonths.length}>{(colW) => <WorkMonthsChart months={gMonths} kinds={gKinds} units={gWu.units} active={gActive} setActive={setGActive} colW={colW} />}</ChartBox>
+              <div className="min-h-[1.5rem] text-xs text-neutral-700" aria-live="polite">{gActive !== null ? <span><b>{full(gMonths[gActive])}</b>: работа {dash(gWu.work[gActive])}{KIND_ORDER.filter((k) => Math.abs(gKinds[k][gActive]) > 0.5).map((k) => `, ${PAY_TYPE_LABEL[k].toLowerCase()} ${dash(gKinds[k][gActive])}`).join("")}, получено {pcs(gWu.units[gActive])} шт.</span> : null}</div>
+              <ChartBox n={gMonths.length} extra={102}>{(colW) => <WorkMonthsChart months={gMonths} kinds={gKinds} units={gWu.units} active={gActive} setActive={setGActive} colW={colW} />}</ChartBox>
               <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
                 {KIND_ORDER.filter((k) => Math.abs(gKinds[k].reduce((a2, b2) => a2 + b2, 0)) > 0.5).map((k) => <li key={k} className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: k === "ADVANCE" || k === "OTHER" ? KIND_COLOR[k] : `repeating-linear-gradient(${k === "PARTIAL" ? "45deg" : "0deg"}, ${KIND_COLOR[k]} 0 3px, #fff 3px 5px)` }} />{PAY_TYPE_LABEL[k]} {dash(gKinds[k].reduce((a2, b2) => a2 + b2, 0))}</li>)}
                 <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-full" style={{ background: NAVY }} />Получено единиц, шт. (справа)</li>

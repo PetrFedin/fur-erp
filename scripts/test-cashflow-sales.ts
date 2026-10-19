@@ -7,7 +7,7 @@ import { homedir } from "os";
 import { join } from "path";
 import { PrismaClient } from "@prisma/client";
 import { loadPaymentsOverview } from "../src/lib/payments-overview";
-import { PROJECT_START_MONTH, workMonthIdx, aggregateSales, buildCashflow, workByClass, goodsHeadline, headline, monthsOf, seriesOf, sliceData, sliceSales, stockSeries, vatShares, visibleMonths } from "../src/lib/cashflow";
+import { cashflowYears, currentMonthMsk, parsePeriod, PROJECT_START_MONTH, workMonthIdx, aggregateSales, buildCashflow, workByClass, goodsHeadline, headline, monthsOf, seriesOf, sliceData, sliceSales, stockSeries, vatShares, visibleMonths } from "../src/lib/cashflow";
 import { workKindsByMonth, workWindowStats, burnRate, flowPoints, groupSales, paybackMonths, payLites, spendByArticle, spendByType, topPays, workByTz } from "../src/lib/cashflow-detail";
 import { kindTotals } from "../src/lib/pay-kinds";
 import { payDue } from "../src/lib/pay-display";
@@ -31,6 +31,12 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   ok("код: M057/ SABLE → M057", modelCodeOfArticle("M057/ SABLE WILD SIL 5") === "M057");
   ok("код: кириллица М029 = M029", normCode("М029") === "M029" && normCode("МН11") === "MH11");
 
+  // Годы и месяцы растут сами; граница месяца — по Москве.
+  ok("[годы] 2026 → 2025–2026", cashflowYears(2026).join() === "2025,2026");
+  ok("[годы] 2027 → добавляется сам", cashflowYears(2027).join() === "2025,2026,2027");
+  ok("[период] мусор → all", parsePeriod("1999") === "all" && parsePeriod("abc") === "all" && parsePeriod("2025") === "2025");
+  ok("[МСК] 30.09 21:30 UTC уже октябрь", currentMonthMsk(new Date("2026-09-30T21:30:00Z")) === "2026-10");
+  ok("[МСК] 30.09 20:30 UTC ещё сентябрь", currentMonthMsk(new Date("2026-09-30T20:30:00Z")) === "2026-09");
   const org = (await prisma.organization.findFirst())!.id;
   const [ov, pv, lines] = await Promise.all([loadPaymentsOverview(org), loadPurchaseVat(org), loadSalesLines(org)]);
   const sumAll = sum(ov.map((r) => r.amount));

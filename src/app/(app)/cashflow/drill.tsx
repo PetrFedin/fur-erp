@@ -4,7 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/utils";
 import { CASHFLOW_ARTICLES, type ArticleKey, type CashflowData } from "@/lib/cashflow";
-import { groupSales, spendByArticle, spendByType, topPays, workByTz, type PayLite } from "@/lib/cashflow-detail";
+import { groupSales, spendByArticle, spendByType, topPays, type PayLite } from "@/lib/cashflow-detail";
 import { CAT_LABEL, type CatClass, type SalesAggLine } from "@/lib/sales-receipts-core";
 
 const money = (v: number) => (Math.abs(v) < 0.5 ? "—" : formatMoney(v));
@@ -139,27 +139,6 @@ export function RecvDetail({ lines, months, exVat, cat, total, controls }: { lin
         </div>
         <MiniTable head={["Артикул", "шт.", "Выручка"]} rows={byArt.slice(0, 15).map((g) => [g.key, String(g.pcs), money(g.rev)])} total={["Итого (все артикулы)", String(byArt.reduce((a, g) => a + g.pcs, 0)), money(byArt.reduce((a, g) => a + g.rev, 0))]} />
       </div>
-    </div>
-  );
-}
-
-/** «Работа»: выбор категории → месяцы оплат и ТЗ (партии) с суммами работы. */
-export function WorkDetail({ pays, months, d, units }: { pays: PayLite[]; months: string[]; d: CashflowData; units: number[] }) {
-  const [cls, setCls] = useState<"all" | CatClass>("all");
-  const det = useMemo(() => workByTz(pays, months, cls), [pays, months, cls]);
-  const byMonth = useMemo(() => months.map((m, i) => ({ m, i, v: workByTz(pays, [m], cls).total })).filter((x) => Math.abs(x.v) > 0.005), [pays, months, cls]);
-  const workTotal = d.articles.find((a) => a.key === "work")?.total ?? 0;
-  return (
-    <div className="flex flex-col gap-4">
-      <Chips label="Категория" value={cls} options={[["all", "Все категории"], ["clothes", CAT_LABEL.clothes], ["acc", CAT_LABEL.acc], ["other", "Прочее / без привязки"]]} onChange={setCls} />
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <ExpTable head={["Месяц оплат", "Работа", "шт. получено", "₽ / шт."]} rows={byMonth.map((x) => ({ id: x.m, cells: [monthLabel(x.m), money(x.v), cls === "all" ? String(units[x.i]) : "—", cls === "all" && units[x.i] > 0 ? money(x.v / units[x.i]) : "—"], sub: (["clothes", "acc", "other"] as const).map((c) => [CAT_LABEL[c], money(workByTz(pays, [x.m], c).total), "—", "—"]).filter((r) => r[1] !== "—") }))} total={["Итого", money(det.total), "", ""]} />
-          <Spark values={byMonth.map((x) => x.v)} />
-        </div>
-        <MiniTable head={["ТЗ (партия)", "Платежей", "Работа"]} rows={[...det.rows.map((r) => [<Link key={r.href} href={r.href} className="underline">{r.label}</Link>, String(r.count), money(r.amount)]), ...(Math.abs(det.unlinked.amount) > 0.005 ? [["Аванс без привязки к ТЗ", String(det.unlinked.count), money(det.unlinked.amount)]] : [])]} total={["Итого", "", money(det.total)]} />
-      </div>
-      {cls === "all" && <p className="text-xs text-neutral-700">Итого по ТЗ и неразнесённым авансам = «Работа подрядчику» в таблице: {money(workTotal)}.</p>}
     </div>
   );
 }

@@ -62,9 +62,3 @@ export async function loadOrderClasses(orgId: string): Promise<Map<string, CatCl
   const orders = await prisma.productionOrder.findMany({ where: { organizationId: orgId }, select: { id: true, productModel: { select: { categoryRef: { select: { group: true } } } } } });
   return new Map(orders.map((o) => [o.id, classOfGroup(o.productModel.categoryRef?.group)]));
 }
-
-/** Месяцы (YYYY-MM) с отправкой товара: Shipment.shippedDate (отгрузки). */
-export async function loadShipmentMonths(orgId: string): Promise<string[]> {
-  const rows = await prisma.shipment.findMany({ where: { organizationId: orgId, shippedDate: { not: null } }, select: { shippedDate: true } });
-  return [...new Set(rows.map((r) => r.shippedDate!.toISOString().slice(0, 7)))];
-}
