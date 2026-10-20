@@ -19,7 +19,7 @@ let fails = 0, checks = 0;
 const eq = (what: string, got: number | null, want: number | null, tol = 1e-6) => { checks++; if (got === null || want === null ? got !== want : Math.abs(got - want) > tol) { fails++; console.log(`  ✗ ${what}: ${got} ≠ ${want}`); } };
 const ok = (what: string, cond: boolean) => { checks++; if (!cond) { fails++; console.log(`  ✗ ${what}`); } };
 const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
-const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenueIncl", "revenueEx", "discountSum"];
+const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenueIncl", "revenueEx", "discountSum", "grossRev"];
 
 (async () => {
   // Статические проверки: закрытость для подрядчика, ссылки, формулировки.
@@ -35,12 +35,19 @@ const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenue
     const src = readFileSync(f, "utf8");
     ok(`${f}: без «MVST» и «Google Диск»`, !/MVST|Google Диск/i.test(src));
   }
+  const srcOf = (f: string) => readFileSync(`src/app/(app)/sales/${f}`, "utf8");
+  const metrics = ["sales-view.tsx", "sales-charts.tsx", "sales-tree.tsx", "sales-tabs.tsx"].flatMap((f) => [...srcOf(f).matchAll(/data-metric=(?:\{def\.id\}|"([\w-]+)")/g)].map((m) => m[1] ?? "tile"));
+  ok("дубли: каждое data-metric в одном месте", metrics.filter((m) => m !== "tile").length === new Set(metrics.filter((m) => m !== "tile")).size);
+  ok("дубли: плитки только received/sold/stock/sellThrough", [...srcOf("sales-view.tsx").matchAll(/\{ id: "(\w+)", label:/g)].map((m) => m[1]).filter((id) => !["produced", "fg", "shipped"].includes(id)).join() === "received,sold,stock,sellThrough");
+  ok("дубли: корневая строка дерева не выводится (итог только в плитках)", !/renderNode\(tree, 0\)/.test(srcOf("sales-tree.tsx")));
+  ok("дубли: нет вкладки «Заказы» и таблицы по периодам", !/key: "orders"/.test(readFileSync("src/lib/sales-url.ts", "utf8")) && !/Таблица по периодам/.test(srcOf("sales-charts.tsx")));
+  ok("нет мер «по карточке»", !/К карточке|Цена по карточке/.test(srcOf("sales-tree.tsx") + srcOf("sales-view.tsx")));
   ok("страница ленты движений существует", existsSync("src/app/(app)/sales/movement/page.tsx"));
   ok("ссылка ленты ведёт на /sales/movement", (movementHref("M001A/SABLE", "SILVER", null) ?? "").startsWith("/sales/movement?a=M001A%2FSABLE&c=SILVER"));
   ok("страницы изделия и ТЗ существуют (ссылки из ленты)", existsSync("src/app/(app)/models/[id]/page.tsx") && existsSync("src/app/(app)/production/[id]/page.tsx"));
   ok("нули — прочерком", n0(0) === "—");
-  const u = parseUi({ from: "2026-01-01", cat: "acc", s: "d", vat: "ex", tab: "stock", cols: "sold,stock,bad" });
-  ok("адрес: разбор и сборка состояния", uiQuery(u) === "from=2026-01-01&cat=acc&vat=ex&tab=stock&s=d&cols=sold%2Cstock" && u.cols?.length === 2);
+  const u = parseUi({ from: "2026-01-01", cat: "acc", s: "a", vat: "ex", tab: "stock", cols: "sold,stock,bad", fur: "SABLE|MINK" });
+  ok("адрес: разбор и сборка состояния", uiQuery(u) === "from=2026-01-01&fur=SABLE%7CMINK&cat=acc&vat=ex&tab=stock&s=a&cols=sold%2Cstock" && u.cols?.length === 2);
 
   const org = (await prisma.organization.findFirst())!.id;
   const data = await loadSalesInput(org, "on");
@@ -53,7 +60,7 @@ const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenue
     console.log(`Выгрузка продаж не загружена — проверки данных пропущены. Проверок: ${checks}, ошибок: ${fails}`);
     process.exit(fails ? 1 : 0);
   }
-  const env = { lastMonth: lastMonthOf(all), cardPrice: (l: SLine) => (l.modelCode ? data.input.modelPrice.get(l.modelCode) ?? null : null) };
+  const env = { lastMonth: lastMonthOf(all) };
   for (const vat of ["in", "ex"] as const) {
     const ctx = makeCtx(data.input, vat);
     const t = extOf(ctx, all, env);
@@ -67,37 +74,32 @@ const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenue
     eq("выручка без НДС = 292 019 953,45", t.revenueEx, 292019953.45, 0.01);
     eq("режим НДС: выручка выбранного режима", t.revenue, vat === "in" ? t.revenueIncl : t.revenueEx, 0.01);
     eq("нетто = валовое − возвраты", t.sold, t.gross - t.returns);
+    eq("Gross = Выручка + Скидка", t.grossRev, t.revenue + t.discountSum, 0.01);
     ok("18 строк продаж без штук (заказ 155627)", t.noPcs === 18);
 
     // 2. Итог узла = сумма детей для каждой структуры и каждого уровня (все столбцы: Тотал, сезоны, месяцы).
-    const seasons = sortSeasons(all.map((l) => l.season)), months = [...new Set(all.map((l) => l.iso.slice(0, 7)))].sort();
-    const modes = { total: [], seasons: seasons.map((s) => (l: SLine) => l.season === s), months: months.map((m) => (l: SLine) => l.iso.startsWith(m)) };
+    const seasons = sortSeasons(all.map((l) => l.season));
+    const preds = seasons.map((sn) => (l: SLine) => l.season === sn);
     for (const st of STRUCTS) {
-      for (const tdim of st.key === "e" ? (["month", "week"] as const) : (["month"] as const)) {
-        const order = st.key === "e" ? [tdim, "article" as const] : st.order;
-        for (const [mode, preds] of Object.entries(modes)) {
-          const src = all;
-          const tree = totalSalesNode(ctx, env, src, preds, buildSalesTree(ctx, env, src, order, preds));
-          let nodes = 0;
-          walkTree(tree, (n) => {
-            nodes++;
-            if (!n.children.length) return;
-            n.cols.forEach((col, g) => {
-              for (const k of SUMKEYS) {
-                const got = sum(n.children.map((c) => c.cols[g][k] as number)), want = col[k] as number;
-                if (Math.abs(got - want) > 0.01) { eq(`${st.key}/${tdim}/${mode}/${vat}: ${n.id} ${k} столбец ${g}`, got, want); return; }
-              }
-            });
-          });
-          ok(`структура ${st.key}/${tdim}/${mode}: есть узлы`, nodes > 1);
-          // Σ верхнего уровня = итог
-          eq(`структура ${st.key}/${tdim}/${mode}: Σ верхнего уровня = приход`, sum(tree.children.map((c) => c.cols[0].received)), t.received);
-          eq(`структура ${st.key}/${tdim}/${mode}: Σ верхнего уровня = продано`, sum(tree.children.map((c) => c.cols[0].sold)), t.sold);
-          eq(`структура ${st.key}/${tdim}/${mode}: Σ верхнего уровня = выручка`, sum(tree.children.map((c) => c.cols[0].revenue)), t.revenue, 0.01);
-          if (mode !== "total") for (let g = 0; g < preds.length; g++) eq(`структура ${st.key}/${mode}: столбец ${g} Σ групп = Σ строк`, sum(tree.children.map((c) => c.cols[g + 1].sold)), extOf(ctx, all.filter(preds[g]), env).sold);
-        }
-      }
+      const tree = totalSalesNode(ctx, env, all, preds, buildSalesTree(ctx, env, all, st.order, preds));
+      let nodes = 0;
+      walkTree(tree, (n) => {
+        nodes++;
+        if (!n.children.length) return;
+        n.cols.forEach((col, g) => {
+          for (const k of SUMKEYS) {
+            const got = sum(n.children.map((c) => c.cols[g][k] as number)), want = col[k] as number;
+            if (Math.abs(got - want) > 0.01) { eq(`${st.key}/${vat}: ${n.id} ${k} столбец ${g}`, got, want); return; }
+          }
+          if (Math.abs(col.grossRev - col.revenue - col.discountSum) > 0.01) eq(`Gross = выручка + скидка в узле ${n.id}`, col.grossRev, col.revenue + col.discountSum);
+        });
+      });
+      ok(`структура ${st.key}: есть узлы`, nodes > 1);
+      for (const k of ["received", "sold", "revenue"] as const) eq(`структура ${st.key}: Σ верхнего уровня = Тотал (${k})`, sum(tree.children.map((c) => c.cols[0][k])), t[k], 0.01);
+      for (let g = 0; g < preds.length; g++) eq(`структура ${st.key}: сезон ${seasons[g]} Σ групп = Σ строк`, sum(tree.children.map((c) => c.cols[g + 1].sold)), extOf(ctx, all.filter(preds[g]), env).sold);
+      eq(`структура ${st.key}: Σ сезонов = Тотал (продано)`, sum(tree.cols.slice(1).map((c) => c.sold)), tree.cols[0].sold);
     }
+    ok("структур ровно две: Мех→… и Категория 1→…", STRUCTS.length === 2 && STRUCTS[0].order[0] === "fur" && STRUCTS[1].order.slice(0, 3).join() === "cls,c2,fur");
 
     // 3. Σ по месяцам = Σ по заказам = Σ по артикулам = Σ по сезонам.
     const byMonth = bucketsOf(ctx, env, all, "month"), byOrder = groupBy(ctx, env, all, "order"), byArt = groupBy(ctx, env, all, "article"), byColor = groupBy(ctx, env, all, "color");
@@ -108,7 +110,7 @@ const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenue
     }
 
     // 4. График = таблица: все гранулярности дают одни итоги, остаток нарастающий заканчивается итоговым остатком.
-    for (const g of ["day", "week", "month", "season"] as Gran[]) {
+    for (const g of ["month", "season"] as Gran[]) {
       const b = bucketsOf(ctx, env, all, g, 0);
       eq(`${g}: Σ приход`, sum(b.map((x) => x.m.received)), 617);
       eq(`${g}: Σ продано`, sum(b.map((x) => x.m.sold)), 232);
@@ -126,13 +128,14 @@ const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenue
   eq("категории: одежда + аксессуары + прочее = всё (приход)", T({ cat: "clothes" }).received + T({ cat: "acc" }).received + all.filter((l) => l.cls === "other" && l.kind === "RECEIPT").reduce((a, l) => a + l.pcs, 0), 617);
   eq("категории: одежда + аксессуары + прочее = всё (продано)", T({ cat: "clothes" }).sold + T({ cat: "acc" }).sold + all.filter((l) => l.cls === "other" && l.kind === "SALE").reduce((a, l) => a + l.pcs, 0), 232);
   const seasons = sortSeasons(all.map((l) => l.season));
-  eq("сезоны: Σ сезонов = всё (продано)", sum(seasons.map((s) => T({ season: s }).sold)), 232);
-  eq("сезоны: Σ сезонов = всё (приход)", sum(seasons.map((s) => T({ season: s }).received)), 617);
+  eq("сезоны: Σ сезонов = всё (продано)", sum(seasons.map((s) => T({ seasons: [s] }).sold)), 232);
+  eq("сезоны: Σ сезонов = всё (приход)", sum(seasons.map((s) => T({ seasons: [s] }).received)), 617);
   eq("период: 2025 + 2026 = всё (продано)", T({ from: "2025-01-01", to: "2025-12-31" }).sold + T({ from: "2026-01-01", to: "2026-12-31" }).sold, 232);
   eq("период: 2025 + 2026 = всё (выручка)", T({ from: "2025-01-01", to: "2025-12-31" }).revenueIncl + T({ from: "2026-01-01", to: "2026-12-31" }).revenueIncl, 353888049, 0.5);
   const a0 = all.find((l) => l.kind === "SALE" && l.pcs > 0)!;
   const q = T({ q: a0.article.toLowerCase() });
   ok("поиск по артикулу сужает выборку", q.sold > 0 && q.sold < 232);
+  eq("фильтр меха сужает", T({ furs: ["__нет__"] }).received, 0);
   eq("поиск по заказу: заказ 155627 — только скидка без штук", T({ q: "155627" }).sold, 0);
   eq("остаток на начало периода + движение = остаток на конец", openingStock(all, { ...NO_FILTERS, from: "2026-01-01" }) + T({ from: "2026-01-01" }).stock, 385);
   const bOpen = bucketsOf(ctx, env, applyFilters(all, { ...NO_FILTERS, from: "2026-01-01" }), "month", openingStock(all, { ...NO_FILTERS, from: "2026-01-01" }));

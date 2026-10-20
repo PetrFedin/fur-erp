@@ -8,7 +8,7 @@ import { toCsv } from "@/lib/csv";
 import { makeCtx, type Ctx, type ReportSizeRow } from "@/lib/margin-tree";
 import { deserializeInput, type MarginInputS } from "@/lib/margin";
 import {
-  buildSalesTree, monthHead, sizeNodes, sortSeasons, STRUCTS, SDIM_LABEL, totalSalesNode, walkTree,
+  buildSalesTree, sizeNodes, sortSeasons, STRUCTS, STRUCT_SHORT, SDIM_LABEL, totalSalesNode, walkTree,
   type Cat, type Env, type Ext, type SLine, type SNode, type Struct,
 } from "@/lib/sales-section";
 import { movementHref, type MKey } from "@/lib/sales-url";
@@ -19,31 +19,28 @@ export type PhotoIdx = Record<string, { modelId: string; photos: { id: string; v
 type Measure = { key: MKey; label: string; hint: React.ReactNode; money?: boolean; totalOnly?: boolean; fmt: (m: Ext) => string };
 export const MEASURES: Measure[] = [
   { key: "conf", label: "Заказано (Conf)", totalOnly: true, hint: <p>Conf (TTL Conf PCS в Report): подтверждено заказов, шт. В Report нет дат и сезонов выгрузки, поэтому Conf есть только в строке «Всего» и по Категории 1.</p>, fmt: () => DASH },
-  { key: "received", label: "Получено (Delivery)", hint: <p>Delivery: получено единиц по строкам прихода, корректировки с минусом учтены.</p>, fmt: (m) => n0(m.received) },
+  { key: "received", label: "Получено, шт.", hint: <p>Delivery: получено единиц по строкам прихода, корректировки с минусом учтены.</p>, fmt: (m) => n0(m.received) },
   { key: "sold", label: "Продано, шт.", hint: <p>Sales PCS: проданные единицы нетто, возвраты минус.</p>, fmt: (m) => n0(m.sold) },
   { key: "returns", label: "Возвраты, шт.", hint: <p>Возвраты: модуль отрицательных штук в строках продаж.</p>, fmt: (m) => n0(m.returns) },
-  { key: "revenue", label: "Выручка", money: true, hint: <p>Чистая розничная выручка после скидок (Sales retail), возвраты минус; режим НДС — переключателем в панели.</p>, fmt: (m) => money(m.revenue) },
-  { key: "discountSum", label: "Discount", money: true, hint: <p>Discount из выгрузки продаж: предоставленная скидка, ₽ (уже вычтена из выручки).</p>, fmt: (m) => money(m.discountSum) },
-  { key: "discountGiven", label: "Скидка, %", hint: <p>Скидка при продаже: Discount ÷ (выручка + Discount).</p>, fmt: (m) => pct(m.discountGiven === null ? null : m.discountGiven, 1) },
-  { key: "avgPrice", label: "Средняя цена", money: true, hint: <p>Выручка ÷ проданные единицы.</p>, fmt: (m) => money(m.avgPrice) },
-  { key: "cardPrice", label: "Цена по карточке", money: true, hint: <p>Главная цена модели из карточки изделия («Изделия»), средняя по проданным единицам (режим НДС — как у выручки).</p>, fmt: (m) => money(m.cardPrice) },
-  { key: "avgIn", label: "Факт. цена, с НДС", money: true, hint: <p>Фактическая цена продажи с НДС: выручка с НДС ÷ проданные единицы (средневзвешенная по штукам).</p>, fmt: (m) => money(m.avgIn) },
-  { key: "avgEx", label: "Факт. цена, без НДС", money: true, hint: <p>Фактическая цена продажи без НДС: выручка без НДС ÷ проданные единицы.</p>, fmt: (m) => money(m.avgEx) },
-  { key: "toCard", label: "К карточке, %", hint: <p>Выручка с НДС ÷ (штуки × цена по карточке) − 1. Минус — продано дешевле карточки.</p>, fmt: (m) => spct(m.toCard) },
-  { key: "listPrice", label: "Цена прайса", money: true, hint: <p>Розничная цена из прайса 19.10.2026, средняя по проданным единицам с найденной ценой (режим НДС — как у выручки).</p>, fmt: (m) => money(m.listPrice) },
-  { key: "priceToList", label: "Цена к прайсу", hint: <p>Выручка с НДС ÷ (штуки × цена прайса) − 1. Минус — продано дешевле прайса.</p>, fmt: (m) => spct(m.priceToList) },
+  { key: "stock", label: "Остаток, шт.", hint: <p>Расчётный остаток = получено − продано.</p>, fmt: (m) => n0(m.stock) },
+  { key: "sellThrough", label: "Sell-through", hint: <p>Продано ÷ получено, единицы. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений.</p>, fmt: (m) => pct(m.sellThrough) },
+  { key: "revenue", label: "Выручка (Net sales)", money: true, hint: <p>Retail RUR после скидки, возвраты минус; с НДС или без — по переключателю.</p>, fmt: (m) => money(m.revenue) },
+  { key: "grossRev", label: "Розница до скидки (Gross)", money: true, hint: <p>Gross = Выручка + Скидка (Discount).</p>, fmt: (m) => money(m.grossRev) },
+  { key: "discountSum", label: "Скидка", money: true, hint: <p>Discount файла, уже вычтен из выручки.</p>, fmt: (m) => money(m.discountSum) },
+  { key: "discountGiven", label: "Скидка, %", hint: <p>Скидка при продаже = Discount ÷ Gross.</p>, fmt: (m) => pct(m.discountGiven === null ? null : m.discountGiven, 1) },
+  { key: "avgPrice", label: "Цена продажи, ₽/шт.", hint: <p>Выручка ÷ проданные штуки (средневзвешенно).</p>, fmt: (m) => money(m.avgPrice) },
+  { key: "priceBefore", label: "Цена до скидки, ₽/шт.", hint: <p>Gross ÷ проданные штуки (средневзвешенно).</p>, fmt: (m) => money(m.priceBefore) },
+  { key: "listPrice", label: "Прайс 19.10, ₽/шт.", hint: <p>Цена прайса 19.10.2026, средняя по проданным штукам.</p>, fmt: (m) => money(m.listPrice) },
+  { key: "priceToList", label: "К прайсу, %", hint: <p>Выручка с НДС ÷ (штуки × прайс) − 1.</p>, fmt: (m) => spct(m.priceToList) },
   { key: "unitCost", label: "Себестоимость", money: true, hint: <p>Себестоимость единицы из ТЗ (с работой) по проданным единицам, где она есть.</p>, fmt: (m) => money(m.unitCost) },
   { key: "markupW", label: "Маркап", hint: <p>Средневзвешенный по приходу: Σ(розница × шт.) ÷ Σ(себестоимость с НДС × шт.).</p>, fmt: (m) => x2(m.markupW) },
   { key: "grossProfit", label: "Валовая прибыль", money: true, hint: <p>Выручка − себестоимость проданного по строкам со штуками и себестоимостью.</p>, fmt: (m) => money(m.grossProfit) },
   { key: "grossMarginPct", label: "Маржа, %", hint: <p>Валовая прибыль ÷ выручка тех же строк.</p>, fmt: (m) => pct(m.grossMarginPct === null ? null : m.grossMarginPct / 100, 1) },
-  { key: "stock", label: "Остаток, шт.", hint: <p>Расчётный остаток = получено − продано.</p>, fmt: (m) => n0(m.stock) },
-  { key: "sellThrough", label: "Sell-through", hint: <p>Продано ÷ получено, единицы. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений.</p>, fmt: (m) => pct(m.sellThrough) },
   { key: "coverMonths", label: "Покрытие, мес.", totalOnly: true, hint: <p>Остаток ÷ средние продажи в месяц (с первого месяца продаж до последнего месяца данных). Считается только при положительном остатке и продажах.</p>, fmt: (m) => d1(m.coverMonths) },
   { key: "firstReceipt", label: "Первая поставка", totalOnly: true, hint: <p>Дата первой строки прихода.</p>, fmt: (m) => dateRu(m.firstReceipt) },
   { key: "lastSale", label: "Последняя продажа", totalOnly: true, hint: <p>Дата последней строки продажи.</p>, fmt: (m) => dateRu(m.lastSale) },
 ];
-const DEF_TOTAL: MKey[] = ["received", "sold", "returns", "stock", "sellThrough", "revenue", "cardPrice", "listPrice", "avgIn", "toCard", "discountGiven"];
-const DEF_GROUP: MKey[] = ["received", "sold", "stock", "revenue"];
+const DEF_TOTAL: MKey[] = ["received", "sold", "stock", "revenue", "grossRev", "discountSum", "discountGiven", "avgPrice"];
 const DEF_NARROW: MKey[] = ["sold", "stock", "revenue"];
 
 const th = "px-2 text-right text-xs font-semibold whitespace-nowrap";
@@ -86,32 +83,29 @@ function Columns({ measures, keys, onKey, levels, onLevel, onCollapse }: { measu
 
 export type TreeProps = {
   input: MarginInputS; lines: SLine[]; env: Env; vat: "ex" | "in"; cat: Cat; sizes: ReportSizeRow[]; photos: PhotoIdx;
-  struct: Struct; onStruct: (s: Struct) => void; tdim: "month" | "week"; onTdim: (d: "month" | "week") => void;
-  mode: "total" | "seasons" | "months"; onMode: (m: "total" | "seasons" | "months") => void;
+  struct: Struct; onStruct: (s: Struct) => void;
   picked: MKey[] | null; onPicked: (k: MKey[]) => void; filtersNote: string;
 };
 
-export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, onStruct, tdim, onTdim, mode, onMode, picked, onPicked, filtersNote }: TreeProps) {
+export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, onStruct, picked, onPicked, filtersNote }: TreeProps) {
   const [open, setOpen] = useState<string[]>([]);
   const narrow = useSyncExternalStore(
     (cb) => { const mq = window.matchMedia("(max-width: 639px)"); mq.addEventListener("change", cb); return () => mq.removeEventListener("change", cb); },
     () => window.matchMedia("(max-width: 639px)").matches,
     () => false,
   );
-  const keys = picked ?? (narrow ? DEF_NARROW : mode === "total" ? DEF_TOTAL : DEF_GROUP);
+  const keys = picked ?? (narrow ? DEF_NARROW : DEF_TOTAL);
   const ctx: Ctx = useMemo(() => makeCtx(deserializeInput(input), vat), [input, vat]);
 
   const view = useMemo(() => {
     const seasons = sortSeasons(lines.map((l) => l.season));
-    const months = [...new Set(lines.map((l) => l.iso.slice(0, 7)))].sort();
-    const groups = mode === "total" ? [] : mode === "seasons" ? seasons.map((s) => ({ head: `${s} · ${/^SS/i.test(s) ? "лето" : "осень–зима"}`, pred: (l: SLine) => l.season === s })) : months.map((m) => ({ head: monthHead(m), pred: (l: SLine) => l.iso.startsWith(m) }));
+    const groups = seasons.map((s) => ({ head: s, pred: (l: SLine) => l.season === s }));
     const preds = groups.map((g) => g.pred);
-    const base = STRUCTS.find((s) => s.key === struct)!.order;
-    const order = struct === "e" ? [tdim, "article" as const] : base;
-    const src = struct === "f" ? [...lines].sort((a, b) => (a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : a.kind === b.kind ? 0 : a.kind === "RECEIPT" ? -1 : 1)) : lines;
+    const order = STRUCTS.find((s) => s.key === struct)!.order;
+    const src = lines;
     const top = buildSalesTree(ctx, env, src, order, preds);
     return { groups, order, tree: totalSalesNode(ctx, env, lines, preds, top) };
-  }, [ctx, env, lines, mode, struct, tdim]);
+  }, [ctx, env, lines, struct]);
 
   const { groups, tree, order } = view;
   const confRows = sizes.filter((r) => cat === "all" || r.cls === cat);
@@ -121,7 +115,7 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
   const msOf = (gi: number) => measures.filter((ms) => gi === 0 || !ms.totalOnly);
   const setKey = (k: MKey) => onPicked(keys.includes(k) ? (keys.length > 1 ? keys.filter((x) => x !== k) : keys) : [...keys, k]);
   const toggle = (id: string) => setOpen((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id]));
-  const kids = (n: SNode): SNode[] => (n.children.length ? n.children : struct === "a" || struct === "b" || struct === "c" ? sizeNodes(n, sizes, cat, groups.length) : []);
+  const kids = (n: SNode): SNode[] => (n.children.length ? n.children : sizeNodes(n, sizes, cat, groups.length));
   const expandTo = (level: number) => {
     const ids: string[] = [];
     const walk = (n: SNode, depth: number) => { const k = kids(n); if (depth < level && k.length) { ids.push(n.id); k.forEach((c) => walk(c, depth + 1)); } };
@@ -155,11 +149,11 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
     const isTotal = n.id === "total";
     const isOpen = isTotal || open.includes(n.id);
     const k = kids(n);
-    const hasPhoto = !isTotal && n.modelCode && (n.dim === "article" || n.dim === "color" || n.dim === "line");
+    const hasPhoto = !isTotal && n.modelCode && (n.dim === "article" || n.dim === "color");
     const photo = hasPhoto ? photos[n.modelCode!] : undefined;
     const vphotos = photo && n.variant ? photo.photos.filter((p) => p.variant.trim().toUpperCase() === n.variant!.trim().toUpperCase()) : [];
     const bg = isTotal ? "bg-neutral-100" : "bg-white";
-    const href = !isTotal && (n.dim === "article" || n.dim === "color" || n.dim === "line") ? movementHref(n.article, n.dim === "color" || n.dim === "line" ? n.color : null, n.modelCode) : null;
+    const href = !isTotal && (n.dim === "article" || n.dim === "color") ? movementHref(n.article, n.dim === "color" ? n.color : null, n.modelCode) : null;
     return (
       <Fragment key={n.id}>
         <tr className={"border-b border-neutral-200 " + (isTotal ? "bg-neutral-100 font-semibold" : "")}>
@@ -193,26 +187,14 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
       </div>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <div role="group" aria-label="Структура" className={segGroup}>
-          {STRUCTS.map((s) => <button key={s.key} type="button" aria-pressed={struct === s.key} title={s.label} onClick={() => { onStruct(s.key); setOpen([]); }} className={seg(struct === s.key)}>{{ a: "Сезон", b: "Мех", c: "Артикул", d: "Заказы", e: "Время", f: "Список" }[s.key]}</button>)}
-        </div>
-        {struct === "e" && (
-          <div role="group" aria-label="Месяцы или недели" className={segGroup}>
-            <button type="button" aria-pressed={tdim === "month"} onClick={() => onTdim("month")} className={seg(tdim === "month")}>Месяцы</button>
-            <button type="button" aria-pressed={tdim === "week"} onClick={() => onTdim("week")} className={seg(tdim === "week")}>Недели</button>
-          </div>
-        )}
-        <div role="group" aria-label="Столбцы" className={segGroup}>
-          {([["total", "Тотал"], ["seasons", "Сезоны"], ["months", "Месяцы"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={mode === k} onClick={() => onMode(k)} className={seg(mode === k)}>{t}</button>)}
+          {STRUCTS.map((s) => <button key={s.key} type="button" aria-pressed={struct === s.key} title={s.label} onClick={() => { onStruct(s.key); setOpen([]); }} className={seg(struct === s.key)}>{STRUCT_SHORT[s.key]}</button>)}
         </div>
         <Columns measures={available} keys={keys} onKey={setKey} levels={order.map((d, i) => [i + 1, SDIM_LABEL[d]] as [number, string])} onLevel={expandTo} onCollapse={() => setOpen([])} />
         <button type="button" onClick={exportCsv} className={btn}>Скачать CSV</button>
-        <InfoHint label="Структуры и уровни" wide>
-          <p>Структура: {STRUCTS.find((s) => s.key === struct)!.label}. Уровни: {orderTitle}.</p>
-          <p className="mt-1">Категория 1 — Level 02 файла (Одежда / Аксессуары), Категория 2 — Level 04 (иначе Level 03), Тип меха — первое слово ткани. Итог узла равен сумме детей. Размеры взяты из Report на 19.10: с датами и сезонами выгрузки они не связаны и в итог узла не входят.</p>
-        </InfoHint>
+        <InfoHint label="Структуры и уровни" wide><p>Уровни: {orderTitle}. Итог узла равен сумме детей; размеры — по Report на 19.10, в итог не входят.</p></InfoHint>
       </div>
       <div className="max-h-[75vh] w-full min-w-0 max-w-full overflow-auto rounded-lg border border-neutral-300" tabIndex={0} role="region" aria-label="Детализация продаж и остатков по структуре и группам столбцов">
-        <table className="table-keep w-max min-w-full border-collapse">
+        <table suppressHydrationWarning className="table-keep w-max min-w-full border-collapse">
           <thead>
             <tr className="border-b border-neutral-300">
               <th scope="col" rowSpan={2} className={th + " sticky left-0 top-0 z-[3] w-12 min-w-12 bg-white text-center"}>Фото</th>
@@ -227,10 +209,9 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
               )))}
             </tr>
           </thead>
-          <tbody>{renderNode(tree, 0)}</tbody>
+          <tbody>{tree.children.map((c) => renderNode(c, 0))}</tbody>
         </table>
       </div>
-      {mode !== "total" && measures.some((m) => m.totalOnly) ? <p className="text-xs text-neutral-700">Даты, Conf и покрытие считаются только за всё время, в группах столбцов их нет.</p> : null}
     </section>
   );
 }

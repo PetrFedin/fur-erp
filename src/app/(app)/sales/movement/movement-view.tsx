@@ -82,7 +82,7 @@ export function MovementView({ card, rows }: { card: Card; rows: MoveRow[] }) {
           <section aria-label="Все движения" className="flex flex-col gap-2 rounded-lg border border-neutral-300 bg-white p-3">
             <h2 className="text-sm font-semibold">Все движения</h2>
             <div className="max-h-[70vh] w-full min-w-0 overflow-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0} role="region" aria-label="Лента движений">
-              <table className="w-full border-collapse">
+              <table suppressHydrationWarning className="table-keep w-full border-collapse">
                 <thead>
                   <tr className="border-b border-neutral-300">
                     <th scope="col" className={th + " sticky top-0 bg-white text-left"}>Дата</th><th scope="col" className={th + " sticky top-0 bg-white text-left"}>Тип</th><th scope="col" className={th + " sticky top-0 bg-white text-left"}>Заказ</th><th scope="col" className={th + " sticky top-0 bg-white text-left"}>Сезон</th><th scope="col" className={th + " sticky top-0 bg-white text-left"}>Цвет</th>

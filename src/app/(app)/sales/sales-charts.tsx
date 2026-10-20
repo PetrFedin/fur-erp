@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { GRAN_LABEL, type Bucket, type Gran } from "@/lib/sales-section";
-import { DASH, GET, NAVY, PRICE, REV, STOCK, moneyC, n0, money, seg, segGroup } from "./sales-fmt";
+import { GET, NAVY, PRICE, REV, STOCK, moneyC, n0, seg, segGroup } from "./sales-fmt";
 
 function niceMax(v: number) {
   if (v <= 0) return 1;
@@ -70,59 +70,50 @@ function Chart({ buckets, series, hot, setHot, label, fmtL, fmtR }: { buckets: B
   );
 }
 
-export function SalesCharts({ buckets, gran, onGran, ex, hot, setHot }: { buckets: Bucket[]; gran: Gran; onGran: (g: Gran) => void; ex: boolean; hot: number | null; setHot: (i: number | null) => void }) {
-  const [tbl, setTbl] = useState(true);
-  const noData = buckets.length === 0;
+function GranSwitch({ gran, onGran }: { gran: Gran; onGran: (g: Gran) => void }) {
   return (
-    <section aria-label="Приход, продажи и остаток по периодам" className="flex min-w-0 flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3">
+    <div role="group" aria-label="Период графика" className={segGroup}>
+      {(Object.keys(GRAN_LABEL) as Gran[]).map((g) => <button key={g} type="button" aria-pressed={gran === g} onClick={() => onGran(g)} className={seg(gran === g)}>{GRAN_LABEL[g]}</button>)}
+    </div>
+  );
+}
+
+/** Главный график «Приход · Продажи · Остаток»: единственное место этого ряда на странице. */
+export function SalesCharts({ buckets, gran, onGran, hot, setHot }: { buckets: Bucket[]; gran: Gran; onGran: (g: Gran) => void; hot: number | null; setHot: (i: number | null) => void }) {
+  return (
+    <section aria-label="Приход, продажи и остаток по периодам" data-metric="chart-flow" className="flex min-w-0 flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Приход · Продажи · Остаток</h2>
-        <div role="group" aria-label="Период графика" className={segGroup}>
-          {(Object.keys(GRAN_LABEL) as Gran[]).map((g) => <button key={g} type="button" aria-pressed={gran === g} onClick={() => onGran(g)} className={seg(gran === g)}>{GRAN_LABEL[g]}</button>)}
-        </div>
+        <GranSwitch gran={gran} onGran={onGran} />
       </div>
-      {noData ? <p className="text-sm text-neutral-700">Нет движений за выбранный период.</p> : (
-        <>
-          <Chart buckets={buckets} hot={hot} setHot={setHot} label="Приход и продажи столбцами, остаток нарастающим итогом линией" fmtL={(v) => n0(Math.round(v))} fmtR={(v) => n0(Math.round(v))}
-            series={[
-              { name: "Приход, шт.", color: NAVY, vals: buckets.map((b) => b.m.received), kind: "bar", axis: "l" },
-              { name: "Продано, шт.", color: GET, vals: buckets.map((b) => Math.max(0, b.m.sold)), kind: "bar", axis: "l" },
-              { name: "Остаток, шт.", color: STOCK, vals: buckets.map((b) => b.stock), kind: "line", axis: "r" },
-            ]} />
-          <h3 className="text-sm font-semibold">Выручка и цена, {ex ? "без НДС" : "с НДС"}</h3>
-          <Chart buckets={buckets} hot={hot} setHot={setHot} label="Выручка столбцами, средняя цена продажи линией" fmtL={(v) => moneyC(v).replace(/\s*₽$/, "")} fmtR={(v) => moneyC(v).replace(/\s*₽$/, "")}
-            series={[
-              { name: "Выручка, ₽", color: REV, vals: buckets.map((b) => Math.max(0, b.m.revenue)), kind: "bar", axis: "l" },
-              { name: "Средняя цена, ₽", color: PRICE, vals: buckets.map((b) => b.m.avgPrice ?? Number.NaN), kind: "line", axis: "r" },
-            ]} />
-          <div>
-            <button type="button" aria-expanded={tbl} onClick={() => setTbl((v) => !v)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm hover:bg-neutral-50">{tbl ? "Скрыть таблицу по периодам" : "Таблица по периодам"}</button>
-          </div>
-          {tbl && (
-            <div className="max-h-72 w-full min-w-0 overflow-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0} role="region" aria-label="Таблица по периодам">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-neutral-300">
-                    {["Период", "Приход, шт.", "Продано, шт.", "Остаток, шт.", "Выручка, ₽", "Средняя цена, ₽"].map((h, i) => <th key={h} scope="col" className={"sticky top-0 bg-white px-2 py-2 text-xs font-semibold " + (i === 0 ? "text-left" : "text-right")}>{h}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {buckets.map((b, i) => (
-                    <tr key={b.key} onMouseEnter={() => setHot(i)} onMouseLeave={() => setHot(null)} className={"border-b border-neutral-200 " + (hot === i ? "bg-neutral-100" : "")}>
-                      <th scope="row" className="px-2 py-1.5 text-left font-normal whitespace-nowrap">{b.label}</th>
-                      <td className="px-2 py-1.5 text-right tabular-nums">{n0(b.m.received)}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums">{n0(b.m.sold)}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums">{b.stock === 0 ? DASH : n0(b.stock)}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap">{money(b.m.revenue)}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap">{money(b.m.avgPrice)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
+      {buckets.length === 0 ? <p className="text-sm text-neutral-700">Нет движений за выбранный период.</p> : (
+        <Chart buckets={buckets} hot={hot} setHot={setHot} label="Приход и продажи столбцами, остаток нарастающим итогом линией" fmtL={(v) => n0(Math.round(v))} fmtR={(v) => n0(Math.round(v))}
+          series={[
+            { name: "Получено, шт.", color: NAVY, vals: buckets.map((b) => b.m.received), kind: "bar", axis: "l" },
+            { name: "Продано, шт.", color: GET, vals: buckets.map((b) => Math.max(0, b.m.sold)), kind: "bar", axis: "l" },
+            { name: "Остаток, шт.", color: STOCK, vals: buckets.map((b) => b.stock), kind: "line", axis: "r" },
+          ]} />
       )}
     </section>
+  );
+}
+
+/** График «Выручка и цена» — во вкладке «Динамика». */
+export function RevenueChart({ buckets, gran, onGran, ex }: { buckets: Bucket[]; gran: Gran; onGran: (g: Gran) => void; ex: boolean }) {
+  const [hot, setHot] = useState<number | null>(null);
+  return (
+    <div data-metric="chart-revenue" className="flex min-w-0 flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Выручка и цена, {ex ? "без НДС" : "с НДС"}</h3>
+        <GranSwitch gran={gran} onGran={onGran} />
+      </div>
+      {buckets.length === 0 ? <p className="text-sm text-neutral-700">Нет данных.</p> : (
+        <Chart buckets={buckets} hot={hot} setHot={setHot} label="Выручка столбцами, средняя цена продажи линией" fmtL={(v) => moneyC(v).replace(/\s*₽$/, "")} fmtR={(v) => moneyC(v).replace(/\s*₽$/, "")}
+          series={[
+            { name: "Выручка, ₽", color: REV, vals: buckets.map((b) => Math.max(0, b.m.revenue)), kind: "bar", axis: "l" },
+            { name: "Средняя цена, ₽", color: PRICE, vals: buckets.map((b) => b.m.avgPrice ?? Number.NaN), kind: "line", axis: "r" },
+          ]} />
+      )}
+    </div>
   );
 }
