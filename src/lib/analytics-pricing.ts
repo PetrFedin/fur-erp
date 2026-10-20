@@ -12,12 +12,13 @@ import { computeMetrics, derived, COLUMNS, type ColKey, type Metrics, type SortD
 // «Артикул» в системе = модель (ProductModel): у неё розничная цена sellingPrice (её же правят на странице «Изделия»).
 // Отдельной оптовой цены в базе нет.
 
-export type PricingView = "model" | "category" | "fur" | "furcat";
+export type PricingView = "model" | "category" | "fur" | "furcat" | "catfur";
 export const VIEW_LABEL: Record<PricingView, string> = {
-  model: "По моделям (артикулам)",
-  category: "По категориям",
-  fur: "По видам меха",
-  furcat: "Мех → категория",
+  model: "Артикулы",
+  category: "Категории",
+  fur: "Мех",
+  furcat: "Мех → Категории",
+  catfur: "Категории → Мех",
 };
 
 export type PricingParams = SharedFilters & {
@@ -27,6 +28,8 @@ export type PricingParams = SharedFilters & {
   base: "mat" | "full";
   view: PricingView;
   only: "all" | "noprice" | "issues";
+  /** Быстрый выбор: все / одежда / аксессуары (по категории изделия). */
+  grp: "" | "clothes" | "acc";
 };
 
 export function parsePricingParams(sp: SP): PricingParams {
@@ -36,7 +39,8 @@ export function parsePricingParams(sp: SP): PricingParams {
     ...parseShared(sp),
     m: one(sp.m).trim().slice(0, 8),
     base: one(sp.base) === "full" ? "full" : "mat",
-    view: view === "category" || view === "fur" || view === "furcat" ? view : "model",
+    view: view === "category" || view === "fur" || view === "furcat" || view === "catfur" ? view : "model",
+    grp: one(sp.grp) === "clothes" ? "clothes" : one(sp.grp) === "acc" ? "acc" : "",
     only: only === "noprice" || only === "issues" ? only : "all",
   };
 }
@@ -48,6 +52,7 @@ export function pricingParams(p: PricingParams, over: Partial<PricingParams> = {
   if (x.base !== "mat") s.set("base", x.base);
   if (x.view !== "model") s.set("view", x.view);
   if (x.only !== "all") s.set("only", x.only);
+  if (x.grp) s.set("grp", x.grp);
   return s;
 }
 
@@ -151,7 +156,7 @@ export async function loadModelPrices(orgId: string): Promise<Map<string, number
   return new Map(ms.map((m) => [m.id, m.sellingPrice ? Number(m.sellingPrice) : null]));
 }
 
-const keyOfView = (view: PricingView, r: OrderRow) => (view === "model" ? r.modelId : view === "category" ? r.category : view === "fur" ? r.fur : `${r.fur}\u0000${r.category}`);
+const keyOfView = (view: PricingView, r: OrderRow) => (view === "model" ? r.modelId : view === "category" ? r.category : view === "fur" ? r.fur : view === "catfur" ? `${r.category}\u0000${r.fur}` : `${r.fur}\u0000${r.category}`);
 
 /** Агрегация завершённых ТЗ по ключу (модель, категория, вид меха, мех + категория). allRows — все ТЗ года (для счётчика «в работе»). */
 export function aggregatePricing(allRows: OrderRow[], view: PricingView, prices: Map<string, number | null>): PriceAgg[] {
@@ -201,7 +206,7 @@ export function aggregatePricing(allRows: OrderRow[], view: PricingView, prices:
       }
     }
     const first = rows[0];
-    const label = view === "model" ? first.modelName : view === "category" ? key : view === "fur" ? key : `${first.fur} · ${first.category}`;
+    const label = view === "model" ? first.modelName : view === "category" ? key : view === "fur" ? key : view === "catfur" ? `${first.category} · ${first.fur}` : `${first.fur} · ${first.category}`;
     const modelIds = new Set(rows.map((r) => r.modelId));
     const pricedIds = Array.from(modelIds).filter((id) => (prices.get(id) ?? 0) > 0);
     out.push({
@@ -246,7 +251,7 @@ export function aggregatePricing(allRows: OrderRow[], view: PricingView, prices:
   }
   return out.sort((a, b) => {
     if (view === "model") return compareModelNames(a.label, b.label);
-    if (view === "furcat") return a.label.localeCompare(b.label, "ru");
+    if (view === "furcat" || view === "catfur") return a.label.localeCompare(b.label, "ru");
     const ua = a.label === UNDEFINED_CATEGORY ? 1 : 0;
     const ub = b.label === UNDEFINED_CATEGORY ? 1 : 0;
     return ua - ub || b.units - a.units;
@@ -350,3 +355,6 @@ export function sortPricing(list: PriceAgg[], sort: PricingSortKey | "", dir: So
 }
 
 export { derived };
+
+/** Аксессуары по категории изделия (остальное — одежда). */
+export const ACC_CATEGORIES = ["Головной убор", "Шарф", "Варежки"];

@@ -9,6 +9,7 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { buttonVariants } from "@/components/ui/button";
+import { Segmented } from "@/components/segmented";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Money } from "@/components/money";
 import { InfoHint } from "@/components/info-hint";
@@ -19,6 +20,7 @@ import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { formatMoney, formatPercent, formatQty, formatShare, formatMarkupPct, formatMarkup } from "@/lib/utils";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import {
+  ACC_CATEGORIES,
   VIEW_LABEL,
   aggregatePricing,
   calcPrice,
@@ -81,6 +83,8 @@ function Bar({ a }: { a: PriceAgg }) {
   );
 }
 
+const grpOk = (g: "" | "clothes" | "acc", cat: string) => g === "" || (g === "acc") === ACC_CATEGORIES.includes(cat);
+
 export default async function PricingPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const session = await requireSession();
   const year = await getYearFilter();
@@ -100,7 +104,8 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const [allYear, prices] = await Promise.all([loadOrderRows(orgId, year, c4Mode), loadModelPrices(orgId)]);
   const aucOf = await auctionLabeler(orgId);
   const opts = filterOptions(allYear);
-  const all = applyShared(allYear, p);
+  const grpCount = (g: "" | "clothes" | "acc") => applyShared(allYear, p).filter((r) => grpOk(g, r.category)).length;
+  const all = applyShared(allYear, p).filter((r) => grpOk(p.grp, r.category));
   const models = aggregatePricing(all, "model", prices);
   const def = defaultMarkupPct(models, p.base);
   const defRounded = def.pct != null ? Math.round(def.pct) : null;
@@ -466,7 +471,6 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     </span>
   );
 
-  const tabBtn = (active: boolean) => (active ? "rounded-md bg-neutral-900 px-3 py-1.5 text-white" : "rounded-md px-3 py-1.5 text-neutral-700 hover:bg-neutral-100");
 
   const pickerHidden = Array.from(pricingParams(p, { cols: [], all: false }).entries()) as [string, string][];
   const toggleAll = here(p.cols.length > 0 || !p.all ? { cols: [], all: !p.all || p.cols.length > 0 } : { cols: [], all: false });
@@ -556,10 +560,9 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       </WidgetRow>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-1 text-sm">
-          {(Object.keys(VIEW_LABEL) as PricingView[]).map((v) => (
-            <Link key={v} href={here({ view: v, sort: "", dir: "desc" })} className={`${tabBtn(p.view === v)} max-md:inline-flex max-md:min-h-9 max-md:items-center`}>{VIEW_LABEL[v]}</Link>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented label="Структура" items={(Object.keys(VIEW_LABEL) as PricingView[]).map((v) => ({ key: v, label: VIEW_LABEL[v], on: p.view === v, href: here({ view: v, sort: "", dir: "desc" }) }))} />
+          <Segmented label="Категория" items={([["", "Все"], ["clothes", "Одежда"], ["acc", "Аксессуары"]] as const).map(([g, t]) => ({ key: g || "all", label: <>{t} <span className="ml-1 text-xs opacity-80">{grpCount(g)}</span></>, on: p.grp === g, href: here({ grp: g }) }))} />
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-neutral-600" aria-label="Обозначения диаграммы">
           {[

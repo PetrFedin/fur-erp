@@ -21,7 +21,7 @@ export function PricesBlock({ models, canEdit }: { models: PriceModel[]; canEdit
   return (
     <section aria-label="Розничные цены" className="flex min-w-0 scroll-mt-16 flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3">
       <h2 className="flex items-center gap-1 text-sm font-semibold">Розница по прайсу на 19.10.2026
-        <InfoHint label="Про цены прайса" wide><p>Цены с НДС из листа «Current Price» (257 строк). Если у модели цены по цветам и размерам разные, показан диапазон, по вариантам — в раскрытии. Цена в карточке изделия автоматически не меняется: при расхождении в строке написано, что в карточке и что в прайсе, и можно взять цену из прайса (как обычное редактирование цены, с подтверждением и записью в журнал).</p></InfoHint>
+        <InfoHint label="Про цены прайса" wide><p>Главная цена — в карточке артикула, прайс — справочник (цены с НДС, 257 строк). Расхождение видно в строке, «Взять из прайса» обновляет карточку с подтверждением и записью в журнал.</p></InfoHint>
       </h2>
       {models.length === 0 ? <p className="text-sm text-neutral-700">Прайс ещё не загружен.</p> : (
         <div className="max-h-[70vh] w-full min-w-0 max-w-full overflow-auto rounded-lg border border-neutral-300" tabIndex={0} role="region" aria-label="Цены по моделям">
@@ -31,7 +31,7 @@ export function PricesBlock({ models, canEdit }: { models: PriceModel[]; canEdit
                 <th scope="col" className={th + " sticky left-0 top-0 z-[2] bg-white text-left"}>Модель / артикул / цвет / размер</th>
                 <th scope="col" className={th + " sticky top-0 bg-white"}>Розница (прайс 19.10.2026), с НДС</th>
                 <th scope="col" className={th + " sticky top-0 bg-white"}>В карточке изделия</th>
-                <th scope="col" className={th + " sticky top-0 bg-white text-left"}>Сверка</th>
+                <th scope="col" className={th + " sticky top-0 bg-white text-left"}>Карточка и прайс</th>
               </tr>
             </thead>
             <tbody>
@@ -50,12 +50,25 @@ export function PricesBlock({ models, canEdit }: { models: PriceModel[]; canEdit
                       <td className={td}>{range(prices)}</td>
                       <td className={td}>{m.current === null ? "не задана" : formatMoney(m.current)}</td>
                       <td className="px-2 py-1.5 text-left text-sm">
-                        {diff ? (
+                        {m.current === null && single === null ? <span className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700" title="В карточке цены нет, а в прайсе цены по цветам разные: выберите, какую взять.">цена не задана</span> : null}
+                        {diff || m.current === null ? (
                           <span className="flex flex-wrap items-center gap-2">
-                            <span>в карточке {formatMoney(m.current!)}, в прайсе {single !== null ? formatMoney(single) : range(prices)}</span>
-                            {canEdit && single !== null ? <AcceptPriceButton modelId={m.id} modelName={m.name} price={String(single)} priceText={formatMoney(single)} currentText={formatMoney(m.current!)} basis="розница из прайса на 19.10.2026" /> : null}
+                            {diff ? <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900" title={`В карточке ${formatMoney(m.current!)}, в прайсе ${single !== null ? formatMoney(single) : range(prices)}`}>{single !== null ? `${single > m.current! ? "+" : "−"}${formatMoney(Math.abs(single - m.current!))} к карточке` : "в прайсе разные цены"}</span> : null}
+                            {canEdit && single !== null ? <AcceptPriceButton label="Взять из прайса" modelId={m.id} modelName={m.name} price={String(single)} priceText={formatMoney(single)} currentText={m.current === null ? null : formatMoney(m.current)} basis="розница из прайса на 19.10.2026" /> : null}
+                            {canEdit && single === null ? (
+                              <details className="relative">
+                                <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-md border border-neutral-300 bg-white px-3 text-sm [&::-webkit-details-marker]:hidden">Взять из прайса ▾</summary>
+                                <div className="absolute left-0 z-30 mt-1 flex w-64 flex-col gap-2 rounded-lg border border-neutral-300 bg-white p-3 shadow-lg">
+                                  <p className="text-xs text-neutral-700">В карточке одна цена на модель, а в прайсе по цветам разные. Какую взять?</p>
+                                  {([["максимальную", Math.max(...prices)], ["среднюю по цветам", Math.round(prices.reduce((x, y) => x + y, 0) / prices.length)], ["минимальную", Math.min(...prices)]] as [string, number][]).map(([t, v]) => (
+                                    <div key={t} className="flex items-center justify-between gap-2 text-sm"><span>{t}: {formatMoney(v)}</span><AcceptPriceButton label="Взять" modelId={m.id} modelName={m.name} price={String(v)} priceText={formatMoney(v)} currentText={m.current === null ? null : formatMoney(m.current)} basis={`${t} розница из прайса на 19.10.2026`} /></div>
+                                  ))}
+                                  <p className="text-[11px] text-neutral-600">Цена «по цвету» в карточке не хранится: у модели одна цена.</p>
+                                </div>
+                              </details>
+                            ) : null}
                           </span>
-                        ) : m.current === null ? <span className="text-neutral-700">{single !== null ? "в карточке цены нет, в прайсе одна цена" : "цены по цветам разные — в карточке одна цена не задана"}</span> : <span className="text-neutral-700">совпадает</span>}
+                        ) : <span className="text-neutral-700">совпадает</span>}
                       </td>
                     </tr>
                     {isOpen && arts.map((a) => {

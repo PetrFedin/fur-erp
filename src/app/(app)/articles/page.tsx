@@ -47,6 +47,7 @@ import { ArticleShopEditor } from "@/components/article-shop-editor";
 import { pluByVariant } from "@/lib/article-shop-core";
 import { SupplierArticles } from "./supplier-view";
 import { loadSupplierArticleIds } from "@/lib/supplier-articles";
+import { Segmented } from "@/components/segmented";
 import { ColumnPicker, type PickerColumn } from "@/components/column-picker";
 
 export const metadata = { title: "Изделия" };
@@ -63,6 +64,7 @@ const ARTICLE_FILTERS = defineFilters({
   param: { kind: "multi", label: "Параметры", maxLen: 90 },
   empty: stateParam("Состав списка", { allowed: ["1"] }),
   src: stateParam("Источник", { allowed: ["supplier"] }),
+  grp: stateParam("Одежда / аксессуары", { allowed: ["clothes", "acc"] }),
 });
 
 /** Колонки таблицы «Изделия»: на виду главные (артикул, фото, категория, мех, выпуск, себестоимость, цена, наценка, ТЗ), остальные — в «Колонки ▾». */
@@ -228,7 +230,15 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const baseRows = year === "all" ? rows0.filter((r) => r.stockQty > 0 || r.orderCount > 0 || r.bySupplier) : rows0.filter((r) => r.orderCount > 0 || r.bySupplier);
   const emptyCount = tzActive ? 0 : rows0.length - baseRows.length;
   const modelFilterOn = !!q || f.category.length > 0 || f.catgroup.length > 0 || f.model.length > 0 || f.len.length > 0 || f.price.length > 0 || f.param.length > 0;
-  const rows1 = (f.src === "supplier" ? rows0.filter((r) => r.bySupplier) : tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).sort((a, b) => {
+  const grpHref = (g: string) => {
+    const u = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) if (k !== "grp" && v !== undefined) for (const x of Array.isArray(v) ? v : [v]) u.append(k, x);
+    if (g) u.set("grp", g);
+    const t = u.toString();
+    return `/articles${t ? `?${t}` : ""}`;
+  };
+  const grpName = f.grp === "clothes" ? "Одежда" : f.grp === "acc" ? "Аксессуары" : null;
+  const rows1 = (f.src === "supplier" ? rows0.filter((r) => r.bySupplier) : tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).filter((r) => !grpName || r.group === grpName).sort((a, b) => {
     const wa = a.stockQty > 0 || a.orderCount > 0 ? 0 : 1;
     const wb = b.stockQty > 0 || b.orderCount > 0 ? 0 : 1;
     return wa - wb || compareModelNames(a.name, b.name);
@@ -294,15 +304,13 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           <YearNote year={year} />
           <span className="ml-2 inline-flex">
           <InfoHint label="О странице «Изделия»" wide>
-            <p>Артикулы: сколько в выпуске (готово + в работе), что лежит на складе, полная себестоимость, розничная цена и наценка. Данные — те же ТЗ, что в «В выпуске» на Главной (без отменённых и без ремонта).</p>
-            <p className="mt-1"><b>Год ({year === "all" ? "все годы" : year}):</b> «В выпуске» и полная себестоимость — по ТЗ выбранного года. Остаток на складе текущий, от года не зависит.</p>
-            <p className="mt-1"><b>Средневзв. себестоимость</b> = полная себестоимость (с работой) всех ТЗ артикула ÷ «В выпуске». <b>Наценка</b> = розничная цена ÷ полная себестоимость за ед. (в «Аналитика → Цены» наценка считается от «Себестоимости сырья» по завершённым ТЗ — другая база, цифры не равны).</p>
-            <p className="mt-1">Режимы шапки «С НДС / Без НДС» и «С 4 %» меняют все суммы. Ремонт — отдельная страница «Ремонт».</p>
-            {canCreate && <p className="mt-1">Розничную цену можно ввести прямо в таблице: Enter или переход в другое поле сохраняет её.</p>}
+            <p>Артикулы с выпуском, себестоимостью, розничной ценой и наценкой по ТЗ выбранного года; режимы «С НДС / Без НДС» и «С 4 %» меняют все суммы.</p>
+            <p className="mt-1">Наценка = цена в карточке ÷ себестоимость за ед.{canCreate ? " Цену можно ввести прямо в таблице: Enter сохраняет." : ""} Продажи и остатки — по ссылке «продажи» в строке.</p>
           </InfoHint>
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Segmented label="Одежда или аксессуары" items={([["", "Все", null], ["clothes", "Одежда", "Одежда"], ["acc", "Аксессуары", "Аксессуары"]] as const).map(([g, t, n]) => ({ key: g || "all", label: <>{t} <span className="ml-1 text-xs opacity-80">{n ? rows0.filter((r) => r.group === n).length : rows0.length}</span></>, on: (f.grp ?? "") === g, href: grpHref(g) }))} />
           <ColumnPicker id="articles" columns={ARTICLE_COLUMNS} />
           <Link href="/repair" className={buttonVariants({ variant: "outline" })}>Ремонт</Link>
           <Link href="/analytics/products" className={buttonVariants({ variant: "outline" })}>
@@ -465,6 +473,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 ) : (
                   "—"
                 )}
+                <div><Link href={`/sales/movement?m=${encodeURIComponent(r.name)}`} className="text-[11px] text-blue-700 hover:underline" title="Приход, продажи и остаток артикула">продажи</Link></div>
               </Td>
             </Tr>
           ))}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Segmented } from "@/components/segmented";
 import { CAT_LABEL } from "@/lib/sales-receipts-core";
 import type { MarginInputS } from "@/lib/margin";
 import type { ReportSizeRow } from "@/lib/margin-tree";
@@ -27,7 +28,6 @@ export function MarginView({ input, sizes, photos, priceModels, canEdit, initial
   const setVat = (v: "ex" | "in") => { setVatState(v); router.replace(urlOf(cat, tree, cur, v), { scroll: false }); };
   // Счётчики на кнопках — единицы прихода по строкам выгрузки (категория по Level 02, как в Cashflow).
   const count = (k: Cat) => (input ? input.lines.filter((l) => l.kind === "RECEIPT" && (k === "all" || l.cls === k)).reduce((a, l) => a + l.pcs, 0) : 0);
-  const seg = (on: boolean) => "inline-flex min-h-11 items-center rounded-md px-3 text-sm " + (on ? "bg-neutral-900 text-white" : "text-neutral-700 hover:text-neutral-900");
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -35,9 +35,7 @@ export function MarginView({ input, sizes, photos, priceModels, canEdit, initial
         <Link href="/cashflow" className="inline-flex min-h-11 items-center text-sm underline">Деньги по месяцам — в Cashflow</Link>
       </div>
       <div id="margin-filters" className="sticky top-0 z-20 -mx-3 border-b border-neutral-300 bg-white/95 px-3 py-1 backdrop-blur md:-mx-4 md:px-4">
-        <div role="group" aria-label="Категория" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-          {(["all", "clothes", "acc"] as const).map((k) => <button key={k} type="button" aria-pressed={cat === k} onClick={() => setCat(k)} className={seg(cat === k)}>{CAT_LABEL[k]} <span className="ml-1 text-xs opacity-80">{count(k)} шт.</span></button>)}
-        </div>
+        <Segmented label="Категория" items={(["all", "clothes", "acc"] as const).map((k) => ({ key: k, label: <>{CAT_LABEL[k]} <span className="ml-1 text-xs opacity-80">{count(k)} шт.</span></>, on: cat === k, onSelect: () => setCat(k) }))} />
       </div>
       <MarginBlock input={input} cat={cat} shown={CAT_LABEL[cat]} onChange={() => document.getElementById("margin-filters")?.scrollIntoView({ block: "start" })} sizes={sizes} photos={photos} tree={tree} onTree={setTree} cur={cur} onCur={setCur} vat={vat} onVat={setVat} />
       <PricesBlock models={priceModels} canEdit={canEdit} />

@@ -3,6 +3,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { formatMoney } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
+import Link from "next/link";
+import { Segmented } from "@/components/segmented";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
 import { buildMargin, deserializeInput, type FullLine, type MarginInputS } from "@/lib/margin";
 import { colorOfLine } from "@/lib/sales-receipts-core";
@@ -10,7 +12,7 @@ import { buildTreeBy, DIM_LABEL, makeCtx, sellNote, sizeAgg, totalNode, TREE_ORD
 
 type Cat = "all" | "clothes" | "acc";
 type PhotoIdx = Record<string, { modelId: string; photos: { id: string; variant: string; color?: string; itemId?: string }[] }>;
-type MKey = "conf" | "received" | "salesCost" | "sold" | "revenueEx" | "discountSum" | "discountGiven" | "grossProfit" | "grossMarginPct" | "stock" | "sellThrough" | "avgPrice" | "discountVsRetail" | "gpOfRetail" | "markupW";
+type MKey = "conf" | "received" | "salesCost" | "sold" | "revenueEx" | "discountSum" | "discountGiven" | "grossProfit" | "grossMarginPct" | "stock" | "sellThrough" | "avgPrice" | "discountVsRetail" | "gpOfRetail" | "markupW" | "gross" | "grossUnit" | "listPrice" | "toList";
 
 const nodata = "—";
 const money = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? nodata : formatMoney(v));
@@ -26,28 +28,32 @@ const monthHead = (m: string) => `${MON[Number(m.slice(5, 7)) - 1]} ${m.slice(0,
 type Cur = "rub" | "eur";
 const eur = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? nodata : Math.round(v).toLocaleString("ru-RU") + " €");
 /** money — мера в деньгах (подпись ₽/€ в шапке); rubOnly — только в рублях (себестоимость ТЗ в ₽, курс не задан). */
-type Measure = { key: MKey; label: string; hint: React.ReactNode; fmt: (m: Metrics, cur: Cur) => string; money?: boolean; rubOnly?: boolean };
+type Measure = { key: MKey; label: string; hint: React.ReactNode; fmt: (m: Metrics, cur: Cur, vat?: "ex" | "in") => string; money?: boolean; rubOnly?: boolean };
 const signed = (v: number | null, d = 1) => (v === null ? nodata : (v > 0 ? "+" : "") + v.toLocaleString("ru-RU", { maximumFractionDigits: d, minimumFractionDigits: d }) + " %");
 /** Порядок мер как в отчёте о товарах (лист Report): Conf → Delivery → Sales cost (SC) → Sales PCS → Sales retail (NS) → Discount → маржа; затем дополнительные меры. */
 const MEASURES: Measure[] = [
   { key: "conf", label: "Conf, шт.", hint: <p>Conf (TTL Conf PCS в отчёте): подтверждено заказов, шт. Есть только в «Тотал» и для категорий (в отчёте нет дат и сезонов выгрузки; по артикулам написания разные), в остальных строках «—».</p>, fmt: () => nodata },
-  { key: "received", label: "Delivery, шт.", hint: <p>Delivery (TTL Delivery PCS): получено единиц по заказам группы, корректировки с минусом учтены.</p>, fmt: (m, _c) => n0(m.received) },
-  { key: "salesCost", money: true, rubOnly: true, label: "Sales cost", hint: <p>Sales cost (SC): себестоимость проданных единиц без НДС = себестоимость модели из ТЗ с работой × проданные штуки; только строки со штуками, где есть себестоимость. (В отчёте SC — в евро по стандартной себестоимости; здесь — наша себестоимость в рублях.)</p>, fmt: (m, _c) => money(m.salesCost) },
-  { key: "sold", label: "Sales pcs", hint: <p>Sales PCS: проданные единицы, возвраты минус.</p>, fmt: (m, _c) => n0(m.sold) },
-  { key: "revenueEx", money: true, label: "Sales retail", hint: <p>Sales retail (NS RUR excl VAT): чистая розничная выручка без НДС после скидок, возвраты минус (Net Sales).</p>, fmt: (m, c) => (c === "eur" ? eur(m.revenueEur) : money(m.revenue)) },
-  { key: "discountSum", money: true, label: "Discount", hint: <p>Discount RUR из выгрузки продаж: предоставленная скидка, ₽ с НДС (уже вычтена из Sales retail).</p>, fmt: (m, c) => (c === "eur" ? eur(m.discountEurSum) : money(m.discountSum)) },
-  { key: "discountGiven", label: "Discount, %", hint: <p>Фактически предоставленная скидка от цены до скидки: Discount RUR ÷ (Retail RUR + Discount RUR), с НДС.</p>, fmt: (m, _c) => pc(share(m.discountGiven), 1) },
+  { key: "received", label: "Получено, шт.", hint: <p>Delivery (TTL Delivery PCS): получено единиц по заказам группы, корректировки с минусом учтены.</p>, fmt: (m, _c) => n0(m.received) },
+  { key: "salesCost", money: true, rubOnly: true, label: "Себестоимость продаж", hint: <p>Sales cost (SC): себестоимость проданных единиц без НДС = себестоимость модели из ТЗ с работой × проданные штуки; только строки со штуками, где есть себестоимость. (В отчёте SC — в евро по стандартной себестоимости; здесь — наша себестоимость в рублях.)</p>, fmt: (m, _c) => money(m.salesCost) },
+  { key: "sold", label: "Продано, шт.", hint: <p>Sales PCS: проданные единицы, возвраты минус.</p>, fmt: (m, _c) => n0(m.sold) },
+  { key: "revenueEx", money: true, label: "Выручка", hint: <p>Выручка (Net sales) = Retail RUR файла продаж после скидки, в выбранном режиме НДС; возвраты минус.</p>, fmt: (m, c) => (c === "eur" ? eur(m.revenueEur) : money(m.revenue)) },
+  { key: "gross", money: true, label: "Gross", hint: <p>Gross (розница до скидки) = Выручка + Скидка.</p>, fmt: (m, c) => (c === "eur" ? eur(m.revenueEur + m.discountEurSum) : money(m.revenue + m.discountSum)) },
+  { key: "discountSum", money: true, label: "Скидка", hint: <p>Скидка = Discount RUR файла продаж.</p>, fmt: (m, c) => (c === "eur" ? eur(m.discountEurSum) : money(m.discountSum)) },
+  { key: "discountGiven", label: "Скидка, %", hint: <p>Скидка % = Скидка ÷ Gross.</p>, fmt: (m, _c) => pc(share(m.discountGiven), 1) },
   { key: "grossProfit", rubOnly: true, label: "Маржа, ₽", hint: <p>Валовая прибыль = Net Sales − себестоимость (Sales retail − Sales cost) по строкам со штуками и себестоимостью.</p>, fmt: (m, _c) => money(m.grossProfit) },
   { key: "grossMarginPct", rubOnly: true, label: "Маржа, %", hint: <p>Валовая прибыль ÷ Net Sales тех же строк (строки продаж без штук в расчёт не входят — выручка по ним показана отдельно в «i» плитки «Валовая маржа»).</p>, fmt: (m, _c) => pc(m.grossMarginPct, 1) },
-  { key: "stock", label: "Stock, шт.", hint: <p>Остаток группы = Delivery − Sales pcs. По отчёту о товарам фактический остаток на 19.10.2026 — 379 шт., расчётный 385.</p>, fmt: (m, _c) => n0(m.received - m.sold) },
+  { key: "stock", label: "Остаток, шт.", hint: <p>Остаток группы = Delivery − Sales pcs. По отчёту о товарам фактический остаток на 19.10.2026 — 379 шт., расчётный 385.</p>, fmt: (m, _c) => n0(m.received - m.sold) },
   { key: "sellThrough", label: "Sell-through", hint: <><p>Продано ÷ получено, единицы (по заказам группы; в «Тотал» — за всё время). Без обрезки до 100%; получено 0 — «—».</p><p className="mt-1">«*» — продано больше получено: продажи включают остатки других поступлений. «†» — получено меньше 10 шт., процент неустойчив.</p></>, fmt: (m, _c) => (m.received > 0 ? pc(share(m.sellThrough)) + (sellNote(m) === "over" ? "*" : sellNote(m) === "small" ? "†" : "") : nodata) },
-  { key: "avgPrice", money: true, label: "Средняя цена", hint: <p>Выручка с НДС (Retail RUR после скидки) ÷ проданные единицы.</p>, fmt: (m, c) => (c === "eur" ? eur(m.avgPriceEur) : money(m.avgPrice)) },
+  { key: "grossUnit", money: true, label: "Цена до скидки, за шт.", hint: <p>Цена до скидки = Gross ÷ проданные шт.</p>, fmt: (m, c) => (m.sold > 0 ? (c === "eur" ? eur((m.revenueEur + m.discountEurSum) / m.sold) : money((m.revenue + m.discountSum) / m.sold)) : nodata) },
+  { key: "avgPrice", money: true, label: "Цена продажи, за шт.", hint: <p>Цена продажи = Выручка ÷ проданные шт.</p>, fmt: (m, c) => (c === "eur" ? eur(m.avgPriceEur) : money(m.avgPrice)) },
   { key: "discountVsRetail", rubOnly: true, label: "Цена к прайсу 19.10", hint: <p>Реальная цена продажи к нынешнему прайсу: выручка с НДС ÷ (штуки × текущая цена из прайса 19.10.2026) − 1. Отрицательное — продано дешевле прайса, положительное — дороже (в основном рост цен). Это не скидка: настоящая скидка — Discount.</p>, fmt: (m, _c) => signed(m.discountVsRetail === null ? null : -m.discountVsRetail * 100) },
   { key: "gpOfRetail", rubOnly: true, label: "Прибыль / розница", hint: <p>Валовая прибыль ÷ розничная стоимость проданного без НДС (штуки × текущая розница ÷ (1 + ставка НДС на дату продажи: 20% до 12.2025, 22% с 01.2026)), по позициям с ценой и себестоимостью.</p>, fmt: (m, _c) => pc(share(m.gpOfRetail), 1) },
   { key: "markupW", rubOnly: true, label: "Маркап прихода", hint: <p>Средневзвешенный по единицам прихода: Σ(розница × шт.) ÷ Σ(себестоимость с НДС × шт.). Розница — текущий прайс, себестоимость — из ТЗ. Некоторые модели помечены (см. строки): у них маркап искажён данными ТЗ или ценой.</p>, fmt: (m, _c) => x2(m.markupW) },
+  { key: "listPrice", money: true, rubOnly: true, label: "Прайс 19.10, за шт.", hint: <p>Справочная цена прайс-листа 19.10.2026, средневзвешенная по штукам.</p>, fmt: (m, _c) => money(m.listPrice ?? null) },
+  { key: "toList", rubOnly: true, label: "К прайсу, %", hint: <p>К прайсу % = Выручка ÷ (цена прайса × проданные шт.).</p>, fmt: (m, _c) => pc(m.toListPct ?? null, 0) },
 ];
-const TOTAL_KEYS: MKey[] = ["received", "salesCost", "sold", "revenueEx", "discountSum", "grossProfit", "grossMarginPct"];
-const GROUP_KEYS: MKey[] = ["sold", "revenueEx", "discountGiven", "grossMarginPct"];
+const TOTAL_KEYS: MKey[] = ["sold", "revenueEx", "gross", "discountSum", "discountGiven", "avgPrice", "grossMarginPct"];
+const GROUP_KEYS: MKey[] = ["sold", "revenueEx", "discountGiven", "avgPrice", "grossMarginPct"];
 const NARROW_KEYS: MKey[] = ["sold", "revenueEx"];
 /** Пометки по моделям (независимая проверка 19.10.2026): артефакты расчёта маркапа. */
 const MODEL_NOTES: Record<string, string> = {
@@ -81,11 +87,11 @@ function Settings({ measures, keys, onKey, levels, onLevel, onCollapse }: { meas
   const btn = "inline-flex min-h-11 items-center rounded-md border border-neutral-300 bg-white px-3 text-sm hover:bg-neutral-50";
   return (
     <div ref={ref} className="relative">
-      <button type="button" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((v) => !v)} className={btn}>Настройки ▾</button>
+      <button type="button" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((v) => !v)} className={btn}>Колонки ▾</button>
       {open && (
-        <div role="group" aria-label="Настройки таблицы" className="absolute left-0 z-30 mt-1 flex w-72 max-w-[85vw] flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3 shadow-lg">
+        <div role="group" aria-label="Колонки таблицы" className="absolute left-0 z-30 mt-1 flex w-72 max-w-[85vw] flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3 shadow-lg">
           <div>
-            <p className="mb-1 text-xs font-semibold">Меры</p>
+            <p className="mb-1 text-xs font-semibold">Колонки</p>
             <ul className="flex flex-col">
               {measures.map((m) => (
                 <li key={m.key}><label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm"><input type="checkbox" className="size-5" checked={keys.includes(m.key)} onChange={() => onKey(m.key)} />{m.label}</label></li>
@@ -199,10 +205,11 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
               {!isTotal && hasKids(n) ? (
                 <button type="button" aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Развернуть"}: ${n.label}`} onClick={() => toggle(n.id)} className="inline-flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded-md">{isOpen ? "▾" : "▸"}</button>
               ) : <span aria-hidden className="inline-block w-9 shrink-0" />}
-              <span className="min-w-0 flex-1" title={n.label + (note ? " — " + note : "")}><span className="block truncate">{n.label}</span>{note ? <span className="block truncate text-xs font-normal text-neutral-600">{note}</span> : null}</span>
+              <span className="min-w-0 flex-1" title={n.label + (note ? " — " + note : "")}><span className="block truncate">{n.label}</span>{note ? <span className="block truncate text-xs font-normal text-neutral-600"><span aria-hidden>⚠ </span>{note}</span> : null}</span>
+              {!isTotal && n.dim === "article" ? <Link href={`/sales/movement?a=${encodeURIComponent(n.label)}`} aria-label={`Продажи и остатки: ${n.label}`} title="Продажи и остатки по артикулу" className="inline-flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded-md text-sm text-neutral-700 hover:text-neutral-900">↗</Link> : null}
             </span>
           </th>
-          {n.cols.map((m, gi) => measures.map((ms) => <td key={gi + ms.key} className={td + (gi === 0 ? " border-r border-neutral-200 font-semibold" : "")}>{ms.key === "conf" ? (gi === 0 ? confOf(n) : nodata) : m.sold === 0 && m.received === 0 ? "—" : ms.fmt(m, cur)}</td>))}
+          {n.cols.map((m, gi) => measures.map((ms) => <td key={gi + ms.key} className={td + (gi === 0 ? " border-r border-neutral-200 font-semibold" : "")}>{ms.key === "conf" ? (gi === 0 ? confOf(n) : nodata) : m.sold === 0 && m.received === 0 ? "—" : ms.fmt(m, cur, vat)}</td>))}
         </tr>
         {isOpen && (n.children.length ? n.children : sizeKids(n)).map((c) => renderNode(c, depth + 1))}
       </Fragment>
@@ -213,8 +220,8 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
   const heads = ["Тотал", ...groups.map((g) => g.head)];
   return (
     <section aria-label="Маржа и наценка" className="flex min-w-0 scroll-mt-16 flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3">
-      <h2 className="text-sm font-semibold">Маржа и наценка</h2>
-      <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-700 print:hidden"><span>Показано: {shown}</span><button type="button" onClick={onChange} className="inline-flex min-h-11 items-center rounded-md px-2 underline">Изменить</button></p>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">Маржа и наценка</h2><Link href="/sales" className="inline-flex min-h-11 items-center text-sm underline">Подробнее: Продажи и остатки →</Link></div>
+      <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-700 print:hidden"><span>Показано: {shown}</span><span>Приход {view.tree.cols[0].received} шт. · продано {view.tree.cols[0].sold} шт.</span><Link href="/sales" className="inline-flex min-h-11 items-center underline">Продажи и остатки</Link><button type="button" onClick={onChange} className="inline-flex min-h-11 items-center rounded-md px-2 underline">Изменить</button></p>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <Tile label="Средний маркап" value={x2(data.avgMarkup)} sub={`простой по ${data.avgMarkupN} моделям`} hint={<p>Маркап модели = текущая розница с НДС ÷ себестоимость единицы с работой и НДС (как «Себестоимость» в «Изделиях»). Здесь — простое среднее по моделям, у которых есть и цена, и себестоимость. Наценка в % = (маркап − 1) × 100.</p>} />
         <Tile label="По приходу" value={x2(data.weightedByReceipts)} sub="вес — единицы прихода" hint={<p>Средневзвешенный маркап: Σ(розница × единицы прихода) ÷ Σ(себестоимость × единицы прихода).</p>} />
@@ -229,10 +236,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
           <button type="button" aria-pressed={mode === "seasons"} onClick={() => setMode("seasons")} className={seg(mode === "seasons")}>Сезоны</button>
           <button type="button" aria-pressed={mode === "months"} onClick={() => setMode("months")} className={seg(mode === "months")}>Месяцы</button>
         </div>
-        <div role="group" aria-label="Структура" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-          <button type="button" aria-pressed={treeKey === "a"} onClick={() => onTree("a")} className={seg(treeKey === "a")}>Категории → мех</button>
-          <button type="button" aria-pressed={treeKey === "b"} onClick={() => onTree("b")} className={seg(treeKey === "b")}>Мех → категории</button>
-        </div>
+        <Segmented label="Структура" items={[{ key: "a", label: "Категории → Мех", on: treeKey === "a", onSelect: () => onTree("a"), title: "Категория 1 → Категория 2 → Тип меха → Артикул → Цвет" }, { key: "b", label: "Мех → Категории", on: treeKey === "b", onSelect: () => onTree("b"), title: "Тип меха → Категория 1 → Категория 2 → Артикул → Цвет" }]} />
         <div role="group" aria-label="Валюта" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
           <button type="button" aria-pressed={cur === "rub"} onClick={() => onCur("rub")} className={seg(cur === "rub")}>₽</button>
           <button type="button" aria-pressed={cur === "eur"} onClick={() => onCur("eur")} className={seg(cur === "eur")}>€</button>
@@ -264,7 +268,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
           <tbody>{renderNode(tree, 0)}</tbody>
         </table>
       </div>
-      <p className="text-xs text-neutral-700">{cur === "eur" ? "€: Sales retail и Discount в евро берутся из выгрузки (Sales Retail EUR / Discount EUR, с НДС и без НДС по переключателю); себестоимость ТЗ в рублях и курс в данных не задан, поэтому себестоимость, маржа, маркап и цена к прайсу в € не показываются. " : `₽, ${vat === "ex" ? "без НДС" : "с НДС"}: выручка и скидка из выгрузки ${vat === "ex" ? "без НДС" : "с НДС"}, себестоимость ТЗ ${vat === "ex" ? "без НДС" : "с НДС"} (как «Себестоимость» в «Изделиях»). `}* продано больше получено: продажи включают остатки других поступлений. † получено меньше 10 шт., процент неустойчив.</p>
+      <p className="text-xs text-neutral-700">{cur === "eur" ? "€: выручка и скидка в евро берутся из выгрузки (Sales Retail EUR / Discount EUR, с НДС и без НДС по переключателю); себестоимость ТЗ в рублях и курс в данных не задан, поэтому себестоимость, маржа, маркап и цена к прайсу в € не показываются. " : `₽, ${vat === "ex" ? "без НДС" : "с НДС"}: выручка и скидка из выгрузки ${vat === "ex" ? "без НДС" : "с НДС"}, себестоимость ТЗ ${vat === "ex" ? "без НДС" : "с НДС"} (как «Себестоимость» в «Изделиях»). `}* продано больше получено: продажи включают остатки других поступлений. † получено меньше 10 шт., процент неустойчив.</p>
 
       <div>
         <button type="button" aria-expanded={showSizes} onClick={() => setShowSizes((v) => !v)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm">{showSizes ? "Скрыть размеры" : "Размеры (по отчёту о товарах)"}</button>

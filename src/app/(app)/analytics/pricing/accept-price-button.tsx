@@ -19,6 +19,7 @@ export function AcceptPriceButton({
   priceText,
   currentText,
   basis,
+  label = "Принять рекомендацию",
 }: {
   modelId: string;
   modelName: string;
@@ -28,6 +29,8 @@ export function AcceptPriceButton({
   currentText: string | null;
   /** Откуда цифра: «наценка 350%, база — материалы, без 4%». */
   basis: string;
+  /** Текст кнопки; по умолчанию «Принять рекомендацию», из прайса — «Взять из прайса». */
+  label?: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -45,7 +48,7 @@ export function AcceptPriceButton({
         <div className="text-xs text-neutral-600">Основание: {basis}.</div>
         <div className="text-xs text-neutral-600">{n == null ? "Цена перенесётся на ТЗ в плане и в работе" : `Перенесётся на ${n} ТЗ в плане и в работе`}; у завершённых не меняется.</div>
       </div>,
-      { ok: "Принять" },
+      { ok: label === "Принять рекомендацию" ? "Принять" : "Взять" },
     );
     if (!ok) return;
     setError(null);
@@ -65,7 +68,7 @@ export function AcceptPriceButton({
   return (
     <div className="flex flex-col items-start gap-1">
       <Button type="button" size="sm" variant="outline" disabled={pending} onClick={onClick} className="max-md:h-10">
-        {pending ? "Сохраняю…" : "Принять рекомендацию"}
+        {pending ? "Сохраняю…" : label}
       </Button>
       {node}
       {error && (
