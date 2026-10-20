@@ -363,9 +363,9 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
             </tbody>
           </table>
           {side === "supplier" ? (
-            <div className="rounded-md bg-[var(--ui-soft)] px-3 py-2 text-sm">Долг поставщику (Главная, «Оплачено» / «К оплате»): {rub(data.debtNow)} → <b>{rub(data.debtNow == null ? null : Math.round((data.debtNow - amountC / 100) * 100) / 100)}</b>. «Оплачено» вырастет на {money(amountC)}, «К оплате» уменьшится на ту же сумму, включая аванс без привязки.</div>
+            <div className="rounded-md bg-[var(--ui-soft)] px-3 py-2 text-sm">Долг по сырью (Главная, «Оплачено» / «Долг по сырью»): {rub(data.debtNow)} → <b>{rub(data.debtNow == null ? null : Math.round((data.debtNow - amountC / 100) * 100) / 100)}</b>. «Оплачено» вырастет на {money(amountC)}, «Долг по сырью» уменьшится на ту же сумму, включая аванс без привязки.</div>
           ) : (
-            <div className="rounded-md bg-[var(--ui-soft)] px-3 py-2 text-sm">Долг по работе подрядчику уменьшится на {money(amountC)}: на ТЗ разнесено {money(sumC)}{restC > 0 ? `, ещё ${money(restC)} учитывается отдельной строкой «неразнесённые авансы»` : ""}. В Контроле неразнесённое остаётся в списке авансов до разнесения.</div>
+            <div className="rounded-md bg-[var(--ui-soft)] px-3 py-2 text-sm">Остаток работы уменьшится на {money(amountC)}: на ТЗ разнесено {money(sumC)}{restC > 0 ? `, ещё ${money(restC)} учитывается отдельной строкой «неразнесённые авансы»` : ""}. В Контроле неразнесённое остаётся в списке авансов до разнесения.</div>
           )}
           <p className="text-xs text-neutral-500">Подтверждение закупок / ТЗ сбросится — проверьте в «Подтвердить». Счёт № {invoiceNo}{file ? `; файл: ${file.name}` : "; файла нет"}.</p>
         </div>

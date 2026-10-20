@@ -1,3 +1,4 @@
+import { countPayslips } from "@/lib/pay-kinds";
 import "server-only";
 // Загрузка данных Сводки (/dashboard): всё, что нужно блокам, одним набором параллельных запросов.
 // Расчёты — в dashboard-calc.ts (чистые функции), сырьё — fur-table.ts, ТЗ — analytics-orders.ts, долг — supplier-debt.ts.
@@ -110,6 +111,8 @@ export type DashboardData = {
   paidByItem: { fur: number; lining: number; services: number; work: number };
   /** Оплачено по типам платежа (аванс, доплата, окончательный расчёт, прочее): сумма и число платежей; Σ = fur + lining + services + work без фильтров. */
   paidByType: { type: "ADVANCE" | "PARTIAL" | "FINAL" | "OTHER"; amount: number; count: number }[];
+  /** Платёжек (п/п) среди всех строк оплат: одна п/п бывает разнесена на несколько строк (сырьё и работа, партии, ТЗ). */
+  paidSlips: { slips: number; rows: number };
   /** Осталось оплатить: сырьё (долг поставщику) и производство (долг по работе подрядчику) — те же числа, что в «Оплаты → Все». */
   left: { raw: number; fur: number; lining: number; services: number; prod: number };
   /**
@@ -685,6 +688,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
     vat: vatOut,
     paidByItem: paidOut,
     paidByType,
+    paidSlips: { slips: countPayslips(ovYear), rows: ovYear.length },
     left: leftOut,
     advance: advanceOut,
     overpaid: debt.overpaid.map((o) => ({ name: o.name, amount: o.amount.toNumber() })),

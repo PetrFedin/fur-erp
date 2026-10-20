@@ -7,9 +7,11 @@ import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import type { DashboardData } from "@/lib/dashboard-data";
 import { WidgetRow } from "@/components/widget-row";
 import { SERVICES_LABEL } from "@/lib/service-purchase";
+import { TERMS } from "@/lib/terms";
 import { TILE_BOX, TileHead, TileValue, TileList, type TileItem } from "./tile";
 import { BridgeHint } from "./mode-line";
 import { formatCompactMoney } from "./compact";
+import { payslipsCaption } from "@/lib/pay-kinds";
 
 /** Срок «дд.мм.гггг» уже прошёл (конец дня). */
 function isPastRu(date: string): boolean {
@@ -21,7 +23,7 @@ function isPastRu(date: string): boolean {
  * Три плитки оплат: «Общая стоимость», «Оплачено», «К оплате» — одни и те же цифры на Главной и в «Оплаты → Все».
  * Всегда с НДС; 4% отдельной суммой не добавляются (оплачены в составе оплат ТЗ).
  */
-export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Оплаты", headerEnd, bare = false, defaultCollapsed = false }: { /** Свёрнуто по умолчанию (на Главной эти цифры уже в полосе «Главное»). */ defaultCollapsed?: boolean; /** Только три плитки, без WidgetRow и сетки: их кладёт в общий ряд «Сырьё | Оплаты» вызывающий (RawCards pay). */ bare?: boolean; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** id и заголовок ряда виджетов (запоминание «свернуть/закрепить»). */ id?: string; title?: string; d: DashboardData; c4Mode: "on" | "off"; year: YearFilter; /** Только мех или только подкладка (страница «Сырьё»): без работы и без общих подсказок по долгу. */ only?: "fur" | "lining" }) {
+export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", title = "Оплаты", headerEnd, bare = false, defaultCollapsed = false }: { /** Страницы «Оплаты»: строки долга — ссылки на списки с остатком, а долг по сырью разделён на «за поставленное» и «по заказам, ещё не поставлено». */ drill?: boolean; /** Свёрнуто по умолчанию (на Главной эти цифры уже в полосе «Главное»). */ defaultCollapsed?: boolean; /** Только три плитки, без WidgetRow и сетки: их кладёт в общий ряд «Сырьё | Оплаты» вызывающий (RawCards pay). */ bare?: boolean; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** id и заголовок ряда виджетов (запоминание «свернуть/закрепить»). */ id?: string; title?: string; d: DashboardData; c4Mode: "on" | "off"; year: YearFilter; /** Только мех или только подкладка (страница «Сырьё»): без работы и без общих подсказок по долгу. */ only?: "fur" | "lining" }) {
   const { debt } = d;
   const mln = (v: number) => formatCompactMoney(v);
   const prodPaid = d.paidByItem.work;
@@ -56,7 +58,16 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
   const typeSum = typeRows.reduce((a, t) => a + t.amount, 0);
   const typesOk = inWork && !only && typeRows.length > 0 && Math.abs(typeSum - paidAll) < 1;
   const typeAl = alignColumn(typeRows.map((t) => t.amount), paidAll); // типы платежа складываются в показанное «Оплачено всего»
-  const typeItems: TileItem[] = typeRows.map((t, i) => ({ k: `${TYPE_LABEL[t.type]} · ${t.count} ${t.count % 10 === 1 && t.count % 100 !== 11 ? "платёж" : t.count % 10 >= 2 && t.count % 10 <= 4 && (t.count % 100 < 10 || t.count % 100 >= 20) ? "платежа" : "платежей"}`, v: money(typeAl.values[i]), share: part(typeAl.values[i], paidAll) }));
+  const rowWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? "строка" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "строки" : "строк");
+  const typeItems: TileItem[] = typeRows.map((t, i) => ({ k: `${TYPE_LABEL[t.type]} · ${t.count} ${rowWord(t.count)}`, v: money(typeAl.values[i]), share: part(typeAl.values[i], paidAll) }));
+
+  // Строки долга ведут к спискам, где этот остаток виден по партиям закупки и по ТЗ (только на страницах «Оплаты»).
+  const DEBT_LINK: Record<string, string> = { "Мех": "/payments?tab=suppliers&asort=rem&adir=desc", "Подкладка": "/payments?tab=suppliers&asort=rem&adir=desc", [SERVICES_LABEL]: "/payments?tab=suppliers&asort=rem&adir=desc", [TERMS.workRest]: "/payments?tab=clients" };
+  const drillItems = (items: TileItem[]): TileItem[] => (drill ? items.map((x) => (typeof x.k === "string" && DEBT_LINK[x.k] ? { ...x, href: DEBT_LINK[x.k] } : x)) : items);
+  // Долг по сырью: «за поставленное» (мех получен, УПД и счета) отдельно от «по заказам» (мех не получен: выставленный счёт и ожидаемое). Σ = долг по сырью в плитке.
+  const rawLeft = L.fur + L.lining + L.services;
+  const splitAl = alignColumn([debt.receivedNet.toNumber(), debt.invoiced.toNumber() + debt.expected.toNumber()], rawLeft).values;
+  const split: [number, number] | null = rawLeft >= 0.5 && Math.abs(debt.receivedNet.toNumber() + debt.invoiced.toNumber() + debt.expected.toNumber() - rawLeft) < 2 ? [splitAl[0], splitAl[1]] : null;
 
   const tiles = (
     <>
@@ -88,6 +99,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
         {typesOk ? (
           <div data-testid="paid-by-type" className="mt-2 border-t border-neutral-100 pt-2">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">По типам платежа</div>
+            <div className="mt-0.5 text-[11px] text-neutral-500">{payslipsCaption(d.paidSlips)}</div>
             <TileList stack={bare} items={typeItems} />
           </div>
         ) : null}
@@ -105,7 +117,16 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
           <SupplierDebtHint debt={debt} year={year} align="right" />
         </div>
         <TileValue compact={bare} className={(inWork ? due.net : leftAll) > 0 ? "text-amber-700" : ""}>{money(inWork ? due.net : leftAll)}</TileValue>
-        <TileList stack={bare} items={list(leftAll, L.fur, furLeftD, 0, L.lining, linLeftD, 0, L.services, L.work, true, "Долг по работе подрядчику")} />
+        <TileList stack={bare} items={drillItems(list(leftAll, L.fur, furLeftD, 0, L.lining, linLeftD, 0, L.services, L.work, true, TERMS.workRest))} />
+        {drill && !only && split ? (
+          <div data-testid="debt-split" className="mt-2 border-t border-neutral-100 pt-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{TERMS.rawDebt}</div>
+            <TileList stack={bare} items={[
+              { k: "за поставленное (УПД и счета)", v: money(split[0]) },
+              { k: "по заказам, ещё не поставлено", v: money(split[1]) },
+            ]} />
+          </div>
+        ) : null}
         {inWork && adv >= 1 ? (
           <div data-testid="advance-line" className="mt-2 border-t border-neutral-100 pt-2">
             <TileList stack={bare} items={[{

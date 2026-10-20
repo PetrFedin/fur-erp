@@ -17,6 +17,8 @@ type Props = {
   hidesMemo?: number;
   debtHint?: ReactNode;
   deadlines?: ReactNode;
+  /** Долг по сырью: за поставленное (УПД и счета) и по заказам, мех по которым ещё не поставлен (счёт выставлен + ожидаемое). Σ = плитка. */
+  debtSplit?: { delivered: number; ordered: number };
   debtWarn?: boolean;
   /** Мех / подкладка: оплачено и к оплате (те же числа, что на Главной). */
   split?: { paid: { fur: number; lining: number; services?: number }; debt: { fur: number; lining: number; services?: number } };
@@ -93,7 +95,7 @@ function Tile({ label, value, hint, onOpen, valueClass, items, children }: { lab
   );
 }
 
-export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWarn, hidesMemo, split, rounding = 0, shown }: Props) {
+export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWarn, debtSplit, hidesMemo, split, rounding = 0, shown }: Props) {
   const [open, setOpen] = useState<null | "paid" | "debt">(null);
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -108,6 +110,14 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
         <Tile label="Общая стоимость" value={rub(shown ? shown.total : paid.total + debt.total + rounding)} hint={<InfoHint label="Что такое общая стоимость" align="right"><p>Оплачено плюс осталось оплатить за сырьё (мех с шкурами подрядчика, подкладка) и услуги по УПД (если есть). Всегда с НДС; 4 % отдельно не добавляются.</p></InfoHint>} items={shown ? [...stat(shown.total, shown.total, shown.totalFur, shown.totalLining, false, shown.totalServices), ...(shown.round !== 0 ? [{ k: "округление (лоты и документы)", v: rub(shown.round) }] : [])] : split ? [...stat(paid.total + debt.total, paid.total + debt.total, split.paid.fur + split.debt.fur, split.paid.lining + split.debt.lining, false, (split.paid.services ?? 0) + (split.debt.services ?? 0)), ...(rounding !== 0 ? [{ k: "Округление", v: rub(rounding) }] : [])] : undefined} />
         <Tile label="Оплачено" value={rub(shown ? shown.paid : paid.total)} hint={paidHint} onOpen={() => setOpen("paid")} items={shown ? stat(shown.paid, shown.paid, shown.paidFur, shown.paidLining, false, shown.paidServices) : split ? stat(paid.total, paid.total, split.paid.fur, split.paid.lining, false, split.paid.services) : undefined} />
         <Tile label={TERMS.rawDebt} value={rub(shown ? shown.left : debt.total)} hint={debtHint} onOpen={() => setOpen("debt")} valueClass={debtWarn ? "text-amber-700" : ""} items={shown ? stat(shown.left, shown.left, shown.leftFur, shown.leftLining, true, shown.leftServices) : split ? stat(debt.total, debt.total, split.debt.fur, split.debt.lining, true, split.debt.services) : undefined}>
+          {debtSplit ? (
+            <div data-testid="debt-split" className="mt-2 border-t border-neutral-100 pt-2" onClick={(e) => e.stopPropagation()}>
+              <TileList items={[
+                { k: "за поставленное (УПД и счета)", v: rub(debtSplit.delivered) },
+                { k: "по заказам, ещё не поставлено", v: rub(debtSplit.ordered) },
+              ]} />
+            </div>
+          ) : null}
           {deadlines}
         </Tile>
       </div>

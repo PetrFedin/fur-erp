@@ -683,7 +683,7 @@ export default async function PaymentsPage({
         <h1 className="text-xl font-semibold">Оплаты</h1>
         {year !== "all" && <span className="text-sm font-normal text-neutral-600">· {yearLabel(year)}</span>}
         <InfoHint wide label="О странице оплат">
-          <p>Суммы с НДС. Год — из шапки: партия закупки по дате заказа, работа по дате оплаты.</p>
+          <p>Суммы с НДС. Год оплаты — по дате платежа; в таблице партий закупки год — по дате заказа.</p>
         </InfoHint>
         {canPay && <span className="ml-auto"><PaymentWizardButton label="+ Внести оплату" defaultSide={tab === "clients" ? "work" : undefined} /></span>}
       </div>
@@ -753,7 +753,7 @@ export default async function PaymentsPage({
               );
             }
           }
-          return <PaymentsOverview tiles={<PayTiles d={dash} c4Mode={await getCommission4Mode()} year={year} headerEnd={<Link href="/dashboard" className="text-xs text-blue-700 hover:underline print:hidden">→ Главная</Link>} />} rows={rows} left={left} controls={controls} />;
+          return <PaymentsOverview tiles={<PayTiles drill d={dash} c4Mode={await getCommission4Mode()} year={year} headerEnd={<Link href="/dashboard" className="text-xs text-blue-700 hover:underline print:hidden">→ Главная</Link>} />} rows={rows} left={left} controls={controls} />;
         })()}
         </>
       ) : tab === "clients" ? (
@@ -839,9 +839,9 @@ export default async function PaymentsPage({
                   parts: [
                     { label: "Стоимость закупок, с НДС", value: Number(debt.total.toString()) },
                     ...(anyPlanned ? [{ label: "Запланировано", value: sum((a) => a.planned) }] : []),
-                    { label: "К оплате по УПД и счетам", value: Number(debt.receivedNet.toString()) },
-                    { label: "Счёт выставлен, не оплачен (мех не получен)", value: Number(debt.invoiced.toString()) },
-                    { label: "Ожидаемые закупки (счёта ещё нет)", value: Number(debt.expected.toString()) },
+                    { label: "За поставленное: мех получен, УПД и счета", value: Number(debt.receivedNet.toString()) },
+                    { label: "По заказам: счёт выставлен, мех не поставлен", value: Number(debt.invoiced.toString()) },
+                    { label: "По заказам: мех не поставлен, счёта ещё нет", value: Number(debt.expected.toString()) },
                   ],
                   rows: [
                     ...debt.byAuction.filter((a) => a.due.greaterThan(PAY_EPS)).map((a) => ({ name: shortAuctionName(a.name), year: auctionPeriod(a.name)?.year ?? null, month: auctionPeriod(a.name)?.month, value: Number(a.due.toString()) })),
@@ -854,6 +854,7 @@ export default async function PaymentsPage({
                   </InfoHint>
                 }
                 debtHint={<SupplierDebtHint debt={debt} year={year} align="right" />}
+                debtSplit={rawPay && rawPay.leftAll >= 0.5 && Math.abs(Number(debt.debt.toString()) - rawPay.leftAll) < 2 ? (() => { const al = alignColumn([Number(debt.receivedNet.toString()), Number(debt.invoiced.add(debt.expected).toString())], rawPay.leftAll).values; return { delivered: al[0], ordered: al[1] }; })() : undefined}
                 debtWarn={debt.debt.greaterThan(PAY_EPS)}
                 deadlines={
                   deadlines.length > 0 ? (

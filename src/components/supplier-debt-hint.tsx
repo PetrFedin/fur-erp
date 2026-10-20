@@ -27,21 +27,21 @@ export function SupplierDebtHint({ debt, year = "all", align = "left" }: { debt:
         <tbody>
           <tr className="border-t border-neutral-200">
             <td className="py-1 pr-2">
-              <b>К оплате по УПД и счетам</b>
+              <b>За поставленное (УПД и счета)</b>
               <div className="text-neutral-500">мех получен, УПД есть; из этой части вычтены авансы без привязки ({m(debt.unlinkedAdvances)})</div>
             </td>
             <td className="whitespace-nowrap py-1 text-right font-semibold">{m(debt.receivedNet)}</td>
           </tr>
           <tr className="border-t border-neutral-200">
             <td className="py-1 pr-2">
-              <b>Счёт выставлен, не оплачен</b>
+              <b>По заказам: счёт выставлен</b>
               <div className="text-neutral-500">мех ещё не получен (черновик закупки), но Веллмех уже выставил счёт</div>
             </td>
             <td className="whitespace-nowrap py-1 text-right font-semibold">{m(debt.invoiced)}</td>
           </tr>
           <tr className="border-t border-neutral-200">
             <td className="py-1 pr-2">
-              <b>Ожидаемые закупки</b>
+              <b>По заказам: счёта ещё нет</b>
               <div className="text-neutral-500">не получены, счёта на эту часть ещё нет</div>
             </td>
             <td className="whitespace-nowrap py-1 text-right font-semibold">{m(debt.expected)}</td>

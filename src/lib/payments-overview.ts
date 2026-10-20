@@ -9,7 +9,7 @@ import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { cleanNote } from "@/lib/note-tags";
 import { isServicePurchaseByCount } from "@/lib/service-purchase";
 import { paymentYear } from "@/lib/pay-display";
-import { PAYER_NAME, contractorOfPayment, docNo } from "@/lib/payment-parties";
+import { PAYER_NAME, bareNo, contractorOfPayment, docNo } from "@/lib/payment-parties";
 
 /** Куда разнесена оплата: закупка, ТЗ или «без привязки». Σ частей = сумма оплаты. */
 export type OverviewPart = { label: string; href?: string; amount: number; note?: string };
@@ -33,6 +33,8 @@ export type OverviewRow = {
   href: string;
   /** Основание платежа как записано в документе (п/п, счёт) либо null. */
   doc: string | null;
+  /** Номер платёжного поручения (п/п) — одна платёжка может быть разнесена на несколько строк; пусто, если номера нет. */
+  pp: string;
   /** Вид платежа: «Аванс», «Доплата», «Оплата». */
   what: string;
   /** Тип платежа как в базе (Payment.kind / ProductionPayment.paymentType): аванс, доплата, окончательный расчёт, прочее. */
@@ -63,12 +65,12 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
     loadFurLots(prisma, orgId, { kind: "lining", year: "all", furIdx }),
     prisma.payment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, createdAt: true, purchaseId: true, auctionSession: true, confirmedAt: true, kind: true, docRef: true, notes: true, method: true, percent: true, documentId: true, supplier: { select: { name: true } }, _count: { select: { driveDocuments: { where: { storagePath: { not: null } } } } }, purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true, invoiceNumber: true, status: true, _count: { select: { items: true, expenses: true } } } } },
+      select: { id: true, amount: true, paidAt: true, createdAt: true, purchaseId: true, auctionSession: true, confirmedAt: true, kind: true, docRef: true, ppNo: true, notes: true, method: true, percent: true, documentId: true, supplier: { select: { name: true } }, _count: { select: { driveDocuments: { where: { storagePath: { not: null } } } } }, purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true, invoiceNumber: true, status: true, _count: { select: { items: true, expenses: true } } } } },
       orderBy: { paidAt: "desc" },
     }),
     prisma.productionPayment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, createdAt: true, paymentType: true, method: true, docRef: true, notes: true, confirmedAt: true, client: { select: { name: true } }, contractor: { select: { name: true } }, _count: { select: { driveDocuments: { where: { storagePath: { not: null } } } } }, allocations: { select: { amount: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true, contractor: { select: { name: true } } } } } }, orders: { select: { productionOrderId: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true, contractor: { select: { name: true } } } } } } },
+      select: { id: true, amount: true, paidAt: true, createdAt: true, paymentType: true, method: true, docRef: true, ppNo: true, notes: true, confirmedAt: true, client: { select: { name: true } }, contractor: { select: { name: true } }, _count: { select: { driveDocuments: { where: { storagePath: { not: null } } } } }, allocations: { select: { amount: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true, contractor: { select: { name: true } } } } } }, orders: { select: { productionOrderId: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true, contractNumber: true, contractor: { select: { name: true } } } } } } },
       orderBy: { paidAt: "desc" },
     }),
     // Закупки партий: оплата партии делится между ними пропорционально сумме (так же, как «Оплачено» в списке закупок).
@@ -123,7 +125,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       ["Получатель", p.supplier.name],
       ["За что", au ? `Партия «${au}»${p.purchase ? ` · закупка ${p.purchase.number}` : ""}` : p.purchase ? `Закупка ${p.purchase.number}` : "Без привязки к закупке (аванс)"],
       ["Способ", METHOD_RU[p.method] ?? p.method],
-      ["П/п", ppOf(p.docRef) ?? ""],
+      ["П/п", ppOf(p.docRef) ?? bareNo(p.ppNo)],
       ["Счёт", inv ? docNo(inv[1], inv[2]) : p.purchase?.invoiceNumber ? docNo(p.purchase.invoiceNumber.replace(/^сч[её]т\s*/i, "")) : ""],
       ["Основание", p.docRef?.trim() ?? ""],
       ["Заметка", cleanNote(p.notes) ?? ""],
@@ -148,6 +150,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       label: au ?? p.purchase?.number ?? "Аванс без привязки",
       confirmed: p.confirmedAt != null,
       doc: p.docRef?.trim() || null,
+      pp: ppOf(p.docRef) ?? bareNo(p.ppNo),
       what: p.kind === "ADVANCE" ? "Аванс" : p.kind === "PARTIAL" ? "Доплата" : "Оплата",
       type: p.kind,
       parts,
@@ -201,7 +204,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       ["Получатель", contractor.name],
       ["За что", orderIds.size > 0 ? parts.filter((x) => x.label.startsWith("ТЗ ")).map((x) => x.label).join(", ") || Array.from(new Set(orderIds.values())).map((n) => `ТЗ ${n}`).join(", ") : "Без привязки к ТЗ (аванс)"],
       ["Способ", METHOD_RU[p.method] ?? p.method],
-      ["П/п", ppOf(p.docRef) ?? ""],
+      ["П/п", ppOf(p.docRef) ?? bareNo(p.ppNo)],
       ["Счёт", invP ? docNo(invP[1], invP[2]) : ""],
       ["Основание", p.docRef?.trim() ?? ""],
       ["Заметка", cleanNote(p.notes) ?? ""],
@@ -233,6 +236,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       label: p.paymentType === "ADVANCE" ? "Аванс за пошив" : p.paymentType === "PARTIAL" ? "Доплата за пошив" : "Оплата за пошив",
       confirmed: p.confirmedAt != null,
       doc: p.docRef?.trim() || null,
+      pp: ppOf(p.docRef) ?? bareNo(p.ppNo),
       what: p.paymentType === "ADVANCE" ? "Аванс" : p.paymentType === "PARTIAL" ? "Доплата" : "Оплата",
       type: p.paymentType,
       parts,

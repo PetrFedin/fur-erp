@@ -1,4 +1,5 @@
 import { formatShare } from "@/lib/utils";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 // Общая вертикальная раскладка плиток Сводки: заголовок, крупная цифра, подпись и список стоят на одном уровне у всех плиток ряда.
@@ -30,7 +31,11 @@ export type TileItem = {
   /** Вложенная строка: отступ и серый мелкий шрифт. */
   sub?: boolean;
   tone?: string;
+  /** Строка-ссылка: подпись ведёт в раздел с расшифровкой (список закупок или ТЗ с остатком). */
+  href?: string;
 };
+
+const label = (x: TileItem) => (x.href ? <Link href={x.href} className="text-blue-700 hover:underline">{x.k}</Link> : x.k);
 
 const pct = (s: number) => formatShare(s);
 
@@ -41,7 +46,7 @@ export function TileList({ items, stack = false }: { items: TileItem[]; /** Уз
       <dl className="mt-2 space-y-1 text-xs">
         {items.map((x, i) => (
           <div key={i}>
-            <dt className="min-h-4 whitespace-nowrap text-[11px] leading-4 text-neutral-500">{x.k}</dt>
+            <dt className="min-h-4 whitespace-nowrap text-[11px] leading-4 text-neutral-500">{label(x)}</dt>
             <dd className={"whitespace-nowrap text-sm font-medium leading-5 tabular-nums " + (x.tone ?? "")}>
               {x.v}
               {x.share != null && Number.isFinite(x.share) ? <span className="ml-1.5 text-[11px] font-normal text-neutral-400">{pct(x.share)}</span> : null}
@@ -55,7 +60,7 @@ export function TileList({ items, stack = false }: { items: TileItem[]; /** Уз
     <dl className="mt-2 space-y-0.5 text-xs">
       {items.map((x, i) => (
         <div key={i} className={"flex justify-between gap-3" + (x.sub ? " pl-3 text-xs" : "")}>
-          <dt className={x.sub ? "text-neutral-500" : "font-medium text-neutral-700"}>{x.k}</dt>
+          <dt className={x.sub ? "text-neutral-500" : "font-medium text-neutral-700"}>{label(x)}</dt>
           <dd className={"whitespace-nowrap text-right tabular-nums " + (x.sub ? "text-neutral-600 " : "font-medium ") + (x.tone ?? "")}>
             {x.v}
             {x.share != null && Number.isFinite(x.share) ? <span className="ml-1.5 text-[11px] font-normal text-neutral-400">{pct(x.share)}</span> : null}

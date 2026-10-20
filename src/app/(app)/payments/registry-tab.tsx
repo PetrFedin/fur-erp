@@ -13,7 +13,10 @@ import { isCountedPayment } from "@/lib/verification";
 import { loadDashboard } from "@/lib/dashboard-data";
 import { DASH_FILTERS, type DashFilters } from "@/lib/dashboard-calc";
 import { getCommission4Mode } from "@/lib/commission4-mode";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, formatMoneyCompact } from "@/lib/utils";
+import { Segmented } from "@/components/segmented";
+import { ColumnPicker, type PickerColumn } from "@/components/column-picker";
+import { countPayslips, payslipsText } from "@/lib/pay-kinds";
 import type { YearFilter } from "@/lib/year-filter";
 import { yearLabel } from "@/lib/year-filter";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
@@ -46,6 +49,21 @@ const SORT_VAL: Record<SortKey, (r: RegistryRow) => string | number> = {
 const TYPE_BY_CODE: Record<string, RegistryRow["what"]> = { adv: "Аванс", part: "Доплата", fin: "Расчёт" };
 const TYPE_OPTIONS = [{ value: "adv", label: "Аванс" }, { value: "part", label: "Доплата" }, { value: "fin", label: "Окончательный платёж" }];
 
+/** «Колонки ▾»: получатель в реестре почти всегда один (Веллмех) — по умолчанию убран, включается галочкой; поиск и фильтр по получателю работают всегда. */
+const COLUMNS: PickerColumn[] = [
+  { key: "pp", label: "П/п", fixed: true },
+  { key: "inv", label: "Счёт", on: true },
+  { key: "cp", label: "Получатель" },
+  { key: "date", label: "Дата", fixed: true },
+  { key: "kind", label: "Вид", on: true },
+  { key: "what", label: "Тип", on: true },
+  { key: "target", label: "К чему отнесено", fixed: true },
+  { key: "sum", label: "Сумма", fixed: true },
+  { key: "doc", label: "Документ", on: true },
+  { key: "st", label: "Статус", on: true },
+];
+
+const rowsWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? "строка" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "строки" : "строк");
 const ruDate = (iso: string) => iso.split("-").reverse().join(".");
 const money = (n: number) => formatMoney(n.toFixed(2));
 const STATUS_TONE: Record<PayStatus, string> = { verified: "text-emerald-700", docs: "text-amber-700", check: "text-neutral-700", mismatch: "text-red-700" };
@@ -59,6 +77,14 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
   const rows = all
     .filter((r) => f.kind.length === 0 || f.kind.includes(r.kind))
     .filter((r) => f.ty.length === 0 || f.ty.some((c) => TYPE_BY_CODE[c] === r.what))
+    .filter((r) => f.cp.length === 0 || f.cp.includes(r.counterparty))
+    .filter((r) => f.st.length === 0 || f.st.includes(r.status))
+    .filter((r) => !f.from || r.iso >= f.from)
+    .filter((r) => !f.to || r.iso <= f.to)
+    .filter((r) => !q || r.search.replace(/ё/g, "е").includes(q));
+  // Для сегмента «Тип оплаты»: те же строки, но без самого фильтра по типу.
+  const typeBase = all
+    .filter((r) => f.kind.length === 0 || f.kind.includes(r.kind))
     .filter((r) => f.cp.length === 0 || f.cp.includes(r.counterparty))
     .filter((r) => f.st.length === 0 || f.st.includes(r.status))
     .filter((r) => !f.from || r.iso >= f.from)
@@ -88,7 +114,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
     .map((w) => ({ w, n: rows.filter((r) => r.kind === k && r.what === w).length, sum: rows.filter((r) => r.kind === k && r.what === w).reduce((a, r) => a + r.amount, 0) }))
     .filter((t) => t.n > 0).map((t) => `${t.w} ${t.n} · ${money(t.sum)}`).join("; ");
   const th = (k: SortKey, label: string, align: "left" | "right" = "left", unit?: string) => (
-    <TH label={label} unit={unit} align={align} className="px-3" sort={sk === k ? (asc ? "asc" : "desc") : "none"}
+    <TH data-col={k} label={label} unit={unit} align={align} className="px-3" sort={sk === k ? (asc ? "asc" : "desc") : "none"}
       href={filterHref(REGISTRY_FILTERS, "/payments", f, { sk: k, sort: sk === k ? (asc ? "desc" : "asc") : k === "date" ? "desc" : "asc" })} />
   );
   const filtered = activeCount(REGISTRY_FILTERS, f) > 0;
@@ -101,8 +127,8 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
         <h1 className="text-xl font-semibold">Оплаты</h1>
         {year !== "all" && <span className="text-sm font-normal text-neutral-600">· {yearLabel(year)}</span>}
         <InfoHint wide label="О странице оплат">
-          <p>Суммы с НДС. Год — из шапки: партия закупки по дате заказа, работа по дате оплаты.</p>
-          <p className="mt-1">«Реестр» — все проведённые оплаты: за сырьё (поставщикам) и за работу (подрядчику). Плитки сверху — общие итоги, как на Главной; таблица учитывает фильтры.</p>
+          <p>Суммы с НДС. Год — по дате оплаты. Плитки сверху — общие итоги, как на Главной; таблица учитывает фильтры.</p>
+          <p className="mt-1">Одна платёжка (п/п) бывает разнесена на несколько строк: на сырьё и на работу, на несколько партий или ТЗ.</p>
         </InfoHint>
         {canPay && <span className="ml-auto"><PaymentWizardButton label="+ Внести оплату" /></span>}
       </div>
@@ -116,7 +142,6 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
           hideChips
           controls={[
             { type: "multi", name: "kind", label: "Вид оплаты", more: true, options: [{ value: "raw", label: "За сырьё" }, { value: "prod", label: "За работу" }], allLabel: "Все" },
-            { type: "multi", name: "ty", label: "Тип оплаты", options: TYPE_OPTIONS, allLabel: "Любой" },
             { type: "multi", name: "cp", label: "Получатель", options: cpOptions, allLabel: "Все получатели" },
             { type: "multi", name: "st", label: "Статус", options: STATUSES.map((s) => ({ value: s, label: PAY_STATUS_LABEL[s] })), allLabel: "Все статусы" },
             { type: "date", name: "from", label: "Оплата с" },
@@ -126,10 +151,10 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
         />
       </div>
 
-      <PayTiles d={dash} c4Mode={await getCommission4Mode()} year={year} headerEnd={<Link href="/dashboard" className="text-xs text-blue-700 hover:underline print:hidden">→ Главная</Link>} />
+      <PayTiles drill d={dash} c4Mode={await getCommission4Mode()} year={year} headerEnd={<Link href="/dashboard" className="text-xs text-blue-700 hover:underline print:hidden">→ Главная</Link>} />
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-600">
-        <span>Оплат: <b className="tabular-nums">{rows.length}</b>{filtered ? <> из <span className="tabular-nums">{all.length}</span></> : null}</span>
+        <span><b className="tabular-nums">{payslipsText(rows)}</b>{filtered ? <> из <span className="tabular-nums">{countPayslips(all)}</span></> : null}</span>
         <span>Ждут документа или проверки: <b className="tabular-nums">{waiting}</b></span>
         <InfoHint wide label="Статусы оплат">
           <p><b>Подтверждена</b> — есть документ-основание, оплата привязана, сумма и дата заданы; подтверждение поставлено.</p>
@@ -139,9 +164,23 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
         <Link href="/payments?tab=all" className="ml-auto text-blue-700 hover:underline">Разбор оплат по статьям →</Link>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
+        <Segmented
+          label="Тип оплаты"
+          items={[
+            { key: "all", label: <>Все · {formatMoneyCompact(typeBase.reduce((a, r) => a + r.amount, 0))}</>, on: f.ty.length === 0, href: filterHref(REGISTRY_FILTERS, "/payments", f, { ty: [] }), title: `Все типы: ${payslipsText(typeBase)}` },
+            ...TYPE_OPTIONS.map((o) => {
+              const list = typeBase.filter((r) => TYPE_BY_CODE[o.value] === r.what);
+              return { key: o.value, label: <>{o.label} · {formatMoneyCompact(list.reduce((a, r) => a + r.amount, 0))}</>, on: f.ty.length === 1 && f.ty[0] === o.value, href: filterHref(REGISTRY_FILTERS, "/payments", f, { ty: [o.value] }), title: payslipsText(list) };
+            }),
+          ]}
+        />
+        <ColumnPicker id="payments-registry" columns={COLUMNS} />
+      </div>
+
       <ResponsiveRows table={
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-        <table className="w-full min-w-[1180px] text-sm">
+        <table data-colset="payments-registry" className="w-full min-w-[1180px] text-sm">
           <thead>
             <tr className="border-b border-neutral-200">
               {th("pp", "П/п")}
@@ -150,7 +189,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
               {th("date", "Дата")}
               {th("kind", "Вид")}
               {th("what", "Тип")}
-              <TH label="К чему отнесено" align="left" className="px-3" />
+              <TH data-col="target" label="К чему отнесено" align="left" className="px-3" />
               {th("sum", "Сумма", "right", "₽")}
               {th("doc", "Документ")}
               {th("st", "Статус")}
@@ -164,13 +203,13 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
             <tfoot>
               {KINDS.filter((k) => cnt(k) > 0).map((k) => (
                 <tr key={k} className="row-total">
-                  <td className="px-3 py-1.5" colSpan={7}><span className="inline-flex items-center gap-1">{TOTAL_LABEL[k]} · {cnt(k)}<InfoHint label="По типам" wide><p>{typeBreak(k)}</p></InfoHint></span></td>
+                  <td className="px-3 py-1.5" colSpan={7}><span className="inline-flex items-center gap-1">{TOTAL_LABEL[k]} · {cnt(k)} {rowsWord(cnt(k))}<InfoHint label="По типам" wide><p>{typeBreak(k)}</p></InfoHint></span></td>
                   <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">{money(sumOf(k))}</td>
                   <td colSpan={2} />
                 </tr>
               ))}
               <tr className="row-total">
-                <td className="px-3 py-1.5" colSpan={7}><TotalLabel extra={`· ${rows.length}`} /></td>
+                <td className="px-3 py-1.5" colSpan={7}><TotalLabel extra={`· ${payslipsText(rows)}`} /></td>
                 <td className="whitespace-nowrap px-3 py-1.5 text-right font-semibold tabular-nums">{money(totalSum)}</td>
                 <td colSpan={2} />
               </tr>
@@ -182,9 +221,9 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
         {rows.map((r) => <Card key={r.code} r={r} invHref={invLinks.get(r.code)} />)}
         {rows.length === 0 ? <p className="py-8 text-center text-neutral-500">{filtered ? "По выбранным фильтрам оплат нет" : "Оплат пока нет"}</p> : null}
         {KINDS.filter((k) => cnt(k) > 0).map((k) => (
-          <p key={k} className="flex justify-between gap-2 px-1 text-sm font-semibold"><span className="inline-flex items-center gap-1">{TOTAL_LABEL[k]} · {cnt(k)}<InfoHint label="По типам" wide><p>{typeBreak(k)}</p></InfoHint></span><span className="tabular-nums">{money(sumOf(k))}</span></p>
+          <p key={k} className="flex justify-between gap-2 px-1 text-sm font-semibold"><span className="inline-flex items-center gap-1">{TOTAL_LABEL[k]} · {cnt(k)} {rowsWord(cnt(k))}<InfoHint label="По типам" wide><p>{typeBreak(k)}</p></InfoHint></span><span className="tabular-nums">{money(sumOf(k))}</span></p>
         ))}
-        {rows.length > 0 ? <p className="flex justify-between gap-2 px-1 text-sm font-semibold"><span>Всего, ₽ · {rows.length}</span><span className="tabular-nums">{money(totalSum)}</span></p> : null}
+        {rows.length > 0 ? <p className="flex justify-between gap-2 px-1 text-sm font-semibold"><span>Всего, ₽ · {payslipsText(rows)}</span><span className="tabular-nums">{money(totalSum)}</span></p> : null}
       </ResponsiveRows>
     </div>
   );
@@ -222,22 +261,22 @@ function Row({ r, invHref }: { r: RegistryRow; invHref?: string }) {
   const rest = r.unallocated > 0.5 ? <span className="text-amber-700"> · не разнесено {money(r.unallocated)}</span> : null;
   return (
     <tr className="border-b border-neutral-100">
-      <td className={CELL}><Clamp className="max-w-[9rem]"><Link href={href} className="text-blue-700 hover:underline" title="Открыть карточку оплаты">{r.pp || "—"} ›</Link></Clamp></td>
-      <td className={CELL}><Clamp className="max-w-[9rem]">{r.invoice ? (invHref ? <Link href={invHref} className="text-blue-700 hover:underline">{r.invoice}</Link> : r.invoice) : DASH}</Clamp></td>
-      <td className={CELL}><Clamp className="max-w-[14rem]">{cpHref(r) ? <Link href={cpHref(r)!} className="text-blue-700 hover:underline">{r.counterparty}</Link> : r.counterparty}</Clamp></td>
-      <td className={CELL + " whitespace-nowrap"}>{ruDate(r.iso)}</td>
-      <td className={CELL + " whitespace-nowrap"}>{PAY_KIND_LABEL[r.kind]}</td>
-      <td className={CELL + " whitespace-nowrap"}>{r.what}</td>
-      <td className={CELL}>
+      <td data-col="pp" className={CELL}><Clamp className="max-w-[9rem]"><Link href={href} className="text-blue-700 hover:underline" title="Открыть карточку оплаты">{r.pp || "—"} ›</Link></Clamp></td>
+      <td data-col="inv" className={CELL}><Clamp className="max-w-[9rem]">{r.invoice ? (invHref ? <Link href={invHref} className="text-blue-700 hover:underline">{r.invoice}</Link> : r.invoice) : DASH}</Clamp></td>
+      <td data-col="cp" className={CELL}><Clamp className="max-w-[14rem]">{cpHref(r) ? <Link href={cpHref(r)!} className="text-blue-700 hover:underline">{r.counterparty}</Link> : r.counterparty}</Clamp></td>
+      <td data-col="date" className={CELL + " whitespace-nowrap"}>{ruDate(r.iso)}</td>
+      <td data-col="kind" className={CELL + " whitespace-nowrap"}>{PAY_KIND_LABEL[r.kind]}</td>
+      <td data-col="what" className={CELL + " whitespace-nowrap"}>{r.what}</td>
+      <td data-col="target" className={CELL}>
         {r.targets.length === 0 ? <span className="text-amber-700">Не отнесено</span> : (
           <Clamp className="max-w-[22rem]" full={<div className="flex flex-col gap-1">{r.targets.map((t) => <Link key={t.href + t.label} href={t.href} className="text-blue-700 hover:underline">{t.label}</Link>)}{r.unallocated > 0.5 ? <span className="text-amber-700">не разнесено {money(r.unallocated)}</span> : null}</div>}>{tgt}{rest}</Clamp>
         )}
       </td>
-      <td className={CELL + " whitespace-nowrap text-right tabular-nums"}>{money(r.amount)}</td>
-      <td className={CELL + " whitespace-nowrap"}>
+      <td data-col="sum" className={CELL + " whitespace-nowrap text-right tabular-nums"}>{money(r.amount)}</td>
+      <td data-col="doc" className={CELL + " whitespace-nowrap"}>
         {r.fileOk ? <span className="text-emerald-700">✓ прикреплён</span> : <Link href={href + "#docs"} className="text-amber-700 hover:underline">○ прикрепить</Link>}
       </td>
-      <td className={CELL + " whitespace-nowrap " + STATUS_TONE[r.status]}>{STATUS_MARK[r.status]} {PAY_STATUS_LABEL[r.status]}</td>
+      <td data-col="st" className={CELL + " whitespace-nowrap " + STATUS_TONE[r.status]}>{STATUS_MARK[r.status]} {PAY_STATUS_LABEL[r.status]}</td>
     </tr>
   );
 }
