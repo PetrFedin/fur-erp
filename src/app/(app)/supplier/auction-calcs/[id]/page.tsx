@@ -26,7 +26,7 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
   if (!row) notFound();
   const payload = ensureRowIds(row.payload as unknown as CalcPayload);
   const years = await calcYearOptions(s);
-  // Оплата: для принятого расчёта — по созданным из него закупкам; только подтверждённые у заказчика оплаты этого подрядчика.
+  // Оплата: для принятого расчёта — по созданным из него закупкам; только проведённые оплаты этого подрядчика.
   const purchaseIds = row.status === "ACCEPTED" && row.createdEntityType === "Purchase" ? (row.createdEntityId ?? "").split(",").filter(Boolean) : [];
   const pay = purchaseIds.length ? groupPayInfo(await loadSupplierPayData(row.organizationId, row.supplierId), purchaseIds) : null;
   const full = row.title;

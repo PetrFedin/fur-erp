@@ -114,7 +114,7 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
       ["Итого", `${money(t.totalRub)} ₽`],
       ["За шкуру", t.qty ? `${money(t.totalRub / t.qty)} ₽` : ""],
       ["НДС", calcVatPct(payload) != null ? `${calcVatPct(payload)} %` : ""],
-      ["Расходы", payload.header.extras.filter((e) => e.name.trim() && e.amount.trim()).map((e) => `${e.name}: ${e.amount} ₽${e.mode === "perHide" ? "/шк." : ""}`).join("; ")],
+      ["Расходы", payload.header.extras.filter((e) => e.name.trim() && e.amount.trim()).map((e) => `${e.name}: ${Number.isFinite(Number(e.amount.replace(",", "."))) ? money(Number(e.amount.replace(",", "."))) : e.amount} ₽${e.mode === "perHide" ? "/шк." : ""}`).join("; ")],
       ["Аванс", t.advance > 0 ? `${money(t.advance)} ₽${payload.header.advanceDate ? ` от ${formatDate(new Date(payload.header.advanceDate))}` : ""}` : ""],
       ["Платёж", t.interim > 0 ? `${money(t.interim)} ₽` : ""],
       ["Остаток", t.advance > 0 || t.interim > 0 ? `${money(t.rest)} ₽` : ""],
@@ -123,7 +123,7 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
   ];
   // Только булев признак: есть ли у заказчика загруженный документ по оплате счёта (без сумм, дат и файла).
   const payFlags = await paymentDocFlagsFor(s.user.organizationId, supplierId, invoices.map((i) => ({ id: i.id, invoice: i.invoice, number: i.number })));
-  // Статус оплаты: по подтверждённым у заказчика оплатам этого подрядчика (supplier-pay.ts), без остатков и платёжных файлов.
+  // Статус оплаты: по проведённым оплатам этого подрядчика (supplier-pay.ts), без остатков и платёжных файлов.
   const payData = await loadSupplierPayData(s.user.organizationId, supplierId);
   const auctionPay = groupPayInfo(payData, invoices.map((i) => i.id));
   const docFiles = docs.flatMap((x) => x.files.map((f) => ({ ...f, title: x.title })));

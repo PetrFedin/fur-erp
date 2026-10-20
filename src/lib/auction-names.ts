@@ -42,6 +42,11 @@ export function canonicalAuctionDate(raw: string): string {
   return raw.replace(/^(\D*?\s\d{2})[-.](\d{2})$/, "$1.$2");
 }
 
+/** Любой текст с названием аукциона («СП 09-26 · счёт 3017») → даты «мм.гг» через точку, как у владельца. Номера счетов (0022-001, 1015-002) не затрагиваются. */
+export function dotAuctionDates(text: string | null | undefined): string {
+  return (text ?? "").replace(/(\s|^)(\d{2})-(\d{2})(?=\s|$|[·,;)])/g, "$1$2.$3");
+}
+
 /**
  * Название аукциона (партии закупки) из Purchase.auctionSession: первая строка, служебные метки импорта — null
  * («Без аукциона»), даты в формате «мм.гг». Без server-only — годится и для скриптов. Названия, не похожие на «<дом> мм-гг»

@@ -1,4 +1,4 @@
-import { formatNum } from "@/lib/utils";
+import { formatNum, formatQty } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { inboxScope, type SupplierSess } from "@/lib/supplier-inbox";
 import { compareCalcs } from "@/lib/calc-compare";
@@ -20,7 +20,7 @@ export async function CompareBlock({ s, payload }: { s: Pick<SupplierSess, "user
       <h2 className="text-sm font-semibold">Сравнение с предварительным расчётом</h2>
       <p className="text-sm">
         Предварительно: <b>{money(c.totalBefore)} ₽</b> → окончательно: <b>{money(c.totalAfter)} ₽</b>, разница <b className={c.diff > 0 ? "text-red-700" : "text-green-700"}>{sign(c.diff)} ₽</b>
-        {c.qtyBefore !== c.qtyAfter && <> · шкур {c.qtyBefore} → {c.qtyAfter}</>}
+        {c.qtyBefore !== c.qtyAfter && <> · шкур {formatQty(c.qtyBefore)} → {formatQty(c.qtyAfter)}</>}
       </p>
       {changed.length === 0 ? <p className="text-sm text-neutral-500">Нет изменений по лотам.</p> : (
         <div className="overflow-x-auto">
@@ -30,7 +30,7 @@ export async function CompareBlock({ s, payload }: { s: Pick<SupplierSess, "user
               {changed.map((r, i) => (
                 <Tr key={i}>
                   <Td>{r.lot || "—"}</Td><Td>{r.fur || "—"}</Td>
-                  <Td className="text-right tabular-nums">{r.qtyBefore === r.qtyAfter ? r.qtyAfter : `${r.qtyBefore ?? "—"} → ${r.qtyAfter ?? "—"}`}</Td>
+                  <Td className="text-right tabular-nums">{r.qtyBefore === r.qtyAfter ? formatQty(r.qtyAfter ?? 0) : `${r.qtyBefore == null ? "—" : formatQty(r.qtyBefore)} → ${r.qtyAfter == null ? "—" : formatQty(r.qtyAfter)}`}</Td>
                   <Td className="text-right tabular-nums">{money(r.unitBefore)}</Td>
                   <Td className="text-right tabular-nums">{money(r.unitAfter)}</Td>
                   <Td className="text-right tabular-nums">{money(r.totalBefore)} → {money(r.totalAfter)}</Td>

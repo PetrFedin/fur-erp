@@ -19,7 +19,7 @@ export default async function TzPage({ params }: PageProps<"/supplier/tz/[id]">)
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) notFound();
   const row = await prisma.supplierInbox.findFirst({ where: { id, kind: "TZ", ...inboxScope(s) } });
   if (!row) notFound();
-  // Оплата работы: для принятого ТЗ — разнесённые на него подтверждённые оплаты (без неразнесённых авансов и остатков заказчика).
+  // Оплата работы: для принятого ТЗ — разнесённые на него проведённые оплаты (без неразнесённых авансов и остатков заказчика).
   const orderIds = row.status === "ACCEPTED" && row.createdEntityType === "ProductionOrder" ? (row.createdEntityId ?? "").split(",").filter(Boolean) : [];
   const pay = orderIds.length ? await tzPayInfo(row.organizationId, row.supplierId, orderIds) : null;
   const readOnly = row.status !== "DRAFT" || s.user.role !== "SUPPLIER";

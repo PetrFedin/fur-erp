@@ -6,7 +6,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { requireRawViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { STAGE_LABEL, calcAll, calcYear, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
-import { formatDate, formatNum } from "@/lib/utils";
+import { formatDate, formatNum, formatQty } from "@/lib/utils";
+import { dotAuctionDates } from "@/lib/auction-names";
+import { TotalLabel } from "@/components/total-label";
 import { Clamp } from "@/components/clamp";
 import { SortTh } from "@/components/sort-th";
 import { readSort, sortRows } from "@/lib/table-sort";
@@ -29,7 +31,7 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
     orderBy: { updatedAt: "desc" },
     select: { id: true, title: true, status: true, reviewNote: true, updatedAt: true, sentAt: true, payload: true, supplierId: true, createdEntityType: true, createdEntityId: true, supplier: { select: { name: true } } },
   });
-  // Оплата принятых расчётов: по подтверждённым у заказчика оплатам (supplier-pay.ts), по созданным из расчёта закупкам.
+  // Оплата принятых расчётов: по проведённым оплатам (supplier-pay.ts), по созданным из расчёта закупкам.
   const payBySupplier = new Map(await Promise.all([...new Set(rows.filter((r) => r.status === "ACCEPTED").map((r) => r.supplierId))].map(async (sid) => [sid, await loadSupplierPayData(s.user.organizationId, sid)] as const)));
   const payOf = (r: (typeof rows)[number]) => (r.status === "ACCEPTED" && r.createdEntityType === "Purchase" && payBySupplier.has(r.supplierId) ? groupPayInfo(payBySupplier.get(r.supplierId)!, (r.createdEntityId ?? "").split(",").filter(Boolean)) : null);
   // годы — заголовками, новые сверху; внутри года — по дате изменения
@@ -51,6 +53,8 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
     status: (r) => INBOX_STATUS_LABEL[r.status],
     date: (r) => r.sentAt ?? r.updatedAt,
   });
+  const totQty = view.reduce((a, r) => a + (metric.get(r.id)?.qty ?? 0), 0);
+  const totSum = view.reduce((a, r) => a + (metric.get(r.id)?.total ?? 0), 0);
   const P = "/supplier/auction-calcs";
   return (
     <div className="flex flex-col gap-4">
@@ -82,10 +86,10 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
               <Fragment key={r.id}>
               {heading && <Tr><Td colSpan={8} className="bg-neutral-50 py-1.5 text-sm font-semibold">{yr} год</Td></Tr>}
               <Tr>
-                <Td><Link className="font-medium underline max-md:inline-block max-md:py-3" href={`/supplier/auction-calcs/${r.id}`}>{pl?.header?.auction || r.title}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 max-w-[16rem] text-xs text-red-700"><Clamp>Замечание: {r.reviewNote}</Clamp></div>}</Td>
+                <Td><Link className="font-medium underline max-md:inline-block max-md:py-3" href={`/supplier/auction-calcs/${r.id}`}>{dotAuctionDates(pl?.header?.auction || r.title)}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 max-w-[16rem] text-xs text-red-700"><Clamp>Замечание: {r.reviewNote}</Clamp></div>}</Td>
                 <Td className="max-w-[12rem]"><Clamp>{pl?.header?.invoice || "—"}</Clamp></Td>
                 {!isSup && <Td>{r.supplier.name}</Td>}
-                <Td className="text-right tabular-nums">{qty || "—"}</Td>
+                <Td className="text-right tabular-nums">{qty ? formatQty(qty) : "—"}</Td>
                 <Td className="text-right tabular-nums">{qty ? money(total) : "—"}</Td>
                 <Td className="text-right tabular-nums">{qty ? money(total / qty) : "—"}</Td>
                 <Td>{INBOX_STATUS_LABEL[r.status]}<span className="ml-2"><PayChip info={payOf(r)} compact /></span>{stage && <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${stage === "FINAL" ? "bg-green-50 text-green-800" : "bg-blue-50 text-blue-800"}`}>{STAGE_LABEL[stage]}</span>}</Td>
@@ -96,6 +100,17 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
           })}
           {rows.length === 0 && <Tr><Td colSpan={8} className="py-8 text-center text-neutral-500">Расчётов пока нет — нажмите «+ Новый расчёт»</Td></Tr>}
         </Tbody>
+        {rows.length > 0 && (
+          <tfoot>
+            <tr className="row-total">
+              <td colSpan={isSup ? 2 : 3} className="px-3 py-1.5"><TotalLabel unit="шкур, ₽" extra={`· расчётов ${view.length}`} /></td>
+              <td className="px-3 py-1.5 text-right tabular-nums">{totQty ? formatQty(totQty) : "—"}</td>
+              <td className="px-3 py-1.5 text-right tabular-nums">{totQty ? money(totSum) : "—"}</td>
+              <td className="px-3 py-1.5 text-right tabular-nums">{totQty ? money(totSum / totQty) : "—"}</td>
+              <td colSpan={2} />
+            </tr>
+          </tfoot>
+        )}
       </Table>
     </div>
   );

@@ -17,6 +17,7 @@ import { AttachDocument } from "./attach";
 import { RawChip } from "@/components/raw-stages";
 import { loadSupplierPayData, groupPayInfo } from "@/lib/supplier-pay";
 import { PayChip } from "@/components/pay-status";
+import { TotalLabel } from "@/components/total-label";
 import { summarizeStages, summaryLine, sortStages, ruShort, STAGE_NAME, STAGE_STATUS_LABEL, type StageStatusKey } from "@/lib/raw-stage";
 
 export const metadata = { title: "Сырьё" };
@@ -67,7 +68,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
     }
   }
 
-  // Статус оплаты по подтверждённым у заказчика оплатам (supplier-pay.ts): без остатков и платёжных файлов.
+  // Статус оплаты по проведённым оплатам (supplier-pay.ts): без остатков и платёжных файлов.
   const payData = supplierId ? await loadSupplierPayData(s.user.organizationId, supplierId) : null;
   const payOf = (ids: string[]) => (payData ? groupPayInfo(payData, ids) : null);
 
@@ -148,6 +149,8 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
               (places.get(key) ?? places.set(key, { inv: [], st }).get(key)!).inv.push(g);
             }
             const mixedCur = new Set(lots.map((r) => r.currency)).size > 1;
+            // Итог «Сумма, ₽» в таблице лотов — только когда расчёт аукциона есть у каждого лота; иначе «—».
+            const lotsCalcSum = lots.every((r) => lotCalc.has(`${r.purchaseId}|${lotKey(r.lotNumber)}`)) ? lots.reduce((a, r) => a + lotCalc.get(`${r.purchaseId}|${lotKey(r.lotNumber)}`)!.total, 0) : null;
             const cs = [...new Map(invs.flatMap((g) => { const x = calcInfo.get(g[0].purchaseId); return x ? [[x.id, x] as const] : []; })).values()];
             const cq = cs.reduce((a, x) => a + x.qty, 0), ct = cs.reduce((a, x) => a + x.total, 0);
             return (
@@ -238,14 +241,24 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                           {sortRows(lots, sort, { invoice: (r) => r.invoice || r.purchaseNumber, lot: (r) => r.lotNumber, fur: (r) => r.fur, color: (r) => r.color, size: (r) => r.size, qty: (r) => r.quantity, price: (r) => r.unitPrice, unit: (r) => lotCalc.get(`${r.purchaseId}|${lotKey(r.lotNumber)}`)?.unit ?? null, total: (r) => lotCalc.get(`${r.purchaseId}|${lotKey(r.lotNumber)}`)?.total ?? null, doc: (r) => r.doc }).map((r) => (
                             <Tr key={r.itemId}>
                               <Td>{r.invoice || r.purchaseNumber}</Td><Td>{r.lotNumber || "—"}</Td><Td>{r.fur}</Td><Td className="max-w-[10rem]"><Clamp>{r.color || "—"}</Clamp></Td><Td className="max-w-[14rem]"><Clamp>{r.size || "—"}</Clamp></Td>
-                              <Td className="tabular-nums">{num(r.quantity)}</Td>
-                              <Td className="whitespace-nowrap tabular-nums">{money(r.unitPrice)} {cur(r.currency)}</Td>
-                              {(() => { const lc = lotCalc.get(`${r.purchaseId}|${lotKey(r.lotNumber)}`); return <><Td className="whitespace-nowrap tabular-nums">{lc ? money(lc.unit) : "—"}</Td><Td className="whitespace-nowrap tabular-nums">{lc ? money(lc.total) : "—"}</Td></>; })()}
+                              <Td className="text-right tabular-nums">{num(r.quantity)}</Td>
+                              <Td className="whitespace-nowrap text-right tabular-nums">{money(r.unitPrice)} {cur(r.currency)}</Td>
+                              {(() => { const lc = lotCalc.get(`${r.purchaseId}|${lotKey(r.lotNumber)}`); return <><Td className="whitespace-nowrap text-right tabular-nums">{lc ? money(lc.unit) : "—"}</Td><Td className="whitespace-nowrap text-right tabular-nums">{lc ? money(lc.total) : "—"}</Td></>; })()}
                               <Td className="max-w-[12rem]">{r.doc ? <Clamp>{r.doc}</Clamp> : <span className="text-neutral-500">нет</span>}</Td>
                               <Td>{isSup && <AttachDocument purchaseId={r.purchaseId} itemId={r.itemId} label="Приложить" />}</Td>
                             </Tr>
                           ))}
                         </Tbody>
+                        <tfoot>
+                          <tr className="row-total">
+                            <td colSpan={5} className="px-3 py-1.5"><TotalLabel unit="шкур, ₽" extra={`· лотов ${lots.length}`} /></td>
+                            <td className="px-3 py-1.5 text-right tabular-nums">{num(aq)}</td>
+                            <td />
+                            <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">{lotsCalcSum != null && aq > 0 ? money(lotsCalcSum / aq) : "—"}</td>
+                            <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">{lotsCalcSum != null ? money(lotsCalcSum) : "—"}</td>
+                            <td colSpan={2} />
+                          </tr>
+                        </tfoot>
                       </Table>
                     </div>
                     )}

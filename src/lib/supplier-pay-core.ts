@@ -28,7 +28,7 @@ export const isConfirmedForSupplier = (p: Flags): boolean => p.status === "COMPL
 export const CONFIRMED_WHERE = { status: "COMPLETED" } as const;
 
 /**
- * Статус по сумме к оплате и подтверждённым оплатам. totalKnown = false (цена работы у ТЗ не задана): «Оплачено»
+ * Статус по сумме к оплате и проведённым оплатам. totalKnown = false (цена работы у ТЗ не задана): «Оплачено»
  * сказать нельзя — при любой оплате «Частично».
  */
 export function payInfo(total: number, lines: PayLine[], totalKnown = true): PayInfo {

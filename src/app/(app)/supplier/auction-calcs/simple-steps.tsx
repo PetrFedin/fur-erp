@@ -59,7 +59,7 @@ export function SimpleSteps({ p, setP, t, ro, missing, onAuction, onFormat, uplo
     <>
       <Step n={1} title="Аукцион">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <F label="Аукцион" v={h.auction} on={(v) => onAuction(v, h.seller)} ro={ro} ph="СП 09-26" />
+          <F label="Аукцион" v={h.auction} on={(v) => onAuction(v, h.seller)} ro={ro} ph="СП 09.26" />
           <F label="№ счёта" v={h.invoice} on={(v) => setH("invoice", v)} ro={ro} ph="3017" />
           <F label="Дата счёта" v={h.invoiceDate} on={(v) => setH("invoiceDate", v)} ro={ro} type="date" />
           <F label="Курс ЦБ на дату" v={h.cbRate} on={(v) => setH("cbRate", v)} ro={ro} ph="84,4075" />

@@ -26,7 +26,7 @@ export type SupplierPayData = {
   pools: Map<string, PayLine[]>;
 };
 
-/** Закупки подрядчика и подтверждённые оплаты ему — одной загрузкой на страницу. */
+/** Закупки подрядчика и проведённые оплаты ему — одной загрузкой на страницу. */
 export async function loadSupplierPayData(orgId: string, supplierId: string): Promise<SupplierPayData> {
   const [purchases, pays] = await Promise.all([
     prisma.purchase.findMany({
@@ -114,7 +114,7 @@ export function groupPayInfo(d: SupplierPayData, purchaseIds: string[]): PayInfo
   return rawPayInfo(known.length ? known.reduce((a, p) => a + (p.total ?? 0), 0) : null, lines);
 }
 
-/** Статус работы по ТЗ подрядчика (принятому из «Входящих»): разнесённые на эти ТЗ подтверждённые оплаты против цены работы. */
+/** Статус работы по ТЗ подрядчика (принятому из «Входящих»): разнесённые на эти ТЗ проведённые оплаты против цены работы. */
 export async function tzPayInfo(orgId: string, supplierId: string, orderIds: string[]): Promise<PayInfo | null> {
   if (orderIds.length === 0) return null;
   const orders = await prisma.productionOrder.findMany({

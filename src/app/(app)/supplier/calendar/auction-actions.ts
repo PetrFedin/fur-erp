@@ -20,7 +20,7 @@ export async function saveAuction(_prev: AuctionState, fd: FormData): Promise<Au
   const place = clip(fd.get("place"), 100);
   const notes = String(fd.get("notes") ?? "").trim().slice(0, 1000);
   const date = parseDateInput(clip(fd.get("date"), 10));
-  if (!name) return { error: "Укажите название аукциона, например «СП 09-26»" };
+  if (!name) return { error: "Укажите название аукциона, например «СП 09.26»" };
   if (!date) return { error: "Укажите дату аукциона" };
   const data = { date, articleCode: name, articleName: house || null, color: place || null, notes: notes || null, docNote: fd.get("participate") === "on" ? AUCTION_PLAN_FLAG : null };
   if (id) {

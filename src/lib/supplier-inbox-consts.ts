@@ -1,3 +1,4 @@
+import { dotAuctionDates } from "@/lib/auction-names";
 export const INBOX_FILE_KINDS = [
   { key: "AUCTION_INVOICE", label: "PDF аукционного счёта" },
   { key: "PAYMENT_INVOICE", label: "Счёт Веллмеха на аванс" },
@@ -15,7 +16,8 @@ export const INBOX_STATUS_HELP: Record<string, string> = {
 };
 
 /** Заголовок расчёта с длинным списком счетов: «SAGA 03-26 · счёт 0534-002 +7». Полный — во всплывающей подсказке. */
-export function shortInboxTitle(title: string): string {
+export function shortInboxTitle(rawTitle: string): string {
+  const title = dotAuctionDates(rawTitle);
   const m = /^(.*?[·,]\s*счёт\s+)(.+)$/.exec(title);
   const inv = m ? m[2].split(/,\s*/) : [];
   return m && inv.length > 2 ? `${m[1]}${inv[0]} +${inv.length - 1}` : title;

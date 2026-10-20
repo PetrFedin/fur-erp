@@ -26,7 +26,7 @@ export default async function SupplierTzPage({ searchParams }: PageProps<"/suppl
     where: { kind: "TZ", ...inboxScope(s) }, orderBy: { updatedAt: "desc" },
     select: { id: true, title: true, status: true, reviewNote: true, updatedAt: true, sentAt: true, payload: true, supplierId: true, createdEntityType: true, createdEntityId: true, supplier: { select: { name: true } } },
   });
-  // Оплата работы принятых ТЗ: подтверждённые у заказчика оплаты, разнесённые на ТЗ (supplier-pay.ts).
+  // Оплата работы принятых ТЗ: проведённые оплаты, разнесённые на ТЗ (supplier-pay.ts).
   const pays = new Map(await Promise.all(rows.filter((r) => r.status === "ACCEPTED" && r.createdEntityType === "ProductionOrder").map(async (r) => [r.id, await tzPayInfo(s.user.organizationId, r.supplierId, (r.createdEntityId ?? "").split(",").filter(Boolean))] as const)));
   const groups = new Map<string, typeof rows>();
   for (const r of rows) {

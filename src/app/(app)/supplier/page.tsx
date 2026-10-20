@@ -11,6 +11,7 @@ import { cookies } from "next/headers";
 import { loadRecent } from "@/lib/supplier-recent";
 import { RECENT_COOKIE } from "@/lib/supplier-recent-const";
 import { RecentSeen } from "./recent-seen";
+import { dotAuctionDates } from "@/lib/auction-names";
 
 export const metadata = { title: "Контроль" };
 
@@ -37,7 +38,7 @@ export default async function SupplierHomePage() {
   sections.push({
     title: "Не отправлено нам и возвращено на доработку",
     empty: "Нет.",
-    items: inbox.map((r) => ({ key: r.id, href: inboxHref(r), text: `${r.kind === "TZ" ? "ТЗ" : r.kind === "AUCTION_CALC" ? "Расчёт" : "Документ"} «${r.title}» — ${r.status === "DRAFT" ? "черновик, ещё не отправлен" : `возвращено${r.reviewNote ? `: ${r.reviewNote}` : ""}`}` })),
+    items: inbox.map((r) => ({ key: r.id, href: inboxHref(r), text: `${r.kind === "TZ" ? "ТЗ" : r.kind === "AUCTION_CALC" ? "Расчёт" : "Документ"} «${dotAuctionDates(r.title)}» — ${r.status === "DRAFT" ? "черновик, ещё не отправлен" : `возвращено${r.reviewNote ? `: ${r.reviewNote}` : ""}`}` })),
   });
 
   // 2. Запросы от нас
@@ -78,6 +79,15 @@ export default async function SupplierHomePage() {
   // «Недавнее»: что мы решили по их входящим и отметкам за 14 дней; новое с прошлого просмотра помечено.
   const recent = supplierId ? await loadRecent(orgId, supplierId) : [];
   const seenMs = Number((await cookies()).get(RECENT_COOKIE)?.value) || 0;
+  // Лента по давности (по московскому времени): сегодня · за неделю · раньше (в пределах 14 дней).
+  const mskDay = (d: Date) => { const m = new Date(d.toLocaleString("en-US", { timeZone: "Europe/Moscow" })); m.setHours(0, 0, 0, 0); return m.getTime(); };
+  const today0 = mskDay(new Date());
+  const DAY = 24 * 3600 * 1000;
+  const recentGroups = [
+    { title: "Сегодня", items: recent.filter((r) => mskDay(r.at) >= today0) },
+    { title: "За неделю", items: recent.filter((r) => mskDay(r.at) < today0 && mskDay(r.at) >= today0 - 6 * DAY) },
+    { title: "Раньше", items: recent.filter((r) => mskDay(r.at) < today0 - 6 * DAY) },
+  ].filter((g) => g.items.length > 0);
   const total = sections.reduce((a, x) => a + x.items.length, 0);
   return (
     <div className="flex flex-col gap-4">
@@ -87,14 +97,21 @@ export default async function SupplierHomePage() {
       <section aria-label="Недавнее" className="flex flex-col gap-1.5 rounded-lg border border-neutral-200 bg-white p-4">
         <h2 className="text-sm font-semibold">Недавнее <InfoHint label="Что в «Недавнем»">Решения с нашей стороны за 14 дней.</InfoHint></h2>
         {recent.length === 0 ? <p className="text-sm text-neutral-500">Нет решений.</p> : (
-          <ul className="flex flex-col gap-1 text-sm">
-            {recent.map((r) => (
-              <li key={r.key} className="flex flex-wrap items-baseline gap-x-2">
-                {r.at.getTime() > seenMs && <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-900">новое</span>}
-                <Link href={r.href} className={`inline-block underline decoration-dotted hover:decoration-solid max-md:py-3 ${r.tone === "back" ? "text-red-700" : "text-emerald-800"}`}>{r.text}</Link>
-              </li>
+          <div className="flex flex-col gap-3">
+            {recentGroups.map((g) => (
+              <div key={g.title}>
+                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">{g.title} · {g.items.length}</h3>
+                <ul className="flex flex-col gap-1 text-sm">
+                  {g.items.map((r) => (
+                    <li key={r.key} className="flex flex-wrap items-baseline gap-x-2">
+                      {r.at.getTime() > seenMs && <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-900">новое</span>}
+                      <Link href={r.href} className={`inline-block underline decoration-dotted hover:decoration-solid max-md:py-3 ${r.tone === "back" ? "text-red-700" : "text-emerald-800"}`}>{r.text}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
         {isSup && <RecentSeen />}
       </section>

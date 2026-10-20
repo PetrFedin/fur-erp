@@ -1,3 +1,4 @@
+import { dotAuctionDates } from "@/lib/auction-names";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { MARKS_TITLE, markConfirmed, markOf } from "@/lib/shipment-marks";
@@ -30,7 +31,7 @@ export async function loadRecent(orgId: string, supplierId: string, now = new Da
   ]);
   const out: RecentItem[] = inbox.map((r) => ({
     key: `i-${r.id}`, at: r.decidedAt!, tone: r.status === "ACCEPTED" ? "ok" : "back", href: hrefOf(r.kind, r.id),
-    text: r.status === "ACCEPTED" ? `Принято нами: ${KIND_WORD[r.kind] ?? "документ"} «${r.title}» (${ru(r.decidedAt!)})` : `Возвращено: ${KIND_WORD[r.kind] ?? "документ"} «${r.title}»${r.reviewNote ? ` — ${r.reviewNote}` : ""} (${ru(r.decidedAt!)})`,
+    text: r.status === "ACCEPTED" ? `Принято нами: ${KIND_WORD[r.kind] ?? "документ"} «${dotAuctionDates(r.title)}» (${ru(r.decidedAt!)})` : `Возвращено: ${KIND_WORD[r.kind] ?? "документ"} «${dotAuctionDates(r.title)}»${r.reviewNote ? ` — ${r.reviewNote}` : ""} (${ru(r.decidedAt!)})`,
   }));
   for (const sh of shipments) {
     const marks = new Map(sh.events.flatMap((e) => e.lines).map((l) => { const m = markOf(l); return [l.shipmentLineId, m] as const; }));

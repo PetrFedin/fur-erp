@@ -15,7 +15,7 @@ import { InvoiceMaker } from "./invoice-maker";
 import { detectFormat, finalFigures, needsAdvanced } from "@/lib/supplier-calc-simple";
 import { FORMAT_LABEL, STAGE_LABEL, calcYear, remapCustomRefs, syncLetters, calcAll, columnsFor, emptyRow, headerRate, missingRates, rowFilled, newId, rateCols, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
 import { attachInboxFile, deleteCalcDraft, parseCalcFile, removeInboxFile, saveCalcDraft, sendCalc } from "./actions";
-import { formatRate, formatNum, formatQty } from "@/lib/utils";
+import { formatRate, formatNum, formatQty, formatDecimal } from "@/lib/utils";
 
 const money = (n: number) => (Number.isFinite(n) ? formatNum(n, 1) : "—");
 export type FileRow = { id: string; originalName: string; kind: string; sizeBytes: number };
@@ -144,7 +144,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [],
             {(["PRELIM", "FINAL"] as const).map((k) => <option key={k} value={k}>{STAGE_LABEL[k]}</option>)}
           </Select>
         </div>
-        <H label="Аукцион" v={p.header.auction} on={(v) => setH("auction", v)} ro={ro} ph="СП 09-26" />
+        <H label="Аукцион" v={p.header.auction} on={(v) => setH("auction", v)} ro={ro} ph="СП 09.26" />
         <H label="Номер аукционного счёта" v={p.header.invoice} on={(v) => setH("invoice", v)} ro={ro} />
         <H label="Дата счёта" v={p.header.invoiceDate} on={(v) => setH("invoiceDate", v)} ro={ro} type="date" />
         <H label="Продавец" v={p.header.seller} on={(v) => setH("seller", v)} ro={ro} ph="Союзпушнина, SAGA…" />
@@ -276,7 +276,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [],
         {files.map((f) => (
           <div key={f.id} className="flex items-center gap-3 text-sm">
             <a className="inline-block text-blue-700 underline max-md:py-3" href={`/api/supplier/inbox-files/${f.id}`}>{f.originalName}</a>
-            <span className="text-neutral-500">{INBOX_FILE_KINDS.find((k) => k.key === f.kind)?.label} · {(f.sizeBytes / 1048576).toFixed(1)} МБ</span>
+            <span className="text-neutral-500">{INBOX_FILE_KINDS.find((k) => k.key === f.kind)?.label} · {formatDecimal(f.sizeBytes / 1048576, 1)} МБ</span>
             {!ro && <button type="button" className="text-neutral-400 hover:text-red-600" onClick={() => run(() => removeInboxFile(f.id), "Файл убран", () => router.refresh())}>×</button>}
           </div>
         ))}

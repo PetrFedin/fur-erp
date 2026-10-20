@@ -7,7 +7,7 @@ const CLS = { PAID: "bg-green-100 text-green-800", PARTIAL: "bg-amber-100 text-a
 /** Подсказка «i» — одна на все места, где подрядчик видит статус оплаты. */
 export const PAY_HINT = "Статус появляется, когда мы подтвердили оплату у себя. Снимем подтверждение — статус обновится. Статус считается по сумме вашего счёта; если суммы счёта у нас нет — «Нет счёта». Показаны только оплаты вашего счёта, аукциона или ТЗ.";
 
-/** Чип «Оплачено / Частично / Не оплачено» (+ сумма и дата последней подтверждённой оплаты). info = null — оплат не касается: ничего не рисуем. */
+/** Чип «Оплачено / Частично / Не оплачено» (+ сумма и дата последней проведённой оплаты). info = null — оплат не касается: ничего не рисуем. */
 export function PayChip({ info, compact = false }: { info: PayInfo | null; compact?: boolean }) {
   if (!info) return null;
   const tail = info.paid > 0 ? ` · ${formatMoney(info.paid)}${info.date ? ` · ${formatDate(info.date)}` : ""}` : "";
@@ -20,7 +20,7 @@ export function PayChip({ info, compact = false }: { info: PayInfo | null; compa
   );
 }
 
-/** Список подтверждённых оплат: «Аванс — 1 000 000 ₽ · 05.10.2026». Пусто — ничего. */
+/** Список проведённых оплат: «Аванс — 1 000 000 ₽ · 05.10.2026». Пусто — ничего. */
 export function PayLines({ info }: { info: PayInfo | null }) {
   if (!info || info.lines.length === 0) return null;
   return (
