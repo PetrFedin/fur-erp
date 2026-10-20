@@ -103,7 +103,7 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
         {rows.length > 0 && (
           <tfoot>
             <tr className="row-total">
-              <td colSpan={isSup ? 2 : 3} className="px-3 py-1.5"><TotalLabel unit="шкур, ₽" extra={`· расчётов ${view.length}`} /></td>
+              <td colSpan={isSup ? 2 : 3} className="px-3 py-1.5"><TotalLabel unit="₽" extra={`· расчётов ${view.length}`} /></td>
               <td className="px-3 py-1.5 text-right tabular-nums">{totQty ? formatQty(totQty) : "—"}</td>
               <td className="px-3 py-1.5 text-right tabular-nums">{totQty ? money(totSum) : "—"}</td>
               <td className="px-3 py-1.5 text-right tabular-nums">{totQty ? money(totSum / totQty) : "—"}</td>

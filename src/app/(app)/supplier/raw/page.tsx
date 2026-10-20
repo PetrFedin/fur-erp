@@ -251,7 +251,7 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                         </Tbody>
                         <tfoot>
                           <tr className="row-total">
-                            <td colSpan={5} className="px-3 py-1.5"><TotalLabel unit="шкур, ₽" extra={`· лотов ${lots.length}`} /></td>
+                            <td colSpan={5} className="px-3 py-1.5"><TotalLabel unit="₽" extra={`· лотов ${lots.length}`} /></td>
                             <td className="px-3 py-1.5 text-right tabular-nums">{num(aq)}</td>
                             <td />
                             <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">{lotsCalcSum != null && aq > 0 ? money(lotsCalcSum / aq) : "—"}</td>
