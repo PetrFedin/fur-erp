@@ -12,7 +12,7 @@ import { cleanSearch } from "@/lib/input";
 import { Clamp } from "@/components/clamp";
 import { SortTh } from "@/components/sort-th";
 import { readSort, sortRows } from "@/lib/table-sort";
-import { formatDate, formatRate, formatDecimal, formatMoney } from "@/lib/utils";
+import { formatDate, formatRate, formatDecimal, formatNum } from "@/lib/utils";
 import { AttachDocument } from "./attach";
 import { RawChip } from "@/components/raw-stages";
 import { loadSupplierPayData, groupPayInfo } from "@/lib/supplier-pay";
@@ -23,7 +23,7 @@ import { summarizeStages, summaryLine, sortStages, ruShort, STAGE_NAME, STAGE_ST
 export const metadata = { title: "Сырьё" };
 
 const num = (n: number) => formatDecimal(n, 3, { trim: true });
-const money = (n: number) => formatMoney(n);
+const money = (n: number) => formatNum(n, 1); // без «₽»: единицу пишем рядом
 
 export default async function SupplierRawPage({ searchParams }: PageProps<"/supplier/raw">) {
   const s = await requireRawViewer();

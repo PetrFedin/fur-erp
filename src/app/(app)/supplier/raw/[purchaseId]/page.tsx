@@ -8,7 +8,7 @@ import { loadSupplierAuction } from "@/lib/supplier-auction";
 import { calcAll, calcVatPct, ensureRowIds } from "@/lib/supplier-calc";
 import { buildStatement, groupLines, type Statement } from "@/lib/auction-statement";
 import { readSort } from "@/lib/table-sort";
-import { formatDate, formatRate, formatDecimal, formatMoney } from "@/lib/utils";
+import { formatDate, formatRate, formatDecimal, formatNum } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { AttachDocument } from "../attach";
 import { RawStagesBlock } from "@/components/raw-stages";
@@ -24,7 +24,7 @@ import { summarizeStages, summaryLine } from "@/lib/raw-stage";
 export const metadata = { title: "Аукцион" };
 
 const num = (n: number) => formatDecimal(n, 3, { trim: true });
-const money = (n: number) => formatMoney(n);
+const money = (n: number) => formatNum(n, 1); // без «₽»: единицу пишем рядом
 const cur = (c: string) => (c === "RUB" ? "₽" : c === "USD" ? "$" : c);
 const KIND: Record<string, string> = { AUCTION_INVOICE: "Аукционный счёт", PAYMENT_INVOICE: "Счёт", SPECIFICATION: "Спецификация", UPD: "УПД", OTHER: "Документ" };
 const SORTS = ["invoice", "lot", "fur", "size", "qty", "unit", "total"];

@@ -180,6 +180,8 @@ function run(root: ParentNode) {
   root.querySelectorAll<HTMLTableElement>("table").forEach((table) => {
     // table-keep остаются таблицами: ничего на них не ставим, иначе React увидит расхождение при гидратации.
     if (table.classList.contains("table-keep") || table.closest(".table-keep")) return;
+    // Таблица в блоке «hidden md:block» (ResponsiveRows) на телефоне скрыта, там вместо неё карточки: её не трогаем, иначе React увидит расхождение.
+    if (table.closest(".hidden")) return;
     const rows = table.rows.length;
     const sig = `${rows}:${table.tHead?.textContent?.length ?? 0}:${table.textContent?.length ?? 0}`;
     if (table.getAttribute("data-sig") !== sig) {

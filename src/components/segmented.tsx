@@ -25,7 +25,7 @@ export const segCls = (on: boolean, size: "md" | "sm" = "md") =>
  */
 export function Segmented({ label, items, size = "md", className }: { label: string; items: SegmentedItem[]; size?: "md" | "sm"; className?: string }) {
   return (
-    <div role="group" aria-label={label} className={cn("inline-flex self-start rounded-lg border border-neutral-300 bg-white p-0.5 print:hidden", className)}>
+    <div role="group" aria-label={label} className={cn("inline-flex max-w-full self-start overflow-x-auto rounded-lg border border-neutral-300 bg-white p-0.5 [scrollbar-width:none] print:hidden", className)}>
       {items.map((it) =>
         it.href ? (
           <Link key={it.key} href={it.href} scroll={false} title={it.title} aria-current={it.on ? "page" : undefined} className={segCls(it.on, size)}>
