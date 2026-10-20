@@ -18,6 +18,8 @@ import { PriceCompositionBlock } from "./price-composition-block";
 import { priceComposition } from "@/lib/price-composition-server";
 import { FurScope } from "@/components/fur-scope";
 import { PageModes, type ModeInfo } from "./mode-line";
+import { SalesBlockView } from "./sales-block";
+import { loadSalesBlock } from "./sales-block-data";
 
 export const metadata = { title: "Главная" };
 
@@ -50,6 +52,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   const d = await loadDashboard(organizationId, year, f, c4Mode);
   const pc = await priceComposition(organizationId, d);
+  // Продажи и остатки: внешний поставщик сюда не попадает (requireSession перенаправляет его в /supplier), данные не грузим для него и подавно.
+  const salesBlock = session.user.role === "SUPPLIER" ? null : await loadSalesBlock(organizationId, c4Mode, year);
   const yl = yearLabel(year);
   const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, attr: f.attr, batch: f.batch, catgroup: f.catgroup, kind: f.kind ?? [] };
   const prodNums = (t: typeof d.prod.done) => ({ items: t.items, repairOrders: t.repairOrders, repairQty: t.repairQty, repairCostIncl: t.repairCostIncl, repairCostExcl: t.repairCostExcl, orders: t.orders, qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum, furIncl: t.furIncl, furExcl: t.furExcl, liningIncl: t.liningIncl, liningExcl: t.liningExcl, matIncl: t.furIncl + t.liningIncl, matExcl: t.furExcl + t.liningExcl, c4Incl: t.c4Incl, c4Excl: t.c4Excl });
@@ -150,6 +154,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       {/* ───────── Оплаты, долги, задачи ───────── */}
       <PayTiles d={d} c4Mode={c4Mode} year={year} headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>} />
+
+      {/* ───────── Продажи и остатки (после «Оплат», последним на странице) ───────── */}
+      {salesBlock ? <SalesBlockView b={salesBlock} /> : null}
     </div>
   );
 }

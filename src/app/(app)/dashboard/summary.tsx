@@ -3,11 +3,12 @@ import { formatMoney, formatQty } from "@/lib/utils";
 
 export type DecisionItem = { label: string; href: string; count?: number; sum?: number };
 
-/** Одна узкая строка «Требует решения» под фильтрами: только если есть что решать; плюс одна ссылка в «Продажи и остатки». */
+/** Одна узкая строка «Требует решения» под фильтрами: только если есть что решать. Ссылка в «Продажи и остатки» теперь у одноимённого блока внизу страницы. */
 export function DecisionsStrip({ decisions }: { decisions: DecisionItem[] }) {
+  if (decisions.length === 0) return null;
   return (
     <section aria-label="Требует решения" className="flex min-h-11 flex-wrap items-center gap-x-5 gap-y-0 rounded-lg border border-amber-300 bg-amber-50 px-3 py-0.5 print:hidden">
-      {decisions.length > 0 ? <span className="text-sm font-semibold text-amber-900">Требует решения</span> : null}
+      <span className="text-sm font-semibold text-amber-900">Требует решения</span>
       {decisions.map((x) => (
         <Link key={x.label} href={x.href} className="inline-flex min-h-11 items-center gap-2 text-sm text-amber-950 hover:underline">
           <span>{x.label}</span>
@@ -16,7 +17,6 @@ export function DecisionsStrip({ decisions }: { decisions: DecisionItem[] }) {
           <span aria-hidden>→</span>
         </Link>
       ))}
-      <Link href="/sales" data-testid="dash-sales-link" className="ml-auto inline-flex min-h-11 items-center text-sm text-blue-700 hover:underline">Продажи и остатки →</Link>
     </section>
   );
 }
