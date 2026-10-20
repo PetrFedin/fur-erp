@@ -230,7 +230,7 @@ function MoneyTds({ paid, due, bold, note }: { paid: number; due: number; bold?:
   return (
     <>
       <td className={cls + " border-l border-neutral-100"}>{Math.abs(paid) < 0.5 ? <span className="text-neutral-300">—</span> : rub0(paid)}</td>
-      <td className={cls + (due > 0.5 && !isDebtDust(due) ? " text-amber-700" : "")}>{Math.abs(due) < 0.5 ? <span className="text-neutral-300">—</span> : isDebtDust(due) ? <span className="text-neutral-300" title={`округление (${rub(due)})`}>—</span> : <span title={note && Math.abs(due - 1357.06) < 0.5 ? note : undefined} className={note && Math.abs(due - 1357.06) < 0.5 ? "cursor-help underline decoration-dotted" : undefined}>{rub0(due)}</span>}</td>
+      <td className={cls + (due > 0.5 && !isDebtDust(due) ? " text-amber-700" : "")}>{Math.abs(due) < 0.5 ? <span className="text-neutral-300">—</span> : isDebtDust(due) ? <span className="text-neutral-400" title="Остаток в пределах округления: в итог входит">{rub0(due)}</span> : <span title={note && Math.abs(due - 1357.06) < 0.5 ? note : undefined} className={note && Math.abs(due - 1357.06) < 0.5 ? "cursor-help underline decoration-dotted" : undefined}>{rub0(due)}</span>}</td>
     </>
   );
 }

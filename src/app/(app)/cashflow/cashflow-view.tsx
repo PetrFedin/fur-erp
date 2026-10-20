@@ -305,9 +305,9 @@ function WorkUnitWindow({ months, by, initialCat }: { months: string[]; by: Work
       <CatSwitch cat={cat} setCat={setCat} />
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         <div className="col-span-2 rounded-lg border border-neutral-300 p-3 md:col-span-1">
-          <div className="text-xs text-neutral-600">Работа на единицу (всего ÷ единиц)</div>
+          <div className="text-xs text-neutral-600">Работа на единицу (оплачено ÷ получено)</div>
           <div className="text-lg font-semibold tabular-nums">{rubOrDash(st.perUnit)}</div>
-          <div className="text-xs text-neutral-600">{rubOrDash(st.total)} ÷ {st.unitsTotal || "—"} шт.</div>
+          <div className="text-xs text-neutral-600">оплачено {rubOrDash(st.total)} ÷ получено {st.unitsTotal || "—"} шт.</div>
           <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
             <div className="flex justify-between gap-2"><dt className="text-neutral-600">Одежда</dt><dd className="font-semibold tabular-nums">{catLine(c1)}</dd></div>
             <div className="flex justify-between gap-2"><dt className="text-neutral-600">Аксессуары</dt><dd className="font-semibold tabular-nums">{catLine(c2)}</dd></div>
@@ -719,7 +719,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
         <CarouselTile label="Работа на единицу" initial={pageOf[cat]} onOpen={(k) => openFor("workUnit", k)} pages={catPages.map((c) => { const st = wm.st[c]; return {
           label: `Работа на единицу · ${c === "all" ? "Тотал" : CAT_LABEL[c]}`,
           value: rubOrDash(st.perUnit),
-          sub: hasSales ? `${rubOrDash(st.total)} ÷ ${st.unitsTotal || "—"} шт.` : "нет данных о приходе",
+          sub: hasSales ? `оплачено ${rubOrDash(st.total)} ÷ получено ${st.unitsTotal || "—"} шт.` : "нет данных о приходе",
           rows: [["Единиц всего", st.unitsTotal ? String(st.unitsTotal) : "—"], ["Работа всего", rubOrDash(st.total)]] as [string, string][],
           hint: <p>Вся работа подрядчику за период ÷ все единицы, полученные за период (без привязки к месяцам). Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее). По категориям — работа по ТЗ категории ÷ приход категории.</p>,
         }; })} />

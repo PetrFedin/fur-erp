@@ -61,6 +61,18 @@ export function sumOrders(os: DrillOrder[], vat: VatSel): Sum {
 }
 
 /**
+ * ЕДИНСТВЕННОЕ место итога производства для экрана: плитка «Полная себестоимость» и строка «Всего» под списком берут числа отсюда.
+ * Основной итог — со всеми ТЗ (ремонт включён, как на Главной); «без ремонта» (изделия) нужен для «На 1 изделие» и лежит в подсказке «i».
+ */
+export function showTotals(orders: DrillOrder[], vat: VatSel) {
+  const all = sumOrders(orders, vat);
+  const own = sumOrders(orders.filter((o) => !isRepair(o)), vat);
+  const total = sumTotal(all);
+  const totalOwn = sumTotal(own);
+  return { all, own, total, totalOwn, repair: total - totalOwn };
+}
+
+/**
  * Облегчённая копия ТЗ для плиток итогов (ProdTiles): плиткам нужны только суммы по атомам, поэтому строки списаний одного вида
  * (мех / подкладка) схлопываются в одну с теми же суммами, количеством и долей 4%; названия, лоты и партии закупки не передаются в браузер.
  * Суммы плиток те же (sumOrders считает по атомам); подробный состав остаётся в OrdersTree, которому нужны полные ТЗ.

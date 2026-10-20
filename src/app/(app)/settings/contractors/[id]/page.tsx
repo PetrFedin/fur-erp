@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { loadClientDebt } from "@/lib/payment-alloc";
+import { orderUnits } from "@/lib/production-totals";
+import { TERMS } from "@/lib/terms";
+import { payslipsText } from "@/lib/pay-kinds";
 import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatDate, formatMoney } from "@/lib/utils";
@@ -70,15 +73,16 @@ export default async function ContractorPage({ params }: PageProps<"/settings/co
 
       <section className="rounded-lg border border-neutral-200 bg-white px-3 py-1 text-sm" aria-label="Долг по работе">
         <div className={row}><span className="text-neutral-600">Работа по ТЗ подрядчика</span><b className="tabular-nums">{rub(debt.billable)}</b></div>
-        <div className={row}><span className="text-neutral-600">Оплачено (разнесено на ТЗ + аванс без разнесения)</span><b className="tabular-nums">{rub(debt.paid)}</b></div>
-        <div className={row}><span className="text-neutral-600">Остаток к оплате</span><b className="tabular-nums">{rub(debt.balance)}</b></div>
-        <p className="py-1.5 text-xs text-neutral-500">Считается так же, как «Долг по работе подрядчику» на Главной и в «Оплатах», только по ТЗ и оплатам этого подрядчика. Всего оплат за работу: {payments.length} на {rub(paid)}.</p>
+        <div className={row}><span className="text-neutral-600">Оплачено (разнесено на ТЗ {rub(debt.allocated)} + аванс без разнесения {rub(debt.unallocated)})</span><b className="tabular-nums">{rub(debt.paid)}</b></div>
+        <div className={row}><span className="text-neutral-600">{TERMS.workRest}</span><b className="tabular-nums">{rub(Math.max(debt.billable - debt.allocated, 0))}</b></div>
+        {debt.unallocatedByKind.advance >= 1 && <div className={row}><span className="text-neutral-600">{TERMS.advance} (не разнесён на ТЗ)</span><b className="tabular-nums">{rub(debt.unallocatedByKind.advance)}</b></div>}
+        <p className="py-1.5 text-xs text-neutral-500">«{TERMS.workRest}» считается так же, как на Главной и в «Оплатах», только по ТЗ и оплатам этого подрядчика. Оплат за работу: {payslipsText(payments.map((p) => ({ id: p.id, pp: /п\/п\s*№?\s*(\d+)/i.exec(p.docRef ?? "")?.[1] ?? null })))} на {rub(paid)}.</p>
       </section>
 
       <section className="flex flex-col gap-2" aria-label="ТЗ">
         <h2 className="text-base font-semibold">ТЗ <span className="font-normal text-neutral-500">· {orders.length}</span></h2>
         <Table>
-          <Thead><Tr><Th>ТЗ</Th><Th>Изделие</Th><Th>Партия</Th><Th className="text-right">Плановое, шт</Th><Th className="text-right">Выпущено, шт</Th></Tr></Thead>
+          <Thead><Tr><Th>ТЗ</Th><Th>Изделие</Th><Th>Партия</Th><Th className="text-right">План, шт</Th><Th className="text-right">В выпуске, шт</Th></Tr></Thead>
           <Tbody>
             {orders.slice(0, SHOWN).map((o) => (
               <Tr key={o.id}>
@@ -86,7 +90,7 @@ export default async function ContractorPage({ params }: PageProps<"/settings/co
                 <Td>{o.productModel.name}</Td>
                 <Td>{o.batch ? <Link href={`/production/batches/${o.batch.number}`} className="text-blue-700 hover:underline">{o.batch.number}</Link> : "—"}</Td>
                 <Td className="text-right tabular-nums">{Number(o.plannedQuantity)}</Td>
-                <Td className="text-right tabular-nums">{Number(o.producedQuantity)}</Td>
+                <Td className="text-right tabular-nums">{orderUnits(o)}</Td>
               </Tr>
             ))}
             {orders.length === 0 && <Tr><Td colSpan={5} className="py-6 text-center text-neutral-500">ТЗ этого подрядчика пока нет</Td></Tr>}

@@ -34,7 +34,7 @@ import { furMaterialIdsByKind, getFilterOptions, purchaseIdsByAuction } from "@/
 import { OrdersTree } from "@/components/orders-tree";
 import { ProdTiles } from "@/components/prod-tiles";
 import { loadOrdersDrill } from "@/lib/orders-drill";
-import { slimForTiles } from "@/lib/orders-sum";
+import { slimForTiles, showTotals } from "@/lib/orders-sum";
 import { modelCodeVariants } from "@/lib/model-code";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { getYearFilter } from "@/lib/year-filter";
@@ -338,12 +338,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   }
   // Работа (цена работы × выпуск/план) и шкуры подрядчика по списку — чтобы итог сходился с «Себестоимостью» на Главной и в «Изделиях».
   const live = priced.filter((x) => x.o.status !== "CANCELLED");
-  const workSum = live.reduce((a, { o }) => a + (o.clientWorkPricePerUnit ? o.clientWorkPricePerUnit.toNumber() * orderUnits(o) : 0), 0);
   const hidesShares = hidesApply({ auction: f.auction ?? [], fur: f.fur ?? [], color: f.color ?? [], attr: f.attr ?? [], vat: [] })
     ? allocateHides(live.map(({ o }) => ({ id: o.id, number: o.number, batch: o.batch?.number == null ? "none" : String(o.batch.number), qty: orderUnits(o) })), hidesByPayYear(await loadPaymentsOverview(orgId)), "all")
     : [];
-  const hidesSum = hidesShares.reduce((a, x) => a + x.incl, 0);
-  const hidesSumExcl = hidesShares.reduce((a, x) => a + x.excl, 0);
   const hidesOf = new Map(hidesShares.map((h) => [h.id, h]));
   // Итоговая себестоимость ТЗ — как в «Изделиях» и на Главной: сырьё, подкладка, 4%, расходы + работа + шкуры подрядчика.
   const fullOf = (o: (typeof live)[number]["o"], total: Decimal, totalExcl: Decimal) => {
@@ -355,6 +352,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   const drill = await loadOrdersDrill(orgId, year, c4Mode, { ids: new Set(orders.map((o) => o.id)), hides: hidesApply({ auction: f.auction ?? [], fur: f.fur ?? [], color: f.color ?? [], attr: f.attr ?? [], vat: [] }) });
   // Вид меха ТЗ — как в карточке и на Главной (ручной вид или по лотам).
   const furOf = new Map(drill.map((d) => [d.id, d.fur]));
+  // Итог «Всего» под списком — те же числа, что в плитке «Полная себестоимость» (showTotals).
+  const totals = { incl: showTotals(drill, "incl"), excl: showTotals(drill, "excl") };
   // Колонки списка: те же функции, что у карточки (sumUsagesWith4); «без 4%» — мелко под цифрой, если надбавка есть.
   const statOf = (o: (typeof orders)[number], full: { incl: Decimal; excl: Decimal }) => {
     const furU = o.materialUsages.filter((u) => u.rawMaterial.unit !== "M");
@@ -741,7 +740,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           <span className="mr-auto text-xs text-neutral-500">{tzCountText(tzGroups.length, priced.length)}</span>
           <VatLabel base="Всего, ₽ по списку" />
           <Mode4Badge mode={c4Mode} />
-          <span>{sumIncl.isZero() ? "—" : <Money incl={sumIncl.add(workSum).add(hidesSum)} excl={sumExcl.add(workSum).add(hidesSumExcl)} />}</span>
+          <span>{totals.incl.total === 0 ? "—" : <Money incl={totals.incl.total} excl={totals.excl.total} />}</span>
           <C4Hint
             mode={c4Mode}
             base={sumMatLines ? sumBase.toFixed(2) : null}
