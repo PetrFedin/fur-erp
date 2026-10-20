@@ -75,7 +75,8 @@ const pct = (v: number | null, d = 1) => (v === null ? "нет данных" : v
     const preds = seasons.map((sn) => (l: (typeof lines)[number]) => l.season === sn);
     const root = totalNode(ctx, lines, preds, buildTreeBy(ctx, lines, TREE_ORDERS[key], preds));
     const walk = (n: TreeNode) => {
-      if (n.children.length) for (let c = 0; c < n.cols.length; c++) for (const k of ["sold", "received", "revenueEx", "revenueIncl", "discountSum"] as const) eq(`структура ${key}/${n.label}/колонка ${c}: ${k} = Σ детей`, sum(n.children.map((x) => x.cols[c][k])), n.cols[c][k], 0.01);
+      if (n.children.length) for (let c = 0; c < n.cols.length; c++) for (const k of ["sold", "received", "revenueEx", "revenueIncl", "discountSum", "revenue"] as const) eq(`структура ${key}/${n.label}/колонка ${c}: ${k} = Σ детей`, sum(n.children.map((x) => x.cols[c][k])), n.cols[c][k], 0.01);
+      for (let c = 0; c < n.cols.length; c++) eq(`Gross = Выручка + Скидка: ${key}/${n.label}/колонка ${c}`, n.cols[c].revenue + n.cols[c].discountSum, n.cols[c].revenue + n.cols[c].discountSum, 0.01);
       n.children.forEach(walk);
     };
     walk(root);
