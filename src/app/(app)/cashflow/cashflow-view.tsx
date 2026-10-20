@@ -1,5 +1,6 @@
 "use client";
 
+import { TERMS } from "@/lib/terms";
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/utils";
@@ -737,9 +738,9 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
           <div className={"text-lg font-semibold tabular-nums " + (due.net > 0 ? "text-amber-700" : "text-neutral-900")}>{formatMoney(due.net)}</div>
           {due.net <= 0 && due.creditLeft > 0 ? <div className="text-xs text-neutral-600">К доплате 0 ₽, аванс остаётся в зачёте {money(due.creditLeft)}</div> : null}
           <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
-            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Сырьё (Веллмех)</dt><dd className="font-semibold tabular-nums">{money(left.raw)}</dd></div>
-            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Работа по заведённым ТЗ</dt><dd className="font-semibold tabular-nums">{money(left.prod)}</dd></div>
-            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">Аванс подрядчику (оплачен, ТЗ ещё не привязаны)</dt><dd className="font-semibold tabular-nums">−{money(left.advance)}</dd></div>
+            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{TERMS.rawDebt}</dt><dd className="font-semibold tabular-nums">{money(left.raw)}</dd></div>
+            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{TERMS.workRest}</dt><dd className="font-semibold tabular-nums">{money(left.prod)}</dd></div>
+            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{TERMS.advance}</dt><dd className="font-semibold tabular-nums">−{money(left.advance)}</dd></div>
           </dl>
           <Link href="/payments" className="mt-1 inline-flex min-h-11 items-center self-start text-xs underline">Открыть «Оплаты»</Link>
         </div>

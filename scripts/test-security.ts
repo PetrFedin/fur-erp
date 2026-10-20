@@ -360,14 +360,15 @@ async function main() {
   ok([...flagMap.values()].every((v) => typeof v === "boolean"), "признак — только булево значение (сумм, дат, получателей нет)");
   const sup1Purchase = await prisma.purchase.findFirst({ where: { organizationId: orgA, supplierId: sup1, status: { not: "CANCELLED" } }, select: { id: true, number: true, invoiceNumber: true } });
   if (sup1Purchase) {
+    // Проведённая оплата (COMPLETED) показывается подрядчику сразу — с суммой и датой, без заметки и файла (проверка ниже); запланированная (PENDING) — нет.
     const SECRET = 987654.32;
     const inv = sup1Purchase.invoiceNumber ?? sup1Purchase.number;
-    const pay = await prisma.payment.create({ data: { organizationId: orgA, supplierId: sup1, purchaseId: sup1Purchase.id, amount: SECRET, invoiceNo: inv, notes: "SEC-PAYMENT-SECRET-NOTE" } });
+    const pay = await prisma.payment.create({ data: { organizationId: orgA, supplierId: sup1, purchaseId: sup1Purchase.id, amount: SECRET, invoiceNo: inv, notes: "SEC-PAYMENT-SECRET-NOTE", status: "PENDING" } });
     const dd = await prisma.driveDocument.create({ data: { organizationId: orgA, driveFileId: `local-sec-${pay.id}`, title: "Платёжка: SEC-PAYMENT-SCAN.pdf", docType: "PAYMENT_PROOF", paymentId: pay.id, purchaseId: sup1Purchase.id, storagePath: probe } });
     try {
       const pg = await req(`/supplier/raw/${sup1Purchase.id}`, { cookie: S1 });
       ok(pg.status === 200 && pg.text.includes("Платёжный документ") && pg.text.includes("есть"), `sup1 видит у своего аукциона «Платёжный документ: есть» (${pg.status})`);
-      ok(!/987[\s\u00a0,.]?654/.test(pg.text) && !pg.text.includes("SEC-PAYMENT-SECRET-NOTE") && !pg.text.includes("SEC-PAYMENT-SCAN"), "страница подрядчика не раскрывает сумму, заметку и имя файла оплаты");
+      ok(!/987[\s\u00a0,.]?654/.test(pg.text) && !pg.text.includes("SEC-PAYMENT-SECRET-NOTE") && !pg.text.includes("SEC-PAYMENT-SCAN"), "страница подрядчика не раскрывает сумму ещё не проведённой оплаты (PENDING), заметку и имя файла оплаты (проведённые оплаты видны сразу — см. ниже)");
       const f = await req(`/api/drive-docs/${dd.id}`, { cookie: S1 });
       ok(denied(f), `sup1 не открывает файл оплаты напрямую (${f.status})`);
       const pp = await req(`/payments`, { cookie: S1 });
@@ -490,7 +491,7 @@ async function main() {
     if (!/^\s*["']use server["']/m.test(txt) || NO_SESSION_OK.has(rel(f))) continue;
     for (const part of txt.split(/\nexport async function /).slice(1)) {
       const name = part.split("(")[0];
-      if (!/require\w*\(|getFreshSession|auth\(\)|chatSession\(|actor\(\)|changeParams\(|ctxOf\(|uploadDriveDocument\(/.test(part.slice(0, 1800))) unguarded.push(`${rel(f)}:${name}`);
+      if (!/require\w*\(|getFreshSession|auth\(\)|chatSession\(|actor\(\)|changeParams\(|ctxOf\(|ctx\(\)|uploadDriveDocument\(/.test(part.slice(0, 1800))) unguarded.push(`${rel(f)}:${name}`);
     }
   }
   ok(unguarded.length === 0, `все server-действия проверяют сессию/роль на сервере${unguarded.length ? " — без проверки: " + unguarded.join(", ") : ""}`);
