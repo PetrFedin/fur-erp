@@ -704,15 +704,13 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
     })(),
     rawFurBySource: (() => {
       // Источник × тип меха: те же flowOf/figuresPair, что у raw.fur / rawSources; заказанное, но не полученное (по виду) — к аукционам, шкуры подрядчика (вид «Свакара») — к поставщику.
-      const orderedBy = new Map(unreceived.byFur.map((g) => [g.label, g.ordered] as const));
       const hasHides = Math.abs(hidesTotal.incl) > 0 || Math.abs(hidesTotal.excl) > 0;
       const names = Array.from(new Set([...furLots.map((l) => l.item), ...unreceived.byFur.map((g) => g.label), ...(hasHides ? ["Свакара"] : [])])).sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
       const build = (src: "all" | "auction" | "supplier", total: Pair<FlowFigures>) => {
         const ls = src === "all" ? furLots : furLots.filter((l) => classifyLotSource(l) === src);
         const types = names.flatMap((t) => {
           let p = figuresPair(flowOf(ls.filter((l) => l.item === t)), c4k);
-          const o = src !== "supplier" ? orderedBy.get(t) : undefined;
-          if (o) p = { incl: bumpFigures(p.incl, o.qty, o.incl), excl: bumpFigures(p.excl, o.qty, o.excl) };
+          // Заказанное, но не принятое, в «Куплено» не входит (решение владельца 20.10): оно отдельной строкой «Предоплачено, ждём поставку».
           if (hasHides && t === "Свакара" && src !== "auction") p = { incl: addHidesFig(p.incl, hidesTotal.incl), excl: addHidesFig(p.excl, hidesTotal.excl) };
           const f = p.incl;
           return Math.abs(f.recvQty) + Math.abs(f.recvValue) + Math.abs(f.usedQty) + Math.abs(f.remQty) > 0 ? [{ name: t, pair: p }] : [];

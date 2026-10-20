@@ -64,7 +64,7 @@ const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[]
       // 3. Общая стоимость = куплено (мех и подкладка, с НДС) — подкладка допускает ≤ 5 ₽ округления цен
       const F = d.raw.fur.incl, L = d.raw.lining.incl;
       if (y === "all") {
-        eq(`${tag} общая стоимость меха = куплено меха`, d.paidByItem.fur - sumOv("hides", y) + d.left.fur, F.recvValue, 5); // без доплаты подрядчику (она не сырьё)
+        eq(`${tag} общая стоимость меха = куплено меха + заказано, не принято`, d.paidByItem.fur - sumOv("hides", y) + d.left.fur, F.recvValue + d.ordered.incl, 5); // без доплаты подрядчику (она не сырьё)
         eq(`${tag} общая стоимость подкладки = куплено подкладки`, d.paidByItem.lining + d.left.lining, L.recvValue, 5);
       }
 
@@ -131,7 +131,7 @@ const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[]
     const F = d.raw.fur.incl, L = d.raw.lining.incl;
     eq(`${tag} оплачено сырьё: Σ строк = виджет`, d.rawTable.reduce((a, r) => a + r.paid, 0) + d.rawMoneyTotal.unreceived.paid, d.paidByItem.fur + d.paidByItem.lining);
     eq(`${tag} долг сырьё: Σ строк = виджет`, d.rawTable.reduce((a, r) => a + r.due, 0) + d.rawMoneyTotal.unreceived.due, d.left.raw);
-    eq(`${tag} мех: общая стоимость = куплено`, d.paidByItem.fur + d.left.fur, F.recvValue, 5);
+    eq(`${tag} мех: общая стоимость = куплено + заказано, не принято`, d.paidByItem.fur + d.left.fur, F.recvValue + d.ordered.incl, 5);
     eq(`${tag} подкладка: общая стоимость = куплено`, d.paidByItem.lining + d.left.lining, L.recvValue, 300);
     // Статус ТЗ и партия сужают только «Использовано»: куплено − использовано ≠ остаток (так и задумано).
     if (!f.status.length && !f.batch.length) eq(`${tag} мех: куплено = использовано + остаток (шт)`, F.recvQty, F.usedQty + F.remQty, 0.01);

@@ -12,13 +12,7 @@ import { RawBlock } from "./raw-block";
 import { PayTiles } from "./pay-tiles";
 import { ProductionBlock } from "./production-block";
 import { YearsTable, RawTable } from "./dynamics-tables";
-import { buildStrip } from "@/lib/main-strip";
-import { loadPaymentsOverview } from "@/lib/payments-overview";
-import { buildCashflow, aggregateSales, monthsOf } from "@/lib/cashflow";
-import { loadSalesLines } from "@/lib/cashflow-server";
-import { loadMarginInput } from "@/lib/margin-server";
-import { buildMargin } from "@/lib/margin";
-import { DashboardSummary, type SummaryProps } from "./summary";
+import { DecisionsStrip, PrepaidLine, type DecisionItem } from "./summary";
 import { PrintButton } from "./print-button";
 import { PriceCompositionBlock } from "./price-composition-block";
 import { priceComposition } from "@/lib/price-composition-server";
@@ -62,35 +56,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const FILTER_NAMES: [keyof DashFilters, string][] = [["auction", "аукцион / закупка"], ["fur", "вид меха"], ["color", "цвет"], ["attr", "признак меха"], ["batch", "партия пр-ва"], ["catgroup", "группа категорий"], ["kind", "тип"]];
   const activeFilters = FILTER_NAMES.filter(([k]) => (f[k]?.length ?? 0) > 0).map(([k, n]) => `${n} ×${f[k]?.length ?? 0}`).join(", ");
   const info: ModeInfo = { year: yl, filters: activeFilters || null };
-  const strip = buildStrip(d, c4Mode);
-  const period = year === "all" ? "all" : String(year);
-  const [rows, lines, marginInput] = await Promise.all([loadPaymentsOverview(organizationId), loadSalesLines(organizationId), loadMarginInput(organizationId, c4Mode)]);
-  // Валовая маржа и ВП: тот же расчёт, что на «Маржа и наценка» (без НДС, строки продаж со штуками и себестоимостью).
-  const mt = marginInput ? buildMargin(marginInput, "all").totals : null;
-  const months = monthsOf(period);
-  const cf = buildCashflow(rows, period);
-  const sales = aggregateSales(lines, months);
-  const cumRev: number[] = []; sales.revIncl.reduce((a, v, i) => (cumRev[i] = a + v), 0);
   // «Предоплачено, ждём поставку»: заказанное, но не принятое (закупки в статусе «Черновик»); суммы — из БД через loadDashboard.
   const ordLots = d.syntheticLots.filter((l) => l.id.startsWith("ordered:"));
   const un = { paid: ordLots.reduce((a, l) => a + (l.paid ?? 0), 0), due: ordLots.reduce((a, l) => a + (l.due ?? 0), 0) };
-  const decisions: SummaryProps["decisions"] = [];
+  const decisions: DecisionItem[] = [];
   if ((d.control?.urgent ?? 0) > 0) decisions.push({ label: "Срочные задачи Контроля", href: "/attention", count: d.control!.urgent });
   if (d.advance > 0.5) decisions.push({ label: "Неразнесённый аванс подрядчику", href: "/payments", sum: d.advance });
   if (d.ordered.incl > 0.5 && un.due > 0.5) decisions.push({ label: "Предоплачено, ждём поставку: остаток к оплате", href: "/lots", sum: un.due });
-  const summary: SummaryProps = {
-    spent: strip.total.paid,
-    received: sales.available ? sales.revIncl.reduce((a, v) => a + v, 0) : null,
-    dueRaw: strip.supplier.debt, workRest: strip.work.left, advance: d.advance,
-    margin: mt && mt.grossMarginPct !== null ? { pct: mt.grossMarginPct, gp: mt.grossProfit } : null,
-    stockFur: d.raw.fur.incl.remValue, stockLining: d.raw.lining.incl.remValue,
-    stockQty: d.raw.fur.incl.remQty + d.raw.lining.incl.remQty, stockValue: d.raw.fur.incl.remValue + d.raw.lining.incl.remValue,
-    inProdQty: strip.prod.qty, inProdOrders: strip.prod.orders, prodAvg: strip.prod.avg ? strip.prod.avg.incl : null,
-    prepaid: { qty: d.ordered.qty, ordered: d.ordered.incl, paid: un.paid, due: un.due },
-    decisions,
-    chart: { months, spent: cf.cumulative, received: sales.available ? cumRev : null },
-  };
-
   // Ссылки «→ Сырьё» и «→ ТЗ» несут фильтры Главной, которые понимает целевая страница (год, НДС и 4% — общие, из шапки):
   // «Сырьё» — вид меха, цвет, признак и партию закупки (в таблице «Мех» это параметр batch); «ТЗ» — партию закупки, вид меха, признак, партию производства и группу категорий.
   const qs = (pairs: [string, string[]][]) => {
@@ -129,8 +101,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </div>
       )}
 
-      <DashboardSummary {...summary} />
-
       <div className="print:hidden">
         <FilterBar
           title="Фильтры сводки"
@@ -160,9 +130,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       {/* ───────── Главное: ключевые цифры одной полосой, каждая плитка ведёт в раздел ───────── */}
 
+      <DecisionsStrip decisions={decisions} />
+
       {/* Область действия переключателя источника меха: только эти четыре блока; всё ниже (производство, оплаты) от него не зависит. */}
       <FurScope info={info}>
         <RawBlock href={rawHref} rows={d.rawTable} fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} vat={d.vat} furSrc={d.rawFurBySource} />
+        <PrepaidLine qty={d.ordered.qty} ordered={d.ordered.incl} paid={un.paid} due={un.due} />
 
         <YearsTable rows={d.years} bySrc={d.yearsFurBySrc} c4={c4Mode} info={info} />
 

@@ -20,6 +20,7 @@ import { loadOrderRows } from "../src/lib/analytics-orders";
 import { toDrillOrder } from "../src/lib/dashboard-calc";
 import { addOrder, blank, build, type Agg } from "../src/app/(app)/dashboard/production-table";
 import { alignTree, showTotals, sum5, type Money5 } from "../src/lib/production-display";
+import { loadPaymentsOverview } from "../src/lib/payments-overview";
 import { loadReconBridge } from "../src/app/(app)/reconciliation/bridge";
 
 const prisma = new PrismaClient();
@@ -66,6 +67,7 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
 // ───── 2. Реальные данные: все срезы ─────
 (async () => {
   const org = (await prisma.organization.findFirst())!.id;
+  const OV = await loadPaymentsOverview(org);
   const live = await loadLive(org);
   const slices: { year: "all" | "2025" | "2026"; c4: "on" | "off" }[] = [
     { year: "all", c4: "on" }, { year: "all", c4: "off" }, { year: "2025", c4: "on" }, { year: "2026", c4: "off" },
@@ -73,6 +75,7 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
   for (const sl of slices) {
     const tag = `[${sl.year}/4%:${sl.c4}]`;
     const d = await loadDashboard(org, sl.year, parseDashFilters({}), sl.c4);
+    const HIDES_EXTRA = OV.filter((r) => sl.year === "all" || r.year === Number(sl.year)).reduce((a, r) => a + r.hides, 0);
     const bo = sl.c4 === "on";
     const base = (f: { usedValue: number; usedValueOther: number }) => (bo ? f.usedValueOther : f.usedValue);
     const withC4 = (f: { usedValue: number; usedValueOther: number }) => (bo ? f.usedValue : f.usedValueOther);
@@ -179,7 +182,9 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
         eq(`${t} ${k}: остаток + использовано = «Куплено» (одно число с плитками)`, D.stock + D.used, k === "fur" ? A.fur.incl.recvValue : A.lining.incl.recvValue);
         // С фильтром по году «Оплачено» считается по ГОДУ ОПЛАТЫ (решение владельца 2026-10-20), «Куплено» и долг — по году закупки: платежи за закупки другого года (З-2026-0012/-0013/-0066) сдвигают
         // «оплачено + к оплате» относительно «Куплено» ровно на эти суммы. Для «Все годы» тождество строгое.
-        const recvK = k === "fur" ? A.fur.incl.recvValue : A.lining.incl.recvValue;
+        // «Общая стоимость» = «Куплено» (принятое) + «Заказано, не принято» (отдельная строка «Предоплачено, ждём поставку»).
+        const ordK = k === "fur" ? Math.round(d.ordered.incl + HIDES_EXTRA) : 0; // + доплата подрядчику (НДС 22 % по сырью заказчика): в оплатах меха, вне «Куплено»
+        const recvK = (k === "fur" ? A.fur.incl.recvValue : A.lining.incl.recvValue) + ordK;
         if (sl.year === "all" || Math.abs(N.T[k] - recvK) <= 1) eq(`${t} ${k}: «Общая стоимость» = плитка «Куплено» (если сходится с документами)`, N.T[k], recvK, 0);
         else console.log(`  (${t} ${k}: «Общая стоимость» ${N.T[k]} ≠ «Куплено» ${recvK}: платежи года за закупки другого года, год оплаты — по дате)`);
         if (sl.year === "all") eq(`${t} ${k}: общая стоимость = оплачено + к оплате (± строка «округление»)`, Math.abs(N.T[k] - N.P[k] - N.L[k]) <= 1 ? 0 : 1, 0);
@@ -190,7 +195,7 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
         if (Math.abs(sum(typed.map((x) => x.amount)) - N.paidAll) < 1) eq(`${t}: Σ типов платежа = «Оплачено всего»`, sum(alignColumn(typed.map((x) => x.amount), N.paidAll).values), N.paidAll);
       }
       // «Общая стоимость мех+подкладка» плиток оплат = «Всего» таблиц (один итог на экране)
-      if (!only && sl.year === "all") eq(`${t}: мех + подкладка в «Общей стоимости» = «Всего» таблиц`, N.T.fur + N.T.lining, yAll.fur.incl.rv + yAll.lining.incl.rv, N.roundAll === 0 ? 0 : 0);
+      if (!only && sl.year === "all") eq(`${t}: мех + подкладка в «Общей стоимости» = «Всего» таблиц`, N.T.fur + N.T.lining, yAll.fur.incl.rv + yAll.lining.incl.rv + Math.round(d.ordered.incl + HIDES_EXTRA), 1);
     }
   }
 
