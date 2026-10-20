@@ -73,7 +73,10 @@ async function main() {
   }
 
   // 1. ТЗ в работе: количество, потом 4%, потом другой лот
-  const wip = await raw.productionOrder.findFirstOrThrow({ where: { id: "cmv6lg49j000plsbfe3si2vlc" }, include: { materialUsages: true } });
+  const cands = (await raw.productionOrder.findMany({ where: { status: "IN_PROGRESS" }, orderBy: { number: "asc" }, include: { materialUsages: { include: { lot: true } } } }))
+    .filter((o) => o.materialUsages.length >= 2 && o.materialUsages.every((x) => Number(x.lot.quantityRemaining) >= Number(x.quantity) * 2 + 1));
+  if (cands.length < 2) throw new Error("нужны два ТЗ «в работе» с ≥2 списаниями и запасом лотов — на этой копии их нет");
+  const wip = cands[0];
   const u = wip.materialUsages[0];
   const newQty = u.quantity.mul(0.5).toDecimalPlaces(3).toString();
   await check("1. ТЗ в работе: количество списания ×0.5", wip.id, [u.lotId], { kind: "usage", usageId: u.id, lotId: u.lotId, quantity: newQty, commission4: u.commission4 }, () =>
@@ -102,7 +105,7 @@ async function main() {
   await check("6. Плановое количество ТЗ в работе", wip.id, [], { kind: "param", field: "plannedQuantity", value: String(Number(wip.plannedQuantity) + 7) }, () => PR.patchProductionOrder(wip.id, "plannedQuantity", String(Number(wip.plannedQuantity) + 7)));
 
   // 7. ЗАВЕРШЁННОЕ ТЗ: завершаем второе ТЗ и правим
-  const cid = "cmv6lg4fi0081lsbf97pilahx";
+  const cid = cands[1].id;
   const c0 = await raw.productionOrder.findUniqueOrThrow({ where: { id: cid }, include: { materialUsages: true } });
   const done = await PR.completeProductionOrder(cid, fd({ producedQuantity: String(c0.plannedQuantity) }));
   ok(!done?.error, `ТЗ завершено в копии ${done?.error ?? ""}`);

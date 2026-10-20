@@ -163,7 +163,7 @@ const pct = (v: number | null, d = 1) => (v === null ? "нет данных" : v
     const root = totalNode(cx, lines, preds, buildTreeBy(cx, lines, TREE_ORDERS[key], preds));
     const tag = `[цены ${key}|${vat}]`;
     const walk = (n: TreeNode) => {
-      if (n.children.length) for (const c of ["cardVal", "cardPcs", "listVal", "listPcs", "toCardRev", "toCardBasis", "toListRev", "toListBasis"] as const) {
+      if (n.children.length) for (const c of ["cardVal", "cardPcs", "cardRecPrcVal", "cardRecPrcPcs", "listVal", "listPcs", "listRecVal", "listRecPcs", "cardRecVal", "cardRecValEx", "cardCostIncl", "cardCostEx", "toCardRev", "toCardBasis", "toListRev", "toListBasis"] as const) {
         // основы цен у узла = сумма детей (по каждому столбцу: Тотал и сезоны)
         n.cols.forEach((col, i) => eq(`${tag} «${n.label}» ${c} (столбец ${i}) = Σ детей`, col[c] ?? 0, sum(n.children.map((ch) => ch.cols[i][c] ?? 0)), 0.01));
       }

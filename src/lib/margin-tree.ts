@@ -24,9 +24,9 @@ export type Metrics = {
  */
 export type PriceMetrics = {
   /** «Цена по карточке (главная)». */
-  cardPrice: number | null; cardVal: number; cardPcs: number;
+  cardPrice: number | null; cardVal: number; cardPcs: number; cardRecPrcVal: number; cardRecPrcPcs: number;
   /** «Цена прайса» (справочная). */
-  listPrice: number | null; listVal: number; listPcs: number;
+  listPrice: number | null; listVal: number; listPcs: number; listRecVal: number; listRecPcs: number;
   /** «Фактическая цена продажи»: выручка ÷ проданные штуки (нетто возвратов), с НДС и без НДС. */
   actualPriceIncl: number | null; actualPriceEx: number | null;
   /** «К карточке %» / «К прайсу %»: фактическая выручка ÷ (цена × штуки) по проданным строкам, у которых есть эта цена; …Rev — числитель, …Basis — знаменатель. */
@@ -73,9 +73,8 @@ export function priceMetricsOf(ctx: Ctx, lines: FullLine[]): PriceMetrics {
     const ls = sold.filter((l) => price(l) !== null), lr = rec.filter((l) => price(l) !== null);
     const sv = sum(ls.map((l) => pv(l, price(l)!) * l.pcs)), sp = sum(ls.map((l) => l.pcs));
     const rv = sum(lr.map((l) => pv(l, price(l)!) * l.pcs)), rp = sum(lr.map((l) => l.pcs));
-    // основа: по проданным; нет продаж с этой ценой — по полученным
-    const useSold = sp > 0;
-    return { val: useSold ? sv : rv, pcs: useSold ? sp : rp, rev: sum(ls.map(revOf)), basis: sv };
+    // суммы-основы аддитивны: по проданным (val/pcs) и по полученным (rv/rp) отдельно; цена = по проданным, нет продаж — по полученным
+    return { val: sv, pcs: sp, rv, rp, rev: sum(ls.map(revOf)), basis: sv, price: sp > 0 ? sv / sp : rp > 0 ? rv / rp : null };
   };
   const c = agg(card), p = agg(ctx.unitPrice);
   const soldNet = sum(lines.filter((l) => l.kind === "SALE").map((l) => l.pcs));
@@ -84,8 +83,8 @@ export function priceMetricsOf(ctx: Ctx, lines: FullLine[]): PriceMetrics {
   const cardRecVal = sum(rc.map((l) => card(l)! * l.pcs)), cardRecValEx = sum(rc.map((l) => exVatAt(card(l)!, l.iso) * l.pcs));
   const cardCostIncl = sum(rc.map((l) => ctx.unitIncl(l) * l.pcs)), cardCostEx = sum(rc.map((l) => ctx.unitExcl(l) * l.pcs));
   return {
-    cardPrice: c.pcs > 0 ? c.val / c.pcs : null, cardVal: c.val, cardPcs: c.pcs,
-    listPrice: p.pcs > 0 ? p.val / p.pcs : null, listVal: p.val, listPcs: p.pcs,
+    cardPrice: c.price, cardVal: c.val, cardPcs: c.pcs, cardRecPrcVal: c.rv, cardRecPrcPcs: c.rp,
+    listPrice: p.price, listVal: p.val, listPcs: p.pcs, listRecVal: p.rv, listRecPcs: p.rp,
     actualPriceIncl: soldNet > 0 ? rIncl / soldNet : null, actualPriceEx: soldNet > 0 ? rEx / soldNet : null,
     toCardRev: c.rev, toCardBasis: c.basis, toCardPct: c.basis > 0 ? (c.rev / c.basis) * 100 : null,
     toListRev: p.rev, toListBasis: p.basis, toListPct: p.basis > 0 ? (p.rev / p.basis) * 100 : null,
