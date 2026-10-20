@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { InfoHint } from "@/components/info-hint";
 import { TERMS, DUE_HINT } from "@/lib/terms";
-import { formatMoney, formatMoneyCompact, formatQty } from "@/lib/utils";
+import { formatMoney, formatMoneyCompact, formatPercent, formatQty } from "@/lib/utils";
 import { TILE_BOX, TileHead } from "./tile";
 
 const dash = (v: number, f: (n: number) => string = formatMoney) => (Math.abs(v) < 0.5 ? "—" : f(v));
@@ -30,6 +30,11 @@ export type SummaryProps = {
   /** Остаток сырья: шт. и ₽. */
   stockQty: number;
   stockValue: number;
+  /** Из остатка: мех и подкладка отдельно, ₽. */
+  stockFur: number;
+  stockLining: number;
+  /** Валовая маржа, % и ВП без НДС (расчёт «Маржа и наценка»); null — нет данных о продажах. */
+  margin: { pct: number; gp: number | null } | null;
   inProdQty: number;
   inProdOrders: number;
   prodAvg: number | null;
@@ -70,9 +75,10 @@ export function DashboardSummary(p: SummaryProps) {
           sub={`до зачёта аванса ${formatMoneyCompact(before, { unit: true })}`}
           hint={<><p>{DUE_HINT}</p><dl className="mt-2 space-y-0.5 text-xs"><div className="flex justify-between gap-4"><dt>{TERMS.rawDebt}</dt><dd className="tabular-nums">{dash(p.dueRaw)}</dd></div><div className="flex justify-between gap-4"><dt>{TERMS.workRest}</dt><dd className="tabular-nums">{dash(p.workRest)}</dd></div><div className="flex justify-between gap-4"><dt>до зачёта</dt><dd className="tabular-nums">{dash(before)}</dd></div><div className="flex justify-between gap-4"><dt>− {TERMS.advance}</dt><dd className="tabular-nums">{dash(p.advance)}</dd></div></dl></>}
         />
-        <SumTile href="/lots" label="Остаток сырья" value={dash(p.stockValue)} sub={`${formatQty(p.stockQty)} шт. на складе`} />
+        <SumTile href="/lots" label="Остаток сырья" value={dash(p.stockValue)} sub={`мех + подкладка · ${formatQty(p.stockQty)} шт.`}
+          hint={<dl className="space-y-0.5 text-xs"><div className="flex justify-between gap-4"><dt>Мех</dt><dd className="tabular-nums">{dash(p.stockFur)}</dd></div><div className="flex justify-between gap-4"><dt>Подкладка</dt><dd className="tabular-nums">{dash(p.stockLining)}</dd></div></dl>} />
         <SumTile href="/production" label={TERMS.inProduction} value={`${formatQty(p.inProdQty)} шт.`} sub={`${p.inProdOrders} ТЗ${p.prodAvg ? ` · ${formatMoney(p.prodAvg)} на изделие` : ""}`} />
-        <SumTile href="/analytics/margin" label="Маржа" value="Открыть" sub="цена, себестоимость и маржа по моделям" />
+        <SumTile href="/analytics/margin" label="Валовая маржа" value={p.margin ? formatPercent(p.margin.pct) : "—"} sub={p.margin ? `ВП ${p.margin.gp == null ? "—" : formatMoney(p.margin.gp)} · по продажам, без НДС` : "нет данных о продажах"} />
       </section>
 
       {p.prepaid.ordered > 0.5 && (

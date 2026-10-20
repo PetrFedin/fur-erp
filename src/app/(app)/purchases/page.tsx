@@ -248,7 +248,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     const hidesS = sec === "lining" ? 0 : hidesAllS;
     const roundFurS = sec === "lining" ? 0 : roundOf("fur", src), roundLinS = sec === "fur" ? 0 : roundOf("lining", src);
     const grand = mkBlock("all", null, rowsSelS, hidesS, roundFurS, roundLinS);
-    const blocks = sec
+    const blocks0 = sec
       ? [mkBlock(sec, sec === "fur" ? "Мех" : "Подкладка", rowsSelS, hidesS, roundFurS, roundLinS)]
       : [
           mkBlock("fur", "Мех", rowsS.map((p) => partOf(p, "fur")).filter((p): p is TreePurchase => p != null), hidesAllS, roundFurS, 0),
@@ -256,6 +256,10 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           // Закупки-услуги (УПД без позиций сырья): отдельный блок, чтобы «Всего» = мех + подкладка + услуги; в меху и подкладке их нет.
           ...(rowsS.some(isServiceRow) ? [mkBlock("services", "Услуги по УПД", rowsS.filter(isServiceRow), 0, 0, 0)] : []),
         ];
+    // Переплата по подкладке зачитывается в долг по меху (как на Главной и в Оплатах): «Долг по сырью» везде одно число.
+    const liningB0 = blocks0.find((x) => x.kind === "lining"), furB0 = blocks0.find((x) => x.kind === "fur");
+    const ovLin = liningB0 && furB0 && liningB0.rest < -OVERPAY_FROM ? -liningB0.rest : 0;
+    const blocks = ovLin > 0 ? blocks0.map((x) => (x === furB0 ? { ...x, paid: x.paid + ovLin, rest: x.rest - ovLin } : x === liningB0 ? { ...x, paid: x.paid - ovLin, rest: 0 } : x)) : blocks0;
     const hidesRow: ExtraRow[] = hidesS > 0.5 ? [{
       key: "hides", label: "Шкуры подрядчика", sub: "оплачены в составе счетов за пошив", href: "/lots/contractor-hides", sum: hidesS, paid: hidesS,
       note: <>Шкуры подрядчика (партии 7 и 8): оплачены в составе счетов за пошив, закупки на них нет, в ТЗ не списаны. Это сырьё поставщика (Веллмех), поэтому в режиме «На аукционах» строки нет. Есть на Главной в «Сырьё — мех» (использовано). Страница ↗ — детализация.</>,
@@ -264,12 +268,10 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       key, label: "Округление", sum: v, paid: 0,
       note: "Лоты хранят цену за единицу округлённой, поэтому сумма лотов (так считает Главная) отличается от суммы закупок по документам на копейки. Строка закрывает разницу: «Всего» = Главная.",
     }] : []);
-    // Переплата по подкладке: в «К оплате» по меху не вычитается (на Главной — вычитается).
-    const liningBlock = blocks.find((x) => x.kind === "lining");
     return [src, {
       rows: rowsS, rowsSel: rowsSelS, grand, blocks, hidesS,
       furExtras: [...hidesRow, ...roundRow("round-fur", roundFurS)], liningExtras: roundRow("round-lin", roundLinS), treeExtras: [...hidesRow, ...roundRow("round", roundFurS + roundLinS)],
-      liningOverpay: liningBlock && liningBlock.rest < -OVERPAY_FROM ? -liningBlock.rest : 0,
+      liningOverpay: ovLin,
     }];
   })) as Record<FurSrc, { rows: TreePurchase[]; rowsSel: TreePurchase[]; grand: ReturnType<typeof mkBlock>; blocks: ReturnType<typeof mkBlock>[]; hidesS: number; furExtras: ExtraRow[]; liningExtras: ExtraRow[]; treeExtras: ExtraRow[]; liningOverpay: number }>;
   const rowsSel = variants.all.rowsSel;
@@ -442,7 +444,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                     <TileHead>{b.rest < -OVERPAY_FROM ? "Переплата" : "Долг по сырью"}</TileHead>
                     <div className="absolute right-3 top-3">
                       <InfoHint label="О долге по сырью" align="right">
-                        <p>Куплено − Оплачено.{b.kind === "fur" && variants[srcK].liningOverpay > 0.5 ? ` Это долг по меху: переплата по подкладке ${formatMoney(variants[srcK].liningOverpay.toFixed(2))} не вычтена (на Главной вычтена, поэтому там меньше).` : ""}</p>
+                        <p>Куплено − Оплачено.{b.kind === "fur" && variants[srcK].liningOverpay > 0.5 ? ` В оплачено по меху зачтена переплата по подкладке ${formatMoney(variants[srcK].liningOverpay.toFixed(2))}, поэтому число то же, что на Главной.` : ""}</p>
                       </InfoHint>
                     </div>
                     <TileValue className={b.rest > PAY_EPS.toNumber() ? "text-amber-700" : ""}>{formatMoney(Math.abs(b.rest).toFixed(2))}</TileValue>

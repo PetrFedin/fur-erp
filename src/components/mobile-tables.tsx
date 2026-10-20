@@ -178,6 +178,8 @@ function run(root: ParentNode) {
     return;
   }
   root.querySelectorAll<HTMLTableElement>("table").forEach((table) => {
+    // table-keep остаются таблицами: ничего на них не ставим, иначе React увидит расхождение при гидратации.
+    if (table.classList.contains("table-keep") || table.closest(".table-keep")) return;
     const rows = table.rows.length;
     const sig = `${rows}:${table.tHead?.textContent?.length ?? 0}:${table.textContent?.length ?? 0}`;
     if (table.getAttribute("data-sig") !== sig) {
@@ -202,16 +204,29 @@ export function MobileTables() {
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
     let raf = 0;
+    // До окончания гидратации DOM не трогаем: подмена атрибутов и блока «Сортировка» ломает сверку React.
+    let ready = false;
     const schedule = () => {
+      if (!ready) return;
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => run(document));
     };
+    const start = () => {
+      timer = window.setTimeout(() => {
+        ready = true;
+        schedule();
+      }, 600);
+    };
+    let timer = 0;
+    if (document.readyState === "complete") start();
+    else window.addEventListener("load", start, { once: true });
     const main = document.querySelector("main") ?? document.body;
     const mo = new MutationObserver(schedule);
     mo.observe(main, { childList: true, subtree: true, characterData: true });
     mq.addEventListener("change", schedule);
-    schedule();
     return () => {
+      window.removeEventListener("load", start);
+      clearTimeout(timer);
       mo.disconnect();
       mq.removeEventListener("change", schedule);
       cancelAnimationFrame(raf);
