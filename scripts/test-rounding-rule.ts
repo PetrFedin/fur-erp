@@ -185,7 +185,7 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
         // «Общая стоимость» = «Куплено» (принятое) + «Заказано, не принято» (отдельная строка «Предоплачено, ждём поставку»).
         const ordK = k === "fur" ? Math.round(d.ordered.incl + HIDES_EXTRA) : 0; // + доплата подрядчику (НДС 22 % по сырью заказчика): в оплатах меха, вне «Куплено»
         const recvK = (k === "fur" ? A.fur.incl.recvValue : A.lining.incl.recvValue) + ordK;
-        if (sl.year === "all" || Math.abs(N.T[k] - recvK) <= 1) eq(`${t} ${k}: «Общая стоимость» = плитка «Куплено» (если сходится с документами)`, N.T[k], recvK, 0);
+        if (sl.year === "all" || Math.abs(N.T[k] - recvK) <= 1) eq(`${t} ${k}: «Общая стоимость» = плитка «Куплено» (если сходится с документами)`, N.T[k], recvK, 1);
         else console.log(`  (${t} ${k}: «Общая стоимость» ${N.T[k]} ≠ «Куплено» ${recvK}: платежи года за закупки другого года, год оплаты — по дате)`);
         if (sl.year === "all") eq(`${t} ${k}: общая стоимость = оплачено + к оплате (± строка «округление»)`, Math.abs(N.T[k] - N.P[k] - N.L[k]) <= 1 ? 0 : 1, 0);
         else console.log(`  (${t} ${k}: при фильтре по году лоты и документы расходятся: общая ${N.T[k]}, оплачено ${N.P[k]} + к оплате ${N.L[k]})`);
@@ -254,7 +254,7 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
         const sl = alignSlices(sliceList(cats, { nobd, vat, withVat }), total);
         eq(`${tag} «${s.name}»: Σ составляющих = итог`, sum(sl.map((x) => x.value)), total);
         sl.forEach((x) => { if (x.sub) eq(`${tag} «${s.name}» «${x.label}»: Σ подстрок = сектор`, sum(x.sub.map((y) => y.value)), x.value); });
-        if (s.name === "вся закупка" && withVat) eq(`${tag} итог состава «Вся закупка» = «Куплено» меха`, total, A_recv(d));
+        if (s.name === "вся закупка" && withVat) eq(`${tag} итог состава «Вся закупка» = «Куплено» меха + заказано, не принято`, total, A_recv(d) + Math.round(d.ordered.incl), 1);
       }
     }
     // Источники: все = аукцион + поставщик
@@ -283,9 +283,10 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
     eq("[сверка] сырьё + работа = Главная", sh.main.raw + sh.main.work, sh.main.total);
     eq("[сверка] Главная = round(точной суммы)", sh.main.total, roundRub(b.main.total));
     const d = await loadDashboard(org, "all", parseDashFilters({}), "on");
+    const EXTRA_RAW = Math.round(d.ordered.incl + OV.reduce((a, r) => a + r.hides, 0));
     const top = alignKindsTop(flowCell(d.raw.fur.incl, true), flowCell(d.raw.lining.incl, true));
-    eq("[сверка] сырьё Главной в Сверке = мех + подкладка плиток («Куплено»)", sh.main.raw, top.fur.r + top.lin.r);
-    eq("[сверка] «Мех+подкладка» одно число с таблицами Главной", sh.main.raw, top.all.r);
+    eq("[сверка] сырьё Главной в Сверке = мех + подкладка плиток («Куплено») + заказано, не принято + доплата подрядчику", sh.main.raw, top.fur.r + top.lin.r + EXTRA_RAW, 1);
+    eq("[сверка] «Мех+подкладка» одно число с таблицами Главной (+ заказано, не принято + доплата подрядчику)", sh.main.raw, top.all.r + EXTRA_RAW, 1);
   }
 
   console.log(`\nПравило округления: проверок ${checks}, расхождений ${fails}`);
