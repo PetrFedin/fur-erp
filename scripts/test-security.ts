@@ -413,9 +413,8 @@ async function main() {
   for (const x of exports) ok(denied(await req(x, { cookie: S1 })), `экспорт закрыт для подрядчика: ${x}`);
 
   // Чистая логика статуса оплат.
-  ok(isConfirmedForSupplier({ status: "COMPLETED", confirmed: true, confirmedAt: new Date() }), "оплата проведена + подтверждена + отметка — видна подрядчику");
-  ok(!isConfirmedForSupplier({ status: "COMPLETED", confirmed: true, confirmedAt: null }) && !isConfirmedForSupplier({ status: "COMPLETED", confirmed: false, confirmedAt: new Date() })
-    && !isConfirmedForSupplier({ status: "PENDING", confirmed: true, confirmedAt: new Date() }) && !isConfirmedForSupplier({ status: "CANCELLED", confirmed: true, confirmedAt: new Date() }), "без отметки подтверждения, без флага, плановая и отменённая — не видны");
+  // Оплата видна подрядчику сразу, как проведена (COMPLETED); флаг и отметка подтверждения на видимость не влияют (решение владельца 20.10.2026).
+  ok(isConfirmedForSupplier({ status: "COMPLETED" }) && !isConfirmedForSupplier({ status: "PENDING" }) && !isConfirmedForSupplier({ status: "CANCELLED" }), "проведённая оплата видна сразу; плановая и отменённая — нет");
   const L = (a: number, d: string, kind = "ADVANCE") => ({ kind, amount: a, paidAt: new Date(d) });
   ok(payInfo(1000, []).state === "UNPAID" && payInfo(1000, [L(400, "2026-01-02")]).state === "PARTIAL" && payInfo(1000, [L(400, "2026-01-02"), L(600, "2026-02-03")]).state === "PAID" && payInfo(1000, [L(1200, "2026-01-02")]).state === "PAID", "статус: не оплачено / частично / оплачено (в том числе переплата)");
   ok(payInfo(1000, [L(999.5, "2026-01-02")]).state === "PAID" && payInfo(1000, [L(998, "2026-01-02")]).state === "PARTIAL", "допуск «оплачено» — 1 ₽");
@@ -431,27 +430,25 @@ async function main() {
   // Живая проверка: создать оплату → подтвердить → у подрядчика видно → снять подтверждение → пропало.
   if (sup1Purchase) {
     const AMT = 987654.32, NOTE = "SEC-PAYMENT-SECRET-NOTE";
+    const PAID_RAW = new Date(Date.now() - 86_400_000); PAID_RAW.setUTCHours(0, 0, 0, 0);
+    const paidRu = PAID_RAW.toLocaleDateString("ru-RU", { timeZone: "UTC" }).replace(/\./g, "\\.");
     const pageOf = `/supplier/raw/${sup1Purchase.id}`;
     const sees = (t: string) => /987[\s  ,.]?65[34]/.test(t);
-    const pay = await prisma.payment.create({ data: { organizationId: orgA, supplierId: sup1, purchaseId: sup1Purchase.id, amount: AMT, kind: "ADVANCE", paidAt: new Date("2026-09-15"), notes: NOTE, status: "COMPLETED", confirmed: true, confirmedAt: null } });
+    const pay = await prisma.payment.create({ data: { organizationId: orgA, supplierId: sup1, purchaseId: sup1Purchase.id, amount: AMT, kind: "ADVANCE", paidAt: PAID_RAW, notes: NOTE, status: "COMPLETED", confirmed: false, confirmedAt: null } });
     try {
-      ok(!sees((await req(pageOf, { cookie: S1 })).text), "оплата без подтверждения у заказчика — подрядчик не видит");
-      await prisma.payment.update({ where: { id: pay.id }, data: { confirmed: false, confirmedAt: new Date() } });
-      ok(!sees((await req(pageOf, { cookie: S1 })).text), "флаг «подтверждена» снят — не видна");
+      ok(sees((await req(pageOf, { cookie: S1 })).text), "оплата проведена — подрядчик видит сразу, без подтверждения заказчиком");
       await prisma.payment.update({ where: { id: pay.id }, data: { confirmed: true, status: "PENDING" } });
       ok(!sees((await req(pageOf, { cookie: S1 })).text), "запланированная (PENDING) не считается оплаченной");
       await prisma.payment.update({ where: { id: pay.id }, data: { status: "COMPLETED" } });
       const seen = await req(pageOf, { cookie: S1 });
-      ok(sees(seen.text) && /data-testid="pay-status"/.test(seen.text) && /(Частично|Оплачено|Нет счёта)/.test(seen.text) && /15\.09\.2026/.test(seen.text), "подтверждена → подрядчик видит статус, сумму и дату");
+      ok(sees(seen.text) && /data-testid="pay-status"/.test(seen.text) && /(Частично|Оплачено|Нет счёта)/.test(seen.text) && new RegExp(paidRu).test(seen.text), "проведена → подрядчик видит статус, сумму и дату");
       ok(!seen.text.includes(NOTE) && !seen.text.includes("SEC-PAYMENT-SCAN"), "…но не заметку и не платёжный файл");
       const list = await req("/supplier/raw", { cookie: S1 });
       ok(/data-testid="pay-status"/.test(list.text), "статус виден и в списке «Сырьё»");
       const ctl = await req("/supplier", { cookie: S1 });
-      ok(sees(ctl.text) && /Оплата подтверждена \(аванс\)/.test(ctl.text), "и в «Контроль → Недавнее»");
+      ok(sees(ctl.text) && /Оплата проведена \(аванс\)/.test(ctl.text), "и в «Контроль → Недавнее»");
       ok(!sees((await req(pageOf, { cookie: S2 })).text) && !sees((await req("/supplier/raw", { cookie: S2 })).text) && !sees((await req("/supplier", { cookie: S2 })).text), "другой подрядчик оплату не видит");
-      await prisma.payment.update({ where: { id: pay.id }, data: { confirmedAt: null, confirmedBy: null } });
-      ok(!sees((await req(pageOf, { cookie: S1 })).text) && !sees((await req("/supplier", { cookie: S1 })).text), "подтверждение снято → статус и сумма пропали");
-      await prisma.payment.update({ where: { id: pay.id }, data: { confirmedAt: new Date(), status: "CANCELLED" } });
+      await prisma.payment.update({ where: { id: pay.id }, data: { status: "CANCELLED" } });
       ok(!sees((await req(pageOf, { cookie: S1 })).text), "отменённая оплата не видна");
     } finally {
       await prisma.payment.delete({ where: { id: pay.id } }).catch(() => {});
@@ -462,19 +459,18 @@ async function main() {
   const accOrder = accTz?.createdEntityId ? accTz.createdEntityId.split(",")[0] : null;
   if (accTz && accOrder) {
     const WAMT = 321987.65;
+    const PAID_WORK = new Date(Date.now() - 86_400_000); PAID_WORK.setUTCHours(0, 0, 0, 0);
     const seesW = (t: string) => /321[\s  ,.]?98[78]/.test(t);
-    const pp = await prisma.productionPayment.create({ data: { organizationId: orgA, amount: WAMT, paymentType: "ADVANCE", status: "COMPLETED", paidAt: new Date("2026-09-16"), confirmed: true, confirmedAt: null, notes: "SEC-WORK-NOTE" } });
+    const pp = await prisma.productionPayment.create({ data: { organizationId: orgA, amount: WAMT, paymentType: "ADVANCE", status: "COMPLETED", paidAt: PAID_WORK, confirmed: false, confirmedAt: null, notes: "SEC-WORK-NOTE" } });
     const al = await prisma.paymentAllocation.create({ data: { organizationId: orgA, productionPaymentId: pp.id, productionOrderId: accOrder, amount: WAMT } });
     // неразнесённый аванс чужого ТЗ: подрядчик его не видит
     try {
-      ok(!seesW((await req(`/supplier/tz/${accTz.id}`, { cookie: S1 })).text), "оплата работы без подтверждения — не видна");
-      await prisma.productionPayment.update({ where: { id: pp.id }, data: { confirmedAt: new Date() } });
       const t1 = await req(`/supplier/tz/${accTz.id}`, { cookie: S1 });
-      ok(seesW(t1.text) && /data-testid="pay-status"/.test(t1.text) && !t1.text.includes("SEC-WORK-NOTE"), "подтверждена → на странице ТЗ статус и сумма, без заметки");
+      ok(seesW(t1.text) && /data-testid="pay-status"/.test(t1.text) && !t1.text.includes("SEC-WORK-NOTE"), "проведена → на странице ТЗ статус и сумма, без заметки");
       ok(!seesW((await req(`/supplier/tz/${accTz.id}`, { cookie: S2 })).text), "другой подрядчик не видит");
-      ok(/Оплата за работу подтверждена/.test((await req("/supplier", { cookie: S1 })).text), "и в «Контроль → Недавнее»");
-      await prisma.productionPayment.update({ where: { id: pp.id }, data: { confirmedAt: null } });
-      ok(!seesW((await req(`/supplier/tz/${accTz.id}`, { cookie: S1 })).text), "подтверждение снято → пропало");
+      ok(/Оплата за работу проведена/.test((await req("/supplier", { cookie: S1 })).text), "и в «Контроль → Недавнее»");
+      await prisma.productionPayment.update({ where: { id: pp.id }, data: { status: "CANCELLED" } });
+      ok(!seesW((await req(`/supplier/tz/${accTz.id}`, { cookie: S1 })).text), "оплата отменена → пропала");
     } finally {
       await prisma.paymentAllocation.delete({ where: { id: al.id } }).catch(() => {});
       await prisma.productionPayment.delete({ where: { id: pp.id } }).catch(() => {});

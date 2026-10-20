@@ -44,38 +44,38 @@ export async function loadRecent(orgId: string, supplierId: string, now = new Da
 }
 
 /**
- * Оплаты, которые мы подтвердили у себя за 14 дней: «Аванс подтверждён: ... — сумма (дата)». Только оплаты этого подрядчика —
- * сырьё (Payment) и работа (оплата, разнесённая на его ТЗ). Неподтверждённые, плановые и отменённые сюда не попадают;
+ * Оплаты, проведённые за 14 дней (видны сразу, как оплатили): «Оплата проведена (аванс): ... — сумма (дата)». Только оплаты этого подрядчика —
+ * сырьё (Payment) и работа (оплата, разнесённая на его ТЗ). Плановые и отменённые сюда не попадают;
  * неразнесённые авансы и остатки заказчика — тем более.
  */
 async function loadRecentPayments(orgId: string, supplierId: string, since: Date): Promise<RecentItem[]> {
   const [raw, work, tzRows] = await Promise.all([
     prisma.payment.findMany({
-      where: { organizationId: orgId, supplierId, ...CONFIRMED_WHERE, confirmedAt: { gte: since } },
-      select: { id: true, amount: true, kind: true, paidAt: true, confirmedAt: true, invoiceNo: true, auctionSession: true, purchaseId: true, purchase: { select: { id: true, number: true, invoiceNumber: true, auction: { select: { name: true } } } } },
-      orderBy: { confirmedAt: "desc" }, take: 30,
+      where: { organizationId: orgId, supplierId, ...CONFIRMED_WHERE, paidAt: { gte: since } },
+      select: { id: true, amount: true, kind: true, paidAt: true, createdAt: true, invoiceNo: true, auctionSession: true, purchaseId: true, purchase: { select: { id: true, number: true, invoiceNumber: true, auction: { select: { name: true } } } } },
+      orderBy: { paidAt: "desc" }, take: 30,
     }),
     prisma.paymentAllocation.findMany({
-      where: { organizationId: orgId, productionOrder: { contractorId: supplierId }, productionPayment: { ...CONFIRMED_WHERE, confirmedAt: { gte: since } } },
-      select: { amount: true, productionOrderId: true, productionOrder: { select: { workOrderNumber: true, number: true } }, productionPayment: { select: { id: true, paymentType: true, paidAt: true, confirmedAt: true } } },
+      where: { organizationId: orgId, productionOrder: { contractorId: supplierId }, productionPayment: { ...CONFIRMED_WHERE, paidAt: { gte: since } } },
+      select: { amount: true, productionOrderId: true, productionOrder: { select: { workOrderNumber: true, number: true } }, productionPayment: { select: { id: true, paymentType: true, paidAt: true, createdAt: true } } },
       take: 200,
     }),
     prisma.supplierInbox.findMany({ where: { organizationId: orgId, supplierId, kind: "TZ", status: "ACCEPTED", createdEntityType: "ProductionOrder" }, select: { id: true, createdEntityId: true } }),
   ]);
   const out: RecentItem[] = raw.map((p) => {
     const what = p.purchase ? (p.purchase.auction?.name ?? p.auctionSession?.split(/\r?\n/)[0] ?? p.purchase.number) + (p.purchase.invoiceNumber ? `, счёт ${p.purchase.invoiceNumber}` : "") : (p.auctionSession?.split(/\r?\n/)[0] || (p.invoiceNo ? `счёт ${p.invoiceNo}` : "оплата"));
-    return { key: `p-${p.id}`, at: p.confirmedAt!, tone: "ok" as const, href: p.purchase ? `/supplier/raw/${p.purchase.id}` : "/supplier/raw", text: `Оплата подтверждена (${(PAY_KIND_LABEL[p.kind] ?? "оплата").toLowerCase()}): ${what} — ${formatMoney(Number(p.amount))} (${ru(p.paidAt)})` };
+    return { key: `p-${p.id}`, at: p.createdAt, tone: "ok" as const, href: p.purchase ? `/supplier/raw/${p.purchase.id}` : "/supplier/raw", text: `Оплата проведена (${(PAY_KIND_LABEL[p.kind] ?? "оплата").toLowerCase()}): ${what} — ${formatMoney(Number(p.amount))} (${ru(p.paidAt)})` };
   });
   const byPay = new Map<string, { at: Date; paidAt: Date; kind: string; sum: number; nums: string[]; order: string }>();
   for (const a of work) {
-    const cur = byPay.get(a.productionPayment.id) ?? { at: a.productionPayment.confirmedAt!, paidAt: a.productionPayment.paidAt, kind: a.productionPayment.paymentType, sum: 0, nums: [], order: a.productionOrderId };
+    const cur = byPay.get(a.productionPayment.id) ?? { at: a.productionPayment.createdAt, paidAt: a.productionPayment.paidAt, kind: a.productionPayment.paymentType, sum: 0, nums: [], order: a.productionOrderId };
     cur.sum += Number(a.amount);
     cur.nums.push(a.productionOrder.workOrderNumber?.trim() || a.productionOrder.number);
     byPay.set(a.productionPayment.id, cur);
   }
   for (const [id, v] of byPay) {
     const inbox = tzRows.find((r) => (r.createdEntityId ?? "").split(",").includes(v.order));
-    out.push({ key: `w-${id}`, at: v.at, tone: "ok", href: inbox ? `/supplier/tz/${inbox.id}` : "/supplier/tz", text: `Оплата за работу подтверждена (${(PAY_KIND_LABEL[v.kind] ?? "оплата").toLowerCase()}): ТЗ ${[...new Set(v.nums)].slice(0, 3).join(", ")} — ${formatMoney(v.sum)} (${ru(v.paidAt)})` });
+    out.push({ key: `w-${id}`, at: v.at, tone: "ok", href: inbox ? `/supplier/tz/${inbox.id}` : "/supplier/tz", text: `Оплата за работу проведена (${(PAY_KIND_LABEL[v.kind] ?? "оплата").toLowerCase()}): ТЗ ${[...new Set(v.nums)].slice(0, 3).join(", ")} — ${formatMoney(v.sum)} (${ru(v.paidAt)})` });
   }
   return out;
 }
@@ -86,8 +86,8 @@ export async function countNewDecisions(orgId: string, supplierId: string, seenM
   const after = new Date(Math.max(floor, seenMs ?? 0));
   const [decisions, pays, workPays] = await Promise.all([
     prisma.supplierInbox.count({ where: { organizationId: orgId, supplierId, status: { in: ["ACCEPTED", "REJECTED"] }, decidedAt: { gt: after } } }),
-    prisma.payment.count({ where: { organizationId: orgId, supplierId, ...CONFIRMED_WHERE, confirmedAt: { gt: after } } }),
-    prisma.productionPayment.count({ where: { organizationId: orgId, ...CONFIRMED_WHERE, confirmedAt: { gt: after }, allocations: { some: { productionOrder: { contractorId: supplierId } } } } }),
+    prisma.payment.count({ where: { organizationId: orgId, supplierId, ...CONFIRMED_WHERE, paidAt: { gte: new Date(floor) }, createdAt: { gt: after } } }),
+    prisma.productionPayment.count({ where: { organizationId: orgId, ...CONFIRMED_WHERE, paidAt: { gte: new Date(floor) }, createdAt: { gt: after }, allocations: { some: { productionOrder: { contractorId: supplierId } } } } }),
   ]);
   return decisions + pays + workPays;
 }

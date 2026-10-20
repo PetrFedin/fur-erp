@@ -5,8 +5,8 @@
 // Веллмеху не платятся и в статус не входят. Нет суммы счёта — «Нет счёта» (не «Не оплачено»). Переплата и недоплата до 1 ₽ — «Оплачено».
 //
 // Правило: подрядчик видит «Оплачено / Частично / Не оплачено» ТОЛЬКО по своим счетам, аукционам и ТЗ и ТОЛЬКО по оплатам,
-// которые заказчик подтвердил у себя: проведена (COMPLETED) + флаг «подтверждена» + отметка подтверждения (confirmedAt).
-// Черновые, плановые (PENDING), отменённые и ещё не подтверждённые оплаты не считаются оплаченными. Остатки и долги заказчика,
+// которые проведены (COMPLETED): оплата видна сразу, как только её внесли и провели, без отдельного подтверждения заказчиком
+// (решение владельца 20.10.2026). Черновые, плановые (PENDING) и отменённые оплаты не считаются оплаченными. Остатки и долги заказчика,
 // неразнесённые авансы и оплаты других подрядчиков сюда не попадают вообще.
 
 export type PayState = "PAID" | "PARTIAL" | "UNPAID" | "NOINVOICE";
@@ -20,12 +20,12 @@ export const PAY_DONE_EPS = 1;
 export type PayLine = { kind: string; amount: number; paidAt: Date };
 export type PayInfo = { state: PayState; paid: number; date: Date | null; lines: PayLine[] };
 
-type Flags = { status: string; confirmed: boolean; confirmedAt: Date | null };
-/** Оплата видна подрядчику только когда она проведена и подтверждена у заказчика. */
-export const isConfirmedForSupplier = (p: Flags): boolean => p.status === "COMPLETED" && p.confirmed === true && p.confirmedAt != null;
+type Flags = { status: string };
+/** Оплата видна подрядчику сразу, как только проведена (статус COMPLETED); флаг и отметка «подтверждена» на видимость не влияют. */
+export const isConfirmedForSupplier = (p: Flags): boolean => p.status === "COMPLETED";
 
 /** Условие выборки Prisma для тех же оплат (Payment и ProductionPayment) — одно место. */
-export const CONFIRMED_WHERE = { status: "COMPLETED", confirmed: true, confirmedAt: { not: null } } as const;
+export const CONFIRMED_WHERE = { status: "COMPLETED" } as const;
 
 /**
  * Статус по сумме к оплате и подтверждённым оплатам. totalKnown = false (цена работы у ТЗ не задана): «Оплачено»

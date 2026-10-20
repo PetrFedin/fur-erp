@@ -16,6 +16,7 @@ import { loadOrderRows } from "../src/lib/analytics-orders";
 import { toDrillOrder } from "../src/lib/dashboard-calc";
 import { loadDashboard } from "../src/lib/dashboard-data";
 import { loadDebtInputs, supplierDebtFromInputs } from "../src/lib/supplier-debt";
+import { loadPaymentsOverview } from "../src/lib/payments-overview";
 import { productionSplit } from "../src/lib/production-totals";
 import { readFileSync } from "node:fs";
 import { CHAIN, levelFor, drillTotals, type PathStep, type RootMode, type VatSel } from "../src/lib/dashboard-drill";
@@ -29,6 +30,7 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
 
 (async () => {
   const org = (await prisma.organization.findFirst())!.id;
+  const doplata = (await loadPaymentsOverview(org)).reduce((s, r) => s + r.hides, 0); // доплата подрядчику (НДС 22 %): деньги в оплатах, но не сырьё
   // 1. Связи плиток мех «куплено = использовано + остаток» (эталоны владельца за 09.10 убраны — данные выросли; суммы сверяются с SQL ниже)
   const fur = await loadFurLots(prisma, org, { kind: "fur", year: "all" });
   const f = flowOf(fur);
@@ -281,12 +283,12 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
       for (const kd of kinds) for (const v of VATS) for (const k of ["rq", "rv", "uq", "uv", "mq", "mv"] as const) eq(`${tag} Σ годов = «Все» ${kd}/${v}/${k}`, rows.reduce((s, r) => s + r[kd][v][k], 0), a.raw[kd][v][({ rq: "recvQty", rv: "recvValue", uq: "usedQty", uv: (c4 === "on" ? "usedValueOther" : "usedValue") as "usedValue", mq: "remQty", mv: "remValue" } as const)[k]], 0.05);
       eq(`${tag} Σ годов: «в выпуске» = завершённые + в работе («все годы»)`, rows.reduce((s, r) => s + r.prod.qty, 0), a.prod.done.qty + a.prod.work.qty);
       eq(`${tag} Σ годов: себестоимость = завершённые + в работе`, rows.reduce((s, r) => s + r.prod.costIncl, 0), a.prod.done.costIncl + a.prod.work.costIncl, 0.05);
-      // Без фильтров: оплачено по годам = деньги поставщику + шкуры подрядчика (оплачены в составе пошива) + зачтённые переплаты аукционов;
+      // Без фильтров: оплачено по годам = деньги поставщику + доплата подрядчику (НДС 22 % по сырью, в сырьё не входит) + зачтённые переплаты аукционов;
       // при фильтрах панели «Оплачено» и долг в таблице считаются по отобранным лотам (доля оплат аукциона), поэтому сравнивать с общим числом нельзя.
       // 0,05 ₽: дробные копейки долей лотов при распределении долга по годам (≈1,4 коп.) — не ошибка расчёта.
       if (!anyOn) {
         eq(`${tag} итог долга по годам = плитка «все годы»`, tot.debt, a.debt.debt.toNumber(), 0.05);
-        eq(`${tag} итог оплат по годам = деньги поставщику (без услуг по УПД, переплаты входят в «оплачено») + шкуры подрядчика`, tot.paid, a.supplierCashPaid - a.paidByItem.services + a.hides.incl, 0.05);
+        eq(`${tag} итог оплат по годам = деньги поставщику (без услуг по УПД, переплаты входят в «оплачено») + доплата подрядчику`, tot.paid, a.supplierCashPaid - a.paidByItem.services + doplata, 0.05);
       } else if (!lotOn) eq(`${tag} долг по годам при фильтре по ТЗ = общему долгу`, tot.debt, a.debt.debt.toNumber(), 0.05);
       // та же величина на разных блоках: годы 2025+2026 по закупкам = закупки «все годы»
       const d25 = await dd("2025", f, c4), d26 = await dd("2026", f, c4);
@@ -336,7 +338,8 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
         const sum = (a: object[], key: string) => a.reduce((s, r) => s + (r as Record<string, number>)[key], 0);
         const tag = `[SQL|${y}|4%:${c4}|${kd}]`;
         // К лотам меха на Главной добавлены: заказанное, но не полученное (в «Куплено» и «Остаток»), и шкуры подрядчика (в «Куплено» и «Использовано»; лотов нет).
-        const ordQ = kd === "fur" ? d.ordered.qty : 0, ordI = kd === "fur" ? d.ordered.incl : 0, ordX = kd === "fur" ? d.ordered.excl : 0;
+        // С 20.10.2026 заказанное, но не принятое НЕ входит в «Куплено / Остаток» (отдельная строка d.ordered); в сверке слагаемое равно нулю.
+        const ordQ = 0, ordI = 0, ordX = 0;
         const hdI = kd === "fur" ? d.hides.incl : 0, hdX = kd === "fur" ? d.hides.excl : 0;
         eq(`${tag} куплено шт.`, d.raw[kd].incl.recvQty, sum(L, "q") + ordQ, 0.002); eq(`${tag} куплено ₽ с НДС`, d.raw[kd].incl.recvValue, sum(L, "v") + ordI + hdI, 0.5);
         eq(`${tag} куплено ₽ без НДС`, d.raw[kd].excl.recvValue, sum(L, "vx") + ordX + hdX, 1);
@@ -378,7 +381,7 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
              (select coalesce(sum(amount),0)::float from "ProductionPayment" where "organizationId"='${org}' and status='COMPLETED' and "clientId" is not null) p`);
     eq("долг заказчиков (все годы, без фильтров): работы = SQL", allD.clientDebts.reduce((s, c) => s + c.billable, 0), cl.b, 0.5);
     // Шкуры подрядчика, пришедшие в платежах заказчика сверх работы ТЗ, — сырьё: из «Оплачено за работу» исключены (clientDebtInfo / loadClientDebt.hides).
-    eq("долг заказчиков (все годы, без фильтров): оплачено + шкуры подрядчика = SQL", allD.clientDebts.reduce((s, c) => s + c.paid, 0) + allD.hides.incl, cl.p, 0.5);
+    eq("долг заказчиков (все годы, без фильтров): оплачено + доплата подрядчику = SQL", allD.clientDebts.reduce((s, c) => s + c.paid, 0) + doplata, cl.p, 0.5);
     // по годам: работы складываются в «все годы» (ТЗ без года — только в «все годы»)
     const c25 = await dd("2025", E0, "off"), c26 = await dd("2026", E0, "off");
     const bil = (x: Dash) => x.clientDebts.reduce((s, c) => s + c.billable, 0);

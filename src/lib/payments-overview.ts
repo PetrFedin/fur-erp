@@ -183,7 +183,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
     }
     const posWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? "позиция" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "позиции" : "позиций");
     const parts: OverviewPart[] = Array.from(byTz, ([key, v]) => ({ label: v.n > 1 ? `ТЗ ${key} (${v.n} ${posWord(v.n)})` : `ТЗ ${key}`, href: v.href, amount: Math.round(v.amount * 100) / 100 }));
-    if (Math.abs(rest) > 0.5) parts.push({ label: hides > 0 ? "Шкуры подрядчика в составе счёта за пошив" : "Аванс без привязки к ТЗ", amount: rest });
+    if (Math.abs(rest) > 0.5) parts.push({ label: hides > 0 ? "Доплата подрядчику: НДС 22 % по сырью заказчика" : "Аванс без привязки к ТЗ", amount: rest });
     const orderIds = new Map<string, string>();
     for (const x of p.allocations) orderIds.set(x.productionOrder.id, x.productionOrder.workOrderNumber?.trim() || x.productionOrder.number);
     for (const x of p.orders) if (!orderIds.has(x.productionOrder.id)) orderIds.set(x.productionOrder.id, x.productionOrder.workOrderNumber?.trim() || x.productionOrder.number);
@@ -196,7 +196,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       ["Сумма", money(amount)],
       ["Вид оплаты", "За работу"],
       ["Тип", whatProd],
-      ["Статья", hides > 0 ? `работа ${money(amount - hides)} · шкуры подрядчика ${money(hides)}` : `работа ${money(amount)}`],
+      ["Статья", hides > 0 ? `работа ${money(amount - hides)} · доплата подрядчику (НДС 22 % по сырью) ${money(hides)}` : `работа ${money(amount)}`],
       ["Плательщик", PAYER_NAME],
       ["Получатель", contractor.name],
       ["За что", orderIds.size > 0 ? parts.filter((x) => x.label.startsWith("ТЗ ")).map((x) => x.label).join(", ") || Array.from(new Set(orderIds.values())).map((n) => `ТЗ ${n}`).join(", ") : "Без привязки к ТЗ (аванс)"],

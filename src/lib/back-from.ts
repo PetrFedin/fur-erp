@@ -19,7 +19,7 @@ const LABELS: [RegExp, string][] = [
   [/^\/purchases/, "Закупки"],
   [/^\/lots\/lining\/[^/]+/, "Партия подкладки"],
   [/^\/lots\/fur\/[^/]+/, "Вид меха"],
-  [/^\/lots\/contractor-hides/, "Шкуры подрядчика"],
+  [/^\/lots\/contractor-hides/, "Доплата подрядчику: НДС 22 %"],
   [/^\/lots/, "Сырьё"],
   [/^\/analytics\/raw\/lot\/[^/]+/, "Лот"],
   [/^\/analytics\/raw\/recon/, "Сверка лотов"],

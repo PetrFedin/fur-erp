@@ -226,6 +226,11 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
       eq("[xlsx] выручка с НДС в базе = в файле", sum(s.revIncl), fm);
     }
   }
+  // Товарные метрики (приход, продано, остаток, SO) живут только в «Продажи и остатки»: в Cashflow вместо них ссылка на /sales.
+  const cfSrc = readFileSync(join(process.cwd(), "src/app/(app)/cashflow/cashflow-view.tsx"), "utf8");
+  ok("Cashflow: нет товарных плиток Приход / Продано / Остаток / SO", !/label="(Приход, шт\.|Продано, шт\.|Остаток, шт\.|SO, %)"/.test(cfSrc) && !cfSrc.includes("Приход, продажи и остаток, шт."));
+  ok("Cashflow: вместо товарных метрик ссылка на /sales", cfSrc.includes('href="/sales"'));
+
   console.log(fails ? `\nПровалов: ${fails} из ${checks}` : `\nВсе проверки пройдены (${checks}).`);
   await prisma.$disconnect();
   process.exit(fails ? 1 : 0);

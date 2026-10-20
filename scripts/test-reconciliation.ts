@@ -37,9 +37,9 @@ const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[]
       eq(`${tag} оплачено услуги по УПД: виджет = Оплаты→Все`, d.paidByItem.services, sumOv("services", y));
       eq(`${tag} оплачено всего: мех + подкладка + услуги + работа = Σ оплат Оплаты→Все`, d.paidByItem.fur + d.paidByItem.lining + d.paidByItem.services + d.paidByItem.work, ov.filter((r) => y === "all" || r.year === Number(y)).reduce((a, r) => a + r.amount, 0));
       eq(`${tag} оплаты по типам: Σ типов = Σ статей`, d.paidByType.reduce((a, t) => a + t.amount, 0), d.paidByItem.fur + d.paidByItem.lining + d.paidByItem.services + d.paidByItem.work);
-      eq(`${tag} оплачено сырьё: Σ строк таблицы + «не получен» = виджет`, paidRows + d.rawMoneyTotal.unreceived.paid, d.rawMoneyTotal.paid);
+      eq(`${tag} оплачено сырьё: Σ строк таблицы + «не получен» = виджет`, paidRows + d.rawMoneyTotal.unreceived.paid + sumOv("hides", y), d.rawMoneyTotal.paid); // + доплата подрядчику (НДС 22 % по сырью): деньги в «Оплачено», но не лоты
       eq(`${tag} оплачено подкладка: строка таблицы = виджет`, linRows.reduce((a, r) => a + r.paid, 0), d.paidByItem.lining);
-      eq(`${tag} оплачено мех: Σ видов = виджет`, furRows.reduce((a, r) => a + r.paid, 0), d.paidByItem.fur);
+      eq(`${tag} оплачено мех: Σ видов = виджет`, furRows.reduce((a, r) => a + r.paid, 0) + sumOv("hides", y), d.paidByItem.fur);
       if (y === "all") eq(`${tag} оплачено сырьё: годы Σ = таблица`, d.years.find((r) => r.key === "all")!.paid, d.rawMoneyTotal.paid);
 
       // 2. Долг (К оплате): виджет = таблица = годы = Оплаты→Все = расчёт долга
@@ -64,7 +64,7 @@ const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[]
       // 3. Общая стоимость = куплено (мех и подкладка, с НДС) — подкладка допускает ≤ 5 ₽ округления цен
       const F = d.raw.fur.incl, L = d.raw.lining.incl;
       if (y === "all") {
-        eq(`${tag} общая стоимость меха = куплено меха`, d.paidByItem.fur + d.left.fur, F.recvValue, 5);
+        eq(`${tag} общая стоимость меха = куплено меха`, d.paidByItem.fur - sumOv("hides", y) + d.left.fur, F.recvValue, 5); // без доплаты подрядчику (она не сырьё)
         eq(`${tag} общая стоимость подкладки = куплено подкладки`, d.paidByItem.lining + d.left.lining, L.recvValue, 5);
       }
 

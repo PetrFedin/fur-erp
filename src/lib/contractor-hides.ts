@@ -43,6 +43,10 @@ export const hidesByPayYear = (rows: { year: number; hides: number }[]) => {
   return m;
 };
 
-/** Шкуры подрядчика не привязаны к аукциону, цвету, признаку и ставке НДС и относятся только к свакаре. */
-export const hidesApply = (f: { auction: string[]; fur: string[]; color: string[]; attr: string[]; vat: string[] }) =>
-  !(f.auction.length || f.color.length || f.attr.length || f.vat.length) && (f.fur.length === 0 || f.fur.includes("Свакара"));
+/**
+ * Решение по аудиту «Данные-2» (20.10.2026): суммы 189 966,22 + 32 918,56 + хвосты (229 150 ₽) — не шкуры, а доплата подрядчику:
+ * разница НДС 22 % / 20 % по сырью заказчика (расчёт доплаты партии 7, Приложение ТЗ 84). Стоимость уже в ТЗ расходом
+ * «Корректировка по документу ТЗ», поэтому в «Куплено / Использовано / Остаток» сырья она больше не входит (иначе двойной учёт).
+ * Функция оставлена для вызовов: всегда false. Сумма показывается только справочно на /lots/contractor-hides и в оплатах.
+ */
+export const hidesApply = (_f?: { auction: string[]; fur: string[]; color: string[]; attr: string[]; vat: string[] }) => false;

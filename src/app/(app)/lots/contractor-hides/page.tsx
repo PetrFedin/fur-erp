@@ -41,15 +41,14 @@ export default async function ContractorHidesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Мех", href: "/lots" }, { label: "Шкуры подрядчика" }]} />
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Мех", href: "/lots" }, { label: "Доплата подрядчику: НДС 22 %" }]} />
       <div className="flex flex-wrap items-center gap-2">
         <Link href="/lots" aria-label="Назад в «Сырьё — Мех»" title="Назад в «Сырьё — Мех»" className="inline-flex size-8 items-center justify-center rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">←</Link>
-        <h1 className="text-xl font-semibold">Шкуры подрядчика</h1>
+        <h1 className="text-xl font-semibold">Доплата подрядчику: НДС 22 % по сырью заказчика</h1>
         <YearNote year={year} />
         <span className="inline-flex">
-          <InfoHint label="О шкурах подрядчика" wide>
-            <p>Часть счетов за пошив, оплаченная как стоимость шкур (партии 7 и 8). Закупки и лотов на них нет, в ТЗ они не списываются: в «Сырьё — мех» это отдельная строка (куплено и сразу использовано).</p>
-            <p className="mt-1">Сумма — из оплат производства (остаток платежа с пометкой «шкур…»), по году платежа. Партии и ТЗ — по документам: п/п №22618 от 21.01.2026, счёт №1 — партия 7; п/п №82173 от 27.11.2025 — партия 8. Остаток партии делится между её ТЗ по изделиям. НДС: партия 7 — 22 %, партия 8 — 20 %.</p>
+          <InfoHint label="О доплате подрядчику" wide>
+            <p>Это не шкуры: по документам (расчёт доплаты партии 7, Приложение ТЗ 84) сумма — разница между НДС 22 % и 20 % по сырью заказчика, оплаченная в составе счетов за пошив. Стоимость уже входит в ТЗ расходом «Корректировка по документу ТЗ», поэтому в «Куплено», «Использовано» и «Остаток» сырья она не входит.</p>
           </InfoHint>
         </span>
       </div>

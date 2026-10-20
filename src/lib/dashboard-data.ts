@@ -50,7 +50,9 @@ const withHides = (p: CellsPair, v: { incl: number; excl: number } | undefined):
   const f = (c: Cells, x: number): Cells => ({ ...c, rv: c.rv + x, uv: c.uv + x, uo: c.uo + x, ra: c.rq > 0 ? Math.round(((c.rv + x) / c.rq) * 100) / 100 : null, ua: c.uq > 0 ? Math.round(((c.uv + x) / c.uq) * 100) / 100 : null });
   return { incl: f(p.incl, v.incl), excl: f(p.excl, v.excl) };
 };
-const withOrdered = (p: CellsPair, o: Ordered | undefined): CellsPair => (o ? { incl: bumpCells(p.incl, o.qty, o.incl), excl: bumpCells(p.excl, o.qty, o.excl) } : p);
+// Решение владельца 20.10.2026: заказанное, но не принятое (черновики FH 06.26, СП 09.26) НЕ входит в «Куплено / Использовано / Остаток»;
+// оно показывается отдельной строкой «Предоплачено, ждём поставку» (поле ordered). Функция оставлена тождественной.
+const withOrdered = (p: CellsPair, _o?: Ordered): CellsPair => p;
 const bumpFigures = (f: FlowFigures, q: number, v: number): FlowFigures => {
   const recvQty = f.recvQty + q, recvValue = f.recvValue + v, remQty = f.remQty + q, remValue = f.remValue + v;
   return { ...f, recvQty, recvValue, recvAvg: recvQty > 0 ? Math.round((recvValue / recvQty) * 100) / 100 : null, remQty, remValue, remAvg: remQty > 0 ? Math.round((remValue / remQty) * 100) / 100 : null };
@@ -586,7 +588,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
   const orderedAll = unreceived.byFur.reduce((a, g) => ({ qty: a.qty + g.ordered.qty, incl: a.incl + g.ordered.incl, excl: a.excl + g.ordered.excl }), { qty: 0, incl: 0, excl: 0 });
   const rawTableTotalAll = withHides(withOrdered(rawTableTotal, orderedAll), hidesTotal);
   const addHidesFig = (f: FlowFigures, v: number): FlowFigures => ({ ...f, recvValue: f.recvValue + v, recvAvg: f.recvQty > 0 ? Math.round(((f.recvValue + v) / f.recvQty) * 100) / 100 : null, usedValue: f.usedValue + v, usedValueOther: f.usedValueOther + v, usedAvg: f.usedQty > 0 ? Math.round(((f.usedValue + v) / f.usedQty) * 100) / 100 : null });
-  const furPairAll = { incl: addHidesFig(bumpFigures(furPair.incl, orderedAll.qty, orderedAll.incl), hidesTotal.incl), excl: addHidesFig(bumpFigures(furPair.excl, orderedAll.qty, orderedAll.excl), hidesTotal.excl) };
+  const furPairAll = { incl: addHidesFig(furPair.incl, hidesTotal.incl), excl: addHidesFig(furPair.excl, hidesTotal.excl) };
   const synth = (id: string, item: string, auction: string, year0: number, o: { qty: number; incl: number; excl: number }, used: { incl: number; excl: number } | null, money: { paid: number; due: number }, plan?: { q: number; s: number }, positions?: number): FurLot => ({
     id, kind: "fur", item, materialName: item, color: NOT_SET, size: NOT_SET, sizes: [], attrs: [], auction, auctionLabel: labeler(auction).label || auction, year: year0,
     lotNumber: used ? "шкуры подрядчика" : "заказано, не получено", grade: "", purchaseId: null, purchaseNumber: null, supplier: null,
@@ -696,7 +698,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
       const pairOf = (src: "auction" | "supplier") => figuresPair(flowOf(furLots.filter((l) => classifyLotSource(l) === src)), c4k);
       const a = pairOf("auction"), s = pairOf("supplier");
       return {
-        auction: { incl: bumpFigures(a.incl, orderedAll.qty, orderedAll.incl), excl: bumpFigures(a.excl, orderedAll.qty, orderedAll.excl) },
+        auction: { incl: a.incl, excl: a.excl },
         supplier: { incl: addHidesFig(s.incl, hidesTotal.incl), excl: addHidesFig(s.excl, hidesTotal.excl) },
       };
     })(),
@@ -721,7 +723,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
       const s = figuresPair(flowOf(furLots.filter((l) => classifyLotSource(l) === "supplier")), c4k);
       return {
         all: build("all", furPairAll),
-        auction: build("auction", { incl: bumpFigures(a.incl, orderedAll.qty, orderedAll.incl), excl: bumpFigures(a.excl, orderedAll.qty, orderedAll.excl) }),
+        auction: build("auction", { incl: a.incl, excl: a.excl }),
         supplier: build("supplier", { incl: addHidesFig(s.incl, hidesTotal.incl), excl: addHidesFig(s.excl, hidesTotal.excl) }),
       };
     })(),

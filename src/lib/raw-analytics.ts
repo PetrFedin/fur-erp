@@ -109,7 +109,7 @@ export function lotValues(l: RawLot): { recvIncl: Decimal; recvExcl: Decimal; re
   return l.fixed ?? { recvIncl: l.recv.mul(l.unitIncl), recvExcl: l.recv.mul(l.unitExcl), remIncl: l.rem.mul(l.unitIncl), remExcl: l.rem.mul(l.unitExcl) };
 }
 
-export const SYNTHETIC_LABEL = { ordered: "Заказано, не получено", hides: "Шкуры подрядчика" } as const;
+export const SYNTHETIC_LABEL = { ordered: "Заказано, не получено", hides: "Доплата подрядчику: НДС 22 %" } as const;
 
 export type RawData = {
   lots: RawLot[];
