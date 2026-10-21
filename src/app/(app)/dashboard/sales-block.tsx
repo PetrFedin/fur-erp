@@ -11,7 +11,7 @@ import { money, n0, pct, seg, segGroup, x2 } from "../sales/sales-fmt";
 import { FlowChart } from "./sales-block-charts";
 import { HIER_LABEL, SalesTable, moneyK, type Hier } from "./sales-block-table";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue, type TileItem } from "./tile";
-import type { SalesBlock, SalesCls } from "./sales-block-data";
+import type { OrdersSummary, SalesBlock, SalesCls } from "./sales-block-data";
 
 // Блок «Продажи и остатки» на Главной: плитки Получено / Продано / Остаток (листаются: Тотал · Одежда · Аксессуары), график и таблица.
 // Числа берутся из тех же функций, что раздел /sales (sales-block-data.ts), и должны с ним совпадать.
@@ -78,6 +78,49 @@ function Carousel({ label, pages, onOpen, index, onIndex }: { label: string; pag
         <button type="button" aria-label="Следующая страница" onClick={() => go(i + 1)} className={btn}>›</button>
       </div>
     </div>
+  );
+}
+
+/** «Заказ и приход»: заказано (Conf отчёта по товарам), пришло и сколько ещё ждём. По FW25 и SS26 ничего не ждём — заказано = пришло. */
+function OrdersPanel({ s, label }: { s: OrdersSummary; label: string }) {
+  const td = "px-2 py-1.5 text-right tabular-nums";
+  return (
+    <section aria-label="Заказ и приход" data-testid="dash-sales-orders" className="rounded-lg border border-neutral-300 bg-white p-3">
+      <h3 className="mb-2 flex items-center gap-1 text-sm font-semibold">Заказ и приход · {label}, шт.
+        <InfoHint label="Как считается заказ и приход" wide>
+          <p><b>Заказано</b> — подтверждённый заказ (Conf) из отчёта по товарам. По FW 25/26 и SS 2026 больше ничего не ждём: заказано = пришло. По FW 26/27 заказано = Conf.</p>
+          <p className="mt-1"><b>Пришло</b> — поступление. <b>Ждём</b> = заказано − пришло (только FW 26/27). Conf отчёта целиком: {n0(s.confReport)} шт.</p>
+        </InfoHint>
+      </h3>
+      <div className="overflow-x-auto rounded-lg border border-neutral-200" data-keep-scroll tabIndex={0}>
+        <table className="table-keep w-full min-w-[420px] text-sm">
+          <thead>
+            <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600">
+              <th scope="col" className="px-2 py-2 text-left font-semibold">Сезон</th>
+              <th scope="col" className="px-2 py-2 text-right font-semibold">Заказано</th>
+              <th scope="col" className="px-2 py-2 text-right font-semibold">Пришло</th>
+              <th scope="col" className="px-2 py-2 text-right font-semibold">Ждём</th>
+            </tr>
+          </thead>
+          <tbody>
+            {s.lines.map((l) => (
+              <tr key={l.key} className="border-b border-neutral-100">
+                <td className="px-2 py-1.5 text-left">{l.label}</td>
+                <td className={td}>{n0(l.ordered)}</td>
+                <td className={td}>{n0(l.delivered)}</td>
+                <td className={td + (l.awaiting > 0 ? " font-medium text-[#b4310b]" : "")}>{l.awaiting > 0 ? n0(l.awaiting) : "—"}</td>
+              </tr>
+            ))}
+            <tr className="row-total border-t-2 border-neutral-400 font-semibold">
+              <td className="px-2 py-1.5 text-left">Всего</td>
+              <td className={td}>{n0(s.total.ordered)}</td>
+              <td className={td}>{n0(s.total.delivered)}</td>
+              <td className={td}>{s.total.awaiting > 0 ? n0(s.total.awaiting) : "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -177,6 +220,8 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
           {(["received", "sold", "stock"] as const).map(tile)}
         </div>
       </WidgetRow>
+
+      {b.orderSummary[cls] ? <OrdersPanel s={b.orderSummary[cls]!} label={CLS_LABEL[cls]} /> : null}
 
       <FlowChart points={slice.months[cls]} note={CLS_LABEL[cls]} />
 
