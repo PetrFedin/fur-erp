@@ -29,7 +29,7 @@ export function PricesBlock({ models, canEdit }: { models: PriceModel[]; canEdit
             <thead>
               <tr className="border-b border-neutral-300">
                 <th scope="col" className={th + " sticky left-0 top-0 z-[2] bg-white text-left"}>Модель / артикул / цвет / размер</th>
-                <th scope="col" className={th + " sticky top-0 bg-white"}>Розница (прайс 19.10.2026), с НДС</th>
+                <th scope="col" className={th + " sticky top-0 bg-white"}>Розница (прайс), с НДС</th>
                 <th scope="col" className={th + " sticky top-0 bg-white"}>В карточке изделия</th>
                 <th scope="col" className={th + " sticky top-0 bg-white text-left"}>Карточка и прайс</th>
               </tr>

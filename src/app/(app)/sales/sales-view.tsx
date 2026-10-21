@@ -99,12 +99,12 @@ export function SalesView({ input, sizes, photos, today, initial, chain }: Props
     { id: "sold", label: "Продано, шт.", value: n0(head.sold), sub: `выручка ${moneyC(head.revenue)} · ${vatNote}`,
       how: <><p>Нетто = валовое {n0(head.gross)} − возвраты {n0(head.returns)}. Деньги — за тот же период ({vatNote}; НДС 20 % до 2026, 22 % с 2026).</p>{head.noPcs > 0 ? <p className="mt-1">{head.noPcs} строк продаж без штук: только скидка, в штуки не входят.</p> : null}</>,
       cols: [{ head: "Нетто, шт.", get: (e) => n0(e.sold) }, { head: "Выручка, ₽", get: (e) => money(e.revenue) }, { head: "Ср. цена, ₽", get: (e) => money(e.avgPrice) }, { head: "Скидка", get: (e) => pct(e.discountGiven, 1) }, { head: "Маржа", get: (e) => (e.grossMarginPct === null ? DASH : pct(e.grossMarginPct / 100, 1)) }] },
-    { id: "stock", label: "Остаток, шт.", value: n0(stockEnd), sub: hasReport && isPlain ? `Report на 19.10: ${n0(reportStock)} · разница ${n0(Math.abs(diff))}` : "приход − продано",
+    { id: "stock", label: "Остаток, шт.", value: n0(stockEnd), sub: hasReport && isPlain ? `Report: ${n0(reportStock)} · разница ${n0(Math.abs(diff))}` : "приход − продано",
       how: <><p>Расчётный остаток = приход − продано нарастающим итогом на конец периода{opening ? ` (на начало периода: ${n0(opening)} шт.)` : ""}.</p>{hasReport && isPlain ? <p className="mt-1">В отчёте о товарах (Report) на 19.10.2026 остаток {n0(reportStock)} шт., расчёт даёт {n0(stockEnd)} шт.: {diff === 0 ? "совпадает" : `разница ${n0(Math.abs(diff))} шт.`}. Причина в выгрузке не видна.</p> : null}</>,
       cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "Остаток", get: (e) => n0(e.stock) }] },
-    { id: "sellThrough", label: "Sell-through", value: pct(head.sellThrough), sub: "продано ÷ получено",
-      how: <p>Sell-through = продано ÷ получено, единицы за период. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений. Приход 0 — «—».</p>,
-      cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "Sell-through", get: (e) => pct(e.sellThrough) }] },
+    { id: "sellThrough", label: "SO", value: pct(head.sellThrough), sub: "продано ÷ получено",
+      how: <p>SO = продано ÷ получено, единицы за период. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений. Приход 0 — «—».</p>,
+      cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "SO", get: (e) => pct(e.sellThrough) }] },
   ];
   const fg = chain.produced - chain.shipped;
   type Link_ = { id: string; label: string; value: string; sub?: string; how: React.ReactNode; to: string[][] };

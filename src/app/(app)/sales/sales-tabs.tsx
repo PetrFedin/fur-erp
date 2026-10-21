@@ -32,7 +32,7 @@ export function SeasonsTab({ ctx, env, lines, vatNote, gran, onGran, ex }: Commo
     { label: "Приход, шт.", get: (m) => m.received, fmt: (v) => n0(v ?? 0) },
     { label: "Продано, шт.", get: (m) => m.sold, fmt: (v) => n0(v ?? 0) },
     { label: "Остаток на конец, шт.", get: (_m, s) => s, fmt: (v) => n0(v ?? 0) },
-    { label: "Sell-through", get: (m) => m.sellThrough, fmt: (v) => pct(v) },
+    { label: "SO", get: (m) => m.sellThrough, fmt: (v) => pct(v) },
     { label: `Выручка, ₽ (${vatNote})`, get: (m) => m.revenue, fmt: (v) => money(v) },
     { label: "Средняя цена, ₽", get: (m) => m.avgPrice, fmt: (v) => money(v) },
     { label: "Скидка при продаже", get: (m) => m.discountGiven, fmt: (v) => pct(v, 1) },

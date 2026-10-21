@@ -743,14 +743,14 @@ export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy, pa
           <Tile label="Чистый поток / накопленный итог" value="—" sub={filtered ? "траты не делятся по категориям" : "нет данных о продажах"} hint={<p>Чистый денежный поток = получено − потрачено; накопленный итог — то же нарастающим итогом. При фильтре по категории траты не делятся, поэтому не считаются.</p>} />
         )}
         <CarouselTile label="Работа в месяц" initial={pageOf[cat]} onOpen={(k) => openFor("workMonth", k)} pages={catPages.map((c) => { const st = wm.st[c]; return {
-          label: `Работа в месяц · ${c === "all" ? "Тотал" : CAT_LABEL[c]}`,
+          label: `Работа в месяц · ${c === "all" ? "Всего" : CAT_LABEL[c]}`,
           value: st.avgUnits === null || st.avgUnits === 0 ? "—" : `${st.avgUnits.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.`,
           sub: st.n ? `средневзвешенно за ${st.n} мес. проекта, получено ${pcs(st.unitsTotal)} шт.` : undefined,
           rows: [["Работа в месяц, ₽", rubOrDash(st.avgMonth)]] as [string, string][],
           hint: <p>Штук в месяц = единицы, полученные за период, ÷ число календарных месяцев проекта (общее число единиц, не среднее средних). Работа в месяц = вся работа подрядчику ÷ те же месяцы; по категориям — работа по ТЗ категории и приход категории ÷ N (работа без привязки к ТЗ — только в «Тотал»). Месяцы: от августа 2025 (первая оплата работы) до текущего включительно, в границах периода: {st.n} мес.; в расчёт входят и месяцы без работы и поставок, текущий месяц неполный.</p>,
         }; })} />
         <CarouselTile label="Работа на единицу" initial={pageOf[cat]} onOpen={(k) => openFor("workUnit", k)} pages={catPages.map((c) => { const st = wm.st[c]; return {
-          label: `Работа на единицу · ${c === "all" ? "Тотал" : CAT_LABEL[c]}`,
+          label: `Работа на единицу · ${c === "all" ? "Всего" : CAT_LABEL[c]}`,
           value: rubOrDash(st.perUnit),
           sub: hasSales ? `оплачено ${rubOrDash(st.total)} ÷ получено ${st.unitsTotal || "—"} шт.` : "нет данных о приходе",
           rows: [["Единиц всего", st.unitsTotal ? String(st.unitsTotal) : "—"], ["Работа всего", rubOrDash(st.total)]] as [string, string][],
@@ -758,7 +758,7 @@ export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy, pa
         }; })} />
         {hasSales ? (
           <CarouselTile label="Средняя цена продажи" initial={pageOf[cat]} onOpen={(k) => openFor("price", k)} pages={catPages.map((c) => { const g = groupSales(saleLines, months, exVat, () => "x", c)[0]; return {
-            label: `Средняя цена продажи · ${c === "all" ? "Тотал" : CAT_LABEL[c]}`,
+            label: `Средняя цена продажи · ${c === "all" ? "Всего" : CAT_LABEL[c]}`,
             value: g && g.pcs > 0 ? formatMoney(g.rev / g.pcs) : "—",
             sub: g && g.pcs > 0 ? `${pcs(g.pcs)} шт. продано, ${vatNote}` : "нет продаж",
             rows: [["Выручка", g ? money(g.rev) : "—"], ["Выручка в среднем в месяц", g ? money(g.rev / Math.max(1, m.keep.filter((i) => (exVat ? salesBy[c].revEx[i] : salesBy[c].revIncl[i]) > 0.5).length)) : "—"]] as [string, string][],

@@ -1,0 +1,55 @@
+{
+  "disabledMcpjsonServers": [
+    "shadcn"
+  ],
+  "env": {
+    "BASH_MAX_OUTPUT_LENGTH": "15000"
+  },
+  "permissions": {
+    "deny": [
+      "Read(./.next/**)",
+      "Read(./package-lock.json)",
+      "Read(./tsconfig.tsbuildinfo)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/local/bin/node \"$HOME/.claude/hooks/guard-data-loss.js\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/local/bin/node \"$HOME/.claude/hooks/read-budget.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/local/bin/node \"$HOME/.claude/hooks/verify-on-stop.js\"",
+            "timeout": 200
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/autobackup.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

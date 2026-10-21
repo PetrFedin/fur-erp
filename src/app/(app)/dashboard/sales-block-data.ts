@@ -128,7 +128,8 @@ function stockMoney(ctx: Ctx, lines: SLine[], scope: SLine[]): Pick<SalesMoney, 
   }
   let sRev = 0, sCost = 0, sPcs = 0;
   for (const l of lines) {
-    if (l.kind !== "SALE" || l.pcs === 0 || !ctx.hasCost(l)) continue;
+    if (l.kind !== "SALE" || !ctx.hasCost(l)) continue;
+    // Строка продажи без штук (корректировка цены: сумма есть, штук нет) входит в выручку артикула, но не в штуки и себестоимость — как в отчёте по товарам.
     sRev += inc ? l.retailRub : l.retailRubExVat; sCost += cost(l) * l.pcs; sPcs += l.pcs;
   }
   return { recvCost, recvCostPcs, recvList, recvListPcs, stockCost, stockCostPcs, stockList, stockListPcs, soldCost: sCost, soldCostPcs: sPcs, markupSold: sCost > 0 ? sRev / sCost : null, markupStock: bothCost > 0 ? bothList / bothCost : null };

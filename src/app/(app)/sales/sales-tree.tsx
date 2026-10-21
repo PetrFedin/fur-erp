@@ -23,14 +23,14 @@ export const MEASURES: Measure[] = [
   { key: "sold", label: "Продано, шт.", hint: <p>Sales PCS: проданные единицы нетто, возвраты минус.</p>, fmt: (m) => n0(m.sold) },
   { key: "returns", label: "Возвраты, шт.", hint: <p>Возвраты: модуль отрицательных штук в строках продаж.</p>, fmt: (m) => n0(m.returns) },
   { key: "stock", label: "Остаток, шт.", hint: <p>Расчётный остаток = получено − продано.</p>, fmt: (m) => n0(m.stock) },
-  { key: "sellThrough", label: "Sell-through", hint: <p>Продано ÷ получено, единицы. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений.</p>, fmt: (m) => pct(m.sellThrough) },
+  { key: "sellThrough", label: "SO", hint: <p>Продано ÷ получено, единицы. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений.</p>, fmt: (m) => pct(m.sellThrough) },
   { key: "revenue", label: "Выручка (Net sales)", money: true, hint: <p>Retail RUR после скидки, возвраты минус; с НДС или без — по переключателю.</p>, fmt: (m) => money(m.revenue) },
   { key: "grossRev", label: "Розница до скидки (Gross)", money: true, hint: <p>Gross = Выручка + Скидка (Discount).</p>, fmt: (m) => money(m.grossRev) },
   { key: "discountSum", label: "Скидка", money: true, hint: <p>Discount файла, уже вычтен из выручки.</p>, fmt: (m) => money(m.discountSum) },
   { key: "discountGiven", label: "Скидка, %", hint: <p>Скидка при продаже = Discount ÷ Gross.</p>, fmt: (m) => pct(m.discountGiven === null ? null : m.discountGiven, 1) },
   { key: "avgPrice", label: "Цена продажи, ₽/шт.", hint: <p>Выручка ÷ проданные штуки (средневзвешенно).</p>, fmt: (m) => money(m.avgPrice) },
   { key: "priceBefore", label: "Цена до скидки, ₽/шт.", hint: <p>Gross ÷ проданные штуки (средневзвешенно).</p>, fmt: (m) => money(m.priceBefore) },
-  { key: "listPrice", label: "Прайс 19.10, ₽/шт.", hint: <p>Цена прайса 19.10.2026, средняя по проданным штукам.</p>, fmt: (m) => money(m.listPrice) },
+  { key: "listPrice", label: "Прайс, ₽/шт.", hint: <p>Цена прайса 19.10.2026, средняя по проданным штукам.</p>, fmt: (m) => money(m.listPrice) },
   { key: "priceToList", label: "К прайсу, %", hint: <p>Выручка с НДС ÷ (штуки × прайс) − 1.</p>, fmt: (m) => spct(m.priceToList) },
   { key: "unitCost", label: "Себестоимость", money: true, hint: <p>Себестоимость единицы из ТЗ (с работой) по проданным единицам, где она есть.</p>, fmt: (m) => money(m.unitCost) },
   { key: "markupW", label: "Маркап", hint: <p>Средневзвешенный по приходу: Σ(розница × шт.) ÷ Σ(себестоимость с НДС × шт.).</p>, fmt: (m) => x2(m.markupW) },
@@ -132,7 +132,7 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
   };
 
   const exportCsv = () => {
-    const head = ["Уровень", "Позиция", ...(["Тотал", ...groups.map((g) => g.head)].flatMap((h, gi) => measures.filter((ms) => gi === 0 || !ms.totalOnly).map((ms) => `${h}: ${ms.label}`)))];
+    const head = ["Уровень", "Позиция", ...(["Всего", ...groups.map((g) => g.head)].flatMap((h, gi) => measures.filter((ms) => gi === 0 || !ms.totalOnly).map((ms) => `${h}: ${ms.label}`)))];
     const rows: (string | number | null)[][] = [];
     walkTree(tree, (n, depth) => {
       rows.push([depth === 0 ? "Всего" : SDIM_LABEL[n.dim], n.label, ...n.cols.flatMap((m, gi) => measures.filter((ms) => gi === 0 || !ms.totalOnly).map((ms) => (ms.key === "conf" ? confOf(n) : ms.fmt(m))))]);
@@ -177,7 +177,7 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
     );
   };
 
-  const heads = ["Тотал", ...groups.map((g) => g.head)];
+  const heads = ["Всего", ...groups.map((g) => g.head)];
   const orderTitle = order.map((d) => SDIM_LABEL[d]).join(" → ");
   return (
     <section aria-label="Таблица детализации" className="flex min-w-0 scroll-mt-16 flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3">

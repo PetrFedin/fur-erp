@@ -158,7 +158,7 @@ export function PriceDetail({ lines, months, exVat, cat, controls }: { lines: Sa
   return (
     <div className="flex flex-col gap-4">
       {controls}
-      <Chips label="Сезон" value={sel} options={[["all", "Тотал"], ...seasons.map((s) => [s, s] as [string, string])]} onChange={setSel} />
+      <Chips label="Сезон" value={sel} options={[["all", "Всего"], ...seasons.map((s) => [s, s] as [string, string])]} onChange={setSel} />
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         <Stat2 label="Средняя цена продажи" value={avg(a)} sub={exVat ? "без НДС" : "с НДС"} />
         <Stat2 label="Продано, шт." value={n0(a.pcs)} />
