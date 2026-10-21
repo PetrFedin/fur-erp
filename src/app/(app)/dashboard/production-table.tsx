@@ -1,6 +1,7 @@
 "use client";
 
 import { InfoHint } from "@/components/info-hint";
+import { HierSwitch } from "@/components/hier-switch";
 import { TH, THGroup } from "@/components/table-head";
 import { TotalLabel } from "@/components/total-label";
 import { Fragment, useEffect, useMemo, useState } from "react";
@@ -247,12 +248,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
     <div className="rounded-lg border border-neutral-200 bg-white p-3 print:break-inside-avoid">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Объёмы по группам меха и категориям</h3>
-        <div role="tablist" aria-label="Разрез таблицы" className="inline-flex overflow-hidden rounded-lg border border-neutral-300 text-xs">
-          {([["cat", "Категории → мех"], ["fur", "Мех → категории"]] as const).map(([id, label]) => (
-            <button key={id} type="button" role="tab" aria-selected={by === id} onClick={() => { setBy(id); setOpen(new Set()); }}
-              className={"px-3 py-1.5 max-md:min-h-11 " + (by === id ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</button>
-          ))}
-        </div>
+        <HierSwitch value={by === "cat" ? "cls" : "fur"} onChange={(h) => { setBy(h === "cls" ? "cat" : "fur"); setOpen(new Set()); }} />
       </div>
       {error ? <p className="py-4 text-sm text-neutral-500">Не удалось загрузить данные таблицы.</p> : !data ? <p className="py-4 text-sm text-neutral-500">Загрузка…</p> : (
         <div className="overflow-x-auto">

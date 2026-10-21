@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react";
 import { InfoHint } from "@/components/info-hint";
+import { HierSwitch } from "@/components/hier-switch";
 import { TH, THGroup } from "@/components/table-head";
 import { TotalLabel } from "@/components/total-label";
 import { useVatDisplay } from "@/lib/vat-display";
@@ -94,12 +95,7 @@ export function AveragesTable({ data }: { data: DrillData | null }) {
             <p className="mt-1">Смешанные ТЗ («Норка + Соболь») входят в каждый свой вид меха целиком: шкуры — свои, подкладка, работа и расходы делятся по стоимости шкур. Поэтому «Изделий» по видам не суммируется.</p>
           </InfoHint>
         </h3>
-        <div role="tablist" aria-label="Разрез среднего" className="inline-flex overflow-hidden rounded-lg border border-neutral-300 text-xs">
-          {TABS.map((t) => (
-            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => { setTab(t.id); setOpen(new Set()); }}
-              className={"min-h-11 px-3 py-1.5 " + (tab === t.id ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-50")}>{t.label}</button>
-          ))}
-        </div>
+        <HierSwitch value={tab === "cat" ? "cls" : "fur"} onChange={(h) => { setTab(h === "cls" ? "cat" : "fur"); setOpen(new Set()); }} />
       </div>
       {!data ? <p className="py-4 text-sm text-neutral-500">Загрузка…</p> : (
         <div className="overflow-x-auto">

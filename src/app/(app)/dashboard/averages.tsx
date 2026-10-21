@@ -41,9 +41,9 @@ function avgs(g: Agg) {
 
 /** Срезы внутри выбранной группы (первый уровень — сама группа: одежда, аксессуары). */
 const MODES: { id: string; label: string; levels: Lvl[] }[] = [
-  { id: "cat", label: "Категория → мех → артикул", levels: ["cat", "furl", "model"] },
-  { id: "fur", label: "Мех → категория → артикул", levels: ["furl", "cat", "model"] },
-  { id: "model", label: "Категория → артикул", levels: ["cat", "model"] },
+  { id: "cat", label: "Кат. 1 → тип меха → артикул", levels: ["cat", "furl", "model"] },
+  { id: "fur", label: "Тип меха → кат. 1 → артикул", levels: ["furl", "cat", "model"] },
+  { id: "model", label: "Кат. 1 → артикул", levels: ["cat", "model"] },
 ];
 
 export function useDrill(search: Record<string, string[]>) {

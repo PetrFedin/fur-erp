@@ -10,7 +10,8 @@ import { SalesModal } from "../sales/sales-modal";
 import { money, n0, pct, seg, segGroup, x2 } from "../sales/sales-fmt";
 import { FlowChart } from "./sales-block-charts";
 import { SeasonSwitch, useSeasonScope } from "./season-scope";
-import { HIER_LABEL, SalesTable, moneyK, type Hier } from "./sales-block-table";
+import { SalesTable, moneyK } from "./sales-block-table";
+import { HierSwitch, type Hier } from "@/components/hier-switch";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue, type TileItem } from "./tile";
 import type { OrderNode, OrdersSummary, SalesBlock, SalesCls, SalesRow } from "./sales-block-data";
 
@@ -25,14 +26,6 @@ const CLS_LABEL: Record<SalesCls, string> = { all: "Тотал", clothes: "Од�
 const TILE_TITLE: Record<Tile, string> = { ordered: "Заказано", received: "Получено", sold: "Продано", stock: "Остаток" };
 
 const qty = (v: number) => (v === 0 ? "—" : n0(v) + " шт.");
-
-function HierSwitch({ value, onChange }: { value: Hier; onChange: (h: Hier) => void }) {
-  return (
-    <div role="group" aria-label="Иерархия строк" className={segGroup}>
-      {(["fur", "cls"] as const).map((h) => <button key={h} type="button" aria-pressed={value === h} onClick={() => onChange(h)} className={seg(value === h)}>{HIER_LABEL[h]}</button>)}
-    </div>
-  );
-}
 
 /** Плитка-карусель: страницы листаются свайпом или скроллом вправо-влево, стрелками и точками. */
 function Carousel({ label, pages, onOpen, index, onIndex }: { label: string; pages: { key: string; node: React.ReactNode }[]; onOpen: (key: string) => void; index: number; onIndex: (i: number) => void }) {
@@ -292,7 +285,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         note={hotRow?.series ? `${CLS_LABEL[cls]} · ${hotRow.label}` : CLS_LABEL[cls]} />
 
       <PinSection id="sales-table" title={`Продажи и остатки по типам меха · ${CLS_LABEL[cls]}`} value={[hier]} onRestore={(x) => { if (x[0] === "fur" || x[0] === "cls") setHier(x[0]); }}>
-        <div className="mb-2 print:hidden"><HierSwitch value={hier} onChange={setHier} /></div>
+        <div className="mb-2 flex justify-end print:hidden"><HierSwitch value={hier} onChange={setHier} /></div>
         <SalesTable key={season + hier + cls} view={slice.views[cls][hier]} v={v} vatNote={vatNote} testId="dash-sales-table" ordCol={season === ORDERS_OPEN && slice.views[cls][hier].total.ordered !== undefined} onHover={setHotRow} cumCol={season !== "all"} soAs={slice.soAsEnd !== null} />
       </PinSection>
       {modal}
