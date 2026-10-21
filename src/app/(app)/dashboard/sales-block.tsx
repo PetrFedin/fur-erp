@@ -88,8 +88,8 @@ function OrdersPanel({ s, label }: { s: OrdersSummary; label: string }) {
     <section aria-label="Заказ и приход" data-testid="dash-sales-orders" className="rounded-lg border border-neutral-300 bg-white p-3">
       <h3 className="mb-2 flex items-center gap-1 text-sm font-semibold">Заказ и приход · {label}, шт.
         <InfoHint label="Как считается заказ и приход" wide>
-          <p><b>Заказано</b> — подтверждённый заказ (Conf) из отчёта по товарам. По FW 25/26 и SS 2026 больше ничего не ждём: заказано = пришло. По FW 26/27 заказано = Conf.</p>
-          <p className="mt-1"><b>Пришло</b> — поступление. <b>Ждём</b> = заказано − пришло (только FW 26/27). Conf отчёта целиком: {n0(s.confReport)} шт.</p>
+          <p><b>Пришло</b> — приход по сезонам, те же числа, что в плитке «Получено». По FW 25/26 и SS 2026 больше ничего не ждём: заказано = пришло.</p>
+          <p className="mt-1"><b>Ждём</b> (только FW 26/27) = Conf − поступило по отчёту по товарам; заказано = пришло + ждём. Conf отчёта целиком: {n0(s.confReport)} шт.</p>
         </InfoHint>
       </h3>
       <div className="overflow-x-auto rounded-lg border border-neutral-200" data-keep-scroll tabIndex={0}>

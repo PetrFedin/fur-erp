@@ -33,18 +33,17 @@ export type SalesRow = {
 export type SalesCls = "all" | "clothes" | "acc";
 export const SALES_CLS: SalesCls[] = ["all", "clothes", "acc"];
 export type SalesHead = { /** SO AS: проданное до конца сезона ÷ получено; null, если сезон идёт. */ soAs: number | null; /** Весь остаток на сегодня по всем сезонам (в срезе «все сезоны» равен stock). */ stockCum: number; stockListCum: VatPair; markupStockCum: { in: number | null; ex: number | null }; received: number; sold: number; gross: number; returns: number; opening: number; stock: number; sellThrough: number | null; orders: number; articles: number; money: { in: SalesMoney; ex: SalesMoney } };
-/** Заказ и приход, шт. (отчёт по товарам): по FW25 и SS26 больше ничего не ждём (заказано = поступило), по FW26 заказано = Conf, ждём = Conf − поступило. */
+/** Заказ и приход, шт. «Пришло» по сезонам — те же числа, что в плитке «Получено» (приход по датам). По закончившимся сезонам больше ничего не ждём: заказано = пришло; по сезону отчёта FW 26/27 заказано = пришло + ждём, где ждём = Conf − поступило из отчёта по товарам. */
 export type OrderLine = { key: string; label: string; ordered: number; delivered: number; awaiting: number };
 export type OrdersSummary = { lines: OrderLine[]; total: OrderLine; /** Conf отчёта целиком (включая разницу по закончившимся сезонам). */ confReport: number };
-export function ordersSummary(sizes: ReportSizeRow[], cls: SalesCls): OrdersSummary | null {
+export const ORDERS_OPEN_SEASON = "FW 26/27";
+export function ordersSummary(sizes: ReportSizeRow[], cls: SalesCls, received: { season: string; received: number }[]): OrdersSummary | null {
   if (!sizes.some((r) => r.fw26Conf !== undefined)) return null;
   const rs = sizes.filter((r) => cls === "all" || r.cls === (cls === "clothes" ? "clothes" : "acc"));
   const sum = (f: (r: ReportSizeRow) => number) => rs.reduce((a, r) => a + f(r), 0);
-  const fw25 = sum((r) => r.fw25Deliv ?? 0), ss26 = sum((r) => r.ss26Deliv ?? 0), fw26Del = sum((r) => r.fw26Deliv ?? 0), fw26Conf = sum((r) => r.fw26Conf ?? 0);
-  const old = sum((r) => r.deliv) - fw25 - ss26 - fw26Del;
-  const line = (key: string, label: string, ordered: number, delivered: number): OrderLine => ({ key, label, ordered, delivered, awaiting: ordered - delivered });
-  const lines = [line("fw25", "FW 25/26", fw25, fw25), line("ss26", "SS 2026", ss26, ss26), ...(old !== 0 ? [line("old", "Прежние сезоны", old, old)] : []), line("fw26", "FW 26/27", fw26Conf, fw26Del)];
-  const total = line("total", "Всего", lines.reduce((a, l) => a + l.ordered, 0), lines.reduce((a, l) => a + l.delivered, 0));
+  const awaiting = Math.max(0, sum((r) => (r.fw26Conf ?? 0) - (r.fw26Deliv ?? 0)));
+  const lines = received.map((x): OrderLine => { const w = x.season === ORDERS_OPEN_SEASON ? awaiting : 0; return { key: x.season, label: x.season, ordered: x.received + w, delivered: x.received, awaiting: w }; });
+  const total: OrderLine = { key: "total", label: "Всего", ordered: lines.reduce((a, l) => a + l.ordered, 0), delivered: lines.reduce((a, l) => a + l.delivered, 0), awaiting: lines.reduce((a, l) => a + l.awaiting, 0) };
   return { lines, total, confReport: sum((r) => r.conf ?? 0) };
 }
 export type SalesView = { rows: SalesRow[]; total: SalesRow };
@@ -254,7 +253,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
     orders: h.orders, articles: h.articles,
     received: h.received, sold: h.sold, gross: h.gross, returns: h.returns, opening: h.opening, stock: h.stock, sellThrough: h.sellThrough, firstReceipt: hIn.firstReceipt, lastSale: hIn.lastSale,
     money: h.money, seasons, months: all0.months.all, rows: all0.views.all.fur.rows, total: all0.views.all.fur.total, slices,
-    orderSummary: { all: ordersSummary(sizes, "all"), clothes: ordersSummary(sizes, "clothes"), acc: ordersSummary(sizes, "acc") },
+    orderSummary: Object.fromEntries(SALES_CLS.map((c) => [c, ordersSummary(sizes, c, seasonKeys.map((k) => ({ season: k, received: slices[k].head[c].received })))])) as Record<SalesCls, OrdersSummary | null>,
     href: { in: salesHref(year, "in"), ex: salesHref(year, "ex") },
     hasData: all.length > 0,
   };
