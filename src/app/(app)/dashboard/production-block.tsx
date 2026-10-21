@@ -44,10 +44,10 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
   const other = Math.abs(otherRaw) < 0.5 ? 0 : otherRaw;
   const total = costAll + fact.work;
   const parts = [
-    { k: "Мех", v: D.fur, with4: D.fur + c4Parts.fur[vat] },
+    // Расходы ТЗ и прочее отдельной строкой не показываем: это поправки к стоимости сырья по документам ТЗ (НДС 22 % вместо 20 % в лотах) и доп. материалы — входят в мех.
+    { k: "Мех", v: D.fur + other, with4: D.fur + other + c4Parts.fur[vat] },
     { k: "Подкладка", v: D.lining, with4: D.lining + c4Parts.lining[vat] },
     ...(c4 === "on" ? [{ k: "Надбавка 4%", v: D.c4, with4: undefined as number | undefined }] : []),
-    ...(other !== 0 ? [{ k: "Расходы ТЗ и прочее", v: other, with4: undefined as number | undefined }] : []),
     { k: "Работа", v: fact.work, with4: undefined as number | undefined },
   ];
   void info;

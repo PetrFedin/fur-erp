@@ -153,7 +153,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
   // Ремонт — не выпуск изделий: в штуки и средние цены не входит, показан отдельной строкой.
   const isRepair = (o: DrillOrder) => o.cat === REPAIR_CATEGORY;
   const rows = useMemo(() => (data ? build(data.orders.filter((o) => !isRepair(o)), vat, LEVELS[by], true) : []), [data, vat, by]);
-  const showOther = rows.some((r) => Math.abs(r.other) > 0.5);
+  const showOther = false; // расходы ТЗ и прочее — внутри меха (поправки к стоимости сырья по документам ТЗ)
   const { total, repair, all } = useMemo(() => {
     const t = blank("items", "Всего, ₽ без ремонта"), r = blank("repair", "Ремонт"), a = blank("all", "Всего, ₽ с ремонтом");
     if (data) for (const o of data.orders) { addOrder(isRepair(o) ? r : t, o, vat); addOrder(a, o, vat); }
@@ -169,7 +169,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
   // Сортировка по клику на заголовок (▲/▼): строки каждого уровня дерева; без выбора — порядок по умолчанию (группы по справочнику, остальное по сумме).
   const per = (v: number, q: number) => (q > 0 ? v / q : null);
   const { th, sort: colSort } = useClientSort<Agg>({
-    name: (g) => g.label, qty: (g) => qty(g), avg: (g) => per(sum(g), qty(g)), sum: (g) => sum(g), fur: (g) => g.fur, lining: (g) => g.lining, work: (g) => g.work, c4: (g) => g.c4, other: (g) => g.other,
+    name: (g) => g.label, qty: (g) => qty(g), avg: (g) => per(sum(g), qty(g)), sum: (g) => sum(g), fur: (g) => g.fur + g.other, lining: (g) => g.lining, work: (g) => g.work, c4: (g) => g.c4, other: (g) => g.other,
     hides: (g) => g.hides, hidePrice: (g) => (g.hides > 0 ? g.hideSum / g.hides : null), meters: (g) => g.meters, meterPrice: (g) => (g.meters > 0 ? g.liningSum / g.meters : null), workUnit: (g) => per(g.work, qty(g)),
   });
 
@@ -184,7 +184,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
         <td className={cls}>{noQty ? "—" : formatQty(q)}</td>
         <td className={cls}>{dash(q > 0 ? sum5(m) / q : null, money)}</td>
         <td className={cls + (small ? "" : " font-medium")}>{money(sum5(m))}</td>
-        <td className={cls + BL}>{money(m.fur)}</td>
+        <td className={cls + BL}>{money(m.fur + m.other)}</td>
         <td className={cls}>{money(m.lining)}</td>
         <td className={cls}>{money(m.work)}</td>
         <td className={cls}>{money(m.c4)}</td>
@@ -269,7 +269,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
                 <TH {...th("qty")} label="Изделий" unit="шт." />
                 <TH {...th("avg")} label="Ср. цена изделия" unit="₽/шт." />
                 <TH {...th("sum")} label="Сумма производства" unit="₽" />
-                <TH {...th("fur")} label="Мех" unit="₽" sep />
+                <TH {...th("fur")} label="Мех" unit="₽" sep after={<InfoHint label="Что входит в мех"><p>Шкуры (в том числе подрядчика) и расходы ТЗ: поправки к стоимости сырья по документам ТЗ.</p></InfoHint>} />
                 <TH {...th("lining")} label="Подкладка" unit="₽" />
                 <TH {...th("work")} label="Работа" unit="₽" />
                 <TH {...th("c4")} label="4%" unit="₽" after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} />
