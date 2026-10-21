@@ -17,9 +17,11 @@ import type { OrdersSummary, SalesBlock, SalesCls } from "./sales-block-data";
 // Числа берутся из тех же функций, что раздел /sales (sales-block-data.ts), и должны с ним совпадать.
 
 const SALES_CLS: SalesCls[] = ["all", "clothes", "acc"];
-type Tile = "received" | "sold" | "stock";
+type Tile = "ordered" | "received" | "sold" | "stock";
+/** Сезон отчёта, по которому ещё что-то ждём (заказано больше, чем пришло): плитка «Заказано» только для «Все» и этого сезона. Значение дублирует ORDERS_OPEN_SEASON (в серверном модуле) — в клиент значения оттуда не импортируются. */
+const ORDERS_OPEN = "FW 26/27";
 const CLS_LABEL: Record<SalesCls, string> = { all: "Тотал", clothes: "Одежда", acc: "Аксессуары" };
-const TILE_TITLE: Record<Tile, string> = { received: "Получено", sold: "Продано", stock: "Остаток" };
+const TILE_TITLE: Record<Tile, string> = { ordered: "Заказано", received: "Получено", sold: "Продано", stock: "Остаток" };
 
 const qty = (v: number) => (v === 0 ? "—" : n0(v) + " шт.");
 
@@ -81,46 +83,38 @@ function Carousel({ label, pages, onOpen, index, onIndex }: { label: string; pag
   );
 }
 
-/** «Заказ и приход»: заказано (Conf отчёта по товарам), пришло и сколько ещё ждём. По FW25 и SS26 ничего не ждём — заказано = пришло. */
-function OrdersPanel({ s, label }: { s: OrdersSummary; label: string }) {
-  const td = "px-2 py-1.5 text-right tabular-nums";
+/** Таблица «Заказ и приход»: штуки и деньги (по прайсу 19.10) по сезонам. По FW 25/26 и SS 2026 больше ничего не ждём — заказано = пришло. */
+function OrdersTable({ s, v }: { s: OrdersSummary; v: "in" | "ex" }) {
+  const td = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
+  const rub = (m: { in: number; ex: number }) => (Math.abs(m[v]) < 500 ? "—" : money(Math.round(m[v] / 1000) * 1000));
+  const row = (l: OrdersSummary["total"], bold = false) => (
+    <tr key={l.key} className={bold ? "row-total border-t-2 border-neutral-400 font-semibold" : "border-b border-neutral-100"}>
+      <td className="px-2 py-1.5 text-left">{l.label}</td>
+      <td className={td + " border-l border-neutral-100"}>{n0(l.ordered)}</td><td className={td}>{rub(l.orderedRub)}</td>
+      <td className={td + " border-l border-neutral-100"}>{n0(l.delivered)}</td><td className={td}>{rub(l.deliveredRub)}</td>
+      <td className={td + " border-l border-neutral-100" + (l.awaiting > 0 ? " font-medium text-[#b4310b]" : "")}>{l.awaiting > 0 ? n0(l.awaiting) : "—"}</td><td className={td + (l.awaiting > 0 ? " text-[#b4310b]" : "")}>{l.awaiting > 0 ? rub(l.awaitingRub) : "—"}</td>
+    </tr>
+  );
   return (
-    <section aria-label="Заказ и приход" data-testid="dash-sales-orders" className="rounded-lg border border-neutral-300 bg-white p-3">
-      <h3 className="mb-2 flex items-center gap-1 text-sm font-semibold">Заказ и приход · {label}, шт.
-        <InfoHint label="Как считается заказ и приход" wide>
-          <p><b>Пришло</b> — приход по сезонам, те же числа, что в плитке «Получено». По FW 25/26 и SS 2026 больше ничего не ждём: заказано = пришло.</p>
-          <p className="mt-1"><b>Ждём</b> (только FW 26/27) = Conf − поступило по отчёту по товарам; заказано = пришло + ждём. Conf отчёта целиком: {n0(s.confReport)} шт.</p>
-        </InfoHint>
-      </h3>
-      <div className="overflow-x-auto rounded-lg border border-neutral-200" data-keep-scroll tabIndex={0}>
-        <table className="table-keep w-full min-w-[420px] text-sm">
-          <thead>
-            <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600">
-              <th scope="col" className="px-2 py-2 text-left font-semibold">Сезон</th>
-              <th scope="col" className="px-2 py-2 text-right font-semibold">Заказано</th>
-              <th scope="col" className="px-2 py-2 text-right font-semibold">Пришло</th>
-              <th scope="col" className="px-2 py-2 text-right font-semibold">Ждём</th>
-            </tr>
-          </thead>
-          <tbody>
-            {s.lines.map((l) => (
-              <tr key={l.key} className="border-b border-neutral-100">
-                <td className="px-2 py-1.5 text-left">{l.label}</td>
-                <td className={td}>{n0(l.ordered)}</td>
-                <td className={td}>{n0(l.delivered)}</td>
-                <td className={td + (l.awaiting > 0 ? " font-medium text-[#b4310b]" : "")}>{l.awaiting > 0 ? n0(l.awaiting) : "—"}</td>
-              </tr>
-            ))}
-            <tr className="row-total border-t-2 border-neutral-400 font-semibold">
-              <td className="px-2 py-1.5 text-left">Всего</td>
-              <td className={td}>{n0(s.total.ordered)}</td>
-              <td className={td}>{n0(s.total.delivered)}</td>
-              <td className={td}>{s.total.awaiting > 0 ? n0(s.total.awaiting) : "—"}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white" data-keep-scroll tabIndex={0}>
+      <table className="table-keep w-full min-w-[640px] text-sm" data-testid="dash-sales-orders">
+        <thead>
+          <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600">
+            <th scope="col" rowSpan={2} className="px-2 py-2 text-left font-semibold">Сезон</th>
+            <th scope="colgroup" colSpan={2} className="border-l border-neutral-100 px-2 py-1.5 text-center font-semibold">Заказано</th>
+            <th scope="colgroup" colSpan={2} className="border-l border-neutral-100 px-2 py-1.5 text-center font-semibold">Пришло</th>
+            <th scope="colgroup" colSpan={2} className="border-l border-neutral-100 px-2 py-1.5 text-center font-semibold">Ждём</th>
+          </tr>
+          <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600">
+            {["шт.", "₽ по прайсу", "шт.", "₽ по прайсу", "шт.", "₽ по прайсу"].map((h, i) => <th key={i} scope="col" className={"px-2 py-1.5 text-right font-medium" + (i % 2 === 0 ? " border-l border-neutral-100" : "")}>{h}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {s.lines.map((l) => row(l))}
+          {row(s.total, true)}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -149,7 +143,11 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   }
 
   const slice = b.slices[season] ?? b.slices.all;
+  /** Заказ и приход выбранного сезона: «Все» — итог, иначе строка сезона (нет такой строки — null). */
+  const orderLineOf = (c: SalesCls, sk: string = season) => { const o = b.orderSummary[c]; return o ? (sk === "all" ? o.total : o.lines.find((l) => l.key === sk) ?? null) : null; };
+  const showOrdered = (season === "all" || season === ORDERS_OPEN) && b.orderSummary.all !== null;
   const itemsOf = (t: Tile, c: SalesCls): TileItem[] => {
+    if (t === "ordered") { const l = orderLineOf(c); return l ? [{ k: "Ждём", v: qty(l.awaiting) }, { k: "Заказано по прайсу 19.10", v: money(l.orderedRub[v]) }, { k: "Ждём по прайсу 19.10", v: l.awaiting > 0 ? money(l.awaitingRub[v]) : "—" }] : []; }
     const h = slice.head[c], m = h.money[v];
     if (t === "received") return [{ k: "По себестоимости ТЗ", v: money(m.recvCost) }, { k: "По прайсу 19.10", v: money(m.recvList) }];
     if (t === "sold") return [
@@ -162,9 +160,10 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
     return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу 19.10", v: money(m.stockList) }, ...(slice.soAsEnd !== null ? [{ k: "SO AS (до конца сезона)", v: pct(h.soAs, 1) }] : []), { k: season === "all" ? "Sell-through" : "SO STD (на сегодня)", v: pct(h.sellThrough, 1) }, { k: "Маркап остатка", v: x2(m.markupStock) },
       ...(season === "all" ? [] : [{ k: "Сток тотал", v: qty(h.stockCum) }, { k: "Сток тотал в рознице", v: money(h.stockListCum[v]) }, { k: "Маркап стока тотал", v: x2(h.markupStockCum[v]) }, { k: "Доля сезона", v: h.stockCum > 0 ? pct(h.stock / h.stockCum, 0) : "—" }])];
   };
-  const valueOf = (t: Tile, c: SalesCls, s = slice) => { const h = s.head[c]; return t === "received" ? h.received : t === "sold" ? h.sold : h.stock; };
-  const captionOf = (t: Tile, c: SalesCls) => { const h = slice.head[c]; return t === "received" ? `${h.orders} заказов · ${h.articles} артикулов` : t === "sold" ? `нетто · возвраты ${n0(h.returns)}` : "приход − продано"; };
-  const hintOf = (t: Tile) => t === "received" ? <p>Приход товара: штуки по строкам прихода выгрузки. Суммы — по себестоимости ТЗ и по прайсу 19.10; штуки без цены в сумму не входят.</p>
+  const valueOf = (t: Tile, c: SalesCls, s = slice, sk: string = season) => { if (t === "ordered") return orderLineOf(c, sk)?.ordered ?? 0; const h = s.head[c]; return t === "received" ? h.received : t === "sold" ? h.sold : h.stock; };
+  const captionOf = (t: Tile, c: SalesCls) => { if (t === "ordered") { const l = orderLineOf(c); return l ? `пришло ${n0(l.delivered)} · ждём ${n0(l.awaiting)}` : ""; } const h = slice.head[c]; return t === "received" ? `${h.orders} заказов · ${h.articles} артикулов` : t === "sold" ? `нетто · возвраты ${n0(h.returns)}` : "приход − продано"; };
+  const hintOf = (t: Tile) => t === "ordered" ? <p>Заказ: пришло + ждём. По FW 25/26 и SS 2026 больше ничего не ждём (заказано = пришло); по FW 26/27 ждём Conf − поступило (отчёт по товарам). Нажмите — таблица по сезонам со штуками и деньгами.</p>
+    : t === "received" ? <p>Приход товара: штуки по строкам прихода выгрузки. Суммы — по себестоимости ТЗ и по прайсу 19.10; штуки без цены в сумму не входят.</p>
     : t === "sold" ? <p>Нетто: продажи минус возвраты. Цена — выручка ({vatNote}) ÷ нетто-штуки.</p>
     : <p>Остаток = приход − продано. Sell-through = продано ÷ получено.</p>;
 
@@ -188,6 +187,16 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
 
   const modal = open ? (() => {
     const sl = b.slices[mSeason] ?? b.slices.all;
+    if (open.tile === "ordered" && b.orderSummary[open.cls]) {
+      const os = b.orderSummary[open.cls]!;
+      return (
+        <SalesModal wide title={`Заказ и приход · ${CLS_LABEL[open.cls]}, шт.`} subtitle={`все сезоны · деньги по прайсу 19.10 · ${vatNote}`} onClose={() => setOpen(null)}>
+          <OrdersTable s={os} v={v} />
+          <p className="text-xs text-neutral-600">По FW 25/26 и SS 2026 больше ничего не ждём: заказано = пришло. По FW 26/27 заказано = пришло + ждём, где ждём = Conf − поступило (отчёт по товарам). Conf отчёта целиком: {n0(os.confReport)} шт. Штуки без цены в прайсе в рубли не входят.</p>
+          <Link href={href} className="inline-flex min-h-11 items-center text-sm text-blue-700 hover:underline">Продажи и остатки ›</Link>
+        </SalesModal>
+      );
+    }
     const sub = `${CLS_LABEL[open.cls]} · ${mSeason === "all" ? "все сезоны" : mSeason} · ${b.periodNote} · ${vatNote}`;
     return (
       <SalesModal wide title={`${TILE_TITLE[open.tile]}: ${qty(valueOf(open.tile, open.cls, sl))}`} subtitle={sub} onClose={() => setOpen(null)}>
@@ -216,12 +225,10 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
           </InfoHint>
         }
         headerEnd={<Link href={href} data-testid="dash-sales-link" className="text-xs text-blue-700 hover:underline print:hidden">Продажи и остатки ›</Link>}>
-        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
-          {(["received", "sold", "stock"] as const).map(tile)}
+        <div className={"grid grid-cols-1 items-stretch gap-3 print:grid-cols-3 " + (showOrdered ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3")}>
+          {(showOrdered ? (["ordered", "received", "sold", "stock"] as const) : (["received", "sold", "stock"] as const)).map(tile)}
         </div>
       </WidgetRow>
-
-      {b.orderSummary[cls] ? <OrdersPanel s={b.orderSummary[cls]!} label={CLS_LABEL[cls]} /> : null}
 
       <FlowChart points={slice.months[cls]} note={CLS_LABEL[cls]} />
 

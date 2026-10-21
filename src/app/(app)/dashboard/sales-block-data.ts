@@ -33,17 +33,29 @@ export type SalesRow = {
 export type SalesCls = "all" | "clothes" | "acc";
 export const SALES_CLS: SalesCls[] = ["all", "clothes", "acc"];
 export type SalesHead = { /** SO AS: проданное до конца сезона ÷ получено; null, если сезон идёт. */ soAs: number | null; /** Весь остаток на сегодня по всем сезонам (в срезе «все сезоны» равен stock). */ stockCum: number; stockListCum: VatPair; markupStockCum: { in: number | null; ex: number | null }; received: number; sold: number; gross: number; returns: number; opening: number; stock: number; sellThrough: number | null; orders: number; articles: number; money: { in: SalesMoney; ex: SalesMoney } };
-/** Заказ и приход, шт. «Пришло» по сезонам — те же числа, что в плитке «Получено» (приход по датам). По закончившимся сезонам больше ничего не ждём: заказано = пришло; по сезону отчёта FW 26/27 заказано = пришло + ждём, где ждём = Conf − поступило из отчёта по товарам. */
-export type OrderLine = { key: string; label: string; ordered: number; delivered: number; awaiting: number };
+/** Заказ и приход. «Пришло» по сезонам — те же числа, что в плитке «Получено» (приход по датам). По закончившимся сезонам больше ничего не ждём: заказано = пришло; по сезону отчёта FW 26/27 заказано = пришло + ждём, где ждём = Conf − поступило из отчёта по товарам. Деньги — по прайсу 19.10 (в режиме НДС). */
+export type OrderMoney = { in: number; ex: number };
+export type OrderLine = { key: string; label: string; ordered: number; delivered: number; awaiting: number; orderedRub: OrderMoney; deliveredRub: OrderMoney; awaitingRub: OrderMoney };
 export type OrdersSummary = { lines: OrderLine[]; total: OrderLine; /** Conf отчёта целиком (включая разницу по закончившимся сезонам). */ confReport: number };
 export const ORDERS_OPEN_SEASON = "FW 26/27";
-export function ordersSummary(sizes: ReportSizeRow[], cls: SalesCls, received: { season: string; received: number }[]): OrdersSummary | null {
+export function ordersSummary(sizes: ReportSizeRow[], cls: SalesCls, received: { season: string; received: number; recvList: OrderMoney }[], unit: (r: ReportSizeRow) => OrderMoney | null = () => null, allRecvList?: OrderMoney): OrdersSummary | null {
   if (!sizes.some((r) => r.fw26Conf !== undefined)) return null;
   const rs = sizes.filter((r) => cls === "all" || r.cls === (cls === "clothes" ? "clothes" : "acc"));
   const sum = (f: (r: ReportSizeRow) => number) => rs.reduce((a, r) => a + f(r), 0);
   const awaiting = Math.max(0, sum((r) => (r.fw26Conf ?? 0) - (r.fw26Deliv ?? 0)));
-  const lines = received.map((x): OrderLine => { const w = x.season === ORDERS_OPEN_SEASON ? awaiting : 0; return { key: x.season, label: x.season, ordered: x.received + w, delivered: x.received, awaiting: w }; });
-  const total: OrderLine = { key: "total", label: "Всего", ordered: lines.reduce((a, l) => a + l.ordered, 0), delivered: lines.reduce((a, l) => a + l.delivered, 0), awaiting: lines.reduce((a, l) => a + l.awaiting, 0) };
+  const awaitingRub: OrderMoney = { in: 0, ex: 0 };
+  if (awaiting > 0) for (const r of rs) { const u = unit(r), d = (r.fw26Conf ?? 0) - (r.fw26Deliv ?? 0); if (u && d !== 0) { awaitingRub.in += u.in * d; awaitingRub.ex += u.ex * d; } }
+  const zero = (): OrderMoney => ({ in: 0, ex: 0 });
+  const add = (a: OrderMoney, b: OrderMoney): OrderMoney => ({ in: a.in + b.in, ex: a.ex + b.ex });
+  const lines = received.map((x): OrderLine => {
+    const open = x.season === ORDERS_OPEN_SEASON, w = open ? awaiting : 0, wr = open ? awaitingRub : zero();
+    return { key: x.season, label: x.season, ordered: x.received + w, delivered: x.received, awaiting: w, orderedRub: add(x.recvList, wr), deliveredRub: x.recvList, awaitingRub: wr };
+  });
+  const tot = (f: (l: OrderLine) => number) => lines.reduce((a, l) => a + f(l), 0);
+  const totM = (f: (l: OrderLine) => OrderMoney): OrderMoney => lines.reduce((a, l) => add(a, f(l)), zero());
+  const total: OrderLine = { key: "total", label: "Всего", ordered: tot((l) => l.ordered), delivered: tot((l) => l.delivered), awaiting: tot((l) => l.awaiting), orderedRub: totM((l) => l.orderedRub), deliveredRub: totM((l) => l.deliveredRub), awaitingRub: totM((l) => l.awaitingRub) };
+  // «Пришло» в рублях в итоге — ровно как в плитке «Получено» (срез «все сезоны»): сумма сезонов может отличаться на копейки округления по строкам.
+  if (allRecvList) { total.deliveredRub = allRecvList; total.orderedRub = add(allRecvList, total.awaitingRub); }
   return { lines, total, confReport: sum((r) => r.conf ?? 0) };
 }
 export type SalesView = { rows: SalesRow[]; total: SalesRow };
@@ -248,12 +260,15 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
     return { key: b.key, received: b.m.received, sold: b.m.sold, gross: b.m.gross, returns: b.m.returns, stock: run, sellThrough: b.m.sellThrough, revenue: { in: b.m.revenue, ex: sEx[i].m.revenue }, avgPrice: { in: nul(b.m.avgPrice), ex: nul(sEx[i].m.avgPrice) } };
   });
   const hIn = extOf(ctxs.in, lines, env);
+  /** Цена прайса 19.10 на строку отчёта (артикул × цвет) в режимах НДС; НДС для «без НДС» — по сегодняшней дате. */
+  const today = todayMsk();
+  const orderUnit = (r: ReportSizeRow): OrderMoney | null => { const p = ctxs.in.unitPrice({ article: r.acode, colorId: r.color, modelCode: r.modelCode } as SLine); return p === null ? null : { in: p, ex: exVatAt(p, today) }; };
   return {
     year, periodNote: year === "all" ? "все годы" : `${year} год`,
     orders: h.orders, articles: h.articles,
     received: h.received, sold: h.sold, gross: h.gross, returns: h.returns, opening: h.opening, stock: h.stock, sellThrough: h.sellThrough, firstReceipt: hIn.firstReceipt, lastSale: hIn.lastSale,
     money: h.money, seasons, months: all0.months.all, rows: all0.views.all.fur.rows, total: all0.views.all.fur.total, slices,
-    orderSummary: Object.fromEntries(SALES_CLS.map((c) => [c, ordersSummary(sizes, c, seasonKeys.map((k) => ({ season: k, received: slices[k].head[c].received })))])) as Record<SalesCls, OrdersSummary | null>,
+    orderSummary: Object.fromEntries(SALES_CLS.map((c) => [c, ordersSummary(sizes, c, seasonKeys.map((k) => { const m = slices[k].head[c].money; return { season: k, received: slices[k].head[c].received, recvList: { in: m.in.recvList, ex: m.ex.recvList } }; }), orderUnit, { in: slices.all.head[c].money.in.recvList, ex: slices.all.head[c].money.ex.recvList })])) as Record<SalesCls, OrdersSummary | null>,
     href: { in: salesHref(year, "in"), ex: salesHref(year, "ex") },
     hasData: all.length > 0,
   };
