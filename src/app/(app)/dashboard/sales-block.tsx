@@ -12,7 +12,7 @@ import { FlowChart } from "./sales-block-charts";
 import { SeasonSwitch, useSeasonScope } from "./season-scope";
 import { HIER_LABEL, SalesTable, moneyK, type Hier } from "./sales-block-table";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue, type TileItem } from "./tile";
-import type { OrderNode, OrdersSummary, SalesBlock, SalesCls } from "./sales-block-data";
+import type { OrderNode, OrdersSummary, SalesBlock, SalesCls, SalesRow } from "./sales-block-data";
 
 // Блок «Продажи и остатки» на Главной: плитки Получено / Продано / Остаток (листаются: Тотал · Одежда · Аксессуары), график и таблица.
 // Числа берутся из тех же функций, что раздел /sales (sales-block-data.ts), и должны с ним совпадать.
@@ -163,10 +163,13 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   const [ownSeason, setOwnSeason] = useState("all");
   /** НДС в окне плитки «Продано» (по умолчанию с НДС); сама плитка и остальной блок — по переключателю шапки сайта. */
   const [mVat, setMVat] = useState<"in" | "ex">("in");
+  /** Строка таблицы под курсором: график «Приход · Продажи · Остаток» показывает её ряд (тип меха, категория). */
+  const [hotRow, setHotRow] = useState<SalesRow | null>(null);
   const season = scope ? scope.season : ownSeason;
   /** Категория (Тотал / Одежда / Аксессуары): общая для трёх плиток, графика и таблицы. */
   const [cls, setCls] = useState<SalesCls>("all");
   const [hier, setHier] = useState<Hier>("fur");
+  useEffect(() => { setHotRow(null); }, [season, hier, cls]);
   const [open, setOpen] = useState<{ tile: Tile; cls: SalesCls } | null>(null);
   const [mSeason, setMSeason] = useState("all");
   const [mHier, setMHier] = useState<Hier>("fur");
@@ -283,11 +286,13 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         </div>
       </WidgetRow>
 
-      <FlowChart points={slice.months[cls]} note={CLS_LABEL[cls]} />
+      <FlowChart
+        points={hotRow?.series ? slice.months[cls].map((m, i) => ({ key: m.key, label: m.label, received: hotRow.series!.r[i] ?? 0, sold: hotRow.series!.s[i] ?? 0, stock: hotRow.series!.st[i] ?? 0, soldBySeason: Object.fromEntries(Object.entries(hotRow.series!.ss).map(([k, a]) => [k, a[i] ?? 0])) })) : slice.months[cls]}
+        note={hotRow?.series ? `${CLS_LABEL[cls]} · ${hotRow.label}` : CLS_LABEL[cls]} />
 
       <PinSection id="sales-table" title={`Продажи и остатки по типам меха · ${CLS_LABEL[cls]}`} value={[hier]} onRestore={(x) => { if (x[0] === "fur" || x[0] === "cls") setHier(x[0]); }}>
         <div className="mb-2 print:hidden"><HierSwitch value={hier} onChange={setHier} /></div>
-        <SalesTable key={season + hier + cls} view={slice.views[cls][hier]} v={v} vatNote={vatNote} testId="dash-sales-table" cumCol={season !== "all"} soAs={slice.soAsEnd !== null} />
+        <SalesTable key={season + hier + cls} view={slice.views[cls][hier]} v={v} vatNote={vatNote} testId="dash-sales-table" onHover={setHotRow} cumCol={season !== "all"} soAs={slice.soAsEnd !== null} />
       </PinSection>
       {modal}
     </section>

@@ -28,8 +28,10 @@ export type SalesMoney = {
 export type SalesSeason = { key: string; received: number; sold: number; gross: number; returns: number; stock: number; sellThrough: number | null; revenue: VatPair; avgPrice: { in: number | null; ex: number | null } };
 export type SalesMonth = { key: string; label: string; received: number; sold: number; stock: number; /** Продано (нетто) за месяц по сезону товара: ключ — сезон, например «FW 25/26». */ soldBySeason: Record<string, number> };
 /** Строка таблицы: штуки не зависят от НДС, выручка и цена — по режимам. */
+/** Помесячный ряд узла на оси месяцев среза: r — получено, s — продано (нетто), st — остаток нарастающим итогом, ss — продано по сезону товара. */
+export type NodeSeries = { r: number[]; s: number[]; st: number[]; ss: Record<string, number[]> };
 export type SalesRow = {
-  id: string; label: string; sub?: string; depth: number; received: number; sold: number; stock: number; sellThrough: number | null; /** Приход в розничных ценах прайса 19.10 (штуки без цены в сумму не входят). */ recvList: VatPair;
+  id: string; label: string; sub?: string; depth: number; /** Приход / продано / остаток по месяцам узла на оси месяцев среза (график при наведении на строку; верхние три уровня). */ series?: NodeSeries; received: number; sold: number; stock: number; sellThrough: number | null; /** Приход в розничных ценах прайса 19.10 (штуки без цены в сумму не входят). */ recvList: VatPair;
   revenue: VatPair; avgPrice: { in: number | null; ex: number | null }; /** Остаток в розничных ценах прайса 19.10 (строки без цены в сумму не входят). */ stockList: VatPair; /** Штуки остатка, покрытые розничной ценой (для средневзвешенной цены остатка). */ stockListPcs: number; /** Полученное в деньгах: себестоимость ТЗ (что мы заплатили за полученные штуки; штуки без себестоимости в сумму не входят). */ recvCost: VatPair; /** Штуки прихода, у которых есть себестоимость (для средневзвешенной цены прихода). */ recvCostPcs: number; /** Маркап продаж и остатка (×), по режимам НДС. */ markupSold: { in: number | null; ex: number | null }; markupStock: { in: number | null; ex: number | null }; /** Весь остаток на сегодня по всем сезонам (в срезе «все сезоны» равен stock); у сезона доля = stock ÷ stockCum. */ stockCum: number; /** Весь остаток в розничных ценах и штуки, покрытые ценой (для средневзвешенной цены всего остатка). */ stockListCum: VatPair; stockListPcsCum: number; markupStockCum: { in: number | null; ex: number | null }; /** SO AS: проданное до конца сезона ÷ получено (только у закончившихся сезонов). SO STD — sellThrough на сегодня. */ soAs: number | null; children: SalesRow[];
 };
 export type SalesCls = "all" | "clothes" | "acc";
@@ -164,7 +166,7 @@ function sizeRows(n: SNode, depth: number, e: RowEnv): SalesRow[] {
 
 const inPeriod2 = (l: SLine, e: RowEnv) => e.inPeriod(l);
 type CumNode = { stock: number; list: VatPair; listPcs: number; markup: { in: number | null; ex: number | null } };
-type RowEnv = { seasonEnd: string | null; cum: Map<string, CumNode> | null; ctxs: { in: Ctx; ex: Ctx }; inPeriod: (l: SLine) => boolean; /** Размеры из Report (справочно, без привязки к датам и сезонам): только в срезе «все сезоны». */ sizes: ReportSizeRow[]; cat: Cat };
+type RowEnv = { /** Помесячный ряд узла по его строкам на оси месяцев среза; null — не считать. */ seriesOf: ((lines: SLine[]) => NodeSeries) | null; seasonEnd: string | null; cum: Map<string, CumNode> | null; ctxs: { in: Ctx; ex: Ctx }; inPeriod: (l: SLine) => boolean; /** Размеры из Report (справочно, без привязки к датам и сезонам): только в срезе «все сезоны». */ sizes: ReportSizeRow[]; cat: Cat };
 function rowOf(n: SNode, depth: number, tIn: SNode, tEx: SNode, e: RowEnv): SalesRow {
   // cols[0] — всё до конца периода (остаток), cols[1] — движения внутри периода.
   const inP = n.cols[1], inE = tEx.cols[1], inI = tIn.cols[1];
@@ -173,6 +175,7 @@ function rowOf(n: SNode, depth: number, tIn: SNode, tEx: SNode, e: RowEnv): Sale
   return {
     id: n.id, label, depth,
     recvList: { in: stockMoney(e.ctxs.in, inPer, n.lines).recvList, ex: stockMoney(e.ctxs.ex, inPer, n.lines).recvList },
+    series: depth <= 2 && e.seriesOf && n.dim !== "article" && n.dim !== "color" ? e.seriesOf(n.lines) : undefined,
     received: inP.received, sold: inP.sold, stock: n.cols[0].stock, sellThrough: inP.sellThrough,
     revenue: { in: inI.revenue, ex: inE.revenue }, avgPrice: { in: nul(inI.avgPrice), ex: nul(inE.avgPrice) },
     stockList: { in: stockMoney(e.ctxs.in, inPer, n.lines).stockList, ex: stockMoney(e.ctxs.ex, inPer, n.lines).stockList },
@@ -203,7 +206,22 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
   /** Закончившийся сезон: дата окончания раньше сегодняшнего дня; для идущего сезона SO AS не считаем. */
   const finishedEnd = (season: string): string | null => { const end = season === "all" ? null : seasonEndIso(season); return end && end < todayMsk() ? end : null; };
   const inPeriod = (l: SLine) => (!base.from || l.iso >= base.from) && (!base.to || l.iso <= base.to);
-  const rowEnvOf = (season: string, cat: Cat, cum: Map<string, CumNode> | null): RowEnv => ({ seasonEnd: finishedEnd(season), cum, ctxs, inPeriod, sizes: season === "all" ? sizes : [], cat });
+  /** Помесячный ряд узла на заданной оси месяцев (месяцы без движений — нули, остаток переносится). */
+  const seriesFor = (axis: string[]) => (ls0: SLine[]): NodeSeries => {
+    const ls = ls0.filter(inPeriod);
+    const bk = new Map(bucketsOf(ctxs.in, env, ls, "month", openingStock(ls0, base)).map((x) => [x.key, x]));
+    const seasons = Array.from(new Set(ls.filter((l) => l.kind === "SALE").map((l) => l.season)));
+    const out: NodeSeries = { r: [], s: [], st: [], ss: Object.fromEntries(seasons.map((k) => [k, [] as number[]])) };
+    let run = openingStock(ls0, base);
+    for (const k of axis) {
+      const b = bk.get(k);
+      if (b) run = b.stock;
+      out.r.push(b ? b.m.received : 0); out.s.push(b ? b.m.sold : 0); out.st.push(run);
+      for (const sk of seasons) out.ss[sk].push(ls.filter((l) => l.kind === "SALE" && l.season === sk && l.iso.slice(0, 7) === k).reduce((a, l) => a + l.pcs, 0));
+    }
+    return out;
+  };
+  const rowEnvOf = (season: string, cat: Cat, cum: Map<string, CumNode> | null, axis: string[] = []): RowEnv => ({ seriesOf: axis.length ? seriesFor(axis) : null, seasonEnd: finishedEnd(season), cum, ctxs, inPeriod, sizes: season === "all" ? sizes : [], cat });
 
   const headOf = (f: Filters): SalesHead => {
     const lines = applyFilters(all, f), scope = applyFilters(all, { ...f, from: null });
@@ -233,7 +251,8 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
       walk(kidsC);
       put(totalSalesNode(ctxs.in, env, scopeC, [inPeriod], kidsC));
     }
-    const rowEnv = rowEnvOf(f.seasons[0] ?? "all", f.cat, cum);
+    const axis = bucketsOf(ctxs.in, env, applyFilters(all, f), "month", 0).map((x) => x.key);
+    const rowEnv = rowEnvOf(f.seasons[0] ?? "all", f.cat, cum, axis);
     const scope = applyFilters(all, { ...f, from: null });
     const trees = (v: "in" | "ex") => { const kids = buildSalesTree(ctxs[v], env, scope, order, [inPeriod]); return { kids, total: totalSalesNode(ctxs[v], env, scope, [inPeriod], kids) }; };
     const tIn = trees("in"), tEx = trees("ex");

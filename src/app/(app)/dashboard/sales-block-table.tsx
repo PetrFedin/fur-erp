@@ -19,7 +19,7 @@ export const moneyK = (v: number | null) => (v === null || Math.abs(v) < 500 ? D
 const td = "whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums";
 const GB = " border-l border-neutral-100";
 
-export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = false }: { view: SalesView; v: "in" | "ex"; vatNote: string; testId?: string; /** Сезон закончился: рядом с SO на сегодня показываем SO AS (проданное до конца сезона). */ soAs?: boolean; /** Выбран сезон: рядом с остатком сезона — весь остаток на сегодня и доля сезона в нём. */ cumCol?: boolean }) {
+export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = false, onHover }: { view: SalesView; /** Наведение (мышь или фокус) на строку с помесячным рядом — график блока показывает её приход и продажи; уход — null. */ onHover?: (r: SalesRow | null) => void; v: "in" | "ex"; vatNote: string; testId?: string; /** Сезон закончился: рядом с SO на сегодня показываем SO AS (проданное до конца сезона). */ soAs?: boolean; /** Выбран сезон: рядом с остатком сезона — весь остаток на сегодня и доля сезона в нём. */ cumCol?: boolean }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const cells = (r: SalesRow) => (
@@ -49,7 +49,7 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
     const kids = r.children.filter((c) => c.received !== 0 || c.sold !== 0 || c.stock !== 0);
     return (
       <Fragment key={r.id}>
-        <tr data-depth={r.depth} className={"border-b border-neutral-100 " + (r.depth === 0 ? "bg-white font-medium" : r.depth === 1 ? "bg-neutral-50 text-[13px] text-neutral-700" : r.depth === 2 ? "bg-white text-[13px] text-neutral-700" : "bg-white text-[12px] text-neutral-600")}>
+        <tr data-depth={r.depth} onMouseEnter={onHover && r.series ? () => onHover(r) : undefined} onMouseLeave={onHover ? () => onHover(null) : undefined} onFocus={onHover && r.series ? () => onHover(r) : undefined} onBlur={onHover ? () => onHover(null) : undefined} className={"border-b border-neutral-100 " + (onHover && r.series ? "hover:bg-blue-50/60 " : "") + (r.depth === 0 ? "bg-white font-medium" : r.depth === 1 ? "bg-neutral-50 text-[13px] text-neutral-700" : r.depth === 2 ? "bg-white text-[13px] text-neutral-700" : "bg-white text-[12px] text-neutral-600")}>
           <td className="sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left">
             <div className="flex min-w-0 items-center" style={{ paddingLeft: Math.min(r.depth, 6) * 16 }}>
               <span className="inline-flex w-5 shrink-0 items-center">

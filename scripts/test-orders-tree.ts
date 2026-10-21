@@ -53,6 +53,17 @@ async function main() {
       }
     }
   }
+
+  // График при наведении на строку таблицы: помесячный ряд узла (series) сходится с самой строкой.
+  type R = { label: string; received: number; sold: number; stock: number; series?: { r: number[]; s: number[]; st: number[] }; children: R[] };
+  const sumA = (a: number[]) => a.reduce((x, y) => x + y, 0);
+  let nodes = 0; const bad: string[] = [];
+  for (const [sk, sl] of Object.entries(b.slices)) for (const c of ["all", "clothes", "acc"] as const) for (const h of ["fur", "cls"] as const) {
+    const axisLen = sl.months[c].length;
+    const walk = (rs: R[], path: string) => { for (const r of rs) { if (r.series) { nodes++; const okLen = r.series.r.length === axisLen; const okR = near(sumA(r.series.r), r.received), okS = near(sumA(r.series.s), r.sold), okSt = near(r.series.st[axisLen - 1] ?? 0, r.stock); if (!(okLen && okR && okS && okSt)) bad.push(`${sk}/${c}/${h}/${path}/${r.label}: ${okLen ? "" : "длина "}${okR ? "" : "получено " + sumA(r.series.r) + "≠" + r.received + " "}${okS ? "" : "продано " + sumA(r.series.s) + "≠" + r.sold + " "}${okSt ? "" : "остаток " + r.series.st[axisLen - 1] + "≠" + r.stock}`); } walk(r.children, path + "/" + r.label); } };
+    walk(sl.views[c][h].rows as unknown as R[], "");
+  }
+  ok(`ряд при наведении: ${nodes} узлов, Σ получено/продано и остаток на конец сходятся со строкой`, bad.length === 0 && nodes > 0, bad.slice(0, 4).join(" | "));
   const t = b.orderSummary.all!.lines.find((l) => l.key === "FW 26/27")!.tree!.fur;
   console.log("FW 26/27, тип меха → кат. 1:", t.map((n) => `${n.label} ${n.ordered}/${n.delivered}/${n.awaiting}`).join(" · "));
   console.log(fails ? `ПРОВАЛОВ: ${fails}` : "Все проверки пройдены");
