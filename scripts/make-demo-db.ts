@@ -86,8 +86,8 @@ const PEOPLE: Record<string, string[]> = {
 const WIPE = [
   "AuditLog", "CommentReply", "Comment", "ChatMessageReaction", "ChannelDelivery", "ChatAttachment", "ChatMessage", "ChatRead", "ChatMember",
   "ChatThread", "ChannelBindCode", "ChannelLink", "FittingPhoto", "SupplierCalcTemplate",
-  // Поступления и продажи (Cashflow, «Продажи») и прайс розницы — данные заказчика: в демо не входят, страница Cashflow там показывает «нет данных о продажах».
-  "SalesReceiptLine",
+  // (21.10.2026 по решению владельца поступления и продажи и прайс розницы ТЕПЕРЬ ВХОДЯТ в демо: «Продажи и остатки» на Главной, Cashflow)
+  // Раньше: поступления и продажи (Cashflow, «Продажи») и прайс розницы — данные заказчика, страница Cashflow показывала «нет данных о продажах».
   // Реестр сверки (счета Веллмех, оплаты, группы) — реальные коммерческие данные: в демо не входит (страница «Сверка» там пустая, как с обезличенным файлом).
   "ReconciliationPaymentLink", "ReconciliationInvoicePayment", "ReconciliationInvoiceGroup", "ReconciliationInvoice", "ReconciliationGroup", "ReconciliationCheck",
 ];
@@ -145,7 +145,7 @@ async function main() {
 
   // 1. Очистка таблиц целиком
   for (const t of WIPE) if (await tableExists(t)) await x(`delete from ${q(t)}`);
-  await x(`delete from "SystemState" where key like 'owner-decision:%' or key like 'retail-prices:%'`);
+  await x(`delete from "SystemState" where key like 'owner-decision:%'`);
   // Фото артикулов и ссылки «Товар в магазине» в обезличенную демо не входят (реальные карточки товаров; файлы в демо не копируются).
   await x(`delete from "SystemState" where key like 'article-photos:%' or key like 'article-shop-links:%'`);
   // PLU — внутренние коды заказчика: в демо пусто (свойства артикула «PLU…» убираются, остальные остаются).
