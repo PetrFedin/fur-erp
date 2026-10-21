@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useSeasonScope } from "./season-scope";
+import { isRepair, sumOrders } from "@/lib/orders-sum";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty, formatShare } from "@/lib/utils";
@@ -25,11 +27,25 @@ const addNums = (a: ProdNums, b: ProdNums): ProdNums => ({ items: a.items + b.it
 
 type VatPair = { incl: number; excl: number };
 
-export function ProductionBlock({ href = "/production", vatCost, kind = "", hides, c4Parts, years, done, work, all, c4, search, info, bridge }: { /** «→ ТЗ» с фильтрами Главной. */ href?: string; hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
+export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind = "", hides: hidesP, c4Parts: c4PartsP, years: yearsP, done: doneP, work: workP, all: allP, c4, search, info, bridge }: { /** «→ ТЗ» с фильтрами Главной. */ href?: string; hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
   const { mode: vat } = useVatDisplay();
   const [open, setOpen] = useState<null | "done" | "work" | "all">(null);
   const { data: drill } = useDrill(search);
   const drillOrders = drill?.orders ?? [];
+  // Сезон из панели «Сезон» Главной: плитки считаются от ТЗ выбранного сезона (доли ТЗ по приходу модели, см. order-seasons.ts); «Все» — готовые числа страницы.
+  const season = useSeasonScope()?.season ?? "all";
+  const sn = useMemo(() => {
+    if (season === "all" || !drill) return null;
+    const own = drill.orders.filter((o) => !isRepair(o));
+    const I = sumOrders(own, "incl"), E = sumOrders(own, "excl");
+    const nums: ProdNums = { items: I.items, repairOrders: 0, repairQty: 0, repairCostIncl: 0, repairCostExcl: 0, orders: I.orders, qty: I.qty, costIncl: I.fur + I.lining + I.c4 + I.other, costExcl: E.fur + E.lining + E.c4 + E.other, work: I.work, furIncl: I.fur, furExcl: E.fur, liningIncl: I.lining, liningExcl: E.lining, matIncl: I.fur + I.lining, matExcl: E.fur + E.lining, c4Incl: I.c4, c4Excl: E.c4 };
+    const ys = new Map<string, number>();
+    for (const o of own) { const k = o.y != null ? String(o.y) : "без года"; ys.set(k, (ys.get(k) ?? 0) + o.qty); }
+    return { nums, years: Array.from(ys).sort((a, b) => a[0].localeCompare(b[0])).map(([label, qty]) => ({ label, qty })) };
+  }, [season, drill]);
+  const ZERO: ProdNums = { items: 0, repairOrders: 0, repairQty: 0, repairCostIncl: 0, repairCostExcl: 0, orders: 0, qty: 0, costIncl: 0, costExcl: 0, work: 0, furIncl: 0, furExcl: 0, liningIncl: 0, liningExcl: 0, matIncl: 0, matExcl: 0, c4Incl: 0, c4Excl: 0 };
+  const done = sn ? sn.nums : doneP, work = sn ? ZERO : workP, all = sn ? sn.nums : allP, years = sn ? sn.years : yearsP;
+  const hides = sn ? { incl: 0, excl: 0 } : hidesP, c4Parts = sn ? { fur: { incl: 0, excl: 0 }, lining: { incl: 0, excl: 0 } } : c4PartsP, vatCost: VatByRate = sn ? {} : vatCostP;
   // Себестоимость — факт списания по всем ТЗ.
   const fact = { ...addNums(done, work), orders: all.orders, items: all.items, repairOrders: all.repairOrders };
   const cost = (n: ProdNums) => (vat === "incl" ? n.costIncl : n.costExcl);

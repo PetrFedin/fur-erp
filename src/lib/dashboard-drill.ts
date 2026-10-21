@@ -48,6 +48,8 @@ export type DrillOrder = {
   fur: string;
   qty: number;
   work: number;
+  /** Доли сезонов ТЗ (сумма 1) по приходу модели — для переключателя «Сезон» на Главной (src/lib/order-seasons.ts); нет — ТЗ целиком в любом сезоне. */
+  sw?: Record<string, number>;
   /** Расходы ТЗ (одинаково с НДС и без). */
   exp: number;
   /** Расходы ТЗ по статьям («Фурнитура», «Прочие расходы»…): Σ a = exp. */

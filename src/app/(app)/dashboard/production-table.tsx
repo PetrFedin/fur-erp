@@ -15,6 +15,8 @@ import { furKindsOfOrder } from "@/lib/order-fur";
 import { UNDEFINED_CATEGORY } from "@/lib/product-category";
 import { atomsOf, type DrillData, type DrillOrder } from "@/lib/dashboard-drill";
 import { loadProductionDrill } from "./actions";
+import { useSeasonScope } from "./season-scope";
+import { drillForSeason } from "@/lib/season-orders";
 import { grpBlock, pathBlock } from "@/lib/block-hover";
 import { useClientSort } from "@/lib/use-client-sort";
 import { alignTree, money5, sum5, type Money5 } from "@/lib/production-display";
@@ -140,7 +142,9 @@ const dash = (v: number | null, f: (n: number) => string) => (v == null || !isFi
 
 export function ProductionTable({ search }: { search: Record<string, string[]> }) {
   const { mode: vat } = useVatDisplay();
-  const [data, setData] = useState<DrillData | null>(null);
+  const [rawData, setData] = useState<DrillData | null>(null);
+  const seasonSel = useSeasonScope()?.season ?? "all";
+  const data = useMemo(() => drillForSeason(rawData, seasonSel), [rawData, seasonSel]);
   const [error, setError] = useState(false);
   const [by, setBy] = useState<"cat" | "fur">("cat");
   const [open, setOpen] = useState<Set<string>>(new Set());

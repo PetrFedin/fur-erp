@@ -11,6 +11,8 @@ import { InfoHint } from "@/components/info-hint";
 import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
 import { useClientSort } from "@/lib/use-client-sort";
 import { loadProductionDrill } from "./actions";
+import { useSeasonScope } from "./season-scope";
+import { drillForSeason } from "@/lib/season-orders";
 import { CAROUSEL_ARROW } from "@/components/tile-carousel";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "./tile";
 import { addOrder, blank, build, cmpFor, cost, type Agg, type Lvl } from "./production-table";
@@ -47,7 +49,10 @@ const MODES: { id: string; label: string; levels: Lvl[] }[] = [
 ];
 
 export function useDrill(search: Record<string, string[]>) {
-  const [data, setData] = useState<DrillData | null>(null);
+  const [raw, setData] = useState<DrillData | null>(null);
+  // Сезон из панели «Сезон» Главной: ТЗ выбранного сезона долями (приход модели); «Все» — без изменений.
+  const season = useSeasonScope()?.season ?? "all";
+  const data = useMemo(() => drillForSeason(raw, season), [raw, season]);
   const [error, setError] = useState(false);
   useEffect(() => {
     let alive = true;

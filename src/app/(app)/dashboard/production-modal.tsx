@@ -9,6 +9,8 @@ import { formatMoney, formatQty, formatShare } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { formatCompactMoney } from "./compact";
 import { loadProductionDrill } from "./actions";
+import { useSeasonScope } from "./season-scope";
+import { drillForSeason } from "@/lib/season-orders";
 import { levelFor, ROOT_MODES, type DrillData, type Item, type PathStep, type RootMode } from "@/lib/dashboard-drill";
 
 // Палитра — валидированная категориальная (навык dataviz): одна серия — синий, состав — фиксированный порядок оттенков.
@@ -47,7 +49,9 @@ export function ProductionModal({
   title: string;
 }) {
   const { mode: vat } = useVatDisplay();
-  const [data, setData] = useState<DrillData | null>(null);
+  const [rawData, setData] = useState<DrillData | null>(null);
+  const seasonSel = useSeasonScope()?.season ?? "all";
+  const data = useMemo(() => drillForSeason(rawData, seasonSel), [rawData, seasonSel]);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<RootMode>("batch");
   const [path, setPath] = useState<PathStep[]>([]);

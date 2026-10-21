@@ -31,6 +31,8 @@ import {
   type DashFilters, type Pair, type ProdTotals,
 } from "@/lib/dashboard-calc";
 import type { DrillOrder } from "@/lib/dashboard-drill";
+import { loadSalesLines } from "@/lib/sales-server";
+import { modelSeasonShares, orderSeasonShares } from "@/lib/order-seasons";
 
 /** Девять чисел строки «куплено / использовано / остаток»: шт, ₽, средневзвешенная ₽/шт. */
 export type Cells = {
@@ -187,6 +189,17 @@ export async function loadDrillOrders(orgId: string, year: YearFilter, f: DashFi
     const ov = await loadPaymentsOverview(orgId);
     const shares = allocateHides(orders.map((o) => ({ id: o.id, number: o.number, batch: o.bk, qty: o.qty })), hidesByPayYear(ov), year);
     for (const sh of shares) { const o = orders.find((x) => x.id === sh.id); if (o) { o.hI += sh.incl; o.hE += sh.excl; } }
+  }
+  // Доли сезонов ТЗ (переключатель «Сезон» на Главной): по приходу модели, иначе по дате ТЗ (см. order-seasons.ts).
+  {
+    const [dates, salesLines] = await Promise.all([
+      prisma.productionOrder.findMany({ where: { id: { in: orders.map((o) => o.id) } }, select: { id: true, endDate: true, workOrderDate: true, startDate: true } }),
+      loadSalesLines(orgId),
+    ]);
+    const byModel = modelSeasonShares(salesLines.map((l) => ({ article: l.article, iso: l.iso, pcs: l.pcs, kind: l.kind })));
+    const dateOf = new Map(dates.map((d) => [d.id, (d.endDate ?? d.workOrderDate ?? d.startDate)?.toISOString().slice(0, 10) ?? null]));
+    const rowOf = new Map(selected.map((r) => [r.id, r]));
+    for (const o of orders) { const r = rowOf.get(o.id); if (r) o.sw = orderSeasonShares({ model: r.modelName, date: dateOf.get(o.id) ?? null, year: r.year }, byModel); }
   }
   return orders;
 }
