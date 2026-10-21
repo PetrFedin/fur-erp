@@ -59,6 +59,9 @@ const keyLabel = (o: DrillOrder, l: Lvl): [string, string] => {
     case "model": return [o.mid, o.ml];
   }
 };
+/** Основные виды меха таблицы «Объёмы по группам меха и категориям»; всё остальное сводится в одну строку «Остальной мех» (вид не показывается). */
+export const MAIN_FUR = ["Соболь", "Норка", "Рысь", "Свакара", "Лиса"];
+export const OTHER_FUR_KEY = "__other_fur";
 export const cost = (g: Agg) => g.fur + g.lining + g.c4 + g.other + g.work;
 
 /** Дерево группировок: каждый ТЗ целиком (атомы + работа) попадает в узел на каждом уровне. */
@@ -70,6 +73,8 @@ export const cmpFor = (l: Lvl) => (a: Agg, b: Agg): number => {
     if (b.key === "none") return -1;
     return Number(a.key) - Number(b.key);
   }
+  if (a.key === OTHER_FUR_KEY) return 1; // «Остальной мех» всегда последним
+  if (b.key === OTHER_FUR_KEY) return -1;
   return cost(b) - cost(a);
 };
 
@@ -110,13 +115,13 @@ const furKinds = (o: DrillOrder): string[] => {
  * Дерево группировок: ТЗ целиком (атомы + работа) попадает в узлы выше уровня «furl»; на уровне «furl» и ниже —
  * отдельно по каждому виду меха ТЗ только его шкуры (смешанное ТЗ «Норка + Соболь» попадает и в «Норка», и в «Соболь»).
  */
-export function build(orders: DrillOrder[], vat: "incl" | "excl", levels: Lvl[]): Agg[] {
+export function build(orders: DrillOrder[], vat: "incl" | "excl", levels: Lvl[], collapseOther = false): Agg[] {
   const root = new Map<string, Agg>();
   const insert = (level: Map<string, Agg>, depth: number, o: DrillOrder, restrict: string | null) => {
     if (depth >= levels.length) return;
     const l = levels[depth];
     const keys: Array<[string, string, string | null]> = l === "furl"
-      ? furKinds(o).map((f) => [f, f, f] as [string, string, string | null])
+      ? furKinds(o).map((f) => (collapseOther && !MAIN_FUR.includes(f) ? [OTHER_FUR_KEY, "Остальной мех", f] : [f, f, f]) as [string, string, string | null])
       : [[...keyLabel(o, l), restrict] as [string, string, string | null]];
     for (const [k, label, r] of keys) {
       const g = level.get(k) ?? blank(k, label);
@@ -147,7 +152,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
 
   // Ремонт — не выпуск изделий: в штуки и средние цены не входит, показан отдельной строкой.
   const isRepair = (o: DrillOrder) => o.cat === REPAIR_CATEGORY;
-  const rows = useMemo(() => (data ? build(data.orders.filter((o) => !isRepair(o)), vat, LEVELS[by]) : []), [data, vat, by]);
+  const rows = useMemo(() => (data ? build(data.orders.filter((o) => !isRepair(o)), vat, LEVELS[by], true) : []), [data, vat, by]);
   const showOther = rows.some((r) => Math.abs(r.other) > 0.5);
   const { total, repair, all } = useMemo(() => {
     const t = blank("items", "Всего, ₽ без ремонта"), r = blank("repair", "Ремонт"), a = blank("all", "Всего, ₽ с ремонтом");
@@ -204,7 +209,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
     trail.forEach((n, i) => {
       if (lv[i] === "grp") p.set("catgroup", n.key === NO_GROUP ? "none" : n.key);
       else if (lv[i] === "cat") p.set("category", n.key === UNDEFINED_CATEGORY ? "none" : n.key);
-      else if (lv[i] === "furl") p.set("fur", n.key);
+      else if (lv[i] === "furl" && n.key !== OTHER_FUR_KEY) p.set("fur", n.key); // «Остальной мех» — вид не раскрываем, фильтр по меху не ставим
     });
     for (const k of ["color", "batch"]) for (const v of search[k] ?? []) p.append(k, v);
     return "/articles?" + p.toString();
@@ -220,6 +225,8 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
         <button type="button" onClick={() => toggle(pk)} aria-expanded={isOpen} aria-label={`Раскрыть: ${r.label}`} className="flex items-center gap-1 text-left">
           <span aria-hidden className={"inline-block w-4 text-neutral-500 transition-transform " + (isOpen ? "rotate-90" : "")}>›</span>{r.label}
         </button>
+      ) : depth === depthMax && here.some((x) => x.key === OTHER_FUR_KEY) ? (
+        <span className="inline-block w-4 whitespace-nowrap">{r.label}</span> // под «Остальным мехом» ссылки в «Изделия» нет: фильтр по меху не ставится, числа бы не совпали
       ) : depth === depthMax ? (
         <span className="inline-block w-4">
           <Link href={articlesHref(here)} className="whitespace-nowrap hover:underline focus-visible:underline" title="Открыть в «Изделиях» с этими фильтрами">{r.label}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link>

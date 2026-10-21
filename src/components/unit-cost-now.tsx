@@ -6,7 +6,7 @@ import { SEG_GROUP, segCls } from "@/components/segmented";
 import { WidgetRow } from "@/components/widget-row";
 import { SalesModal } from "@/app/(app)/sales/sales-modal";
 import { BUDGET_CAT_GROUPS, type BudgetStat } from "@/lib/budget-calc";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatDec1, formatMoney, formatQty } from "@/lib/utils";
 
 // «Себестоимость на 1 изделие — сейчас»: фактическая стоимость одного изделия по ТЗ (средневзвешенно), по типам меха и категориям;
 // по клику на категорию — окно со сравнением длин (Short / Regular / Long) и расходами на 1 изделие. Без надбавок бюджета.
@@ -29,10 +29,10 @@ const calc = (s: BudgetStat): Calc => {
 function CompareTable({ cols }: { cols: { key: string; label: string; c: Calc }[] }) {
   const rows: { label: string; v: (c: Calc) => string; bold?: boolean }[] = [
     { label: "Изделий в основе", v: (c) => formatQty(c.qty) },
-    { label: "Шкур на изделие", v: (c) => (c.hides > 0 ? formatQty(Math.round(c.hides * 10) / 10) : "—") },
+    { label: "Шкур на изделие", v: (c) => (c.hides > 0 ? formatDec1(c.hides) : "—") },
     { label: "Ср. цена шкуры", v: (c) => K(c.hidePrice) },
     { label: `Мех + ${C4} %`, v: (c) => K(c.mexC4) },
-    { label: "Подкладка, м", v: (c) => (c.meters > 0 ? formatQty(Math.round(c.meters * 100) / 100) : "—") },
+    { label: "Подкладка, м", v: (c) => (c.meters > 0 ? formatDec1(c.meters) : "—") },
     { label: "Цена за метр", v: (c) => K(c.meterPrice) },
     { label: `Подкладка + ${C4} %`, v: (c) => K(c.liningC4) },
     { label: "Работа", v: (c) => K(c.work) },
@@ -122,10 +122,10 @@ export function UnitCostNow({ stats }: { stats: BudgetStat[] }) {
                 <>
                   <td className={c}>{formatQty(x.qty)}</td>
                   <td className={c + GB + (strong ? " font-semibold" : "")}>{K(x.total)}</td>
-                  <td className={c + GB}>{x.hides > 0 ? formatQty(Math.round(x.hides * 10) / 10) : "—"}</td>
+                  <td className={c + GB}>{x.hides > 0 ? formatDec1(x.hides) : "—"}</td>
                   <td className={c}>{K(x.hidePrice)}</td>
                   <td className={c}>{K(x.mexC4)}</td>
-                  <td className={c + GB}>{x.meters > 0 ? formatQty(Math.round(x.meters * 100) / 100) : "—"}</td>
+                  <td className={c + GB}>{x.meters > 0 ? formatDec1(x.meters) : "—"}</td>
                   <td className={c}>{K(x.meterPrice)}</td>
                   <td className={c}>{K(x.liningC4)}</td>
                   <td className={c + GB}>{K(x.work)}</td>

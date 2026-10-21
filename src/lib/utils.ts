@@ -113,6 +113,12 @@ export function formatCurrency(value: number | string, currency: string) {
 }
 
 /** Количество (шт., м, кг, дм², шкуры): целое; меньше 10 — максимум 1 знак (0,5 м; 1,4 шкуры). */
+/** Одна цифра после запятой всегда (шкуры и подкладка в метрах на 1 изделие): 9,0 · 1,3 · 94,2. */
+export function formatDec1(value: number | string | null | undefined): string {
+  const n = typeof value === "string" ? Number(value) : value;
+  return n == null || !Number.isFinite(n) ? "—" : new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
+}
+
 export function formatQty(value: number | string) {
   return formatNum(value, 10);
 }

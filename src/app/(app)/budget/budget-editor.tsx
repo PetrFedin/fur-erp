@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { formatPercent, formatNum, formatDateTime, formatMoney, formatMoneySigned } from "@/lib/utils";
+import { formatPercent, formatNum, formatDec1, formatDateTime, formatMoney, formatMoneySigned } from "@/lib/utils";
 import { useConfirm } from "@/components/confirm-dialog";
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
@@ -511,10 +511,10 @@ export function BudgetEditor(p: Props) {
             </div>
           </td>
           <td className={c}>{qz(a.pcs)}</td>
-          <td className={c + " " + sepL}>{hidesPer ? qty(hidesPer, 1) : "—"}</td>
+          <td className={c + " " + sepL}>{hidesPer ? formatDec1(hidesPer) : "—"}</td>
           <td className={c}>{mz(hidePrice)}</td>
           <td className={c + " text-neutral-700"}>{mz(mexPer)}</td>
-          <td className={c + " " + sepL}>{metersPer ? qty(metersPer, 2) : "—"}</td>
+          <td className={c + " " + sepL}>{metersPer ? formatDec1(metersPer) : "—"}</td>
           <td className={c}>{mz(meterPrice)}</td>
           <td className={c + " text-neutral-700"}>{mz(liningPer)}</td>
           <td className={c + " " + sepL}>{mz(workPer)}</td>
