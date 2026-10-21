@@ -161,6 +161,8 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   // Сезон общий с панелью «Сезон» (она начинается с раздела «Производство» и закреплена); вне панели — свой выбор.
   const scope = useSeasonScope();
   const [ownSeason, setOwnSeason] = useState("all");
+  /** НДС в окне плитки «Продано» (по умолчанию с НДС); сама плитка и остальной блок — по переключателю шапки сайта. */
+  const [mVat, setMVat] = useState<"in" | "ex">("in");
   const season = scope ? scope.season : ownSeason;
   /** Категория (Тотал / Одежда / Аксессуары): общая для трёх плиток, графика и таблицы. */
   const [cls, setCls] = useState<SalesCls>("all");
@@ -187,13 +189,17 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
     if (t === "ordered") { const l = orderLineOf(c); return l ? [{ k: "Заказано по прайсу 19.10", v: money(l.orderedRub[v]) }, { k: "Ждём по прайсу 19.10", v: l.awaiting > 0 ? money(l.awaitingRub[v]) : "—" }] : []; }
     const h = slice.head[c], m = h.money[v];
     if (t === "received") return [{ k: "По себестоимости ТЗ", v: money(m.recvCost) }, { k: "По прайсу 19.10", v: money(m.recvList) }];
-    if (t === "sold") return [
-      { k: `Выручка, ${vatNote}`, v: money(m.revenue) },
-      { k: "Gross (до скидки)", v: money(m.grossRev) },
-      { k: "Скидка", v: money(m.discount), share: m.grossRev > 0.5 && m.discount > 0.5 ? m.discount / m.grossRev : null },
-      { k: "Средневзвешенная цена, ₽/шт.", v: moneyK(m.avgPrice) },
-      { k: "Маркап продаж", v: x2(m.markupSold) },
-    ];
+    if (t === "sold") {
+      const sm = h.money[v], sw = vatNote;
+      return [
+        { k: "По себестоимости ТЗ", v: money(sm.soldCost) },
+        { k: `Выручка, ${sw}`, v: money(sm.revenue) },
+        { k: "Gross (до скидки)", v: money(sm.grossRev) },
+        { k: "Скидка", v: money(sm.discount), share: sm.grossRev > 0.5 && sm.discount > 0.5 ? sm.discount / sm.grossRev : null, shareFirst: true },
+        { k: "Средневзвешенная цена, ₽/шт.", v: moneyK(sm.avgPrice) },
+        { k: "Маркап продаж", v: x2(sm.markupSold) },
+      ];
+    }
     return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу 19.10", v: money(m.stockList) }, ...(slice.soAsEnd !== null ? [{ k: "SO AS (до конца сезона)", v: pct(h.soAs, 1) }] : []), { k: season === "all" ? "Sell-through" : "SO STD (на сегодня)", v: pct(h.sellThrough, 1) }, { k: "Маркап остатка", v: x2(m.markupStock) },
       ...(season === "all" ? [] : [{ k: "Сток тотал", v: qty(h.stockCum) }, { k: "Сток тотал в рознице", v: money(h.stockListCum[v]) }, { k: "Маркап стока тотал", v: x2(h.markupStockCum[v]) }, { k: "Доля сезона", v: h.stockCum > 0 ? pct(h.stock / h.stockCum, 0) : "—" }])];
   };
@@ -205,7 +211,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
     : <p>Остаток = приход − продано. Sell-through = продано ÷ получено.</p>;
 
   const tile = (t: Tile) => (
-    <Carousel key={t} label={TILE_TITLE[t]} index={SALES_CLS.indexOf(cls)} onIndex={(k) => setCls(SALES_CLS[k] ?? "all")} onOpen={(k) => { setMSeason(season); setMHier("fur"); setOpen({ tile: t, cls: SALES_CLS.find((c) => CLS_LABEL[c] === k) ?? "all" }); }}
+    <Carousel key={t} label={TILE_TITLE[t]} index={SALES_CLS.indexOf(cls)} onIndex={(k) => setCls(SALES_CLS[k] ?? "all")} onOpen={(k) => { setMSeason(season); setMHier("fur"); setMVat("in"); setOpen({ tile: t, cls: SALES_CLS.find((c) => CLS_LABEL[c] === k) ?? "all" }); }}
       pages={SALES_CLS.map((c) => ({
         key: CLS_LABEL[c],
         node: (
@@ -235,14 +241,22 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         </SalesModal>
       );
     }
-    const sub = `${CLS_LABEL[open.cls]} · ${mSeason === "all" ? "все сезоны" : mSeason} · ${b.periodNote} · ${vatNote}`;
+    // В окне плитки «Продано» свой переключатель НДС (по умолчанию с НДС); в остальных окнах — НДС шапки сайта.
+    const soldWin = open.tile === "sold";
+    const wv: "in" | "ex" = soldWin ? mVat : v, wNote = wv === "in" ? "с НДС" : "без НДС";
+    const sub = `${CLS_LABEL[open.cls]} · ${mSeason === "all" ? "все сезоны" : mSeason} · ${b.periodNote} · ${wNote}`;
     return (
       <SalesModal wide title={`${TILE_TITLE[open.tile]}: ${qty(valueOf(open.tile, open.cls, sl))}`} subtitle={sub} onClose={() => setOpen(null)}>
         <div className="flex flex-wrap items-center gap-2">
           <HierSwitch value={mHier} onChange={setMHier} />
           <SeasonSwitch keys={seasonKeys} value={mSeason} onChange={setMSeason} />
+          {soldWin ? (
+            <div role="group" aria-label="НДС в таблице «Продано»" className={segGroup}>
+              {([["in", "С НДС"], ["ex", "Без НДС"]] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={mVat === k} onClick={() => setMVat(k)} className={seg(mVat === k)}>{l}</button>)}
+            </div>
+          ) : null}
         </div>
-        <SalesTable key={mSeason + mHier + open.cls} view={sl.views[open.cls][mHier]} v={v} vatNote={vatNote} cumCol={mSeason !== "all"} soAs={sl.soAsEnd !== null} />
+        <SalesTable key={mSeason + mHier + open.cls + wv} view={sl.views[open.cls][mHier]} v={wv} vatNote={wNote} cumCol={mSeason !== "all"} soAs={sl.soAsEnd !== null} />
         <Link href={href} className="inline-flex min-h-11 items-center text-sm text-blue-700 hover:underline">Продажи и остатки ›</Link>
       </SalesModal>
     );

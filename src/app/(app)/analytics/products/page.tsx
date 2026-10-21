@@ -13,7 +13,7 @@ import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "@/app/(app
 import { YearNote } from "@/components/year-note";
 import { Mode4Badge } from "@/components/c4-note";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatDec1 } from "@/lib/utils";
 import { loadOrderRows, type OrderRow } from "@/lib/analytics-orders";
 import { loadPaymentsOverview } from "@/lib/payments-overview";
 import {
@@ -110,7 +110,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
             <span>{formatQty(r.qty)} ед.</span>
             <span>{r.costIncl > 0 ? <Money incl={r.costIncl / Math.max(r.qty, 1)} excl={r.costExcl / Math.max(r.qty, 1)} /> : "себестоимость 0"} за ед.</span>
             {r.work > 0 && <span>работа {formatMoney((r.work / Math.max(r.qty, 1)).toFixed(2))}</span>}
-            {r.furQty > 0 && <span>шкур {formatQty(r.furQty)}</span>}
+            {r.furQty > 0 && <span>шкур {formatDec1(r.furQty)}</span>}
             {r.hammerSkins > 0 && <span>молоток <Money incl={r.hammerIncl / r.hammerSkins} excl={r.hammerExcl / r.hammerSkins} /></span>}
           </div>
         ))}
@@ -311,7 +311,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         </div>
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>Шкур</TileHead>
-          <TileValue>{formatQty(sAll.m.skins)}</TileValue>
+          <TileValue>{formatDec1(sAll.m.skins)}</TileValue>
           <TileCaption>в ТЗ</TileCaption>
         </div>
         <div className="relative">

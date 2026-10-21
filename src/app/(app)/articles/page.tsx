@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { buttonVariants } from "@/components/ui/button";
-import { formatQty, formatMarkup } from "@/lib/utils";
+import { formatQty, formatMarkup, formatDec1 } from "@/lib/utils";
 import { Money } from "@/components/money";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { getYearFilter } from "@/lib/year-filter";
@@ -452,13 +452,13 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <Td data-col="lining" className="text-neutral-700 text-xs" title={r.lining}>{r.lining ? (r.lining.length > 32 ? `${r.lining.slice(0, 32)}…` : r.lining) : "—"}</Td>
               <Td data-col="qty" className="text-right tabular-nums">{r.qty > 0 ? formatQty(r.qty) : "—"}</Td>
               <Td data-col="furQty" className="text-right tabular-nums">
-                {r.met.fur.qty > 0 ? formatQty(Math.round(r.met.fur.qty * 100) / 100) : "—"}
+                {r.met.fur.qty > 0 ? formatDec1(Math.round(r.met.fur.qty * 100) / 100) : "—"}
                 {r.met.fur.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.fur.qty, r.qty)} шк./изд.</div> : null}
                 {r.supplierFur ? <div className="text-[11px] text-neutral-400" title="Заявка подрядчика по артикулу, не итог по ТЗ">подрядчик: {r.supplierFur} шк./изд.</div> : null}
               </Td>
               <Td data-col="furSum" className="text-right"><CostTwo on={r.met.fur.on} off={r.met.fur.off} /></Td>
               <Td data-col="liningQty" className="text-right tabular-nums">
-                {r.met.lining.qty > 0 ? formatQty(Math.round(r.met.lining.qty * 100) / 100) : "—"}
+                {r.met.lining.qty > 0 ? formatDec1(Math.round(r.met.lining.qty * 100) / 100) : "—"}
                 {r.met.lining.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.lining.qty, r.qty)} м/изд.</div> : null}
               </Td>
               <Td data-col="liningSum" className="text-right"><CostTwo on={r.met.lining.on} off={r.met.lining.off} /></Td>
@@ -490,9 +490,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <Td data-col="name"><TotalLabel unit="шт." /></Td>
               <Td data-col="photos" /><Td data-col="plu" /><Td data-col="shop" /><Td data-col="category" /><Td data-col="fur" /><Td data-col="color" /><Td data-col="sizes" /><Td data-col="lining" />
               <Td data-col="qty" className="text-right tabular-nums">{totalQty > 0 ? formatQty(totalQty) : "—"}</Td>
-              <Td data-col="furQty" className="text-right tabular-nums">{totalFurQty > 0 ? formatQty(Math.round(totalFurQty * 100) / 100) : "—"}</Td>
+              <Td data-col="furQty" className="text-right tabular-nums">{totalFurQty > 0 ? formatDec1(totalFurQty) : "—"}</Td>
               <Td data-col="furSum" className="text-right"><CostTwo on={sumPair((r) => r.met.fur.on)} off={sumPair((r) => r.met.fur.off)} /></Td>
-              <Td data-col="liningQty" className="text-right tabular-nums">{totalLiningQty > 0 ? formatQty(Math.round(totalLiningQty * 100) / 100) : "—"}</Td>
+              <Td data-col="liningQty" className="text-right tabular-nums">{totalLiningQty > 0 ? formatDec1(Math.round(totalLiningQty * 100) / 100) : "—"}</Td>
               <Td data-col="liningSum" className="text-right"><CostTwo on={sumPair((r) => r.met.lining.on)} off={sumPair((r) => r.met.lining.off)} /></Td>
               <Td data-col="work" className="text-right tabular-nums"><Money incl={sum((r) => r.met.work).toFixed(2)} excl={sum((r) => r.met.work).toFixed(2)} /></Td>
               <Td data-col="total" className="text-right"><CostTwo on={totalQty > 0 || totalCostIncl > 0 ? sumPair((r) => r.met.total.on) : null} off={sumPair((r) => r.met.total.off)} /></Td>
@@ -536,9 +536,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                   ...(canCreate ? [{ label: "Магазин и фото", value: <ArticleShopEditor modelId={r.id} title={r.name} /> }] : []),
                 ];
               })(),
-              { label: "Шкур, шт.", value: r.met.fur.qty > 0 ? `${formatQty(Math.round(r.met.fur.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.fur.qty, r.qty)}/изд.)` : ""}` : "—" },
+              { label: "Шкур, шт.", value: r.met.fur.qty > 0 ? `${formatDec1(Math.round(r.met.fur.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.fur.qty, r.qty)}/изд.)` : ""}` : "—" },
               { label: "Шкуры, сумма", value: <CostTwo on={r.met.fur.on} off={r.met.fur.off} /> },
-              { label: "Подкладка, м", value: r.met.lining.qty > 0 ? `${formatQty(Math.round(r.met.lining.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.lining.qty, r.qty)}/изд.)` : ""}` : "—" },
+              { label: "Подкладка, м", value: r.met.lining.qty > 0 ? `${formatDec1(Math.round(r.met.lining.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.lining.qty, r.qty)}/изд.)` : ""}` : "—" },
               { label: "Подкладка, сумма", value: <CostTwo on={r.met.lining.on} off={r.met.lining.off} /> },
               { label: "Работа", value: r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "—" },
               { label: "НДС в списаниях", value: r.met.vatRates.length ? r.met.vatRates.map((v) => `${v} %`).join(", ") : "—" },

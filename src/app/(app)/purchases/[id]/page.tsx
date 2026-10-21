@@ -18,7 +18,7 @@ import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatCurrency, formatDate, formatMoney, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint, formatRate, formatNum } from "@/lib/utils";
+import { formatCurrency, formatDate, formatMoney, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint, formatRate, formatNum, formatDec1 } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { purchaseTotalInclVat, purchaseTotalExclVat, expenseInclVat } from "@/lib/purchase-totals";
 import { isServicePurchase } from "@/lib/service-purchase";
@@ -429,7 +429,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                             ? `${lotName} уже списан в ТЗ (${orders
                                 .map((o) => `${o.number}: ${formatQty(o.quantity)} ${UNIT_LABELS[item.rawMaterial.unit]}`)
                                 .join(", ")}). Сначала удалите там списание. Доступны только лот, сорт и цвет:`
-                            : `${lotName} уже частично израсходован (${formatQty(item.lot.quantityReceived.sub(item.lot.quantityRemaining).toString())} ${UNIT_LABELS[item.rawMaterial.unit]}) — доступны только лот, сорт и цвет`
+                            : `${lotName} уже частично израсходован (${formatDec1(item.lot.quantityReceived.sub(item.lot.quantityRemaining).toString())} ${UNIT_LABELS[item.rawMaterial.unit]}) — доступны только лот, сорт и цвет`
                           : undefined
                       }
                       lockedOrders={orders}
@@ -614,7 +614,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
             ))}
           </p>
           <p className="mt-1 text-sm text-neutral-700">
-            Лотов <b className="tabular-nums">{purchase.items.length}</b> · шкур <b className="tabular-nums">{formatQty(purchase.items.reduce((a, i) => a + Number(i.quantity), 0).toString())}</b>
+            Лотов <b className="tabular-nums">{purchase.items.length}</b> · шкур <b className="tabular-nums">{formatDec1(purchase.items.reduce((a, i) => a + Number(i.quantity), 0).toString())}</b>
           </p>
           {rawStages.length > 0 && <RawNow stages={rawStages} className="mt-2 max-w-3xl" />}
           {sharedDocPurchases.length > 0 && (

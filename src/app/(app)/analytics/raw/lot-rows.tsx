@@ -2,14 +2,14 @@ import Link from "next/link";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
 import { Ref4 } from "@/components/c4-note";
-import { formatQty } from "@/lib/utils";
+import { formatQty, formatDec1 } from "@/lib/utils";
 import { aggOf, pctText, usedPct, type RawLot } from "@/lib/raw-analytics";
 
 /** Колонки таблицы лотов и итоговых строк групп (одинаковые, чтобы цифры стояли друг под другом). */
 export const LOT_COLS = "md:grid-cols-[2fr_1fr_1fr_1fr_1fr_0.8fr_1.2fr_1.4fr]";
 
 const q2 = (d: Decimal) => d.toFixed(2);
-const qty = (d: Decimal, unit: string) => `${formatQty(d.toString())} ${unit}`;
+const qty = (d: Decimal, unit: string) => `${formatDec1(d.toString())} ${unit}`;
 
 /** Лоты раскрытой группы (подгружаются при раскрытии строки). */
 export function GroupLots({ lots, unit, c4, showAuction }: { lots: RawLot[]; unit: string; c4: "on" | "off"; showAuction: boolean }) {
@@ -63,7 +63,7 @@ function LotRowView({ l, unit, c4, showAuction }: { l: RawLot; unit: string; c4:
         </div>
         <span className="tabular-nums"><span className={lab}>Куплено</span>{qty(l.recv, unit)}</span>
         <span className="tabular-nums"><span className={lab}>Использовано</span>{qty(l.used, unit)}</span>
-        <span className={"tabular-nums " + (l.movementGap.isZero() ? "" : "font-medium text-red-700")} title={l.movementGap.isZero() ? undefined : `журнал − лот = ${formatQty(l.movementGap.toString())}`}>
+        <span className={"tabular-nums " + (l.movementGap.isZero() ? "" : "font-medium text-red-700")} title={l.movementGap.isZero() ? undefined : `журнал − лот = ${formatDec1(l.movementGap.toString())}`}>
           <span className={lab}>В учёте</span>{qty(l.jNet, unit)}
         </span>
         <span className="font-medium tabular-nums"><span className={lab}>Остаток</span>{qty(l.rem, unit)}</span>
@@ -86,7 +86,7 @@ function LotRowView({ l, unit, c4, showAuction }: { l: RawLot; unit: string; c4:
             {l.usages.map((u, i) => (
               <span key={u.orderId}>
                 {i > 0 && ", "}
-                <Link href={`/production/${u.orderId}`} className="underline hover:text-neutral-900">{u.label}</Link> ({formatQty(u.qty.toString())})
+                <Link href={`/production/${u.orderId}`} className="underline hover:text-neutral-900">{u.label}</Link> ({formatDec1(u.qty.toString())})
               </span>
             ))}
             {" · "}

@@ -1,4 +1,4 @@
-import { cn, formatNum, formatQty } from "@/lib/utils";
+import { cn, formatNum, formatQty, formatDec1 } from "@/lib/utils";
 
 const money = (n: number) => (Number.isFinite(n) ? formatNum(n, 1) : "—");
 
@@ -9,7 +9,7 @@ export function FinalFigures({ lots, qty, totalRub, avgRub, className, title = "
       <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">{title}</h2>
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 xl:grid-cols-4">
         <Fig label="Лотов" v={String(lots)} />
-        <Fig label="Шкур" v={formatQty(qty)} />
+        <Fig label="Шкур" v={formatDec1(qty)} />
         <Fig label="Итого" v={`${money(totalRub)} ₽`} big />
         <Fig label="Средняя за шкуру" v={`${money(avgRub)} ₽`} big />
       </div>

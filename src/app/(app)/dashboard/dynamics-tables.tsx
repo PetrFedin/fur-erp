@@ -6,7 +6,7 @@ import { UNIT } from "@/lib/units";
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatDec1 } from "@/lib/utils";
 import { isDebtDust } from "@/lib/raw-rounding";
 import { alignRawTable, alignYears, cellsWith } from "@/lib/raw-display";
 import { InfoHint } from "@/components/info-hint";
@@ -334,7 +334,7 @@ export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _i
                   {shortMaterialName(r.label)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span>
                 </Link>
               ) : <span className="font-medium">{shortMaterialName(r.label)}</span>}
-              {r.ordered && r.ordered.qty > 0 ? <span className="ml-1.5 whitespace-nowrap text-[11px] font-normal text-neutral-500">заказано {formatQty(r.ordered.qty)} шт. · {rub0(vat === "incl" ? r.ordered.incl : r.ordered.excl)}</span> : null}
+              {r.ordered && r.ordered.qty > 0 ? <span className="ml-1.5 whitespace-nowrap text-[11px] font-normal text-neutral-500">заказано {formatDec1(r.ordered.qty)} шт. · {rub0(vat === "incl" ? r.ordered.incl : r.ordered.excl)}</span> : null}
             </NameCell>
             <CellsTds c={r.cells[vat]} unit={unit} avg={avg} />
             <MoneyTds paid={r.paid} due={r.due} />

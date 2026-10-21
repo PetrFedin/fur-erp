@@ -12,7 +12,7 @@ import { InfoHint } from "@/components/info-hint";
 import { YearNote } from "@/components/year-note";
 import { Money } from "@/components/money";
 import { Ref4, Mode4Badge } from "@/components/c4-note";
-import { formatQty } from "@/lib/utils";
+import { formatQty, formatDec1 } from "@/lib/utils";
 import { ageText, buildRecon, loadRawData, lotBalances, type RawLot } from "@/lib/raw-analytics";
 import { SortTh } from "@/components/sort-th";
 import { readSort, sortRows } from "@/lib/table-sort";
@@ -22,7 +22,7 @@ export const metadata = { title: "Сверка лотов" };
 
 const q2 = (d: Decimal) => d.toFixed(2);
 const unitOf = (l: RawLot) => (l.unit === "M" ? "м" : "шт.");
-const qty = (d: Decimal, l: RawLot) => `${formatQty(d.toString())} ${unitOf(l)}`;
+const qty = (d: Decimal, l: RawLot) => `${formatDec1(d.toString())} ${unitOf(l)}`;
 const name = (l: RawLot) => (l.unit === "M" ? `${l.materialName}${l.lotNumber === "Без номера" ? "" : ` · ${l.lotNumber}`}` : l.lotNumber);
 
 function LotLink({ l }: { l: RawLot }) {

@@ -8,7 +8,7 @@ import { VatInput } from "@/components/vat-input";
 import { InfoHint } from "@/components/info-hint";
 import { useVatDisplay } from "@/lib/vat-display";
 import { resolveVatRate, vatPeriodLabel } from "@/lib/vat-by-date";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatDec1 } from "@/lib/utils";
 import { createLiningBatchPurchase, type LiningBatchState } from "../../actions";
 
 type Mat = { id: string; name: string; defaultVatRate: number | null; lots: number };
@@ -159,7 +159,7 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
       <section className="row-total rounded-lg px-3 py-2 tabular-nums" aria-label="Итоги закупки" data-testid="lining-totals">
         <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
           <span className="text-sm font-semibold">Всего, ₽</span>
-          <span>Метров: <b>{formatQty(Math.round(tot.m * 1000) / 1000)}</b></span>
+          <span>Метров: <b>{formatDec1(Math.round(tot.m * 1000) / 1000)}</b></span>
           <span>Без НДС: <b>{formatMoney(tot.excl.toFixed(2))}</b></span>
           <span>НДС: <b>{formatMoney(tot.nds.toFixed(2))}</b></span>
           <span>С НДС: <b>{formatMoney(tot.incl.toFixed(2))}</b></span>

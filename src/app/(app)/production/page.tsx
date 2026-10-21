@@ -28,7 +28,7 @@ import { NO_COLOR_LABEL, NO_SIZE_LABEL, loadOrderAttrOptions, orderColorNames } 
 import { orderUnits } from "@/lib/production-totals";
 import { allocateHides, hidesApply, hidesByPayYear } from "@/lib/contractor-hides";
 import { loadPaymentsOverview } from "@/lib/payments-overview";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatDec1 } from "@/lib/utils";
 import { batchLabel } from "@/lib/batch-label";
 import { furMaterialIdsByKind, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
 import { OrdersTree } from "@/components/orders-tree";
@@ -428,9 +428,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                 ]}
                 details={[
                   { label: "Артикулов", value: "1" },
-                  { label: "Шкур", value: st.hides > 0 ? formatQty(st.hides) : undefined },
+                  { label: "Шкур", value: st.hides > 0 ? formatDec1(st.hides) : undefined },
                   { label: <VatLabel base="Мех" />, value: st.fur.incl.isZero() ? undefined : <Money incl={st.fur.incl} excl={st.fur.excl} /> },
-                  { label: "Подкладка, м", value: st.liningQty > 0 ? formatQty(st.liningQty) : undefined },
+                  { label: "Подкладка, м", value: st.liningQty > 0 ? formatDec1(st.liningQty) : undefined },
                   { label: <VatLabel base="Подкладка" />, value: st.lining.incl.isZero() ? undefined : <Money incl={st.lining.incl} excl={st.lining.excl} /> },
                   { label: "Работа", value: st.work > 0 ? formatMoney(Math.round(st.work)) : undefined },
                   { label: "Партия пошива", value: o.batch ? batchLabel(o.batch.number, o.batch.year, [o]) : "вне партий" },
@@ -474,9 +474,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   </div>
                 </Td>
                 <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.units > 0 ? formatQty(st.units) : dash}</Link></Td>
-                <Td className={num}><Link href={href} className={link}>{st.hides > 0 ? formatQty(st.hides) : dash}</Link></Td>
+                <Td className={num}><Link href={href} className={link}>{st.hides > 0 ? formatDec1(st.hides) : dash}</Link></Td>
                 <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link} {...nt(st.furNoC4)}>{st.fur.incl.isZero() ? dash : <Money incl={st.fur.incl} excl={st.fur.excl} />}</Link></Td>
-                <Td className={num}><Link href={href} className={link}>{st.liningQty > 0 ? formatQty(st.liningQty) : dash}</Link></Td>
+                <Td className={num}><Link href={href} className={link}>{st.liningQty > 0 ? formatDec1(st.liningQty) : dash}</Link></Td>
                 <Td className={num}><Link href={href} className={link} {...nt(st.liningNoC4)}>{st.lining.incl.isZero() ? dash : <Money incl={st.lining.incl} excl={st.lining.excl} />}</Link></Td>
                 <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.work > 0 ? formatMoney(Math.round(st.work)) : dash}</Link></Td>
                 <Td className={`${num} font-medium`}>
@@ -557,9 +557,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <Td className={`${cell} text-neutral-700`}><span className={`${link} whitespace-nowrap`}>{furs.join(" + ")}</span></Td>
             <Td className={cell}><span className={`${link} max-w-[16rem] truncate text-xs text-neutral-600`}>{models.join(", ")}</span></Td>
             <Td className={`${num} border-l border-neutral-200`}><span className={link}>{tot.units > 0 ? formatQty(tot.units) : dash}</span></Td>
-            <Td className={num}><span className={link}>{tot.hides > 0 ? formatQty(tot.hides) : dash}</span></Td>
+            <Td className={num}><span className={link}>{tot.hides > 0 ? formatDec1(tot.hides) : dash}</span></Td>
             <Td className={`${num} border-l border-neutral-200`}><span className={link}>{tot.fur.incl.isZero() ? dash : <Money incl={tot.fur.incl} excl={tot.fur.excl} />}</span></Td>
-            <Td className={num}><span className={link}>{tot.liningQty > 0 ? formatQty(tot.liningQty) : dash}</span></Td>
+            <Td className={num}><span className={link}>{tot.liningQty > 0 ? formatDec1(tot.liningQty) : dash}</span></Td>
             <Td className={num}><span className={link}>{tot.lining.incl.isZero() ? dash : <Money incl={tot.lining.incl} excl={tot.lining.excl} />}</span></Td>
             <Td className={`${num} border-l border-neutral-200`}><span className={link}>{tot.work > 0 ? formatMoney(Math.round(tot.work)) : dash}</span></Td>
             <Td className={`${num} font-medium`}><span className={link}>{tot.full.incl.isZero() ? dash : <Money incl={tot.full.incl} excl={tot.full.excl} />}</span></Td>

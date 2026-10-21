@@ -17,7 +17,7 @@ import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 import { YearNote } from "@/components/year-note";
 import { Mode4Badge } from "@/components/c4-note";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
-import { formatMoney, formatPercent, formatQty, formatShare, formatMarkupPct, formatMarkup } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty, formatShare, formatMarkupPct, formatMarkup, formatDec1 } from "@/lib/utils";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import {
   ACC_CATEGORIES,
@@ -264,7 +264,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                 )}
               </Td>
               <Td>{l.rawName}</Td>
-              <Td className="text-right tabular-nums">{formatQty(l.qty)} {l.isLining ? "м" : "шк."}</Td>
+              <Td className="text-right tabular-nums">{formatDec1(l.qty)} {l.isLining ? "м" : "шк."}</Td>
               <Td className="text-right tabular-nums"><Money incl={l.qty > 0 ? l.incl / l.qty : 0} excl={l.qty > 0 ? l.excl / l.qty : 0} /></Td>
               <Td className="text-right tabular-nums">
                 {l.isLining ? <span className="text-neutral-300">·</span> : l.hammerExcl != null ? (
@@ -294,7 +294,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             {!a.modelId && <span title={r.modelHint}>{r.modelLabel}</span>}
             <span>{formatQty(r.qty)} ед.</span>
             <span>{r.costIncl > 0 ? <><Money incl={r.costIncl / Math.max(r.qty, 1)} excl={r.costExcl / Math.max(r.qty, 1)} /> за ед.</> : "себестоимость 0"}</span>
-            {r.furQty > 0 && <span>шкур {formatQty(r.furQty)}</span>}
+            {r.furQty > 0 && <span>шкур {formatDec1(r.furQty)}</span>}
             {r.batchNumber != null && <span>партия {r.batchNumber}</span>}
             {r.seasonCode && <span>сезон {r.seasonCode}</span>}
             {r.usageCount === 0 && <span className="text-amber-700">без состава</span>}
@@ -324,7 +324,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       ["По годам", breakdown(a, "year") || dash],
       ["По сезонам", a.rows.some((x) => x.seasonCode) ? breakdown(a, "season") : <span className="text-neutral-500">сезон в ТЗ не указан</span>],
       ["По партиям", breakdown(a, "batch") || dash],
-      ["Шкур на ед.", d.skinsPerUnit != null ? <>{q2(d.skinsPerUnit)} <span className="text-neutral-500">(Σ {formatQty(a.m.skins)})</span></> : dash],
+      ["Шкур на ед.", d.skinsPerUnit != null ? <>{q2(d.skinsPerUnit)} <span className="text-neutral-500">(Σ {formatDec1(a.m.skins)})</span></> : dash],
       ["Подкладка, м на ед.", d.liningPerUnit != null ? <>{q2(d.liningPerUnit)} <span className="text-neutral-500">(Σ {q2(a.m.liningM)} м)</span></> : dash],
       [`Мех за ед.${c4}`, d.furPerUnit ? <Money incl={d.furPerUnit.incl} excl={d.furPerUnit.excl} /> : dash],
       [`Мех за шкуру${c4}`, d.furPerSkin ? <Money incl={d.furPerSkin.incl} excl={d.furPerSkin.excl} /> : dash],

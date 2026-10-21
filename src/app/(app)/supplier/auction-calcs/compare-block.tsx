@@ -1,4 +1,4 @@
-import { formatNum, formatQty } from "@/lib/utils";
+import { formatNum, formatQty, formatDec1 } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { inboxScope, type SupplierSess } from "@/lib/supplier-inbox";
 import { compareCalcs } from "@/lib/calc-compare";
@@ -20,7 +20,7 @@ export async function CompareBlock({ s, payload }: { s: Pick<SupplierSess, "user
       <h2 className="text-sm font-semibold">Сравнение с предварительным расчётом</h2>
       <p className="text-sm">
         Предварительно: <b>{money(c.totalBefore)} ₽</b> → окончательно: <b>{money(c.totalAfter)} ₽</b>, разница <b className={c.diff > 0 ? "text-red-700" : "text-green-700"}>{sign(c.diff)} ₽</b>
-        {c.qtyBefore !== c.qtyAfter && <> · шкур {formatQty(c.qtyBefore)} → {formatQty(c.qtyAfter)}</>}
+        {c.qtyBefore !== c.qtyAfter && <> · шкур {formatDec1(c.qtyBefore)} → {formatDec1(c.qtyAfter)}</>}
       </p>
       {changed.length === 0 ? <p className="text-sm text-neutral-500">Нет изменений по лотам.</p> : (
         <div className="overflow-x-auto">

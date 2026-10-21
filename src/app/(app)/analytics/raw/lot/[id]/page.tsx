@@ -9,7 +9,7 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { InfoHint } from "@/components/info-hint";
 import { Money } from "@/components/money";
 import { Mode4Badge } from "@/components/c4-note";
-import { formatCurrency, formatDate, formatMoney, formatQty } from "@/lib/utils";
+import { formatCurrency, formatDate, formatMoney, formatQty, formatDec1 } from "@/lib/utils";
 import { loadLotUsage, NO_AUCTION_KEY } from "@/lib/raw-analytics";
 import { Breadcrumbs, type Crumb } from "@/components/breadcrumbs";
 import { CostCell } from "../../cost-cell";
@@ -85,7 +85,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
   const lining = l.unit === "M";
   const unit = lining ? "м" : "шт.";
   const unitWord = lining ? "м" : "шт.";
-  const qty = (d: Decimal) => `${formatQty(d.toString())} ${unit}`;
+  const qty = (d: Decimal) => `${formatDec1(d.toString())} ${unit}`;
   const vatRate = Number(p.vatRate);
   const vatKey = String(vatRate);
   const remIncl = l.rem.mul(l.unitIncl);

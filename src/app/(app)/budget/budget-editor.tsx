@@ -426,12 +426,12 @@ export function BudgetEditor(p: Props) {
     const isMex = sl.id === "mex";
     const items = [
       { k: "Цена шкуры, ср.", v: money(sl.a.hides ? sl.a.mex / sl.a.hides : null) },
-      { k: "Шкур на изд., ср.", v: qty(sl.a.pcs ? sl.a.hides / sl.a.pcs : null, 1) },
+      { k: "Шкур на изд., ср.", v: formatDec1(sl.a.pcs ? sl.a.hides / sl.a.pcs : null) },
       { k: "Доля", v: share(isMex ? sl.a.mex : sl.a.total, fullTotal.total) },
     ];
     return {
       key: sl.id, label: sl.name,
-      body: <><TileValue>{money(isMex ? sl.a.mex : sl.a.total)}</TileValue><TileCaption>{isMex ? `${qty(sl.a.hides, 0)} шкур` : `${qty(sl.a.pcs, 0)} изд. · ${qty(sl.a.hides, 0)} шкур`}</TileCaption><TileList items={items} /></>,
+      body: <><TileValue>{money(isMex ? sl.a.mex : sl.a.total)}</TileValue><TileCaption>{isMex ? `${formatDec1(sl.a.hides)} шкур` : `${qty(sl.a.pcs, 0)} изд. · ${qty(sl.a.hides, 0)} шкур`}</TileCaption><TileList items={items} /></>,
     };
   });
   const furTile = (
@@ -443,7 +443,7 @@ export function BudgetEditor(p: Props) {
     <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 print:grid-cols-5">
       {tile("t", "Прогноз бюджета", money(fullTotal.total), `${qty(fullTotal.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }])}
       {furTile}
-      {tile("l", "Подкладка", money(fullTotal.lining), `${qty(fullTotal.meters, 1)} м`, [{ k: "Цена за м, ср.", v: money(fullTotal.meters ? fullTotal.lining / fullTotal.meters : null) }, { k: "Метров на изд., ср.", v: qty(fullTotal.pcs ? fullTotal.meters / fullTotal.pcs : null, 1) }, { k: "Доля", v: share(fullTotal.lining, fullTotal.total) }])}
+      {tile("l", "Подкладка", money(fullTotal.lining), `${formatDec1(fullTotal.meters)} м`, [{ k: "Цена за м, ср.", v: money(fullTotal.meters ? fullTotal.lining / fullTotal.meters : null) }, { k: "Метров на изд., ср.", v: qty(fullTotal.pcs ? fullTotal.meters / fullTotal.pcs : null, 1) }, { k: "Доля", v: share(fullTotal.lining, fullTotal.total) }])}
       {tile("w", "Работа", money(fullTotal.work), "пошив", [{ k: "На 1 изделие", v: money(fullTotal.pcs ? fullTotal.work / fullTotal.pcs : null) }, { k: "Надбавка к цене", v: formatPercent(params.upWork) }, { k: "Доля", v: share(fullTotal.work, fullTotal.total) }])}
       {tile("c", `Надбавка ${formatPercent(params.c4)}`, money(fullTotal.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(fullTotal.pcs ? fullTotal.c4 / fullTotal.pcs : null) }, { k: "Доля", v: share(fullTotal.c4, fullTotal.total) }])}
     </div>
@@ -535,10 +535,10 @@ export function BudgetEditor(p: Props) {
     const per = (v: number, a: Agg) => (a.pcs > 0 ? v / a.pcs : 0);
     const rows: { label: string; v: (a: Agg) => string; bold?: boolean }[] = [
       { label: "Бюджет, шт.", v: (a) => qz(a.pcs) },
-      { label: "Шкур на изделие", v: (a) => (a.pcs > 0 && a.hides > 0 ? qty(a.hides / a.pcs, 1) : "—") },
+      { label: "Шкур на изделие", v: (a) => (a.pcs > 0 && a.hides > 0 ? formatDec1(a.hides / a.pcs) : "—") },
       { label: "Ср. цена шкуры", v: (a) => mz(a.hides > 0 ? a.mex / a.hides : null) },
       { label: `Мех + ${formatPercent(params.c4)}`, v: (a) => mz(per(a.mex * k, a) || null) },
-      { label: "Подкладка, м", v: (a) => (a.pcs > 0 && a.meters > 0 ? qty(a.meters / a.pcs, 2) : "—") },
+      { label: "Подкладка, м", v: (a) => (a.pcs > 0 && a.meters > 0 ? formatDec1(a.meters / a.pcs) : "—") },
       { label: "Цена за метр", v: (a) => mz(a.meters > 0 ? a.lining / a.meters : null) },
       { label: `Подкладка + ${formatPercent(params.c4)}`, v: (a) => mz(per(a.lining * k, a) || null) },
       { label: "Работа", v: (a) => mz(per(a.work, a) || null) },
@@ -634,7 +634,7 @@ export function BudgetEditor(p: Props) {
       <td className="sticky left-0 z-10 border-r border-neutral-200 px-3 py-2 text-sm"><><TotalLabel />{scopeName ? <span className="font-normal"> · {scopeName}</span> : null}</></td>
       <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qty(total.pcs, 0)}</td>
       <td />
-      <td className="px-2 text-right text-xs tabular-nums text-neutral-700">{qty(total.hides, 0)}<Avg sum={total.hides} per={total.pcs} unit="шк./изд." d={1} /></td>
+      <td className="px-2 text-right text-xs tabular-nums text-neutral-700">{formatDec1(total.hides)}<Avg sum={total.hides} per={total.pcs} unit="шк./изд." d={1} /></td>
       <td className={sepL} colSpan={4} />
       <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700 ${sepL}`}>{money(total.mex)}<Avg sum={total.mex} per={total.hides} unit="₽/шт." /></td>
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.lining)}<Avg sum={total.lining} per={total.meters} unit="₽/м" /></td>
@@ -680,7 +680,7 @@ export function BudgetEditor(p: Props) {
                   {cardField(n, "meterPrice", "Цена за м, ₽", "upLining")}{cardField(n, "work", "Работа/изд., ₽", "upWork")}
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  {[["Всего шкур", qty(a.hides, 0)], ["Мех", money(a.mex)], ["Подкладка", money(a.lining)], ["Работа", money(a.work)], ["Надбавка", money(a.c4)], ["На 1 изделие", money(perUnit(a))]].map(([k, v]) => (
+                  {[["Всего шкур", formatDec1(a.hides)], ["Мех", money(a.mex)], ["Подкладка", money(a.lining)], ["Работа", money(a.work)], ["Надбавка", money(a.c4)], ["На 1 изделие", money(perUnit(a))]].map(([k, v]) => (
                     <div key={k} className="flex justify-between gap-2"><dt className="text-neutral-500">{k}</dt><dd className="tabular-nums text-neutral-800">{v}</dd></div>
                   ))}
                 </dl>

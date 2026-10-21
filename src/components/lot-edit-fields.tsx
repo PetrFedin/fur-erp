@@ -4,7 +4,7 @@ import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { LotEditCtx } from "@/components/lot-edit-ctx";
 import { useConfirm } from "@/components/confirm-dialog";
 import { SaveStatus, InlineSelect, InlineText } from "@/components/lot-inline";
-import { formatMoney, formatQty, formatNum } from "@/lib/utils";
+import { formatMoney, formatQty, formatNum, formatDec1 } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { LotChange, LotPlan } from "@/lib/lot-reprice";
 import {
@@ -52,7 +52,7 @@ export function PlanView({ plan, title }: { plan: LotPlan; title: string }) {
                 {plan.orders.map((o) => (
                   <tr key={o.id} className="border-b border-neutral-100">
                     <td className="px-1.5 py-1">№{o.number} <span className="text-xs text-neutral-500">{o.status}</span></td>
-                    <td className={cn(td, "text-right")}>{formatQty(o.qty)}</td>
+                    <td className={cn(td, "text-right")}>{formatDec1(o.qty)}</td>
                     <td className={cn(td, "text-right")}>{m2(o.usageBefore)} → <b>{m2(o.usageAfter)}</b></td>
                     <td className={cn(td, "text-right")}>{o.orderBefore != null ? <>{m2(o.orderBefore)} → <b>{m2(o.orderAfter ?? 0)}</b></> : <span className="text-xs text-neutral-500">не завершено — считается на лету</span>}</td>
                   </tr>

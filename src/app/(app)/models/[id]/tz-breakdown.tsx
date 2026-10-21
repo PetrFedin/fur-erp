@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoHint } from "@/components/info-hint";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatDec1 } from "@/lib/utils";
 import { TH as SortableTH } from "@/components/table-head";
 import { useClientSort } from "@/lib/use-client-sort";
 import { buildTzTable, type TzTableRow } from "@/lib/article-tz-table";
@@ -15,7 +15,7 @@ export type TzMeta = { label: string; href: string; wordHref: string };
 
 const TD = "whitespace-nowrap px-2 py-2 text-right tabular-nums";
 const money = (v: number) => (Math.abs(v) < 0.5 ? <span className="text-neutral-400">—</span> : formatMoney(Math.round(v)));
-const qty = (v: number, unit: string) => (v > 0 ? `${formatQty(Math.round(v * 100) / 100)} ${unit}` : <span className="text-neutral-400">—</span>);
+const qty = (v: number, unit: string) => (v > 0 ? `${formatDec1(v)} ${unit}` : <span className="text-neutral-400">—</span>);
 
 /**
  * Показатели артикула сверху вниз к итогу: 1) всего по артикулу по статьям, 2) таблица по ТЗ (статьи столбцами в одном порядке),
@@ -136,9 +136,9 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
                         {r.noFur && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900">нет меха</span>}
                       </th>
                       <td className={TD}>{formatQty(r.qty)}</td>
-                      <td className={TD}>{r.furQ > 0 ? formatQty(r.furQ) : <span className="text-neutral-400">—</span>}</td>
+                      <td className={TD}>{r.furQ > 0 ? formatDec1(r.furQ) : <span className="text-neutral-400">—</span>}</td>
                       <td className={TD}>{money(r.fur)}</td>
-                      {showLining && <td className={TD}>{r.liningQ > 0 ? formatQty(r.liningQ) : <span className="text-neutral-400">—</span>}</td>}
+                      {showLining && <td className={TD}>{r.liningQ > 0 ? formatDec1(r.liningQ) : <span className="text-neutral-400">—</span>}</td>}
                       {showLining && <td className={TD}>{money(r.lining)}</td>}
                       {showC4 && <td className={TD}>{money(r.c4)}</td>}
                       {showOther && <td className={TD}>{money(r.other)}</td>}
@@ -152,9 +152,9 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
                 <tr className="row-total" data-testid="tz-total">
                   <th scope="row" className="sm:sticky sm:left-0 sm:z-10 px-2 py-2 text-left">Итого</th>
                   <td className={TD}>{formatQty(T.qty)}</td>
-                  <td className={TD}>{T.furQ > 0 ? formatQty(T.furQ) : "—"}</td>
+                  <td className={TD}>{T.furQ > 0 ? formatDec1(T.furQ) : "—"}</td>
                   <td className={TD}>{money(T.fur)}</td>
-                  {showLining && <td className={TD}>{T.liningQ > 0 ? formatQty(T.liningQ) : "—"}</td>}
+                  {showLining && <td className={TD}>{T.liningQ > 0 ? formatDec1(T.liningQ) : "—"}</td>}
                   {showLining && <td className={TD}>{money(T.lining)}</td>}
                   {showC4 && <td className={TD}>{money(T.c4)}</td>}
                   {showOther && <td className={TD}>{money(T.other)}</td>}

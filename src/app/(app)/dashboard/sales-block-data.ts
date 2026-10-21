@@ -20,6 +20,8 @@ export type SalesMoney = {
   /** Приход и остаток: по себестоимости ТЗ и по прайсу 19.10 (в режиме НДС); pcs — сколько штук покрыто ценой (остальные в сумму не входят). */
   recvCost: number; recvCostPcs: number; recvList: number; recvListPcs: number;
   stockCost: number; stockCostPcs: number; stockList: number; stockListPcs: number;
+  /** Продано по себестоимости ТЗ (нетто-штуки × себестоимость единицы модели; штуки без себестоимости в сумму не входят). */
+  soldCost: number; soldCostPcs: number;
   /** Маркап = цена ÷ себестоимость: продаж (выручка ÷ себестоимость проданного) и остатка (розница по прайсу ÷ себестоимость остатка); считаются по штукам, где есть и цена, и себестоимость. */
   markupSold: number | null; markupStock: number | null;
 };
@@ -94,7 +96,7 @@ const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норк�
 export const furRu = (k: string) => FUR_RU[k.toUpperCase()] ?? k;
 
 /** Суммы «по себестоимости» и «по прайсу» для прихода и остатка набора строк (до конца периода). Остаток по артикулу и цвету = приход − продано. */
-function stockMoney(ctx: Ctx, lines: SLine[], scope: SLine[]): Pick<SalesMoney, "recvCost" | "recvCostPcs" | "recvList" | "recvListPcs" | "stockCost" | "stockCostPcs" | "stockList" | "stockListPcs" | "markupSold" | "markupStock"> {
+function stockMoney(ctx: Ctx, lines: SLine[], scope: SLine[]): Pick<SalesMoney, "recvCost" | "recvCostPcs" | "recvList" | "recvListPcs" | "stockCost" | "stockCostPcs" | "stockList" | "stockListPcs" | "soldCost" | "soldCostPcs" | "markupSold" | "markupStock"> {
   const inc = ctx.vat === "in";
   const price = (l: SLine, p: number) => (inc ? p : exVatAt(p, l.iso));
   const cost = (l: SLine) => (inc ? ctx.unitIncl(l) : ctx.unitExcl(l));
@@ -122,12 +124,12 @@ function stockMoney(ctx: Ctx, lines: SLine[], scope: SLine[]): Pick<SalesMoney, 
     if (p !== null) { stockList += price(g.last, p) * g.net; stockListPcs += g.net; }
     if (p !== null && ctx.hasCost(g.last)) { bothList += price(g.last, p) * g.net; bothCost += cost(g.last) * g.net; }
   }
-  let sRev = 0, sCost = 0;
+  let sRev = 0, sCost = 0, sPcs = 0;
   for (const l of lines) {
     if (l.kind !== "SALE" || l.pcs === 0 || !ctx.hasCost(l)) continue;
-    sRev += inc ? l.retailRub : l.retailRubExVat; sCost += cost(l) * l.pcs;
+    sRev += inc ? l.retailRub : l.retailRubExVat; sCost += cost(l) * l.pcs; sPcs += l.pcs;
   }
-  return { recvCost, recvCostPcs, recvList, recvListPcs, stockCost, stockCostPcs, stockList, stockListPcs, markupSold: sCost > 0 ? sRev / sCost : null, markupStock: bothCost > 0 ? bothList / bothCost : null };
+  return { recvCost, recvCostPcs, recvList, recvListPcs, stockCost, stockCostPcs, stockList, stockListPcs, soldCost: sCost, soldCostPcs: sPcs, markupSold: sCost > 0 ? sRev / sCost : null, markupStock: bothCost > 0 ? bothList / bothCost : null };
 }
 
 function moneyOf(ctx: Ctx, head: Ext, lines: SLine[], scope: SLine[]): SalesMoney {

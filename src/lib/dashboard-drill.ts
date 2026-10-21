@@ -168,6 +168,8 @@ export type Level = {
 };
 
 const nf = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+/** Шкуры и метры подкладки: всегда одна цифра после запятой. */
+const nf1 = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 function qtyTextOf(atoms: Atom[], dim: Dim): string {
   if (dim === "auction") {
@@ -254,8 +256,8 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
     const furQ = sum((a) => a.q, (a) => a.k === "f");
     const linQ = sum((a) => a.q, (a) => a.k === "l");
     const items: Item[] = [
-      { ...mk("fur", "Мех", "fur", furV, true, "по лотам"), furQ, qtyText: furQ ? `${nf(furQ)} шк.` : "" },
-      { ...mk("lining", "Подкладка", "lining", linV, true, "по лотам"), liningQ: linQ, qtyText: linQ ? `${nf(linQ)} м` : "" },
+      { ...mk("fur", "Мех", "fur", furV, true, "по лотам"), furQ, qtyText: furQ ? `${nf1(furQ)} шк.` : "" },
+      { ...mk("lining", "Подкладка", "lining", linV, true, "по лотам"), liningQ: linQ, qtyText: linQ ? `${nf1(linQ)} м` : "" },
       mk("hides", HIDES_LABEL, "fur", hidesV, false, "оплачены в составе пошива, в ТЗ не списаны"),
       mk("c4", "Надбавка 4%", "c4", c4V, c4V !== 0, c4V !== 0 ? "по лотам" : "режим «Без 4%» или не применяется"),
       mk("res", "Прочее (снимок ТЗ ≠ строки)", "res", resV, false, "разница между итогом ТЗ и суммой строк"),

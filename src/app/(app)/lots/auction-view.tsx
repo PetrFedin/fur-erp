@@ -3,7 +3,7 @@ import { relabelOrders } from "@/lib/order-label-db";
 import { escapeLike } from "@/lib/input";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionName as auctionNameLib, loadAuctionSummaries } from "@/lib/auction-payments";
-import { formatMoney, isRoundingRest, OVERPAY_FROM, formatRate } from "@/lib/utils";
+import { formatMoney, isRoundingRest, OVERPAY_FROM, formatRate, formatDec1 } from "@/lib/utils";
 import { isDebtDust } from "@/lib/raw-rounding";
 import Link from "next/link";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -352,7 +352,7 @@ export async function AuctionView({
             <InfoHint label="Об этом аукционе" wide>
               <p>Счета, лоты, документы и расчёт цены выбранного аукциона.</p>
               <p className="mt-1">Год: {year === "all" ? "все годы" : `${year} — закупки с датой заказа в ${year} году`}. Оплаты и остаток считаются по аукциону целиком.</p>
-              <p className="mt-1">Закупок {counted.length}, лотов {totalLots}, шкур {formatQty(totalQty.toString())}. По счетам {formatMoney(priceIncl.toString())}, с расходами {formatMoney(fullIncl.toString())} (с НДС). 4 % здесь не начисляется: это наценка в ТЗ.</p>
+              <p className="mt-1">Закупок {counted.length}, лотов {totalLots}, шкур {formatDec1(totalQty.toString())}. По счетам {formatMoney(priceIncl.toString())}, с расходами {formatMoney(fullIncl.toString())} (с НДС). 4 % здесь не начисляется: это наценка в ТЗ.</p>
             </InfoHint>
           </CardTitle>
         </CardHeader>
@@ -363,7 +363,7 @@ export async function AuctionView({
           <dl className="grid grid-cols-2 gap-3 text-sm lg:grid-cols-4">
             <div>
               <dt className="text-xs text-neutral-500">Шкур</dt>
-              <dd className="text-lg font-semibold">{formatQty(totalQty.toString())}</dd>
+              <dd className="text-lg font-semibold">{formatDec1(totalQty.toString())}</dd>
               <dd className="text-xs text-neutral-500">закупок {counted.length} · лотов {totalLots}</dd>
             </div>
             <div>
@@ -478,7 +478,7 @@ export async function AuctionView({
                 {p.number} · {formatDate(p.orderDate)}
               </span>
               <span className="text-xs text-neutral-500">
-                {lines.length} лот. · {formatQty(qty.toString())} шт.
+                {lines.length} лот. · {formatDec1(qty.toString())} шт.
               </span>
               {rawInfo.get(p.id) && (
                 <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs ${rawInfo.get(p.id)!.overdue ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"}`} title={`Где сырьё: ${rawInfo.get(p.id)!.line}`}>{rawInfo.get(p.id)!.chip}</span>

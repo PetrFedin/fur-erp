@@ -15,7 +15,7 @@ import { parseLotLines } from "@/lib/lot-lines";
 import { defaultCommission4, COMMISSION_RATE } from "@/lib/commission4-const";
 import { vatPeriodLabel } from "@/lib/vat-by-date";
 import { draftTotals, lineCalc, vatByRate, type CalcLine } from "@/lib/tz-calc";
-import { formatQty, formatMoney } from "@/lib/utils";
+import { formatQty, formatMoney, formatDec1 } from "@/lib/utils";
 import { LotPicker, type LotOpt } from "./lot-picker";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
@@ -250,7 +250,7 @@ function FormBody({
     chk(lining, "Подкладка");
     for (const [id, q] of Object.entries(taken)) {
       const lot = lotById.get(id);
-      if (lot && q > lot.remaining + 1e-9) e.push(`Лот ${lot.lotNumber ?? "без номера"} (${lot.material}): в ТЗ ${formatQty(q)}, остаток ${formatQty(lot.remaining)}`);
+      if (lot && q > lot.remaining + 1e-9) e.push(`Лот ${lot.lotNumber ?? "без номера"} (${lot.material}): в ТЗ ${formatDec1(q)}, остаток ${formatDec1(lot.remaining)}`);
     }
     exps.forEach((x, i) => {
       if (!x.categoryId && x.amount.trim() === "") return;
@@ -375,7 +375,7 @@ function FormBody({
                     </span>
                   )}
                 </td>
-                <td className={`whitespace-nowrap px-2 py-1.5 text-right tabular-nums ${over ? "text-red-600" : "text-neutral-600"}`}>{lot ? formatQty(lot.remaining) : "—"}</td>
+                <td className={`whitespace-nowrap px-2 py-1.5 text-right tabular-nums ${over ? "text-red-600" : "text-neutral-600"}`}>{lot ? formatDec1(lot.remaining) : "—"}</td>
                 <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
                   {lot ? <><M incl={lot.unitCost} excl={lot.unitCostExcl} /><span className="block text-[11px] text-neutral-400">из лота</span></> : "—"}
                 </td>
@@ -602,7 +602,7 @@ function FormBody({
       {!multi && <Step n={2} title="Расчёт" id="calc" hint={<><p>Лот → цена и НДС подтягиваются из закупки автоматически; сумма = количество × цена лота. Лоты списываются со склада при сохранении ТЗ (остаток лота уменьшится, в «Сырьё» вырастет использование).</p><p className="mt-1">«4 %» — надбавка посредника (Веллмех) к меху и подкладке: {COMMISSION_RATE * 100} % от цены без НДС. Работа и расходы не облагаются.</p></>}>
         <div className={`${cardCls} flex flex-col gap-3`}>
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-medium">Мех <span className="font-normal text-neutral-500">· {formatQty(T.fur.qty)} шт.</span></h3>
+            <h3 className="text-sm font-medium">Мех <span className="font-normal text-neutral-500">· {formatDec1(T.fur.qty)} шт.</span></h3>
             <div className="ml-auto flex gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setShowPaste((v) => !v)}>Вставить из Excel</Button>
               <Button type="button" variant="outline" size="sm" onClick={() => addLine("fur")}>+ Лот меха</Button>
@@ -621,7 +621,7 @@ function FormBody({
           {lineTable("fur", fur, furLots, "шт.")}
 
           <div className="flex items-center gap-2 border-t border-neutral-100 pt-3">
-            <h3 className="text-sm font-medium">Подкладка <span className="font-normal text-neutral-500">· {formatQty(T.lining.qty)} м</span></h3>
+            <h3 className="text-sm font-medium">Подкладка <span className="font-normal text-neutral-500">· {formatDec1(T.lining.qty)} м</span></h3>
             <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={() => addLine("lining")}>+ Лот подкладки</Button>
           </div>
           {lineTable("lining", lining, liningLots, "м")}

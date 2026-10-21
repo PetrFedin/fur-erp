@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { InfoHint } from "@/components/info-hint";
+import { formatDec1 } from "@/lib/utils";
 import { BTN, BTN_PRIMARY, FIELD, Modal, dateRu, money, pct, qty } from "./ui";
 import { createBudget, deleteBudget, duplicateBudget, renameBudget } from "./actions";
 
@@ -89,7 +90,7 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
               </div>
               <dl className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2 text-xs">
                 <div><dt className="text-neutral-500">Изделий</dt><dd className="mt-0.5 text-sm font-medium tabular-nums">{qty(b.pcs, 0)}</dd></div>
-                <div><dt className="text-neutral-500">Шкур</dt><dd className="mt-0.5 text-sm font-medium tabular-nums">{qty(b.hides, 0)}</dd></div>
+                <div><dt className="text-neutral-500">Шкур</dt><dd className="mt-0.5 text-sm font-medium tabular-nums">{formatDec1(b.hides)}</dd></div>
                 <div><dt className="text-neutral-500">К текущим ценам</dt><dd className="mt-0.5 text-sm font-medium tabular-nums">{pct(b.varPct)}</dd></div>
                 <div className="col-span-3 border-t border-neutral-200 pt-2"><dt className="text-neutral-500">Сумма</dt><dd className="mt-0.5 whitespace-nowrap text-xl font-semibold tabular-nums">{money(b.total)}</dd></div>
               </dl>

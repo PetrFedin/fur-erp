@@ -4,7 +4,7 @@ import Link from "next/link";
 import { TH as Head, THGroup } from "@/components/table-head";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatDec1 } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import type { DrillLine, DrillOrder } from "@/lib/dashboard-drill";
 import { articlesWord, orderKey, tzCountText, uniqueOrderCount } from "@/lib/tz-key";
@@ -91,9 +91,9 @@ export function OrdersTree({
       <>
         <td className={TD}>{opts.qty === false || q === 0 ? <Dash /> : formatQty(q)}</td>
         <td className={TD}>{opts.qty === false || q === 0 ? <Dash /> : money(total / q)}</td>
-        <td className={TD + " border-l border-neutral-200"}>{s.furQ > 0 ? formatQty(s.furQ) : <Dash />}</td>
+        <td className={TD + " border-l border-neutral-200"}>{s.furQ > 0 ? formatDec1(s.furQ) : <Dash />}</td>
         <td className={TD}>{s.furQ > 0 ? money(s.fur / s.furQ) : <Dash />}</td>
-        <td className={TD}>{s.liningQ > 0 ? formatQty(s.liningQ) : <Dash />}</td>
+        <td className={TD}>{s.liningQ > 0 ? formatDec1(s.liningQ) : <Dash />}</td>
         <td className={TD}>{s.liningQ > 0 ? money(s.lining / s.liningQ) : <Dash />}</td>
         <td className={TD + " border-l border-neutral-200"}>{money(total)}</td>
         <td className={TD}>{money(s.fur)}</td>
@@ -125,9 +125,9 @@ export function OrdersTree({
         <td className={ARROW_TD} />
         <td className={`py-1.5 pr-2 text-left ${ind}`}>{label}{sub ? <div className="mt-0.5 text-[11px] leading-4 text-neutral-400">{sub}</div> : null}</td>
         <td className={TD} /><td className={TD} />
-        <td className={TD + " border-l border-neutral-200"}>{qs?.fur ? formatQty(qs.fur) : <Dash />}</td>
+        <td className={TD + " border-l border-neutral-200"}>{qs?.fur ? formatDec1(qs.fur) : <Dash />}</td>
         <td className={TD}>{qs?.fur && s.fur ? money(s.fur / qs.fur) : <Dash />}</td>
-        <td className={TD}>{qs?.lining ? formatQty(qs.lining) : <Dash />}</td>
+        <td className={TD}>{qs?.lining ? formatDec1(qs.lining) : <Dash />}</td>
         <td className={TD}>{qs?.lining && s.lining ? money(s.lining / qs.lining) : <Dash />}</td>
         <td className={TD + " border-l border-neutral-200"}>{asWork ? <Dash /> : money((s.fur ?? 0) + (s.lining ?? 0) + (s.c4 ?? 0) + (s.res ?? 0))}</td>
         <td className={TD}>{asWork ? <Dash /> : money(s.fur ?? 0)}</td>

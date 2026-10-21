@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
 import { LOTS_RULE } from "@/lib/cost-labels";
-import { formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM } from "@/lib/utils";
+import { formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM, formatDec1 } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, expenseInclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
@@ -426,7 +426,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                       </InfoHint>
                     </div>
                     <TileValue><Money incl={b.bought.toFixed(2)} excl={b.boughtExcl.toFixed(2)} /></TileValue>
-                    <TileCaption>{b.key === "services" ? `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · УПД без позиций сырья, лотов нет` : `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · лотов ${b.t.lots - b.t.ordered} · ${formatQty(b.kind === "lining" ? b.t.lining : b.t.fur)} ${b.kind === "lining" ? "м" : "шт."}`}</TileCaption>
+                    <TileCaption>{b.key === "services" ? `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · УПД без позиций сырья, лотов нет` : `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · лотов ${b.t.lots - b.t.ordered} · ${formatDec1(b.kind === "lining" ? b.t.lining : b.t.fur)} ${b.kind === "lining" ? "м" : "шт."}`}</TileCaption>
                     {b.key === "services" ? null : <TileList items={[{
                       k: `Цена, ₽/${b.kind === "lining" ? "м" : "шт."} (ср.)`,
                       v: (b.kind === "lining" ? b.t.lining : b.t.fur) > 0

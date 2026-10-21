@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Tr, Td } from "@/components/ui/table";
-import { formatQty } from "@/lib/utils";
+import { formatQty, formatDec1 } from "@/lib/utils";
 import { Money } from "@/components/money";
 import { useConfirm } from "@/components/confirm-dialog";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
@@ -211,7 +211,7 @@ export function UsageRow({
               title="Удалить списание (лот получит количество обратно)"
               className="rounded px-1.5 py-0.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
               onClick={async () => {
-                if (!(await ask(`Удалить списание: ${usage.rawMaterialName}, лот ${usage.lotNumber ?? "без номера"}, ${formatQty(usage.quantity)} ${unit}?`, { ok: "Удалить", danger: true }))) return;
+                if (!(await ask(`Удалить списание: ${usage.rawMaterialName}, лот ${usage.lotNumber ?? "без номера"}, ${formatDec1(usage.quantity)} ${unit}?`, { ok: "Удалить", danger: true }))) return;
                 startBusy(async () => {
                   await removeAction();
                 });

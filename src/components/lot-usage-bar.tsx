@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { TH as Head } from "@/components/table-head";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { formatPercent, formatQty } from "@/lib/utils";
+import { formatPercent, formatQty, formatDec1 } from "@/lib/utils";
 
 /** Сегмент схемы: ТЗ, списавшее с лота, «прочее списание» (не через ТЗ) или остаток. Количества — в единицах лота (шт. / м). */
 export type UsageSeg = {
@@ -42,8 +42,8 @@ const HOVER_BG = "var(--ui-field-bg, #fff1eb)";
 
 const tipOf = (s: UsageSeg, total: number, unit: string) =>
   s.kind === "order"
-    ? `${s.label}${s.sku ? ` · ${s.sku}` : ""} · ${formatQty(s.qty)} ${unit} · ${formatPercent(pct(s.qty, total))}`
-    : `${s.label} · ${formatQty(s.qty)} ${unit} · ${formatPercent(pct(s.qty, total))}`;
+    ? `${s.label}${s.sku ? ` · ${s.sku}` : ""} · ${formatDec1(s.qty)} ${unit} · ${formatPercent(pct(s.qty, total))}`
+    : `${s.label} · ${formatDec1(s.qty)} ${unit} · ${formatPercent(pct(s.qty, total))}`;
 
 function Marker({ seg, bg }: { seg: UsageSeg; bg: string }) {
   return <span aria-hidden className="mr-2 inline-block h-3 w-3 shrink-0 rounded-sm align-middle" style={seg.kind === "rem" ? { border: REM_BORDER, background: "#fafaf9" } : { background: bg }} />;
@@ -92,10 +92,10 @@ export function LotUsageViz({
     <div className="flex flex-col gap-3">
       {/* итоги */}
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm tabular-nums">
-        <span>Куплено: <b>{formatQty(total)} {unit}</b></span>
-        <span>Использовано: <b>{formatQty(usedQty)} {unit}</b> ({formatPercent(pct(usedQty, total))})</span>
-        {other && <span>Прочее списание: <b>{formatQty(other.qty)} {unit}</b> ({formatPercent(pct(other.qty, total))})</span>}
-        <span>Остаток: <b>{formatQty(remQty)} {unit}</b> ({formatPercent(pct(remQty, total))})</span>
+        <span>Куплено: <b>{formatDec1(total)} {unit}</b></span>
+        <span>Использовано: <b>{formatDec1(usedQty)} {unit}</b> ({formatPercent(pct(usedQty, total))})</span>
+        {other && <span>Прочее списание: <b>{formatDec1(other.qty)} {unit}</b> ({formatPercent(pct(other.qty, total))})</span>}
+        <span>Остаток: <b>{formatDec1(remQty)} {unit}</b> ({formatPercent(pct(remQty, total))})</span>
       </div>
 
       {/* шкала 0 … всего */}
@@ -106,14 +106,14 @@ export function LotUsageViz({
             className={"absolute top-0 whitespace-nowrap " + (i % 2 === 1 ? "hidden sm:block" : "")}
             style={t === 1 ? { right: 0 } : t === 0 ? { left: 0 } : { left: `${t * 100}%`, transform: "translateX(-50%)" }}
           >
-            {t === 0 ? "0" : `${formatQty(r3(total * t))}${t === 1 ? ` ${unit}` : ""}`}
+            {t === 0 ? "0" : `${formatDec1(r3(total * t))}${t === 1 ? ` ${unit}` : ""}`}
           </span>
         ))}
       </div>
 
       {/* составная полоса */}
       <div className="relative pb-6">
-        <div role="group" aria-label={`Схема расхода лота: куплено ${formatQty(total)} ${unit}, использовано ${formatQty(usedQty)}, остаток ${formatQty(remQty)}`} className="flex h-9 w-full overflow-hidden rounded-md border border-neutral-300 bg-white" data-testid="lot-usage-bar">
+        <div role="group" aria-label={`Схема расхода лота: куплено ${formatDec1(total)} ${unit}, использовано ${formatDec1(usedQty)}, остаток ${formatDec1(remQty)}`} className="flex h-9 w-full overflow-hidden rounded-md border border-neutral-300 bg-white" data-testid="lot-usage-bar">
           {segs.filter((s) => s.qty > 0).map((s) => {
             const w = pct(s.qty, total);
             const style: React.CSSProperties = {
@@ -130,7 +130,7 @@ export function LotUsageViz({
             }
             return (
               <div key={s.key} tabIndex={0} role="img" className="flex min-w-0 items-center overflow-hidden px-2 text-xs text-neutral-800 focus-visible:outline-2" {...common}>
-                {s.kind === "rem" && w >= 16 ? <span className="truncate">Остаток {formatQty(s.qty)} {unit} ({formatPercent(w)})</span> : null}
+                {s.kind === "rem" && w >= 16 ? <span className="truncate">Остаток {formatDec1(s.qty)} {unit} ({formatPercent(w)})</span> : null}
               </div>
             );
           })}
@@ -144,7 +144,7 @@ export function LotUsageViz({
           style={{ color: "var(--ui-accent-text)", ...(boundary > 70 ? { right: `${100 - boundary}%`, textAlign: "right" } : boundary < 8 ? { left: `${boundary}%` } : { left: `${boundary}%`, transform: "translateX(-50%)" }) }}
           data-testid="lot-usage-marker"
         >
-          остаток: {formatQty(remQty)} {unit}
+          остаток: {formatDec1(remQty)} {unit}
         </div>
       </div>
 
@@ -171,7 +171,7 @@ export function LotUsageViz({
                   <td className="py-1.5 pl-1 pr-2"><Marker seg={s} bg={bgOf(s)} /></td>
                   <td className="py-1.5 pr-3">{c.title}</td>
                   <td className="py-1.5 pr-3">{c.sku}</td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums">{formatQty(s.qty)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{formatDec1(s.qty)}</td>
                   <td className="py-1.5 pr-3 text-right tabular-nums">{formatPercent(pct(s.qty, total))}</td>
                   <td className="py-1.5 pr-3 text-right tabular-nums">{s.cost ?? "—"}</td>
                   <td className="whitespace-nowrap py-1.5">{c.date}</td>
@@ -181,7 +181,7 @@ export function LotUsageViz({
             <tr className="border-t-2 border-neutral-300 font-semibold">
               <td />
               <td className="py-1.5 pr-3" colSpan={2}>Куплено (всего)</td>
-              <td className="py-1.5 pr-3 text-right tabular-nums">{formatQty(total)}</td>
+              <td className="py-1.5 pr-3 text-right tabular-nums">{formatDec1(total)}</td>
               <td className="py-1.5 pr-3 text-right tabular-nums">{formatPercent(100)}</td>
               <td className="py-1.5 pr-3 text-right tabular-nums">{totalCost ?? "—"}</td>
               <td />
@@ -198,7 +198,7 @@ export function LotUsageViz({
             <li key={s.key} className={"rounded-lg border border-neutral-200 p-3 text-sm " + rowCls(s.key)} style={rowStyle(s.key)} {...on(s.key)}>
               <div className="flex items-center justify-between gap-2">
                 <span className="min-w-0 font-medium"><Marker seg={s} bg={bgOf(s)} />{c.title}</span>
-                <span className="shrink-0 tabular-nums">{formatQty(s.qty)} {unit} · {formatPercent(pct(s.qty, total))}</span>
+                <span className="shrink-0 tabular-nums">{formatDec1(s.qty)} {unit} · {formatPercent(pct(s.qty, total))}</span>
               </div>
               <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-neutral-600">
                 {s.kind === "order" && (<><dt>Артикул</dt><dd className="break-words">{c.sku}</dd><dt>Дата</dt><dd>{c.date}</dd></>)}
@@ -208,7 +208,7 @@ export function LotUsageViz({
           );
         })}
         <li className="rounded-lg bg-neutral-50 p-3 text-sm font-semibold">
-          Куплено: {formatQty(total)} {unit} · {formatPercent(100)}{totalCost ? <> · {totalCost}</> : null}
+          Куплено: {formatDec1(total)} {unit} · {formatPercent(100)}{totalCost ? <> · {totalCost}</> : null}
         </li>
       </ul>
 
@@ -245,7 +245,7 @@ function RemainderChart({ unit, recv, startDate, orders, other }: { unit: string
     return (
       <section aria-label={title} className="mt-1 border-t border-neutral-100 pt-3">
         <h3 className="text-sm font-medium">{title}</h3>
-        <p className="mt-1 text-sm text-neutral-600">Списаний не было: остаток равен количеству при закупке ({formatQty(recv)} {unit}).</p>
+        <p className="mt-1 text-sm text-neutral-600">Списаний не было: остаток равен количеству при закупке ({formatDec1(recv)} {unit}).</p>
       </section>
     );
   }
@@ -261,7 +261,7 @@ function RemainderChart({ unit, recv, startDate, orders, other }: { unit: string
   d += ` H${L + pw}`;
   const area = `${d} V${T + ph} H${xAt(0)} Z`;
   const every = Math.max(1, Math.ceil(104 / (pw / (n + 1))));
-  const summary = `${title}: куплено ${formatQty(recv)} ${unit} (${startDate}); ${steps.map((s) => `${s.label} ${s.date}: остаток ${formatQty(s.bal)}`).join("; ")}.`;
+  const summary = `${title}: куплено ${formatDec1(recv)} ${unit} (${startDate}); ${steps.map((s) => `${s.label} ${s.date}: остаток ${formatDec1(s.bal)}`).join("; ")}.`;
 
   return (
     <section aria-label={title} className="mt-1 border-t border-neutral-100 pt-3" data-testid="lot-remainder-chart">
@@ -271,7 +271,7 @@ function RemainderChart({ unit, recv, startDate, orders, other }: { unit: string
           {[0, 0.5, 1].map((t) => (
             <g key={t}>
               <line x1={L} x2={L + pw} y1={yAt(recv * t)} y2={yAt(recv * t)} stroke="#e5e5e5" strokeWidth={1} />
-              <text x={L - 6} y={yAt(recv * t) + 4} textAnchor="end" fontSize={11} fill="#525252">{formatQty(r3(recv * t))}</text>
+              <text x={L - 6} y={yAt(recv * t) + 4} textAnchor="end" fontSize={11} fill="#525252">{formatDec1(r3(recv * t))}</text>
             </g>
           ))}
           <text x={4} y={11} fontSize={11} fill="#525252">{unit}</text>
@@ -279,11 +279,11 @@ function RemainderChart({ unit, recv, startDate, orders, other }: { unit: string
           <path d={d} fill="none" stroke="var(--ui-accent)" strokeWidth={2.5} strokeLinejoin="round" />
           {/* остаток сейчас */}
           <line x1={xAt(n)} x2={L + pw} y1={yAt(lastBal)} y2={yAt(lastBal)} stroke="var(--ui-accent)" strokeWidth={2.5} strokeDasharray="5 4" />
-          <text x={L + pw} y={yAt(lastBal) - 6} textAnchor="end" fontSize={11} fontWeight={600} fill="var(--ui-accent-text)" stroke="#fff" strokeWidth={3} paintOrder="stroke">остаток: {formatQty(lastBal)}</text>
+          <text x={L + pw} y={yAt(lastBal) - 6} textAnchor="end" fontSize={11} fontWeight={600} fill="var(--ui-accent-text)" stroke="#fff" strokeWidth={3} paintOrder="stroke">остаток: {formatDec1(lastBal)}</text>
           {[{ label: "Покупка", date: startDate, bal: recv, qty: 0 }, ...steps].map((s, i) => (
             <g key={i}>
               <circle cx={xAt(i)} cy={yAt(s.bal)} r={4} fill="var(--ui-accent)" stroke="#fff" strokeWidth={1.5}>
-                <title>{i === 0 ? `Покупка ${s.date}: ${formatQty(recv)} ${unit}` : `${s.label} · ${s.date} · −${formatQty(s.qty)} ${unit} · остаток ${formatQty(s.bal)}`}</title>
+                <title>{i === 0 ? `Покупка ${s.date}: ${formatDec1(recv)} ${unit}` : `${s.label} · ${s.date} · −${formatDec1(s.qty)} ${unit} · остаток ${formatDec1(s.bal)}`}</title>
               </circle>
               {i % every === 0 ? (
                 <text x={xAt(i)} y={T + ph + 15} textAnchor="middle" fontSize={10.5} fill="#404040">
@@ -307,13 +307,13 @@ function RemainderChart({ unit, recv, startDate, orders, other }: { unit: string
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b border-neutral-100"><td className="py-1 pr-3">Покупка</td><td className="py-1 pr-3">{startDate}</td><td className="py-1 pr-3 text-right">—</td><td className="py-1 text-right tabular-nums">{formatQty(recv)}</td></tr>
+            <tr className="border-b border-neutral-100"><td className="py-1 pr-3">Покупка</td><td className="py-1 pr-3">{startDate}</td><td className="py-1 pr-3 text-right">—</td><td className="py-1 text-right tabular-nums">{formatDec1(recv)}</td></tr>
             {steps.map((s) => (
               <tr key={s.key} className="border-b border-neutral-100">
                 <td className="py-1 pr-3">{s.label}</td>
                 <td className="py-1 pr-3">{s.date}</td>
-                <td className="py-1 pr-3 text-right tabular-nums">{formatQty(s.qty)}</td>
-                <td className="py-1 text-right tabular-nums">{formatQty(s.bal)}</td>
+                <td className="py-1 pr-3 text-right tabular-nums">{formatDec1(s.qty)}</td>
+                <td className="py-1 text-right tabular-nums">{formatDec1(s.bal)}</td>
               </tr>
             ))}
           </tbody>
@@ -330,7 +330,7 @@ export function LotUsageMini({ recv, used, unit, className }: { recv: number; us
     <div className={className} data-testid="lot-usage-mini">
       <div
         role="img"
-        aria-label={`Использовано ${formatQty(used)} из ${formatQty(recv)} ${unit} (${formatPercent(p)}), остаток ${formatQty(Math.max(0, Math.round((recv - used) * 1000) / 1000))} ${unit}`}
+        aria-label={`Использовано ${formatDec1(used)} из ${formatDec1(recv)} ${unit} (${formatPercent(p)}), остаток ${formatDec1(Math.max(0, Math.round((recv - used) * 1000) / 1000))} ${unit}`}
         className="h-2.5 w-full overflow-hidden rounded-full"
         style={{ background: "#e7e5e4" }}
       >

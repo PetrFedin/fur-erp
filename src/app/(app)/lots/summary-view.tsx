@@ -4,7 +4,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionLabeler, getFilterOptions } from "@/lib/filter-options";
-import { formatMoney, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
+import { formatMoney, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint, formatDec1 } from "@/lib/utils";
 import { safeRatio } from "@/lib/weighted";
 import { parseVatModeCookie } from "@/lib/vat-mode";
 import { addLeaf, aggOf, emptyAgg, loadSummary, loadUnlinkedAdvances, type Agg, type Leaf } from "@/lib/purchase-summary";
@@ -68,7 +68,7 @@ function Metrics({ a, mode, unit }: { a: Agg; mode: Mode; unit?: string }) {
       <span className={cell}>
         <span className={lab}>Шкур</span>
         <span>
-          {formatQty(a.qty.toString())}
+          {formatDec1(a.qty.toString())}
           {unit ? ` ${unit}` : ""}
         </span>
       </span>
@@ -364,7 +364,7 @@ export async function PurchaseSummary({
               <InfoHint label="Как считается средняя цена шкуры" align="right">
                 Цена шкур по счетам ÷ число шкур — средневзвешенная: общая сумма делится на общее число шкур, а не среднее из средних.
                 {grand.qty.greaterThan(0) && (
-                  <p className="mt-1">Сейчас: {money(gf.price)} ÷ {formatQty(grand.qty.toString())} шк. = {money(new Decimal(gf.price).div(grand.qty))}.</p>
+                  <p className="mt-1">Сейчас: {money(gf.price)} ÷ {formatDec1(grand.qty.toString())} шк. = {money(new Decimal(gf.price).div(grand.qty))}.</p>
                 )}
               </InfoHint>
             </span>
@@ -373,7 +373,7 @@ export async function PurchaseSummary({
               <InfoHint label="Как считается средняя с расходами" align="right">
                 Стоимость с расходами ÷ число шкур (средневзвешенная).
                 {grand.qty.greaterThan(0) && (
-                  <p className="mt-1">Сейчас: {money(gf.full)} ÷ {formatQty(grand.qty.toString())} шк. = {money(new Decimal(gf.full).div(grand.qty))}.</p>
+                  <p className="mt-1">Сейчас: {money(gf.full)} ÷ {formatDec1(grand.qty.toString())} шк. = {money(new Decimal(gf.full).div(grand.qty))}.</p>
                 )}
               </InfoHint>
             </span>

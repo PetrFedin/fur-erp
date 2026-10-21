@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Money } from "@/components/money";
 import { RowCard } from "@/components/responsive-rows";
-import { formatCurrency, formatMoney, formatPercent, formatQty, formatRate } from "@/lib/utils";
+import { formatCurrency, formatMoney, formatPercent, formatQty, formatRate, formatDec1 } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { useCommission4Display } from "@/lib/commission4-display";
 import { COMMISSION_RATE, COMMISSION4_HINT } from "@/lib/commission4-const";
@@ -100,7 +100,7 @@ function TotalsFooter({
         <Td>{!empty && <Stat k="уник." tip={TIP.uniq}>{t.uniq.op}</Stat>}</Td>
         <Td className="whitespace-nowrap">
           <Stat k="Σ" tip={TIP.sum}>
-            {empty ? "0" : formatQty(q)}
+            {empty ? "0" : formatDec1(q)}
           </Stat>
         </Td>
         <Td>
@@ -156,7 +156,7 @@ function TotalsFooter({
           {t.onStock > 0 ? (
             <>
               <Stat k="Σ" tip={TIP.sum}>
-                {formatQty(t.remaining)}
+                {formatDec1(t.remaining)}
               </Stat>
               <Note>на складе {t.onStock} лот.</Note>
             </>
@@ -164,7 +164,7 @@ function TotalsFooter({
             !empty && <Note>ещё не на складе</Note>
           )}
         </Td>
-        <Td className="whitespace-nowrap">{t.used > 0 ? <Stat k="Σ" tip={TIP.sum}>{formatQty(t.used)}</Stat> : null}</Td>
+        <Td className="whitespace-nowrap">{t.used > 0 ? <Stat k="Σ" tip={TIP.sum}>{formatDec1(t.used)}</Stat> : null}</Td>
         {fields.map((f) => {
           const c = t.custom[f.id];
           return (
@@ -228,7 +228,7 @@ function MobileSummary({ view }: { view: ScopeView }) {
         <span>Σ 0</span>
       ) : (
         <>
-          {formatQty(t.qty)} шкур · Σ <Money incl={t.totalIncl} excl={t.totalExcl} className="font-medium" /> ·{" "}
+          {formatDec1(t.qty)} шкур · Σ <Money incl={t.totalIncl} excl={t.totalExcl} className="font-medium" /> ·{" "}
           {t.rateAvg == null ? "ср. взвеш. курс —" : single ? `ср. взвеш. курс ${rateFmt(t.rateAvg)}` : "ср. взвеш. курс: разные валюты"}
         </>
       )}
@@ -247,14 +247,14 @@ function TotalsList({ view, fields }: { view: ScopeView; fields: CustomFieldDef[
   const withExp = b.unallocatedIncl !== 0 || b.unallocatedExcl !== 0;
   const items: { label: string; value: ReactNode }[] = [
     { label: "Лотов", value: t.count },
-    { label: "Кол-во шкур", value: empty ? "0" : formatQty(q) },
+    { label: "Кол-во шкур", value: empty ? "0" : formatDec1(q) },
   ];
   if (!empty && t.avgPrice != null && single) items.push({ label: "Цена за шк., ср. взвеш.", value: formatCurrency(t.avgPrice, single) });
   if (!empty && t.rateAvg != null && single) items.push({ label: "Курс, ср. взвеш.", value: rateFmt(t.rateAvg) });
   if (!empty && q > 0) items.push({ label: "Себестоимость ед., ср. взвеш.", value: <Money incl={t.totalIncl / q} excl={t.totalExcl / q} /> });
   items.push({ label: "Себестоимость всего", value: empty ? "0" : <Money incl={t.totalIncl} excl={t.totalExcl} /> });
-  items.push({ label: "Остаток на складе", value: t.onStock > 0 ? `${formatQty(t.remaining)} (на складе ${t.onStock} лот.)` : empty ? "—" : "ещё не на складе" });
-  if (t.used > 0) items.push({ label: "Использовано в ТЗ", value: formatQty(t.used) });
+  items.push({ label: "Остаток на складе", value: t.onStock > 0 ? `${formatDec1(t.remaining)} (на складе ${t.onStock} лот.)` : empty ? "—" : "ещё не на складе" });
+  if (t.used > 0) items.push({ label: "Использовано в ТЗ", value: formatDec1(t.used) });
   for (const f of fields) {
     const c = t.custom[f.id];
     if (!c || c.n === 0) continue;
@@ -381,7 +381,7 @@ function useTzSplit(rows: LotRow[]) {
 function TzBlockFigures({ t, count }: { t: ReturnType<typeof computeTotals>; count: number }) {
   return (
     <span className="whitespace-nowrap text-xs font-normal text-neutral-600">
-      {count} лот. · Σ {formatQty(t.qty)} шт. · Σ <Money incl={t.totalIncl} excl={t.totalExcl} />
+      {count} лот. · Σ {formatDec1(t.qty)} шт. · Σ <Money incl={t.totalIncl} excl={t.totalExcl} />
       {t.qty > 0 && (
         <>
           {" · ср. взвеш. "}
@@ -550,7 +550,7 @@ function LotRowView({
       </Td>
       <Td className="min-w-32 text-xs text-neutral-600">{r.op || "—"}</Td>
       <Td className="whitespace-nowrap">
-        {formatQty(r.qty)} {r.unit}
+        {formatDec1(r.qty)} {r.unit}
       </Td>
       <Td className="whitespace-nowrap">{formatCurrency(r.price, currency)}</Td>
       <Td className="whitespace-nowrap">{rateFmt(r.rate)}</Td>
@@ -570,7 +570,7 @@ function LotRowView({
             <Badge>Израсходован</Badge>
           ) : (
             <>
-              {formatQty(r.remaining)} {r.unit}
+              {formatDec1(r.remaining)} {r.unit}
             </>
           )
         ) : (
@@ -586,7 +586,7 @@ function LotRowView({
                   {u.label}
                 </Link>
                 {" — "}
-                {formatQty(u.qty)} {r.unit}
+                {formatDec1(u.qty)} {r.unit}
               </div>
             ))}
       </Td>
@@ -647,12 +647,12 @@ function LotCardView({
         ) : undefined
       }
       fields={[
-        { label: "Кол-во", value: `${formatQty(r.qty)} ${r.unit}` },
+        { label: "Кол-во", value: `${formatDec1(r.qty)} ${r.unit}` },
         { label: "Себестоимость всего", value: <Money incl={r.totalIncl} excl={r.totalExcl} />, strong: true },
         { label: "Себестоимость ед.", value: <Money incl={r.unitIncl} excl={r.unitExcl} /> },
         // Лот ещё не принят на склад: «Остатка на складе» нет вовсе, вместо повтора в каждой карточке — бейдж «не принят».
         ...(r.onStock
-          ? [{ label: "Остаток на складе", value: r.remaining === 0 ? <Badge>Израсходован</Badge> : `${formatQty(r.remaining)} ${r.unit}` }]
+          ? [{ label: "Остаток на складе", value: r.remaining === 0 ? <Badge>Израсходован</Badge> : `${formatDec1(r.remaining)} ${r.unit}` }]
           : []),
       ]}
       details={[
@@ -672,7 +672,7 @@ function LotCardView({
                       {u.label}
                     </Link>
                     {" — "}
-                    {formatQty(u.qty)} {r.unit}
+                    {formatDec1(u.qty)} {r.unit}
                   </div>
                 ))}
               </>

@@ -3,7 +3,7 @@
 import { useClientSort } from "@/lib/use-client-sort";
 import Link from "next/link";
 import { useMemo } from "react";
-import { cn, formatMoney, formatPercent, formatQty } from "@/lib/utils";
+import { cn, formatMoney, formatPercent, formatQty, formatDec1 } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
@@ -60,16 +60,16 @@ export function LiningFabrics({ lots }: { lots: FurLot[] }) {
             </>
           )}
         </td>
-        <td className={TD + BL}>{formatQty(s.recv)}</td>
+        <td className={TD + BL}>{formatDec1(s.recv)}</td>
         <td className={TD}>{s.recv > 0 ? formatMoney(Math.round((val / s.recv) * 100) / 100) : <D />}</td>
         <td className={TD}>{money(val)}</td>
         <td className={TD + BL}>{v.rates.length ? v.rates.map((r) => `${r} %`).join(" · ") : <D />}</td>
         <td className={TD} title={v.detail}>{money(v.total)}</td>
-        <td className={TD + BL}>{s.used > 0 ? <>{formatQty(s.used)}<div className="text-[11px] font-normal text-neutral-500">{formatMoney(s.usedV)}</div></> : <D />}</td>
+        <td className={TD + BL}>{s.used > 0 ? <>{formatDec1(s.used)}<div className="text-[11px] font-normal text-neutral-500">{formatMoney(s.usedV)}</div></> : <D />}</td>
         <td className={cn(TD, "w-28")}>{s.recv > 0 ? (
           total ? formatPercent(pct) : <LotUsageMini recv={s.recv} used={s.used} unit="м" className="ml-auto w-full max-w-24" />
         ) : <D />}</td>
-        <td className={TD + BL}>{s.rem > 0.0005 ? <>{formatQty(s.rem)}<div className="text-[11px] font-normal text-neutral-500">{formatMoney(s.remV)}</div></> : <D />}</td>
+        <td className={TD + BL}>{s.rem > 0.0005 ? <>{formatDec1(s.rem)}<div className="text-[11px] font-normal text-neutral-500">{formatMoney(s.remV)}</div></> : <D />}</td>
       </tr>
     );
   };

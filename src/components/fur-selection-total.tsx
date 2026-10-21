@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { formatMoney, formatPercent, formatQty, cn, formatNum } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty, cn, formatNum, formatDec1 } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
@@ -56,7 +56,7 @@ const firstOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] :
 /** Карточка /analytics/raw/lot/<id> есть только у настоящих лотов: строки «заказано, не получено» (ordered:…) и «шкуры подрядчика» (hides) — заглушки без лота в БД (404). */
 const hasLotCard = (l: FurLot) => !l.id.startsWith("ordered:") && !l.id.startsWith("hides");
 
-const Q = (n: number | null) => (n == null || Math.abs(n) < 0.005 ? "—" : formatQty(n));
+const Q = (n: number | null) => (n == null || Math.abs(n) < 0.005 ? "—" : formatDec1(n));
 const R = (n: number | null) => (n == null || Math.abs(n) < 0.5 ? "—" : formatMoney(n));
 /** Средневзвешенная цена, ₽ за шт. (м): Σ ₽ ÷ Σ шт. — та же функция figures(), что даёт «Цена, ₽/шт.» в плитках. */
 // Сначала до копеек (как avg в плитках: dashboard-data округляет цену до 2 знаков), затем формат — цифры совпадают с плитками.
@@ -697,7 +697,7 @@ export function FurSelectionTotal({
               const rounding = chk.filter(([, g]) => Math.abs(dif(g)) >= 0.5).map(([n, g, m]) => `${n} ${m ? formatMoney(dif(g)) : formatQty(dif(g)) + " шт."}`);
               return (
                 <p className="mt-1 first:mt-0" data-testid={testid}>
-                  {lhs}: куплено {formatQty(sum((f) => f.recvQty))} шт., {formatMoney(sum((f) => f.recvValue))}; использовано {formatQty(sum((f) => f.usedQty))} шт., {formatMoney(sum(used$))}; остаток {formatQty(sum((f) => f.remQty))} шт., {formatMoney(sum((f) => f.remValue))}
+                  {lhs}: куплено {formatDec1(sum((f) => f.recvQty))} шт., {formatMoney(sum((f) => f.recvValue))}; использовано {formatDec1(sum((f) => f.usedQty))} шт., {formatMoney(sum(used$))}; остаток {formatDec1(sum((f) => f.remQty))} шт., {formatMoney(sum((f) => f.remValue))}
                   {rounding.length ? `; округление: ${rounding.join(", ")}` : ""}.
                 </p>
               );

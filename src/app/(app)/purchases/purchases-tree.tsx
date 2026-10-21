@@ -6,7 +6,7 @@ import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { ScopeEmpty, useScopeSrc } from "@/components/fur-scope";
 import { FUR_SRC_LABEL, type FurSrc } from "@/components/fur-source-nav";
 import { buttonVariants } from "@/components/ui/button";
-import { cn, formatDebt, formatMoney, formatPercent, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint, formatNum } from "@/lib/utils";
+import { cn, formatDebt, formatMoney, formatPercent, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint, formatNum, formatDec1 } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
 import { Chevron, Dash, SCROLL_BOX, TD, rowTone } from "@/components/tree-table";
@@ -32,13 +32,13 @@ const money = (v: number) => (Math.abs(v) < 0.005 ? <Dash /> : formatMoney(v.toF
 /** Долг: отрицательный — «Переплата N ₽» (только отображение). */
 const restMoney = (v: number, base?: number) =>
   isRoundingRest(v, base) ? <span title={roundingRestHint(v)} className="cursor-help">—</span> : v < -OVERPAY_FROM ? formatDebt(v) : money(v);
-const qty = (v: number) => (Math.abs(v) < 0.0005 ? <Dash /> : formatQty(v));
+const qty = (v: number) => (Math.abs(v) < 0.0005 ? <Dash /> : formatDec1(v));
 const restCls = (v: number, base?: number) => (isRoundingRest(v, base) ? "" : v > 0.5 ? " text-amber-700" : v < -0.5 ? " text-emerald-700" : "");
 const BL = " border-l border-neutral-200";
 const cnt = (n: number, one: string, few: string, many: string) => `${n} ${n === 1 ? one : n % 10 >= 2 && n % 10 <= 4 && (n < 10 || n > 20) ? few : many}`;
 const usedPct = (a: Pick<Agg, "usedValue" | "recvValue" | "hasLots">) => (a.hasLots && a.recvValue > 0.5 ? (a.usedValue / a.recvValue) * 100 : null);
 const remText = (a: Pick<Agg, "remFur" | "remLining" | "hasLots">) => {
-  const parts = [a.remFur > 0.0005 ? `${formatQty(a.remFur)} шт.` : null, a.remLining > 0.0005 ? `${formatQty(a.remLining)} м` : null].filter(Boolean);
+  const parts = [a.remFur > 0.0005 ? `${formatDec1(a.remFur)} шт.` : null, a.remLining > 0.0005 ? `${formatDec1(a.remLining)} м` : null].filter(Boolean);
   return parts.length ? parts.join(" · ") : <Dash />;
 };
 /** Служебные строки (шкуры подрядчика, округление): сумма, оплачено, ссылка ↗ на детализацию, пояснение в «i». */
@@ -301,8 +301,8 @@ function ItemRows({ x, open, flip, pk }: { x: TreeItem; open: Set<string>; flip:
         <td className={TD + BL} />
         <td className={TD} />
         <td className={TD}>1</td>
-        <td className={TD}>{isFur ? formatQty(x.qty) : <Dash />}</td>
-        <td className={TD}>{!isFur ? formatQty(x.qty) : <Dash />}</td>
+        <td className={TD}>{isFur ? formatDec1(x.qty) : <Dash />}</td>
+        <td className={TD}>{!isFur ? formatDec1(x.qty) : <Dash />}</td>
         <td className={TD}>{money(x.sum)}</td>
         <td className={TD + BL}>
           {x.recv != null && x.recv > 0 ? <LotUsageMini recv={x.recv} used={x.used} unit={x.unit} className="ml-auto w-full max-w-24" /> : <Dash />}
@@ -315,8 +315,8 @@ function ItemRows({ x, open, flip, pk }: { x: TreeItem; open: Set<string>; flip:
         <tr key={u.orderId} className={rowTone(3)}>
           <td className={NAME_CELL + " pl-28"}><Link href={`/production/${u.orderId}`} className={LINK}>{u.number}</Link></td>
           <td className={TD + BL} /><td className={TD} /><td className={TD} />
-          <td className={TD}>{isFur ? formatQty(u.qty) : <Dash />}</td>
-          <td className={TD}>{!isFur ? formatQty(u.qty) : <Dash />}</td>
+          <td className={TD}>{isFur ? formatDec1(u.qty) : <Dash />}</td>
+          <td className={TD}>{!isFur ? formatDec1(u.qty) : <Dash />}</td>
           <td className={TD}>{money(u.sum)}</td>
           <td className={TD + BL} /><td className={TD} /><td className={TD + BL} /><td className={TD} />
         </tr>

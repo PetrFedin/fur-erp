@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatQty } from "@/lib/utils";
+import { formatQty, formatDec1 } from "@/lib/utils";
 import { vatPeriodLabel } from "@/lib/vat-by-date";
 
 export type LotOpt = {
@@ -84,7 +84,7 @@ export function LotPicker({
                 >
                   <span className="font-medium">{lotTitle(l)}</span>
                   <span className="block text-xs text-neutral-500">
-                    ост. {formatQty(l.remaining)}{left !== l.remaining ? ` (свободно ${formatQty(left)})` : ""} · {formatQty(l.unitCost)} ₽/ед. · НДС {l.materialVat != null && l.materialVat !== l.vatRate ? `${l.materialVat} % (в лоте ${l.vatRate} %)` : `${l.vatRate} %`} · {vatPeriodLabel(l.purchaseDate)}
+                    ост. {formatDec1(l.remaining)}{left !== l.remaining ? ` (свободно ${formatDec1(left)})` : ""} · {formatDec1(l.unitCost)} ₽/ед. · НДС {l.materialVat != null && l.materialVat !== l.vatRate ? `${l.materialVat} % (в лоте ${l.vatRate} %)` : `${l.vatRate} %`} · {vatPeriodLabel(l.purchaseDate)}
                     {l.purchaseNumber ? ` · закупка ${l.purchaseNumber}` : ""}{l.auction ? ` · ${l.auction}` : ""}
                   </span>
                 </button>

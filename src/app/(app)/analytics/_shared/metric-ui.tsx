@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Th } from "@/components/ui/table";
 import { Money } from "@/components/money";
 import { InfoHint } from "@/components/info-hint";
-import { formatMoney, formatQty, formatShare } from "@/lib/utils";
+import { formatMoney, formatQty, formatShare, formatDec1 } from "@/lib/utils";
 import { COLUMNS, COL_KEYS, derived, type ColKey, type Metrics, type SortDir } from "@/lib/analytics-metrics";
 
 export const pct1 = (x: number) => formatShare(x);
@@ -25,11 +25,11 @@ export function MetricCell({ col, m, total }: { col: ColKey; m: Metrics; total: 
     case "skinsUnit":
       return q2(d.skinsPerUnit);
     case "skins":
-      return m.skins > 0 ? formatQty(m.skins) : "—";
+      return m.skins > 0 ? formatDec1(m.skins) : "—";
     case "liningUnit":
       return q2(d.liningPerUnit);
     case "liningSum":
-      return m.liningM > 0 ? formatQty(Math.round(m.liningM * 100) / 100) : "—";
+      return m.liningM > 0 ? formatDec1(Math.round(m.liningM * 100) / 100) : "—";
     case "furUnit":
       return d.furPerUnit ? <Money incl={d.furPerUnit.incl} excl={d.furPerUnit.excl} /> : <Dash />;
     case "furSkin":

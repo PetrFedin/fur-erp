@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
-import { cn, formatMoney, formatPercent, formatQty, formatNum } from "@/lib/utils";
+import { cn, formatMoney, formatPercent, formatQty, formatNum, formatDec1 } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
@@ -134,7 +134,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
   const head = (k: SortKey, label: ReactNode, unit?: string, o: { left?: boolean; bl?: boolean; after?: ReactNode } = {}) => (
     <TH label={label} unit={unit} align={o.left ? "left" : "right"} sep={o.bl} after={o.after} sort={sort.key === k ? sort.dir : "none"} onSort={() => setSort((s) => ({ key: k, dir: s.key === k && s.dir === "desc" ? "asc" : "desc" }))} />
   );
-  const usdNote = (have: number, qty: number) => (have > 0 && qty - have > 0.0005 ? <div className="text-[11px] font-normal text-neutral-500" title={`Цена в $ есть у ${formatQty(have)} из ${formatQty(qty)}`}>{formatQty(have)} / {formatQty(qty)}</div> : null);
+  const usdNote = (have: number, qty: number) => (have > 0 && qty - have > 0.0005 ? <div className="text-[11px] font-normal text-neutral-500" title={`Цена в $ есть у ${formatDec1(have)} из ${formatDec1(qty)}`}>{formatDec1(have)} / {formatDec1(qty)}</div> : null);
   const rateText = (rates: number[]) => `${vat === "excl" ? "без НДС" : "с НДС"} ${rates.sort((a, b) => a - b).map((r) => `${r} %`).join(" · ")}`;
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const perUnit = (qty: number, units: number) => (units > 0 ? qty / units : null);
@@ -167,9 +167,9 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
           ))}
         </div>
         <span data-testid="grp-summary" className="tabular-nums">
-          Одежда: {formatQty(gsum.cloth.qty)} {unit}{gsum.cloth.per != null ? ` · ${formatQty(Math.round(gsum.cloth.per * 100) / 100)} ${unit}/изд.` : ""}{gsum.cloth.price != null ? ` · ${formatMoney(Math.round(gsum.cloth.price))}/${unit}` : ""}
+          Одежда: {formatDec1(gsum.cloth.qty)} {unit}{gsum.cloth.per != null ? ` · ${formatDec1(Math.round(gsum.cloth.per * 100) / 100)} ${unit}/изд.` : ""}{gsum.cloth.price != null ? ` · ${formatMoney(Math.round(gsum.cloth.price))}/${unit}` : ""}
           {"; "}
-          Аксессуары: {formatQty(gsum.acc.qty)} {unit}{gsum.acc.per != null ? ` · ${formatQty(Math.round(gsum.acc.per * 100) / 100)} ${unit}/изд.` : ""}{gsum.acc.price != null ? ` · ${formatMoney(Math.round(gsum.acc.price))}/${unit}` : ""}
+          Аксессуары: {formatDec1(gsum.acc.qty)} {unit}{gsum.acc.per != null ? ` · ${formatDec1(Math.round(gsum.acc.per * 100) / 100)} ${unit}/изд.` : ""}{gsum.acc.price != null ? ` · ${formatMoney(Math.round(gsum.acc.price))}/${unit}` : ""}
           <InfoHint label="Почему группы смотрят отдельно" wide>Аксессуары расходуют мало шкур на изделие, поэтому общие средние (шкур на изделие, цена меха на изделие) занижены; смотрите группы отдельно. ТЗ без группы категории (ремонт и прочие) — только в «Все».</InfoHint>
         </span>
       </div>
@@ -233,14 +233,14 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                     <td className="truncate px-2 py-1.5 text-left text-xs" title={`${info?.article ?? ""} · ${info?.category ?? ""}`}>{info ? <>{info.article.split(" · ")[0]}<div className="truncate text-[11px] text-neutral-500">{info.category}</div></> : <D />}</td>
                     <td className={TD}>{info && info.units > 0 ? formatQty(info.units) : <D />}</td>
                     <td className={TD + " text-xs"}>{info?.year ?? <D />}</td>
-                    <td className={TD + BL}>{formatQty(r.qty)}</td>
+                    <td className={TD + BL}>{formatDec1(r.qty)}</td>
                     <td className={TD}>{r.lots.size}</td>
                     <td className={TD}>{r.auctions.size}</td>
                     <td className={TD} title={`в т.ч. НДС: ${formatMoney(r.incl - r.excl)}`}>{money(sum)}<div className="text-[11px] font-normal text-neutral-500">с 4 %: {money(withC4(r))}</div><div className="text-[11px] font-normal text-neutral-500">{rateText([...r.vatBy.keys()])}</div></td>
                     <td className={TD}>{r.qty > 0 ? formatMoney(Math.round((sum / r.qty) * 100) / 100) : <D />}</td>
                     <td className="whitespace-nowrap px-1 py-1.5 text-right tabular-nums text-neutral-600">{T.qty > 0 ? formatPercent((r.qty / T.qty) * 100) : <D />}</td>
                     <td className={TD}>{r.usdQty > 0 ? usd(r.usdSum / r.usdQty) : <D />}{usdNote(r.usdQty, r.qty)}</td>
-                    <td className={TD + BL}>{pu != null ? formatQty(Math.round(pu * 100) / 100) : <D />}</td>
+                    <td className={TD + BL}>{pu != null ? formatDec1(Math.round(pu * 100) / 100) : <D />}</td>
                     <td className={TD}>{info && info.units > 0 ? formatMoney(Math.round((sum / info.units) * 100) / 100) : <D />}</td>
                   </tr>
                   {isOpen ? Array.from(r.lots.values()).sort((a, b) => b.qty - a.qty).map(({ lot, qty, excl, incl }) => (
@@ -251,7 +251,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                       <td className="truncate px-2 py-1 text-left text-xs" colSpan={3}>
                         {lot.auction !== "__none" ? <Link href={`/lots?auction=${encodeURIComponent(lot.auction)}`} className="text-blue-700 hover:underline">{lot.auctionLabel}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link> : lot.auctionLabel}
                       </td>
-                      <td className={TD + BL}>{formatQty(qty)}</td>
+                      <td className={TD + BL}>{formatDec1(qty)}</td>
                       <td className={TD} colSpan={2} />
                       <td className={TD}>{money(vat === "excl" ? excl : incl)}<div className="text-[11px] font-normal text-neutral-500">НДС {lot.vatRate} %{lot.year < 2026 ? ", куплено до 2026" : ", с 2026"}</div></td>
                       <td className={TD}>{qty > 0 ? formatMoney(Math.round(((vat === "excl" ? excl : incl) / qty) * 100) / 100) : <D />}</td>
@@ -269,13 +269,13 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                 <td className={TD} />
                 <td className={TD}>{T.units > 0 ? formatQty(T.units) : <D />}</td>
                 <td className={TD} />
-                <td className={TD + BL}>{formatQty(T.qty)}</td>
+                <td className={TD + BL}>{formatDec1(T.qty)}</td>
                 <td className={TD} /><td className={TD} />
                 <td className={TD} title={`в т.ч. НДС: ${formatMoney(T.incl - T.excl)}`}>{money(totBase)}<div className="text-[11px] font-normal opacity-80">с 4 %: {money(totC4)}</div><div className="text-[11px] font-normal opacity-80">{[...totVat.keys()].sort((a, b) => a - b).map((r) => `${r} %`).join(" · ")}</div><div className="text-[11px] font-normal opacity-80">НДС: {[...totVat.keys()].sort((a, b) => a - b).map((r) => `${r} % — ${formatMoney(totVat.get(r) ?? 0)}`).join(" · ")}</div></td>
                 <td className={TD}>{T.qty > 0 ? formatMoney(Math.round((totBase / T.qty) * 100) / 100) : <D />}</td>
                 <td className="whitespace-nowrap px-1 py-1.5 text-right tabular-nums">{T.qty > 0 ? formatPercent(100) : <D />}</td>
                 <td className={TD}>{T.usdQty > 0 ? usd(T.usdSum / T.usdQty) : <D />}{usdNote(T.usdQty, T.qty)}</td>
-                <td className={TD + BL}>{T.units > 0 ? formatQty(Math.round((T.qty / T.units) * 100) / 100) : <D />}</td>
+                <td className={TD + BL}>{T.units > 0 ? formatDec1(Math.round((T.qty / T.units) * 100) / 100) : <D />}</td>
                 <td className={TD}>{T.units > 0 ? formatMoney(Math.round((totBase / T.units) * 100) / 100) : <D />}</td>
               </tr>
             )}

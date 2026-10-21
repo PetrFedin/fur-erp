@@ -6,7 +6,7 @@ import { TotalLabel } from "@/components/total-label";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatDec1 } from "@/lib/utils";
 import { groupRank } from "@/lib/category-groups";
 import { REPAIR_CATEGORY } from "@/lib/dashboard-calc";
 import { NO_GROUP } from "@/lib/category-groups";
@@ -189,9 +189,9 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
         <td className={cls}>{money(m.work)}</td>
         <td className={cls}>{money(m.c4)}</td>
         {showOther ? <td className={cls}>{money(m.other)}</td> : null}
-        <td className={cls + BL}>{formatQty(g.hides)}</td>
+        <td className={cls + BL}>{formatDec1(g.hides)}</td>
         <td className={cls}>{dash(g.hides > 0 ? g.hideSum / g.hides : null, money)}</td>
-        <td className={cls}>{formatQty(g.meters)}</td>
+        <td className={cls}>{formatDec1(g.meters)}</td>
         <td className={cls}>{dash(g.meters > 0 ? g.liningSum / g.meters : null, money)}</td>
         <td className={cls}>{dash(q > 0 ? g.work / q : null, money)}</td>
       </>

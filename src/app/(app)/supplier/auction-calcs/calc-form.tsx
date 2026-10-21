@@ -15,7 +15,7 @@ import { InvoiceMaker } from "./invoice-maker";
 import { detectFormat, finalFigures, needsAdvanced } from "@/lib/supplier-calc-simple";
 import { FORMAT_LABEL, STAGE_LABEL, calcYear, remapCustomRefs, syncLetters, calcAll, columnsFor, emptyRow, headerRate, missingRates, rowFilled, newId, rateCols, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
 import { attachInboxFile, deleteCalcDraft, parseCalcFile, removeInboxFile, saveCalcDraft, sendCalc } from "./actions";
-import { formatRate, formatNum, formatQty, formatDecimal } from "@/lib/utils";
+import { formatRate, formatNum, formatQty, formatDecimal, formatDec1 } from "@/lib/utils";
 
 const money = (n: number) => (Number.isFinite(n) ? formatNum(n, 1) : "—");
 export type FileRow = { id: string; originalName: string; kind: string; sizeBytes: number };
@@ -259,7 +259,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [],
       </section>}
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div><Label>Всего шкур</Label><div className="flex h-9 items-center text-sm font-semibold tabular-nums">{formatQty(t.qty)}</div></div>
+        <div><Label>Всего шкур</Label><div className="flex h-9 items-center text-sm font-semibold tabular-nums">{formatDec1(t.qty)}</div></div>
         <div><Label>Итого по себестоимости, ₽</Label><div className="flex h-9 items-center text-sm font-semibold tabular-nums">{money(t.totalRub)}</div></div>
         <H label="Дата аванса" v={p.header.advanceDate} on={(v) => setH("advanceDate", v)} ro={ro} type="date" />
         <H label="Аванс, ₽" v={p.header.advance} on={(v) => setH("advance", v)} ro={ro} />
@@ -305,7 +305,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [],
         return (
           <div className="sticky bottom-0 z-20 -mx-1 flex flex-col gap-2 rounded-lg border border-neutral-300 bg-white/95 p-3 shadow-lg backdrop-blur md:flex-row md:items-center md:justify-between">
             <div className="text-sm" aria-live="polite">
-              <span className="text-neutral-500">Итого:</span> {f.lots} лотов · {formatQty(f.qty)} шкур · <b className="text-lg tabular-nums">{money(f.totalRub)} ₽</b> · средняя себестоимость шкуры <b className="text-lg tabular-nums">{money(f.avgRub)} ₽</b>
+              <span className="text-neutral-500">Итого:</span> {f.lots} лотов · {formatDec1(f.qty)} шкур · <b className="text-lg tabular-nums">{money(f.totalRub)} ₽</b> · средняя себестоимость шкуры <b className="text-lg tabular-nums">{money(f.avgRub)} ₽</b>
             </div>
             {!ro && (
               <div className="flex flex-wrap items-center gap-2">

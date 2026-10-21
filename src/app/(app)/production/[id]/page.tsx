@@ -10,7 +10,7 @@ import { requireSession } from "@/lib/session";
 import { SourceDocs } from "@/components/source-docs";
 import { loadOrderSourceDocs } from "@/lib/source-docs-server";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatMoney, formatQty, formatDate } from "@/lib/utils";
+import { formatMoney, formatQty, formatDate, formatDec1 } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
 import { canEditProduction } from "@/lib/production-access";
@@ -541,7 +541,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 <SectionRow>Подкладка</SectionRow>
                 <CollapsibleRows rows={usageRows(liningUsages, true)} colSpan={8} what="списания подкладки" />
                 {liningUsages.length === 0 && <EmptyRow>Подкладка не списана</EmptyRow>}
-                <TotalRow label={<TotalLabel note={`подкладка${c4} · ${formatQty(liningQty.toString())} м`} />} value={<Money incl={liningCost} excl={liningCostExcl} />} />
+                <TotalRow label={<TotalLabel note={`подкладка${c4} · ${formatDec1(liningQty.toString())} м`} />} value={<Money incl={liningCost} excl={liningCostExcl} />} />
               </>
             )}
 
