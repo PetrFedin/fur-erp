@@ -101,11 +101,11 @@ function OrdersTable({ s, v, hier }: { s: OrdersSummary; v: "in" | "ex"; hier: H
     const k = path + "/" + n.label, isOpen = open.has(k), kids = n.children.filter((c) => c.ordered !== 0 || c.delivered !== 0);
     return (
       <Fragment key={k}>
-        <tr data-depth={depth} className={"border-b border-neutral-100 " + (depth === 1 ? "bg-neutral-50 text-[13px] text-neutral-700" : "bg-white text-[13px] text-neutral-700")}>
+        <tr data-depth={depth} onClick={kids.length > 0 ? () => toggle(k) : undefined} className={"border-b border-neutral-100 " + (kids.length > 0 ? "cursor-pointer hover:bg-neutral-50 " : "") + (depth === 1 ? "bg-neutral-50 text-[13px] text-neutral-700" : "bg-white text-[13px] text-neutral-700")}>
           <td className="px-2 py-1.5 text-left">
             <div className="flex min-w-0 items-center" style={{ paddingLeft: Math.min(depth, 6) * 16 }}>
               <span className="inline-flex w-5 shrink-0 items-center">
-                {kids.length > 0 ? <button type="button" onClick={() => toggle(k)} aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Раскрыть"}: ${n.label}`} className="inline-flex size-6 items-center justify-center text-neutral-500"><span aria-hidden className={"inline-block transition-transform " + (isOpen ? "rotate-90" : "")}>›</span></button> : null}
+                {kids.length > 0 ? <button type="button" onClick={(e) => { e.stopPropagation(); toggle(k); }} aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Раскрыть"}: ${n.label}`} className="inline-flex size-6 items-center justify-center text-neutral-500"><span aria-hidden className={"inline-block transition-transform " + (isOpen ? "rotate-90" : "")}>›</span></button> : null}
               </span>
               <span className="min-w-0 break-words leading-tight">{n.label}</span>
             </div>
@@ -135,11 +135,11 @@ function OrdersTable({ s, v, hier }: { s: OrdersSummary; v: "in" | "ex"; hier: H
             const kids = (l.tree?.[hier] ?? []).filter((c) => c.ordered !== 0 || c.delivered !== 0), isOpen = open.has(l.key);
             return (
               <Fragment key={l.key}>
-                <tr data-depth={0} className="border-b border-neutral-100 bg-white font-medium">
+                <tr data-depth={0} onClick={kids.length > 0 ? () => toggle(l.key) : undefined} className={"border-b border-neutral-100 bg-white font-medium " + (kids.length > 0 ? "cursor-pointer hover:bg-neutral-50" : "")}>
                   <td className="px-2 py-1.5 text-left">
                     <div className="flex min-w-0 items-center">
                       <span className="inline-flex w-5 shrink-0 items-center">
-                        {kids.length > 0 ? <button type="button" onClick={() => toggle(l.key)} aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Раскрыть"}: ${l.label}`} className="inline-flex size-6 items-center justify-center text-neutral-500"><span aria-hidden className={"inline-block transition-transform " + (isOpen ? "rotate-90" : "")}>›</span></button> : null}
+                        {kids.length > 0 ? <button type="button" onClick={(e) => { e.stopPropagation(); toggle(l.key); }} aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Раскрыть"}: ${l.label}`} className="inline-flex size-6 items-center justify-center text-neutral-500"><span aria-hidden className={"inline-block transition-transform " + (isOpen ? "rotate-90" : "")}>›</span></button> : null}
                       </span>
                       {l.label}
                     </div>
