@@ -87,7 +87,7 @@ function walk(r: SalesRow, fn: (r: SalesRow) => void) { fn(r); r.children.forEac
   // 5. Место блока, закрытость для подрядчика, формулировки
   const page = readFileSync("src/app/(app)/dashboard/page.tsx", "utf8");
   const code = page.replace(/\/\/.*$/gm, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
-  ok("блок стоит сразу после «Оплат» (PayTiles → SalesBlockView), последним на странице", /<PayTiles[\s\S]*?\/>\s*\{salesBlock \? <SalesBlockView b=\{salesBlock\} \/> : null\}\s*<\/div>\s*\);\s*\}\s*$/.test(code));
+  ok("блок стоит после «Оплат» (PayTiles → Производство → SalesBlockView) внутри панели «Сезон» SeasonWrap, последним на странице", /<PayTiles[\s\S]*?\/>[\s\S]*<SeasonWrap>[\s\S]*<ProductionBlock[\s\S]*\{salesBlock \? <SalesBlockView b=\{salesBlock\} \/> : null\}\s*<\/SeasonWrap>\s*<\/div>\s*\);\s*\}\s*$/.test(code));
   ok("для SUPPLIER данные продаж не грузятся", /session\.user\.role === "SUPPLIER" \? null : await loadSalesBlock/.test(page));
   ok("страница Главной без allowSupplier (подрядчика уводит в /supplier)", /requireSession\(\)/.test(page) && !/allowSupplier/.test(page));
   for (const f of ["sales-block.tsx", "sales-block-charts.tsx", "sales-block-data.ts"]) {
