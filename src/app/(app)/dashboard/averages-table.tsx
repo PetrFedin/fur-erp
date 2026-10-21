@@ -18,8 +18,8 @@ const qtyOf = (g: Agg) => Array.from(g.orders.values()).reduce((s, o) => s + o.q
 const per = (v: number, q: number) => (q > 0 ? v / q : null);
 
 const TABS: { id: string; label: string; levels: Lvl[]; first: string }[] = [
-  { id: "cat", label: "По категориям", levels: ["grp", "cat", "furl"], first: "Группа / категория / тип меха" },
-  { id: "fur", label: "По типам меха", levels: ["furl", "grp", "cat"], first: "Тип меха / группа / категория" },
+  { id: "cat", label: "Кат. 1 → кат. 2 → тип меха", levels: ["grp", "cat", "furl"], first: "Группа / категория / тип меха" },
+  { id: "fur", label: "Тип меха → кат. 1 → кат. 2", levels: ["furl", "grp", "cat"], first: "Тип меха / группа / категория" },
 ];
 
 /** Средние на одно изделие строки: сумма ÷ число изделий (средневзвешенно, а не среднее по ТЗ), как «Средневзвешенные» на карточке артикула. */
