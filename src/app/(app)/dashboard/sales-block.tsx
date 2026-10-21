@@ -204,7 +204,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
       ...(season === "all" ? [] : [{ k: "Сток тотал", v: qty(h.stockCum) }, { k: "Сток тотал в рознице", v: money(h.stockListCum[v]) }, { k: "Маркап стока тотал", v: x2(h.markupStockCum[v]) }, { k: "Доля сезона", v: h.stockCum > 0 ? pct(h.stock / h.stockCum, 0) : "—" }])];
   };
   const valueOf = (t: Tile, c: SalesCls, s = slice, sk: string = season) => { if (t === "ordered") return orderLineOf(c, sk)?.ordered ?? 0; const h = s.head[c]; return t === "received" ? h.received : t === "sold" ? h.sold : h.stock; };
-  const captionOf = (t: Tile, c: SalesCls) => { if (t === "ordered") { const l = orderLineOf(c); return l ? `пришло ${n0(l.delivered)} · ждём ${n0(l.awaiting)}` : ""; } const h = slice.head[c]; return t === "received" ? `${h.articles} артикулов` : t === "sold" ? `нетто · возвраты ${n0(h.returns)}` : "приход − продано"; };
+  const captionOf = (t: Tile, c: SalesCls) => { if (t === "ordered") { const l = orderLineOf(c); return l ? `пришло ${n0(l.delivered)} · ждём ${n0(l.awaiting)}` : ""; } const h = slice.head[c]; return t === "received" ? `${h.articles} артикулов` : t === "sold" ? `возвраты ${n0(h.returns)}` : "приход − продано"; };
   const hintOf = (t: Tile) => t === "ordered" ? <p>Заказ: пришло + ждём. По FW 25/26 и SS 2026 больше ничего не ждём (заказано = пришло); по FW 26/27 ждём Conf − поступило (отчёт по товарам). Нажмите — таблица по сезонам со штуками и деньгами.</p>
     : t === "received" ? <p>Приход товара: штуки по строкам прихода выгрузки. Суммы — по себестоимости ТЗ и по прайсу 19.10; штуки без цены в сумму не входят.</p>
     : t === "sold" ? <p>Нетто: продажи минус возвраты. Цена — выручка ({vatNote}) ÷ нетто-штуки.</p>
