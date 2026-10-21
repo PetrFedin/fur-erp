@@ -9,6 +9,7 @@ import { WidgetRow } from "@/components/widget-row";
 import { SalesModal } from "../sales/sales-modal";
 import { money, n0, pct, seg, segGroup, x2 } from "../sales/sales-fmt";
 import { FlowChart } from "./sales-block-charts";
+import { SeasonSwitch, useSeasonScope } from "./season-scope";
 import { HIER_LABEL, SalesTable, moneyK, type Hier } from "./sales-block-table";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue, type TileItem } from "./tile";
 import type { OrderNode, OrdersSummary, SalesBlock, SalesCls } from "./sales-block-data";
@@ -24,15 +25,6 @@ const CLS_LABEL: Record<SalesCls, string> = { all: "Тотал", clothes: "Од�
 const TILE_TITLE: Record<Tile, string> = { ordered: "Заказано", received: "Получено", sold: "Продано", stock: "Остаток" };
 
 const qty = (v: number) => (v === 0 ? "—" : n0(v) + " шт.");
-
-/** Переключатель «Все сезоны / сезон». */
-function SeasonSwitch({ keys, value, onChange }: { keys: string[]; value: string; onChange: (k: string) => void }) {
-  return (
-    <div role="group" aria-label="Сезон" className={segGroup}>
-      {["all", ...keys].map((k) => <button key={k} type="button" aria-pressed={value === k} onClick={() => onChange(k)} className={seg(value === k)}>{k === "all" ? "Все" : k}</button>)}
-    </div>
-  );
-}
 
 function HierSwitch({ value, onChange }: { value: Hier; onChange: (h: Hier) => void }) {
   return (
@@ -166,7 +158,10 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   const vatNote = v === "in" ? "с НДС" : "без НДС";
   const href = b.href[v];
   const seasonKeys = b.seasons.map((s) => s.key);
-  const [season, setSeason] = useState("all");
+  // Сезон общий с панелью «Сезон» (она начинается с раздела «Производство» и закреплена); вне панели — свой выбор.
+  const scope = useSeasonScope();
+  const [ownSeason, setOwnSeason] = useState("all");
+  const season = scope ? scope.season : ownSeason;
   /** Категория (Тотал / Одежда / Аксессуары): общая для трёх плиток, графика и таблицы. */
   const [cls, setCls] = useState<SalesCls>("all");
   const [hier, setHier] = useState<Hier>("fur");
@@ -255,11 +250,12 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
 
   return (
     <section aria-label="Продажи и остатки" className="space-y-3" data-testid="dash-sales">
-      {/* Сезон закреплён сверху: переключатель доступен при прокрутке всего блока (плитки, график, таблица). */}
-      <div data-testid="dash-sales-season-bar" className="sticky top-0 z-30 -mx-1 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur print:hidden">
-        <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Сезон</span>
-        <SeasonSwitch keys={seasonKeys} value={season} onChange={setSeason} />
-      </div>
+      {scope ? null : (
+        <div data-testid="dash-sales-season-bar" className="sticky top-0 z-30 -mx-1 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur print:hidden">
+          <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Сезон</span>
+          <SeasonSwitch keys={seasonKeys} value={season} onChange={setOwnSeason} />
+        </div>
+      )}
       <WidgetRow id="sales" title="Продажи и остатки"
         headerExtra={
           <InfoHint label="Как считаются продажи и остатки на Главной" wide>
