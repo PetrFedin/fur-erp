@@ -19,11 +19,12 @@ export const moneyK = (v: number | null) => (v === null || Math.abs(v) < 500 ? D
 const td = "whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums";
 const GB = " border-l border-neutral-100";
 
-export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = false, onHover }: { view: SalesView; /** Наведение (мышь или фокус) на строку с помесячным рядом — график блока показывает её приход и продажи; уход — null. */ onHover?: (r: SalesRow | null) => void; v: "in" | "ex"; vatNote: string; testId?: string; /** Сезон закончился: рядом с SO на сегодня показываем SO AS (проданное до конца сезона). */ soAs?: boolean; /** Выбран сезон: рядом с остатком сезона — весь остаток на сегодня и доля сезона в нём. */ cumCol?: boolean }) {
+export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = false, ordCol = false, onHover }: { view: SalesView; /** Наведение (мышь или фокус) на строку с помесячным рядом — график блока показывает её приход и продажи; уход — null. */ onHover?: (r: SalesRow | null) => void; v: "in" | "ex"; vatNote: string; testId?: string; /** Столбец «Заказано, шт.» перед «Получено» (сезон отчёта с «ждём» — FW 26/27). */ ordCol?: boolean; /** Сезон закончился: рядом с SO на сегодня показываем SO AS (проданное до конца сезона). */ soAs?: boolean; /** Выбран сезон: рядом с остатком сезона — весь остаток на сегодня и доля сезона в нём. */ cumCol?: boolean }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const cells = (r: SalesRow) => (
     <>
+      {ordCol ? <td className={td}>{r.ordered != null ? n0(r.ordered) : DASH}</td> : null}
       <td className={td + GB}>{n0(r.received)}</td>
       <td className={td}>{r.recvCost[v] > 0.5 ? money(r.recvCost[v]) : DASH}</td>
       <td className={td}>{r.recvCost[v] > 0.5 && r.recvCostPcs > 0 ? moneyK(r.recvCost[v] / r.recvCostPcs) : DASH}</td>
@@ -66,11 +67,12 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
   };
   return (
     <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white" data-keep-scroll tabIndex={0}>
-      <table suppressHydrationWarning className="table-keep w-full min-w-[1700px] table-fixed text-sm" data-testid={testId}>
-        <colgroup>{(() => { const w = cumCol ? [...WIDTHS, 64, 70, 124, 104, 74] : [...WIDTHS]; if (soAs) w.splice(8, 0, 64); return w; })().map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+      <table suppressHydrationWarning className={"table-keep w-full table-fixed text-sm " + (ordCol ? "min-w-[1774px]" : "min-w-[1700px]")} data-testid={testId}>
+        <colgroup>{(() => { const w = cumCol ? [...WIDTHS, 64, 70, 124, 104, 74] : [...WIDTHS]; if (soAs) w.splice(8, 0, 64); if (ordCol) w.splice(1, 0, 74); return w; })().map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead>
           <tr className="border-b border-neutral-200">
             <TH rowSpan={2} align="left" className="sticky left-0 z-[2] bg-white px-2" label="Тип меха / категория" />
+            {ordCol ? <TH rowSpan={2} label="Заказано" unit={UNIT.pcs} /> : null}
             <THGroup colSpan={3}>Получено</THGroup>
             <THGroup colSpan={4}>Продажи, {vatNote}</THGroup>
             {soAs ? <THGroup colSpan={2}>SO</THGroup> : <TH rowSpan={2} sep label={cumCol ? "SO STD" : "SO"} unit={UNIT.pct} />}

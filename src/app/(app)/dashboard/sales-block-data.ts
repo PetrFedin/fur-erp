@@ -31,7 +31,7 @@ export type SalesMonth = { key: string; label: string; received: number; sold: n
 /** Помесячный ряд узла на оси месяцев среза: r — получено, s — продано (нетто), st — остаток нарастающим итогом, ss — продано по сезону товара. */
 export type NodeSeries = { r: number[]; s: number[]; st: number[]; ss: Record<string, number[]> };
 export type SalesRow = {
-  id: string; label: string; sub?: string; depth: number; /** Приход / продано / остаток по месяцам узла на оси месяцев среза (график при наведении на строку; верхние три уровня). */ series?: NodeSeries; received: number; sold: number; stock: number; sellThrough: number | null; /** Приход в розничных ценах прайса 19.10 (штуки без цены в сумму не входят). */ recvList: VatPair;
+  id: string; label: string; sub?: string; depth: number; /** Заказано, шт. (пришло + ждём): только в срезе сезона отчёта с «ждём» (FW 26/27). */ ordered?: number; /** Приход / продано / остаток по месяцам узла на оси месяцев среза (график при наведении на строку; верхние три уровня). */ series?: NodeSeries; received: number; sold: number; stock: number; sellThrough: number | null; /** Приход в розничных ценах прайса 19.10 (штуки без цены в сумму не входят). */ recvList: VatPair;
   revenue: VatPair; avgPrice: { in: number | null; ex: number | null }; /** Остаток в розничных ценах прайса 19.10 (строки без цены в сумму не входят). */ stockList: VatPair; /** Штуки остатка, покрытые розничной ценой (для средневзвешенной цены остатка). */ stockListPcs: number; /** Полученное в деньгах: себестоимость ТЗ (что мы заплатили за полученные штуки; штуки без себестоимости в сумму не входят). */ recvCost: VatPair; /** Штуки прихода, у которых есть себестоимость (для средневзвешенной цены прихода). */ recvCostPcs: number; /** Маркап продаж и остатка (×), по режимам НДС. */ markupSold: { in: number | null; ex: number | null }; markupStock: { in: number | null; ex: number | null }; /** Весь остаток на сегодня по всем сезонам (в срезе «все сезоны» равен stock); у сезона доля = stock ÷ stockCum. */ stockCum: number; /** Весь остаток в розничных ценах и штуки, покрытые ценой (для средневзвешенной цены всего остатка). */ stockListCum: VatPair; stockListPcsCum: number; markupStockCum: { in: number | null; ex: number | null }; /** SO AS: проданное до конца сезона ÷ получено (только у закончившихся сезонов). SO STD — sellThrough на сегодня. */ soAs: number | null; children: SalesRow[];
 };
 export type SalesCls = "all" | "clothes" | "acc";
@@ -319,16 +319,46 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
   /** Цена прайса 19.10 на строку отчёта (артикул × цвет) в режимах НДС; НДС для «без НДС» — по сегодняшней дате. */
   const today = todayMsk();
   const orderUnit = (r: ReportSizeRow): OrderMoney | null => { const p = ctxs.in.unitPrice({ article: r.acode, colorId: r.color, modelCode: r.modelCode } as SLine); return p === null ? null : { in: p, ex: exVatAt(p, today) }; };
+  const orderSummary = Object.fromEntries(SALES_CLS.map((c) => {
+      const sum = ordersSummary(sizes, c, seasonKeys.map((k) => { const m = slices[k].head[c].money; return { season: k, received: slices[k].head[c].received, recvList: { in: m.in.recvList, ex: m.ex.recvList } }; }), orderUnit, { in: slices.all.head[c].money.in.recvList, ex: slices.all.head[c].money.ex.recvList });
+      if (sum && sizes.some((r) => r.l2 !== undefined)) for (const l of sum.lines) l.tree = orderTrees(c, l.key);
+      return [c, sum];
+    })) as Record<SalesCls, OrdersSummary | null>;
+
+  /** Сезон отчёта с «ждём» (FW 26/27): у строк таблицы — «Заказано, шт.» (пришло + ждём); узлы, где пока ничего не пришло, добавляются строками с нулями. */
+  const blankRow = (id: string, label: string, depth: number): SalesRow => ({
+    id, label, depth, recvList: { in: 0, ex: 0 }, received: 0, sold: 0, stock: 0, sellThrough: null, revenue: { in: 0, ex: 0 }, avgPrice: { in: null, ex: null },
+    stockList: { in: 0, ex: 0 }, stockListPcs: 0, recvCost: { in: 0, ex: 0 }, recvCostPcs: 0, markupSold: { in: null, ex: null }, markupStock: { in: null, ex: null },
+    stockCum: 0, stockListCum: { in: 0, ex: 0 }, stockListPcsCum: 0, markupStockCum: { in: null, ex: null }, soAs: null, children: [],
+  });
+  const attachOrdered = (rows: SalesRow[], tree: OrderNode[], depth: number, idp: string) => {
+    for (const n of tree) {
+      if (n.ordered === 0 && n.delivered === 0) continue;
+      let r = rows.find((x) => x.label === n.label);
+      if (!r) { r = blankRow(`${idp}/ord:${n.label}`, n.label, depth); rows.push(r); }
+      r.ordered = n.ordered;
+      if (depth < 2) attachOrdered(r.children, n.children, depth + 1, r.id);
+    }
+  };
+  if (slices[ORDERS_OPEN_SEASON] && sizes.some((r) => r.l2 !== undefined)) {
+    for (const c of SALES_CLS) {
+      const fw = orderSummary[c]?.lines.find((l) => l.key === ORDERS_OPEN_SEASON);
+      if (!fw?.tree) continue;
+      for (const hier of ["fur", "cls"] as const) {
+        const view = slices[ORDERS_OPEN_SEASON].views[c][hier];
+        attachOrdered(view.rows, fw.tree[hier], 0, `${c}/${hier}`);
+        view.total.ordered = fw.ordered;
+        view.rows.sort((x, y) => (y.ordered ?? y.received) - (x.ordered ?? x.received) || y.received - x.received);
+      }
+    }
+  }
+
   return {
     year, periodNote: year === "all" ? "все годы" : `${year} год`,
     orders: h.orders, articles: h.articles,
     received: h.received, sold: h.sold, gross: h.gross, returns: h.returns, opening: h.opening, stock: h.stock, sellThrough: h.sellThrough, firstReceipt: hIn.firstReceipt, lastSale: hIn.lastSale,
     money: h.money, seasons, months: all0.months.all, rows: all0.views.all.fur.rows, total: all0.views.all.fur.total, slices,
-    orderSummary: Object.fromEntries(SALES_CLS.map((c) => {
-      const sum = ordersSummary(sizes, c, seasonKeys.map((k) => { const m = slices[k].head[c].money; return { season: k, received: slices[k].head[c].received, recvList: { in: m.in.recvList, ex: m.ex.recvList } }; }), orderUnit, { in: slices.all.head[c].money.in.recvList, ex: slices.all.head[c].money.ex.recvList });
-      if (sum && sizes.some((r) => r.l2 !== undefined)) for (const l of sum.lines) l.tree = orderTrees(c, l.key);
-      return [c, sum];
-    })) as Record<SalesCls, OrdersSummary | null>,
+    orderSummary,
     href: { in: salesHref(year, "in"), ex: salesHref(year, "ex") },
     hasData: all.length > 0,
   };

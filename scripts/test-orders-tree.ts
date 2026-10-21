@@ -64,6 +64,20 @@ async function main() {
     walk(sl.views[c][h].rows as unknown as R[], "");
   }
   ok(`ряд при наведении: ${nodes} узлов, Σ получено/продано и остаток на конец сходятся со строкой`, bad.length === 0 && nodes > 0, bad.slice(0, 4).join(" | "));
+
+  // «Заказано, шт.» в таблице FW 26/27 (перед «Получено»): сумма верхнего уровня = итог = Conf сезона; у узлов сумма детей = узел; пришло не больше заказано.
+  type OR = { label: string; received: number; ordered?: number; children: OR[] };
+  for (const c of ["all", "clothes", "acc"] as const) for (const h of ["fur", "cls"] as const) {
+    const v = b.slices["FW 26/27"].views[c][h];
+    const top = (v.rows as unknown as OR[]).reduce((a, r) => a + (r.ordered ?? 0), 0);
+    ok(`FW 26/27 ${c}/${h}: Σ «Заказано» верхнего уровня = итог ${v.total.ordered}`, near(top, v.total.ordered ?? -1), `${top}`);
+    const badO: string[] = [];
+    const walkO = (rs: OR[], path: string) => { for (const r of rs) { if (r.children.length && r.children.some((x) => x.ordered !== undefined) && !near(r.children.reduce((a, x) => a + (x.ordered ?? 0), 0), r.ordered ?? 0)) badO.push(path + "/" + r.label); if ((r.ordered ?? r.received) < r.received - 0.5) badO.push(`${path}/${r.label}: заказано < пришло`); walkO(r.children, path + "/" + r.label); } };
+    walkO(v.rows as unknown as OR[], "");
+    ok(`FW 26/27 ${c}/${h}: у узлов Σ детей = узел, заказано ≥ пришло`, badO.length === 0, badO.slice(0, 3).join("; "));
+  }
+  ok("FW 26/27 всего заказано = 470 (Conf)", b.slices["FW 26/27"].views.all.fur.total.ordered === 470);
+  ok("в других сезонах «Заказано» у строк нет", b.slices["FW 25/26"].views.all.fur.total.ordered === undefined);
   const t = b.orderSummary.all!.lines.find((l) => l.key === "FW 26/27")!.tree!.fur;
   console.log("FW 26/27, тип меха → кат. 1:", t.map((n) => `${n.label} ${n.ordered}/${n.delivered}/${n.awaiting}`).join(" · "));
   console.log(fails ? `ПРОВАЛОВ: ${fails}` : "Все проверки пройдены");

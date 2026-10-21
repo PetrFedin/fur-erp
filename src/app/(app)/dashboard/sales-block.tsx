@@ -292,7 +292,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
 
       <PinSection id="sales-table" title={`Продажи и остатки по типам меха · ${CLS_LABEL[cls]}`} value={[hier]} onRestore={(x) => { if (x[0] === "fur" || x[0] === "cls") setHier(x[0]); }}>
         <div className="mb-2 print:hidden"><HierSwitch value={hier} onChange={setHier} /></div>
-        <SalesTable key={season + hier + cls} view={slice.views[cls][hier]} v={v} vatNote={vatNote} testId="dash-sales-table" onHover={setHotRow} cumCol={season !== "all"} soAs={slice.soAsEnd !== null} />
+        <SalesTable key={season + hier + cls} view={slice.views[cls][hier]} v={v} vatNote={vatNote} testId="dash-sales-table" ordCol={season === ORDERS_OPEN && slice.views[cls][hier].total.ordered !== undefined} onHover={setHotRow} cumCol={season !== "all"} soAs={slice.soAsEnd !== null} />
       </PinSection>
       {modal}
     </section>
