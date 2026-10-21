@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { useSlideWindow, useActiveSlideHeight } from "@/components/slide-window";
+import { useSlideWindow, useActiveSlideHeight, type SlideSync } from "@/components/slide-window";
 import { InfoHint } from "@/components/info-hint";
 import { grpBlock } from "@/lib/block-hover";
 import { TILE_BOX, TileHead } from "@/app/(app)/dashboard/tile";
@@ -32,11 +32,13 @@ export const CAROUSEL_ARROW = "inline-flex h-8 w-8 shrink-0 items-center justify
  * Плитка-карусель: слайды листаются жестом (прокрутка со «прилипанием»), стрелками ‹ › и точками.
  * Слайд «Тотал» — первый; в заголовке подпись текущего слайда. Механика как у «Среднее на изделие» на Главной.
  */
-export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickable = false, slidesLabel = "слайды по типам меха", dotsLabel = "Тип меха", hoverBlocks = false, twoUp = false }: {
+export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickable = false, slidesLabel = "слайды по типам меха", dotsLabel = "Тип меха", hoverBlocks = false, sync, twoUp = false }: {
   /** На экране от 1024px показывать два соседних слайда; стрелки сдвигают окно на один слайд. */
   twoUp?: boolean;
   /** Плитки выпуска: при наведении подсвечиваются строки таблицы «Производство…» (Тотал — «Всего», группа — её строка). */
   hoverBlocks?: boolean;
+  /** Общий индекс слайда с другими каруселями (Всего / Одежда / Аксессуары листаются вместе). */
+  sync?: SlideSync;
   title: string;
   hintLabel: string;
   hint: ReactNode;
@@ -47,7 +49,7 @@ export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickabl
   slidesLabel?: string;
   dotsLabel?: string;
 }) {
-  const sw = useSlideWindow(slides.length, "(min-width: 1024px)", twoUp ? 2 : 1);
+  const sw = useSlideWindow(slides.length, "(min-width: 1024px)", twoUp ? 2 : 1, sync);
   const { scroller, perView, cur, maxStart, goTo, step, onScroll, dragProps } = sw;
   useActiveSlideHeight(scroller, cur);
   const inWin = (i: number) => i >= cur && i < cur + perView;

@@ -30,6 +30,9 @@ type VatPair = { incl: number; excl: number };
 export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind = "", hides: hidesP, c4Parts: c4PartsP, years: yearsP, done: doneP, work: workP, all: allP, c4, search, info, bridge }: { /** «→ ТЗ» с фильтрами Главной. */ href?: string; hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
   const { mode: vat } = useVatDisplay();
   const [open, setOpen] = useState<null | "done" | "work" | "all">(null);
+  // Всего / Одежда / Аксессуары листаются вместе во всех плитках блока.
+  const [grpIdx, setGrpIdx] = useState(0);
+  const grpSync = { index: grpIdx, onChange: setGrpIdx };
   const { data: drill } = useDrill(search);
   const drillOrders = drill?.orders ?? [];
   // Сезон из панели «Сезон» Главной: плитки считаются от ТЗ выбранного сезона (доли ТЗ по приходу модели, см. order-seasons.ts); «Все» — готовые числа страницы.
@@ -78,7 +81,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
         headerExtra={<ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />}
         headerEnd={<Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">ТЗ ›</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
-        <TileCarousel clickable hoverBlocks title={OUTPUT_LABEL} hintLabel="Что такое «в выпуске»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
+        <TileCarousel sync={grpSync} clickable hoverBlocks title={OUTPUT_LABEL} hintLabel="Что такое «в выпуске»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
             <p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ по факту списания сырья; ТЗ без списаний и в плане — плановым количеством. Ремонт в штуки не входит (страница «Ремонт»).</p>
             <p className="mt-1">«Одежда» и «Аксессуары» — то же по группе категорий, вместе дают «Всего». Так же считаются себестоимость, таблица ниже и окно состава.</p>
@@ -102,7 +105,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
                 <GroupProducedSlide all={drillOrders} grp={g} vat={vat} loading={!drill} compact />
               </button>) })),
           ]} />
-        <TileCarousel clickable hoverBlocks title={COST_FULL_LABEL} hintLabel="Что такое полная себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
+        <TileCarousel sync={grpSync} clickable hoverBlocks title={COST_FULL_LABEL} hintLabel="Что такое полная себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
             <p>Факт по всем ТЗ: мех + подкладка{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Без работы — «Себестоимость сырья»: <b>{money(cost(fact))}</b>.</p>
             <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "—"}</b>. Режимы: {vatW}, {c4W}.</p>
@@ -136,7 +139,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
                 <GroupCostSlide all={drillOrders} grp={g} vat={vat} c4={c4} loading={!drill} compact />
               </button>) })),
           ]} />
-        <AveragesTile data={drill} />
+        <AveragesTile data={drill} sync={{ index: Math.max(0, grpIdx - 1), onChange: (i) => setGrpIdx(i + 1) }} />
       </div>
       </WidgetRow>
       <ProductionTable search={search} />

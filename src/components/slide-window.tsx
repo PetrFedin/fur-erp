@@ -7,7 +7,9 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouse
  * Стрелки сдвигают окно на ОДИН слайд. Возвращает ref ленты, число слайдов в окне, первый видимый слайд и переходы.
  * Ширина слайда в ленте — 100% / perView (класс задаёт вызывающий: min-w-full lg:min-w-[50%]).
  */
-export function useSlideWindow(count: number, wideQuery = "(min-width: 1024px)", wideCount = 2) {
+/** sync — общий индекс нескольких каруселей (плитки «Всего / Одежда / Аксессуары» листаются вместе): index — куда должна стоять лента, onChange — пользователь пролистал. */
+export type SlideSync = { index: number; onChange: (i: number) => void };
+export function useSlideWindow(count: number, wideQuery = "(min-width: 1024px)", wideCount = 2, sync?: SlideSync) {
   const scroller = useRef<HTMLDivElement>(null);
   const [wide, setWide] = useState(false);
   const [idx, setIdx] = useState(0);
@@ -40,6 +42,12 @@ export function useSlideWindow(count: number, wideQuery = "(min-width: 1024px)",
     goTo(base + d);
   }, [goTo, cur, perView]);
   const onScroll = () => { const el = scroller.current; if (el && el.clientWidth) setIdx(Math.round(el.scrollLeft / (el.clientWidth / perView))); };
+  // Общий индекс: пролистали эту ленту — сообщаем остальным; общий индекс сменился — ставим ленту на него.
+  const syncRef = useRef(sync); syncRef.current = sync;
+  useEffect(() => { const sy = syncRef.current; if (sy && cur !== sy.index) sy.onChange(cur); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cur]);
+  useEffect(() => { if (sync && sync.index !== cur && sync.index >= 0 && sync.index <= maxStart) goTo(sync.index); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sync?.index]);
 
   // Ширина окна или число слайдов изменились (фильтры сузили список): прокрутка не должна остаться за последним слайдом.
   useEffect(() => {

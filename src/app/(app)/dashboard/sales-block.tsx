@@ -68,7 +68,7 @@ function Carousel({ label, pages, onOpen, index, onIndex }: { label: string; pag
   );
 }
 
-/** Таблица «Заказ и приход»: штуки и деньги (по прайсу 19.10) по сезонам; сезон разворачивается на тип меха → кат. 1 → кат. 2 или кат. 1 → кат. 2 → тип меха. По FW 25/26 и SS 2026 больше ничего не ждём — заказано = пришло. */
+/** Таблица «Заказ и приход»: штуки и деньги (по прайсу) по сезонам; сезон разворачивается на тип меха → кат. 1 → кат. 2 или кат. 1 → кат. 2 → тип меха. По FW 25/26 и SS 2026 больше ничего не ждём — заказано = пришло. */
 function OrdersTable({ s, v, hier }: { s: OrdersSummary; v: "in" | "ex"; hier: Hier }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (k: string) => setOpen((x) => { const n = new Set(x); if (n.has(k)) n.delete(k); else n.add(k); return n; });
@@ -182,9 +182,9 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   const orderLineOf = (c: SalesCls, sk: string = season) => { const o = b.orderSummary[c]; return o ? (sk === "all" ? o.total : o.lines.find((l) => l.key === sk) ?? null) : null; };
   const showOrdered = (season === "all" || season === ORDERS_OPEN) && b.orderSummary.all !== null;
   const itemsOf = (t: Tile, c: SalesCls): TileItem[] => {
-    if (t === "ordered") { const l = orderLineOf(c); return l ? [{ k: "Заказано по прайсу 19.10", v: money(l.orderedRub[v]) }, { k: "Ждём по прайсу 19.10", v: l.awaiting > 0 ? money(l.awaitingRub[v]) : "—" }] : []; }
+    if (t === "ordered") { const l = orderLineOf(c); return l ? [{ k: "Заказано по прайсу", v: money(l.orderedRub[v]) }, { k: "Ждём по прайсу", v: l.awaiting > 0 ? money(l.awaitingRub[v]) : "—" }] : []; }
     const h = slice.head[c], m = h.money[v];
-    if (t === "received") return [{ k: "По себестоимости ТЗ", v: money(m.recvCost) }, { k: "По прайсу 19.10", v: money(m.recvList) }];
+    if (t === "received") return [{ k: "По себестоимости ТЗ", v: money(m.recvCost) }, { k: "По прайсу", v: money(m.recvList) }];
     if (t === "sold") {
       const sm = h.money[v], sw = vatNote;
       return [
@@ -192,17 +192,17 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         { k: `Выручка, ${sw}`, v: money(sm.revenue) },
         { k: "Gross (до скидки)", v: money(sm.grossRev) },
         { k: "Скидка", v: money(sm.discount), share: sm.grossRev > 0.5 && sm.discount > 0.5 ? sm.discount / sm.grossRev : null, shareFirst: true },
-        { k: "Средневзвешенная цена, ₽/шт.", v: moneyK(sm.avgPrice) },
+        { k: "Ср. цена, ₽/шт.", v: moneyK(sm.avgPrice) },
         { k: "Маркап продаж", v: x2(sm.markupSold) },
       ];
     }
-    return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу 19.10", v: money(m.stockList) }, ...(slice.soAsEnd !== null ? [{ k: "SO AS (до конца сезона)", v: pct(h.soAs, 1) }] : []), { k: season === "all" ? "Sell-through" : "SO STD (на сегодня)", v: pct(h.sellThrough, 1) }, { k: "Маркап остатка", v: x2(m.markupStock) },
+    return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, ...(slice.soAsEnd !== null ? [{ k: "SO AS (до конца сезона)", v: pct(h.soAs, 1) }] : []), { k: season === "all" ? "Sell-through" : "SO STD (на сегодня)", v: pct(h.sellThrough, 1) }, { k: "Маркап остатка", v: x2(m.markupStock) },
       ...(season === "all" ? [] : [{ k: "Сток тотал", v: qty(h.stockCum) }, { k: "Сток тотал в рознице", v: money(h.stockListCum[v]) }, { k: "Маркап стока тотал", v: x2(h.markupStockCum[v]) }, { k: "Доля сезона", v: h.stockCum > 0 ? pct(h.stock / h.stockCum, 0) : "—" }])];
   };
   const valueOf = (t: Tile, c: SalesCls, s = slice, sk: string = season) => { if (t === "ordered") return orderLineOf(c, sk)?.ordered ?? 0; const h = s.head[c]; return t === "received" ? h.received : t === "sold" ? h.sold : h.stock; };
   const captionOf = (t: Tile, c: SalesCls) => { if (t === "ordered") { const l = orderLineOf(c); return l ? `пришло ${n0(l.delivered)} · ждём ${n0(l.awaiting)}` : ""; } const h = slice.head[c]; return t === "received" ? `${h.articles} артикулов` : t === "sold" ? `возвраты ${n0(h.returns)}` : "приход − продано"; };
   const hintOf = (t: Tile) => t === "ordered" ? <p>Заказ: пришло + ждём. По FW 25/26 и SS 2026 больше ничего не ждём (заказано = пришло); по FW 26/27 ждём Conf − поступило (отчёт по товарам). Нажмите — таблица по сезонам со штуками и деньгами.</p>
-    : t === "received" ? <p>Приход товара: штуки по строкам прихода выгрузки. Суммы — по себестоимости ТЗ и по прайсу 19.10; штуки без цены в сумму не входят.</p>
+    : t === "received" ? <p>Приход товара: штуки по строкам прихода выгрузки. Суммы — по себестоимости ТЗ и по прайсу; штуки без цены в сумму не входят.</p>
     : t === "sold" ? <p>Нетто: продажи минус возвраты. Цена — выручка ({vatNote}) ÷ нетто-штуки.</p>
     : <p>Остаток = приход − продано. Sell-through = продано ÷ получено.</p>;
 
@@ -229,7 +229,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
     if (open.tile === "ordered" && b.orderSummary[open.cls]) {
       const os = b.orderSummary[open.cls]!;
       return (
-        <SalesModal wide title={`Заказ и приход · ${CLS_LABEL[open.cls]}, шт.`} subtitle={`все сезоны · деньги по прайсу 19.10 · ${vatNote}`} onClose={() => setOpen(null)}>
+        <SalesModal wide title={`Заказ и приход · ${CLS_LABEL[open.cls]}, шт.`} subtitle={`все сезоны · деньги по прайсу · ${vatNote}`} onClose={() => setOpen(null)}>
           <HierSwitch value={mHier} onChange={setMHier} />
           <OrdersTable key={mHier + open.cls} s={os} v={v} hier={mHier} />
           <p className="text-xs text-neutral-600">По FW 25/26 и SS 2026 больше ничего не ждём: заказано = пришло. По FW 26/27 заказано = пришло + ждём, где ждём = Conf − поступило (отчёт по товарам). Conf отчёта целиком: {n0(os.confReport)} шт. Штуки без цены в прайсе в рубли не входят. Сезон разворачивается стрелкой ›.</p>

@@ -9,7 +9,7 @@ export function TotalLabel({ unit = "₽", note, avg = false, extra }: { unit?: 
   return (
     <>
       <span className="whitespace-nowrap">Всего,&nbsp;{unit}</span>
-      {note ? <span className="ml-1.5 text-[11px] font-normal opacity-80">{note}</span> : null}
+      {note ? <span className="block text-[11px] font-normal leading-4 opacity-80">{note}</span> : null}
       {extra ? <span className="ml-1.5 text-[11px] font-normal opacity-80">{extra}</span> : null}
       {avg ? <InfoHint label="Что значит «Всего» для средней цены"><p>Средневзвешенное значение: сумма ÷ количество по всем лотам/ТЗ.</p></InfoHint> : null}
     </>

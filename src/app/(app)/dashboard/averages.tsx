@@ -63,7 +63,7 @@ export function useDrill(search: Record<string, string[]>) {
   return { data, error };
 }
 
-export function AveragesTile({ data }: { data: DrillData | null }) {
+export function AveragesTile({ data, sync }: { data: DrillData | null; /** Общий индекс группы с плитками выше (индекс слайда; в этой плитке нет «Всего»). */ sync?: { index: number; onChange: (i: number) => void } }) {
   const { mode: vat } = useVatDisplay();
   const [modal, setModal] = useState<string | null>(null);
   const [idx, setIdx] = useState(0);
@@ -82,6 +82,12 @@ export function AveragesTile({ data }: { data: DrillData | null }) {
   }, [data, vat]);
 
   const goTo = (i: number) => scroller.current?.scrollTo({ left: i * scroller.current.clientWidth, behavior: "smooth" });
+  // Листание вместе с остальными плитками блока.
+  const syncRef = useRef(sync); syncRef.current = sync;
+  useEffect(() => { const sy = syncRef.current; if (sy && idx !== sy.index) sy.onChange(idx); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx]);
+  useEffect(() => { if (sync && sync.index !== idx && sync.index < groups.length) goTo(sync.index); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sync?.index]);
   const onScroll = () => { const el = scroller.current; if (el && el.clientWidth) setIdx(Math.round(el.scrollLeft / el.clientWidth)); };
   const cur = groups[Math.min(idx, groups.length - 1)];
 
@@ -240,7 +246,7 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
                 <tr className="border-b border-neutral-200 text-xs text-neutral-500">
                   <TH align="left" label="Строка" {...cs.th("name")} className="px-0 pr-2" />
                   <TH label="Изделий" unit="шт." {...cs.th("q")} />
-                  <TH label="Средневзв. себестоимость" unit="₽/изд." {...cs.th("cost")} />
+                  <TH label="Ср. себестоимость" unit="₽/изд." {...cs.th("cost")} />
                   <TH label="Мех на изделие" unit="₽/изд." sep {...cs.th("fur")} />
                   <TH label="Шкур на изделие" unit="шт./изд." {...cs.th("hides")} />
                   <TH label="Ср. цена шкуры" unit="₽/шт." {...cs.th("hp")} />

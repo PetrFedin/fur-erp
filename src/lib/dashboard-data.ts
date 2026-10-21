@@ -206,6 +206,44 @@ export async function loadDrillOrders(orgId: string, year: YearFilter, f: DashFi
 
 const DEADLINE_RE = /срок\s+(\d{2})\.(\d{2})\.(\d{4})/i;
 
+/**
+ * Доплата подрядчику (НДС 22 % вместо 20 % по сырью заказчика, решение 20.10.2026): остаток оплат за пошив, на который нет закупки. Относим её к тому, к чему
+ * она относится: виды меха — пропорционально стоимости сырья, списанного в ТЗ этих оплат (ТЗ из строк разнесения «ТЗ N»,
+ * внутри платежа — пропорционально разнесённой работе). ТЗ без списаний делят свою долю между остальными. Ключ: «fur|Вид» или «lining».
+ */
+export async function surchargeSplit(orgId: string, rows: Awaited<ReturnType<typeof loadPaymentsOverview>>, year: YearFilter, c4: Commission4Mode): Promise<Map<string, number>> {
+  const pays = rows.filter((r) => r.hides > 0.5 && (year === "all" || r.year === Number(year)));
+  const out = new Map<string, number>();
+  if (pays.length === 0) return out;
+  const orders = await loadDrillOrders(orgId, "all", { auction: [], fur: [], color: [], attr: [], batch: [], status: [], vat: [], catgroup: [] }, c4, "all");
+  const byWo = new Map<string, DrillOrder[]>();
+  for (const o of orders) { const k = String(o.wo ?? ""); byWo.set(k, [...(byWo.get(k) ?? []), o]); }
+  let orphan = 0;
+  for (const r of pays) {
+    const parts = r.parts.filter((pt) => /^ТЗ \d+/.test(pt.label));
+    const sumW = parts.reduce((a, pt) => a + pt.amount, 0);
+    if (sumW <= 0) { orphan += r.hides; continue; }
+    for (const pt of parts) {
+      const share = (pt.amount / sumW) * r.hides;
+      const lines = (byWo.get(/^ТЗ (\d+)/.exec(pt.label)![1]) ?? []).flatMap((o) => o.lines);
+      const all = lines.reduce((a, l) => a + l.i, 0);
+      if (all <= 0) { orphan += share; continue; }
+      for (const l of lines) { const k = l.k === "l" ? "lining" : `fur|${l.fu}`; out.set(k, (out.get(k) ?? 0) + share * (l.i / all)); }
+    }
+  }
+  const base = Array.from(out.values()).reduce((a, v) => a + v, 0);
+  if (orphan > 0 && base > 0) for (const [k, v] of out) out.set(k, v + orphan * (v / base));
+  // В «Оплатах» и Cash Flow доплата подрядчику вся числится в меху (payments-overview: fur = hides); доля подкладки (≈1,5 %) добавляется к видам меха пропорционально,
+  // чтобы строки таблицы сходились с виджетами «Оплаты».
+  const lin = out.get("lining") ?? 0;
+  if (lin > 0) {
+    out.delete("lining");
+    const furBase = Array.from(out.values()).reduce((a, v) => a + v, 0);
+    if (furBase > 0) for (const [k, v] of out) out.set(k, v + lin * (v / furBase)); else out.set("fur|Свакара", lin);
+  }
+  return out;
+}
+
 async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters, c4: Commission4Mode): Promise<DashboardData> {
   const furIdx = await getFurIndex(orgId);
   const [furLotsAll, liningLotsAll, ordersAll, debtInputs, options, noColorLots, control, aucIds, labeler] = await Promise.all([
@@ -243,6 +281,8 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
   const debtRaw = supplierDebtFromInputs(debtInputs, year);
   // Оплачено по аукциону — из общего списка оплат (в долге есть только аукционы с остатком); долг — из расчёта долга.
   const [ovAll, ovLeftAll] = await Promise.all([loadPaymentsOverview(orgId), loadPaymentsLeft(orgId)]);
+  // Доплата подрядчику делится на мех (по видам) и подкладку только без фильтров сырья и ТЗ (при фильтре она остаётся строкой «поправки» и целиком в меху).
+  const surcharge = !lotFiltersOn(f) && !orderFiltersOn(f) ? await surchargeSplit(orgId, ovAll, year, c4) : new Map<string, number>();
   // Шкуры подрядчика, оплаченные в составе пошива: по выбранным ТЗ (партии 7 и 8), по году оплаты. Фильтры панели действуют.
   const hidesYear = new Map<number, { incl: number; excl: number }>();
   const hidesVat: VatByRate = {};
@@ -557,12 +597,22 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
       const g = r.auctions.find((x) => x.key === "__none");
       if (g) { g.paid += paid; g.due += due; }
     };
-    // Остаток оплат — шкуры подрядчика (свакара, фондю), оплаченные в составе счетов за пошив: относим к свакаре.
+    // Остаток оплат — шкуры подрядчика (свакара, фондю), оплаченные в составе счетов за пошив: относим к свакаре. (hidesApply всегда false — ветка не работает.)
     if (Math.abs(restPaid) >= 0.5) {
       const r = rowOf("Свакара");
       if (r) {
         r.paid += restPaid; r.cells = withHides(r.cells, hidesTotal);
         r.auctions.push({ key: "hides", label: "Шкуры подрядчика", cells: withHides(cellsPair([], c4k), hidesTotal), paid: restPaid, due: 0 });
+      }
+    }
+    // Доплата подрядчику (НДС по сырью): в строки меха (по видам) и подкладки — к чему относится, а не отдельной строкой «поправки».
+    if (surcharge.size > 0) {
+      const lin = rawTable.filter((x) => x.kind === "lining").sort((a, b) => b.cells.incl.rv - a.cells.incl.rv)[0];
+      for (const [key, amt] of surcharge) {
+        const r = key === "lining" ? lin : rowOf(key.slice(4));
+        if (!r || amt < 0.5) continue;
+        r.paid += amt;
+        r.auctions.push({ key: "hides", label: "Доплата подрядчику: НДС по сырью", cells: cellsPair([], c4k), paid: amt, due: 0 });
       }
     }
     for (const p of purchasesYear) {
