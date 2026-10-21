@@ -296,13 +296,26 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
   });
   const hIn = extOf(ctxs.in, lines, env);
   /** Разворот «Заказ и приход» по иерархиям: приход сезона — из деревьев срезов (те же узлы, что в таблице ниже), «ждём» (FW 26/27) — те же деревья на строках Conf − поступило из отчёта. */
+  /** Категории строки отчёта: из самой строки (внесены l2–l5), иначе из строк прихода того же артикула, затем той же модели; нет нигде — группа по классу и «Без категории». */
+  const levelsByArticle = new Map<string, { l2: string | null; l3: string | null; l4: string | null; l5: string | null }>();
+  const levelsByModel = new Map<string, { l2: string | null; l3: string | null; l4: string | null; l5: string | null }>();
+  for (const l of all) {
+    const v = { l2: l.level2, l3: l.level3, l4: l.level4, l5: l.level5 };
+    if (!levelsByArticle.has(l.article)) levelsByArticle.set(l.article, v);
+    if (l.modelCode && !levelsByModel.has(l.modelCode)) levelsByModel.set(l.modelCode, v);
+  }
+  const levelsOf = (r: ReportSizeRow) => {
+    if (r.l2 !== undefined) return { l2: r.l2 || null, l3: r.l3 || null, l4: r.l4 || null, l5: r.l5 || null };
+    return levelsByArticle.get(r.acode) ?? (r.modelCode ? levelsByModel.get(r.modelCode) : undefined) ?? { l2: r.cls === "clothes" ? "Одежда" : "Аксессуары", l3: null, l4: null, l5: null };
+  };
   const HIER_ORDER: Record<"fur" | "cls", readonly SDim[]> = { fur: ["fur", "cls", "c2"], cls: ["cls", "c2", "fur"] };
   const awaitingNodes = (c: SalesCls, hier: "fur" | "cls"): OrderNode[] => {
     const lines: SLine[] = [];
     for (const r of sizes) {
       const d = (r.fw26Conf ?? 0) - (r.fw26Deliv ?? 0);
-      if (d === 0 || r.l2 === undefined || (c !== "all" && r.cls !== (c === "clothes" ? "clothes" : "acc"))) continue;
-      lines.push({ id: `await|${r.acode}|${r.color}|${r.size}`, kind: "RECEIPT", iso: todayMsk(), season: ORDERS_OPEN_SEASON, orderNo: "", modelCode: r.modelCode, article: r.acode, colorId: r.color, fabric: r.acode.includes("/") ? r.acode.slice(r.acode.indexOf("/") + 1) : r.acode, level2: r.l2 || null, level3: r.l3 || null, level4: r.l4 || null, level5: r.l5 || null, importTag: "", pcs: d, retailRub: 0, retailRubExVat: 0, discountRub: 0, discountRubExVat: 0, retailEur: 0, retailEurExVat: 0, discountEur: 0, discountEurExVat: 0, cls: r.cls } as SLine);
+      if (d === 0 || (c !== "all" && r.cls !== (c === "clothes" ? "clothes" : "acc"))) continue;
+      const lv = levelsOf(r);
+      lines.push({ id: `await|${r.acode}|${r.color}|${r.size}`, kind: "RECEIPT", iso: todayMsk(), season: ORDERS_OPEN_SEASON, orderNo: "", modelCode: r.modelCode, article: r.acode, colorId: r.color, fabric: r.acode.includes("/") ? r.acode.slice(r.acode.indexOf("/") + 1) : r.acode, level2: lv.l2, level3: lv.l3, level4: lv.l4, level5: lv.l5, importTag: "", pcs: d, retailRub: 0, retailRubExVat: 0, discountRub: 0, discountRubExVat: 0, retailEur: 0, retailEurExVat: 0, discountEur: 0, discountEurExVat: 0, cls: r.cls } as SLine);
     }
     if (lines.length === 0) return [];
     const conv = (ns: SNode[], depth: number): OrderNode[] => ns.map((n): OrderNode => {
@@ -321,7 +334,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
   const orderUnit = (r: ReportSizeRow): OrderMoney | null => { const p = ctxs.in.unitPrice({ article: r.acode, colorId: r.color, modelCode: r.modelCode } as SLine); return p === null ? null : { in: p, ex: exVatAt(p, today) }; };
   const orderSummary = Object.fromEntries(SALES_CLS.map((c) => {
       const sum = ordersSummary(sizes, c, seasonKeys.map((k) => { const m = slices[k].head[c].money; return { season: k, received: slices[k].head[c].received, recvList: { in: m.in.recvList, ex: m.ex.recvList } }; }), orderUnit, { in: slices.all.head[c].money.in.recvList, ex: slices.all.head[c].money.ex.recvList });
-      if (sum && sizes.some((r) => r.l2 !== undefined)) for (const l of sum.lines) l.tree = orderTrees(c, l.key);
+      if (sum) for (const l of sum.lines) l.tree = orderTrees(c, l.key);
       return [c, sum];
     })) as Record<SalesCls, OrdersSummary | null>;
 
@@ -340,7 +353,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
       if (depth < 2) attachOrdered(r.children, n.children, depth + 1, r.id);
     }
   };
-  if (slices[ORDERS_OPEN_SEASON] && sizes.some((r) => r.l2 !== undefined)) {
+  if (slices[ORDERS_OPEN_SEASON] && orderSummary.all) {
     for (const c of SALES_CLS) {
       const fw = orderSummary[c]?.lines.find((l) => l.key === ORDERS_OPEN_SEASON);
       if (!fw?.tree) continue;
