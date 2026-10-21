@@ -41,6 +41,22 @@ const label = (x: TileItem) => (x.href ? <Link href={x.href} className="text-blu
 
 const pct = (s: number) => formatShare(s);
 
+/** Нулевая сумма («0 ₽») в списке плитки не показывается: пустое место вместо «0 ₽ 0 %». */
+export const isZeroMoney = (v: ReactNode) => typeof v === "string" && /^[−-]?0(?:[.,]0+)?[\s\u00a0\u202f]*₽$/.test(v.trim());
+
+/** Значение строки: нулевая сумма — пустое место (без «0 ₽» и «0 %»); иначе сначала процент, потом деньги. */
+function Cell({ x }: { x: TileItem }) {
+  if (isZeroMoney(x.v)) return <>{"\u00a0"}</>;
+  const share = x.share != null && Number.isFinite(x.share) ? x.share : null;
+  // В виджетах процент стоит перед деньгами: «6 % · 23 059 416 ₽».
+  return (
+    <>
+      {share !== null ? <span className="mr-1.5 text-[11px] font-normal text-neutral-500">{pct(share)}</span> : null}
+      {x.v}
+    </>
+  );
+}
+
 /** Список «статья — сумма — доля %» под крупной цифрой плитки (как в плитках Оплат на Главной). */
 export function TileList({ items, stack = false }: { items: TileItem[]; /** Узкая плитка (ряд из шести): подпись над цифрой, а не в одну строку. */ stack?: boolean }) {
   if (stack) {
@@ -49,11 +65,7 @@ export function TileList({ items, stack = false }: { items: TileItem[]; /** Уз
         {items.map((x, i) => (
           <div key={i}>
             <dt className="min-h-4 whitespace-nowrap text-[11px] leading-4 text-neutral-500">{label(x)}</dt>
-            <dd className={"whitespace-nowrap text-sm font-medium leading-5 tabular-nums " + (x.tone ?? "")}>
-              {x.share != null && Number.isFinite(x.share) && x.shareFirst ? <span className="mr-1.5 text-[11px] font-normal text-neutral-500">{pct(x.share)}</span> : null}
-              {x.v}
-              {x.share != null && Number.isFinite(x.share) && !x.shareFirst ? <span className="ml-1.5 text-[11px] font-normal text-neutral-400">{pct(x.share)}</span> : null}
-            </dd>
+            <dd className={"whitespace-nowrap text-sm font-medium leading-5 tabular-nums " + (x.tone ?? "")}><Cell x={x} /></dd>
           </div>
         ))}
       </dl>
@@ -64,11 +76,7 @@ export function TileList({ items, stack = false }: { items: TileItem[]; /** Уз
       {items.map((x, i) => (
         <div key={i} className={"flex justify-between gap-3" + (x.sub ? " pl-3 text-xs" : "")}>
           <dt className={x.sub ? "text-neutral-500" : "font-medium text-neutral-700"}>{label(x)}</dt>
-          <dd className={"whitespace-nowrap text-right tabular-nums " + (x.sub ? "text-neutral-600 " : "font-medium ") + (x.tone ?? "")}>
-            {x.share != null && Number.isFinite(x.share) && x.shareFirst ? <span className="mr-1.5 text-[11px] font-normal text-neutral-500">{pct(x.share)}</span> : null}
-            {x.v}
-            {x.share != null && Number.isFinite(x.share) && !x.shareFirst ? <span className="ml-1.5 text-[11px] font-normal text-neutral-400">{pct(x.share)}</span> : null}
-          </dd>
+          <dd className={"whitespace-nowrap text-right tabular-nums " + (x.sub ? "text-neutral-600 " : "font-medium ") + (x.tone ?? "")}><Cell x={x} /></dd>
         </div>
       ))}
     </dl>

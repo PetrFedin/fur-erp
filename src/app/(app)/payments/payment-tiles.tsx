@@ -1,5 +1,6 @@
 "use client";
 
+import { ROUND_MIN } from "@/lib/raw-rounding";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
@@ -107,7 +108,7 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
     <>
       <WidgetRow id="payments" title="Итоги" headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-pay-tiles>
-        <Tile label="Общая стоимость" value={rub(shown ? shown.total : paid.total + debt.total + rounding)} hint={<InfoHint label="Что такое общая стоимость" align="right"><p>Оплачено плюс осталось оплатить за сырьё (мех с шкурами подрядчика, подкладка) и услуги по УПД (если есть). Всегда с НДС; 4 % отдельно не добавляются.</p></InfoHint>} items={shown ? [...stat(shown.total, shown.total, shown.totalFur, shown.totalLining, false, shown.totalServices), ...(shown.round !== 0 ? [{ k: "округление (лоты и документы)", v: rub(shown.round) }] : [])] : split ? [...stat(paid.total + debt.total, paid.total + debt.total, split.paid.fur + split.debt.fur, split.paid.lining + split.debt.lining, false, (split.paid.services ?? 0) + (split.debt.services ?? 0)), ...(rounding !== 0 ? [{ k: "Округление", v: rub(rounding) }] : [])] : undefined} />
+        <Tile label="Общая стоимость" value={rub(shown ? shown.total : paid.total + debt.total + rounding)} hint={<InfoHint label="Что такое общая стоимость" align="right"><p>Оплачено плюс осталось оплатить за сырьё (мех с шкурами подрядчика, подкладка) и услуги по УПД (если есть). Всегда с НДС; 4 % отдельно не добавляются.</p></InfoHint>} items={shown ? [...stat(shown.total, shown.total, shown.totalFur, shown.totalLining, false, shown.totalServices), ...(Math.abs(shown.round) >= ROUND_MIN ? [{ k: "округление (лоты и документы)", v: rub(shown.round) }] : [])] : split ? [...stat(paid.total + debt.total, paid.total + debt.total, split.paid.fur + split.debt.fur, split.paid.lining + split.debt.lining, false, (split.paid.services ?? 0) + (split.debt.services ?? 0)), ...(rounding !== 0 ? [{ k: "Округление", v: rub(rounding) }] : [])] : undefined} />
         <Tile label="Оплачено" value={rub(shown ? shown.paid : paid.total)} hint={paidHint} onOpen={() => setOpen("paid")} items={shown ? stat(shown.paid, shown.paid, shown.paidFur, shown.paidLining, false, shown.paidServices) : split ? stat(paid.total, paid.total, split.paid.fur, split.paid.lining, false, split.paid.services) : undefined} />
         <Tile label={TERMS.rawDebt} value={rub(shown ? shown.left : debt.total)} hint={debtHint} onOpen={() => setOpen("debt")} valueClass={debtWarn ? "text-amber-700" : ""} items={shown ? stat(shown.left, shown.left, shown.leftFur, shown.leftLining, true, shown.leftServices) : split ? stat(debt.total, debt.total, split.debt.fur, split.debt.lining, true, split.debt.services) : undefined}>
           {debtSplit ? (

@@ -1,4 +1,5 @@
 import { loadRawInfo } from "@/lib/raw-stage-server";
+import { ROUND_MIN } from "@/lib/raw-rounding";
 import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { WidgetRow } from "@/components/widget-row";
 import Link from "next/link";
@@ -264,7 +265,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       key: "hides", label: "Шкуры подрядчика", sub: "оплачены в составе счетов за пошив", href: "/lots/contractor-hides", sum: hidesS, paid: hidesS,
       note: <>Шкуры подрядчика (партии 7 и 8): оплачены в составе счетов за пошив, закупки на них нет, в ТЗ не списаны. Это сырьё поставщика (Веллмех), поэтому в режиме «На аукционах» строки нет. Есть на Главной в «Сырьё — мех» (использовано). Страница ↗ — детализация.</>,
     }] : [];
-    const roundRow = (key: string, v: number): ExtraRow[] => (v !== 0 ? [{
+    const roundRow = (key: string, v: number): ExtraRow[] => (Math.abs(v) >= ROUND_MIN ? [{
       key, label: "Округление", sum: v, paid: 0,
       note: "Лоты хранят цену за единицу округлённой, поэтому сумма лотов (так считает Главная) отличается от суммы закупок по документам на копейки. Строка закрывает разницу: «Всего» = Главная.",
     }] : []);

@@ -1,4 +1,5 @@
 import { formatMoney } from "@/lib/utils";
+import { ROUND_MIN } from "@/lib/raw-rounding";
 import { alignColumn, roundRub } from "@/lib/money-round";
 import { DUE_LABEL, dueHint, payNumbers } from "@/lib/pay-display";
 import type { YearFilter } from "@/lib/year-filter";
@@ -11,7 +12,6 @@ import { TERMS } from "@/lib/terms";
 import { TILE_BOX, TileHead, TileValue, TileList, type TileItem } from "./tile";
 import { BridgeHint } from "./mode-line";
 import { formatCompactMoney } from "./compact";
-import { payslipsCaption } from "@/lib/pay-kinds";
 
 /** Срок «дд.мм.гггг» уже прошёл (конец дня). */
 function isPastRu(date: string): boolean {
@@ -58,8 +58,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
   const typeSum = typeRows.reduce((a, t) => a + t.amount, 0);
   const typesOk = inWork && !only && typeRows.length > 0 && Math.abs(typeSum - paidAll) < 1;
   const typeAl = alignColumn(typeRows.map((t) => t.amount), paidAll); // типы платежа складываются в показанное «Оплачено всего»
-  const rowWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? "строка" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "строки" : "строк");
-  const typeItems: TileItem[] = typeRows.map((t, i) => ({ k: `${TYPE_LABEL[t.type]} · ${t.count} ${rowWord(t.count)}`, v: money(typeAl.values[i]), share: part(typeAl.values[i], paidAll) }));
+  const typeItems: TileItem[] = typeRows.map((t, i) => ({ k: TYPE_LABEL[t.type], v: money(typeAl.values[i]), share: part(typeAl.values[i], paidAll) }));
 
   // Строки долга ведут к спискам, где этот остаток виден по партиям закупки и по ТЗ (только на страницах «Оплаты»).
   const DEBT_LINK: Record<string, string> = { "Мех": "/payments?tab=suppliers&asort=rem&adir=desc", "Подкладка": "/payments?tab=suppliers&asort=rem&adir=desc", [SERVICES_LABEL]: "/payments?tab=suppliers&asort=rem&adir=desc", [TERMS.workRest]: "/payments?tab=clients" };
@@ -80,7 +79,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
           </InfoHint>
         </div>
         <TileValue compact={bare}>{money(totalAll)}</TileValue>
-        <TileList stack={bare} items={[...list(totalAll, T.fur, { stock: furD.stock, used: furD.used }, furD.c4, T.lining, { stock: linD.stock, used: linD.used }, linD.c4, T.services, T.work, true), ...(roundAll !== 0 ? [{ k: "Округление", v: money(roundAll) }] : [])]} />
+        <TileList stack={bare} items={[...list(totalAll, T.fur, { stock: furD.stock, used: furD.used }, furD.c4, T.lining, { stock: linD.stock, used: linD.used }, linD.c4, T.services, T.work, true), ...(Math.abs(roundAll) >= ROUND_MIN ? [{ k: "Округление", v: money(roundAll) }] : [])]} />
       </div>
 
       <div key="paid" className={TILE_BOX}>
@@ -99,7 +98,6 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
         {typesOk ? (
           <div data-testid="paid-by-type" className="mt-2 border-t border-neutral-100 pt-2">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">По типам платежа</div>
-            <div className="mt-0.5 text-[11px] text-neutral-500">{payslipsCaption(d.paidSlips)}</div>
             <TileList stack={bare} items={typeItems} />
           </div>
         ) : null}

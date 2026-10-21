@@ -92,7 +92,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
                   {years.filter((y) => y.qty !== 0).map((y) => (
                     <div key={y.label} className="flex items-baseline justify-between gap-3">
                       <dt className="text-neutral-600">{y.label}</dt>
-                      <dd className="whitespace-nowrap font-medium tabular-nums">{formatQty(y.qty)} шт.<span className="ml-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{fact.qty ? formatShare(y.qty / fact.qty) : "—"}</span></dd>
+                      <dd className="whitespace-nowrap font-medium tabular-nums"><span className="mr-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{fact.qty ? formatShare(y.qty / fact.qty) : "—"}</span>{formatQty(y.qty)} шт.</dd>
                     </div>
                   ))}
                 </dl>
@@ -119,8 +119,12 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
                     <div key={p.k} className="flex items-baseline justify-between gap-3">
                       <dt className="text-neutral-600">{p.k}</dt>
                       <dd className="text-right font-medium tabular-nums">
-                        {money(p.v)}
-                        <span className="ml-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{total ? formatShare(p.v / total) : "—"}</span>
+                        {Math.abs(p.v) < 0.5 ? "\u00a0" : (
+                          <>
+                            <span className="mr-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{total ? formatShare(p.v / total) : "—"}</span>
+                            {money(p.v)}
+                          </>
+                        )}
                       </dd>
                     </div>
                   ))}
