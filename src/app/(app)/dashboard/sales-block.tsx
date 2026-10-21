@@ -288,6 +288,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
 
       <FlowChart
         points={hotRow?.series ? slice.months[cls].map((m, i) => ({ key: m.key, label: m.label, received: hotRow.series!.r[i] ?? 0, sold: hotRow.series!.s[i] ?? 0, stock: hotRow.series!.st[i] ?? 0, soldBySeason: Object.fromEntries(Object.entries(hotRow.series!.ss).map(([k, a]) => [k, a[i] ?? 0])) })) : slice.months[cls]}
+        labelSold={!!hotRow?.series}
         note={hotRow?.series ? `${CLS_LABEL[cls]} · ${hotRow.label}` : CLS_LABEL[cls]} />
 
       <PinSection id="sales-table" title={`Продажи и остатки по типам меха · ${CLS_LABEL[cls]}`} value={[hier]} onRestore={(x) => { if (x[0] === "fur" || x[0] === "cls") setHier(x[0]); }}>

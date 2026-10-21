@@ -21,7 +21,7 @@ function niceMax(v: number) {
 
 const H = 230, PT = 14, PB = 46, PL = 46, PR = 52;
 
-function Chart({ pts, series, label, testId }: { pts: Pt[]; series: Series[]; label: string; testId: string }) {
+function Chart({ pts, series, label, testId, valueLabels = [] }: { pts: Pt[]; series: Series[]; label: string; testId: string; /** Ряды, над которыми подписываются значения (например, «Продано, шт.» и «Остаток, шт.» при наведении на строку таблицы). */ valueLabels?: string[] }) {
   const [hot, setHot] = useState<number | null>(null);
   /** Ряд, на который навели в подписях под графиком: остальные приглушаются (мышь, клавиатура, касание). */
   const [hotS, setHotS] = useState<string | null>(null);
@@ -80,6 +80,7 @@ function Chart({ pts, series, label, testId }: { pts: Pt[]; series: Series[]; la
                 }
                 return v > 0 ? <rect key={s.name} x={x(i) - (bars.length * bw) / 2 + si * bw} y={yL(v)} width={bw - 1} height={h} fill={s.color} rx="1" opacity={dim(s.name)}><title>{`${p.label}: ${s.name} ${s.fmt(v)}`}</title></rect> : null;
               })}
+              {bars.map((s, si) => (valueLabels.includes(s.name) && s.vals[i] > 0 ? <text key={"vl" + s.name} x={x(i) - (bars.length * bw) / 2 + si * bw + (bw - 1) / 2} y={yL(s.vals[i]) - 3} textAnchor="middle" fontSize="10" fontWeight="600" fill="#171717" opacity={dim(s.name)}>{s.fmt(s.vals[i])}</text> : null))}
               <text x={x(i)} y={H - PB + 14} textAnchor={n > 8 ? "end" : "middle"} fontSize="11" fill="#404040" transform={n > 8 ? `rotate(-35 ${x(i)} ${H - PB + 14})` : undefined}>{p.label}</text>
             </g>
           ))}
@@ -89,6 +90,7 @@ function Chart({ pts, series, label, testId }: { pts: Pt[]; series: Series[]; la
               <g key={s.name}>
                 <polyline points={s.vals.map((v, i) => `${x(i)},${f(v)}`).join(" ")} fill="none" stroke={s.color} strokeWidth={hotS === s.name ? 3.5 : 2} opacity={dim(s.name)} />
                 {s.vals.map((v, i) => <circle key={i} cx={x(i)} cy={f(v)} r={hot === i || hotS === s.name ? 4 : 3} fill={s.color} opacity={dim(s.name)}><title>{`${pts[i].label}: ${s.name} ${s.fmt(v)}`}</title></circle>)}
+                {valueLabels.includes(s.name) ? s.vals.map((v, i) => (Math.abs(v) >= 0.5 ? <text key={"vl" + i} x={x(i)} y={f(v) - 8} textAnchor="middle" fontSize="10" fontWeight="600" fill={s.color} stroke="#fff" strokeWidth="3" paintOrder="stroke" opacity={dim(s.name)}>{s.fmt(v)}</text> : null)) : null}
               </g>
             );
           })}
@@ -117,7 +119,7 @@ function soldParts(points: FlowPoint[]) {
 }
 
 /** «Приход · Продажи · Остаток» по месяцам: столбцы — получено и продано, линия — остаток нарастающим итогом (правая шкала). */
-export function FlowChart({ points, note }: { points: FlowPoint[]; note?: string }) {
+export function FlowChart({ points, note, labelSold = false }: { points: FlowPoint[]; note?: string; /** Подписать значения над столбцами «Продано» и точками «Остаток» (при наведении на строку таблицы). */ labelSold?: boolean }) {
   return (
     <div className={TILE_BOX} data-hover-block="sales-flow">
       <TileHead>Приход · Продажи · Остаток по месяцам{note ? ` · ${note}` : ""}</TileHead>
@@ -129,7 +131,7 @@ export function FlowChart({ points, note }: { points: FlowPoint[]; note?: string
       </div>
       {points.length === 0 ? <p className="mt-2 text-sm text-neutral-600">Нет движений за выбранный период.</p> : (
         <div className="mt-2">
-          <Chart testId="dash-sales-chart-flow" pts={points} label="Приход и продажи столбцами по месяцам, остаток нарастающим итогом линией"
+          <Chart testId="dash-sales-chart-flow" valueLabels={labelSold ? ["Продано, шт.", "Остаток, шт."] : []} pts={points} label="Приход и продажи столбцами по месяцам, остаток нарастающим итогом линией"
             series={[
               { name: "Получено, шт.", color: NAVY, vals: points.map((p) => p.received), kind: "bar", axis: "l", fmt: pcs },
               { name: "Продано, шт.", color: GET, vals: points.map((p) => Math.max(0, p.sold)), kind: "bar", axis: "l", fmt: pcs, parts: soldParts(points) },
