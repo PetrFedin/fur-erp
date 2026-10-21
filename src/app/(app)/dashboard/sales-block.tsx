@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
@@ -11,7 +11,7 @@ import { money, n0, pct, seg, segGroup, x2 } from "../sales/sales-fmt";
 import { FlowChart } from "./sales-block-charts";
 import { HIER_LABEL, SalesTable, moneyK, type Hier } from "./sales-block-table";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue, type TileItem } from "./tile";
-import type { OrdersSummary, SalesBlock, SalesCls } from "./sales-block-data";
+import type { OrderNode, OrdersSummary, SalesBlock, SalesCls } from "./sales-block-data";
 
 // Блок «Продажи и остатки» на Главной: плитки Получено / Продано / Остаток (листаются: Тотал · Одежда · Аксессуары), график и таблица.
 // Числа берутся из тех же функций, что раздел /sales (sales-block-data.ts), и должны с ним совпадать.
@@ -83,21 +83,42 @@ function Carousel({ label, pages, onOpen, index, onIndex }: { label: string; pag
   );
 }
 
-/** Таблица «Заказ и приход»: штуки и деньги (по прайсу 19.10) по сезонам. По FW 25/26 и SS 2026 больше ничего не ждём — заказано = пришло. */
-function OrdersTable({ s, v }: { s: OrdersSummary; v: "in" | "ex" }) {
+/** Таблица «Заказ и приход»: штуки и деньги (по прайсу 19.10) по сезонам; сезон разворачивается на тип меха → кат. 1 → кат. 2 или кат. 1 → кат. 2 → тип меха. По FW 25/26 и SS 2026 больше ничего не ждём — заказано = пришло. */
+function OrdersTable({ s, v, hier }: { s: OrdersSummary; v: "in" | "ex"; hier: Hier }) {
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (k: string) => setOpen((x) => { const n = new Set(x); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const td = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
   const rub = (m: { in: number; ex: number }) => (Math.abs(m[v]) < 500 ? "—" : money(Math.round(m[v] / 1000) * 1000));
-  const row = (l: OrdersSummary["total"], bold = false) => (
-    <tr key={l.key} className={bold ? "row-total border-t-2 border-neutral-400 font-semibold" : "border-b border-neutral-100"}>
-      <td className="px-2 py-1.5 text-left">{l.label}</td>
+  type Cells = { ordered: number; delivered: number; awaiting: number; orderedRub: { in: number; ex: number }; deliveredRub: { in: number; ex: number }; awaitingRub: { in: number; ex: number } };
+  const cells = (l: Cells) => (
+    <>
       <td className={td + " border-l border-neutral-100"}>{n0(l.ordered)}</td><td className={td}>{rub(l.orderedRub)}</td>
       <td className={td + " border-l border-neutral-100"}>{n0(l.delivered)}</td><td className={td}>{rub(l.deliveredRub)}</td>
-      <td className={td + " border-l border-neutral-100" + (l.awaiting > 0 ? " font-medium text-[#b4310b]" : "")}>{l.awaiting > 0 ? n0(l.awaiting) : "—"}</td><td className={td + (l.awaiting > 0 ? " text-[#b4310b]" : "")}>{l.awaiting > 0 ? rub(l.awaitingRub) : "—"}</td>
-    </tr>
+      <td className={td + " border-l border-neutral-100" + (l.awaiting > 0 ? " font-medium text-[#b4310b]" : "")}>{l.awaiting !== 0 ? n0(l.awaiting) : "—"}</td><td className={td + (l.awaiting > 0 ? " text-[#b4310b]" : "")}>{l.awaiting !== 0 ? rub(l.awaitingRub) : "—"}</td>
+    </>
   );
+  const node = (n: OrderNode, depth: number, path: string): React.ReactNode => {
+    const k = path + "/" + n.label, isOpen = open.has(k), kids = n.children.filter((c) => c.ordered !== 0 || c.delivered !== 0);
+    return (
+      <Fragment key={k}>
+        <tr data-depth={depth} className={"border-b border-neutral-100 " + (depth === 1 ? "bg-neutral-50 text-[13px] text-neutral-700" : "bg-white text-[13px] text-neutral-700")}>
+          <td className="px-2 py-1.5 text-left">
+            <div className="flex min-w-0 items-center" style={{ paddingLeft: Math.min(depth, 6) * 16 }}>
+              <span className="inline-flex w-5 shrink-0 items-center">
+                {kids.length > 0 ? <button type="button" onClick={() => toggle(k)} aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Раскрыть"}: ${n.label}`} className="inline-flex size-6 items-center justify-center text-neutral-500"><span aria-hidden className={"inline-block transition-transform " + (isOpen ? "rotate-90" : "")}>›</span></button> : null}
+              </span>
+              <span className="min-w-0 break-words leading-tight">{n.label}</span>
+            </div>
+          </td>
+          {cells(n)}
+        </tr>
+        {isOpen ? kids.map((c) => node(c, depth + 1, k)) : null}
+      </Fragment>
+    );
+  };
   return (
     <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white" data-keep-scroll tabIndex={0}>
-      <table className="table-keep w-full min-w-[640px] text-sm" data-testid="dash-sales-orders">
+      <table className="table-keep w-full min-w-[680px] text-sm" data-testid="dash-sales-orders">
         <thead>
           <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600">
             <th scope="col" rowSpan={2} className="px-2 py-2 text-left font-semibold">Сезон</th>
@@ -110,8 +131,29 @@ function OrdersTable({ s, v }: { s: OrdersSummary; v: "in" | "ex" }) {
           </tr>
         </thead>
         <tbody>
-          {s.lines.map((l) => row(l))}
-          {row(s.total, true)}
+          {s.lines.map((l) => {
+            const kids = (l.tree?.[hier] ?? []).filter((c) => c.ordered !== 0 || c.delivered !== 0), isOpen = open.has(l.key);
+            return (
+              <Fragment key={l.key}>
+                <tr data-depth={0} className="border-b border-neutral-100 bg-white font-medium">
+                  <td className="px-2 py-1.5 text-left">
+                    <div className="flex min-w-0 items-center">
+                      <span className="inline-flex w-5 shrink-0 items-center">
+                        {kids.length > 0 ? <button type="button" onClick={() => toggle(l.key)} aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Раскрыть"}: ${l.label}`} className="inline-flex size-6 items-center justify-center text-neutral-500"><span aria-hidden className={"inline-block transition-transform " + (isOpen ? "rotate-90" : "")}>›</span></button> : null}
+                      </span>
+                      {l.label}
+                    </div>
+                  </td>
+                  {cells(l)}
+                </tr>
+                {isOpen ? kids.map((c) => node(c, 1, l.key)) : null}
+              </Fragment>
+            );
+          })}
+          <tr className="row-total border-t-2 border-neutral-400 font-semibold">
+            <td className="px-2 py-1.5 text-left"><span className="pl-5">Всего</span></td>
+            {cells(s.total)}
+          </tr>
         </tbody>
       </table>
     </div>
@@ -147,7 +189,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   const orderLineOf = (c: SalesCls, sk: string = season) => { const o = b.orderSummary[c]; return o ? (sk === "all" ? o.total : o.lines.find((l) => l.key === sk) ?? null) : null; };
   const showOrdered = (season === "all" || season === ORDERS_OPEN) && b.orderSummary.all !== null;
   const itemsOf = (t: Tile, c: SalesCls): TileItem[] => {
-    if (t === "ordered") { const l = orderLineOf(c); return l ? [{ k: "Ждём", v: qty(l.awaiting) }, { k: "Заказано по прайсу 19.10", v: money(l.orderedRub[v]) }, { k: "Ждём по прайсу 19.10", v: l.awaiting > 0 ? money(l.awaitingRub[v]) : "—" }] : []; }
+    if (t === "ordered") { const l = orderLineOf(c); return l ? [{ k: "Заказано по прайсу 19.10", v: money(l.orderedRub[v]) }, { k: "Ждём по прайсу 19.10", v: l.awaiting > 0 ? money(l.awaitingRub[v]) : "—" }] : []; }
     const h = slice.head[c], m = h.money[v];
     if (t === "received") return [{ k: "По себестоимости ТЗ", v: money(m.recvCost) }, { k: "По прайсу 19.10", v: money(m.recvList) }];
     if (t === "sold") return [
@@ -191,8 +233,9 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
       const os = b.orderSummary[open.cls]!;
       return (
         <SalesModal wide title={`Заказ и приход · ${CLS_LABEL[open.cls]}, шт.`} subtitle={`все сезоны · деньги по прайсу 19.10 · ${vatNote}`} onClose={() => setOpen(null)}>
-          <OrdersTable s={os} v={v} />
-          <p className="text-xs text-neutral-600">По FW 25/26 и SS 2026 больше ничего не ждём: заказано = пришло. По FW 26/27 заказано = пришло + ждём, где ждём = Conf − поступило (отчёт по товарам). Conf отчёта целиком: {n0(os.confReport)} шт. Штуки без цены в прайсе в рубли не входят.</p>
+          <HierSwitch value={mHier} onChange={setMHier} />
+          <OrdersTable key={mHier + open.cls} s={os} v={v} hier={mHier} />
+          <p className="text-xs text-neutral-600">По FW 25/26 и SS 2026 больше ничего не ждём: заказано = пришло. По FW 26/27 заказано = пришло + ждём, где ждём = Conf − поступило (отчёт по товарам). Conf отчёта целиком: {n0(os.confReport)} шт. Штуки без цены в прайсе в рубли не входят. Сезон разворачивается стрелкой ›.</p>
           <Link href={href} className="inline-flex min-h-11 items-center text-sm text-blue-700 hover:underline">Продажи и остатки ›</Link>
         </SalesModal>
       );

@@ -190,7 +190,7 @@ export const TREE_ORDERS: Record<"a" | "b", readonly Dim[]> = { a: ["cls", "c2",
 export const DIM_LABEL: Record<Dim, string> = { cls: "Категория 1", c2: "Категория 2", fur: "Тип меха", article: "Артикул", color: "Цвет", size: "Размер" };
 
 /** Размеры из отчёта о товарах (лист Report, строки артикул × цвет × размер). Сезонов и дат в нём нет — только итоги на 19.10.2026. */
-export type ReportSizeRow = { conf?: number; /** Сезоны отчёта (21.10.2026): FW26/27 — заказано (Conf) и поступило, SS26 и FW25/26 — поступило. */ fw26Conf?: number; fw26Deliv?: number; ss26Deliv?: number; fw25Deliv?: number; acode: string; color: string; size: string; modelCode: string | null; cls: CatClass; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number };
+export type ReportSizeRow = { conf?: number; /** Сезоны отчёта (21.10.2026): FW26/27 — заказано (Conf) и поступило, SS26 и FW25/26 — поступило. */ fw26Conf?: number; fw26Deliv?: number; ss26Deliv?: number; fw25Deliv?: number; /** Категории строки отчёта (KTT Level 02–05) — для разворота «Заказ и приход» по категориям. */ l2?: string; l3?: string; l4?: string; l5?: string; acode: string; color: string; size: string; modelCode: string | null; cls: CatClass; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number };
 /** Прежний зашитый ключ размеров (старый скрипт); код читает версию через src/lib/import-keys.ts (указатель sales-report-sizes:current). */
 export const REPORT_SIZES_KEY = "sales-report-sizes:2026-10-19";
 export type SizeAgg = { size: string; received: number; sold: number; stock: number; revenueEx: number; revenueIncl: number; sellThrough: number | null; avgPrice: number | null };
