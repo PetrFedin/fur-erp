@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { SEG_GROUP, segCls } from "@/components/segmented";
 import { useYearDisplay } from "@/lib/year-display";
 import type { YearFilter } from "@/lib/year-filter";
 
@@ -18,16 +19,13 @@ export function YearToggle({ supplier = false }: { supplier?: boolean }) {
       type="button"
       onClick={() => year !== y && setYear(y)}
       aria-pressed={year === y}
-      className={cn(
-        "rounded-sm px-2 py-1 font-medium transition-colors max-md:min-h-8",
-        year === y ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-900",
-      )}
+      className={segCls(year === y, "sm")}
     >
       {text}
     </button>
   );
   return (
-    <div title={supplier ? HINT_SUPPLIER : HINT} className={cn("flex items-center rounded-md border border-neutral-300 bg-white p-0.5 text-xs", pending && "opacity-70")}>
+    <div title={supplier ? HINT_SUPPLIER : HINT} className={cn(SEG_GROUP, pending && "opacity-70")}>
       {btn("all", "Все")}
       {years.map((y) => btn(y as YearFilter, y))}
     </div>

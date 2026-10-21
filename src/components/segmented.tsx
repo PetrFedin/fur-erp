@@ -11,6 +11,9 @@ export type SegmentedItem = {
   title?: string;
 };
 
+/** Рамка группы кнопок-переключателей: одна для всего приложения. */
+export const SEG_GROUP = "inline-flex max-w-full overflow-x-auto rounded-lg border border-neutral-300 bg-white p-0.5 [scrollbar-width:none]";
+
 /** Классы одной кнопки сегмента: 44 px на телефоне, 36 px на мониторе; активная — акцентная (нейтрально-чёрная в теме, оранжевая в «Привычном»). */
 export const segCls = (on: boolean, size: "md" | "sm" = "md") =>
   cn(
@@ -25,7 +28,7 @@ export const segCls = (on: boolean, size: "md" | "sm" = "md") =>
  */
 export function Segmented({ label, items, size = "md", className }: { label: string; items: SegmentedItem[]; size?: "md" | "sm"; className?: string }) {
   return (
-    <div role="group" aria-label={label} className={cn("inline-flex max-w-full self-start overflow-x-auto rounded-lg border border-neutral-300 bg-white p-0.5 [scrollbar-width:none] print:hidden", className)}>
+    <div role="group" aria-label={label} className={cn(SEG_GROUP, "self-start print:hidden", className)}>
       {items.map((it) =>
         it.href ? (
           <Link key={it.key} href={it.href} scroll={false} title={it.title} aria-current={it.on ? "page" : undefined} className={segCls(it.on, size)}>

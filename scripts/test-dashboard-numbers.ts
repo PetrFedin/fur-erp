@@ -339,7 +339,8 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
         const tag = `[SQL|${y}|4%:${c4}|${kd}]`;
         // К лотам меха на Главной добавлены: заказанное, но не полученное (в «Куплено» и «Остаток»), и шкуры подрядчика (в «Куплено» и «Использовано»; лотов нет).
         // С 20.10.2026 заказанное, но не принятое НЕ входит в «Куплено / Остаток» (отдельная строка d.ordered); в сверке слагаемое равно нулю.
-        const ordQ = 0, ordI = 0, ordX = 0;
+        // Поправка владельца: рысь (заказ FH 06.26) возвращена в «Куплено» и «Остаток» вида «мех».
+        const ordQ = kd === "fur" ? d.orderedBought.qty : 0, ordI = kd === "fur" ? d.orderedBought.incl : 0, ordX = kd === "fur" ? d.orderedBought.excl : 0;
         const hdI = kd === "fur" ? d.hides.incl : 0, hdX = kd === "fur" ? d.hides.excl : 0;
         eq(`${tag} куплено шт.`, d.raw[kd].incl.recvQty, sum(L, "q") + ordQ, 0.002); eq(`${tag} куплено ₽ с НДС`, d.raw[kd].incl.recvValue, sum(L, "v") + ordI + hdI, 0.5);
         eq(`${tag} куплено ₽ без НДС`, d.raw[kd].excl.recvValue, sum(L, "vx") + ordX + hdX, 1);

@@ -4,6 +4,8 @@ import { TERMS } from "@/lib/terms";
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/utils";
+import { useVatDisplay } from "@/lib/vat-display";
+import { SEG_GROUP, segCls } from "@/components/segmented";
 import { toCsv } from "@/lib/csv";
 import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
@@ -16,7 +18,7 @@ import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sl
 
 type ServicePart = { number: string; what: string; invoice: string | null; date: string; paid: number };
 type Cat = "all" | "clothes" | "acc";
-type Props = { incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; nowMonth: string; initialGroup?: "period" | "category"; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
+type Props = { prepaid: number; prepaidBy: Record<string, number>; incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; nowMonth: string; initialGroup?: "period" | "category"; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
 
 const SPEND = "#d93a0e", GET = "#1f7a4d", NAVY = "#1b2a5c", STOCK = "#8a6d1d";
 // Цвета статей трат: различимы между собой и без цвета (подписи в легенде, таблица рядом — текстовая альтернатива).
@@ -46,9 +48,11 @@ type ChartProps = {
   filtered: boolean;
   /** Ширина колонки месяца: считается по ширине контейнера, чтобы график занимал всю ширину карточки. */
   colW: number;
+  /** Линия накопительного графика под курсором в легенде: spend / get / net. */
+  hotLine?: string | null;
 };
 
-function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot, yearHot, filtered, colW }: ChartProps) {
+function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot, yearHot, filtered, colW, hotLine = null }: ChartProps) {
   const n = months.length;
   const left = 58, right = kind === "cum" ? 84 : kind === "goods" ? 44 : 12, top = 12, bottom = 40, H = 250;
   const bw = Math.max(10, Math.min(40, Math.round(colW * 0.7)));
@@ -108,12 +112,11 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
           </g>
         );
       })}
-      {kind === "money" && s.available && !filtered && <path d={lineOf(ser.net)} fill="none" stroke="#111" strokeWidth={2} />}
-      {kind === "cum" && (
+            {kind === "cum" && (
         <>
-          <path d={lineOf(ser.cumSpend)} fill="none" stroke={SPEND} strokeWidth={2.5} />
-          {s.available && <path d={lineOf(ser.cumRevenue)} fill="none" stroke={GET} strokeWidth={2.5} />}
-          {s.available && !filtered && <path d={lineOf(ser.cumNet)} fill="none" stroke={NAVY} strokeWidth={2.5} strokeDasharray="6 4" />}
+          <path d={lineOf(ser.cumSpend)} fill="none" stroke={SPEND} strokeWidth={hotLine === "spend" ? 4 : 2.5} opacity={hotLine && hotLine !== "spend" ? 0.2 : 1} />
+          {s.available && <path d={lineOf(ser.cumRevenue)} fill="none" stroke={GET} strokeWidth={hotLine === "get" ? 4 : 2.5} opacity={hotLine && hotLine !== "get" ? 0.2 : 1} />}
+          {s.available && !filtered && <path d={lineOf(ser.cumNet)} fill="none" stroke={NAVY} strokeWidth={hotLine === "net" ? 4 : 2.5} strokeDasharray="6 4" opacity={hotLine && hotLine !== "net" ? 0.2 : 1} />}
           {active !== null && <circle cx={x(active)} cy={y(ser.cumSpend[active])} r={5} fill={SPEND} />}
           {n > 0 && <text x={x(n - 1) + 8} y={y(ser.cumSpend[n - 1]) + 4} fontSize={11} fontWeight={700} fill={SPEND}>{mln(ser.cumSpend[n - 1])}</text>}
           {n > 0 && s.available && <text x={x(n - 1) + 8} y={y(ser.cumRevenue[n - 1]) + 4} fontSize={11} fontWeight={700} fill={GET}>{mln(ser.cumRevenue[n - 1])}</text>}
@@ -141,7 +144,7 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
       {active !== null && (() => {
         const m = months[active];
         const lines: [string, string, string][] =
-          kind === "money" ? [["Траты", dash(ser.spend[active]), SPEND], ["Получено", dash(ser.revenue[active]), GET], ["Чистый поток", dash(ser.net[active]), "#111"]]
+          kind === "money" ? [["Траты", dash(ser.spend[active]), SPEND], ["Получено", dash(ser.revenue[active]), GET]]
           : kind === "cum" ? [["Потрачено", dash(ser.cumSpend[active]), SPEND], ["Получено", dash(ser.cumRevenue[active]), GET], ["Чистый итог", dash(ser.cumNet[active]), NAVY]]
           : kind === "goods" ? [["Приход", `${pcs(s.recPcs[active])} шт.`, NAVY], ["Продано", `${pcs(s.salePcs[active])} шт.`, GET], ["Остаток", `${stock[active]} шт.`, STOCK]]
           : [["Работа на единицу", dash(ser.cumWorkPerUnit[active]), SPEND]];
@@ -169,7 +172,7 @@ const KIND_COLOR: Record<PayType, string> = { ADVANCE: "#d93a0e", PARTIAL: "#2f7
 const KIND_ORDER: PayType[] = ["ADVANCE", "PARTIAL", "FINAL", "OTHER"];
 
 /** «Работа подрядчика по месяцам»: стековые столбцы по видам платежа (аванс / доплата / окончательный / прочее; разные цвета и штриховка) — левая ось, ₽; линия с точками — получено единиц (правая ось). */
-function WorkMonthsChart({ months, kinds, units, active, setActive, colW }: { months: string[]; kinds: Record<PayType, number[]>; units: number[]; active: number | null; setActive: (i: number | null) => void; colW: number }) {
+function WorkMonthsChart({ months, kinds, units, active, setActive, colW, hotKind = null, showUnits = true }: { months: string[]; kinds: Record<PayType, number[]>; units: number[]; active: number | null; setActive: (i: number | null) => void; colW: number; hotKind?: string | null; showUnits?: boolean }) {
   const n = months.length;
   const left = 58, right = 44, top = 12, bottom = 40, H = 230;
   const W = left + right + n * colW;
@@ -191,7 +194,7 @@ function WorkMonthsChart({ months, kinds, units, active, setActive, colW }: { mo
         <g key={t}>
           <line x1={left} x2={W - right} y1={yw(t * maxW)} y2={yw(t * maxW)} stroke="#d4d4d8" />
           <text x={left - 6} y={yw(t * maxW) + 4} textAnchor="end" fontSize={11} fill="#5a6a94">{t === 0 ? "0" : mln(t * maxW)}</text>
-          <text x={W - right + 6} y={yu(t * maxU) + 4} fontSize={11} fill={NAVY}>{Math.round(t * maxU)}</text>
+          {showUnits && <text x={W - right + 6} y={yu(t * maxU) + 4} fontSize={11} fill={NAVY}>{Math.round(t * maxU)}</text>}
         </g>
       ))}
       {months.map((m, i) => {
@@ -205,13 +208,13 @@ function WorkMonthsChart({ months, kinds, units, active, setActive, colW }: { mo
               if (v <= 0.5) return null;
               const y0 = yw(acc), y1 = yw(acc + v);
               acc += v;
-              return <rect key={k} x={x(i) - bw / 2} width={bw} y={y1} height={Math.max(0, y0 - y1)} fill={k === "PARTIAL" ? "url(#hatch-partial)" : k === "FINAL" ? "url(#dots-final)" : KIND_COLOR[k]} opacity={active !== null && active !== i ? 0.35 : 1}><title>{`${PAY_TYPE_LABEL[k]}: ${formatMoney(v)}`}</title></rect>;
+              return <rect key={k} x={x(i) - bw / 2} width={bw} y={y1} height={Math.max(0, y0 - y1)} fill={k === "PARTIAL" ? "url(#hatch-partial)" : k === "FINAL" ? "url(#dots-final)" : KIND_COLOR[k]} opacity={(hotKind !== null && hotKind !== k) ? 0.2 : active !== null && active !== i ? 0.35 : 1} stroke={hotKind === k ? "#111" : "none"}><title>{`${PAY_TYPE_LABEL[k]}: ${formatMoney(v)}`}</title></rect>;
             })}
           </g>
         );
       })}
-      <path d={line} fill="none" stroke={NAVY} strokeWidth={2} />
-      {units.map((v, i) => <circle key={i} cx={x(i)} cy={yu(v)} r={active === i ? 5 : 3} fill={NAVY} />)}
+      {showUnits && <g opacity={hotKind !== null && hotKind !== "units" ? 0.2 : 1}><path d={line} fill="none" stroke={NAVY} strokeWidth={hotKind === "units" ? 3 : 2} />
+      {units.map((v, i) => <circle key={i} cx={x(i)} cy={yu(v)} r={active === i ? 5 : 3} fill={NAVY} />)}</g>}
       {active !== null && <line x1={x(active)} x2={x(active)} y1={top} y2={H - bottom} stroke="#111" opacity={0.35} />}
       {months.map((m, i) => (
         <rect key={m} x={left + i * colW} y={top} width={colW} height={H - top - bottom} fill="transparent" tabIndex={0} aria-label={tip(i)}
@@ -221,6 +224,13 @@ function WorkMonthsChart({ months, kinds, units, active, setActive, colW }: { mo
   );
 }
 
+
+const KIND_BG = (k: PayType) => (k === "ADVANCE" || k === "OTHER" ? KIND_COLOR[k] : `repeating-linear-gradient(${k === "PARTIAL" ? "45deg" : "0deg"}, ${KIND_COLOR[k]} 0 3px, #fff 3px 5px)`);
+function KindLi({ k, hotKind, setHotKind }: { k: PayType; hotKind: string | null; setHotKind: (v: string | null) => void }) {
+  return (
+    <li><button type="button" aria-pressed={hotKind === k} onMouseEnter={() => setHotKind(k)} onMouseLeave={() => setHotKind(null)} onFocus={() => setHotKind(k)} onBlur={() => setHotKind(null)} onClick={() => setHotKind(hotKind === k ? null : k)} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: KIND_BG(k) }} />{PAY_TYPE_LABEL[k]}</button></li>
+  );
+}
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -238,10 +248,10 @@ type WorkBy = Record<"all" | "clothes" | "acc", { work: number[]; units: number[
 
 /** Сегмент «Все · Одежда · Аксессуары» внутри окна: по умолчанию = глобальный фильтр, переопределяется локально. «Прочее / без привязки к ТЗ» входит только в «Все». */
 function CatSwitch({ cat, setCat }: { cat: "all" | "clothes" | "acc"; setCat: (c: "all" | "clothes" | "acc") => void }) {
-  const seg = (on: boolean) => "inline-flex min-h-11 items-center rounded-md px-3 text-sm " + (on ? "bg-neutral-900 text-white" : "text-neutral-700 hover:text-neutral-900");
+  const seg = (on: boolean) => segCls(on);
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div role="group" aria-label="Категория" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+      <div role="group" aria-label="Категория" className={SEG_GROUP}>
         {(["all", "clothes", "acc"] as const).map((k) => <button key={k} type="button" aria-pressed={cat === k} onClick={() => setCat(k)} className={seg(cat === k)}>{CAT_LABEL[k]}</button>)}
       </div>
       <span className="text-xs text-neutral-600">Работа без привязки к ТЗ и ТЗ без категории входят только в «Все».</span>
@@ -471,9 +481,9 @@ type VatChoice = "global" | "in" | "ex";
 /** «С НДС | Без НДС» внутри плитки: по умолчанию = общая панель, локально переопределяется (один компонент для «Получено» и «Средней цены»). */
 function VatSeg({ choice, setChoice, globalEx }: { choice: VatChoice; setChoice: (c: VatChoice) => void; globalEx: boolean }) {
   const ex = choice === "global" ? globalEx : choice === "ex";
-  const seg = (on: boolean) => "inline-flex min-h-11 items-center rounded-md px-2 text-xs " + (on ? "bg-neutral-900 text-white" : "text-neutral-700 hover:text-neutral-900");
+  const seg = (on: boolean) => segCls(on, "sm");
   return (
-    <div role="group" aria-label="НДС плитки" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+    <div role="group" aria-label="НДС плитки" className={SEG_GROUP}>
       <button type="button" aria-pressed={!ex} onClick={() => setChoice("in")} className={seg(!ex)}>С НДС</button>
       <button type="button" aria-pressed={ex} onClick={() => setChoice("ex")} className={seg(ex)}>Без НДС</button>
     </div>
@@ -511,7 +521,7 @@ function Tile({ label, value, sub, hint, tone, mini, spark, extra, after, contro
 }
 
 
-export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left, nowMonth, initialGroup, vat, services, initialPeriod, initialDetail, initialCat }: Props) {
+export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy, pays, saleLines, left, nowMonth, initialGroup, vat, services, initialPeriod, initialDetail, initialCat }: Props) {
   const [period, setPeriod] = useState<CashflowPeriod>(initialPeriod);
   const [exVat, setExVat] = useState(false);
   const [cat, setCat] = useState<Cat>(initialCat ?? "all");
@@ -531,6 +541,12 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const [active, setActive] = useState<number | null>(null);
   const [hot, setHot] = useState<string | null>(null);
   const [yearHot, setYearHot] = useState<string | null>(null);
+  const [hotLine, setHotLine] = useState<string | null>(null);
+  const [hotKind, setHotKind] = useState<string | null>(null);
+  const [hotKind2, setHotKind2] = useState<string | null>(null);
+  const [kindGroup, setKindGroup] = useState<"all" | "raw" | "work">("all");
+  const [kActive, setKActive] = useState<number | null>(null);
+  const [chartView, setChartView] = useState<"money" | "kinds">("money");
   const sales = salesBy[cat];
   const filtered = cat !== "all";
 
@@ -596,11 +612,34 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
   const gS = { ...s, recPcs: s.recPcs.slice(gOff), salePcs: s.salePcs.slice(gOff), revIncl: s.revIncl.slice(gOff), revEx: s.revEx.slice(gOff), discIncl: s.discIncl.slice(gOff) };
   const gSer = { ...ser, spend: ser.spend.slice(gOff), revenue: ser.revenue.slice(gOff), net: ser.net.slice(gOff), cumSpend: ser.cumSpend.slice(gOff), cumRevenue: ser.cumRevenue.slice(gOff), cumNet: ser.cumNet.slice(gOff), work: ser.work.slice(gOff), cumWorkPerUnit: ser.cumWorkPerUnit.slice(gOff) };
   const gStock = m.stock.slice(gOff);
-  const gKinds = useMemo(() => workKindsByMonth(pays, gMonths, cat), [pays, gMonths, cat]);
+  /** Платежи по видам (аванс / доплата / окончательный / прочее) за сырьё и за работу; «Сырьё» = мех, подкладка и шкуры подрядчика, «Работа» = работа подрядчику и услуги по УПД (как в таблице). */
+  const kg = useMemo(() => {
+    const raw = ["furAuction", "furPurchase", "hides", "lining"] as const, wrk = ["work", "services"] as const;
+    const out: Record<PayType, number[]> = { ADVANCE: months.map(() => 0), PARTIAL: months.map(() => 0), FINAL: months.map(() => 0), OTHER: months.map(() => 0) };
+    const idx = new Map(months.map((mo, i) => [mo, i]));
+    const keys = kindGroup === "raw" ? raw : kindGroup === "work" ? wrk : [...raw, ...wrk];
+    for (const p of pays) {
+      const i = idx.get(p.iso.slice(0, 7));
+      if (i === undefined) continue;
+      const k = p.amount ? (exVat ? p.ex / p.amount : 1) : 0;
+      const v = keys.reduce((t, key) => t + (p.art[key] ?? 0), 0) * k;
+      out[(p.type in out ? p.type : "OTHER") as PayType][i] += v;
+    }
+    const used = months.map((_, i) => KIND_ORDER.some((kk) => Math.abs(out[kk][i]) > 0.5));
+    const a0 = used.indexOf(true), b0 = used.lastIndexOf(true);
+    const sel = a0 < 0 ? [] : months.map((_, i) => i).filter((i) => i >= a0 && i <= b0);
+    return { months: sel.map((i) => months[i]), kinds: Object.fromEntries(KIND_ORDER.map((kk) => [kk, sel.map((i) => out[kk][i])])) as Record<PayType, number[]> };
+  }, [pays, months, exVat, kindGroup]);
+  const gKinds = useMemo(() => workKindsByMonth(exVat ? pays.map((p) => ({ ...p, art: { ...p.art, work: p.amount ? (p.art.work ?? 0) * (p.ex / p.amount) : 0 } })) : pays, gMonths, cat), [pays, gMonths, cat, exVat]);
   const gWu = { work: m.wu.work.slice(gOff), units: m.wu.units.slice(gOff), avg: m.wu.avg };
   const shownText = `${CAT_LABEL[cat]} · ${period === "all" ? "2025–2026" : period} · ${vatNote}`;
   const monthLabel = (mo: string) => `${["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"][Number(mo.slice(5, 7)) - 1]} ${mo.slice(0, 4)}`;
   const catArg = cat === "all" ? "all" : cat;
+  /** НДС справочно за период: в платежах = с НДС − без НДС по тем же месяцам, в выручке = с НДС − без НДС. */
+  const vatPay = m.keep.map((i) => incl.monthTotals[i] - ex.monthTotals[i]);
+  const vatRev = m.keep.map((i) => salesBy.all.revIncl[i] - salesBy.all.revEx[i]);
+  const artSum = (...keys: string[]) => d.articles.filter((a) => keys.includes(a.key)).reduce((t, a) => t + a.total, 0);
+  const rawSpend = artSum("furAuction", "furPurchase", "hides", "lining"), workSpend = artSum("work", "services");
   const fp = useMemo(() => flowPoints(months, ser.net, ser.cumNet), [months, ser]);
   const sum0 = (a: number[]) => a.reduce((x, y) => x + y, 0);
   const workTotalAll = sum0(workBy.clothes) + sum0(workBy.acc) + sum0(workBy.other);
@@ -648,7 +687,7 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
     URL.revokeObjectURL(a.href);
   };
 
-  const seg = (on: boolean) => "inline-flex min-h-11 items-center rounded-md px-3 text-sm " + (on ? "bg-neutral-900 text-white" : "text-neutral-700 hover:text-neutral-900");
+  const seg = (on: boolean) => segCls(on);
   const th = "px-2 py-2 text-right text-xs font-semibold whitespace-nowrap";
   const td = "min-w-[6.5rem] px-2 py-1.5 text-right text-sm tabular-nums whitespace-nowrap";
   const sticky = "sticky left-0 z-[1] text-left";
@@ -674,31 +713,24 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
           <span><b>Фильтры:</b> {CAT_LABEL[cat]} · {period === "all" ? "2025–2026" : period} · {vatNote}</span><span aria-hidden>{fOpen ? "▴" : "▾"}</span>
         </button>
         <div id="cf-filters-panel" className={(fOpen ? "flex" : "hidden") + " flex-wrap items-center gap-2 pb-1 md:flex md:pb-0"}>
-          <nav aria-label="Период" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+          <nav aria-label="Период" className={SEG_GROUP}>
             {([["all", "Все"], ...cashflowYears().map((y) => [String(y), String(y)])] as [CashflowPeriod, string][]).map(([k, t]) => <button key={k} type="button" aria-pressed={period === k} onClick={() => { setPeriod(k); clearHot(); }} className={seg(period === k)}>{t}</button>)}
           </nav>
-          <div role="group" aria-label="НДС" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+          <div role="group" aria-label="НДС" className={SEG_GROUP}>
             <button type="button" aria-pressed={!exVat} onClick={() => setExVat(false)} className={seg(!exVat)}>С НДС</button>
             <button type="button" aria-pressed={exVat} onClick={() => setExVat(true)} className={seg(exVat)}>Без НДС</button>
-          </div>
-          <div role="group" aria-label="Категория" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-            {(["all", "clothes", "acc"] as const).map((k) => <button key={k} type="button" aria-pressed={cat === k} onClick={() => { setCat(k); clearHot(); }} className={seg(cat === k)}>{CAT_LABEL[k]}</button>)}
           </div>
           <button type="button" onClick={csv} className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs">Скачать CSV</button>
         </div>
       </div>
       {exVat && vat.unknown > 0.5 && <p className="text-xs text-neutral-700">Без НДС остаются авансы без привязки к закупке и счёту ({money(vat.unknown)}): ставка по документам не определена, суммы показаны как есть. НДС работы подрядчика берётся по счёту (20 % до 2026 года, 22 % с 2026).</p>}
 
-      {filtered && (
-        <div role="note" className="rounded-lg border border-neutral-300 bg-white p-3 text-xs text-neutral-800">
-          <p><b>Категория: {CAT_LABEL[cat]}.</b> Траты не делятся по категориям, показаны все{hasSales ? "; чистый поток и накопленный итог при фильтре не считаются" : ""}. Единицы, выручка, остаток, маржа и маркапы — только по {CAT_LABEL[cat].toLowerCase()}; работа подрядчика — по ТЗ → модель → группа категории.</p>
-          <p className="mt-1">Охват классификации: единицы прихода — одежда {unitsBy.clothes} шт., аксессуары {unitsBy.acc} шт., без категории {unitsBy.other} шт. (категория берётся из Level 02 выгрузки). Работа: привязана к ТЗ {pctOf(workLinked, workTotalAll)}% суммы, из неё с категорией {pctOf(workClassified, workTotalAll)}% (всего {formatMoney(workTotalAll)}); неразнесённый аванс и ТЗ без группы в категориях не показаны, только в «Всё».</p>
-        </div>
-      )}
 
       <section aria-label="Ключевые показатели" className="grid grid-cols-1 items-stretch gap-2 min-[480px]:grid-cols-2 md:grid-cols-4">
-        <Tile label="Потрачено" value={money(h.spent)} sub={filtered ? "все траты, не по категории" : `${label}, ${vatNote}`} spark={ser.spend} mini={spendKinds.map((r) => [r.short, money(r.total)] as [string, string])} expandId="spend" openId={openTile} onToggle={toggleTile}
-          hint={<p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p>} />
+        <CarouselTile label="Потрачено" onOpen={() => toggleTile("spend")} pages={[
+          { label: "Потрачено", value: money(h.spent), sub: filtered ? "все траты, не по категории" : `${label}, ${vatNote}`, spark: ser.spend, rows: spendKinds.map((r) => [r.short, `${money(r.total)} · ${h.spent ? Math.round((r.total / h.spent) * 100) : 0} %`] as [string, string]), hint: <p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p> },
+          { label: "Сырьё и работа", value: money(rawSpend + workSpend), sub: `куда ушли деньги, ${vatNote}`, rows: [["Сырьё", `${money(rawSpend)} · ${rawSpend + workSpend ? Math.round((rawSpend / (rawSpend + workSpend)) * 100) : 0} %`], ["Работа и услуги", `${money(workSpend)} · ${rawSpend + workSpend ? Math.round((workSpend / (rawSpend + workSpend)) * 100) : 0} %`]] as [string, string][], hint: <p>Сырьё — мех (аукционы и поставщик, включая шкуры подрядчика) и подкладка; работа и услуги — пошив подрядчику и услуги по УПД.</p> },
+        ]} />
         <Tile label="Получено" value={hasSales ? money(recvSum(cat, exVat)) : "—"} sub={hasSales ? `выручка, ${vatNote}` : "нет данных о продажах"} spark={hasSales ? m.keep.map((i) => (exVat ? salesBy[cat].revEx[i] : salesBy[cat].revIncl[i])) : undefined}
           mini={mini((c) => `${money(recvSum(c, exVat))} · ${recvSum(cat, exVat) ? Math.round((recvSum(c, exVat) / recvSum(cat, exVat)) * 100) : 0} %`)} expandId={hasSales ? "recv" : undefined} onToggle={toggleTile}
           hint={<p>Розничная выручка из выгрузки продаж: чистые продажи после скидок, возвраты вычтены; по дате продажи; режим НДС — как в панели фильтров (внутри окна его можно переключить только для окна). Доля — от выручки всех категорий. {noSalesNote}</p>} />
@@ -729,21 +761,10 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
             label: `Средняя цена продажи · ${c === "all" ? "Тотал" : CAT_LABEL[c]}`,
             value: g && g.pcs > 0 ? formatMoney(g.rev / g.pcs) : "—",
             sub: g && g.pcs > 0 ? `${pcs(g.pcs)} шт. продано, ${vatNote}` : "нет продаж",
-            rows: [["Выручка", g ? money(g.rev) : "—"]] as [string, string][],
+            rows: [["Выручка", g ? money(g.rev) : "—"], ["Выручка в среднем в месяц", g ? money(g.rev / Math.max(1, m.keep.filter((i) => (exVat ? salesBy[c].revEx[i] : salesBy[c].revIncl[i]) > 0.5).length)) : "—"]] as [string, string][],
             hint: <p>Выручка ({vatNote}) ÷ проданные единицы (возвраты минус) за выбранный период и категорию; режим НДС — как в панели (в окне его можно переключить только для окна).</p>,
           }; })} />
         ) : <Tile label="Средняя цена продажи" value="—" sub="нет данных о продажах" />}
-        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-neutral-300 bg-white p-3 md:col-span-2 min-[480px]:col-span-2">
-          <div className="flex items-center gap-1 text-xs text-neutral-600">{DUE_LABEL}<InfoHint label={`Как считается: ${DUE_LABEL}`} wide><p>{DUE_LABEL} = сырьё + работа по заведённым ТЗ − аванс подрядчику, не меньше нуля. Долг до зачёта аванса: {money(due.gross)}.</p><p className="mt-1">{dueHint(money(due.gross), money(left.prod))}</p></InfoHint></div>
-          <div className={"text-lg font-semibold tabular-nums " + (due.net > 0 ? "text-amber-700" : "text-neutral-900")}>{formatMoney(due.net)}</div>
-          {due.net <= 0 && due.creditLeft > 0 ? <div className="text-xs text-neutral-600">К доплате 0 ₽, аванс остаётся в зачёте {money(due.creditLeft)}</div> : null}
-          <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
-            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{TERMS.rawDebt}</dt><dd className="font-semibold tabular-nums">{money(left.raw)}</dd></div>
-            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{TERMS.workRest}</dt><dd className="font-semibold tabular-nums">{money(left.prod)}</dd></div>
-            <div className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{TERMS.advance}</dt><dd className="font-semibold tabular-nums">−{money(left.advance)}</dd></div>
-          </dl>
-          <Link href="/payments" className="mt-1 inline-flex min-h-11 items-center self-start text-xs underline">Открыть «Оплаты»</Link>
-        </div>
       </section>
 
       {openTile && (
@@ -765,133 +786,17 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
         </TileModal>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <button type="button" aria-expanded={detail} onClick={() => setDetail((v) => !v)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm">{detail ? "Скрыть таблицу" : "Показать таблицу"}</button>
-        {detail && (
-          <div role="group" aria-label="Группировка строк" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-            <button type="button" aria-pressed={group === "period"} onClick={() => setGroup("period")} className={"inline-flex min-h-11 items-center rounded-md px-3 text-sm " + (group === "period" ? "bg-neutral-900 text-white" : "text-neutral-700")}>Период → Категория</button>
-            <button type="button" aria-pressed={group === "category"} onClick={() => setGroup("category")} className={"inline-flex min-h-11 items-center rounded-md px-3 text-sm " + (group === "category" ? "bg-neutral-900 text-white" : "text-neutral-700")}>Категория → Период</button>
+      <ClassicTable title={`Cash Flow · ${period === "all" ? "2025–2026" : period} · ${vatNote}, ₽`} months={months} d={d} ser={ser} hasSales={hasSales} filtered={filtered} detail={detail} setDetail={setDetail} hot={hot} setHot={setHot} active={active} setActive={setActive} yearHot={yearHot} setYearHot={setYearHot} vatPay={vatPay} vatRev={vatRev} prepaid={months.map((mo) => prepaidBy[mo] ?? 0)} hasVat={hasSales} />
+
+      <section aria-label="Деньги и траты" className="rounded-lg border border-neutral-300 bg-white p-3">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold">{chartView === "money" ? "Траты и полученные деньги по месяцам" : "Траты по видам оплаты"}</h2>
+          <div role="group" aria-label="График" className={SEG_GROUP + " print:hidden"}>
+            {([["money", "Траты и получено"], ["kinds", "Виды оплаты"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={chartView === k} onClick={() => setChartView(k)} className={seg(chartView === k)}>{t}</button>)}
           </div>
-        )}
-        {detail && group === "period" && <button type="button" onClick={() => setOpen(open.length < years.length ? years : [])} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs">{open.length < years.length ? "Развернуть все" : "Свернуть все"}</button>}
-        {detail && group === "category" && <button type="button" onClick={() => { const ids = d.articles.flatMap((a) => [`a:${a.key}`, ...years.map((y) => `y:${a.key}:${y}`)]); setCatOpen(catOpen.length < ids.length ? ids : []); }} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs">{catOpen.length < d.articles.length * (1 + years.length) ? "Развернуть все" : "Свернуть все"}</button>}
-      </div>
-
-      {detail && (
-        <div className="max-h-[75vh] overflow-auto rounded-lg border border-neutral-300 bg-white" tabIndex={0} role="region" aria-label="Таблица Cashflow: строки — годы и месяцы, столбцы — статьи трат, деньги, единицы">
-          <table className="table-keep border-collapse" style={{ tableLayout: "fixed", width: 150 + 104 * (artCols.length + (group === "period" ? 3 : 1)) }} onMouseLeave={clearHot}>
-            <colgroup><col style={{ width: 150 }} />{Array.from({ length: artCols.length + (group === "period" ? 3 : 1) }, (_, i) => <col key={i} style={{ width: 104 }} />)}</colgroup>
-            <thead>
-              <tr className="border-b border-neutral-200">
-                <th scope="col" rowSpan={2} className={th.replace("text-right", "text-left") + " " + sticky + " top-0 z-[2] min-w-[8rem] bg-white"}>Период</th>
-                {d.articles.map((a) => (
-                  <th key={a.key} scope="colgroup" tabIndex={0} onMouseEnter={() => setHot(a.key)} onFocus={() => setHot(a.key)} onBlur={clearHot} onClick={() => setHot(a.key)} colSpan={artCols.filter((c) => c.art === a.key).length} className="border-b border-l border-neutral-300 px-2 py-2 text-center text-xs font-semibold">
-                    <span aria-hidden className="mr-1.5 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: COLORS[a.key] }} /><span title={a.label}>{SHORT[a.key] ?? a.label}</span>
-                    <InfoHint label={`За что платили: ${a.label}`} wide>
-                      <p>{a.hint}</p>
-                      {a.key === "services" && services.length > 0 && (
-                        <ul className="mt-1 list-disc pl-4">
-                          {services.map((p) => <li key={p.number}>{p.number}{p.invoice ? `, счёт и УПД №${p.invoice}` : ""} от {p.date.split("-").reverse().join(".")}: {p.what}, оплачено {formatMoney(p.paid)}</li>)}
-                        </ul>
-                      )}
-                    </InfoHint>
-                  </th>
-                ))}
-                <th scope="col" rowSpan={2} className={th + " border-l border-neutral-300 font-bold"}>Потрачено</th>
-                {group === "period" && <th scope="col" rowSpan={2} className={th + " border-l border-neutral-300 font-bold"}>Получено</th>}
-                {group === "period" && <th scope="col" rowSpan={2} className={th + " font-bold"}>Чистый поток</th>}
-              </tr>
-              <tr className="border-b border-neutral-300">
-                {artCols.map((c) => <th key={c.id} scope="col" className={th.replace("whitespace-nowrap", "whitespace-normal") + blk(c) + " font-normal text-neutral-600 " + (c.strong ? "font-semibold" : "")}>{c.sub}</th>)}
-              </tr>
-            </thead>
-            {group === "category" ? (
-            <tbody>
-              {d.articles.map((a) => {
-                const aid = "a:" + a.key, aOpen = catOpen.includes(aid);
-                const mk = (idx: number[]): Row => ({ id: "x", label: "", kind: "month", idx });
-                const cellsFor = (idx: number[], first: React.ReactNode, cls2: string, bg2: string, key: string) => (
-                  <tr key={key} className={cls2}>
-                    <th scope="row" className={"px-2 py-1 text-sm " + sticky + " " + bg2}>{first}</th>
-                    {artCols.map((c) => <td key={c.id} className={td + blk(c) + (c.strong ? " font-semibold" : "")}>{c.art === a.key ? dash(c.get(mk(idx))) : "—"}</td>)}
-                    <td className={td + " border-l border-neutral-300 font-semibold"}>{dash(sum(mk(idx), (i) => a.byMonth[i]))}</td>
-                  </tr>
-                );
-                const allIdx = months.map((_, i) => i);
-                return (
-                  <Fragment key={a.key}>
-                    {cellsFor(allIdx, <button type="button" aria-expanded={aOpen} aria-label={`${aOpen ? "Свернуть" : "Развернуть"}: ${a.label}`} onClick={() => setCatOpen(aOpen ? catOpen.filter((x) => x !== aid) : [...catOpen, aid])} className="inline-flex min-h-11 items-center gap-1.5 text-left font-semibold"><span aria-hidden>{aOpen ? "▾" : "▸"}</span><span title={a.label}>{SHORT[a.key] ?? a.label}</span></button>, "border-b border-neutral-300 bg-neutral-100 font-semibold", "bg-neutral-100", aid)}
-                    {aOpen && years.map((y) => {
-                      const yid = `y:${a.key}:${y}`, yOpen = catOpen.includes(yid);
-                      const yidx = months.map((mo, i) => (mo.startsWith(y) ? i : -1)).filter((i) => i >= 0);
-                      return (
-                        <Fragment key={yid}>
-                          {cellsFor(yidx, <button type="button" aria-expanded={yOpen} aria-label={`${yOpen ? "Свернуть" : "Развернуть"}: ${a.label} ${y}`} onClick={() => setCatOpen(yOpen ? catOpen.filter((x) => x !== yid) : [...catOpen, yid])} className="inline-flex min-h-11 items-center gap-1.5 pl-3 text-left font-medium"><span aria-hidden>{yOpen ? "▾" : "▸"}</span>{y}</button>, "border-b border-neutral-200", "bg-white", yid)}
-                          {yOpen && yidx.filter((i) => Math.abs(a.byMonth[i]) > 0.005).map((i) => cellsFor([i], <span className="pl-9 font-normal">{full(months[i])}</span>, "border-b border-neutral-100 text-sm", "bg-white", yid + i))}
-                        </Fragment>
-                      );
-                    })}
-                  </Fragment>
-                );
-              })}
-              <tr className="row-total border-t-2 border-neutral-400 font-bold">
-                <th scope="row" className={"px-2 py-1.5 text-sm " + sticky + " bg-white"}>Итого</th>
-                {artCols.map((c) => <td key={c.id} className={td + blk(c) + (c.strong ? " font-semibold" : "")}>{dash(c.get({ id: "all", label: "", kind: "total", idx: months.map((_, i) => i) }))}</td>)}
-                <td className={td + " border-l border-neutral-300 font-semibold"}>{dash(sum({ id: "all", label: "", kind: "total", idx: months.map((_, i) => i) }, (i) => ser.spend[i]))}</td>
-              </tr>
-            </tbody>
-            ) : (
-            <tbody>
-              {rows.filter((r) => r.kind !== "month" || open.includes(r.id.slice(0, 4))).map((r) => {
-                const cls = r.kind === "month" ? "border-b border-neutral-200" : r.kind === "year" ? "border-b border-neutral-300 bg-neutral-100 font-semibold" : "row-total border-t-2 border-neutral-400 font-bold";
-                const bg = r.kind === "year" ? "bg-neutral-100" : "bg-white";
-                const aim = (art: string | null) => { setHot(art); if (r.kind === "month") { setActive(r.idx[0]); setYearHot(null); } else if (r.kind === "year") { setActive(null); setYearHot(r.id.slice(1)); } else { setActive(null); setYearHot(null); } };
-                const net = sum(r, (i) => ser.net[i]);
-                const mOpen = r.kind === "month" && openMonths.includes(r.id);
-                const gi = r.kind === "month" ? m.keep[r.idx[0]] : -1;
-                return (
-                  <Fragment key={r.id}>
-                  <tr className={cls} onMouseEnter={() => aim(null)}>
-                    <th scope="row" className={"px-2 py-1.5 text-sm " + (r.kind === "month" ? "font-normal " : "") + sticky + " " + bg}>
-                      {r.kind === "year" ? (
-                        <button type="button" aria-expanded={open.includes(r.id.slice(1))} className="inline-flex min-h-11 items-center gap-1.5 text-left font-semibold"
-                          onClick={() => setOpen(open.includes(r.id.slice(1)) ? open.filter((y) => y !== r.id.slice(1)) : [...open, r.id.slice(1)])}>
-                          <span aria-hidden>{open.includes(r.id.slice(1)) ? "▾" : "▸"}</span>{r.label}
-                        </button>
-                      ) : r.kind === "month" && hasSales ? (
-                        <span className="flex items-center justify-between gap-2">{r.label}
-                          <button type="button" aria-expanded={mOpen} aria-label={`${mOpen ? "Свернуть" : "Показать"} по категориям: ${r.label}`} onClick={() => setOpenMonths(mOpen ? openMonths.filter((x) => x !== r.id) : [...openMonths, r.id])} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md">{mOpen ? "▴" : "▾"}</button>
-                        </span>
-                      ) : r.label}
-                    </th>
-                    {artCols.map((c) => <td key={c.id} onMouseEnter={() => aim(c.art!)} onClick={() => aim(c.art!)} className={td + blk(c) + (c.strong ? " font-semibold" : "") + (hot === c.art && ((active !== null && r.idx.includes(active)) || (yearHot !== null && r.id === "y" + yearHot)) ? " bg-[var(--ui-soft)]" : "")}>{dash(c.get(r))}</td>)}
-                    <td className={td + " border-l border-neutral-300 font-semibold"}>{dash(sum(r, (i) => ser.spend[i]))}</td>
-                    <td className={td}>{hasSales ? dash(sum(r, (i) => ser.revenue[i])) : "—"}</td>
-                    <td className={td + (hasSales && !filtered && net < -0.5 ? " text-[#b4310b]" : "")}>{hasSales && !filtered ? dash(net) : "—"}</td>
-                  </tr>
-                  {mOpen && (["clothes", "acc", "other"] as const).map((c) => {
-                    const x = clsMonth(c, gi);
-                    if (c === "other" && !x.rev && !x.rec && !x.sale && Math.abs(x.work) < 0.5) return null;
-                    const no = <span title="Траты не делятся по категориям">—</span>;
-                    return (
-                      <tr key={r.id + c} className="border-b border-neutral-100 bg-neutral-50 text-xs">
-                        <th scope="row" className={"py-1.5 pl-8 pr-2 text-left font-normal " + sticky + " bg-neutral-50"}>{CAT_LABEL[c]}</th>
-                        {artCols.map((ac) => <td key={ac.id} className={td + blk(ac)}>{ac.art === "work" && ac.id.endsWith("T") ? dash(x.work) : no}</td>)}
-                        <td className={td + " border-l border-neutral-300"}>{no}</td>
-                        <td className={td}>{dash(x.rev)}</td><td className={td}>{no}</td>
-                      </tr>
-                    );
-                  })}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-            )}
-          </table>
         </div>
-      )}
-
-      <section aria-label="Деньги" className="rounded-lg border border-neutral-300 bg-white p-3">
+        {chartView === "money" ? (
+          <>
         <div className="mb-2 min-h-[2.5rem] text-xs text-neutral-700" aria-live="polite">
           {active === null ? (
             null
@@ -900,7 +805,6 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
               {d.articles.filter((a) => Math.abs(a.byMonth[active]) >= 0.5).map((a) => <span key={a.key}> · {a.label} {formatMoney(a.byMonth[active])}</span>)}</span>
           )}
         </div>
-        <h2 className="mb-1 text-sm font-semibold">Траты и полученные деньги по месяцам</h2>
         <ChartBox n={months.length}>{(colW) => <Chart kind="money" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
           {d.articles.map((a) => (
@@ -910,36 +814,48 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
             </li>
           ))}
           <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Получено (вверх)</li>
-          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4 bg-neutral-900" />Чистый поток</li>
         </ul>
+          </>
+        ) : (
+          <>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <div role="group" aria-label="Что показать" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5 print:hidden">
+            {([["all", "Всё"], ["raw", "Сырьё"], ["work", "Работа и услуги"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={kindGroup === k} onClick={() => setKindGroup(k)} className={seg(kindGroup === k)}>{t}</button>)}
+          </div>
+        </div>
+        <div className="min-h-[1.5rem] text-xs text-neutral-700" aria-live="polite">{kActive !== null && kg.months[kActive] ? <span><b>{full(kg.months[kActive])}</b>{KIND_ORDER.filter((k) => Math.abs(kg.kinds[k][kActive]) > 0.5).map((k) => `, ${PAY_TYPE_LABEL[k].toLowerCase()} ${dash(kg.kinds[k][kActive])}`).join("")}</span> : null}</div>
+        <ChartBox n={kg.months.length} extra={102}>{(colW) => <WorkMonthsChart months={kg.months} kinds={kg.kinds} units={kg.months.map(() => 0)} active={kActive} setActive={setKActive} colW={colW} hotKind={hotKind2} showUnits={false} />}</ChartBox>
+        <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
+          {KIND_ORDER.filter((k) => Math.abs(kg.kinds[k].reduce((a2, b2) => a2 + b2, 0)) > 0.5).map((k) => <KindLi key={k} k={k} hotKind={hotKind2} setHotKind={setHotKind2} />)}
+        </ul>
+          </>
+        )}
       </section>
 
       <section aria-label="Накопительно" className="rounded-lg border border-neutral-300 bg-white p-3">
         <h2 className="mb-1 flex items-center gap-1 text-sm font-semibold">Накопительно: потрачено и получено
           <InfoHint label="Как читать накопительный график" wide><p>Две линии растут с первого месяца данных: оранжевая — сколько потрачено, зелёная — сколько получено. Пунктир — разрыв между ними: ниже нуля «в минусе», выше — «в плюсе».</p></InfoHint>
         </h2>
-        <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="cum" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
+        <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="cum" hotLine={hotLine} months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: SPEND }} />Потрачено нарастающим итогом</li>
-          {hasSales && <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4" style={{ background: GET }} />Получено нарастающим итогом</li>}
-          {hasSales && <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-0.5 w-4 border-t-2 border-dashed" style={{ borderColor: NAVY }} />Чистый итог (получено − потрачено)</li>}
+          {([["spend", SPEND, "Потрачено нарастающим итогом", false], ["get", GET, "Получено нарастающим итогом", true], ["net", NAVY, "Чистый итог (получено − потрачено)", true]] as const).filter((x) => x[0] === "spend" || (hasSales && (x[0] === "get" || !filtered))).map(([k, c, t]) => (
+            <li key={k}><button type="button" aria-pressed={hotLine === k} onMouseEnter={() => setHotLine(k)} onMouseLeave={() => setHotLine(null)} onFocus={() => setHotLine(k)} onBlur={() => setHotLine(null)} onClick={() => setHotLine(hotLine === k ? null : k)} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className={"inline-block h-0.5 w-4 " + (k === "net" ? "border-t-2 border-dashed" : "")} style={k === "net" ? { borderColor: c } : { background: c }} />{t}</button></li>
+          ))}
         </ul>
       </section>
 
       <section aria-label="Товар" className="flex flex-col gap-4 rounded-lg border border-neutral-300 bg-white p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">Работа подрядчика</h2>
-          <Link href="/sales" data-testid="cf-sales-link" className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm font-medium text-blue-700 hover:bg-neutral-50 print:hidden">Приход, продано и остаток: Продажи и остатки →</Link>
+          <h2 className="text-sm font-semibold">Работа подрядчика по месяцам, ₽</h2>
         </div>
         {hasSales ? (
           <>
             <div>
-              <h3 className="text-sm font-semibold">Работа подрядчика по месяцам, ₽</h3>
               <div className="min-h-[1.5rem] text-xs text-neutral-700" aria-live="polite">{gActive !== null ? <span><b>{full(gMonths[gActive])}</b>: работа {dash(gWu.work[gActive])}{KIND_ORDER.filter((k) => Math.abs(gKinds[k][gActive]) > 0.5).map((k) => `, ${PAY_TYPE_LABEL[k].toLowerCase()} ${dash(gKinds[k][gActive])}`).join("")}, получено {pcs(gWu.units[gActive])} шт.</span> : null}</div>
-              <ChartBox n={gMonths.length} extra={102}>{(colW) => <WorkMonthsChart months={gMonths} kinds={gKinds} units={gWu.units} active={gActive} setActive={setGActive} colW={colW} />}</ChartBox>
+              <ChartBox n={gMonths.length} extra={102}>{(colW) => <WorkMonthsChart months={gMonths} kinds={gKinds} units={gWu.units} active={gActive} setActive={setGActive} colW={colW} hotKind={hotKind} />}</ChartBox>
               <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-                {KIND_ORDER.filter((k) => Math.abs(gKinds[k].reduce((a2, b2) => a2 + b2, 0)) > 0.5).map((k) => <li key={k} className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: k === "ADVANCE" || k === "OTHER" ? KIND_COLOR[k] : `repeating-linear-gradient(${k === "PARTIAL" ? "45deg" : "0deg"}, ${KIND_COLOR[k]} 0 3px, #fff 3px 5px)` }} />{PAY_TYPE_LABEL[k]} {dash(gKinds[k].reduce((a2, b2) => a2 + b2, 0))}</li>)}
-                <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-full" style={{ background: NAVY }} />Получено единиц, шт. (справа)</li>
+                {KIND_ORDER.filter((k) => Math.abs(gKinds[k].reduce((a2, b2) => a2 + b2, 0)) > 0.5).map((k) => <KindLi key={k} k={k} hotKind={hotKind} setHotKind={setHotKind} />)}
+                <li><button type="button" aria-pressed={hotKind === "units"} onMouseEnter={() => setHotKind("units")} onMouseLeave={() => setHotKind(null)} onFocus={() => setHotKind("units")} onBlur={() => setHotKind(null)} onClick={() => setHotKind(hotKind === "units" ? null : "units")} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-full" style={{ background: NAVY }} />Получено единиц, шт.</button></li>
               </ul>
             </div>
 
@@ -948,6 +864,158 @@ export function CashflowView({ incl, ex, salesBy, workBy, pays, saleLines, left,
       </section>
 
 
+    </div>
+  );
+}
+
+/** Классический Cash Flow: статьи в строках, месяцы в столбцах, после декабря — итог года, в конце «Всего». Платежи со знаком минус. */
+function ClassicTable({ vatPay, vatRev, prepaid, hasVat, title, months, d, ser, hasSales, filtered, detail, setDetail, hot, setHot, active, setActive, yearHot, setYearHot }: { vatPay: number[]; vatRev: number[]; prepaid: number[]; hasVat: boolean; title: string; hot: string | null; setHot: (k: string | null) => void; active: number | null; setActive: (i: number | null) => void; yearHot: string | null; setYearHot: (y: string | null) => void; months: string[]; d: CashflowData; ser: { spend: number[]; revenue: number[]; net: number[]; cumNet: number[] }; hasSales: boolean; filtered: boolean; detail: boolean; setDetail: (v: boolean) => void }) {
+  const art = (k: string) => d.articles.find((a) => a.key === k)?.byMonth ?? months.map(() => 0);
+  const add = (...xs: number[][]) => months.map((_, i) => xs.reduce((s, x) => s + (x[i] ?? 0), 0));
+  const neg = (x: number[]) => x.map((v) => -v);
+  const auction = neg(art("furAuction")), purchase = neg(add(art("furPurchase"), art("hides"))), lining = neg(art("lining"));
+  const work = neg(art("work")), services = neg(art("services"));
+  const raw = add(auction, purchase, lining), workAll = add(work, services);
+  const pay = neg(ser.spend);
+  const first = months.findIndex((_, i) => Math.abs(ser.spend[i]) > 0.5 || Math.abs(ser.revenue[i]) > 0.5);
+  const last = months.length - 1 - [...months].reverse().findIndex((_, i) => Math.abs(ser.spend[months.length - 1 - i]) > 0.5 || Math.abs(ser.revenue[months.length - 1 - i]) > 0.5);
+  const shown = first < 0 ? [] : months.map((_, i) => i).filter((i) => i >= first && i <= last);
+  const years = Array.from(new Set(shown.map((i) => months[i].slice(0, 4))));
+  type Col = { key: string; label: string; idx: number[]; total: boolean };
+  const cols: Col[] = [];
+  for (const y of years) {
+    const ys = shown.filter((i) => months[i].startsWith(y));
+    for (const i of ys) cols.push({ key: months[i], label: months[i].slice(5, 7) + "." + months[i].slice(2, 4), idx: [i], total: false });
+    cols.push({ key: "y" + y, label: "Итого " + y, idx: ys, total: true });
+  }
+  cols.push({ key: "all", label: "Всего", idx: shown, total: true });
+  const [gran, setGran] = useState<"months" | "years">("months");
+  const colsShown = gran === "years" ? cols.filter((c) => c.total) : cols;
+  const sum = (x: number[], c: Col) => c.idx.reduce((s, i) => s + (x[i] ?? 0), 0);
+  type R = { label: string; x: number[] | null; lvl: 0 | 1 | 2; cum?: boolean; art?: string };
+  const rows: R[] = [
+    ...(hasSales ? [{ label: "ПОСТУПЛЕНИЯ", x: ser.revenue, lvl: 0 as const }, { label: "Выручка от продаж", x: ser.revenue, lvl: 1 as const }] : []),
+    { label: "ПЛАТЕЖИ", x: pay, lvl: 0 },
+    { label: "Сырьё и материалы", x: raw, lvl: 1 },
+    { art: "furAuction", label: "Мех: аукционы", x: auction, lvl: 2 },
+    { art: "furPurchase", label: "Мех: закупка у поставщика", x: purchase, lvl: 2 },
+    { art: "lining", label: "Подкладка", x: lining, lvl: 2 },
+    { label: "Работа и услуги", x: workAll, lvl: 1 },
+    { art: "work", label: "Работа подрядчику", x: work, lvl: 2 },
+    { art: "services", label: "Услуги по УПД", x: services, lvl: 2 },
+    ...(hasSales && !filtered ? [{ label: "ЧИСТЫЙ ДЕНЕЖНЫЙ ПОТОК", x: ser.net, lvl: 0 as const }, { label: "Накопленный чистый поток", x: ser.cumNet, lvl: 1 as const, cum: true }] : []),
+  ];
+  const aimCol = (c: Col) => { if (c.total) { setActive(null); setYearHot(c.key.startsWith("y") ? c.key.slice(1) : null); } else { setYearHot(null); setActive(c.idx[0]); } };
+  const stick = "sticky left-0 z-[1] text-left";
+  const [refOpen, setRefOpen] = useState(false);
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <p className="basis-full text-xs text-neutral-600">Оплаты поставщикам и подрядчику и выручка; без зарплат, аренды, налогов и остатков на счетах.</p>
+        <button type="button" aria-expanded={detail} onClick={() => setDetail(!detail)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm md:min-h-9">{detail ? "Скрыть таблицу" : "Показать таблицу"}</button>
+        {detail ? (
+          <div role="group" aria-label="Столбцы" className={SEG_GROUP}>
+            {([["months", "По месяцам"], ["years", "По годам"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={gran === k} onClick={() => setGran(k)} className={segCls(gran === k)}>{t}</button>)}
+          </div>
+        ) : null}
+      </div>
+      {detail && (
+        <div className="max-h-[75vh] overflow-auto rounded-lg border border-neutral-300 bg-white" tabIndex={0} role="region" aria-label="Cash Flow: статьи в строках, месяцы и итоги года в столбцах">
+          <table className="table-keep border-collapse text-sm" onMouseLeave={() => { setHot(null); setActive(null); setYearHot(null); }}>
+            <thead>
+              <tr className="border-b border-neutral-300">
+                <th scope="col" className={"min-w-[14rem] bg-white px-2 py-2 text-xs font-semibold " + stick + " top-0 z-[2]"}>Статья, ₽</th>
+                {colsShown.map((c) => <th key={c.key} scope="col" onMouseEnter={() => aimCol(c)} className={"px-2 py-2 text-right text-xs font-semibold whitespace-nowrap " + (c.total ? "border-l border-neutral-300 bg-neutral-100" : "") + (!c.total && active === c.idx[0] ? " bg-[var(--ui-soft)]" : "")}>{c.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.label} onMouseEnter={() => setHot(r.art ?? null)} className={(r.art && hot === r.art ? "bg-[var(--ui-soft)] " : "") + (r.lvl === 0 ? "border-y border-neutral-300 bg-neutral-100 font-bold" : r.lvl === 1 ? "border-b border-neutral-200 font-semibold" : "border-b border-neutral-100")}>
+                  <th scope="row" className={"px-2 py-1.5 " + stick + " " + (r.lvl === 0 ? "bg-neutral-100" : r.art && hot === r.art ? "bg-[var(--ui-soft)]" : "bg-white") + (r.lvl === 2 ? " pl-6 font-normal" : r.lvl === 1 ? " pl-4" : "")}>{r.label}</th>
+                  {colsShown.map((c) => {
+                    const v = r.cum ? (c.idx.length ? (r.x as number[])[c.idx[c.idx.length - 1]] : 0) : sum(r.x as number[], c);
+                    return <td key={c.key} onMouseEnter={() => aimCol(c)} className={"min-w-[6.5rem] px-2 py-1.5 text-right tabular-nums whitespace-nowrap " + (c.total ? "border-l border-neutral-300 font-semibold" : "")}>{dash(v)}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {detail && (
+        <div className="rounded-lg border border-neutral-300 bg-white">
+          <button type="button" aria-expanded={refOpen} onClick={() => setRefOpen((v) => !v)} className="flex min-h-11 w-full items-center gap-1.5 px-3 text-left text-sm font-semibold"><span aria-hidden>{refOpen ? "▾" : "▸"}</span>Справочно: НДС и предоплата</button>
+          {refOpen && <div className="overflow-auto border-t border-neutral-200" tabIndex={0} role="region" aria-label="Справочно по месяцам">
+            <table className="table-keep border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-neutral-300">
+                  <th scope="col" className={"min-w-[14rem] bg-white px-2 py-2 text-xs font-semibold " + stick}>Статья, ₽</th>
+                  {colsShown.map((c) => <th key={c.key} scope="col" className={"px-2 py-2 text-right text-xs font-semibold whitespace-nowrap " + (c.total ? "border-l border-neutral-300 bg-neutral-100" : "")}>{c.label}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {([["НДС в составе платежей", vatPay], ...(hasVat ? [["НДС в составе выручки", vatRev], ["Разница НДС", vatRev.map((v, i) => v - (vatPay[i] ?? 0))]] : []), ["Предоплата за непринятые заказы", prepaid]] as [string, number[]][]).map(([lab, arr]) => (
+                  <tr key={lab} className="border-b border-neutral-100">
+                    <th scope="row" title={lab.startsWith("Предоплата") ? "Деньги ушли, товара пока нет: запасы, а не расход" : undefined} className={"bg-white px-2 py-1.5 font-normal " + stick}>{lab}</th>
+                    {colsShown.map((c) => <td key={c.key} className={"min-w-[6.5rem] px-2 py-1.5 text-right tabular-nums whitespace-nowrap " + (c.total ? "border-l border-neutral-300 font-semibold" : "")}>{dash(sum(arr, c))}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>}
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Блок Cashflow для Главной: накопительный график «потрачено и получено» и под ним свёрнутая таблица Cash Flow.
+ * Год — из шапки Главной (period), НДС — из переключателя шапки; цифры те же, что в разделе Cashflow.
+ */
+export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy }: { incl: CashflowData; ex: CashflowData; salesAll: SalesMonthly; period: CashflowPeriod; prepaidBy: Record<string, number> }) {
+  const { mode } = useVatDisplay();
+  const exVat = mode === "excl";
+  const vatNote = exVat ? "без НДС" : "с НДС";
+  const [detail, setDetail] = useState(false);
+  const [active, setActive] = useState<number | null>(null);
+  const [hot, setHot] = useState<string | null>(null);
+  const [yearHot, setYearHot] = useState<string | null>(null);
+  const [hotLine, setHotLine] = useState<string | null>(null);
+  const hasSales = salesAll.available;
+  const c = useMemo(() => {
+    const all = exVat ? ex : incl;
+    const revAll = exVat ? salesAll.revEx : salesAll.revIncl;
+    const keep = visibleMonths(all, salesAll, period);
+    const d = sliceData(all, keep, period);
+    const s = sliceSales(salesAll, keep);
+    const serAll = seriesOf(all, salesAll, revAll);
+    const pick = <T,>(a: T[]) => keep.map((i) => a[i]);
+    const ser: Ser = { spend: pick(serAll.spend), revenue: keep.map((i) => revAll[i]), net: pick(serAll.net), cumSpend: pick(serAll.cumSpend), cumRevenue: pick(serAll.cumRevenue), cumNet: pick(serAll.cumNet), work: pick(serAll.work), cumWorkPerUnit: keep.map(() => null) };
+    const vatPay = keep.map((i) => incl.monthTotals[i] - ex.monthTotals[i]);
+    const vatRev = keep.map((i) => salesAll.revIncl[i] - salesAll.revEx[i]);
+    return { d, s, ser, vatPay, vatRev };
+  }, [exVat, period, incl, ex, salesAll]);
+  const months = c.d.months;
+  if (months.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-3">
+      <section aria-label="Накопительно: потрачено и получено" className="rounded-lg border border-neutral-300 bg-white p-3">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h2 className="flex items-center gap-1 text-sm font-semibold">Накопительно: потрачено и получено
+            <InfoHint label="Как читать накопительный график" wide><p>Линии растут с первого месяца данных: оранжевая — потрачено, зелёная — получено, пунктир — разрыв между ними.</p></InfoHint>
+          </h2>
+          <Link href="/cashflow" className="text-xs text-blue-700 hover:underline print:hidden">Cashflow ›</Link>
+        </div>
+        <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="cum" hotLine={hotLine} months={months} d={c.d} s={c.s} ser={c.ser} stock={c.ser.spend.map(() => 0)} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={false} colW={colW} />}</ChartBox>
+        <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
+          {([["spend", SPEND, "Потрачено нарастающим итогом"], ["get", GET, "Получено нарастающим итогом"], ["net", NAVY, "Чистый итог (получено − потрачено)"]] as const).filter((x) => x[0] === "spend" || hasSales).map(([k, col, t]) => (
+            <li key={k}><button type="button" aria-pressed={hotLine === k} onMouseEnter={() => setHotLine(k)} onMouseLeave={() => setHotLine(null)} onFocus={() => setHotLine(k)} onBlur={() => setHotLine(null)} onClick={() => setHotLine(hotLine === k ? null : k)} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className={"inline-block h-0.5 w-4 " + (k === "net" ? "border-t-2 border-dashed" : "")} style={k === "net" ? { borderColor: col } : { background: col }} />{t}</button></li>
+          ))}
+        </ul>
+      </section>
+      <ClassicTable title={`Cash Flow · ${period === "all" ? "2025–2026" : period} · ${vatNote}, ₽`} months={months} d={c.d} ser={c.ser} hasSales={hasSales} filtered={false} detail={detail} setDetail={setDetail} hot={hot} setHot={setHot} active={active} setActive={setActive} yearHot={yearHot} setYearHot={setYearHot} vatPay={c.vatPay} vatRev={c.vatRev} prepaid={months.map((mo) => prepaidBy[mo] ?? 0)} hasVat={hasSales} />
     </div>
   );
 }

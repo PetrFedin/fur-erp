@@ -183,6 +183,8 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
     };
   })();
 
+  /** Под ценой в $: по скольким штукам из скольких посчитана средняя (у остальных нет цены в $ в расчёте лота). */
+  const usdSub = (have: number | null | undefined, of: number) => (of > 0 ? <span className="text-[11px] font-normal text-neutral-500">по {formatQty(have ?? 0)} из {formatQty(of)} шт.</span> : undefined);
   const px = (q: number | null | undefined, of: number) => (q != null && q > 0 ? `по ${formatQty(q)} из ${formatQty(of)} шт.` : "");
   const sumNow = (k: "recvValue" | "remValue" | "usedValue" | "usedValueOther") => (all ? F[k] + L[k] : cur[k]);
   // «Использовано»: сумма без 4% и под ней с 4% — независимо от режима шапки.
@@ -222,7 +224,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
               </Duo>
               <Duo>
                 <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.recvAvg != null ? rub(cur.recvAvg) : "—"} />
-                {usdTile && usdBought ? <Row k="Цена, $/шт." v={usdBought.main} /> : null}
+                {usdTile && usdBought ? <Row k="Цена, $/шт." v={usdBought.main} sub={usdSub(F.usdQty, F.recvQty)} /> : null}
               </Duo>
               {recvNote ? <div className="mt-2 text-[11px] leading-4 text-neutral-500" data-testid="recv-share">{recvNote}</div> : null}
               {vatRates ? <VatLine v={vatRates.recv} minRem={compact ? 3 : 1} className="mt-auto pt-2" /> : null}
@@ -248,7 +250,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
               </Duo>
               <Duo>
                 <Row k={`Цена, ₽/${priceUnit}`} v={usedQtyNow > 0 ? rub(usedNo4 / usedQtyNow) : "—"} sub={compact ? <SubLines n={1} lines={usedQtyNow > 0 ? [`с 4%: ${rub(usedWith4 / usedQtyNow)}`] : []} /> : usedQtyNow > 0 ? `с 4%: ${rub(usedWith4 / usedQtyNow)}` : undefined} />
-                {usdTile ? <Row k="Цена, $/шт." v={F.usdUsedAvg != null ? usd(F.usdUsedAvg) : <span title="Нет лотов с ценой в USD">—</span>} /> : null}
+                {usdTile ? <Row k="Цена, $/шт." v={F.usdUsedAvg != null ? usd(F.usdUsedAvg) : <span title="Нет лотов с ценой в USD">—</span>} sub={usdSub(F.usdUsedQty, F.usedQty)} /> : null}
               </Duo>
               {vatRates ? <VatLine v={vatRates.used} minRem={compact ? 3 : 1} className="mt-auto pt-2" /> : null}
             </>
@@ -271,7 +273,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
               </Duo>
               <Duo>
                 <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.remAvg != null ? rub(cur.remAvg) : "—"} />
-                {usdTile ? <Row k="Цена, $/шт." v={F.usdRemAvg != null ? usd(F.usdRemAvg) : <span title="Нет лотов с ценой в USD">—</span>} /> : null}
+                {usdTile ? <Row k="Цена, $/шт." v={F.usdRemAvg != null ? usd(F.usdRemAvg) : <span title="Нет лотов с ценой в USD">—</span>} sub={usdSub(F.usdRemQty, F.remQty)} /> : null}
               </Duo>
               {vatRates ? <VatLine v={vatRates.rem} minRem={compact ? 3 : 1} className="mt-auto pt-2" /> : null}
             </>
@@ -345,7 +347,7 @@ export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c
     <section aria-labelledby="dash-raw">
       <h2 id="dash-raw" className="sr-only">Сырьё</h2>
       <WidgetRow id="raw" title="Сырьё" titleClass="text-sm font-semibold" headerExtra={extra}
-        headerEnd={<Link href={href} title={`${lots} лотов`} className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
+        headerEnd={<Link href={href} title={`${lots} лотов`} className="text-xs text-blue-700 hover:underline print:hidden">Сырьё ›</Link>}>
         <div className="raw-row raw-row-fl">
           {groups.map((g, i) => (
             <Fragment key={g.view}>

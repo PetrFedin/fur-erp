@@ -95,10 +95,10 @@ function walk(r: SalesRow, fn: (r: SalesRow) => void) { fn(r); r.children.forEac
     ok(`${f}: без «MVST» и «Google Диск»`, !/MVST|Google Диск/i.test(src));
   }
   const view = readFileSync("src/app/(app)/dashboard/sales-block.tsx", "utf8");
-  ok("таблица на table-keep", /table-keep/.test(view));
+  ok("таблица на table-keep", /table-keep/.test(readFileSync("src/app/(app)/dashboard/sales-block-table.tsx", "utf8")));
   ok("плитки tile-click, окно по клику", /tile-click/.test(view) && /SalesModal/.test(view));
-  const strip = readFileSync("src/app/(app)/dashboard/summary.tsx", "utf8");
-  ok("ссылка «Продажи и остатки →» убрана из «Требует решения» (она у блока)", !/dash-sales-link/.test(strip) && /dash-sales-link/.test(view));
+  // «Требует решения» убрана с Главной (решение владельца 21.10.2026): ссылка на раздел остаётся только у блока.
+  ok("ссылка на раздел есть у блока «Продажи и остатки»", /dash-sales-link/.test(view));
 
   console.log(fails ? `\nПровалено ${fails} из ${checks}` : `\nВсе ${checks} проверок пройдены`);
   await prisma.$disconnect();

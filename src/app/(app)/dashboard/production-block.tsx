@@ -60,7 +60,7 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
     <section aria-label="Производство" className="space-y-2">
       <WidgetRow id="prod" title="Производство"
         headerExtra={<ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />}
-        headerEnd={<Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
+        headerEnd={<Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">ТЗ ›</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
         <TileCarousel clickable hoverBlocks title={OUTPUT_LABEL} hintLabel="Что такое «в выпуске»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>

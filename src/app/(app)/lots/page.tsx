@@ -19,6 +19,7 @@ import { YearNote } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { RawTab } from "@/components/raw-tabs";
 import { FurSelectionTotal } from "@/components/fur-selection-total";
+import { AuctionCompare } from "@/components/auction-compare";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, filterHref, parseFilters, pick } from "@/lib/filters";
 import { auctionLabeler, getFilterOptions } from "@/lib/filter-options";
@@ -28,7 +29,6 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { RawCards } from "../dashboard/raw-block";
 import { PriceCompositionBlock } from "../dashboard/price-composition-block";
 import { priceComposition } from "@/lib/price-composition-server";
-import { formatMoney, formatQty } from "@/lib/utils";
 import { PayTiles } from "../dashboard/pay-tiles";
 import { FurScope, ScopeEmpty, ScopeShow } from "@/components/fur-scope";
 
@@ -383,19 +383,9 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               <p>Цифры те же, что на Главной: <b>Куплено = Использовано + Остаток</b> (без 4 %). Нажмите на плитку — цены по видам. Справа: Оплачено и К оплате по меху (с НДС).</p>
             </InfoHint>
           </div>
-          <FurSelectionTotal noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
-          {(() => {
-            const ord = dash.syntheticLots.filter((l) => l.id.startsWith("ordered:"));
-            const paid = ord.reduce((a, l) => a + (l.paid ?? 0), 0), due = ord.reduce((a, l) => a + (l.due ?? 0), 0);
-            if (dash.ordered.incl < 0.5) return null;
-            return (
-              <div data-testid="prepaid-row" className="rounded-lg border border-neutral-200 bg-white p-3 text-sm">
-                <h3 className="font-semibold">Предоплачено, ждём поставку</h3>
-                <p className="mt-1 text-neutral-700">Заказано {formatMoney(dash.ordered.incl)} ({formatQty(dash.ordered.qty)} шт.), предоплачено {formatMoney(paid)}, остаток к оплате {Math.abs(due) < 0.5 ? "—" : formatMoney(due)}. Это закупки в статусе «Черновик»: в «Куплено», «Использовано», «Остаток» и в среднюю цену они не входят до приёмки.</p>
-              </div>
-            );
-          })()}
+          <FurSelectionTotal noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} widgets={<FurSelectionTotal variant="years" lots={furTabLots} kind="fur" globalYear={year} />} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
           <PriceCompositionBlock lots={(await priceComposition(orgId, dash)).lots} href="/lots" />
+          <AuctionCompare lots={furTabLots} />
         </section>
       ) : (
         <section aria-labelledby="raw-lining" className="space-y-3">

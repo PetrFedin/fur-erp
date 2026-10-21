@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { SEG_GROUP, segCls } from "@/components/segmented";
 import { useCommission4Display } from "@/lib/commission4-display";
 
 const HINT =
@@ -18,10 +19,7 @@ function Commission4ToggleLegacy() {
       type="button"
       onClick={() => mode !== m && setMode(m)}
       aria-pressed={mode === m}
-      className={cn(
-        "rounded-sm px-2 py-1 font-medium transition-colors max-md:min-h-8",
-        mode === m ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-900",
-      )}
+      className={segCls(mode === m, "sm")}
     >
       {text}
     </button>
@@ -29,7 +27,7 @@ function Commission4ToggleLegacy() {
   return (
     <div
       title={HINT}
-      className={cn("flex items-center rounded-md border border-neutral-300 bg-white p-0.5 text-xs", pending && "opacity-70")}
+      className={cn(SEG_GROUP, pending && "opacity-70")}
     >
       {btn("off", "Без 4 %")}
       {btn("on", "С 4 %")}

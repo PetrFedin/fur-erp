@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 /** Окно деталей поверх страницы: Esc и клик вне окна закрывают, фокус заперт внутри, на телефоне на весь экран (как в Cashflow). */
-export function SalesModal({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode }) {
+export function SalesModal({ title, subtitle, onClose, children, wide = false }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -25,7 +25,7 @@ export function SalesModal({ title, subtitle, onClose, children }: { title: stri
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-[100] flex items-stretch justify-center bg-black/45 sm:items-center sm:p-4 print:hidden" onMouseDown={onClose}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sales-modal-title" className="flex h-dvh max-h-dvh w-full max-w-3xl flex-col overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-[94vh] sm:rounded-2xl" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sales-modal-title" className={"flex h-dvh max-h-dvh w-full flex-col " + (wide ? "max-w-6xl" : "max-w-3xl") + "  overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-[94vh] sm:rounded-2xl"} onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 border-b border-neutral-200 p-4">
           <div className="min-w-0">
             <h2 id="sales-modal-title" className="text-lg font-semibold">{title}</h2>

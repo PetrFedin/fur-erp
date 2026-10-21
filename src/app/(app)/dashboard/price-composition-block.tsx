@@ -228,7 +228,7 @@ const SRC_SHORT: Record<Src, string> = { all: "Все", auction: "Аукцион
 const SRC_KEYS: Src[] = ["all", "auction", "supplier"];
 
 /** `onlyFur` — страница вида меха («Сырьё → Мех → Лиса»): тот же блок и те же лоты, что на Главной, но один слайд этого вида. */
-export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots" }: { lots: PCLot[]; onlyFur?: string; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
+export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots", collapsed = false }: { /** Блок свёрнут по умолчанию (на Главной); открытое состояние запоминается в браузере. */ collapsed?: boolean; lots: PCLot[]; onlyFur?: string; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
   const { withVat, toggle } = useChartVat();
   const scope = useFurScope();
   const [localSrc, setSrc] = useState<Src>("all");
@@ -282,7 +282,7 @@ export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots" }
     </div>
   );
   return (
-    <WidgetRow id="price-comp" title="Из чего складывается стоимость меха" headerEnd={onlyFur ? undefined : <Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
+    <WidgetRow id="price-comp" defaultCollapsed={collapsed} title="Из чего складывается стоимость меха" headerEnd={onlyFur ? undefined : <Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3">
         <TileCarousel
           clickable twoUp

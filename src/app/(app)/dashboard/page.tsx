@@ -12,13 +12,15 @@ import { RawBlock } from "./raw-block";
 import { PayTiles } from "./pay-tiles";
 import { ProductionBlock } from "./production-block";
 import { YearsTable, RawTable } from "./dynamics-tables";
-import { DecisionsStrip, PrepaidLine, type DecisionItem } from "./summary";
 import { PrintButton } from "./print-button";
 import { PriceCompositionBlock } from "./price-composition-block";
 import { priceComposition } from "@/lib/price-composition-server";
 import { FurScope } from "@/components/fur-scope";
 import { PageModes, type ModeInfo } from "./mode-line";
 import { SalesBlockView } from "./sales-block";
+import { CashflowOverview } from "../cashflow/cashflow-view";
+import { loadCashflowOverview } from "@/lib/cashflow-server";
+import { parsePeriod } from "@/lib/cashflow";
 import { loadSalesBlock } from "./sales-block-data";
 
 export const metadata = { title: "Главная" };
@@ -53,20 +55,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const d = await loadDashboard(organizationId, year, f, c4Mode);
   const pc = await priceComposition(organizationId, d);
   // Продажи и остатки: внешний поставщик сюда не попадает (requireSession перенаправляет его в /supplier), данные не грузим для него и подавно.
-  const salesBlock = session.user.role === "SUPPLIER" ? null : await loadSalesBlock(organizationId, c4Mode, year);
+  const salesBlock = session.user.role === "SUPPLIER" ? null : await loadSalesBlock(organizationId, c4Mode, year, f.fur);
+  const cashflow = session.user.role === "SUPPLIER" ? null : await loadCashflowOverview(organizationId, d.rawMoneyTotal.unreceived.names);
   const yl = yearLabel(year);
   const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, attr: f.attr, batch: f.batch, catgroup: f.catgroup, kind: f.kind ?? [] };
   const prodNums = (t: typeof d.prod.done) => ({ items: t.items, repairOrders: t.repairOrders, repairQty: t.repairQty, repairCostIncl: t.repairCostIncl, repairCostExcl: t.repairCostExcl, orders: t.orders, qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum, furIncl: t.furIncl, furExcl: t.furExcl, liningIncl: t.liningIncl, liningExcl: t.liningExcl, matIncl: t.furIncl + t.liningIncl, matExcl: t.furExcl + t.liningExcl, c4Incl: t.c4Incl, c4Excl: t.c4Excl });
   const FILTER_NAMES: [keyof DashFilters, string][] = [["auction", "аукцион / закупка"], ["fur", "вид меха"], ["color", "цвет"], ["attr", "признак меха"], ["batch", "партия пр-ва"], ["catgroup", "группа категорий"], ["kind", "тип"]];
   const activeFilters = FILTER_NAMES.filter(([k]) => (f[k]?.length ?? 0) > 0).map(([k, n]) => `${n} ×${f[k]?.length ?? 0}`).join(", ");
   const info: ModeInfo = { year: yl, filters: activeFilters || null };
-  // «Предоплачено, ждём поставку»: заказанное, но не принятое (закупки в статусе «Черновик»); суммы — из БД через loadDashboard.
-  const ordLots = d.syntheticLots.filter((l) => l.id.startsWith("ordered:"));
-  const un = { paid: ordLots.reduce((a, l) => a + (l.paid ?? 0), 0), due: ordLots.reduce((a, l) => a + (l.due ?? 0), 0) };
-  const decisions: DecisionItem[] = [];
-  if ((d.control?.urgent ?? 0) > 0) decisions.push({ label: "Срочные задачи Контроля", href: "/attention", count: d.control!.urgent });
-  if (d.advance > 0.5) decisions.push({ label: "Неразнесённый аванс подрядчику", href: "/payments", sum: d.advance });
-  if (d.ordered.incl > 0.5 && un.due > 0.5) decisions.push({ label: "Предоплачено, ждём поставку: остаток к оплате", href: "/lots", sum: un.due });
   // Ссылки «→ Сырьё» и «→ ТЗ» несут фильтры Главной, которые понимает целевая страница (год, НДС и 4% — общие, из шапки):
   // «Сырьё» — вид меха, цвет, признак и партию закупки (в таблице «Мех» это параметр batch); «ТЗ» — партию закупки, вид меха, признак, партию производства и группу категорий.
   const qs = (pairs: [string, string[]][]) => {
@@ -125,35 +121,36 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               <InfoHint label="Что фильтруется на Главной" wide>
                 <p>Год — общий, из шапки ({year === "all" ? "все годы" : `${year} год`}); ставки НДС показаны внутри карточек.</p>
                 <p className="mt-1">Аукцион / закупка, вид меха, цвет и признак отбирают лоты (куплено, остаток, использовано) и ТЗ, где списан такой лот. Вид меха без лотов (например, бобр подрядчика) отбирает только ТЗ. Партия производства, группа категорий и тип отбирают ТЗ.</p>
-                <p className="mt-1">Фильтры сужают «Сырьё», «Производство» и обе таблицы динамики. Долг и оплаты поставщику от них не зависят{filtersOn ? " — сейчас фильтры включены" : ""}.</p>
+                <p className="mt-1">Фильтры сужают «Сырьё», «Производство», обе таблицы динамики и, по виду меха, «Продажи и остатки». «Оплаты» показывают деньги по выбранным лотам. Cashflow от фильтров не зависит: это все платежи и вся выручка{filtersOn ? " — сейчас фильтры включены" : ""}.</p>
               </InfoHint>
             </div>
           }
         />
       </div>
 
-      {/* ───────── Главное: ключевые цифры одной полосой, каждая плитка ведёт в раздел ───────── */}
+      {/* ───────── Оплаты, долги, задачи ───────── */}
+      <PayTiles d={d} c4Mode={c4Mode} year={year} headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">Оплаты ›</Link>} />
 
-      <DecisionsStrip decisions={decisions} />
+      {cashflow ? <CashflowOverview incl={cashflow.incl} ex={cashflow.ex} salesAll={cashflow.salesAll} period={parsePeriod(String(year))} prepaidBy={cashflow.prepaidBy} /> : null}
+
+
+      {/* ───────── Главное: ключевые цифры одной полосой, каждая плитка ведёт в раздел ───────── */}
 
       {/* Область действия переключателя источника меха: только эти четыре блока; всё ниже (производство, оплаты) от него не зависит. */}
       <FurScope info={info}>
         <RawBlock href={rawHref} rows={d.rawTable} fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} vat={d.vat} furSrc={d.rawFurBySource} />
-        <PrepaidLine qty={d.ordered.qty} ordered={d.ordered.incl} paid={un.paid} due={un.due} />
 
         <YearsTable rows={d.years} bySrc={d.yearsFurBySrc} c4={c4Mode} info={info} />
 
         <RawTable auctionSrc={d.auctionSrc} rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4Mode} info={info} orderFilters={orderFiltersOn(f)} vatRates={d.vat} />
 
         {/* ───────── Из чего складывается стоимость меха (сразу под «Динамикой по сырью») ───────── */}
-        <PriceCompositionBlock lots={pc.lots} href={rawHref} />
+        <PriceCompositionBlock lots={pc.lots} href={rawHref} collapsed />
 
       </FurScope>
 
       <ProductionBlock href={prodHref} vatCost={d.vat.cost} kind={f.kind?.[0] ?? ""} hides={d.hides} c4Parts={{ fur: { incl: Math.abs(d.raw.fur.incl.usedValue - d.raw.fur.incl.usedValueOther), excl: Math.abs(d.raw.fur.excl.usedValue - d.raw.fur.excl.usedValueOther) }, lining: { incl: Math.abs(d.raw.lining.incl.usedValue - d.raw.lining.incl.usedValueOther), excl: Math.abs(d.raw.lining.excl.usedValue - d.raw.lining.excl.usedValueOther) } }} years={d.years.filter((y) => y.key !== "all").map((y) => ({ label: y.label, qty: y.prod.qty }))} done={prodNums(d.prod.done)} all={prodNums(d.prod.all)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} info={info} bridge={{ usedBase: d.bridge.usedBase, comparable: d.bridge.usedComparable, lotFilters: lotFiltersOn(f), yearOnly: year !== "all" }} />
 
-      {/* ───────── Оплаты, долги, задачи ───────── */}
-      <PayTiles d={d} c4Mode={c4Mode} year={year} headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>} />
 
       {/* ───────── Продажи и остатки (после «Оплат», последним на странице) ───────── */}
       {salesBlock ? <SalesBlockView b={salesBlock} /> : null}

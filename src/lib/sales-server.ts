@@ -2,7 +2,7 @@ import "server-only";
 // Данные раздела «Продажи и остатки»: строки выгрузки, прайс, себестоимость моделей, размеры Report, фото. Только чтение.
 import { prisma } from "@/lib/prisma";
 import type { Commission4Mode } from "@/lib/commission4-mode";
-import { classOfLevel2, normCode } from "@/lib/sales-receipts-core";
+import { assignSeasons, classOfLevel2, normCode } from "@/lib/sales-receipts-core";
 import { loadRetailPricesState } from "@/lib/import-keys";
 import { type MarginInput, type RetailRow } from "@/lib/margin";
 import { loadOrdersDrill } from "@/lib/orders-drill";
@@ -21,12 +21,12 @@ export async function loadSalesLines(orgId: string, where: { article?: string; m
     orderBy: [{ date: "asc" }, { kind: "asc" }, { sourceKey: "asc" }],
     select: { id: true, kind: true, date: true, season: true, orderNo: true, level2: true, level3: true, level4: true, level5: true, fabric: true, modelCode: true, article: true, colorId: true, pcs: true, retailRub: true, retailRubExVat: true, discountRub: true, discountRubExVat: true, retailEur: true, retailEurExVat: true, discountEur: true, discountEurExVat: true, importTag: true },
   });
-  return rows.map((r) => ({
+  return assignSeasons(rows.map((r) => ({
     id: r.id, kind: r.kind, iso: r.date.toISOString().slice(0, 10), season: r.season, orderNo: r.orderNo, modelCode: r.modelCode, article: r.article, colorId: r.colorId, fabric: r.fabric,
     level2: r.level2, level3: r.level3, level4: r.level4, level5: r.level5, importTag: r.importTag, pcs: r.pcs ?? 0,
     retailRub: num(r.retailRub), retailRubExVat: num(r.retailRubExVat), discountRub: num(r.discountRub), discountRubExVat: num(r.discountRubExVat),
     retailEur: num(r.retailEur), retailEurExVat: num(r.retailEurExVat), discountEur: num(r.discountEur), discountEurExVat: num(r.discountEurExVat), cls: classOfLevel2(r.level2),
-  }));
+  })));
 }
 
 /** Прайс 19.10, цены моделей и себестоимость из ТЗ — для расчёта цены к прайсу, себестоимости и маркапа. */

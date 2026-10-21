@@ -27,6 +27,9 @@ import { loadOrderRows } from "@/lib/analytics-orders";
 import { ArticleName } from "@/components/article-name";
 import { OrdersTree } from "@/components/orders-tree";
 import { ProdTiles } from "@/components/prod-tiles";
+import { UnitCostNow } from "@/components/unit-cost-now";
+import { YearProductionTable } from "@/components/year-production-table";
+import { loadBudgetStats } from "@/lib/budget-stats";
 import { MarkupCarousel, PerUnitCarousel, type MarkupRow } from "./article-widgets";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { isRepair, sumOrders, sumTotal } from "@/lib/orders-sum";
@@ -104,6 +107,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const year = await getYearFilter();
   const canCreate = hasRole(session.user.role, ACCESS.models);
   const orgId = session.user.organizationId;
+  const unitStats = await loadBudgetStats(orgId);
   const stocks = await prisma.finishedGoodsStock.findMany({ where: { organizationId: orgId }, select: { productModelId: true, quantity: true, avgUnitCost: true } });
   const articleOpts = await getFilterOptions(orgId, year, ["category", "model"]);
 
@@ -362,6 +366,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         perUnit={<PerUnitCarousel key="per-unit" orders={drill} c4={c4Mode} />}
         extra={<MarkupCarousel key="markup" rows={markupRows} />}
       />
+
+      <YearProductionTable orders={allDrill} year={new Date().getFullYear()} />
+
+      <UnitCostNow stats={unitStats} />
 
       {supplierMade.size > 0 && (
         <p className="print:hidden text-sm">

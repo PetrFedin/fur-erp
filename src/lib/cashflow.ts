@@ -18,7 +18,7 @@ export function currentMonthMsk(now: Date = new Date()): string {
 
 export const CASHFLOW_ARTICLES = [
   { key: "furAuction", label: "Мех: аукционы", hint: "Оплата партий меха по аукционам (SAGA, FH и др.) поставщику." },
-  { key: "furPurchase", label: "Мех: закупка у поставщика", hint: "Оплата закупок меха напрямую и авансы поставщику без привязки к аукциону." },
+  { key: "furPurchase", label: "Мех: закупка у поставщика", hint: "Оплата закупок меха напрямую, авансы поставщику без привязки к аукциону и шкуры подрядчика в его счёте (НДС 22 % по сырью): подрядчик здесь поставщик меха, не аукцион." },
   { key: "lining", label: "Подкладка", hint: "Оплата подкладочных тканей (доля подкладки в оплаченных закупках)." },
   { key: "services", label: "Услуги по УПД", hint: "Закупки без позиций сырья: услуги и аксессуары по УПД (состав — в подсказке раздела)." },
   { key: "work", label: "Работа подрядчику", hint: "Оплата пошива подрядчику (Веллмех) по ТЗ, включая аванс, не разнесённый на ТЗ." },
@@ -118,7 +118,7 @@ export function buildCashflow(rows: OverviewRow[], period: CashflowPeriod, vatSh
     }
     const k = vatShare ? 1 - (vatShare.get(r.id) ?? 0) : 1;
     const s0 = split(r);
-    const s = { furAuction: s0.furAuction * k, furPurchase: s0.furPurchase * k, lining: s0.lining * k, services: s0.services * k, work: s0.work * k, hides: s0.hides * k };
+    const s = { furAuction: s0.furAuction * k, furPurchase: (s0.furPurchase + s0.hides) * k, lining: s0.lining * k, services: s0.services * k, work: s0.work * k, hides: 0 };
     for (const a of articles) {
       a.byMonth[i] += s[a.key];
       a.types.find((t) => t.type === r.type)!.byMonth[i] += s[a.key];

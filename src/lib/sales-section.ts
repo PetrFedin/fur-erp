@@ -170,6 +170,8 @@ export type SNode = {
   id: string; dim: SDim; label: string;
   modelCode: string | null; variant: string | null; article: string | null; color: string | null;
   cols: Ext[]; children: SNode[]; n: number;
+  /** Строки, вошедшие в узел (для сумм по ним: остаток в розничных ценах и т.п.). */
+  lines: SLine[];
 };
 type Inh = { modelCode: string | null; variant: string | null; article: string | null; color: string | null };
 export type Pred = (l: SLine) => boolean;
@@ -201,7 +203,7 @@ export function buildSalesTree(ctx: Ctx, env: Env, lines: SLine[], order: readon
       article: d === "article" ? first.article : inh.article,
       color: d === "color" ? g.label : inh.color,
     };
-    return { id, dim: d, label: g.label, ...next, n: g.lines.length, cols: [extOf(ctx, g.lines, env), ...preds.map((p) => extOf(ctx, g.lines.filter(p), env))], children: buildSalesTree(ctx, env, g.lines, rest, preds, id, next) };
+    return { id, dim: d, label: g.label, ...next, n: g.lines.length, lines: g.lines, cols: [extOf(ctx, g.lines, env), ...preds.map((p) => extOf(ctx, g.lines.filter(p), env))], children: buildSalesTree(ctx, env, g.lines, rest, preds, id, next) };
   });
   return nodes.sort((a, b) => {
     return b.cols[0].revenueEx - a.cols[0].revenueEx || b.cols[0].received - a.cols[0].received || a.label.localeCompare(b.label);
@@ -209,7 +211,7 @@ export function buildSalesTree(ctx: Ctx, env: Env, lines: SLine[], order: readon
 }
 
 export function totalSalesNode(ctx: Ctx, env: Env, lines: SLine[], preds: Pred[], children: SNode[]): SNode {
-  return { id: "total", dim: "cls", label: "Всего", modelCode: null, variant: null, article: null, color: null, n: lines.length, cols: [extOf(ctx, lines, env), ...preds.map((p) => extOf(ctx, lines.filter(p), env))], children };
+  return { id: "total", dim: "cls", label: "Всего", modelCode: null, variant: null, article: null, color: null, n: lines.length, lines, cols: [extOf(ctx, lines, env), ...preds.map((p) => extOf(ctx, lines.filter(p), env))], children };
 }
 
 /** Размеры из Report как справочный уровень под цветом: итоги по Report на 19.10, с датами и сезонами не связаны. */
@@ -219,7 +221,7 @@ export function sizeNodes(n: SNode, sizes: ReportSizeRow[], cat: Cat, colCount: 
   return rows.map((r) => {
     const base = zeroExt();
     const m: Ext = { ...base, sold: r.sold, gross: r.sold, received: r.deliv, stock: r.stock, revenueEx: r.nsRubEx, revenueIncl: r.nsRub, revenue: r.nsRubEx, avgPrice: r.sold > 0 ? r.nsRub / r.sold : null, sellThrough: r.deliv > 0 ? r.sold / r.deliv : null };
-    return { id: `${n.id}/size:${r.size}:${r.acode}`, dim: "size" as const, label: `${r.size} · по Report на 19.10`, modelCode: null, variant: null, article: null, color: null, n: 0, cols: [m, ...Array.from({ length: colCount }, () => zeroExt())], children: [] };
+    return { id: `${n.id}/size:${r.size}:${r.acode}`, dim: "size" as const, label: `${r.size} · по Report на 19.10`, modelCode: null, variant: null, article: null, color: null, n: 0, lines: [], cols: [m, ...Array.from({ length: colCount }, () => zeroExt())], children: [] };
   });
 }
 

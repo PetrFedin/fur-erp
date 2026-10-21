@@ -21,11 +21,12 @@ import { alignFlowSet } from "@/lib/money-round";
 import { alignFurBySource } from "@/lib/fur-src-data";
 import { classifyLotSource } from "@/lib/purchase-source";
 import { FilteredPayTiles } from "@/app/(app)/dashboard/filtered-pay-tiles";
+import { SEG_GROUP, segCls } from "@/components/segmented";
 import { rawRowsFromLots } from "@/lib/raw-rows";
 import { FurOrdersTable, type OrderInfo } from "@/components/fur-orders-table";
 import type { RawTableRow } from "@/lib/dashboard-data";
 import {
-  FILTER_KEYS, NO_AUCTION, allParamNames, buildFurTable, emptyFilters, filterOptions, filtersToEntries, figures, flowOf, hasFilters, lotCountLabel, planUsdAvg, parseFilters, rowsBy,
+  FILTER_KEYS, NO_AUCTION, mergeFlows, allParamNames, buildFurTable, emptyFilters, filterOptions, filtersToEntries, figures, flowOf, hasFilters, lotCountLabel, planUsdAvg, parseFilters, rowsBy,
   type FilterKey, type FlowFigures, type FurFilters, type FurKind, type FurLot, type TableRow,
 } from "@/lib/fur-table";
 
@@ -48,6 +49,8 @@ const FILTER_LABELS: Record<FilterKey, { kind: Record<FurKind, string>; all: str
 /** Источник лота для слайдов: «all» — вся закупка, остальные — по classifyLotSource (аукцион / поставщик). */
 const inSrc = (s: FurSrc, l: FurLot) => s === "all" || classifyLotSource(l) === s;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const OTHER_FUR = "__other_fur";
+const MAIN_FUR = ["Соболь", "Рысь", "Норка", "Свакара", "Лиса"];
 const firstOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 /** Карточка /analytics/raw/lot/<id> есть только у настоящих лотов: строки «заказано, не получено» (ordered:…) и «шкуры подрядчика» (hides) — заглушки без лота в БД (404). */
@@ -74,6 +77,7 @@ export function FurSelectionTotal({
   widgets,
   raw,
   lockItem,
+  variant = "main",
   orderInfo,
   noLotsKinds,
   noLotsInfo,
@@ -86,6 +90,8 @@ export function FurSelectionTotal({
   orderInfo?: Record<string, OrderInfo>;
   /** Страница вида меха: лоты уже отобраны по одному виду; фильтра «Вид» нет, строки — по аукционам или годам (год → аукцион), внизу «Использование по ТЗ». */
   lockItem?: string;
+  /** «years» — отдельная таблица «Динамика по годам» (год → сырьё → аукцион либо год → аукцион → сырьё) под основной: без фильтров, плиток и выбора строк. */
+  variant?: "main" | "years";
   /** Ряд виджетов (плитки сырья и оплат): стоит под панелью фильтров и над таблицей. */
   widgets?: ReactNode;
   /**
@@ -127,7 +133,8 @@ export function FurSelectionTotal({
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [view, setView] = useState<ViewMode>("all");
   // «Строки по»: вид меха (ткань) либо год закупки — год раскрывается в вид → партию → лот → ТЗ.
-  const [group, setGroup] = useState<"item" | "year" | "auction" | "lots">(lockItem ? "year" : "item");
+  const [group, setGroup] = useState<"item" | "year" | "auction" | "lots">(variant === "years" || lockItem ? "year" : "item");
+  const [yearOrder, setYearOrder] = useState<"item" | "auction">("item");
   // «Списком лотов»: плоская таблица лотов (те же строки-лоты, что внутри дерева) с сортировкой; поиск и фильтры — общие, над таблицей.
   const [lotSort, setLotSort] = useState<"num" | "recv" | "used" | "rem">("num");
   // Сортировка по клику на заголовок столбца (▲/▼, повторный клик — наоборот): строки каждого уровня; без выбора — прежний порядок.
@@ -186,7 +193,11 @@ export function FurSelectionTotal({
     const out: Partial<Record<FurSrc, string[]>> = {};
     if (!hasSlides) return out;
     for (const sr of srcList) {
-      const have = Array.from(new Set(tableAllSrc.filteredLots.filter((l) => inSrc(sr, l)).map((l) => l.item))).sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
+      const srcLots = tableAllSrc.filteredLots.filter((l) => inSrc(sr, l));
+      const qtyOf = new Map<string, number>();
+      for (const l of srcLots) qtyOf.set(l.item, (qtyOf.get(l.item) ?? 0) + l.recv);
+      // Слайды видов — от самых больших объёмов («Куплено», шт.) к малым, затем по названию.
+      const have = Array.from(new Set(srcLots.map((l) => l.item))).sort((a, b) => (qtyOf.get(b) ?? 0) - (qtyOf.get(a) ?? 0) || a.localeCompare(b, "ru", { numeric: true }));
       const extra = kind === "fur" && sr === "all" ? (noLotsKinds ?? []).filter((k) => !have.includes(k) && (!filters.item.length || filters.item.includes(k))) : [];
       out[sr] = [...have, ...extra];
     }
@@ -418,7 +429,9 @@ export function FurSelectionTotal({
   const usdNote = (key: string, f: FlowFigures) => {
     const have = key === "recv" ? f.usdQty : key === "used" ? f.usdUsedQty : f.usdRemQty;
     const all = key === "recv" ? f.recvQty : key === "used" ? f.usedQty : f.remQty;
-    return have > 0 && all - have > 0.0005 ? <div className="text-[11px] font-normal leading-tight text-neutral-500" title={`Цена в $ есть у ${formatQty(have)} из ${formatQty(all)}`}>{formatQty(have)} / {formatQty(all)}</div> : null;
+    if (all <= 0.0005) return null;
+    const u = kind === "lining" ? "м" : "шт.";
+    return <div className="text-[11px] font-normal leading-tight text-neutral-500" title={`Средняя цена в $ посчитана по ${formatQty(have)} из ${formatQty(all)} ${u}: у остальных в расчёте лота нет цены в $`}>по {formatQty(have)} из {formatQty(all)} {u}</div>;
   };
   const nCols = 1 + totalCols;
   // Ширины колонок рассчитаны под Inter (он шире Arial): сумма до 9 знаков + ₽ влезает без слипания с соседней колонкой.
@@ -428,9 +441,19 @@ export function FurSelectionTotal({
 
   // Строки таблицы раскрываются вглубь: [год →] вид → партия закупки → лот → ТЗ, где лот списан. Уровни зависят от «Строки по».
   type Level = "year" | "item" | "auction";
-  const levels: Level[] = group === "auction" ? ["auction"] : group === "year" ? (lockItem ? ["year", "auction"] : ["year", "item", "auction"]) : ["item", "auction"];
+  const levels: Level[] = group === "auction" ? ["auction"] : group === "year" ? (lockItem ? ["year", "auction"] : yearOrder === "item" ? ["year", "item", "auction"] : ["year", "auction", "item"]) : ["item", "auction"];
+  // Малые виды меха (бобр, выдра, фишер, шиншилла, рысевидная кошка…) — одной строкой «Остальной мех», по умолчанию свёрнутой, на любом уровне «вид».
+  const groupMinor = (rows: TableRow[]): TableRow[] => {
+    if (kind !== "fur" || lockItem) return rows;
+    const minor = rows.filter((r) => !MAIN_FUR.includes(r.label));
+    if (minor.length < 2) return rows;
+    const flow = mergeFlows(minor.map((r) => r.flow));
+    return [...rows.filter((r) => MAIN_FUR.includes(r.label)), { key: OTHER_FUR, label: "Остальной мех", lots: minor.flatMap((r) => r.lots), flow, figures: figures(flow, mode) }];
+  };
+  // По умолчанию строки идут от самого большого «Куплено» (шт.); клик по заголовку столбца сортирует иначе.
+  const byBought = (rows: TableRow[]): TableRow[] => [...rows].sort((a, b) => b.figures.recvQty - a.figures.recvQty || a.label.localeCompare(b.label, "ru"));
   const rowsFor = (list: FurLot[], level: Level): TableRow[] =>
-    level === "year" ? rowsBy(list, mode, (l) => String(l.year)) : level === "item" ? rowsBy(list, mode, (l) => l.item) : rowsBy(list, mode, (l) => l.auction, (l) => l.auctionLabel);
+    level === "year" ? rowsBy(list, mode, (l) => String(l.year)) : level === "item" ? byBought(groupMinor(rowsBy(list, mode, (l) => l.item))) : byBought(rowsBy(list, mode, (l) => l.auction, (l) => l.auctionLabel));
   // Годы: новые сверху (пока не выбрана сортировка по заголовку); цифры года и «Всего» выровнены правилом money-round: сумма лет = итог.
   const yearRows = useMemo(() => (group === "year" ? rowsFor(table.rows.flatMap((r) => r.lots), "year").sort((a, b) => Number(b.key) - Number(a.key)) : []), [group, table.rows, mode]); // eslint-disable-line react-hooks/exhaustive-deps
   const yearAligned = useMemo(() => {
@@ -438,7 +461,17 @@ export function FurSelectionTotal({
     const a = alignFlowSet(table.totalFigures, yearRows.map((r) => r.figures), c4 === "on");
     return { total: a.total, byKey: new Map(yearRows.map((r, i) => [r.key, a.parts[i]])) };
   }, [group, yearRows, c4, table.totalFigures]);
-  const topRows: TableRow[] = group === "lots" ? [] : cs.sort(group === "item" ? table.rows : group === "year" ? yearRows : rowsFor(table.rows.flatMap((r) => r.lots), "auction"));
+  // Малые виды меха (бобр, выдра, фишер, шиншилла, рысевидная кошка…) — одной строкой «Остальной мех», по умолчанию свёрнута.
+  const itemRowsGrouped = useMemo(() => {
+    if (kind !== "fur" || group !== "item") return table.rows;
+    if (table.rows.filter((r) => !MAIN_FUR.includes(r.label)).length < 2) return byBought(table.rows);
+    const minor = table.rows.filter((r) => !MAIN_FUR.includes(r.label));
+    if (minor.length < 2) return table.rows;
+    const flow = mergeFlows(minor.map((r) => r.flow));
+    const other: TableRow = { key: OTHER_FUR, label: "Остальной мех", lots: minor.flatMap((r) => r.lots), flow, figures: figures(flow, mode) };
+    return byBought([...table.rows.filter((r) => MAIN_FUR.includes(r.label)), other]);
+  }, [kind, group, table.rows, mode]);
+  const topRows: TableRow[] = group === "lots" ? [] : cs.sort(group === "item" ? itemRowsGrouped : group === "year" ? yearRows : rowsFor(table.rows.flatMap((r) => r.lots), "auction"));
   // Последний год открыт сразу, остальные свёрнуты (если лет больше одного).
   const yearOpened = useRef(false);
   useEffect(() => {
@@ -542,15 +575,19 @@ export function FurSelectionTotal({
   // Название ткани: «Ткань №N» / сокращение известных длинных названий, остальное переносится на 2 строки (без «…»); полное — в title.
   const wrapName = kind === "lining";
   const shown = (level: Level, row: TableRow) => (kind === "lining" && level === "item" ? shortMaterialName(row.label) : row.label);
-  const renderNode = (row: TableRow, depth: number, path: string): ReactNode => {
-    const level = levels[depth];
+  // off — сдвиг уровней: под строкой «Остальной мех» (малые виды меха) идут виды, затем аукционы.
+  const renderNode = (row: TableRow, depth: number, path: string, off = 0): ReactNode => {
+    const synth = row.key === OTHER_FUR;
+    const level: Level = synth ? "item" : levels[depth - off];
     const key = `${path}/${level}:${row.key}`;
     const open = expanded.has(key);
     const isSel = depth === 0 && group === "item" && table.selectedKeys.includes(row.key);
     const inner = open
-      ? depth + 1 < levels.length
-        ? cs.sort(rowsFor(row.lots, levels[depth + 1])).map((c) => renderNode(c, depth + 1, key))
-        : row.lots.map((l) => renderLot(l, depth + 1, key, row.label))
+      ? synth
+        ? cs.sort(byBought(rowsBy(row.lots, mode, (l) => l.item))).map((c) => renderNode(c, depth + 1, key, off + 1))
+        : depth + 1 - off < levels.length
+          ? cs.sort(rowsFor(row.lots, levels[depth + 1 - off])).map((c) => renderNode(c, depth + 1, key, off))
+          : row.lots.map((l) => renderLot(l, depth + 1, key, row.label))
       : null;
     // Оранжевая полоска слева (тема customer: bg-neutral-50/70) — только у родительских строк «год» и «вид меха»; у аукциона — лёгкий фон без полоски.
     const isAuction = level === "auction";
@@ -568,15 +605,15 @@ export function FurSelectionTotal({
               <button type="button" aria-expanded={open} aria-label={`${open ? "Свернуть" : "Раскрыть"}: ${row.label}`} className="shrink-0 text-left" onClick={(e) => { e.stopPropagation(); toggleExp(key); }}>
                 <span aria-hidden className={cn("mr-1 inline-block w-3 text-neutral-500 transition-transform", open && "rotate-90")}>›</span>
               </button>
-              {nameHref(level, row) ? (
+              {!synth && nameHref(level, row) ? (
                 <Link href={nameHref(level, row)!} onClick={(e) => e.stopPropagation()} title={row.label === shown(level, row) ? nameTitle(level, row) : row.label} className={cn(wrapName ? "line-clamp-2 whitespace-normal break-words leading-tight" : "truncate", "rounded-sm hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-900", depth === 0 ? "font-medium" : undefined)}>
                   {shown(level, row)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span>
                 </Link>
               ) : (
                 <span className={cn(wrapName ? "line-clamp-2 whitespace-normal break-words leading-tight" : "truncate", depth === 0 ? "font-medium" : undefined)} title={row.label}>{shown(level, row)}</span>
               )}
-              <span className="ml-1.5 shrink-0 text-xs text-neutral-500">{lotCountLabel(row.lots)}</span>
             </div>
+            <div className="truncate pl-4 text-[11px] leading-4 text-neutral-500" title={lotCountLabel(row.lots)}>{lotCountLabel(row.lots)}</div>
             {isAuction ? <div className="truncate pl-4 text-[11px] text-neutral-500" title={auctionSub(row)}>{auctionSub(row)}</div> : null}
           </td>
           {cells(depth === 0 && group === "year" ? yearAligned?.byKey.get(row.key) ?? row.figures : row.figures, { ...(depth === 0 ? {} : { small: true }), plan: planUsdAvg(row.lots, row.flow) })}
@@ -619,6 +656,7 @@ export function FurSelectionTotal({
 
   return (
     <div className="space-y-3">
+      {variant === "main" ? (
       <div className="print:hidden">
       <LocalFilterBar
         oneRow
@@ -643,8 +681,9 @@ export function FurSelectionTotal({
         onReset={() => { setFilters(emptyFilters()); setQ(""); setDateFrom(""); setDateTo(""); }}
       />
       </div>
+      ) : null}
 
-      {raw ? (
+      {variant === "main" && raw ? (
         <>
           {slides ? (() => {
             const G = (sr: FurSrc, k: string) => grid.get(`${sr}|${k}`) as FlowFigures;
@@ -718,16 +757,28 @@ export function FurSelectionTotal({
           ) : null}
         </>
       ) : null}
-      {widgets}
+      {variant === "main" ? widgets : null}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-neutral-500">
+        {variant === "years" ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-neutral-800">
+            <h3 className="text-sm font-semibold">Динамика по годам</h3>
+            <div role="group" aria-label="Порядок уровней" className={SEG_GROUP}>
+              {([["item", "Год → сырьё → аукцион"], ["auction", "Год → аукцион → сырьё"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={yearOrder === k} onClick={() => { setYearOrder(k); setExpanded(new Set([...(yearRows[0] ? [`g/year:${yearRows[0].key}`] : [])])); }} className={segCls(yearOrder === k)}>{t}</button>)}
+            </div>
+          </div>
+        ) : (
+        <>
+        <h3 className="basis-full text-sm font-semibold text-neutral-800">{kind === "lining" ? "Динамика по тканям" : "Динамика по сырью"}</h3>
         <div role="tablist" aria-label="Строки по" className="flex flex-wrap items-center gap-1.5">
           <span>Строки по:</span>
-          {((lockItem ? [["auction", "Аукциону"], ["year", "Году закупки"], ["lots", "Списком лотов"]] : [["item", kind === "lining" ? "Ткани" : "Виду меха"], ["year", "Году закупки"], ["lots", "Списком лотов"]]) as ReadonlyArray<readonly ["item" | "year" | "auction" | "lots", string]>).map(([id, label]) => (
+          {((lockItem ? [["auction", "Аукциону"], ["year", "Году закупки"], ["lots", "Списком лотов"]] : [["item", kind === "lining" ? "Ткани" : "Виду меха"], ...(kind === "fur" ? [] : [["year", "Году закупки"] as const]), ["lots", "Списком лотов"]] as const) as ReadonlyArray<readonly ["item" | "year" | "auction" | "lots", string]>).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={group === id} onClick={() => { setGroup(id); setExpanded(new Set()); }}
               className={"rounded-lg border px-3 py-1.5 text-xs " + (group === id ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</button>
           ))}
         </div>
+        </>
+        )}
         {group === "lots" && (
           <label className="inline-flex items-center gap-1.5">
             Сортировка:

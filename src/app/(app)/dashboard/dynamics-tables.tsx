@@ -240,6 +240,8 @@ const auctionLinkable = (key: string) => !key.startsWith("__") && key !== "hides
 /** Ссылка служебной строки на существующую страницу: «Без аукциона» — закупки с фильтром «Без аукциона»; «не получен» — список закупок. «Шкуры подрядчика» — страница /lots/contractor-hides. Год берётся из шапки. */
 const serviceHref = (key: string): string | null => (key === "__none" ? "/purchases?auction=none" : key.startsWith("unrecv|") ? "/purchases" : key === "hides" ? "/lots/contractor-hides" : null);
 
+const OTHER_FUR = "__other_fur";
+type RowX = RawTableRow & { members?: RawTableRow[] };
 const addCells = (list: Cells[]): Cells => {
   const s = list.reduce((a, c) => ({ rq: a.rq + c.rq, rv: a.rv + c.rv, uq: a.uq + c.uq, uv: a.uv + c.uv, mq: a.mq + c.mq, mv: a.mv + c.mv, uo: a.uo + c.uo }), { rq: 0, rv: 0, uq: 0, uv: 0, mq: 0, mv: 0, uo: 0 });
   const r = (v: number, q: number) => (q > 0 ? v / q : null);
@@ -277,7 +279,17 @@ export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _i
       auctions: r.auctions.map((a) => { const x = AL.byAuc.get(r.key + "|" + a.key); return x ? { ...a, paid: x.p, due: x.d, cells: { ...a.cells, [vat]: cellsWith(a.cells[vat], x) } } : a; }),
     };
   };
-  const fur = cs.sort(furEx).map(alRow);
+  // Малые виды меха (бобр, выдра, фишер, шиншилла, рысевидная кошка…) одной строкой «Остальной мех»; по клику — раскрываются, по умолчанию свёрнуты.
+  const furAll = cs.sort(furEx).map(alRow);
+  const MAIN_FUR = ["Соболь", "Рысь", "Норка", "Свакара", "Лиса"];
+  const minor = furAll.filter((r) => !MAIN_FUR.includes(r.label));
+  const fur: RowX[] = minor.length > 1
+    ? [...furAll.filter((r) => MAIN_FUR.includes(r.label)), {
+        key: OTHER_FUR, label: "Остальной мех", kind: "fur", lots: 0, years: [], auctions: [], usd: { bought: null, used: null, rem: null },
+        cells: { incl: addCells(minor.map((r) => r.cells.incl)), excl: addCells(minor.map((r) => r.cells.excl)) },
+        paid: minor.reduce((a, r) => a + r.paid, 0), due: minor.reduce((a, r) => a + r.due, 0), members: minor,
+      } as RowX]
+    : furAll;
   const lin = cs.sort(linEx).map(alRow);
   const furSub = cellsWith(furSubEx, AL.fur);
   const linSub = cellsWith(linSubEx, AL.lin);
@@ -291,8 +303,21 @@ export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _i
   const arrow = (k: string, label: string) => (
     <button type="button" onClick={() => toggle(k)} aria-expanded={open.has(k)} aria-label={`Раскрыть: ${label}`}><Chevron open={open.has(k)} /></button>
   );
-  const itemRows = (list: RawTableRow[], unit: string) =>
+  const itemRows = (list: RowX[], unit: string): React.ReactNode =>
     list.map((r) => {
+      if (r.members) {
+        const gOpen = open.has(r.key);
+        return (
+          <Fragment key={r.key}>
+            <tr data-block={r.kind} className="border-b border-neutral-100 bg-white hover:bg-neutral-50">
+              <NameCell arrow={arrow(r.key, r.label)} title={r.label}><span className="font-medium">{r.label}</span></NameCell>
+              <CellsTds c={r.cells[vat]} unit={unit} avg={avg} />
+              <MoneyTds paid={r.paid} due={r.due} />
+            </tr>
+            {gOpen ? itemRows(r.members, unit) : null}
+          </Fragment>
+        );
+      }
       // У ткани подкладки следующего уровня (аукционов) нет: название — ссылка на карточку лота / список лотов этой ткани.
       const flat = r.kind === "lining" && !!r.lotIds && r.lotIds.length > 0;
       const isOpen = !flat && open.has(r.key);
@@ -309,6 +334,7 @@ export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _i
                   {shortMaterialName(r.label)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span>
                 </Link>
               ) : <span className="font-medium">{shortMaterialName(r.label)}</span>}
+              {r.ordered && r.ordered.qty > 0 ? <span className="ml-1.5 whitespace-nowrap text-[11px] font-normal text-neutral-500">заказано {formatQty(r.ordered.qty)} шт. · {rub0(vat === "incl" ? r.ordered.incl : r.ordered.excl)}</span> : null}
             </NameCell>
             <CellsTds c={r.cells[vat]} unit={unit} avg={avg} />
             <MoneyTds paid={r.paid} due={r.due} />
@@ -416,7 +442,7 @@ export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _i
                   ) : null}
                   {show(restPaid, restDue) ? (
                     <tr className="border-b border-neutral-100 bg-white text-[13px] text-neutral-700">
-                      <td className="px-2 py-1.5 text-left" colSpan={7}>Прочее: мех без аукциона, шкуры подрядчика, зачёты и поправки</td>
+                      <td className="px-2 py-1.5 text-left" colSpan={7}>Доплата подрядчику: НДС по сырью, поправки</td>
                       <MoneyTds paid={restPaid} due={restDue} />
                     </tr>
                   ) : null}

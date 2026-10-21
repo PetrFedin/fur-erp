@@ -26,7 +26,8 @@ type Props = {
 /** Мелкая подпись под суммой: средняя цена шкуры / метра подкладки / работы на изделие. */
 function Avg({ sum, per, unit, d = 0 }: { sum: number; per: number; unit: string; d?: number }) {
   if (!(per > 0) || !(sum > 0)) return null;
-  return <div className="sub-cap mt-0.5 whitespace-normal text-[11px] font-normal leading-tight text-neutral-600">ср. {formatNum(sum / per, d > 0 ? 10 : 1)} {unit}</div>;
+  const v = sum / per;
+  return <div className="sub-cap mt-0.5 whitespace-normal text-[11px] font-normal leading-tight text-neutral-600">ср. {unit.startsWith("₽") ? formatNum(Math.round(v / 1000) * 1000, 0) : formatNum(v, d > 0 ? 10 : 1)} {unit}</div>;
 }
 
 
@@ -72,7 +73,7 @@ export function BudgetEditor(p: Props) {
   const [reverting, setReverting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const status = p.status;
-  const [view, setView] = useState<"summary" | "detail">("summary");
+  const [view, setView] = useState<"summary" | "detail" | "unit">("summary");
   // Показ по виду изделий: все / одежда / аксессуары. Выбор помнится в браузере, адрес не меняется.
   const [scope, setScope] = useState<"all" | "cloth" | "acc">("all");
   useEffect(() => { try { const v = localStorage.getItem("budget-scope"); if (v === "cloth" || v === "acc") queueMicrotask(() => setScope(v)); } catch {} }, []);
@@ -89,6 +90,8 @@ export function BudgetEditor(p: Props) {
   const [statFor, setStatFor] = useState<string | null>(null);
   const [upFor, setUpFor] = useState<string | null>(null);
   const [upAll, setUpAll] = useState(false);
+  /** Категория, открытая окном «На 1 изделие»: сравнение длин и расходы на одно изделие. */
+  const [unitFor, setUnitFor] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ rows: ImportRow[]; warnings: string[]; sheet: string; fileName: string } | null>(null);
   const [busy, startBusy] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -486,6 +489,80 @@ export function BudgetEditor(p: Props) {
       );
       return [sumRow(n.id, label, a, { bg, bold: n.kind === "fur" || ch.length > 0 }), ...(open ? summaryRows(n.id, depth + 1) : [])];
     });
+  // ---- На 1 изделие: сколько обходится одно изделие по статьям (с надбавками), по каждому типу сырья, категории и длине
+  const unitRows = (parentId: string | null, depth: number): ReactNode[] =>
+    (vKids.get(parentId) ?? []).flatMap((n) => {
+      const a = calc.get(n.id) ?? ZERO;
+      const ch = vKids.get(n.id) ?? [];
+      const open = !collapsed.has(n.id);
+      const u = (v: number) => (a.pcs > 0 ? v / a.pcs : null);
+      const hidesPer = u(a.hides), mexPer = u(a.mex), liningPer = u(a.lining), workPer = u(a.work), c4Per = u(a.c4), totalPer = u(a.total);
+      const hidePrice = a.hides > 0 ? a.mex / a.hides : null, metersPer = u(a.meters), meterPrice = a.meters > 0 ? a.lining / a.meters : null;
+      const nowPer = a.nowPcs > 0 ? a.nowTotal / a.nowPcs : null;
+      const bg = n.kind === "fur" ? "bg-neutral-100" : ch.length ? "bg-neutral-50" : "bg-white";
+      const c = "whitespace-nowrap px-1.5 py-2 text-right text-xs tabular-nums 2xl:text-[13px]";
+      const row = (
+        <tr key={"u" + n.id} className={`${bg} ${n.kind === "fur" || ch.length ? "font-semibold" : ""} [&>td]:border-b [&>td]:border-neutral-100`}>
+          <td className="sticky left-0 z-10 min-w-[180px] border-r border-neutral-200 bg-inherit px-2 py-2 text-sm">
+            <div className="flex items-center gap-1" style={{ paddingLeft: depth * 14 }}>
+              {chevron(n, ch.length > 0, open, "h-7 w-5")}
+              {n.kind === "cat" ? <button type="button" onClick={() => setUnitFor(n.id)} className="text-left font-medium text-blue-800 underline decoration-dotted underline-offset-2 hover:text-blue-900" aria-haspopup="dialog">{n.name || "Без названия"}</button> : <span>{n.name || "Без названия"}</span>}
+              {n.kind !== "fur" && !ch.length ? dot(n) : null}
+            </div>
+          </td>
+          <td className={c}>{qz(a.pcs)}</td>
+          <td className={c + " " + sepL}>{hidesPer ? qty(hidesPer, 1) : "—"}</td>
+          <td className={c}>{mz(hidePrice)}</td>
+          <td className={c + " text-neutral-700"}>{mz(mexPer)}</td>
+          <td className={c + " " + sepL}>{metersPer ? qty(metersPer, 2) : "—"}</td>
+          <td className={c}>{mz(meterPrice)}</td>
+          <td className={c + " text-neutral-700"}>{mz(liningPer)}</td>
+          <td className={c + " " + sepL}>{mz(workPer)}</td>
+          <td className={c + " text-neutral-500"}>{mz(c4Per)}</td>
+          <td className={c + " " + sepL + " font-semibold text-neutral-900"}>{mz(totalPer)}</td>
+          <td className={c + " text-neutral-500"}>{mz(nowPer)}</td>
+        </tr>
+      );
+      return [row, ...(open ? unitRows(n.id, depth + 1) : [])];
+    });
+  // Окно категории: колонки длин (если есть) и «В среднем», статьи расходов на 1 изделие в строках.
+  const catCard = (cat: BudgetNode): ReactNode => {
+    const fur = cat.parentId ? byId.get(cat.parentId) : undefined;
+    const lens = (vKids.get(cat.id) ?? []).filter((x) => x.kind === "len");
+    const own = calc.get(cat.id) ?? ZERO;
+    const cols = lens.length >= 2 ? [...lens.map((l) => ({ key: l.id, label: l.name, a: calc.get(l.id) ?? ZERO })), { key: cat.id, label: "В среднем", a: own }] : [{ key: cat.id, label: "На 1 изделие", a: own }];
+    const k = 1 + params.c4 / 100;
+    const per = (v: number, a: Agg) => (a.pcs > 0 ? v / a.pcs : 0);
+    const rows: { label: string; v: (a: Agg) => string; bold?: boolean }[] = [
+      { label: "Бюджет, шт.", v: (a) => qz(a.pcs) },
+      { label: "Шкур на изделие", v: (a) => (a.pcs > 0 && a.hides > 0 ? qty(a.hides / a.pcs, 1) : "—") },
+      { label: "Ср. цена шкуры", v: (a) => mz(a.hides > 0 ? a.mex / a.hides : null) },
+      { label: `Мех + ${formatPercent(params.c4)}`, v: (a) => mz(per(a.mex * k, a) || null) },
+      { label: "Подкладка, м", v: (a) => (a.pcs > 0 && a.meters > 0 ? qty(a.meters / a.pcs, 2) : "—") },
+      { label: "Цена за метр", v: (a) => mz(a.meters > 0 ? a.lining / a.meters : null) },
+      { label: `Подкладка + ${formatPercent(params.c4)}`, v: (a) => mz(per(a.lining * k, a) || null) },
+      { label: "Работа", v: (a) => mz(per(a.work, a) || null) },
+      { label: `в т.ч. надбавка ${formatPercent(params.c4)}`, v: (a) => mz(per(a.c4, a) || null) },
+      { label: "СЕБЕСТОИМОСТЬ", v: (a) => mz(per(a.total, a) || null), bold: true },
+      { label: "Сейчас по системе", v: (a) => mz(a.nowPcs > 0 ? a.nowTotal / a.nowPcs : null) },
+    ];
+    return (
+      <div className="overflow-x-auto">
+        <p className="mb-2 text-xs text-neutral-500">{fur?.name} · {cat.name}: расходы на 1 изделие, ₽ с НДС, до тысяч. Надбавки: {formatPercent(params.upFur)} к шкурам, {formatPercent(params.upLining)} к подкладке, {formatPercent(params.upWork)} к работе, {formatPercent(params.c4)} на мех и подкладку. «Сейчас по системе» — те же статьи без надбавок бюджета.</p>
+        <table className="w-full min-w-[560px] border-separate border-spacing-0 text-sm">
+          <thead><tr className="text-xs text-neutral-500"><th className="w-[34%] px-3 py-1.5 text-left font-medium" />{cols.map((c) => <th key={c.key} className={"px-3 py-1.5 text-right font-semibold " + (c.label === "В среднем" ? "border-l border-neutral-200 text-neutral-900" : "")}>{c.label}</th>)}</tr></thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.label} className={r.bold ? "bg-neutral-50 font-semibold" : ""}>
+                <td className="border-t border-neutral-100 px-3 py-1.5 text-left">{r.label}</td>
+                {cols.map((c) => <td key={c.key} className={"whitespace-nowrap border-t border-neutral-100 px-3 py-1.5 text-right tabular-nums " + (c.label === "В среднем" ? "border-l border-neutral-200" : "")}>{r.v(c.a)}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
   // ---- Детально: таблица с полями (планшет и компьютер)
   const numCell = (n: BudgetNode, k: NumKey, label: string, w: string, tag?: UpKey, below?: ReactNode) => (
     <td className={"px-1.5 py-1 " + w}>
@@ -689,7 +766,7 @@ export function BudgetEditor(p: Props) {
             </InfoHint>
           </h2>
           <div role="group" aria-label="Режим таблицы" className={SEG_BOX}>
-            {([["summary", "Сводка"], ["detail", "Детально"]] as const).map(([v, l]) => (
+            {([["summary", "Сводка"], ["detail", "Детально"], ["unit", "На 1 изделие"]] as const).map(([v, l]) => (
               <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v}
                 className={segBtn(view === v)}>{l}</button>
             ))}
@@ -720,7 +797,7 @@ export function BudgetEditor(p: Props) {
         </div>
       ) : (
         <>
-          <div className={(view === "summary" ? "" : "hidden print:block ") + "max-h-[78vh] overflow-auto rounded-lg border border-neutral-200 bg-white print:max-h-none print:overflow-visible print:border-0"}>
+          <div className={(view === "summary" ? "" : view === "unit" ? "hidden " : "hidden print:block ") + "max-h-[78vh] overflow-auto rounded-lg border border-neutral-200 bg-white print:max-h-none print:overflow-visible print:border-0"}>
             <table data-sub={subOn ? "on" : "off"} className="w-full min-w-[980px] xl:min-w-0 border-separate border-spacing-0 text-left print:min-w-0 print:w-full print:text-[9px]">
               <thead className="sticky top-0 z-20 bg-white print:static">
                 <tr className="h-7">
@@ -748,6 +825,33 @@ export function BudgetEditor(p: Props) {
             </table>
           </div>
 
+          <div className={(view === "unit" ? "" : "hidden ") + "print:hidden"}>
+            <div className="mb-2 flex flex-wrap items-center justify-end gap-2 text-xs text-neutral-500">
+              <span>Нажмите на категорию: сравнение длин и расходы на 1 изделие.</span>
+              {canEdit ? <button type="button" onClick={() => setUpAll(true)} className={BTN}>Надбавки…</button> : null}
+            </div>
+            <div className="max-h-[78vh] overflow-auto rounded-lg border border-neutral-200 bg-white">
+              <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left">
+                <thead className="sticky top-0 z-20 bg-white">
+                  <tr className="h-7">
+                    <th rowSpan={2} scope="col" className="sticky left-0 z-30 min-w-[180px] border-b border-r border-neutral-200 bg-white px-2 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Тип сырья · категория · длина</th>
+                    <th rowSpan={2} scope="col" className="border-b border-neutral-200 px-2 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Бюджет, шт.</th>
+                    <th colSpan={3} className={"border-b px-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500 " + sepL}>Мех</th>
+                    <th colSpan={3} className={"border-b px-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500 " + sepL}>Подкладка</th>
+                    <th colSpan={2} className={"border-b px-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500 " + sepL}>Работа и надбавка</th>
+                    <th colSpan={2} className={"border-b px-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500 " + sepL}>Себестоимость</th>
+                  </tr>
+                  <tr className="h-9 border-b border-neutral-200 text-[11px] font-medium text-neutral-500 [&>th]:border-b [&>th]:border-neutral-200 [&>th]:px-1.5 [&>th]:text-right [&>th]:font-medium">
+                    <th className={sepL}>шкур, шт.</th><th>цена шкуры</th><th>сумма</th>
+                    <th className={sepL}>метров</th><th>цена за м</th><th>сумма</th>
+                    <th className={sepL}>работа</th><th>+{formatPercent(params.c4)}</th>
+                    <th className={sepL}>на 1 изд.</th><th>сейчас</th>
+                  </tr>
+                </thead>
+                <tbody>{unitRows(null, 0)}</tbody>
+              </table>
+            </div>
+          </div>
           <div className={(view === "detail" ? "hidden md:block " : "hidden ") + "max-h-[78vh] overflow-auto rounded-lg border border-neutral-200 bg-white print:hidden"}>
             <table data-sub={subOn ? "on" : "off"} className="w-max min-w-full border-separate border-spacing-0 text-left">
               <thead className="sticky top-0 z-20 bg-white">
@@ -805,6 +909,12 @@ export function BudgetEditor(p: Props) {
           </select>
         </Modal>
       ) : null}
+      {unitFor && byId.get(unitFor) ? (
+        <Modal title={`${byId.get(byId.get(unitFor)!.parentId ?? "")?.name ?? ""} · ${byId.get(unitFor)!.name}: на 1 изделие`} onClose={() => setUnitFor(null)} xl>
+          {catCard(byId.get(unitFor)!)}
+          <div className="mt-4 flex justify-end border-t border-neutral-200 pt-3"><button type="button" className={BTN_PRIMARY} onClick={() => setUnitFor(null)}>Закрыть</button></div>
+        </Modal>
+      ) : null}
       {upAll ? (
         <Modal title="Надбавки по типам меха и категориям" onClose={() => setUpAll(false)} wide>
           <div className="mb-3 text-xs text-neutral-500">Пустое поле — с уровня выше. Общие надбавки версии: {formatPercent(params.upFur)} / {formatPercent(params.upLining)} / {formatPercent(params.upWork)}.<InfoHint label="Как работают надбавки" wide><p>Пустое поле — берётся с уровня выше (в подсказке поля то, что действует сейчас). 0 — без надбавки. Строки с замком не пересчитываются.</p></InfoHint></div>
@@ -812,12 +922,23 @@ export function BudgetEditor(p: Props) {
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-white"><tr className="border-b border-neutral-200 text-left text-xs text-neutral-500"><th className="py-1 font-medium">Тип меха · категория</th><th className="w-20 px-1 text-right font-medium">Шкура, %</th><th className="w-20 px-1 text-right font-medium">Подкладка, %</th><th className="w-20 px-1 text-right font-medium">Работа, %</th></tr></thead>
               <tbody>
-                {nodes.filter((n) => n.kind === "fur" || n.kind === "cat").map((n) => {
+                {(() => {
+                  // Порядок: тип меха → все его категории → длины категории (Short / Regular / Long).
+                  const rows: BudgetNode[] = [];
+                  for (const fur of kids.get(null) ?? []) {
+                    rows.push(fur);
+                    for (const cat of (kids.get(fur.id) ?? []).filter((x) => x.kind === "cat")) {
+                      rows.push(cat);
+                      for (const len of (kids.get(cat.id) ?? []).filter((x) => x.kind === "len")) rows.push(len);
+                    }
+                  }
+                  return rows;
+                })().map((n) => {
                   const par = n.parentId ? byId.get(n.parentId) : undefined;
                   const inh = par ? effUp(par, byId, params) : null;
                   return (
                     <tr key={n.id} className={"border-t border-neutral-100 " + (n.kind === "fur" ? "bg-neutral-50 font-semibold" : "")}>
-                      <td className={"py-1 pr-2 " + (n.kind === "cat" ? "pl-4 font-normal" : "")}>{n.name}{n.locked ? <span className="ml-1 text-[11px]" title="Замок: не пересчитывается">🔒</span> : null}</td>
+                      <td className={"py-1 pr-2 " + (n.kind === "cat" ? "pl-4 font-normal" : n.kind === "len" ? "pl-8 font-normal text-neutral-600" : "")}>{n.name}{n.locked ? <span className="ml-1 text-[11px]" title="Замок: не пересчитывается">🔒</span> : null}</td>
                       {(["upFur", "upLining", "upWork"] as const).map((k) => {
                         const cur = inh ? (k === "upFur" ? inh.fur : k === "upLining" ? inh.lining : inh.work) : params[k];
                         return (

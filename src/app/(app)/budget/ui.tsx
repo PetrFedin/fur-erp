@@ -29,7 +29,7 @@ export function Badge({ tone, children, title }: { tone: keyof typeof TONES; chi
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** Окно по п.6 свода: role=dialog, заголовок, Esc, клик по подложке, фокус зациклен, после закрытия возвращается на источник. */
-export function Modal({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+export function Modal({ title, onClose, children, wide = false, xl = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; /** Очень широкое окно (таблицы сравнения). */ xl?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const closeRef = useRef(onClose);
@@ -53,7 +53,7 @@ export function Modal({ title, onClose, children, wide = false }: { title: strin
   }, []);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div ref={box} role="dialog" aria-modal="true" aria-labelledby={titleId} className={`flex max-h-[90vh] w-full flex-col rounded-t-xl bg-white shadow-xl sm:rounded-lg ${wide ? "sm:max-w-lg" : "sm:max-w-md"}`}>
+      <div ref={box} role="dialog" aria-modal="true" aria-labelledby={titleId} className={`flex max-h-[90vh] w-full flex-col rounded-t-xl bg-white shadow-xl sm:rounded-lg ${xl ? "sm:max-w-5xl" : wide ? "sm:max-w-3xl" : "sm:max-w-md"}`}>
         <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
           <h2 id={titleId} className="block-title">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Закрыть" className="btn-accent inline-flex h-10 w-10 items-center justify-center rounded-md border border-transparent text-xl text-neutral-500 hover:text-neutral-900 md:h-8 md:w-8">×</button>

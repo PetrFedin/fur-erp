@@ -65,6 +65,10 @@ export type BudgetNode = {
 export type BudgetStat = {
   key: string; fur: string; cat: string; qty: number; orders: number;
   hidesPer: number; hidePrice: number; metersPer: number; meterPrice: number; workPer: number;
+  /** Расходы ТЗ на изделие (поправка НДС по документу подрядчика, ₽ с НДС): в бюджете не используются, в «Себестоимости на 1 изделие» входят в мех. */
+  expPer?: number;
+  /** Надбавка 4 % системы на изделие (₽ с НДС): считается по правилам системы (не на все лоты), в бюджете не используется. */
+  c4Per?: number;
   modelId?: string;
   /** Длина (Short/Regular/Long): запись «мех × категория × длина» (key "мех|категория|len:Длина"). */
   len?: string;
@@ -142,6 +146,14 @@ export function fromBase(b: BudgetBase, p: BudgetParams): Pick<BudgetNode, "hide
 }
 
 /** Нормализация названий для сопоставления с системой: регистр, «ё», пробелы и знаки не важны. */
+/**
+ * Категории бюджета, собираемые из нескольких категорий ТЗ: «Шубы» = верхняя одежда: Пальто, Полупальто, Шуба / полушубок, Жакет, Куртка (как «Шуба / жакет короткий» в финмодели).
+ * Статистика «мех × Шубы» и «мех × Шубы × длина» считается по их сумме (длина — ProductModel.lengthClass), поэтому
+ * Short / Regular / Long получают свои шкуры, цену, подкладку и работу, а не одну общую цифру.
+ */
+export const BUDGET_CAT_GROUPS: Record<string, string[]> = { Шубы: ["Пальто", "Полупальто", "Шуба / полушубок", "Жакет", "Куртка"] };
+export const groupsOfStatCat = (cat: string): string[] => Object.entries(BUDGET_CAT_GROUPS).filter(([, v]) => v.includes(cat)).map(([k]) => k);
+
 export const normKey = (s: string) => s.toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9]+/g, "");
 const FUR_ALIASES: Record<string, string> = { каракульча: "свакара", каракуль: "свакара" };
 const furKey = (s: string) => { const k = normKey(s); return FUR_ALIASES[k] ?? k; };
@@ -212,7 +224,8 @@ export function autoCalc(nodes: BudgetNode[], stats: BudgetStat[], p: BudgetPara
     const cat = path.find((x) => x.kind === "cat");
     const len = path.find((x) => x.kind === "len");
     const furName = cat?.statFur || n.statFur || fur?.statFur || fur?.name || "";
-    const catName = n.kind === "cat" ? (n.statCat || n.name) : (n.statCat || cat?.statCat || cat?.name || "");
+    const grouped = (c: BudgetNode | undefined) => (c && BUDGET_CAT_GROUPS[c.name] ? c.name : "");
+    const catName = grouped(cat) || (n.kind === "cat" ? (n.statCat || n.name) : (n.statCat || cat?.statCat || cat?.name || ""));
     const fk = furKey(furName);
     let st: BudgetStat | undefined;
     let src: NodeSrc = "none";
@@ -245,6 +258,8 @@ export function reapplyParams(nodes: BudgetNode[], p: BudgetParams): BudgetNode[
 export function srcInfo(n: BudgetNode): { label: string; tone: "ok" | "warn" | "bad" | "manual" } {
   if (n.src === "manual" || (n.locked && n.sample <= 0)) return { label: "вручную", tone: "manual" };
   if (n.src === "none" || n.sample <= 0) return { label: "нет данных", tone: "bad" };
+  // Длина без своей статистики: значения взяты по всей категории — они одинаковы у соседних длин, это видно по бейджу.
+  if (n.kind === "len" && n.src === "pair") return { label: `нет данных по длине · по категории ${n.sample} изд.`, tone: "warn" };
   const small = n.src === "art" ? n.sample < 5 : n.sample < 10;
   const where = n.src === "art" ? "ТЗ артикула" : n.src === "len" ? "по длине" : "по категории";
   return { label: `${where} · ${n.sample} изд.`, tone: small ? "warn" : "ok" };

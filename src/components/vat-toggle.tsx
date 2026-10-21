@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { SEG_GROUP, segCls } from "@/components/segmented";
 import { useVatDisplay } from "@/lib/vat-display";
 
 /**
@@ -13,16 +14,13 @@ export function VatToggle() {
       type="button"
       onClick={() => mode !== m && setMode(m)}
       aria-pressed={mode === m}
-      className={cn(
-        "rounded-sm px-2 py-1 font-medium transition-colors max-md:min-h-8",
-        mode === m ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-900",
-      )}
+      className={segCls(mode === m, "sm")}
     >
       {text}
     </button>
   );
   return (
-    <div title="Переключает показ цен и себестоимости: с НДС (по умолчанию) или без НДС. Долги и оплаты не меняются." className="flex items-center rounded-md border border-neutral-300 bg-white p-0.5 text-xs">
+    <div title="Переключает показ цен и себестоимости: с НДС (по умолчанию) или без НДС. Долги и оплаты не меняются." className={SEG_GROUP}>
       {btn("excl", "Без НДС")}
       {btn("incl", "С НДС")}
     </div>

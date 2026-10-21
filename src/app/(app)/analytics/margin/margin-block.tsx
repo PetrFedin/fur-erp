@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } 
 import { formatMoney } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import Link from "next/link";
-import { Segmented } from "@/components/segmented";
+import { SEG_GROUP, Segmented, segCls } from "@/components/segmented";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
 import { buildMargin, deserializeInput, type FullLine, type MarginInputS } from "@/lib/margin";
 import { colorOfLine } from "@/lib/sales-receipts-core";
@@ -216,7 +216,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
     );
   };
 
-  const seg = (on: boolean) => "inline-flex min-h-11 items-center rounded-md px-3 text-sm " + (on ? "bg-neutral-900 text-white" : "text-neutral-700 hover:text-neutral-900");
+  const seg = (on: boolean) => segCls(on);
   const heads = ["Тотал", ...groups.map((g) => g.head)];
   return (
     <section aria-label="Маржа и наценка" className="flex min-w-0 scroll-mt-16 flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3">
@@ -231,17 +231,17 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
       </div>
 
       <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <div role="group" aria-label="Столбцы" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+        <div role="group" aria-label="Столбцы" className={SEG_GROUP}>
           <button type="button" aria-pressed={mode === "total"} onClick={() => setMode("total")} className={seg(mode === "total")}>Тотал</button>
           <button type="button" aria-pressed={mode === "seasons"} onClick={() => setMode("seasons")} className={seg(mode === "seasons")}>Сезоны</button>
           <button type="button" aria-pressed={mode === "months"} onClick={() => setMode("months")} className={seg(mode === "months")}>Месяцы</button>
         </div>
         <Segmented label="Структура" items={[{ key: "a", label: "Категории → Мех", on: treeKey === "a", onSelect: () => onTree("a"), title: "Категория 1 → Категория 2 → Тип меха → Артикул → Цвет" }, { key: "b", label: "Мех → Категории", on: treeKey === "b", onSelect: () => onTree("b"), title: "Тип меха → Категория 1 → Категория 2 → Артикул → Цвет" }]} />
-        <div role="group" aria-label="Валюта" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+        <div role="group" aria-label="Валюта" className={SEG_GROUP}>
           <button type="button" aria-pressed={cur === "rub"} onClick={() => onCur("rub")} className={seg(cur === "rub")}>₽</button>
           <button type="button" aria-pressed={cur === "eur"} onClick={() => onCur("eur")} className={seg(cur === "eur")}>€</button>
         </div>
-        <div role="group" aria-label="НДС" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+        <div role="group" aria-label="НДС" className={SEG_GROUP}>
           <button type="button" aria-pressed={vat === "in"} onClick={() => onVat("in")} className={seg(vat === "in")}>С НДС</button>
           <button type="button" aria-pressed={vat === "ex"} onClick={() => onVat("ex")} className={seg(vat === "ex")}>Без НДС</button>
         </div>

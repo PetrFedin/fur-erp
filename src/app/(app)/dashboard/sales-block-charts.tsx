@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { InfoHint } from "@/components/info-hint";
 import { TILE_BOX, TileHead } from "./tile";
 import { GET, NAVY, REV, STOCK, moneyC, n0 } from "../sales/sales-fmt";
+import { seasonRank } from "@/lib/sales-section";
 
 // Графики блока «Продажи и остатки» на Главной: столбцы и линия на двух шкалах, как в разделе /sales, но в оформлении плиток Главной.
 // Широкий ряд прокручивается внутри карточки; подсказка с цифрами — при наведении или касании периода и в строке под графиком.
 
-type Series = { name: string; color: string; vals: number[]; kind: "bar" | "line"; axis: "l" | "r"; fmt: (v: number) => string };
+type Series = { name: string; color: string; vals: number[]; kind: "bar" | "line"; axis: "l" | "r"; fmt: (v: number) => string; /** Столбец составной: части друг на друге (продано по сезонам товара). */ parts?: { name: string; color: string; vals: number[] }[] };
 type Pt = { key: string; label: string };
 
 function niceMax(v: number) {
@@ -22,8 +23,19 @@ const H = 230, PT = 14, PB = 46, PL = 46, PR = 52;
 
 function Chart({ pts, series, label, testId }: { pts: Pt[]; series: Series[]; label: string; testId: string }) {
   const [hot, setHot] = useState<number | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const [cw, setCw] = useState(0);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setCw(el.clientWidth));
+    ro.observe(el);
+    setCw(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
   const n = pts.length;
-  const colW = n > 20 ? 34 : n > 8 ? 44 : 72;
+  // Столбцы растягиваются на всю ширину карточки; если месяцев много, ряд прокручивается.
+  const colW = Math.max(n > 20 ? 34 : n > 8 ? 44 : 72, n > 0 && cw > 0 ? Math.floor((cw - PL - PR) / n) : 0);
   const W = PL + PR + n * colW;
   const bars = series.filter((s) => s.kind === "bar"), lines = series.filter((s) => s.kind === "line");
   const maxL = niceMax(Math.max(...series.filter((s) => s.axis === "l").flatMap((s) => s.vals), 0));
@@ -35,7 +47,7 @@ function Chart({ pts, series, label, testId }: { pts: Pt[]; series: Series[]; la
   const hasR = series.some((s) => s.axis === "r");
   return (
     <div className="relative min-w-0" data-testid={testId}>
-      <div className="overflow-x-auto" data-keep-scroll tabIndex={0} role="img" aria-label={label}>
+      <div ref={box} className="overflow-x-auto" data-keep-scroll tabIndex={0} role="img" aria-label={label}>
         <svg width={Math.max(W, 300)} height={H} className="block" onMouseLeave={() => setHot(null)}>
           {[0, 0.5, 1].map((t) => (
             <g key={t}>
@@ -49,6 +61,20 @@ function Chart({ pts, series, label, testId }: { pts: Pt[]; series: Series[]; la
               <rect x={PL + i * colW} y={PT} width={colW} height={H - PT - PB} fill={hot === i ? "#f5f5f5" : "transparent"} />
               {bars.map((s, si) => {
                 const v = s.vals[i], h = (H - PT - PB) * (v / maxL);
+                if (s.parts && v > 0) {
+                  let acc = 0;
+                  return (
+                    <g key={s.name}>
+                      {s.parts.map((pt) => {
+                        const pv = pt.vals[i];
+                        if (pv <= 0) return null;
+                        const y1 = yL(acc + pv), y0 = yL(acc);
+                        acc += pv;
+                        return <rect key={pt.name} x={x(i) - (bars.length * bw) / 2 + si * bw} y={y1} width={bw - 1} height={Math.max(0, y0 - y1)} fill={pt.color}><title>{`${p.label}: продано, ${pt.name} ${n0(Math.round(pv))} шт.`}</title></rect>;
+                      })}
+                    </g>
+                  );
+                }
                 return v > 0 ? <rect key={s.name} x={x(i) - (bars.length * bw) / 2 + si * bw} y={yL(v)} width={bw - 1} height={h} fill={s.color} rx="1"><title>{`${p.label}: ${s.name} ${s.fmt(v)}`}</title></rect> : null;
               })}
               <text x={x(i)} y={H - PB + 14} textAnchor={n > 8 ? "end" : "middle"} fontSize="11" fill="#404040" transform={n > 8 ? `rotate(-35 ${x(i)} ${H - PB + 14})` : undefined}>{p.label}</text>
@@ -66,23 +92,32 @@ function Chart({ pts, series, label, testId }: { pts: Pt[]; series: Series[]; la
         </svg>
       </div>
       <div className="mt-1 flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-700" aria-live="polite">
-        {series.map((s) => <span key={s.name} className="inline-flex items-center gap-1"><i aria-hidden className="inline-block size-2.5 rounded-sm" style={{ background: s.color }} />{s.name}{hot !== null ? <b className="tabular-nums text-neutral-900"> {s.fmt(s.vals[hot])}</b> : null}</span>)}
-        {hot !== null ? <span className="ml-auto font-medium text-neutral-900">{pts[hot].label}</span> : <span className="ml-auto text-neutral-500">Наведите или коснитесь периода, чтобы увидеть числа</span>}
+        {series.flatMap((s) => (s.parts ? s.parts.map((pt) => ({ name: `Продано, ${pt.name}`, color: pt.color, fmt: s.fmt, vals: pt.vals })) : [s])).map((s) => <span key={s.name} className="inline-flex items-center gap-1"><i aria-hidden className="inline-block size-2.5 rounded-sm" style={{ background: s.color }} />{s.name}{hot !== null ? <b className="tabular-nums text-neutral-900"> {s.fmt(s.vals[hot])}</b> : null}</span>)}
+        {hot !== null ? <span className="ml-auto font-medium text-neutral-900">{pts[hot].label}</span> : null}
       </div>
     </div>
   );
 }
 
-export type FlowPoint = { key: string; label: string; received: number; sold: number; stock: number };
+export type FlowPoint = { key: string; label: string; received: number; sold: number; stock: number; soldBySeason?: Record<string, number> };
+/** Цвета сезонов товара в столбцах «Продано»: от старого (тёмный) к новому (светлый). */
+const SEASON_COLORS = ["#17613c", "#2f9e63", "#8fd3aa"];
 export type SeasonPoint = { key: string; sold: number; revenue: number };
 
 const pcs = (v: number) => n0(Math.round(v));
 
+/** Продано по сезонам товара: сезоны от старого к новому. Возвраты (минус) в сумму столбца не рисуются. */
+function soldParts(points: FlowPoint[]) {
+  const keys = Array.from(new Set(points.flatMap((p) => Object.keys(p.soldBySeason ?? {})))).sort((a, b) => seasonRank(a) - seasonRank(b));
+  if (keys.length === 0) return undefined;
+  return keys.map((k, i) => ({ name: k, color: SEASON_COLORS[Math.min(i, SEASON_COLORS.length - 1)], vals: points.map((p) => Math.max(0, p.soldBySeason?.[k] ?? 0)) }));
+}
+
 /** «Приход · Продажи · Остаток» по месяцам: столбцы — получено и продано, линия — остаток нарастающим итогом (правая шкала). */
-export function FlowChart({ points }: { points: FlowPoint[] }) {
+export function FlowChart({ points, note }: { points: FlowPoint[]; note?: string }) {
   return (
     <div className={TILE_BOX} data-hover-block="sales-flow">
-      <TileHead>Приход · Продажи · Остаток по месяцам</TileHead>
+      <TileHead>Приход · Продажи · Остаток по месяцам{note ? ` · ${note}` : ""}</TileHead>
       <div className="absolute right-3 top-3">
         <InfoHint label="Как читать график прихода, продаж и остатка" align="right">
           <p>Столбцы — штуки за месяц: <b>Получено</b> (приход, корректировки с минусом уже вычтены) и <b>Продано</b> (нетто: валовое минус возвраты). Линия — <b>остаток</b> нарастающим итогом на конец месяца (правая шкала): приход минус продано{" "}с начала данных.</p>
@@ -94,7 +129,7 @@ export function FlowChart({ points }: { points: FlowPoint[] }) {
           <Chart testId="dash-sales-chart-flow" pts={points} label="Приход и продажи столбцами по месяцам, остаток нарастающим итогом линией"
             series={[
               { name: "Получено, шт.", color: NAVY, vals: points.map((p) => p.received), kind: "bar", axis: "l", fmt: pcs },
-              { name: "Продано, шт.", color: GET, vals: points.map((p) => Math.max(0, p.sold)), kind: "bar", axis: "l", fmt: pcs },
+              { name: "Продано, шт.", color: GET, vals: points.map((p) => Math.max(0, p.sold)), kind: "bar", axis: "l", fmt: pcs, parts: soldParts(points) },
               { name: "Остаток, шт.", color: STOCK, vals: points.map((p) => p.stock), kind: "line", axis: "r", fmt: pcs },
             ]} />
         </div>

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { isRepair, sumOrders, sumTotal } from "@/lib/orders-sum";
 import type { Commission4Mode } from "@/lib/commission4-mode";
-import { classOfLevel2, normCode } from "@/lib/sales-receipts-core";
+import { assignSeasons, classOfLevel2, normCode } from "@/lib/sales-receipts-core";
 import { loadRetailPricesState, loadReportSizesState } from "@/lib/import-keys";
 import { type FullLine, type MarginInput, type ModelCost, type RetailRow } from "@/lib/margin";
 import type { DrillOrder } from "@/lib/dashboard-drill";
@@ -35,7 +35,7 @@ export async function loadMarginInput(orgId: string, c4: Commission4Mode): Promi
       loadModelCosts(orgId, c4),
     ]);
     if (!rows.length) return null;
-    const lines: FullLine[] = rows.map((r) => ({ kind: r.kind, iso: r.date.toISOString().slice(0, 10), season: r.season, modelCode: r.modelCode, article: r.article, colorId: r.colorId, fabric: r.fabric, level3: r.level3, level4: r.level4, pcs: r.pcs ?? 0, retailRub: r.retailRub?.toNumber() ?? 0, retailRubExVat: r.retailRubExVat?.toNumber() ?? 0, discountRub: r.discountRub?.toNumber() ?? 0, discountRubExVat: r.discountRubExVat?.toNumber() ?? 0, retailEur: r.retailEur?.toNumber() ?? 0, retailEurExVat: r.retailEurExVat?.toNumber() ?? 0, discountEur: r.discountEur?.toNumber() ?? 0, discountEurExVat: r.discountEurExVat?.toNumber() ?? 0, cls: classOfLevel2(r.level2) }));
+    const lines: FullLine[] = assignSeasons(rows.map((r) => ({ kind: r.kind, iso: r.date.toISOString().slice(0, 10), season: r.season, modelCode: r.modelCode, article: r.article, colorId: r.colorId, fabric: r.fabric, level3: r.level3, level4: r.level4, pcs: r.pcs ?? 0, retailRub: r.retailRub?.toNumber() ?? 0, retailRubExVat: r.retailRubExVat?.toNumber() ?? 0, discountRub: r.discountRub?.toNumber() ?? 0, discountRubExVat: r.discountRubExVat?.toNumber() ?? 0, retailEur: r.retailEur?.toNumber() ?? 0, retailEurExVat: r.retailEurExVat?.toNumber() ?? 0, discountEur: r.discountEur?.toNumber() ?? 0, discountEurExVat: r.discountEurExVat?.toNumber() ?? 0, cls: classOfLevel2(r.level2) })));
     const prices = ((state?.value as { rows?: RetailRow[] } | null)?.rows ?? []).filter((r) => r && typeof r.price === "number");
     return { lines, prices, modelPrice: new Map(models.map((m) => [normCode(m.name), m.sellingPrice!.toNumber()])), costs };
   } catch {

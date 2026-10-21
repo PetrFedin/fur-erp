@@ -84,8 +84,10 @@ export function variantOfArticle(article: string): string {
 export function furTypeOfFabric(fabric: string | null | undefined): string {
   const f = (fabric ?? "").toUpperCase().replace(/\s+/g, " ").trim();
   if (!f) return "Не указан";
-  if (/^ART?CTIC FOX/.test(f)) return "ARCTIC FOX";
-  if (/^SILVER FOX/.test(f)) return "SILVER FOX";
+  // Как в нашем справочнике видов меха: песец, чернобурка и лиса — «Лиса» (изделия из «ARCTIC FOX» сшиты из нашей лисы, песца в сырье нет); каракуль, каракульча и бродтейл — свакара.
+  if (/^AR(C)?TIC/.test(f)) return "FOX";
+  if (/^(SILVER FOX|FOX)\b/.test(f)) return "FOX";
+  if (/^(KARAKUL|KARAKULCHA|BROADTAIL|SWAKARA)\b/.test(f)) return "SWAKARA";
   if (/^WILD SABLE/.test(f)) return "SABLE";
   return f.split(/[\s+/]/)[0];
 }
@@ -95,4 +97,86 @@ export function colorOfLine(c: string | null | undefined): string {
   const v = (c ?? "").toUpperCase().replace(/\s+\d+$/, "").trim();
   if (!v) return "Не указан";
   return v === "LAVANDER" ? "LAVENDER" : v === "BLACKGLAMA" ? "BLACK GLAMA" : v;
+}
+
+/**
+ * Сезон строки по дате (правило владельца): SS — с февраля по июль («SS 2026»), FW — с августа по январь («FW 25/26»: август 2025 – январь 2026).
+ * Сезон из файла выгрузки не используется: он расходится с датами движения.
+ */
+export function seasonOfDate(iso: string): string {
+  const y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7));
+  if (m >= 2 && m <= 7) return `SS ${y}`;
+  const fy = m >= 8 ? y : y - 1;
+  return `FW ${String(fy).slice(2)}/${String(fy + 1).slice(2)}`;
+}
+
+/**
+ * Сезоны строк выгрузки: приход — по своей дате (seasonOfDate); продажа и возврат относятся к сезону партии, из которой
+ * продали (FIFO: сначала расходуется самый старый приход артикула и цвета), чтобы продано, остаток и sell-through
+ * сезона считались по одной коллекции и остаток сезона не уходил в минус. Продажа, которая охватывает два прихода,
+ * делится на две строки (штуки и суммы — пропорционально). Отрицательный приход уменьшает самую раннюю партию с остатком.
+ * Нет прихода — сезон по дате самой строки.
+ */
+export function assignSeasons<T extends { id?: string; kind: string; iso: string; article: string; colorId: string | null; pcs: number; season: string }>(lines: T[]): T[] {
+  const keyOf = (l: T) => l.article + "|" + (l.colorId ?? "");
+  const groups = new Map<string, T[]>();
+  for (const l of lines) { const k = keyOf(l); const g = groups.get(k); if (g) g.push(l); else groups.set(k, [l]); }
+  const out = new Map<T, T[]>();
+  for (const g of groups.values()) {
+    const sorted = [...g].sort((x, y) => (x.iso < y.iso ? -1 : x.iso > y.iso ? 1 : (x.kind === "RECEIPT" ? 0 : 1) - (y.kind === "RECEIPT" ? 0 : 1)));
+    const firstRec = sorted.find((l) => l.kind === "RECEIPT" && l.pcs > 0);
+    const queue: { season: string; left: number }[] = [];
+    let lastSeason = firstRec ? seasonOfDate(firstRec.iso) : null;
+    for (const l of sorted) {
+      if (l.kind === "RECEIPT" && l.pcs > 0) {
+        const season = seasonOfDate(l.iso);
+        queue.push({ season, left: l.pcs }); lastSeason = season;
+        out.set(l, [{ ...l, season }]);
+        continue;
+      }
+      if (l.kind === "RECEIPT") {
+        // Отрицательный приход (корректировка): уменьшает самую раннюю партию, где ещё есть что снять.
+        let need = -l.pcs;
+        const q = queue.find((x) => x.left > 0);
+        const season = q?.season ?? (firstRec ? seasonOfDate(firstRec.iso) : seasonOfDate(l.iso));
+        for (const x of queue) { if (need <= 0) break; const t = Math.min(x.left, need); x.left -= t; need -= t; }
+        out.set(l, [{ ...l, season }]);
+        continue;
+      }
+      if (l.pcs <= 0) { out.set(l, [{ ...l, season: queue.find((x) => x.left > 0)?.season ?? lastSeason ?? seasonOfDate(l.iso) }]); continue; }
+      // Продажа: списываем с самых старых партий; хвост сверх остатка уходит в сезон последней партии.
+      const parts: { season: string; pcs: number }[] = [];
+      let need = l.pcs;
+      for (const x of queue) {
+        if (need <= 0) break;
+        if (x.left <= 0) continue;
+        const t = Math.min(x.left, need);
+        x.left -= t; need -= t;
+        const last = parts[parts.length - 1];
+        if (last && last.season === x.season) last.pcs += t; else parts.push({ season: x.season, pcs: t });
+      }
+      if (need > 0) {
+        const season = lastSeason ?? seasonOfDate(l.iso);
+        const last = parts[parts.length - 1];
+        if (last && last.season === season) last.pcs += need; else parts.push({ season, pcs: need });
+      }
+      if (parts.length === 1) { out.set(l, [{ ...l, season: parts[0].season }]); continue; }
+      out.set(l, parts.map((pt, i) => {
+        const k = pt.pcs / l.pcs;
+        const c: Record<string, unknown> = { ...l, season: pt.season, pcs: pt.pcs };
+        for (const [f, v] of Object.entries(l)) if (/^(retail|discount)/.test(f) && typeof v === "number") c[f] = v * k;
+        if (typeof l.id === "string") c.id = `${l.id}#${i + 1}`;
+        return c as T;
+      }));
+    }
+  }
+  return lines.flatMap((l) => out.get(l) ?? [l]);
+}
+
+/** Последний день сезона: SS YYYY → 31 июля, FW YY/YY+1 → 31 января второго года. */
+export function seasonEndIso(season: string): string | null {
+  const ss = /^SS\s+(\d{4})$/.exec(season.trim());
+  if (ss) return `${ss[1]}-07-31`;
+  const fw = /^FW\s+(\d{2})\/(\d{2})$/.exec(season.trim());
+  return fw ? `20${fw[2]}-01-31` : null;
 }

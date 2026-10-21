@@ -51,9 +51,10 @@ const withHides = (p: CellsPair, v: { incl: number; excl: number } | undefined):
   const f = (c: Cells, x: number): Cells => ({ ...c, rv: c.rv + x, uv: c.uv + x, uo: c.uo + x, ra: c.rq > 0 ? Math.round(((c.rv + x) / c.rq) * 100) / 100 : null, ua: c.uq > 0 ? Math.round(((c.uv + x) / c.uq) * 100) / 100 : null });
   return { incl: f(p.incl, v.incl), excl: f(p.excl, v.excl) };
 };
-// Решение владельца 20.10.2026: заказанное, но не принятое (черновики FH 06.26, СП 09.26) НЕ входит в «Куплено / Использовано / Остаток»;
-// оно показывается отдельной строкой «Предоплачено, ждём поставку» (поле ordered). Функция оставлена тождественной.
-const withOrdered = (p: CellsPair, _o?: Ordered): CellsPair => p;
+// Решение владельца 21.10.2026 (отменяет исключение от 20.10): заказанное, но не принятое (черновики FH 06.26, СП 09.26) снова входит в «Куплено» и «Остаток»
+// (использовано 0), чтобы «Куплено» по меху сходилось с «общей стоимостью меха» из оплат (оплачено + долг). Поле ordered хранит эту сумму отдельно.
+const BOUGHT_ORDERED = { has: (_fur: string) => true };
+const withOrdered = (p: CellsPair, o?: Ordered): CellsPair => (o && (o.qty > 0 || o.incl > 0) ? { incl: bumpCells(p.incl, o.qty, o.incl), excl: bumpCells(p.excl, o.qty, o.excl) } : p);
 const bumpFigures = (f: FlowFigures, q: number, v: number): FlowFigures => {
   const recvQty = f.recvQty + q, recvValue = f.recvValue + v, remQty = f.remQty + q, remValue = f.remValue + v;
   return { ...f, recvQty, recvValue, recvAvg: recvQty > 0 ? Math.round((recvValue / recvQty) * 100) / 100 : null, remQty, remValue, remAvg: remQty > 0 ? Math.round((remValue / remQty) * 100) / 100 : null };
@@ -66,7 +67,7 @@ const cellsPair = (lots: FurLot[], _c4: C4Kind): CellsPair => {
 
 /** Заказано, но ещё не получено (состав закупки): шт. и сумма с НДС / без НДС. */
 export type Ordered = { qty: number; incl: number; excl: number };
-export type RawTableRow = { key: string; label: string; kind: "fur" | "lining"; cells: CellsPair; /** Оплачено и долг по виду: оплаты и остаток аукционов делятся по доле вида в стоимости лотов аукциона. */ paid: number; due: number; /** Средняя цена в долларах (куплено / использовано / остаток); у подкладки нет. */ usd: { bought: number | null; used: number | null; rem: number | null }; auctions: { key: string; label: string; cells: CellsPair; paid: number; due: number }[]; /** Те же цифры по годам закупки лота (для окон цен). */ years: { year: number; cells: CellsPair; usd: { bought: number | null; used: number | null; rem: number | null } }[]; lots: number; /** Id лотов ткани подкладки — для перехода в карточку лота (у меха не заполняется). */ lotIds?: string[] };
+export type RawTableRow = { key: string; label: string; kind: "fur" | "lining"; cells: CellsPair; /** Заказано, но не получено (в «Куплено» не входит): штуки и сумма, чтобы вид без лотов (рысь) не выглядел пустым. */ ordered?: Ordered; /** Оплачено и долг по виду: оплаты и остаток аукционов делятся по доле вида в стоимости лотов аукциона. */ paid: number; due: number; /** Средняя цена в долларах (куплено / использовано / остаток); у подкладки нет. */ usd: { bought: number | null; used: number | null; rem: number | null }; auctions: { key: string; label: string; cells: CellsPair; paid: number; due: number }[]; /** Те же цифры по годам закупки лота (для окон цен). */ years: { year: number; cells: CellsPair; usd: { bought: number | null; used: number | null; rem: number | null } }[]; lots: number; /** Id лотов ткани подкладки — для перехода в карточку лота (у меха не заполняется). */ lotIds?: string[] };
 export type YearRow = {
   key: string;
   label: string;
@@ -127,6 +128,8 @@ export type DashboardData = {
   hides: { incl: number; excl: number };
   /** Заказано, но ещё не получено (нет лотов): шт. и сумма — входит в «Куплено» и «Остаток» меха. */
   ordered: Ordered;
+  /** Часть заказанного, учтённая в «Куплено» (рысь); остальное заказанное в «Куплено» не входит. */
+  orderedBought: Ordered;
   /** Заказанный, но не полученный мех и шкуры подрядчика как «лоты» для страницы «Сырьё»: таблица там сходится с Главной. */
   syntheticLots: FurLot[];
   /** Оплачено и к оплате по каждому лоту (id → ₽ с НДС): доля оплат и долга аукциона по стоимости лота. Нужны таблице «Сырьё» для плиток оплат при фильтрах. */
@@ -320,7 +323,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
       g.paid += m.paid * (v.incl / totV); g.due += m.due * (v.incl / totV); if (!g.names.includes(name)) g.names.push(name);
       g.ordered.qty += v.qty; g.ordered.incl += v.incl * scale; g.ordered.excl += v.excl * scale;
       g.positions += byFurPos.get(label) ?? 0;
-      for (const [rate, x] of Object.entries(byFurVat.get(label) ?? {})) addVat(orderedVat, rate, x * scale);
+      if (BOUGHT_ORDERED.has(label)) for (const [rate, x] of Object.entries(byFurVat.get(label) ?? {})) addVat(orderedVat, rate, x * scale);
       for (const [yr, yv] of byFurYear.get(label) ?? []) {
         const yc = g.years.get(yr) ?? { qty: 0, incl: 0, excl: 0 };
         yc.qty += yv.qty; yc.incl += yv.incl * scale; yc.excl += yv.excl * scale; g.years.set(yr, yc);
@@ -334,7 +337,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
       const cur = orderedYear.get(y) ?? { qty: 0, incl: 0, excl: 0 };
       for (const it of p.items) {
         const nm = matName.get((it as { rawMaterialId?: string }).rawMaterialId ?? "");
-        if (!nm || !orderedOk(furName(nm), name)) continue;
+        if (!nm || !orderedOk(furName(nm), name) || !BOUGHT_ORDERED.has(furName(nm))) continue;
         cur.qty += it.quantity?.toNumber() ?? 0; cur.incl += it.subtotal.mul(it.vatRate.div(100).add(1)).toNumber() * scale; cur.excl += it.subtotal.toNumber() * scale;
       }
       orderedYear.set(y, cur);
@@ -571,12 +574,14 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
       rawTable.push(r);
     }
     r.paid += g.paid; r.due += g.due;
-    r.cells = withOrdered(r.cells, g.ordered);
+    if (!BOUGHT_ORDERED.has(g.label))r.ordered = { qty: (r.ordered?.qty ?? 0) + g.ordered.qty, incl: (r.ordered?.incl ?? 0) + g.ordered.incl, excl: (r.ordered?.excl ?? 0) + g.ordered.excl };
+    const cnt = BOUGHT_ORDERED.has(g.label);
+    r.cells = withOrdered(r.cells, cnt ? g.ordered : undefined);
     // По годам закупки (окна цен): заказанное, но не полученное, раскрывается по году закупки, как обычные лоты.
     for (const [yr, yv] of g.years) {
       const ex = r.years.find((y) => y.year === yr);
-      if (ex) ex.cells = withOrdered(ex.cells, yv);
-      else r.years.push({ year: yr, cells: withOrdered(cellsPair([], c4k), yv), usd: { bought: null, used: null, rem: null } });
+      if (ex) ex.cells = withOrdered(ex.cells, cnt ? yv : undefined);
+      else r.years.push({ year: yr, cells: withOrdered(cellsPair([], c4k), cnt ? yv : undefined), usd: { bought: null, used: null, rem: null } });
     }
     r.years.sort((a, b) => a.year - b.year);
     // Цена в $ у вида без лотов (рысь): по расчёту позиций закупки; у вида с лотами остаётся цена по лотам.
@@ -585,13 +590,15 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
       r.usd = { bought: avg, used: r.usd.used, rem: avg };
       for (const y of r.years) if (y.usd.bought == null) y.usd = { bought: avg, used: null, rem: avg };
     }
-    r.auctions.push({ key: `unrecv|${g.names.join(",")}`, label: `${g.names.join(", ")}`, cells: withOrdered(cellsPair([], c4k), g.ordered), paid: g.paid, due: g.due });
+    r.auctions.push({ key: `unrecv|${g.names.join(",")}`, label: `${g.names.join(", ")}`, cells: withOrdered(cellsPair([], c4k), cnt ? g.ordered : undefined), paid: g.paid, due: g.due });
   }
   rawTable.sort((a, b) => Number(a.kind === "lining") - Number(b.kind === "lining") || b.cells.incl.rv - a.cells.incl.rv || b.paid - a.paid);
   const orderedAll = unreceived.byFur.reduce((a, g) => ({ qty: a.qty + g.ordered.qty, incl: a.incl + g.ordered.incl, excl: a.excl + g.ordered.excl }), { qty: 0, incl: 0, excl: 0 });
-  const rawTableTotalAll = withHides(withOrdered(rawTableTotal, orderedAll), hidesTotal);
+  const orderedBought = unreceived.byFur.filter((g) => BOUGHT_ORDERED.has(g.label)).reduce((a, g) => ({ qty: a.qty + g.ordered.qty, incl: a.incl + g.ordered.incl, excl: a.excl + g.ordered.excl }), { qty: 0, incl: 0, excl: 0 });
+  const rawTableTotalAll = withHides(withOrdered(rawTableTotal, orderedBought), hidesTotal);
   const addHidesFig = (f: FlowFigures, v: number): FlowFigures => ({ ...f, recvValue: f.recvValue + v, recvAvg: f.recvQty > 0 ? Math.round(((f.recvValue + v) / f.recvQty) * 100) / 100 : null, usedValue: f.usedValue + v, usedValueOther: f.usedValueOther + v, usedAvg: f.usedQty > 0 ? Math.round(((f.usedValue + v) / f.usedQty) * 100) / 100 : null });
-  const furPairAll = { incl: addHidesFig(furPair.incl, hidesTotal.incl), excl: addHidesFig(furPair.excl, hidesTotal.excl) };
+  const bumpedFur = { incl: bumpFigures(furPair.incl, orderedBought.qty, orderedBought.incl), excl: bumpFigures(furPair.excl, orderedBought.qty, orderedBought.excl) };
+  const furPairAll = { incl: addHidesFig(bumpedFur.incl, hidesTotal.incl), excl: addHidesFig(bumpedFur.excl, hidesTotal.excl) };
   const synth = (id: string, item: string, auction: string, year0: number, o: { qty: number; incl: number; excl: number }, used: { incl: number; excl: number } | null, money: { paid: number; due: number }, plan?: { q: number; s: number }, positions?: number): FurLot => ({
     id, kind: "fur", item, materialName: item, color: NOT_SET, size: NOT_SET, sizes: [], attrs: [], auction, auctionLabel: labeler(auction).label || auction, year: year0,
     lotNumber: used ? "шкуры подрядчика" : "заказано, не получено", grade: "", purchaseId: null, purchaseNumber: null, supplier: null,
@@ -694,13 +701,15 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
     overpaid: debt.overpaid.map((o) => ({ name: o.name, amount: o.amount.toNumber() })),
     hides: hidesTotal,
     ordered: orderedAll,
+    orderedBought,
     syntheticLots,
     lotMoney,
     rawMoneyTotal: { paid: paidOut.fur + paidOut.lining, due: leftOut.raw, unreceived: unreceivedOut },
     raw: { fur: furPairAll, lining: liningPair, lots: lotsYear.length },
     rawSources: (() => {
       const pairOf = (src: "auction" | "supplier") => figuresPair(flowOf(furLots.filter((l) => classifyLotSource(l) === src)), c4k);
-      const a = pairOf("auction"), s = pairOf("supplier");
+      const a0 = pairOf("auction"), s = pairOf("supplier");
+      const a = { incl: bumpFigures(a0.incl, orderedBought.qty, orderedBought.incl), excl: bumpFigures(a0.excl, orderedBought.qty, orderedBought.excl) };
       return {
         auction: { incl: a.incl, excl: a.excl },
         supplier: { incl: addHidesFig(s.incl, hidesTotal.incl), excl: addHidesFig(s.excl, hidesTotal.excl) },
@@ -714,14 +723,18 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
         const ls = src === "all" ? furLots : furLots.filter((l) => classifyLotSource(l) === src);
         const types = names.flatMap((t) => {
           let p = figuresPair(flowOf(ls.filter((l) => l.item === t)), c4k);
-          // Заказанное, но не принятое, в «Куплено» не входит (решение владельца 20.10): оно отдельной строкой «Предоплачено, ждём поставку».
+          // Заказанное, но не принятое, в «Куплено» не входит (решение владельца 20.10), кроме рыси: она возвращена по поправке владельца.
+          if (BOUGHT_ORDERED.has(t) && src !== "supplier") { const o = unreceived.byFur.find((g) => g.label === t)?.ordered; if (o) p = { incl: bumpFigures(p.incl, o.qty, o.incl), excl: bumpFigures(p.excl, o.qty, o.excl) }; }
           if (hasHides && t === "Свакара" && src !== "auction") p = { incl: addHidesFig(p.incl, hidesTotal.incl), excl: addHidesFig(p.excl, hidesTotal.excl) };
           const f = p.incl;
           return Math.abs(f.recvQty) + Math.abs(f.recvValue) + Math.abs(f.usedQty) + Math.abs(f.remQty) > 0 ? [{ name: t, pair: p }] : [];
         });
+        // Слайды видов — от самых больших объёмов к малым (по количеству «Куплено»), затем по названию.
+        types.sort((x, y) => y.pair.incl.recvQty - x.pair.incl.recvQty || x.name.localeCompare(y.name, "ru"));
         return { total, types };
       };
-      const a = figuresPair(flowOf(furLots.filter((l) => classifyLotSource(l) === "auction")), c4k);
+      const a1 = figuresPair(flowOf(furLots.filter((l) => classifyLotSource(l) === "auction")), c4k);
+      const a = { incl: bumpFigures(a1.incl, orderedBought.qty, orderedBought.incl), excl: bumpFigures(a1.excl, orderedBought.qty, orderedBought.excl) };
       const s = figuresPair(flowOf(furLots.filter((l) => classifyLotSource(l) === "supplier")), c4k);
       return {
         all: build("all", furPairAll),

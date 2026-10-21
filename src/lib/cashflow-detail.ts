@@ -78,9 +78,11 @@ export function payLites(rows: OverviewRow[], share: Map<string, number>, orderC
 
 /** Детализация одной статьи трат: по видам платежа (сумма, число), по месяцам, список платежей этой статьи. Итог = значение статьи в таблице. */
 export function spendByArticle(pays: PayLite[], months: string[], ex: boolean, key: ArticleKey) {
-  const list = pays.filter((p) => inMonths(p.iso, months) && (p.art[key] ?? 0) !== 0).map((p) => {
+  /** Шкуры подрядчика в его счёте входят в «Мех: закупка у поставщика» (как в таблице Cashflow). */
+  const av = (p: PayLite) => (p.art[key] ?? 0) + (key === "furPurchase" ? (p.art.hides ?? 0) : 0);
+  const list = pays.filter((p) => inMonths(p.iso, months) && av(p) !== 0).map((p) => {
     const f = ex && p.amount !== 0 ? p.ex / p.amount : 1;
-    return { pay: p, amount: (p.art[key] ?? 0) * f };
+    return { pay: p, amount: av(p) * f };
   });
   const total = sum(list.map((x) => x.amount));
   const byType = (Object.keys(PAY_TYPE_LABEL) as PayType[]).map((t) => { const l = list.filter((x) => x.pay.type === t); return { type: t, label: PAY_TYPE_LABEL[t], total: sum(l.map((x) => x.amount)), count: l.length }; }).filter((r) => r.count > 0);
