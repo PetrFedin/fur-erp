@@ -283,6 +283,18 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   );
 }
 
+const MAIN_FUR_TILES = ["Соболь", "Норка", "Рысь", "Свакара", "Лиса"];
+const OTHER_FUR_LABEL = "Остальной мех";
+const sumFlow = (list: FlowFigures[]): FlowFigures => list.reduce((a, f) => ({ ...a, recvQty: a.recvQty + f.recvQty, recvValue: a.recvValue + f.recvValue, usedQty: a.usedQty + f.usedQty, usedValue: a.usedValue + f.usedValue, usedValueOther: a.usedValueOther + f.usedValueOther, remQty: a.remQty + f.remQty, remValue: a.remValue + f.remValue }), { ...list[0], recvQty: 0, recvValue: 0, usedQty: 0, usedValue: 0, usedValueOther: 0, remQty: 0, remValue: 0 });
+/** Плитки меха: виды вне основных сворачиваются в «Остальной мех» (какие именно — видно в таблице). */
+function collapseFurTypes<T extends { name: string; pair: Pair }>(types: T[]): { name: string; pair: Pair }[] {
+  const main = types.filter((t) => MAIN_FUR_TILES.includes(t.name));
+  const rest = types.filter((t) => !MAIN_FUR_TILES.includes(t.name));
+  if (rest.length === 0) return main;
+  if (rest.length === 1 && main.length === 0) return types;
+  return [...main, { name: OTHER_FUR_LABEL, pair: { incl: sumFlow(rest.map((t) => t.pair.incl)), excl: sumFlow(rest.map((t) => t.pair.excl)) } }];
+}
+
 export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c4, lots, info, orderFilters, vat: vatRates, furSrc: furSrcIn }: { /** Мех по источнику × типу (готовые числа с сервера, с теми же фильтрами Главной). */ furSrc: Record<FurSrc, { total: Pair; types: { name: string; pair: Pair }[] }>; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; lots: number; info: ModeInfo; orderFilters: boolean; vat?: { fur: VatTriple; lining: VatTriple }; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
   void info;
   const { mode: vat } = useVatDisplay();
@@ -311,11 +323,12 @@ export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c
   const groups: { view: "fur" | "lining"; label: string }[] = [{ view: "fur", label: "Мех" }, { view: "lining", label: "Подкладка" }];
   // Группа «Мех»: сверху источник («Вся закупка | На аукционах | У поставщика»), под ним слайды по типам меха внутри источника: «Все типы» → Лиса → Норка → …
   const scope = useFurScope();
-  const nav = useSrcTypeNav({ all: furSrc.all.types.map((t) => t.name), auction: furSrc.auction.types.map((t) => t.name), supplier: furSrc.supplier.types.map((t) => t.name) }, "all", scope ?? undefined);
+  const tileTypes = { all: collapseFurTypes(furSrc.all.types), auction: collapseFurTypes(furSrc.auction.types), supplier: collapseFurTypes(furSrc.supplier.types) };
+  const nav = useSrcTypeNav({ all: tileTypes.all.map((t) => t.name), auction: tileTypes.auction.map((t) => t.name), supplier: tileTypes.supplier.map((t) => t.name) }, "all", scope ?? undefined);
   const { scroller, onScroll, dragProps, cur, step, goTo, maxStart } = nav.sw;
   useActiveSlideHeight(scroller, cur);
   const block = furSrc[nav.src];
-  const slidesF = [{ key: "", label: ALL_TYPES_LABEL, fur: block.total }, ...block.types.map((t) => ({ key: t.name, label: t.name, fur: t.pair }))];
+  const slidesF = [{ key: "", label: ALL_TYPES_LABEL, fur: block.total }, ...tileTypes[nav.src].map((t) => ({ key: t.name, label: t.name, fur: t.pair }))];
   const slideNow = slidesF[Math.min(cur, slidesF.length - 1)];
   const pct = (a: number, b: number) => (b > 0 ? formatPercent((a / b) * 100) : "—");
   const share = (p: Pair, of: Pair, what: string, from: string) => <span title={`${what} в «${from}» по количеству и по сумме`}>{what}: {pct(p[vat].recvQty, of[vat].recvQty)} шт. · {pct(p[vat].recvValue, of[vat].recvValue)} ₽</span>;
