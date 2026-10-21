@@ -196,7 +196,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         { k: "Маркап продаж", v: x2(sm.markupSold) },
       ];
     }
-    return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, ...(slice.soAsEnd !== null ? [{ k: "SO AS (до конца сезона)", v: pct(h.soAs, 1) }] : []), { k: season === "all" ? "Sell-through" : "SO STD (на сегодня)", v: pct(h.sellThrough, 1) }, { k: "Маркап остатка", v: x2(m.markupStock) },
+    return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, ...(slice.soAsEnd !== null ? [{ k: "SO AS (до конца сезона)", v: pct(h.soAs, 1) }] : []), { k: season === "all" ? "SO" : "SO STD (на сегодня)", v: pct(h.sellThrough, 1) }, { k: "Маркап остатка", v: x2(m.markupStock) },
       ...(season === "all" ? [] : [{ k: "Сток тотал", v: qty(h.stockCum) }, { k: "Сток тотал в рознице", v: money(h.stockListCum[v]) }, { k: "Маркап стока тотал", v: x2(h.markupStockCum[v]) }, { k: "Доля сезона", v: h.stockCum > 0 ? pct(h.stock / h.stockCum, 0) : "—" }])];
   };
   const valueOf = (t: Tile, c: SalesCls, s = slice, sk: string = season) => { if (t === "ordered") return orderLineOf(c, sk)?.ordered ?? 0; const h = s.head[c]; return t === "received" ? h.received : t === "sold" ? h.sold : h.stock; };
@@ -204,7 +204,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   const hintOf = (t: Tile) => t === "ordered" ? <p>Заказ: пришло + ждём. По FW 25/26 и SS 2026 больше ничего не ждём (заказано = пришло); по FW 26/27 ждём Conf − поступило (отчёт по товарам). Нажмите — таблица по сезонам со штуками и деньгами.</p>
     : t === "received" ? <p>Приход товара: штуки по строкам прихода выгрузки. Суммы — по себестоимости ТЗ и по прайсу; штуки без цены в сумму не входят.</p>
     : t === "sold" ? <p>Нетто: продажи минус возвраты. Цена — выручка ({vatNote}) ÷ нетто-штуки.</p>
-    : <p>Остаток = приход − продано. Sell-through = продано ÷ получено.</p>;
+    : <p>Остаток = приход − продано. SO = продано ÷ получено.</p>;
 
   const tile = (t: Tile) => (
     <Carousel key={t} label={TILE_TITLE[t]} index={SALES_CLS.indexOf(cls)} onIndex={(k) => setCls(SALES_CLS[k] ?? "all")} onOpen={(k) => { setMSeason(season); setMHier("fur"); setMVat("in"); setOpen({ tile: t, cls: SALES_CLS.find((c) => CLS_LABEL[c] === k) ?? "all" }); }}
