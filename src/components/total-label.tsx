@@ -8,7 +8,7 @@ import { InfoHint } from "@/components/info-hint";
 export function TotalLabel({ unit = "₽", note, avg = false, extra }: { unit?: string; note?: string; avg?: boolean; extra?: string }) {
   return (
     <>
-      Всего, {unit}
+      <span className="whitespace-nowrap">Всего,\u00a0{unit}</span>
       {note ? <span className="ml-1.5 text-[11px] font-normal opacity-80">{note}</span> : null}
       {extra ? <span className="ml-1.5 text-[11px] font-normal opacity-80">{extra}</span> : null}
       {avg ? <InfoHint label="Что значит «Всего» для средней цены"><p>Средневзвешенное значение: сумма ÷ количество по всем лотам/ТЗ.</p></InfoHint> : null}
