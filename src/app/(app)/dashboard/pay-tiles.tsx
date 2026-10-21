@@ -58,7 +58,15 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
   const typeSum = typeRows.reduce((a, t) => a + t.amount, 0);
   const typesOk = inWork && !only && typeRows.length > 0 && Math.abs(typeSum - paidAll) < 1;
   const typeAl = alignColumn(typeRows.map((t) => t.amount), paidAll); // типы платежа складываются в показанное «Оплачено всего»
-  const typeItems: TileItem[] = typeRows.map((t, i) => ({ k: TYPE_LABEL[t.type], v: money(typeAl.values[i]), share: part(typeAl.values[i], paidAll) }));
+  // Проценты типов платежа — целые и в сумме ровно 100 (метод наибольших остатков), без «101 %».
+  const typePct = (() => {
+    const raw = typeAl.values.map((v) => (paidAll > 0.5 ? (v / paidAll) * 100 : 0));
+    const fl = raw.map((x) => Math.floor(x));
+    let left = Math.round(raw.reduce((a, x) => a + x, 0)) - fl.reduce((a, x) => a + x, 0);
+    raw.map((x, i) => [x - Math.floor(x), i] as const).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left > 0) { fl[i] += 1; left -= 1; } });
+    return fl;
+  })();
+  const typeItems: TileItem[] = typeRows.map((t, i) => ({ k: TYPE_LABEL[t.type], v: money(typeAl.values[i]), share: paidAll > 0.5 ? typePct[i] / 100 : null }));
 
   // Строки долга ведут к спискам, где этот остаток виден по партиям закупки и по ТЗ (только на страницах «Оплаты»).
   const DEBT_LINK: Record<string, string> = { "Мех": "/payments?tab=suppliers&asort=rem&adir=desc", "Подкладка": "/payments?tab=suppliers&asort=rem&adir=desc", [SERVICES_LABEL]: "/payments?tab=suppliers&asort=rem&adir=desc", [TERMS.workRest]: "/payments?tab=clients" };

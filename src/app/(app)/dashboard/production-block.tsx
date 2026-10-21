@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSeasonScope } from "./season-scope";
 import { isRepair, sumOrders } from "@/lib/orders-sum";
+import { seasonRank } from "@/lib/sales-section";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty, formatShare } from "@/lib/utils";
@@ -47,7 +48,14 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
     return { nums, years: Array.from(ys).sort((a, b) => a[0].localeCompare(b[0])).map(([label, qty]) => ({ label, qty })) };
   }, [season, drill]);
   const ZERO: ProdNums = { items: 0, repairOrders: 0, repairQty: 0, repairCostIncl: 0, repairCostExcl: 0, orders: 0, qty: 0, costIncl: 0, costExcl: 0, work: 0, furIncl: 0, furExcl: 0, liningIncl: 0, liningExcl: 0, matIncl: 0, matExcl: 0, c4Incl: 0, c4Excl: 0 };
-  const done = sn ? sn.nums : doneP, work = sn ? ZERO : workP, all = sn ? sn.nums : allP, years = sn ? sn.years : yearsP;
+  // На «Все» в плитке «В выпуске» — разбивка по сезонам (доли ТЗ по приходу модели), а не по годам ТЗ; пока ТЗ не загрузились — годы страницы.
+  const seasonQty = useMemo(() => {
+    if (season !== "all" || !drill) return null;
+    const m = new Map<string, number>();
+    for (const o of drill.orders) { if (isRepair(o)) continue; for (const [k, w] of Object.entries(o.sw ?? {})) m.set(k, (m.get(k) ?? 0) + o.qty * w); }
+    return Array.from(m).sort((a, b) => seasonRank(a[0]) - seasonRank(b[0])).map(([label, qty]) => ({ label, qty }));
+  }, [season, drill]);
+  const done = sn ? sn.nums : doneP, work = sn ? ZERO : workP, all = sn ? sn.nums : allP, years = sn ? sn.years : seasonQty && seasonQty.length > 0 ? seasonQty : yearsP;
   const hides = sn ? { incl: 0, excl: 0 } : hidesP, c4Parts = sn ? { fur: { incl: 0, excl: 0 }, lining: { incl: 0, excl: 0 } } : c4PartsP, vatCost: VatByRate = sn ? {} : vatCostP;
   // Себестоимость — факт списания по всем ТЗ.
   const fact = { ...addNums(done, work), orders: all.orders, items: all.items, repairOrders: all.repairOrders };

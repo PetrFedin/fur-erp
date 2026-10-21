@@ -1,3 +1,4 @@
+import { isZeroText } from "@/lib/zero-text";
 import { formatShare } from "@/lib/utils";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -42,7 +43,7 @@ const label = (x: TileItem) => (x.href ? <Link href={x.href} className="text-blu
 const pct = (s: number) => formatShare(s);
 
 /** Нулевая сумма («0 ₽») в списке плитки не показывается: пустое место вместо «0 ₽ 0 %». */
-export const isZeroMoney = (v: ReactNode) => typeof v === "string" && /^[−-]?0(?:[.,]0+)?[\s\u00a0\u202f]*₽$/.test(v.trim());
+export const isZeroMoney = (v: ReactNode) => isZeroText(v);
 
 /** Значение строки: нулевая сумма — пустое место (без «0 ₽» и «0 %»); иначе сначала процент, потом деньги. */
 function Cell({ x }: { x: TileItem }) {
@@ -58,7 +59,9 @@ function Cell({ x }: { x: TileItem }) {
 }
 
 /** Список «статья — сумма — доля %» под крупной цифрой плитки (как в плитках Оплат на Главной). */
-export function TileList({ items, stack = false }: { items: TileItem[]; /** Узкая плитка (ряд из шести): подпись над цифрой, а не в одну строку. */ stack?: boolean }) {
+export function TileList({ items: itemsAll, stack = false }: { items: TileItem[]; /** Узкая плитка (ряд из шести): подпись над цифрой, а не в одну строку. */ stack?: boolean }) {
+  // Вложенные строки (склад, использовано, 4%) без значения не выводим вовсе: ни «—», ни пустого места.
+  const items = itemsAll.filter((x) => !(x.sub && (isZeroMoney(x.v) || x.v === "—" || x.v === "")));
   if (stack) {
     return (
       <dl className="mt-2 space-y-1 text-xs">
