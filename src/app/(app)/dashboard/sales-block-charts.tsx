@@ -23,6 +23,9 @@ const H = 230, PT = 14, PB = 46, PL = 46, PR = 52;
 
 function Chart({ pts, series, label, testId }: { pts: Pt[]; series: Series[]; label: string; testId: string }) {
   const [hot, setHot] = useState<number | null>(null);
+  /** Ряд, на который навели в подписях под графиком: остальные приглушаются (мышь, клавиатура, касание). */
+  const [hotS, setHotS] = useState<string | null>(null);
+  const dim = (name: string) => (hotS !== null && hotS !== name ? 0.15 : 1);
   const box = useRef<HTMLDivElement>(null);
   const [cw, setCw] = useState(0);
   useEffect(() => {
@@ -70,12 +73,12 @@ function Chart({ pts, series, label, testId }: { pts: Pt[]; series: Series[]; la
                         if (pv <= 0) return null;
                         const y1 = yL(acc + pv), y0 = yL(acc);
                         acc += pv;
-                        return <rect key={pt.name} x={x(i) - (bars.length * bw) / 2 + si * bw} y={y1} width={bw - 1} height={Math.max(0, y0 - y1)} fill={pt.color}><title>{`${p.label}: продано, ${pt.name} ${n0(Math.round(pv))} шт.`}</title></rect>;
+                        return <rect key={pt.name} x={x(i) - (bars.length * bw) / 2 + si * bw} y={y1} width={bw - 1} height={Math.max(0, y0 - y1)} fill={pt.color} opacity={dim(`Продано, ${pt.name}`)}><title>{`${p.label}: продано, ${pt.name} ${n0(Math.round(pv))} шт.`}</title></rect>;
                       })}
                     </g>
                   );
                 }
-                return v > 0 ? <rect key={s.name} x={x(i) - (bars.length * bw) / 2 + si * bw} y={yL(v)} width={bw - 1} height={h} fill={s.color} rx="1"><title>{`${p.label}: ${s.name} ${s.fmt(v)}`}</title></rect> : null;
+                return v > 0 ? <rect key={s.name} x={x(i) - (bars.length * bw) / 2 + si * bw} y={yL(v)} width={bw - 1} height={h} fill={s.color} rx="1" opacity={dim(s.name)}><title>{`${p.label}: ${s.name} ${s.fmt(v)}`}</title></rect> : null;
               })}
               <text x={x(i)} y={H - PB + 14} textAnchor={n > 8 ? "end" : "middle"} fontSize="11" fill="#404040" transform={n > 8 ? `rotate(-35 ${x(i)} ${H - PB + 14})` : undefined}>{p.label}</text>
             </g>
@@ -84,15 +87,15 @@ function Chart({ pts, series, label, testId }: { pts: Pt[]; series: Series[]; la
             const f = s.axis === "l" ? yL : yR;
             return (
               <g key={s.name}>
-                <polyline points={s.vals.map((v, i) => `${x(i)},${f(v)}`).join(" ")} fill="none" stroke={s.color} strokeWidth="2" />
-                {s.vals.map((v, i) => <circle key={i} cx={x(i)} cy={f(v)} r={hot === i ? 4 : 3} fill={s.color}><title>{`${pts[i].label}: ${s.name} ${s.fmt(v)}`}</title></circle>)}
+                <polyline points={s.vals.map((v, i) => `${x(i)},${f(v)}`).join(" ")} fill="none" stroke={s.color} strokeWidth={hotS === s.name ? 3.5 : 2} opacity={dim(s.name)} />
+                {s.vals.map((v, i) => <circle key={i} cx={x(i)} cy={f(v)} r={hot === i || hotS === s.name ? 4 : 3} fill={s.color} opacity={dim(s.name)}><title>{`${pts[i].label}: ${s.name} ${s.fmt(v)}`}</title></circle>)}
               </g>
             );
           })}
         </svg>
       </div>
       <div className="mt-1 flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-700" aria-live="polite">
-        {series.flatMap((s) => (s.parts ? s.parts.map((pt) => ({ name: `Продано, ${pt.name}`, color: pt.color, fmt: s.fmt, vals: pt.vals })) : [s])).map((s) => <span key={s.name} className="inline-flex items-center gap-1"><i aria-hidden className="inline-block size-2.5 rounded-sm" style={{ background: s.color }} />{s.name}{hot !== null ? <b className="tabular-nums text-neutral-900"> {s.fmt(s.vals[hot])}</b> : null}</span>)}
+        {series.flatMap((s) => (s.parts ? s.parts.map((pt) => ({ name: `Продано, ${pt.name}`, color: pt.color, fmt: s.fmt, vals: pt.vals })) : [s])).map((s) => <span key={s.name} tabIndex={0} role="button" aria-pressed={hotS === s.name} onMouseEnter={() => setHotS(s.name)} onMouseLeave={() => setHotS(null)} onFocus={() => setHotS(s.name)} onBlur={() => setHotS(null)} onClick={() => setHotS((c) => (c === s.name ? null : s.name))} className={"inline-flex min-h-6 cursor-pointer items-center gap-1 rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-blue-600 " + (hotS === s.name ? "bg-neutral-100 font-medium text-neutral-900" : "")}><i aria-hidden className="inline-block size-2.5 rounded-sm" style={{ background: s.color }} />{s.name}{hot !== null ? <b className="tabular-nums text-neutral-900"> {s.fmt(s.vals[hot])}</b> : null}</span>)}
         {hot !== null ? <span className="ml-auto font-medium text-neutral-900">{pts[hot].label}</span> : null}
       </div>
     </div>
