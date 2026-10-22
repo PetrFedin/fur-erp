@@ -27,7 +27,7 @@ import { loadFurLots } from "../src/lib/fur-table-server";
       attrs: "—", color: "—", usd: null, usdQty: 0, usdSub: 0, usdUQty: 0, usdUSub: 0, usdRQty: 0, usdRSub: 0 } as (typeof rows)[number]);
   }
   writeFileSync(process.argv[2], JSON.stringify(rows));
-  const t = (k: string) => rows.reduce((s, r) => s + ((r as Record<string, number>)[k] ?? 0), 0);
+  const t = (k: string) => rows.reduce((s, r) => s + ((r as unknown as Record<string, number>)[k] ?? 0), 0);
   console.log("лотов", rows.length, "куплено", t("recv"), "использовано", t("used"), "остаток", t("rem"), "с $", t("usdQty"));
   await prisma.$disconnect();
 })();

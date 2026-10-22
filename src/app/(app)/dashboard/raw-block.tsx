@@ -3,7 +3,7 @@
 import { Fragment, createContext, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney, formatPercent, formatQty, formatShare, formatNum, formatDec1 } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty, formatShare, formatNum, formatDec1, formatInt } from "@/lib/utils";
 import { alignColumn, alignFlowMoney, alignRows, type Trio } from "@/lib/money-round";
 import { alignRaw } from "@/lib/raw-display";
 import { TotalLabel } from "@/components/total-label";
@@ -161,6 +161,8 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   const F = alignFlowMoney(fur[vat], c4 === "on");
   const L = alignFlowMoney(lining[vat], c4 === "on");
   const unit = view === "lining" ? "м" : "шт.";
+  // Шкуры — целые числа; подкладка в метрах — с одним знаком.
+  const qtyF = (v: number | null | undefined) => (view === "lining" ? formatDec1(v) : formatInt(v));
   const cur = view === "lining" ? L : F;
   const all = false as boolean; // «Всё» убрано: мех и подкладка — отдельными рядами плиток
   const usdTile = view === "fur";
@@ -178,7 +180,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
     ].filter(Boolean).join("; ");
     return {
       main: usd(F.usdAvg),
-      note: `по ${formatDec1(F.usdQty)} из ${formatDec1(F.recvQty)} шт. с ценой в USD (${formatPercent(share)})`,
+      note: `по ${qtyF(F.usdQty)} из ${qtyF(F.recvQty)} шт. с ценой в USD (${formatPercent(share)})`,
       hint: `Источники цены, шт.: ${parts || "—"}. Остальные лоты — без цены в USD (только рубли или нет курса в документах).`,
     };
   })();
@@ -219,7 +221,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
           ) : (
             <>
               <Duo>
-                <Row k={compact ? "Количество" : <>Количество<span aria-hidden className="invisible"> (доля от купленного)</span></>} v={`${formatDec1(cur.recvQty)} ${unit}`} strong />
+                <Row k={compact ? "Количество" : <>Количество<span aria-hidden className="invisible"> (доля от купленного)</span></>} v={`${qtyF(cur.recvQty)} ${unit}`} strong />
                 <Row k="Сумма" v={rub(cur.recvValue)} strong sub={compact ? <SubLines n={2} /> : ghost} />
               </Duo>
               <Duo>
@@ -245,7 +247,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
           ) : (
             <>
               <Duo>
-                <Row k={compact ? lab("Количество", cur.usedQty, cur.recvQty) : "Количество (доля от купленного)"} v={withShare(cur.usedQty, cur.recvQty, `${formatDec1(cur.usedQty)} ${unit}`)} strong />
+                <Row k={compact ? lab("Количество", cur.usedQty, cur.recvQty) : "Количество (доля от купленного)"} v={withShare(cur.usedQty, cur.recvQty, `${qtyF(cur.usedQty)} ${unit}`)} strong />
                 <Row k={lab("Сумма", usedNo4, cur.recvValue)} v={withShare(usedNo4, cur.recvValue, rub(usedNo4))} strong sub={compact ? <SubLines n={2} lines={[`с 4%: ${rub(usedWith4)}`, `надбавка ${rub(usedWith4 - usedNo4)}`]} /> : `с 4%: ${rub(usedWith4)} · надбавка ${rub(usedWith4 - usedNo4)}`} />
               </Duo>
               <Duo>
@@ -268,7 +270,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
           ) : (
             <>
               <Duo>
-                <Row k={compact ? lab("Количество", cur.remQty, cur.recvQty) : "Количество (доля от купленного)"} v={withShare(cur.remQty, cur.recvQty, `${formatDec1(cur.remQty)} ${unit}`)} strong />
+                <Row k={compact ? lab("Количество", cur.remQty, cur.recvQty) : "Количество (доля от купленного)"} v={withShare(cur.remQty, cur.recvQty, `${qtyF(cur.remQty)} ${unit}`)} strong />
                 <Row k={lab("Сумма", cur.remValue, cur.recvValue)} v={withShare(cur.remValue, cur.recvValue, rub(cur.remValue))} strong sub={compact ? <SubLines n={2} /> : ghost} />
               </Duo>
               <Duo>
@@ -411,11 +413,12 @@ function SrcModal({ src, active, types, total, vat, c4, onClose }: { src: FurSrc
   const cs = useClientSort<{ name: string; pair: Pair }>({
     name: (t) => t.name, rq: (t) => t.pair[vat].recvQty, rv: (t) => t.pair[vat].recvValue, uq: (t) => t.pair[vat].usedQty, uv: (t) => used(t.pair[vat]), mq: (t) => t.pair[vat].remQty, mv: (t) => t.pair[vat].remValue,
   });
+  const qtyF = formatInt;
   const num = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
   const cells = (f: FlowFigures) => (
     <>
-      <td className={num + " border-l border-neutral-200"}>{formatDec1(f.recvQty)} шт.</td><td className={num}>{rub(f.recvValue)}</td>
-      <td className={num + " border-l border-neutral-200"}>{formatDec1(f.usedQty)} шт.</td><td className={num}>{rub(used(f))}</td>
+      <td className={num + " border-l border-neutral-200"}>{qtyF(f.recvQty)} шт.</td><td className={num}>{rub(f.recvValue)}</td>
+      <td className={num + " border-l border-neutral-200"}>{qtyF(f.usedQty)} шт.</td><td className={num}>{rub(used(f))}</td>
       <td className={num + " border-l border-neutral-200"}>{formatQty(f.remQty)} шт.</td><td className={num}>{rub(f.remValue)}</td>
     </>
   );

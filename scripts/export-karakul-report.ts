@@ -20,7 +20,7 @@ const groupOf = (grade: string, material: string, lot = ""): G | null => {
   if (/каракул|karakul/.test(g)) return "Каракуль (свакара)";
   if (/каракульч|broadtail/.test(material.toLowerCase())) return "Бродтейл";
   if (/свакара|swakara/.test(material.toLowerCase())) return "Каракуль (свакара)";
-  return /каракул|karakul/.test(t) ? "Каракуль" : null;
+  return /каракул|karakul/.test(t) ? "Каракуль (свакара)" : null;
 };
 
 async function main() {

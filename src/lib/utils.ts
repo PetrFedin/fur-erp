@@ -119,6 +119,12 @@ export function formatDec1(value: number | string | null | undefined): string {
   return n == null || !Number.isFinite(n) ? "—" : new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
 }
 
+/** Целое число (шкуры в шт.): без запятой и знака после неё. */
+export function formatInt(value: number | string | null | undefined): string {
+  const n = typeof value === "string" ? Number(value) : value;
+  return n == null || !Number.isFinite(n) ? "—" : new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(n));
+}
+
 export function formatQty(value: number | string) {
   return formatNum(value, 10);
 }

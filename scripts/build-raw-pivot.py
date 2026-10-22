@@ -14,7 +14,7 @@ H = ["Вид меха", "Источник", "Год", "Аукцион", "Лот"
 K = ["item", "src", "year", "auction", "lot", "grade", "recv", "recvIn", "used", "usedIn", "rem", "remIn", "recvEx", "usedEx", "remEx", "usd", "usdQty", "usdSub", "usdUQty", "usdUSub", "usdRQty", "usdRSub", "attrs", "color"]
 NF = len(H)
 wb = openpyxl.Workbook()
-wb.active.title = "Сырьё с НДС"; wb.create_sheet("Сырьё без НДС"); ref = wb.create_sheet("Справка"); ws = wb.create_sheet("Данные")
+wb.active.title = "Сырьё с НДС"; wb.create_sheet("Сырьё без НДС"); ref = wb.create_sheet("Справка сырьё"); ws = wb.create_sheet("Данные сырьё")
 ws.append(H)
 for r in rows: ws.append([r[k] for k in K])
 for c in ws[1]: c.font = Font(bold=True); c.alignment = Alignment(wrap_text=True, vertical="center")
@@ -65,7 +65,7 @@ CALC = [
 ]
 NC = len(CALC)
 fields = "".join(cache_field(i) for i in range(NF)) + "".join(f'<cacheField name="{escape(n_)}" numFmtId="0" formula="{escape(f_)}" databaseField="0"/>' for n_, f_ in CALC)
-cache = f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotCacheDefinition xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" refreshOnLoad="1" refreshedVersion="8" minRefreshableVersion="3" createdVersion="6" recordCount="{n}"><cacheSource type="worksheet"><worksheetSource ref="A1:{get_column_letter(NF)}{last}" sheet="Данные"/></cacheSource><cacheFields count="{NF + NC}">{fields}</cacheFields></pivotCacheDefinition>'
+cache = f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotCacheDefinition xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" refreshOnLoad="1" refreshedVersion="8" minRefreshableVersion="3" createdVersion="6" recordCount="{n}"><cacheSource type="worksheet"><worksheetSource ref="A1:{get_column_letter(NF)}{last}" sheet="Данные сырьё"/></cacheSource><cacheFields count="{NF + NC}">{fields}</cacheFields></pivotCacheDefinition>'
 def pf_axis(i, ax): return f'<pivotField axis="{ax}" showAll="0"><items count="{len(sv[i])+1}">' + "".join(f'<item x="{k}"/>' for k in range(len(sv[i]))) + '<item t="default"/></items></pivotField>'
 def table(name, data):
     dset = {f for _, f, _ in data}
