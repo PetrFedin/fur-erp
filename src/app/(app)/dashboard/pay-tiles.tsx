@@ -34,9 +34,14 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
   const N = payNumbers(d, c4Mode, only);
   const { furD, linD, inFur, inLin, inWork, inServ, adv, P, L, T, paidAll, leftAll, due, roundAll, totalAll, furPaidD, linPaidD, furLeftD, linLeftD } = N;
   const part = (v: number, whole: number) => (whole > 0.5 ? v / whole : null);
-  const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, serv: number, work: number, warn?: boolean, workLabel = "Работа подрядчику"): TileItem[] => [
+  const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, serv: number, work: number, warn?: boolean, workLabel = "Работа подрядчику", bought = false): TileItem[] => [
     ...(inFur ? [
       ...(only ? [] : [{ k: "Мех", v: money(fur), share: part(fur, whole), tone: warn && fur > 0 ? "text-amber-700" : undefined }]),
+      // Закупки меха по источникам (стоимость «Куплено», с НДС) — те же цифры, что в «Сырьё» → «На аукционах» / «У поставщика».
+      ...(bought && !only ? [
+        { k: "куплено на аукционах", v: dash(d.rawSources.auction.incl.recvValue), sub: true },
+        { k: "куплено у поставщика", v: dash(d.rawSources.supplier.incl.recvValue), sub: true },
+      ] : []),
       { k: "остаток на складе", v: dash(furSplit.stock), sub: !only },
       { k: "использовано", v: dash(furSplit.used), sub: !only },
       { k: "4%", v: dash(furC4), sub: !only },
@@ -101,7 +106,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
         ) : null}
         <TileValue compact={bare}>{money(paidAll)}</TileValue>
         <div data-testid="paid-by-item">
-          <TileList stack={bare} items={list(paidAll, P.fur, furPaidD, furD.c4, P.lining, linPaidD, linD.c4, P.services, P.work, true)} />
+          <TileList stack={bare} items={list(paidAll, P.fur, furPaidD, furD.c4, P.lining, linPaidD, linD.c4, P.services, P.work, true, undefined, true)} />
         </div>
         {typesOk ? (
           <div data-testid="paid-by-type" className="mt-2 border-t border-neutral-100 pt-2">
