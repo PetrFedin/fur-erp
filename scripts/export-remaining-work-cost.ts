@@ -35,6 +35,28 @@ async function main() {
     M030: ["Одежда меховая", "Шубы", "шуба однобортная"], M039: ["Одежда меховая", "Шубы", "шуба удлинённая"], M040: ["Одежда меховая", "Шубы", "шуба удлинённая"],
     M054: ["Одежда меховая", "Шубы", "шуба удлинённая"], M058: ["Одежда меховая", "Шубы", "шуба укороченная"], M059: ["Одежда меховая", "Шубы", "шуба укороченная"], "MCF02": ["Манжеты", "Манжеты", "манжеты"],
   };
+  const FUR: [RegExp, string][] = [[/SABLE/, "Соболь"], [/MINK/, "Норка"], [/LYNX/, "Рысь"], [/FOX/, "Лиса"], [/KARAKUL|SWAKARA/, "Свакара"]];
+  const furKey = (acode: string) => { const u = acode.toUpperCase(); return FUR.filter(([re]) => re.test(u)).map(([, n]) => n).sort().join(" + "); };
+  // Пул ориентиров: артикулы с известной ценой работы модели (мех, категория 4, категория 5, цена).
+  const pool = new Map<string, { fur: string; l4: string; l5: string; rate: number; model: string }>();
+  for (const l of lines) {
+    const m = norm(l.modelCode ?? l.article.split("/")[0]); const r = rate.get(m); if (!r) continue;
+    if (!pool.has(l.article)) pool.set(l.article, { fur: furKey(l.article), l4: l.level4 || "", l5: l.level5 || "", rate: r.sum / r.qty, model: m });
+  }
+  const estimate = (fur: string, l4: string, l5: string) => {
+    const tries: [string, (p: { fur: string; l4: string; l5: string }) => boolean][] = [
+      ["мех + категории 1–3", (p) => p.fur === fur && p.l4 === l4 && p.l5.toLowerCase().replace(/ё/g, "е") === l5.toLowerCase().replace(/ё/g, "е")],
+      ["мех + категория 2", (p) => p.fur === fur && p.l4 === l4],
+      ["категория 2 (мех любой)", (p) => p.l4 === l4],
+    ];
+    for (const [what, f] of tries) {
+      const byModel = new Map<string, number>();
+      for (const p of pool.values()) if (f(p) && p.fur !== "" ) byModel.set(p.model, p.rate);
+      if (what.startsWith("категория 2") ) for (const p of pool.values()) if (f(p)) byModel.set(p.model, p.rate);
+      const v = [...byModel.values()]; if (v.length) return { avg: v.reduce((a, b) => a + b, 0) / v.length, n: v.length, what, min: Math.min(...v), max: Math.max(...v) };
+    }
+    return null;
+  };
   const art = new Map<string, { acode: string; modelCode: string; left: number }>();
   for (const r of rows) {
     const d = (r.fw26Conf ?? 0) - (r.fw26Deliv ?? 0); if (d <= 0) continue;
@@ -44,20 +66,21 @@ async function main() {
     const man = MANUAL[norm(a.modelCode)];
     const v = man ? ["", man[0], man[1], ""] : lv.get(a.acode) ?? lvModel.get(a.modelCode) ?? ["", "", "", ""];
     const r = rate.get(norm(a.modelCode)); const avg = r ? r.sum / r.qty : null;
-    return { c1: v[1] || v[0] || catOf.get(norm(a.modelCode)) || "(без категории)", c2: v[2] || "", a, avg, r };
+    const est = avg == null ? estimate(furKey(a.acode), v[2] || "", man ? man[2] : v[3] || "") : null;
+    return { est, c3: man ? man[2][0].toUpperCase() + man[2].slice(1) : v[3] || "", c1: v[1] || v[0] || catOf.get(norm(a.modelCode)) || "(без категории)", c2: v[2] || "", a, avg, r };
   }).sort((x, y) => x.c1.localeCompare(y.c1, "ru") || x.c2.localeCompare(y.c2, "ru") || x.a.acode.localeCompare(y.a.acode));
 
   const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet("Работа на остаток заказа");
-  ws.columns = [{ header: "Категория 1", width: 22 }, { header: "Категория 2", width: 22 }, { header: "Артикул", width: 38 }, { header: "Осталось получить, шт.", width: 14 }, { header: "Цена работы, ₽/шт.", width: 16 }, { header: "Работа на остаток, ₽", width: 18 }, { header: "Основание", width: 44 }];
+  ws.columns = [{ header: "Категория 1", width: 22 }, { header: "Категория 2", width: 22 }, { header: "Категория 3", width: 24 }, { header: "Артикул", width: 38 }, { header: "Осталось получить, шт.", width: 14 }, { header: "Цена работы, ₽/шт.", width: 16 }, { header: "Работа на остаток, ₽", width: 18 }, { header: "Ориентир по меху и категории, ₽/шт. (только где нет цены)", width: 22 }, { header: "Ориентир на остаток, ₽", width: 18 }, { header: "Основание ориентира", width: 52 }, { header: "Основание", width: 44 }];
   ws.getRow(1).font = { bold: true }; ws.getRow(1).alignment = { wrapText: true, vertical: "middle" };
   list.forEach((x, i) => {
     const n = i + 2;
-    ws.addRow([x.c1, x.c2, x.a.acode, x.a.left, x.avg == null ? null : Math.round(x.avg), x.avg == null ? null : { formula: `D${n}*E${n}`, result: Math.round(x.avg) * x.a.left }, x.r ? `среднее по ${x.r.n} ТЗ модели ${x.a.modelCode}${x.r.min !== x.r.max ? `, от ${x.r.min.toLocaleString("ru")} до ${x.r.max.toLocaleString("ru")}` : ""}` : `новая модель ${x.a.modelCode} (${MANUAL[norm(x.a.modelCode)]?.[2] ?? ""}): ТЗ с ценой работы не было`]);
+    ws.addRow([x.c1, x.c2, x.c3, x.a.acode, x.a.left, x.avg == null ? null : Math.round(x.avg), x.avg == null ? null : { formula: `E${n}*F${n}`, result: Math.round(x.avg) * x.a.left }, x.est ? Math.round(x.est.avg) : null, x.est ? { formula: `E${n}*H${n}`, result: Math.round(x.est.avg) * x.a.left } : null, x.est ? `${x.est.what}: среднее по ${x.est.n} мод., от ${Math.round(x.est.min).toLocaleString("ru")} до ${Math.round(x.est.max).toLocaleString("ru")}` : x.avg == null ? "похожих нет" : "", x.r ? `среднее по ${x.r.n} ТЗ модели ${x.a.modelCode}${x.r.min !== x.r.max ? `, от ${x.r.min.toLocaleString("ru")} до ${x.r.max.toLocaleString("ru")}` : ""}` : `новая модель ${x.a.modelCode} (${MANUAL[norm(x.a.modelCode)]?.[2] ?? ""}): ТЗ с ценой работы не было`]);
   });
   const t = list.length + 2;
-  ws.addRow(["Всего", "", "", { formula: `SUM(D2:D${t - 1})`, result: list.reduce((s, x) => s + x.a.left, 0) }, "", { formula: `SUM(F2:F${t - 1})`, result: 0 }, `новых (без цены): ${list.filter((x) => x.avg == null).length} арт., ${list.filter((x) => x.avg == null).reduce((s, x) => s + x.a.left, 0)} шт.`]).font = { bold: true };
-  for (const c of ["D", "E", "F"]) ws.getColumn(c).numFmt = "#,##0";
-  ws.views = [{ state: "frozen", ySplit: 1 }]; ws.autoFilter = `A1:G${t - 1}`;
+  ws.addRow(["Всего", "", "", "", { formula: `SUM(E2:E${t - 1})`, result: list.reduce((s, x) => s + x.a.left, 0) }, "", { formula: `SUM(G2:G${t - 1})`, result: 0 }, "", { formula: `SUM(I2:I${t - 1})`, result: 0 }, "", `новых (без цены): ${list.filter((x) => x.avg == null).length} арт., ${list.filter((x) => x.avg == null).reduce((s, x) => s + x.a.left, 0)} шт.`]).font = { bold: true };
+  for (const c of ["E", "F", "G", "H", "I"]) ws.getColumn(c).numFmt = "#,##0";
+  ws.views = [{ state: "frozen", ySplit: 1 }]; ws.autoFilter = `A1:K${t - 1}`;
   await wb.xlsx.writeFile(out);
   const priced = list.filter((x) => x.avg != null);
   console.log(`артикулов ${list.length}, штук ${list.reduce((s, x) => s + x.a.left, 0)}; с ценой ${priced.length} арт. / ${priced.reduce((s, x) => s + x.a.left, 0)} шт.; сумма ${Math.round(priced.reduce((s, x) => s + Math.round(x.avg!) * x.a.left, 0))}; без цены ${list.length - priced.length}`);
