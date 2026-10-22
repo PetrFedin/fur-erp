@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { formatPercent, formatNum, formatDec1, formatDateTime, formatMoney, formatMoneySigned } from "@/lib/utils";
+import { formatPercent, formatNum, formatDec1, formatMoney, formatMoneySigned } from "@/lib/utils";
 import { useConfirm } from "@/components/confirm-dialog";
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
@@ -11,12 +11,12 @@ import { TileCarousel } from "@/components/tile-carousel";
 import { TotalLabel } from "@/components/total-label";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../dashboard/tile";
 import {
-  autoCalc, collapseUnknownLengths, blankNode, childrenMap, computeTree, defaultLines, effLocked, effUp, grandTotal, isAccessoryCat, normKey, perUnit, reapplyParams, srcInfo,
+  addAgg, autoCalc, collapseUnknownLengths, blankNode, childrenMap, computeTree, defaultLines, effLocked, effUp, grandTotal, isAccessoryCat, normKey, perUnit, reapplyParams, srcInfo,
   type Agg, type BudgetNode, type BudgetParams, type BudgetStat, type EffUp,
 } from "@/lib/budget-calc";
 import { exportBudgetXlsx, parseBudgetFile, refreshBudgetStats, renameBudget, saveBudget, type ImportRow } from "./actions";
 import { AddDialog, type AddKind, type ArticleOpt } from "./add-dialog";
-import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, NumInput, SEG_BOX, dateRu, money, qty, segBtn, share } from "./ui";
+import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, NumInput, SEG_BOX, money, qty, segBtn, share } from "./ui";
 
 type Props = {
   id: string; name: string; season: string; status: "DRAFT" | "APPROVED"; initialComment: string; initialParams: BudgetParams; initialNodes: BudgetNode[];
@@ -354,7 +354,14 @@ export function BudgetEditor(p: Props) {
     (kids.get(parentId) ?? []).filter((n) => n.kind === kind).map((n) => (kind === "art" ? (n.modelId ?? "") : n.name.toLowerCase()));
 
   // ---- Мелкие элементы строки
-  const perT = perUnit(fullTotal);
+  // «На 1 изделие» считаем отдельно для одежды и аксессуаров: у них разная стоимость, общее среднее вводит в заблуждение.
+  const kindAgg = useMemo(() => {
+    const r = { cloth: { ...ZERO }, acc: { ...ZERO } };
+    for (const c of nodes) if (c.kind === "cat") { const a = fullCalc.get(c.id); if (a) { const k = isAccessoryCat(c, p.catGroups) ? "acc" : "cloth"; r[k] = addAgg(r[k], a); } }
+    return r;
+  }, [nodes, fullCalc, p.catGroups]);
+  const perKind = (f: (a: Agg) => number | null, fmt: (v: number | null) => string = money): { k: string; v: string }[] =>
+    ([["Одежда, 1 изд.", kindAgg.cloth], ["Аксессуары, 1 изд.", kindAgg.acc]] as const).filter(([, a]) => a.pcs > 0).map(([k, a]) => ({ k, v: fmt(f(a)) }));
   const leafOf = (n: BudgetNode) => n.kind !== "fur" && (kids.get(n.id) ?? []).length === 0;
 
   /** Индикатор качества данных: цветная точка с подсказкой; у категории-листа по клику выбирается источник статистики. */
@@ -426,8 +433,7 @@ export function BudgetEditor(p: Props) {
     const isMex = sl.id === "mex";
     const items = [
       { k: "Цена шкуры, ср.", v: money(sl.a.hides ? sl.a.mex / sl.a.hides : null) },
-      { k: "Шкур на изд., ср.", v: formatDec1(sl.a.pcs ? sl.a.hides / sl.a.pcs : null) },
-      { k: "Доля", v: share(isMex ? sl.a.mex : sl.a.total, fullTotal.total) },
+            { k: "Доля", v: share(isMex ? sl.a.mex : sl.a.total, fullTotal.total) },
     ];
     return {
       key: sl.id, label: sl.name,
@@ -441,11 +447,11 @@ export function BudgetEditor(p: Props) {
 
   const totalTiles = (
     <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 print:grid-cols-5">
-      {tile("t", "Прогноз бюджета", money(fullTotal.total), `${qty(fullTotal.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }])}
+      {tile("t", "Прогноз бюджета", money(fullTotal.total), `${qty(fullTotal.pcs, 0)} изд.`, perKind(perUnit))}
       {furTile}
-      {tile("l", "Подкладка", money(fullTotal.lining), `${formatDec1(fullTotal.meters)} м`, [{ k: "Цена за м, ср.", v: money(fullTotal.meters ? fullTotal.lining / fullTotal.meters : null) }, { k: "Метров на изд., ср.", v: qty(fullTotal.pcs ? fullTotal.meters / fullTotal.pcs : null, 1) }, { k: "Доля", v: share(fullTotal.lining, fullTotal.total) }])}
-      {tile("w", "Работа", money(fullTotal.work), "пошив", [{ k: "На 1 изделие", v: money(fullTotal.pcs ? fullTotal.work / fullTotal.pcs : null) }, { k: "Надбавка к цене", v: formatPercent(params.upWork) }, { k: "Доля", v: share(fullTotal.work, fullTotal.total) }])}
-      {tile("c", `Надбавка ${formatPercent(params.c4)}`, money(fullTotal.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(fullTotal.pcs ? fullTotal.c4 / fullTotal.pcs : null) }, { k: "Доля", v: share(fullTotal.c4, fullTotal.total) }])}
+      {tile("l", "Подкладка", money(fullTotal.lining), `${formatDec1(fullTotal.meters)} м`, [{ k: "Цена за м, ср.", v: money(fullTotal.meters ? fullTotal.lining / fullTotal.meters : null) }, ...perKind((a) => (a.pcs ? a.meters / a.pcs : null), (v) => `${qty(v, 1)} м`), { k: "Доля", v: share(fullTotal.lining, fullTotal.total) }])}
+      {tile("w", "Работа", money(fullTotal.work), "пошив", [...perKind((a) => (a.pcs ? a.work / a.pcs : null)), { k: "Доля", v: share(fullTotal.work, fullTotal.total) }])}
+      {tile("c", `Надбавка ${formatPercent(params.c4)}`, money(fullTotal.c4), "на мех и подкладку", [...perKind((a) => (a.pcs ? a.c4 / a.pcs : null)), { k: "Доля", v: share(fullTotal.c4, fullTotal.total) }])}
     </div>
   );
   // ---- Сводка (для руководства): без полей ввода
@@ -641,7 +647,7 @@ export function BudgetEditor(p: Props) {
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.work)}<Avg sum={total.work} per={total.pcs} unit="₽/изд." /></td>
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}<Avg sum={total.c4} per={total.pcs} unit="₽/изд." /></td>
       <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(total.total)}</td>
-      <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(perT)}</td>
+      <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums text-neutral-400">—</td>
       <td className="border-l border-neutral-200 lg:sticky lg:right-0 lg:z-10" />
     </tr>
   );
@@ -715,8 +721,7 @@ export function BudgetEditor(p: Props) {
               </button>
             ) : null}
           </div>
-          <p className="mt-0.5 text-xs text-neutral-500">Создан {dateRu(p.createdAt)} · Обновлён {formatDateTime(updatedAtState ?? p.savedAt)}{p.savedBy ? ` · ${p.savedBy}` : ""}</p>
-          <p className={"text-[11px] " + (dirty || saveState === "error" ? "font-medium text-amber-700" : "text-neutral-400")} role="status">{saveText}</p>
+          <p className={"mt-0.5 text-xs " + (dirty || saveState === "error" ? "font-medium text-amber-700" : "text-neutral-400")} role="status">{saveText}</p>
         </div>
         {staff ? (
           <div className="flex flex-wrap items-center gap-2">
