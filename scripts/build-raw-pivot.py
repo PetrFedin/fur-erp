@@ -10,15 +10,15 @@ from xml.sax.saxutils import escape
 rows = json.load(open(sys.argv[1])); out = sys.argv[2]; tmp = out + ".base.xlsx"
 rows.sort(key=lambda r: (r["item"], 0 if "аукционе" in r["src"] else 1, r["year"], r["auction"], r["lot"]))
 H = ["Вид меха", "Источник", "Год", "Аукцион", "Лот", "Сорт (текст лота)", "Куплено, шт.", "Куплено, ₽ с НДС", "Использовано, шт.", "Использовано, ₽ с НДС", "Остаток, шт.", "Остаток, ₽ с НДС",
-     "Куплено, ₽ без НДС", "Использовано, ₽ без НДС", "Остаток, ₽ без НДС", "Молоток, $/шт. (по лоту)", "Куплено с $, шт.", "Куплено, $", "Использовано с $, шт.", "Использовано, $", "Остаток с $, шт.", "Остаток, $"]
-K = ["item", "src", "year", "auction", "lot", "grade", "recv", "recvIn", "used", "usedIn", "rem", "remIn", "recvEx", "usedEx", "remEx", "usd", "usdQty", "usdSub", "usdUQty", "usdUSub", "usdRQty", "usdRSub"]
+     "Куплено, ₽ без НДС", "Использовано, ₽ без НДС", "Остаток, ₽ без НДС", "Молоток, $/шт. (по лоту)", "Куплено с $, шт.", "Куплено, $", "Использовано с $, шт.", "Использовано, $", "Остаток с $, шт.", "Остаток, $", "Признаки меха", "Цвет"]
+K = ["item", "src", "year", "auction", "lot", "grade", "recv", "recvIn", "used", "usedIn", "rem", "remIn", "recvEx", "usedEx", "remEx", "usd", "usdQty", "usdSub", "usdUQty", "usdUSub", "usdRQty", "usdRSub", "attrs", "color"]
 NF = len(H)
 wb = openpyxl.Workbook()
 wb.active.title = "Сырьё с НДС"; wb.create_sheet("Сырьё без НДС"); ref = wb.create_sheet("Справка"); ws = wb.create_sheet("Данные")
 ws.append(H)
 for r in rows: ws.append([r[k] for k in K])
 for c in ws[1]: c.font = Font(bold=True); c.alignment = Alignment(wrap_text=True, vertical="center")
-for i, w in enumerate([14, 22, 7, 22, 14, 40, 11, 14, 12, 14, 11, 14, 14, 14, 14, 12, 12, 12, 12, 12, 12, 12], 1): ws.column_dimensions[get_column_letter(i)].width = w
+for i, w in enumerate([14, 22, 7, 22, 14, 40, 11, 14, 12, 14, 11, 14, 14, 14, 14, 12, 12, 12, 12, 12, 12, 12, 22, 16], 1): ws.column_dimensions[get_column_letter(i)].width = w
 for col in "GIKQSU":
     for c in ws[col][1:]: c.number_format = "#,##0.0"
 for col in "HJLMNO":
@@ -33,7 +33,7 @@ for a, b in [("Куплено / Использовано / Остаток", "Ш�
  ("Молоток, $", "Цена молотка за шкуру в долларах по документам лота. Для лотов без цены в $ она не определена и в расчёты $ не входит."),
  ("Ср. молоток $ (куплено / использовано / остаток)", "Σ $ ÷ Σ шт. только по шкурам из лотов, где цена в $ известна. Колонки «Куплено с $, шт.» и т. д. показывают покрытие."),
  ("Куплено на аукционе / у поставщика", "Аукцион — закупка на пушном аукционе (SAGA, Kopenhagen, Fur Harvesters и т. д.); остальное и шкуры подрядчика — у поставщика."),
- ("Как смотреть", "Строки: вид меха → источник → аукцион → лот. Фильтр «Год». После изменений на листе «Данные»: Данные → Обновить всё.")]: ref.append([a, b])
+ ("Как смотреть", "Строки: вид меха → признаки (седина, дикий и т. п.; нет явного признака — «—») → цвет → источник → год → аукцион → лот. После изменений на листе «Данные»: Данные → Обновить всё.")]: ref.append([a, b])
 for r in ref.iter_rows(min_row=2): r[1].alignment = Alignment(wrap_text=True, vertical="top")
 wb.save(tmp)
 
@@ -44,7 +44,7 @@ def uniq(i):
         v = str(r[K[i]])
         if v not in seen: seen.append(v)
     return seen
-AX_ROW = [0, 1, 3, 4]; AX_PAGE = [2]
+AX_ROW = [0, 22, 23, 1, 2, 3, 4]; AX_PAGE = []
 sv = {i: uniq(i) for i in AX_ROW + AX_PAGE}
 def cache_field(i):
     nm = escape(H[i])
@@ -77,7 +77,7 @@ def table(name, data):
         elif i >= NF: pf.append('<pivotField dragToRow="0" dragToCol="0" dragToPage="0" showAll="0" defaultSubtotal="0"/>')
         else: pf.append('<pivotField showAll="0"/>')
     dfs = "".join(f'<dataField name="{escape(nm)}" fld="{f}" baseField="0" baseItem="0" numFmtId="{nf}"/>' for nm, f, nf in data)
-    return f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotTableDefinition xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" name="{name}" cacheId="1" showError="1" errorCaption="—" applyNumberFormats="0" applyBorderFormats="0" applyFontFormats="0" applyPatternFormats="0" applyAlignmentFormats="0" applyWidthHeightFormats="1" dataCaption="Значения" updatedVersion="8" minRefreshableVersion="3" useAutoFormatting="1" itemPrintTitles="1" createdVersion="6" indent="0" outline="1" outlineData="1" multipleFieldFilters="0" rowHeaderCaption="Вид / источник / аукцион / лот"><location ref="A4:V12" firstHeaderRow="0" firstDataRow="1" firstDataCol="1" rowPageCount="1" colPageCount="1"/><pivotFields count="{NF+NC}">{"".join(pf)}</pivotFields><rowFields count="4">' + "".join(f'<field x="{i}"/>' for i in AX_ROW) + f'</rowFields><colFields count="1"><field x="-2"/></colFields><pageFields count="1"><pageField fld="2" hier="-1"/></pageFields><dataFields count="{len(data)}">{dfs}</dataFields><pivotTableStyleInfo name="PivotStyleLight16" showRowHeaders="1" showColHeaders="1" showRowStripes="0" showColStripes="0" showLastColumn="1"/></pivotTableDefinition>'
+    return f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotTableDefinition xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" name="{name}" cacheId="1" showError="1" errorCaption="—" applyNumberFormats="0" applyBorderFormats="0" applyFontFormats="0" applyPatternFormats="0" applyAlignmentFormats="0" applyWidthHeightFormats="1" dataCaption="Значения" updatedVersion="8" minRefreshableVersion="3" useAutoFormatting="1" itemPrintTitles="1" createdVersion="6" indent="0" outline="1" outlineData="1" multipleFieldFilters="0" rowHeaderCaption="Вид / признаки / цвет / источник / год / аукцион / лот"><location ref="A4:V12" firstHeaderRow="0" firstDataRow="1" firstDataCol="1" colPageCount="1"/><pivotFields count="{NF+NC}">{"".join(pf)}</pivotFields><rowFields count="7">' + "".join(f'<field x="{i}"/>' for i in AX_ROW) + f'</rowFields><colFields count="1"><field x="-2"/></colFields><dataFields count="{len(data)}">{dfs}</dataFields><pivotTableStyleInfo name="PivotStyleLight16" showRowHeaders="1" showColHeaders="1" showRowStripes="0" showColStripes="0" showLastColumn="1"/></pivotTableDefinition>'
 c0 = NF
 common_usd = [("Куплено с $, шт.", 16, 3), ("Куплено, $", 17, 3), ("Ср. молоток закупки, $ (по лотам с $)", c0 + 6, 3),
               ("Использовано с $, шт.", 18, 3), ("Использовано, $", 19, 3), ("Ср. молоток использования, $ (по лотам с $)", c0 + 7, 3),
