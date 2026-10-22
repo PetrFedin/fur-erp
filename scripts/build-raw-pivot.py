@@ -79,13 +79,10 @@ def table(name, data):
     dfs = "".join(f'<dataField name="{escape(nm)}" fld="{f}" baseField="0" baseItem="0" numFmtId="{nf}"/>' for nm, f, nf in data)
     return f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotTableDefinition xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" name="{name}" cacheId="1" showError="1" errorCaption="—" applyNumberFormats="0" applyBorderFormats="0" applyFontFormats="0" applyPatternFormats="0" applyAlignmentFormats="0" applyWidthHeightFormats="1" dataCaption="Значения" updatedVersion="8" minRefreshableVersion="3" useAutoFormatting="1" itemPrintTitles="1" createdVersion="6" indent="0" outline="1" outlineData="1" multipleFieldFilters="0" rowHeaderCaption="Вид / признаки / цвет / источник / год / аукцион / лот"><location ref="A4:V12" firstHeaderRow="0" firstDataRow="1" firstDataCol="1" colPageCount="1"/><pivotFields count="{NF+NC}">{"".join(pf)}</pivotFields><rowFields count="7">' + "".join(f'<field x="{i}"/>' for i in AX_ROW) + f'</rowFields><colFields count="1"><field x="-2"/></colFields><dataFields count="{len(data)}">{dfs}</dataFields><pivotTableStyleInfo name="PivotStyleLight16" showRowHeaders="1" showColHeaders="1" showRowStripes="0" showColStripes="0" showLastColumn="1"/></pivotTableDefinition>'
 c0 = NF
-common_usd = [("Куплено с $, шт.", 16, 3), ("Куплено, $", 17, 3), ("Ср. молоток закупки, $ (по лотам с $)", c0 + 6, 3),
-              ("Использовано с $, шт.", 18, 3), ("Использовано, $", 19, 3), ("Ср. молоток использования, $ (по лотам с $)", c0 + 7, 3),
-              ("Остаток с $, шт.", 20, 3), ("Остаток, $", 21, 3), ("Ср. молоток остатка, $ (по лотам с $)", c0 + 8, 3)]
-t1 = table("Сырьё с НДС", [("Куплено, шт.", 6, 3), ("Куплено, ₽", 7, 3), ("Ср. цена закупки, ₽/шт.", c0 + 0, 3), ("Использовано, шт.", 8, 3), ("Использовано, ₽", 9, 3), ("Ср. цена использования, ₽/шт.", c0 + 1, 3),
-                           ("Остаток, шт.", 10, 3), ("Остаток, ₽", 11, 3), ("Ср. цена остатка, ₽/шт.", c0 + 2, 3)] + common_usd)
-t2 = table("Сырьё без НДС", [("Куплено, шт.", 6, 3), ("Куплено, ₽", 12, 3), ("Ср. цена закупки, ₽/шт.", c0 + 3, 3), ("Использовано, шт.", 8, 3), ("Использовано, ₽", 13, 3), ("Ср. цена использования, ₽/шт.", c0 + 4, 3),
-                           ("Остаток, шт.", 10, 3), ("Остаток, ₽", 14, 3), ("Ср. цена остатка, ₽/шт.", c0 + 5, 3)] + common_usd)
+def block(qty, rub, avg, uq, us, avgu, label, gen):
+    return [(f"{label}, шт.", qty, 3), (f"{label}, ₽", rub, 3), (f"Ср. цена {gen}, ₽/шт.", avg, 3), (f"{label} с $, шт.", uq, 3), (f"{label}, $", us, 3), (f"Ср. молоток {gen}, $ (по лотам с $)", avgu, 3)]
+t1 = table("Сырьё с НДС", block(6, 7, c0 + 0, 16, 17, c0 + 6, "Куплено", "закупки") + block(8, 9, c0 + 1, 18, 19, c0 + 7, "Использовано", "использования") + block(10, 11, c0 + 2, 20, 21, c0 + 8, "Остаток", "остатка"))
+t2 = table("Сырьё без НДС", block(6, 12, c0 + 3, 16, 17, c0 + 6, "Куплено", "закупки") + block(8, 13, c0 + 4, 18, 19, c0 + 7, "Использовано", "использования") + block(10, 14, c0 + 5, 20, 21, c0 + 8, "Остаток", "остатка"))
 zi = zipfile.ZipFile(tmp); zo = zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED)
 for nm in zi.namelist():
     b = zi.read(nm)
