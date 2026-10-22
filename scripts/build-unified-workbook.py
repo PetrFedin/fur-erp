@@ -9,6 +9,7 @@ from openpyxl.utils import get_column_letter
 from xml.sax.saxutils import escape
 
 old_path, raw_path, recon_path, out = sys.argv[1:5]
+classic_path = sys.argv[5] if len(sys.argv) > 5 else None
 tmp = out + ".base.xlsx"
 recon = json.load(open(recon_path)); raw = json.load(open(raw_path))
 owb = openpyxl.load_workbook(old_path, data_only=True)
@@ -96,7 +97,7 @@ print("строк:", N, "по блокам:", {b: sum(1 for x in rows if x[0] ==
 
 # ---------- книга
 wb = openpyxl.Workbook()
-SHEETS = ["Расходы с НДС", "Расходы без НДС", "Сырьё с НДС", "Сырьё без НДС", "Cash Flow", "Сверка", "Справка", "Данные"]
+SHEETS = ["Расходы с НДС", "Расходы без НДС", "Сырьё с НДС", "Сырьё без НДС", "Cash Flow", "Cash Flow сводная", "Сверка", "Справка", "Данные"]
 wb.active.title = SHEETS[0]
 for s in SHEETS[1:]: wb.create_sheet(s)
 dws = wb["Данные"]
@@ -115,6 +116,42 @@ def sumifs(name, *cond):
     s = f"SUMIFS({rng(name)}"
     for k, v in cond: s += f",{rng(k)},\"{v}\""
     return s + ")"
+
+
+# ---------- Cash Flow (классический вид по месяцам, формулы по листу «Данные»)
+CF_MAP = {"Месяц": "Месяц (CF)"}
+def build_classic(ws2):
+    import copy
+    from openpyxl.chart import LineChart, Reference
+    from openpyxl.worksheet.datavalidation import DataValidation
+    src = openpyxl.load_workbook(classic_path)["Cash Flow по месяцам"]
+    def conv(v):
+        if isinstance(v, str) and v.startswith("="):
+            return re.sub(r"Данные\[([^\]]+)\]", lambda m: rng(CF_MAP.get(m.group(1), m.group(1))), v)
+        return v
+    for row in src.iter_rows():
+        for c in row:
+            if c.value is None and not c.has_style: continue
+            n = ws2.cell(row=c.row, column=c.column, value=conv(c.value))
+            if c.has_style:
+                n.font = copy.copy(c.font); n.fill = copy.copy(c.fill); n.border = copy.copy(c.border); n.alignment = copy.copy(c.alignment); n.number_format = c.number_format
+    for k, d in src.column_dimensions.items():
+        ws2.column_dimensions[k].width = d.width; ws2.column_dimensions[k].outlineLevel = d.outlineLevel
+        ws2.column_dimensions[k].hidden = d.hidden; ws2.column_dimensions[k].min = d.min; ws2.column_dimensions[k].max = d.max
+    for k, d in src.row_dimensions.items():
+        ws2.row_dimensions[k].height = d.height; ws2.row_dimensions[k].outlineLevel = d.outlineLevel
+        ws2.row_dimensions[k].hidden = False if 19 <= k <= 28 else d.hidden   # строки НДС и видов оплаты показываем
+    ws2.sheet_properties.tabColor = "FFC000"; ws2.sheet_format.outlineLevelCol = 1; ws2.sheet_format.outlineLevelRow = 1
+    ws2.sheet_view.showGridLines = src.sheet_view.showGridLines
+    dv = DataValidation(type="list", formula1='"С НДС,Без НДС"', allow_blank=False); ws2.add_data_validation(dv); dv.add("B2")
+    ch = LineChart(); ch.title = "Накопительно: потрачено и получено, ₽"; ch.height = 9; ch.width = 22
+    cats = Reference(ws2, min_col=43, max_col=63, min_row=5)
+    for r in (10, 11, 12):
+        ch.add_data(Reference(ws2, min_col=42, max_col=63, min_row=r), from_rows=True, titles_from_data=True)
+    ch.set_categories(cats)
+    ws2.add_chart(ch, "AA5")
+if classic_path: build_classic(wb["Cash Flow"])
+else: wb["Cash Flow"]["A1"] = "Классический Cash Flow не подключён (нужен 5-й аргумент)"
 
 # ---------- Сверка
 sw = wb["Сверка"]
@@ -256,7 +293,7 @@ specs = [
 import os
 _sel = [int(x) for x in os.environ.get('PIVOTS', '').split(',') if x] or list(range(len(specs)))
 tables = [pivot(*specs[i]) for i in _sel]
-SHEETN = [i + 1 for i in _sel]
+SHEETN = [({0: 1, 1: 2, 2: 3, 3: 4, 4: 6})[i] for i in _sel]
 zi = zipfile.ZipFile(tmp); zo = zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED)
 CT = "".join(f'<Override PartName="/xl/pivotTables/pivotTable{k}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml"/>' for k in range(1, len(tables) + 1))
 for nm in zi.namelist():
