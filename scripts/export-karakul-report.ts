@@ -27,6 +27,8 @@ async function main() {
   const { loadRawData, lotValues } = await import("../src/lib/raw-analytics");
   const org = await prisma.organization.findFirst({ select: { id: true } });
   const data = await loadRawData(org!.id, "all");
+  const { classifyPurchaseSource } = await import("../src/lib/purchase-source");
+  const srcOf = new Map((await prisma.rawMaterialLot.findMany({ where: { organizationId: org!.id }, select: { id: true, purchase: { select: { isContractorRaw: true, auction: { select: { kind: true, house: true } } } } } })).map((l) => [l.id, l.purchase?.isContractorRaw ? "supplier" : classifyPurchaseSource(l.purchase?.auction)] as const));
   const grades = new Map((await prisma.rawMaterialLot.findMany({ where: { organizationId: org!.id }, select: { id: true, grade: true, color: true } })).map((l) => [l.id, l]));
   type Agg = { lots: number; recv: number; recvIn: number; recvEx: number; used: number; usedIn: number; usedEx: number; rem: number; remIn: number; remEx: number; other: number };
   const zero = (): Agg => ({ lots: 0, recv: 0, recvIn: 0, recvEx: 0, used: 0, usedIn: 0, usedEx: 0, rem: 0, remIn: 0, remEx: 0, other: 0 });
@@ -80,7 +82,7 @@ async function main() {
   wh.getColumn(2).alignment = { wrapText: true, vertical: "top" };
   if (process.env.DUMP_JSON) {
     const { writeFileSync } = await import("node:fs");
-    writeFileSync(process.env.DUMP_JSON, JSON.stringify(rows.map(({ g, l, grade }) => { const v = lotValues(l); return { g, lot: l.lotNumber, date: l.date.toISOString().slice(0, 10), year: String(l.date.getUTCFullYear()), auction: l.auctionLabel, grade: grade || l.materialName, recv: +l.recv, unit: Math.round(+l.unitIncl), recvIn: Math.round(+v.recvIncl), used: +l.used, usedIn: Math.round(+l.usedIncl), rem: +l.rem, remIn: Math.round(+v.remIncl), other: +(+l.otherOut).toFixed(3), basis: BROADTAIL_LOTS[l.lotNumber] ?? "по тексту сорта лота", recvEx: Math.round(+v.recvExcl), usedEx: Math.round(+l.usedExcl), remEx: Math.round(+v.remExcl) }; })));
+    writeFileSync(process.env.DUMP_JSON, JSON.stringify(rows.map(({ g, l, grade }) => { const v = lotValues(l); return { g, lot: l.lotNumber, date: l.date.toISOString().slice(0, 10), year: String(l.date.getUTCFullYear()), auction: l.auctionLabel, grade: grade || l.materialName, recv: +l.recv, unit: Math.round(+l.unitIncl), recvIn: Math.round(+v.recvIncl), used: +l.used, usedIn: Math.round(+l.usedIncl), rem: +l.rem, remIn: Math.round(+v.remIncl), other: +(+l.otherOut).toFixed(3), basis: BROADTAIL_LOTS[l.lotNumber] ?? "по тексту сорта лота", src: srcOf.get(l.id) === "auction" ? "Куплено на аукционе" : "Куплено у поставщика", recvEx: Math.round(+v.recvExcl), usedEx: Math.round(+l.usedExcl), remEx: Math.round(+v.remExcl) }; })));
   }
   await wb.xlsx.writeFile(out);
   for (const g of GROUPS) { const a = agg.get(g)!; console.log(g, "лотов", a.lots, "куплено", a.recv, Math.round(a.recvIn), "ср", a.recv ? Math.round(a.recvIn / a.recv) : 0, "исп", a.used, "ост", a.rem); }
