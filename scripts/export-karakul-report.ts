@@ -13,7 +13,9 @@ const groupOf = (grade: string, material: string, lot = ""): G | null => {
   if (BROADTAIL_LOTS[lot]) return "Бродтейл";
   const t = `${grade} ${material}`.toLowerCase();
   const g = grade.toLowerCase();
-  if (/каракульч|broadtail|бродтейл|брудтейл/.test(g)) return "Бродтейл";
+  if (/broadtail|бродтейл|брудтейл/.test(g)) return "Бродтейл";
+  // «Каракульча» из закупки у поставщика (З-2026-0063) — по решению владельца 22.10 относим к Каракулю, не к Бродтейлу.
+  if (/каракульч/.test(g) || /каракульч/.test(material.toLowerCase())) return "Каракуль";
   if (/swakara|свакара/.test(g)) return "Свакара";
   if (/каракул|karakul/.test(g)) return "Каракуль";
   if (/каракульч|broadtail/.test(material.toLowerCase())) return "Бродтейл";
@@ -60,7 +62,7 @@ async function main() {
   for (let c = 3; c <= 13; c++) ws.getColumn(c).numFmt = "#,##0";
   ws.getColumn(3).numFmt = "#,##0.0"; ws.getColumn(6).numFmt = "#,##0.0"; ws.getColumn(8).numFmt = "#,##0.0"; ws.getColumn(10).numFmt = "#,##0.0";
   ws.addRow([]);
-  ws.addRow(["Как отнесены лоты: по тексту сорта лота. «SWAKARA/свакара» → Свакара; «каракульча/broadtail» → Бродтейл; прочее «каракуль» без слова swakara → Каракуль. Лоты, где вид в справочнике «Свакара», но в сорте сказано просто «каракуль», попадают в Каракуль."]).alignment = { wrapText: true };
+  ws.addRow(["Как отнесены лоты: по тексту сорта лота. «SWAKARA/свакара» → Свакара; «каракульча/broadtail» → Бродтейл; «каракульча» из закупки у поставщика и прочее «каракуль» без слова swakara → Каракуль (4 шт. З-2026-0063 — по решению владельца); бродтейл — лоты, названные BROADTAIL в расчёте закупки. Лоты, где вид в справочнике «Свакара», но в сорте сказано просто «каракуль», попадают в Каракуль."]).alignment = { wrapText: true };
   ws.mergeCells(`A${ws.rowCount}:M${ws.rowCount}`); ws.getRow(ws.rowCount).height = 48;
 
   const wl = wb.addWorksheet("Лоты");
