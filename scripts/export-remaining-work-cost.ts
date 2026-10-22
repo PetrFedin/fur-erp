@@ -30,13 +30,19 @@ async function main() {
   }
   const catOf = new Map<string, string>();
   for (const o of orders) { const c = o.productModel.salesCode || o.productModel.sku; if (c && o.productModel.category) catOf.set(norm(c), o.productModel.category); }
+  // Новые артикулы без строк прихода: категория и описание со слов владельца (22.10).
+  const MANUAL: Record<string, [string, string, string]> = {
+    M030: ["Одежда меховая", "Шубы", "шуба однобортная"], M039: ["Одежда меховая", "Шубы", "шуба удлинённая"], M040: ["Одежда меховая", "Шубы", "шуба удлинённая"],
+    M054: ["Одежда меховая", "Шубы", "шуба удлинённая"], M058: ["Одежда меховая", "Шубы", "шуба укороченная"], M059: ["Одежда меховая", "Шубы", "шуба укороченная"], "MCF02": ["Манжеты", "Манжеты", "манжеты"],
+  };
   const art = new Map<string, { acode: string; modelCode: string; left: number }>();
   for (const r of rows) {
     const d = (r.fw26Conf ?? 0) - (r.fw26Deliv ?? 0); if (d <= 0) continue;
     const a = art.get(r.acode) ?? { acode: r.acode, modelCode: r.modelCode ?? r.acode.split("/")[0], left: 0 }; a.left += d; art.set(r.acode, a);
   }
   const list = [...art.values()].map((a) => {
-    const v = lv.get(a.acode) ?? lvModel.get(a.modelCode) ?? ["", "", "", ""];
+    const man = MANUAL[norm(a.modelCode)];
+    const v = man ? ["", man[0], man[1], ""] : lv.get(a.acode) ?? lvModel.get(a.modelCode) ?? ["", "", "", ""];
     const r = rate.get(norm(a.modelCode)); const avg = r ? r.sum / r.qty : null;
     return { c1: v[1] || v[0] || catOf.get(norm(a.modelCode)) || "(без категории)", c2: v[2] || "", a, avg, r };
   }).sort((x, y) => x.c1.localeCompare(y.c1, "ru") || x.c2.localeCompare(y.c2, "ru") || x.a.acode.localeCompare(y.a.acode));
@@ -46,7 +52,7 @@ async function main() {
   ws.getRow(1).font = { bold: true }; ws.getRow(1).alignment = { wrapText: true, vertical: "middle" };
   list.forEach((x, i) => {
     const n = i + 2;
-    ws.addRow([x.c1, x.c2, x.a.acode, x.a.left, x.avg == null ? null : Math.round(x.avg), x.avg == null ? null : { formula: `D${n}*E${n}`, result: Math.round(x.avg) * x.a.left }, x.r ? `среднее по ${x.r.n} ТЗ модели ${x.a.modelCode}${x.r.min !== x.r.max ? `, от ${x.r.min.toLocaleString("ru")} до ${x.r.max.toLocaleString("ru")}` : ""}` : `новая модель ${x.a.modelCode}: ТЗ с ценой работы не было`]);
+    ws.addRow([x.c1, x.c2, x.a.acode, x.a.left, x.avg == null ? null : Math.round(x.avg), x.avg == null ? null : { formula: `D${n}*E${n}`, result: Math.round(x.avg) * x.a.left }, x.r ? `среднее по ${x.r.n} ТЗ модели ${x.a.modelCode}${x.r.min !== x.r.max ? `, от ${x.r.min.toLocaleString("ru")} до ${x.r.max.toLocaleString("ru")}` : ""}` : `новая модель ${x.a.modelCode} (${MANUAL[norm(x.a.modelCode)]?.[2] ?? ""}): ТЗ с ценой работы не было`]);
   });
   const t = list.length + 2;
   ws.addRow(["Всего", "", "", { formula: `SUM(D2:D${t - 1})`, result: list.reduce((s, x) => s + x.a.left, 0) }, "", { formula: `SUM(F2:F${t - 1})`, result: 0 }, `новых (без цены): ${list.filter((x) => x.avg == null).length} арт., ${list.filter((x) => x.avg == null).reduce((s, x) => s + x.a.left, 0)} шт.`]).font = { bold: true };
