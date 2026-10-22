@@ -70,6 +70,13 @@ async function main() {
     return { est, c3: man ? man[2][0].toUpperCase() + man[2].slice(1) : v[3] || "", c1: v[1] || v[0] || catOf.get(norm(a.modelCode)) || "(без категории)", c2: v[2] || "", a, avg, r };
   }).sort((x, y) => x.c1.localeCompare(y.c1, "ru") || x.c2.localeCompare(y.c2, "ru") || x.a.acode.localeCompare(y.a.acode));
 
+  if (process.env.DUMP_JSON) {
+    const ret = await prisma.systemState.findFirst({ where: { key: "retail-prices:2026-10-19" } });
+    const rr = (ret?.value as { rows: { acode: string; modelCode: string | null; price: number }[] }).rows;
+    const clsOf = new Map(rows.map((r) => [r.acode, (r as unknown as { cls: string }).cls]));
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(process.env.DUMP_JSON, JSON.stringify({ retail: rr, items: list.map((x) => ({ acode: x.a.acode, model: x.a.modelCode, cls: clsOf.get(x.a.acode), c2: x.c2, fur: furKey(x.a.acode), left: x.a.left, rate: x.avg, est: x.est ? x.est.avg : null, estWhat: x.est ? `${x.est.what}: ${x.est.n} мод.` : null })) }));
+  }
   const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet("Работа на остаток заказа");
   ws.columns = [{ header: "Категория 1", width: 22 }, { header: "Категория 2", width: 22 }, { header: "Категория 3", width: 24 }, { header: "Артикул", width: 38 }, { header: "Осталось получить, шт.", width: 14 }, { header: "Цена работы, ₽/шт.", width: 16 }, { header: "Работа на остаток, ₽", width: 18 }, { header: "Ориентир по меху и категории, ₽/шт. (только где нет цены)", width: 22 }, { header: "Ориентир на остаток, ₽", width: 18 }, { header: "Основание ориентира", width: 52 }, { header: "Основание", width: 44 }];
   ws.getRow(1).font = { bold: true }; ws.getRow(1).alignment = { wrapText: true, vertical: "middle" };
