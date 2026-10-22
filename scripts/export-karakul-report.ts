@@ -7,7 +7,10 @@ import ExcelJS from "exceljs";
 
 const GROUPS = ["Свакара", "Каракуль", "Бродтейл"] as const;
 type G = (typeof GROUPS)[number];
-const groupOf = (grade: string, material: string): G | null => {
+// Лоты, которые по документам закупки (расчёт SAGA 06-2025, «KARAKUL BROADTAIL GREY», 994 шт.) — бродтейл, хотя в УПД и в справочнике названы «шкурки каракуля».
+const BROADTAIL_LOTS: Record<string, string> = Object.fromEntries(["728001", "728002", "728011", "728026"].map((n) => [n, "расчёт SAGA 06-2025: KARAKUL BROADTAIL GREY"]));
+const groupOf = (grade: string, material: string, lot = ""): G | null => {
+  if (BROADTAIL_LOTS[lot]) return "Бродтейл";
   const t = `${grade} ${material}`.toLowerCase();
   const g = grade.toLowerCase();
   if (/каракульч|broadtail|бродтейл|брудтейл/.test(g)) return "Бродтейл";
@@ -32,7 +35,7 @@ async function main() {
   for (const l of data.lots) {
     if (l.synthetic || l.unit === "M") continue;
     const gr = grades.get(l.id)?.grade ?? "";
-    const g = groupOf(gr, l.materialName); if (!g) continue;
+    const g = groupOf(gr, l.materialName, l.lotNumber); if (!g) continue;
     const v = lotValues(l); const a = agg.get(g)!;
     a.lots++; a.recv += +l.recv; a.recvIn += +v.recvIncl; a.recvEx += +v.recvExcl; a.used += +l.used; a.usedIn += +l.usedIncl; a.usedEx += +l.usedExcl;
     a.rem += +l.rem; a.remIn += +v.remIncl; a.remEx += +v.remExcl; a.other += +l.otherOut; rows.push({ g, l, grade: gr });
@@ -75,6 +78,10 @@ async function main() {
   wh.addRow(["Бродтейл (Broadtail, каракульча)", "Мех самых молодых каракулят: ягнят забивают очень рано (в первые дни жизни или недоношенными). Шкурка тонкая, лёгкая, шёлковистая, с гладким муаровым (волнистым) рисунком без завитков; дороже и нежнее каракуля. В справочнике системы пока сведён в один вид «Свакара»."]);
   wh.addRow(["Куплено / Остаток", "Куплено — получено по лотам закупки; остаток — то, что ещё лежит на складе. Использовано — списано в ТЗ. Прочее списание — получено минус использовано и остаток (списания вне ТЗ)."]);
   wh.getColumn(2).alignment = { wrapText: true, vertical: "top" };
+  if (process.env.DUMP_JSON) {
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(process.env.DUMP_JSON, JSON.stringify(rows.map(({ g, l, grade }) => { const v = lotValues(l); return { g, lot: l.lotNumber, date: l.date.toISOString().slice(0, 10), year: String(l.date.getUTCFullYear()), auction: l.auctionLabel, grade: grade || l.materialName, recv: +l.recv, unit: Math.round(+l.unitIncl), recvIn: Math.round(+v.recvIncl), used: +l.used, usedIn: Math.round(+l.usedIncl), rem: +l.rem, remIn: Math.round(+v.remIncl), other: +(+l.otherOut).toFixed(3), basis: BROADTAIL_LOTS[l.lotNumber] ?? "по тексту сорта лота", recvEx: Math.round(+v.recvExcl), usedEx: Math.round(+l.usedExcl), remEx: Math.round(+v.remExcl) }; })));
+  }
   await wb.xlsx.writeFile(out);
   for (const g of GROUPS) { const a = agg.get(g)!; console.log(g, "лотов", a.lots, "куплено", a.recv, Math.round(a.recvIn), "ср", a.recv ? Math.round(a.recvIn / a.recv) : 0, "исп", a.used, "ост", a.rem); }
   console.log("Всего лотов:", rows.length);
