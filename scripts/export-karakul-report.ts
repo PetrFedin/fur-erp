@@ -5,7 +5,7 @@ import "./stubs/server-only-shim";
 import { PrismaClient } from "@prisma/client";
 import ExcelJS from "exceljs";
 
-const GROUPS = ["Каракуль (свакара)", "Каракуль", "Бродтейл"] as const;
+const GROUPS = ["Каракуль (свакара)", "Бродтейл"] as const;
 type G = (typeof GROUPS)[number];
 // Лоты, которые по документам закупки (расчёт SAGA 06-2025, «KARAKUL BROADTAIL GREY», 994 шт.) — бродтейл, хотя в УПД и в справочнике названы «шкурки каракуля».
 const BROADTAIL_LOTS: Record<string, string> = Object.fromEntries(["728001", "728002", "728011", "728026"].map((n) => [n, "расчёт SAGA 06-2025: KARAKUL BROADTAIL GREY"]));
@@ -15,9 +15,9 @@ const groupOf = (grade: string, material: string, lot = ""): G | null => {
   const g = grade.toLowerCase();
   if (/broadtail|бродтейл|брудтейл/.test(g)) return "Бродтейл";
   // «Каракульча» из закупки у поставщика (З-2026-0063) — по решению владельца 22.10 относим к Каракулю, не к Бродтейлу.
-  if (/каракульч/.test(g) || /каракульч/.test(material.toLowerCase())) return "Каракуль";
+  if (/каракульч/.test(g) || /каракульч/.test(material.toLowerCase())) return "Каракуль (свакара)";
   if (/swakara|свакара/.test(g)) return "Каракуль (свакара)";
-  if (/каракул|karakul/.test(g)) return "Каракуль";
+  if (/каракул|karakul/.test(g)) return "Каракуль (свакара)";
   if (/каракульч|broadtail/.test(material.toLowerCase())) return "Бродтейл";
   if (/свакара|swakara/.test(material.toLowerCase())) return "Каракуль (свакара)";
   return /каракул|karakul/.test(t) ? "Каракуль" : null;
