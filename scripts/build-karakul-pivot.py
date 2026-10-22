@@ -7,7 +7,7 @@ from openpyxl.styles import Font, Alignment
 from xml.sax.saxutils import escape
 
 rows = json.load(open(sys.argv[1])); out = sys.argv[2]
-ORDER = {"Свакара": 0, "Каракуль": 1, "Бродтейл": 2}
+ORDER = {"Каракуль (свакара)": 0, "Каракуль": 1, "Бродтейл": 2}
 rows.sort(key=lambda r: (ORDER.get(r["g"], 9), 0 if "аукционе" in r["src"] else 1, r["year"], r["date"])); tmp = out + ".base.xlsx"
 H = ["Вид", "Лот", "Дата", "Год", "Аукцион", "Сорт (текст лота)", "Куплено, шт.", "Цена закупки, ₽/шт. с НДС", "Куплено, ₽ с НДС", "Использовано, шт.", "Использовано, ₽ с НДС", "Остаток, шт.", "Остаток, ₽ с НДС", "Прочее списание, шт.", "Куплено, ₽ без НДС", "Использовано, ₽ без НДС", "Остаток, ₽ без НДС", "Источник"]
 keys = ["g", "lot", "date", "year", "auction", "grade", "recv", "unit", "recvIn", "used", "usedIn", "rem", "remIn", "other", "recvEx", "usedEx", "remEx", "src"]
