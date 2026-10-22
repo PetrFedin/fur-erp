@@ -247,6 +247,35 @@ export function autoCalc(nodes: BudgetNode[], stats: BudgetStat[], p: BudgetPara
   });
 }
 
+/**
+ * Правило длин (решение владельца 22.10): разбивка категории на Short / Regular / Long показывается, только если по КАЖДОЙ нужной длине
+ * в системе есть свои данные (src «len») или значения введены вручную. Если по какой-то длине данных нет, разбивка убирается совсем:
+ * штуки длин складываются в категорию, значения берутся по статистике «мех × категория» (с надбавками), без деления на длины.
+ */
+export function collapseUnknownLengths(nodes: BudgetNode[], stats: BudgetStat[], p: BudgetParams): { nodes: BudgetNode[]; collapsed: string[] } {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const kids = childrenMap(nodes);
+  const drop = new Set<string>();
+  const patch = new Map<string, Partial<BudgetNode>>();
+  const collapsed: string[] = [];
+  for (const cat of nodes) {
+    if (cat.kind !== "cat") continue;
+    const lens = (kids.get(cat.id) ?? []).filter((x) => x.kind === "len");
+    if (lens.length === 0) continue;
+    const known = (l: BudgetNode) => (l.locked || effLocked(l, byId) || l.src === "manual") || (l.src === "len" && l.sample > 0);
+    if (lens.every(known)) continue;
+    // убираем длины вместе с вложенными артикулами; штуки переходят в категорию
+    const stack = [...lens.map((l) => l.id)];
+    while (stack.length) { const id = stack.pop()!; drop.add(id); for (const c of kids.get(id) ?? []) stack.push(c.id); }
+    patch.set(cat.id, { pcs: lens.reduce((a, l) => a + l.pcs, 0), locked: false, src: "none", base: null, sample: 0 });
+    collapsed.push(cat.id);
+  }
+  if (collapsed.length === 0) return { nodes, collapsed };
+  let next = nodes.filter((n) => !drop.has(n.id)).map((n) => (patch.has(n.id) ? { ...n, ...patch.get(n.id)! } : n));
+  for (const id of collapsed) next = autoCalc(next, stats, p, id);
+  return { nodes: next, collapsed };
+}
+
 /** Смена надбавок: листья без замка пересчитывают цены из своей базы без обращения к статистике. */
 export function reapplyParams(nodes: BudgetNode[], p: BudgetParams): BudgetNode[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));

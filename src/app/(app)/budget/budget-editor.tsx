@@ -11,7 +11,7 @@ import { TileCarousel } from "@/components/tile-carousel";
 import { TotalLabel } from "@/components/total-label";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../dashboard/tile";
 import {
-  autoCalc, blankNode, childrenMap, computeTree, defaultLines, effLocked, effUp, grandTotal, isAccessoryCat, normKey, perUnit, reapplyParams, srcInfo,
+  autoCalc, collapseUnknownLengths, blankNode, childrenMap, computeTree, defaultLines, effLocked, effUp, grandTotal, isAccessoryCat, normKey, perUnit, reapplyParams, srcInfo,
   type Agg, type BudgetNode, type BudgetParams, type BudgetStat, type EffUp,
 } from "@/lib/budget-calc";
 import { exportBudgetXlsx, parseBudgetFile, refreshBudgetStats, renameBudget, saveBudget, type ImportRow } from "./actions";
@@ -723,6 +723,7 @@ export function BudgetEditor(p: Props) {
             {canEdit ? <button type="button" onClick={save} disabled={saveState === "saving" || (!dirty && saveState !== "error")} className={dirty || saveState === "error" ? BTN_PRIMARY : BTN}>{saveState === "saving" ? "Сохраняю…" : "Сохранить"}</button> : null}
             {canEdit && dirty ? <button type="button" onClick={() => setReverting(true)} className={BTN}>Отменить изменения</button> : null}
             {canEdit ? <button type="button" onClick={() => runAuto()} disabled={busy} className={BTN}>{busy ? "Считаю…" : "Автоматический расчёт"}</button> : null}
+            {canEdit ? <button type="button" disabled={busy} title="Убрать деление на Short / Regular / Long там, где по какой-то длине нет данных в системе: останется итог по категории" onClick={() => setNodes((ns) => collapseUnknownLengths(ns, stats, params).nodes)} className={BTN}>Убрать длины без данных</button> : null}
             {canEdit ? <button type="button" onClick={() => setAdding({ kind: "fur", parentId: null })} className={BTN}>+ Тип сырья</button> : null}
             {canEdit ? <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className={BTN}>Загрузить из файла</button> : null}
             <input ref={fileRef} type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" aria-label="Файл бюджета" onChange={(e) => onFile(e.target.files?.[0])} />

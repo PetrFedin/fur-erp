@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, requireSession } from "@/lib/session";
 import { loadBudgetStats } from "@/lib/budget-stats";
 import { assertSafeZip } from "@/lib/zip-guard";
-import { DEFAULT_PARAMS, autoCalc, computeTree, grandTotal, nowPerUnit, perUnit, varPct, parseNodes, templateNodes, type BudgetNode, type BudgetParams, type BudgetStat, type NodeSrc } from "@/lib/budget-calc";
+import { DEFAULT_PARAMS, autoCalc, collapseUnknownLengths, computeTree, grandTotal, nowPerUnit, perUnit, varPct, parseNodes, templateNodes, type BudgetNode, type BudgetParams, type BudgetStat, type NodeSrc } from "@/lib/budget-calc";
 
 const EDIT = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
 type Res<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -90,7 +90,7 @@ export async function createBudget(input: { name: string; season: string; templa
     parentId = src.id;
     comment = src.comment;
   } else if (input.template === "fw27") {
-    nodes = autoCalc(templateNodes(), await loadBudgetStats(orgId), params);
+    { const stats = await loadBudgetStats(orgId); nodes = collapseUnknownLengths(autoCalc(templateNodes(), stats, params), stats, params).nodes; }
   }
   const row = await prisma.budgetScenario.create({
     data: { organizationId: orgId, season, name, status: "DRAFT", comment, parentId, params, lines: (cleanNodes(nodes) ?? []) as object[], createdBy: session.user.name ?? null, updatedBy: session.user.name ?? null },
