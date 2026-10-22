@@ -983,6 +983,15 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy }: { in
   const [hot, setHot] = useState<string | null>(null);
   const [yearHot, setYearHot] = useState<string | null>(null);
   const [hotLine, setHotLine] = useState<string | null>(null);
+  const seg = (on: boolean) => segCls(on);
+  const [slide, setSlide] = useState(0);
+  const slider = useRef<HTMLDivElement>(null);
+  const onSlide = () => { const el = slider.current; if (el && el.clientWidth > 0) setSlide(Math.round(el.scrollLeft / el.clientWidth)); };
+  const goSlide = (k: number) => {
+    const el = slider.current; if (!el) return;
+    const calm = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollTo({ left: k * el.clientWidth, behavior: calm ? "auto" : "smooth" }); setSlide(k);
+  };
   const hasSales = salesAll.available;
   const c = useMemo(() => {
     const all = exVat ? ex : incl;
@@ -1001,19 +1010,35 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy }: { in
   if (months.length === 0) return null;
   return (
     <div className="flex flex-col gap-3">
-      <section aria-label="Накопительно: потрачено и получено" className="rounded-lg border border-neutral-300 bg-white p-3">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <h2 className="flex items-center gap-1 text-sm font-semibold">Накопительно: потрачено и получено
+      <section aria-label="Траты и полученные деньги" className="rounded-lg border border-neutral-300 bg-white p-3">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-1 text-sm font-semibold">{slide === 0 ? "Траты и полученные деньги по месяцам" : "Накопительно: потрачено и получено"}
             <InfoHint label="Как читать накопительный график" wide><p>Линии растут с первого месяца данных: оранжевая — потрачено, зелёная — получено, пунктир — разрыв между ними.</p></InfoHint>
           </h2>
-          <Link href="/cashflow" className="text-xs text-blue-700 hover:underline print:hidden">Cashflow ›</Link>
+          <div className="flex items-center gap-2">
+            <div role="group" aria-label="Вид графика" className={SEG_GROUP + " print:hidden"}>
+              {(["По месяцам", "Накопительно"] as const).map((t, k) => <button key={t} type="button" aria-pressed={slide === k} onClick={() => goSlide(k)} className={seg(slide === k)}>{t}</button>)}
+            </div>
+            <Link href="/cashflow" className="text-xs text-blue-700 hover:underline print:hidden">Cashflow ›</Link>
+          </div>
         </div>
-        <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="cum" hotLine={hotLine} months={months} d={c.d} s={c.s} ser={c.ser} stock={c.ser.spend.map(() => 0)} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={false} colW={colW} />}</ChartBox>
-        <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
+        <div ref={slider} onScroll={onSlide} tabIndex={0} role="group" aria-roledescription="карусель" aria-label="Графики: по месяцам и накопительно (листайте вправо-влево)" className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900 [&::-webkit-scrollbar]:hidden">
+          <div className="w-full flex-none snap-start" aria-hidden={slide !== 0}>
+            <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="money" months={months} d={c.d} s={c.s} ser={c.ser} stock={c.ser.spend.map(() => 0)} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={false} colW={colW} />}</ChartBox>
+            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
+              <li className="inline-flex min-h-11 items-center gap-1.5"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: SPEND }} />Потрачено за месяц</li>
+              {hasSales ? <li className="inline-flex min-h-11 items-center gap-1.5"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: GET }} />Получено за месяц</li> : null}
+            </ul>
+          </div>
+          <div className="w-full flex-none snap-start" aria-hidden={slide !== 1}>
+            <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="cum" hotLine={hotLine} months={months} d={c.d} s={c.s} ser={c.ser} stock={c.ser.spend.map(() => 0)} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={false} colW={colW} />}</ChartBox>
+            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
           {([["spend", SPEND, "Потрачено нарастающим итогом"], ["get", GET, "Получено нарастающим итогом"], ["net", NAVY, "Чистый итог (получено − потрачено)"]] as const).filter((x) => x[0] === "spend" || hasSales).map(([k, col, t]) => (
             <li key={k}><button type="button" aria-pressed={hotLine === k} onMouseEnter={() => setHotLine(k)} onMouseLeave={() => setHotLine(null)} onFocus={() => setHotLine(k)} onBlur={() => setHotLine(null)} onClick={() => setHotLine(hotLine === k ? null : k)} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className={"inline-block h-0.5 w-4 " + (k === "net" ? "border-t-2 border-dashed" : "")} style={k === "net" ? { borderColor: col } : { background: col }} />{t}</button></li>
           ))}
         </ul>
+          </div>
+        </div>
       </section>
       <ClassicTable title={`Cash Flow · ${period === "all" ? "2025–2026" : period} · ${vatNote}, ₽`} months={months} d={c.d} ser={c.ser} hasSales={hasSales} filtered={false} detail={detail} setDetail={setDetail} hot={hot} setHot={setHot} active={active} setActive={setActive} yearHot={yearHot} setYearHot={setYearHot} vatPay={c.vatPay} vatRev={c.vatRev} prepaid={months.map((mo) => prepaidBy[mo] ?? 0)} hasVat={hasSales} />
     </div>
