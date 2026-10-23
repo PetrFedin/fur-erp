@@ -66,7 +66,7 @@ export function ForecastView({ lines, stock, asOf }: { lines: ForecastLine[]; st
   };
   const inp = (l: ForecastLine, f: Field, w = "w-16") => (
     <td className={"px-1 py-1 text-right" + (f === "hp" ? SEP : "")}>
-      <input inputMode="decimal" value={vals[l.acode][f]} onChange={(e) => set(l.acode, f, e.target.value)} aria-label={f}
+      <input inputMode="decimal" value={vals[l.acode][f]} onChange={(e) => set(l.acode, f, e.target.value)} aria-label={f} title={f === "wp" && l.wpEst && !edited(l, f) ? l.wpEst : undefined}
         className={`${w} min-h-9 rounded border px-1.5 text-right text-sm tabular-nums ${edited(l, f) ? "border-[var(--ui-accent)] bg-[var(--ui-soft)]" : "border-neutral-200 bg-white"}`} />
     </td>
   );
@@ -122,7 +122,7 @@ export function ForecastView({ lines, stock, asOf }: { lines: ForecastLine[]; st
                     <tr key={l.acode} className={"border-b border-neutral-100 " + (on ? "" : "text-neutral-400")}>
                       {detail && <td className="px-3 py-2 text-center"><input type="checkbox" checked={on} aria-label={`Учитывать ${l.acode}`} onChange={() => setOff((p) => { const n = new Set(p); if (n.has(l.acode)) n.delete(l.acode); else n.add(l.acode); return n; })} className="h-5 w-5" /></td>}
                       <td className="px-3 py-2 text-sm text-neutral-600">{l.cat2}</td>
-                      <td className="px-3 py-2 text-sm">{l.acode}{detail && l.source !== "ТЗ артикула" ? <span className="ml-1 text-[11px] text-neutral-400">{l.source === "категория" ? "по категории" : ""}</span> : null}</td>
+                      <td className="px-3 py-2 text-sm">{l.acode}{detail && l.source !== "ТЗ артикула" ? <span className="ml-1 text-[11px] text-neutral-400">{[l.source === "категория" ? "шкуры по категории" : "", l.wpEst ? "работа — ориентир" : ""].filter(Boolean).join(", ")}</span> : null}</td>
                       <td className={TD}>{formatInt(l.left)}</td>
                       {detail && <>{inp(l, "hp")}{inp(l, "hidePrice", "w-20")}{inp(l, "mp")}{inp(l, "meterPrice", "w-20")}{inp(l, "wp", "w-20")}{inp(l, "extra", "w-20")}</>}
                       {c ? results(c) : <td colSpan={showExtra ? 8 : 7} className="px-3 py-2 text-xs text-neutral-400" />}

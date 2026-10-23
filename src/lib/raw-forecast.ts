@@ -15,6 +15,8 @@ import type { ReportSizeRow } from "@/lib/margin-tree";
 export type ForecastLine = {
   acode: string; cls: "clothes" | "acc"; cat2: string; fur: string; left: number;
   hp: number | null; hidePrice: number | null; mp: number | null; meterPrice: number | null; wp: number | null;
+  /** Работа взята как ориентир (среднее по моделям того же меха и категории 2), своей цены ТЗ у модели ещё нет. */
+  wpEst?: string;
   source: "ТЗ артикула" | "категория" | "нет данных";
 };
 export type RawForecast = { lines: ForecastLine[]; stock: { fur: string; stock: number }[]; asOf: string | null };
@@ -44,6 +46,20 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
     const q = Number(o.producedQuantity) > 0 ? Number(o.producedQuantity) : Number(o.plannedQuantity);
     const r = rate.get(norm(code)) ?? { qty: 0, sum: 0 }; r.qty += q; r.sum += q * p; rate.set(norm(code), r);
   }
+  const furOf = (a: string) => FUR_RE.filter(([re]) => re.test(a.toUpperCase())).map(([, n]) => n).sort().join(" + ");
+  const pool = new Map<string, { fur: string; l4: string; rate: number }>(); // по модели
+  for (const l of lvl) {
+    const mc = norm(l.modelCode ?? l.article.split("/")[0]); const r = rate.get(mc);
+    if (r && l.level4 && !pool.has(mc + "|" + furOf(l.article))) pool.set(mc + "|" + furOf(l.article), { fur: furOf(l.article), l4: l.level4, rate: r.sum / r.qty });
+  }
+  const estimate = (fur: string, cat2: string) => {
+    const eq = (a: string, b: string) => normKey(a) === normKey(b);
+    for (const [what, f] of [["мех и категория", (x: { fur: string; l4: string }) => x.fur === fur && eq(x.l4, cat2)], ["категория", (x: { fur: string; l4: string }) => eq(x.l4, cat2)]] as const) {
+      const v = [...pool.values()].filter(f).map((x) => x.rate);
+      if (v.length) return { avg: v.reduce((a, b) => a + b, 0) / v.length, note: `ориентир: ${what}, ${v.length} мод.` };
+    }
+    return null;
+  };
   const clsOf = new Map(rows.map((r) => [r.acode, r.cls]));
   const left = new Map<string, { model: string; left: number; l3: string }>();
   for (const r of rows) {
@@ -59,6 +75,7 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
     if (s.modelId) byModel.set(s.modelId, [...(byModel.get(s.modelId) ?? []), s]);
     else byCat.set(`${s.fur}|${normKey(s.cat)}`, s);
   }
+  const key2 = (f: string) => f.split(" + ").sort().join(" + ");
   const same = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
   const lines: ForecastLine[] = [];
   for (const [acode, e] of left) {
@@ -72,8 +89,10 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
     let st: BudgetStat | undefined, source: ForecastLine["source"] = "ТЗ артикула";
     if (own?.length) st = own[0];
     else if (codeFurs.length) { const c = [mi?.cat, e.l3, cat2].map((k) => (k ? byCat.get(`${[...codeFurs].sort().join(" + ")}|${normKey(k)}`) : undefined)).find((x) => x && x.hidesPer > 0); if (c) { st = c; source = "категория"; } }
+    const furName = st ? st.fur : codeFurs.join(" + ") || "—";
+    const est = wp === null && st ? estimate(key2(furName), cat2) : null;
     lines.push(st
-      ? { ...base, fur: st.fur, hp: st.hidesPer, hidePrice: st.hidePrice, mp: st.metersPer, meterPrice: st.meterPrice, source }
+      ? { ...base, wp: est ? est.avg : wp, wpEst: est?.note, fur: st.fur, hp: st.hidesPer, hidePrice: st.hidePrice, mp: st.metersPer, meterPrice: st.meterPrice, source }
       : { ...base, fur: codeFurs.join(" + ") || "—", hp: null, hidePrice: null, mp: null, meterPrice: null, source: "нет данных" });
   }
   lines.sort((a, b) => a.cat2.localeCompare(b.cat2, "ru") || a.acode.localeCompare(b.acode));
