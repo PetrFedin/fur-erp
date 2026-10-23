@@ -15,6 +15,8 @@ type Row = { key: string; label: string; supplier: boolean; qty: number; value: 
 type Node = Row & { depth: 0 | 1 | 2; children: Node[] };
 /** «SAGA 03.26» → «SAGA»: аукционный дом без даты сессии; названия без даты остаются как есть. */
 const houseOf = (label: string) => label.replace(/[\s-]*\d{2}[.-]\d{2}$/, "").trim() || label;
+/** Тип аукциона: РП, СП, у поставщика, остальные. */
+const typeOf = (label: string, supplier: boolean) => (supplier ? "У поставщика" : /^(РП|СП)$/.test(houseOf(label)) ? houseOf(label) : "Остальные");
 
 const FUR_ORDER_LIMIT = 6;
 const K = (v: number) => formatMoney(Math.round(v));
@@ -39,26 +41,29 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
     const pq = l.usdQty > 0 ? l.usdQty : l.usdPlanQty ?? 0, ps = l.usdQty > 0 ? l.usdSubtotal : l.usdPlanSubtotal ?? 0;
     r.usdQty += pq; r.usdSum += ps; r.lots += 1; };
     const mk = (key: string, label: string, supplier: boolean, depth: 0 | 1 | 2): Node => ({ key, label, supplier, qty: 0, value: 0, usdQty: 0, usdSum: 0, lots: 0, depth, children: [] });
-    const houses = new Map<string, Node>();
+    const years = new Map<string, Node>();
+    const tot = { qty: 0, value: 0, usdQty: 0, usdSum: 0 };
     for (const l of real) {
       if (cur && l.item !== cur) continue;
       const supplier = classifyLotSource(l) === "supplier";
       const full = supplier ? "У поставщика (без аукциона)" : l.auctionLabel || l.auction;
-      const hk = supplier ? "__supplier" : houseOf(full);
-      const h = houses.get(hk) ?? mk(hk, supplier ? full : hk, supplier, 0); houses.set(hk, h); add(h, l);
-      const yk = `${hk}|${l.year}`;
-      let y = h.children.find((c) => c.key === yk); if (!y) { y = mk(yk, String(l.year || "Без года"), supplier, 1); h.children.push(y); } add(y, l);
+      const yk = String(l.year || 0);
+      const y = years.get(yk) ?? mk(yk, l.year ? yk : "Без года", false, 0); years.set(yk, y); add(y, l);
+      const type = typeOf(full, supplier), tk = `${yk}|${type}`;
+      let t = y.children.find((c) => c.key === tk); if (!t) { t = mk(tk, type, supplier, 1); y.children.push(t); } add(t, l);
       if (!supplier) {
-        const ak = `${yk}|${l.auction}`;
-        let a = y.children.find((c) => c.key === ak); if (!a) { a = mk(ak, full, false, 2); y.children.push(a); } add(a, l);
+        const ak = `${tk}|${l.auction}`;
+        let a = t.children.find((c) => c.key === ak); if (!a) { a = mk(ak, full, false, 2); t.children.push(a); } add(a, l);
       }
+      const pq = l.usdQty > 0 ? l.usdQty : l.usdPlanQty ?? 0, ps = l.usdQty > 0 ? l.usdSubtotal : l.usdPlanSubtotal ?? 0;
+      tot.qty += l.recv; tot.value += ex ? l.recvExcl : l.recvIncl; tot.usdQty += pq; tot.usdSum += ps;
     }
     const avg = (n: Node) => n.value / n.qty;
-    const prune = (list: Node[]): Node[] => list.filter((n) => n.qty > 0.0005).map((n) => ({ ...n, children: prune(n.children) })).sort((a, b) => (a.depth === 1 ? Number(b.label) - Number(a.label) : avg(a) - avg(b)));
-    const list = prune([...houses.values()]);
-    const q = list.reduce((a, r) => a + r.qty, 0), v = list.reduce((a, r) => a + r.value, 0);
+    const prune = (list: Node[]): Node[] => list.filter((n) => n.qty > 0.0005).map((n) => ({ ...n, children: prune(n.children) })).sort((a, b) => (a.depth === 0 ? Number(b.key) - Number(a.key) : avg(a) - avg(b)));
+    const list = prune([...years.values()]);
+    const q = tot.qty, v = tot.value;
     const keys: string[] = []; const walk = (ns: Node[]) => ns.forEach((n) => { if (n.children.length) keys.push(n.key); walk(n.children); }); walk(list);
-    return { rows: list, all: { qty: q, avg: q > 0 ? v / q : 0 }, keys };
+    return { rows: list, all: { qty: q, avg: q > 0 ? v / q : 0, usdQty: tot.usdQty, usd: tot.usdQty > 0 ? tot.usdSum / tot.usdQty : 0 }, keys };
   }, [real, cur, ex]);
   const flat: Node[] = [];
   const emit = (ns: Node[]) => ns.forEach((n) => { flat.push(n); if (open.has(n.key)) emit(n.children); });
@@ -88,7 +93,7 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
         <table className="table-keep w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600">
-              <th scope="col" className="px-2 py-2 text-left font-semibold">Аукцион → год → сессия</th>
+              <th scope="col" className="px-2 py-2 text-left font-semibold">Год → тип аукциона → сессия</th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">Куплено, шт.</th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">Ср. цена, $/шт.</th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">Итого, ₽/шт.</th>
@@ -97,6 +102,14 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
             </tr>
           </thead>
           <tbody>
+            <tr className="row-total border-b-2 border-neutral-400 bg-neutral-50 font-semibold">
+              <td className="px-2 py-1.5 text-left">Итого по {cur}, средневзвешенно</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(all.qty)}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{all.usdQty > 0 ? `$${Math.round(all.usd).toLocaleString("ru-RU")}` : "—"}<div className="text-[11px] font-normal leading-4 text-neutral-500">{all.usdQty > 0 ? `по ${formatQty(all.usdQty)} из ${formatQty(all.qty)} шт.` : ""}</div></td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{K(all.avg)}</td>
+              <td className="px-2 py-1.5" />
+              <td className="px-2 py-1.5" />
+            </tr>
             {flat.map((r) => {
               const avg = r.value / r.qty, d = all.avg > 0 ? avg / all.avg - 1 : 0;
               const can = r.children.length > 0, isOpen = open.has(r.key);
@@ -120,14 +133,6 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
                 </tr>
               );
             })}
-            <tr className="row-total border-t-2 border-neutral-400 font-semibold">
-              <td className="px-2 py-1.5 text-left">Среднее по {cur}</td>
-              <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(all.qty)}</td>
-              <td className="px-2 py-1.5" />
-              <td className="px-2 py-1.5 text-right tabular-nums">{K(all.avg)}</td>
-              <td className="px-2 py-1.5" />
-              <td className="px-2 py-1.5" />
-            </tr>
           </tbody>
         </table>
       </div>
