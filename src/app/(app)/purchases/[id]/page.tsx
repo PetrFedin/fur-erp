@@ -36,6 +36,7 @@ import { purchaseCancelBlocker } from "@/lib/purchase-cancel";
 import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
 import { ItemRowShared, PurchaseItemRow } from "./item-row";
+import { OpenOnHash } from "./open-on-hash";
 import { PurchaseDocumentsList, buildDocGroups } from "./documents-block";
 import { toDriveView } from "@/lib/drive-docs-server";
 import { getFurIndex } from "@/lib/fur-ref-server";
@@ -607,7 +608,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                 <span>Лот</span><span className="text-right">Кол-во</span><span className="text-right">Цена за ед., ₽ с НДС</span><span className="text-right">Всего, ₽</span>
               </div>
               {rows.map(({ item, unit, qty, items }) => (
-                <details key={item.id} className="rounded-md border border-neutral-200">
+                <details key={item.id} id={`item-${item.id}`} className="scroll-mt-4 rounded-md border border-neutral-200">
                   <summary className="grid cursor-pointer grid-cols-2 gap-x-2 gap-y-0.5 px-2 py-1.5 text-sm sm:grid-cols-[1fr_6rem_9rem_9rem]">
                     <span className="col-span-2 sm:col-span-1">
                       <span className="font-medium">{item.rawMaterial.name}</span>{" "}
@@ -646,6 +647,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
   return (
     <ItemRowShared value={{ colorOptions, canAddColor, materials: allMaterials, currency: purchase.currency }}>
     <div className="flex flex-col gap-4">
+      <OpenOnHash />
       <IntegrityBanner kind="purchase" id={purchase.id} />
       <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Закупки", href: "/purchases" }, { label: purchase.number }]} />
       <div className="flex items-start justify-between">
