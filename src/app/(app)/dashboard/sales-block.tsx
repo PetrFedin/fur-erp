@@ -170,7 +170,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   if (!b.hasData) {
     return (
       <section aria-label="Продажи и остатки" className="space-y-2" data-testid="dash-sales">
-        <WidgetRow id="sales" title="Продажи и остатки" headerEnd={<Link href="/sales" className="text-xs text-blue-700 hover:underline print:hidden">Продажи и остатки ›</Link>}>
+        <WidgetRow id="sales" title="Продажи и остатки" headerEnd={<Link href="/sales" className="text-xs text-blue-700 hover:underline print:hidden">→ Продажи и остатки</Link>}>
           <p className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700">Нет данных о продажах: выгрузка поступлений и продаж ещё не загружена.</p>
         </WidgetRow>
       </section>
@@ -273,7 +273,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
             <p className="mt-1">Числа те же, что в разделе «Продажи и остатки».</p>
           </InfoHint>
         }
-        headerEnd={<Link href={href} data-testid="dash-sales-link" className="text-xs text-blue-700 hover:underline print:hidden">Продажи и остатки ›</Link>}>
+        headerEnd={<Link href={href} data-testid="dash-sales-link" className="text-xs text-blue-700 hover:underline print:hidden">→ Продажи и остатки</Link>}>
         <div className={"grid grid-cols-1 items-stretch gap-3 print:grid-cols-3 " + (showOrdered ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3")}>
           {(showOrdered ? (["ordered", "received", "sold", "stock"] as const) : (["received", "sold", "stock"] as const)).map(tile)}
         </div>

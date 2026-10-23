@@ -131,7 +131,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
 
       {/* ───────── Оплаты, долги, задачи ───────── */}
-      <PayTiles d={d} c4Mode={c4Mode} year={year} headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">Оплаты ›</Link>} />
+      <PayTiles d={d} c4Mode={c4Mode} year={year} headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>} />
 
       {cashflow ? <CashflowOverview incl={cashflow.incl} ex={cashflow.ex} salesAll={cashflow.salesAll} period={parsePeriod(String(year))} prepaidBy={cashflow.prepaidBy} /> : null}
 

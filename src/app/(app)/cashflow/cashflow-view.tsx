@@ -695,7 +695,10 @@ export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy, pa
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-x-3">
         <h1 className="text-xl font-semibold">Cashflow</h1>
+        <span className="flex items-center gap-3 text-xs print:hidden"><Link href="/payments" className="text-blue-700 hover:underline">→ Оплаты</Link><Link href="/sales" className="text-blue-700 hover:underline">→ Продажи</Link></span>
+        </div>
         <InfoHint label="Что такое Cashflow" align="right" wide>
           <p><b>Потрачено</b> — все проведённые оплаты («Оплачено» в разделе «Оплаты») по статьям и по дате платежа. Запланированные и неподтверждённые платежи не входят. Итог за 2025–2026 равен «Оплачено всего» (с НДС).</p>
           <p className="mt-1">На странице «Оплаты» годы для закупок вне аукциона считаются по году закупки, а здесь — по дате платежа, поэтому по годам суммы могут отличаться, итог и месяцы те же.</p>
@@ -1003,7 +1006,7 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy }: { in
             <div role="group" aria-label="Вид графика" className={SEG_GROUP + " print:hidden"}>
               {(["По месяцам", "Накопительно"] as const).map((t, k) => <button key={t} type="button" aria-pressed={slide === k} onClick={() => goSlide(k)} className={seg(slide === k)}>{t}</button>)}
             </div>
-            <Link href="/cashflow" className="text-xs text-blue-700 hover:underline print:hidden">Cashflow ›</Link>
+            <Link href="/cashflow" className="text-xs text-blue-700 hover:underline print:hidden">→ Cashflow</Link>
           </div>
         </div>
         <div ref={slider} onScroll={onSlide} tabIndex={0} role="group" aria-roledescription="карусель" aria-label="Графики: по месяцам и накопительно (листайте вправо-влево)" className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900 [&::-webkit-scrollbar]:hidden">

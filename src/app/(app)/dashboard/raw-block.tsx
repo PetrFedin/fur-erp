@@ -362,7 +362,7 @@ export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c
     <section aria-labelledby="dash-raw">
       <h2 id="dash-raw" className="sr-only">Сырьё</h2>
       <WidgetRow id="raw" title="Сырьё" titleClass="text-sm font-semibold" headerExtra={extra}
-        headerEnd={<Link href={href} title={`${lots} лотов`} className="text-xs text-blue-700 hover:underline print:hidden">Сырьё ›</Link>}>
+        headerEnd={<Link href={href} title={`${lots} лотов`} className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
         <div className="raw-row raw-row-fl">
           {groups.map((g, i) => (
             <Fragment key={g.view}>
