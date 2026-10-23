@@ -3,7 +3,7 @@
 import http from "node:http";
 import crypto from "node:crypto";
 import { spawn } from "node:child_process";
-import { mkdirSync, existsSync, readdirSync } from "node:fs";
+import { mkdirSync, existsSync, readdirSync, readFileSync } from "node:fs";
 
 const log = (m) => console.log(`[демо] ${m}`);
 const die = (m) => { console.error(`[демо] ОШИБКА: ${m}`); process.exit(1); };
@@ -144,20 +144,43 @@ async function boot() {
     let chk = null;
     for (let i = 0; i < 6; i++) { chk = await psql(["-tAc", `select to_regclass('public."User"') is not null`]); if (chk.status === 0) break; log(`база пока недоступна (попытка ${i + 1}/6)`); await new Promise((r) => setTimeout(r, 5000)); }
     if (chk.status !== 0) log(`не удалось проверить базу:\n   ${cleanErr(chk)}`);
-    else if (chk.stdout.trim() === "t") {
-      log("база уже заполнена, дамп не загружается.");
-      // Все миграции уже применены? Тогда долгий `prisma migrate deploy` (на 0,1 ЦП это десятки секунд) не нужен.
-      try {
-        const dirs = readdirSync("prisma/migrations", { withFileTypes: true }).filter((d) => d.isDirectory()).length;
-        const done = await psql(["-tAc", `select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null`]);
-        if (done.status === 0 && Number(done.stdout.trim()) === dirs && dirs > 0) { schemaCurrent = true; log(`схема актуальна: применено миграций ${dirs} из ${dirs}, проверка пропущена.`); }
-      } catch { /* не вышло сравнить — запустим migrate deploy как раньше */ }
-    } else {
-      log("база пустая: загружаю демо-дамп (это один раз, 10-60 секунд)…");
-      const r = await run("sh", ["-c", `gzip -dc "$DUMP" | grep -vE '^\\\\(un)?restrict ' | psql "$PGURL" -X -q --single-transaction -v ON_ERROR_STOP=1 -o /dev/null`], { env: { ...process.env, DUMP, PGURL: pgUrl } });
-      if (r.status !== 0) die(`демо-дамп не загрузился (откат выполнен):\n   ${cleanErr(r)}`);
-      const c = await psql(["-tAc", `select (select count(*) from "User") || ' пользователей, ' || (select count(*) from "Purchase") || ' закупок'`]);
-      log(`дамп загружен: ${c.stdout.trim()}`);
+    else {
+      // Метка загруженного дампа: sha256 файла. Новый дамп в образе (после «Демо-дамп пересобран») → демо-база обновляется сама.
+      const dumpSha = crypto.createHash("sha256").update(readFileSync(DUMP)).digest("hex");
+      const mark = async () => psql(["-c", `create table if not exists public._demo_dump (sha text not null); delete from public._demo_dump; insert into public._demo_dump values ('${dumpSha}')`]);
+      const loadDump = async () => {
+        const r = await run("sh", ["-c", `gzip -dc "$DUMP" | grep -vE '^\\\\(un)?restrict ' | psql "$PGURL" -X -q --single-transaction -v ON_ERROR_STOP=1 -o /dev/null`], { env: { ...process.env, DUMP, PGURL: pgUrl } });
+        if (r.status !== 0) die(`демо-дамп не загрузился (откат выполнен):\n   ${cleanErr(r)}`);
+        await mark();
+        const c = await psql(["-tAc", `select (select count(*) from "User") || ' пользователей, ' || (select count(*) from "Purchase") || ' закупок'`]);
+        log(`дамп загружен: ${c.stdout.trim()}`);
+      };
+      if (chk.stdout.trim() === "t") {
+        const cur = await psql(["-tAc", `select case when to_regclass('public._demo_dump') is null then '' else coalesce((select sha from public._demo_dump limit 1), '') end`]);
+        const curSha = cur.status === 0 ? cur.stdout.trim() : "";
+        // Автообновление: только в демо-базе (все пользователи — *@demo.local); боевую базу это не затронет.
+        if (curSha !== dumpSha && process.env.DEMO_AUTO_RELOAD !== "false") {
+          const g = await psql(["-tAc", `select count(*) filter (where email not like '%@demo.local') || '/' || count(*) from "User"`]);
+          const [foreign, total] = g.stdout.trim().split("/").map(Number);
+          if (g.status === 0 && foreign === 0 && total > 0) {
+            log("в образе новый демо-дамп: пересоздаю демо-базу (изменения тестировщиков будут потеряны)…");
+            const d = await psql(["-c", "drop schema public cascade; create schema public;"]);
+            if (d.status !== 0) log(`не удалось очистить демо-базу (оставляю прежние данные):\n   ${cleanErr(d)}`);
+            else await loadDump();
+          } else log("новый дамп не загружен: в базе есть не демо-пользователи (защита от потери данных).");
+        } else {
+          log("база уже заполнена, дамп не загружается.");
+          // Все миграции уже применены? Тогда долгий `prisma migrate deploy` (на 0,1 ЦП это десятки секунд) не нужен.
+          try {
+            const dirs = readdirSync("prisma/migrations", { withFileTypes: true }).filter((d) => d.isDirectory()).length;
+            const done = await psql(["-tAc", `select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null`]);
+            if (done.status === 0 && Number(done.stdout.trim()) === dirs && dirs > 0) { schemaCurrent = true; log(`схема актуальна: применено миграций ${dirs} из ${dirs}, проверка пропущена.`); }
+          } catch { /* не вышло сравнить — запустим migrate deploy как раньше */ }
+        }
+      } else {
+        log("база пустая: загружаю демо-дамп (это один раз, 10-60 секунд)…");
+        await loadDump();
+      }
     }
   }
 
