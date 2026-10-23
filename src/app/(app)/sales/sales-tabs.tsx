@@ -114,7 +114,7 @@ export function StockTab({ ctx, env, lines, photos, today }: Common & { photos: 
   );
 }
 
-function Top({ title, hint, rows, value, sub, total, photos, tone }: { title: string; hint?: string; rows: Group[]; value: (g: Group) => { v: number; text: string }; sub: (g: Group) => string; total: number; photos: PhotoIdx; tone: "top" | "out" }) {
+function Top({ title, hint, rows, value, sub, extra, total, photos, tone }: { title: string; hint?: string; rows: Group[]; value: (g: Group) => { v: number; text: string }; sub: (g: Group) => string; /** Пересечение с топом по другой мере: «№ 3 из 10 · прибыль …». */ extra?: (g: Group) => string | null; total: number; photos: PhotoIdx; tone: "top" | "out" }) {
   const max = Math.max(...rows.map((g) => Math.abs(value(g).v)), 1);
   return (
     <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4">
@@ -134,6 +134,7 @@ function Top({ title, hint, rows, value, sub, total, photos, tone }: { title: st
                 <span className="min-w-0 flex-1">
                   {href ? <Link href={href} className="block truncate text-sm font-medium hover:underline" title={g.label}>{g.label}</Link> : <span className="block truncate text-sm font-medium">{g.label}</span>}
                   <span className="block truncate text-xs text-neutral-500">{sub(g)}</span>
+                  {extra?.(g) ? <span className="mt-0.5 inline-block max-w-full truncate rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-medium text-neutral-700">{extra(g)}</span> : null}
                   <span className="mt-1 block h-1.5 rounded-full bg-neutral-100"><span className={"block h-1.5 rounded-full " + (tone === "top" ? "bg-[var(--ui-accent)]" : "bg-neutral-400")} style={{ width: `${Math.max(2, (Math.abs(val.v) / max) * 100)}%` }} /></span>
                 </span>
                 <span className="shrink-0 text-right">
@@ -161,6 +162,11 @@ export function TopTab({ ctx, env, lines, photos }: Common & { photos: PhotoIdx 
   // Аутсайдеры: есть остаток, а мера минимальная (нет продаж — первыми); при равенстве выше тот, у кого остаток больше.
   const out = [...g].filter((x) => x.m.stock > 0).sort((a, b) => f[by](a) - f[by](b) || b.m.stock - a.m.stock).slice(0, 10);
   const total = g.reduce((a, x) => a + Math.max(0, f[by](x)), 0);
+  // Пересечение топов: выручка ↔ прибыль. В списке по одной мере показываем место и значение по другой, если артикул есть и в её топ-10.
+  const topOf = (k: "revenue" | "profit") => [...g].filter((x) => f[k](x) > 0).sort((a, b) => f[k](b) - f[k](a)).slice(0, 10);
+  const other = by === "revenue" ? "profit" : by === "profit" ? "revenue" : null;
+  const otherTop = other ? topOf(other) : [];
+  const extra = other ? (x: Group) => { const i = otherTop.findIndex((o) => o.key === x.key); return i < 0 ? null : `в топе по ${other === "profit" ? "прибыли" : "выручке"}: № ${i + 1} из 10 · ${other === "profit" ? "прибыль" : "выручка"} ${money(f[other](x))}`; } : undefined;
   const fmt = (x: Group) => (by === "sold" ? { v: f[by](x), text: n0(f[by](x)) + " шт." } : { v: f[by](x), text: f[by](x) === 0 ? DASH : money(f[by](x)) });
   const subTop = (x: Group) => `продано ${n0(x.m.sold)} шт. · остаток ${n0(x.m.stock)} шт.`;
   const subOut = (x: Group) => `остаток ${n0(x.m.stock)} шт. · ${x.m.sold > 0 ? `продано ${n0(x.m.sold)} шт.` : "продаж нет"}`;
@@ -173,7 +179,7 @@ export function TopTab({ ctx, env, lines, photos }: Common & { photos: PhotoIdx 
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Top tone="top" title="Лидеры" hint={`10 лучших по показателю «${TOP_LABEL[by].toLowerCase()}», % — доля от всех артикулов`} rows={top} value={fmt} sub={subTop} total={total} photos={photos} />
+        <Top tone="top" title="Лидеры" hint={`10 лучших по показателю «${TOP_LABEL[by].toLowerCase()}», % — доля от всех артикулов`} rows={top} value={fmt} sub={subTop} extra={extra} total={total} photos={photos} />
         <Top tone="out" title="Аутсайдеры" hint="Есть на остатке, а продаж мало или нет совсем" rows={out} value={fmt} sub={subOut} total={0} photos={photos} />
       </div>
     </section>
