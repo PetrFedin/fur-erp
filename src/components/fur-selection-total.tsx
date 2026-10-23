@@ -77,6 +77,7 @@ export function FurSelectionTotal({
   widgets,
   raw,
   lockItem,
+  summaryOnly,
   variant = "main",
   orderInfo,
   noLotsKinds,
@@ -90,6 +91,8 @@ export function FurSelectionTotal({
   orderInfo?: Record<string, OrderInfo>;
   /** Страница вида меха: лоты уже отобраны по одному виду; фильтра «Вид» нет, строки — по аукционам или годам (год → аукцион), внизу «Использование по ТЗ». */
   lockItem?: string;
+  /** Общая страница «Сырьё → Мех»: строки раскрываются до аукциона; лоты и ТЗ — на странице аукциона и вида меха. */
+  summaryOnly?: boolean;
   /** «years» — отдельная таблица «Динамика по годам» (год → сырьё → аукцион либо год → аукцион → сырьё) под основной: без фильтров, плиток и выбора строк. */
   variant?: "main" | "years";
   /** Ряд виджетов (плитки сырья и оплат): стоит под панелью фильтров и над таблицей. */
@@ -581,8 +584,9 @@ export function FurSelectionTotal({
     const level: Level = synth ? "item" : levels[depth - off];
     const key = `${path}/${level}:${row.key}`;
     const open = expanded.has(key);
+    const leaf = Boolean(summaryOnly) && !lockItem && !synth && depth + 1 - off >= levels.length;
     const isSel = depth === 0 && group === "item" && table.selectedKeys.includes(row.key);
-    const inner = open
+    const inner = open && !leaf
       ? synth
         ? cs.sort(byBought(rowsBy(row.lots, mode, (l) => l.item))).map((c) => renderNode(c, depth + 1, key, off + 1))
         : depth + 1 - off < levels.length
@@ -597,14 +601,15 @@ export function FurSelectionTotal({
         <tr
           data-row={depth === 0 && group === "item" ? row.key : undefined}
           data-sub={isAuction ? "auction" : undefined}
-          onClick={() => toggleExp(key)}
-          className={cn("cursor-pointer border-t border-neutral-100", depth === 0 ? "hover:bg-neutral-50" : subBg + " text-[13px] hover:bg-neutral-100/70", isSel && "bg-amber-50/60 hover:bg-amber-50", open && depth > 0 && "text-neutral-900")}
+          onClick={leaf ? undefined : () => toggleExp(key)}
+          className={cn(leaf ? "border-t border-neutral-100" : "cursor-pointer border-t border-neutral-100", depth === 0 ? "hover:bg-neutral-50" : subBg + " text-[13px] hover:bg-neutral-100/70", isSel && "bg-amber-50/60 hover:bg-amber-50", open && depth > 0 && "text-neutral-900")}
         >
           <td className={cn("sticky left-0 z-10 py-2 pr-3", depth === 0 ? (isSel ? "bg-amber-50" : "bg-white") : "bg-neutral-50 py-1.5")} style={pad(depth)}>
             <div className="flex min-w-0 items-center whitespace-nowrap">
+              {leaf ? <span aria-hidden className="mr-1 inline-block w-3" /> : (
               <button type="button" aria-expanded={open} aria-label={`${open ? "Свернуть" : "Раскрыть"}: ${row.label}`} className="shrink-0 text-left" onClick={(e) => { e.stopPropagation(); toggleExp(key); }}>
                 <span aria-hidden className={cn("mr-1 inline-block w-3 text-neutral-500 transition-transform", open && "rotate-90")}>›</span>
-              </button>
+              </button>)}
               {!synth && nameHref(level, row) ? (
                 <Link href={nameHref(level, row)!} onClick={(e) => e.stopPropagation()} title={row.label === shown(level, row) ? nameTitle(level, row) : row.label} className={cn(wrapName ? "line-clamp-2 whitespace-normal break-words leading-tight" : "truncate", "rounded-sm hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-900", depth === 0 ? "font-medium" : undefined)}>
                   {shown(level, row)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span>

@@ -383,7 +383,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               <p>Цифры те же, что на Главной: <b>Куплено = Использовано + Остаток</b> (без 4 %). Нажмите на плитку — цены по видам. Справа: Оплачено и К оплате по меху (с НДС).</p>
             </InfoHint>
           </div>
-          <FurSelectionTotal noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} widgets={<FurSelectionTotal variant="years" lots={furTabLots} kind="fur" globalYear={year} />} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
+          <FurSelectionTotal summaryOnly noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} widgets={<FurSelectionTotal variant="years" lots={furTabLots} kind="fur" globalYear={year} />} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
           <PriceCompositionBlock lots={(await priceComposition(orgId, dash)).lots} href="/lots" />
           <AuctionCompare lots={furTabLots} />
         </section>
