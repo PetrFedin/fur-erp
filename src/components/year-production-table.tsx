@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { isRepair, sumOrders, sumTotal, type Sum } from "@/lib/orders-sum";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 import { formatMoney, formatQty } from "@/lib/utils";
@@ -27,8 +28,8 @@ export function YearProductionTable({ orders, year }: { orders: DrillOrder[]; ye
   const row = (n: Node, depth: number): React.ReactNode => {
     const s: Sum = sumOrders(n.orders, "incl");
     return (
-      <>
-        <tr key={depth + n.key + n.label} className={"border-b border-neutral-100 " + (depth === 0 ? "bg-neutral-50 font-medium" : depth === 1 ? "text-[13px]" : "text-[13px] text-neutral-600")}>
+      <Fragment key={depth + n.key + n.label}>
+        <tr className={"border-b border-neutral-100 " + (depth === 0 ? "bg-neutral-50 font-medium" : depth === 1 ? "text-[13px]" : "text-[13px] text-neutral-600")}>
           <td className="px-2 py-1.5 text-left" style={{ paddingLeft: 8 + depth * 18 }}>{n.label}</td>
           <td className={td}>{formatQty(s.qty)}</td>
           <td className={td}>{K(s.fur + s.other)}</td>
@@ -38,7 +39,7 @@ export function YearProductionTable({ orders, year }: { orders: DrillOrder[]; ye
           <td className={td + " font-medium"}>{K(sumTotal(s))}</td>
         </tr>
         {n.kids.map((k) => row(k, depth + 1))}
-      </>
+      </Fragment>
     );
   };
   const tot = sumOrders(own, "incl");
