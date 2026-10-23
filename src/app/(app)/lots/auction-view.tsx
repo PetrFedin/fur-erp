@@ -351,11 +351,6 @@ export async function AuctionView({
           <CardTitle title={label}>
             {names.length > 1 ? `Аукционы / закупки: ${names.length}` : isServiceAuction(label) ? NO_AUCTION_LABEL : `Аукцион: ${shortAuctionName(label, 70)}`}
             <YearNote year={year} />
-            <InfoHint label="Об этом аукционе" wide>
-              <p>Счета, лоты, документы и расчёт цены выбранного аукциона.</p>
-              <p className="mt-1">Год: {year === "all" ? "все годы" : `${year} — закупки с датой заказа в ${year} году`}. Оплаты и остаток считаются по аукциону целиком.</p>
-              <p className="mt-1">Закупок {counted.length}, лотов {totalLots}, шкур {formatDec1(totalQty.toString())}. По счетам {formatMoney(priceIncl.toString())}, с расходами {formatMoney(fullIncl.toString())} (с НДС). 4 % здесь не начисляется: это наценка в ТЗ.</p>
-            </InfoHint>
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -371,10 +366,6 @@ export async function AuctionView({
             <div>
               <dt className="text-xs text-neutral-500">
                 По счетам
-                <InfoHint label="Как считается цена по счетам">
-                  <p>Цена шкур: лот × курс + НДС, без сборов аукциона, выделки, транспорта и брокера.</p>
-                  <p className="mt-1">Сейчас: {formatMoney(priceIncl.toString())} с НДС ({formatMoney(priceExcl.toString())} без НДС) по {counted.length} закупкам.</p>
-                </InfoHint>
               </dt>
               <dd className="text-lg font-semibold">
                 <Money incl={priceIncl} excl={priceExcl} />
@@ -383,12 +374,6 @@ export async function AuctionView({
             <div>
               <dt className="text-xs text-neutral-500">
                 С расходами
-                <InfoHint label="Как считается «С расходами»">
-                  <p>По счетам плюс сборы аукциона, выделка, транспорт, брокер.</p>
-                  <p className="mt-1">
-                    {formatMoney(priceIncl.toString())} + расходы {formatMoney(fullIncl.sub(priceIncl).toString())} = {formatMoney(fullIncl.toString())} (с НДС).
-                  </p>
-                </InfoHint>
               </dt>
               <dd className="text-lg font-semibold">
                 <Money incl={fullIncl} excl={fullExcl} />
@@ -458,8 +443,10 @@ export async function AuctionView({
       </Card>
 
       {(() => {
-        // Расходы аукциона: статьи расчёта лотов (сборы, выделка, транспорт, брокер, комиссии, НДС), сумма по всем лотам = значение на шкуру × количество.
+        // Состав стоимости аукциона: из чего сложилась итоговая сумма по всем лотам (с НДС).
+        // Статьи берутся из расчёта каждого лота (значение на шкуру × количество); то, чего расчёт не покрывает, идёт строкой «Прочее и округление».
         const sums = new Map<string, { group: GroupKey; label: string; sum: number }>();
+        let covered = 0;
         for (const b of counted) {
           for (const l of b.lines) {
             const items = ((l.breakdown ?? {}) as { items?: { label?: unknown; value?: unknown }[] }).items;
@@ -469,35 +456,62 @@ export async function AuctionView({
               if (typeof it.label !== "string") continue;
               const v = Number(it.value);
               const g = classifyLabel(it.label);
-              if (!Number.isFinite(v) || g === "totals" || g === "auction" || labelUnit(it.label) === "$" || labelUnit(it.label) === "%") continue;
+              if (!Number.isFinite(v) || g === "totals" || labelUnit(it.label) !== "₽") continue;
               const key = `${g}|${it.label}`;
-              const cur = sums.get(key) ?? { group: g, label: it.label, sum: 0 };
+              const cur = sums.get(key) ?? { group: g, label: it.label.replace(/,\s*₽$/, ""), sum: 0 };
               cur.sum += v * qtyN;
+              covered += v * qtyN;
               sums.set(key, cur);
             }
           }
         }
         const groups = GROUPS.filter((g) => [...sums.values()].some((x) => x.group === g.key)).map((g) => ({ ...g, rows: [...sums.values()].filter((x) => x.group === g.key && Math.abs(x.sum) >= 0.5) })).filter((g) => g.rows.length > 0);
         if (groups.length === 0) return null;
-        const total = groups.reduce((a, g) => a + g.rows.reduce((x, r) => x + r.sum, 0), 0);
+        const grand = Number(fullIncl.toString());
+        const rest = grand - covered;
+        const per = (v: number) => (Number(totalQty.toString()) > 0 ? formatMoney(Math.round(v / Number(totalQty.toString())).toString()) : "—");
+        const share = (v: number) => (grand > 0 ? `${((v / grand) * 100).toFixed(1).replace(".", ",")}%` : "—");
+        const rowCls = "border-b border-neutral-100";
+        const tdn = "py-1 pl-3 text-right tabular-nums whitespace-nowrap";
         return (
           <Card>
-            <CardHeader><CardTitle>Расходы аукциона</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle>
+                Состав стоимости аукциона
+                <InfoHint label="Как считается" wide>
+                  <p>Сумма по всем лотам аукциона с НДС. Для каждого лота берётся его расчёт: цена лота в валюте × курс, сборы аукциона и НДС на них, НДС на товар, выделка, транспорт, брокер, комиссии. Значение на шкуру умножается на количество и складывается по лотам.</p>
+                  <p className="mt-1">Итог совпадает с «С расходами» выше. Если в расчёте лота нет разбивки, его сумма попадает в «Прочее и округление».</p>
+                </InfoHint>
+              </CardTitle>
+            </CardHeader>
             <CardContent>
-              <table className="w-full text-sm">
-                <thead><tr className="text-left text-xs text-neutral-500"><th scope="col" className="py-1 pr-3 font-medium">Статья</th><th scope="col" className="py-1 pl-2 text-right font-medium">Сумма, ₽</th></tr></thead>
-                <tbody>
-                  {groups.map((g) => (
-                    <Fragment key={g.key}>
-                      <tr className="bg-neutral-50"><td className="py-1 pl-1 pr-3 text-xs font-semibold uppercase tracking-wide text-neutral-600">{g.title}</td><td className="py-1 pl-2 text-right text-xs font-semibold tabular-nums text-neutral-700">{g.rows.length > 1 ? formatMoney(Math.round(g.rows.reduce((a, r) => a + r.sum, 0)).toString()) : ""}</td></tr>
-                      {g.rows.map((r) => (
-                        <tr key={r.label} className="border-b border-neutral-100"><td className="py-1 pl-3 pr-3">{r.label}</td><td className="py-1 pl-2 text-right tabular-nums">{formatMoney(Math.round(r.sum).toString())}</td></tr>
-                      ))}
-                    </Fragment>
-                  ))}
-                  <tr className="row-total"><td className="py-1.5 pr-3">Всего расходов</td><td className="py-1.5 pl-2 text-right tabular-nums">{formatMoney(Math.round(total).toString())}</td></tr>
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[460px] text-sm">
+                  <thead><tr className="text-left text-xs text-neutral-500"><th scope="col" className="py-1 pr-3 font-medium">Статья</th><th scope="col" className="py-1 pl-3 text-right font-medium">Сумма, ₽</th><th scope="col" className="py-1 pl-3 text-right font-medium">На шкуру, ₽</th><th scope="col" className="py-1 pl-3 text-right font-medium">Доля</th></tr></thead>
+                  <tbody>
+                    {groups.map((g) => {
+                      const sub = g.rows.reduce((a, r) => a + r.sum, 0);
+                      return (
+                        <Fragment key={g.key}>
+                          <tr className="bg-neutral-50">
+                            <td className="py-1 pl-1 pr-3 text-xs font-semibold uppercase tracking-wide text-neutral-600">{g.title}</td>
+                            <td className={tdn + " text-xs font-semibold text-neutral-700"}>{formatMoney(Math.round(sub).toString())}</td>
+                            <td className={tdn + " text-xs text-neutral-500"}>{per(sub)}</td>
+                            <td className={tdn + " text-xs text-neutral-500"}>{share(sub)}</td>
+                          </tr>
+                          {g.rows.length > 1 && g.rows.map((r) => (
+                            <tr key={r.label} className={rowCls}><td className="py-1 pl-4 pr-3 text-neutral-700">{r.label}</td><td className={tdn}>{formatMoney(Math.round(r.sum).toString())}</td><td className={tdn + " text-neutral-500"}>{per(r.sum)}</td><td className={tdn + " text-neutral-500"}>{share(r.sum)}</td></tr>
+                          ))}
+                        </Fragment>
+                      );
+                    })}
+                    {Math.abs(rest) >= 1 && (
+                      <tr className={rowCls}><td className="py-1 pl-1 pr-3 text-neutral-700">Прочее и округление</td><td className={tdn}>{formatMoney(Math.round(rest).toString())}</td><td className={tdn + " text-neutral-500"}>{per(rest)}</td><td className={tdn + " text-neutral-500"}>{share(rest)}</td></tr>
+                    )}
+                    <tr className="row-total"><td className="py-1.5 pr-3">Итого с расходами, с НДС</td><td className={tdn + " font-semibold"}>{formatMoney(Math.round(grand).toString())}</td><td className={tdn}>{per(grand)}</td><td className={tdn}>100%</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         );
