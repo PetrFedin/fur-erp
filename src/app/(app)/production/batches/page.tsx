@@ -218,6 +218,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         }
       />
 
+      <h2 className="text-base font-semibold">Партии: выпуск, себестоимость и оплата</h2>
       <ResponsiveRows table={
       <Table stickyHeader>
         <Thead>

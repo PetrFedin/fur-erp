@@ -674,6 +674,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         />
       ) : (
       <>
+      <h2 className="text-base font-semibold">Список ТЗ</h2>
       <ResponsiveRows table={
       <Table anchor="table:production" label="Таблица ТЗ" stickyHeader className="min-w-[1040px]">
         <Thead>
