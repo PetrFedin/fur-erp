@@ -274,10 +274,12 @@ export function OrdersTree({
               {href ? <Link href={href} className="text-blue-700 hover:underline">{label}</Link> : label}
               {isOrder ? (
                 <>
-                  <span className="ml-2 font-normal text-neutral-500">{list.length > 1 ? `${list.length} ${articlesWord(list.length)}` : o.ml}</span>
+                  {compact ? <div className="text-[11px] font-normal leading-4 text-neutral-500">{list.length > 1 ? `${list.length} ${articlesWord(list.length)}` : o.ml}</div> : <span className="ml-2 font-normal text-neutral-500">{list.length > 1 ? `${list.length} ${articlesWord(list.length)}` : o.ml}</span>}
                   {isRepair(o) && !countRepairQty ? <span className="ml-2 font-normal text-neutral-400">ремонт</span> : null}
                   {dims.includes("batch") ? null : <span className="ml-2 font-normal text-neutral-400">{o.bl}</span>}
                 </>
+              ) : compact ? (
+                <div className="text-[11px] font-normal leading-4 text-neutral-500">{tzCountText(uniqueOrderCount(list), list.length)}</div>
               ) : (
                 <span className="ml-1.5 text-xs font-normal text-neutral-500">{tzCountText(uniqueOrderCount(list), list.length)}</span>
               )}
@@ -311,7 +313,7 @@ export function OrdersTree({
         ) : null}
       </div>
       <div className={SCROLL_BOX}>
-        <table className={"w-full min-w-[1120px] text-sm" + (compact ? " text-[13px] [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap [&_td]:!py-0.5 [&_td:nth-child(2)]:max-w-[340px] [&_td:nth-child(2)]:overflow-hidden [&_td:nth-child(2)]:text-ellipsis [&_td:nth-child(2)_div]:ml-2 [&_td:nth-child(2)_div]:inline" : "")}>
+        <table className={"w-full min-w-[1120px] text-sm" + (compact ? " text-[13px] [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap [&_td]:!py-0.5 [&_td:nth-child(2)]:max-w-[340px] [&_td:nth-child(2)]:overflow-hidden [&_td:nth-child(2)]:text-ellipsis" : "")}>
           <thead>
             <tr>
               <th />
