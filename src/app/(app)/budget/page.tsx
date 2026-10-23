@@ -30,12 +30,18 @@ export default async function BudgetListPage() {
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Бюджеты и прогнозы" }]} />
       <BudgetList items={items} canEdit={EDIT_ROLES.includes(session.user.role)} />
-      <section aria-label="Прогнозы" className="flex flex-col gap-2">
-        <h2 className="text-base font-semibold">Прогнозы</h2>
-        <Link href="/budget/forecast" className="block max-w-md rounded-lg border border-neutral-200 bg-white p-4 shadow-sm hover:border-neutral-400">
-          <span className="text-sm font-semibold">Сырьё на остаток FW26</span>
-          <span className="mt-1 block text-xs text-neutral-500">Сколько шкур уйдёт на ещё не пришедшие артикулы и сколько останется по типам меха.</span>
-        </Link>
+      <section aria-label="Прогнозы" className="flex flex-col gap-3">
+        <h2 className="text-xl font-semibold">Прогнозы</h2>
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <li className="relative flex flex-col rounded-lg border border-neutral-200 bg-white p-4 tile-click">
+            <Link href="/budget/forecast" className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900" aria-label="Открыть прогноз: сырьё на остаток FW26" />
+            <div className="pointer-events-none relative z-10 min-w-0">
+              <span className="block truncate text-base font-semibold">Сырьё на остаток FW26</span>
+              <div className="mt-1 text-xs text-neutral-500">FW26</div>
+            </div>
+            <p className="pointer-events-none relative z-10 mt-3 text-xs text-neutral-600">Сколько шкур уйдёт на ещё не пришедшие артикулы и сколько останется по типам меха.</p>
+          </li>
+        </ul>
       </section>
     </div>
   );

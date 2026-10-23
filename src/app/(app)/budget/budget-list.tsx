@@ -39,7 +39,7 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Бюджеты и прогнозы
+          <h1 className="text-xl font-semibold">Бюджеты
             <InfoHint label="Что такое бюджет" wide>
               <p>Версии бюджета расходов по меху: тип сырья → категория → артикул, расчёт идёт сам. Сделайте копию, чтобы сравнить варианты.</p>
             </InfoHint>
