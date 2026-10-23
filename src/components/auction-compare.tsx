@@ -90,7 +90,7 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
                     </div>
                   </td>
                   <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(r.qty)}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{r.usdQty > 0 ? `$${Math.round(r.usdSum / r.usdQty).toLocaleString("ru-RU")}` : "—"}<div className="text-[11px] leading-4 text-neutral-500">{r.usdQty > 0 ? `по ${formatQty(r.usdQty)} из ${formatQty(r.qty)} шт.` : ""}</div></td>
+                  <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{r.usdQty > 0 ? `$${Math.round(r.usdSum / r.usdQty).toLocaleString("ru-RU")}` : "—"}<div className="text-[11px] leading-4 text-neutral-500">{r.usdQty > 0 ? `по ${formatQty(r.usdQty)} из ${formatQty(r.qty)} шт.` : ""}</div></td>
                   <td className="px-2 py-1.5 text-right font-medium tabular-nums">{K(avg)}</td>
                   <td className={"px-2 py-1.5 text-right tabular-nums " + tone(d)}>{all.qty > 0 && (byHouse.length > 1 || byYear.length > 1) ? `${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d * 100).toFixed(0)} %` : "—"}</td>
                   <td className="px-2 py-1.5">
@@ -119,7 +119,7 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
         </div>
       </div>
       <div className="overflow-x-auto rounded-lg border border-neutral-200" data-keep-scroll tabIndex={0}>
-        <table className="table-keep w-full min-w-[760px] text-sm">
+        <table className="table-keep w-full min-w-[860px] text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600">
               <th scope="col" className="px-2 py-2 text-left font-semibold">Аукцион → год → сессия</th>
@@ -135,7 +135,7 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
             <tr className="row-total border-b-2 border-neutral-400 bg-neutral-50 font-semibold">
               <td className="px-2 py-1.5 text-left">Итого по {cur}, средневзвешенно</td>
               <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(all.qty)}</td>
-              <td className="px-2 py-1.5 text-right tabular-nums">{all.usdQty > 0 ? `$${Math.round(all.usd).toLocaleString("ru-RU")}` : "—"}<div className="text-[11px] font-normal leading-4 text-neutral-500">{all.usdQty > 0 ? `по ${formatQty(all.usdQty)} из ${formatQty(all.qty)} шт.` : ""}</div></td>
+              <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{all.usdQty > 0 ? `$${Math.round(all.usd).toLocaleString("ru-RU")}` : "—"}<div className="text-[11px] font-normal leading-4 text-neutral-500">{all.usdQty > 0 ? `по ${formatQty(all.usdQty)} из ${formatQty(all.qty)} шт.` : ""}</div></td>
               <td className="px-2 py-1.5 text-right tabular-nums">{K(all.avg)}</td>
               <td className="px-2 py-1.5" />
               <td className="px-2 py-1.5" />
