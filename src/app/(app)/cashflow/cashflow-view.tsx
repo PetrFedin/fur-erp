@@ -95,20 +95,12 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
         </g>
       ))}
       {kind === "money" && months.map((m, i) => {
-        let acc = 0;
         const sel = active === i || (yearHot !== null && m.startsWith(yearHot));
+        const dim = (active !== null || yearHot !== null) && !sel;
         return (
-          <g key={m}>
-            {d.articles.map((a) => {
-              const v = a.byMonth[i];
-              if (v <= 0.5) return null;
-              const y0 = y(-acc), y1 = y(-(acc + v));
-              acc += v;
-              const dim = hot ? hot !== a.key : (active !== null || yearHot !== null) && !sel;
-              return <rect key={a.key} x={x(i) - bw / 2} width={bw} y={y0} height={Math.max(0, y1 - y0)} fill={COLORS[a.key]} opacity={dim ? 0.25 : 1} stroke={hot === a.key ? "#111" : "none"}
-                onMouseEnter={() => setHot(a.key)} onMouseLeave={() => setHot(null)}><title>{`${a.label}, ${full(m)}: ${formatMoney(v)}`}</title></rect>;
-            })}
-            {ser.revenue[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={y(ser.revenue[i])} height={Math.max(0, y(0) - y(ser.revenue[i]))} fill={GET} opacity={hot || ((active !== null || yearHot !== null) && !sel) ? 0.25 : 1} />}
+          <g key={m} opacity={dim ? 0.3 : 1}>
+            {ser.spend[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={y(0)} height={Math.max(0, y(-ser.spend[i]) - y(0))} fill={SPEND} />}
+            {ser.revenue[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={y(ser.revenue[i])} height={Math.max(0, y(0) - y(ser.revenue[i]))} fill={GET} />}
           </g>
         );
       })}
@@ -144,11 +136,16 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
       {active !== null && (() => {
         const m = months[active];
         const lines: [string, string, string][] =
-          kind === "money" ? [["Траты", dash(ser.spend[active]), SPEND], ["Получено", dash(ser.revenue[active]), GET]]
+          kind === "money" ? [
+            ["Потрачено", dash(ser.spend[active]), SPEND],
+            ...d.articles.filter((a) => a.byMonth[active] >= 0.5).map((a): [string, string, string] => ["   " + a.label, formatMoney(a.byMonth[active]), COLORS[a.key]]),
+            ["Получено", dash(ser.revenue[active]), GET],
+            ...(filtered || !s.available ? [] : [["Чистый поток", dash(ser.net[active]), NAVY] as [string, string, string]]),
+          ]
           : kind === "cum" ? [["Потрачено", dash(ser.cumSpend[active]), SPEND], ["Получено", dash(ser.cumRevenue[active]), GET], ["Чистый итог", dash(ser.cumNet[active]), NAVY]]
           : kind === "goods" ? [["Приход", `${pcs(s.recPcs[active])} шт.`, NAVY], ["Продано", `${pcs(s.salePcs[active])} шт.`, GET], ["Остаток", `${stock[active]} шт.`, STOCK]]
           : [["Работа на единицу", dash(ser.cumWorkPerUnit[active]), SPEND]];
-        const bw = 214, bh = 24 + lines.length * 17;
+        const bw = kind === "money" ? 270 : 214, bh = 24 + lines.length * 17;
         const bx = x(active) + 12 + bw > W - 2 ? x(active) - 12 - bw : x(active) + 12;
         return (
           <g pointerEvents="none" role="presentation">
@@ -157,7 +154,7 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
             {lines.map(([k, v, c], j) => (
               <g key={k}>
                 <rect x={bx + 10} y={top + 30 + j * 17} width={8} height={8} rx={2} fill={c === "#111" ? "#fff" : c} />
-                <text x={bx + 24} y={top + 38 + j * 17} fontSize={12} fill="#fff">{k}</text>
+                <text x={bx + 24} y={top + 38 + j * 17} fontSize={12} fill="#fff" xmlSpace="preserve">{k.trim()}</text>
                 <text x={bx + bw - 10} y={top + 38 + j * 17} fontSize={12} fontWeight={600} textAnchor="end" fill="#fff">{v}</text>
               </g>
             ))}
@@ -797,23 +794,10 @@ export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy, pa
         </div>
         {chartView === "money" ? (
           <>
-        <div className="mb-2 min-h-[2.5rem] text-xs text-neutral-700" aria-live="polite">
-          {active === null ? (
-            null
-          ) : (
-            <span><b>{full(months[active])}</b>: потрачено {dash(ser.spend[active])}{hasSales ? <>, получено {dash(ser.revenue[active])}{filtered ? null : `, чистый ${dash(ser.net[active])}`}</> : null}, накопительно потрачено {dash(ser.cumSpend[active])}{hasSales ? <>, получено {dash(ser.cumRevenue[active])}{filtered ? null : `, чистый ${dash(ser.cumNet[active])}`}</> : null}
-              {d.articles.filter((a) => Math.abs(a.byMonth[active]) >= 0.5).map((a) => <span key={a.key}> · {a.label} {formatMoney(a.byMonth[active])}</span>)}</span>
-          )}
-        </div>
         <ChartBox n={months.length}>{(colW) => <Chart kind="money" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-          {d.articles.map((a) => (
-            <li key={a.key}>
-              <button type="button" aria-pressed={hot === a.key} aria-label={`${a.label}: ${formatMoney(a.total)} за период`} onMouseEnter={() => setHot(a.key)} onMouseLeave={() => setHot(null)} onFocus={() => setHot(a.key)} onBlur={() => setHot(null)} onClick={() => setHot(hot === a.key ? null : a.key)}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: COLORS[a.key] }} />{a.label}</button>
-            </li>
-          ))}
-          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Получено (вверх)</li>
+          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: SPEND }} />Потрачено за месяц (вниз)</li>
+          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Получено за месяц (вверх)</li>
         </ul>
           </>
         ) : (
