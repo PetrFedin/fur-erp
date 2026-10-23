@@ -114,24 +114,32 @@ export function StockTab({ ctx, env, lines, photos, today }: Common & { photos: 
   );
 }
 
-function Top({ title, rows, value, photos }: { title: string; rows: Group[]; value: (g: Group) => { v: number; text: string }; photos: PhotoIdx }) {
+function Top({ title, hint, rows, value, sub, total, photos, tone }: { title: string; hint?: string; rows: Group[]; value: (g: Group) => { v: number; text: string }; sub: (g: Group) => string; total: number; photos: PhotoIdx; tone: "top" | "out" }) {
   const max = Math.max(...rows.map((g) => Math.abs(value(g).v)), 1);
   return (
-    <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-neutral-300 p-3">
-      <h3 className="text-sm font-semibold">{title}</h3>
+    <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4">
+      <div>
+        <h3 className="text-base font-semibold">{title}</h3>
+        {hint ? <p className="mt-0.5 text-xs text-neutral-500">{hint}</p> : null}
+      </div>
       {rows.length === 0 ? <p className="text-sm text-neutral-700">Нет данных.</p> : (
-        <ol className="flex flex-col gap-1">
+        <ol className="flex flex-col divide-y divide-neutral-100">
           {rows.map((g, i) => {
             const val = value(g), href = movementHref(g.article, null, g.modelCode);
+            const share = total > 0 && val.v > 0 ? `${((val.v / total) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "";
             return (
-              <li key={g.key} className="flex items-center gap-2">
-                <span className="w-5 shrink-0 text-right text-xs tabular-nums text-neutral-600">{i + 1}</span>
-                <span className="w-11 shrink-0"><Thumb g={g} photos={photos} /></span>
+              <li key={g.key} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                <span className={"inline-flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums " + (tone === "top" && i < 3 ? "bg-[var(--ui-accent)] text-white" : "bg-neutral-100 text-neutral-600")}>{i + 1}</span>
+                <span className="size-12 shrink-0"><Thumb g={g} photos={photos} /></span>
                 <span className="min-w-0 flex-1">
-                  {href ? <Link href={href} className="block truncate text-sm underline decoration-neutral-400 underline-offset-2" title={g.label}>{g.label}</Link> : <span className="block truncate text-sm">{g.label}</span>}
-                  <span className="block h-1.5 rounded bg-neutral-100"><span className="block h-1.5 rounded bg-neutral-700" style={{ width: `${Math.max(2, (Math.abs(val.v) / max) * 100)}%` }} /></span>
+                  {href ? <Link href={href} className="block truncate text-sm font-medium hover:underline" title={g.label}>{g.label}</Link> : <span className="block truncate text-sm font-medium">{g.label}</span>}
+                  <span className="block truncate text-xs text-neutral-500">{sub(g)}</span>
+                  <span className="mt-1 block h-1.5 rounded-full bg-neutral-100"><span className={"block h-1.5 rounded-full " + (tone === "top" ? "bg-[var(--ui-accent)]" : "bg-neutral-400")} style={{ width: `${Math.max(2, (Math.abs(val.v) / max) * 100)}%` }} /></span>
                 </span>
-                <span className="shrink-0 text-sm tabular-nums">{val.text}</span>
+                <span className="shrink-0 text-right">
+                  <span className="block text-sm font-semibold tabular-nums">{val.text}</span>
+                  {share ? <span className="block text-xs tabular-nums text-neutral-500">{share}</span> : null}
+                </span>
               </li>
             );
           })}
@@ -141,25 +149,33 @@ function Top({ title, rows, value, photos }: { title: string; rows: Group[]; val
   );
 }
 
-type TopBy = "revenue" | "sold" | "profit" | "idle";
-const TOP_LABEL: Record<TopBy, string> = { revenue: "Выручка", sold: "Штуки", profit: "Прибыль", idle: "Без движения" };
+type TopBy = "revenue" | "sold" | "profit";
+const TOP_LABEL: Record<TopBy, string> = { revenue: "Выручка", sold: "Штуки", profit: "Прибыль" };
 
-/** Один список топ-10 с переключателем меры. */
+/** Лидеры и аутсайдеры по выбранной мере: слева 10 лучших артикулов, справа 10 худших среди тех, что есть на остатке. */
 export function TopTab({ ctx, env, lines, photos }: Common & { photos: PhotoIdx }) {
   const [by, setBy] = useState<TopBy>("revenue");
   const g = useMemo(() => groupBy(ctx, env, lines, "article"), [ctx, env, lines]);
-  const f: Record<Exclude<TopBy, "idle">, (x: Group) => number | null> = { revenue: (x) => x.m.revenue, sold: (x) => x.m.sold, profit: (x) => x.m.grossProfit };
-  const rows = by === "idle" ? [...g].filter((x) => x.m.stock > 0 && x.m.sold <= 0).sort((a, b) => b.m.stock - a.m.stock).slice(0, 10) : [...g].filter((x) => (f[by](x) ?? 0) > 0).sort((a, b) => (f[by](b) ?? 0) - (f[by](a) ?? 0)).slice(0, 10);
-  const value = (x: Group) => by === "idle" ? { v: x.m.stock, text: n0(x.m.stock) + " шт." } : by === "sold" ? { v: x.m.sold, text: n0(x.m.sold) + " шт." } : by === "revenue" ? { v: x.m.revenue, text: money(x.m.revenue) } : { v: x.m.grossProfit ?? 0, text: money(x.m.grossProfit) };
+  const f: Record<TopBy, (x: Group) => number> = { revenue: (x) => x.m.revenue ?? 0, sold: (x) => x.m.sold ?? 0, profit: (x) => x.m.grossProfit ?? 0 };
+  const top = [...g].filter((x) => f[by](x) > 0).sort((a, b) => f[by](b) - f[by](a)).slice(0, 10);
+  // Аутсайдеры: есть остаток, а мера минимальная (нет продаж — первыми); при равенстве выше тот, у кого остаток больше.
+  const out = [...g].filter((x) => x.m.stock > 0).sort((a, b) => f[by](a) - f[by](b) || b.m.stock - a.m.stock).slice(0, 10);
+  const total = g.reduce((a, x) => a + Math.max(0, f[by](x)), 0);
+  const fmt = (x: Group) => (by === "sold" ? { v: f[by](x), text: n0(f[by](x)) + " шт." } : { v: f[by](x), text: f[by](x) === 0 ? DASH : money(f[by](x)) });
+  const subTop = (x: Group) => `продано ${n0(x.m.sold)} шт. · остаток ${n0(x.m.stock)} шт.`;
+  const subOut = (x: Group) => `остаток ${n0(x.m.stock)} шт. · ${x.m.sold > 0 ? `продано ${n0(x.m.sold)} шт.` : "продаж нет"}`;
   return (
     <section aria-label="Топ и аутсайдеры" className={sec}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">Топ-10 артикулов</h2>
-        <div role="group" aria-label="Мера топа" className={segGroup}>
+        <h2 className="text-sm font-semibold">Топ и аутсайдеры по артикулам</h2>
+        <div role="group" aria-label="Мера" className={segGroup}>
           {(Object.keys(TOP_LABEL) as TopBy[]).map((k) => <button key={k} type="button" aria-pressed={by === k} onClick={() => setBy(k)} className={seg(by === k)}>{TOP_LABEL[k]}</button>)}
         </div>
       </div>
-      <Top title={by === "idle" ? "Есть остаток, продаж нет" : TOP_LABEL[by]} rows={rows} value={value} photos={photos} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Top tone="top" title="Лидеры" hint={`10 лучших по показателю «${TOP_LABEL[by].toLowerCase()}», % — доля от всех артикулов`} rows={top} value={fmt} sub={subTop} total={total} photos={photos} />
+        <Top tone="out" title="Аутсайдеры" hint="Есть на остатке, а продаж мало или нет совсем" rows={out} value={fmt} sub={subOut} total={0} photos={photos} />
+      </div>
     </section>
   );
 }
