@@ -5,7 +5,8 @@ import type { ForecastLine, RawForecast } from "@/lib/raw-forecast";
 import { formatDec1, formatInt, formatMoney } from "@/lib/utils";
 
 const C4 = 4;
-const TH = "px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-500";
+const TH = "whitespace-nowrap px-3 py-2 text-right align-bottom text-xs font-medium text-neutral-500";
+const GH = "whitespace-nowrap border-b border-neutral-200 px-3 pb-1.5 pt-2.5 text-center text-xs font-semibold text-neutral-800";
 const TD = "px-3 py-2 text-right text-sm tabular-nums";
 const SEP = " border-l border-neutral-200";
 const key = (fur: string) => fur.split(" + ").sort().join(" + ");
@@ -51,7 +52,7 @@ export function ForecastView({ lines, stock, asOf }: { lines: ForecastLine[]; st
   const per = (v: number, n: number, f: (x: number) => string) => (n ? `${f(v / n)} / изд.` : "");
   // Пусто или 0 — прочерк.
   const cell = (v: string, sub: string, cls = "") => {
-    const zero = v.trim() === "" || /^0([,.]0)?( ₽)?$/.test(v.trim());
+    const zero = v.trim() === "" || /^0([,.]0)?\s*₽?$/.test(v.trim());
     return <td className={TD + " whitespace-nowrap leading-tight " + cls}>{zero ? "—" : v}{zero ? null : <div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">{sub}</div>}</td>;
   };
   const nCell = (c: Calc, unpriced: number) => <td className={TD}>{formatInt(c.left + unpriced)}{unpriced ? <div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">без расчёта {formatInt(unpriced)}</div> : null}</td>;
@@ -105,13 +106,13 @@ export function ForecastView({ lines, stock, asOf }: { lines: ForecastLine[]; st
         <table className="w-full min-w-[1000px]">
           <thead>
             <tr><th colSpan={detail ? 4 : 3} />
-              {detail && <th colSpan={6} className={TH + " text-center" + SEP}>Заполнено на 1 изделие</th>}
-              <th colSpan={2} className={TH + " text-center" + SEP}>Мех</th><th colSpan={2} className={TH + " text-center" + SEP}>Подкладка</th><th className={TH + " text-center" + SEP}>Надбавка</th><th className={TH + " text-center" + SEP}>Работа</th>{showExtra && <th className={TH + " text-center" + SEP}>Доп.</th>}<th className={TH + " text-center" + SEP}>Всего</th></tr>
+              {detail && <th colSpan={6} className={GH + SEP}>Заполнено на 1 изделие</th>}
+              <th colSpan={2} className={GH + SEP}>Мех</th><th colSpan={2} className={GH + SEP}>Подкладка</th><th className={GH + SEP}>Надбавка 4 %</th><th className={GH + SEP}>Работа</th>{showExtra && <th className={GH + SEP}>Доп. расходы</th>}<th className={GH + SEP}>Всего</th></tr>
             <tr className="border-b border-neutral-200">
-              {detail && <th className={TH}>✓</th>}
+              {detail && <th className={TH + " text-center"}>Учесть</th>}
               <th className={TH + " text-left"}>Категория 2</th><th className={TH + " text-left"}>Артикул</th><th className={TH}>Изд.</th>
-              {detail && <><th className={TH + SEP}>Шкур</th><th className={TH}>Цена шкуры</th><th className={TH}>Подкл., м</th><th className={TH}>Цена м</th><th className={TH}>Работа</th><th className={TH}>Доп. расходы</th></>}
-              <th className={TH + SEP}>Шкур</th><th className={TH}>₽</th><th className={TH + SEP}>Метров</th><th className={TH}>₽</th><th className={TH + SEP}>4%, ₽</th><th className={TH + SEP}>₽</th>{showExtra && <th className={TH + SEP}>₽</th>}<th className={TH + SEP}>Себестоимость, ₽</th>
+              {detail && <><th className={TH + SEP}>Шкур</th><th className={TH}>Цена шкуры, ₽</th><th className={TH}>Подкладка, м</th><th className={TH}>Цена м, ₽</th><th className={TH}>Работа, ₽</th><th className={TH}>Доп. расходы, ₽</th></>}
+              <th className={TH + SEP}>Шкур</th><th className={TH}>₽</th><th className={TH + SEP}>Метров</th><th className={TH}>₽</th><th className={TH + SEP}>₽</th><th className={TH + SEP}>₽</th>{showExtra && <th className={TH + SEP}>₽</th>}<th className={TH + SEP}>Себестоимость, ₽</th>
             </tr>
           </thead>
           <tbody>
@@ -126,7 +127,7 @@ export function ForecastView({ lines, stock, asOf }: { lines: ForecastLine[]; st
                     <tr key={l.acode} className={"border-b border-neutral-100 " + (on ? "" : "text-neutral-400")}>
                       {detail && <td className="px-3 py-2 text-center"><input type="checkbox" checked={on} aria-label={`Учитывать ${l.acode}`} onChange={() => setOff((p) => { const n = new Set(p); if (n.has(l.acode)) n.delete(l.acode); else n.add(l.acode); return n; })} className="h-5 w-5" /></td>}
                       <td className="px-3 py-2 text-sm text-neutral-600">{l.cat2}</td>
-                      <td className="px-3 py-2 text-sm">{l.acode}{detail && l.source !== "ТЗ артикула" ? <span className="ml-1 text-[11px] text-neutral-400">{[l.source === "категория" ? "шкуры по категории" : "", l.wpEst ? "работа — ориентир" : ""].filter(Boolean).join(", ")}</span> : null}</td>
+                      <td className="min-w-[190px] px-3 py-2 text-sm">{l.acode}{detail && l.source !== "ТЗ артикула" ? <span className="ml-1 text-[11px] text-neutral-400">{[l.source === "категория" ? "шкуры по категории" : "", l.wpEst ? "работа — ориентир" : ""].filter(Boolean).join(", ")}</span> : null}</td>
                       <td className={TD}>{formatInt(l.left)}</td>
                       {detail && <>{inp(l, "hp")}{inp(l, "hidePrice", "w-20")}{inp(l, "mp")}{inp(l, "meterPrice", "w-20")}{inp(l, "wp", "w-20")}{inp(l, "extra", "w-20")}</>}
                       {results(c ?? ZERO)}
