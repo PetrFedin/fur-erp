@@ -110,7 +110,7 @@ export function ForecastView({ lines, stock, asOf }: { lines: ForecastLine[]; st
               <th colSpan={2} className={GH + SEP}>Мех</th><th colSpan={2} className={GH + SEP}>Подкладка</th><th className={GH + SEP}>Надбавка 4 %</th><th className={GH + SEP}>Работа</th>{showExtra && <th className={GH + SEP}>Доп. расходы</th>}<th className={GH + SEP}>Всего</th></tr>
             <tr className="border-b border-neutral-200">
               {detail && <th className={TH + " text-center"}>Учесть</th>}
-              <th className={TH + " text-left"}>Категория 2</th><th className={TH + " text-left"}>Артикул</th><th className={TH}>Изд.</th>
+              <th className={TH + " text-left"}>Категория</th><th className={TH + " text-left"}>Артикул</th><th className={TH}>Изд.</th>
               {detail && <><th className={TH + SEP}>Шкур</th><th className={TH}>Цена шкуры, ₽</th><th className={TH}>Подкладка, м</th><th className={TH}>Цена м, ₽</th><th className={TH}>Работа, ₽</th><th className={TH}>Доп. расходы, ₽</th></>}
               <th className={TH + SEP}>Шкур</th><th className={TH}>₽</th><th className={TH + SEP}>Метров</th><th className={TH}>₽</th><th className={TH + SEP}>₽</th><th className={TH + SEP}>₽</th>{showExtra && <th className={TH + SEP}>₽</th>}<th className={TH + SEP}>Себестоимость, ₽</th>
             </tr>
