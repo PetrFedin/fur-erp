@@ -64,9 +64,9 @@ function Thumb({ g, photos }: { g: Pick<Group, "modelCode" | "variant" | "label"
   return photo && v.length ? <PhotoGalleryButton modelId={photo.modelId} photos={v} title={g.label} compact thumbOnly /> : <span role="img" aria-label="Фото нет" className="mx-auto inline-block size-10 rounded border border-dashed border-neutral-300" />;
 }
 
-type Sort = "idle" | "cover" | "stock";
+type Sort = "idle" | "stock";
 
-/** Только то, чего нет в дереве: залежавшееся (нет продаж N дней) и покрытие. Остатки по структурам — в «Обзоре». */
+/** Только то, чего нет в дереве: залежавшееся (нет продаж N дней). Остатки по структурам — в «Обзоре». */
 export function StockTab({ ctx, env, lines, photos, today }: Common & { photos: PhotoIdx; today: string }) {
   const [sort, setSort] = useState<Sort>("idle");
   const [idle, setIdle] = useState(30);
@@ -74,26 +74,25 @@ export function StockTab({ ctx, env, lines, photos, today }: Common & { photos: 
   const idleDays = (g: Group) => (g.m.lastSale ? daysBetween(g.m.lastSale, today) : null);
   const list = useMemo(() => {
     const r = groups.filter((g) => g.m.stock > 0).filter((g) => { const d = g.m.lastSale ? daysBetween(g.m.lastSale, today) : null; return d === null || d >= idle; });
-    const cov = (g: Group) => g.m.coverMonths ?? Number.POSITIVE_INFINITY;
     const dd = (g: Group) => (g.m.lastSale ? daysBetween(g.m.lastSale, today) : 1e6);
-    return [...r].sort(sort === "stock" ? (a, b) => b.m.stock - a.m.stock : sort === "cover" ? (a, b) => cov(b) - cov(a) : (a, b) => dd(b) - dd(a));
+    return [...r].sort(sort === "stock" ? (a, b) => b.m.stock - a.m.stock : (a, b) => dd(b) - dd(a));
   }, [groups, idle, sort, today]);
   return (
     <section aria-label="Залежавшееся" className={sec}>
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="mr-auto text-sm font-semibold">Залежавшееся и покрытие</h2>
+        <h2 className="mr-auto text-sm font-semibold">Залежавшееся</h2>
         <div role="group" aria-label="Нет продаж, дней" className={segGroup}>
           {([30, 60, 90] as const).map((k) => <button key={k} type="button" aria-pressed={idle === k} onClick={() => setIdle(k)} className={seg(idle === k)}>{k} дн.</button>)}
         </div>
         <div role="group" aria-label="Сортировка" className={segGroup}>
-          {([["idle", "По давности"], ["cover", "По покрытию"], ["stock", "По остатку"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={sort === k} onClick={() => setSort(k)} className={seg(sort === k)}>{t}</button>)}
+          {([["idle", "По давности"], ["stock", "По остатку"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={sort === k} onClick={() => setSort(k)} className={seg(sort === k)}>{t}</button>)}
         </div>
       </div>
       <div className={wrap} data-keep-scroll tabIndex={0} role="region" aria-label="Список залежавшегося">
         <table suppressHydrationWarning className="table-keep w-full border-collapse">
           <thead><tr className="border-b border-neutral-300">
             <th scope="col" className={th + " w-12 text-center"}>Фото</th><th scope="col" className={th + " text-left"}>Артикул · цвет</th>
-            <th scope="col" className={th}>Остаток, шт.</th><th scope="col" className={th}>Покрытие, мес.</th><th scope="col" className={th}>Последняя продажа</th><th scope="col" className={th}>Без продаж, дн.</th>
+            <th scope="col" className={th}>Остаток, шт.</th><th scope="col" className={th}>Последняя продажа</th><th scope="col" className={th}>Без продаж, дн.</th>
           </tr></thead>
           <tbody>
             {list.map((g) => {
@@ -103,11 +102,11 @@ export function StockTab({ ctx, env, lines, photos, today }: Common & { photos: 
                 <tr key={g.key} className="border-b border-neutral-200">
                   <td className="w-12 px-1 py-1 text-center"><Thumb g={g} photos={photos} /></td>
                   <th scope="row" className="px-2 py-1.5 text-left text-sm font-normal">{href ? <Link href={href} className="underline decoration-neutral-400 underline-offset-2">{g.label}</Link> : g.label}</th>
-                  <td className={td + " font-semibold"}>{n0(g.m.stock)}</td><td className={td}>{d1(g.m.coverMonths)}</td><td className={td}>{dateRu(g.m.lastSale)}</td><td className={td}>{d === null ? "не продавалось" : d === 0 ? DASH : n0(d)}</td>
+                  <td className={td + " font-semibold"}>{n0(g.m.stock)}</td><td className={td}>{dateRu(g.m.lastSale)}</td><td className={td}>{d === null ? "не продавалось" : d === 0 ? DASH : n0(d)}</td>
                 </tr>
               );
             })}
-            {list.length === 0 && <tr><td colSpan={6} className="px-2 py-4 text-center text-sm text-neutral-700">Залежавшегося нет.</td></tr>}
+            {list.length === 0 && <tr><td colSpan={5} className="px-2 py-4 text-center text-sm text-neutral-700">Залежавшегося нет.</td></tr>}
           </tbody>
         </table>
       </div>
