@@ -4,15 +4,17 @@ import { loadReportSizesState } from "@/lib/import-keys";
 import { loadBudgetStats } from "@/lib/budget-stats";
 import { loadDashboard } from "@/lib/dashboard-data";
 import { parseDashFilters } from "@/lib/dashboard-calc";
-import { normKey, type BudgetStat } from "@/lib/budget-calc";
+import { DEFAULT_PARAMS, normKey, type BudgetStat } from "@/lib/budget-calc";
 import type { ReportSizeRow } from "@/lib/margin-tree";
 
 /** Прогноз сырья: сколько шкур уйдёт на остаток заказа FW26 (заказано − поступило по отчёту о товарах) и сколько останется по типам меха. */
 export type ForecastArticle = { acode: string; label: string; left: number; hidesPer: number | null; hides: number; source: "ТЗ артикула" | "категория" | "нет данных" };
+/** Строка таблицы «Артикулы в заказе»: примерный расход и стоимость на весь остаток заказа по ТЗ (₽ с НДС, 4% — на мех и подкладку). */
+export type ForecastLine = { acode: string; fur: string; left: number; hides: number; fur$: number; meters: number; lining$: number; c4$: number; work$: number; total$: number; source: "ТЗ артикула" | "категория" };
 export type ForecastFur = { fur: string; stock: number; need: number; rest: number; articles: ForecastArticle[] };
-export type RawForecast = { furs: ForecastFur[]; leftPcs: number; noData: { acode: string; left: number; fur: string }[]; asOf: string | null };
+export type RawForecast = { lines: ForecastLine[]; furs: ForecastFur[]; leftPcs: number; noData: { acode: string; left: number; fur: string }[]; asOf: string | null };
 
-const FUR_RE: [RegExp, string][] = [[/SABLE/, "Соболь"], [/MINK/, "Норка"], [/LYNX/, "Рысь"], [/FOX/, "Лиса"], [/KARAKUL|SWAKARA/, "Каракуль (свакара)"]];
+const FUR_RE: [RegExp, string][] = [[/SABLE/, "Соболь"], [/MINK/, "Норка"], [/LYNX/, "Рысь"], [/FOX/, "Лиса"], [/KARAKUL|SWAKARA/, "Свакара"]];
 const norm = (c: string) => c.replace(/[-\s]/g, "").toUpperCase();
 
 export async function loadRawForecast(orgId: string): Promise<RawForecast> {
@@ -44,6 +46,11 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
   const get = (fur: string) => { let f = furs.get(fur); if (!f) { f = { fur, stock: stock.get(fur) ?? 0, need: 0, rest: 0, articles: [] }; furs.set(fur, f); } return f; };
   for (const name of stock.keys()) get(name);
   const noData: RawForecast["noData"] = [];
+  const lines: ForecastLine[] = [];
+  const line = (acode: string, s: BudgetStat, n: number, source: ForecastLine["source"]) => {
+    const hides = s.hidesPer * n, fur$ = hides * s.hidePrice, meters = s.metersPer * n, lining$ = meters * s.meterPrice, work$ = s.workPer * n, c4$ = (fur$ + lining$) * DEFAULT_PARAMS.c4 / 100;
+    lines.push({ acode, fur: s.fur, left: n, hides, fur$, meters, lining$, c4$, work$, total$: fur$ + lining$ + c4$ + work$, source });
+  };
   let leftPcs = 0;
   for (const [acode, e] of left) {
     leftPcs += e.left;
@@ -51,8 +58,10 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
     const own = mi ? byModel.get(mi.id) : undefined;
     const code = acode.toUpperCase();
     const codeFurs = FUR_RE.filter(([re]) => re.test(code)).map(([, n]) => n);
-    if (own?.length) {
-      for (const s of own) { const f = get(s.fur); const h = s.hidesPer * e.left; f.need += h; f.articles.push({ acode, label: acode, left: e.left, hidesPer: s.hidesPer, hides: h, source: "ТЗ артикула" }); }
+    const same = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
+    const mine = own?.filter((s) => !codeFurs.length || same(s.fur.split(" + "), codeFurs));
+    if (mine?.length) {
+      for (const s of mine) { const f = get(s.fur); const h = s.hidesPer * e.left; f.need += h; f.articles.push({ acode, label: acode, left: e.left, hidesPer: s.hidesPer, hides: h, source: "ТЗ артикула" }); line(acode, s, e.left, "ТЗ артикула"); }
       continue;
     }
     let placed = false;
@@ -60,10 +69,11 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
       const s = byCat.get(`${fur}|${normKey(mi?.cat ?? e.l3)}`);
       if (!s || !(s.hidesPer > 0) || codeFurs.length > 1) continue;
       const f = get(fur); const h = s.hidesPer * e.left; f.need += h;
-      f.articles.push({ acode, label: acode, left: e.left, hidesPer: s.hidesPer, hides: h, source: "категория" }); placed = true;
+      f.articles.push({ acode, label: acode, left: e.left, hidesPer: s.hidesPer, hides: h, source: "категория" }); line(acode, s, e.left, "категория"); placed = true;
     }
     if (!placed) noData.push({ acode, left: e.left, fur: codeFurs.join(" + ") || "—" });
   }
   for (const f of furs.values()) { f.rest = f.stock - f.need; f.articles.sort((a, b) => b.hides - a.hides); }
-  return { furs: [...furs.values()].sort((a, b) => b.stock - a.stock), leftPcs, noData, asOf: sizes?.key.slice(-10) ?? null };
+  lines.sort((a, b) => b.total$ - a.total$);
+  return { lines, furs: [...furs.values()].sort((a, b) => b.stock - a.stock), leftPcs, noData, asOf: sizes?.key.slice(-10) ?? null };
 }

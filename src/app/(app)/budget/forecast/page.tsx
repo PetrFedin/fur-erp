@@ -1,7 +1,7 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { requireSession } from "@/lib/session";
 import { loadRawForecast } from "@/lib/raw-forecast";
-import { formatInt } from "@/lib/utils";
+import { formatInt, formatMoney } from "@/lib/utils";
 
 export const metadata = { title: "Прогноз сырья на FW26" };
 
@@ -12,32 +12,50 @@ export default async function RawForecastPage() {
   const session = await requireSession();
   const f = await loadRawForecast(session.user.organizationId);
   const mixed = f.furs.filter((x) => x.fur.includes(" + "));
-  const rows = f.furs.filter((x) => !x.fur.includes(" + ") && (x.stock > 0 || x.need > 0));
+  const all = f.furs.filter((x) => !x.fur.includes(" + ") && (x.stock > 0 || x.need > 0));
+  const big = all.filter((x) => x.stock + x.need >= 100);
+  const small = all.filter((x) => x.stock + x.need < 100);
+  const rows = small.length ? [...big, { fur: "Остальной мех", stock: small.reduce((a, x) => a + x.stock, 0), need: small.reduce((a, x) => a + x.need, 0), rest: small.reduce((a, x) => a + x.rest, 0), articles: [] as typeof big[number]["articles"] }] : big;
   const sum = (k: "stock" | "need") => rows.reduce((a, x) => a + x[k], 0);
+  const L = f.lines;
+  const tot = (k: "left" | "hides" | "fur$" | "meters" | "lining$" | "c4$" | "work$" | "total$") => L.reduce((a, x) => a + x[k], 0);
+  const m = (v: number) => formatMoney(Math.round(v / 1000) * 1000);
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Бюджеты и прогнозы", href: "/budget" }, { label: "Прогноз сырья на FW26" }]} />
       <div>
         <h1 className="text-xl font-semibold">Прогноз сырья на остаток FW26</h1>
-        <p className="mt-1 text-xs text-neutral-500">Остаток заказа: {formatInt(f.leftPcs)} изд. (заказано − поступило по отчёту о товарах{f.asOf ? ` на ${f.asOf.split("-").reverse().join(".")}` : ""}). Шкур на изделие — из ТЗ артикула, у новых — по категории.</p>
+        <p className="mt-1 text-xs text-neutral-500">Остаток заказа: {formatInt(f.leftPcs)} изд. (заказано − поступило по отчёту о товарах{f.asOf ? ` на ${f.asOf.split("-").reverse().join(".")}` : ""}). Шкур, цены меха и подкладки, работа на изделие — средние по ТЗ артикула (у новых — по категории), ₽ с НДС, 4% на мех и подкладку; суммы до тысяч.</p>
       </div>
+      <h2 className="text-base font-semibold">Артикулы в заказе: примерный расход и себестоимость</h2>
+      <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+        <table className="w-full min-w-[900px]">
+          <thead><tr className="border-b border-neutral-200">
+            <th className={TH + " text-left"}>Артикул</th><th className={TH}>Изд.</th><th className={TH}>Шкур</th><th className={TH}>Мех, ₽</th><th className={TH}>Подкладка, м</th><th className={TH}>Подкладка, ₽</th><th className={TH}>4%, ₽</th><th className={TH}>Работа, ₽</th><th className={TH}>Себестоимость, ₽</th><th className={TH}>На 1 изд., ₽</th>
+          </tr></thead>
+          <tbody>
+            {L.map((x, i) => (
+              <tr key={x.acode + i} className="border-b border-neutral-100">
+                <td className="px-3 py-2 text-sm">{x.acode}{x.source === "категория" ? <span className="ml-1 text-[11px] text-neutral-400">по категории</span> : null}</td>
+                <td className={TD}>{formatInt(x.left)}</td><td className={TD}>{formatInt(x.hides)}</td><td className={TD}>{m(x.fur$)}</td><td className={TD}>{formatInt(x.meters)}</td><td className={TD}>{m(x.lining$)}</td><td className={TD}>{m(x.c4$)}</td><td className={TD}>{m(x.work$)}</td><td className={TD + " font-semibold"}>{m(x.total$)}</td><td className={TD}>{m(x.total$ / x.left)}</td>
+              </tr>
+            ))}
+            <tr className="bg-neutral-50 font-semibold">
+              <td className="px-3 py-2 text-sm">Итого</td><td className={TD}>{formatInt(tot("left"))}</td><td className={TD}>{formatInt(tot("hides"))}</td><td className={TD}>{m(tot("fur$"))}</td><td className={TD}>{formatInt(tot("meters"))}</td><td className={TD}>{m(tot("lining$"))}</td><td className={TD}>{m(tot("c4$"))}</td><td className={TD}>{m(tot("work$"))}</td><td className={TD}>{m(tot("total$"))}</td><td className={TD}>{m(tot("total$") / (tot("left") || 1))}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <h2 className="mt-2 text-base font-semibold">Сырьё по типам меха, шкур</h2>
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full min-w-[560px]">
           <thead><tr className="border-b border-neutral-200">
-            <th className={TH + " text-left"}>Тип меха</th><th className={TH}>Сырья сейчас, шт.</th><th className={TH}>Уйдёт на остаток заказа, шт.</th><th className={TH}>Останется, шт.</th>
+            <th className={TH + " text-left"}>Тип меха</th><th className={TH}>Сейчас на остатке</th><th className={TH}>Будет использовано</th><th className={TH}>Останется</th>
           </tr></thead>
           <tbody>
             {rows.map((x) => (
-              <tr key={x.fur} className="border-b border-neutral-100 align-top">
-                <td className="px-3 py-2 text-sm">
-                  {x.articles.length ? (
-                    <details><summary className="cursor-pointer">{x.fur}</summary>
-                      <ul className="mt-1 space-y-0.5 text-xs text-neutral-600">
-                        {x.articles.map((a, i) => <li key={a.acode + i}>{a.acode}: {formatInt(a.left)} изд. × {a.hidesPer?.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шк. = {formatInt(a.hides)} шк.{a.source === "категория" ? " (по категории)" : ""}</li>)}
-                      </ul>
-                    </details>
-                  ) : x.fur}
-                </td>
+              <tr key={x.fur} className="border-b border-neutral-100">
+                <td className="px-3 py-2 text-sm">{x.fur}</td>
                 <td className={TD}>{formatInt(x.stock)}</td><td className={TD}>{x.need > 0 ? formatInt(x.need) : "—"}</td>
                 <td className={TD + (x.rest < 0 ? " font-semibold text-red-700" : " font-semibold")}>{x.rest < 0 ? `не хватает ${formatInt(-x.rest)}` : formatInt(x.rest)}</td>
               </tr>
@@ -47,8 +65,8 @@ export default async function RawForecastPage() {
         </table>
       </div>
       <ul className="space-y-1 text-xs text-neutral-600">
-        <li>«Сырья сейчас» — остаток шкур по лотам, включая заказанное, но ещё не полученное.</li>
-        {mixed.map((x) => <li key={x.fur}>{x.fur}: {formatInt(x.need)} шк. нужно по ТЗ смешанных артикулов; по видам меха ТЗ не делит, поэтому в строки выше они не входят.</li>)}
+        <li>«Сейчас на остатке» — шкуры по лотам, включая заказанное, но ещё не полученное.</li>
+        {mixed.map((x) => <li key={x.fur}>{x.fur}: {formatInt(x.need)} шк. нужно по ТЗ смешанных артикулов; по видам меха ТЗ не делит, поэтому в таблицу типов они не входят (в таблицу артикулов — входят).</li>)}
         {f.noData.length ? <li>Без данных ТЗ и категории, в расчёт не вошли: {f.noData.map((n) => `${n.acode} (${n.left} изд.)`).join(", ")}.</li> : null}
       </ul>
     </div>
