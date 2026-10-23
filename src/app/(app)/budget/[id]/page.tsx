@@ -7,7 +7,7 @@ import { articleHint, articleLabel } from "@/lib/article-label";
 import { DEFAULT_PARAMS, normKey, parseNodes, type BudgetParams } from "@/lib/budget-calc";
 import { BudgetEditor } from "../budget-editor";
 
-export const metadata = { title: "Бюджет" };
+export const metadata = { title: "Бюджеты и прогнозы" };
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
 
@@ -41,7 +41,7 @@ export default async function BudgetVersionPage({ params }: { params: Promise<{ 
   const furNames = Array.from(new Set([...furs.map((f) => f.name), "Норка+Соболь"]));
   return (
     <div className="flex flex-col gap-4">
-    <Breadcrumbs items={[{ label: "Бюджет", href: "/budget" }, { label: row.name }]} />
+    <Breadcrumbs items={[{ label: "Бюджеты и прогнозы", href: "/budget" }, { label: row.name }]} />
     <BudgetEditor
       id={row.id}
       name={row.name}

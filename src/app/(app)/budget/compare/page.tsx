@@ -46,7 +46,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   if (!sp.a || !sp.b) {
     return (
       <div className="flex flex-col gap-4">
-        <Breadcrumbs items={[{ label: "Бюджет", href: "/budget" }, { label: "Сравнение" }]} />
+        <Breadcrumbs items={[{ label: "Бюджеты и прогнозы", href: "/budget" }, { label: "Сравнение" }]} />
         <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500">
           <p>Выберите две версии бюджета для сравнения</p>
           <Link href="/budget" className="mt-2 inline-block text-blue-700 hover:underline">← К списку бюджетов</Link>
@@ -64,7 +64,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   if (!A || !B || sp.a === sp.b) {
     return (
       <div className="flex flex-col gap-4">
-        <Breadcrumbs items={[{ label: "Бюджет", href: "/budget" }, { label: "Сравнение" }]} />
+        <Breadcrumbs items={[{ label: "Бюджеты и прогнозы", href: "/budget" }, { label: "Сравнение" }]} />
         <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500">
           <p>{sp.a === sp.b ? "Для сравнения нужны две разные версии бюджета." : "Одну из выбранных версий не удалось найти — возможно, она удалена."}</p>
           <Link href="/budget" className="mt-2 inline-block text-blue-700 hover:underline">← К списку бюджетов</Link>
@@ -97,7 +97,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   return (
     <div className="flex flex-col gap-4">
       <style>{"@media print { @page { size: A4 landscape; margin: 8mm; } }"}</style>
-      <Breadcrumbs items={[{ label: "Бюджет", href: "/budget" }, { label: "Сравнение" }]} />
+      <Breadcrumbs items={[{ label: "Бюджеты и прогнозы", href: "/budget" }, { label: "Сравнение" }]} />
       <div>
         <h1 className="text-xl font-semibold">Сравнение версий
           <InfoHint label="Как читать сравнение" wide>

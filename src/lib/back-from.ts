@@ -40,7 +40,7 @@ const LABELS: [RegExp, string][] = [
   [/^\/reconciliation/, "Сверка"],
   [/^\/history/, "История"],
   [/^\/calendar/, "Календарь"],
-  [/^\/budget/, "Бюджет"],
+  [/^\/budget/, "Бюджеты и прогнозы"],
   [/^\/plan/, "План заказа"],
   [/^\/supply-plan/, "План поставок"],
   [/^\/shipments/, "Отгрузки"],

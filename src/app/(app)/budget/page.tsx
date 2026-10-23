@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { DEFAULT_PARAMS, grandTotal, nowPerUnit, parseNodes, perUnit, varPct, type BudgetParams } from "@/lib/budget-calc";
 import { BudgetList, type BudgetSummary } from "./budget-list";
 
-export const metadata = { title: "Бюджет" };
+export const metadata = { title: "Бюджеты и прогнозы" };
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
 
@@ -27,7 +27,7 @@ export default async function BudgetListPage() {
   });
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Бюджет" }]} />
+      <Breadcrumbs items={[{ label: "Бюджеты и прогнозы" }]} />
       <BudgetList items={items} canEdit={EDIT_ROLES.includes(session.user.role)} />
     </div>
   );
