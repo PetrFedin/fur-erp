@@ -49,10 +49,10 @@ export function ForecastView({ lines, stock, asOf }: { lines: ForecastLine[]; st
   const showExtra = detail || rows.some((r) => r.c && r.c.extra > 0);
   const colSpan = (detail ? 17 : 10) + (showExtra && !detail ? 1 : 0);
   const per = (v: number, n: number, f: (x: number) => string) => (n ? `${f(v / n)} / изд.` : "");
-  // Пустое (0) показываем пробелом, а не нулём.
+  // Пусто или 0 — прочерк.
   const cell = (v: string, sub: string, cls = "") => {
-    const zero = /^0([,.]0)?( ₽)?$/.test(v.trim());
-    return <td className={TD + " whitespace-nowrap leading-tight " + cls}>{zero ? "" : v}{zero ? null : <div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">{sub}</div>}</td>;
+    const zero = v.trim() === "" || /^0([,.]0)?( ₽)?$/.test(v.trim());
+    return <td className={TD + " whitespace-nowrap leading-tight " + cls}>{zero ? "—" : v}{zero ? null : <div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">{sub}</div>}</td>;
   };
   const nCell = (c: Calc, unpriced: number) => <td className={TD}>{formatInt(c.left + unpriced)}{unpriced ? <div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">без расчёта {formatInt(unpriced)}</div> : null}</td>;
   const results = (c: Calc) => {
@@ -129,7 +129,7 @@ export function ForecastView({ lines, stock, asOf }: { lines: ForecastLine[]; st
                       <td className="px-3 py-2 text-sm">{l.acode}{detail && l.source !== "ТЗ артикула" ? <span className="ml-1 text-[11px] text-neutral-400">{[l.source === "категория" ? "шкуры по категории" : "", l.wpEst ? "работа — ориентир" : ""].filter(Boolean).join(", ")}</span> : null}</td>
                       <td className={TD}>{formatInt(l.left)}</td>
                       {detail && <>{inp(l, "hp")}{inp(l, "hidePrice", "w-20")}{inp(l, "mp")}{inp(l, "meterPrice", "w-20")}{inp(l, "wp", "w-20")}{inp(l, "extra", "w-20")}</>}
-                      {c ? results(c) : <td colSpan={showExtra ? 8 : 7} className="px-3 py-2 text-xs text-neutral-400" />}
+                      {results(c ?? ZERO)}
                     </tr>
                   ))}
                   <tr className="bg-neutral-50 font-semibold"><td colSpan={detail ? 3 : 2} className="px-3 py-2 text-sm">Итого: {title.toLowerCase()}</td>{nCell(s.c, s.unpriced)}{detail && <td colSpan={6} />}{results(s.c)}</tr>
