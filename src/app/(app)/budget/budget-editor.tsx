@@ -710,7 +710,6 @@ export function BudgetEditor(p: Props) {
       <style>{"@media print { @page { size: A4 landscape; margin: 8mm; } } [data-sub=\"off\"] .sub-cap { display: none; }"}</style>
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <div className="min-w-0">
-          <Link href="/budget" className="text-xs text-neutral-500 hover:underline">← Все бюджеты</Link>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-semibold">{p.name}</h1>
             {p.season !== p.name ? <span className="text-sm text-neutral-500">{p.season}</span> : null}

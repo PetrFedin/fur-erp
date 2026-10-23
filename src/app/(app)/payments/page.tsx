@@ -783,6 +783,7 @@ export default async function PaymentsPage({
         </div>
         {goodsTotals && !pdate && <GoodsTiles {...goodsTotals} owed={owedOrders} />}
         {!pdate && <ClientDebtBlock orgId={orgId} year={year} role={session.user.role} />}
+                <h2 className="mb-2 text-base font-semibold">Оплаты за работу по датам</h2>
                 <ClientPaymentsTable
                   rows={clientRows}
                   rest={(() => {
@@ -877,6 +878,7 @@ export default async function PaymentsPage({
           )}
 
 
+          {(mainAuctions.length > 0 || showServiceSum) && <h2 className="text-base font-semibold">Оплаты по аукционам и закупкам</h2>}
           {(mainAuctions.length > 0 || showServiceSum) && auctionsTable(mainAuctions, showServiceSum)}
           {serviceAuctions.length > 0 && (
             <details className="rounded-md border border-neutral-200 bg-white" open={listFiltered || serviceAuctions.some((a) => a.name === selected?.name)}>

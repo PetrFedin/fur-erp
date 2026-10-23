@@ -208,6 +208,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
             ]}
           />
 
+          <h2 className="text-base font-semibold">Список отгрузок</h2>
           <ResponsiveRows
             table={
               <Table stickyHeader className="min-w-[960px]">

@@ -118,7 +118,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
       href={filterHref(REGISTRY_FILTERS, "/payments", f, { sk: k, sort: sk === k ? (asc ? "desc" : "asc") : k === "date" ? "desc" : "asc" })} />
   );
   const filtered = activeCount(REGISTRY_FILTERS, f) > 0;
-  const waiting = all.filter((r) => isCountedPayment(r.amount) && r.status !== "verified").length;
+  const waiting = all.filter((r) => isCountedPayment(r.amount) && (r.status !== "verified" || !r.fileOk)).length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -178,6 +178,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
         <ColumnPicker id="payments-registry" columns={COLUMNS} />
       </div>
 
+      <h2 className="text-base font-semibold">Реестр оплат</h2>
       <ResponsiveRows table={
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table data-colset="payments-registry" className="w-full min-w-[1180px] text-sm">
