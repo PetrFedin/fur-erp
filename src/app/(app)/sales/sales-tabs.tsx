@@ -114,7 +114,7 @@ export function StockTab({ ctx, env, lines, photos, today }: Common & { photos: 
   );
 }
 
-function Top({ title, hint, rows, value, sub, extra, total, photos, tone }: { title: string; hint?: string; rows: Group[]; value: (g: Group) => { v: number; text: string }; sub: (g: Group) => string; /** Пересечение с топом по другой мере: «№ 3 из 10 · прибыль …». */ extra?: (g: Group) => string | null; total: number; photos: PhotoIdx; tone: "top" | "out" }) {
+function Top({ title, hint, rows, value, sub, extra, total, photos, tone }: { title: string; hint?: string; rows: Group[]; value: (g: Group) => { v: number; text: string }; sub: (g: Group) => string; /** Вторая мера: значение и место в топ-10 по ней (если артикула там нет — пусто). */ extra?: { label: string; of: (g: Group) => { text: string; place: number } | null }; total: number; photos: PhotoIdx; tone: "top" | "out" }) {
   const max = Math.max(...rows.map((g) => Math.abs(value(g).v)), 1);
   return (
     <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4">
@@ -123,6 +123,13 @@ function Top({ title, hint, rows, value, sub, extra, total, photos, tone }: { ti
         {hint ? <p className="mt-0.5 text-xs text-neutral-500">{hint}</p> : null}
       </div>
       {rows.length === 0 ? <p className="text-sm text-neutral-700">Нет данных.</p> : (
+        <>
+        {extra ? (
+          <div className="flex items-center gap-3 text-xs text-neutral-500" aria-hidden>
+            <span className="min-w-0 flex-1" /><span className="w-28 shrink-0 text-right">{title === "Лидеры" ? "По выбранной мере" : ""}</span>
+            <span className="w-28 shrink-0 border-l border-transparent pl-3 text-right">{extra.label}</span>
+          </div>
+        ) : null}
         <ol className="flex flex-col divide-y divide-neutral-100">
           {rows.map((g, i) => {
             const val = value(g), href = movementHref(g.article, null, g.modelCode);
@@ -134,17 +141,22 @@ function Top({ title, hint, rows, value, sub, extra, total, photos, tone }: { ti
                 <span className="min-w-0 flex-1">
                   {href ? <Link href={href} className="block truncate text-sm font-medium hover:underline" title={g.label}>{g.label}</Link> : <span className="block truncate text-sm font-medium">{g.label}</span>}
                   <span className="block truncate text-xs text-neutral-500">{sub(g)}</span>
-                  {extra?.(g) ? <span className="mt-0.5 inline-block max-w-full truncate rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-medium text-neutral-700">{extra(g)}</span> : null}
                   <span className="mt-1 block h-1.5 rounded-full bg-neutral-100"><span className={"block h-1.5 rounded-full " + (tone === "top" ? "bg-[var(--ui-accent)]" : "bg-neutral-400")} style={{ width: `${Math.max(2, (Math.abs(val.v) / max) * 100)}%` }} /></span>
                 </span>
-                <span className="shrink-0 text-right">
+                <span className="w-28 shrink-0 text-right">
                   <span className="block text-sm font-semibold tabular-nums">{val.text}</span>
                   {share ? <span className="block text-xs tabular-nums text-neutral-500">{share}</span> : null}
                 </span>
+                {extra ? (() => { const x = extra.of(g); return (
+                  <span className="w-28 shrink-0 border-l border-neutral-100 pl-3 text-right">
+                    <span className="block text-sm tabular-nums text-neutral-700">{x ? x.text : ""}</span>
+                    <span className="block text-xs tabular-nums text-neutral-500">{x ? `№ ${x.place} из 10` : ""}</span>
+                  </span>); })() : null}
               </li>
             );
           })}
         </ol>
+        </>
       )}
     </div>
   );
@@ -166,7 +178,7 @@ export function TopTab({ ctx, env, lines, photos }: Common & { photos: PhotoIdx 
   const topOf = (k: "revenue" | "profit") => [...g].filter((x) => f[k](x) > 0).sort((a, b) => f[k](b) - f[k](a)).slice(0, 10);
   const other = by === "revenue" ? "profit" : by === "profit" ? "revenue" : null;
   const otherTop = other ? topOf(other) : [];
-  const extra = other ? (x: Group) => { const i = otherTop.findIndex((o) => o.key === x.key); return i < 0 ? null : `в топе по ${other === "profit" ? "прибыли" : "выручке"}: № ${i + 1} из 10 · ${other === "profit" ? "прибыль" : "выручка"} ${money(f[other](x))}`; } : undefined;
+  const extra = other ? { label: other === "profit" ? "Прибыль · место в топ-10" : "Выручка · место в топ-10", of: (x: Group) => { const i = otherTop.findIndex((o) => o.key === x.key); return i < 0 ? null : { text: money(f[other](x)), place: i + 1 }; } } : undefined;
   const fmt = (x: Group) => (by === "sold" ? { v: f[by](x), text: n0(f[by](x)) + " шт." } : { v: f[by](x), text: f[by](x) === 0 ? DASH : money(f[by](x)) });
   const subTop = (x: Group) => `продано ${n0(x.m.sold)} шт. · остаток ${n0(x.m.stock)} шт.`;
   const subOut = (x: Group) => `остаток ${n0(x.m.stock)} шт. · ${x.m.sold > 0 ? `продано ${n0(x.m.sold)} шт.` : "продаж нет"}`;
