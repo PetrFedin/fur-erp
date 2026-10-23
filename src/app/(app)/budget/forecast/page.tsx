@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { requireSession } from "@/lib/session";
 import { loadRawForecast } from "@/lib/raw-forecast";
-import { formatInt, formatMoney } from "@/lib/utils";
+import { formatDec1, formatInt, formatMoney } from "@/lib/utils";
 
 export const metadata = { title: "Прогноз сырья на FW26" };
 
@@ -22,11 +22,22 @@ export default async function RawForecastPage() {
   type Sums = { left: number; hides: number; fur$: number; meters: number; lining$: number; c4$: number; work$: number; total$: number };
   const sumOf = (g: Sums[]): Sums => g.reduce((a, x) => ({ left: a.left + x.left, hides: a.hides + x.hides, fur$: a.fur$ + x.fur$, meters: a.meters + x.meters, lining$: a.lining$ + x.lining$, c4$: a.c4$ + x.c4$, work$: a.work$ + x.work$, total$: a.total$ + x.total$ }), { left: 0, hides: 0, fur$: 0, meters: 0, lining$: 0, c4$: 0, work$: 0, total$: 0 });
   const m = (v: number) => formatMoney(Math.round(v / 1000) * 1000);
-  const cells = (x: Sums, n: number) => (
-    <>
-      <td className={TD}>{formatInt(n)}</td><td className={TD}>{formatInt(x.hides)}</td><td className={TD}>{m(x.fur$)}</td><td className={TD}>{formatInt(x.meters)}</td><td className={TD}>{m(x.lining$)}</td><td className={TD}>{m(x.c4$)}</td><td className={TD}>{m(x.work$)}</td><td className={TD + " font-semibold"}>{m(x.total$)}</td><td className={TD}>{m(x.total$ / (n || 1))}</td>
-    </>
-  );
+  const SEP = " border-l border-neutral-200";
+  const cell = (v: string, per: string, cls = "") => <td className={TD + " whitespace-nowrap leading-tight " + cls}>{v}<div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">{per}</div></td>;
+  const d1 = formatDec1;
+  const cells = (x: Sums, n: number) => {
+    const k = n || 1;
+    return (
+      <>
+        <td className={TD}>{formatInt(n)}</td>
+        {cell(formatInt(x.hides), `${d1(x.hides / k)} / изд.`, SEP)}{cell(m(x.fur$), `${m(x.fur$ / k)} / изд.`)}
+        {cell(formatInt(x.meters), `${d1(x.meters / k)} м / изд.`, SEP)}{cell(m(x.lining$), `${m(x.lining$ / k)} / изд.`)}
+        {cell(m(x.c4$), `${m(x.c4$ / k)} / изд.`, SEP)}
+        {cell(m(x.work$), `${m(x.work$ / k)} / изд.`, SEP)}
+        {cell(m(x.total$), `${m(x.total$ / k)} / изд.`, SEP + " font-semibold")}
+      </>
+    );
+  };
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Бюджеты и прогнозы", href: "/budget" }, { label: "Прогноз сырья на FW26" }]} />
@@ -36,17 +47,22 @@ export default async function RawForecastPage() {
       </div>
       <h2 className="text-base font-semibold">Артикулы в заказе: примерный расход и себестоимость</h2>
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-        <table className="w-full min-w-[900px]">
-          <thead><tr className="border-b border-neutral-200">
-            <th className={TH + " text-left"}>Категория 2</th><th className={TH + " text-left"}>Артикул</th><th className={TH}>Изд.</th><th className={TH}>Шкур</th><th className={TH}>Мех, ₽</th><th className={TH}>Подкладка, м</th><th className={TH}>Подкладка, ₽</th><th className={TH}>4%, ₽</th><th className={TH}>Работа, ₽</th><th className={TH}>Себестоимость, ₽</th><th className={TH}>На 1 изд., ₽</th>
-          </tr></thead>
+        <table className="w-full min-w-[1000px]">
+          <thead>
+            <tr><th colSpan={3} />
+              <th colSpan={2} className={TH + " text-center" + SEP}>Мех</th><th colSpan={2} className={TH + " text-center" + SEP}>Подкладка</th><th className={TH + " text-center" + SEP}>Надбавка</th><th className={TH + " text-center" + SEP}>Работа</th><th className={TH + " text-center" + SEP}>Всего</th></tr>
+            <tr className="border-b border-neutral-200">
+              <th className={TH + " text-left"}>Категория 2</th><th className={TH + " text-left"}>Артикул</th><th className={TH}>Изд.</th>
+              <th className={TH + SEP}>Шкур</th><th className={TH}>₽</th><th className={TH + SEP}>Метров</th><th className={TH}>₽</th><th className={TH + SEP}>4%, ₽</th><th className={TH + SEP}>₽</th><th className={TH + SEP}>Себестоимость, ₽</th>
+            </tr>
+          </thead>
           <tbody>
             {([["clothes", "Одежда"], ["acc", "Аксессуары"]] as const).map(([cls, title]) => {
               const g = L.filter((x) => x.cls === cls);
               if (!g.length) return null;
               return (
                 <Fragment key={cls}>
-                  <tr className="bg-neutral-100"><td colSpan={11} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-600">{title}</td></tr>
+                  <tr className="bg-neutral-100"><td colSpan={10} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-600">{title}</td></tr>
                   {g.map((x, i) => (
                     <tr key={x.acode + i} className="border-b border-neutral-100">
                       <td className="px-3 py-2 text-sm text-neutral-600">{x.cat2}</td>
