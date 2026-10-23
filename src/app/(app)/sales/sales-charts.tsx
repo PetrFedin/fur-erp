@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GRAN_LABEL, type Bucket, type Gran } from "@/lib/sales-section";
 import { GET, NAVY, PRICE, REV, STOCK, moneyC, n0, seg, segGroup } from "./sales-fmt";
 
@@ -18,20 +18,33 @@ type Series = { name: string; color: string; vals: number[]; kind: "bar" | "line
 /** Столбцы и линия по периодам на двух шкалах (слева — столбцы, справа — линия). Подсветка периода общая с таблицей. Широкий ряд прокручивается внутри блока. */
 function Chart({ buckets, series, hot, setHot, label, fmtL, fmtR }: { buckets: Bucket[]; series: Series[]; hot: number | null; setHot: (i: number | null) => void; label: string; fmtL: (v: number) => string; fmtR: (v: number) => string }) {
   const n = buckets.length;
-  const colW = n > 40 ? 22 : n > 20 ? 34 : 56;
+  // Ширина колонки: не меньше базовой, но график растягивается на всю ширину блока (ResizeObserver); очень длинный ряд прокручивается.
+  const box = useRef<HTMLDivElement>(null);
+  const [cw, setCw] = useState(0);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const upd = () => setCw(el.clientWidth);
+    upd();
+    const ro = new ResizeObserver(upd);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const baseW = n > 40 ? 22 : n > 20 ? 34 : 56;
+  const colW = Math.max(baseW, cw > 0 && n > 0 ? Math.floor(((cw - 2 - PL - PR) / n) * 100) / 100 : 0);
   const W = PL + PR + n * colW;
   const bars = series.filter((s) => s.kind === "bar"), lines = series.filter((s) => s.kind === "line");
   const maxL = niceMax(Math.max(...bars.flatMap((s) => s.vals), ...series.filter((s) => s.axis === "l" && s.kind === "line").flatMap((s) => s.vals), 0));
   const maxR = niceMax(Math.max(...series.filter((s) => s.axis === "r").flatMap((s) => s.vals), 0));
   const yL = (v: number) => PT + (H - PT - PB) * (1 - v / maxL), yR = (v: number) => PT + (H - PT - PB) * (1 - v / maxR);
-  const bw = Math.max(4, Math.min(20, (colW - 8) / Math.max(1, bars.length)));
+  const bw = Math.max(4, Math.min(28, (colW - 8) / Math.max(1, bars.length)));
   const x = (i: number) => PL + i * colW + colW / 2;
   const every = Math.ceil(n / Math.max(1, Math.floor((n * colW) / 64)));
   const ticks = [0, 0.5, 1];
   const hotB = hot !== null ? buckets[hot] : null;
   return (
     <div className="relative min-w-0">
-      <div className="overflow-x-auto" data-keep-scroll tabIndex={0} role="img" aria-label={label}>
+      <div ref={box} className="overflow-x-auto" data-keep-scroll tabIndex={0} role="img" aria-label={label}>
         <svg width={Math.max(W, 300)} height={H} className="block" onMouseLeave={() => setHot(null)}>
           {ticks.map((t) => (
             <g key={t}>
