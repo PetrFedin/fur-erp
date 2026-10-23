@@ -113,7 +113,7 @@ function TotalsFooter({
               ) : (
                 <Note>разные валюты</Note>
               )}
-              <Stat k="ср. взвеш. ₽" tip={TIP.price}>
+              <Stat k="ср. взвеш., в рублях" tip={TIP.price}>
                 <Money incl={q > 0 ? t.priceIncl / q : 0} excl={q > 0 ? t.priceExcl / q : 0} />
               </Stat>
             </>

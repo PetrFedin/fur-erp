@@ -25,7 +25,7 @@ const rub0 = (v: number) => formatMoney(Math.round(v));
 const th = "whitespace-nowrap px-1.5 py-1.5 text-right text-xs font-medium text-neutral-500";
 const td = "whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums";
 /** Вертикальная граница слева от блока колонок (Куплено | Использовано | Остаток | Оплачено) — одинаковая в обеих таблицах. */
-const GB = " border-l border-neutral-100";
+const GB = " border-l border-neutral-200";
 
 function Chevron({ open }: { open: boolean }) {
   return <span aria-hidden className={"inline-block w-4 text-neutral-500 transition-transform " + (open ? "rotate-90" : "")}>›</span>;
