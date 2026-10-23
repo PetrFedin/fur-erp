@@ -31,7 +31,7 @@ import { TzVatBadge } from "@/components/tz-vat-badge";
 import { vatBreakdown } from "@/lib/tz-vat";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
-import { BatchDocsPay } from "../../docs-pay";
+import { BatchDocsPay, BatchDocsUpload } from "../../docs-pay";
 import { VerifyBlock } from "../../../verify/verify-block";
 import { BatchEditButton } from "../../[id]/edit-buttons";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
@@ -432,6 +432,7 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
       </Card>
       </details>
 
+      <BatchDocsUpload batchNumber={batch.number} />
       <BatchDocsPay batchNumber={batch.number} />
 
       <SourceDocs

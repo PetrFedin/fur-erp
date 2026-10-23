@@ -41,7 +41,7 @@ const money = (v: number) => (Math.abs(v) < 0.5 ? <Dash /> : formatMoney(Math.ro
  * Режимы НДС и 4% — общие переключатели шапки (суммы с НДС / без НДС; 4% учтён в данных).
  */
 export function OrdersTree({
-  orders, modes, c4, title, hint, id = "orders-tree", defaultOpenDepth = 0, countRepairQty = false, payBy, empty = "ТЗ нет.", costLabel = COST_FULL_LABEL, costHint,
+  orders, modes, c4, title, hint, id = "orders-tree", defaultOpenDepth = 0, countRepairQty = false, payBy, empty = "ТЗ нет.", costLabel = COST_FULL_LABEL, costHint, compact = false,
 }: {
   orders: DrillOrder[];
   modes: TreeMode[];
@@ -59,6 +59,8 @@ export function OrdersTree({
   /** Подпись столбца «Себестоимость» (на странице партий — «с работой», чтобы не путать с таблицей выше) и пояснение «i». */
   costLabel?: string;
   costHint?: ReactNode;
+  /** Плотный вид: строки в одну линию без переноса и роста по высоте, меньше отступы. */
+  compact?: boolean;
 }) {
   const { mode: vat } = useVatDisplay();
   const [modeId, setModeId] = useState(modes[0].id);
@@ -309,7 +311,7 @@ export function OrdersTree({
         ) : null}
       </div>
       <div className={SCROLL_BOX}>
-        <table className="w-full min-w-[1120px] text-sm">
+        <table className={"w-full min-w-[1120px] text-sm" + (compact ? " text-[13px] [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap [&_td]:!py-0.5 [&_td:nth-child(2)]:max-w-[340px] [&_td:nth-child(2)]:overflow-hidden [&_td:nth-child(2)]:text-ellipsis [&_td:nth-child(2)_div]:ml-2 [&_td:nth-child(2)_div]:inline" : "")}>
           <thead>
             <tr>
               <th />

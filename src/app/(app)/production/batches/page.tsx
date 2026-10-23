@@ -172,7 +172,6 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           hideChips
           controls={[
             ...(contractorOpts.length > 1 ? [{ type: "multi" as const, name: "contractor", label: "Подрядчик", options: contractorOpts, noneLabel: "Не указан", allLabel: "Все подрядчики" }] : []),
-            { type: "multi", name: "need", label: "Документы и оплата", single: true, allLabel: "Все", options: [{ value: "docs", label: "Только без документов" }, { value: "pay", label: "Только без оплаты" }], hint: "Красная точка — не хватает документов или работа не оплачена; жёлтая — оплата частичная или нет платёжки; зелёная — всё в порядке. Откройте партию: там чек-лист и кнопка «Отметить оплату»." },
             ...(emptyCount > 0 || showEmpty ? [{ type: "multi" as const, name: "empty", label: "Пустые партии", single: true, allLabel: "Скрыты", options: [{ value: "1", label: `Показать пустые (${emptyCount})` }], hint: "Партии без ТЗ скрыты по умолчанию" }] : []),
           ]}
         />
@@ -238,10 +237,6 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             <Th {...th("work")} className="hidden md:table-cell" unit="₽">Работа</Th>
             <Th {...th("paid")} className="hidden lg:table-cell" unit="₽">Оплачено</Th>
             <Th {...th("remaining")} unit="₽">Остаток</Th>
-            <Th className="hidden lg:table-cell">
-              Документы и оплата
-              <InfoHint label="Что значат документы и оплата" align="right">Чего не хватает по документам и оплачена ли работа заказчиком. Ниже — проверка: подтверждена ли партия (все ТЗ подтверждены, документы и оплата сопоставлены) или ждёт ручной проверки.</InfoHint>
-            </Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -278,26 +273,6 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                     ? `сверх работы ${formatMoney(t.remaining.abs().toString())}`
                     : formatMoney(t.remaining.toString())}
               </Td>
-              <Td className="hidden lg:table-cell">
-                {(() => {
-                  const pn = panelByNumber.get(b.number);
-                  if (!pn) return "—";
-                  if (docsPayIsOk({ missing: pn.panel.missingCount, noDocs: pn.unmatched, payOk: pn.panel.pay.state === "PAID", proofMissing: pn.panel.proofMissing })) return null;
-                  return (
-                    <Link href={`/production/batches/${b.number}`} className="inline-block">
-                      <DocsPayBadge
-                        tone={pn.tone}
-                        missing={pn.panel.missingCount}
-                        noDocs={pn.unmatched}
-                        payText={payShort(pn.panel.pay)}
-                        payOk={pn.panel.pay.state === "PAID"}
-                        proofMissing={pn.panel.proofMissing}
-                      />
-                    </Link>
-                  );
-                })()}
-                <div className="mt-1"><VerifyPill flag={vflags.batchByNumber.get(b.number)} tab="batches" /></div>
-              </Td>
             </Tr>
           ))}
           {rows.length > 0 && (
@@ -309,12 +284,11 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               <Td className="hidden whitespace-nowrap md:table-cell">{sumWork.isZero() ? <Dash /> : formatMoney(sumWork.toString())}</Td>
               <Td className="hidden whitespace-nowrap lg:table-cell">{sumPaid.isZero() ? <Dash /> : formatMoney(sumPaid.toString())}</Td>
               <Td className="whitespace-nowrap">{sumWork.isZero() && sumPaid.isZero() ? <Dash /> : formatMoney(sumWork.sub(sumPaid).toString())}</Td>
-              <Td className="hidden lg:table-cell" />
             </Tr>
           )}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={8} className="py-8 text-center text-neutral-500">
+              <Td colSpan={7} className="py-8 text-center text-neutral-500">
                 {emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям.")}
               </Td>
             </Tr>
@@ -347,16 +321,6 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 { label: "Работа", value: t.work.isZero() ? "—" : formatMoney(t.work.toString()) },
                 { label: "Год", value: b.year },
                 ...(vflags.batchByNumber.get(b.number)?.verified ? [] : [{ label: "Проверка", value: <VerifyPill flag={vflags.batchByNumber.get(b.number)} tab="batches" /> }]),
-                ...(() => {
-                  const pn = panelByNumber.get(b.number);
-                  if (!pn || docsPayIsOk({ missing: pn.panel.missingCount, noDocs: pn.unmatched, payOk: pn.panel.pay.state === "PAID", proofMissing: pn.panel.proofMissing })) return [];
-                  return [{
-                    label: "Документы и оплата",
-                    value: (
-                      <DocsPayBadge tone={pn.tone} missing={pn.panel.missingCount} noDocs={pn.unmatched} payText={payShort(pn.panel.pay)} payOk={pn.panel.pay.state === "PAID"} proofMissing={pn.panel.proofMissing} />
-                    ),
-                  }];
-                })(),
               ]}
             />
           );
@@ -365,20 +329,12 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           <p className="py-8 text-center text-neutral-500">{emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям.")}</p>
         )}
       </ResponsiveRows>
-      {debt ? (
-        <p className="text-sm text-neutral-700" data-testid="batches-bridge">
-          {TERMS.workRest} по партиям <b className="tabular-nums">{money(Math.max(payRest, 0))}</b>
-          {" · "}Аванс подрядчику вне партий <b className="tabular-nums">−{money(debt.unallocated)}</b>
-          {debt.unallocated > 1 ? <> <Link href="/payments?tab=clients#unallocated" className="text-blue-700 hover:underline print:hidden">Разнести…</Link></> : null}
-          {" → "}{debt.balance < 0 ? "аванс сверх остатка работы" : "остаток работы после аванса"} <b className="tabular-nums">{money(Math.abs(debt.balance))}</b>
-          {debt.balance < 0 ? " (идёт в зачёт долга по сырью)" : ""}
-        </p>
-      ) : null}
 
       <OrdersTree
         orders={drill}
         c4={c4Mode}
         title="Партии → ТЗ → состав"
+        compact
         costLabel="Полная себестоимость"
         costHint={<p>Мех + подкладка + 4 % + расходы + работа подрядчика. В таблице «Партии» выше показана «Себестоимость сырья» — без работы, поэтому у одной партии суммы разные (разница = работа).</p>}
         payBy={payBy}
