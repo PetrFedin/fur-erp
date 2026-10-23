@@ -11,7 +11,7 @@ import type { FurLot } from "@/lib/fur-table";
 // Сравнение закупок меха между аукционами и поставщиком: средняя цена в $ (по тем штукам, где она есть в расчёте лота)
 // и итоговая средняя в рублях на шкуру («Куплено, ₽ ÷ шт.»). Помогает понять, на каком аукционе какой мех покупать выгоднее.
 
-type Row = { key: string; label: string; supplier: boolean; qty: number; value: number; usdQty: number; usdSum: number; lots: number; planQty: number; planSum: number };
+type Row = { key: string; label: string; supplier: boolean; qty: number; value: number; usdQty: number; usdSum: number; lots: number; };
 type Node = Row & { depth: 0 | 1 | 2; children: Node[] };
 /** «SAGA 03.26» → «SAGA»: аукционный дом без даты сессии; названия без даты остаются как есть. */
 const houseOf = (label: string) => label.replace(/[\s-]*\d{2}[.-]\d{2}$/, "").trim() || label;
@@ -35,8 +35,10 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
   const toggle = (k: string) => setOpen((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
   const { rows, all, keys } = useMemo(() => {
-    const add = (r: Row, l: FurLot) => { r.qty += l.recv; r.value += ex ? l.recvExcl : l.recvIncl; r.usdQty += l.usdQty; r.usdSum += l.usdSubtotal; r.planQty += l.usdPlanQty ?? 0; r.planSum += l.usdPlanSubtotal ?? 0; r.lots += 1; };
-    const mk = (key: string, label: string, supplier: boolean, depth: 0 | 1 | 2): Node => ({ key, label, supplier, qty: 0, value: 0, usdQty: 0, usdSum: 0, lots: 0, planQty: 0, planSum: 0, depth, children: [] });
+    const add = (r: Row, l: FurLot) => { r.qty += l.recv; r.value += ex ? l.recvExcl : l.recvIncl; // Заказано, но не получено: молоток по позициям закупки уже оплачен — берём его как цену в $ (лотов с ценой ещё нет).
+    const pq = l.usdQty > 0 ? l.usdQty : l.usdPlanQty ?? 0, ps = l.usdQty > 0 ? l.usdSubtotal : l.usdPlanSubtotal ?? 0;
+    r.usdQty += pq; r.usdSum += ps; r.lots += 1; };
+    const mk = (key: string, label: string, supplier: boolean, depth: 0 | 1 | 2): Node => ({ key, label, supplier, qty: 0, value: 0, usdQty: 0, usdSum: 0, lots: 0, depth, children: [] });
     const houses = new Map<string, Node>();
     for (const l of real) {
       if (cur && l.item !== cur) continue;
@@ -107,7 +109,7 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
                     </div>
                   </td>
                   <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(r.qty)}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{r.usdQty > 0 ? `$${Math.round(r.usdSum / r.usdQty).toLocaleString("ru-RU")}` : r.planQty > 0 ? `≈ $${Math.round(r.planSum / r.planQty).toLocaleString("ru-RU")}` : "—"}<div className="text-[11px] leading-4 text-neutral-500">{r.usdQty > 0 ? `по ${formatQty(r.usdQty)} из ${formatQty(r.qty)} шт.` : r.planQty > 0 ? "по расчёту заказа" : ""}</div></td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{r.usdQty > 0 ? `$${Math.round(r.usdSum / r.usdQty).toLocaleString("ru-RU")}` : "—"}<div className="text-[11px] leading-4 text-neutral-500">{r.usdQty > 0 ? `по ${formatQty(r.usdQty)} из ${formatQty(r.qty)} шт.` : ""}</div></td>
                   <td className="px-2 py-1.5 text-right font-medium tabular-nums">{K(avg)}</td>
                   <td className={"px-2 py-1.5 text-right tabular-nums " + tone(d)}>{rows.length > 1 ? `${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d * 100).toFixed(0)} %` : "—"}</td>
                   <td className="px-2 py-1.5">
