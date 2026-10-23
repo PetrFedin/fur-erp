@@ -12,7 +12,7 @@ export type ForecastArticle = { acode: string; label: string; left: number; hide
 /** Строка таблицы «Артикулы в заказе»: примерный расход и стоимость на весь остаток заказа по ТЗ (₽ с НДС, 4% — на мех и подкладку). */
 export type ForecastLine = { acode: string; cls: "clothes" | "acc"; cat2: string; fur: string; left: number; hides: number; fur$: number; meters: number; lining$: number; c4$: number; work$: number; total$: number; source: "ТЗ артикула" | "категория" };
 export type ForecastFur = { fur: string; stock: number; need: number; rest: number; articles: ForecastArticle[] };
-export type RawForecast = { lines: ForecastLine[]; furs: ForecastFur[]; leftPcs: number; noData: { acode: string; left: number; fur: string }[]; asOf: string | null };
+export type RawForecast = { lines: ForecastLine[]; furs: ForecastFur[]; leftPcs: number; noData: { acode: string; left: number; fur: string; cls: "clothes" | "acc"; cat2: string }[]; asOf: string | null };
 
 const FUR_RE: [RegExp, string][] = [[/SABLE/, "Соболь"], [/MINK/, "Норка"], [/LYNX/, "Рысь"], [/FOX/, "Лиса"], [/KARAKUL|SWAKARA/, "Свакара"]];
 const norm = (c: string) => c.replace(/[-\s]/g, "").toUpperCase();
@@ -78,7 +78,7 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
       const f = get(fur); const h = s.hidesPer * e.left; f.need += h;
       f.articles.push({ acode, label: acode, left: e.left, hidesPer: s.hidesPer, hides: h, source: "категория" }); line(acode, s, e.left, "категория", e.model); placed = true;
     }
-    if (!placed) noData.push({ acode, left: e.left, fur: codeFurs.join(" + ") || "—" });
+    if (!placed) noData.push({ acode, left: e.left, fur: codeFurs.join(" + ") || "—", cls: clsOf.get(acode) === "acc" ? "acc" : "clothes", cat2: catByArt.get(acode) ?? catByModel.get(norm(e.model)) ?? MANUAL[norm(e.model)] ?? "(без категории)" });
   }
   for (const f of furs.values()) { f.rest = f.stock - f.need; f.articles.sort((a, b) => b.hides - a.hides); }
   lines.sort((a, b) => a.cat2.localeCompare(b.cat2, "ru") || b.total$ - a.total$);
