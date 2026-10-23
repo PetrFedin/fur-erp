@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { requireSession } from "@/lib/session";
 import { loadRawForecast } from "@/lib/raw-forecast";
@@ -18,8 +19,14 @@ export default async function RawForecastPage() {
   const rows = small.length ? [...big, { fur: "Остальной мех", stock: small.reduce((a, x) => a + x.stock, 0), need: small.reduce((a, x) => a + x.need, 0), rest: small.reduce((a, x) => a + x.rest, 0), articles: [] as typeof big[number]["articles"] }] : big;
   const sum = (k: "stock" | "need") => rows.reduce((a, x) => a + x[k], 0);
   const L = f.lines;
-  const tot = (k: "left" | "hides" | "fur$" | "meters" | "lining$" | "c4$" | "work$" | "total$") => L.reduce((a, x) => a + x[k], 0);
+  type Sums = { left: number; hides: number; fur$: number; meters: number; lining$: number; c4$: number; work$: number; total$: number };
+  const sumOf = (g: Sums[]): Sums => g.reduce((a, x) => ({ left: a.left + x.left, hides: a.hides + x.hides, fur$: a.fur$ + x.fur$, meters: a.meters + x.meters, lining$: a.lining$ + x.lining$, c4$: a.c4$ + x.c4$, work$: a.work$ + x.work$, total$: a.total$ + x.total$ }), { left: 0, hides: 0, fur$: 0, meters: 0, lining$: 0, c4$: 0, work$: 0, total$: 0 });
   const m = (v: number) => formatMoney(Math.round(v / 1000) * 1000);
+  const cells = (x: Sums, n: number) => (
+    <>
+      <td className={TD}>{formatInt(n)}</td><td className={TD}>{formatInt(x.hides)}</td><td className={TD}>{m(x.fur$)}</td><td className={TD}>{formatInt(x.meters)}</td><td className={TD}>{m(x.lining$)}</td><td className={TD}>{m(x.c4$)}</td><td className={TD}>{m(x.work$)}</td><td className={TD + " font-semibold"}>{m(x.total$)}</td><td className={TD}>{m(x.total$ / (n || 1))}</td>
+    </>
+  );
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Бюджеты и прогнозы", href: "/budget" }, { label: "Прогноз сырья на FW26" }]} />
@@ -31,18 +38,27 @@ export default async function RawForecastPage() {
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full min-w-[900px]">
           <thead><tr className="border-b border-neutral-200">
-            <th className={TH + " text-left"}>Артикул</th><th className={TH}>Изд.</th><th className={TH}>Шкур</th><th className={TH}>Мех, ₽</th><th className={TH}>Подкладка, м</th><th className={TH}>Подкладка, ₽</th><th className={TH}>4%, ₽</th><th className={TH}>Работа, ₽</th><th className={TH}>Себестоимость, ₽</th><th className={TH}>На 1 изд., ₽</th>
+            <th className={TH + " text-left"}>Категория 2</th><th className={TH + " text-left"}>Артикул</th><th className={TH}>Изд.</th><th className={TH}>Шкур</th><th className={TH}>Мех, ₽</th><th className={TH}>Подкладка, м</th><th className={TH}>Подкладка, ₽</th><th className={TH}>4%, ₽</th><th className={TH}>Работа, ₽</th><th className={TH}>Себестоимость, ₽</th><th className={TH}>На 1 изд., ₽</th>
           </tr></thead>
           <tbody>
-            {L.map((x, i) => (
-              <tr key={x.acode + i} className="border-b border-neutral-100">
-                <td className="px-3 py-2 text-sm">{x.acode}{x.source === "категория" ? <span className="ml-1 text-[11px] text-neutral-400">по категории</span> : null}</td>
-                <td className={TD}>{formatInt(x.left)}</td><td className={TD}>{formatInt(x.hides)}</td><td className={TD}>{m(x.fur$)}</td><td className={TD}>{formatInt(x.meters)}</td><td className={TD}>{m(x.lining$)}</td><td className={TD}>{m(x.c4$)}</td><td className={TD}>{m(x.work$)}</td><td className={TD + " font-semibold"}>{m(x.total$)}</td><td className={TD}>{m(x.total$ / x.left)}</td>
-              </tr>
-            ))}
-            <tr className="bg-neutral-50 font-semibold">
-              <td className="px-3 py-2 text-sm">Итого</td><td className={TD}>{formatInt(tot("left"))}</td><td className={TD}>{formatInt(tot("hides"))}</td><td className={TD}>{m(tot("fur$"))}</td><td className={TD}>{formatInt(tot("meters"))}</td><td className={TD}>{m(tot("lining$"))}</td><td className={TD}>{m(tot("c4$"))}</td><td className={TD}>{m(tot("work$"))}</td><td className={TD}>{m(tot("total$"))}</td><td className={TD}>{m(tot("total$") / (tot("left") || 1))}</td>
-            </tr>
+            {([["clothes", "Одежда"], ["acc", "Аксессуары"]] as const).map(([cls, title]) => {
+              const g = L.filter((x) => x.cls === cls);
+              if (!g.length) return null;
+              return (
+                <Fragment key={cls}>
+                  <tr className="bg-neutral-100"><td colSpan={11} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-600">{title}</td></tr>
+                  {g.map((x, i) => (
+                    <tr key={x.acode + i} className="border-b border-neutral-100">
+                      <td className="px-3 py-2 text-sm text-neutral-600">{x.cat2}</td>
+                      <td className="px-3 py-2 text-sm">{x.acode}{x.source === "категория" ? <span className="ml-1 text-[11px] text-neutral-400">по категории</span> : null}</td>
+                      {cells(x, x.left)}
+                    </tr>
+                  ))}
+                  <tr className="bg-neutral-50 font-semibold"><td colSpan={2} className="px-3 py-2 text-sm">Итого: {title.toLowerCase()}</td>{cells(sumOf(g), sumOf(g).left)}</tr>
+                </Fragment>
+              );
+            })}
+            <tr className="border-t-2 border-neutral-300 bg-neutral-100 font-semibold"><td colSpan={2} className="px-3 py-2 text-sm">Общий итог</td>{cells(sumOf(L), sumOf(L).left)}</tr>
           </tbody>
         </table>
       </div>
