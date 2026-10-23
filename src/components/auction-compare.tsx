@@ -49,7 +49,7 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
     for (const l of real) {
       if (cur && l.item !== cur) continue;
       const supplier = classifyLotSource(l) === "supplier";
-      const full = supplier ? "У поставщика (без аукциона)" : l.auctionLabel || l.auction;
+      const full = supplier ? "У поставщика" : l.auctionLabel || l.auction;
       const yk = String(l.year || 0), yl = l.year ? yk : "Без года";
       add(tot, l);
       // A: аукцион (дом) → год → сессия.
