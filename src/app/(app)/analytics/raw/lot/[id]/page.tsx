@@ -35,6 +35,7 @@ import { LotPassport, type PassportField, type PassportSection } from "@/compone
 import { LotSheetTable } from "@/components/lot-sheet-table";
 import { LotProducts, type ProdModel } from "@/components/lot-products";
 import { CollapsibleBlock } from "@/components/collapsible-block";
+import { PlanLotCard } from "./plan-lot-card";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -53,7 +54,11 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
   const orgId = session.user.organizationId;
   const c4 = await getCommission4Mode();
   const card = await loadLotUsage(id, orgId);
-  if (!card) notFound();
+  if (!card) {
+    const alt = await PlanLotCard({ id, orgId });
+    if (alt) return alt;
+    notFound();
+  }
   const { lot: l, passport: p, orders } = card;
   const canEdit = hasRole(session.user.role, ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"]);
 

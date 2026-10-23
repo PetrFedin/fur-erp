@@ -541,7 +541,7 @@ function LotRowView({
       )}
       <Td className="whitespace-nowrap">
         {r.lotNumber ? (
-          <Link href={r.lotId ? `/analytics/raw/lot/${r.lotId}` : `/purchases/${r.purchaseId}#item-${r.id}`} className="text-blue-700 hover:underline" title={r.lotId ? "Карточка лота: куплено, использовано, остаток, ТЗ" : "Лот ещё не на складе: позиция закупки"}>{r.lotNumber}</Link>
+          <Link href={`/analytics/raw/lot/${r.lotId ?? r.id}`} className="text-blue-700 hover:underline" title="Карточка лота: из чего сложилась цена">{r.lotNumber}</Link>
         ) : "—"}
       </Td>
       <Td className="min-w-48">
