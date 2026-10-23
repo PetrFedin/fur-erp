@@ -62,7 +62,7 @@ export function Th({ className, unit, children, sort, href, onSort, after, ...pr
   );
   const ariaSort = sort === "asc" ? "ascending" : sort === "desc" ? "descending" : sort === "none" ? "none" : undefined;
   return (
-    <th scope={interactive ? "col" : props.scope} aria-sort={ariaSort} className={cn("px-3 py-2 align-middle text-xs font-medium text-neutral-500", (sort === "asc" || sort === "desc") && "text-[color:var(--ui-accent-text)]", className)} {...props}>
+    <th scope={interactive ? "col" : props.scope} aria-sort={ariaSort} className={cn("whitespace-nowrap px-3 py-2 align-middle text-xs font-medium text-neutral-500", (sort === "asc" || sort === "desc") && "text-[color:var(--ui-accent-text)]", className)} {...props}>
       {href ? (
         <span className="inline-flex items-center gap-1"><Link href={href} scroll={false} className="hover:underline max-md:inline-flex max-md:min-h-11 max-md:items-center">{body}</Link>{after}</span>
       ) : onSort ? (
