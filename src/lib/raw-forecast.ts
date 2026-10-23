@@ -71,7 +71,7 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
     const own = (mi ? byModel.get(mi.id) : undefined)?.filter((s) => !codeFurs.length || same(s.fur.split(" + "), codeFurs));
     let st: BudgetStat | undefined, source: ForecastLine["source"] = "ТЗ артикула";
     if (own?.length) st = own[0];
-    else if (codeFurs.length === 1) { const c = byCat.get(`${codeFurs[0]}|${normKey(mi?.cat ?? e.l3)}`); if (c && c.hidesPer > 0) { st = c; source = "категория"; } }
+    else if (codeFurs.length) { const c = [mi?.cat, e.l3, cat2].map((k) => (k ? byCat.get(`${[...codeFurs].sort().join(" + ")}|${normKey(k)}`) : undefined)).find((x) => x && x.hidesPer > 0); if (c) { st = c; source = "категория"; } }
     lines.push(st
       ? { ...base, fur: st.fur, hp: st.hidesPer, hidePrice: st.hidePrice, mp: st.metersPer, meterPrice: st.meterPrice, source }
       : { ...base, fur: codeFurs.join(" + ") || "—", hp: null, hidePrice: null, mp: null, meterPrice: null, source: "нет данных" });
