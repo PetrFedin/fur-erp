@@ -49,7 +49,11 @@ export function ForecastView({ lines, stock, asOf }: { lines: ForecastLine[]; st
   const showExtra = detail || rows.some((r) => r.c && r.c.extra > 0);
   const colSpan = (detail ? 17 : 10) + (showExtra && !detail ? 1 : 0);
   const per = (v: number, n: number, f: (x: number) => string) => (n ? `${f(v / n)} / изд.` : "");
-  const cell = (v: string, sub: string, cls = "") => <td className={TD + " whitespace-nowrap leading-tight " + cls}>{v}<div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">{sub}</div></td>;
+  // Пустое (0) показываем пробелом, а не нулём.
+  const cell = (v: string, sub: string, cls = "") => {
+    const zero = /^0([,.]0)?( ₽)?$/.test(v.trim());
+    return <td className={TD + " whitespace-nowrap leading-tight " + cls}>{zero ? "" : v}{zero ? null : <div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">{sub}</div>}</td>;
+  };
   const nCell = (c: Calc, unpriced: number) => <td className={TD}>{formatInt(c.left + unpriced)}{unpriced ? <div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">без расчёта {formatInt(unpriced)}</div> : null}</td>;
   const results = (c: Calc) => {
     const n = c.left;
