@@ -36,42 +36,71 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (k: string) => setOpen((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
-  const { rows, all, keys } = useMemo(() => {
-    const add = (r: Row, l: FurLot) => { r.qty += l.recv; r.value += ex ? l.recvExcl : l.recvIncl; // Заказано, но не получено: молоток по позициям закупки уже оплачен — берём его как цену в $ (лотов с ценой ещё нет).
-    const pq = l.usdQty > 0 ? l.usdQty : l.usdPlanQty ?? 0, ps = l.usdQty > 0 ? l.usdSubtotal : l.usdPlanSubtotal ?? 0;
-    r.usdQty += pq; r.usdSum += ps; r.lots += 1; };
+  const { byHouse, byYear, all, keys } = useMemo(() => {
+    const add = (r: Row, l: FurLot) => {
+      r.qty += l.recv; r.value += ex ? l.recvExcl : l.recvIncl;
+      // Заказано, но не получено: молоток по позициям закупки уже оплачен — берём его как цену в $ (лотов с ценой ещё нет).
+      r.usdQty += l.usdQty > 0 ? l.usdQty : l.usdPlanQty ?? 0; r.usdSum += l.usdQty > 0 ? l.usdSubtotal : l.usdPlanSubtotal ?? 0; r.lots += 1;
+    };
     const mk = (key: string, label: string, supplier: boolean, depth: 0 | 1 | 2): Node => ({ key, label, supplier, qty: 0, value: 0, usdQty: 0, usdSum: 0, lots: 0, depth, children: [] });
-    const years = new Map<string, Node>();
-    const tot = { qty: 0, value: 0, usdQty: 0, usdSum: 0 };
+    const child = (p: Node, key: string, label: string, supplier: boolean, depth: 0 | 1 | 2) => { let c = p.children.find((x) => x.key === key); if (!c) { c = mk(key, label, supplier, depth); p.children.push(c); } return c; };
+    const A = new Map<string, Node>(), B = new Map<string, Node>();
+    const tot = mk("tot", "", false, 0);
     for (const l of real) {
       if (cur && l.item !== cur) continue;
       const supplier = classifyLotSource(l) === "supplier";
       const full = supplier ? "У поставщика (без аукциона)" : l.auctionLabel || l.auction;
-      const yk = String(l.year || 0);
-      const y = years.get(yk) ?? mk(yk, l.year ? yk : "Без года", false, 0); years.set(yk, y); add(y, l);
-      const type = typeOf(full, supplier), tk = `${yk}|${type}`;
-      let t = y.children.find((c) => c.key === tk); if (!t) { t = mk(tk, type, supplier, 1); y.children.push(t); } add(t, l);
-      if (!supplier) {
-        const ak = `${tk}|${l.auction}`;
-        let a = t.children.find((c) => c.key === ak); if (!a) { a = mk(ak, full, false, 2); t.children.push(a); } add(a, l);
-      }
-      const pq = l.usdQty > 0 ? l.usdQty : l.usdPlanQty ?? 0, ps = l.usdQty > 0 ? l.usdSubtotal : l.usdPlanSubtotal ?? 0;
-      tot.qty += l.recv; tot.value += ex ? l.recvExcl : l.recvIncl; tot.usdQty += pq; tot.usdSum += ps;
+      const yk = String(l.year || 0), yl = l.year ? yk : "Без года";
+      add(tot, l);
+      // A: аукцион (дом) → год → сессия.
+      const hk = supplier ? "__supplier" : houseOf(full);
+      const h = A.get(hk) ?? mk("A|" + hk, supplier ? full : hk, supplier, 0); A.set(hk, h); add(h, l);
+      const hy = child(h, `A|${hk}|${yk}`, yl, supplier, 1); add(hy, l);
+      if (!supplier) add(child(hy, `A|${hk}|${yk}|${l.auction}`, full, false, 2), l);
+      // B: год → тип аукциона (РП / СП / у поставщика / остальные) → сессия.
+      const y = B.get(yk) ?? mk("B|" + yk, yl, false, 0); B.set(yk, y); add(y, l);
+      const type = typeOf(full, supplier), yt = child(y, `B|${yk}|${type}`, type, supplier, 1); add(yt, l);
+      if (!supplier) add(child(yt, `B|${yk}|${type}|${l.auction}`, full, false, 2), l);
     }
     const avg = (n: Node) => n.value / n.qty;
-    const prune = (list: Node[]): Node[] => list.filter((n) => n.qty > 0.0005).map((n) => ({ ...n, children: prune(n.children) })).sort((a, b) => (a.depth === 0 ? Number(b.key) - Number(a.key) : avg(a) - avg(b)));
-    const list = prune([...years.values()]);
-    const q = tot.qty, v = tot.value;
-    const keys: string[] = []; const walk = (ns: Node[]) => ns.forEach((n) => { if (n.children.length) keys.push(n.key); walk(n.children); }); walk(list);
-    return { rows: list, all: { qty: q, avg: q > 0 ? v / q : 0, usdQty: tot.usdQty, usd: tot.usdQty > 0 ? tot.usdSum / tot.usdQty : 0 }, keys };
+    const prune = (list: Node[], yearTop: boolean): Node[] => list.filter((n) => n.qty > 0.0005).map((n) => ({ ...n, children: prune(n.children, yearTop) }))
+      .sort((a, b) => (yearTop && a.depth === 0) || (!yearTop && a.depth === 1) ? Number(b.key.split("|")[yearTop ? 1 : 2] ?? b.key) - Number(a.key.split("|")[yearTop ? 1 : 2] ?? a.key) : avg(a) - avg(b));
+    const byHouse = prune([...A.values()], false), byYear = prune([...B.values()], true);
+    const keys: string[] = []; const walk = (ns: Node[]) => ns.forEach((n) => { if (n.children.length) keys.push(n.key); walk(n.children); }); walk(byHouse); walk(byYear);
+    return { byHouse, byYear, all: { qty: tot.qty, avg: tot.qty > 0 ? tot.value / tot.qty : 0, usdQty: tot.usdQty, usd: tot.usdQty > 0 ? tot.usdSum / tot.usdQty : 0 }, keys };
   }, [real, cur, ex]);
-  const flat: Node[] = [];
-  const emit = (ns: Node[]) => ns.forEach((n) => { flat.push(n); if (open.has(n.key)) emit(n.children); });
-  emit(rows);
+  const flatA: Node[] = [], flatB: Node[] = [];
+  const emit = (out: Node[], ns: Node[]) => ns.forEach((n) => { out.push(n); if (open.has(n.key)) emit(out, n.children); });
+  emit(flatA, byHouse); emit(flatB, byYear);
+  const flat = [...flatA, ...flatB];
 
   if (furs.length === 0) return null;
   const maxAvg = Math.max(...flat.map((r) => r.value / r.qty), 1);
   const tone = (d: number) => (d <= -0.05 ? "text-[#17613c]" : d >= 0.05 ? "text-[#b4310b]" : "text-neutral-900");
+
+  const renderRow = (r: Node) => {
+              const avg = r.value / r.qty, d = all.avg > 0 ? avg / all.avg - 1 : 0;
+              const can = r.children.length > 0, isOpen = open.has(r.key);
+              return (
+                <tr key={r.key} className={"border-b border-neutral-100 " + (r.depth === 0 ? "" : "bg-neutral-50/60")}>
+                  <td className="px-2 py-1.5 text-left" style={{ paddingLeft: 8 + r.depth * 20 }}>
+                    <div className="flex items-start gap-1">
+                      {can ? <button type="button" onClick={() => toggle(r.key)} aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Развернуть"}: ${r.label}`} className="inline-flex size-7 shrink-0 items-center justify-center text-neutral-500 hover:text-neutral-900"><span aria-hidden className={"inline-block transition-transform " + (isOpen ? "rotate-90" : "")}>›</span></button> : <span className="w-7 shrink-0" />}
+                      <div><span className={r.depth === 0 ? "font-medium" : ""}>{r.label}</span><div className="text-[11px] leading-4 text-neutral-500">{r.lots} лот.</div></div>
+                    </div>
+                  </td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(r.qty)}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{r.usdQty > 0 ? `$${Math.round(r.usdSum / r.usdQty).toLocaleString("ru-RU")}` : "—"}<div className="text-[11px] leading-4 text-neutral-500">{r.usdQty > 0 ? `по ${formatQty(r.usdQty)} из ${formatQty(r.qty)} шт.` : ""}</div></td>
+                  <td className="px-2 py-1.5 text-right font-medium tabular-nums">{K(avg)}</td>
+                  <td className={"px-2 py-1.5 text-right tabular-nums " + tone(d)}>{all.qty > 0 && (byHouse.length > 1 || byYear.length > 1) ? `${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d * 100).toFixed(0)} %` : "—"}</td>
+                  <td className="px-2 py-1.5">
+                    <div className="h-3 w-full rounded-sm bg-neutral-100" role="img" aria-label={`${r.label}: ${K(avg)} за шт.`}>
+                      <div className="h-3 rounded-sm" style={{ width: `${Math.max(2, (avg / maxAvg) * 100)}%`, background: r.supplier ? "#4f6bb5" : "#d93a0e" }} />
+                    </div>
+                  </td>
+                </tr>
+              );
+            };
 
   return (
     <section aria-label="Сравнение закупок по аукционам" className="rounded-lg border border-neutral-300 bg-white p-3" data-testid="auction-compare">
@@ -93,7 +122,7 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
         <table className="table-keep w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600">
-              <th scope="col" className="px-2 py-2 text-left font-semibold">Год → тип аукциона → сессия</th>
+              <th scope="col" className="px-2 py-2 text-left font-semibold">Аукцион → год → сессия</th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">Куплено, шт.</th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">Ср. цена, $/шт.</th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">Итого, ₽/шт.</th>
@@ -102,6 +131,7 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
             </tr>
           </thead>
           <tbody>
+            {flatA.map(renderRow)}
             <tr className="row-total border-b-2 border-neutral-400 bg-neutral-50 font-semibold">
               <td className="px-2 py-1.5 text-left">Итого по {cur}, средневзвешенно</td>
               <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(all.qty)}</td>
@@ -110,29 +140,7 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
               <td className="px-2 py-1.5" />
               <td className="px-2 py-1.5" />
             </tr>
-            {flat.map((r) => {
-              const avg = r.value / r.qty, d = all.avg > 0 ? avg / all.avg - 1 : 0;
-              const can = r.children.length > 0, isOpen = open.has(r.key);
-              return (
-                <tr key={r.key} className={"border-b border-neutral-100 " + (r.depth === 0 ? "" : "bg-neutral-50/60")}>
-                  <td className="px-2 py-1.5 text-left" style={{ paddingLeft: 8 + r.depth * 20 }}>
-                    <div className="flex items-start gap-1">
-                      {can ? <button type="button" onClick={() => toggle(r.key)} aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Развернуть"}: ${r.label}`} className="inline-flex size-7 shrink-0 items-center justify-center text-neutral-500 hover:text-neutral-900"><span aria-hidden className={"inline-block transition-transform " + (isOpen ? "rotate-90" : "")}>›</span></button> : <span className="w-7 shrink-0" />}
-                      <div><span className={r.depth === 0 ? "font-medium" : ""}>{r.label}</span><div className="text-[11px] leading-4 text-neutral-500">{r.lots} лот.</div></div>
-                    </div>
-                  </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{formatQty(r.qty)}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{r.usdQty > 0 ? `$${Math.round(r.usdSum / r.usdQty).toLocaleString("ru-RU")}` : "—"}<div className="text-[11px] leading-4 text-neutral-500">{r.usdQty > 0 ? `по ${formatQty(r.usdQty)} из ${formatQty(r.qty)} шт.` : ""}</div></td>
-                  <td className="px-2 py-1.5 text-right font-medium tabular-nums">{K(avg)}</td>
-                  <td className={"px-2 py-1.5 text-right tabular-nums " + tone(d)}>{rows.length > 1 ? `${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d * 100).toFixed(0)} %` : "—"}</td>
-                  <td className="px-2 py-1.5">
-                    <div className="h-3 w-full rounded-sm bg-neutral-100" role="img" aria-label={`${r.label}: ${K(avg)} за шт.`}>
-                      <div className="h-3 rounded-sm" style={{ width: `${Math.max(2, (avg / maxAvg) * 100)}%`, background: r.supplier ? "#4f6bb5" : "#d93a0e" }} />
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+            {flatB.map(renderRow)}
           </tbody>
         </table>
       </div>
