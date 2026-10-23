@@ -569,6 +569,80 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
     </details>
   ) : null;
 
+  const statementEl = (() => {
+        if (!calcPayload || !calcRow) return null;
+        const inv = (purchase.invoiceNumber ?? "").trim();
+        const st = buildStatement(calcPayload, calcAll(calcPayload), inv ? (r) => (r.invoice ?? "").trim() === inv : undefined);
+        if (st.lots.length === 0) return null;
+        return (
+          <StatementBlock
+            bare
+            st={st}
+            source={`выдержка из расчёта Веллмеха «${calcRow.title}»${inv ? `, счёт ${inv}` : ""}`}
+            action={<span className="flex flex-wrap items-center gap-3 text-sm"><Link href={`/supplier/auction-calcs/${calcRow.id}`} className="inline-flex min-h-11 items-center text-blue-700 underline md:min-h-0">Открыть расчёт</Link>{editable && <a href="#items" className="inline-flex min-h-11 items-center text-blue-700 underline md:min-h-0">Править расчёт лотов</a>}</span>}
+          />
+        );
+      })();
+  const perLotEl = (() => {
+        // Как образовалась цена единицы: расчётный лист лота (цена, курс, сборы, выделка, перевозка, комиссия, НДС) и итог в рублях.
+        type BItem = { label: string; value: number };
+        const breakdownOf = (item: (typeof purchase.items)[number]): BItem[] => {
+          const raw = (item.lot?.costBreakdown ?? (item.costPlan as { costBreakdown?: unknown } | null)?.costBreakdown) as { items?: BItem[] } | null | undefined;
+          return Array.isArray(raw?.items) ? raw!.items! : [];
+        };
+        const rows = purchase.items
+          .map((item) => {
+            const plan = item.costPlan as { unitCostInclVat?: string } | null;
+            const unit = item.lot ? item.lot.unitCost : plan?.unitCostInclVat != null ? new Decimal(plan.unitCostInclVat) : null;
+            return { item, unit, qty: item.lot ? item.lot.quantityReceived : item.quantity, items: breakdownOf(item) };
+          })
+          .filter((r) => r.unit != null);
+        if (rows.length === 0) return calcHow;
+        const num = (v: number) => formatNum(v, 1);
+        const totalAll = rows.reduce((a, r) => a.add(r.unit!.mul(r.qty)), new Decimal(0));
+        return (
+          <div className="flex flex-col gap-1">
+              <h3 className="text-sm font-semibold">По лотам: из чего сложилась цена единицы</h3>
+              <div className="hidden grid-cols-[1fr_6rem_9rem_9rem] gap-2 px-2 pb-1 text-xs text-neutral-500 sm:grid">
+                <span>Лот</span><span className="text-right">Кол-во</span><span className="text-right">Цена за ед., ₽ с НДС</span><span className="text-right">Всего, ₽</span>
+              </div>
+              {rows.map(({ item, unit, qty, items }) => (
+                <details key={item.id} className="rounded-md border border-neutral-200">
+                  <summary className="grid cursor-pointer grid-cols-2 gap-x-2 gap-y-0.5 px-2 py-1.5 text-sm sm:grid-cols-[1fr_6rem_9rem_9rem]">
+                    <span className="col-span-2 sm:col-span-1">
+                      <span className="font-medium">{item.rawMaterial.name}</span>{" "}
+                      <span className="ml-1 text-xs text-neutral-500">{item.lotNumber ? `лот ${item.lotNumber}` : "лот без номера"}</span>
+                    </span>
+                    <span className="text-right tabular-nums">{formatQty(qty.toString())} {UNIT_LABELS[item.rawMaterial.unit] ?? ""}</span>
+                    <span className="text-right font-medium tabular-nums">{formatMoney(unit!.toFixed(2))}</span>
+                    <span className="col-span-2 text-right tabular-nums sm:col-span-1">{formatMoney(unit!.mul(qty).toFixed(2))}</span>
+                  </summary>
+                  <div className="border-t border-neutral-100 px-2 py-2 text-sm">
+                    {items.length === 0 ? (
+                      <p className="text-neutral-500">Расчётного листа по лоту нет: цена внесена как есть — {formatMoney(item.unitPrice.toFixed(2))} за ед. без НДС, НДС {item.vatRate.toString()} %.</p>
+                    ) : (
+                      <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-0.5 sm:max-w-xl">
+                        {items.map((b, i) => (
+                          <div key={i} className="contents">
+                            <dt className="text-neutral-600">{b.label}</dt>
+                            <dd className="text-right tabular-nums">{num(b.value)}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                    <p className="mt-2 text-xs text-neutral-500">Итоговая цена за единицу в рублях с НДС: <b className="text-neutral-800">{formatMoney(unit!.toFixed(2))}</b> × {formatQty(qty.toString())} = {formatMoney(unit!.mul(qty).toFixed(2))}</p>
+                  </div>
+                </details>
+              ))}
+              <div className="row-total mt-1 flex justify-between px-2 py-2 text-sm">
+                <span><TotalLabel extra="по лотам" /></span>
+                <span className="tabular-nums">{formatMoney(totalAll.toFixed(2))}</span>
+              </div>
+              {calcHow}
+          </div>
+        );
+      })();
+
   return (
     <ItemRowShared value={{ colorOptions, canAddColor, materials: allMaterials, currency: purchase.currency }}>
     <div className="flex flex-col gap-4">
@@ -580,9 +654,6 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
           <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-semibold">Закупка {purchase.number}</h1>
           <ChatLink type="Purchase" id={purchase.id} role={session.user.role} label={purchase.supplier?.name?.includes("Веллмех") ? "Запросить у Веллмеха" : undefined} />
-            <InfoHint label="О закупке" wide>
-              <p>Позиции сырья и подкладки, расходы закупки, оплаты и документы. Дата заказа {formatDate(purchase.orderDate)} — по ней закупка попадает в общий фильтр года.</p>
-            </InfoHint>
           </div>
           <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-neutral-500">
             <span>{formatDate(purchase.orderDate)}</span>
@@ -609,14 +680,11 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
               purchase.transferDocument ? `УПД ${purchase.transferDocument}` : null,
               isForeignCurrency ? `валюта позиций ${purchase.currency}, курс ${formatRate(Number(purchase.exchangeRate.toString()))}` : null,
               vatRatesText ? `НДС ${vatRatesText} %` : null,
+              `лотов ${purchase.items.length} · шкур ${formatDec1(purchase.items.reduce((a, i) => a + Number(i.quantity), 0).toString())}`,
             ].filter(Boolean).map((t) => (
               <span key={t} className="flex items-center gap-x-1.5"><span aria-hidden>·</span>{t}</span>
             ))}
           </p>
-          <p className="mt-1 text-sm text-neutral-700">
-            Лотов <b className="tabular-nums">{purchase.items.length}</b> · шкур <b className="tabular-nums">{formatDec1(purchase.items.reduce((a, i) => a + Number(i.quantity), 0).toString())}</b>
-          </p>
-          {rawStages.length > 0 && <RawNow stages={rawStages} className="mt-2 max-w-3xl" />}
           {sharedDocPurchases.length > 0 && (
             <p className="mt-1 text-xs text-neutral-600">
               Тот же {purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}` : "УПД"} оформлен ещё на:{" "}
@@ -728,19 +796,6 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
       </div>
       </WidgetRow>
 
-      {(() => {
-        if (!calcPayload || !calcRow) return null;
-        const inv = (purchase.invoiceNumber ?? "").trim();
-        const st = buildStatement(calcPayload, calcAll(calcPayload), inv ? (r) => (r.invoice ?? "").trim() === inv : undefined);
-        if (st.lots.length === 0) return null;
-        return (
-          <StatementBlock
-            st={st}
-            source={`выдержка из расчёта Веллмеха «${calcRow.title}»${inv ? `, счёт ${inv}` : ""}`}
-            action={<span className="flex flex-wrap items-center gap-3 text-sm"><Link href={`/supplier/auction-calcs/${calcRow.id}`} className="inline-flex min-h-11 items-center text-blue-700 underline md:min-h-0">Открыть расчёт</Link>{editable && <a href="#items" className="inline-flex min-h-11 items-center text-blue-700 underline md:min-h-0">Править расчёт лотов</a>}</span>}
-          />
-        );
-      })()}
 
       <Card id="items" className="scroll-mt-4">
         <CardHeader>
@@ -823,69 +878,18 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
       </Card>
 
 
-      {(() => {
-        // Как образовалась цена единицы: расчётный лист лота (цена, курс, сборы, выделка, перевозка, комиссия, НДС) и итог в рублях.
-        type BItem = { label: string; value: number };
-        const breakdownOf = (item: (typeof purchase.items)[number]): BItem[] => {
-          const raw = (item.lot?.costBreakdown ?? (item.costPlan as { costBreakdown?: unknown } | null)?.costBreakdown) as { items?: BItem[] } | null | undefined;
-          return Array.isArray(raw?.items) ? raw!.items! : [];
-        };
-        const rows = purchase.items
-          .map((item) => {
-            const plan = item.costPlan as { unitCostInclVat?: string } | null;
-            const unit = item.lot ? item.lot.unitCost : plan?.unitCostInclVat != null ? new Decimal(plan.unitCostInclVat) : null;
-            return { item, unit, qty: item.lot ? item.lot.quantityReceived : item.quantity, items: breakdownOf(item) };
-          })
-          .filter((r) => r.unit != null);
-        if (rows.length === 0) return calcHow ? <Card><CardHeader><CardTitle>Из чего сложилась цена единицы</CardTitle></CardHeader><CardContent>{calcHow}</CardContent></Card> : null;
-        const num = (v: number) => formatNum(v, 1);
-        const totalAll = rows.reduce((a, r) => a.add(r.unit!.mul(r.qty)), new Decimal(0));
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Из чего сложилась цена единицы</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-1">
-              <div className="hidden grid-cols-[1fr_6rem_9rem_9rem] gap-2 px-2 pb-1 text-xs text-neutral-500 sm:grid">
-                <span>Лот</span><span className="text-right">Кол-во</span><span className="text-right">Цена за ед., ₽ с НДС</span><span className="text-right">Всего, ₽</span>
-              </div>
-              {rows.map(({ item, unit, qty, items }) => (
-                <details key={item.id} className="rounded-md border border-neutral-200">
-                  <summary className="grid cursor-pointer grid-cols-2 gap-x-2 gap-y-0.5 px-2 py-1.5 text-sm sm:grid-cols-[1fr_6rem_9rem_9rem]">
-                    <span className="col-span-2 sm:col-span-1">
-                      <span className="font-medium">{item.rawMaterial.name}</span>{" "}
-                      <span className="ml-1 text-xs text-neutral-500">{item.lotNumber ? `лот ${item.lotNumber}` : "лот без номера"}</span>
-                    </span>
-                    <span className="text-right tabular-nums">{formatQty(qty.toString())} {UNIT_LABELS[item.rawMaterial.unit] ?? ""}</span>
-                    <span className="text-right font-medium tabular-nums">{formatMoney(unit!.toFixed(2))}</span>
-                    <span className="col-span-2 text-right tabular-nums sm:col-span-1">{formatMoney(unit!.mul(qty).toFixed(2))}</span>
-                  </summary>
-                  <div className="border-t border-neutral-100 px-2 py-2 text-sm">
-                    {items.length === 0 ? (
-                      <p className="text-neutral-500">Расчётного листа по лоту нет: цена внесена как есть — {formatMoney(item.unitPrice.toFixed(2))} за ед. без НДС, НДС {item.vatRate.toString()} %.</p>
-                    ) : (
-                      <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-0.5 sm:max-w-xl">
-                        {items.map((b, i) => (
-                          <div key={i} className="contents">
-                            <dt className="text-neutral-600">{b.label}</dt>
-                            <dd className="text-right tabular-nums">{num(b.value)}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    )}
-                    <p className="mt-2 text-xs text-neutral-500">Итоговая цена за единицу в рублях с НДС: <b className="text-neutral-800">{formatMoney(unit!.toFixed(2))}</b> × {formatQty(qty.toString())} = {formatMoney(unit!.mul(qty).toFixed(2))}</p>
-                  </div>
-                </details>
-              ))}
-              <div className="row-total mt-1 flex justify-between px-2 py-2 text-sm">
-                <span><TotalLabel extra="по лотам" /></span>
-                <span className="tabular-nums">{formatMoney(totalAll.toFixed(2))}</span>
-              </div>
-              {calcHow}
-            </CardContent>
-          </Card>
-        );
-      })()}
+
+      {(statementEl || perLotEl) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Состав стоимости</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {statementEl}
+            {perLotEl}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -994,16 +998,12 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
         </CardContent>
       </Card>
 
-      <details className="group rounded-lg border border-neutral-200 bg-white" open={rawStages.length > 0 && rawStages.length <= 3}>
-        <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-3 text-sm font-semibold text-neutral-800"><span className="text-neutral-500 transition-transform group-open:rotate-90">▶</span>Этапы сырья{rawStages.length ? ` · ${rawStages.length}` : ""}</summary>
-        <div className="border-t border-neutral-100 p-2"><RawStagesBlock stages={rawStages} purchaseId={purchase.id} author="Веллмех" showNow={false} title="Лента этапов" /></div>
-      </details>
-
-      <SourceDocs data={await loadPurchaseSourceDocs({ organizationId: session.user.organizationId, role: session.user.role }, id)} />
 
       <details className="rounded-lg border border-neutral-200 bg-white">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-800">Документы и оплата партии</summary>
-        <div className="border-t border-neutral-100 p-3">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-800">Документы</summary>
+        <div className="flex flex-col gap-3 border-t border-neutral-100 p-3">
+      <SourceDocs data={await loadPurchaseSourceDocs({ organizationId: session.user.organizationId, role: session.user.role }, id)} />
+        <div>
           <AuctionDocsPay
             organizationId={session.user.organizationId}
             purchaseId={id}
@@ -1025,6 +1025,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
               ]),
             )}
           />
+        </div>
         </div>
       </details>
 

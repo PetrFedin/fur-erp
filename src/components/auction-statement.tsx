@@ -15,12 +15,12 @@ const num = (n: number) => formatNum(n, 10);
  * источник каждой цифры (столбец листа расчёта), итог и сверка «сумма статей = итог расчёта».
  * action — кнопка/ссылка справа в заголовке («Открыть расчёт» / «Править»).
  */
-export function StatementBlock({ st, source, action, note, cur = "₽" }: { st: Statement; source: string; action?: ReactNode; note?: ReactNode; cur?: string }) {
+export function StatementBlock({ st, source, action, note, cur = "₽", bare = false }: { st: Statement; source: string; action?: ReactNode; note?: ReactNode; cur?: string; /** Внутри общей карточки «Состав стоимости»: без рамки, заголовок h3. */ bare?: boolean }) {
   const groups = groupLines(st.lines);
   return (
-    <section className="flex flex-col gap-2 rounded-md border border-neutral-300 bg-white p-3" aria-labelledby="st-title">
+    <section className={bare ? "flex flex-col gap-2" : "flex flex-col gap-2 rounded-md border border-neutral-300 bg-white p-3"} aria-labelledby="st-title">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 id="st-title" className="text-base font-semibold">За что заплачено</h2>
+        {bare ? <h3 id="st-title" className="text-sm font-semibold">По статьям расчёта</h3> : <h2 id="st-title" className="text-base font-semibold">Состав стоимости</h2>}
         <span className="min-w-0 max-w-md text-xs text-neutral-500"><Clamp>{source}</Clamp></span>
         {action && <span className="ml-auto">{action}</span>}
       </div>
@@ -32,7 +32,6 @@ export function StatementBlock({ st, source, action, note, cur = "₽" }: { st: 
             <thead>
               <tr className="text-left text-xs text-neutral-500">
                 <th scope="col" className="py-1 pr-3 font-medium">Статья</th>
-                <th scope="col" className="hidden px-2 py-1 font-medium sm:table-cell">Откуда</th>
                 <th scope="col" className="px-2 py-1 text-right font-medium">$</th>
                 <th scope="col" className="py-1 pl-2 text-right font-medium">₽</th>
               </tr>
@@ -45,7 +44,7 @@ export function StatementBlock({ st, source, action, note, cur = "₽" }: { st: 
                 );
               })}
               <tr className="border-t-2 border-neutral-400 font-semibold">
-                <td className="py-1.5 pr-3" colSpan={1}>Итого по расчёту</td><td className="hidden sm:table-cell" />
+                <td className="py-1.5 pr-3" colSpan={1}>Итого по расчёту</td>
                 <td className="px-2 py-1.5 text-right tabular-nums">{st.usdTotal != null ? money(st.usdTotal) : ""}</td>
                 <td className="py-1.5 pl-2 text-right tabular-nums">{money(st.total)}</td>
               </tr>
@@ -66,13 +65,12 @@ function GroupRows({ title, sub, lines, many }: { title: string; sub: number; li
   return (
     <>
       <tr className="bg-neutral-50">
-        <td colSpan={2} className="py-1 pl-1 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600 ">{title}</td><td className="hidden sm:table-cell" />
+        <td className="py-1 pl-1 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600 ">{title}</td>
         <td className="py-1 pl-2 text-right text-xs font-semibold tabular-nums text-neutral-700">{many ? money(sub) : ""}</td>
       </tr>
       {lines.map((l) => (
         <tr key={l.id} className="border-b border-neutral-100">
-          <td className="py-1 pl-3 pr-3">{l.label}<span className="block text-[11px] text-neutral-500 sm:hidden">{l.letter ? `столбец ${l.letter}` : "итог − статьи"}</span>{l.manual > 0 && <span className="ml-2 rounded bg-amber-100 px-1 text-[11px] text-amber-800">вручную: {l.manual}</span>}</td>
-          <td className="hidden px-2 py-1 text-xs text-neutral-500 sm:table-cell">{l.letter ? `столбец ${l.letter}` : "итог − статьи"}</td>
+          <td className="py-1 pl-3 pr-3">{l.label}{l.manual > 0 && <span className="ml-2 rounded bg-amber-100 px-1 text-[11px] text-amber-800">вручную: {l.manual}</span>}</td>
           <td className="px-2 py-1 text-right tabular-nums text-sky-800">{l.usd != null ? money(l.usd) : ""}</td>
           <td className="py-1 pl-2 text-right tabular-nums">{money(l.total)}</td>
         </tr>
@@ -145,16 +143,15 @@ export function LotCompose({ title, lines, qty, unit, total, closeHref, cur = "�
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[420px] text-sm">
-          <thead><tr className="text-left text-xs text-neutral-500"><th scope="col" className="py-1 pr-3 font-medium">Статья</th><th scope="col" className="hidden px-2 py-1 font-medium sm:table-cell">Откуда</th><th scope="col" className="px-2 py-1 text-right font-medium">За шкуру, {cur}</th><th scope="col" className="py-1 pl-2 text-right font-medium">На {num(qty)} шк., {cur}</th></tr></thead>
+          <thead><tr className="text-left text-xs text-neutral-500"><th scope="col" className="py-1 pr-3 font-medium">Статья</th><th scope="col" className="px-2 py-1 text-right font-medium">За шкуру, {cur}</th><th scope="col" className="py-1 pl-2 text-right font-medium">На {num(qty)} шк., {cur}</th></tr></thead>
           <tbody>
             {lines.filter((l) => Math.abs(l.total) > 0.005 || Math.abs(l.perUnit) > 0.005).map((l, i) => (
               <tr key={i} className="border-b border-neutral-200">
                 <td className="py-1 pr-3">{l.label}{l.manual && <span className="ml-2 rounded bg-amber-100 px-1 text-[11px] text-amber-800">вручную</span>}</td>
-                <td className="px-2 py-1 text-xs text-neutral-500">{l.letter ? `столбец ${l.letter}` : ""}</td>
                 <td className="px-2 py-1 text-right tabular-nums">{money(l.perUnit)}</td><td className="py-1 pl-2 text-right tabular-nums">{money(l.total)}</td>
               </tr>
             ))}
-            <tr className="font-semibold"><td className="py-1.5" colSpan={2}>Итого по лоту</td><td className="px-2 py-1.5 text-right tabular-nums">{money(unit)}</td><td className="py-1.5 pl-2 text-right tabular-nums">{money(total)}</td></tr>
+            <tr className="font-semibold"><td className="py-1.5">Итого по лоту</td><td className="px-2 py-1.5 text-right tabular-nums">{money(unit)}</td><td className="py-1.5 pl-2 text-right tabular-nums">{money(total)}</td></tr>
           </tbody>
         </table>
       </div>
