@@ -2,6 +2,8 @@
 
 import { Fragment, useMemo, useState } from "react";
 import type { ForecastLine, RawForecast } from "@/lib/raw-forecast";
+import type { ForecastEdits } from "@/lib/forecast-store";
+import { saveForecastEdits } from "./actions";
 import { formatDec1, formatInt, formatMoney } from "@/lib/utils";
 
 const C4 = 4;
@@ -29,12 +31,21 @@ function calc(l: ForecastLine, v: Vals): Calc | null {
   return { left: l.left, hides: hp * l.left, fur, meters: mp * l.left, lining, c4, work, extra, total: fur + lining + c4 + work + extra };
 }
 
-export function ForecastView({ lines, stock, asOf }: { lines: ForecastLine[]; stock: RawForecast["stock"]; asOf: string | null }) {
+export function ForecastView({ id, name, season, canEdit, initialEdits, initialOff, lines, stock, asOf }: { id: string; name: string; season: string; canEdit: boolean; initialEdits: ForecastEdits; initialOff: string[]; lines: ForecastLine[]; stock: RawForecast["stock"]; asOf: string | null }) {
   const [detail, setDetail] = useState(false);
   const [fur, setFur] = useState("all");
-  const [vals, setVals] = useState<Record<string, Vals>>(() => Object.fromEntries(lines.map((l) => [l.acode, init(l)])));
-  const [off, setOff] = useState<Set<string>>(new Set());
-  const set = (a: string, f: Field, v: string) => setVals((p) => ({ ...p, [a]: { ...p[a], [f]: v } }));
+  const [vals, setVals] = useState<Record<string, Vals>>(() => Object.fromEntries(lines.map((l) => [l.acode, { ...init(l), ...initialEdits[l.acode] }])));
+  const [off, setOff] = useState<Set<string>>(new Set(initialOff));
+  const [dirty, setDirty] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+  const set = (a: string, f: Field, v: string) => { setDirty(true); setVals((p) => ({ ...p, [a]: { ...p[a], [f]: v } })); };
+  const save = async () => {
+    const edits: ForecastEdits = {};
+    for (const l of lines) { const base = init(l); for (const f of Object.keys(base) as Field[]) if (vals[l.acode][f] !== base[f]) (edits[l.acode] ??= {})[f] = vals[l.acode][f]; }
+    setSaveMsg("Сохраняю…");
+    const r = await saveForecastEdits(id, edits, [...off]);
+    if (r.ok) { setDirty(false); setSaveMsg(`Сохранено ${new Date(r.at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" })}`); } else setSaveMsg(r.error);
+  };
   const edited = (l: ForecastLine, f: Field) => vals[l.acode][f] !== init(l)[f];
 
   const rows = useMemo(() => lines.map((l) => ({ l, c: off.has(l.acode) ? null : calc(l, vals[l.acode]), on: !off.has(l.acode) })), [lines, vals, off]);
@@ -89,11 +100,15 @@ export function ForecastView({ lines, stock, asOf }: { lines: ForecastLine[]; st
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold">Прогноз сырья на остаток FW26</h1>
+          <h1 className="text-xl font-semibold">{name}{season && !name.includes(season) ? <span className="ml-2 text-sm font-normal text-neutral-500">{season}</span> : null}</h1>
           <p className="mt-1 text-xs text-neutral-500">Ждём {formatInt(totalLeft)} изд.{asOf ? ` (отчёт о товарах на ${asOf.split("-").reverse().join(".")})` : ""}. Суммы ₽ с НДС, до тысяч; итоги — средневзвешенные.</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        {canEdit && detail ? <button type="button" onClick={save} disabled={!dirty} className="min-h-11 rounded-lg bg-neutral-900 px-4 text-sm font-medium text-white disabled:opacity-50">Сохранить</button> : null}
+        {saveMsg || dirty ? <span className="text-xs text-neutral-500" role="status">{dirty ? "Есть несохранённые изменения" : saveMsg}</span> : null}
         <button type="button" aria-pressed={detail} onClick={() => setDetail((d) => !d)}
           className={"min-h-11 rounded-lg border px-4 text-sm " + (detail ? "border-[var(--ui-accent)] bg-[var(--ui-soft)] font-semibold" : "border-neutral-300 bg-white hover:border-neutral-500")}>Детально</button>
+        </div>
       </div>
       <div role="group" aria-label="Тип меха" className="flex flex-wrap gap-1.5">
         {["all", ...opts].map((o) => (
@@ -125,7 +140,7 @@ export function ForecastView({ lines, stock, asOf }: { lines: ForecastLine[]; st
                   <tr className="bg-neutral-100"><td colSpan={colSpan} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-600">{title}</td></tr>
                   {g.map(({ l, c, on }) => (
                     <tr key={l.acode} className={"border-b border-neutral-100 " + (on ? "" : "text-neutral-400")}>
-                      {detail && <td className="px-3 py-2 text-center"><input type="checkbox" checked={on} aria-label={`Учитывать ${l.acode}`} onChange={() => setOff((p) => { const n = new Set(p); if (n.has(l.acode)) n.delete(l.acode); else n.add(l.acode); return n; })} className="h-5 w-5" /></td>}
+                      {detail && <td className="px-3 py-2 text-center"><input type="checkbox" checked={on} aria-label={`Учитывать ${l.acode}`} onChange={() => { setDirty(true); setOff((p) => { const n = new Set(p); if (n.has(l.acode)) n.delete(l.acode); else n.add(l.acode); return n; }); }} className="h-5 w-5" /></td>}
                       <td className="px-3 py-2 text-sm text-neutral-600">{l.cat2}</td>
                       <td className="min-w-[190px] px-3 py-2 text-sm">{l.acode}{detail && l.source !== "ТЗ артикула" ? <span className="ml-1 text-[11px] text-neutral-400">{[l.source === "категория" ? "шкуры по категории" : "", l.wpEst ? "работа — ориентир" : ""].filter(Boolean).join(", ")}</span> : null}</td>
                       <td className={TD}>{formatInt(l.left)}</td>
