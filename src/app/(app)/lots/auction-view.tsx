@@ -1,3 +1,5 @@
+import { Fragment } from "react";
+import { GROUPS, classifyLabel, labelUnit, type GroupKey } from "@/lib/cost-breakdown-groups";
 import { loadRawInfo } from "@/lib/raw-stage-server";
 import { relabelOrders } from "@/lib/order-label-db";
 import { escapeLike } from "@/lib/input";
@@ -454,6 +456,52 @@ export async function AuctionView({
           </div>
         </CardContent>
       </Card>
+
+      {(() => {
+        // Расходы аукциона: статьи расчёта лотов (сборы, выделка, транспорт, брокер, комиссии, НДС), сумма по всем лотам = значение на шкуру × количество.
+        const sums = new Map<string, { group: GroupKey; label: string; sum: number }>();
+        for (const b of counted) {
+          for (const l of b.lines) {
+            const items = ((l.breakdown ?? {}) as { items?: { label?: unknown; value?: unknown }[] }).items;
+            if (!Array.isArray(items)) continue;
+            const qtyN = Number(l.i.quantity.toString());
+            for (const it of items) {
+              if (typeof it.label !== "string") continue;
+              const v = Number(it.value);
+              const g = classifyLabel(it.label);
+              if (!Number.isFinite(v) || g === "totals" || g === "auction" || labelUnit(it.label) === "$" || labelUnit(it.label) === "%") continue;
+              const key = `${g}|${it.label}`;
+              const cur = sums.get(key) ?? { group: g, label: it.label, sum: 0 };
+              cur.sum += v * qtyN;
+              sums.set(key, cur);
+            }
+          }
+        }
+        const groups = GROUPS.filter((g) => [...sums.values()].some((x) => x.group === g.key)).map((g) => ({ ...g, rows: [...sums.values()].filter((x) => x.group === g.key && Math.abs(x.sum) >= 0.5) })).filter((g) => g.rows.length > 0);
+        if (groups.length === 0) return null;
+        const total = groups.reduce((a, g) => a + g.rows.reduce((x, r) => x + r.sum, 0), 0);
+        return (
+          <Card>
+            <CardHeader><CardTitle>Расходы аукциона</CardTitle></CardHeader>
+            <CardContent>
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-xs text-neutral-500"><th scope="col" className="py-1 pr-3 font-medium">Статья</th><th scope="col" className="py-1 pl-2 text-right font-medium">Сумма, ₽</th></tr></thead>
+                <tbody>
+                  {groups.map((g) => (
+                    <Fragment key={g.key}>
+                      <tr className="bg-neutral-50"><td className="py-1 pl-1 pr-3 text-xs font-semibold uppercase tracking-wide text-neutral-600">{g.title}</td><td className="py-1 pl-2 text-right text-xs font-semibold tabular-nums text-neutral-700">{g.rows.length > 1 ? formatMoney(Math.round(g.rows.reduce((a, r) => a + r.sum, 0)).toString()) : ""}</td></tr>
+                      {g.rows.map((r) => (
+                        <tr key={r.label} className="border-b border-neutral-100"><td className="py-1 pl-3 pr-3">{r.label}</td><td className="py-1 pl-2 text-right tabular-nums">{formatMoney(Math.round(r.sum).toString())}</td></tr>
+                      ))}
+                    </Fragment>
+                  ))}
+                  <tr className="row-total"><td className="py-1.5 pr-3">Всего расходов</td><td className="py-1.5 pl-2 text-right tabular-nums">{formatMoney(Math.round(total).toString())}</td></tr>
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {blocks.length === 0 && (
         <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">

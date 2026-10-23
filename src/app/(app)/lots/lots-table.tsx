@@ -398,11 +398,13 @@ function TzSplitHeader({ split, colSpan, open, onToggle }: { split: ReturnType<t
   if (split.noTz.length === 0) return null;
   return (
     <>
+      {split.withTz.length > 0 && (
       <Tr className="bg-neutral-50 text-sm font-medium" data-tz-block="with">
         <Td colSpan={colSpan}>
           Лоты с ТЗ <TzBlockFigures t={split.withTotals} count={split.withTz.length} />
         </Td>
       </Tr>
+      )}
       <Tr className="cursor-pointer border-t-2 border-neutral-300 bg-amber-50/60 text-sm font-medium hover:bg-amber-50" data-tz-block="without" onClick={onToggle}>
         <Td colSpan={colSpan}>
           <button type="button" aria-expanded={open} onClick={(e) => { e.stopPropagation(); onToggle(); }} className="mr-2 text-left">
@@ -429,7 +431,7 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
   }, [someSel, allSel]);
   const h = heads(symbol(currency));
   const split = useTzSplit(rows);
-  const [noTzOpen, setNoTzOpen] = useState(false);
+  const [noTzOpen, setNoTzOpen] = useState(split.withTz.length === 0);
   const mainRows = split.noTz.length > 0 ? split.withTz : rows;
   return (
     <div className="flex flex-col gap-2">
@@ -538,7 +540,9 @@ function LotRowView({
         </Td>
       )}
       <Td className="whitespace-nowrap">
-        {r.lotNumber || "—"}
+        {r.lotNumber ? (
+          <Link href={r.lotId ? `/analytics/raw/lot/${r.lotId}` : `/purchases/${r.purchaseId}#items`} className="text-blue-700 hover:underline" title={r.lotId ? "Карточка лота: куплено, использовано, остаток, ТЗ" : "Лот ещё не на складе: позиция закупки"}>{r.lotNumber}</Link>
+        ) : "—"}
       </Td>
       <Td className="min-w-48">
         {r.size || "—"}
@@ -858,7 +862,7 @@ export function FlatLotsPanel() {
   }, [someSel, allSel]);
   const cur = view.totals.currencies.length === 1 ? symbol(view.totals.currencies[0]) : "вал.";
   const split = useTzSplit(rows);
-  const [noTzOpen, setNoTzOpen] = useState(false);
+  const [noTzOpen, setNoTzOpen] = useState(split.withTz.length === 0);
   const mainRows = split.noTz.length > 0 ? split.withTz : rows;
   const flatCard = (r: LotRow) => {
     const m = purchases.get(r.purchaseId);
