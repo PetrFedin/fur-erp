@@ -1,8 +1,8 @@
-import { Fragment } from "react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { requireSession } from "@/lib/session";
+import { LinesTable } from "./lines-table";
 import { loadRawForecast } from "@/lib/raw-forecast";
-import { formatDec1, formatInt, formatMoney } from "@/lib/utils";
+import { formatInt } from "@/lib/utils";
 
 export const metadata = { title: "Прогноз сырья на FW26" };
 
@@ -18,26 +18,6 @@ export default async function RawForecastPage() {
   const small = all.filter((x) => x.stock + x.need < 100);
   const rows = small.length ? [...big, { fur: "Остальной мех", stock: small.reduce((a, x) => a + x.stock, 0), need: small.reduce((a, x) => a + x.need, 0), rest: small.reduce((a, x) => a + x.rest, 0), articles: [] as typeof big[number]["articles"] }] : big;
   const sum = (k: "stock" | "need") => rows.reduce((a, x) => a + x[k], 0);
-  const L = f.lines;
-  type Sums = { left: number; hides: number; fur$: number; meters: number; lining$: number; c4$: number; work$: number; total$: number };
-  const sumOf = (g: Sums[]): Sums => g.reduce((a, x) => ({ left: a.left + x.left, hides: a.hides + x.hides, fur$: a.fur$ + x.fur$, meters: a.meters + x.meters, lining$: a.lining$ + x.lining$, c4$: a.c4$ + x.c4$, work$: a.work$ + x.work$, total$: a.total$ + x.total$ }), { left: 0, hides: 0, fur$: 0, meters: 0, lining$: 0, c4$: 0, work$: 0, total$: 0 });
-  const m = (v: number) => formatMoney(Math.round(v / 1000) * 1000);
-  const SEP = " border-l border-neutral-200";
-  const cell = (v: string, per: string, cls = "") => <td className={TD + " whitespace-nowrap leading-tight " + cls}>{v}<div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">{per}</div></td>;
-  const d1 = formatDec1;
-  const cells = (x: Sums, n: number, extra = 0) => {
-    const k = n || 1;
-    return (
-      <>
-        <td className={TD}>{formatInt(n + extra)}{extra ? <div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">без расчёта {formatInt(extra)}</div> : null}</td>
-        {cell(formatInt(x.hides), `${d1(x.hides / k)} / изд.`, SEP)}{cell(m(x.fur$), `${m(x.fur$ / k)} / изд.`)}
-        {cell(formatInt(x.meters), `${d1(x.meters / k)} м / изд.`, SEP)}{cell(m(x.lining$), `${m(x.lining$ / k)} / изд.`)}
-        {cell(m(x.c4$), `${m(x.c4$ / k)} / изд.`, SEP)}
-        {cell(m(x.work$), `${m(x.work$ / k)} / изд.`, SEP)}
-        {cell(m(x.total$), `${m(x.total$ / k)} / изд.`, SEP + " font-semibold")}
-      </>
-    );
-  };
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Бюджеты и прогнозы", href: "/budget" }, { label: "Прогноз сырья на FW26" }]} />
@@ -46,41 +26,7 @@ export default async function RawForecastPage() {
         <p className="mt-1 text-xs text-neutral-500">Остаток заказа: {formatInt(f.leftPcs)} изд. (заказано − поступило по отчёту о товарах{f.asOf ? ` на ${f.asOf.split("-").reverse().join(".")}` : ""}). Шкур, цены меха и подкладки, работа на изделие — средние по ТЗ артикула (у новых — по категории), ₽ с НДС, 4% на мех и подкладку; суммы до тысяч.</p>
       </div>
       <h2 className="text-base font-semibold">Артикулы в заказе: примерный расход и себестоимость</h2>
-      <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-        <table className="w-full min-w-[1000px]">
-          <thead>
-            <tr><th colSpan={3} />
-              <th colSpan={2} className={TH + " text-center" + SEP}>Мех</th><th colSpan={2} className={TH + " text-center" + SEP}>Подкладка</th><th className={TH + " text-center" + SEP}>Надбавка</th><th className={TH + " text-center" + SEP}>Работа</th><th className={TH + " text-center" + SEP}>Всего</th></tr>
-            <tr className="border-b border-neutral-200">
-              <th className={TH + " text-left"}>Категория 2</th><th className={TH + " text-left"}>Артикул</th><th className={TH}>Изд.</th>
-              <th className={TH + SEP}>Шкур</th><th className={TH}>₽</th><th className={TH + SEP}>Метров</th><th className={TH}>₽</th><th className={TH + SEP}>4%, ₽</th><th className={TH + SEP}>₽</th><th className={TH + SEP}>Себестоимость, ₽</th>
-            </tr>
-          </thead>
-          <tbody>
-            {([["clothes", "Одежда"], ["acc", "Аксессуары"]] as const).map(([cls, title]) => {
-              const g = L.filter((x) => x.cls === cls);
-              const nd = f.noData.filter((x) => x.cls === cls);
-              const ndN = nd.reduce((a, x) => a + x.left, 0);
-              if (!g.length && !nd.length) return null;
-              return (
-                <Fragment key={cls}>
-                  <tr className="bg-neutral-100"><td colSpan={10} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-600">{title}</td></tr>
-                  {g.map((x, i) => (
-                    <tr key={x.acode + i} className="border-b border-neutral-100">
-                      <td className="px-3 py-2 text-sm text-neutral-600">{x.cat2}</td>
-                      <td className="px-3 py-2 text-sm">{x.acode}{x.source === "категория" ? <span className="ml-1 text-[11px] text-neutral-400">по категории</span> : null}</td>
-                      {cells(x, x.left)}
-                    </tr>
-                  ))}
-                  {nd.map((x) => <tr key={x.acode} className="border-b border-neutral-100 text-neutral-500"><td className="px-3 py-2 text-sm">{x.cat2}</td><td className="px-3 py-2 text-sm">{x.acode}</td><td className={TD}>{formatInt(x.left)}</td><td colSpan={7} className="px-3 py-2 text-xs">нет шкур и цен в ТЗ — в расчёт не входит</td></tr>)}
-                  <tr className="bg-neutral-50 font-semibold"><td colSpan={2} className="px-3 py-2 text-sm">Итого: {title.toLowerCase()}</td>{cells(sumOf(g), sumOf(g).left, ndN)}</tr>
-                </Fragment>
-              );
-            })}
-            <tr className="border-t-2 border-neutral-300 bg-neutral-100 font-semibold"><td colSpan={2} className="px-3 py-2 text-sm">Общий итог</td>{cells(sumOf(L), sumOf(L).left, f.noData.reduce((a, x) => a + x.left, 0))}</tr>
-          </tbody>
-        </table>
-      </div>
+      <LinesTable lines={f.lines} noData={f.noData} />
       <h2 className="mt-2 text-base font-semibold">Сырьё по типам меха, шкур</h2>
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full min-w-[560px]">

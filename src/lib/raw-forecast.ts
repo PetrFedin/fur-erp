@@ -34,12 +34,14 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
   const MANUAL: Record<string, string> = { M030: "Шубы", M039: "Шубы", M040: "Шубы", M054: "Шубы", M058: "Шубы", M059: "Шубы", MCF02: "Манжеты" };
   const clsOf = new Map(rows.map((r) => [r.acode, r.cls]));
   const left = new Map<string, { model: string; left: number; l3: string }>();
+  // По артикулу: заказано − поступило с учётом излишков по другим размерам (как «ждём» на Главной).
   for (const r of rows) {
     const d = (r.fw26Conf ?? 0) - (r.fw26Deliv ?? 0);
-    if (d <= 0) continue;
+    if (!d && !r.fw26Conf) continue;
     const e = left.get(r.acode) ?? { model: r.modelCode ?? r.acode.split("/")[0], left: 0, l3: r.l4 || r.l3 || "" };
     e.left += d; left.set(r.acode, e);
   }
+  for (const [k, e] of left) if (e.left <= 0) left.delete(k);
   const byModel = new Map<string, BudgetStat[]>(), byCat = new Map<string, BudgetStat>();
   for (const s of stats) {
     if (s.len) continue;
