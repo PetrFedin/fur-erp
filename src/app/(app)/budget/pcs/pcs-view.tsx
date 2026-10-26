@@ -161,13 +161,13 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               className="min-h-11 w-24 rounded-lg border border-neutral-300 bg-white px-2 text-right text-sm tabular-nums text-neutral-900 disabled:opacity-60" />
           </label>
         ))}
-        <p className="max-w-xl text-xs text-neutral-600">Шкуры в наличии на {rawDate.split("-").reverse().join(".")}; «уйдёт на заказанное» — остаток заказа{rawForecast ? ` по прогнозу «${rawForecast}»` : ""}. Остаток после допроизводства используем на {pp.l} % (рысь {pp.y} %), недостающее докупаем, из новой покупки используем {pp.n} %. Проценты можно менять — всё пересчитается.</p>
+        <p className="max-w-xl text-xs text-neutral-600">Шкуры в наличии — то, что останется на складе на {rawDate.split("-").reverse().join(".")} после того, как сделаем все запланированные изделия{rawForecast ? ` (отчёт-прогноз «${rawForecast}»)` : ""}; при наведении — склад и расход. Остаток используем на {pp.l} % (рысь {pp.y} %), недостающее докупаем, из новой покупки используем {pp.n} %. Проценты можно менять — всё пересчитается.</p>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full min-w-[480px]">
           <thead>
-            <tr className="border-b border-neutral-200"><th className="px-3 py-1.5 text-left text-xs font-medium text-neutral-500">По типам меха</th><th className={TH}>Шт.</th><th className={TH}>Доля</th><th className={TH}>Шкур на изд.</th><th className={TH}>Шкур всего (TTL)</th><th className={TH}>Шкур в наличии</th><th className={TH}>Уйдёт на заказанное</th><th className={TH}>Остаток после допроизводства</th><th className={TH}>Можно использовать ({pp.l} % / рысь {pp.y} %)</th><th className={TH}>Нужно из новой покупки</th><th className={TH}>Закупить (с учётом {pp.n} %)</th></tr>
+            <tr className="border-b border-neutral-200"><th className="px-3 py-1.5 text-left text-xs font-medium text-neutral-500">По типам меха</th><th className={TH}>Шт.</th><th className={TH}>Доля</th><th className={TH}>Шкур на изд.</th><th className={TH}>Шкур всего (TTL)</th><th className={TH}>Шкур в наличии после производства по прогнозу</th><th className={TH}>Можно использовать ({pp.l} % / рысь {pp.y} %)</th><th className={TH}>Нужно из новой покупки</th><th className={TH}>Закупить (с учётом {pp.n} %)</th></tr>
           </thead>
           <tbody>
             <tr className="border-b border-neutral-200 bg-neutral-100 font-semibold">
@@ -176,9 +176,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               <td className={`${TD} border-neutral-200`}>{total.pcs ? "100 %" : "–"}</td>
               <td className={`${TD} border-neutral-200`}>{totalAvg == null ? "–" : formatDec1(totalAvg)}</td>
               <td className={`${TD} border-neutral-200`}>{total.hasAvg ? cell(total.ttl) : "–"}</td>
-              <td className={`${TD} border-neutral-200`}>{cell(supply.total.stock)}</td>
-              <td className={`${TD} border-neutral-200`}>{cell(supply.total.need)}</td>
-              <td className={`${TD} border-neutral-200`}>{cell(supply.total.left)}</td>
+              <td className={`${TD} border-neutral-200`} title={`на складе ${cell(supply.total.stock)}, уйдёт на запланированное ${cell(supply.total.need)}`}>{cell(supply.total.left)}</td>
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.use)}</td>
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.np)}</td>
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.buy)}</td>
@@ -190,7 +188,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
                 <td className={`${TD} border-neutral-200`}>{total.pcs ? `${formatDec1((f.pcs / total.pcs) * 100)} %` : "–"}</td>
                 <td className={`${TD} border-neutral-200`}>{f.hasAvg && f.pcsA > 0 ? formatDec1(f.ttl / f.pcsA) : "–"}</td>
                 <td className={`${TD} border-neutral-200`}>{f.hasAvg ? cell(f.ttl) : "–"}</td>
-                {(() => { const r = supply.rows.find((x) => x.label === f.label); return r && !r.mixed ? [r.stock, r.need, r.left, r.use, r.np, r.buy].map((v, k) => <td key={k} className={`${TD} border-neutral-200`}>{cell(v)}</td>) : <td colSpan={6} className={`${TD} border-neutral-200 text-xs text-neutral-500`}>поровну в расчёте норки и соболя</td>; })()}
+                {(() => { const r = supply.rows.find((x) => x.label === f.label); return r && !r.mixed ? [r.left, r.use, r.np, r.buy].map((v, k) => <td key={k} className={`${TD} border-neutral-200`} title={k === 0 ? `на складе ${cell(r.stock)}, уйдёт на запланированное ${cell(r.need)}` : undefined}>{cell(v)}</td>) : <td colSpan={4} className={`${TD} border-neutral-200 text-xs text-neutral-500`}>поровну в расчёте норки и соболя</td>; })()}
               </tr>
             ))}
           </tbody>
