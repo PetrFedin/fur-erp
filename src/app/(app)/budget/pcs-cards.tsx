@@ -81,7 +81,7 @@ function NameDialog({ title, f, items, busy, onClose, onSave }: { title: string;
     <Modal title={title} onClose={onClose}>
       <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); onSave(name, season, from || undefined); }}>
         <label className="flex flex-col gap-1 text-xs text-neutral-500">Название<input autoFocus value={name} onChange={(e) => setName(e.target.value)} className={FIELD} maxLength={80} /></label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">Сезон<input value={season} onChange={(e) => setSeason(e.target.value)} className={FIELD} maxLength={40} placeholder="FW27" /></label>
+        <label className="flex flex-col gap-1 text-xs text-neutral-500">Сезон<input value={season} onChange={(e) => setSeason(e.target.value)} className={FIELD} maxLength={40} placeholder="2027" /></label>
         {items && items.length ? (
           <label className="flex flex-col gap-1 text-xs text-neutral-500">Взять значения из
             <select value={from} onChange={(e) => setFrom(e.target.value)} className={FIELD}><option value="">Расчёт по данным системы</option>{items.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select>

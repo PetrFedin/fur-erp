@@ -74,16 +74,13 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
     const a = avgOf(n);
     const editable = detail && canEdit && n.leaf && n.rowIndex != null;
     const i = n.rowIndex ?? -1;
-    const fromBudget = n.ttlB > 0 && n.ttlB >= n.ttl - 0.5; // весь AVG — норма бюджета (в файле пусто): курсивом
-    const part = n.ttlB > 0 && !fromBudget;
-    const avgTitle = fromBudget ? "Норма шкур из бюджета FW27 (в файле MVST не указана)" : part ? "Часть строк посчитана по норме бюджета" : undefined;
     return (
       <tr key={key} className={LEVEL[level]}>
         <td className={`sticky left-0 z-[1] bg-inherit px-3 py-1.5 text-sm`} style={{ paddingLeft: 12 + (level === 4 ? 3 : level) * 16 }}>{label}</td>
         <td className={TD}>{editable ? inp(vals[i].pcs, (v) => edit(i, "pcs", v), "w-16", "Штуки") : formatInt(n.pcs)}</td>
         <td className={TD}>{editable ? inp(vals[i].avg, (v) => edit(i, "avg", v), "w-16", "Шкур на изделие", n.leaf?.avgB != null ? String(Math.round(n.leaf.avgB * 10) / 10) : undefined)
-          : a == null ? "" : <span className={fromBudget ? "italic" : undefined} title={avgTitle}>{formatDec1(a)}{part ? "*" : ""}</span>}</td>
-        <td className={TD}>{n.hasAvg ? <span className={fromBudget ? "italic" : undefined} title={avgTitle}>{formatInt(Math.round(n.ttl))}</span> : ""}</td>
+          : a == null ? "" : formatDec1(a)}</td>
+        <td className={TD}>{n.hasAvg ? formatInt(Math.round(n.ttl)) : ""}</td>
         {stats ? n.st.map((v, c) => <td key={c} className={`${TD} ${c % 2 === 0 && c > 0 ? "border-l border-white/30" : ""}`}>{editable ? inp(vals[i].st[c], (x) => editSt(i, c, x), ST_COLS[c].money ? "w-20" : "w-14", ST_COLS[c].name) : cell(v)}</td>) : null}
       </tr>
     );
@@ -124,9 +121,9 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Stat label="Изделий, шт." value={formatInt(total.pcs)} />
-        <Stat label="Шкур всего" value={total.hasAvg ? formatInt(Math.round(total.ttl)) : "–"} note={total.ttlB > 0 ? `из них по норме бюджета ${formatInt(Math.round(total.ttlB))}` : undefined} />
+        <Stat label="Шкур всего" value={total.hasAvg ? formatInt(Math.round(total.ttl)) : "–"} />
         <Stat label="Шкур на изделие, средневзв." value={totalAvg == null ? "–" : formatDec1(totalAvg)} />
-        <Stat label="В бюджете FW27" value={budget ? `${formatInt(budget.pcs)} шт.` : "–"} note={budget ? `${formatInt(budget.hides)} шкур · ${budget.pcs ? formatDec1(budget.hides / budget.pcs) : "–"} на изделие` : undefined} />
+        <Stat label="В бюджете 2027" value={budget ? `${formatInt(budget.pcs)} шт.` : "–"} note={budget ? `${formatInt(budget.hides)} шкур · ${budget.pcs ? formatDec1(budget.hides / budget.pcs) : "–"} на изделие` : undefined} />
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
@@ -140,7 +137,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
                 <td className="px-3 py-1.5 text-sm">{f.label}</td>
                 <td className={TD}>{formatInt(f.pcs)}</td>
                 <td className={TD}>{total.pcs ? `${formatDec1((f.pcs / total.pcs) * 100)} %` : "–"}</td>
-                <td className={TD}>{f.hasAvg && f.pcsA > 0 ? <span className={f.ttlB >= f.ttl - 0.5 ? "italic" : undefined}>{formatDec1(f.ttl / f.pcsA)}</span> : ""}</td>
+                <td className={TD}>{f.hasAvg && f.pcsA > 0 ? formatDec1(f.ttl / f.pcsA) : ""}</td>
                 <td className={TD}>{f.hasAvg ? formatInt(Math.round(f.ttl)) : ""}</td>
               </tr>
             ))}
@@ -167,7 +164,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
             <tr className="border-b border-neutral-200">
               <th className="sticky left-0 z-[1] bg-white px-3 py-1.5 text-left text-xs font-medium text-neutral-500">{supplier || "Мех / категория / длина"}</th>
               <th className={TH}>PCS, шт.</th><th className={TH}>AVG, шкур</th><th className={TH}>TTL, шкур</th>
-              {stats ? ST_COLS.map((c) => <th key={c.name} className={TH}>{c.money ? (c.group === "Статистика" ? "NS AS" : "EUR") : "PCS"}</th>) : null}
+              {stats ? ST_COLS.map((c) => <th key={c.name} className={TH}>{c.money ? (c.group === "Продажи" ? "NS AS" : "EUR") : "PCS"}</th>) : null}
             </tr>
           </thead>
           <tbody>
@@ -176,7 +173,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-neutral-500">Курсивом — норма шкур из бюджета FW27 (в файле MVST AVG не указан), «*» — часть строк по норме бюджета. EUR без НДС. Кнопки «Всё / Одежда / Аксессуары» задают и состав Excel.</p>
+      <p className="text-xs text-neutral-500">AVG — норма шкур на изделие из бюджета 2027 (при правке в «Детально» подменяется вручную). Продажи: NS AS, EUR без НДС; у аксессуаров «Другие бренды» — вся колонка Other из файла. Кнопки «Всё / Одежда / Аксессуары» задают и состав Excel.</p>
     </div>
   );
 }

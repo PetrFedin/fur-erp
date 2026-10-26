@@ -27,11 +27,10 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
   const rows = doc.rows;
   rows.forEach((r, i) => {
     const a = avgEff(r), st = stOf(r);
-    const row = wsD.addRow([BLOCK_LABEL[r.block], r.fur, catOf(r.cat), dash(r.len), r.pcs, a, null, ...st, r.avg != null ? "файл" : a != null ? "бюджет" : ""]);
+    const row = wsD.addRow([BLOCK_LABEL[r.block], r.fur, catOf(r.cat), dash(r.len), r.pcs, a, null, ...st, r.avg != null ? "вручную" : a != null ? "бюджет" : ""]);
     row.getCell(7).value = a != null ? { formula: `E${i + 2}*F${i + 2}`, result: r.pcs * a } : null;
     row.getCell(6).numFmt = "0.0"; row.getCell(7).numFmt = "#,##0";
     for (let k = 0; k < ST_LEN; k++) row.getCell(ST0 + k).numFmt = "#,##0";
-    if (r.avg == null && a != null) row.getCell(6).font = { italic: true }; // норма бюджета — курсивом
   });
   wsD.columns = [{ width: 20 }, { width: 16 }, { width: 26 }, { width: 10 }, { width: 10 }, { width: 14 }, { width: 12 }, ...ST_COLS.map(() => ({ width: 13 })), { width: 12 }];
   wsD.autoFilter = { from: "A1", to: `${colL(SRC_COL)}${rows.length + 1}` };
@@ -47,7 +46,7 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
   const NC = 4 + ST_LEN; // A + PCS, AVG, TTL + статистика
   wsR.columns = [{ width: 38 }, { width: 9 }, { width: 11 }, { width: 11 }, ...ST_COLS.map((c) => ({ width: c.money ? 12 : 8 }))];
   const t = wsR.getCell("A1"); t.value = `${doc.name} — ${doc.supplier}`; t.font = { bold: true, size: 12, name: "Calibri" };
-  wsR.getCell("A2").value = `Одежда обновлена ${dateRu(doc.asOf.RTW)} · аксессуары обновлены ${dateRu(doc.asOf.Acc)}. AVG курсивом: норма из бюджета (в файле пусто).`; wsR.getCell("A2").font = { size: 9, color: { argb: "FF6B7280" } };
+  wsR.getCell("A2").value = `Одежда обновлена ${dateRu(doc.asOf.RTW)} · аксессуары обновлены ${dateRu(doc.asOf.Acc)}. AVG — норма шкур на изделие из бюджета 2027.`; wsR.getCell("A2").font = { size: 9, color: { argb: "FF6B7280" } };
   const thin = { bottom: { style: "thin" as const, color: { argb: "FF9CA3AF" } } };
   const hdr = (row: number, from: number, to: number, text: string) => { if (to > from) wsR.mergeCells(row, from, row, to); const c = wsR.getCell(row, from); c.value = text; c.font = { bold: true, size: 9 }; c.alignment = { horizontal: "center" }; };
   wsR.getCell("A4").value = doc.supplier; wsR.getCell("A4").font = { bold: true, size: 9 };
@@ -56,7 +55,7 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
   let k = 0;
   while (k < ST_LEN) { let e = k; while (e + 1 < ST_LEN && ST_COLS[e + 1].group === ST_COLS[k].group) e++; hdr(4, 5 + k, 5 + e, ST_COLS[k].group); k = e + 1; }
   for (let j = 0; j < ST_LEN; j += 2) hdr(5, 5 + j, 6 + j, ST_COLS[j].sub);
-  const h6 = wsR.getRow(6); h6.values = [null, "PCS", "AVG (шкур)", "TTL (шкур)", ...ST_COLS.map((c) => (c.money ? (c.group === "Статистика" ? "NS AS" : "EUR") : "PCS"))];
+  const h6 = wsR.getRow(6); h6.values = [null, "PCS", "AVG (шкур)", "TTL (шкур)", ...ST_COLS.map((c) => (c.money ? (c.group === "Продажи" ? "NS AS" : "EUR") : "PCS"))];
   [4, 5, 6].forEach((rr) => { const rw = wsR.getRow(rr); rw.font = { bold: true, size: 9 }; rw.alignment = { horizontal: "center" }; rw.eachCell((c) => { if (rr === 6) c.border = thin; }); });
 
   const FILL: Record<number, { fg: string; font: string }> = { 0: { fg: "FF3F3F6F", font: "FFFFFFFF" }, 1: { fg: "FF7F7FAF", font: "FFFFFFFF" }, 2: { fg: "FFBFBFEF", font: "FF000000" }, 3: { fg: "FFBFBFEF", font: "FF000000" } };
@@ -100,7 +99,6 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
     for (let j = 0; j < ST_LEN; j++) wsR.getCell(row, 5 + j).value = { formula: sumOf(colL(ST0 + j)), result: n.st[j] };
     style(row, n.level, n.level <= 3);
     wsR.getCell(row, 1).alignment = { indent: n.level === 4 ? 3 : n.level };
-    if (n.ttlB > 0 && n.ttlB >= n.ttl - 0.5) wsR.getCell(row, 3).font = { ...wsR.getCell(row, 3).font, italic: true }; // весь AVG — норма бюджета
     if (n.level === 4) wsR.getRow(row).outlineLevel = 1;
     for (const c of n.children) writeNode(c, k2);
   };
@@ -128,7 +126,7 @@ async function injectPivot(buf: Buffer, doc: PcsDoc, last: number): Promise<Buff
   const uniq = (f: (r: (typeof rows)[number]) => string) => [...new Set(rows.map(f))];
   const sv = { Блок: uniq((r) => BLOCK_LABEL[r.block]), Мех: uniq((r) => r.fur), Категория: uniq((r) => catOf(r.cat)), Длина: uniq((r) => dash(r.len)) };
   const strField = (n: keyof typeof sv) => `<cacheField name="${n}" numFmtId="0"><sharedItems count="${sv[n].length}">${sv[n].map((v) => `<s v="${esc(v)}"/>`).join("")}</sharedItems></cacheField>`;
-  const srcVals = [...new Set(rows.map((r) => (r.avg != null ? "файл" : avgEff(r) != null ? "бюджет" : "")))];
+  const srcVals = [...new Set(rows.map((r) => (r.avg != null ? "вручную" : avgEff(r) != null ? "бюджет" : "")))];
   const srcField = `<cacheField name="Источник AVG" numFmtId="0"><sharedItems count="${srcVals.length}">${srcVals.map((v) => `<s v="${esc(v)}"/>`).join("")}</sharedItems></cacheField>`;
   const numField = (n: string) => `<cacheField name="${n}" numFmtId="0"><sharedItems containsString="0" containsBlank="1" containsNumber="1"/></cacheField>`;
   const cache = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotCacheDefinition xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" refreshOnLoad="1" refreshedVersion="8" minRefreshableVersion="3" createdVersion="6" recordCount="${rows.length}">` +
