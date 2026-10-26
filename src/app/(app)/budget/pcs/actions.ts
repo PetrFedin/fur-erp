@@ -4,7 +4,8 @@ import { revalidateAll } from "@/lib/revalidate-all";
 import { requireRole, requireSession } from "@/lib/session";
 import { deletePcs, getPcs, putPcs } from "@/lib/budget-pcs-store";
 import { buildPcsWorkbook } from "@/lib/budget-pcs-xlsx";
-import type { PcsRow } from "@/lib/budget-pcs";
+import { loadBudgetAvg, withBudgetAvg } from "@/lib/budget-pcs-avg";
+import { ST_LEN, type PcsBlock, type PcsRow } from "@/lib/budget-pcs";
 
 const EDIT = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
 type Res<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -47,21 +48,23 @@ export async function removePcs(id: string): Promise<Res> {
   return { ok: true };
 }
 /** Сохранение значений: штуки и AVG по строкам (порядок и состав строк не меняются). */
-export async function savePcsRows(id: string, rows: { pcs: number; avg: number | null }[]): Promise<Res<{ at: string }>> {
+export async function savePcsRows(id: string, rows: { pcs: number; avg: number | null; st?: number[] }[]): Promise<Res<{ at: string }>> {
   const session = await requireRole(...EDIT);
   const orgId = session.user.organizationId;
   const d = await getPcs(orgId, id); if (!d) return { ok: false, error: "Файл не найден" };
   if (!Array.isArray(rows) || rows.length !== d.rows.length) return { ok: false, error: "Состав строк изменился, обновите страницу" };
-  const next: PcsRow[] = d.rows.map((r, i) => ({ ...r, pcs: num(rows[i]?.pcs), avg: rows[i]?.avg == null ? null : num(rows[i].avg), avgText: rows[i]?.avg === r.avg ? r.avgText : null }));
+  const next: PcsRow[] = d.rows.map((r, i) => ({ ...r, pcs: num(rows[i]?.pcs), avg: rows[i]?.avg == null ? null : num(rows[i].avg), st: Array.isArray(rows[i]?.st) ? Array.from({ length: ST_LEN }, (_, k) => Math.round(num(rows[i].st![k]) * 100) / 100) : r.st, avgText: rows[i]?.avg === r.avg ? r.avgText : null }));
   await putPcs(orgId, id, { ...d, rows: next, updatedBy: session.user.name ?? null });
   revalidateAll();
   return { ok: true, at: new Date().toISOString() };
 }
 /** Excel: «Данные» — один массив, «Сводная» — сводная таблица, «Отчёт» — как файл MVST. */
-export async function exportPcsXlsx(id: string): Promise<Res<{ name: string; base64: string }>> {
+export async function exportPcsXlsx(id: string, blocks?: PcsBlock[]): Promise<Res<{ name: string; base64: string }>> {
   const session = await requireSession();
   const d = await getPcs(session.user.organizationId, s(id, 40));
   if (!d) return { ok: false, error: "Файл не найден" };
-  const buf = await buildPcsWorkbook(d);
-  return { ok: true, name: `${d.name.replace(/[\\/:*?"<>|]+/g, " ").trim() || "Budget PCS"}.xlsx`, base64: buf.toString("base64") };
+  const want = (blocks ?? ["RTW", "Acc"]).filter((b) => b === "RTW" || b === "Acc");
+  const rows = withBudgetAvg(d.rows, await loadBudgetAvg(session.user.organizationId)).filter((r) => want.includes(r.block));
+  const buf = await buildPcsWorkbook({ ...d, rows });
+  return { ok: true, name: `${d.name.replace(/[\\/:*?"<>|]+/g, " ").trim() || "Budget PCS"}${want.length === 1 ? (want[0] === "RTW" ? " RTW" : " Acc") : ""}.xlsx`, base64: buf.toString("base64") };
 }
