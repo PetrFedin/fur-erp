@@ -1,7 +1,7 @@
 import "server-only";
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
-import { avgEff, BLOCK_LABEL, buildPcsTree, CAT_LABEL, ST_COLS, ST_LEN, stOf, type PcsDoc, type PcsNode } from "@/lib/budget-pcs";
+import { avgEff, BLOCK_LABEL, buildPcsTree, CAT_LABEL, ST_COLS, ST_LEN, stOf, stTop, stYear, type PcsDoc, type PcsNode } from "@/lib/budget-pcs";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const dateRu = (iso: string) => (iso ? iso.split("-").reverse().join(".") : "");
@@ -49,16 +49,13 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
   wsR.getCell("A2").value = `Одежда обновлена ${dateRu(doc.asOf.RTW)} · аксессуары обновлены ${dateRu(doc.asOf.Acc)}. AVG — норма шкур на изделие из бюджета 2027.`; wsR.getCell("A2").font = { size: 9, color: { argb: "FF6B7280" } };
   const thin = { bottom: { style: "thin" as const, color: { argb: "FF9CA3AF" } } };
   const hdr = (row: number, from: number, to: number, text: string) => { if (to > from) wsR.mergeCells(row, from, row, to); const c = wsR.getCell(row, from); c.value = text; c.font = { bold: true, size: 9 }; c.alignment = { horizontal: "center" }; };
-  wsR.getCell("A4").value = doc.supplier; wsR.getCell("A4").font = { bold: true, size: 9 };
-  hdr(4, 2, 4, doc.season || "Budget");
-  // группы колонок статистики: 2026 / 2025 / Статистика, подгруппы по две колонки
-  let k = 0;
-  while (k < ST_LEN) { let e = k; while (e + 1 < ST_LEN && ST_COLS[e + 1].group === ST_COLS[k].group) e++; hdr(4, 5 + k, 5 + e, ST_COLS[k].group); k = e + 1; }
-  // годы внутри «Продаж» (2026 / 2025), затем подгруппы по две колонки
-  k = 0;
-  while (k < ST_LEN) { if (!ST_COLS[k].year) { k++; continue; } let e = k; while (e + 1 < ST_LEN && ST_COLS[e + 1].year === ST_COLS[k].year) e++; hdr(5, 5 + k, 5 + e, ST_COLS[k].year!); k = e + 1; }
+  const runsOf = (f: (c: (typeof ST_COLS)[number]) => string) => { const o: { v: string; from: number; to: number }[] = []; ST_COLS.forEach((c, i) => { const l = o[o.length - 1], v = f(c); if (l && l.v === v) l.to = i; else o.push({ v, from: i, to: i }); }); return o; };
+  // 4: «Русский мех» / «Статистика»; 5: сезон бюджета и годы; 6: подгруппы колонок; 7: EUR / PCS
+  runsOf(stTop).forEach((g, i) => hdr(4, i === 0 ? 2 : 5 + g.from, 5 + g.to, g.v));
+  hdr(5, 2, 4, doc.season || "Budget");
+  runsOf(stYear).forEach((g) => hdr(5, 5 + g.from, 5 + g.to, g.v));
   for (let j = 0; j < ST_LEN; j += 2) hdr(6, 5 + j, 6 + j, ST_COLS[j].sub);
-  const h6 = wsR.getRow(7); h6.values = [null, "PCS", "AVG (шкур)", "TTL (шкур)", ...ST_COLS.map((c) => (c.money ? (c.group === "Продажи" ? "NS AS" : "EUR") : "PCS"))];
+  const h6 = wsR.getRow(7); h6.values = [null, "PCS", "AVG (шкур)", "TTL (шкур)", ...ST_COLS.map((c) => (c.money ? (c.group === "Статистика" ? "NS AS" : "EUR") : "PCS"))];
   [4, 5, 6, 7].forEach((rr) => { const rw = wsR.getRow(rr); rw.font = { bold: true, size: 9 }; rw.alignment = { horizontal: "center" }; rw.eachCell((c) => { if (rr === 7) c.border = thin; }); });
 
   const FILL: Record<number, { fg: string; font: string }> = { 0: { fg: "FF3F3F6F", font: "FFFFFFFF" }, 1: { fg: "FF7F7FAF", font: "FFFFFFFF" }, 2: { fg: "FFBFBFEF", font: "FF000000" }, 3: { fg: "FFBFBFEF", font: "FF000000" } };

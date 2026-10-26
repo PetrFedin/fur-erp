@@ -4,8 +4,11 @@ export type PcsBlock = "RTW" | "Acc";
 export const SALES_GROUPS = ["Всего", "MVST РМ", "MVST другие", "Другие бренды"] as const;
 export const ST_COLS: { group: string; year?: string; sub: string; name: string; money: boolean }[] = [
   ...(["2026 Conf", "2026 Deliv", "2026 NS STD", "2025 Deliv", "2025 NS"] as const).flatMap((g) => [{ group: g.slice(0, 4), sub: g.slice(5), name: `${g} EUR`, money: true }, { group: g.slice(0, 4), sub: g.slice(5), name: `${g} PCS`, money: false }]),
-  ...(["2026", "2025"] as const).flatMap((y) => SALES_GROUPS.flatMap((b) => [{ group: "Продажи", year: y, sub: b, name: `Продажи ${y} ${b} NS AS`, money: true }, { group: "Продажи", year: y, sub: b, name: `Продажи ${y} ${b} PCS`, money: false }])),
+  ...(["2026", "2025"] as const).flatMap((y) => SALES_GROUPS.flatMap((b) => [{ group: "Статистика", year: y, sub: b, name: `Статистика ${y} ${b} NS AS`, money: true }, { group: "Статистика", year: y, sub: b, name: `Статистика ${y} ${b} PCS`, money: false }])),
 ];
+/** Год колонки (уровень шапки с сезонами) и верхняя группа: «Русский мех» или «Статистика» (продажи). */
+export const stYear = (c: { group: string; year?: string }) => c.year ?? c.group;
+export const stTop = (c: { year?: string }) => (c.year ? "Статистика" : "Русский мех");
 export const ST_LEN = ST_COLS.length;
 export type PcsRow = { block: PcsBlock; fur: string; cat: string; len: string; pcs: number; avg: number | null; avgText?: string | null; /** Статистика отчёта, ST_COLS. */ st?: number[]; /** Норма шкур на изделие из бюджета (не хранится: подставляется при загрузке). */ avgB?: number | null };
 export type PcsDoc = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; createdAt: string; updatedAt: string; updatedBy: string | null };

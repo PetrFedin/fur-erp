@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { avgOf, buildPcsTree, ST_COLS, ST_LEN, stOf, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
+import { avgOf, buildPcsTree, ST_COLS, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
 import { formatDec1, formatInt } from "@/lib/utils";
 import { exportPcsXlsx, savePcsRows } from "./actions";
 
@@ -15,10 +15,9 @@ const cell = (v: number) => (v ? formatInt(Math.round(v)) : "–");
 const FILTERS: { id: "all" | PcsBlock; label: string; blocks: PcsBlock[] }[] = [
   { id: "all", label: "Всё", blocks: ["RTW", "Acc"] }, { id: "RTW", label: "Одежда", blocks: ["RTW"] }, { id: "Acc", label: "Аксессуары", blocks: ["Acc"] },
 ];
-// Годы внутри «Продаж»: 2026 / 2025 над группами брендов.
-const YEARS = ST_COLS.reduce<{ y: string; n: number }[]>((a, c) => { const l = a[a.length - 1]; if (!c.year) { if (l && l.y === "") l.n++; else a.push({ y: "", n: 1 }); } else if (l && l.y === c.year) l.n++; else a.push({ y: c.year, n: 1 }); return a; }, []);
-// Группы колонок статистики для шапки: 2026 / 2025 / Статистика и подгруппы по две колонки.
-const GROUPS = ST_COLS.reduce<{ g: string; n: number }[]>((a, c) => { const l = a[a.length - 1]; if (l && l.g === c.group) l.n++; else a.push({ g: c.group, n: 1 }); return a; }, []);
+// Шапка: «Русский мех» / «Статистика» → годы (2027 — бюджет) → подгруппы колонок.
+const runs = <T,>(f: (c: (typeof ST_COLS)[number]) => T) => ST_COLS.reduce<{ v: T; n: number }[]>((a, c) => { const l = a[a.length - 1], v = f(c); if (l && l.v === v) l.n++; else a.push({ v, n: 1 }); return a; }, []);
+const TOP = runs(stTop), YEARS = runs(stYear);
 
 type Props = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; budget: { pcs: number; hides: number } | null; canEdit: boolean };
 
@@ -151,28 +150,26 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
         <table className="w-full min-w-[480px]">
           <thead>
             {stats ? (
-              <tr className="border-b border-neutral-100">
-                <th className="sticky left-0 z-[1] bg-white" />
-                <th colSpan={3} className="px-2 py-1 text-center text-xs font-semibold text-neutral-700">{season || "Бюджет"}</th>
-                {GROUPS.map((g) => <th key={g.g + g.n} colSpan={g.n} className="border-l border-neutral-200 px-2 py-1 text-center text-xs font-semibold text-neutral-700">{g.g}</th>)}
-              </tr>
-            ) : null}
-            {stats ? (
-              <tr className="border-b border-neutral-100">
-                <th className="sticky left-0 z-[1] bg-white" /><th colSpan={3} />
-                {YEARS.map((g, k) => <th key={k} colSpan={g.n} className={"px-2 py-1 text-center text-xs font-semibold text-neutral-700" + (g.y ? " border-l border-neutral-200" : "")}>{g.y}</th>)}
-              </tr>
-            ) : null}
-            {stats ? (
-              <tr className="border-b border-neutral-100">
-                <th className="sticky left-0 z-[1] bg-white" /><th colSpan={3} />
-                {Array.from({ length: ST_LEN / 2 }, (_, j) => <th key={j} colSpan={2} className="border-l border-neutral-200 px-2 py-1 text-center text-xs font-medium text-neutral-500">{ST_COLS[j * 2].sub}</th>)}
-              </tr>
+              <>
+                <tr className="border-b border-neutral-100">
+                  <th className="sticky left-0 z-[1] bg-white" />
+                  {TOP.map((g, k) => <th key={k} colSpan={g.n + (k === 0 ? 3 : 0)} className={"px-2 py-1 text-center text-xs font-semibold text-neutral-700" + (k > 0 ? " border-l border-neutral-200" : "")}>{g.v}</th>)}
+                </tr>
+                <tr className="border-b border-neutral-100">
+                  <th className="sticky left-0 z-[1] bg-white" />
+                  <th colSpan={3} className="px-2 py-1 text-center text-xs font-semibold text-neutral-700">{season || "Бюджет"}</th>
+                  {YEARS.map((g, k) => <th key={k} colSpan={g.n} className="border-l border-neutral-200 px-2 py-1 text-center text-xs font-semibold text-neutral-700">{g.v}</th>)}
+                </tr>
+                <tr className="border-b border-neutral-100">
+                  <th className="sticky left-0 z-[1] bg-white" /><th colSpan={3} />
+                  {Array.from({ length: ST_LEN / 2 }, (_, j) => <th key={j} colSpan={2} className="border-l border-neutral-200 px-2 py-1 text-center text-xs font-medium text-neutral-500">{ST_COLS[j * 2].sub}</th>)}
+                </tr>
+              </>
             ) : null}
             <tr className="border-b border-neutral-200">
               <th className="sticky left-0 z-[1] bg-white px-3 py-1.5 text-left text-xs font-medium text-neutral-500">{supplier || "Мех / категория / длина"}</th>
               <th className={TH}>PCS, шт.</th><th className={TH}>AVG, шкур</th><th className={TH}>TTL, шкур</th>
-              {stats ? ST_COLS.map((c) => <th key={c.name} className={TH}>{c.money ? (c.group === "Продажи" ? "NS AS" : "EUR") : "PCS"}</th>) : null}
+              {stats ? ST_COLS.map((c) => <th key={c.name} className={TH}>{c.money ? (c.group === "Статистика" ? "NS AS" : "EUR") : "PCS"}</th>) : null}
             </tr>
           </thead>
           <tbody>
