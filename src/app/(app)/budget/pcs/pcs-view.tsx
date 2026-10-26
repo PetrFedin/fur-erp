@@ -5,8 +5,11 @@ import { avgOf, buildPcsTree, ST_COLS, ST_LEN, stOf, stTop, stYear, sumRoots, ty
 import { formatDec1, formatInt } from "@/lib/utils";
 import { exportPcsXlsx, savePcsRows } from "./actions";
 
-const TH = "whitespace-nowrap px-2 py-1.5 text-right text-xs font-medium text-neutral-500";
-const TD = "whitespace-nowrap px-2 py-1.5 text-right text-sm tabular-nums";
+const TH = "whitespace-nowrap px-2 py-1.5 text-right text-xs font-medium text-neutral-500 border-l border-neutral-200";
+const TD = "whitespace-nowrap px-2 py-1.5 text-right text-sm tabular-nums border-l";
+// Тонкие линии между колонками и строками: цвет по уровню строки; пары колонок (EUR/PCS) отделены чуть заметнее.
+const LINE: Record<number, string> = { 0: "border-white/25", 1: "border-white/25", 2: "border-[#B4B4E4]", 3: "border-[#B4B4E4]", 4: "border-neutral-200" };
+const LINE_STRONG: Record<number, string> = { 0: "border-white/60", 1: "border-white/60", 2: "border-[#8C8CC8]", 3: "border-[#8C8CC8]", 4: "border-neutral-400" };
 // Цвета как в файле MVST, но с достаточным контрастом текста (AA).
 const LEVEL: Record<number, string> = { 0: "bg-[#3F3F6F] text-white font-semibold", 1: "bg-[#5B5B96] text-white font-semibold", 2: "bg-[#D9D9F5] text-neutral-900 font-semibold", 3: "bg-[#D9D9F5] text-neutral-900 font-semibold", 4: "bg-white text-neutral-800" };
 const parse = (s: string) => { const v = parseFloat(s.replace(",", ".").replace(/\s/g, "")); return Number.isFinite(v) && v >= 0 ? v : 0; };
@@ -76,13 +79,13 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
     const editable = detail && canEdit && n.leaf && n.rowIndex != null;
     const i = n.rowIndex ?? -1;
     return (
-      <tr key={key} className={LEVEL[level]}>
+      <tr key={key} className={`${LEVEL[level]} border-b ${level >= 4 ? "border-neutral-200" : LINE[level]}`}>
         <td className={`sticky left-0 z-[1] bg-inherit px-3 py-1.5 text-sm`} style={{ paddingLeft: 12 + (level === 4 ? 3 : level) * 16 }}>{label}</td>
-        <td className={TD}>{editable ? inp(vals[i].pcs, (v) => edit(i, "pcs", v), "w-16", "Штуки") : formatInt(n.pcs)}</td>
-        <td className={TD}>{editable ? inp(vals[i].avg, (v) => edit(i, "avg", v), "w-16", "Шкур на изделие", n.leaf?.avgB != null ? String(Math.round(n.leaf.avgB * 10) / 10) : undefined)
+        <td className={`${TD} ${LINE_STRONG[level]}`}>{editable ? inp(vals[i].pcs, (v) => edit(i, "pcs", v), "w-16", "Штуки") : formatInt(n.pcs)}</td>
+        <td className={`${TD} ${LINE[level]}`}>{editable ? inp(vals[i].avg, (v) => edit(i, "avg", v), "w-16", "Шкур на изделие", n.leaf?.avgB != null ? String(Math.round(n.leaf.avgB * 10) / 10) : undefined)
           : a == null ? "" : formatDec1(a)}</td>
-        <td className={TD}>{n.hasAvg ? formatInt(Math.round(n.ttl)) : ""}</td>
-        {stats ? n.st.map((v, c) => <td key={c} className={`${TD} ${c % 2 === 0 && c > 0 ? "border-l border-white/30" : ""}`}>{editable ? inp(vals[i].st[c], (x) => editSt(i, c, x), ST_COLS[c].money ? "w-20" : "w-14", ST_COLS[c].name) : cell(v)}</td>) : null}
+        <td className={`${TD} ${LINE[level]}`}>{n.hasAvg ? formatInt(Math.round(n.ttl)) : ""}</td>
+        {stats ? n.st.map((v, c) => <td key={c} className={`${TD} ${c % 2 === 0 ? LINE_STRONG[level] : LINE[level]}`}>{editable ? inp(vals[i].st[c], (x) => editSt(i, c, x), ST_COLS[c].money ? "w-20" : "w-14", ST_COLS[c].name) : cell(v)}</td>) : null}
       </tr>
     );
   };
@@ -136,10 +139,10 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
             {furs.map((f) => (
               <tr key={f.label} className="border-b border-neutral-100 last:border-0">
                 <td className="px-3 py-1.5 text-sm">{f.label}</td>
-                <td className={TD}>{formatInt(f.pcs)}</td>
-                <td className={TD}>{total.pcs ? `${formatDec1((f.pcs / total.pcs) * 100)} %` : "–"}</td>
-                <td className={TD}>{f.hasAvg && f.pcsA > 0 ? formatDec1(f.ttl / f.pcsA) : ""}</td>
-                <td className={TD}>{f.hasAvg ? formatInt(Math.round(f.ttl)) : ""}</td>
+                <td className={`${TD} border-neutral-200`}>{formatInt(f.pcs)}</td>
+                <td className={`${TD} border-neutral-200`}>{total.pcs ? `${formatDec1((f.pcs / total.pcs) * 100)} %` : "–"}</td>
+                <td className={`${TD} border-neutral-200`}>{f.hasAvg && f.pcsA > 0 ? formatDec1(f.ttl / f.pcsA) : ""}</td>
+                <td className={`${TD} border-neutral-200`}>{f.hasAvg ? formatInt(Math.round(f.ttl)) : ""}</td>
               </tr>
             ))}
           </tbody>

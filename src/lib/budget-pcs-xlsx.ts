@@ -113,6 +113,13 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
     for (let j = 0; j < ST_LEN; j++) wsR.getCell(row, 5 + j).value = sum(5 + j);
     style(row, 0, true); wsR.getCell(row, 1).alignment = { indent: 0 };
   }
+  // Тонкие линии сетки: серые между ячейками, чуть темнее между парами колонок (EUR / PCS) и блоками.
+  const lineC = { style: "thin" as const, color: { argb: "FFC9C9D9" } }, lineD = { style: "thin" as const, color: { argb: "FF8C8CA8" } };
+  for (let rr = 4; rr < r; rr++) for (let c = 1; c <= NC; c++) {
+    const cell = wsR.getCell(rr, c);
+    const pairStart = c === 2 || c === 5 || (c > 5 && (c - 5) % 2 === 0) || c === 1;
+    cell.border = { top: lineC, bottom: lineC, left: pairStart ? lineD : lineC, right: c === NC ? lineD : lineC };
+  }
   wsR.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
   wsR.pageSetup = { orientation: "landscape" }; // fitToPage вместе с outlineProperties ломает порядок sheetPr (Excel просит восстановить файл)
 
