@@ -140,6 +140,13 @@ export function PcsView({ id, name, season, supplier, asOf, rows, canEdit }: Pro
             <tr className="border-b border-neutral-200"><th className="px-3 py-1.5 text-left text-xs font-medium text-neutral-500">По типам меха</th><th className={TH}>Шт.</th><th className={TH}>Доля</th><th className={TH}>Шкур на изд.</th><th className={TH}>Шкур всего</th></tr>
           </thead>
           <tbody>
+            <tr className="border-b border-neutral-200 bg-neutral-100 font-semibold">
+              <td className="px-3 py-1.5 text-sm">Всего</td>
+              <td className={`${TD} border-neutral-200`}>{cell(total.pcs)}</td>
+              <td className={`${TD} border-neutral-200`}>{total.pcs ? "100 %" : "–"}</td>
+              <td className={`${TD} border-neutral-200`}>{totalAvg == null ? "–" : formatDec1(totalAvg)}</td>
+              <td className={`${TD} border-neutral-200`}>{total.hasAvg ? cell(total.ttl) : "–"}</td>
+            </tr>
             {furs.map((f) => (
               <tr key={f.label} className="border-b border-neutral-100 last:border-0">
                 <td className="px-3 py-1.5 text-sm">{f.label}</td>
