@@ -5,7 +5,7 @@ import { requireRole, requireSession } from "@/lib/session";
 import { deletePcs, getPcs, putPcs } from "@/lib/budget-pcs-store";
 import { buildPcsWorkbook } from "@/lib/budget-pcs-xlsx";
 import { loadBudgetAvg, withBudgetAvg } from "@/lib/budget-pcs-avg";
-import { ST_FILE_LEN, type PcsBlock, type PcsRow } from "@/lib/budget-pcs";
+import { ST_FILE_LEN, type PcsBlock, type PcsParams, type PcsRow } from "@/lib/budget-pcs";
 
 const EDIT = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
 type Res<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -67,4 +67,15 @@ export async function exportPcsXlsx(id: string, blocks?: PcsBlock[], hideEmpty?:
   const rows = withBudgetAvg(d.rows, await loadBudgetAvg(session.user.organizationId)).filter((r) => want.includes(r.block));
   const buf = await buildPcsWorkbook({ ...d, rows }, { hideEmpty: hideEmpty === true });
   return { ok: true, name: `${d.name.replace(/[\\/:*?"<>|]+/g, " ").trim() || "Budget PCS"}${want.length === 1 ? (want[0] === "RTW" ? " RTW" : " Acc") : ""}.xlsx`, base64: buf.toString("base64") };
+}
+
+/** Доли использования сырья (проценты) — сохраняются в файле Budget PCS и пересчитывают таблицу «По типам меха». */
+export async function savePcsParams(id: string, p: PcsParams): Promise<Res> {
+  const session = await requireRole(...EDIT);
+  const orgId = session.user.organizationId;
+  const d = await getPcs(orgId, s(id, 40)); if (!d) return { ok: false, error: "Файл не найден" };
+  const pct = (v: unknown) => { const x = Number(v); return Number.isFinite(x) ? Math.min(100, Math.max(1, Math.round(x * 10) / 10)) : 70; };
+  await putPcs(orgId, d.id, { ...d, params: { leftoverPct: pct(p.leftoverPct), lynxPct: pct(p.lynxPct), newPct: pct(p.newPct) }, updatedBy: session.user.name ?? null });
+  revalidateAll();
+  return { ok: true };
 }

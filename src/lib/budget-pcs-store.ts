@@ -10,7 +10,7 @@ const SEEDED = "budget-pcs-seeded";
 type Stored = Partial<Omit<PcsDoc, "id" | "updatedAt">>;
 const parse = (key: string, v: unknown, updatedAt: Date): PcsDoc => {
   const o = (v ?? {}) as Stored;
-  return { id: key.slice(PREFIX.length), name: o.name ?? "Budget PCS", season: o.season ?? "", supplier: o.supplier ?? "", asOf: o.asOf ?? { RTW: "", Acc: "" }, rows: o.rows ?? [], createdAt: o.createdAt ?? updatedAt.toISOString(), updatedAt: updatedAt.toISOString(), updatedBy: o.updatedBy ?? null };
+  return { id: key.slice(PREFIX.length), name: o.name ?? "Budget PCS", season: o.season ?? "", supplier: o.supplier ?? "", asOf: o.asOf ?? { RTW: "", Acc: "" }, rows: o.rows ?? [], params: o.params, createdAt: o.createdAt ?? updatedAt.toISOString(), updatedAt: updatedAt.toISOString(), updatedBy: o.updatedBy ?? null };
 };
 
 export async function listPcs(orgId: string): Promise<PcsDoc[]> {
@@ -28,7 +28,7 @@ export async function getPcs(orgId: string, id: string): Promise<PcsDoc | null> 
   return r ? parse(r.key, r.value, r.updatedAt) : null;
 }
 export async function putPcs(orgId: string, id: string, d: Omit<PcsDoc, "id" | "updatedAt">): Promise<void> {
-  const value = { name: d.name, season: d.season, supplier: d.supplier, asOf: d.asOf, rows: d.rows, createdAt: d.createdAt, updatedBy: d.updatedBy };
+  const value = { name: d.name, season: d.season, supplier: d.supplier, asOf: d.asOf, rows: d.rows, params: d.params, createdAt: d.createdAt, updatedBy: d.updatedBy };
   await prisma.systemState.upsert({ where: { organizationId_key: { organizationId: orgId, key: PREFIX + id } }, update: { value }, create: { organizationId: orgId, key: PREFIX + id, value } });
 }
 export async function deletePcs(orgId: string, id: string): Promise<void> {

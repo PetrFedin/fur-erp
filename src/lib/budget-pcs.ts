@@ -12,7 +12,10 @@ export const stYear = (c: { group: string; year?: string }) => c.year ?? c.group
 export const stTop = (c: { year?: string }) => (c.year ? "Статистика" : "Русский мех");
 export const ST_LEN = ST_COLS.length;
 export type PcsRow = { block: PcsBlock; fur: string; cat: string; len: string; pcs: number; avg: number | null; avgText?: string | null; /** Служебная строка (не из файла): не хранится и не редактируется. */ sys?: boolean; /** Статистика отчёта, ST_COLS. */ st?: number[]; /** Норма шкур на изделие из бюджета (не хранится: подставляется при загрузке). */ avgB?: number | null };
-export type PcsDoc = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; createdAt: string; updatedAt: string; updatedBy: string | null };
+/** Доли использования сырья, %: остатки (кроме рыси), рысь, новая покупка. */
+export type PcsParams = { leftoverPct: number; lynxPct: number; newPct: number };
+export const DEFAULT_PCS_PARAMS: PcsParams = { leftoverPct: 70, lynxPct: 85, newPct: 70 };
+export type PcsDoc = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; params?: PcsParams; createdAt: string; updatedAt: string; updatedBy: string | null };
 
 export const BLOCK_LABEL: Record<PcsBlock, string> = { RTW: "Одежда", Acc: "Аксессуары" };
 export const FUR_ORDER = ["Соболь", "Каракульча", "Норка", "Рысь", "Лиса", "Норка+Соболь"];
