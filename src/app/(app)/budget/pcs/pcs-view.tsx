@@ -163,7 +163,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               className="min-h-11 w-24 rounded-lg border border-neutral-300 bg-white px-2 text-right text-sm tabular-nums text-neutral-900 disabled:opacity-60" />
           </label>
         ))}
-        <p className="max-w-xl text-xs text-neutral-600">Шкуры в наличии — то, что останется на складе на {rawDate.split("-").reverse().join(".")} после того, как сделаем все запланированные изделия{rawForecast ? ` (отчёт-прогноз «${rawForecast}»)` : ""}; при наведении — склад и расход. Остаток используем на {pp.l} % (рысь {pp.y} %), недостающее докупаем, из новой покупки используем {pp.n} %. Проценты можно менять — всё пересчитается.</p>
+        <p className="max-w-md text-xs text-neutral-600">Остаток — что останется по окончании производства заказа FW26 (на {rawDate.split("-").reverse().join(".")}). Проценты можно менять.</p>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
