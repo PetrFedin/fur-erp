@@ -6,7 +6,8 @@ import { useState, useTransition } from "react";
 import { InfoHint } from "@/components/info-hint";
 import { formatDec1 } from "@/lib/utils";
 import { BTN, BTN_PRIMARY, FIELD, Modal, dateRu, money, pct, qty } from "./ui";
-import { createBudget, deleteBudget, duplicateBudget, renameBudget } from "./actions";
+import { saveBase64Xlsx } from "@/lib/download-xlsx";
+import { createBudget, deleteBudget, duplicateBudget, exportBudgetsReportXlsx, renameBudget } from "./actions";
 
 export type BudgetSummary = {
   id: string; name: string; season: string; status: "DRAFT" | "APPROVED"; comment: string | null; parentName: string | null;
@@ -46,6 +47,7 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {items.length >= 1 ? <button type="button" disabled={busy} onClick={() => start(async () => { setError(null); try { const r = await exportBudgetsReportXlsx(); if (r.ok) saveBase64Xlsx(r.name, r.base64); else setError(r.error); } catch { setError("Не удалось сформировать Excel"); } })} className={BTN}>Скачать Excel</button> : null}
           {items.length >= 2 ? <button type="button" onClick={() => setDialog({ kind: "compare" })} className={BTN}>Сравнить</button> : null}
           {canEdit ? <button type="button" onClick={() => setDialog({ kind: "new" })} className={BTN_PRIMARY}>+ Новый бюджет</button> : null}
         </div>

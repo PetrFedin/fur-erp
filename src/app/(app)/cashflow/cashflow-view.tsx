@@ -7,6 +7,8 @@ import { formatMoney } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { SEG_GROUP, segCls } from "@/components/segmented";
 import { toCsv } from "@/lib/csv";
+import { saveBase64Xlsx } from "@/lib/download-xlsx";
+import { exportCashflowXlsx } from "./actions";
 import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
 import { DUE_LABEL, dueHint, payDue } from "@/lib/pay-display";
@@ -684,6 +686,20 @@ export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy, pa
     URL.revokeObjectURL(a.href);
   };
 
+  const [xlsxBusy, setXlsxBusy] = useState(false);
+  const xlsx = async () => {
+    setXlsxBusy(true);
+    try {
+      const head = ["Период", ...artCols.map((c) => `${c.head}: ${c.sub}`), "Потрачено", "Получено", "Чистый поток", "Накопительно потрачено", "Накопительно получено", "Накопительно чистый", "Единиц получено", "Единиц продано", "Остаток, шт.", "Работа за период", "Работа на единицу"];
+      const body = rows.map((r) => {
+        const u = sum(r, (i) => s.recPcs[i]), w = sum(r, workOf);
+        return { label: r.label, kind: r.kind, cells: [...artCols.map((c) => c.get(r)), sum(r, (i) => ser.spend[i]), sum(r, (i) => ser.revenue[i]), filtered ? null : sum(r, (i) => ser.net[i]), lastOf(r, ser.cumSpend), lastOf(r, ser.cumRevenue), filtered ? null : lastOf(r, ser.cumNet), u, sum(r, (i) => s.salePcs[i]), lastOf(r, m.stock), w, perUnit(w, u)] };
+      });
+      const res = await exportCashflowXlsx({ title: `Cashflow · ${label}`, subtitle: `${exVat ? "Без НДС" : "С НДС"} · ${CAT_LABEL[cat]}`, head, rows: body, file: `Cashflow ${label} ${exVat ? "без НДС" : "с НДС"} ${cat}` });
+      if (res.ok) saveBase64Xlsx(res.name, res.base64);
+    } finally { setXlsxBusy(false); }
+  };
+
   const seg = (on: boolean) => segCls(on);
   const th = "px-2 py-2 text-right text-xs font-semibold whitespace-nowrap";
   const td = "min-w-[6.5rem] px-2 py-1.5 text-right text-sm tabular-nums whitespace-nowrap";
@@ -720,7 +736,8 @@ export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy, pa
             <button type="button" aria-pressed={!exVat} onClick={() => setExVat(false)} className={seg(!exVat)}>С НДС</button>
             <button type="button" aria-pressed={exVat} onClick={() => setExVat(true)} className={seg(exVat)}>Без НДС</button>
           </div>
-          <button type="button" onClick={csv} className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs">Скачать CSV</button>
+          <button type="button" onClick={xlsx} disabled={xlsxBusy} className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs disabled:opacity-50">Скачать Excel</button>
+          <button type="button" onClick={csv} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs">Скачать CSV</button>
         </div>
       </div>
       {exVat && vat.unknown > 0.5 && <p className="text-xs text-neutral-700">Без НДС остаются авансы без привязки к закупке и счёту ({money(vat.unknown)}): ставка по документам не определена, суммы показаны как есть. НДС работы подрядчика берётся по счёту (20 % до 2026 года, 22 % с 2026).</p>}

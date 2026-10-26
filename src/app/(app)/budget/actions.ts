@@ -261,17 +261,14 @@ export async function parseBudgetFile(fd: FormData): Promise<Res<{ rows: ImportR
 }
 
 /** Выгрузка сводки версии в Excel: итог, типы сырья, категории, артикулы. Возвращает файл в base64. */
-export async function exportBudgetXlsx(id: string): Promise<Res<{ name: string; base64: string }>> {
-  const session = await requireSession();
-  const row = await prisma.budgetScenario.findFirst({ where: { id: s(id, 40), organizationId: session.user.organizationId } });
-  if (!row) return { ok: false, error: "Бюджет не найден" };
+type BudgetRow = NonNullable<Awaited<ReturnType<typeof prisma.budgetScenario.findFirst>>>;
+/** Лист «Сводка» одного бюджета: дерево тип сырья → категория → длина/артикул с итогами. */
+function fillBudgetSheet(ws: import("exceljs").Worksheet, row: BudgetRow) {
   const params = cleanParams(row.params as Partial<BudgetParams>);
   const nodes = parseNodes(row.lines);
   const calc = computeTree(nodes, params);
   const total = grandTotal(nodes, params);
-  const ExcelJS = (await import("exceljs")).default;
-  const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet("Сводка", { views: [{ state: "frozen", ySplit: 3, xSplit: 1 }] });
+  ws.views = [{ state: "frozen", ySplit: 3, xSplit: 1 }];
   ws.addRow([`Бюджет расходов по меху: ${row.name} (${row.season})`]).font = { bold: true, size: 14 };
   ws.addRow([`${row.status === "APPROVED" ? "Утверждён" : "Черновик"} · цены с НДС · надбавка на мех и подкладку ${params.c4}%`]).font = { color: { argb: "FF666666" } };
   const head = ws.addRow(["Тип сырья / категория / артикул", "Изделий", "Шкур", "Мех, ₽", "Подкладка, ₽", "Работа, ₽", "4%, ₽", "Итого, ₽", "Доля, %", "На 1 изделие, ₽", "Сейчас на 1 изд., ₽", "Var, %"]);
@@ -305,6 +302,45 @@ export async function exportBudgetXlsx(id: string): Promise<Res<{ name: string; 
   ws.getColumn(1).width = 38;
   for (let c = 2; c <= 12; c++) ws.getColumn(c).width = 16;
   ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+}
+
+export async function exportBudgetXlsx(id: string): Promise<Res<{ name: string; base64: string }>> {
+  const session = await requireSession();
+  const row = await prisma.budgetScenario.findFirst({ where: { id: s(id, 40), organizationId: session.user.organizationId } });
+  if (!row) return { ok: false, error: "Бюджет не найден" };
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  fillBudgetSheet(wb.addWorksheet("Сводка"), row);
   const buf = Buffer.from(await wb.xlsx.writeBuffer());
   return { ok: true, name: `Бюджет ${row.name}.xlsx`.replace(/[\\/:*?"<>|]/g, "_"), base64: buf.toString("base64") };
+}
+
+/** Отчёт «Бюджеты»: лист со сравнением всех версий и по листу на каждый бюджет. */
+export async function exportBudgetsReportXlsx(): Promise<Res<{ name: string; base64: string }>> {
+  const session = await requireSession();
+  const rows = await prisma.budgetScenario.findMany({ where: { organizationId: session.user.organizationId }, orderBy: { updatedAt: "desc" } });
+  if (!rows.length) return { ok: false, error: "Бюджетов пока нет" };
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Бюджеты", { views: [{ state: "frozen", ySplit: 3 }] });
+  ws.addRow(["Бюджеты расходов по меху"]).font = { bold: true, size: 14 };
+  ws.addRow([`Выгрузка ${new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" })} · цены с НДС`]).font = { color: { argb: "FF666666" } };
+  const head = ws.addRow(["Бюджет", "Сезон", "Статус", "Изделий", "Шкур", "Итого, ₽", "На 1 изделие, ₽", "Сейчас на 1 изд., ₽", "Var, %", "Изменён", "Кем"]);
+  head.font = { bold: true };
+  head.eachCell((c) => { c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEFEF" } }; c.alignment = { wrapText: true, vertical: "middle" }; });
+  const used = new Set<string>(["Бюджеты"]);
+  for (const r of rows) {
+    const t = grandTotal(parseNodes(r.lines), cleanParams(r.params as Partial<BudgetParams>));
+    const v = varPct(t);
+    const x = ws.addRow([r.name, r.season, r.status === "APPROVED" ? "Утверждён" : "Черновик", t.pcs, t.hides, t.total, perUnit(t), nowPerUnit(t), v == null ? null : v / 100, r.updatedAt.toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" }), r.updatedBy ?? ""]);
+    for (const c of [4, 5, 6, 7, 8]) x.getCell(c).numFmt = "#,##0";
+    x.getCell(9).numFmt = "+0.0%;-0.0%;0.0%";
+    let name = r.name.replace(/[\\/?*[\]:]/g, " ").trim().slice(0, 28) || "Бюджет"; let k = 2; const base = name;
+    while (used.has(name.toLowerCase())) name = `${base.slice(0, 25)} ${k++}`;
+    used.add(name.toLowerCase());
+    fillBudgetSheet(wb.addWorksheet(name), r);
+  }
+  ws.getColumn(1).width = 34; for (let c = 2; c <= 11; c++) ws.getColumn(c).width = 16;
+  const buf = Buffer.from(await wb.xlsx.writeBuffer());
+  return { ok: true, name: "Бюджеты.xlsx", base64: buf.toString("base64") };
 }

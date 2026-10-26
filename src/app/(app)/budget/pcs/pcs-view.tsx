@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { avgOf, buildPcsTree, ST_COLS, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
 import { formatDec1, formatInt } from "@/lib/utils";
 import { exportPcsXlsx, savePcsRows } from "./actions";
@@ -87,10 +87,10 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
     );
   };
   const line = (n: PcsNode): React.ReactNode => (
-    <>
+    <Fragment key={n.key}>
       {rowOf(n, n.key, n.label, n.level)}
       {n.children.map((c) => line(c))}
-    </>
+    </Fragment>
   );
   const allNode = { pcs: total.pcs, ttl: total.ttl, ttlB: total.ttlB, hasAvg: total.hasAvg, pcsA: total.pcsA, st: total.st, children: [], key: "all", label: "", level: 0 } as PcsNode;
 
