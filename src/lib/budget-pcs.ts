@@ -7,10 +7,11 @@ export const ST_COLS: { group: string; year?: string; sub: string; name: string;
   ...(["2026", "2025"] as const).flatMap((y) => SALES_GROUPS.flatMap((b) => [{ group: "Статистика", year: y, sub: b, name: `Статистика ${y} ${b} NS AS`, money: true }, { group: "Статистика", year: y, sub: b, name: `Статистика ${y} ${b} PCS`, money: false }])),
 ];
 /** Год колонки (уровень шапки с сезонами) и верхняя группа: «Русский мех» или «Статистика» (продажи). */
+export const ST_FILE_LEN = 26; // колонки из файла MVST
 export const stYear = (c: { group: string; year?: string }) => c.year ?? c.group;
 export const stTop = (c: { year?: string }) => (c.year ? "Статистика" : "Русский мех");
 export const ST_LEN = ST_COLS.length;
-export type PcsRow = { block: PcsBlock; fur: string; cat: string; len: string; pcs: number; avg: number | null; avgText?: string | null; /** Статистика отчёта, ST_COLS. */ st?: number[]; /** Норма шкур на изделие из бюджета (не хранится: подставляется при загрузке). */ avgB?: number | null };
+export type PcsRow = { block: PcsBlock; fur: string; cat: string; len: string; pcs: number; avg: number | null; avgText?: string | null; /** Служебная строка (не из файла): не хранится и не редактируется. */ sys?: boolean; /** Статистика отчёта, ST_COLS. */ st?: number[]; /** Норма шкур на изделие из бюджета (не хранится: подставляется при загрузке). */ avgB?: number | null };
 export type PcsDoc = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; createdAt: string; updatedAt: string; updatedBy: string | null };
 
 export const BLOCK_LABEL: Record<PcsBlock, string> = { RTW: "Одежда", Acc: "Аксессуары" };

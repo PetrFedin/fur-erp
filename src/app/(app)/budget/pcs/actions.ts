@@ -5,7 +5,7 @@ import { requireRole, requireSession } from "@/lib/session";
 import { deletePcs, getPcs, putPcs } from "@/lib/budget-pcs-store";
 import { buildPcsWorkbook } from "@/lib/budget-pcs-xlsx";
 import { loadBudgetAvg, withBudgetAvg } from "@/lib/budget-pcs-avg";
-import { ST_LEN, type PcsBlock, type PcsRow } from "@/lib/budget-pcs";
+import { ST_FILE_LEN, type PcsBlock, type PcsRow } from "@/lib/budget-pcs";
 
 const EDIT = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
 type Res<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -53,7 +53,7 @@ export async function savePcsRows(id: string, rows: { pcs: number; avg: number |
   const orgId = session.user.organizationId;
   const d = await getPcs(orgId, id); if (!d) return { ok: false, error: "Файл не найден" };
   if (!Array.isArray(rows) || rows.length !== d.rows.length) return { ok: false, error: "Состав строк изменился, обновите страницу" };
-  const next: PcsRow[] = d.rows.map((r, i) => ({ ...r, pcs: num(rows[i]?.pcs), avg: rows[i]?.avg == null ? null : num(rows[i].avg), st: Array.isArray(rows[i]?.st) ? Array.from({ length: ST_LEN }, (_, k) => Math.round(num(rows[i].st![k]) * 100) / 100) : r.st, avgText: rows[i]?.avg === r.avg ? r.avgText : null }));
+  const next: PcsRow[] = d.rows.map((r, i) => ({ ...r, pcs: num(rows[i]?.pcs), avg: rows[i]?.avg == null ? null : num(rows[i].avg), st: Array.isArray(rows[i]?.st) ? Array.from({ length: ST_FILE_LEN }, (_, k) => Math.round(num(rows[i].st![k]) * 100) / 100) : r.st, avgText: rows[i]?.avg === r.avg ? r.avgText : null }));
   await putPcs(orgId, id, { ...d, rows: next, updatedBy: session.user.name ?? null });
   revalidateAll();
   return { ok: true, at: new Date().toISOString() };

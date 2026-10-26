@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { avgOf, buildPcsView, ST_COLS, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
+import { avgOf, buildPcsView, ST_COLS, ST_FILE_LEN, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
 import { formatDec1, formatInt } from "@/lib/utils";
 import { exportPcsXlsx, savePcsRows } from "./actions";
 
@@ -57,7 +57,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, canEdit }: Pro
 
   const save = async () => {
     setBusy(true); setMsg("Сохраняю…");
-    const r = await savePcsRows(id, cur.map((x) => ({ pcs: x.pcs, avg: x.avg, st: stOf(x) })));
+    const r = await savePcsRows(id, cur.filter((x) => !x.sys).map((x) => ({ pcs: x.pcs, avg: x.avg, st: stOf(x).slice(0, ST_FILE_LEN) })));
     setBusy(false);
     if (r.ok) { setDirty(false); setMsg(`Сохранено ${new Date(r.at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" })}`); } else setMsg(r.error);
   };
@@ -80,7 +80,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, canEdit }: Pro
   );
   const rowOf = (n: PcsNode, key: string, label: string, level: number): React.ReactNode => {
     const a = avgOf(n);
-    const editable = detail && canEdit && n.leaf && n.rowIndex != null;
+    const editable = detail && canEdit && n.leaf && n.rowIndex != null && !n.leaf.sys;
     const i = n.rowIndex ?? -1;
     return (
       <tr key={key} className={`${LEVEL[level]} border-b ${level >= 4 ? "border-neutral-200" : LINE[level]}`}>
@@ -89,7 +89,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, canEdit }: Pro
         <td className={`${TD} ${LINE[level]}`}>{editable ? inp(vals[i].avg, (v) => edit(i, "avg", v), "w-16", "Шкур на изделие", n.leaf?.avgB != null ? String(Math.round(n.leaf.avgB * 10) / 10) : undefined)
           : a == null ? "–" : formatDec1(a)}</td>
         <td className={`${TD} ${LINE[level]}`}>{n.hasAvg ? cell(n.ttl) : "–"}</td>
-        {stats ? n.st.map((v, c) => <td key={c} className={`${TD} ${c % 2 === 0 ? LINE_STRONG[level] : LINE[level]}`}>{editable ? inp(vals[i].st[c], (x) => editSt(i, c, x), ST_COLS[c].money ? "w-20" : "w-14", ST_COLS[c].name) : cell(v)}</td>) : null}
+        {stats ? n.st.map((v, c) => <td key={c} className={`${TD} ${c % 2 === 0 ? LINE_STRONG[level] : LINE[level]}`}>{editable && c < ST_FILE_LEN ? inp(vals[i].st[c], (x) => editSt(i, c, x), ST_COLS[c].money ? "w-20" : "w-14", ST_COLS[c].name) : cell(v)}</td>) : null}
       </tr>
     );
   };
