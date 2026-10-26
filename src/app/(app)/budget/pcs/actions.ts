@@ -78,7 +78,7 @@ export async function savePcsParams(id: string, p: PcsParams): Promise<Res> {
   const left: Record<string, number> = {};
   for (const [k, v] of Object.entries(p.left ?? {})) { const x = Number(v); if (Number.isFinite(x) && x >= 0) left[s(k, 40)] = Math.min(1e8, x); }
   const mx = p.mix && Number.isFinite(Number(p.mix.mink)) && Number.isFinite(Number(p.mix.sable)) ? { mink: Math.min(1e8, Math.max(0, Number(p.mix.mink))), sable: Math.min(1e8, Math.max(0, Number(p.mix.sable))) } : null;
-  await putPcs(orgId, d.id, { ...d, params: { leftoverPct: pct(p.leftoverPct), lynxPct: pct(p.lynxPct), newPct: pct(p.newPct), accPct: pct(p.accPct ?? 75), left, mix: mx }, updatedBy: session.user.name ?? null });
+  await putPcs(orgId, d.id, { ...d, params: { leftoverPct: pct(p.leftoverPct), lynxPct: pct(p.lynxPct), newPct: pct(p.newPct), accPct: pct(p.accPct ?? 75), upPct: Math.min(500, Math.max(0, Math.round(Number(p.upPct ?? 10) * 10) / 10) || 0), left, mix: mx }, updatedBy: session.user.name ?? null });
   revalidateAll();
   return { ok: true };
 }

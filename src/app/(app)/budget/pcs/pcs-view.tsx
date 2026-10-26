@@ -24,12 +24,13 @@ const FILTERS: { id: "all" | PcsBlock; label: string; blocks: PcsBlock[] }[] = [
 const runs = <T,>(f: (c: (typeof ST_COLS)[number]) => T) => ST_COLS.reduce<{ v: T; n: number }[]>((a, c) => { const l = a[a.length - 1], v = f(c); if (l && l.v === v) l.n++; else a.push({ v, n: 1 }); return a; }, []);
 const TOP = runs(stTop), YEARS = runs(stYear);
 
-type Props = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; params: PcsParams | null; raw: { fur: string; stock: number; need: number }[]; rawForecast: string | null; mix: { RTW: number; Acc: number }; rawDate: string; canEdit: boolean };
+type Props = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; params: PcsParams | null; raw: { fur: string; stock: number; need: number }[]; rawForecast: string | null; mix: { RTW: number; Acc: number }; price: Record<string, number>; rawDate: string; canEdit: boolean };
 
-export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, rawForecast, mix, rawDate, canEdit }: Props) {
+export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, rawForecast, mix, price, rawDate, canEdit }: Props) {
   const p0 = params ?? DEFAULT_PCS_PARAMS;
-  const [pp, setPp] = useState({ l: String(p0.leftoverPct), y: String(p0.lynxPct), n: String(p0.newPct), a: String(p0.accPct ?? DEFAULT_PCS_PARAMS.accPct) });
+  const [pp, setPp] = useState({ l: String(p0.leftoverPct), y: String(p0.lynxPct), n: String(p0.newPct), a: String(p0.accPct ?? DEFAULT_PCS_PARAMS.accPct), u: String(p0.upPct ?? DEFAULT_PCS_PARAMS.upPct) });
   const [rawDetail, setRawDetail] = useState(false);
+  const [mixOpen, setMixOpen] = useState(false); // строки «из смеси» свёрнуты по умолчанию
   // Свои значения (пусто — считается по прогнозу и ТЗ): остаток после производства по типам меха и шкуры норки / соболя из смеси.
   const [ovLeft, setOvLeft] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(p0.left ?? {}).map(([k, v]) => [k, String(v)])));
   const [ovMix, setOvMix] = useState({ mink: p0.mix ? String(p0.mix.mink) : "", sable: p0.mix ? String(p0.mix.sable) : "" });
@@ -88,17 +89,18 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = r?.need ?? 0, calcLeft = Math.max(0, stock - need) * blockShare(f.label), left = own(ovLeft[f.label] ?? "", calcLeft);
       const use = left * (f.label === "Рысь" ? pct(pp.y) : pct(pp.l)) / 100, np = Math.max(0, t - use);
       const buy = pct(pp.n) > 0 ? np / (pct(pp.n) / 100) : 0;
-      return { label: f.label, ttl: f.ttl, mixed: false as const, t, stock, need, left, calcLeft, use, np, buy };
+      const up = Math.max(0, parseFloat(pp.u.replace(",", ".")) || 0), pr = price[f.label] ?? 0, money = buy * pr * (1 + up / 100);
+      return { label: f.label, ttl: f.ttl, mixed: false as const, t, stock, need, left, calcLeft, use, np, buy, pr, money };
     });
-    const sum = (k: "stock" | "need" | "left" | "use" | "np" | "buy") => rowsOut.reduce((a, r) => a + (r.mixed ? 0 : r[k]), 0);
-    return { rows: rowsOut, total: { stock: sum("stock"), need: sum("need"), left: sum("left"), use: sum("use"), np: sum("np"), buy: sum("buy") } };
-  }, [furs, rawBy, pp, cur, blocks, mix, ovLeft, ovMix]);
+    const sum = (k: "stock" | "need" | "left" | "use" | "np" | "buy" | "money") => rowsOut.reduce((a, r) => a + (r.mixed ? 0 : r[k]), 0);
+    return { rows: rowsOut, total: { stock: sum("stock"), need: sum("need"), left: sum("left"), use: sum("use"), np: sum("np"), buy: sum("buy"), money: sum("money") } };
+  }, [furs, rawBy, pp, cur, blocks, mix, ovLeft, ovMix, price]);
   const saveParams = () => {
     if (!canEdit) return;
     const num = (v: string) => parseFloat(v.replace(",", "."));
     const left = Object.fromEntries(Object.entries(ovLeft).filter(([, v]) => v.trim() !== "" && Number.isFinite(num(v))).map(([k, v]) => [k, num(v)]));
     const mixOk = Number.isFinite(num(ovMix.mink)) && Number.isFinite(num(ovMix.sable));
-    void savePcsParams(id, { leftoverPct: pct(pp.l) || 70, lynxPct: pct(pp.y) || 85, newPct: pct(pp.n) || 70, accPct: pct(pp.a) || 75, left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null });
+    void savePcsParams(id, { leftoverPct: pct(pp.l) || 70, lynxPct: pct(pp.y) || 85, newPct: pct(pp.n) || 70, accPct: pct(pp.a) || 75, upPct: Math.max(0, parseFloat(pp.u.replace(",", ".")) || 0), left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null });
   };
 
   const supplyInp = (value: string, on: (v: string) => void, ph: string, label: string) => (
@@ -112,7 +114,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       <td className="px-3 py-1 text-sm" style={{ paddingLeft: 28 }}>из смеси: {name} ({Math.round((key === "mink" ? mixRow.toMink : mixRow.toSable) / Math.max(1, mixRow.toMink + mixRow.toSable) * 100)} %)</td>
       <td className={`${TD} border-neutral-200`} /><td className={`${TD} border-neutral-200`} /><td className={`${TD} border-neutral-200`} />
       <td className={`${TD} border-neutral-200`}>{rawDetail && canEdit ? supplyInp(ovMix[key], (x) => setOvMix((o) => ({ ...o, [key]: x })), String(Math.round(calc)), `Шкур ${name} из смеси`) : cell(v)}</td>
-      <td colSpan={4} className={`${TD} border-neutral-200 text-xs text-neutral-500`}>входит в {name === "норка" ? "норку" : "соболя"} выше</td>
+      <td colSpan={6} className={`${TD} border-neutral-200 text-xs text-neutral-500`}>входит в {name === "норка" ? "норку" : "соболя"} выше</td>
     </tr>
   )) : null;
 
@@ -196,7 +198,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       </div>
 
       <div className="flex flex-wrap items-end gap-3" role="group" aria-label="Доли использования сырья">
-        {([["l", "Из остатков, %"], ["y", "Рысь, %"], ["n", "Из новой покупки, %"], ["a", "Остатки на аксессуары, %"]] as const).map(([k, label]) => (
+        {([["l", "Из остатков, %"], ["y", "Рысь, %"], ["n", "Из новой покупки, %"], ["a", "Остатки на аксессуары, %"], ["u", "Рост цены, %"]] as const).map(([k, label]) => (
           <label key={k} className="flex flex-col gap-1 text-xs text-neutral-600">{label}
             <input inputMode="decimal" value={pp[k]} disabled={!canEdit} onChange={(e) => setPp((v) => ({ ...v, [k]: e.target.value }))} onBlur={saveParams}
               className="min-h-11 w-24 rounded-lg border border-neutral-300 bg-white px-2 text-right text-sm tabular-nums text-neutral-900 disabled:opacity-60" />
@@ -214,7 +216,9 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               <th className={TH2} title="Шкуры, которые останутся на складе после того, как сделаем все запланированные изделия (отчёт-прогноз)">Остаток после производства</th>
               <th className={TH2} title="Остаток после производства × доля использования">Можно использовать<span className="block font-normal text-neutral-500">{pp.l} % · рысь {pp.y} %</span></th>
               <th className={TH2} title="TTL минус то, что можно использовать">Нужно из новой покупки</th>
-              <th className={TH2} title="Нужное из новой покупки ÷ доля использования новой покупки">Закупить<span className="block font-normal text-neutral-500">с учётом {pp.n} %</span></th></tr>
+              <th className={TH2} title="Нужное из новой покупки ÷ доля использования новой покупки">Закупить<span className="block font-normal text-neutral-500">с учётом {pp.n} %</span></th>
+              <th className={TH2} title="Средневзвешенная цена шкуры по ТЗ, ₽ с НДС, без роста. Нет цены (например, у рыси в ТЗ) — прочерк, в закупку не входит">Ср. цена шкуры, ₽</th>
+              <th className={TH2} title="Закупить × средняя цена × (1 + рост цены)">На закупку, ₽<span className="block font-normal text-neutral-500">цена +{pp.u} %</span></th></tr>
           </thead>
           <tbody>
             <tr className="border-b border-neutral-200 bg-neutral-100 font-semibold">
@@ -227,23 +231,31 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.use)}</td>
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.np)}</td>
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.buy)}</td>
+              <td className={`${TD} border-neutral-200`}>{supply.total.buy > 0 ? cell(supply.total.money / (supply.total.buy * (1 + (parseFloat(pp.u.replace(",", ".")) || 0) / 100))) : "–"}</td>
+              <td className={`${TD} border-neutral-200`}>{cell(supply.total.money)}</td>
             </tr>
             {furs.map((f) => (
               <Fragment key={f.label}>
               <tr className="border-b border-neutral-100 last:border-0">
-                <td className="px-3 py-1.5 text-sm">{f.label}</td>
+                <td className="px-3 py-1.5 text-sm">{f.label === "Норка+Соболь" ? (
+                  <button type="button" aria-expanded={mixOpen || rawDetail} onClick={() => setMixOpen((v) => !v)} className="inline-flex min-h-8 items-center gap-1.5 text-left hover:underline">
+                    <span aria-hidden className="text-xs text-neutral-500">{mixOpen || rawDetail ? "▾" : "▸"}</span>{f.label}
+                  </button>
+                ) : f.label}</td>
                 <td className={`${TD} border-neutral-200`}>{cell(f.pcs)}</td>
                 <td className={`${TD} border-neutral-200`}>{total.pcs ? `${formatDec1((f.pcs / total.pcs) * 100)} %` : "–"}</td>
                 <td className={`${TD} border-neutral-200`}>{f.hasAvg && f.pcsA > 0 ? formatDec1(f.ttl / f.pcsA) : "–"}</td>
                 <td className={`${TD} border-neutral-200`}>{f.hasAvg ? cell(f.ttl) : "–"}</td>
-                {(() => { const r = supply.rows.find((x) => x.label === f.label); if (!r) return null; return !r.mixed ? [r.left, r.use, r.np, r.buy].map((v, k) => <td key={k} className={`${TD} border-neutral-200`} title={k === 0 ? `на складе ${cell(r.stock)}, уйдёт на запланированное ${cell(r.need)}` : undefined}>{k === 0 && rawDetail && canEdit ? supplyInp(ovLeft[f.label] ?? "", (x) => setOvLeft((o) => ({ ...o, [f.label]: x })), String(Math.round(r.calcLeft)), "Остаток после производства") : cell(v)}</td>) : <td colSpan={4} className={`${TD} border-neutral-200 text-xs text-neutral-600`}>–</td>; })()}
+                {(() => { const r = supply.rows.find((x) => x.label === f.label); if (!r) return null; return !r.mixed ? [r.left, r.use, r.np, r.buy, r.pr, r.money].map((v, k) => <td key={k} className={`${TD} border-neutral-200`} title={k === 0 ? `на складе ${cell(r.stock)}, уйдёт на запланированное ${cell(r.need)}` : undefined}>{k === 0 && rawDetail && canEdit ? supplyInp(ovLeft[f.label] ?? "", (x) => setOvLeft((o) => ({ ...o, [f.label]: x })), String(Math.round(r.calcLeft)), "Остаток после производства") : cell(v)}</td>) : <td colSpan={6} className={`${TD} border-neutral-200 text-xs text-neutral-600`}>–</td>; })()}
               </tr>
-              {f.label === "Норка+Соболь" ? mixedRows : null}
+              {f.label === "Норка+Соболь" && (mixOpen || rawDetail) ? mixedRows : null}
               </Fragment>
             ))}
           </tbody>
         </table>
       </div>
+
+      <p className="text-sm font-semibold tabular-nums" data-purchase-total>На закупку сырья: {formatInt(Math.round(supply.total.money))} ₽ <span className="font-normal text-neutral-600">({formatInt(Math.round(supply.total.buy))} шкур, средняя цена {supply.total.buy > 0 ? formatInt(Math.round(supply.total.money / supply.total.buy)) : "–"} ₽ с ростом {pp.u} %, с НДС)</span></p>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full min-w-[480px]">
