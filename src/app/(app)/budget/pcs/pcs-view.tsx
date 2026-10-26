@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { avgOf, buildPcsView, DEFAULT_PCS_PARAMS, type PcsParams, ST_COLS, ST_FILE_LEN, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
+import { ttlOf, avgOf, buildPcsView, DEFAULT_PCS_PARAMS, type PcsParams, ST_COLS, ST_FILE_LEN, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
 import { formatDec1, formatInt } from "@/lib/utils";
 import { exportPcsXlsx, savePcsParams, savePcsRows } from "./actions";
 
@@ -24,9 +24,9 @@ const FILTERS: { id: "all" | PcsBlock; label: string; blocks: PcsBlock[] }[] = [
 const runs = <T,>(f: (c: (typeof ST_COLS)[number]) => T) => ST_COLS.reduce<{ v: T; n: number }[]>((a, c) => { const l = a[a.length - 1], v = f(c); if (l && l.v === v) l.n++; else a.push({ v, n: 1 }); return a; }, []);
 const TOP = runs(stTop), YEARS = runs(stYear);
 
-type Props = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; params: PcsParams | null; raw: { fur: string; stock: number; need: number }[]; rawForecast: string | null; rawDate: string; canEdit: boolean };
+type Props = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; params: PcsParams | null; raw: { fur: string; stock: number; need: number }[]; rawForecast: string | null; mix: { RTW: number; Acc: number }; rawDate: string; canEdit: boolean };
 
-export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, rawForecast, rawDate, canEdit }: Props) {
+export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, rawForecast, mix, rawDate, canEdit }: Props) {
   const p0 = params ?? DEFAULT_PCS_PARAMS;
   const [pp, setPp] = useState({ l: String(p0.leftoverPct), y: String(p0.lynxPct), n: String(p0.newPct) });
   const [detail, setDetail] = useState(false);
@@ -63,10 +63,13 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
   const pct = (v: string) => { const x = parseFloat(v.replace(",", ".")); return Number.isFinite(x) && x > 0 ? Math.min(100, x) : 0; };
   const rawBy = useMemo(() => new Map(raw.map((r) => [r.fur, r])), [raw]);
   const supply = useMemo(() => {
-    const mix = furs.find((f) => f.label === "Норка+Соболь")?.ttl ?? 0; // шкуры «Норка+Соболь» делятся поровну между норкой и соболем
+    // «Норка+Соболь» делим на норку и соболь по фактическому расходу в ТЗ (одежда и аксессуары отдельно).
+    const mixTtl = { RTW: 0, Acc: 0 };
+    for (const r of cur) if (r.fur === "Норка+Соболь" && blocks.includes(r.block)) mixTtl[r.block] += ttlOf(r) ?? 0;
+    const toMink = mixTtl.RTW * mix.RTW + mixTtl.Acc * mix.Acc, toSable = mixTtl.RTW * (1 - mix.RTW) + mixTtl.Acc * (1 - mix.Acc);
     const rowsOut = furs.map((f) => {
-      if (f.label === "Норка+Соболь") return { label: f.label, ttl: f.ttl, mixed: true as const };
-      const t = f.ttl + (f.label === "Норка" || f.label === "Соболь" ? mix / 2 : 0);
+      if (f.label === "Норка+Соболь") return { label: f.label, ttl: f.ttl, mixed: true as const, toMink, toSable };
+      const t = f.ttl + (f.label === "Норка" ? toMink : f.label === "Соболь" ? toSable : 0);
       const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = r?.need ?? 0, left = Math.max(0, stock - need);
       const use = left * (f.label === "Рысь" ? pct(pp.y) : pct(pp.l)) / 100, np = Math.max(0, t - use);
       const buy = pct(pp.n) > 0 ? np / (pct(pp.n) / 100) : 0;
@@ -74,7 +77,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     });
     const sum = (k: "stock" | "need" | "left" | "use" | "np" | "buy") => rowsOut.reduce((a, r) => a + (r.mixed ? 0 : r[k]), 0);
     return { rows: rowsOut, total: { stock: sum("stock"), need: sum("need"), left: sum("left"), use: sum("use"), np: sum("np"), buy: sum("buy") } };
-  }, [furs, rawBy, pp]);
+  }, [furs, rawBy, pp, cur, blocks, mix]);
   const saveParams = () => { if (canEdit) void savePcsParams(id, { leftoverPct: pct(pp.l) || 70, lynxPct: pct(pp.y) || 85, newPct: pct(pp.n) || 70 }); };
 
   const save = async () => {
@@ -194,7 +197,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
                 <td className={`${TD} border-neutral-200`}>{total.pcs ? `${formatDec1((f.pcs / total.pcs) * 100)} %` : "–"}</td>
                 <td className={`${TD} border-neutral-200`}>{f.hasAvg && f.pcsA > 0 ? formatDec1(f.ttl / f.pcsA) : "–"}</td>
                 <td className={`${TD} border-neutral-200`}>{f.hasAvg ? cell(f.ttl) : "–"}</td>
-                {(() => { const r = supply.rows.find((x) => x.label === f.label); return r && !r.mixed ? [r.left, r.use, r.np, r.buy].map((v, k) => <td key={k} className={`${TD} border-neutral-200`} title={k === 0 ? `на складе ${cell(r.stock)}, уйдёт на запланированное ${cell(r.need)}` : undefined}>{cell(v)}</td>) : <td colSpan={4} className={`${TD} border-neutral-200 text-xs text-neutral-500`}>поровну в расчёте норки и соболя</td>; })()}
+                {(() => { const r = supply.rows.find((x) => x.label === f.label); if (!r) return null; return !r.mixed ? [r.left, r.use, r.np, r.buy].map((v, k) => <td key={k} className={`${TD} border-neutral-200`} title={k === 0 ? `на складе ${cell(r.stock)}, уйдёт на запланированное ${cell(r.need)}` : undefined}>{cell(v)}</td>) : <td colSpan={4} className={`${TD} border-neutral-200 text-xs text-neutral-600`}>в расчёте: норка {cell(r.toMink)}, соболь {cell(r.toSable)} шкур</td>; })()}
               </tr>
             ))}
           </tbody>
