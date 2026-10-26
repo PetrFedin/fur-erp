@@ -1,0 +1,443 @@
+{
+ "name": "MVST · Budget PCS FW27",
+ "season": "FW27",
+ "supplier": "Русский мех",
+ "asOf": {
+  "RTW": "2026-10-19",
+  "Acc": "2026-10-22"
+ },
+ "rows": [
+  {
+   "block": "RTW",
+   "fur": "Соболь",
+   "cat": "Шубы",
+   "len": "Short",
+   "pcs": 46,
+   "avg": 59.833333333333336,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Соболь",
+   "cat": "Шубы",
+   "len": "Regular",
+   "pcs": 28,
+   "avg": 75,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Соболь",
+   "cat": "Шубы",
+   "len": "Long",
+   "pcs": 12,
+   "avg": 93.5,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Соболь",
+   "cat": "Жилет меховой",
+   "len": "Short",
+   "pcs": 18,
+   "avg": 17.333333333333332,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Соболь",
+   "cat": "Жилет меховой",
+   "len": "Long",
+   "pcs": 8,
+   "avg": 70.4,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Соболь",
+   "cat": "Кардиган меховой",
+   "len": "Regular",
+   "pcs": 8,
+   "avg": 35,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Соболь",
+   "cat": "Куртки меховые",
+   "len": "Short",
+   "pcs": 6,
+   "avg": 36,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Соболь",
+   "cat": "Куртки меховые",
+   "len": "Regular",
+   "pcs": 4,
+   "avg": 42,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Соболь",
+   "cat": "Накидки и пончо",
+   "len": "Regular",
+   "pcs": 5,
+   "avg": 60,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Каракульча",
+   "cat": "Шубы",
+   "len": "Long",
+   "pcs": 25,
+   "avg": 39.92857142857143,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Каракульча",
+   "cat": "Куртки меховые",
+   "len": "Short",
+   "pcs": 25,
+   "avg": 29.333333333333332,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Каракульча",
+   "cat": "Куртки меховые",
+   "len": "Regular",
+   "pcs": 10,
+   "avg": 34,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Норка",
+   "cat": "Шубы",
+   "len": "Short",
+   "pcs": 65,
+   "avg": 16.630662020905923,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Норка",
+   "cat": "Шубы",
+   "len": "Long",
+   "pcs": 45,
+   "avg": 38.371428571428574,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Норка",
+   "cat": "Жилет меховой",
+   "len": "Short",
+   "pcs": 42,
+   "avg": 7.948717948717949,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Норка",
+   "cat": "Жилет меховой",
+   "len": "Regular",
+   "pcs": 35,
+   "avg": 18,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Норка",
+   "cat": "Жилет меховой",
+   "len": "Long",
+   "pcs": 18,
+   "avg": 24,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Норка",
+   "cat": "Куртки меховые",
+   "len": "Short",
+   "pcs": 45,
+   "avg": 19.4,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Рысь",
+   "cat": "Шубы",
+   "len": "Short",
+   "pcs": 4,
+   "avg": 34,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Рысь",
+   "cat": "Шубы",
+   "len": "Regular",
+   "pcs": 3,
+   "avg": 54,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Рысь",
+   "cat": "Шубы",
+   "len": "Long",
+   "pcs": 3,
+   "avg": 70,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Лиса",
+   "cat": "Шубы",
+   "len": "Short",
+   "pcs": 45,
+   "avg": 6.625,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Лиса",
+   "cat": "Шубы",
+   "len": "Regular",
+   "pcs": 10,
+   "avg": 12,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Лиса",
+   "cat": "Шубы",
+   "len": "Long",
+   "pcs": 15,
+   "avg": 19,
+   "avgText": null
+  },
+  {
+   "block": "RTW",
+   "fur": "Норка+Соболь",
+   "cat": "Шубы",
+   "len": "Short",
+   "pcs": 16,
+   "avg": 21.0,
+   "avgText": "15+6"
+  },
+  {
+   "block": "RTW",
+   "fur": "Норка+Соболь",
+   "cat": "Шубы",
+   "len": "Long",
+   "pcs": 14,
+   "avg": 0,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Соболь",
+   "cat": "Шарфы",
+   "len": "",
+   "pcs": 40,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Соболь",
+   "cat": "Шапка меховая",
+   "len": "",
+   "pcs": 35,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Соболь",
+   "cat": "Повязка меховая",
+   "len": "",
+   "pcs": 20,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Соболь",
+   "cat": "Косынка",
+   "len": "",
+   "pcs": 10,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Соболь",
+   "cat": "Берет",
+   "len": "",
+   "pcs": 5,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Соболь",
+   "cat": "Манжеты, муфты, варежки",
+   "len": "",
+   "pcs": 20,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Норка+Соболь",
+   "cat": "Шапка меховая",
+   "len": "",
+   "pcs": 25,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Норка+Соболь",
+   "cat": "Косынка",
+   "len": "",
+   "pcs": 5,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Норка+Соболь",
+   "cat": "Наушники",
+   "len": "",
+   "pcs": 10,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Норка+Соболь",
+   "cat": "Манжеты, муфты, варежки",
+   "len": "",
+   "pcs": 10,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Норка",
+   "cat": "Повязка меховая",
+   "len": "",
+   "pcs": 55,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Норка",
+   "cat": "Шапка меховая",
+   "len": "",
+   "pcs": 40,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Норка",
+   "cat": "Косынка",
+   "len": "",
+   "pcs": 45,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Норка",
+   "cat": "Капюшон",
+   "len": "",
+   "pcs": 20,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Норка",
+   "cat": "Берет",
+   "len": "",
+   "pcs": 15,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Норка",
+   "cat": "Манжеты, муфты, варежки",
+   "len": "",
+   "pcs": 15,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Норка",
+   "cat": "Шарфы",
+   "len": "",
+   "pcs": 60,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Лиса",
+   "cat": "Шарфы",
+   "len": "",
+   "pcs": 30,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Лиса",
+   "cat": "Манжеты, муфты, варежки",
+   "len": "",
+   "pcs": 10,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Рысь",
+   "cat": "Шарфы",
+   "len": "",
+   "pcs": 5,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Рысь",
+   "cat": "Шапка меховая",
+   "len": "",
+   "pcs": 10,
+   "avg": null,
+   "avgText": null
+  },
+  {
+   "block": "Acc",
+   "fur": "Каракульча",
+   "cat": "Шапка меховая",
+   "len": "",
+   "pcs": 15,
+   "avg": null,
+   "avgText": null
+  }
+ ]
+}
