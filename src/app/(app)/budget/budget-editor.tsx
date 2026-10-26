@@ -196,7 +196,7 @@ export function BudgetEditor(p: Props) {
   };
   const setUp = (id: string, k: UpKey, v: number | null) => setNodes((ns) => reapplyParams(ns.map((n) => (n.id === id ? { ...n, [k]: v } : n)), params));
   const patch = useCallback((id: string, pt: Partial<BudgetNode>) => setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, ...pt } : n))), []);
-  const editNum = (id: string, k: NumKey, v: number) => patch(id, k === "pcs" ? { pcs: v } : { [k]: v, locked: true, src: "manual" });
+  const editNum = (id: string, k: NumKey, v: number) => patch(id, k === "pcs" ? { pcs: v } : { [k]: v, locked: true, src: "manual", est: undefined });
   const toggleLock = (id: string) => setNodes((ns) => {
     const n = ns.find((x) => x.id === id);
     if (!n) return ns;
@@ -572,7 +572,7 @@ export function BudgetEditor(p: Props) {
   // ---- Детально: таблица с полями (планшет и компьютер)
   const numCell = (n: BudgetNode, k: NumKey, label: string, w: string, tag?: UpKey, below?: ReactNode) => (
     <td className={"px-1.5 py-1 " + w}>
-      <div className="flex items-center gap-1">{tag ? upTag(n, tag) : null}<NumInput value={n[k]} ariaLabel={`${label}: ${n.name}`} disabled={!canEdit} onChange={(v) => editNum(n.id, k, v)} /></div>
+      <div className="flex items-center gap-1">{tag ? upTag(n, tag) : null}<NumInput value={n[k]} ariaLabel={`${label}: ${n.name}`} disabled={!canEdit} onChange={(v) => editNum(n.id, k, v)} className={n.est ? "italic" : ""} /></div>
       {below}
     </td>
   );
@@ -654,7 +654,7 @@ export function BudgetEditor(p: Props) {
 
   // ---- Карточки (телефон, режим «Детально»)
   const cardField = (n: BudgetNode, k: NumKey, label: string, tag?: UpKey) => (
-    <label className="flex flex-col gap-1 text-[11px] text-neutral-500"><span className="flex items-center justify-between gap-1">{label}{tag ? upTag(n, tag) : null}</span><NumInput value={n[k]} ariaLabel={`${label}: ${n.name}`} disabled={!canEdit} onChange={(v) => editNum(n.id, k, v)} className="!py-2 !text-base" /></label>
+    <label className="flex flex-col gap-1 text-[11px] text-neutral-500"><span className="flex items-center justify-between gap-1">{label}{tag ? upTag(n, tag) : null}</span><NumInput value={n[k]} ariaLabel={`${label}: ${n.name}`} disabled={!canEdit} onChange={(v) => editNum(n.id, k, v)} className={"!py-2 !text-base" + (n.est ? " italic" : "")} /></label>
   );
   const cards = (parentId: string | null, depth: number): ReactNode[] =>
     (vKids.get(parentId) ?? []).map((n) => {

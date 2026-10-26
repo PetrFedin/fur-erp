@@ -43,6 +43,7 @@ function cleanNodes(input: unknown): BudgetNode[] | null {
       statFur: s(raw.statFur), statCat: s(raw.statCat),
       base: b ? { hides: n(b.hides), hidePrice: n(b.hidePrice), meters: n(b.meters), meterPrice: n(b.meterPrice), work: n(b.work) } : null,
       upFur: upv(raw.upFur), upLining: upv(raw.upLining), upWork: upv(raw.upWork),
+      est: raw.est ? s(raw.est, 200) : undefined,
       sample: Math.max(0, n(raw.sample)), src: SRC.includes(raw.src as NodeSrc) ? (raw.src as NodeSrc) : "none",
     });
   }

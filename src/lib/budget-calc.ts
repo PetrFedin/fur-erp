@@ -47,6 +47,8 @@ export type BudgetNode = {
   meters: number;
   meterPrice: number;
   work: number;
+  /** Очень примерная оценка не из данных системы (аналог, файл или открытые источники): пояснение. Узел показывается курсивом; ручной ввод или данные системы снимают пометку. */
+  est?: string;
   /** Привязка к статистике «мех × категория» системы (пусто — берётся из названий узла и родителей). */
   statFur: string;
   statCat: string;
@@ -243,7 +245,7 @@ export function autoCalc(nodes: BudgetNode[], stats: BudgetStat[], p: BudgetPara
     }
     if (!st) return { ...n, base: null, sample: 0, src: "none" as NodeSrc };
     const base = toBase(st);
-    return { ...n, base, sample: st.qty, src, ...fromBase(base, withUp(p, effUp(n, byId, p))) };
+    return { ...n, est: undefined, base, sample: st.qty, src, ...fromBase(base, withUp(p, effUp(n, byId, p))) };
   });
 }
 
@@ -285,6 +287,7 @@ export function reapplyParams(nodes: BudgetNode[], p: BudgetParams): BudgetNode[
 
 /** Бейдж качества данных для листа. */
 export function srcInfo(n: BudgetNode): { label: string; tone: "ok" | "warn" | "bad" | "manual" } {
+  if (n.est) return { label: `оценка, очень примерно: ${n.est}`, tone: "warn" };
   if (n.src === "manual" || (n.locked && n.sample <= 0)) return { label: "вручную", tone: "manual" };
   if (n.src === "none" || n.sample <= 0) return { label: "нет данных", tone: "bad" };
   // Длина без своей статистики: значения взяты по всей категории — они одинаковы у соседних длин, это видно по бейджу.
