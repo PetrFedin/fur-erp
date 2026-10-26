@@ -28,7 +28,7 @@ type Props = { id: string; name: string; season: string; supplier: string; asOf:
 
 export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, rawForecast, mix, rawDate, canEdit }: Props) {
   const p0 = params ?? DEFAULT_PCS_PARAMS;
-  const [pp, setPp] = useState({ l: String(p0.leftoverPct), y: String(p0.lynxPct), n: String(p0.newPct) });
+  const [pp, setPp] = useState({ l: String(p0.leftoverPct), y: String(p0.lynxPct), n: String(p0.newPct), a: String(p0.accPct ?? DEFAULT_PCS_PARAMS.accPct) });
   const [rawDetail, setRawDetail] = useState(false);
   // Свои значения (пусто — считается по прогнозу и ТЗ): остаток после производства по типам меха и шкуры норки / соболя из смеси.
   const [ovLeft, setOvLeft] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(p0.left ?? {}).map(([k, v]) => [k, String(v)])));
@@ -73,10 +73,19 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     const calcMink = mixTtl.RTW * mix.RTW + mixTtl.Acc * mix.Acc, calcSable = mixTtl.RTW * (1 - mix.RTW) + mixTtl.Acc * (1 - mix.Acc);
     const own = (v: string, d: number) => (v.trim() === "" || !Number.isFinite(parseFloat(v.replace(",", "."))) ? d : Math.max(0, parseFloat(v.replace(",", "."))));
     const toMink = own(ovMix.mink, calcMink), toSable = own(ovMix.sable, calcSable);
+    // Остаток делится между блоками: аксессуарам — pp.a % используемого остатка (лучшая часть остаётся одежде); рысь без деления по качеству — по потребности блоков.
+    const lynxTtl = { RTW: 0, Acc: 0 };
+    for (const r of cur) if (r.fur === "Рысь") lynxTtl[r.block] += ttlOf(r) ?? 0;
+    const accShare = Math.min(100, Math.max(0, parseFloat(pp.a.replace(",", ".")) || 0)) / 100;
+    const blockShare = (fur: string) => {
+      if (blocks.length === 2) return 1;
+      if (fur === "Рысь") { const all = lynxTtl.RTW + lynxTtl.Acc; return all > 0 ? lynxTtl[blocks[0]] / all : 0.5; }
+      return blocks[0] === "Acc" ? accShare : 1 - accShare;
+    };
     const rowsOut = furs.map((f) => {
       if (f.label === "Норка+Соболь") return { label: f.label, ttl: f.ttl, mixed: true as const, toMink, toSable, calcMink, calcSable };
       const t = f.ttl + (f.label === "Норка" ? toMink : f.label === "Соболь" ? toSable : 0);
-      const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = r?.need ?? 0, calcLeft = Math.max(0, stock - need), left = own(ovLeft[f.label] ?? "", calcLeft);
+      const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = r?.need ?? 0, calcLeft = Math.max(0, stock - need) * blockShare(f.label), left = own(ovLeft[f.label] ?? "", calcLeft);
       const use = left * (f.label === "Рысь" ? pct(pp.y) : pct(pp.l)) / 100, np = Math.max(0, t - use);
       const buy = pct(pp.n) > 0 ? np / (pct(pp.n) / 100) : 0;
       return { label: f.label, ttl: f.ttl, mixed: false as const, t, stock, need, left, calcLeft, use, np, buy };
@@ -89,7 +98,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     const num = (v: string) => parseFloat(v.replace(",", "."));
     const left = Object.fromEntries(Object.entries(ovLeft).filter(([, v]) => v.trim() !== "" && Number.isFinite(num(v))).map(([k, v]) => [k, num(v)]));
     const mixOk = Number.isFinite(num(ovMix.mink)) && Number.isFinite(num(ovMix.sable));
-    void savePcsParams(id, { leftoverPct: pct(pp.l) || 70, lynxPct: pct(pp.y) || 85, newPct: pct(pp.n) || 70, left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null });
+    void savePcsParams(id, { leftoverPct: pct(pp.l) || 70, lynxPct: pct(pp.y) || 85, newPct: pct(pp.n) || 70, accPct: pct(pp.a) || 75, left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null });
   };
 
   const supplyInp = (value: string, on: (v: string) => void, ph: string, label: string) => (
@@ -100,7 +109,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
   const mixRow = supply.rows.find((r) => r.mixed);
   const mixedRows = mixRow && mixRow.mixed ? ([["норка", mixRow.toMink, mixRow.calcMink, "mink"], ["соболь", mixRow.toSable, mixRow.calcSable, "sable"]] as const).map(([name, v, calc, key]) => (
     <tr key={key} className="border-b border-neutral-100 bg-neutral-50 text-neutral-700">
-      <td className="px-3 py-1 text-sm" style={{ paddingLeft: 28 }}>из смеси: {name}</td>
+      <td className="px-3 py-1 text-sm" style={{ paddingLeft: 28 }}>из смеси: {name} ({Math.round((key === "mink" ? mixRow.toMink : mixRow.toSable) / Math.max(1, mixRow.toMink + mixRow.toSable) * 100)} %)</td>
       <td className={`${TD} border-neutral-200`} /><td className={`${TD} border-neutral-200`} /><td className={`${TD} border-neutral-200`} />
       <td className={`${TD} border-neutral-200`}>{rawDetail && canEdit ? supplyInp(ovMix[key], (x) => setOvMix((o) => ({ ...o, [key]: x })), String(Math.round(calc)), `Шкур ${name} из смеси`) : cell(v)}</td>
       <td colSpan={4} className={`${TD} border-neutral-200 text-xs text-neutral-500`}>входит в {name === "норка" ? "норку" : "соболя"} выше</td>
@@ -187,7 +196,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       </div>
 
       <div className="flex flex-wrap items-end gap-3" role="group" aria-label="Доли использования сырья">
-        {([["l", "Из остатков, %"], ["y", "Рысь, %"], ["n", "Из новой покупки, %"]] as const).map(([k, label]) => (
+        {([["l", "Из остатков, %"], ["y", "Рысь, %"], ["n", "Из новой покупки, %"], ["a", "Остатки на аксессуары, %"]] as const).map(([k, label]) => (
           <label key={k} className="flex flex-col gap-1 text-xs text-neutral-600">{label}
             <input inputMode="decimal" value={pp[k]} disabled={!canEdit} onChange={(e) => setPp((v) => ({ ...v, [k]: e.target.value }))} onBlur={saveParams}
               className="min-h-11 w-24 rounded-lg border border-neutral-300 bg-white px-2 text-right text-sm tabular-nums text-neutral-900 disabled:opacity-60" />
@@ -195,7 +204,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
         ))}
         <button type="button" aria-pressed={rawDetail} onClick={() => setRawDetail((v) => !v)}
           className={"min-h-11 rounded-lg border px-4 text-sm " + (rawDetail ? "border-[var(--ui-accent)] bg-[var(--ui-soft)] font-semibold" : "border-neutral-300 bg-white hover:border-neutral-500")}>Детально</button>
-        <p className="max-w-md text-xs text-neutral-600">Остаток — что останется по окончании производства заказа FW26 (на {rawDate.split("-").reverse().join(".")}). Проценты можно менять.</p>
+        <p className="max-w-md text-xs text-neutral-600">Остаток — что останется по окончании производства заказа FW26 (на {rawDate.split("-").reverse().join(".")}). Проценты можно менять. При выборе «Одежда» или «Аксессуары» остаток делится: аксессуарам {pp.a} %, одежде лучшая часть; рысь — по потребности.</p>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
