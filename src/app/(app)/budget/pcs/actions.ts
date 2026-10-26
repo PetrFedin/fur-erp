@@ -59,12 +59,12 @@ export async function savePcsRows(id: string, rows: { pcs: number; avg: number |
   return { ok: true, at: new Date().toISOString() };
 }
 /** Excel: «Данные» — один массив, «Сводная» — сводная таблица, «Отчёт» — как файл MVST. */
-export async function exportPcsXlsx(id: string, blocks?: PcsBlock[]): Promise<Res<{ name: string; base64: string }>> {
+export async function exportPcsXlsx(id: string, blocks?: PcsBlock[], hideEmpty?: boolean): Promise<Res<{ name: string; base64: string }>> {
   const session = await requireSession();
   const d = await getPcs(session.user.organizationId, s(id, 40));
   if (!d) return { ok: false, error: "Файл не найден" };
   const want = (blocks ?? ["RTW", "Acc"]).filter((b) => b === "RTW" || b === "Acc");
   const rows = withBudgetAvg(d.rows, await loadBudgetAvg(session.user.organizationId)).filter((r) => want.includes(r.block));
-  const buf = await buildPcsWorkbook({ ...d, rows });
+  const buf = await buildPcsWorkbook({ ...d, rows }, { hideEmpty: hideEmpty === true });
   return { ok: true, name: `${d.name.replace(/[\\/:*?"<>|]+/g, " ").trim() || "Budget PCS"}${want.length === 1 ? (want[0] === "RTW" ? " RTW" : " Acc") : ""}.xlsx`, base64: buf.toString("base64") };
 }

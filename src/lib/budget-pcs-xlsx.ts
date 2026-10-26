@@ -15,7 +15,7 @@ const SRC_COL = ST0 + ST_LEN; // «Источник AVG»
 const catOf = (c: string) => CAT_LABEL[c] ?? c;
 
 /** Книга Budget PCS: 1) «Данные» — один массив строк, 2) «Сводная» — настоящая сводная таблица по нему, 3) «Отчёт» — оформлен как файл MVST и считается формулами по «Данные». */
-export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = {}): Promise<Buffer> {
+export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean; hideEmpty?: boolean } = {}): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const wsD = wb.addWorksheet(DATA, { views: [{ state: "frozen", ySplit: 1 }] });
   const wsP = wb.addWorksheet("Сводная");
@@ -97,6 +97,7 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
     style(row, n.level, n.level <= 3);
     wsR.getCell(row, 1).alignment = { indent: n.level === 4 ? 3 : n.level };
     if (n.level === 4) wsR.getRow(row).outlineLevel = 1;
+    if (opts.hideEmpty && n.level > 0 && n.pcs === 0) wsR.getRow(row).hidden = true; // строки с нулевым бюджетом скрыты, итоги остаются полными
     for (const c of n.children) writeNode(c, k2);
   };
   for (const root of tree) writeNode(root, {});

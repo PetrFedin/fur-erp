@@ -27,6 +27,7 @@ type Props = { id: string; name: string; season: string; supplier: string; asOf:
 export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdit }: Props) {
   const [detail, setDetail] = useState(false);
   const [stats, setStats] = useState(true);
+  const [hideEmpty, setHideEmpty] = useState(true); // строки с нулевым бюджетом (PCS) скрыты, итоги считаются по всем
   const [filter, setFilter] = useState<"all" | PcsBlock>("all");
   const shown = (r: PcsRow) => ({ pcs: String(r.pcs), avg: r.avg == null ? "" : String(Math.round(r.avg * 100) / 100), st: stOf(r).map(String) });
   const [vals, setVals] = useState(() => rows.map(shown));
@@ -61,7 +62,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
     setBusy(true);
     try {
       if (dirty) { setMsg("Сначала сохраните изменения: Excel собирается из сохранённых данных"); return; }
-      const r = await exportPcsXlsx(id, blocks);
+      const r = await exportPcsXlsx(id, blocks, hideEmpty);
       if (!r.ok) { setMsg(r.error); return; }
       const bin = atob(r.base64); const arr = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
@@ -89,12 +90,12 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
       </tr>
     );
   };
-  const line = (n: PcsNode): React.ReactNode => (
+  const line = (n: PcsNode): React.ReactNode => (hideEmpty && n.level > 0 && n.pcs === 0 ? null : (
     <Fragment key={n.key}>
       {rowOf(n, n.key, n.label, n.level)}
       {n.children.map((c) => line(c))}
     </Fragment>
-  );
+  ));
 
   return (
     <div className="flex flex-col gap-3">
@@ -120,6 +121,8 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
         <span className="mx-1 hidden h-6 w-px bg-neutral-200 sm:block" />
         <button type="button" aria-pressed={stats} onClick={() => setStats((v) => !v)}
           className={"min-h-11 rounded-lg border px-4 text-sm " + (stats ? "border-[var(--ui-accent)] bg-[var(--ui-soft)] font-semibold" : "border-neutral-300 bg-white hover:border-neutral-500")}>Статистика</button>
+        <button type="button" aria-pressed={hideEmpty} onClick={() => setHideEmpty((v) => !v)}
+          className={"min-h-11 rounded-lg border px-4 text-sm " + (hideEmpty ? "border-[var(--ui-accent)] bg-[var(--ui-soft)] font-semibold" : "border-neutral-300 bg-white hover:border-neutral-500")}>Скрыть пустые</button>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -179,7 +182,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-neutral-500">AVG — норма шкур на изделие из бюджета 2027 (при правке в «Детально» подменяется вручную). Продажи: NS AS, EUR без НДС; у аксессуаров «Другие бренды» — вся колонка Other из файла. Кнопки «Всё / Одежда / Аксессуары» задают и состав Excel.</p>
+      <p className="text-xs text-neutral-500">AVG — норма шкур на изделие из бюджета 2027 (при правке в «Детально» подменяется вручную). Продажи: NS AS, EUR без НДС; у аксессуаров «Другие бренды» — вся колонка Other из файла. Кнопки «Вместе / Одежда / Аксессуары» и «Скрыть пустые» (строки с нулевым бюджетом; итоги остаются полными) действуют и на Excel.</p>
     </div>
   );
 }
