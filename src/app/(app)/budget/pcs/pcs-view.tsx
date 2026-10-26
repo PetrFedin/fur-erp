@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { avgOf, buildPcsTree, ST_COLS, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
+import { avgOf, buildPcsView, ST_COLS, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
 import { formatDec1, formatInt } from "@/lib/utils";
 import { exportPcsXlsx, savePcsRows } from "./actions";
 
@@ -16,7 +16,7 @@ const parse = (s: string) => { const v = parseFloat(s.replace(",", ".").replace(
 const dateRu = (iso: string) => (iso ? iso.split("-").reverse().join(".") : "");
 const cell = (v: number) => (v ? formatInt(Math.round(v)) : "–");
 const FILTERS: { id: "all" | PcsBlock; label: string; blocks: PcsBlock[] }[] = [
-  { id: "all", label: "Всё", blocks: ["RTW", "Acc"] }, { id: "RTW", label: "Одежда", blocks: ["RTW"] }, { id: "Acc", label: "Аксессуары", blocks: ["Acc"] },
+  { id: "all", label: "Вместе", blocks: ["RTW", "Acc"] }, { id: "RTW", label: "RTW (одежда)", blocks: ["RTW"] }, { id: "Acc", label: "Acc (аксессуары)", blocks: ["Acc"] },
 ];
 // Шапка: «Русский мех» / «Статистика» → годы (2027 — бюджет) → подгруппы колонок.
 const runs = <T,>(f: (c: (typeof ST_COLS)[number]) => T) => ST_COLS.reduce<{ v: T; n: number }[]>((a, c) => { const l = a[a.length - 1], v = f(c); if (l && l.v === v) l.n++; else a.push({ v, n: 1 }); return a; }, []);
@@ -41,7 +41,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
     return { ...r, pcs: vals[i].pcs === s0.pcs ? r.pcs : parse(vals[i].pcs), avg: vals[i].avg === s0.avg ? r.avg : vals[i].avg.trim() === "" ? null : parse(vals[i].avg), st: vals[i].st.map((v, c) => (v === s0.st[c] ? stOf(r)[c] : parse(v))) };
   }), [rows, vals]);
   const blocks = FILTERS.find((f) => f.id === filter)!.blocks;
-  const tree = useMemo(() => buildPcsTree(cur, blocks), [cur, blocks]);
+  const tree = useMemo(() => buildPcsView(cur, blocks), [cur, blocks]);
   const total = useMemo(() => sumRoots(tree), [tree]);
   const totalAvg = total.hasAvg && total.pcsA > 0 ? total.ttl / total.pcsA : null;
   // Сводка по типам меха: сумма по выбранным блокам.
@@ -95,7 +95,6 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
       {n.children.map((c) => line(c))}
     </Fragment>
   );
-  const allNode = { pcs: total.pcs, ttl: total.ttl, ttlB: total.ttlB, hasAvg: total.hasAvg, pcsA: total.pcsA, st: total.st, children: [], key: "all", label: "", level: 0 } as PcsNode;
 
   return (
     <div className="flex flex-col gap-3">
@@ -176,7 +175,6 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
             </tr>
           </thead>
           <tbody>
-            {filter === "all" && tree.length > 1 ? rowOf(allNode, "all", "TOTAL — одежда + аксессуары", 0) : null}
             {tree.map((root) => line(root))}
           </tbody>
         </table>

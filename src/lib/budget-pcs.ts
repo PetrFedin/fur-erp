@@ -26,7 +26,7 @@ export const avgEff = (r: { avg: number | null; avgB?: number | null }) => r.avg
 export const ttlOf = (r: { pcs: number; avg: number | null; avgB?: number | null }) => { const a = avgEff(r); return a != null ? r.pcs * a : null; };
 export const stOf = (r: { st?: number[] }) => Array.from({ length: ST_LEN }, (_, i) => r.st?.[i] ?? 0);
 
-export type PcsNode = { key: string; label: string; level: 0 | 1 | 2 | 3 | 4; pcs: number; /** Штуки только тех строк, где задан AVG: знаменатель средневзвешенного AVG. */ pcsA: number; ttl: number; /** Часть шкур, посчитанная по норме бюджета (в файле AVG пуст). */ ttlB: number; hasAvg: boolean; st: number[]; leaf?: PcsRow; rowIndex?: number; children: PcsNode[] };
+export type PcsNode = { key: string; label: string; level: 0 | 1 | 2 | 3 | 4; pcs: number; /** Штуки только тех строк, где задан AVG: знаменатель средневзвешенного AVG. */ pcsA: number; ttl: number; /** Часть шкур, посчитанная по норме бюджета (в файле AVG пуст). */ ttlB: number; hasAvg: boolean; st: number[]; leaf?: PcsRow; rowIndex?: number; /** Условие узла для сумм: блок, мех, категория, длина; group — сумма по вложенным категориям. */ crit: { block?: string; fur?: string; cat?: string; len?: string; group?: boolean }; children: PcsNode[] };
 
 /** Дерево как в файле: блок → мех → (группа →) категория → длина. Итоги: штуки и шкуры суммируются, AVG = TTL ÷ PCS по строкам с AVG. */
 export function buildPcsTree(rows: PcsRow[], blocks: PcsBlock[] = ["RTW", "Acc"]): PcsNode[] {
@@ -34,23 +34,23 @@ export function buildPcsTree(rows: PcsRow[], blocks: PcsBlock[] = ["RTW", "Acc"]
   for (const block of blocks) {
     const rs = rows.map((r, i) => ({ r, i })).filter((x) => x.r.block === block);
     if (!rs.length) continue;
-    const mk = (key: string, label: string, level: PcsNode["level"]): PcsNode => ({ key, label, level, pcs: 0, pcsA: 0, ttl: 0, ttlB: 0, hasAvg: false, st: new Array(ST_LEN).fill(0), children: [] });
-    const root = mk(block, block === "RTW" ? "TOTAL - RTW" : "TOTAL - Acc", 0);
+    const mk = (key: string, label: string, level: PcsNode["level"], crit: PcsNode["crit"] = {}): PcsNode => ({ key, label, level, crit, pcs: 0, pcsA: 0, ttl: 0, ttlB: 0, hasAvg: false, st: new Array(ST_LEN).fill(0), children: [] });
+    const root = mk(block, block === "RTW" ? "TOTAL - RTW" : "TOTAL - Acc", 0, { block: BLOCK_LABEL[block] });
     const furs = [...new Set(rs.map((x) => x.r.fur))].sort((a, b) => (FUR_ORDER.indexOf(a) + 1 || 99) - (FUR_ORDER.indexOf(b) + 1 || 99));
     for (const fur of furs) {
-      const fn = mk(`${block}|${fur}`, fur, 1); root.children.push(fn);
+      const fn = mk(`${block}|${fur}`, fur, 1, { fur }); root.children.push(fn);
       const inFur = rs.filter((x) => x.r.fur === fur);
-      const holder = (node: PcsNode, lvl: 2 | 3, name: string, key: string) => { let c = node.children.find((x) => x.key === key); if (!c) { c = mk(key, name, lvl); node.children.push(c); } return c; };
+      const holder = (node: PcsNode, lvl: 2 | 3, name: string, key: string, crit: PcsNode["crit"]) => { let c = node.children.find((x) => x.key === key); if (!c) { c = mk(key, name, lvl, crit); node.children.push(c); } return c; };
       for (const { r, i } of inFur) {
         let parent = fn;
-        if (block === "Acc") parent = holder(fn, 2, ACC_GROUP[r.cat] ?? "Прочее", `${fn.key}|g|${ACC_GROUP[r.cat] ?? "Прочее"}`);
-        const cn = holder(parent, block === "Acc" ? 3 : 2, CAT_LABEL[r.cat] ?? r.cat, `${parent.key}|${r.cat}`);
+        if (block === "Acc") parent = holder(fn, 2, ACC_GROUP[r.cat] ?? "Прочее", `${fn.key}|g|${ACC_GROUP[r.cat] ?? "Прочее"}`, { group: true });
+        const cn = holder(parent, block === "Acc" ? 3 : 2, CAT_LABEL[r.cat] ?? r.cat, `${parent.key}|${r.cat}`, { cat: CAT_LABEL[r.cat] ?? r.cat });
         if (r.len) {
-          const ln = mk(`${cn.key}|${r.len}`, r.len, 4); ln.leaf = r; ln.rowIndex = i; cn.children.push(ln);
+          const ln = mk(`${cn.key}|${r.len}`, r.len, 4, { len: r.len }); ln.leaf = r; ln.rowIndex = i; cn.children.push(ln);
         } else { cn.leaf = r; cn.rowIndex = i; }
       }
       // Группа аксессуаров из одной одноимённой категории («Шарфы» → «Шарфы») показывается одной строкой.
-      for (const g of fn.children) if (g.level === 2 && g.children.length === 1 && g.children[0].label === g.label && g.children[0].leaf) { g.leaf = g.children[0].leaf; g.rowIndex = g.children[0].rowIndex; g.children = []; }
+      for (const g of fn.children) if (g.level === 2 && g.children.length === 1 && g.children[0].label === g.label && g.children[0].leaf) { g.crit = { cat: g.label }; g.leaf = g.children[0].leaf; g.rowIndex = g.children[0].rowIndex; g.children = []; }
       const order = (n: PcsNode) => { n.children.sort((a, b) => LEN_ORDER.indexOf(a.label) - LEN_ORDER.indexOf(b.label) || 0); n.children.forEach(order); };
       order(fn);
     }
@@ -62,6 +62,26 @@ export function buildPcsTree(rows: PcsRow[], blocks: PcsBlock[] = ["RTW", "Acc"]
     out.push(root);
   }
   return out;
+}
+/** Вместе: итог → мех → блок (одежда / аксессуары) → категории; при одном блоке — обычное дерево блока. */
+export function buildPcsView(rows: PcsRow[], blocks: PcsBlock[]): PcsNode[] {
+  const roots = buildPcsTree(rows, blocks);
+  if (roots.length < 2) return roots;
+  const mk = (key: string, label: string, level: PcsNode["level"], crit: PcsNode["crit"]): PcsNode => ({ key, label, level, crit, pcs: 0, pcsA: 0, ttl: 0, ttlB: 0, hasAvg: false, st: new Array(ST_LEN).fill(0), children: [] });
+  const add = (a: PcsNode, b: PcsNode) => { a.pcs += b.pcs; a.pcsA += b.pcsA; a.ttl += b.ttl; a.ttlB += b.ttlB; a.hasAvg = a.hasAvg || b.hasAvg; b.st.forEach((v, i) => (a.st[i] += v)); };
+  const down = (n: PcsNode): PcsNode => ({ ...n, level: n.level === 4 ? 4 : ((n.level + 1) as PcsNode["level"]), children: n.children.map(down) });
+  const all = mk("all", "TOTAL — одежда + аксессуары", 0, {});
+  const furs = [...new Set(roots.flatMap((r) => r.children.map((f) => f.label)))].sort((a, b) => (FUR_ORDER.indexOf(a) + 1 || 99) - (FUR_ORDER.indexOf(b) + 1 || 99));
+  for (const fur of furs) {
+    const fn = mk(`all|${fur}`, fur, 1, { fur });
+    for (const root of roots) {
+      const src = root.children.find((f) => f.label === fur); if (!src) continue;
+      const bn = mk(`${root.key}|b|${fur}`, BLOCK_LABEL[root.key as PcsBlock], 2, { block: BLOCK_LABEL[root.key as PcsBlock] });
+      bn.children = src.children.map(down); add(bn, src); fn.children.push(bn); add(fn, src);
+    }
+    all.children.push(fn); add(all, fn);
+  }
+  return [all];
 }
 /** Средневзвешенный AVG: шкуры ÷ штуки тех строк, где AVG задан. */
 export const avgOf = (n: { pcsA: number; ttl: number; hasAvg: boolean }) => (n.hasAvg && n.pcsA > 0 ? n.ttl / n.pcsA : null);

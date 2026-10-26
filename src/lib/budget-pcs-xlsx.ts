@@ -1,7 +1,7 @@
 import "server-only";
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
-import { avgEff, BLOCK_LABEL, buildPcsTree, CAT_LABEL, ST_COLS, ST_LEN, stOf, stTop, stYear, type PcsDoc, type PcsNode } from "@/lib/budget-pcs";
+import { avgEff, BLOCK_LABEL, buildPcsView, CAT_LABEL, ST_COLS, ST_LEN, stOf, stTop, stYear, type PcsDoc, type PcsNode } from "@/lib/budget-pcs";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const dateRu = (iso: string) => (iso ? iso.split("-").reverse().join(".") : "");
@@ -61,9 +61,8 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
   const FILL: Record<number, { fg: string; font: string }> = { 0: { fg: "FF3F3F6F", font: "FFFFFFFF" }, 1: { fg: "FF7F7FAF", font: "FFFFFFFF" }, 2: { fg: "FFBFBFEF", font: "FF000000" }, 3: { fg: "FFBFBFEF", font: "FF000000" } };
   const q = (s: string) => `"${s.replace(/"/g, '""')}"`;
   const D = (c: string) => `'${DATA}'!$${c}$2:$${c}$${LAST}`;
-  const tree = buildPcsTree(rows);
-  const both = tree.length > 1;
-  let r = both ? 9 : 8; // при двух блоках первая строка — общий TOTAL
+  const tree = buildPcsView(rows, [...new Set(rows.map((x) => x.block))]);
+  let r = 8;
   const rootRows: number[] = [];
   const style = (row: number, level: number, bold: boolean) => {
     const f = FILL[level];
@@ -74,23 +73,21 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
       if (c > 1) { cell.alignment = { horizontal: "right" }; cell.numFmt = c === 3 ? "0.0" : c === 4 ? "#,##0;-#,##0;" : "#,##0;-#,##0;"; }
     }
   };
-  const writeNode = (n: PcsNode, keys: { block?: string; fur?: string; cat?: string; len?: string }) => {
+  const writeNode = (n: PcsNode, keys: PcsNode["crit"]) => {
     const row = r++;
-    const k2 = { ...keys };
-    const isGroup = n.level === 2 && n.children.length > 0 && n.children[0].level === 3; // группа аксессуаров: сумма по категориям
-    if (n.level === 0) { k2.block = BLOCK_LABEL[n.key as "RTW" | "Acc"]; rootRows.push(row); }
-    else if (n.level === 1) k2.fur = n.label;
-    else if ((n.level === 2 && !isGroup) || n.level === 3) k2.cat = n.label;
-    else if (n.level === 4) k2.len = n.label;
-    if (n.leaf && n.level !== 4) k2.len = "—";
+    const k2 = { ...keys, ...n.crit };
+    delete (k2 as { group?: unknown }).group;
+    if (n.level === 0 && n.crit.block) rootRows.push(row);
+    if (n.leaf && !n.leaf.len && !k2.len) k2.len = "—";
     const parts: string[] = [];
     if (k2.block) parts.push(`${D("A")},${q(k2.block)}`);
     if (k2.fur) parts.push(`${D("B")},${q(k2.fur)}`);
     if (k2.cat) parts.push(`${D("C")},${q(k2.cat)}`);
     if (k2.len) parts.push(`${D("D")},${q(k2.len)}`);
+    const isGroup = !!n.crit.group;
     const sumOf = (col: string, extra = "") => isGroup
       ? n.children.map((c) => `SUMIFS(${D(col)},${parts.join(",")},${D("C")},${q(c.label)}${extra})`).join("+")
-      : `SUMIFS(${D(col)},${parts.join(",")}${extra})`;
+      : parts.length ? `SUMIFS(${D(col)},${parts.join(",")}${extra})` : extra ? `SUMIFS(${D(col)}${extra})` : `SUM(${D(col)})`;
     const avgDen = sumOf("E", `,${D("F")},"<>"`);
     wsR.getCell(row, 1).value = n.label;
     wsR.getCell(row, 2).value = { formula: sumOf("E"), result: n.pcs };
@@ -103,16 +100,6 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
     for (const c of n.children) writeNode(c, k2);
   };
   for (const root of tree) writeNode(root, {});
-  if (both) { // общий итог: сумма корней одежды и аксессуаров
-    const row = 8, [a, b2] = rootRows;
-    const sum = (c: number) => ({ formula: `${colL(c)}${a}+${colL(c)}${b2}` });
-    wsR.getCell(row, 1).value = "TOTAL (одежда + аксессуары)";
-    wsR.getCell(row, 2).value = sum(2); wsR.getCell(row, 4).value = sum(4);
-    const pa = `SUMIFS(${D("E")},${D("F")},"<>")`;
-    wsR.getCell(row, 3).value = { formula: `IF(${pa}>0,D${row}/${pa},"")` };
-    for (let j = 0; j < ST_LEN; j++) wsR.getCell(row, 5 + j).value = sum(5 + j);
-    style(row, 0, true); wsR.getCell(row, 1).alignment = { indent: 0 };
-  }
   // Тонкие линии сетки: серые между ячейками, чуть темнее между парами колонок (EUR / PCS) и блоками.
   const lineC = { style: "thin" as const, color: { argb: "FFC9C9D9" } }, lineD = { style: "thin" as const, color: { argb: "FF8C8CA8" } };
   for (let rr = 4; rr < r; rr++) for (let c = 1; c <= NC; c++) {
