@@ -29,6 +29,10 @@ type Props = { id: string; name: string; season: string; supplier: string; asOf:
 export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, rawForecast, mix, rawDate, canEdit }: Props) {
   const p0 = params ?? DEFAULT_PCS_PARAMS;
   const [pp, setPp] = useState({ l: String(p0.leftoverPct), y: String(p0.lynxPct), n: String(p0.newPct) });
+  const [rawDetail, setRawDetail] = useState(false);
+  // Свои значения (пусто — считается по прогнозу и ТЗ): остаток после производства по типам меха и шкуры норки / соболя из смеси.
+  const [ovLeft, setOvLeft] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(p0.left ?? {}).map(([k, v]) => [k, String(v)])));
+  const [ovMix, setOvMix] = useState({ mink: p0.mix ? String(p0.mix.mink) : "", sable: p0.mix ? String(p0.mix.sable) : "" });
   const [detail, setDetail] = useState(false);
   const [stats, setStats] = useState(true);
   const [hideEmpty, setHideEmpty] = useState(true); // строки с нулевым бюджетом (PCS) скрыты, итоги считаются по всем
@@ -66,19 +70,42 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     // «Норка+Соболь» делим на норку и соболь по фактическому расходу в ТЗ (одежда и аксессуары отдельно).
     const mixTtl = { RTW: 0, Acc: 0 };
     for (const r of cur) if (r.fur === "Норка+Соболь" && blocks.includes(r.block)) mixTtl[r.block] += ttlOf(r) ?? 0;
-    const toMink = mixTtl.RTW * mix.RTW + mixTtl.Acc * mix.Acc, toSable = mixTtl.RTW * (1 - mix.RTW) + mixTtl.Acc * (1 - mix.Acc);
+    const calcMink = mixTtl.RTW * mix.RTW + mixTtl.Acc * mix.Acc, calcSable = mixTtl.RTW * (1 - mix.RTW) + mixTtl.Acc * (1 - mix.Acc);
+    const own = (v: string, d: number) => (v.trim() === "" || !Number.isFinite(parseFloat(v.replace(",", "."))) ? d : Math.max(0, parseFloat(v.replace(",", "."))));
+    const toMink = own(ovMix.mink, calcMink), toSable = own(ovMix.sable, calcSable);
     const rowsOut = furs.map((f) => {
-      if (f.label === "Норка+Соболь") return { label: f.label, ttl: f.ttl, mixed: true as const, toMink, toSable };
+      if (f.label === "Норка+Соболь") return { label: f.label, ttl: f.ttl, mixed: true as const, toMink, toSable, calcMink, calcSable };
       const t = f.ttl + (f.label === "Норка" ? toMink : f.label === "Соболь" ? toSable : 0);
-      const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = r?.need ?? 0, left = Math.max(0, stock - need);
+      const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = r?.need ?? 0, calcLeft = Math.max(0, stock - need), left = own(ovLeft[f.label] ?? "", calcLeft);
       const use = left * (f.label === "Рысь" ? pct(pp.y) : pct(pp.l)) / 100, np = Math.max(0, t - use);
       const buy = pct(pp.n) > 0 ? np / (pct(pp.n) / 100) : 0;
-      return { label: f.label, ttl: f.ttl, mixed: false as const, t, stock, need, left, use, np, buy };
+      return { label: f.label, ttl: f.ttl, mixed: false as const, t, stock, need, left, calcLeft, use, np, buy };
     });
     const sum = (k: "stock" | "need" | "left" | "use" | "np" | "buy") => rowsOut.reduce((a, r) => a + (r.mixed ? 0 : r[k]), 0);
     return { rows: rowsOut, total: { stock: sum("stock"), need: sum("need"), left: sum("left"), use: sum("use"), np: sum("np"), buy: sum("buy") } };
-  }, [furs, rawBy, pp, cur, blocks, mix]);
-  const saveParams = () => { if (canEdit) void savePcsParams(id, { leftoverPct: pct(pp.l) || 70, lynxPct: pct(pp.y) || 85, newPct: pct(pp.n) || 70 }); };
+  }, [furs, rawBy, pp, cur, blocks, mix, ovLeft, ovMix]);
+  const saveParams = () => {
+    if (!canEdit) return;
+    const num = (v: string) => parseFloat(v.replace(",", "."));
+    const left = Object.fromEntries(Object.entries(ovLeft).filter(([, v]) => v.trim() !== "" && Number.isFinite(num(v))).map(([k, v]) => [k, num(v)]));
+    const mixOk = Number.isFinite(num(ovMix.mink)) && Number.isFinite(num(ovMix.sable));
+    void savePcsParams(id, { leftoverPct: pct(pp.l) || 70, lynxPct: pct(pp.y) || 85, newPct: pct(pp.n) || 70, left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null });
+  };
+
+  const supplyInp = (value: string, on: (v: string) => void, ph: string, label: string) => (
+    <input inputMode="decimal" aria-label={label} value={value} placeholder={ph} onChange={(e) => on(e.target.value)} onBlur={saveParams}
+      className={`min-h-9 w-20 rounded border bg-white px-1.5 text-right text-sm tabular-nums text-neutral-900 placeholder:text-neutral-400 ${value.trim() !== "" ? "border-[var(--ui-accent)] bg-[var(--ui-soft)]" : "border-neutral-300"}`} />
+  );
+  // «Норка+Соболь» раскрыта на норку и соболя числами: они входят в расчёт норки и соболя выше.
+  const mixRow = supply.rows.find((r) => r.mixed);
+  const mixedRows = mixRow && mixRow.mixed ? ([["норка", mixRow.toMink, mixRow.calcMink, "mink"], ["соболь", mixRow.toSable, mixRow.calcSable, "sable"]] as const).map(([name, v, calc, key]) => (
+    <tr key={key} className="border-b border-neutral-100 bg-neutral-50 text-neutral-700">
+      <td className="px-3 py-1 text-sm" style={{ paddingLeft: 28 }}>из смеси: {name}</td>
+      <td className={`${TD} border-neutral-200`} /><td className={`${TD} border-neutral-200`} /><td className={`${TD} border-neutral-200`} />
+      <td className={`${TD} border-neutral-200`}>{rawDetail && canEdit ? supplyInp(ovMix[key], (x) => setOvMix((o) => ({ ...o, [key]: x })), String(Math.round(calc)), `Шкур ${name} из смеси`) : cell(v)}</td>
+      <td colSpan={4} className={`${TD} border-neutral-200 text-xs text-neutral-500`}>входит в {name === "норка" ? "норку" : "соболя"} выше</td>
+    </tr>
+  )) : null;
 
   const save = async () => {
     setBusy(true); setMsg("Сохраняю…");
@@ -166,6 +193,8 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               className="min-h-11 w-24 rounded-lg border border-neutral-300 bg-white px-2 text-right text-sm tabular-nums text-neutral-900 disabled:opacity-60" />
           </label>
         ))}
+        <button type="button" aria-pressed={rawDetail} onClick={() => setRawDetail((v) => !v)}
+          className={"min-h-11 rounded-lg border px-4 text-sm " + (rawDetail ? "border-[var(--ui-accent)] bg-[var(--ui-soft)] font-semibold" : "border-neutral-300 bg-white hover:border-neutral-500")}>Детально</button>
         <p className="max-w-md text-xs text-neutral-600">Остаток — что останется по окончании производства заказа FW26 (на {rawDate.split("-").reverse().join(".")}). Проценты можно менять.</p>
       </div>
 
@@ -191,14 +220,17 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.buy)}</td>
             </tr>
             {furs.map((f) => (
-              <tr key={f.label} className="border-b border-neutral-100 last:border-0">
+              <Fragment key={f.label}>
+              <tr className="border-b border-neutral-100 last:border-0">
                 <td className="px-3 py-1.5 text-sm">{f.label}</td>
                 <td className={`${TD} border-neutral-200`}>{cell(f.pcs)}</td>
                 <td className={`${TD} border-neutral-200`}>{total.pcs ? `${formatDec1((f.pcs / total.pcs) * 100)} %` : "–"}</td>
                 <td className={`${TD} border-neutral-200`}>{f.hasAvg && f.pcsA > 0 ? formatDec1(f.ttl / f.pcsA) : "–"}</td>
                 <td className={`${TD} border-neutral-200`}>{f.hasAvg ? cell(f.ttl) : "–"}</td>
-                {(() => { const r = supply.rows.find((x) => x.label === f.label); if (!r) return null; return !r.mixed ? [r.left, r.use, r.np, r.buy].map((v, k) => <td key={k} className={`${TD} border-neutral-200`} title={k === 0 ? `на складе ${cell(r.stock)}, уйдёт на запланированное ${cell(r.need)}` : undefined}>{cell(v)}</td>) : <td colSpan={4} className={`${TD} border-neutral-200 text-xs text-neutral-600`}>в расчёте: норка {cell(r.toMink)}, соболь {cell(r.toSable)} шкур</td>; })()}
+                {(() => { const r = supply.rows.find((x) => x.label === f.label); if (!r) return null; return !r.mixed ? [r.left, r.use, r.np, r.buy].map((v, k) => <td key={k} className={`${TD} border-neutral-200`} title={k === 0 ? `на складе ${cell(r.stock)}, уйдёт на запланированное ${cell(r.need)}` : undefined}>{k === 0 && rawDetail && canEdit ? supplyInp(ovLeft[f.label] ?? "", (x) => setOvLeft((o) => ({ ...o, [f.label]: x })), String(Math.round(r.calcLeft)), "Остаток после производства") : cell(v)}</td>) : <td colSpan={4} className={`${TD} border-neutral-200 text-xs text-neutral-600`}>–</td>; })()}
               </tr>
+              {f.label === "Норка+Соболь" ? mixedRows : null}
+              </Fragment>
             ))}
           </tbody>
         </table>

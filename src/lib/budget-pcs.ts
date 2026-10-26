@@ -13,7 +13,7 @@ export const stTop = (c: { year?: string }) => (c.year ? "Статистика" 
 export const ST_LEN = ST_COLS.length;
 export type PcsRow = { block: PcsBlock; fur: string; cat: string; len: string; pcs: number; avg: number | null; avgText?: string | null; /** Служебная строка (не из файла): не хранится и не редактируется. */ sys?: boolean; /** Статистика отчёта, ST_COLS. */ st?: number[]; /** Норма шкур на изделие из бюджета (не хранится: подставляется при загрузке). */ avgB?: number | null };
 /** Доли использования сырья, %: остатки (кроме рыси), рысь, новая покупка. */
-export type PcsParams = { leftoverPct: number; lynxPct: number; newPct: number };
+export type PcsParams = { leftoverPct: number; lynxPct: number; newPct: number; /** Свои значения «остаток после производства» по типам меха, шкур. */ left?: Record<string, number>; /** Свои шкуры норки и соболя из смеси «Норка+Соболь». */ mix?: { mink: number; sable: number } | null };
 export const DEFAULT_PCS_PARAMS: PcsParams = { leftoverPct: 70, lynxPct: 85, newPct: 70 };
 export type PcsDoc = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; params?: PcsParams; createdAt: string; updatedAt: string; updatedBy: string | null };
 
