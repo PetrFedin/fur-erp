@@ -13,7 +13,7 @@ export const ST_LEN = ST_COLS.length;
 export type PcsRow = { block: PcsBlock; fur: string; cat: string; len: string; pcs: number; avg: number | null; avgText?: string | null; /** Статистика отчёта, ST_COLS. */ st?: number[]; /** Норма шкур на изделие из бюджета (не хранится: подставляется при загрузке). */ avgB?: number | null };
 export type PcsDoc = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; createdAt: string; updatedAt: string; updatedBy: string | null };
 
-export const BLOCK_LABEL: Record<PcsBlock, string> = { RTW: "Одежда (RTW)", Acc: "Аксессуары (Acc)" };
+export const BLOCK_LABEL: Record<PcsBlock, string> = { RTW: "Одежда", Acc: "Аксессуары" };
 export const FUR_ORDER = ["Соболь", "Каракульча", "Норка", "Рысь", "Лиса", "Норка+Соболь"];
 /** Группа категории аксессуаров (KTT Level 03 в файле). */
 export const ACC_GROUP: Record<string, string> = {

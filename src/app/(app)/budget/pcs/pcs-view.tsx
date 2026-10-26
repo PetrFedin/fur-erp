@@ -16,7 +16,7 @@ const parse = (s: string) => { const v = parseFloat(s.replace(",", ".").replace(
 const dateRu = (iso: string) => (iso ? iso.split("-").reverse().join(".") : "");
 const cell = (v: number) => (v ? formatInt(Math.round(v)) : "–");
 const FILTERS: { id: "all" | PcsBlock; label: string; blocks: PcsBlock[] }[] = [
-  { id: "all", label: "Вместе", blocks: ["RTW", "Acc"] }, { id: "RTW", label: "RTW (одежда)", blocks: ["RTW"] }, { id: "Acc", label: "Acc (аксессуары)", blocks: ["Acc"] },
+  { id: "all", label: "Вместе", blocks: ["RTW", "Acc"] }, { id: "RTW", label: "Одежда", blocks: ["RTW"] }, { id: "Acc", label: "Аксессуары", blocks: ["Acc"] },
 ];
 // Шапка: «Русский мех» / «Статистика» → годы (2027 — бюджет) → подгруппы колонок.
 const runs = <T,>(f: (c: (typeof ST_COLS)[number]) => T) => ST_COLS.reduce<{ v: T; n: number }[]>((a, c) => { const l = a[a.length - 1], v = f(c); if (l && l.v === v) l.n++; else a.push({ v, n: 1 }); return a; }, []);
