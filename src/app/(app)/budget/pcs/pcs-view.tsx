@@ -15,6 +15,8 @@ const cell = (v: number) => (v ? formatInt(Math.round(v)) : "–");
 const FILTERS: { id: "all" | PcsBlock; label: string; blocks: PcsBlock[] }[] = [
   { id: "all", label: "Всё", blocks: ["RTW", "Acc"] }, { id: "RTW", label: "Одежда", blocks: ["RTW"] }, { id: "Acc", label: "Аксессуары", blocks: ["Acc"] },
 ];
+// Годы внутри «Продаж»: 2026 / 2025 над группами брендов.
+const YEARS = ST_COLS.reduce<{ y: string; n: number }[]>((a, c) => { const l = a[a.length - 1]; if (!c.year) { if (l && l.y === "") l.n++; else a.push({ y: "", n: 1 }); } else if (l && l.y === c.year) l.n++; else a.push({ y: c.year, n: 1 }); return a; }, []);
 // Группы колонок статистики для шапки: 2026 / 2025 / Статистика и подгруппы по две колонки.
 const GROUPS = ST_COLS.reduce<{ g: string; n: number }[]>((a, c) => { const l = a[a.length - 1]; if (l && l.g === c.group) l.n++; else a.push({ g: c.group, n: 1 }); return a; }, []);
 
@@ -153,6 +155,12 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
                 <th className="sticky left-0 z-[1] bg-white" />
                 <th colSpan={3} className="px-2 py-1 text-center text-xs font-semibold text-neutral-700">{season || "Бюджет"}</th>
                 {GROUPS.map((g) => <th key={g.g + g.n} colSpan={g.n} className="border-l border-neutral-200 px-2 py-1 text-center text-xs font-semibold text-neutral-700">{g.g}</th>)}
+              </tr>
+            ) : null}
+            {stats ? (
+              <tr className="border-b border-neutral-100">
+                <th className="sticky left-0 z-[1] bg-white" /><th colSpan={3} />
+                {YEARS.map((g, k) => <th key={k} colSpan={g.n} className={"px-2 py-1 text-center text-xs font-semibold text-neutral-700" + (g.y ? " border-l border-neutral-200" : "")}>{g.y}</th>)}
               </tr>
             ) : null}
             {stats ? (

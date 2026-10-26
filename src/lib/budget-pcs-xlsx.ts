@@ -19,7 +19,7 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
   const wb = new ExcelJS.Workbook();
   const wsD = wb.addWorksheet(DATA, { views: [{ state: "frozen", ySplit: 1 }] });
   const wsP = wb.addWorksheet("Сводная");
-  const wsR = wb.addWorksheet("Отчёт", { views: [{ showGridLines: false, state: "frozen", xSplit: 1, ySplit: 6 }] });
+  const wsR = wb.addWorksheet("Отчёт", { views: [{ showGridLines: false, state: "frozen", xSplit: 1, ySplit: 7 }] });
 
   // ---- 1. Данные
   const head = wsD.addRow(["Блок", "Мех", "Категория", "Длина", "PCS", "AVG", "TTL", ...ST_COLS.map((c) => c.name), "Источник AVG"]);
@@ -54,16 +54,19 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
   // группы колонок статистики: 2026 / 2025 / Статистика, подгруппы по две колонки
   let k = 0;
   while (k < ST_LEN) { let e = k; while (e + 1 < ST_LEN && ST_COLS[e + 1].group === ST_COLS[k].group) e++; hdr(4, 5 + k, 5 + e, ST_COLS[k].group); k = e + 1; }
-  for (let j = 0; j < ST_LEN; j += 2) hdr(5, 5 + j, 6 + j, ST_COLS[j].sub);
-  const h6 = wsR.getRow(6); h6.values = [null, "PCS", "AVG (шкур)", "TTL (шкур)", ...ST_COLS.map((c) => (c.money ? (c.group === "Продажи" ? "NS AS" : "EUR") : "PCS"))];
-  [4, 5, 6].forEach((rr) => { const rw = wsR.getRow(rr); rw.font = { bold: true, size: 9 }; rw.alignment = { horizontal: "center" }; rw.eachCell((c) => { if (rr === 6) c.border = thin; }); });
+  // годы внутри «Продаж» (2026 / 2025), затем подгруппы по две колонки
+  k = 0;
+  while (k < ST_LEN) { if (!ST_COLS[k].year) { k++; continue; } let e = k; while (e + 1 < ST_LEN && ST_COLS[e + 1].year === ST_COLS[k].year) e++; hdr(5, 5 + k, 5 + e, ST_COLS[k].year!); k = e + 1; }
+  for (let j = 0; j < ST_LEN; j += 2) hdr(6, 5 + j, 6 + j, ST_COLS[j].sub);
+  const h6 = wsR.getRow(7); h6.values = [null, "PCS", "AVG (шкур)", "TTL (шкур)", ...ST_COLS.map((c) => (c.money ? (c.group === "Продажи" ? "NS AS" : "EUR") : "PCS"))];
+  [4, 5, 6, 7].forEach((rr) => { const rw = wsR.getRow(rr); rw.font = { bold: true, size: 9 }; rw.alignment = { horizontal: "center" }; rw.eachCell((c) => { if (rr === 7) c.border = thin; }); });
 
   const FILL: Record<number, { fg: string; font: string }> = { 0: { fg: "FF3F3F6F", font: "FFFFFFFF" }, 1: { fg: "FF7F7FAF", font: "FFFFFFFF" }, 2: { fg: "FFBFBFEF", font: "FF000000" }, 3: { fg: "FFBFBFEF", font: "FF000000" } };
   const q = (s: string) => `"${s.replace(/"/g, '""')}"`;
   const D = (c: string) => `'${DATA}'!$${c}$2:$${c}$${LAST}`;
   const tree = buildPcsTree(rows);
   const both = tree.length > 1;
-  let r = both ? 8 : 7; // при двух блоках первая строка — общий TOTAL
+  let r = both ? 9 : 8; // при двух блоках первая строка — общий TOTAL
   const rootRows: number[] = [];
   const style = (row: number, level: number, bold: boolean) => {
     const f = FILL[level];
@@ -104,7 +107,7 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
   };
   for (const root of tree) writeNode(root, {});
   if (both) { // общий итог: сумма корней одежды и аксессуаров
-    const row = 7, [a, b2] = rootRows;
+    const row = 8, [a, b2] = rootRows;
     const sum = (c: number) => ({ formula: `${colL(c)}${a}+${colL(c)}${b2}` });
     wsR.getCell(row, 1).value = "TOTAL (одежда + аксессуары)";
     wsR.getCell(row, 2).value = sum(2); wsR.getCell(row, 4).value = sum(4);

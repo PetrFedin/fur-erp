@@ -1,10 +1,10 @@
 /** Budget PCS (файл поставщика MVST): штуки, расход шкур на изделие (AVG) и итог шкур (TTL) по типам меха, категориям и длинам. Без server-only: используется и на странице. */
 export type PcsBlock = "RTW" | "Acc";
 /** Колонки статистики отчёта MVST по порядку в `st`: Conf / Deliv / NS STD 2026, Deliv / NS 2025 (EUR, PCS), затем продажи («Статистика») 2026 и 2025 по группам брендов (NS AS EUR, PCS). Аксессуары: «Другие бренды» — вся колонка Other файла. */
-export const SALES_GROUPS = ["Всего", "Русский мех", "Другие MVST", "Другие бренды"] as const;
-export const ST_COLS: { group: string; sub: string; name: string; money: boolean }[] = [
+export const SALES_GROUPS = ["Всего", "MVST РМ", "MVST другие", "Другие бренды"] as const;
+export const ST_COLS: { group: string; year?: string; sub: string; name: string; money: boolean }[] = [
   ...(["2026 Conf", "2026 Deliv", "2026 NS STD", "2025 Deliv", "2025 NS"] as const).flatMap((g) => [{ group: g.slice(0, 4), sub: g.slice(5), name: `${g} EUR`, money: true }, { group: g.slice(0, 4), sub: g.slice(5), name: `${g} PCS`, money: false }]),
-  ...(["2026", "2025"] as const).flatMap((y) => SALES_GROUPS.flatMap((b) => [{ group: "Продажи", sub: `${y} ${b}`, name: `Продажи ${y} ${b} NS AS`, money: true }, { group: "Продажи", sub: `${y} ${b}`, name: `Продажи ${y} ${b} PCS`, money: false }])),
+  ...(["2026", "2025"] as const).flatMap((y) => SALES_GROUPS.flatMap((b) => [{ group: "Продажи", year: y, sub: b, name: `Продажи ${y} ${b} NS AS`, money: true }, { group: "Продажи", year: y, sub: b, name: `Продажи ${y} ${b} PCS`, money: false }])),
 ];
 export const ST_LEN = ST_COLS.length;
 export type PcsRow = { block: PcsBlock; fur: string; cat: string; len: string; pcs: number; avg: number | null; avgText?: string | null; /** Статистика отчёта, ST_COLS. */ st?: number[]; /** Норма шкур на изделие из бюджета (не хранится: подставляется при загрузке). */ avgB?: number | null };
