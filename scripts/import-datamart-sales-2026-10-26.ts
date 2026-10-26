@@ -1,7 +1,10 @@
 /**
  * Продажи и поступления из витрины datamart (MOVofGoodsDynamic) → SalesReceiptLine. ПОКА ТОЛЬКО РАСЧЁТ: БД не меняется.
  *
- *   node --env-file=.env node_modules/.bin/tsx scripts/import-datamart-sales-2026-10-26.ts [--dir=~/Downloads] [--out=/путь/отчёт.md]
+ *   node --env-file=.env node_modules/.bin/tsx scripts/import-datamart-sales-2026-10-26.ts [--dir=~/Downloads] [--out=/путь/отчёт.md]   # расчёт
+ *   ... --apply --live        # заменить строки ПРОДАЖ (SALE) данными datamart в боевой fur_erp (сам делает scripts/backup.sh; --no-backup — без копии)
+ *   ... --rollback --apply --live   # вернуть прежние строки продаж и удалить загруженные из datamart
+ * Поступления (RECEIPT) не трогаются: по ним расхождение с системой не объяснено на 100 %.
  *
  * Источники (выгружены скриптами datamart-all.txt на VDI): sales_lines.csv, deliveries_lines.csv, orders_lines.csv (названия категорий KTT).
  * Что считает: сводки по заказам и «сезонным годам», сверку строка-в-строку с тем, что сейчас в разделе «Продажи», разбор по блокам / меху / категориям / длинам,
@@ -10,7 +13,9 @@
 import Module from "module";
 import { join } from "path";
 import { homedir } from "os";
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import { execSync } from "child_process";
+import { randomBytes } from "crypto";
 const M = Module as unknown as { _resolveFilename: (...a: unknown[]) => string };
 const orig = M._resolveFilename;
 M._resolveFilename = function (this: unknown, req: unknown, ...rest: unknown[]) {
@@ -19,6 +24,10 @@ M._resolveFilename = function (this: unknown, req: unknown, ...rest: unknown[]) 
 };
 
 const DIR = process.argv.find((a) => a.startsWith("--dir="))?.slice(6) ?? join(homedir(), "Downloads");
+const APPLY = process.argv.includes("--apply"), LIVE = process.argv.includes("--live"), ROLLBACK = process.argv.includes("--rollback"), NO_BACKUP = process.argv.includes("--no-backup");
+const TAG = "datamart-sales:2026-10-26", OLD_TAG = "sales-import:2026-10-19";
+const BK = join(homedir(), "Backups", "fur-erp"), JOURNAL = join(BK, "sales-datamart-2026-10-26.journal.json");
+const cid = () => "c" + randomBytes(12).toString("hex");
 const OUT = process.argv.find((a) => a.startsWith("--out="))?.slice(6) ?? "";
 const out: string[] = [];
 const say = (s = "") => { console.log(s); out.push(s); };
@@ -64,6 +73,24 @@ async function main() {
   const { PrismaClient } = await import("@prisma/client");
   const { modelCodeOfArticle } = await import("../src/lib/sales-receipts-core");
   const prisma = new PrismaClient();
+  const dbUrl = process.env.DATABASE_URL ?? "", dbName = dbUrl.split("?")[0].split("/").pop() ?? "";
+  if ((APPLY || ROLLBACK) && dbName === "fur_erp" && !LIVE) throw new Error(`База «${dbName}» боевая: нужен --live.`);
+  if (ROLLBACK) {
+    if (!existsSync(JOURNAL)) { console.log("Журнала нет — откатывать нечего."); return; }
+    const j = JSON.parse(readFileSync(JOURNAL, "utf8")) as { status: string; created: string[]; deleted: Record<string, unknown>[] };
+    if (j.status !== "applied") { console.log("Уже откачено."); return; }
+    console.log(`Откат: удалить ${j.created.length} строк datamart, вернуть ${j.deleted.length} прежних строк${APPLY ? "" : " (пробный — добавьте --apply)"}`);
+    if (APPLY) {
+      await prisma.$transaction(async (tx) => {
+        await tx.salesReceiptLine.deleteMany({ where: { id: { in: j.created }, importTag: TAG } });
+        await tx.salesReceiptLine.createMany({ data: j.deleted.map((r) => ({ ...r, date: new Date(r.date as string), createdAt: new Date(r.createdAt as string) })) as never });
+      }, { timeout: 120000, maxWait: 30000 });
+      writeFileSync(JOURNAL, JSON.stringify({ ...j, status: "rolled-back", at: new Date().toISOString() }));
+      console.log("Откат выполнен.");
+    }
+    await prisma.$disconnect();
+    return;
+  }
   const sales = readCsv("sales_lines.csv"), deliv = readCsv("deliveries_lines.csv"), orders = readCsv("orders_lines.csv");
   const kttName = new Map(orders.map((r) => [r.KTTID, r.KTTName]));
   const nameOf = (k: string) => kttName.get("KTT" + k.padStart(7, "0")) ?? `KTT${k}`;
@@ -161,6 +188,41 @@ async function main() {
   say("Порядок записи: резервная копия базы (scripts/backup.sh) → выгрузка старых строк в журнал → замена одной транзакцией с контролем итогов → откат одной командой.");
   say("Не загружается из datamart: скидка (в выгрузке нет столбца); поля скидки в новых строках останутся пустыми.");
 
+  if (APPLY) {
+    if (existsSync(JOURNAL) && (JSON.parse(readFileSync(JOURNAL, "utf8")) as { status: string }).status === "applied") throw new Error("Журнал уже содержит применённую загрузку: сначала --rollback --apply.");
+    const org = (await prisma.organization.findFirst({ select: { id: true } }))!.id;
+    const seq = new Map<string, number>();
+    const rows = sales.map((r) => {
+      const art = r.Article, iso = isoOf(r.SalesDate), color = r.ColorID;
+      const base = ["DM", "SALE", r.OrderNumber, art, color, r.SizeID, iso].join("|"), k = (seq.get(base) ?? 0) + 1; seq.set(base, k);
+      const l = lvOf(nameOf(r.KTTKey)).v;
+      return {
+        id: cid(), organizationId: org, sourceKey: `${base}|${k}`, kind: "SALE" as const, orderNo: r.OrderNumber, season: r.SeasonName, article: art, fabric: r.Fabric || null, colorId: color || null,
+        modelCode: modelCodeOfArticle(art), level2: l?.l2 ?? null, level3: l?.l3 ?? null, level4: l?.l4 ?? null, level5: l?.l5 ?? null, date: new Date(iso + "T00:00:00.000Z"), pcs: Math.round(num(r.Qty)),
+        retailEur: num(r.SalesRetailEUR), retailEurExVat: num(r.SalesRetailEURwoVAT), retailRub: num(r.SalesRetailRUR), retailRubExVat: num(r.SalesRetailRURwoVAT),
+        discountEur: null, discountEurExVat: null, discountRub: null, discountRubExVat: null, importTag: TAG,
+      };
+    });
+    const missingLv = rows.filter((r) => !r.level2).length;
+    if (missingLv) throw new Error(`${missingLv} строк без уровней категории — остановлено.`);
+    const sumPcs = rows.reduce((a, r) => a + r.pcs, 0), sumEur = rows.reduce((a, r) => a + r.retailEurExVat, 0);
+    if (sumPcs !== Math.round(dmSt[1]) || Math.abs(sumEur - dmSt[2]) > 0.5) throw new Error("Итоги строк не равны итогам CSV — остановлено.");
+    const oldSale = db.filter((r) => r.kind === "SALE");
+    console.log(`\nЗапись (${dbName}): заменить ${oldSale.length} строк продаж на ${rows.length} (${sumPcs} шт., ${f2(sumEur)} EUR без НДС).`);
+    mkdirSync(BK, { recursive: true });
+    if (dbName === "fur_erp" && !NO_BACKUP) { console.log("Копия базы: scripts/backup.sh …"); execSync("sh scripts/backup.sh", { stdio: "inherit" }); }
+    const backupFile = join(BK, `sales-old-SALE-${new Date().toISOString().slice(0, 10)}.json`);
+    writeFileSync(backupFile, JSON.stringify(oldSale));
+    await prisma.$transaction(async (tx) => {
+      await tx.salesReceiptLine.deleteMany({ where: { organizationId: org, kind: "SALE", id: { in: oldSale.map((r) => r.id) } } });
+      await tx.salesReceiptLine.createMany({ data: rows });
+      const now = await tx.salesReceiptLine.findMany({ where: { organizationId: org, kind: "SALE" }, select: { pcs: true, retailEurExVat: true, importTag: true } });
+      const nPcs = now.reduce((a, r) => a + (r.pcs ?? 0), 0), nEur = now.reduce((a, r) => a + Number(r.retailEurExVat ?? 0), 0);
+      if (now.length !== rows.length || nPcs !== sumPcs || Math.abs(nEur - sumEur) > 0.5 || now.some((r) => r.importTag !== TAG)) throw new Error("Итоги в базе не равны ожидаемым — откат транзакции.");
+      writeFileSync(JOURNAL, JSON.stringify({ script: "import-datamart-sales-2026-10-26.ts", status: "applied", at: new Date().toISOString(), db: dbName, created: rows.map((r) => r.id), deleted: oldSale, backupFile }));
+    }, { timeout: 120000, maxWait: 30000 });
+    console.log(`Готово. В базе продаж: ${rows.length} строк (${sumPcs} шт.). Журнал: ${JOURNAL}; прежние строки: ${backupFile}`);
+  }
   if (OUT) { writeFileSync(OUT, out.join("\n")); console.log(`\nОтчёт записан: ${OUT}`); }
   await prisma.$disconnect();
 }

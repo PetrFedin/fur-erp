@@ -18,6 +18,8 @@ import { priceComposition } from "@/lib/price-composition-server";
 import { FurScope } from "@/components/fur-scope";
 import { PageModes, type ModeInfo } from "./mode-line";
 import { SalesBlockView } from "./sales-block";
+import { loadDataAsOf } from "@/lib/data-as-of";
+import { DataAsOf } from "@/components/data-as-of";
 import { SeasonScope } from "./season-scope";
 import { CashflowOverview } from "../cashflow/cashflow-view";
 import { loadCashflowOverview } from "@/lib/cashflow-server";
@@ -57,6 +59,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const pc = await priceComposition(organizationId, d);
   // Продажи и остатки: внешний поставщик сюда не попадает (requireSession перенаправляет его в /supplier), данные не грузим для него и подавно.
   const salesBlock = session.user.role === "SUPPLIER" ? null : await loadSalesBlock(organizationId, c4Mode, year, f.fur);
+  const asOf = session.user.role === "SUPPLIER" ? null : await loadDataAsOf(organizationId);
   const cashflow = session.user.role === "SUPPLIER" ? null : await loadCashflowOverview(organizationId, d.rawMoneyTotal.unreceived.names);
   const yl = yearLabel(year);
   const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, attr: f.attr, batch: f.batch, catgroup: f.catgroup, kind: f.kind ?? [] };
@@ -97,6 +100,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       <p data-print-date className="hidden text-xs text-neutral-600">
         Напечатано: {new Date().toLocaleString("ru-RU", { timeZone: "Europe/Moscow", dateStyle: "long", timeStyle: "short" })} (МСК) · {yl}{activeFilters ? ` · фильтры: ${activeFilters}` : ""}
       </p>
+      {asOf ? <DataAsOf asOf={asOf} /> : null}
       {forbidden && (
         <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
           Недостаточно прав для этого действия

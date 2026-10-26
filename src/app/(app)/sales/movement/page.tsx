@@ -9,6 +9,8 @@ import { makeCtx } from "@/lib/margin-tree";
 import { colorOfLine, furTypeOfFabric, normCode } from "@/lib/sales-receipts-core";
 import { movements, type SLine } from "@/lib/sales-section";
 import { MovementView, type Card } from "./movement-view";
+import { loadDataAsOf } from "@/lib/data-as-of";
+import { DataAsOf } from "@/components/data-as-of";
 
 export const metadata = { title: "Движение по артикулу" };
 
@@ -44,5 +46,6 @@ export default async function MovementPage({ searchParams }: { searchParams: Pro
     modelId: modelRef?.id ?? null, tz: orders.map((o) => ({ id: o.id, number: o.number, paid: paid.get(o.id) ?? 0 })),
     photo: code && photos[code] ? photos[code] : null,
   };
-  return <MovementView card={card} rows={movements(lines)} />;
+  const asOf = await loadDataAsOf(org);
+  return <><DataAsOf asOf={asOf} /><MovementView card={card} rows={movements(lines)} /></>;
 }

@@ -6,6 +6,8 @@ import { loadPurchaseVat, loadServiceParts, loadSalesLines, loadOrderClasses } f
 import { loadDashboard } from "@/lib/dashboard-data";
 import { parseDashFilters } from "@/lib/dashboard-calc";
 import { CashflowView } from "./cashflow-view";
+import { loadDataAsOf } from "@/lib/data-as-of";
+import { DataAsOf } from "@/components/data-as-of";
 
 export const metadata = { title: "Cashflow" };
 
@@ -30,7 +32,8 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
   const prepaid = Object.values(prepaidBy).reduce((t, v) => t + v, 0);
   const orderCls = await loadOrderClasses(org);
   const work = workByClass(rows, orderCls, months);
+  const asOf = await loadDataAsOf(org);
   return (
-    <CashflowView prepaid={prepaid} prepaidBy={prepaidBy} incl={incl} ex={ex} salesBy={salesBy} vat={{ vat: vs.vat, unknown: vs.unknown, total: incl.total + incl.outside }} services={services} initialPeriod={parsePeriod(sp.p)} workBy={work} pays={payLites(rows, vs.share, orderCls)} saleLines={lines.filter((l) => l.kind === "SALE")} initialGroup={sp.group === "category" ? "category" : "period"} nowMonth={currentMonthMsk()} left={{ raw: left.raw, prod: left.prod, advance: left.advance }} />
+    <><DataAsOf asOf={asOf} /><CashflowView prepaid={prepaid} prepaidBy={prepaidBy} incl={incl} ex={ex} salesBy={salesBy} vat={{ vat: vs.vat, unknown: vs.unknown, total: incl.total + incl.outside }} services={services} initialPeriod={parsePeriod(sp.p)} workBy={work} pays={payLites(rows, vs.share, orderCls)} saleLines={lines.filter((l) => l.kind === "SALE")} initialGroup={sp.group === "category" ? "category" : "period"} nowMonth={currentMonthMsk()} left={{ raw: left.raw, prod: left.prod, advance: left.advance }} /></>
   );
 }
