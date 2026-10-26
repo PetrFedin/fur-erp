@@ -81,10 +81,10 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
     return (
       <tr key={key} className={`${LEVEL[level]} border-b ${level >= 4 ? "border-neutral-200" : LINE[level]}`}>
         <td className={`sticky left-0 z-[1] bg-inherit px-3 py-1.5 text-sm`} style={{ paddingLeft: 12 + (level === 4 ? 3 : level) * 16 }}>{label}</td>
-        <td className={`${TD} ${LINE_STRONG[level]}`}>{editable ? inp(vals[i].pcs, (v) => edit(i, "pcs", v), "w-16", "Штуки") : formatInt(n.pcs)}</td>
+        <td className={`${TD} ${LINE_STRONG[level]}`}>{editable ? inp(vals[i].pcs, (v) => edit(i, "pcs", v), "w-16", "Штуки") : cell(n.pcs)}</td>
         <td className={`${TD} ${LINE[level]}`}>{editable ? inp(vals[i].avg, (v) => edit(i, "avg", v), "w-16", "Шкур на изделие", n.leaf?.avgB != null ? String(Math.round(n.leaf.avgB * 10) / 10) : undefined)
-          : a == null ? "" : formatDec1(a)}</td>
-        <td className={`${TD} ${LINE[level]}`}>{n.hasAvg ? formatInt(Math.round(n.ttl)) : ""}</td>
+          : a == null ? "–" : formatDec1(a)}</td>
+        <td className={`${TD} ${LINE[level]}`}>{n.hasAvg ? cell(n.ttl) : "–"}</td>
         {stats ? n.st.map((v, c) => <td key={c} className={`${TD} ${c % 2 === 0 ? LINE_STRONG[level] : LINE[level]}`}>{editable ? inp(vals[i].st[c], (x) => editSt(i, c, x), ST_COLS[c].money ? "w-20" : "w-14", ST_COLS[c].name) : cell(v)}</td>) : null}
       </tr>
     );
@@ -138,10 +138,10 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
             {furs.map((f) => (
               <tr key={f.label} className="border-b border-neutral-100 last:border-0">
                 <td className="px-3 py-1.5 text-sm">{f.label}</td>
-                <td className={`${TD} border-neutral-200`}>{formatInt(f.pcs)}</td>
+                <td className={`${TD} border-neutral-200`}>{cell(f.pcs)}</td>
                 <td className={`${TD} border-neutral-200`}>{total.pcs ? `${formatDec1((f.pcs / total.pcs) * 100)} %` : "–"}</td>
-                <td className={`${TD} border-neutral-200`}>{f.hasAvg && f.pcsA > 0 ? formatDec1(f.ttl / f.pcsA) : ""}</td>
-                <td className={`${TD} border-neutral-200`}>{f.hasAvg ? formatInt(Math.round(f.ttl)) : ""}</td>
+                <td className={`${TD} border-neutral-200`}>{f.hasAvg && f.pcsA > 0 ? formatDec1(f.ttl / f.pcsA) : "–"}</td>
+                <td className={`${TD} border-neutral-200`}>{f.hasAvg ? cell(f.ttl) : "–"}</td>
               </tr>
             ))}
           </tbody>

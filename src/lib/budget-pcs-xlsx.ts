@@ -29,8 +29,8 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
     const a = avgEff(r), st = stOf(r);
     const row = wsD.addRow([BLOCK_LABEL[r.block], r.fur, catOf(r.cat), dash(r.len), r.pcs, a, null, ...st, r.avg != null ? "вручную" : a != null ? "бюджет" : ""]);
     row.getCell(7).value = a != null ? { formula: `E${i + 2}*F${i + 2}`, result: r.pcs * a } : null;
-    row.getCell(6).numFmt = "0.0"; row.getCell(7).numFmt = "#,##0";
-    for (let k = 0; k < ST_LEN; k++) row.getCell(ST0 + k).numFmt = "#,##0";
+    row.getCell(5).numFmt = "#,##0;-#,##0;–"; row.getCell(6).numFmt = "0.0;-0.0;–"; row.getCell(7).numFmt = "#,##0;-#,##0;–";
+    for (let k = 0; k < ST_LEN; k++) row.getCell(ST0 + k).numFmt = "#,##0;-#,##0;–";
   });
   wsD.columns = [{ width: 20 }, { width: 16 }, { width: 26 }, { width: 10 }, { width: 10 }, { width: 14 }, { width: 12 }, ...ST_COLS.map(() => ({ width: 13 })), { width: 12 }];
   wsD.autoFilter = { from: "A1", to: `${colL(SRC_COL)}${rows.length + 1}` };
@@ -70,7 +70,7 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
       const cell = wsR.getCell(row, c);
       cell.font = { name: "Calibri", size: 9, bold, color: f && level <= 3 ? { argb: f.font } : undefined };
       if (f && level <= 3) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: f.fg } };
-      if (c > 1) { cell.alignment = { horizontal: "right" }; cell.numFmt = c === 3 ? "0.0" : c === 4 ? "#,##0;-#,##0;" : "#,##0;-#,##0;"; }
+      if (c > 1) { cell.alignment = { horizontal: "right" }; cell.numFmt = c === 3 ? "0.0;-0.0;–" : "#,##0;-#,##0;–"; }
     }
   };
   const writeNode = (n: PcsNode, keys: PcsNode["crit"]) => {
@@ -92,7 +92,7 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean } = 
     wsR.getCell(row, 1).value = n.label;
     wsR.getCell(row, 2).value = { formula: sumOf("E"), result: n.pcs };
     wsR.getCell(row, 4).value = { formula: sumOf("G"), result: n.ttl };
-    wsR.getCell(row, 3).value = { formula: `IF(${avgDen}>0,D${row}/(${avgDen}),"")`, result: n.hasAvg && n.pcsA > 0 ? n.ttl / n.pcsA : undefined };
+    wsR.getCell(row, 3).value = { formula: `IF(${avgDen}>0,D${row}/(${avgDen}),"–")`, result: n.hasAvg && n.pcsA > 0 ? n.ttl / n.pcsA : "–" };
     for (let j = 0; j < ST_LEN; j++) wsR.getCell(row, 5 + j).value = { formula: sumOf(colL(ST0 + j)), result: n.st[j] };
     style(row, n.level, n.level <= 3);
     wsR.getCell(row, 1).alignment = { indent: n.level === 4 ? 3 : n.level };
