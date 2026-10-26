@@ -22,9 +22,9 @@ const FILTERS: { id: "all" | PcsBlock; label: string; blocks: PcsBlock[] }[] = [
 const runs = <T,>(f: (c: (typeof ST_COLS)[number]) => T) => ST_COLS.reduce<{ v: T; n: number }[]>((a, c) => { const l = a[a.length - 1], v = f(c); if (l && l.v === v) l.n++; else a.push({ v, n: 1 }); return a; }, []);
 const TOP = runs(stTop), YEARS = runs(stYear);
 
-type Props = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; budget: { pcs: number; hides: number } | null; canEdit: boolean };
+type Props = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; canEdit: boolean };
 
-export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdit }: Props) {
+export function PcsView({ id, name, season, supplier, asOf, rows, canEdit }: Props) {
   const [detail, setDetail] = useState(false);
   const [stats, setStats] = useState(true);
   const [hideEmpty, setHideEmpty] = useState(true); // строки с нулевым бюджетом (PCS) скрыты, итоги считаются по всем
@@ -44,6 +44,9 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
   const blocks = FILTERS.find((f) => f.id === filter)!.blocks;
   const tree = useMemo(() => buildPcsView(cur, blocks), [cur, blocks]);
   const total = useMemo(() => sumRoots(tree), [tree]);
+  // Разбивка для виджетов: одежда и аксессуары отдельно (только включённые кнопкой).
+  const parts = useMemo(() => blocks.map((b) => ({ b, t: sumRoots(buildPcsView(cur, [b])) })), [cur, blocks]);
+  const by = (f: (t: ReturnType<typeof sumRoots>) => string) => (parts.length > 1 ? parts.map((x) => `${x.b === "RTW" ? "Одежда" : "Аксессуары"} ${f(x.t)}`).join(" · ") : undefined);
   const totalAvg = total.hasAvg && total.pcsA > 0 ? total.ttl / total.pcsA : null;
   // Сводка по типам меха: сумма по выбранным блокам.
   const furs = useMemo(() => {
@@ -125,11 +128,10 @@ export function PcsView({ id, name, season, supplier, asOf, rows, budget, canEdi
           className={"min-h-11 rounded-lg border px-4 text-sm " + (hideEmpty ? "border-[var(--ui-accent)] bg-[var(--ui-soft)] font-semibold" : "border-neutral-300 bg-white hover:border-neutral-500")}>Скрыть пустые</button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Stat label="Изделий, шт." value={formatInt(total.pcs)} />
-        <Stat label="Шкур всего" value={total.hasAvg ? formatInt(Math.round(total.ttl)) : "–"} />
-        <Stat label="Шкур на изделие, средневзв." value={totalAvg == null ? "–" : formatDec1(totalAvg)} />
-        <Stat label="В бюджете 2027" value={budget ? `${formatInt(budget.pcs)} шт.` : "–"} note={budget ? `${formatInt(budget.hides)} шкур · ${budget.pcs ? formatDec1(budget.hides / budget.pcs) : "–"} на изделие` : undefined} />
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <Stat label="Изделий, шт." value={formatInt(total.pcs)} note={by((t) => formatInt(t.pcs))} />
+        <Stat label="Шкур всего" value={total.hasAvg ? formatInt(Math.round(total.ttl)) : "–"} note={by((t) => (t.hasAvg ? formatInt(Math.round(t.ttl)) : "–"))} />
+        <Stat label="Шкур на изделие, средневзв." value={totalAvg == null ? "–" : formatDec1(totalAvg)} note={by((t) => (avgOf(t) == null ? "–" : formatDec1(avgOf(t)!)))} />
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">

@@ -17,7 +17,7 @@ export default async function PcsPage({ params }: { params: Promise<{ id: string
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Бюджеты и прогнозы", href: "/budget" }, { label: doc.name }]} />
-      <PcsView id={doc.id} name={doc.name} season={doc.season} supplier={doc.supplier} asOf={doc.asOf} rows={withBudgetAvg(doc.rows, budget)} budget={budget ? { pcs: budget.pcs, hides: Math.round(budget.hides) } : null} canEdit={EDIT_ROLES.includes(session.user.role)} />
+      <PcsView id={doc.id} name={doc.name} season={doc.season} supplier={doc.supplier} asOf={doc.asOf} rows={withBudgetAvg(doc.rows, budget)} canEdit={EDIT_ROLES.includes(session.user.role)} />
     </div>
   );
 }
