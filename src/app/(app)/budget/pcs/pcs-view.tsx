@@ -5,6 +5,8 @@ import { avgOf, buildPcsView, DEFAULT_PCS_PARAMS, type PcsParams, ST_COLS, ST_FI
 import { formatDec1, formatInt } from "@/lib/utils";
 import { exportPcsXlsx, savePcsParams, savePcsRows } from "./actions";
 
+// Заголовки сводки сырья: переносятся на две строки, чтобы колонки были узкими.
+const TH2 = "max-w-[7.5rem] px-2 py-1.5 text-right text-xs font-medium leading-tight text-neutral-500 border-l border-neutral-200";
 const TH = "whitespace-nowrap px-2 py-1.5 text-right text-xs font-medium text-neutral-500 border-l border-neutral-200";
 const TD = "whitespace-nowrap px-2 py-1.5 text-right text-sm tabular-nums border-l";
 // Тонкие линии между колонками и строками: цвет по уровню строки; пары колонок (EUR/PCS) отделены чуть заметнее.
@@ -167,7 +169,11 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full min-w-[480px]">
           <thead>
-            <tr className="border-b border-neutral-200"><th className="px-3 py-1.5 text-left text-xs font-medium text-neutral-500">По типам меха</th><th className={TH}>Шт.</th><th className={TH}>Доля</th><th className={TH}>Шкур на изд.</th><th className={TH}>Шкур всего (TTL)</th><th className={TH}>Шкур в наличии после производства по прогнозу</th><th className={TH}>Можно использовать ({pp.l} % / рысь {pp.y} %)</th><th className={TH}>Нужно из новой покупки</th><th className={TH}>Закупить (с учётом {pp.n} %)</th></tr>
+            <tr className="border-b border-neutral-200"><th className="px-3 py-1.5 text-left text-xs font-medium text-neutral-500">По типам меха</th><th className={TH2}>Шт.</th><th className={TH2}>Доля</th><th className={TH2}>Шкур на изд.</th><th className={TH2}>Шкур всего (TTL)</th>
+              <th className={TH2} title="Шкуры, которые останутся на складе после того, как сделаем все запланированные изделия (отчёт-прогноз)">Остаток после производства</th>
+              <th className={TH2} title="Остаток после производства × доля использования">Можно использовать<span className="block font-normal text-neutral-500">{pp.l} % · рысь {pp.y} %</span></th>
+              <th className={TH2} title="TTL минус то, что можно использовать">Нужно из новой покупки</th>
+              <th className={TH2} title="Нужное из новой покупки ÷ доля использования новой покупки">Закупить<span className="block font-normal text-neutral-500">с учётом {pp.n} %</span></th></tr>
           </thead>
           <tbody>
             <tr className="border-b border-neutral-200 bg-neutral-100 font-semibold">
