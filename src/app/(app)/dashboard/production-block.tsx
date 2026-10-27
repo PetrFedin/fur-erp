@@ -68,7 +68,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
   const split = (() => {
     if (!drill) return null;
     let done = 0, work = 0;
-    for (const o of drill.orders) { if (isRepair(o)) continue; if (o.st === "COMPLETED") done += o.qd ?? o.qty; else work += o.qo ?? o.qty; }
+    for (const o of drill.orders) { if (isRepair(o)) continue; const total = o.st === "COMPLETED" ? o.qty : (o.qo ?? o.qty); const got = o.qd ?? 0; done += got; work += Math.max(0, total - got); }
     return { done, work };
   })();
   const avg = fact.qty > 0 ? (cost(fact) - repairCost) / fact.qty : null;
@@ -166,8 +166,8 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
         <div role="group" aria-label="Объём таблиц" className={SEG_GROUP}>
           {([["ordered", "Заказано"], ["produced", "Произведено"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={volume === k} onClick={() => setVolume(k)} className={segCls(volume === k)}>{t}</button>)}
         </div>
-        {split ? <span className="text-xs text-neutral-600 tabular-nums">Произведено {formatQty(split.done)} шт. + в работе {formatQty(split.work)} шт. = в выпуске {formatQty(split.done + split.work)} шт.</span> : null}
-        <InfoHint label="Заказано и произведено" wide><p><b>Заказано</b> — все ТЗ (завершённые, в работе, запланированные) по плановому количеству. <b>Произведено</b> — только завершённые ТЗ по фактическому выпуску. Деньги и средние считаются по тем же ТЗ, что штуки.</p></InfoHint>
+        {split ? <span className="text-xs text-neutral-600 tabular-nums">Произведено (получено MVST РМ) {formatQty(split.done)} шт. + в работе / ждём прихода {formatQty(split.work)} шт. = в выпуске {formatQty(split.done + split.work)} шт.</span> : null}
+        <InfoHint label="Заказано и произведено" wide><p><b>Заказано</b> — все ТЗ (завершённые, в работе, запланированные) по плановому количеству. <b>Произведено</b> — только то, что получено MVST РМ (файл прихода), разложенное по ТЗ модели; что не получено, считается «в работе». Деньги и средние считаются по тем же ТЗ, что штуки.</p></InfoHint>
       </div>
       <ProductionTable search={search} volume={volume} />
       <AveragesTable data={drill} volume={volume} />

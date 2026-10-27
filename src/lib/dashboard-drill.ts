@@ -356,6 +356,6 @@ export function withVolume(data: DrillData | null, mode: VolumeMode): DrillData 
   if (!data) return data;
   const orders = mode === "ordered"
     ? data.orders.map((o) => (o.qo != null ? { ...o, qty: o.qo } : o))
-    : data.orders.filter((o) => o.st === "COMPLETED").map((o) => ({ ...o, qty: o.qd ?? o.qty }));
+    : data.orders.filter((o) => (o.qd ?? 0) > 0).map((o) => ({ ...o, qty: o.qd ?? 0 }));
   return { ...data, orders };
 }
