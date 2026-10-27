@@ -16,7 +16,7 @@ import { DASH, btn, d1, dateRu, money, n0, pct, seg, segGroup, spct, x2 } from "
 
 export type PhotoIdx = Record<string, { modelId: string; photos: { id: string; variant: string; color?: string; itemId?: string }[] }>;
 
-type Measure = { key: MKey; label: string; hint: React.ReactNode; money?: boolean; totalOnly?: boolean; fmt: (m: Ext) => string };
+type Measure = { key: MKey; label: string; hint: React.ReactNode; money?: boolean; eur?: boolean; totalOnly?: boolean; fmt: (m: Ext) => string };
 export const MEASURES: Measure[] = [
   { key: "conf", label: "Заказано (Conf)", totalOnly: true, hint: <p>Conf (TTL Conf PCS в Report): подтверждено заказов, шт. В Report нет дат и сезонов выгрузки, поэтому Conf есть только в строке «Всего» и по Категории 1.</p>, fmt: () => DASH },
   { key: "received", label: "Получено, шт.", hint: <p>Delivery: получено единиц по строкам прихода, корректировки с минусом учтены.</p>, fmt: (m) => n0(m.received) },
@@ -25,10 +25,12 @@ export const MEASURES: Measure[] = [
   { key: "stock", label: "Остаток, шт.", hint: <p>Расчётный остаток = получено − продано.</p>, fmt: (m) => n0(m.stock) },
   { key: "sellThrough", label: "SO", hint: <p>Продано ÷ получено, единицы. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений.</p>, fmt: (m) => pct(m.sellThrough) },
   { key: "revenue", label: "Выручка (Net sales)", money: true, hint: <p>Retail RUR после скидки, возвраты минус; с НДС или без — по переключателю.</p>, fmt: (m) => money(m.revenue) },
+  { key: "revenueEur", label: "Выручка (Net sales)", money: true, eur: true, hint: <p>Sales Retail EUR файла после скидки, возвраты минус; с НДС или без — по переключателю.</p>, fmt: (m) => eur(m.revenueEur) },
   { key: "grossRev", label: "Розница до скидки (Gross)", money: true, hint: <p>Gross = Выручка + Скидка (Discount).</p>, fmt: (m) => money(m.grossRev) },
   { key: "discountSum", label: "Скидка", money: true, hint: <p>Discount файла, уже вычтен из выручки.</p>, fmt: (m) => money(m.discountSum) },
   { key: "discountGiven", label: "Скидка, %", hint: <p>Скидка при продаже = Discount ÷ Gross.</p>, fmt: (m) => pct(m.discountGiven === null ? null : m.discountGiven, 1) },
   { key: "avgPrice", label: "Цена продажи, ₽/шт.", hint: <p>Выручка ÷ проданные штуки (средневзвешенно).</p>, fmt: (m) => money(m.avgPrice) },
+  { key: "avgPriceEur", label: "Цена продажи, €/шт.", hint: <p>Выручка в евро ÷ проданные штуки (средневзвешенно).</p>, fmt: (m) => eur(m.avgPriceEur) },
   { key: "priceBefore", label: "Цена до скидки, ₽/шт.", hint: <p>Gross ÷ проданные штуки (средневзвешенно).</p>, fmt: (m) => money(m.priceBefore) },
   { key: "listPrice", label: "Прайс, ₽/шт.", hint: <p>Цена прайса 19.10.2026, средняя по проданным штукам.</p>, fmt: (m) => money(m.listPrice) },
   { key: "priceToList", label: "К прайсу, %", hint: <p>Выручка с НДС ÷ (штуки × прайс) − 1.</p>, fmt: (m) => spct(m.priceToList) },
@@ -40,7 +42,8 @@ export const MEASURES: Measure[] = [
   { key: "firstReceipt", label: "Первая поставка", totalOnly: true, hint: <p>Дата первой строки прихода.</p>, fmt: (m) => dateRu(m.firstReceipt) },
   { key: "lastSale", label: "Последняя продажа", totalOnly: true, hint: <p>Дата последней строки продажи.</p>, fmt: (m) => dateRu(m.lastSale) },
 ];
-const DEF_TOTAL: MKey[] = ["received", "sold", "stock", "revenue", "grossRev", "discountSum", "discountGiven", "avgPrice"];
+const eur = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? DASH : Math.round(v).toLocaleString("ru-RU") + " €");
+const DEF_TOTAL: MKey[] = ["conf", "received", "sold", "stock", "revenue", "revenueEur", "grossRev", "discountSum", "discountGiven", "avgPrice"];
 const DEF_NARROW: MKey[] = ["sold", "stock", "revenue"];
 
 const th = "px-2 text-right text-xs font-semibold whitespace-nowrap";
@@ -204,12 +207,12 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
             <tr className="border-b border-neutral-300">
               {heads.map((h, gi) => msOf(gi).map((ms) => (
                 <th key={h + ms.key} scope="col" className={th + " sticky top-9 z-[2] h-9 bg-white font-normal text-neutral-700"}>
-                  {ms.label}{ms.money ? ", ₽" : ""}{gi === 0 ? <InfoHint label={`Как считается: ${ms.label}`} wide>{ms.hint}</InfoHint> : null}
+                  {ms.label}{ms.money ? (ms.eur ? ", €" : ", ₽") : ""}{gi === 0 ? <InfoHint label={`Как считается: ${ms.label}`} wide>{ms.hint}</InfoHint> : null}
                 </th>
               )))}
             </tr>
           </thead>
-          <tbody>{tree.children.map((c) => renderNode(c, 0))}</tbody>
+          <tbody>{renderNode(tree, 0)}</tbody>
         </table>
       </div>
     </section>

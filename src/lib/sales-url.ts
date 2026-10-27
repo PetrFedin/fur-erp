@@ -1,7 +1,7 @@
 // Состояние страницы «Продажи и остатки» в адресе: разбор параметров и сборка ссылки. Чистые функции.
 import { NO_FILTERS, parseStruct, type Cat, type Filters, type Gran, type Struct } from "@/lib/sales-section";
 
-export const MKEYS = ["conf", "received", "sold", "returns", "revenue", "discountSum", "discountGiven", "avgPrice", "grossRev", "priceBefore", "listPrice", "priceToList", "unitCost", "markupW", "grossProfit", "grossMarginPct", "stock", "sellThrough", "coverMonths", "firstReceipt", "lastSale"] as const;
+export const MKEYS = ["conf", "received", "sold", "returns", "revenue", "revenueEur", "discountSum", "discountGiven", "avgPrice", "avgPriceEur", "grossRev", "priceBefore", "listPrice", "priceToList", "unitCost", "markupW", "grossProfit", "grossMarginPct", "stock", "sellThrough", "coverMonths", "firstReceipt", "lastSale"] as const;
 export type MKey = (typeof MKEYS)[number];
 export type Tab = "overview" | "seasons" | "stock" | "top";
 export const TABS: { key: Tab; label: string }[] = [
