@@ -135,10 +135,19 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
   };
 
   const exportCsv = () => {
-    const head = ["Уровень", "Позиция", ...(["Всего", ...groups.map((g) => g.head)].flatMap((h, gi) => measures.filter((ms) => gi === 0 || !ms.totalOnly).map((ms) => `${h}: ${ms.label}`)))];
+    // В CSV — числа (не «368 127 401 ₽» и не «5,9 %»): единица измерения в заголовке, пустое — пусто; даты и текст остаются текстом.
+    const PCT_KEYS: MKey[] = ["discountGiven", "sellThrough", "priceToList", "grossMarginPct"];
+    const unit = (ms: Measure) => (ms.money ? (ms.eur ? ", €" : ", ₽") : PCT_KEYS.includes(ms.key) ? ", %" : "");
+    const csvCell = (t: string): string => {
+      const v = t.trim();
+      if (v === "" || v === DASH || v === "—" || v === "–") return "";
+      const m = /^([−-]?)\s*([\d\s\u00a0\u202f]+(?:[,.]\d+)?)\s*(?:₽|€|%|шт\.?)?$/.exec(v);
+      return m ? (m[1] ? "-" : "") + m[2].replace(/[\s\u00a0\u202f]/g, "") : v;
+    };
+    const head = ["Уровень", "Позиция", ...(["Всего", ...groups.map((g) => g.head)].flatMap((h, gi) => measures.filter((ms) => gi === 0 || !ms.totalOnly).map((ms) => `${h}: ${ms.label}${unit(ms)}`)))];
     const rows: (string | number | null)[][] = [];
     walkTree(tree, (n, depth) => {
-      rows.push([depth === 0 ? "Всего" : SDIM_LABEL[n.dim], n.label, ...n.cols.flatMap((m, gi) => measures.filter((ms) => gi === 0 || !ms.totalOnly).map((ms) => cell(ms, n, m, gi)))]);
+      rows.push([depth === 0 ? "Всего" : SDIM_LABEL[n.dim], n.label, ...n.cols.flatMap((m, gi) => measures.filter((ms) => gi === 0 || !ms.totalOnly).map((ms) => csvCell(cell(ms, n, m, gi))))]);
     });
     const blob = new Blob([toCsv(head, rows)], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
