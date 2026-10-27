@@ -5,7 +5,9 @@ import { formatMoney } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { AcceptPriceButton } from "@/app/(app)/analytics/pricing/accept-price-button";
 
-export type PriceModel = { id: string; name: string; current: number | null; rows: { acode: string; color: string; size: string; price: number }[] };
+export type PriceModel = { id: string; name: string; current: number | null; rows: { acode: string; color: string; size: string; price: number }[];
+  /** Реальные цены из продаж по артикулу и цвету: (Retail + Discount) ÷ проданные шт.; нет продаж — записи нет. */
+  real: { acode: string; color: string; pcs: number; price: number; discPct: number }[] };
 
 const th = "px-2 py-2 text-right text-xs font-semibold whitespace-nowrap";
 const td = "px-2 py-1.5 text-right text-sm tabular-nums whitespace-nowrap";
@@ -21,7 +23,7 @@ export function PricesBlock({ models, canEdit }: { models: PriceModel[]; canEdit
   return (
     <section aria-label="Розничные цены" className="flex min-w-0 scroll-mt-16 flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3">
       <h2 className="flex items-center gap-1 text-sm font-semibold">Розница по прайсу на 19.10.2026
-        <InfoHint label="Про цены прайса" wide><p>Главная цена — в карточке артикула, прайс — справочник (цены с НДС, 257 строк). Расхождение видно в строке, «Взять из прайса» обновляет карточку с подтверждением и записью в журнал.</p></InfoHint>
+        <InfoHint label="Про цены прайса" wide><p>Главная цена — в карточке артикула, прайс — справочник (цены с НДС, 257 строк). Расхождение видно в строке, «Взять из прайса» обновляет карточку с подтверждением и записью в журнал.</p><p className="mt-1"><b>Цена по продажам</b> = (Retail RUR + Discount RUR) ÷ проданные штуки по артикулу и цвету, с НДС — реальная цена до скидки; «К прайсу» — во сколько она отличается от прайса. Где продаж не было, цены нет и мы её не подставляем.</p></InfoHint>
       </h2>
       {models.length === 0 ? <p className="text-sm text-neutral-700">Прайс ещё не загружен.</p> : (
         <div className="max-h-[70vh] w-full min-w-0 max-w-full overflow-auto rounded-lg border border-neutral-300" tabIndex={0} role="region" aria-label="Цены по моделям">
@@ -32,6 +34,9 @@ export function PricesBlock({ models, canEdit }: { models: PriceModel[]; canEdit
                 <th scope="col" className={th + " sticky top-0 bg-white"}>Розница (прайс), с НДС</th>
                 <th scope="col" className={th + " sticky top-0 bg-white"}>В карточке изделия</th>
                 <th scope="col" className={th + " sticky top-0 bg-white text-left"}>Карточка и прайс</th>
+                <th scope="col" className={th + " sticky top-0 bg-white"} title="Проданные штуки (без возвратов)">Продано, шт.</th>
+                <th scope="col" className={th + " sticky top-0 bg-white"} title="(Retail RUR + Discount RUR) ÷ проданные штуки: цена до скидки по факту продаж, с НДС">Цена по продажам, до скидки</th>
+                <th scope="col" className={th + " sticky top-0 bg-white"} title="Цена по продажам ÷ цена прайса − 1">К прайсу</th>
               </tr>
             </thead>
             <tbody>
@@ -70,6 +75,19 @@ export function PricesBlock({ models, canEdit }: { models: PriceModel[]; canEdit
                           </span>
                         ) : <span className="text-neutral-700">совпадает</span>}
                       </td>
+                      {(() => {
+                        const pcs = m.real.reduce((t, r) => t + r.pcs, 0);
+                        if (!pcs) return <td className={td + " text-neutral-500"} colSpan={3}>продаж нет — цену не ставим</td>;
+                        const avg = m.real.reduce((t, r) => t + r.price * r.pcs, 0) / pcs;
+                        const list = m.rows.filter((r) => m.real.some((x) => x.acode === r.acode && x.color === r.color)).map((r) => r.price);
+                        const listAvg = list.length ? list.reduce((t, v) => t + v, 0) / list.length : null;
+                        const d = listAvg ? avg / listAvg - 1 : null;
+                        return (<>
+                          <td className={td}>{pcs}</td>
+                          <td className={td}>{m.real.length > 1 ? range(m.real.map((r) => Math.round(r.price))) : formatMoney(Math.round(avg))}</td>
+                          <td className={td + (d !== null && Math.abs(d) >= 0.02 ? (d < 0 ? " text-[#b4310b]" : " text-[#17613c]") : "")}>{d === null ? "—" : `${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d * 100).toFixed(0)} %`}</td>
+                        </>);
+                      })()}
                     </tr>
                     {isOpen && arts.map((a) => {
                       const ar = m.rows.filter((r) => r.acode === a);
@@ -81,6 +99,16 @@ export function PricesBlock({ models, canEdit }: { models: PriceModel[]; canEdit
                             <th scope="row" className="sticky left-0 z-[1] bg-neutral-50 py-1.5 pl-10 pr-2 text-left text-sm font-normal">{a} · {c}</th>
                             <td className={td}>{range(cr.map((r) => r.price))}</td>
                             <td className="px-2 py-1.5 text-left text-xs text-neutral-700" colSpan={2}>размеры: {cr.map((r) => `${r.size} — ${formatMoney(r.price)}`).join("; ")}</td>
+                            {(() => {
+                              const x = m.real.find((r) => r.acode === a && r.color === c);
+                              if (!x) return <td className={td + " text-xs text-neutral-500"} colSpan={3}>продаж нет</td>;
+                              const lp = cr.reduce((t, r) => t + r.price, 0) / cr.length, d = x.price / lp - 1;
+                              return (<>
+                                <td className={td}>{x.pcs}</td>
+                                <td className={td} title={`Скидка в продажах ${x.discPct.toFixed(1)} %`}>{formatMoney(Math.round(x.price))}</td>
+                                <td className={td + (Math.abs(d) >= 0.02 ? (d < 0 ? " text-[#b4310b]" : " text-[#17613c]") : "")}>{`${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d * 100).toFixed(0)} %`}</td>
+                              </>);
+                            })()}
                           </tr>
                         );
                       });
