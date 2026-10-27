@@ -161,7 +161,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
           if (!fw27 || level < 1 || level > 4 || ctx.acc || n.crit.group || !fur) return label;
           const crit: Crit = { fur, ...(n.crit.cat ? { cat: n.crit.cat } : {}), ...(n.crit.len ? { len: n.crit.len } : {}) };
           const cnt = photoCount(slidesFor(fw27, crit));
-          return cnt ? <span className="flex items-center justify-between gap-3 whitespace-nowrap">{label}<button type="button" onClick={() => setPhotoSel({ crit, title: [crit.fur, crit.cat, crit.len].filter(Boolean).join(" · ") })} aria-label={`Фото из презентации: ${label}, ${cnt} шт.`} className="-my-0.5 inline-flex min-h-6 shrink-0 items-center rounded border border-current/40 px-1.5 text-[11px] leading-none font-normal opacity-90 hover:opacity-100">Фото {cnt}</button></span> : label;
+          return <span className="flex items-center justify-between gap-3 whitespace-nowrap">{label}<button type="button" onClick={() => setPhotoSel({ crit, title: [crit.fur, crit.cat, crit.len].filter(Boolean).join(" · ") })} aria-label={`Фото из презентации: ${label}, ${cnt} шт.`} className={`-my-0.5 inline-flex min-h-6 shrink-0 items-center rounded border px-1.5 text-[11px] font-normal leading-none hover:opacity-100 ${cnt ? "border-current/40 opacity-90" : "border-dashed border-current/50 opacity-60"}`}>Фото {cnt}</button></span>;
         })()}</td>
         <td className={`${TD} ${LINE_STRONG[level]}`}>{editable ? inp(vals[i].pcs, (v) => edit(i, "pcs", v), "w-16", "Штуки") : cell(n.pcs)}</td>
         <td className={`${TD} ${LINE[level]}`}>{editable ? inp(vals[i].avg, (v) => edit(i, "avg", v), "w-16", "Шкур на изделие", n.leaf?.avgB != null ? String(Math.round(n.leaf.avgB * 10) / 10) : undefined)
@@ -309,7 +309,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
         </table>
       </div>
       {fw27 ? <Fw27Compare data={fw27} rows={cur} onOpen={(crit, title) => setPhotoSel({ crit, title })} /> : null}
-      {fw27 && photoSel ? <Fw27Dialog key={photoSel.title} canReplace={detail && canEdit} data={fw27} crit={photoSel.crit} title={photoSel.title} onClose={() => setPhotoSel(null)} /> : null}
+      {fw27 && photoSel ? <Fw27Dialog key={photoSel.title} canEdit={detail && canEdit} cats={[...new Set(cur.filter((r) => r.block === "RTW" && r.fur === photoSel.crit.fur).map((r) => r.cat))]} data={fw27} crit={photoSel.crit} title={photoSel.title} onClose={() => setPhotoSel(null)} /> : null}
       <p className="text-xs text-neutral-500">AVG — норма шкур на изделие из бюджета 2027 (при правке в «Детально» подменяется вручную). Продажи: NS AS, EUR без НДС; у аксессуаров «Другие бренды» — вся колонка Other из файла. Кнопки «Вместе / Одежда / Аксессуары» и «Скрыть пустые» (строки с нулевым бюджетом; итоги остаются полными) действуют и на Excel.</p>
     </div>
   );

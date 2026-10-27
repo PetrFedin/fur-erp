@@ -83,23 +83,21 @@ export async function savePcsParams(id: string, p: PcsParams): Promise<Res> {
   return { ok: true };
 }
 
-/** Заменить фото из презентации FW27: загруженный файл (jpg/png/webp, до 8 МБ) сжимается до 640×900 и ложится на место прежнего; версия в описании слайдов обновляется. */
-export async function replaceFw27Photo(formData: FormData): Promise<Res<{ v: number }>> {
-  const session = await requireRole(...EDIT);
-  const orgId = session.user.organizationId;
-  const file = s(formData.get("file_name"), 20);
-  const up = formData.get("file");
-  if (!/^\d{2}-\d{1,2}\.jpg$/.test(file)) return { ok: false, error: "Неверное имя фото" };
-  if (!(up instanceof File) || up.size === 0) return { ok: false, error: "Файл не выбран" };
-  if (up.size > 8 * 1024 * 1024) return { ok: false, error: "Файл больше 8 МБ" };
-  if (!/^image\/(jpeg|png|webp)$/.test(up.type)) return { ok: false, error: "Нужна картинка JPG, PNG или WebP" };
+// ── Фото из презентации FW27/28: заменить, добавить (в том числе туда, где фото ещё нет), править количество и подпись, удалить своё ──
+const FW27_FILE = /^(\d{2}-\d{1,2}|c-[a-z0-9]{6,12})\.jpg$/;
+type Fw27 = import("@/lib/fw27-presentation").Fw27Data;
+async function fw27Load(orgId: string) {
   const { prisma } = await import("@/lib/prisma");
   const { FW27_STATE } = await import("@/lib/fw27-presentation");
-  type Data = import("@/lib/fw27-presentation").Fw27Data;
   const key = { organizationId_key: { organizationId: orgId, key: FW27_STATE } };
   const cur = await prisma.systemState.findUnique({ where: key, select: { value: true } });
-  const data = cur?.value as Data | undefined;
-  if (!data || !data.slides.some((sl) => sl.items.some((it) => it.file === file))) return { ok: false, error: "Фото не найдено в презентации" };
+  return { prisma, key, data: (cur?.value as Fw27 | undefined) ?? null, FW27_STATE };
+}
+/** Файл из формы → JPEG до 640×900 в uploads/fw27/<file>. Возвращает текст ошибки или null. */
+async function fw27SaveImage(up: unknown, file: string): Promise<string | null> {
+  if (!(up instanceof File) || up.size === 0) return "Файл не выбран";
+  if (up.size > 8 * 1024 * 1024) return "Файл больше 8 МБ";
+  if (!/^image\/(jpeg|png|webp)$/.test(up.type)) return "Нужна картинка JPG, PNG или WebP";
   const sharp = (await import("sharp")).default;
   const buf = await sharp(Buffer.from(await up.arrayBuffer())).rotate().resize({ width: 640, height: 900, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer();
   const { mkdir, writeFile } = await import("node:fs/promises");
@@ -107,9 +105,74 @@ export async function replaceFw27Photo(formData: FormData): Promise<Res<{ v: num
   const dir = path.join(process.cwd(), "uploads", "fw27");
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, file), buf);
+  return null;
+}
+const pcsOf = (v: unknown) => { const n = parseFloat(String(v ?? "").replace(",", ".")); return Number.isFinite(n) && n >= 0 ? Math.min(Math.round(n), 100000) : null; };
+
+/** Заменить фото из презентации: файл (jpg/png/webp, до 8 МБ) сжимается и ложится на место прежнего; версия в описании обновляется. */
+export async function replaceFw27Photo(formData: FormData): Promise<Res<{ v: number }>> {
+  const session = await requireRole(...EDIT);
+  const file = s(formData.get("file_name"), 20);
+  if (!FW27_FILE.test(file)) return { ok: false, error: "Неверное имя фото" };
+  const { prisma, key, data } = await fw27Load(session.user.organizationId);
+  if (!data || !data.slides.some((sl) => sl.items.some((it) => it.file === file))) return { ok: false, error: "Фото не найдено в презентации" };
+  const err = await fw27SaveImage(formData.get("file"), file);
+  if (err) return { ok: false, error: err };
   const v = Date.now();
-  const next: Data = { ...data, slides: data.slides.map((sl) => ({ ...sl, items: sl.items.map((it) => (it.file === file ? { ...it, v } : it)) })) };
+  const next: Fw27 = { ...data, slides: data.slides.map((sl) => ({ ...sl, items: sl.items.map((it) => (it.file === file ? { ...it, v } : it)) })) };
   await prisma.systemState.update({ where: key, data: { value: next as object } });
   revalidateAll();
   return { ok: true, v };
+}
+
+/** Добавить фото к строке плана: мех, категория, длина (или без длины), «CO / новые», количество и подпись. Нет слайда для такой строки — создаётся «Добавлено вручную». */
+export async function addFw27Photo(formData: FormData): Promise<Res<{ file: string }>> {
+  const session = await requireRole(...EDIT);
+  const fur = s(formData.get("fur"), 40), cat = s(formData.get("cat"), 60), len = s(formData.get("len"), 10);
+  const kind = s(formData.get("kind"), 4) === "CO" ? "CO" : "NEW";
+  if (!fur || !cat) return { ok: false, error: "Укажите мех и категорию" };
+  if (len && !["Short", "Regular", "Long"].includes(len)) return { ok: false, error: "Неверная длина" };
+  const { prisma, key, data, FW27_STATE } = await fw27Load(session.user.organizationId);
+  const base: Fw27 = data ?? { source: "добавлено вручную", asOf: new Date().toISOString().slice(0, 10), slides: [] };
+  const file = `c-${Math.random().toString(36).slice(2, 10)}.jpg`;
+  const err = await fw27SaveImage(formData.get("file"), file);
+  if (err) return { ok: false, error: err };
+  const pcs = pcsOf(formData.get("pcs"));
+  const item = { id: file.replace(".jpg", ""), file, pcs, pcsText: pcs === null ? null : `${pcs} pcs`, caption: s(formData.get("caption"), 120) || null, v: Date.now() };
+  const slides = [...base.slides];
+  const at = slides.findIndex((sl) => sl.page === 0 && sl.fur === fur && sl.cat === cat && (sl.len ?? "") === len && sl.kind === kind);
+  if (at >= 0) slides[at] = { ...slides[at], items: [...slides[at].items, item] };
+  else slides.push({ page: 0, title: kind === "CO" ? `CO: ${fur} · ${cat} (добавлено вручную)` : `Новые модели: ${fur} · ${cat} (добавлено вручную)`, kind, fur, cat, len: (len || null) as Fw27["slides"][number]["len"], items: [item] });
+  const value = { ...base, slides } as object;
+  await prisma.systemState.upsert({ where: key, create: { organizationId: session.user.organizationId, key: FW27_STATE, value }, update: { value } });
+  revalidateAll();
+  return { ok: true, file };
+}
+
+/** Править количество и подпись под фото (пустое количество — «без числа»). */
+export async function updateFw27Item(file: string, patch: { pcs: string; caption: string }): Promise<Res> {
+  const session = await requireRole(...EDIT);
+  if (!FW27_FILE.test(file)) return { ok: false, error: "Неверное имя фото" };
+  const { prisma, key, data } = await fw27Load(session.user.organizationId);
+  if (!data) return { ok: false, error: "Презентация не загружена" };
+  const pcs = pcsOf(patch.pcs);
+  const next: Fw27 = { ...data, slides: data.slides.map((sl) => ({ ...sl, items: sl.items.map((it) => (it.file === file ? { ...it, pcs, pcsText: pcs === null ? null : `${pcs} pcs`, caption: s(patch.caption, 120) || null } : it)) })) };
+  await prisma.systemState.update({ where: key, data: { value: next as object } });
+  revalidateAll();
+  return { ok: true };
+}
+
+/** Удалить добавленное вручную фото (фото из PDF не удаляются, их можно заменить). */
+export async function deleteFw27Photo(file: string): Promise<Res> {
+  const session = await requireRole(...EDIT);
+  if (!/^c-[a-z0-9]{6,12}\.jpg$/.test(file)) return { ok: false, error: "Удалять можно только добавленные вручную фото" };
+  const { prisma, key, data } = await fw27Load(session.user.organizationId);
+  if (!data) return { ok: false, error: "Презентация не загружена" };
+  const slides = data.slides.map((sl) => ({ ...sl, items: sl.items.filter((it) => it.file !== file) })).filter((sl) => sl.page !== 0 || sl.items.length > 0);
+  await prisma.systemState.update({ where: key, data: { value: { ...data, slides } as object } });
+  const { unlink } = await import("node:fs/promises");
+  const path = await import("node:path");
+  await unlink(path.join(process.cwd(), "uploads", "fw27", file)).catch(() => undefined);
+  revalidateAll();
+  return { ok: true };
 }

@@ -2,31 +2,51 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { compareWithPlan, KIND_LABEL, photoCount, photoSrc, slidePcs, slidesFor, type Crit, type Fw27Data, type Fw27Slide } from "@/lib/fw27-presentation";
-import { replaceFw27Photo } from "./actions";
+import { useRouter } from "next/navigation";
+import { addFw27Photo, deleteFw27Photo, replaceFw27Photo, updateFw27Item } from "./actions";
 import type { PcsRow } from "@/lib/budget-pcs";
 import { formatInt } from "@/lib/utils";
 
 const dash = (v: number) => (v ? formatInt(Math.round(v)) : "–");
 const signed = (v: number) => (v === 0 ? "–" : (v > 0 ? "+" : "−") + formatInt(Math.abs(Math.round(v))));
 
-/** Окно с фото из презентации FW27 для выбранной строки плана: по слайдам (CO / новые модели), штуки на каждом фото; клик по фото — крупно. */
-export function Fw27Dialog({ data, crit, title, onClose, canReplace = false }: { data: Fw27Data; crit: Crit; title: string; onClose: () => void; /** «Детально» + права: у каждого фото кнопка «Заменить фото». */ canReplace?: boolean }) {
+const LENS: [string, string][] = [["", "без длины"], ["Short", "Short"], ["Regular", "Regular"], ["Long", "Long"]];
+const fld = "min-h-9 rounded border border-neutral-300 bg-white px-2 text-sm";
+
+/** Окно с фото из презентации FW27 для выбранной строки плана: по слайдам (CO / новые модели), штуки на каждом фото; клик по фото — крупно.
+ *  В «Детально» (canEdit): добавить фото к строке (в том числе где фото ещё нет), заменить, поправить количество и подпись, удалить своё. */
+export function Fw27Dialog({ data, crit, title, onClose, canEdit = false, cats }: { data: Fw27Data; crit: Crit; title: string; onClose: () => void; canEdit?: boolean; /** Категории меха из плана — для выбора при добавлении. */ cats: string[] }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const router = useRouter();
   const [big, setBig] = useState<{ src: string; cap: string } | null>(null);
   const [ver, setVer] = useState<Record<string, number>>({}); // версии заменённых фото: сразу видно новое, без перезагрузки
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState("");
-  const srcOf = (it: { file: string; v?: number }) => photoSrc({ file: it.file, v: ver[it.file] ?? it.v });
-  const replace = async (file: string, f: File | undefined) => {
-    if (!f) return;
-    setBusy(file); setErr("");
-    const fd = new FormData(); fd.set("file_name", file); fd.set("file", f);
-    try { const r = await replaceFw27Photo(fd); if (r.ok) setVer((p) => ({ ...p, [file]: r.v })); else setErr(r.error); } catch { setErr("Не удалось загрузить фото"); } finally { setBusy(null); }
-  };
   useEffect(() => { ref.current?.showModal(); }, []);
   const slides = useMemo(() => slidesFor(data, crit), [data, crit]);
   const total = slides.reduce((t, s) => t + slidePcs(s), 0);
-  const pagesLabel = (s: Fw27Slide) => `слайд ${s.page}`;
+  const [adding, setAdding] = useState(false);
+  const catOptions = useMemo(() => [...new Set([...(crit.cat ? [crit.cat] : []), ...cats])], [crit.cat, cats]);
+  const [form, setForm] = useState({ cat: crit.cat ?? catOptions[0] ?? "", len: crit.len ?? "", kind: "NEW", pcs: "", caption: "" });
+  const [newFile, setNewFile] = useState<File | null>(null);
+  const srcOf = (it: { file: string; v?: number }) => photoSrc({ file: it.file, v: ver[it.file] ?? it.v });
+  const run = async (key: string, fn: () => Promise<{ ok: boolean; error?: string }>) => {
+    setBusy(key); setErr("");
+    try { const r = await fn(); if (!r.ok) setErr(r.error ?? "Не получилось"); else router.refresh(); return r.ok; } catch { setErr("Не удалось выполнить"); return false; } finally { setBusy(null); }
+  };
+  const replace = (file: string, f: File | undefined) => {
+    if (!f) return;
+    const fd = new FormData(); fd.set("file_name", file); fd.set("file", f);
+    void run(file, async () => { const r = await replaceFw27Photo(fd); if (r.ok) setVer((p) => ({ ...p, [file]: r.v })); return r; });
+  };
+  const add = async () => {
+    if (!newFile) { setErr("Выберите фото"); return; }
+    if (!form.cat) { setErr("Выберите категорию"); return; }
+    const fd = new FormData();
+    fd.set("fur", crit.fur ?? ""); fd.set("cat", form.cat); fd.set("len", form.len); fd.set("kind", form.kind); fd.set("pcs", form.pcs); fd.set("caption", form.caption); fd.set("file", newFile);
+    const ok = await run("add", () => addFw27Photo(fd));
+    if (ok) { setNewFile(null); setForm((f) => ({ ...f, pcs: "", caption: "" })); setAdding(false); }
+  };
   return (
     <dialog ref={ref} onClose={onClose} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }} className="m-auto w-[calc(100vw-2rem)] max-w-5xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
       <div className="max-h-[90vh] overflow-y-auto p-4">
@@ -34,17 +54,43 @@ export function Fw27Dialog({ data, crit, title, onClose, canReplace = false }: {
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Презентация FW27/28 · что хотят</div>
             <div className="text-lg font-semibold">{title}</div>
-            {err ? <p role="alert" className="mt-1 text-sm text-[#b4310b]">{err}</p> : null}
             <div className="text-sm text-neutral-600">{photoCount(slides)} фото · {total ? `${formatInt(total)} шт. по подписям` : "штуки не указаны"}</div>
+            {err ? <p role="alert" className="mt-1 text-sm text-[#b4310b]">{err}</p> : null}
           </div>
-          <button type="button" onClick={() => ref.current?.close()} className="min-h-11 rounded-lg border border-neutral-300 px-3 text-sm hover:bg-neutral-50">✕ Закрыть</button>
+          <div className="flex items-center gap-2">
+            {canEdit ? <button type="button" aria-expanded={adding} onClick={() => setAdding((v) => !v)} className="min-h-11 rounded-lg border border-neutral-300 bg-neutral-900 px-3 text-sm text-white hover:bg-neutral-700">＋ Добавить фото</button> : null}
+            <button type="button" onClick={() => ref.current?.close()} className="min-h-11 rounded-lg border border-neutral-300 px-3 text-sm hover:bg-neutral-50">✕ Закрыть</button>
+          </div>
         </div>
-        {slides.length === 0 ? <p className="py-6 text-center text-sm text-neutral-500">В презентации для этой строки фото нет.</p> : slides.map((s) => (
-          <section key={s.page} className="mb-4">
+        {canEdit && (adding || slides.length === 0) ? (
+          <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-dashed border-neutral-400 bg-neutral-50 p-3">
+            <label className="flex flex-col gap-1 text-xs text-neutral-600">Фото
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setNewFile(e.target.files?.[0] ?? null)} className="max-w-[16rem] text-sm" />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-neutral-600">Категория
+              <select value={form.cat} onChange={(e) => setForm((f) => ({ ...f, cat: e.target.value }))} className={fld}>{catOptions.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-neutral-600">Длина
+              <select value={form.len} onChange={(e) => setForm((f) => ({ ...f, len: e.target.value }))} className={fld}>{LENS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-neutral-600">Модели
+              <select value={form.kind} onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value }))} className={fld}><option value="NEW">Новые модели</option><option value="CO">CO (прошлые)</option></select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-neutral-600">Штук
+              <input inputMode="numeric" value={form.pcs} onChange={(e) => setForm((f) => ({ ...f, pcs: e.target.value }))} className={fld + " w-20 text-right"} />
+            </label>
+            <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-xs text-neutral-600">Подпись
+              <input value={form.caption} onChange={(e) => setForm((f) => ({ ...f, caption: e.target.value }))} placeholder="например, цвет или описание" className={fld} />
+            </label>
+            <button type="button" disabled={busy !== null} onClick={() => void add()} className="min-h-11 rounded-lg bg-neutral-900 px-4 text-sm text-white disabled:opacity-60">{busy === "add" ? "Загружаю…" : "Добавить"}</button>
+          </div>
+        ) : null}
+        {slides.length === 0 ? <p className="py-6 text-center text-sm text-neutral-500">В презентации для этой строки фото нет.{canEdit ? " Добавьте фото выше." : " Добавлять фото можно в режиме «Детально»."}</p> : slides.map((s, si) => (
+          <section key={`${s.page}-${s.kind}-${s.len}-${si}`} className="mb-4">
             <h3 className="mb-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold">
               <span className={"rounded px-1.5 py-0.5 text-xs " + (s.kind === "NEW" ? "bg-emerald-100 text-emerald-900" : "bg-neutral-200 text-neutral-800")}>{s.kind ? KIND_LABEL[s.kind] : "Модели"}</span>
               <span>{s.title.replace(/^(CO|СО|Новые модели|Новые короткие модели):?\s*/i, "") || s.title}</span>
-              <span className="text-xs font-normal text-neutral-500">{pagesLabel(s)}{s.len ? ` · ${s.len}` : ""}{s.lenInherited ? " (длина по предыдущему слайду)" : ""}</span>
+              <span className="text-xs font-normal text-neutral-500">{s.page ? `слайд ${s.page}` : "добавлено вручную"}{s.len ? ` · ${s.len}` : ""}{s.lenInherited ? " (длина по предыдущему слайду)" : ""}</span>
             </h3>
             <div className="flex flex-wrap gap-3">
               {s.items.map((it) => (
@@ -53,13 +99,23 @@ export function Fw27Dialog({ data, crit, title, onClose, canReplace = false }: {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={srcOf(it)} alt={it.caption ?? s.title} loading="lazy" className="aspect-[3/4] w-full object-cover" />
                   </button>
-                  <figcaption className="mt-1 text-xs leading-4 text-neutral-700"><b>{it.pcsText ?? "—"}</b>{it.caption ? <span className="block text-neutral-500">{it.caption}</span> : null}</figcaption>
-                  {canReplace ? (
-                    <label className="mt-1 inline-flex min-h-9 cursor-pointer items-center rounded-md border border-neutral-300 px-2 text-xs hover:border-neutral-500">
-                      {busy === it.file ? "Загружаю…" : "Заменить фото"}
-                      <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={busy !== null} onChange={(e) => { void replace(it.file, e.target.files?.[0]); e.target.value = ""; }} />
-                    </label>
-                  ) : null}
+                  {canEdit ? (
+                    <div key={`${it.pcs}|${it.caption}`} className="mt-1 flex flex-col gap-1">
+                      <div className="flex gap-1">
+                        <input inputMode="numeric" aria-label="Штук" defaultValue={it.pcs ?? ""} placeholder="шт." onBlur={(e) => { if (e.target.value !== String(it.pcs ?? "")) void run("u" + it.file, () => updateFw27Item(it.file, { pcs: e.target.value, caption: it.caption ?? "" })); }} className={fld + " w-14 text-right text-xs"} />
+                        <input aria-label="Подпись" defaultValue={it.caption ?? ""} placeholder="подпись" onBlur={(e) => { if (e.target.value !== (it.caption ?? "")) void run("u" + it.file, () => updateFw27Item(it.file, { pcs: String(it.pcs ?? ""), caption: e.target.value })); }} className={fld + " min-w-0 flex-1 text-xs"} />
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        <label className="inline-flex min-h-9 cursor-pointer items-center rounded-md border border-neutral-300 px-2 text-xs hover:border-neutral-500">
+                          {busy === it.file ? "Загружаю…" : "Заменить фото"}
+                          <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={busy !== null} onChange={(e) => { replace(it.file, e.target.files?.[0]); e.target.value = ""; }} />
+                        </label>
+                        {it.file.startsWith("c-") ? <button type="button" disabled={busy !== null} onClick={() => { if (window.confirm("Удалить это фото?")) void run("d" + it.file, () => deleteFw27Photo(it.file)); }} className="min-h-9 rounded-md border border-neutral-300 px-2 text-xs text-[#b4310b] hover:border-[#b4310b]">Удалить</button> : null}
+                      </div>
+                    </div>
+                  ) : (
+                    <figcaption className="mt-1 text-xs leading-4 text-neutral-700"><b>{it.pcsText ?? "—"}</b>{it.caption ? <span className="block text-neutral-500">{it.caption}</span> : null}</figcaption>
+                  )}
                 </figure>
               ))}
             </div>
@@ -114,7 +170,7 @@ export function Fw27Compare({ data, rows, onOpen }: { data: Fw27Data; rows: PcsR
                     <td className="px-2 py-1.5 text-right tabular-nums">{dash(r.plan)}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{dash(r.file)}</td>
                     <td className={"px-2 py-1.5 text-right tabular-nums " + tone(r.file - r.plan)}>{signed(r.file - r.plan)}</td>
-                    <td className="px-2 py-1.5 text-right">{r.photos ? <button type="button" onClick={() => onOpen(r.crit, `${r.fur} · ${r.cat}`)} className="min-h-9 rounded-md border border-neutral-300 px-2 text-xs hover:border-neutral-500">Фото {r.photos}</button> : "–"}</td>
+                    <td className="px-2 py-1.5 text-right"><button type="button" onClick={() => onOpen(r.crit, `${r.fur} · ${r.cat}`)} className={"min-h-9 rounded-md border px-2 text-xs hover:border-neutral-500 " + (r.photos ? "border-neutral-300" : "border-dashed border-neutral-300 text-neutral-500")}>Фото {r.photos}</button></td>
                   </tr>
                   {exp.has(r.key) ? r.sub.map((x) => (
                     <tr key={x.key} className="border-b border-neutral-100 text-neutral-700">
@@ -122,7 +178,7 @@ export function Fw27Compare({ data, rows, onOpen }: { data: Fw27Data; rows: PcsR
                       <td className="px-2 py-1.5 text-right tabular-nums">{x.len === null ? "–" : dash(x.plan)}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums">{dash(x.file)}</td>
                       <td className={"px-2 py-1.5 text-right tabular-nums " + (x.len === null ? "text-neutral-400" : tone(x.file - x.plan))}>{x.len === null ? "–" : signed(x.file - x.plan)}</td>
-                      <td className="px-2 py-1.5 text-right">{x.photos ? <button type="button" onClick={() => onOpen(x.crit, `${x.fur} · ${x.cat}${x.len ? ` · ${x.len}` : ""}`)} className="min-h-9 rounded-md border border-neutral-300 px-2 text-xs hover:border-neutral-500">Фото {x.photos}</button> : "–"}</td>
+                      <td className="px-2 py-1.5 text-right"><button type="button" onClick={() => onOpen(x.crit, `${x.fur} · ${x.cat}${x.len ? ` · ${x.len}` : ""}`)} className={"min-h-9 rounded-md border px-2 text-xs hover:border-neutral-500 " + (x.photos ? "border-neutral-300" : "border-dashed border-neutral-300 text-neutral-500")}>Фото {x.photos}</button></td>
                     </tr>
                   )) : null}
                 </Fragment>
