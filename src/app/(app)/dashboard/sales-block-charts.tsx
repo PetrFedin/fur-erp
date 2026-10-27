@@ -73,7 +73,7 @@ function Chart({ pts, series, label, testId, valueLabels = [] }: { pts: Pt[]; se
                         if (pv <= 0) return null;
                         const y1 = yL(acc + pv), y0 = yL(acc);
                         acc += pv;
-                        return <g key={pt.name}><rect x={x(i) - (bars.length * bw) / 2 + si * bw} y={y1} width={bw - 1} height={Math.max(0, y0 - y1)} fill={pt.color} opacity={dim(`Продано, ${pt.name}`)}><title>{`${p.label}: продано, ${pt.name} ${n0(Math.round(pv))} шт.`}</title></rect>{hotS === `Продано, ${pt.name}` && y0 - y1 > 11 ? <text x={x(i) - (bars.length * bw) / 2 + si * bw + (bw - 1) / 2} y={(y0 + y1) / 2 + 4} textAnchor="middle" fontSize="10" fontWeight="700" fill="#fff" stroke="#171717" strokeWidth="2" paintOrder="stroke">{n0(Math.round(pv))}</text> : null}</g>;
+                        return <g key={pt.name}><rect x={x(i) - (bars.length * bw) / 2 + si * bw} y={y1} width={bw - 1} height={Math.max(0, y0 - y1)} fill={pt.color} opacity={dim(`Продано, ${pt.name}`)}><title>{`${p.label}: продано, ${pt.name} ${n0(Math.round(pv))} шт.`}</title></rect>{hotS === `Продано, ${pt.name}` ? <text x={x(i) - (bars.length * bw) / 2 + si * bw + (bw - 1) / 2} y={Math.max(PT + 10, Math.min(H - PB - 3, (y0 + y1) / 2 + 4))} textAnchor="middle" fontSize="11" fontWeight="700" fill="#171717" stroke="#fff" strokeWidth="3" paintOrder="stroke">{pv < 0.5 ? "–" : n0(Math.round(pv))}</text> : null}</g>;
                       })}
                     </g>
                   );

@@ -1,4 +1,5 @@
 "use client";
+import { withVolume, type VolumeMode } from "@/lib/dashboard-drill";
 
 import { Fragment, useMemo, useState } from "react";
 import { InfoHint } from "@/components/info-hint";
@@ -36,7 +37,8 @@ const GET: Record<string, (g: Agg) => number | string | null> = {
 };
 
 /** Блок «Среднее» (после «Объёмов»): по категориям изделий и по типам меха — средний расход шкур и подкладки, средняя стоимость меха, работы и полная себестоимость на одно изделие. */
-export function AveragesTable({ data }: { data: DrillData | null }) {
+export function AveragesTable({ data: rawData, volume = "ordered" }: { data: DrillData | null; volume?: VolumeMode }) {
+  const data = useMemo(() => withVolume(rawData, volume), [rawData, volume]);
   const { mode: vat } = useVatDisplay();
   const [tab, setTab] = useState("cat");
   const [open, setOpen] = useState<Set<string>>(new Set());

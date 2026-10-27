@@ -1,4 +1,4 @@
-import { orderUnits } from "@/lib/production-totals";
+import { orderUnits, producedUnits } from "@/lib/production-totals";
 import { memoRequest } from "@/lib/req-memo";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -91,6 +91,9 @@ export type OrderRow = {
   /** done — завершён; work — запланирован или в работе. */
   group: "done" | "work";
   qty: number;
+  /** Заказано, шт. (plannedQuantity ТЗ) и произведено, шт. (выпуск завершённого ТЗ; у остальных 0) — для переключателя «Заказано / Произведено». */
+  qtyOrdered: number;
+  qtyProduced: number;
   // мех и подкладка без надбавки 4% (с НДС / без НДС); надбавка — отдельно ниже
   furIncl: number;
   furExcl: number;
@@ -340,6 +343,8 @@ async function loadOrderRowsImpl(orgId: string, year: YearFilter, mode: Commissi
       status: o.status as OrderRow["status"],
       group: o.status === "COMPLETED" ? "done" : "work",
       qty: q,
+      qtyOrdered: Number(o.plannedQuantity),
+      qtyProduced: producedUnits(o),
       // мех и подкладка — БЕЗ надбавки 4% (она отдельной строкой c4*)
       furIncl: Number(fs.incl.sub(fs.extraIncl)),
       furExcl: Number(fs.excl.sub(fs.extraExcl)),

@@ -367,6 +367,30 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
     }
   }
 
+  // «Заказано, шт.» в таблице — в каждом срезе: по закончившимся сезонам заказано = пришло (ничего не ждём); во «все сезоны» к пришедшему добавляется «ждём» по FW 26/27.
+  const fillOrdered = (rows: SalesRow[]) => { for (const r of rows) { if (r.ordered === undefined) r.ordered = r.received; fillOrdered(r.children); } };
+  const addAwaiting = (rows: SalesRow[], tree: OrderNode[], depth: number, idp: string) => {
+    for (const n of tree) {
+      if (!(n.awaiting > 0)) continue;
+      let r = rows.find((x) => x.label === n.label);
+      if (!r) { r = blankRow(`${idp}/aw:${n.label}`, n.label, depth); r.ordered = 0; rows.push(r); }
+      r.ordered = (r.ordered ?? r.received) + n.awaiting;
+      if (depth < 2) addAwaiting(r.children, n.children, depth + 1, r.id);
+    }
+  };
+  for (const [sk, sl] of Object.entries(slices)) {
+    for (const c of SALES_CLS) for (const hier of ["fur", "cls"] as const) {
+      const view = sl.views[c][hier];
+      if (sk === ORDERS_OPEN_SEASON) { if (view.total.ordered === undefined) view.total.ordered = view.total.received; fillOrdered(view.rows); continue; }
+      fillOrdered(view.rows);
+      view.total.ordered = view.total.received;
+      if (sk === "all") {
+        const fw = orderSummary[c]?.lines.find((l) => l.key === ORDERS_OPEN_SEASON);
+        if (fw?.tree) { addAwaiting(view.rows, fw.tree[hier], 0, `${c}/${hier}/all`); view.total.ordered = view.total.received + fw.awaiting; view.rows.sort((x, y) => (y.ordered ?? y.received) - (x.ordered ?? x.received) || y.received - x.received); }
+      }
+    }
+  }
+
   return {
     year, periodNote: year === "all" ? "все годы" : `${year} год`,
     orders: h.orders, articles: h.articles,

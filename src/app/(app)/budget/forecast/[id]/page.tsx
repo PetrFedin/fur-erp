@@ -3,6 +3,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { requireSession } from "@/lib/session";
 import { loadRawForecast } from "@/lib/raw-forecast";
 import { getForecast } from "@/lib/forecast-store";
+import { loadRawBalance } from "@/lib/raw-balance";
 import { ForecastView } from "../forecast-view";
 
 export const metadata = { title: "Прогноз сырья" };
@@ -15,10 +16,11 @@ export default async function RawForecastPage({ params }: { params: Promise<{ id
   const doc = await getForecast(orgId, id);
   if (!doc) notFound();
   const f = await loadRawForecast(orgId);
+  const { mix } = await loadRawBalance(orgId); // доли норки в смеси «Норка + Соболь» по ТЗ — как в Budget PCS
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Бюджеты и прогнозы", href: "/budget" }, { label: doc.name }]} />
-      <ForecastView id={doc.id} name={doc.name} season={doc.season} canEdit={EDIT_ROLES.includes(session.user.role)} initialEdits={doc.edits} initialOff={doc.off} lines={f.lines} stock={f.stock} asOf={f.asOf} />
+      <ForecastView id={doc.id} name={doc.name} season={doc.season} canEdit={EDIT_ROLES.includes(session.user.role)} initialEdits={doc.edits} initialOff={doc.off} lines={f.lines} stock={f.stock} asOf={f.asOf} mix={mix} />
     </div>
   );
 }

@@ -31,7 +31,7 @@ function calc(l: ForecastLine, v: Vals): Calc | null {
   return { left: l.left, hides: hp * l.left, fur, meters: mp * l.left, lining, c4, work, extra, total: fur + lining + c4 + work + extra };
 }
 
-export function ForecastView({ id, name, season, canEdit, initialEdits, initialOff, lines, stock, asOf }: { id: string; name: string; season: string; canEdit: boolean; initialEdits: ForecastEdits; initialOff: string[]; lines: ForecastLine[]; stock: RawForecast["stock"]; asOf: string | null }) {
+export function ForecastView({ id, name, season, canEdit, initialEdits, initialOff, lines, stock, asOf, mix }: { id: string; name: string; season: string; canEdit: boolean; initialEdits: ForecastEdits; initialOff: string[]; lines: ForecastLine[]; stock: RawForecast["stock"]; asOf: string | null; mix?: { RTW: number; Acc: number } }) {
   const [detail, setDetail] = useState(false);
   const [fur, setFur] = useState("all");
   const [vals, setVals] = useState<Record<string, Vals>>(() => Object.fromEntries(lines.map((l) => [l.acode, { ...init(l), ...initialEdits[l.acode] }])));
@@ -89,7 +89,14 @@ export function ForecastView({ id, name, season, canEdit, initialEdits, initialO
 
   // Таблица типов меха: «будет использовано» = шкуры по включённым строкам.
   const needBy = new Map<string, number>();
-  for (const r of rows) if (r.c && !r.l.fur.includes(" + ")) needBy.set(r.l.fur, (needBy.get(r.l.fur) ?? 0) + r.c.hides);
+  for (const r of rows) {
+    if (!r.c) continue;
+    if (!r.l.fur.includes(" + ")) { needBy.set(r.l.fur, (needBy.get(r.l.fur) ?? 0) + r.c.hides); continue; }
+    // Смесь «Норка + Соболь»: потребность делим на норку и соболя по реальной пропорции ТЗ (одежда и аксессуары отдельно) — так же, как в Budget PCS.
+    const mink = mix ? (r.l.cls === "acc" ? mix.Acc : mix.RTW) : 0.5;
+    needBy.set("Норка", (needBy.get("Норка") ?? 0) + r.c.hides * mink);
+    needBy.set("Соболь", (needBy.get("Соболь") ?? 0) + r.c.hides * (1 - mink));
+  }
   const furNames = [...new Set([...stock.map((s) => s.fur), ...needBy.keys()])];
   const all = furNames.map((n) => { const st = stock.find((s) => s.fur === n)?.stock ?? 0, need = needBy.get(n) ?? 0; return { fur: n, stock: st, need }; }).sort((a, b) => b.stock - a.stock);
   const big = all.filter((x) => x.stock + x.need >= 100), small = all.filter((x) => x.stock + x.need < 100);

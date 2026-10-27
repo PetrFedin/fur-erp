@@ -14,6 +14,9 @@ import { AveragesTile, useDrill } from "./averages";
 import { TileCarousel } from "@/components/tile-carousel";
 import { GroupCostSlide, GroupProducedSlide, PROD_GROUPS } from "@/components/prod-group-slides";
 import { WidgetRow } from "@/components/widget-row";
+import { InfoHint } from "@/components/info-hint";
+import { SEG_GROUP, segCls } from "@/components/segmented";
+import type { VolumeMode } from "@/lib/dashboard-drill";
 import { TileCaption, TileValue } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
 import { formatCompactMoney } from "./compact";
@@ -33,6 +36,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
   const [open, setOpen] = useState<null | "done" | "work" | "all">(null);
   // Всего / Одежда / Аксессуары листаются вместе во всех плитках блока.
   const [grpIdx, setGrpIdx] = useState(0);
+  const [volume, setVolume] = useState<VolumeMode>("ordered");
   const grpSync = { index: grpIdx, onChange: setGrpIdx };
   const { data: drill } = useDrill(search);
   const drillOrders = drill?.orders ?? [];
@@ -150,8 +154,16 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
         <AveragesTile data={drill} sync={{ index: Math.max(0, grpIdx - 1), onChange: (i) => setGrpIdx(i + 1) }} />
       </div>
       </WidgetRow>
-      <ProductionTable search={search} />
-      <AveragesTable data={drill} />
+      {/* Объём таблиц: «Заказано» — все ТЗ по плану (план ТЗ), «Произведено» — только завершённые по фактическому выпуску. Деньги — по тем же ТЗ. */}
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
+        <span className="text-xs text-neutral-600">Объём в таблицах ниже:</span>
+        <div role="group" aria-label="Объём таблиц" className={SEG_GROUP}>
+          {([["ordered", "Заказано"], ["produced", "Произведено"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={volume === k} onClick={() => setVolume(k)} className={segCls(volume === k)}>{t}</button>)}
+        </div>
+        <InfoHint label="Заказано и произведено" wide><p><b>Заказано</b> — все ТЗ (завершённые, в работе, запланированные) по плановому количеству. <b>Произведено</b> — только завершённые ТЗ по фактическому выпуску. Деньги и средние считаются по тем же ТЗ, что штуки.</p></InfoHint>
+      </div>
+      <ProductionTable search={search} volume={volume} />
+      <AveragesTable data={drill} volume={volume} />
       {open ? (
         <ProductionModal
           scope={open}

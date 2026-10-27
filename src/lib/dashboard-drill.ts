@@ -47,6 +47,9 @@ export type DrillOrder = {
   ml: string;
   fur: string;
   qty: number;
+  /** Заказано (план ТЗ) и произведено (выпуск завершённого) — для переключателя «Заказано / Произведено» в таблицах Главной. */
+  qo?: number;
+  qd?: number;
   work: number;
   /** Доли сезонов ТЗ (сумма 1) по приходу модели — для переключателя «Сезон» на Главной (src/lib/order-seasons.ts); нет — ТЗ целиком в любом сезоне. */
   sw?: Record<string, number>;
@@ -345,4 +348,14 @@ export function drillTotals(orders: DrillOrder[], vat: VatSel) {
     qty: orders.reduce((s, o) => s + o.qty, 0),
     orders: uniqueOrderCount(orders),
   };
+}
+
+/** Объём таблиц Главной по выбору: «Заказано» — все ТЗ по плановому количеству; «Произведено» — только завершённые по фактическому выпуску. Деньги — по тем же ТЗ. */
+export type VolumeMode = "ordered" | "produced";
+export function withVolume(data: DrillData | null, mode: VolumeMode): DrillData | null {
+  if (!data) return data;
+  const orders = mode === "ordered"
+    ? data.orders.map((o) => (o.qo != null ? { ...o, qty: o.qo } : o))
+    : data.orders.filter((o) => o.st === "COMPLETED").map((o) => ({ ...o, qty: o.qd ?? o.qty }));
+  return { ...data, orders };
 }

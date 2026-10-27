@@ -807,7 +807,6 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
           label: `Работа на единицу · ${c === "all" ? "Всего" : CAT_LABEL[c]}`,
           value: rubOrDash(st.perUnit),
           sub: hasSales ? `оплачено ${rubOrDash(st.total)} ÷ получено ${st.unitsTotal || "—"} шт.` : "нет данных о приходе",
-          rows: [["Единиц всего", st.unitsTotal ? String(st.unitsTotal) : "—"], ["Работа всего", rubOrDash(st.total)]] as [string, string][],
           hint: <p>Вся работа подрядчику за период ÷ все единицы, полученные за период (без привязки к месяцам). Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее). По категориям — работа по ТЗ категории ÷ приход категории.</p>,
         }; })} />
         {hasSales ? (
