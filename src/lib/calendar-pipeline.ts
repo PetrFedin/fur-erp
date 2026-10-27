@@ -65,7 +65,7 @@ export async function loadPipeline(orgId: string, year: YearFilter, today: strin
       where: { organizationId: orgId, id: { in: ids } },
       select: { id: true, productModelId: true, productModel: { select: { name: true } }, startDate: true, endDate: true, workOrderDate: true, batch: { select: { year: true } } },
     }),
-    prisma.shipmentLine.groupBy({ by: ["productionOrderId"], where: { productionOrderId: { in: ids }, shipment: { organizationId: orgId, status: "SHIPPED" } }, _sum: { quantity: true } }),
+    prisma.shipmentLine.groupBy({ by: ["productionOrderId"], where: { productionOrderId: { in: ids }, shipment: { organizationId: orgId, status: { in: ["SHIPPED", "ACCEPTED"] } } }, _sum: { quantity: true } }),
     lotIds.length
       ? prisma.rawMaterialLot.findMany({ where: { id: { in: lotIds } }, select: { id: true, receivedDate: true, purchase: { select: { status: true, expectedDate: true, receivedDate: true } } } })
       : Promise.resolve([]),

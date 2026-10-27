@@ -311,7 +311,6 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           q={total.rem}
           incl={total.remIncl}
           excl={total.remExcl}
-          extra={{ incl: total.remIncl.mul(k4.sub(1)), excl: total.remExcl.mul(k4.sub(1)) }}
           hint={
             <>
               <p>Те же цифры, что «Остаток» на Главной: остатки лотов склада + заказано, но не получено. Стоимость лота = остаток × цена лота за единицу — так же считает карточка «Итого стоимость остатков» на странице «Сырьё».</p>

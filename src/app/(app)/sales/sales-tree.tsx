@@ -118,14 +118,14 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
   const msOf = (gi: number) => measures.filter((ms) => gi === 0 || !ms.totalOnly);
   const setKey = (k: MKey) => onPicked(keys.includes(k) ? (keys.length > 1 ? keys.filter((x) => x !== k) : keys) : [...keys, k]);
   const toggle = (id: string) => setOpen((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id]));
-  const kids = (n: SNode): SNode[] => (n.children.length ? n.children : sizeNodes(n, sizes, cat, groups.length));
+  const kids = (n: SNode): SNode[] => (n.children.length ? n.children : sizeNodes(n, sizes, cat, groups.length, vat));
   const expandTo = (level: number) => {
     const ids: string[] = [];
     const walk = (n: SNode, depth: number) => { const k = kids(n); if (depth < level && k.length) { ids.push(n.id); k.forEach((c) => walk(c, depth + 1)); } };
     walk(tree, 0);
     setOpen(ids);
   };
-  const confOf = (n: SNode) => (!hasConf ? DASH : n.id === "total" ? String(confRows.reduce((a, r) => a + (r.conf ?? 0), 0)) : n.dim === "cls" ? String(confRows.filter((r) => r.cls === (n.label === "Одежда" ? "clothes" : n.label === "Аксессуары" ? "acc" : "other")).reduce((a, r) => a + (r.conf ?? 0), 0) || DASH) : DASH);
+  const confOf = (n: SNode) => (!hasConf ? DASH : n.id === "total" ? String(confRows.reduce((a, r) => a + (r.conf ?? 0), 0)) : n.dim === "cls" && n.id.split("/").length === 2 ? String(confRows.filter((r) => r.cls === (n.label === "Одежда" ? "clothes" : n.label === "Аксессуары" ? "acc" : "other")).reduce((a, r) => a + (r.conf ?? 0), 0) || DASH) : DASH);
   const cell = (ms: Measure, n: SNode, m: Ext, gi: number) => {
     if (ms.totalOnly && gi > 0) return DASH;
     if (ms.key === "conf") return confOf(n) === "0" ? DASH : confOf(n);

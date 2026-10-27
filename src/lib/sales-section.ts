@@ -215,12 +215,14 @@ export function totalSalesNode(ctx: Ctx, env: Env, lines: SLine[], preds: Pred[]
 }
 
 /** Размеры из Report как справочный уровень под цветом: итоги по Report, с датами и сезонами не связаны. */
-export function sizeNodes(n: SNode, sizes: ReportSizeRow[], cat: Cat, colCount: number): SNode[] {
+export function sizeNodes(n: SNode, sizes: ReportSizeRow[], cat: Cat, colCount: number, vat: "in" | "ex" = "in"): SNode[] {
   if (n.dim !== "color" || !n.modelCode) return [];
   const rows = sizes.filter((r) => r.modelCode === n.modelCode && colorOfLine(r.color) === n.label && (cat === "all" || r.cls === cat));
   return rows.map((r) => {
     const base = zeroExt();
-    const m: Ext = { ...base, sold: r.sold, gross: r.sold, received: r.deliv, stock: r.stock, revenueEx: r.nsRubEx, revenueIncl: r.nsRub, revenue: r.nsRubEx, avgPrice: r.sold > 0 ? r.nsRub / r.sold : null, sellThrough: r.deliv > 0 ? r.sold / r.deliv : null };
+    // Выручка размера — в режиме НДС таблицы (в Report скидки нет: Gross = выручка).
+    const rev = vat === "in" ? r.nsRub : r.nsRubEx;
+    const m: Ext = { ...base, sold: r.sold, gross: r.sold, received: r.deliv, stock: r.stock, revenueEx: r.nsRubEx, revenueIncl: r.nsRub, revenue: rev, grossRev: rev, avgPrice: r.sold > 0 ? rev / r.sold : null, priceBefore: r.sold > 0 ? rev / r.sold : null, sellThrough: r.deliv > 0 ? r.sold / r.deliv : null };
     return { id: `${n.id}/size:${r.size}:${r.acode}`, dim: "size" as const, label: `${r.size} · по Report`, modelCode: null, variant: null, article: null, color: null, n: 0, lines: [], cols: [m, ...Array.from({ length: colCount }, () => zeroExt())], children: [] };
   });
 }

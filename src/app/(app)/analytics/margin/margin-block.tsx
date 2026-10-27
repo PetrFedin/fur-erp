@@ -170,7 +170,8 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
     const rows = sizes.filter((r) => r.modelCode === n.modelCode && colorOfLine(r.color) === n.label && (cat === "all" || r.cls === cat));
     return rows.map((r) => {
       const empty = { sold: 0, received: 0, revenueIncl: 0, revenueEx: 0, avgPrice: null, discountVsRetail: null, grossProfit: null, grossMarginPct: null, gpOfRetail: null, markupW: null, sellThrough: null, discountGiven: null, salesCost: null, discountSum: 0 } as Metrics;
-      const m: Metrics = { ...empty, sold: r.sold, received: r.deliv, revenueEx: r.nsRubEx, revenueIncl: r.nsRub, avgPrice: r.sold > 0 ? r.nsRub / r.sold : null, sellThrough: r.deliv > 0 ? r.sold / r.deliv : null };
+      const rev = vat === "in" ? r.nsRub : r.nsRubEx; // выручка размера в режиме НДС таблицы (в Report скидки нет)
+      const m: Metrics = { ...empty, sold: r.sold, received: r.deliv, revenueEx: r.nsRubEx, revenueIncl: r.nsRub, revenue: rev, avgPrice: r.sold > 0 ? rev / r.sold : null, sellThrough: r.deliv > 0 ? r.sold / r.deliv : null };
       return { id: `${n.id}/size:${r.size}:${r.acode}`, dim: "size" as const, label: `${r.size} · по Report`, modelCode: null, variant: null, cols: [m, ...groups.map(() => empty)], children: [] };
     });
   };

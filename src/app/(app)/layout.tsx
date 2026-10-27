@@ -26,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await requireSession({ allowSupplier: true });
   const isSupplier = session.user.role === "SUPPLIER";
   const cookieStore = await cookies();
-  const vatMode = parseVatModeCookie("incl");
+  const vatMode = parseVatModeCookie(cookieStore.get("vatDisplay")?.value); // выбор «С НДС / Без НДС» в шапке переживает обновление страницы
   const yearFilter = parseYearCookie(cookieStore.get("yearFilter")?.value);
   // Год из данных: если есть закупки/оплаты позже 2026, переключатель и блоки получают этот год сами.
   const orgId = session.user.organizationId;

@@ -120,7 +120,7 @@ export function entityHrefFor(type: string | null, id: string | null, side: Side
     case "Purchase": return `/purchases/${id}`;
     case "ProductionOrder": return `/production/${id}`;
     case "ProductModel": return `/models/${id}`;
-    case "Payment": return `/payments/${id}`;
+    case "Payment": return `/payments/s-${id}`; // карточка оплаты принимает код s-… (сырьё) или c-… (работа)
     case "Shipment": return `/shipments/${id}`;
     case "CalendarEvent": return "/calendar";
     case "SupplierInbox": return `/inbox/${id}`;
