@@ -8,6 +8,7 @@ import { parseUi } from "@/lib/sales-url";
 import { SalesView } from "./sales-view";
 import { loadDataAsOf } from "@/lib/data-as-of";
 import { DataAsOf } from "@/components/data-as-of";
+import { loadReportSizesState } from "@/lib/import-keys";
 
 export const metadata = { title: "Продажи и остатки" };
 
@@ -17,5 +18,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const c4 = await getCommission4Mode();
   const [data, chain, asOf, dmStock] = await Promise.all([loadSalesInput(session.user.organizationId, c4), loadChain(session.user.organizationId, c4), loadDataAsOf(session.user.organizationId), loadDatamartStock(session.user.organizationId)]);
-  return <><DataAsOf asOf={asOf} /><SalesView input={serializeInput(data.input)} sizes={data.sizes} photos={data.photos} today={todayMsk()} initial={parseUi(sp)} chain={chain} dmStock={dmStock} /></>;
+  const rs = (await loadReportSizesState(session.user.organizationId))?.value as { asOf?: string } | undefined;
+  const reportDate = rs?.asOf ? rs.asOf.split("-").reverse().join(".") : undefined;
+  return <><DataAsOf asOf={asOf} /><SalesView input={serializeInput(data.input)} sizes={data.sizes} photos={data.photos} today={todayMsk()} initial={parseUi(sp)} chain={chain} dmStock={dmStock} reportDate={reportDate} /></>;
 }

@@ -16,7 +16,7 @@ import { SeasonsTab, StockTab, TopTab } from "./sales-tabs";
 import type { Chain } from "@/lib/sales-server";
 import { SalesTree, type PhotoIdx } from "./sales-tree";
 
-type Props = { input: MarginInputS; sizes: ReportSizeRow[]; photos: PhotoIdx; today: string; initial: Ui; chain: Chain; dmStock?: DatamartStock | null };
+type Props = { input: MarginInputS; sizes: ReportSizeRow[]; photos: PhotoIdx; today: string; initial: Ui; chain: Chain; dmStock?: DatamartStock | null; reportDate?: string };
 
 type Col = { head: string; get: (e: Ext) => string };
 type TileDef = { id: string; label: string; value: string; sub?: string; how: React.ReactNode; cols: Col[]; extra?: React.ReactNode };
@@ -55,7 +55,7 @@ function Tile({ def, onOpen }: { def: TileDef; onOpen: (id: string) => void }) {
   );
 }
 
-export function SalesView({ input, sizes, photos, today, initial, chain, dmStock }: Props) {
+export function SalesView({ input, sizes, photos, today, initial, chain, dmStock, reportDate = "19.10.2026" }: Props) {
   const [ui, setUi] = useState<Ui>(initial);
   const [hot, setHot] = useState<number | null>(null);
   const [tile, setTile] = useState<string | null>(null);
@@ -105,8 +105,8 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
     { id: "sold", label: "Продано, шт.", value: n0(head.sold), sub: `выручка ${moneyC(head.revenue)} · ${vatNote}`,
       how: <><p>Нетто = валовое {n0(head.gross)} − возвраты {n0(head.returns)}. Деньги — за тот же период ({vatNote}; НДС 20 % до 2026, 22 % с 2026).</p>{head.noPcs > 0 ? <p className="mt-1">{head.noPcs} строк продаж без штук: только скидка, в штуки не входят.</p> : null}</>,
       cols: [{ head: "Нетто, шт.", get: (e) => n0(e.sold) }, { head: "Выручка, ₽", get: (e) => money(e.revenue) }, { head: "Ср. цена, ₽", get: (e) => money(e.avgPrice) }, { head: "Скидка", get: (e) => pct(e.discountGiven, 1) }, { head: "Маржа", get: (e) => (e.grossMarginPct === null ? DASH : pct(e.grossMarginPct / 100, 1)) }] },
-    { id: "stock", label: "Остаток, шт.", value: n0(stockEnd), sub: dmRef !== null && isPlain ? `datamart на ${dmDate}: ${n0(dmRef)} · разница ${n0(Math.abs(dmDiff))}` : hasReport && isPlain ? `Report на 19.10.2026: ${n0(reportStock)} · разница ${n0(Math.abs(diff))}` : "приход − продано",
-      how: <><p>Расчётный остаток = приход − продано нарастающим итогом на конец периода{opening ? ` (на начало периода: ${n0(opening)} шт.)` : ""}.</p>{dmStock && dmRef !== null && isPlain ? <p className="mt-1">Остаток по витрине datamart (по нашим заказам): {dmStock.snapshots.map((x) => `${x.date.split("-").reverse().join(".")} — ${n0(ui.f.cat === "clothes" ? x.rtw : ui.f.cat === "acc" ? x.acc : x.total)} шт.`).join(", ")}. Расчёт на {dmDate}: {n0(stockEnd)} шт., разница {n0(Math.abs(dmDiff))} шт.</p> : null}{hasReport && isPlain ? <p className="mt-1">В отчёте о товарах (Report) на 19.10.2026 остаток {n0(reportStock)} шт., расчёт даёт {n0(stockEnd)} шт.: {diff === 0 ? "совпадает" : `разница ${n0(Math.abs(diff))} шт.`}. Причина в выгрузке не видна.</p> : null}</>,
+    { id: "stock", label: "Остаток, шт.", value: n0(stockEnd), sub: dmRef !== null && isPlain ? `datamart на ${dmDate}: ${n0(dmRef)} · разница ${n0(Math.abs(dmDiff))}` : hasReport && isPlain ? `Report на ${reportDate}: ${n0(reportStock)} · разница ${n0(Math.abs(diff))}` : "приход − продано",
+      how: <><p>Расчётный остаток = приход − продано нарастающим итогом на конец периода{opening ? ` (на начало периода: ${n0(opening)} шт.)` : ""}.</p>{dmStock && dmRef !== null && isPlain ? <p className="mt-1">Остаток по витрине datamart (по нашим заказам): {dmStock.snapshots.map((x) => `${x.date.split("-").reverse().join(".")} — ${n0(ui.f.cat === "clothes" ? x.rtw : ui.f.cat === "acc" ? x.acc : x.total)} шт.`).join(", ")}. Расчёт на {dmDate}: {n0(stockEnd)} шт., разница {n0(Math.abs(dmDiff))} шт.</p> : null}{hasReport && isPlain ? <p className="mt-1">В отчёте о товарах (Report) на {reportDate} остаток {n0(reportStock)} шт., расчёт даёт {n0(stockEnd)} шт.: {diff === 0 ? "совпадает" : `разница ${n0(Math.abs(diff))} шт.`}. Причина в выгрузке не видна.</p> : null}</>,
       cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "Остаток", get: (e) => n0(e.stock) }] },
     { id: "sellThrough", label: "SO", value: pct(head.sellThrough), sub: "продано ÷ получено",
       how: <p>SO = продано ÷ получено, единицы за период. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений. Приход 0 — «—».</p>,
@@ -149,7 +149,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
         <h1 className="text-xl font-semibold">Продажи и остатки</h1>
         <div className="flex flex-wrap items-center gap-1 text-sm">
           
-          <InfoHint label="Что такое Продажи и остатки" align="right" wide><p>Всё по товару: что и когда пришло, продалось и осталось. Источник — выгрузка «поступления и продажи» и отчёт о товарах на 19.10.2026; остаток = получено − продано.</p></InfoHint>
+          <InfoHint label="Что такое Продажи и остатки" align="right" wide><p>Всё по товару: что и когда пришло, продалось и осталось. Источник — выгрузка «поступления и продажи» и отчёт о товарах на {reportDate}; остаток = получено − продано.</p></InfoHint>
         </div>
       </div>
 
@@ -247,7 +247,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
             <p className="text-sm text-neutral-800">datamart на {dmDate}: {n0(dmRef)} шт. · расчёт: {n0(stockEnd)} шт. · разница: {dmDiff === 0 ? DASH : n0(Math.abs(dmDiff)) + " шт."}. Снимки: {dmStock!.snapshots.map((x) => `${x.date.split("-").reverse().join(".")} — ${n0(ui.f.cat === "clothes" ? x.rtw : ui.f.cat === "acc" ? x.acc : x.total)}`).join(", ")}.</p>
           ) : null}
           {openDef.id === "stock" && hasReport && isPlain ? (
-            <p className="text-sm text-neutral-800">Report на 19.10.2026: {n0(reportStock)} шт. · расчёт: {n0(stockEnd)} шт. · разница: {diff === 0 ? DASH : n0(Math.abs(diff)) + " шт."}. Причина в выгрузке не видна.</p>
+            <p className="text-sm text-neutral-800">Report на {reportDate}: {n0(reportStock)} шт. · расчёт: {n0(stockEnd)} шт. · разница: {diff === 0 ? DASH : n0(Math.abs(diff)) + " шт."}. Причина в выгрузке не видна.</p>
           ) : null}
           <div className="flex flex-wrap gap-2">
             <button type="button" className={btn} onClick={() => { setTile(null); patch({ tab: "stock" }); }}>Остатки по артикулам</button>
