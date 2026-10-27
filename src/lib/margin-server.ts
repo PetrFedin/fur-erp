@@ -50,7 +50,30 @@ import { loadPhotoSummary } from "@/lib/article-photos";
 export async function loadReportSizes(orgId: string): Promise<ReportSizeRow[]> {
   const st = await loadReportSizesState(orgId);
   const rows = (st?.value as { rows?: ReportSizeRow[] } | null)?.rows;
-  return Array.isArray(rows) ? rows : [];
+  if (!Array.isArray(rows)) return [];
+  return withOurFw26Delivered(rows, await prisma.salesReceiptLine.findMany({ where: { organizationId: orgId, kind: "RECEIPT" }, select: { kind: true, date: true, season: true, article: true, colorId: true, pcs: true } }));
+}
+
+/**
+ * «Поступило по FW26/27» (fw26Deliv) в Report считается по дату выгрузки отчёта (24.09), а наш приход — по файлу «поступления и продажи» (позже).
+ * Чтобы «заказано = пришло + ждём» везде (Главная, прогноз сырья) считалось от одного прихода, поступившее по FW26/27 берём из нашего прихода
+ * (сезон — из файла прихода, по артикулу): ждём по артикулу = max(0, Conf − пришло), на размерные строки — пропорционально Conf.
+ */
+export function withOurFw26Delivered(rows: ReportSizeRow[], receipts: { kind: string; date: Date; season: string; article: string; colorId: string | null; pcs: number | null }[]): ReportSizeRow[] {
+  // Сезон заказа — как в файле прихода (колонка «Сезон»): приход по заказам FW26/27 идёт в «пришло» по FW26/27 независимо от даты прихода.
+  // Артикул в файле и в Report пишется по-разному («MH-03 SABLE…» и «MH-03/SABLE…»): сравниваем без знаков и пробелов.
+  const key = (a: string) => a.toUpperCase().replace(/[^A-ZА-Я0-9]/g, "");
+  const recv = new Map<string, number>();
+  for (const l of receipts) if (l.kind === "RECEIPT" && l.season === "FW 26/27") recv.set(key(l.article), (recv.get(key(l.article)) ?? 0) + (l.pcs ?? 0));
+  const conf = new Map<string, number>();
+  for (const r of rows) conf.set(key(r.acode), (conf.get(key(r.acode)) ?? 0) + (r.fw26Conf ?? 0));
+  return rows.map((r) => {
+    if (r.fw26Conf === undefined && r.fw26Deliv === undefined) return r;
+    const c = conf.get(key(r.acode)) ?? 0;
+    const left = Math.max(0, c - (recv.get(key(r.acode)) ?? 0));
+    const rowConf = r.fw26Conf ?? 0;
+    return { ...r, fw26Deliv: c > 0 ? rowConf * (1 - left / c) : 0 };
+  });
 }
 
 /** Фото моделей по нормализованному коду модели (для кнопки «Фото»): только модели с фото. */

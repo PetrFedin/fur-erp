@@ -194,7 +194,7 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
         </div>
         <Columns measures={available} keys={keys} onKey={setKey} levels={order.map((d, i) => [i + 1, SDIM_LABEL[d]] as [number, string])} onLevel={expandTo} onCollapse={() => setOpen([])} />
         <button type="button" onClick={exportCsv} className={btn}>Скачать CSV</button>
-        <InfoHint label="Структуры и уровни" wide><p>Уровни: {orderTitle}. Итог узла равен сумме детей; размеры — по Report на 19.10, в итог не входят.</p></InfoHint>
+        <InfoHint label="Структуры и уровни" wide><p>Уровни: {orderTitle}. Итог узла равен сумме детей; размеры — по Report (дата отчёта указана над таблицей), в итог не входят.</p></InfoHint>
       </div>
       <div className="max-h-[75vh] w-full min-w-0 max-w-full overflow-auto rounded-lg border border-neutral-300" tabIndex={0} role="region" aria-label="Детализация продаж и остатков по структуре и группам столбцов">
         <table suppressHydrationWarning className="table-keep w-max min-w-full border-collapse">

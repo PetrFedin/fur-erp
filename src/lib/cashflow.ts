@@ -53,7 +53,7 @@ export function monthsOf(period: CashflowPeriod): string[] {
 /** Статья строки: у сырья мех (аукцион / закупка) / подкладка / услуги, у производства — работа и шкуры (в OverviewRow шкуры лежат в поле fur). */
 export function split(r: OverviewRow): Record<ArticleKey, number> {
   const z = { furAuction: 0, furPurchase: 0, lining: 0, services: 0, work: 0, hides: 0 };
-  if (r.kind === "raw") return { ...z, [r.edit === "auction" ? "furAuction" : "furPurchase"]: r.fur, lining: r.lining, services: r.services };
+  if (r.kind === "raw") return { ...z, [(r.auction ?? r.edit === "auction") ? "furAuction" : "furPurchase"]: r.fur, lining: r.lining, services: r.services };
   return { ...z, work: r.work, hides: r.hides };
 }
 
@@ -291,7 +291,7 @@ export function goodsHeadline(allSales: SalesMonthly, allMonths: string[], perio
  * Неразнесённый аванс и ТЗ без группы — «прочее» (в категории не попадают). Σ классов = статья «Работа» по месяцам. НДС в оплате работы в данных нет.
  */
 export type WorkByClass = { clothes: number[]; acc: number[]; other: number[]; /** Из «прочее»: без привязки к ТЗ. */ unlinked: number[] };
-export function workByClass(rows: OverviewRow[], orderClass: Map<string, CatClass>, months: string[]): WorkByClass {
+export function workByClass(rows: OverviewRow[], orderClass: Map<string, CatClass>, months: string[], vatShare?: RowVatShare): WorkByClass {
   const idx = new Map(months.map((m, i) => [m, i]));
   const z = () => months.map(() => 0);
   const o: WorkByClass = { clothes: z(), acc: z(), other: z(), unlinked: z() };
@@ -299,7 +299,9 @@ export function workByClass(rows: OverviewRow[], orderClass: Map<string, CatClas
     if (r.kind !== "prod" || Math.abs(r.work) < 0.005) continue;
     const i = idx.get(r.iso.slice(0, 7));
     if (i === undefined) continue;
-    const k = r.amount !== 0 ? r.work / r.amount : 0;
+    // «Без НДС»: работа без доли НДС платежа (та же доля, что в статье «Работа подрядчику»).
+    const net = vatShare ? 1 - (vatShare.get(r.id) ?? 0) : 1;
+    const k = r.amount !== 0 ? (r.work * net) / r.amount : 0;
     let linked = 0;
     for (const part of r.parts) {
       const id = part.href?.startsWith("/production/") ? part.href.slice("/production/".length) : null;
@@ -308,7 +310,7 @@ export function workByClass(rows: OverviewRow[], orderClass: Map<string, CatClas
       linked += part.amount;
       o[orderClass.get(id) ?? "other"][i] += w;
     }
-    const rest = r.work - linked * k;
+    const rest = r.work * net - linked * k;
     o.other[i] += rest; o.unlinked[i] += rest;
   }
   return o;

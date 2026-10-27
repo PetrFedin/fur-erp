@@ -42,7 +42,7 @@ const MEASURES: Measure[] = [
   { key: "discountGiven", label: "Скидка, %", hint: <p>Скидка % = Скидка ÷ Gross.</p>, fmt: (m, _c) => pc(share(m.discountGiven), 1) },
   { key: "grossProfit", rubOnly: true, label: "Маржа, ₽", hint: <p>Валовая прибыль = Net Sales − себестоимость (Sales retail − Sales cost) по строкам со штуками и себестоимостью.</p>, fmt: (m, _c) => money(m.grossProfit) },
   { key: "grossMarginPct", rubOnly: true, label: "Маржа, %", hint: <p>Валовая прибыль ÷ Net Sales тех же строк (строки продаж без штук в расчёт не входят — выручка по ним показана отдельно в «i» плитки «Валовая маржа»).</p>, fmt: (m, _c) => pc(m.grossMarginPct, 1) },
-  { key: "stock", label: "Остаток, шт.", hint: <p>Остаток группы = Delivery − Sales pcs. По отчёту о товарам фактический остаток на 19.10.2026 — 379 шт., расчётный 385.</p>, fmt: (m, _c) => n0(m.received - m.sold) },
+  { key: "stock", label: "Остаток, шт.", hint: <p>Остаток группы = Delivery − Sales pcs. Фактический остаток по отчёту о товарах (Report) может отличаться от расчётного; сравнение с датой отчёта — на странице «Продажи и остатки».</p>, fmt: (m, _c) => n0(m.received - m.sold) },
   { key: "sellThrough", label: "SO", hint: <><p>Продано ÷ получено, единицы (по заказам группы; в «Тотал» — за всё время). Без обрезки до 100%; получено 0 — «—».</p><p className="mt-1">«*» — продано больше получено: продажи включают остатки других поступлений. «†» — получено меньше 10 шт., процент неустойчив.</p></>, fmt: (m, _c) => (m.received > 0 ? pc(share(m.sellThrough)) + (sellNote(m) === "over" ? "*" : sellNote(m) === "small" ? "†" : "") : nodata) },
   { key: "grossUnit", money: true, label: "Цена до скидки, за шт.", hint: <p>Цена до скидки = Gross ÷ проданные шт.</p>, fmt: (m, c) => (m.sold > 0 ? (c === "eur" ? eur((m.revenueEur + m.discountEurSum) / m.sold) : money((m.revenue + m.discountSum) / m.sold)) : nodata) },
   { key: "avgPrice", money: true, label: "Цена продажи, за шт.", hint: <p>Цена продажи = Выручка ÷ проданные шт.</p>, fmt: (m, c) => (c === "eur" ? eur(m.avgPriceEur) : money(m.avgPrice)) },
@@ -164,7 +164,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
   const measures = available.filter((m) => keys.includes(m.key));
   const setKey = (k: MKey) => { setTouched(true); setPicked(keys.includes(k) ? (keys.length > 1 ? keys.filter((x) => x !== k) : keys) : [...keys, k]); };
   const toggle = (id: string) => setOpen((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id]));
-  /** Размеры как дочерний уровень цвета: из отчёта о товарах на 19.10 по коду модели и цвету; итоги размеров не обязаны совпадать с узлом (написания артикулов разные). */
+  /** Размеры как дочерний уровень цвета: из отчёта о товарах (Report) по коду модели и цвету; итоги размеров не обязаны совпадать с узлом (написания артикулов разные). */
   const sizeKids = (n: TreeNode): TreeNode[] => {
     if (n.dim !== "color" || !n.modelCode) return [];
     const rows = sizes.filter((r) => r.modelCode === n.modelCode && colorOfLine(r.color) === n.label && (cat === "all" || r.cls === cat));
@@ -245,7 +245,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
           <button type="button" aria-pressed={vat === "in"} onClick={() => onVat("in")} className={seg(vat === "in")}>С НДС</button>
           <button type="button" aria-pressed={vat === "ex"} onClick={() => onVat("ex")} className={seg(vat === "ex")}>Без НДС</button>
         </div>
-        <InfoHint label="Уровни структуры" wide><p>Категория 1 — KTT Level 02 файлов (Одежда / Аксессуары), {view.n1} шт. Категория 2 — Level 04 (Шубы, Куртки меховые, Шапка…; если Level 04 пуст — Level 03), {view.n2} шт. Тип меха — первое слово названия ткани, {view.n3} шт. Структура А: Категория 1 → Категория 2 → Тип меха → Артикул → Цвет → Размер; Б: Тип меха → Категория 1 → Категория 2 → Артикул → Цвет → Размер. Итог узла равен сумме детей. Размеры берутся из отчёта о товарах на 19.10 (по коду модели и цвету) и могут не сходиться с итогом цвета: написания артикулов в отчёте и выгрузке разные; такие строки помечены «по Report».</p></InfoHint>
+        <InfoHint label="Уровни структуры" wide><p>Категория 1 — KTT Level 02 файлов (Одежда / Аксессуары), {view.n1} шт. Категория 2 — Level 04 (Шубы, Куртки меховые, Шапка…; если Level 04 пуст — Level 03), {view.n2} шт. Тип меха — первое слово названия ткани, {view.n3} шт. Структура А: Категория 1 → Категория 2 → Тип меха → Артикул → Цвет → Размер; Б: Тип меха → Категория 1 → Категория 2 → Артикул → Цвет → Размер. Итог узла равен сумме детей. Размеры берутся из отчёта о товарах (Report) (по коду модели и цвету) и могут не сходиться с итогом цвета: написания артикулов в отчёте и выгрузке разные; такие строки помечены «по Report».</p></InfoHint>
         <Settings measures={available} keys={keys} onKey={setKey} levels={[...order.map((d, i) => [i + 1, DIM_LABEL[d]] as [number, string]), [order.length + 1, "Размер"]]} onLevel={expandTo} onCollapse={() => setOpen([])} />
       </div>
 
@@ -276,7 +276,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
       {showSizes && (
         <div className="w-full min-w-0 max-w-full overflow-x-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0} role="region" aria-label="Размеры">
           <table className="w-max min-w-full border-collapse">
-            <caption className="px-2 py-2 text-left text-xs text-neutral-700">Отчёт о товарах на 19.10.2026: размеры нельзя привязать к цветам и сезонам выгрузки (написания артикулов разные), поэтому — отдельно.{sizeRows.length === 0 ? " Размеры ещё не загружены." : ""}</caption>
+            <caption className="px-2 py-2 text-left text-xs text-neutral-700">Отчёт о товарах (Report): размеры нельзя привязать к цветам и сезонам выгрузки (написания артикулов разные), поэтому — отдельно.{sizeRows.length === 0 ? " Размеры ещё не загружены." : ""}</caption>
             <thead>
               <tr className="border-b border-neutral-300">
                 <th scope="col" className={th + " py-2 text-left"}>Размер</th>

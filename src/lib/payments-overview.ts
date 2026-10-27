@@ -49,6 +49,8 @@ export type OverviewRow = {
   links: { label: string; href: string }[];
   /** Вид строки для встроенных кнопок правки: авансовый платёж без привязки, оплата партии, оплата закупки, оплата производства. */
   edit: "advance" | "auction" | "purchase" | "prod";
+  /** Платёж относится к аукционной партии (своя сессия или закупка из аукциона) — статья «Мех: аукционы» в Cashflow. */
+  auction?: boolean;
 };
 
 const ruDate = (d: Date) => d.toISOString().slice(0, 10).split("-").reverse().join(".");
@@ -144,6 +146,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       unallocated: unlinked ? amount : 0,
       links: rawLinks,
       edit: unlinked ? "advance" : p.purchaseId ? "purchase" : "auction",
+      auction: !!au,
       // Год оплаты — год ДАТЫ ОПЛАТЫ (как в Cashflow; решение владельца 2026-10-20). Год закупки — только в разрезе закупок/долга по аукциону.
       id: p.id, kind: "raw", iso: p.paidAt.toISOString().slice(0, 10), year: paymentYear(p.paidAt), amount,
       fur: service ? 0 : amount - lining, lining, services: service ? amount : 0, work: 0, hides: 0,

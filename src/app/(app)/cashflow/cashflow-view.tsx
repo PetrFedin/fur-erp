@@ -20,7 +20,7 @@ import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sl
 
 type ServicePart = { number: string; what: string; invoice: string | null; date: string; paid: number };
 type Cat = "all" | "clothes" | "acc";
-type Props = { prepaid: number; prepaidBy: Record<string, number>; incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; nowMonth: string; initialGroup?: "period" | "category"; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
+type Props = { prepaid: number; prepaidBy: Record<string, number>; incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; workByEx: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; nowMonth: string; initialGroup?: "period" | "category"; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
 
 const SPEND = "#d93a0e", GET = "#1f7a4d", NAVY = "#1b2a5c", STOCK = "#8a6d1d";
 // Цвета статей трат: различимы между собой и без цвета (подписи в легенде, таблица рядом — текстовая альтернатива).
@@ -520,9 +520,10 @@ function Tile({ label, value, sub, hint, tone, mini, spark, extra, after, contro
 }
 
 
-export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy, pays, saleLines, left, nowMonth, initialGroup, vat, services, initialPeriod, initialDetail, initialCat }: Props) {
+export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy: workByIncl, workByEx, pays, saleLines, left, nowMonth, initialGroup, vat, services, initialPeriod, initialDetail, initialCat }: Props) {
   const [period, setPeriod] = useState<CashflowPeriod>(initialPeriod);
   const [exVat, setExVat] = useState(false);
+  const workBy = exVat ? workByEx : workByIncl;
   const [cat, setCat] = useState<Cat>(initialCat ?? "all");
   const [gTable, setGTable] = useState(false);
   const [detail, setDetail] = useState(initialDetail ?? true);
@@ -592,12 +593,13 @@ export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy, pa
   const spendKinds = useMemo(() => (Object.keys(PAY_TYPE_LABEL) as PayType[]).filter((t) => Math.abs(spendByType(pays, months, exVat).find((r) => r.type === t)?.total ?? 0) > 0.5).map((t) => ({ type: t, short: t === "ADVANCE" ? "Авансы" : t === "PARTIAL" ? "Доплаты" : t === "FINAL" ? "Окончательный расчёт" : "Прочее / без вида", total: spendByType(pays, months, exVat).find((r) => r.type === t)?.total ?? 0 })), [pays, months, exVat]);
   /** Метрики работы: месяцы от PROJECT_START_MONTH до текущего включительно (в границах периода); по категориям — работа по ТЗ и приход категории. */
   const wm = useMemo(() => {
-    const idx = workMonthIdx(incl.months, nowMonth, period);
+    const cf = exVat ? ex : incl; // «Без НДС»: работа без НДС, как в таблице и как выручка
+    const idx = workMonthIdx(cf.months, nowMonth, period);
     const pick = (a: number[]) => idx.map((i) => a[i]);
-    const workAllSeries = incl.articles.find((a) => a.key === "work")?.byMonth ?? incl.months.map(() => 0);
+    const workAllSeries = cf.articles.find((a) => a.key === "work")?.byMonth ?? cf.months.map(() => 0);
     const by = { all: { work: pick(workAllSeries), units: pick(salesBy.all.recPcs) }, clothes: { work: pick(workBy.clothes), units: pick(salesBy.clothes.recPcs) }, acc: { work: pick(workBy.acc), units: pick(salesBy.acc.recPcs) } };
-    return { months: idx.map((i) => incl.months[i]), by, st: { all: workWindowStats(by.all.work, by.all.units, [], "all"), clothes: workWindowStats(by.clothes.work, by.clothes.units, [], "all"), acc: workWindowStats(by.acc.work, by.acc.units, [], "all") } };
-  }, [incl, nowMonth, period, salesBy, workBy]);
+    return { months: idx.map((i) => cf.months[i]), by, st: { all: workWindowStats(by.all.work, by.all.units, [], "all"), clothes: workWindowStats(by.clothes.work, by.clothes.units, [], "all"), acc: workWindowStats(by.acc.work, by.acc.units, [], "all") } };
+  }, [incl, ex, exVat, nowMonth, period, salesBy, workBy]);
   const modalExEff = modalEx ?? exVat;
   const modalChoice: VatChoice = modalEx === null ? "global" : modalEx ? "ex" : "in";
   const recvSum = (c: "all" | "clothes" | "acc", ex: boolean) => m.keep.reduce((t, i) => t + (ex ? salesBy[c].revEx[i] : salesBy[c].revIncl[i]), 0);

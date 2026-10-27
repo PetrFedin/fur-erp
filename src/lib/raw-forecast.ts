@@ -6,6 +6,7 @@ import { loadDashboard } from "@/lib/dashboard-data";
 import { parseDashFilters } from "@/lib/dashboard-calc";
 import { normKey, type BudgetStat } from "@/lib/budget-calc";
 import type { ReportSizeRow } from "@/lib/margin-tree";
+import { loadReportSizes } from "@/lib/margin-server";
 
 /**
  * Прогноз сырья на остаток заказа FW26 (заказано − поступило по отчёту о товарах, по артикулу с учётом излишков других размеров — как «ждём» на Главной).
@@ -26,14 +27,14 @@ const norm = (c: string) => c.replace(/[-\s]/g, "").toUpperCase();
 const MANUAL: Record<string, string> = { M030: "Шубы", M039: "Шубы", M040: "Шубы", M054: "Шубы", M058: "Шубы", M059: "Шубы", MCF02: "Манжеты" };
 
 export async function loadRawForecast(orgId: string): Promise<RawForecast> {
-  const [sizes, stats, dash, models, lvl, orders] = await Promise.all([
-    loadReportSizesState(orgId), loadBudgetStats(orgId),
+  const [sizes, sizeRows, stats, dash, models, lvl, orders] = await Promise.all([
+    loadReportSizesState(orgId), loadReportSizes(orgId), loadBudgetStats(orgId),
     loadDashboard(orgId, "all", parseDashFilters({}), "off"),
     prisma.productModel.findMany({ where: { organizationId: orgId }, select: { id: true, sku: true, salesCode: true, category: true } }),
     prisma.salesReceiptLine.findMany({ select: { article: true, modelCode: true, level4: true } }),
     prisma.productionOrder.findMany({ where: { clientWorkPricePerUnit: { not: null } }, select: { plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true, productModel: { select: { salesCode: true, sku: true } } } }),
   ]);
-  const rows = ((sizes?.value as { rows?: ReportSizeRow[] } | undefined)?.rows ?? []);
+  const rows: ReportSizeRow[] = sizeRows;
   const idOf = new Map<string, { id: string; cat: string | null }>();
   for (const m of models) for (const c of [m.salesCode, m.sku]) if (c) idOf.set(norm(c), { id: m.id, cat: m.category });
   const catByArt = new Map<string, string>(), catByModel = new Map<string, string>();

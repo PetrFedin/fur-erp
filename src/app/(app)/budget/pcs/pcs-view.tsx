@@ -87,13 +87,18 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       if (f.label === "Норка+Соболь") return { label: f.label, ttl: f.ttl, mixed: true as const, toMink, toSable, calcMink, calcSable };
       const t = f.ttl + (f.label === "Норка" ? toMink : f.label === "Соболь" ? toSable : 0);
       const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = r?.need ?? 0, calcLeft = Math.max(0, stock - need) * blockShare(f.label), left = own(ovLeft[f.label] ?? "", calcLeft);
-      const use = left * (f.label === "Рысь" ? pct(pp.y) : pct(pp.l)) / 100, np = Math.max(0, t - use);
-      const buy = pct(pp.n) > 0 ? np / (pct(pp.n) / 100) : 0;
+      // Проценты как при сохранении: пусто или 0 — значение по умолчанию (иначе экран и сохранённое расходятся).
+      const pL = pct(pp.l) || 70, pY = pct(pp.y) || 85, pN = pct(pp.n) || 70;
+      const use = left * (f.label === "Рысь" ? pY : pL) / 100;
+      // Нехватка на уже запланированное (склад меньше «нужно»): тоже покупаем, по доле блока.
+      const shortage = Math.max(0, need - stock) * blockShare(f.label);
+      const np = Math.max(0, t - use) + shortage;
+      const buy = np / (pN / 100);
       const up = Math.max(0, parseFloat(pp.u.replace(",", ".")) || 0), pr = price[f.label] ?? 0, money = buy * pr * (1 + up / 100);
-      return { label: f.label, ttl: f.ttl, mixed: false as const, t, stock, need, left, calcLeft, use, np, buy, pr, money };
+      return { label: f.label, ttl: f.ttl, mixed: false as const, t, stock, need, left, calcLeft, use, np, buy, buyPriced: pr > 0 ? buy : 0, pr, money };
     });
-    const sum = (k: "stock" | "need" | "left" | "use" | "np" | "buy" | "money") => rowsOut.reduce((a, r) => a + (r.mixed ? 0 : r[k]), 0);
-    return { rows: rowsOut, total: { stock: sum("stock"), need: sum("need"), left: sum("left"), use: sum("use"), np: sum("np"), buy: sum("buy"), money: sum("money") } };
+    const sum = (k: "stock" | "need" | "left" | "use" | "np" | "buy" | "buyPriced" | "money") => rowsOut.reduce((a, r) => a + (r.mixed ? 0 : r[k]), 0);
+    return { rows: rowsOut, total: { stock: sum("stock"), need: sum("need"), left: sum("left"), use: sum("use"), np: sum("np"), buy: sum("buy"), buyPriced: sum("buyPriced"), money: sum("money") } };
   }, [furs, rawBy, pp, cur, blocks, mix, ovLeft, ovMix, price]);
   const saveParams = () => {
     if (!canEdit) return;
@@ -231,7 +236,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.use)}</td>
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.np)}</td>
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.buy)}</td>
-              <td className={`${TD} border-neutral-200`}>{supply.total.buy > 0 ? cell(supply.total.money / (supply.total.buy * (1 + (parseFloat(pp.u.replace(",", ".")) || 0) / 100))) : "–"}</td>
+              <td className={`${TD} border-neutral-200`}>{supply.total.buyPriced > 0 ? cell(supply.total.money / (supply.total.buyPriced * (1 + (parseFloat(pp.u.replace(",", ".")) || 0) / 100))) : "–"}</td>
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.money)}</td>
             </tr>
             {furs.map((f) => (
@@ -255,7 +260,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
         </table>
       </div>
 
-      <p className="text-sm font-semibold tabular-nums" data-purchase-total>На закупку сырья: {formatInt(Math.round(supply.total.money))} ₽ <span className="font-normal text-neutral-600">({formatInt(Math.round(supply.total.buy))} шкур, средняя цена {supply.total.buy > 0 ? formatInt(Math.round(supply.total.money / supply.total.buy)) : "–"} ₽ с ростом {pp.u} %, с НДС)</span></p>
+      <p className="text-sm font-semibold tabular-nums" data-purchase-total>На закупку сырья: {formatInt(Math.round(supply.total.money))} ₽ <span className="font-normal text-neutral-600">({formatInt(Math.round(supply.total.buy))} шкур, средняя цена {supply.total.buyPriced > 0 ? formatInt(Math.round(supply.total.money / supply.total.buyPriced)) : "–"} ₽ с ростом {pp.u} %, с НДС{supply.total.buy - supply.total.buyPriced > 0.5 ? `; без цены в ТЗ: ${formatInt(Math.round(supply.total.buy - supply.total.buyPriced))} шкур` : ""})</span></p>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full min-w-[480px]">

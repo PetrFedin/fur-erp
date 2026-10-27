@@ -36,9 +36,16 @@ export async function loadRawBalance(orgId: string): Promise<{ rows: RawBalance;
   const off = new Set(doc?.off ?? []);
   const need = new Map<string, number>();
   for (const l of raw.lines) {
-    if (off.has(l.acode) || l.fur.includes(" + ")) continue;
+    if (off.has(l.acode)) continue;
     const hp = num(doc?.edits[l.acode]?.hp, l.hp);
     if (hp == null || !(hp > 0)) continue;
+    if (l.fur.includes(" + ")) {
+      // Смесь «Норка + Соболь»: потребность делим на норку и соболя по реальной пропорции ТЗ (одежда и аксессуары отдельно) — как в таблице бюджета.
+      const mink = share(l.cls === "acc" ? use.Acc : use.RTW), total = l.left * hp;
+      need.set("Норка", (need.get("Норка") ?? 0) + total * mink);
+      need.set("Соболь", (need.get("Соболь") ?? 0) + total * (1 - mink));
+      continue;
+    }
     const f = NAME[l.fur] ?? l.fur;
     need.set(f, (need.get(f) ?? 0) + l.left * hp);
   }
