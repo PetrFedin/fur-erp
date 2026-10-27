@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { CAT_LABEL, ttlOf, avgOf, buildPcsView, DEFAULT_PCS_PARAMS, type PcsParams, ST_COLS, ST_FILE_LEN, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
 import { formatDec1, formatInt } from "@/lib/utils";
 import { exportPcsXlsx, savePcsParams, savePcsRows } from "./actions";
@@ -68,6 +68,8 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
   }, [tree]);
 
   // Сырьё: сколько шкур есть, сколько уйдёт на допроизводство заказанного, сколько можно использовать и сколько докупать.
+  // Пустое поле — значение по умолчанию, ноль — действительно ноль (например, «из остатков 0 %»: остатки не используем).
+  const pctOr = (v: string, d: number, min = 0) => { if (v.trim() === "") return d; const x = parseFloat(v.replace(",", ".")); return Number.isFinite(x) ? Math.min(100, Math.max(min, x)) : d; };
   const pct = (v: string) => { const x = parseFloat(v.replace(",", ".")); return Number.isFinite(x) && x > 0 ? Math.min(100, x) : 0; };
   const rawBy = useMemo(() => new Map(raw.map((r) => [r.fur, r])), [raw]);
   const supply = useMemo(() => {
@@ -80,7 +82,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     // Остаток делится между блоками: аксессуарам — pp.a % используемого остатка (лучшая часть остаётся одежде); рысь без деления по качеству — по потребности блоков.
     const lynxTtl = { RTW: 0, Acc: 0 };
     for (const r of cur) if (r.fur === "Рысь") lynxTtl[r.block] += ttlOf(r) ?? 0;
-    const accShare = Math.min(100, Math.max(0, parseFloat(pp.a.replace(",", ".")) || 0)) / 100;
+    const accShare = pctOr(pp.a, 75) / 100;
     const blockShare = (fur: string) => {
       if (blocks.length === 2) return 1;
       if (fur === "Рысь") { const all = lynxTtl.RTW + lynxTtl.Acc; return all > 0 ? lynxTtl[blocks[0]] / all : 0.5; }
@@ -91,7 +93,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       const t = f.ttl + (f.label === "Норка" ? toMink : f.label === "Соболь" ? toSable : 0);
       const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = r?.need ?? 0, calcLeft = Math.max(0, stock - need) * blockShare(f.label), left = own(ovLeft[f.label] ?? "", calcLeft);
       // Проценты как при сохранении: пусто или 0 — значение по умолчанию (иначе экран и сохранённое расходятся).
-      const pL = pct(pp.l) || 70, pY = pct(pp.y) || 85, pN = pct(pp.n) || 70;
+      const pL = pctOr(pp.l, 70), pY = pctOr(pp.y, 85), pN = pctOr(pp.n, 70, 1);
       const use = left * (f.label === "Рысь" ? pY : pL) / 100;
       // Нехватка на уже запланированное (склад меньше «нужно»): тоже покупаем, по доле блока.
       const shortage = Math.max(0, need - stock) * blockShare(f.label);
@@ -103,12 +105,22 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     const sum = (k: "stock" | "need" | "left" | "use" | "np" | "buy" | "buyPriced" | "money") => rowsOut.reduce((a, r) => a + (r.mixed ? 0 : r[k]), 0);
     return { rows: rowsOut, total: { stock: sum("stock"), need: sum("need"), left: sum("left"), use: sum("use"), np: sum("np"), buy: sum("buy"), buyPriced: sum("buyPriced"), money: sum("money") } };
   }, [furs, rawBy, pp, cur, blocks, mix, ovLeft, ovMix, price]);
+  const lastSaved = useRef<string | null>(null);
+  if (lastSaved.current === null) {
+    const l0 = Object.fromEntries(Object.entries(p0.left ?? {}).filter(([, v]) => Number.isFinite(v)));
+    lastSaved.current = JSON.stringify({ leftoverPct: p0.leftoverPct ?? 70, lynxPct: p0.lynxPct ?? 85, newPct: p0.newPct ?? 70, accPct: p0.accPct ?? 75, upPct: Math.max(0, p0.upPct ?? DEFAULT_PCS_PARAMS.upPct ?? 10), left: l0, mix: p0.mix ? { mink: p0.mix.mink, sable: p0.mix.sable } : null });
+  }
   const saveParams = () => {
     if (!canEdit) return;
     const num = (v: string) => parseFloat(v.replace(",", "."));
     const left = Object.fromEntries(Object.entries(ovLeft).filter(([, v]) => v.trim() !== "" && Number.isFinite(num(v))).map(([k, v]) => [k, num(v)]));
     const mixOk = Number.isFinite(num(ovMix.mink)) && Number.isFinite(num(ovMix.sable));
-    void savePcsParams(id, { leftoverPct: pct(pp.l) || 70, lynxPct: pct(pp.y) || 85, newPct: pct(pp.n) || 70, accPct: pct(pp.a) || 75, upPct: Math.max(0, parseFloat(pp.u.replace(",", ".")) || 0), left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null });
+    const payload = { leftoverPct: pctOr(pp.l, 70), lynxPct: pctOr(pp.y, 85), newPct: pctOr(pp.n, 70, 1), accPct: pctOr(pp.a, 75), upPct: Math.max(0, parseFloat(pp.u.replace(",", ".")) || 0), left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null };
+    // Пишем в базу только если что-то изменилось (уход из поля без правки не меняет «Изменён …» и не пересчитывает страницы).
+    const sig = JSON.stringify(payload);
+    if (sig === lastSaved.current) return;
+    lastSaved.current = sig;
+    void savePcsParams(id, payload);
   };
 
   const supplyInp = (value: string, on: (v: string) => void, ph: string, label: string) => (

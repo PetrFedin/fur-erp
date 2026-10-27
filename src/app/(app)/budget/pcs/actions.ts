@@ -74,11 +74,12 @@ export async function savePcsParams(id: string, p: PcsParams): Promise<Res> {
   const session = await requireRole(...EDIT);
   const orgId = session.user.organizationId;
   const d = await getPcs(orgId, s(id, 40)); if (!d) return { ok: false, error: "Файл не найден" };
-  const pct = (v: unknown) => { const x = Number(v); return Number.isFinite(x) ? Math.min(100, Math.max(1, Math.round(x * 10) / 10)) : 70; };
+  // Проценты 0…100: 0 допустим («не использовать остатки», «аксессуарам остатки не отдаём»); «из новой покупки» — не меньше 1 (делитель).
+  const pct = (v: unknown, min = 0) => { const x = Number(v); return Number.isFinite(x) ? Math.min(100, Math.max(min, Math.round(x * 10) / 10)) : 70; };
   const left: Record<string, number> = {};
   for (const [k, v] of Object.entries(p.left ?? {})) { const x = Number(v); if (Number.isFinite(x) && x >= 0) left[s(k, 40)] = Math.min(1e8, x); }
   const mx = p.mix && Number.isFinite(Number(p.mix.mink)) && Number.isFinite(Number(p.mix.sable)) ? { mink: Math.min(1e8, Math.max(0, Number(p.mix.mink))), sable: Math.min(1e8, Math.max(0, Number(p.mix.sable))) } : null;
-  await putPcs(orgId, d.id, { ...d, params: { leftoverPct: pct(p.leftoverPct), lynxPct: pct(p.lynxPct), newPct: pct(p.newPct), accPct: pct(p.accPct ?? 75), upPct: Math.min(500, Math.max(0, Math.round(Number(p.upPct ?? 10) * 10) / 10) || 0), left, mix: mx }, updatedBy: session.user.name ?? null });
+  await putPcs(orgId, d.id, { ...d, params: { leftoverPct: pct(p.leftoverPct), lynxPct: pct(p.lynxPct), newPct: pct(p.newPct, 1), accPct: pct(p.accPct ?? 75), upPct: Math.min(500, Math.max(0, Math.round(Number(p.upPct ?? 10) * 10) / 10) || 0), left, mix: mx }, updatedBy: session.user.name ?? null });
   revalidateAll();
   return { ok: true };
 }
