@@ -90,10 +90,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <PageModes info={info} c4={c4Mode} />
         </div>
         <div className="flex items-center gap-2">
-          <span className="relative inline-flex print:hidden" data-scheme-btn>
-            <span aria-hidden className="absolute inset-0 animate-ping rounded-md bg-orange-400/60 motion-reduce:animate-none" />
-            <Link href="/scheme" className="relative rounded-md border border-orange-500 bg-orange-500 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-orange-600">Схема</Link>
-          </span>
+          <Link href="/scheme" data-scheme-btn className="inline-flex min-h-11 items-center text-xs text-blue-700 hover:underline print:hidden">→ Схема работы</Link>
           <PrintButton />
         </div>
       </div>
