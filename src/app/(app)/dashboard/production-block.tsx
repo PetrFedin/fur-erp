@@ -65,6 +65,12 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
   const fact = { ...addNums(done, work), orders: all.orders, items: all.items, repairOrders: all.repairOrders };
   const cost = (n: ProdNums) => (vat === "incl" ? n.costIncl : n.costExcl);
   const repairCost = vat === "incl" ? fact.repairCostIncl : fact.repairCostExcl;
+  const split = (() => {
+    if (!drill) return null;
+    let done = 0, work = 0;
+    for (const o of drill.orders) { if (isRepair(o)) continue; if (o.st === "COMPLETED") done += o.qd ?? o.qty; else work += o.qo ?? o.qty; }
+    return { done, work };
+  })();
   const avg = fact.qty > 0 ? (cost(fact) - repairCost) / fact.qty : null;
   const D = vat === "incl"
     ? { fur: fact.furIncl + hides.incl, lining: fact.liningIncl, c4: fact.c4Incl }
@@ -160,6 +166,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
         <div role="group" aria-label="Объём таблиц" className={SEG_GROUP}>
           {([["ordered", "Заказано"], ["produced", "Произведено"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={volume === k} onClick={() => setVolume(k)} className={segCls(volume === k)}>{t}</button>)}
         </div>
+        {split ? <span className="text-xs text-neutral-600 tabular-nums">Произведено {formatQty(split.done)} шт. + в работе {formatQty(split.work)} шт. = в выпуске {formatQty(split.done + split.work)} шт.</span> : null}
         <InfoHint label="Заказано и произведено" wide><p><b>Заказано</b> — все ТЗ (завершённые, в работе, запланированные) по плановому количеству. <b>Произведено</b> — только завершённые ТЗ по фактическому выпуску. Деньги и средние считаются по тем же ТЗ, что штуки.</p></InfoHint>
       </div>
       <ProductionTable search={search} volume={volume} />

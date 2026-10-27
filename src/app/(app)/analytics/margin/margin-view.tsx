@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useVatDisplay } from "@/lib/vat-display";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Segmented } from "@/components/segmented";
@@ -25,7 +26,13 @@ export function MarginView({ input, sizes, photos, priceModels, canEdit, initial
   const setCat = (k: Cat) => { setCatState(k); router.replace(urlOf(k, tree, cur, vat), { scroll: false }); };
   const setTree = (t: "a" | "b") => { setTreeState(t); router.replace(urlOf(cat, t, cur, vat), { scroll: false }); };
   const setCur = (c: "rub" | "eur") => { setCurState(c); router.replace(urlOf(cat, tree, c, vat), { scroll: false }); };
-  const setVat = (v: "ex" | "in") => { setVatState(v); router.replace(urlOf(cat, tree, cur, v), { scroll: false }); };
+  // НДС — один на весь сайт (переключатель в шапке): раздел следует за шапкой, а свой переключатель меняет и шапку.
+  const vatDisp = useVatDisplay();
+  useEffect(() => {
+    const want = vatDisp.mode === "excl" ? "ex" : "in";
+    setVatState((v) => (v === want ? v : want));
+  }, [vatDisp.mode]);
+  const setVat = (v: "ex" | "in") => { setVatState(v); vatDisp.setMode(v === "ex" ? "excl" : "incl"); router.replace(urlOf(cat, tree, cur, v), { scroll: false }); };
   // Счётчики на кнопках — единицы прихода по строкам выгрузки (категория по Level 02, как в Cashflow).
   const count = (k: Cat) => (input ? input.lines.filter((l) => l.kind === "RECEIPT" && (k === "all" || l.cls === k)).reduce((a, l) => a + l.pcs, 0) : 0);
   return (
