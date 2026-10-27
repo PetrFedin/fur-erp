@@ -38,8 +38,7 @@ const GET: Record<string, (g: Agg) => number | string | null> = {
 
 /** Блок «Среднее» (после «Объёмов»): по категориям изделий и по типам меха — средний расход шкур и подкладки, средняя стоимость меха, работы и полная себестоимость на одно изделие. */
 export function AveragesTable({ data: rawData, volume = "ordered" }: { data: DrillData | null; volume?: VolumeMode }) {
-  // Строка «Получено, ТЗ не заведены» без стоимости сюда не входит: она занизила бы среднюю цену изделия.
-  const data = useMemo(() => { const d = withVolume(rawData, volume); return d ? { ...d, orders: d.orders.filter((o) => o.id !== "no-tz") } : d; }, [rawData, volume]);
+  const data = useMemo(() => withVolume(rawData, volume), [rawData, volume]);
   const { mode: vat } = useVatDisplay();
   const [tab, setTab] = useState("cat");
   const [open, setOpen] = useState<Set<string>>(new Set());
