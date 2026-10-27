@@ -31,7 +31,7 @@ const addNums = (a: ProdNums, b: ProdNums): ProdNums => ({ items: a.items + b.it
 
 type VatPair = { incl: number; excl: number };
 
-export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind = "", hides: hidesP, c4Parts: c4PartsP, years: yearsP, done: doneP, work: workP, all: allP, c4, search, info, bridge }: { /** «→ ТЗ» с фильтрами Главной. */ href?: string; hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
+export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind = "", hides: hidesP, c4Parts: c4PartsP, years: yearsP, done: doneP, work: workP, all: allP, c4, search, info, bridge, noTz = 0 }: { /** Получено, но в ТЗ нет объёма под эти штуки (шт.). */ noTz?: number; /** «→ ТЗ» с фильтрами Главной. */ href?: string; hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
   const { mode: vat } = useVatDisplay();
   const [open, setOpen] = useState<null | "done" | "work" | "all">(null);
   // Всего / Одежда / Аксессуары листаются вместе во всех плитках блока.
@@ -69,7 +69,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
     if (!drill) return null;
     let done = 0, work = 0;
     for (const o of drill.orders) { if (isRepair(o)) continue; const total = o.st === "COMPLETED" ? o.qty : (o.qo ?? o.qty); const got = o.qd ?? 0; done += got; work += Math.max(0, total - got); }
-    return { done, work };
+    return { done, work, extra: season === "all" && !Object.values(search ?? {}).some((v) => v && v.length > 0) ? noTz : 0 };
   })();
   const avg = fact.qty > 0 ? (cost(fact) - repairCost) / fact.qty : null;
   const D = vat === "incl"
@@ -166,7 +166,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
         <div role="group" aria-label="Объём таблиц" className={SEG_GROUP}>
           {([["ordered", "Заказано"], ["produced", "Произведено"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={volume === k} onClick={() => setVolume(k)} className={segCls(volume === k)}>{t}</button>)}
         </div>
-        {split ? <span className="text-xs text-neutral-600 tabular-nums">Произведено (получено MVST РМ) {formatQty(split.done)} шт. + в работе / ждём прихода {formatQty(split.work)} шт. = в выпуске {formatQty(split.done + split.work)} шт.</span> : null}
+        {split ? <span className="text-xs text-neutral-600 tabular-nums">Произведено (получено MVST РМ) {formatQty(split.done + split.extra)} шт.{split.extra > 0 ? ` (по ТЗ ${formatQty(split.done)} + сверх ТЗ ${formatQty(split.extra)})` : ""} · в работе / ждём прихода {formatQty(split.work)} шт. · объём ТЗ {formatQty(split.done + split.work)} шт.</span> : null}
         <InfoHint label="Заказано и произведено" wide><p><b>Заказано</b> — все ТЗ (завершённые, в работе, запланированные) по плановому количеству. <b>Произведено</b> — только то, что получено MVST РМ (файл прихода), разложенное по ТЗ модели; что не получено, считается «в работе». Деньги и средние считаются по тем же ТЗ, что штуки.</p></InfoHint>
       </div>
       <ProductionTable search={search} volume={volume} />

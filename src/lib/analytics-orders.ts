@@ -158,7 +158,7 @@ function makeResolver(refs: Ref[]) {
 
 const normModelKey = (s: string) => s.replace(/[-\s_/.]/g, "").toUpperCase();
 /** Приход (SalesReceiptLine RECEIPT) по моделям → раскладка по ТЗ модели (по номеру, до объёма ТЗ). Возвращает ТЗ → получено шт. */
-async function allocateReceivedToOrders(orgId: string): Promise<Map<string, number>> {
+async function allocateReceivedDetail(orgId: string): Promise<{ out: Map<string, number>; unallocated: number }> {
   const [models, receipts, all] = await Promise.all([
     prisma.productModel.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, sku: true, salesCode: true, aliases: true } }),
     prisma.salesReceiptLine.findMany({ where: { organizationId: orgId, kind: "RECEIPT" }, select: { article: true, modelCode: true, pcs: true } }),
@@ -175,8 +175,13 @@ async function allocateReceivedToOrders(orgId: string): Promise<Map<string, numb
     const take = Math.min(cap, Math.max(0, have));
     if (take > 0) { out.set(o.id, take); left.set(o.productModelId, have - take); }
   }
-  return out;
+  let unallocated = 0;
+  for (const v of left.values()) unallocated += Math.max(0, v);
+  return { out, unallocated };
 }
+const allocateReceivedToOrders = async (orgId: string) => (await allocateReceivedDetail(orgId)).out;
+/** Приход, под который в ТЗ нет объёма (получено больше, чем в ТЗ модели), шт. */
+export const receivedWithoutOrders = async (orgId: string) => (await allocateReceivedDetail(orgId)).unallocated;
 
 async function loadOrderRowsImpl(orgId: string, year: YearFilter, mode: Commission4Mode): Promise<OrderRow[]> {
   const [orders, colorRefs, furRefs] = await Promise.all([
