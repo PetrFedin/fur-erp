@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { ttlOf, avgOf, buildPcsView, DEFAULT_PCS_PARAMS, type PcsParams, ST_COLS, ST_FILE_LEN, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
+import { CAT_LABEL, ttlOf, avgOf, buildPcsView, DEFAULT_PCS_PARAMS, type PcsParams, ST_COLS, ST_FILE_LEN, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
 import { formatDec1, formatInt } from "@/lib/utils";
 import { exportPcsXlsx, savePcsParams, savePcsRows } from "./actions";
 import { Fw27Compare, Fw27Dialog } from "./fw27-panel";
@@ -159,9 +159,11 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
           // Фото из презентации FW27: у строк «Одежда» (мех / категория / длина) — кнопка с числом фото, открывает окно поверх страницы.
           const fur = n.crit.fur ?? ctx.fur;
           if (!fw27 || level < 1 || level > 4 || ctx.acc || n.crit.group || !fur) return label;
-          const crit: Crit = { fur, ...(n.crit.cat ? { cat: n.crit.cat } : {}), ...(n.crit.len ? { len: n.crit.len } : {}) };
+          // В узле категория — подпись для экрана («Жилеты»), в данных — название из справочника («Жилет меховой»).
+          const rawCat = n.crit.cat ? Object.entries(CAT_LABEL).find(([, v]) => v === n.crit.cat)?.[0] ?? n.crit.cat : undefined;
+          const crit: Crit = { fur, ...(rawCat ? { cat: rawCat } : {}), ...(n.crit.len ? { len: n.crit.len } : {}) };
           const cnt = photoCount(slidesFor(fw27, crit));
-          return <span className="flex items-center justify-between gap-3 whitespace-nowrap">{label}<button type="button" onClick={() => setPhotoSel({ crit, title: [crit.fur, crit.cat, crit.len].filter(Boolean).join(" · ") })} aria-label={`Фото из презентации: ${label}, ${cnt} шт.`} className={`-my-0.5 inline-flex min-h-6 shrink-0 items-center rounded border px-1.5 text-[11px] font-normal leading-none hover:opacity-100 ${cnt ? "border-current/40 opacity-90" : "border-dashed border-current/50 opacity-60"}`}>Фото {cnt}</button></span>;
+          return <span className="flex items-center justify-between gap-3 whitespace-nowrap">{label}<button type="button" onClick={() => setPhotoSel({ crit, title: [crit.fur, n.crit.cat, crit.len].filter(Boolean).join(" · ") })} aria-label={`Фото из презентации: ${label}, ${cnt} шт.`} className={`-my-0.5 inline-flex min-h-6 shrink-0 items-center rounded border px-1.5 text-[11px] font-normal leading-none hover:opacity-100 ${cnt ? "border-current/40 opacity-90" : "border-dashed border-current/50 opacity-60"}`}>Фото {cnt}</button></span>;
         })()}</td>
         <td className={`${TD} ${LINE_STRONG[level]}`}>{editable ? inp(vals[i].pcs, (v) => edit(i, "pcs", v), "w-16", "Штуки") : cell(n.pcs)}</td>
         <td className={`${TD} ${LINE[level]}`}>{editable ? inp(vals[i].avg, (v) => edit(i, "avg", v), "w-16", "Шкур на изделие", n.leaf?.avgB != null ? String(Math.round(n.leaf.avgB * 10) / 10) : undefined)

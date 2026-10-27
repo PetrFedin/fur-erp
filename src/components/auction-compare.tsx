@@ -18,8 +18,8 @@ const houseOf = (label: string) => label.replace(/[\s-]*\d{2}[.-]\d{2}$/, "").tr
 /** Тип аукциона: РП, СП (российские), у поставщика, иностранные (SAGA, FH, AME и др.). */
 const typeOf = (label: string, supplier: boolean) => (supplier ? "У поставщика" : /^(РП|СП)$/.test(houseOf(label)) ? houseOf(label) : "Иностранные аукционы");
 
-/** Страна аукционного дома по названию дома из сессии («SAGA 03.26» → SAGA). Дом без известной страны (например AME) — без подписи, страну не выдумываем. */
-const COUNTRY: Record<string, string> = { "РП": "Россия", "СП": "Россия", "SAGA": "Финляндия", "FH": "Канада", "KOPENHAGEN": "Дания", "KOPENHAGEN FUR": "Дания", "KF": "Дания" };
+/** Страна аукционного дома по названию дома из сессии («SAGA 03.26» → SAGA). Страна — по документам и названию дома (AME = American Legend, США — из письма по спецификации 11); неизвестный дом — без подписи. */
+const COUNTRY: Record<string, string> = { "РП": "Россия", "СП": "Россия", "SAGA": "Финляндия", "FH": "Канада", "AME": "США", /* письмо «Аукцион American Legend — Спецификация 11 норка махагон» */ "KOPENHAGEN": "Дания", "KOPENHAGEN FUR": "Дания", "KF": "Дания" };
 const countryOf = (label: string) => COUNTRY[houseOf(label).toUpperCase()] ?? null;
 const ALL = "__all";
 
@@ -71,15 +71,6 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
     const prune = (list: Node[], yearTop: boolean): Node[] => list.filter((n) => n.qty > 0.0005).map((n) => ({ ...n, children: prune(n.children, yearTop) }))
       .sort((a, b) => (yearTop && a.depth === 0) || (!yearTop && a.depth === 1) ? Number(b.key.split("|")[yearTop ? 1 : 2] ?? b.key) - Number(a.key.split("|")[yearTop ? 1 : 2] ?? a.key) : avg(a) - avg(b));
     const byHouse = prune([...A.values()], false), byYear = prune([...B.values()], true);
-    // Аукционные дома, где этот мех не покупали, остаются в таблице пустой строкой: видно, что они есть и их можно сравнить по другому меху.
-    const seen = new Set(byHouse.map((n) => n.key));
-    for (const l of real) {
-      if (classifyLotSource(l) === "supplier") continue;
-      const hk = houseOf(l.auctionLabel || l.auction);
-      if (seen.has("A|" + hk)) continue;
-      seen.add("A|" + hk);
-      byHouse.push({ ...mk("A|" + hk, hk, false, 0), placeholder: true });
-    }
     const keys: string[] = []; const walk = (ns: Node[]) => ns.forEach((n) => { if (n.children.length) keys.push(n.key); walk(n.children); }); walk(byHouse); walk(byYear);
     return { byHouse, byYear, all: { qty: tot.qty, avg: tot.qty > 0 ? tot.value / tot.qty : 0, usdQty: tot.usdQty, usd: tot.usdQty > 0 ? tot.usdSum / tot.usdQty : 0 }, keys };
   }, [real, cur, ex]);
@@ -93,15 +84,6 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
   const tone = (d: number) => (d <= -0.05 ? "text-[#17613c]" : d >= 0.05 ? "text-[#b4310b]" : "text-neutral-900");
 
   const renderRow = (r: Node) => {
-              if (r.placeholder) {
-                const c0 = countryOf(r.label);
-                return (
-                  <tr key={r.key} className="border-b border-neutral-100 text-neutral-500">
-                    <td className="px-2 py-1.5 text-left" style={{ paddingLeft: 8 + 28 }}>{r.label}{c0 ? <span className="ml-1 text-[11px]">· {c0}</span> : null}</td>
-                    <td colSpan={5} className="border-l border-neutral-200 px-2 py-1.5 text-xs">{cur ? `мех «${cur}» на этом аукционе не покупали` : "закупок нет"}</td>
-                  </tr>
-                );
-              }
               const avg = r.value / r.qty, d = all.avg > 0 ? avg / all.avg - 1 : 0;
               const can = r.children.length > 0, isOpen = open.has(r.key);
               return (
@@ -109,7 +91,7 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
                   <td className="px-2 py-1.5 text-left" style={{ paddingLeft: 8 + r.depth * 20 }}>
                     <div className="flex items-start gap-1">
                       {can ? <button type="button" onClick={() => toggle(r.key)} aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Развернуть"}: ${r.label}`} className="inline-flex size-7 shrink-0 items-center justify-center text-neutral-500 hover:text-neutral-900"><span aria-hidden className={"inline-block transition-transform " + (isOpen ? "rotate-90" : "")}>›</span></button> : <span className="w-7 shrink-0" />}
-                      <div><span className={r.depth === 0 ? "font-medium" : ""}>{r.label}</span>{!r.supplier && r.depth !== 1 && countryOf(r.label) ? <span className="ml-1 text-[11px] font-normal text-neutral-500">· {countryOf(r.label)}</span> : null}<div className="text-[11px] leading-4 text-neutral-500">{r.lots} лот.</div></div>
+                      <div><span className={r.depth === 0 ? "font-medium" : ""}>{r.label}</span>{r.depth !== 1 && (r.supplier ? "Россия" : countryOf(r.label)) ? <span className="ml-1 text-[11px] font-normal text-neutral-500">· {r.supplier ? "Россия" : countryOf(r.label)}</span> : null}<div className="text-[11px] leading-4 text-neutral-500">{r.lots} лот.</div></div>
                     </div>
                   </td>
                   <td className="border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{formatQty(r.qty)}</td>
