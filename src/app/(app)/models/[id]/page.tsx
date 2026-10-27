@@ -1,3 +1,4 @@
+import { uniqueOrderCount } from "@/lib/tz-key";
 import { orderLabel as tzOrderLabel } from "@/lib/order-label";
 import { ChatLink } from "@/components/chat-link";
 import { loadTzPositions } from "@/lib/order-label-db";
@@ -218,7 +219,7 @@ export default async function EditModelPage({ params, searchParams }: PageProps<
       </div>
 
       <nav aria-label="Разделы артикула" className="flex flex-wrap gap-2">
-        <SectionLink href={`/production?model=${id}`} label="ТЗ артикула" count={orders.filter((o) => o.status !== "CANCELLED").length} />
+        <SectionLink href={`/production?model=${id}`} label="ТЗ артикула" count={uniqueOrderCount(orders.filter((o) => o.status !== "CANCELLED"))} />
         <SectionLink href={`/production/batches?model=${id}`} label="Партии" count={batchCount} />
         {!HIDDEN_MODULES.shipments && <SectionLink href={`/shipments?model=${id}`} label="Отгрузки" count={shipmentsCount} />}
         {!HIDDEN_MODULES.fittings && <SectionLink href={`/fittings?model=${id}`} label="Примерки" count={fittingsCount} />}

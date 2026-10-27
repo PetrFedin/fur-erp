@@ -1,3 +1,4 @@
+import { InfoHint } from "@/components/info-hint";
 import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CATEGORY_GROUPS, NO_GROUP_ARTICLES_LABEL } from "@/lib/category-groups";
@@ -696,7 +697,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <Th {...tth("liningQty")} className="text-right" unit="м">Подкладка</Th>
             <Th {...tth("liningSum")} className="text-right" unit="₽"><VatLabel base="Подкладка" /></Th>
             <Th {...tth("work")} className={"text-right" + BLH} unit="₽">Работа</Th>
-            <Th {...tth("full")} className="text-right" unit="₽">
+            <Th {...tth("full")} className="text-right" unit="₽" after={<InfoHint label="Из чего складывается себестоимость">Мех + подкладка + надбавка 4 % (если включена) + работа + расходы ТЗ (фурнитура, прочие расходы). Расходов отдельной колонки нет, поэтому сумма колонок слева может быть меньше итога.</InfoHint>}>
               <VatLabel base={`Себестоимость с работой${c4}`} />
             </Th>
             <Th>НДС</Th>
