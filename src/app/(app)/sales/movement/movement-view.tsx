@@ -30,6 +30,7 @@ function StockChart({ rows, hot, setHot }: { rows: MoveRow[]; hot: number | null
         {rows.map((r, i) => <rect key={r.line.id} x={x(i) - 4} y={y(Math.max(0, r.delta > 0 ? r.stock : r.stock - r.delta))} width="8" height={Math.max(2, Math.abs(y(r.stock) - y(r.stock - r.delta)))} fill={r.delta >= 0 ? NAVY : GET} opacity="0.35" />)}
         <polyline points={pts.join(" ")} fill="none" stroke={STOCK} strokeWidth="2" />
         {rows.map((r, i) => <circle key={r.line.id} cx={x(i)} cy={y(r.stock)} r={hot === i ? 5 : 3} fill={STOCK} onMouseEnter={() => setHot(i)}><title>{`${dmy(r.line.iso)}: ${MOVE_LABEL[r.type]} ${nSigned(r.delta)}, остаток ${r.stock}`}</title></circle>)}
+        {hot !== null && rows[hot] ? <text x={Math.min(Math.max(x(hot), PL + 24), W - PR - 24)} y={y(rows[hot].stock) - 10} textAnchor="middle" fontSize="11" fontWeight="700" fill="#171717" stroke="#fff" strokeWidth="3" paintOrder="stroke">{`${nSigned(rows[hot].delta)} → ${rows[hot].stock}`}</text> : null}
         {rows.map((r, i) => (i === 0 || i === rows.length - 1 || i % Math.ceil(rows.length / 8) === 0) ? <text key={"t" + r.line.id} x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill="#404040">{dmy(r.line.iso).slice(0, 5)}</text> : null)}
       </svg>
     </div>

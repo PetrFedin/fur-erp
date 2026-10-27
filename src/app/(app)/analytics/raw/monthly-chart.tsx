@@ -65,6 +65,7 @@ export function MonthlyChart({ points, unit }: { points: MonthPoint[]; unit: str
                 d={`M${x},${H - padB} v${-(bh - r)} q0,${-r} ${r},${-r} h${bw - 2 * r} q${r},0 ${r},${r} v${bh - r} z`}
                 fill={hover === i ? "#115e59" : "#0f766e"}
               />
+              {hover === i && v > 0 ? <text x={Math.min(Math.max(i * slot + slot / 2, 40), W - 40)} y={Math.max(11, H - padB - bh - 5)} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{fmt(v)}</text> : null}
               {(narrow ? i % Math.max(1, Math.ceil(44 / slot)) === 0 : points.length <= 18 || i % 2 === 0) ? (
                 <text x={i * slot + slot / 2} y={H - 6} textAnchor="middle" fontSize={narrow ? 11 : 10} fill="#737373">
                   {label(p.month)}
