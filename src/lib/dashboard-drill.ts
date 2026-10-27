@@ -355,7 +355,7 @@ export type VolumeMode = "ordered" | "produced";
 export function withVolume(data: DrillData | null, mode: VolumeMode): DrillData | null {
   if (!data) return data;
   const orders = mode === "ordered"
-    ? data.orders.map((o) => (o.qo != null ? { ...o, qty: o.qo } : o))
+    ? data.orders.filter((o) => o.id !== "no-tz").map((o) => (o.qo != null ? { ...o, qty: o.qo } : o))
     : data.orders.filter((o) => (o.qd ?? 0) > 0).map((o) => ({ ...o, qty: o.qd ?? 0 }));
   return { ...data, orders };
 }

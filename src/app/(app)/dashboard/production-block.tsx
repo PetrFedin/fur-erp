@@ -69,7 +69,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
     if (!drill) return null;
     let done = 0, work = 0;
     for (const o of drill.orders) { if (isRepair(o)) continue; const total = o.st === "COMPLETED" ? o.qty : (o.qo ?? o.qty); const got = o.qd ?? 0; done += got; work += Math.max(0, total - got); }
-    return { done, work, extra: season === "all" && !Object.values(search ?? {}).some((v) => v && v.length > 0) ? noTz : 0 };
+    return { done, work, extra: 0 };
   })();
   const avg = fact.qty > 0 ? (cost(fact) - repairCost) / fact.qty : null;
   const D = vat === "incl"
