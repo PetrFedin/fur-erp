@@ -250,7 +250,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
                         ) : (
                           <Dash />
                         )}
-                        {r.next && <div className="text-xs text-neutral-400">далее: {r.next.title} · {fmtWall(r.next.occurredAt, r.next.timeKnown)}</div>}
+                        {r.next && <div className="text-xs text-neutral-600">далее: {r.next.title} · {fmtWall(r.next.occurredAt, r.next.timeKnown)}</div>}
                       </Td>
                       <Td className="text-right tabular-nums">{r.s.events.length || <Dash />}</Td>
                     </Tr>

@@ -30,7 +30,7 @@ type Row = {
   vatBy: Map<number, number>;
 };
 
-const D = () => <span className="text-neutral-300">–</span>;
+const D = () => <span className="text-neutral-500">–</span>;
 const money = (v: number) => (Math.abs(v) < 0.5 ? <D /> : formatMoney(v));
 const usd = (v: number) => `$${formatNum(v, 1)}`;
 const BL = " border-l border-neutral-200";
@@ -246,10 +246,10 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                   {isOpen ? Array.from(r.lots.values()).sort((a, b) => b.qty - a.qty).map(({ lot, qty, excl, incl }) => (
                     <tr key={lot.id} className="border-t border-neutral-100 bg-neutral-50/40 text-[13px] text-neutral-700">
                       <td className="sticky left-0 z-[1] bg-white px-2 py-1 pl-8 text-left">
-                        {lot.id.startsWith("hides") || lot.id.startsWith("ordered:") ? <span>лот № {lot.lotNumber}</span> : <Link href={`/analytics/raw/lot/${lot.id}`} className="whitespace-nowrap text-blue-700 hover:underline">лот № {lot.lotNumber}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link>}
+                        {lot.id.startsWith("hides") || lot.id.startsWith("ordered:") ? <span>лот № {lot.lotNumber}</span> : <Link href={`/analytics/raw/lot/${lot.id}`} className="whitespace-nowrap text-blue-700 hover:underline">лот № {lot.lotNumber}<span aria-hidden className="ml-1 text-[11px] text-neutral-600">↗</span></Link>}
                       </td>
                       <td className="truncate px-2 py-1 text-left text-xs" colSpan={3}>
-                        {lot.auction !== "__none" ? <Link href={`/lots?auction=${encodeURIComponent(lot.auction)}`} className="text-blue-700 hover:underline">{lot.auctionLabel}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link> : lot.auctionLabel}
+                        {lot.auction !== "__none" ? <Link href={`/lots?auction=${encodeURIComponent(lot.auction)}`} className="text-blue-700 hover:underline">{lot.auctionLabel}<span aria-hidden className="ml-1 text-[11px] text-neutral-600">↗</span></Link> : lot.auctionLabel}
                       </td>
                       <td className={TD + BL}>{formatDec1(qty)}</td>
                       <td className={TD} colSpan={2} />

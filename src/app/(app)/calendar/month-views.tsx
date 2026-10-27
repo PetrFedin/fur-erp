@@ -75,7 +75,7 @@ function MonthTable({ items, filters, my, href, cell, cardHref }: {
   const hasRepair = t.grand.repair > 0;
   const LBL = "sticky left-0 z-10 w-40 min-w-40 border-r border-neutral-200";
   const hd = "px-2 py-1.5 text-right text-xs font-medium text-neutral-500";
-  const num = (v: number) => (v > 0 ? formatQty(v) : <span className="text-neutral-400">–</span>);
+  const num = (v: number) => (v > 0 ? formatQty(v) : <span className="text-neutral-600">–</span>);
   // Линия слева: у «Без даты», у «Всего» и у января каждого следующего года (при «Все годы»).
   const colBl = (c: string, i: number) => (c === NO_DATE || (i > 0 && c.endsWith("-01")) ? BL : "");
   /** Блок вида меха (или «Всего, шт.»): «Всего по плану» крупно + строки стадий словами. */
@@ -91,7 +91,7 @@ function MonthTable({ items, filters, my, href, cell, cardHref }: {
                 <span className="block truncate text-sm font-semibold">{grand ? <TotalLabel unit="шт." /> : title}</span>
                 <span className="block text-[11px] font-normal text-neutral-500">Всего по плану, шт.</span>
               </Link>
-              {!grand && <Link href={`/production?fur=${encodeURIComponent(fur)}`} title="Открыть в «ТЗ» с этим видом меха" aria-label={`Открыть в ТЗ: ${fur}`} className="mt-2 text-[11px] text-neutral-400 hover:text-neutral-900">↗</Link>}
+              {!grand && <Link href={`/production?fur=${encodeURIComponent(fur)}`} title="Открыть в «ТЗ» с этим видом меха" aria-label={`Открыть в ТЗ: ${fur}`} className="mt-2 text-[11px] text-neutral-600 hover:text-neutral-900">↗</Link>}
             </div>
           </th>
           {cellsAll.map(({ c, s, bl }) => {
@@ -102,7 +102,7 @@ function MonthTable({ items, filters, my, href, cell, cardHref }: {
               <td key={c} className={`p-0${bl}`} style={tot || grand || v === 0 ? undefined : heat(v)}>
                 {v > 0 ? (
                   <Link href={on ? href({ cell: "" }) : link(c, fur)} title={s ? stageTitle(s) : ""} aria-expanded={on} className={`flex min-h-12 items-center justify-end px-2 text-base font-semibold tabular-nums hover:ring-2 hover:ring-inset hover:ring-[var(--ui-accent)] ${on ? "ring-2 ring-inset ring-[var(--ui-accent)]" : ""}`}>{formatQty(v)}</Link>
-                ) : <span className="flex min-h-12 items-center justify-end px-2 text-neutral-400">–</span>}
+                ) : <span className="flex min-h-12 items-center justify-end px-2 text-neutral-600">–</span>}
               </td>
             );
           })}
@@ -132,7 +132,7 @@ function MonthTable({ items, filters, my, href, cell, cardHref }: {
               {t.cols.map((c, i) => (
                 <th key={c} className={`sticky top-0 z-20 border-b border-neutral-200 bg-white p-0${colBl(c, i)}`} style={{ minWidth: COL_W }}>
                   <Link href={link(c, "*")} title="Показать все ТЗ месяца" className={`${hd} block hover:underline ${cCol === c && cFur === "*" ? "bg-[var(--ui-soft)]" : ""}`}>
-                    {c === NO_DATE ? "Без даты" : <>{monthText(c).split(" ")[0]}<span className="block text-neutral-400">{monthText(c).split(" ")[1]}</span></>}
+                    {c === NO_DATE ? "Без даты" : <>{monthText(c).split(" ")[0]}<span className="block text-neutral-600">{monthText(c).split(" ")[1]}</span></>}
                   </Link>
                 </th>
               ))}

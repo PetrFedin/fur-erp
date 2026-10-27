@@ -126,7 +126,7 @@ export function GlobalSearch() {
               void run(q);
             }
           }}
-          className="h-8 w-full rounded-md border border-neutral-300 bg-white px-2 text-sm text-neutral-900 placeholder:text-neutral-400 md:w-40 lg:w-48 min-[1360px]:w-72"
+          className="h-8 w-full rounded-md border border-neutral-300 bg-white px-2 text-sm text-neutral-900 placeholder:text-neutral-600 md:w-40 lg:w-48 min-[1360px]:w-72"
         />
         {shown && (
           <div className="absolute right-0 top-full z-50 mt-1 max-h-[70vh] w-full overflow-y-auto rounded-lg border border-neutral-200 bg-white p-1 text-sm shadow-lg max-md:fixed max-md:inset-x-2 max-md:top-12 max-md:w-auto md:w-[26rem]">

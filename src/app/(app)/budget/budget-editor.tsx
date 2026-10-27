@@ -45,7 +45,7 @@ function Th({ children, tip, unit, className = "" }: { children: ReactNode; tip:
       <span className="inline-flex flex-col items-end">
         <span className="inline-flex items-center gap-0.5">
           {children}
-          <span title={tip} aria-label={tip} className="inline-flex h-3 w-3 cursor-help items-center justify-center rounded-full border border-neutral-300 text-[8px] font-normal leading-none text-neutral-400">i</span>
+          <span title={tip} aria-label={tip} className="inline-flex h-3 w-3 cursor-help items-center justify-center rounded-full border border-neutral-300 text-[11px] font-normal leading-none text-neutral-600">i</span>
         </span>
         {unit ? <span className="max-w-[72px] whitespace-normal text-[11px] font-normal opacity-80">{unit}</span> : null}
       </span>
@@ -391,7 +391,7 @@ export function BudgetEditor(p: Props) {
       {canEdit ? (
         <>
           <button type="button" className={ICON_BTN + (n.locked ? " border-[var(--ui-accent)] bg-[var(--ui-soft)] text-[var(--ui-accent-text)]" : "")} onClick={() => toggleLock(n.id)} aria-pressed={n.locked} aria-label={n.locked ? "Замок закрыт" : "Замок открыт"}
-            title={n.locked ? "Замок закрыт: значения ручные, автоматический расчёт не трогает. Нажмите, чтобы вернуть автоматический расчёт" : "Замок открыт: считается автоматически. Ручная правка значения закроет замок"}>{n.locked ? "🔒" : <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5 text-neutral-400" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><rect x="3" y="7" width="10" height="7" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>}</button>
+            title={n.locked ? "Замок закрыт: значения ручные, автоматический расчёт не трогает. Нажмите, чтобы вернуть автоматический расчёт" : "Замок открыт: считается автоматически. Ручная правка значения закроет замок"}>{n.locked ? "🔒" : <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5 text-neutral-600" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><rect x="3" y="7" width="10" height="7" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>}</button>
           <button type="button" className={ICON_BTN} disabled={busy} onClick={() => runAuto(n.id)} aria-label="Автоматический расчёт для блока" title="Автоматический расчёт только для этого блока">↻</button>
           <button type="button" className={ICON_BTN + (hasOwnUp(n) ? " border-[var(--ui-accent)] bg-[var(--ui-soft)] text-[var(--ui-accent-text)]" : "")} onClick={() => setUpFor(n.id)} aria-label="Надбавки для этой строки" title="Надбавки для этой строки и всего, что внутри">%</button>
           {n.kind !== "art" ? <button type="button" className={ICON_BTN} onClick={() => setAdding({ kind: n.kind === "fur" ? "cat" : "art", parentId: n.id })} aria-label={"Добавить: " + addInfo(n).label} title={"Добавить: " + addInfo(n).label}>＋</button> : null}
@@ -455,7 +455,7 @@ export function BudgetEditor(p: Props) {
     </div>
   );
   // ---- Сводка (для руководства): без полей ввода
-  const sumCell = "whitespace-nowrap px-1.5 py-2 text-right text-xs tabular-nums print:px-0.5 print:text-[9px] 2xl:px-3 2xl:text-[13px]";
+  const sumCell = "whitespace-nowrap px-1.5 py-2 text-right text-xs tabular-nums print:px-0.5 print:text-[11px] 2xl:px-3 2xl:text-[13px]";
   const sumRow = (key: string, label: ReactNode, a: Agg, o: { bg: string; bold?: boolean }) => {
     const sh = total.total > 0 ? a.total / total.total : 0;
     return (
@@ -647,7 +647,7 @@ export function BudgetEditor(p: Props) {
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.work)}<Avg sum={total.work} per={total.pcs} unit="₽/изд." /></td>
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}<Avg sum={total.c4} per={total.pcs} unit="₽/изд." /></td>
       <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(total.total)}</td>
-      <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums text-neutral-400">–</td>
+      <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums text-neutral-600">–</td>
       <td className="border-l border-neutral-200 lg:sticky lg:right-0 lg:z-10" />
     </tr>
   );
@@ -720,7 +720,7 @@ export function BudgetEditor(p: Props) {
               </button>
             ) : null}
           </div>
-          <p className={"mt-0.5 text-xs " + (dirty || saveState === "error" ? "font-medium text-amber-700" : "text-neutral-400")} role="status">{saveText}</p>
+          <p className={"mt-0.5 text-xs " + (dirty || saveState === "error" ? "font-medium text-amber-700" : "text-neutral-600")} role="status">{saveText}</p>
         </div>
         {staff ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -789,7 +789,7 @@ export function BudgetEditor(p: Props) {
         <div className="flex flex-wrap items-center gap-3 text-xs">
           <button type="button" onClick={expandAll} className="inline-flex min-h-10 items-center text-neutral-600 hover:underline md:min-h-0">Развернуть всё</button>
           <button type="button" onClick={collapseToFurs} className="inline-flex min-h-10 items-center text-neutral-600 hover:underline md:min-h-0">Только типы сырья</button>
-          <button type="button" onClick={collapseAll} disabled={!hasArt} title={hasArt ? "Свернуть категории: артикулы скроются" : "В бюджете пока нет артикулов"} className="hidden min-h-10 items-center text-neutral-600 hover:underline disabled:cursor-not-allowed disabled:text-neutral-300 disabled:no-underline md:min-h-0 xl:inline-flex">Скрыть артикулы</button>
+          <button type="button" onClick={collapseAll} disabled={!hasArt} title={hasArt ? "Свернуть категории: артикулы скроются" : "В бюджете пока нет артикулов"} className="hidden min-h-10 items-center text-neutral-600 hover:underline disabled:cursor-not-allowed disabled:text-neutral-500 disabled:no-underline md:min-h-0 xl:inline-flex">Скрыть артикулы</button>
           <button type="button" onClick={downloadXlsx} disabled={busy} className={BTN}>Скачать Excel</button>
           <button type="button" onClick={() => window.print()} className={BTN}>Печать</button>
         </div>
@@ -803,7 +803,7 @@ export function BudgetEditor(p: Props) {
       ) : (
         <>
           <div className={(view === "summary" ? "" : view === "unit" ? "hidden " : "hidden print:block ") + "max-h-[78vh] overflow-auto rounded-lg border border-neutral-200 bg-white print:max-h-none print:overflow-visible print:border-0"}>
-            <table data-sub={subOn ? "on" : "off"} className="w-full min-w-[980px] xl:min-w-0 border-separate border-spacing-0 text-left print:min-w-0 print:w-full print:text-[9px]">
+            <table data-sub={subOn ? "on" : "off"} className="w-full min-w-[980px] xl:min-w-0 border-separate border-spacing-0 text-left print:min-w-0 print:w-full print:text-[11px]">
               <thead className="sticky top-0 z-20 bg-white print:static">
                 <tr className="h-7">
                   <th rowSpan={2} scope="col" className="sticky left-0 z-30 min-w-[120px] border-b border-r border-neutral-200 bg-white px-2 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500 print:static">Тип сырья · категория</th>

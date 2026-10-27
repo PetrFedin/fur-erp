@@ -172,7 +172,7 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
   color: var(--ui-accent-text);
 }
 .row-total > :is(td, th):first-child { color: inherit; }
-.row-total .text-neutral-500, .row-total .text-neutral-600, .row-total .text-neutral-400 { color: inherit; opacity: 0.8; }
+.row-total .text-neutral-500, .row-total .text-neutral-600, .row-total .text-neutral-600 { color: inherit; opacity: 0.8; }
 /* итог в виде блока (не таблица): рамка и подложка те же */
 div.row-total {
   background-color: var(--ui-soft);

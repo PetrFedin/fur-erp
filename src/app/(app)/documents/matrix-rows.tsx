@@ -41,7 +41,7 @@ export function MatrixRow({ r, cols, template, withReg, ver }: { r: CovRow; cols
 }
 
 export function CellView({ cell }: { cell: Cell }) {
-  if (cell.need === "na") return <span className="text-center text-[11px] text-neutral-300">не треб.</span>;
+  if (cell.need === "na") return <span className="text-center text-[11px] text-neutral-500">не треб.</span>;
   if (cell.ok)
     return (
       <span className="text-center text-sm font-medium text-emerald-700" title={cell.viaRef ? "Есть номер платёжки в карточке оплаты" : undefined}>
@@ -83,7 +83,7 @@ const regTone: Record<RegCell["state"], string> = {
   missing: "rounded bg-red-50 px-1.5 py-0.5 font-medium text-red-700",
   later: "text-neutral-500",
   untracked: "text-neutral-500",
-  none: "text-neutral-300",
+  none: "text-neutral-500",
 };
 
 export function RegView({ reg, inline }: { reg: RegCell; inline?: boolean }) {
@@ -99,7 +99,7 @@ export function RegGroupCell({ rows }: { rows: CovRow[] }) {
   const tracked = rows.filter((r) => r.registry.state !== "none" && r.registry.state !== "untracked" && r.registry.state !== "later");
   const ok = tracked.filter((r) => r.registry.state === "found" || r.registry.state === "partial").length;
   return (
-    <span className={cn("text-center text-xs tabular-nums", tracked.length === 0 ? "text-neutral-300" : ok === tracked.length ? "text-emerald-700" : "text-red-600")}>
+    <span className={cn("text-center text-xs tabular-nums", tracked.length === 0 ? "text-neutral-500" : ok === tracked.length ? "text-emerald-700" : "text-red-600")}>
       {tracked.length === 0 ? "" : `${ok}/${tracked.length}`}
     </span>
   );

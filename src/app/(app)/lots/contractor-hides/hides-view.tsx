@@ -18,7 +18,7 @@ export type HidesOrderRow = {
 export type HidesPayment = { id: string; iso: string; date: string; year: number; label: string; doc: string | null; hides: number; amount: number; href: string; confirmed: boolean };
 
 import { useClientSort } from "@/lib/use-client-sort";
-const D = () => <span className="text-neutral-300">–</span>;
+const D = () => <span className="text-neutral-500">–</span>;
 const money = (v: number) => (Math.abs(v) < 0.5 ? <D /> : formatMoney(v.toFixed(2)));
 const TD = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
 const BL = " border-l border-neutral-200";
@@ -97,7 +97,7 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
             <tbody>
               {byBatch.map((b) => (
                 <tr key={`${b.batch}${b.payYear}`} className="border-t border-neutral-100">
-                  <td className="px-2 py-1.5 text-left"><Link href={`/production/batches/${b.batch}`} className="text-blue-700 hover:underline">Партия {b.batch}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link></td>
+                  <td className="px-2 py-1.5 text-left"><Link href={`/production/batches/${b.batch}`} className="text-blue-700 hover:underline">Партия {b.batch}<span aria-hidden className="ml-1 text-[11px] text-neutral-600">↗</span></Link></td>
                   <td className={TD}>{b.payYear}</td><td className={TD}>{b.n}</td>
                   <td className={TD + BL}>{money(b.excl)}</td><td className={TD}>{money(b.incl - b.excl)}</td><td className={TD}>{money(b.incl)}</td>
                 </tr>
@@ -157,7 +157,7 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
               {shownPays.map((p) => (
                 <tr key={p.id} className="border-t border-neutral-100">
                   <td className="px-2 py-1.5 text-left tabular-nums">{p.date}</td>
-                  <td className="px-2 py-1.5 text-left"><Link href={p.href} className="text-blue-700 hover:underline">{p.label}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link></td>
+                  <td className="px-2 py-1.5 text-left"><Link href={p.href} className="text-blue-700 hover:underline">{p.label}<span aria-hidden className="ml-1 text-[11px] text-neutral-600">↗</span></Link></td>
                   <td className="truncate px-2 py-1.5 text-left text-xs" title={p.doc ?? ""}>{p.doc ?? <D />}</td>
                   <td className={TD + BL}>{money(p.amount)}</td><td className={TD}>{money(p.hides)}</td>
                   <td className={TD + " text-xs"}>{p.confirmed ? "да" : "ждёт"}</td>

@@ -254,7 +254,7 @@ function Card({ r, invHref }: { r: RegistryRow; invHref?: string }) {
 }
 
 const CELL = "px-3 py-2 h-10";
-const DASH = <span className="text-neutral-400">–</span>;
+const DASH = <span className="text-neutral-600">–</span>;
 
 function Row({ r, invHref }: { r: RegistryRow; invHref?: string }) {
   const href = `/payments/${r.code}?from=${encodeURIComponent("/payments")}`;

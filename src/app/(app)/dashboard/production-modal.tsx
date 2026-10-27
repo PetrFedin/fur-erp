@@ -24,10 +24,10 @@ const sharePct = (part: number, whole: number) => (whole ? formatShare(part / wh
 
 /** Ячейка состава: сумма и рядом аккуратная доля от себестоимости строки. */
 function PartCell({ v, whole, hide }: { v: number; whole: number; hide?: boolean }) {
-  if (hide) return <td className="px-2 py-1.5 text-right text-neutral-400">–</td>;
+  if (hide) return <td className="px-2 py-1.5 text-right text-neutral-600">–</td>;
   return (
     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
-      {v === 0 ? <span className="text-neutral-400">–</span> : <>{formatMoney(v)}<span className="ml-1 text-[11px] text-neutral-500">{sharePct(v, whole)}</span></>}
+      {v === 0 ? <span className="text-neutral-600">–</span> : <>{formatMoney(v)}<span className="ml-1 text-[11px] text-neutral-500">{sharePct(v, whole)}</span></>}
     </td>
   );
 }
@@ -282,7 +282,7 @@ export function ProductionModal({
                             {perUnit ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{it.qty && !it.outside ? formatMoney(it.value / it.qty) : "–"}</td> : null}
                             {showFurQ ? <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700" + GL}>{nq(it.furQ)}</td> : null}
                             {showLinQ ? <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700" + (showFurQ ? "" : GL)}>{nq(it.liningQ)}</td> : null}
-                            <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + GL}>{it.asWork ? <span className="font-normal text-neutral-400">–</span> : formatMoney(it.value)}</td>
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + GL}>{it.asWork ? <span className="font-normal text-neutral-600">–</span> : formatMoney(it.value)}</td>
                             {rich ? (
                               <>
                                 <PartCell v={it.parts?.fur ?? 0} whole={it.value} hide={!it.parts} />

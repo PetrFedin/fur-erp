@@ -69,7 +69,7 @@ export function LotPicker({
         title={sel ? lotTitle(sel) : undefined}
         onFocus={() => { setText(""); setOpen(true); }}
         onChange={(e) => { setText(e.target.value); setOpen(true); }}
-        className="h-8 w-full rounded-md border border-neutral-300 bg-white px-2 text-sm placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 max-md:h-10"
+        className="h-8 w-full rounded-md border border-neutral-300 bg-white px-2 text-sm placeholder:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 max-md:h-10"
       />
       {open && (
         <ul className="absolute z-30 mt-1 max-h-72 w-[min(34rem,90vw)] overflow-auto rounded-md border border-neutral-200 bg-white text-sm shadow-lg">

@@ -840,7 +840,7 @@ function SortButton({ k, sort, onSort, label, children }: { k: string; sort: Sor
       className={"inline-flex items-center gap-1 whitespace-nowrap uppercase tracking-wide hover:text-neutral-900 " + (active ? "text-neutral-900" : "")}
     >
       {children}
-      <span className={active ? "text-neutral-900" : "text-neutral-300"}>{active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}</span>
+      <span className={active ? "text-neutral-900" : "text-neutral-500"}>{active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}</span>
     </button>
   );
 }

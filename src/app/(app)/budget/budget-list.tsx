@@ -97,7 +97,7 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
                 <div className="col-span-3 border-t border-neutral-200 pt-2"><dt className="text-neutral-500">Сумма</dt><dd className="mt-0.5 whitespace-nowrap text-xl font-semibold tabular-nums">{money(b.total)}</dd></div>
               </dl>
               {b.comment ? <p className="mt-2 line-clamp-2 text-xs text-neutral-500">{b.comment}</p> : null}
-              <p className="mt-2 text-[11px] text-neutral-400">Изменён {dateRu(b.updatedAt)}{b.updatedBy ? ` · ${b.updatedBy}` : ""}</p>
+              <p className="mt-2 text-[11px] text-neutral-600">Изменён {dateRu(b.updatedAt)}{b.updatedBy ? ` · ${b.updatedBy}` : ""}</p>
             </li>
           ))}
         </ul>

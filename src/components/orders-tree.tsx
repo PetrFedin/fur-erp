@@ -125,7 +125,7 @@ export function OrdersTree({
     const cell = (label: ReactNode, sub: ReactNode, s: Partial<Sum> & { res?: number }, key: string, qs?: { fur?: number; lining?: number }, asWork = false) => (
       <tr key={key} className={tone} data-block={anc.join(" ") || undefined}>
         <td className={ARROW_TD} />
-        <td className={`py-1.5 pr-2 text-left ${ind}`}>{label}{sub ? <div className="mt-0.5 text-[11px] leading-4 text-neutral-400">{sub}</div> : null}</td>
+        <td className={`py-1.5 pr-2 text-left ${ind}`}>{label}{sub ? <div className="mt-0.5 text-[11px] leading-4 text-neutral-600">{sub}</div> : null}</td>
         <td className={TD} /><td className={TD} />
         <td className={TD + " border-l border-neutral-200"}>{qs?.fur ? formatDec1(qs.fur) : <Dash />}</td>
         <td className={TD}>{qs?.fur && s.fur ? money(s.fur / qs.fur) : <Dash />}</td>
@@ -174,7 +174,7 @@ export function OrdersTree({
     const res = v === "incl" ? o.resI : o.resE;
     if (Math.abs(res) > 0.5) out.push(cell("Прочее", "разница между итогом ТЗ и суммой строк", { res }, "r"));
     if (Math.abs(o.work) > 0.5) out.push(cell("Работа подрядчику", o.qty > 0 ? <>{formatMoney(Math.round(o.work / o.qty))} за изделие × {formatQty(o.qty)} шт.</> : "цена работы × количество", { work: o.work }, "w", undefined, true));
-    if (out.length === 0) out.push(<tr key="none" className={tone}><td className={ARROW_TD} /><td colSpan={cols - 1} className={`py-1.5 pr-2 text-left text-neutral-400 ${ind}`}>Списаний и расходов нет</td></tr>);
+    if (out.length === 0) out.push(<tr key="none" className={tone}><td className={ARROW_TD} /><td colSpan={cols - 1} className={`py-1.5 pr-2 text-left text-neutral-600 ${ind}`}>Списаний и расходов нет</td></tr>);
     return out;
   };
 
@@ -275,8 +275,8 @@ export function OrdersTree({
               {isOrder ? (
                 <>
                   {compact ? <div className="text-[11px] font-normal leading-4 text-neutral-500">{list.length > 1 ? `${list.length} ${articlesWord(list.length)}` : o.ml}</div> : <span className="ml-2 font-normal text-neutral-500">{list.length > 1 ? `${list.length} ${articlesWord(list.length)}` : o.ml}</span>}
-                  {isRepair(o) && !countRepairQty ? <span className="ml-2 font-normal text-neutral-400">ремонт</span> : null}
-                  {dims.includes("batch") ? null : <span className="ml-2 font-normal text-neutral-400">{o.bl}</span>}
+                  {isRepair(o) && !countRepairQty ? <span className="ml-2 font-normal text-neutral-600">ремонт</span> : null}
+                  {dims.includes("batch") ? null : <span className="ml-2 font-normal text-neutral-600">{o.bl}</span>}
                 </>
               ) : compact ? (
                 <div className="text-[11px] font-normal leading-4 text-neutral-500">{tzCountText(uniqueOrderCount(list), list.length)}</div>

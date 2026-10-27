@@ -14,8 +14,8 @@ import type { DrillOrder } from "@/lib/dashboard-drill";
 export type TzMeta = { label: string; href: string; wordHref: string };
 
 const TD = "whitespace-nowrap px-2 py-2 text-right tabular-nums";
-const money = (v: number) => (Math.abs(v) < 0.5 ? <span className="text-neutral-400">–</span> : formatMoney(Math.round(v)));
-const qty = (v: number, unit: string) => (v > 0 ? `${formatDec1(v)} ${unit}` : <span className="text-neutral-400">–</span>);
+const money = (v: number) => (Math.abs(v) < 0.5 ? <span className="text-neutral-600">–</span> : formatMoney(Math.round(v)));
+const qty = (v: number, unit: string) => (v > 0 ? `${formatDec1(v)} ${unit}` : <span className="text-neutral-600">–</span>);
 
 /**
  * Показатели артикула сверху вниз к итогу: 1) всего по артикулу по статьям, 2) таблица по ТЗ (статьи столбцами в одном порядке),
@@ -50,8 +50,8 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
   ];
 
   const cell = (r: TzTableRow | Omit<TzTableRow, "id" | "noFur">, fmt: (v: number) => React.ReactNode, f: (x: typeof r) => number) => fmt(f(r));
-  const perUnitMoney = (v: number) => (Math.abs(v) < 0.5 ? <span className="text-neutral-400">–</span> : formatMoney(Math.round(v)));
-  const perUnitQty = (v: number, unit: string) => (v > 0 ? `${formatQty(Math.round(v * 100) / 100)} ${unit}` : <span className="text-neutral-400">–</span>);
+  const perUnitMoney = (v: number) => (Math.abs(v) < 0.5 ? <span className="text-neutral-600">–</span> : formatMoney(Math.round(v)));
+  const perUnitQty = (v: number, unit: string) => (v > 0 ? `${formatQty(Math.round(v * 100) / 100)} ${unit}` : <span className="text-neutral-600">–</span>);
 
   return (
     <div className="flex flex-col gap-4">
@@ -136,9 +136,9 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
                         {r.noFur && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900">нет меха</span>}
                       </th>
                       <td className={TD}>{formatQty(r.qty)}</td>
-                      <td className={TD}>{r.furQ > 0 ? formatDec1(r.furQ) : <span className="text-neutral-400">–</span>}</td>
+                      <td className={TD}>{r.furQ > 0 ? formatDec1(r.furQ) : <span className="text-neutral-600">–</span>}</td>
                       <td className={TD}>{money(r.fur)}</td>
-                      {showLining && <td className={TD}>{r.liningQ > 0 ? formatDec1(r.liningQ) : <span className="text-neutral-400">–</span>}</td>}
+                      {showLining && <td className={TD}>{r.liningQ > 0 ? formatDec1(r.liningQ) : <span className="text-neutral-600">–</span>}</td>}
                       {showLining && <td className={TD}>{money(r.lining)}</td>}
                       {showC4 && <td className={TD}>{money(r.c4)}</td>}
                       {showOther && <td className={TD}>{money(r.other)}</td>}

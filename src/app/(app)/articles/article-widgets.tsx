@@ -41,7 +41,7 @@ export function PerUnitCarousel({ orders, c4 }: { orders: DrillOrder[]; c4: "on"
     return (
       <>
         <TileValue>{money(total / s.qty)}</TileValue>
-        <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-400">{c4 === "on" ? `${money((total - s.c4) / s.qty)} без 4 %` : null}</div>
+        <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-600">{c4 === "on" ? `${money((total - s.c4) / s.qty)} без 4 %` : null}</div>
         <TileCaption>себестоимость с работой · {formatQty(s.qty)} шт. · без ремонта · {vat === "incl" ? "с НДС" : "без НДС"}</TileCaption>
         <TileList items={[
           { k: "Сырьё (мех + подкладка)", v: moneyNz((s.fur + s.lining) / s.qty), share: share(s.fur + s.lining) },

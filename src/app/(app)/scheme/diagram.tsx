@@ -459,7 +459,7 @@ function Section({ tone, icon, title, items }: { tone: keyof typeof TONES; icon:
     <div className={"rounded-md p-3 " + TONES[tone].split(" ")[0]}>
       <p className={"inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide " + TONES[tone].split(" ")[1]}>{icon}{title}</p>
       <ul className="mt-1 flex flex-col gap-1 text-sm text-neutral-800">
-        {items.map((x) => <li key={x} className="flex gap-1.5"><span aria-hidden className="text-neutral-400">›</span>{x}</li>)}
+        {items.map((x) => <li key={x} className="flex gap-1.5"><span aria-hidden className="text-neutral-600">›</span>{x}</li>)}
       </ul>
     </div>
   );

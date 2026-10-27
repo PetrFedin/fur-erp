@@ -234,7 +234,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [],
                 <Td className="whitespace-nowrap text-right tabular-nums">{c.ok ? money(c.unitRub) : <span className="text-xs text-red-600">{c.problems.join(", ")}</span>}</Td>
                 {p.format === "SAGA" && <Td className="whitespace-nowrap text-right tabular-nums">{c.unitUsd != null && c.ok ? money(c.unitUsd) : "–"}</Td>}
                 <Td className="whitespace-nowrap text-right tabular-nums">{c.ok ? money(c.totalRub) : "–"}</Td>
-                {!ro && <Td className="p-1"><button type="button" className="px-2 text-neutral-400 hover:text-red-600" title="Убрать строку" onClick={() => setP((x) => ({ ...x, rows: x.rows.filter((_, j) => j !== i) }))}>×</button></Td>}
+                {!ro && <Td className="p-1"><button type="button" className="px-2 text-neutral-600 hover:text-red-600" title="Убрать строку" onClick={() => setP((x) => ({ ...x, rows: x.rows.filter((_, j) => j !== i) }))}>×</button></Td>}
               </Tr>
             );
           })}
@@ -252,7 +252,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [],
             <Select className="w-52" value={e.mode} disabled={ro} onChange={(ev) => setP((x) => ({ ...x, header: { ...x.header, extras: x.header.extras.map((y, j) => (j === i ? { ...y, mode: ev.target.value as "perHide" | "total" } : y)) } }))}>
               <option value="total">на весь счёт (делится на шкуры)</option><option value="perHide">на шкуру</option>
             </Select>
-            {!ro && <button type="button" className="px-2 text-neutral-400 hover:text-red-600" onClick={() => setP((x) => ({ ...x, header: { ...x.header, extras: x.header.extras.filter((_, j) => j !== i) } }))}>×</button>}
+            {!ro && <button type="button" className="px-2 text-neutral-600 hover:text-red-600" onClick={() => setP((x) => ({ ...x, header: { ...x.header, extras: x.header.extras.filter((_, j) => j !== i) } }))}>×</button>}
           </div>
         ))}
         {!ro && <div><Button type="button" size="sm" variant="outline" onClick={() => setP((x) => ({ ...x, header: { ...x.header, extras: [...x.header.extras, { name: "", amount: "", mode: "total" }] } }))}>+ Расход</Button></div>}
@@ -277,7 +277,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [],
           <div key={f.id} className="flex items-center gap-3 text-sm">
             <a className="inline-block text-blue-700 underline max-md:py-3" href={`/api/supplier/inbox-files/${f.id}`}>{f.originalName}</a>
             <span className="text-neutral-500">{INBOX_FILE_KINDS.find((k) => k.key === f.kind)?.label} · {formatDecimal(f.sizeBytes / 1048576, 1)} МБ</span>
-            {!ro && <button type="button" className="text-neutral-400 hover:text-red-600" onClick={() => run(() => removeInboxFile(f.id), "Файл убран", () => router.refresh())}>×</button>}
+            {!ro && <button type="button" className="text-neutral-600 hover:text-red-600" onClick={() => run(() => removeInboxFile(f.id), "Файл убран", () => router.refresh())}>×</button>}
           </div>
         ))}
         {!ro && (

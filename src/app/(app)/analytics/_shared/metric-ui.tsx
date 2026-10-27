@@ -123,7 +123,7 @@ export function SortTh({
       <Link href={href} className={`inline-flex items-center gap-1 whitespace-nowrap hover:text-neutral-900 ${active ? "text-neutral-900" : ""}`} title="Сортировать">
         {label}
         {suffix}
-        <span aria-hidden className={active ? "text-neutral-900" : "text-neutral-300"}>
+        <span aria-hidden className={active ? "text-neutral-900" : "text-neutral-500"}>
           {active ? (dir === "asc" ? "▲" : "▼") : "↕"}
         </span>
       </Link>

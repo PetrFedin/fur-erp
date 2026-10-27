@@ -88,7 +88,7 @@ export function CostBreakdownToggle({
                 <p className="text-neutral-500">Одна {unit === "шт." ? "шкура" : unit}</p>
                 <p className="text-xl font-semibold tabular-nums text-neutral-900">{fmt(incl)} ₽</p>
                 <p className="text-neutral-600">
-                  {fmt(excl)} ₽ без НДС + {fmt(incl - excl)} ₽ НДС{vatPct != null ? ` ${vatPct} %` : ""} <span className="text-neutral-400">· идёт в ТЗ</span>
+                  {fmt(excl)} ₽ без НДС + {fmt(incl - excl)} ₽ НДС{vatPct != null ? ` ${vatPct} %` : ""} <span className="text-neutral-600">· идёт в ТЗ</span>
                 </p>
               </div>
               {showLot && (
@@ -105,7 +105,7 @@ export function CostBreakdownToggle({
                     <span className="text-sky-700">{fmt(hammer.usd)} $</span>
                     {hammer.rate != null && <> × курс {fmtRate(hammer.rate)} = <span>{fmt(hammer.usd * hammer.rate)} ₽</span></>}
                   </p>
-                  <p className="text-neutral-400">Остальное до цены шкуры — сборы, выделка, доставка, комиссия, НДС.</p>
+                  <p className="text-neutral-600">Остальное до цены шкуры — сборы, выделка, доставка, комиссия, НДС.</p>
                 </div>
               )}
             </div>

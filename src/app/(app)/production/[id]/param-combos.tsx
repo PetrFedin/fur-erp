@@ -207,7 +207,7 @@ export function VatCell({
   const std = ["22", "20"];
   const opts: SelectOpt[] = [...std.map((r) => ({ value: r, label: `${r} %` }))];
   if (uniform && !std.includes(uniform)) opts.push({ value: uniform, label: `${uniform} %` });
-  if (lines === 0) return <span className="block px-1.5 py-0.5 text-sm text-neutral-400">нет списаний — ставку задать некому</span>;
+  if (lines === 0) return <span className="block px-1.5 py-0.5 text-sm text-neutral-600">нет списаний — ставку задать некому</span>;
   return (
     <PickOrAdd
       value={uniform}

@@ -45,7 +45,7 @@ export function OrderNav({
   const cls = "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 max-md:min-h-9";
   const pos = positions;
   const step = "inline-flex min-h-8 items-center rounded-md border border-neutral-300 px-2.5 py-1 text-sm text-neutral-700 hover:bg-neutral-100";
-  const stepOff = "inline-flex min-h-8 items-center rounded-md border border-neutral-200 px-2.5 py-1 text-sm text-neutral-300";
+  const stepOff = "inline-flex min-h-8 items-center rounded-md border border-neutral-200 px-2.5 py-1 text-sm text-neutral-500";
   return (
     <>
     {pos ? (

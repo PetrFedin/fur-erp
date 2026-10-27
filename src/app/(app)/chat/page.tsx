@@ -256,7 +256,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
                                     <a key={a.id} href={`/api/chat/files/${a.id}`} download={a.originalName}
                                       className={cn("flex min-h-11 items-center gap-2 rounded-lg border px-2.5 py-1.5", mine ? "border-neutral-600 bg-neutral-800 hover:bg-neutral-700" : "border-neutral-200 bg-neutral-50 hover:bg-neutral-100")}>
                                       <span aria-hidden className="text-lg">📄</span>
-                                      <span className="min-w-0"><span className="block truncate text-sm font-medium">{a.originalName}</span><span className={cn("block text-[11px]", mine ? "text-neutral-300" : "text-neutral-600")}>{fileSize(a.sizeBytes)} · скачать</span></span>
+                                      <span className="min-w-0"><span className="block truncate text-sm font-medium">{a.originalName}</span><span className={cn("block text-[11px]", mine ? "text-neutral-500" : "text-neutral-600")}>{fileSize(a.sizeBytes)} · скачать</span></span>
                                     </a>
                                   )
                               ))}

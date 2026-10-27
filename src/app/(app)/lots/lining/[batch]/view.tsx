@@ -13,7 +13,7 @@ import type { FurLot } from "@/lib/fur-table";
 import { TH, THGroup } from "@/components/table-head";
 import { UNIT } from "@/lib/units";
 
-const D = () => <span className="text-neutral-300">–</span>;
+const D = () => <span className="text-neutral-500">–</span>;
 const money = (v: number) => (Math.abs(v) < 0.5 ? <D /> : formatMoney(v.toFixed(2)));
 const TD = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
 const BL = " border-l border-neutral-200";
@@ -52,9 +52,9 @@ export function LiningFabrics({ lots }: { lots: FurLot[] }) {
           {total ? <TotalLabel unit="₽" avg /> : (
             <>
               {ls.length === 1 ? (
-                <Link href={`/analytics/raw/lot/${ls[0].id}`} className="font-medium text-blue-700 hover:underline" title="Карточка лота">{shortMaterialName(item)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link>
+                <Link href={`/analytics/raw/lot/${ls[0].id}`} className="font-medium text-blue-700 hover:underline" title="Карточка лота">{shortMaterialName(item)}<span aria-hidden className="ml-1 text-[11px] text-neutral-600">↗</span></Link>
               ) : (
-                <Link href={`/lots?tab=lining&lmat=${encodeURIComponent(item)}`} className="font-medium text-blue-700 hover:underline" title="Лоты этой ткани">{shortMaterialName(item)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link>
+                <Link href={`/lots?tab=lining&lmat=${encodeURIComponent(item)}`} className="font-medium text-blue-700 hover:underline" title="Лоты этой ткани">{shortMaterialName(item)}<span aria-hidden className="ml-1 text-[11px] text-neutral-600">↗</span></Link>
               )}
               {ls.length > 1 ? <span className="ml-1.5 text-xs text-neutral-500">{ls.length} лот.</span> : null}
             </>

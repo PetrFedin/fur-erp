@@ -140,10 +140,10 @@ export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact,
               <p className="min-w-0 truncate text-sm" aria-live="polite">
                 <span className="font-medium">Артикул {title}</span>
                 {shop?.plu ? <span className="text-neutral-200"> · PLU {shop.plu}</span> : null}
-                {group && (group.label !== "Фото" || cur.variant) ? <span className="text-neutral-300"> · {group.label}{cur.variant && cur.variant !== group.label ? ` (${cur.variant})` : ""}</span> : null}
+                {group && (group.label !== "Фото" || cur.variant) ? <span className="text-neutral-500"> · {group.label}{cur.variant && cur.variant !== group.label ? ` (${cur.variant})` : ""}</span> : null}
               </p>
               <div className="flex items-center gap-2">
-                <span className="text-sm tabular-nums text-neutral-300">{i + 1} / {n}</span>
+                <span className="text-sm tabular-nums text-neutral-500">{i + 1} / {n}</span>
                 {canDelete && (
                   <button type="button" onClick={() => { setErr(""); setMode(mode ? null : "menu"); }} aria-label="Удалить фото" aria-expanded={mode !== null} title="Удалить фото" className="inline-flex size-11 items-center justify-center rounded-full hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
                     <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></svg>

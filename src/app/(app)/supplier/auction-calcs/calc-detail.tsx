@@ -176,7 +176,7 @@ export function CalcDetail({ p, setP, t, ro, lockReason }: { p: CalcPayload; set
         title={custom ? "Нажмите, чтобы открыть конструктор формулы; можно перетащить" : c.hint}>
         <button type="button" disabled={!custom || ro} onClick={() => { const cc = (p.customColumns ?? []).find((x) => x.id === c.id); if (cc) setDraft(draftFrom(cc)); }} className="block w-full text-left disabled:cursor-default">
           {c.title}{c.unit && !c.title.includes(c.unit) ? <span className="font-normal text-neutral-500">, {c.unit}</span> : null}
-          {c.kind !== "input" && c.formula ? <span className="block max-w-[200px] truncate text-[11px] font-normal text-neutral-400">{c.formula.replace(/^=/, "= ")}{c.rules?.length ? ` (+${c.rules.length} прав.)` : ""}</span> : null}
+          {c.kind !== "input" && c.formula ? <span className="block max-w-[200px] truncate text-[11px] font-normal text-neutral-600">{c.formula.replace(/^=/, "= ")}{c.rules?.length ? ` (+${c.rules.length} прав.)` : ""}</span> : null}
         </button>
       </th>
     );
@@ -198,7 +198,7 @@ export function CalcDetail({ p, setP, t, ro, lockReason }: { p: CalcPayload; set
             <Input className="w-56 font-mono" value={q.name} readOnly={ro} onChange={(e) => setP((x) => ({ ...x, params: (x.params ?? []).map((y, j) => (j === i ? { ...y, name: e.target.value } : y)) }))} />
             <Input className="w-40" inputMode="decimal" value={q.value} readOnly={ro} placeholder="значение" onChange={(e) => setP((x) => ({ ...x, params: (x.params ?? []).map((y, j) => (j === i ? { ...y, value: e.target.value } : y)) }))} />
             {(q.label || q.hint) && <span className="max-w-xs text-xs text-neutral-500"><Clamp>{q.label}{q.hint ? ` — например: ${q.hint}` : ""}</Clamp></span>}
-            {!ro && <button type="button" className="px-2 text-neutral-400 hover:text-red-600" title="Убрать параметр" onClick={() => setP((x) => ({ ...x, params: (x.params ?? []).filter((_, j) => j !== i) }))}>×</button>}
+            {!ro && <button type="button" className="px-2 text-neutral-600 hover:text-red-600" title="Убрать параметр" onClick={() => setP((x) => ({ ...x, params: (x.params ?? []).filter((_, j) => j !== i) }))}>×</button>}
           </div>
         ))}
         {!ro && (
@@ -264,7 +264,7 @@ export function CalcDetail({ p, setP, t, ro, lockReason }: { p: CalcPayload; set
           {rowParamList.map((x) => (
             <span key={x.i + x.k} className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5">
               строка {x.i + 1}: {x.name} = {x.v.replace(".", ",")}
-              {!ro && <button type="button" className="text-neutral-400 hover:text-red-600" title="Вернуть значение из шапки" onClick={() => setP((y) => ({ ...y, rows: y.rows.map((row, j) => { if (j !== x.i) return row; const n = { ...row }; delete n[x.k]; return n; }) }))}>×</button>}
+              {!ro && <button type="button" className="text-neutral-600 hover:text-red-600" title="Вернуть значение из шапки" onClick={() => setP((y) => ({ ...y, rows: y.rows.map((row, j) => { if (j !== x.i) return row; const n = { ...row }; delete n[x.k]; return n; }) }))}>×</button>}
             </span>
           ))}
           </div>
@@ -281,7 +281,7 @@ export function CalcDetail({ p, setP, t, ro, lockReason }: { p: CalcPayload; set
                 <span className="rounded bg-neutral-100 px-1 font-mono">{col.letter}</span>{c.title}
                 {sh.colErrors[c.id] && <span className="text-red-600">({sh.colErrors[c.id]})</span>}
                 <button type="button" className="underline" onClick={() => setDraft(draftFrom(c))}>править</button>
-                <button type="button" className="text-neutral-400 hover:text-red-600" onClick={() => removeCol(c)}>удалить</button>
+                <button type="button" className="text-neutral-600 hover:text-red-600" onClick={() => removeCol(c)}>удалить</button>
               </span>
             );
           })}
@@ -378,7 +378,7 @@ export function CalcDetail({ p, setP, t, ro, lockReason }: { p: CalcPayload; set
                     </td>
                   );
                 })}
-                {!ro && <td className="border-b border-neutral-200 bg-white px-1"><button type="button" className="px-1 text-neutral-400 hover:text-red-600" title="Убрать строку" onClick={() => setP((x) => ({ ...x, rows: x.rows.filter((_, j) => j !== i) }))}>×</button></td>}
+                {!ro && <td className="border-b border-neutral-200 bg-white px-1"><button type="button" className="px-1 text-neutral-600 hover:text-red-600" title="Убрать строку" onClick={() => setP((x) => ({ ...x, rows: x.rows.filter((_, j) => j !== i) }))}>×</button></td>}
               </tr>
             ))}
             <tr className="font-semibold">
@@ -405,7 +405,7 @@ export function CalcDetail({ p, setP, t, ro, lockReason }: { p: CalcPayload; set
               <div><Label>минус итог столбца</Label><Select className="w-44" value={c.b} disabled={ro} onChange={(e) => upd({ b: e.target.value })}><option value="">–</option>{sumCols.map((s) => <option key={s.id} value={s.letter}>{s.letter} — {s.title.slice(0, 24)}</option>)}</Select></div>
               <div><Label>Допуск</Label><Input className="w-24" inputMode="decimal" value={c.tol} readOnly={ro} onChange={(e) => upd({ tol: e.target.value })} /></div>
               <span className={`pb-2 text-sm ${r?.ok ? "text-emerald-700" : "text-red-600"}`}>{r?.diff == null ? r?.note : `${fmt(r.diff)} ${r.ok ? "— в допуске" : "— больше допуска"}`}</span>
-              {!ro && <button type="button" className="px-2 pb-2 text-neutral-400 hover:text-red-600" onClick={() => setP((x) => ({ ...x, checks: (x.checks ?? []).filter((_, j) => j !== i) }))}>×</button>}
+              {!ro && <button type="button" className="px-2 pb-2 text-neutral-600 hover:text-red-600" onClick={() => setP((x) => ({ ...x, checks: (x.checks ?? []).filter((_, j) => j !== i) }))}>×</button>}
             </div>
           );
         })}

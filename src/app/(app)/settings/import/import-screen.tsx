@@ -143,7 +143,7 @@ export function ImportScreen({ history }: { history: HistoryItem[] }) {
       {/* Шаги */}
       <ol className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" aria-label="Шаги">
         {["Выбрать файл", "Проверить", kind === "photos" ? "Просмотр" : "Загрузить"].map((t, i) => (
-          <li key={t} className={cn("flex items-center gap-2", step === i + 1 ? "font-semibold text-neutral-900" : step > i + 1 ? "text-neutral-500" : "text-neutral-400")}>
+          <li key={t} className={cn("flex items-center gap-2", step === i + 1 ? "font-semibold text-neutral-900" : step > i + 1 ? "text-neutral-500" : "text-neutral-600")}>
             <span className={cn("flex h-6 w-6 items-center justify-center rounded-full border text-xs", step === i + 1 ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300")}>{step > i + 1 ? "✓" : i + 1}</span>
             {t}
           </li>
@@ -236,7 +236,7 @@ function Part({ p, multi }: { p: PartPreview; multi: boolean }) {
         {cells.map(([t, n, cls]) => (
           <div key={t} className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
             <div className="text-xs text-neutral-500">{t}</div>
-            <div className={cn("text-lg font-semibold tabular-nums", n ? cls : "text-neutral-300")}>{dash(n)}</div>
+            <div className={cn("text-lg font-semibold tabular-nums", n ? cls : "text-neutral-500")}>{dash(n)}</div>
           </div>
         ))}
       </div>
@@ -257,7 +257,7 @@ function Part({ p, multi }: { p: PartPreview; multi: boolean }) {
             <tbody className="divide-y divide-neutral-100">
               {p.totals.map((t) => (
                 <tr key={t.label}>
-                  <td className="px-3 py-2">{t.label}{t.unit ? <span className="text-neutral-400">, {t.unit}</span> : null}</td>
+                  <td className="px-3 py-2">{t.label}{t.unit ? <span className="text-neutral-600">, {t.unit}</span> : null}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{t.file}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-neutral-600">{t.db}</td>
                 </tr>

@@ -267,7 +267,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
               <Td className="text-right tabular-nums">{formatDec1(l.qty)} {l.isLining ? "м" : "шк."}</Td>
               <Td className="text-right tabular-nums"><Money incl={l.qty > 0 ? l.incl / l.qty : 0} excl={l.qty > 0 ? l.excl / l.qty : 0} /></Td>
               <Td className="text-right tabular-nums">
-                {l.isLining ? <span className="text-neutral-300">·</span> : l.hammerExcl != null ? (
+                {l.isLining ? <span className="text-neutral-500">·</span> : l.hammerExcl != null ? (
                   <>
                     <Money incl={l.hammerIncl ?? l.hammerExcl} excl={l.hammerExcl} />
                     {l.hammerUsd != null && <span className="text-[11px] text-neutral-500"> (${formatQty(l.hammerUsd)})</span>}

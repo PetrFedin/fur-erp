@@ -46,7 +46,7 @@ function ExtraLabel({ x }: { x: ExtraRow }) {
   return (
     <>
       {x.label}
-      {x.href ? <Link href={x.href} className="ml-1.5 text-[11px] text-neutral-400 hover:text-blue-700 hover:underline" title={`Открыть: ${x.label}`} aria-label={`Открыть: ${x.label}`}>↗</Link> : null}
+      {x.href ? <Link href={x.href} className="ml-1.5 text-[11px] text-neutral-600 hover:text-blue-700 hover:underline" title={`Открыть: ${x.label}`} aria-label={`Открыть: ${x.label}`}>↗</Link> : null}
       {x.note ? <InfoHint label={`Что такое «${x.label}»`} align="left">{x.note}</InfoHint> : null}
       {x.sub ? <div className="text-[11px] text-neutral-500">{x.sub}</div> : null}
     </>
@@ -167,7 +167,7 @@ export function PurchasesTree({ years: yearsAll, extrasBySrc }: { years: TreeYea
                         <tr className={rowTone(1, bOpen)}>
                           <td className={NAME_CELL + " pl-5"} title={b.title}>
                             <span className="mr-1 inline-block align-middle">{arrow(bOpen, () => setOpen((s) => flip(s, bk)), b.label)}</span>{b.label}
-                            {b.href ? <Link href={b.href} className="ml-1.5 text-[11px] text-neutral-400 hover:text-blue-700 hover:underline" title="Открыть в «Оплатах» с этой партией" aria-label={`Оплаты партии ${b.label}`}>↗</Link> : null}
+                            {b.href ? <Link href={b.href} className="ml-1.5 text-[11px] text-neutral-600 hover:text-blue-700 hover:underline" title="Открыть в «Оплатах» с этой партией" aria-label={`Оплаты партии ${b.label}`}>↗</Link> : null}
                             <div className="pl-5 text-[11px] text-neutral-500">
                               {b.href ? <Link href={b.href} className={LINK}>оплаты ›</Link> : null}
                               {b.docsHref ? <Link href={b.docsHref} className={cn(LINK, b.href && "ml-2")}>документы ›</Link> : null}
@@ -186,7 +186,7 @@ export function PurchasesTree({ years: yearsAll, extrasBySrc }: { years: TreeYea
                                 <td className={NAME_CELL + " pl-9"}>
                                   <span className="mr-1 inline-block align-middle">{arrow(pOpen, () => setOpen((s) => flip(s, pk)), p.number)}</span>
                                   <span className="font-medium text-neutral-900">{p.number}</span>
-                                  <Link href={`/purchases/${p.id}`} className="ml-1.5 text-[11px] text-neutral-400 hover:text-blue-700 hover:underline" title="Открыть закупку" aria-label={`Открыть закупку ${p.number}`}>↗</Link>
+                                  <Link href={`/purchases/${p.id}`} className="ml-1.5 text-[11px] text-neutral-600 hover:text-blue-700 hover:underline" title="Открыть закупку" aria-label={`Открыть закупку ${p.number}`}>↗</Link>
                                   {p.invoice ? <span className="ml-1.5 text-[11px] text-neutral-500">счёт {p.invoice}</span> : null}
                                   {p.upd ? <span className="ml-1.5 text-[11px] text-neutral-500" title={`УПД ${p.upd}`}>УПД {p.upd.replace(/^№\s*/, "№").replace(/\s+г\.?$/, "")}</span> : null}
                                   <div className="pl-5 text-[11px]">
@@ -236,7 +236,7 @@ export function PurchasesTree({ years: yearsAll, extrasBySrc }: { years: TreeYea
                                             ))}
                                             {Math.abs(p.paidBatch) > 0.5 ? (
                                               <tr className={rowTone(3)}>
-                                                <td className={NAME_CELL + " pl-20"}>Остальные оплаты партии<div className="text-[11px] text-neutral-400">доля закупки, пропорционально сумме</div></td>
+                                                <td className={NAME_CELL + " pl-20"}>Остальные оплаты партии<div className="text-[11px] text-neutral-600">доля закупки, пропорционально сумме</div></td>
                                                 {empty(8)}<td className={TD + BL}>{money(p.paidBatch)}</td>{empty(1)}
                                               </tr>
                                             ) : null}
@@ -292,9 +292,9 @@ function ItemRows({ x, open, flip, pk }: { x: TreeItem; open: Set<string>; flip:
           <span className="text-neutral-800" title={x.material}>{shortMaterialName(x.material)}</span>
           {x.lot ? <span className="ml-1.5 text-neutral-500">лот № {x.lot}</span> : null}
           {x.lotId ? (
-            <Link href={`/analytics/raw/lot/${x.lotId}`} title="Открыть карточку лота" aria-label={`Карточка лота ${x.lot ?? ""}`} className="ml-1.5 text-[11px] text-neutral-400 hover:text-blue-700 hover:underline">↗</Link>
+            <Link href={`/analytics/raw/lot/${x.lotId}`} title="Открыть карточку лота" aria-label={`Карточка лота ${x.lot ?? ""}`} className="ml-1.5 text-[11px] text-neutral-600 hover:text-blue-700 hover:underline">↗</Link>
           ) : (
-            <span className="ml-1.5 text-[11px] text-neutral-300" title="Лота на складе ещё нет: закупка не принята" aria-label="Карточки лота нет">–</span>
+            <span className="ml-1.5 text-[11px] text-neutral-500" title="Лота на складе ещё нет: закупка не принята" aria-label="Карточки лота нет">–</span>
           )}
           {detail || prices ? <div className="pl-5 text-[11px] text-neutral-500">{[detail, prices].filter(Boolean).join(" · ")}</div> : null}
         </td>
@@ -427,7 +427,7 @@ export function PurchasesList({ id, title, unitLabel, allRows: allRowsIn, extras
                 >
                   <td className="sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left font-medium">
                     <Link href={`/purchases/${p.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{p.number}</Link>
-                    <span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span>
+                    <span aria-hidden className="ml-1 text-[11px] text-neutral-600">↗</span>
                     {p.raw ? <div className={cn("truncate text-[11px] font-normal", p.raw.overdue ? "text-red-700" : "text-blue-700")} title={`Где сырьё: ${p.raw.line}`}>{p.raw.chip}</div> : null}
                   </td>
                   <td className={TD + BL}>{p.year}</td>

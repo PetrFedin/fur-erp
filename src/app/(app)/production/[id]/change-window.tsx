@@ -15,7 +15,7 @@ function Line({ label, before, after }: ChangeField) {
     <tr className="border-b border-neutral-100 last:border-0">
       <td className="py-1 pr-3 text-neutral-600">{label}</td>
       <td className="py-1 pr-2 text-right tabular-nums">{before}</td>
-      <td className="py-1 pr-2 text-neutral-400">→</td>
+      <td className="py-1 pr-2 text-neutral-600">→</td>
       <td className={"py-1 text-right font-medium tabular-nums " + (same ? "" : "text-neutral-900")}>{after}</td>
     </tr>
   );

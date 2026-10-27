@@ -59,11 +59,11 @@ export function PaymentLinesTable({ lines, emptyText }: { lines: PayLine[]; empt
                 {l.what}
               </td>
               <td className="whitespace-nowrap px-2 py-2">
-                {l.invoice ? (l.invoice.href ? <Link href={l.invoice.href} className="text-blue-700 hover:underline">{l.invoice.text}</Link> : l.invoice.text) : <span className="text-neutral-400">–</span>}
+                {l.invoice ? (l.invoice.href ? <Link href={l.invoice.href} className="text-blue-700 hover:underline">{l.invoice.text}</Link> : l.invoice.text) : <span className="text-neutral-600">–</span>}
               </td>
               {hasComment ? <td className="max-w-[18rem] px-2 py-2 text-xs text-neutral-600"><Clamp>{l.comment ?? ""}</Clamp></td> : null}
               <td className="whitespace-nowrap px-2 py-2 text-neutral-600">{l.ppNo ? bareNo(l.ppNo) : "–"}</td>
-              {hasDocs ? <td className="px-2 py-2">{l.sourceDocs ? <SourceDocs compact data={l.sourceDocs} /> : <span className="text-neutral-400">–</span>}</td> : null}
+              {hasDocs ? <td className="px-2 py-2">{l.sourceDocs ? <SourceDocs compact data={l.sourceDocs} /> : <span className="text-neutral-600">–</span>}</td> : null}
               <td className="px-2 py-2 text-right">
                 {l.controls ? (
                   <details className="relative inline-block text-left">

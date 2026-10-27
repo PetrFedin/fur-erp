@@ -187,7 +187,7 @@ export function ColumnEditor({ draft, setDraft, p, cols, canInput, manualCount, 
                       </>
                     )}
                     <div className="min-w-[200px] flex-1"><Label>то формула</Label><Input className="font-mono" value={r.formula} placeholder="=D*7,95%+0,1" onChange={(e) => setDraft({ ...draft, rules: draft.rules.map((x, j) => (j === k ? { ...x, formula: e.target.value } : x)) })} /></div>
-                    <button type="button" className="px-2 pb-2 text-neutral-400 hover:text-red-600" title="Убрать правило" onClick={() => setDraft({ ...draft, rules: draft.rules.filter((_, j) => j !== k) })}>×</button>
+                    <button type="button" className="px-2 pb-2 text-neutral-600 hover:text-red-600" title="Убрать правило" onClick={() => setDraft({ ...draft, rules: draft.rules.filter((_, j) => j !== k) })}>×</button>
                   </div>
                 ))}
                 <div><Button type="button" size="sm" variant="outline" onClick={() => setDraft({ ...draft, rules: [...draft.rules, { formula: "" }] })}>+ Правило</Button></div>

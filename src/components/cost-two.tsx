@@ -15,7 +15,7 @@ export function CostTwo({
   empty?: ReactNode;
   className?: string;
 }) {
-  if (!on || Math.abs(on.incl) < 0.005) return <span className="text-neutral-400">{empty}</span>;
+  if (!on || Math.abs(on.incl) < 0.005) return <span className="text-neutral-600">{empty}</span>;
   const same = !off || (Math.abs(off.incl - on.incl) < 0.005 && Math.abs(off.excl - on.excl) < 0.005);
   return (
     <span className={`inline-flex flex-col leading-tight ${className ?? ""}`} title={!same && off ? `Без 4 %: ${Math.round(off.incl).toLocaleString("ru-RU")} ₽ с НДС` : undefined}>

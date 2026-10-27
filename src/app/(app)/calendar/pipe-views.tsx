@@ -20,7 +20,7 @@ export function StageChip({ stage, word }: { stage: Stage; word?: string }) {
 /** Цветные мелкие числа по стадиям; нули не показываем («—», если пусто). */
 export function Nums({ s, withRepair = true }: { s: StageSums; withRepair?: boolean }) {
   const parts = STAGE_ORDER.filter((k) => s[k] > 0 && (withRepair || k !== "repair"));
-  if (parts.length === 0) return <span className="text-neutral-300">–</span>;
+  if (parts.length === 0) return <span className="text-neutral-500">–</span>;
   return (
     <span className="inline-flex flex-wrap justify-end gap-x-1.5 tabular-nums">
       {parts.map((k) => <span key={k} className={`${STAGE_STYLES[k].text} ${k === "repair" ? "italic" : ""}`} title={`${STAGE_STYLES[k].label}: ${s[k]} шт.`}>{formatQty(s[k])}</span>)}
@@ -77,7 +77,7 @@ export function PipeCard({ p, closeHref, eventHref }: { p: PipeItem; closeHref: 
     ["Партия пошива", p.batchNo === "none" ? p.batchLabel : <Link key="b" href={`/production/batches/${p.batchNo}`} className="text-blue-700 hover:underline">{p.batchLabel}</Link>],
     ["Стадия", <span key="st" className="inline-flex items-center gap-1"><StageChip stage={p.stage} word={p.stageWord} /><span className="text-neutral-500">{st.hint}</span></span>],
     ...(p.status === "COMPLETED" ? [] : [["Плановая дата", p.endDate ? fmtRu(p.endDate) : "–"] as [string, React.ReactNode]]),
-    [p.status === "COMPLETED" ? "Окончание (факт)" : "Ожидаем", p.expected ? <span key="ex">{fmtRu(p.expected.date)} <span className="text-neutral-400">({p.expected.source})</span>{p.overdue ? <span className="ml-1 text-red-600">просрочено</span> : null}</span> : "–"],
+    [p.status === "COMPLETED" ? "Окончание (факт)" : "Ожидаем", p.expected ? <span key="ex">{fmtRu(p.expected.date)} <span className="text-neutral-600">({p.expected.source})</span>{p.overdue ? <span className="ml-1 text-red-600">просрочено</span> : null}</span> : "–"],
     ["Даты ТЗ", [p.workOrderDate ? `ТЗ от ${fmtRu(p.workOrderDate)}` : "", p.startDate ? `старт ${fmtRu(p.startDate)}` : ""].filter(Boolean).join(" · ") || "–"],
     ["Сырьё", rawByPurchase.size === 0 ? "–" : (
       <span key="raw" className="flex flex-col gap-0.5">
@@ -113,7 +113,7 @@ export function PipeCard({ p, closeHref, eventHref }: { p: PipeItem; closeHref: 
 /** Крупные подписи стадий словами: «Отгружено 30», «ТЗ 7»; нули не показываем. */
 export function StageChips({ s, withRepair = true, size = "md" }: { s: StageSums; withRepair?: boolean; size?: "sm" | "md" }) {
   const parts = STAGE_ORDER.filter((k) => s[k] > 0 && (withRepair || k !== "repair"));
-  if (parts.length === 0) return <span className="text-sm text-neutral-400">нет изделий</span>;
+  if (parts.length === 0) return <span className="text-sm text-neutral-600">нет изделий</span>;
   return (
     <span className="flex flex-wrap gap-1.5">
       {parts.map((k) => (
@@ -193,11 +193,11 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
             {t.rows.map((r) => (
               <tr key={r.fur}>
                 <th scope="row" className="sticky left-0 z-10 bg-white px-2 py-1.5 text-left text-xs font-medium" title={r.fur}>
-                  <span className="flex items-center gap-1"><span className="min-w-0 flex-1 truncate">{r.fur}</span><Link href={`/production?fur=${encodeURIComponent(r.fur)}`} title="Открыть в «ТЗ» с этим видом меха" aria-label={`Открыть в ТЗ: ${r.fur}`} className="text-[11px] text-neutral-400 hover:text-neutral-900">↗</Link></span>
+                  <span className="flex items-center gap-1"><span className="min-w-0 flex-1 truncate">{r.fur}</span><Link href={`/production?fur=${encodeURIComponent(r.fur)}`} title="Открыть в «ТЗ» с этим видом меха" aria-label={`Открыть в ТЗ: ${r.fur}`} className="text-[11px] text-neutral-600 hover:text-neutral-900">↗</Link></span>
                 </th>
                 {stages.map((k, i) => (
                   <td key={k} className={`${td} ${i === 0 ? BL : ""} ${cStage === k && cFur === r.fur ? "bg-[var(--ui-soft)]" : ""}`}>
-                    {r.total[k] > 0 ? <Link href={link(k, r.fur)} className={`block hover:underline ${STAGE_STYLES[k].text}`}>{formatQty(r.total[k])}{span(r.fur, k)}</Link> : <span className="text-neutral-400">–</span>}
+                    {r.total[k] > 0 ? <Link href={link(k, r.fur)} className={`block hover:underline ${STAGE_STYLES[k].text}`}>{formatQty(r.total[k])}{span(r.fur, k)}</Link> : <span className="text-neutral-600">–</span>}
                   </td>
                 ))}
                 <td className={`${td} font-medium${BL}`}><Link href={link("*", r.fur)} className="hover:underline">{formatQty(stages.reduce((a, k) => a + r.total[k], 0))}</Link></td>

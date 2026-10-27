@@ -158,7 +158,7 @@ export function UsageRow({
       <Td className="min-w-[7.5rem]">
         <DraftInput value={usage.quantity} draft={qty} onChange={setQty} onEnter={save} onEscape={cancel} step="0.001" min="0" align="right" label="Количество" suffix={unit} readOnly={readOnly} disabled={ch.busy} />
       </Td>
-      <Td className="whitespace-nowrap text-right tabular-nums">{Number(usage.lotCostExclVat) ? <Money incl={usage.lotCostExclVat} /> : <span className="text-neutral-300">–</span>}</Td>
+      <Td className="whitespace-nowrap text-right tabular-nums">{Number(usage.lotCostExclVat) ? <Money incl={usage.lotCostExclVat} /> : <span className="text-neutral-500">–</span>}</Td>
       <Td className="min-w-[5.5rem]">
         <TextCell
           value={String(Number(usage.vatRate))}
@@ -191,7 +191,7 @@ export function UsageRow({
       </Td>
       <Td className="whitespace-nowrap text-right font-medium tabular-nums">
         {liveOk ? <Money incl={live(usage.unitIncl)} excl={live(usage.unitExcl)} /> : <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />}
-        {liveOk ? <span className="ml-1 text-xs font-normal text-neutral-400" title="Предварительно, до сохранения">~</span> : null}
+        {liveOk ? <span className="ml-1 text-xs font-normal text-neutral-600" title="Предварительно, до сохранения">~</span> : null}
         <DraftBar dirty={dirty} busy={ch.busy} error={ch.error} onSave={save} onCancel={cancel} />
         {ch.node}
         {usage.c4Mode === "on" && !usage.commission4 && (
@@ -209,7 +209,7 @@ export function UsageRow({
               disabled={busy}
               aria-label="Удалить списание"
               title="Удалить списание (лот получит количество обратно)"
-              className="rounded px-1.5 py-0.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+              className="rounded px-1.5 py-0.5 text-neutral-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
               onClick={async () => {
                 if (!(await ask(`Удалить списание: ${usage.rawMaterialName}, лот ${usage.lotNumber ?? "без номера"}, ${formatDec1(usage.quantity)} ${unit}?`, { ok: "Удалить", danger: true }))) return;
                 startBusy(async () => {

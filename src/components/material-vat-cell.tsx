@@ -7,7 +7,7 @@ export function MaterialVatCell({ s }: { s: MaterialVatSummary }) {
       {s.defaultRate != null ? (
         <span className="font-medium">{s.defaultRate} % <span className="text-[11px] font-normal text-neutral-500">у материала</span></span>
       ) : s.groups.length === 0 ? (
-        <span className="text-neutral-400">–</span>
+        <span className="text-neutral-600">–</span>
       ) : (
         <span className="font-medium">
           {s.groups.map((g, i) => (
@@ -19,7 +19,7 @@ export function MaterialVatCell({ s }: { s: MaterialVatSummary }) {
         </span>
       )}
       {s.groups.length > 0 && s.defaultRate != null && (
-        <span className="block text-[11px] leading-tight text-neutral-400">лоты: {s.groups.map((g) => `${g.rate} % ×${g.lots}`).join(", ")}</span>
+        <span className="block text-[11px] leading-tight text-neutral-600">лоты: {s.groups.map((g) => `${g.rate} % ×${g.lots}`).join(", ")}</span>
       )}
       {s.mismatch > 0 && <span className="block text-[11px] leading-tight text-amber-700">ставка расходится с датой закупки: {s.mismatch}</span>}
     </div>

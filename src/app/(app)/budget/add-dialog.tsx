@@ -73,8 +73,8 @@ export function AddDialog({ kind: kind0, names, articles, taken, catName, contex
             return (
               <li key={x.key}>
                 <button type="button" disabled={used} title={x.hint} onClick={() => pick({ name: x.label, modelId: x.modelId })}
-                  className="flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm ui-field border border-transparent hover:bg-neutral-50 disabled:text-neutral-400 disabled:hover:bg-transparent">
-                  <span>{x.label}</span>{used ? <span className="text-[11px] text-neutral-400">уже добавлено</span> : null}
+                  className="flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm ui-field border border-transparent hover:bg-neutral-50 disabled:text-neutral-600 disabled:hover:bg-transparent">
+                  <span>{x.label}</span>{used ? <span className="text-[11px] text-neutral-600">уже добавлено</span> : null}
                 </button>
               </li>
             );

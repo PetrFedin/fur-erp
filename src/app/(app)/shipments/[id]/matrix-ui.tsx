@@ -127,8 +127,8 @@ export function SitesMatrix({ shipmentId, rows, state, ziOrder, invoiceTotal, tz
                   ) : (
                     <span className="inline-flex items-center gap-0.5">
                       <span className="break-words">{s}</span>
-                      <button type="button" className="inline-flex min-h-6 min-w-6 items-center justify-center rounded text-neutral-400 hover:text-neutral-800 max-md:min-h-11 max-md:min-w-8" aria-label={`Переименовать ${s}`} title="Переименовать" onClick={() => setRenaming({ site: s, value: s })}>✎</button>
-                      <button type="button" className="inline-flex min-h-6 min-w-6 items-center justify-center rounded text-neutral-400 hover:text-red-700 disabled:opacity-30 max-md:min-h-11 max-md:min-w-8" aria-label={`Убрать ${s}`} title={siteUsed(s) ? "Нельзя убрать: в столбце есть данные" : "Убрать столбец"} disabled={siteUsed(s)} onClick={() => { touch(); setSites((p) => p.filter((x) => x !== s)); }}>✕</button>
+                      <button type="button" className="inline-flex min-h-6 min-w-6 items-center justify-center rounded text-neutral-600 hover:text-neutral-800 max-md:min-h-11 max-md:min-w-8" aria-label={`Переименовать ${s}`} title="Переименовать" onClick={() => setRenaming({ site: s, value: s })}>✎</button>
+                      <button type="button" className="inline-flex min-h-6 min-w-6 items-center justify-center rounded text-neutral-600 hover:text-red-700 disabled:opacity-30 max-md:min-h-11 max-md:min-w-8" aria-label={`Убрать ${s}`} title={siteUsed(s) ? "Нельзя убрать: в столбце есть данные" : "Убрать столбец"} disabled={siteUsed(s)} onClick={() => { touch(); setSites((p) => p.filter((x) => x !== s)); }}>✕</button>
                     </span>
                   )}
                 </th>

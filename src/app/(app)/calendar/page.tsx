@@ -405,7 +405,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         <div className="mt-1 flex flex-wrap gap-2">
         {CALENDAR_ACTIONS.map((a) => <span key={a.label} className="inline-flex items-center gap-1"><i className={`size-2 rounded-full ${a.dot}`} />{a.label}</span>)}
         {(auctionOn || rawOn || (layersOn && !factsHidden)) && <span className="inline-flex items-center gap-1"><i className="size-2 rounded-full border border-dashed border-neutral-500" />пунктир — слои</span>}
-        <span className="text-neutral-300">|</span>
+        <span className="text-neutral-500">|</span>
         <StageLegend only={["plan", "raw", "work", "ready", "shipped"]} />
         </div>
       </details>

@@ -146,10 +146,10 @@ export function ForecastView({ id, name, season, canEdit, initialEdits, initialO
                 <Fragment key={cls}>
                   <tr className="bg-neutral-100"><td colSpan={colSpan} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-600">{title}</td></tr>
                   {g.map(({ l, c, on }) => (
-                    <tr key={l.acode} className={"border-b border-neutral-100 " + (on ? "" : "text-neutral-400")}>
+                    <tr key={l.acode} className={"border-b border-neutral-100 " + (on ? "" : "text-neutral-600")}>
                       {detail && <td className="px-3 py-2 text-center"><input type="checkbox" checked={on} aria-label={`Учитывать ${l.acode}`} onChange={() => { setDirty(true); setOff((p) => { const n = new Set(p); if (n.has(l.acode)) n.delete(l.acode); else n.add(l.acode); return n; }); }} className="h-5 w-5" /></td>}
                       <td className="px-3 py-2 text-sm text-neutral-600">{l.cat2}</td>
-                      <td className="min-w-[190px] px-3 py-2 text-sm">{l.acode}{detail && l.source !== "ТЗ артикула" ? <span className="ml-1 text-[11px] text-neutral-400">{[l.source === "категория" ? "шкуры по категории" : "", l.wpEst ? "работа — ориентир" : ""].filter(Boolean).join(", ")}</span> : null}</td>
+                      <td className="min-w-[190px] px-3 py-2 text-sm">{l.acode}{detail && l.source !== "ТЗ артикула" ? <span className="ml-1 text-[11px] text-neutral-600">{[l.source === "категория" ? "шкуры по категории" : "", l.wpEst ? "работа — ориентир" : ""].filter(Boolean).join(", ")}</span> : null}</td>
                       <td className={TD}>{formatInt(l.left)}</td>
                       {detail && <>{inp(l, "hp")}{inp(l, "hidePrice", "w-20")}{inp(l, "mp")}{inp(l, "meterPrice", "w-20")}{inp(l, "wp", "w-20")}{inp(l, "extra", "w-20")}</>}
                       {results(c ?? ZERO)}

@@ -225,13 +225,13 @@ export function MultiSelectFilter({
           <div className="mt-1 flex justify-between gap-2 border-t border-neutral-200 pt-1.5 text-sm">
             <button
               type="button"
-              className="min-h-9 rounded-md px-2 font-medium text-blue-700 hover:bg-blue-50 hover:underline disabled:text-neutral-400 disabled:no-underline disabled:hover:bg-transparent"
+              className="min-h-9 rounded-md px-2 font-medium text-blue-700 hover:bg-blue-50 hover:underline disabled:text-neutral-600 disabled:no-underline disabled:hover:bg-transparent"
               disabled={pickShown.length === 0 || (shown.length === list.length && !q && grouped ? list.every((o) => set.has(o.value)) : shown.length === list.length && !q && !grouped)}
               onClick={() => onChange(Array.from(new Set([...value, ...pickShown])))}
             >
               {grouped && !q ? "Выбрать всё" : `Выбрать показанные${q ? ` (${pickShown.length})` : ""}`}
             </button>
-            <button type="button" className="min-h-9 rounded-md px-2 font-medium text-blue-700 hover:bg-blue-50 hover:underline disabled:text-neutral-400 disabled:no-underline disabled:hover:bg-transparent" disabled={none} onClick={() => onChange([])}>
+            <button type="button" className="min-h-9 rounded-md px-2 font-medium text-blue-700 hover:bg-blue-50 hover:underline disabled:text-neutral-600 disabled:no-underline disabled:hover:bg-transparent" disabled={none} onClick={() => onChange([])}>
               Сбросить
             </button>
           </div>

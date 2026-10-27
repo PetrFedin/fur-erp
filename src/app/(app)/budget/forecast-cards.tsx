@@ -54,7 +54,7 @@ export function ForecastCards({ items, canEdit }: { items: ForecastCard[]; canEd
               </div>
             </div>
             <p className="pointer-events-none relative z-10 mt-3 text-xs text-neutral-600">Сколько шкур уйдёт на ещё не пришедшие артикулы и сколько останется по типам меха.</p>
-            <p className="mt-2 text-[11px] text-neutral-400">Изменён {dateRu(f.updatedAt)}{f.updatedBy ? ` · ${f.updatedBy}` : ""}</p>
+            <p className="mt-2 text-[11px] text-neutral-600">Изменён {dateRu(f.updatedAt)}{f.updatedBy ? ` · ${f.updatedBy}` : ""}</p>
           </li>
         ))}
       </ul>

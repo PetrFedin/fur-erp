@@ -106,7 +106,7 @@ html[data-theme="customer"] .info-i:hover { border-color: var(--cv-accent); colo
 }
 
 /* приглушённые подписи и прочерки «—»: не светлее AA */
-html[data-theme="customer"] :is(.text-neutral-300, .text-neutral-400) { color: var(--cv-muted); }
+html[data-theme="customer"] :is(.text-neutral-500, .text-neutral-600) { color: var(--cv-muted); }
 
 /* ───────── Блоки-заголовки и вложенные строки: вместо серо-синих полос — оранжевые и белые ─────────
    • строка-заголовок блока (МЕХ / ПОДКЛАДКА, год в окнах): светлая оранжевая заливка и тёмно-оранжевый текст;

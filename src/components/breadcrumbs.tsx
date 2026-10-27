@@ -18,7 +18,7 @@ export function Breadcrumbs({ items: rawItems, className }: { items: Crumb[]; cl
           const last = i === items.length - 1;
           return (
             <li key={`${i}:${c.label}`} className="flex shrink-0 items-center gap-1">
-              {i > 0 ? <span aria-hidden className="text-neutral-400">›</span> : null}
+              {i > 0 ? <span aria-hidden className="text-neutral-600">›</span> : null}
               {last || !c.href ? (
                 <span aria-current={last ? "page" : undefined} className={last ? "font-semibold text-neutral-800" : undefined}>{c.label}</span>
               ) : (

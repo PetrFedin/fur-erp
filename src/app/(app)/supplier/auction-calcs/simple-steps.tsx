@@ -148,7 +148,7 @@ export function SimpleSteps({ p, setP, t, ro, missing, onAuction, onFormat, uplo
                   ))}
                   <Td className="whitespace-nowrap text-right tabular-nums text-neutral-600">{filled ? (c.ok ? money(c.unitRub) : <span className="text-xs text-red-600">{c.problems.join(", ")}</span>) : ""}</Td>
                   <Td className="whitespace-nowrap text-right tabular-nums text-neutral-600">{filled && c.ok ? money(c.totalRub) : ""}</Td>
-                  {!ro && <Td className="p-1"><button type="button" className="px-2 text-neutral-400 hover:text-red-600" title="Убрать строку" onClick={() => setP((x) => ({ ...x, rows: x.rows.filter((_, j) => j !== i) }))}>×</button></Td>}
+                  {!ro && <Td className="p-1"><button type="button" className="px-2 text-neutral-600 hover:text-red-600" title="Убрать строку" onClick={() => setP((x) => ({ ...x, rows: x.rows.filter((_, j) => j !== i) }))}>×</button></Td>}
                 </Tr>
               );
             })}

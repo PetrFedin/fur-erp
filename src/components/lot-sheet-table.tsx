@@ -107,7 +107,7 @@ export function LotSheetTable({
                     ) : (
                       <span className="break-words">{r.title}</span>
                     )}
-                    {r.title !== r.label && !canEdit ? <span className="block text-[11px] text-neutral-400">в расчёте: {r.label}</span> : null}
+                    {r.title !== r.label && !canEdit ? <span className="block text-[11px] text-neutral-600">в расчёте: {r.label}</span> : null}
                   </td>
                   <td className="px-1.5 py-1.5">
                     {canEdit ? (

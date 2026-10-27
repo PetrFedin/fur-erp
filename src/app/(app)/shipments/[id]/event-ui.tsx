@@ -246,7 +246,7 @@ export function DocRemove({ id, title }: { id: string; title: string }) {
   return (
     <>
       <button type="button" disabled={pending} aria-label={`Убрать документ ${title}`} title="Убрать документ"
-        className="ml-1 rounded px-1 text-neutral-400 hover:bg-neutral-100 hover:text-red-700"
+        className="ml-1 rounded px-1 text-neutral-600 hover:bg-neutral-100 hover:text-red-700"
         onClick={async () => {
           if (!(await ask(`Убрать документ «${title}»? Файл будет удалён.`, { ok: "Убрать", danger: true }))) return;
           start(async () => { await removeEventDocument(id); router.refresh(); });

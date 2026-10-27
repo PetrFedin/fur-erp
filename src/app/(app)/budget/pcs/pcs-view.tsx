@@ -125,7 +125,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
 
   const supplyInp = (value: string, on: (v: string) => void, ph: string, label: string) => (
     <input inputMode="decimal" aria-label={label} value={value} placeholder={ph} onChange={(e) => on(e.target.value)} onBlur={saveParams}
-      className={`min-h-9 w-20 rounded border bg-white px-1.5 text-right text-sm tabular-nums text-neutral-900 placeholder:text-neutral-400 ${value.trim() !== "" ? "border-[var(--ui-accent)] bg-[var(--ui-soft)]" : "border-neutral-300"}`} />
+      className={`min-h-9 w-20 rounded border bg-white px-1.5 text-right text-sm tabular-nums text-neutral-900 placeholder:text-neutral-600 ${value.trim() !== "" ? "border-[var(--ui-accent)] bg-[var(--ui-soft)]" : "border-neutral-300"}`} />
   );
   // «Норка+Соболь» раскрыта на норку и соболя числами: они входят в расчёт норки и соболя выше.
   const mixRow = supply.rows.find((r) => r.mixed);
@@ -159,7 +159,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
 
   const inp = (value: string, on: (v: string) => void, w: string, label: string, ph?: string) => (
     <input inputMode="decimal" aria-label={label} value={value} placeholder={ph} onChange={(e) => on(e.target.value)}
-      className={`${w} min-h-9 rounded border border-neutral-300 bg-white px-1.5 text-right text-sm tabular-nums text-neutral-900 placeholder:italic placeholder:text-neutral-400`} />
+      className={`${w} min-h-9 rounded border border-neutral-300 bg-white px-1.5 text-right text-sm tabular-nums text-neutral-900 placeholder:italic placeholder:text-neutral-600`} />
   );
   const rowOf = (n: PcsNode, key: string, label: string, level: number, ctx: { fur?: string; acc?: boolean } = {}): React.ReactNode => {
     const a = avgOf(n);

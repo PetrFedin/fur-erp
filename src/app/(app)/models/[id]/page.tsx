@@ -76,7 +76,7 @@ function SectionLink({ href, label, count }: { href: string; label: string; coun
       title={count > 0 ? `${label} этого артикула` : `${label}: записей по этому артикулу нет`}
     >
       {label}
-      <span className={"rounded-full px-1.5 text-xs tabular-nums " + (count > 0 ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-400")}>{count > 0 ? count : "–"}</span>
+      <span className={"rounded-full px-1.5 text-xs tabular-nums " + (count > 0 ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-600")}>{count > 0 ? count : "–"}</span>
     </Link>
   );
 }

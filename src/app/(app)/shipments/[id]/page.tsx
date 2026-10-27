@@ -382,12 +382,12 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
               const cut = firstOpen === -1 ? dayGroups.length - 1 : firstOpen;
               const renderGroup = (g: (typeof dayGroups)[number], gi: number) => (
               <section key={g.day} className="relative" data-day={g.day} data-day-kind={g.kind} aria-label={g.heading}>
-                <details open={gi >= cut} className="group/day"><summary className="relative flex cursor-pointer list-none items-center gap-2 py-1.5 text-xs max-md:min-h-11 [&::-webkit-details-marker]:hidden"><span aria-hidden className="text-neutral-400 transition-transform group-open/day:rotate-90">›</span>
+                <details open={gi >= cut} className="group/day"><summary className="relative flex cursor-pointer list-none items-center gap-2 py-1.5 text-xs max-md:min-h-11 [&::-webkit-details-marker]:hidden"><span aria-hidden className="text-neutral-600 transition-transform group-open/day:rotate-90">›</span>
                   <span aria-hidden className={"absolute -left-[1.1875rem] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full " + (g.kind === "today" ? "bg-neutral-800" : "bg-neutral-300")} />
-                  <span className={g.kind === "today" ? "font-semibold text-neutral-900" : g.kind === "upcoming" ? "font-medium text-neutral-400" : "font-medium text-neutral-600"}>{g.heading}</span>
+                  <span className={g.kind === "today" ? "font-semibold text-neutral-900" : g.kind === "upcoming" ? "font-medium text-neutral-600" : "font-medium text-neutral-600"}>{g.heading}</span>
                   {g.kind === "today" && <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[11px] font-medium text-white">сегодня</span>}
                   {g.kind === "upcoming" && <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-normal text-neutral-500">ожидается</span>}
-                <span className="text-[11px] font-normal text-neutral-400">· этапов: {g.items.length}</span></summary>
+                <span className="text-[11px] font-normal text-neutral-600">· этапов: {g.items.length}</span></summary>
                 <ol className="flex flex-col">
                   {g.items.map(({ event: e, index: i }) => {
                     const note = notes[i];
@@ -401,7 +401,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                     return (
                       <li key={e.id} data-event={e.id} data-expected={e.expected ? "1" : "0"}>
                         {note && (
-                          <div className="py-1.5 text-[11px] leading-tight text-neutral-400" data-interval>
+                          <div className="py-1.5 text-[11px] leading-tight text-neutral-600" data-interval>
                             {note.text}
                             {note.exact && note.fromTitle ? ` · от «${note.fromTitle}»: ${note.exact}` : ""}
                             {canEvents && i > 0 && <span className="ml-2"><NewEventButton shipmentId={s.id} titles={titles} people={people} supplier={isSupplier} between={{ date: wallDateIso(sorted[i - 1].occurredAt), label: "+ этап между" }} /></span>}
@@ -418,11 +418,11 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                               <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6.5l2.5 2.5 4.5-5" /></svg>
                             </span>
                           )}
-                          <div className={"flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:gap-4 " + (e.expected ? "border-dashed border-orange-300 bg-neutral-50/60 text-neutral-400" : "border-neutral-200 bg-white shadow-sm")} title={fmtWall(e.occurredAt, e.timeKnown)}>
+                          <div className={"flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:gap-4 " + (e.expected ? "border-dashed border-orange-300 bg-neutral-50/60 text-neutral-600" : "border-neutral-200 bg-white shadow-sm")} title={fmtWall(e.occurredAt, e.timeKnown)}>
                             <div className="flex shrink-0 flex-col items-start gap-0.5 tabular-nums sm:w-28" data-event-side>
-                              <span data-left="side" className={"rounded px-1.5 py-0.5 text-[11px] font-medium " + (e.expected ? "bg-neutral-100 text-neutral-400" : tone.badge)}>{side ? SIDE_LABEL[side] : "не указано"}</span>
-                              <span data-left="date" className={"text-[11px] " + (e.expected ? "text-neutral-400" : "text-neutral-600")}>{wallDateRu(e.occurredAt)}</span>
-                              <span data-left="time" className={"text-lg font-semibold leading-tight " + (e.expected ? "text-neutral-400" : "text-neutral-900")}>
+                              <span data-left="side" className={"rounded px-1.5 py-0.5 text-[11px] font-medium " + (e.expected ? "bg-neutral-100 text-neutral-600" : tone.badge)}>{side ? SIDE_LABEL[side] : "не указано"}</span>
+                              <span data-left="date" className={"text-[11px] " + (e.expected ? "text-neutral-600" : "text-neutral-600")}>{wallDateRu(e.occurredAt)}</span>
+                              <span data-left="time" className={"text-lg font-semibold leading-tight " + (e.expected ? "text-neutral-600" : "text-neutral-900")}>
                                 {time}
                               </span>
                               <span data-left="who" className="text-[11px] text-neutral-500" title="Автор / ответственный действия">{resp || "–"}</span>
@@ -432,7 +432,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                                 <h4 className={"min-w-[10rem] flex-1 break-words text-sm font-semibold " + (e.expected ? "text-neutral-500" : "text-neutral-900")}>
                                   {e.title}
                                   {e.expected ? <span className="ml-2 rounded bg-orange-50 px-1.5 py-0.5 text-[11px] font-normal text-orange-700">ожидается</span> : <span className="ml-2 text-[11px] font-normal text-emerald-700" data-passed>пройдено</span>}
-                                  <span className="ml-1.5 cursor-help rounded-full border border-neutral-300 px-1 text-[11px] font-normal text-neutral-400" title={trail} aria-label={trail} tabIndex={0}>i</span>
+                                  <span className="ml-1.5 cursor-help rounded-full border border-neutral-300 px-1 text-[11px] font-normal text-neutral-600" title={trail} aria-label={trail} tabIndex={0}>i</span>
                                 </h4>
                                 {(canEdit || (isSupplier && e.createdById === session.user.id)) && <EventActions v={values(e)} titles={titles} people={people} supplier={isSupplier} canDone={!isAcceptanceEvent(e)} />}
                               </div>

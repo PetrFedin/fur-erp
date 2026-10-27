@@ -211,7 +211,7 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
                   <Td className="whitespace-nowrap">{r.lengthClass ?? "–"}</Td>
                   <Td className="min-w-48">
                     {noCode && !r.salesName ? (
-                      <span className="text-neutral-400">–</span>
+                      <span className="text-neutral-600">–</span>
                     ) : (
                       <>
                         <div className="font-medium">{r.salesCode ?? <span className="text-amber-700">кода нет</span>}</div>

@@ -177,7 +177,7 @@ export function Fw27Compare({ data, rows, onOpen }: { data: Fw27Data; rows: PcsR
                       <td className="py-1.5 pl-10 pr-3">{label(x)}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums">{x.len === null ? "–" : dash(x.plan)}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums">{dash(x.file)}</td>
-                      <td className={"px-2 py-1.5 text-right tabular-nums " + (x.len === null ? "text-neutral-400" : tone(x.file - x.plan))}>{x.len === null ? "–" : signed(x.file - x.plan)}</td>
+                      <td className={"px-2 py-1.5 text-right tabular-nums " + (x.len === null ? "text-neutral-600" : tone(x.file - x.plan))}>{x.len === null ? "–" : signed(x.file - x.plan)}</td>
                       <td className="px-2 py-1.5 text-right"><button type="button" onClick={() => onOpen(x.crit, `${x.fur} · ${x.cat}${x.len ? ` · ${x.len}` : ""}`)} className={"min-h-9 rounded-md border px-2 text-xs hover:border-neutral-500 " + (x.photos ? "border-neutral-300" : "border-dashed border-neutral-300 text-neutral-500")}>Фото {x.photos}</button></td>
                     </tr>
                   )) : null}

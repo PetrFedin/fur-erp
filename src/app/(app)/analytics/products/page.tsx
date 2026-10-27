@@ -159,7 +159,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
                     style={v > 0 ? { backgroundColor: `rgba(16,185,129,${a.toFixed(2)})` } : undefined}
                     title={v > 0 ? `${r} × ${c}: ${formatQty(x.units)} ед., ТЗ: ${x.orders}` : undefined}
                   >
-                    {v > 0 ? f.mx === "cost" ? <Money incl={x.costIncl} excl={x.costExcl} /> : formatQty(x.units) : <span className="text-neutral-300">·</span>}
+                    {v > 0 ? f.mx === "cost" ? <Money incl={x.costIncl} excl={x.costExcl} /> : formatQty(x.units) : <span className="text-neutral-500">·</span>}
                   </Td>
                 );
               })}

@@ -445,7 +445,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             const cell = "p-0";
             const link = "block px-3 py-2";
             const num = `${cell} text-right tabular-nums`;
-            const dash = <span className="text-neutral-300">–</span>;
+            const dash = <span className="text-neutral-500">–</span>;
             // «Без 4%» — не на экране, а в подсказке при наведении.
             const nt = (n: { incl: Decimal; excl: Decimal } | null) => (n ? { title: `Без 4%: ${formatMoney(Math.round(n.incl.toNumber()))} ₽ с НДС` } : {});
             const tr = (
@@ -512,7 +512,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     const cell = "p-0";
     const link = "block px-3 py-2";
     const num = `${cell} text-right tabular-nums`;
-    const dash = <span className="text-neutral-300">–</span>;
+    const dash = <span className="text-neutral-500">–</span>;
     const firstHref = `/production/${first.id}`;
     const children = rows.map((r) => renderPos(r.x, true).tr);
     const match = g.map((x) => matchOf(x.o)?.label).find(Boolean);

@@ -459,7 +459,7 @@ function SectionMatrix({ section, rows, f, ver, verFilter }: { section: SectionK
                   const need = g.rows.filter((r) => r.cells[c.key].need === "required");
                   const ok = need.filter((r) => r.cells[c.key].ok).length;
                   return (
-                    <span key={c.key} className={cn("text-center text-xs tabular-nums", need.length === 0 ? "text-neutral-300" : ok === need.length ? "text-emerald-700" : ok === 0 ? "text-red-600" : "text-amber-700")}>
+                    <span key={c.key} className={cn("text-center text-xs tabular-nums", need.length === 0 ? "text-neutral-500" : ok === need.length ? "text-emerald-700" : ok === 0 ? "text-red-600" : "text-amber-700")}>
                       {need.length === 0 ? "" : `${ok}/${need.length}`}
                     </span>
                   );

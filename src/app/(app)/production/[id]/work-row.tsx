@@ -55,14 +55,14 @@ export function WorkRow({
     <Tr>
       <Td className="font-medium">Работа заказчику</Td>
       <Td className="text-xs text-neutral-500">цена за шт. × количество ({qtyLabel})</Td>
-      <Td className="text-right tabular-nums">{Number(qty) ? formatQty(qty) : <span className="text-neutral-300">–</span>} <span className="text-xs text-neutral-500">шт.</span></Td>
+      <Td className="text-right tabular-nums">{Number(qty) ? formatQty(qty) : <span className="text-neutral-500">–</span>} <span className="text-xs text-neutral-500">шт.</span></Td>
       <Td className="min-w-[8.5rem]">
         <DraftInput value={price} draft={draft} onChange={setDraft} onEnter={save} onEscape={cancel} step="0.01" min="0" align="right" label="Стоимость работ за шт." suffix="₽" readOnly={readOnly} disabled={ch.busy} />
       </Td>
-      <Td colSpan={2} className="text-xs text-neutral-400">без НДС и без 4 %</Td>
+      <Td colSpan={2} className="text-xs text-neutral-600">без НДС и без 4 %</Td>
       <Td className="whitespace-nowrap text-right font-medium tabular-nums">
-        {live != null ? <Money incl={live} excl={live} /> : <span className="text-neutral-300">–</span>}
-        {changed ? <span className="ml-1 text-xs font-normal text-neutral-400" title="Предварительно, до сохранения">~</span> : null}
+        {live != null ? <Money incl={live} excl={live} /> : <span className="text-neutral-500">–</span>}
+        {changed ? <span className="ml-1 text-xs font-normal text-neutral-600" title="Предварительно, до сохранения">~</span> : null}
         <DraftBar dirty={dirty} busy={ch.busy} error={ch.error} onSave={save} onCancel={cancel} />
         {ch.node}
       </Td>

@@ -116,7 +116,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
                         <td className={ARROW_TD} />
                         <td className={`py-1.5 pr-2 text-left ${INDENT[2]}`}>
                           {x.href ? <Link href={x.href} className="text-blue-700 hover:underline">{x.label}</Link> : x.label}
-                          {x.note ? <span className="ml-1.5 text-neutral-400">{x.note}</span> : null}
+                          {x.note ? <span className="ml-1.5 text-neutral-600">{x.note}</span> : null}
                         </td>
                         <td className={TD + " border-l border-neutral-200"} colSpan={hasSvc ? 4 : 3} />
                         <td className={TD + " border-l border-neutral-200"}>{m(x.amount)}</td>

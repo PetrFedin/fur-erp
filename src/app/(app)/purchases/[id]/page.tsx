@@ -458,7 +458,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                       <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
                       <Td>
                         {item.vatRate.toString()} %
-                        <span className={`block text-[11px] ${Number(item.vatRate) === vatRateForDate(purchase.orderDate) ? "text-neutral-400" : "text-amber-700"}`} title={Number(item.vatRate) === vatRateForDate(purchase.orderDate) ? undefined : `По дате закупки ${formatDate(purchase.orderDate)} должна быть ${vatRateForDate(purchase.orderDate)} %`}>{vatPeriodLabel(purchase.orderDate)}</span>
+                        <span className={`block text-[11px] ${Number(item.vatRate) === vatRateForDate(purchase.orderDate) ? "text-neutral-600" : "text-amber-700"}`} title={Number(item.vatRate) === vatRateForDate(purchase.orderDate) ? undefined : `По дате закупки ${formatDate(purchase.orderDate)} должна быть ${vatRateForDate(purchase.orderDate)} %`}>{vatPeriodLabel(purchase.orderDate)}</span>
                       </Td>
                       {planInfo ? (
                         <>

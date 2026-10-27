@@ -47,7 +47,7 @@ export function GroupCostSlide({ all, grp, vat, c4, loading, compact }: { all: D
   return (
     <>
       <TileValue>{money(total)}</TileValue>
-      <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-400">{c4 === "on" ? `${money(total - s.c4)} без 4 %` : null}</div>
+      <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-600">{c4 === "on" ? `${money(total - s.c4)} без 4 %` : null}</div>
       <TileCaption>{pctText(total, totalOwn)} от всего{compact ? "" : ` без ремонта · ${vat === "incl" ? "с НДС" : "без НДС"}`}</TileCaption>
       <TileList items={[
         { k: "Мех", v: money(s.fur + s.other), share: share(s.fur + s.other, total) }, // расходы ТЗ и прочее — внутри меха

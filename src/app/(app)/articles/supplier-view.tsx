@@ -110,7 +110,7 @@ export async function SupplierArticles({ orgId, q, noname, sp = {} }: { orgId: s
         </Thead>
         <Tbody>
           {rows.map((m) => (
-            <Tr key={m.id} className={m.isActive ? undefined : "text-neutral-400"}>
+            <Tr key={m.id} className={m.isActive ? undefined : "text-neutral-600"}>
               <Td className="font-medium">{m.name}{!m.isActive && <span className="ml-2 text-xs font-normal">не активен</span>}</Td>
               <Td>{photos.get(m.id) ? <PhotoGalleryButton modelId={m.id} photos={photos.get(m.id)!} groups={galleryExtras(photos.get(m.id)!, null, supRefs).groups} title={m.name} compact /> : null}</Td>
               <Td className="max-w-[20rem]">{m.title ? <Clamp>{m.title}</Clamp> : <span className="text-amber-800">Нет названия</span>}</Td>

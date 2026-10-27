@@ -363,7 +363,7 @@ export function FurSelectionTotal({
     return (
       <>
         <Num first strong={o.strong} small={o.small}>
-          {rates.length ? rates.map((r) => `${r} %`).join(" · ") : <span className="text-neutral-300">–</span>}
+          {rates.length ? rates.map((r) => `${r} %`).join(" · ") : <span className="text-neutral-500">–</span>}
           {o.single && l0 ? <div className="text-[11px] font-normal leading-tight text-neutral-500">{l0.year < 2026 ? "куплено до 2026" : "с 2026"}</div> : null}
         </Num>
         <Num strong={o.strong} small={o.small} title={detail ? `в т.ч. ${detail}` : undefined}>
@@ -507,19 +507,19 @@ export function FurSelectionTotal({
         </td>
         {GROUPS.map((g) => (
           <Fragment key={g.key}>
-            {showQty && <Num first small muted>{g.key === "used" ? Q(u.qty) : <span className="text-neutral-300">–</span>}</Num>}
+            {showQty && <Num first small muted>{g.key === "used" ? Q(u.qty) : <span className="text-neutral-500">–</span>}</Num>}
             {showMoney && (
               <Num first={!showQty} small muted>
-                {g.key === "used" ? <><div>{R(sumU)}</div>{extra > 0.005 ? <div className="text-[11px] text-neutral-500">4 %: {R(extra)}</div> : null}</> : <span className="text-neutral-300">–</span>}
+                {g.key === "used" ? <><div>{R(sumU)}</div>{extra > 0.005 ? <div className="text-[11px] text-neutral-500">4 %: {R(extra)}</div> : null}</> : <span className="text-neutral-500">–</span>}
               </Num>
             )}
-            <Num small muted>{g.key === "used" && u.qty > 0 ? A(sumU / u.qty) : <span className="text-neutral-300">–</span>}</Num>
-            {showHam && g.key === "recv" && <Num small muted><span className="text-neutral-300">–</span></Num>}
-            {showUsd && <Num small muted><span className="text-neutral-300">–</span></Num>}
+            <Num small muted>{g.key === "used" && u.qty > 0 ? A(sumU / u.qty) : <span className="text-neutral-500">–</span>}</Num>
+            {showHam && g.key === "recv" && <Num small muted><span className="text-neutral-500">–</span></Num>}
+            {showUsd && <Num small muted><span className="text-neutral-500">–</span></Num>}
           </Fragment>
         ))}
-        {showPay && <><Num first small muted><span className="text-neutral-300">–</span></Num><Num small muted><span className="text-neutral-300">–</span></Num></>}
-        {showVat && <><Num first small muted><span className="text-neutral-300">–</span></Num><Num small muted><span className="text-neutral-300">–</span></Num></>}
+        {showPay && <><Num first small muted><span className="text-neutral-500">–</span></Num><Num small muted><span className="text-neutral-500">–</span></Num></>}
+        {showVat && <><Num first small muted><span className="text-neutral-500">–</span></Num><Num small muted><span className="text-neutral-500">–</span></Num></>}
       </tr>
     );
   };
@@ -542,13 +542,13 @@ export function FurSelectionTotal({
                 <Link href={`/analytics/raw/lot/${l.id}`} onClick={(e) => e.stopPropagation()} className="ml-1 text-[11px] text-blue-700 hover:underline" title="Карточка лота">карточка ›</Link>
               ) : (
                 // Карточки нет (строка-заглушка «заказано, не получено» / «шкуры подрядчика»): приглушённый «—» с пояснением в «i».
-                <span className="ml-1 inline-flex items-center gap-1 text-[11px] text-neutral-400" onClick={(e) => e.stopPropagation()}>
+                <span className="ml-1 inline-flex items-center gap-1 text-[11px] text-neutral-600" onClick={(e) => e.stopPropagation()}>
                   <span aria-disabled="true" role="link" title="Карточки нет">–</span>
                   <InfoHint label="Почему нет карточки лота" align="left">{l.id.startsWith("hides") ? "Шкуры подрядчика: отдельной карточки лота нет, списания — в ТЗ." : "Лот не использован — детализации списаний нет."}</InfoHint>
                 </span>
               )}
               {l.purchaseId ? (
-                <Link href={`/purchases/${l.purchaseId}`} onClick={(e) => e.stopPropagation()} className="ml-0.5 text-[11px] text-neutral-400 hover:text-blue-700 hover:underline" title={`Закупка ${purchaseTitle}`} aria-label={`Открыть закупку ${l.purchaseNumber ?? ""}`}>↗</Link>
+                <Link href={`/purchases/${l.purchaseId}`} onClick={(e) => e.stopPropagation()} className="ml-0.5 text-[11px] text-neutral-600 hover:text-blue-700 hover:underline" title={`Закупка ${purchaseTitle}`} aria-label={`Открыть закупку ${l.purchaseNumber ?? ""}`}>↗</Link>
               ) : null}
             </div>
             <div className="truncate pl-4 text-[11px] text-neutral-500" title={[sub, purchaseTitle].filter(Boolean).join(" · ")}>{sub}</div>
@@ -612,7 +612,7 @@ export function FurSelectionTotal({
               </button>)}
               {!synth && nameHref(level, row) ? (
                 <Link href={nameHref(level, row)!} onClick={(e) => e.stopPropagation()} title={row.label === shown(level, row) ? nameTitle(level, row) : row.label} className={cn(wrapName ? "line-clamp-2 whitespace-normal break-words leading-tight" : "truncate", "rounded-sm hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-900", depth === 0 ? "font-medium" : undefined)}>
-                  {shown(level, row)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span>
+                  {shown(level, row)}<span aria-hidden className="ml-1 text-[11px] text-neutral-600">↗</span>
                 </Link>
               ) : (
                 <span className={cn(wrapName ? "line-clamp-2 whitespace-normal break-words leading-tight" : "truncate", depth === 0 ? "font-medium" : undefined)} title={row.label}>{shown(level, row)}</span>
@@ -822,7 +822,7 @@ export function FurSelectionTotal({
                 <td className="sticky left-0 z-10 bg-white py-2 pr-3" style={pad(0)}>
                   <div className="flex items-center whitespace-nowrap">
                     <span aria-hidden className="mr-1 inline-block w-3" />
-                    <Link href={`/lots/fur/${encodeURIComponent(k)}`} className="font-medium hover:underline">{k}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link>
+                    <Link href={`/lots/fur/${encodeURIComponent(k)}`} className="font-medium hover:underline">{k}<span aria-hidden className="ml-1 text-[11px] text-neutral-600">↗</span></Link>
                     <span className="ml-1.5 text-xs text-neutral-500">(сырьё подрядчика)</span>
                     <InfoHint label="Что такое строка без лотов" align="left">Закупок и лотов {k.toLowerCase()} нет; значения — по ТЗ изделий из этого меха (как на Главной). В итоги не входят.</InfoHint>
                   </div>
@@ -835,7 +835,7 @@ export function FurSelectionTotal({
                     if (i === 0) return <td key={`${g.key}${i}`} className={base}>{info.units} изд.<div className="text-[11px] text-neutral-500">{info.orders} ТЗ</div></td>;
                     if (i === 1) return <td key={`${g.key}${i}`} className={base}>{info.work > 0 ? formatMoney(info.work) : "–"}<div className="text-[11px] text-neutral-500">по ТЗ</div></td>;
                   }
-                  return <td key={`${g.key}${i}`} className={cn(base, "text-neutral-300")}>–</td>;
+                  return <td key={`${g.key}${i}`} className={cn(base, "text-neutral-500")}>–</td>;
                 }))}
               </tr>
             ))}

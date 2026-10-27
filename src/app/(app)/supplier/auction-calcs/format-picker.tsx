@@ -124,7 +124,7 @@ export function FormatPicker({ p, setP, ro, onClassic, notify }: {
             <div key={t.id} className="flex flex-wrap items-center gap-2">
               <span className="font-medium">{t.name}</span>
               {t.description && <span className="text-xs text-neutral-500">{t.description}</span>}
-              <span className="text-xs text-neutral-400">столбцов: {t.payload.customColumns?.length ?? 0}</span>
+              <span className="text-xs text-neutral-600">столбцов: {t.payload.customColumns?.length ?? 0}</span>
               <button type="button" className="text-xs underline" onClick={async () => {
                 const n = prompt("Новое название формата", t.name);
                 if (n === null) return;
@@ -136,7 +136,7 @@ export function FormatPicker({ p, setP, ro, onClassic, notify }: {
                 const r = await saveTemplate(t.id, t.name, t.description, JSON.stringify(p));
                 if (r.error) notify(r.error, true); else { notify("Формат обновлён."); void load(); }
               }}>обновить из таблицы</button>}
-              <button type="button" className="text-xs text-neutral-400 hover:text-red-600" onClick={async () => {
+              <button type="button" className="text-xs text-neutral-600 hover:text-red-600" onClick={async () => {
                 if (!confirm(`Удалить формат «${t.name}»? Расчёты, сделанные по нему, останутся.`)) return;
                 const r = await deleteTemplate(t.id);
                 if (r.error) notify(r.error, true); else void load();

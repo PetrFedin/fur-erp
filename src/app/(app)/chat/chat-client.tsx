@@ -335,7 +335,7 @@ export function NewChatForm({ options, topics, entityTypes, viewerRole, preset, 
           <ul className="flex flex-wrap gap-1.5" aria-label="Выбранные получатели">
             {chosen.map((o) => (
               <li key={o.key} className="flex items-center gap-1 rounded-full bg-neutral-900 py-1 pl-3 pr-1 text-sm text-white">
-                <span>{o.name}</span>{o.kind === "supplier" && <span className="text-[11px] text-neutral-300">подрядчик</span>}
+                <span>{o.name}</span>{o.kind === "supplier" && <span className="text-[11px] text-neutral-500">подрядчик</span>}
                 <button type="button" aria-label={`Убрать ${o.name}`} onClick={() => { setSel((c) => c.filter((k) => k !== o.key)); setDup(null); }} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-neutral-700 max-md:h-11 max-md:w-11">×</button>
               </li>
             ))}

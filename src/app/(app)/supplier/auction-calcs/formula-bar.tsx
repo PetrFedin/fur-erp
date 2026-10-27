@@ -138,7 +138,7 @@ export function FormulaBar({ p, setP, sh, act, ro, lockReason, fillInput }: {
         <InfoHint label="Про строку формул">{HELP}</InfoHint>
       </div>
       <p className="font-mono text-xs text-neutral-600">
-        {explicit ? `${explicit} → ` : ""}{cell?.err ? <span className="text-red-600">{cell.err}</span> : fmt(cell?.v) || "–"} <span className="font-sans text-neutral-400">({how})</span>
+        {explicit ? `${explicit} → ` : ""}{cell?.err ? <span className="text-red-600">{cell.err}</span> : fmt(cell?.v) || "–"} <span className="font-sans text-neutral-600">({how})</span>
         {noWrite && <span className="ml-2 font-sans text-amber-800">{noWrite}</span>}
         {!noWrite && canEdit && col.kind !== "input" && <span className="ml-2 font-sans text-neutral-500">Enter — применить; «↩» в ячейке вернёт формулу столбца.</span>}
       </p>

@@ -119,7 +119,7 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
               <Td className="p-1">{cellInput(r.work, (v) => setItem(i, "work", v), 80, undefined, true)}</Td>
               <Td className="p-1">{cellInput(r.price, (v) => setItem(i, "price", v), 90, undefined, true)}</Td>
               <Td className="p-1 text-right">{cellInput(r.total ?? "", (v) => setItem(i, "total", v), 100, undefined, true, money(t.itemTotals[i] ?? 0))}</Td>
-              {!ro && <Td className="p-1"><button type="button" className="px-1 text-neutral-400 hover:text-red-600" title="Убрать" onClick={() => setP((x) => ({ ...x, items: x.items.filter((_, j) => j !== i) }))}>×</button></Td>}
+              {!ro && <Td className="p-1"><button type="button" className="px-1 text-neutral-600 hover:text-red-600" title="Убрать" onClick={() => setP((x) => ({ ...x, items: x.items.filter((_, j) => j !== i) }))}>×</button></Td>}
             </Tr>
           ))}
           <Tr><Td colSpan={7} className="font-semibold">Итого:</Td><Td className="font-semibold tabular-nums">{t.qty}</Td><Td className="tabular-nums text-neutral-600">{t.pelts ? `${t.pelts} шк.` : ""}</Td><Td className="font-semibold tabular-nums">{money(t.work)}</Td><Td /><Td className="text-right font-semibold tabular-nums">{money(t.total)}</Td>{!ro && <Td />}</Tr>
@@ -147,7 +147,7 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
               <Td className="p-1">{cellInput(m.priceNet, (v) => setMat(i, "priceNet", v), 100, undefined, true)}</Td>
               <Td className="p-1">{cellInput(m.vatPct, (v) => setMat(i, "vatPct", v), 55, undefined, true)}</Td>
               <Td className="p-1 text-right">{cellInput(m.total ?? "", (v) => setMat(i, "total", v), 110, undefined, true, money(t.matTotals[i] ?? 0))}</Td>
-              {!ro && <Td className="p-1"><button type="button" className="px-1 text-neutral-400 hover:text-red-600" onClick={() => setP((x) => ({ ...x, materials: x.materials.filter((_, j) => j !== i) }))}>×</button></Td>}
+              {!ro && <Td className="p-1"><button type="button" className="px-1 text-neutral-600 hover:text-red-600" onClick={() => setP((x) => ({ ...x, materials: x.materials.filter((_, j) => j !== i) }))}>×</button></Td>}
             </Tr>
           ))}
           <Tr><Td colSpan={6} className="font-semibold">ИТОГО:</Td><Td className="text-right font-semibold tabular-nums">{money(t.materials)}</Td>{!ro && <Td />}</Tr>

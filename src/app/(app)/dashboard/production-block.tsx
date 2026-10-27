@@ -127,7 +127,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
             { key: "total", label: "Всего", body: (
               <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Полная себестоимость (факт списания по всем ТЗ) — открыть гистограмму по партиям, годам, категориям и меху" className={SLIDE_BTN}>
                 <TileValue>{money(total)}</TileValue>
-                <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-400">{c4 === "on" ? `${money(total - D.c4)} без 4%` : null}</div>
+                <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-600">{c4 === "on" ? `${money(total - D.c4)} без 4%` : null}</div>
                 <TileCaption>{null}</TileCaption>
                 <dl className="mt-1 space-y-0.5 text-xs">
                   {parts.map((p) => (

@@ -431,7 +431,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 </div>
               </Td>
               <Td data-col="plu" className="text-xs tabular-nums text-neutral-700">
-                {r.plus.map((x) => <div key={x.plu} className="whitespace-nowrap">{x.plu}{r.plus.length > 1 && x.label ? <span className="text-[11px] text-neutral-400"> · {x.label}</span> : null}</div>)}
+                {r.plus.map((x) => <div key={x.plu} className="whitespace-nowrap">{x.plu}{r.plus.length > 1 && x.label ? <span className="text-[11px] text-neutral-600"> · {x.label}</span> : null}</div>)}
               </Td>
               <Td data-col="shop" className="w-12">
                 {(() => {
@@ -441,15 +441,15 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               </Td>
               <Td data-col="category" className="text-neutral-700">
                 <div>{r.model.category?.trim() || "–"}</div>
-                {r.group !== NO_GROUP ? <div className="text-[11px] text-neutral-400">{r.group}</div> : null}
+                {r.group !== NO_GROUP ? <div className="text-[11px] text-neutral-600">{r.group}</div> : null}
               </Td>
               <Td data-col="fur" className="text-neutral-700" title={r.met.furNames.join(", ")}>
                 {r.primaryFur ?? "–"}
-                {r.met.furNames.length > 1 ? <span className="text-[11px] text-neutral-400"> +{r.met.furNames.length - 1}</span> : null}
+                {r.met.furNames.length > 1 ? <span className="text-[11px] text-neutral-600"> +{r.met.furNames.length - 1}</span> : null}
               </Td>
               <Td data-col="color" className="text-neutral-700" title={r.colors.join(", ")}>
                 {r.colors.length ? r.colors.slice(0, 2).join(", ") : "–"}
-                {r.colors.length > 2 ? <span className="text-[11px] text-neutral-400"> +{r.colors.length - 2}</span> : null}
+                {r.colors.length > 2 ? <span className="text-[11px] text-neutral-600"> +{r.colors.length - 2}</span> : null}
               </Td>
               <Td data-col="sizes" className="text-neutral-700 text-xs" title={r.sizes}>{r.sizes ? (r.sizes.length > 24 ? `${r.sizes.slice(0, 24)}…` : r.sizes) : "–"}</Td>
               <Td data-col="lining" className="text-neutral-700 text-xs" title={r.lining}>{r.lining ? (r.lining.length > 32 ? `${r.lining.slice(0, 32)}…` : r.lining) : "–"}</Td>
@@ -457,18 +457,18 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <Td data-col="stock" className="text-right tabular-nums">{r.stockQty > 0 ? formatQty(r.stockQty) : "–"}</Td>
               <Td data-col="furQty" className="text-right tabular-nums">
                 {r.met.fur.qty > 0 ? formatDec1(Math.round(r.met.fur.qty * 100) / 100) : "–"}
-                {r.met.fur.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.fur.qty, r.qty)} шк./изд.</div> : null}
-                {r.supplierFur ? <div className="text-[11px] text-neutral-400" title="Заявка подрядчика по артикулу, не итог по ТЗ">подрядчик: {r.supplierFur} шк./изд.</div> : null}
+                {r.met.fur.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-600">{perItem(r.met.fur.qty, r.qty)} шк./изд.</div> : null}
+                {r.supplierFur ? <div className="text-[11px] text-neutral-600" title="Заявка подрядчика по артикулу, не итог по ТЗ">подрядчик: {r.supplierFur} шк./изд.</div> : null}
               </Td>
               <Td data-col="furSum" className="text-right"><CostTwo on={r.met.fur.on} off={r.met.fur.off} /></Td>
               <Td data-col="liningQty" className="text-right tabular-nums">
                 {r.met.lining.qty > 0 ? formatDec1(Math.round(r.met.lining.qty * 100) / 100) : "–"}
-                {r.met.lining.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.lining.qty, r.qty)} м/изд.</div> : null}
+                {r.met.lining.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-600">{perItem(r.met.lining.qty, r.qty)} м/изд.</div> : null}
               </Td>
               <Td data-col="liningSum" className="text-right"><CostTwo on={r.met.lining.on} off={r.met.lining.off} /></Td>
               <Td data-col="work" className="text-right tabular-nums">
                 {r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "–"}
-                {r.supplierWork ? <div className="text-[11px] text-neutral-400" title="Заявка подрядчика по артикулу, не итог по ТЗ">подрядчик: {r.supplierWork}/изд.</div> : null}
+                {r.supplierWork ? <div className="text-[11px] text-neutral-600" title="Заявка подрядчика по артикулу, не итог по ТЗ">подрядчик: {r.supplierWork}/изд.</div> : null}
               </Td>
               <Td data-col="total" className="text-right"><CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /></Td>
               <Td data-col="unit" className="text-right"><CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /></Td>

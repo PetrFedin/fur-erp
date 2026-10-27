@@ -100,7 +100,7 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
           <div><dt className="text-xs text-neutral-500">Поставщик</dt><dd>{supplierLinks.length ? supplierLinks.map(([sid, sname], i) => <span key={sid}>{i > 0 ? ", " : ""}<Link href={`/suppliers/${sid}`} className="text-blue-700 hover:underline" title="Карточка поставщика">{sname}</Link></span>) : "–"}</dd></div>
           <div>
             <dt className="text-xs text-neutral-500">{purchases.length > 1 ? "Закупки" : "Закупка"}</dt>
-            <dd>{purchases.map((p, i) => <span key={p.id}>{i > 0 ? ", " : ""}<Link href={`/purchases/${p.id}`} className="text-blue-700 hover:underline">{p.number}<span aria-hidden className="ml-0.5 text-[11px] text-neutral-400">↗</span></Link></span>)}</dd>
+            <dd>{purchases.map((p, i) => <span key={p.id}>{i > 0 ? ", " : ""}<Link href={`/purchases/${p.id}`} className="text-blue-700 hover:underline">{p.number}<span aria-hidden className="ml-0.5 text-[11px] text-neutral-600">↗</span></Link></span>)}</dd>
           </div>
           <div><dt className="text-xs text-neutral-500">Счёт / УПД</dt><dd>{[...new Set(purchases.map((p) => p.invoiceNumber).filter(Boolean))].join(", ") || "–"}</dd></div>
           <div><dt className="text-xs text-neutral-500">Сумма, ₽ с НДС</dt><dd className="tabular-nums">{formatMoney(sumAll.toFixed(2))}</dd></div>

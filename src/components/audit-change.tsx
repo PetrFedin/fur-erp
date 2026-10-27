@@ -42,7 +42,7 @@ export function ChangeCell({ row, compact }: { row: LogRow; compact?: boolean })
                 </table>
               )}
               <details className="mt-1">
-                <summary className="cursor-pointer text-neutral-400">Технические данные</summary>
+                <summary className="cursor-pointer text-neutral-600">Технические данные</summary>
                 <pre className="mt-1 max-h-60 max-w-xl overflow-auto whitespace-pre-wrap break-words rounded bg-neutral-50 p-2 text-[11px] leading-snug">{e.raw}</pre>
               </details>
             </div>

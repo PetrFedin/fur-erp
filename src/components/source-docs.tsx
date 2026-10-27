@@ -242,7 +242,7 @@ export function SourceDocs({
   const s = sourceDocsSummary(data.rows);
   const missing = s.total - s.loaded;
   const nothing = s.total === 0 && s.extra === 0;
-  if (compact && nothing && !data.canUpload) return <span className="text-neutral-400">–</span>;
+  if (compact && nothing && !data.canUpload) return <span className="text-neutral-600">–</span>;
   return (
     <details data-source-docs className={cn("group rounded-lg border bg-white", compact ? "relative border-neutral-200 text-xs" : "border-neutral-200")}>
       <summary className={cn("flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 [&::-webkit-details-marker]:hidden", compact ? "px-2 py-1" : "min-h-11 px-3 py-2 text-sm")}>

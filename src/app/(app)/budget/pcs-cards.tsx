@@ -54,7 +54,7 @@ export function PcsCards({ items, canEdit }: { items: PcsCard[]; canEdit: boolea
               </div>
             </div>
             <p className="pointer-events-none relative z-10 mt-3 text-xs text-neutral-600">Штуки, расход шкур на изделие (AVG) и итог шкур (TTL) по типам меха, категориям и длинам. Можно править в режиме «Детально» и скачать в Excel.</p>
-            <p className="mt-2 text-[11px] text-neutral-400">Изменён {dateRu(f.updatedAt)}{f.updatedBy ? ` · ${f.updatedBy}` : ""}</p>
+            <p className="mt-2 text-[11px] text-neutral-600">Изменён {dateRu(f.updatedAt)}{f.updatedBy ? ` · ${f.updatedBy}` : ""}</p>
           </li>
         ))}
       </ul>

@@ -110,7 +110,7 @@ export default async function EditSupplierPage({ params }: PageProps<"/suppliers
                     <Td>{p.auctionSession ? `Аукцион «${p.auctionSession}»` : p.purchase ? `Закупка ${p.purchase.number}` : "Аванс без привязки"}</Td>
                     <Td className="text-xs text-neutral-600">{p.docRef ?? "–"}{!p.confirmed && <span className="ml-1 text-amber-700">· не подтверждена</span>}</Td>
                     <Td className="text-right tabular-nums">{rub(p.amount.toString())}</Td>
-                    <Td className="text-xs">{payDocs[p.id] ? <SourceDocs compact data={payDocs[p.id]} popover="right" /> : <span className="text-neutral-400">–</span>}</Td>
+                    <Td className="text-xs">{payDocs[p.id] ? <SourceDocs compact data={payDocs[p.id]} popover="right" /> : <span className="text-neutral-600">–</span>}</Td>
                   </Tr>
                 ))}
               </Tbody>

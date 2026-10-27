@@ -377,10 +377,10 @@ function FormBody({
                 </td>
                 <td className={`whitespace-nowrap px-2 py-1.5 text-right tabular-nums ${over ? "text-red-600" : "text-neutral-600"}`}>{lot ? formatDec1(lot.remaining) : "–"}</td>
                 <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
-                  {lot ? <><M incl={lot.unitCost} excl={lot.unitCostExcl} /><span className="block text-[11px] text-neutral-400">из лота</span></> : "–"}
+                  {lot ? <><M incl={lot.unitCost} excl={lot.unitCostExcl} /><span className="block text-[11px] text-neutral-600">из лота</span></> : "–"}
                 </td>
                 <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-600">
-                  {lot ? <>{own ?? lot.vatRate} %{own != null && <span className="block text-[11px] text-amber-700">в лоте {lot.vatRate} %</span>}<span className="block text-[11px] text-neutral-400">{vatPeriodLabel(lot.purchaseDate)}</span></> : "–"}
+                  {lot ? <>{own ?? lot.vatRate} %{own != null && <span className="block text-[11px] text-amber-700">в лоте {lot.vatRate} %</span>}<span className="block text-[11px] text-neutral-600">{vatPeriodLabel(lot.purchaseDate)}</span></> : "–"}
                 </td>
                 <td className="px-2 py-1.5">
                   <Input
@@ -402,12 +402,12 @@ function FormBody({
                   {c ? (
                     <>
                       <span className="font-medium"><M incl={c.incl4} excl={c.excl4} /></span>
-                      {l.c4 && <span className="block text-[11px] text-neutral-400">без 4 %: <M incl={c.baseIncl} excl={c.baseExcl} /></span>}
+                      {l.c4 && <span className="block text-[11px] text-neutral-600">без 4 %: <M incl={c.baseIncl} excl={c.baseExcl} /></span>}
                     </>
                   ) : "–"}
                 </td>
                 <td className="px-2 py-1.5 text-right">
-                  <button type="button" onClick={() => del(kind, l.key)} className="rounded px-1.5 py-0.5 text-neutral-400 hover:bg-neutral-100 hover:text-red-600" aria-label={`Убрать строку ${i + 1}`} title="Убрать строку">✕</button>
+                  <button type="button" onClick={() => del(kind, l.key)} className="rounded px-1.5 py-0.5 text-neutral-600 hover:bg-neutral-100 hover:text-red-600" aria-label={`Убрать строку ${i + 1}`} title="Убрать строку">✕</button>
                 </td>
               </tr>
             );
@@ -459,14 +459,14 @@ function FormBody({
                 {model.retailPrice ? ` · цена продажи ${formatMoney(model.retailPrice)} — перейдёт в ТЗ` : " · цена продажи не задана"}
               </p>
             ) : (
-              <p className="mt-1 text-xs text-neutral-400">Категория и группа — из артикула</p>
+              <p className="mt-1 text-xs text-neutral-600">Категория и группа — из артикула</p>
             )}
           </Field>
     <Field htmlFor="workOrderNumber" label="№ ТЗ" hint="Предложен следующий свободный номер (наибольший числовой + 1); можно изменить. Если номер уже есть, перед сохранением спросим: позиции одного ТЗ допустимы.">
             <Input id="workOrderNumber" name="workOrderNumber" placeholder="№ ТЗ" value={f.workOrderNumber ?? ""} onChange={set("workOrderNumber")} />
             {carry && f.workOrderNumber === carry.f.workOrderNumber && (f.workOrderNumber ?? "") !== "" ? (
               <p className="mt-1 text-xs text-neutral-500">следующая позиция ТЗ № {f.workOrderNumber}</p>
-            ) : nextTzNumber && f.workOrderNumber === nextTzNumber ? <p className="mt-1 text-xs text-neutral-400">следующий свободный</p> : null}
+            ) : nextTzNumber && f.workOrderNumber === nextTzNumber ? <p className="mt-1 text-xs text-neutral-600">следующий свободный</p> : null}
           </Field>
           <Field htmlFor="workOrderDate" label="Дата ТЗ"><Input id="workOrderDate" name="workOrderDate" type="date" value={f.workOrderDate ?? ""} onChange={set("workOrderDate")} /></Field>
 
@@ -643,7 +643,7 @@ function FormBody({
                   </Select>
                   <Input aria-label={`Описание расхода ${i + 1}`} placeholder="Описание (необязательно)" value={x.desc} onChange={(e) => setExps((p) => p.map((y) => (y.key === x.key ? { ...y, desc: e.target.value } : y)))} className="h-8" />
                   <Input aria-label={`Сумма расхода ${i + 1}`} type="number" step="0.01" min="0" inputMode="decimal" placeholder="Сумма, ₽" value={x.amount} onChange={(e) => setExps((p) => p.map((y) => (y.key === x.key ? { ...y, amount: e.target.value } : y)))} className="h-8 text-right tabular-nums" />
-                  <button type="button" onClick={() => setExps((p) => p.filter((y) => y.key !== x.key))} className="rounded px-1.5 py-0.5 text-neutral-400 hover:bg-neutral-100 hover:text-red-600" aria-label={`Убрать расход ${i + 1}`}>✕</button>
+                  <button type="button" onClick={() => setExps((p) => p.filter((y) => y.key !== x.key))} className="rounded px-1.5 py-0.5 text-neutral-600 hover:bg-neutral-100 hover:text-red-600" aria-label={`Убрать расход ${i + 1}`}>✕</button>
                 </div>
               ))}
             </div>
@@ -669,7 +669,7 @@ function FormBody({
             <div key={label as string}>
               <div className="text-xs text-neutral-500">{label as string} · с 4 %</div>
               <div className="font-medium tabular-nums">{(i4 as number) > 0 ? <M incl={i4 as number} excl={e4 as number} /> : "–"}</div>
-              {(i0 as number) > 0 && <div className="text-[11px] text-neutral-400">без 4 %: <M incl={i0 as number} excl={e0 as number} /></div>}
+              {(i0 as number) > 0 && <div className="text-[11px] text-neutral-600">без 4 %: <M incl={i0 as number} excl={e0 as number} /></div>}
             </div>
           ))}
           <div>
@@ -683,12 +683,12 @@ function FormBody({
           <div>
             <div className="text-xs text-neutral-500">Полная себестоимость ТЗ (с работой) · с 4 %</div>
             <div className="text-base font-semibold tabular-nums">{T.grandIncl4 > 0 ? <M incl={T.grandIncl4} excl={T.grandExcl4} /> : "–"}</div>
-            {T.grandIncl0 > 0 && <div className="text-[11px] text-neutral-400">без 4 %: <M incl={T.grandIncl0} excl={T.grandExcl0} /></div>}
+            {T.grandIncl0 > 0 && <div className="text-[11px] text-neutral-600">без 4 %: <M incl={T.grandIncl0} excl={T.grandExcl0} /></div>}
           </div>
           <div>
             <div className="text-xs text-neutral-500">На 1 изделие · с 4 %</div>
             <div className="font-medium tabular-nums">{T.perUnitIncl4 != null && T.grandIncl4 > 0 ? <M incl={T.perUnitIncl4} excl={T.perUnitExcl4 ?? 0} /> : "–"}</div>
-            {T.perUnitIncl0 != null && T.grandIncl0 > 0 && <div className="text-[11px] text-neutral-400">без 4 %: <M incl={T.perUnitIncl0} excl={T.perUnitExcl0 ?? 0} /></div>}
+            {T.perUnitIncl0 != null && T.grandIncl0 > 0 && <div className="text-[11px] text-neutral-600">без 4 %: <M incl={T.perUnitIncl0} excl={T.perUnitExcl0 ?? 0} /></div>}
           </div>
           <div>
             <div className="text-xs text-neutral-500">4 % добавляют</div>
@@ -698,16 +698,16 @@ function FormBody({
             <div className="text-xs text-neutral-500">НДС в списаниях (с 4 %)</div>
             <div className="tabular-nums">
               {vatRows4.length === 0 ? "–" : vatRows4.map((r) => (
-                <span key={r.rate} className="mr-3 inline-block">НДС {r.rate} %: <b className="font-medium">{formatMoney(Math.round(r.vat))}</b> <span className="text-[11px] text-neutral-400">из {formatMoney(Math.round(r.incl))}</span></span>
+                <span key={r.rate} className="mr-3 inline-block">НДС {r.rate} %: <b className="font-medium">{formatMoney(Math.round(r.vat))}</b> <span className="text-[11px] text-neutral-600">из {formatMoney(Math.round(r.incl))}</span></span>
               ))}
             </div>
           </div>
           <div className="col-span-2 sm:col-span-3 lg:col-span-3">
             <div className="text-xs text-neutral-500">Средневзвешенное · расход на 1 изделие</div>
             <div className="text-[13px] tabular-nums">
-              <div>Мех: {T.furAvgPrice ? <><b className="font-medium">{formatMoney(Math.round(T.furAvgPrice.incl4))}</b>/шкуру <span className="text-[11px] text-neutral-400">(без 4 %: {formatMoney(Math.round(T.furAvgPrice.incl0))})</span></> : "–"}{T.furPerItem != null ? <> · {formatQty(Math.round(T.furPerItem * 100) / 100)} шк./изд.</> : ""}</div>
+              <div>Мех: {T.furAvgPrice ? <><b className="font-medium">{formatMoney(Math.round(T.furAvgPrice.incl4))}</b>/шкуру <span className="text-[11px] text-neutral-600">(без 4 %: {formatMoney(Math.round(T.furAvgPrice.incl0))})</span></> : "–"}{T.furPerItem != null ? <> · {formatQty(Math.round(T.furPerItem * 100) / 100)} шк./изд.</> : ""}</div>
               {T.liningAvgPrice && (
-                <div>Подкладка: <b className="font-medium">{formatMoney(Math.round(T.liningAvgPrice.incl4))}</b>/м <span className="text-[11px] text-neutral-400">(без 4 %: {formatMoney(Math.round(T.liningAvgPrice.incl0))})</span>{T.liningPerItem != null ? <> · {formatQty(Math.round(T.liningPerItem * 100) / 100)} м/изд.</> : ""}</div>
+                <div>Подкладка: <b className="font-medium">{formatMoney(Math.round(T.liningAvgPrice.incl4))}</b>/м <span className="text-[11px] text-neutral-600">(без 4 %: {formatMoney(Math.round(T.liningAvgPrice.incl0))})</span>{T.liningPerItem != null ? <> · {formatQty(Math.round(T.liningPerItem * 100) / 100)} м/изд.</> : ""}</div>
               )}
             </div>
           </div>

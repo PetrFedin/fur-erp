@@ -449,7 +449,7 @@ function SrcModal({ src, active, types, total, vat, c4, onClose }: { src: FurSrc
               return (
                 <tr key={t.name} data-active={on || undefined} className={"border-b border-neutral-100 " + (on ? "bg-orange-50" : "")}>
                   <td className={"px-2 py-1.5 " + (on ? "border-l-4 border-orange-500 font-semibold text-orange-800" : "")}>
-                    {<Link href={`/lots/fur/${encodeURIComponent(t.name)}`} className="hover:underline focus-visible:underline">{shortMaterialName(t.name)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link>}
+                    {<Link href={`/lots/fur/${encodeURIComponent(t.name)}`} className="hover:underline focus-visible:underline">{shortMaterialName(t.name)}<span aria-hidden className="ml-1 text-[11px] text-neutral-600">↗</span></Link>}
                   </td>
                   {cells(t.pair[vat])}
                 </tr>
@@ -588,7 +588,7 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
                   })() : null}
                   {shown.map((x) => x === "rest" ? (
                     <tr key="rest" data-block={k} className="cursor-pointer border-b border-neutral-100 bg-neutral-50 hover:bg-neutral-100" onClick={() => setRestOpen((v) => !v)} aria-expanded={restOpen}>
-                      <td className="py-1.5 pr-2 text-neutral-700"><span aria-hidden className="mr-1 inline-block w-3 text-neutral-400">{restOpen ? "▾" : "▸"}</span>Остальное сырьё ({restPart.length})</td>
+                      <td className="py-1.5 pr-2 text-neutral-700"><span aria-hidden className="mr-1 inline-block w-3 text-neutral-600">{restOpen ? "▾" : "▸"}</span>Остальное сырьё ({restPart.length})</td>
                       {shareCell(restSum.q, restSum.rq)}
                       <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(restSum.q)} {unit}</td>
                       <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(restSum.v)}</td>
@@ -598,7 +598,7 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
                   ) : (
                     <Fragment key={x.r.key}>
                     <tr data-block={k} className="cursor-pointer border-b border-neutral-100 hover:bg-neutral-50" onClick={() => toggle(x.r.key)} aria-expanded={open.has(x.r.key)}>
-                      <td className="py-1.5 pr-2"><span aria-hidden className="mr-1 inline-block w-3 text-neutral-400">{open.has(x.r.key) ? "▾" : "▸"}</span>{k === "fur" && (x.r.lots > 0 || x.q > 0) ? <Link href={`/lots/fur/${encodeURIComponent(x.r.label)}`} onClick={(e) => e.stopPropagation()} className="hover:underline focus-visible:underline" title={`Страница вида меха «${x.r.label}»`}>{shortMaterialName(x.r.label)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link> : shortMaterialName(x.r.label)}</td>
+                      <td className="py-1.5 pr-2"><span aria-hidden className="mr-1 inline-block w-3 text-neutral-600">{open.has(x.r.key) ? "▾" : "▸"}</span>{k === "fur" && (x.r.lots > 0 || x.q > 0) ? <Link href={`/lots/fur/${encodeURIComponent(x.r.label)}`} onClick={(e) => e.stopPropagation()} className="hover:underline focus-visible:underline" title={`Страница вида меха «${x.r.label}»`}>{shortMaterialName(x.r.label)}<span aria-hidden className="ml-1 text-[11px] text-neutral-600">↗</span></Link> : shortMaterialName(x.r.label)}</td>
                       {shareCell(x.q, x.rq)}
                       <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(x.q)} {unit}</td>
                       <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(x.v)}</td>

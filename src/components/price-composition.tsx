@@ -131,7 +131,7 @@ export function PriceCompositionChart({ slices, total, qty, qtyVals, unitName = 
           </path>
         );
       })}
-      <text x={C} y={C - 3} textAnchor="middle" className="fill-neutral-900 text-[9px] font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>{qty > 0 ? perUnit(total) : money(total)}</text>
+      <text x={C} y={C - 3} textAnchor="middle" className="fill-neutral-900 text-[11px] font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>{qty > 0 ? perUnit(total) : money(total)}</text>
       <text x={C} y={C + 8} textAnchor="middle" className="fill-neutral-500 text-[5.5px]">{qty > 0 ? `за ${unitName}` : "всего"}</text>
       {caption ? <text x={C} y={C + 16} textAnchor="middle" className="fill-neutral-500 text-[5px]">{caption}</text> : null}
     </svg>

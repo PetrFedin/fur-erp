@@ -38,7 +38,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
   const costTotal = (
     <>
       <TileValue>{money(total)}</TileValue>
-      {carousel ? <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-400">{c4 === "on" ? `${money(total - all.c4)} без 4 %` : null}</div> : null}
+      {carousel ? <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-600">{c4 === "on" ? `${money(total - all.c4)} без 4 %` : null}</div> : null}
       <TileCaption>сырьё{c4 === "on" ? " + 4 %" : ""} + расходы ТЗ + работа{all.repairOrders > 0 ? ` · в том числе ремонт ${money(repair)}` : ""}</TileCaption>
       <TileList items={[
         { k: "Мех", v: money(all.fur), share: share(all.fur, total) },

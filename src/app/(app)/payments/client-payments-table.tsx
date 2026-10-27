@@ -53,7 +53,7 @@ const money = (n: number) => formatMoney(n.toFixed(2));
 
 /** Остаток по ТЗ: к оплате − оплачено всего. Жёлтый — недоплата, зелёный (+) — оплачено больше. */
 function Rest({ work, paid }: { work: number | null | undefined; paid: number | null | undefined }) {
-  if (work == null || work <= 0) return <span className="text-neutral-400">–</span>;
+  if (work == null || work <= 0) return <span className="text-neutral-600">–</span>;
   const diff = work - (paid ?? 0);
   if (Math.abs(diff) <= 0.5) return <span className="text-neutral-500">–</span>;
   return diff > 0 ? <span className="font-medium text-amber-700">{money(diff)}</span> : <span className="font-medium text-emerald-700">Переплата {money(-diff)}</span>;
@@ -178,9 +178,9 @@ export function ClientPaymentsTable({ rows, rest }: { rows: ClientPayRow[]; rest
                   const left = due - paid;
                   return (
                     <>
-                      <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-400">–</span>}</td>
+                      <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-600">–</span>}</td>
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{money(paid)}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{Math.abs(left) <= 0.5 ? <span className="text-neutral-400">–</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700">Переплата {money(-left)}</span>}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{Math.abs(left) <= 0.5 ? <span className="text-neutral-600">–</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700">Переплата {money(-left)}</span>}</td>
                       <td colSpan={2} className="border-l border-neutral-200" />
                     </>
                   );
@@ -201,10 +201,10 @@ export function ClientPaymentsTable({ rows, rest }: { rows: ClientPayRow[]; rest
                         const left = due - paid;
                         return (
                           <>
-                            <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-400">–</span>}</td>
+                            <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-600">–</span>}</td>
                             <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{money(paid)}</td>
                             <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                              {Math.abs(left) <= 0.5 ? <span className="text-neutral-400">–</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700" title="оплачено больше, чем к оплате по этой дате (аванс вперёд)">Переплата {money(-left)}</span>}
+                              {Math.abs(left) <= 0.5 ? <span className="text-neutral-600">–</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700" title="оплачено больше, чем к оплате по этой дате (аванс вперёд)">Переплата {money(-left)}</span>}
                             </td>
                           </>
                         );
@@ -221,7 +221,7 @@ export function ClientPaymentsTable({ rows, rest }: { rows: ClientPayRow[]; rest
                         {(() => {
                           const links = g.rows.flatMap((x) => x.invoiceDocs ?? []);
                           const linkEls = links.map((d) => <a key={d.url} href={d.url} target="_blank" rel="noreferrer" className="mr-1 text-xs text-blue-700 hover:underline">{d.title} ↗</a>);
-                          return links.length ? <>{linkEls}</> : <span className="text-neutral-400">–</span>;
+                          return links.length ? <>{linkEls}</> : <span className="text-neutral-600">–</span>;
                         })()}
                         {g.rows.filter((x) => x.sourceDocs).map((x, i) => (
                           <div key={i} className="mt-1"><SourceDocs compact data={x.sourceDocs!} popover="right" /></div>
@@ -246,7 +246,7 @@ export function ClientPaymentsTable({ rows, rest }: { rows: ClientPayRow[]; rest
                 </span>
               </td>
               <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{money(rest.cost)}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums"><span className="text-neutral-400">–</span></td>
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums"><span className="text-neutral-600">–</span></td>
               <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums"><span className="font-medium text-amber-700">{money(rest.debt)}</span></td>
               <td colSpan={2} className="border-l border-neutral-200" />
             </tr>

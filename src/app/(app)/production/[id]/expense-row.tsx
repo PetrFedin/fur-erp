@@ -72,7 +72,7 @@ export function ExpenseRow({
       <Td>
         <DraftInput type="text" value={expense.description ?? ""} draft={desc} onChange={setDesc} onEnter={save} onEscape={cancel} label="Описание" placeholder="описание" readOnly={readOnly} disabled={ch.busy} />
       </Td>
-      <Td colSpan={4} className="text-xs text-neutral-400">без НДС и без 4 %</Td>
+      <Td colSpan={4} className="text-xs text-neutral-600">без НДС и без 4 %</Td>
       <Td className="min-w-[8.5rem]">
         <DraftInput value={expense.amount} draft={amount} onChange={setAmount} onEnter={save} onEscape={cancel} step="0.01" min="0" align="right" label="Сумма" suffix="₽" readOnly={readOnly} disabled={ch.busy} />
         <DraftBar dirty={dirty} busy={ch.busy} error={ch.error} onSave={save} onCancel={cancel} />
@@ -86,7 +86,7 @@ export function ExpenseRow({
               disabled={busy}
               aria-label="Удалить расход"
               title="Удалить расход"
-              className="rounded px-1.5 py-0.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+              className="rounded px-1.5 py-0.5 text-neutral-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
               onClick={async () => {
                 if (!(await ask(`Удалить расход «${expense.categoryName}» на ${formatMoney(expense.amount)}?`, { ok: "Удалить", danger: true }))) return;
                 startBusy(async () => {
