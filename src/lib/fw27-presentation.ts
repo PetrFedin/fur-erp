@@ -1,9 +1,10 @@
 // Презентация закупки FW27/28 («MVST FUR RUS FW27.pdf»): фото моделей по слайдам и штуки «N pcs». Чистые функции (без базы) — для сверки с планом Budget PCS.
-export type Fw27Item = { id: string; file: string; pcs: number | null; pcsText: string | null; caption: string | null };
+export type Fw27Item = { id: string; file: string; pcs: number | null; pcsText: string | null; caption: string | null; /** Версия фото: метка времени замены (сброс кэша браузера). */ v?: number };
 export type Fw27Slide = { page: number; title: string; kind: "CO" | "NEW" | null; fur: string | null; cat: string | null; len: "Short" | "Regular" | "Long" | null; lenInherited?: boolean; items: Fw27Item[] };
 export type Fw27Data = { source: string; asOf: string; slides: Fw27Slide[] };
 export const FW27_STATE = "fw27-presentation";
 export const LEN_LABEL: Record<string, string> = { Short: "Short", Regular: "Regular", Long: "Long" };
+export const photoSrc = (it: { file: string; v?: number }) => `/api/fw27-photo/${it.file}${it.v ? `?v=${it.v}` : ""}`;
 export const KIND_LABEL: Record<string, string> = { CO: "CO (прошлые модели)", NEW: "Новые модели" };
 
 export type Crit = { fur?: string; cat?: string; len?: string };

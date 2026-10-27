@@ -82,3 +82,34 @@ export async function savePcsParams(id: string, p: PcsParams): Promise<Res> {
   revalidateAll();
   return { ok: true };
 }
+
+/** Заменить фото из презентации FW27: загруженный файл (jpg/png/webp, до 8 МБ) сжимается до 640×900 и ложится на место прежнего; версия в описании слайдов обновляется. */
+export async function replaceFw27Photo(formData: FormData): Promise<Res<{ v: number }>> {
+  const session = await requireRole(...EDIT);
+  const orgId = session.user.organizationId;
+  const file = s(formData.get("file_name"), 20);
+  const up = formData.get("file");
+  if (!/^\d{2}-\d{1,2}\.jpg$/.test(file)) return { ok: false, error: "Неверное имя фото" };
+  if (!(up instanceof File) || up.size === 0) return { ok: false, error: "Файл не выбран" };
+  if (up.size > 8 * 1024 * 1024) return { ok: false, error: "Файл больше 8 МБ" };
+  if (!/^image\/(jpeg|png|webp)$/.test(up.type)) return { ok: false, error: "Нужна картинка JPG, PNG или WebP" };
+  const { prisma } = await import("@/lib/prisma");
+  const { FW27_STATE } = await import("@/lib/fw27-presentation");
+  type Data = import("@/lib/fw27-presentation").Fw27Data;
+  const key = { organizationId_key: { organizationId: orgId, key: FW27_STATE } };
+  const cur = await prisma.systemState.findUnique({ where: key, select: { value: true } });
+  const data = cur?.value as Data | undefined;
+  if (!data || !data.slides.some((sl) => sl.items.some((it) => it.file === file))) return { ok: false, error: "Фото не найдено в презентации" };
+  const sharp = (await import("sharp")).default;
+  const buf = await sharp(Buffer.from(await up.arrayBuffer())).rotate().resize({ width: 640, height: 900, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer();
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  const path = await import("node:path");
+  const dir = path.join(process.cwd(), "uploads", "fw27");
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, file), buf);
+  const v = Date.now();
+  const next: Data = { ...data, slides: data.slides.map((sl) => ({ ...sl, items: sl.items.map((it) => (it.file === file ? { ...it, v } : it)) })) };
+  await prisma.systemState.update({ where: key, data: { value: next as object } });
+  revalidateAll();
+  return { ok: true, v };
+}

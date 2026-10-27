@@ -309,7 +309,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
         </table>
       </div>
       {fw27 ? <Fw27Compare data={fw27} rows={cur} onOpen={(crit, title) => setPhotoSel({ crit, title })} /> : null}
-      {fw27 && photoSel ? <Fw27Dialog key={photoSel.title} data={fw27} crit={photoSel.crit} title={photoSel.title} onClose={() => setPhotoSel(null)} /> : null}
+      {fw27 && photoSel ? <Fw27Dialog key={photoSel.title} canReplace={detail && canEdit} data={fw27} crit={photoSel.crit} title={photoSel.title} onClose={() => setPhotoSel(null)} /> : null}
       <p className="text-xs text-neutral-500">AVG — норма шкур на изделие из бюджета 2027 (при правке в «Детально» подменяется вручную). Продажи: NS AS, EUR без НДС; у аксессуаров «Другие бренды» — вся колонка Other из файла. Кнопки «Вместе / Одежда / Аксессуары» и «Скрыть пустые» (строки с нулевым бюджетом; итоги остаются полными) действуют и на Excel.</p>
     </div>
   );

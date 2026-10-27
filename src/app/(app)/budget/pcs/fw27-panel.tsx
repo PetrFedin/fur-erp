@@ -1,18 +1,28 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { compareWithPlan, KIND_LABEL, photoCount, slidePcs, slidesFor, type Crit, type Fw27Data, type Fw27Slide } from "@/lib/fw27-presentation";
+import { compareWithPlan, KIND_LABEL, photoCount, photoSrc, slidePcs, slidesFor, type Crit, type Fw27Data, type Fw27Slide } from "@/lib/fw27-presentation";
+import { replaceFw27Photo } from "./actions";
 import type { PcsRow } from "@/lib/budget-pcs";
 import { formatInt } from "@/lib/utils";
 
-const src = (file: string) => `/api/fw27-photo/${file}`;
 const dash = (v: number) => (v ? formatInt(Math.round(v)) : "–");
 const signed = (v: number) => (v === 0 ? "–" : (v > 0 ? "+" : "−") + formatInt(Math.abs(Math.round(v))));
 
 /** Окно с фото из презентации FW27 для выбранной строки плана: по слайдам (CO / новые модели), штуки на каждом фото; клик по фото — крупно. */
-export function Fw27Dialog({ data, crit, title, onClose }: { data: Fw27Data; crit: Crit; title: string; onClose: () => void }) {
+export function Fw27Dialog({ data, crit, title, onClose, canReplace = false }: { data: Fw27Data; crit: Crit; title: string; onClose: () => void; /** «Детально» + права: у каждого фото кнопка «Заменить фото». */ canReplace?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [big, setBig] = useState<{ file: string; cap: string } | null>(null);
+  const [big, setBig] = useState<{ src: string; cap: string } | null>(null);
+  const [ver, setVer] = useState<Record<string, number>>({}); // версии заменённых фото: сразу видно новое, без перезагрузки
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState("");
+  const srcOf = (it: { file: string; v?: number }) => photoSrc({ file: it.file, v: ver[it.file] ?? it.v });
+  const replace = async (file: string, f: File | undefined) => {
+    if (!f) return;
+    setBusy(file); setErr("");
+    const fd = new FormData(); fd.set("file_name", file); fd.set("file", f);
+    try { const r = await replaceFw27Photo(fd); if (r.ok) setVer((p) => ({ ...p, [file]: r.v })); else setErr(r.error); } catch { setErr("Не удалось загрузить фото"); } finally { setBusy(null); }
+  };
   useEffect(() => { ref.current?.showModal(); }, []);
   const slides = useMemo(() => slidesFor(data, crit), [data, crit]);
   const total = slides.reduce((t, s) => t + slidePcs(s), 0);
@@ -24,6 +34,7 @@ export function Fw27Dialog({ data, crit, title, onClose }: { data: Fw27Data; cri
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Презентация FW27/28 · что хотят</div>
             <div className="text-lg font-semibold">{title}</div>
+            {err ? <p role="alert" className="mt-1 text-sm text-[#b4310b]">{err}</p> : null}
             <div className="text-sm text-neutral-600">{photoCount(slides)} фото · {total ? `${formatInt(total)} шт. по подписям` : "штуки не указаны"}</div>
           </div>
           <button type="button" onClick={() => ref.current?.close()} className="min-h-11 rounded-lg border border-neutral-300 px-3 text-sm hover:bg-neutral-50">✕ Закрыть</button>
@@ -38,11 +49,17 @@ export function Fw27Dialog({ data, crit, title, onClose }: { data: Fw27Data; cri
             <div className="flex flex-wrap gap-3">
               {s.items.map((it) => (
                 <figure key={it.id} className="w-36 sm:w-44">
-                  <button type="button" onClick={() => setBig({ file: it.file, cap: [it.pcsText, it.caption].filter(Boolean).join(" · ") })} className="block w-full overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50 hover:border-neutral-500" aria-label={`Открыть фото крупно: ${it.caption ?? s.title}`}>
+                  <button type="button" onClick={() => setBig({ src: srcOf(it), cap: [it.pcsText, it.caption].filter(Boolean).join(" · ") })} className="block w-full overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50 hover:border-neutral-500" aria-label={`Открыть фото крупно: ${it.caption ?? s.title}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src(it.file)} alt={it.caption ?? s.title} loading="lazy" className="aspect-[3/4] w-full object-cover" />
+                    <img src={srcOf(it)} alt={it.caption ?? s.title} loading="lazy" className="aspect-[3/4] w-full object-cover" />
                   </button>
                   <figcaption className="mt-1 text-xs leading-4 text-neutral-700"><b>{it.pcsText ?? "—"}</b>{it.caption ? <span className="block text-neutral-500">{it.caption}</span> : null}</figcaption>
+                  {canReplace ? (
+                    <label className="mt-1 inline-flex min-h-9 cursor-pointer items-center rounded-md border border-neutral-300 px-2 text-xs hover:border-neutral-500">
+                      {busy === it.file ? "Загружаю…" : "Заменить фото"}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={busy !== null} onChange={(e) => { void replace(it.file, e.target.files?.[0]); e.target.value = ""; }} />
+                    </label>
+                  ) : null}
                 </figure>
               ))}
             </div>
@@ -53,7 +70,7 @@ export function Fw27Dialog({ data, crit, title, onClose }: { data: Fw27Data; cri
         <div role="dialog" aria-label="Фото крупно" className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setBig(null)}>
           <figure className="max-h-full max-w-3xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src(big.file)} alt={big.cap} className="max-h-[85vh] w-auto rounded-lg object-contain" />
+            <img src={big.src} alt={big.cap} className="max-h-[85vh] w-auto rounded-lg object-contain" />
             <figcaption className="mt-2 text-center text-sm text-white">{big.cap || " "} · нажмите, чтобы закрыть</figcaption>
           </figure>
         </div>
