@@ -1,7 +1,7 @@
 import { requireSession } from "@/lib/session";
 import { loadPaymentsOverview, loadPaymentsLeft } from "@/lib/payments-overview";
 import { payLites } from "@/lib/cashflow-detail";
-import { buildCashflow, vatShares, aggregateSales, monthsOf, parsePeriod, workByClass, currentMonthMsk } from "@/lib/cashflow";
+import { prepaidItems, buildCashflow, vatShares, aggregateSales, monthsOf, parsePeriod, workByClass, currentMonthMsk } from "@/lib/cashflow";
 import { loadPurchaseVat, loadServiceParts, loadSalesLines, loadOrderClasses } from "@/lib/cashflow-server";
 import { loadDashboard } from "@/lib/dashboard-data";
 import { parseDashFilters } from "@/lib/dashboard-calc";
@@ -35,6 +35,6 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
   const workEx = workByClass(rows, orderCls, months, vs.share);
   const asOf = await loadDataAsOf(org);
   return (
-    <><DataAsOf asOf={asOf} /><CashflowView prepaid={prepaid} prepaidBy={prepaidBy} incl={incl} ex={ex} salesBy={salesBy} vat={{ vat: vs.vat, unknown: vs.unknown, total: incl.total + incl.outside }} services={services} initialPeriod={parsePeriod(sp.p)} workBy={work} workByEx={workEx} pays={payLites(rows, vs.share, orderCls)} saleLines={lines.filter((l) => l.kind === "SALE")} initialGroup={sp.group === "category" ? "category" : "period"} nowMonth={currentMonthMsk()} left={{ raw: left.raw, prod: left.prod, advance: left.advance }} /></>
+    <><DataAsOf asOf={asOf} /><CashflowView prepaidList={prepaidItems(rows, prepaidNames)} prepaid={prepaid} prepaidBy={prepaidBy} incl={incl} ex={ex} salesBy={salesBy} vat={{ vat: vs.vat, unknown: vs.unknown, total: incl.total + incl.outside }} services={services} initialPeriod={parsePeriod(sp.p)} workBy={work} workByEx={workEx} pays={payLites(rows, vs.share, orderCls)} saleLines={lines.filter((l) => l.kind === "SALE")} initialGroup={sp.group === "category" ? "category" : "period"} nowMonth={currentMonthMsk()} left={{ raw: left.raw, prod: left.prod, advance: left.advance }} /></>
   );
 }

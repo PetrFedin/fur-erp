@@ -16,11 +16,11 @@ import { ExpTable, PriceDetail, RecvDetail, SpendDetail } from "./drill";
 import { PROJECT_START_MONTH, workMonthIdx, cashflowYears } from "@/lib/cashflow";
 import { PAY_TYPE_LABEL, spendByType, workKindsByMonth, type PayType, flowPoints, workWindowStats, groupSales, type PayLite } from "@/lib/cashflow-detail";
 import type { SalesAggLine } from "@/lib/sales-receipts-core";
-import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly } from "@/lib/cashflow";
+import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly, type PrepaidItem } from "@/lib/cashflow";
 
 type ServicePart = { number: string; what: string; invoice: string | null; date: string; paid: number };
 type Cat = "all" | "clothes" | "acc";
-type Props = { prepaid: number; prepaidBy: Record<string, number>; incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; workByEx: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; nowMonth: string; initialGroup?: "period" | "category"; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
+type Props = { prepaid: number; prepaidBy: Record<string, number>; prepaidList: PrepaidItem[]; incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; workByEx: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; nowMonth: string; initialGroup?: "period" | "category"; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
 
 const SPEND = "#d93a0e", GET = "#1f7a4d", NAVY = "#1b2a5c", STOCK = "#8a6d1d";
 // Цвета статей трат: различимы между собой и без цвета (подписи в легенде, таблица рядом — текстовая альтернатива).
@@ -215,7 +215,7 @@ function WorkMonthsChart({ months, kinds, units, active, setActive, colW, hotKin
               if (v <= 0.5) return null;
               const y0 = yw(acc), y1 = yw(acc + v);
               acc += v;
-              return <rect key={k} x={x(i) - bw / 2} width={bw} y={y1} height={Math.max(0, y0 - y1)} fill={k === "PARTIAL" ? "url(#hatch-partial)" : k === "FINAL" ? "url(#dots-final)" : KIND_COLOR[k]} opacity={(hotKind !== null && hotKind !== k) ? 0.2 : active !== null && active !== i ? 0.35 : 1} stroke={hotKind === k ? "#111" : "none"}><title>{`${PAY_TYPE_LABEL[k]}: ${formatMoney(v)}`}</title></rect>;
+              return <g key={k}><rect x={x(i) - bw / 2} width={bw} y={y1} height={Math.max(0, y0 - y1)} fill={k === "PARTIAL" ? "url(#hatch-partial)" : k === "FINAL" ? "url(#dots-final)" : KIND_COLOR[k]} opacity={(hotKind !== null && hotKind !== k) ? 0.2 : active !== null && active !== i ? 0.35 : 1} stroke={hotKind === k ? "#111" : "none"}><title>{`${PAY_TYPE_LABEL[k]}: ${formatMoney(v)}`}</title></rect>{hotKind === k && i % Math.max(1, Math.ceil(44 / Math.max(1, colW))) === 0 && <text x={x(i)} y={y1 - 4} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(v)}</text>}</g>;
             })}
           </g>
         );
@@ -227,6 +227,24 @@ function WorkMonthsChart({ months, kinds, units, active, setActive, colW, hotKin
         <rect key={m} x={left + i * colW} y={top} width={colW} height={H - top - bottom} fill="transparent" tabIndex={0} aria-label={tip(i)}
           onMouseEnter={() => setActive(i)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(i)} onBlur={() => setActive(null)} onClick={() => setActive(i)} />
       ))}
+      {active !== null && (() => {
+        const lines: [string, string, string][] = [["Всего работа", dash(total(active)), NAVY], ...KIND_ORDER.filter((k) => Math.abs(kinds[k][active]) > 0.5).map((k): [string, string, string] => [PAY_TYPE_LABEL[k], dash(kinds[k][active]), KIND_COLOR[k]]), ...(showUnits ? [["Получено", `${units[active]} шт.`, NAVY] as [string, string, string]] : [])];
+        const bw2 = 230, bh = 24 + lines.length * 17;
+        const bx = x(active) + 12 + bw2 > W - 2 ? x(active) - 12 - bw2 : x(active) + 12;
+        return (
+          <g pointerEvents="none" role="presentation">
+            <rect x={bx} y={top + 2} width={bw2} height={bh} rx={6} fill="#111" opacity={0.94} />
+            <text x={bx + 10} y={top + 19} fontSize={12} fontWeight={700} fill="#fff">{full(months[active])}</text>
+            {lines.map(([k, v, c], j) => (
+              <g key={k}>
+                <rect x={bx + 10} y={top + 30 + j * 17} width={8} height={8} rx={2} fill={c} />
+                <text x={bx + 24} y={top + 38 + j * 17} fontSize={12} fill="#fff">{k}</text>
+                <text x={bx + bw2 - 10} y={top + 38 + j * 17} fontSize={12} fontWeight={600} textAnchor="end" fill="#fff">{v}</text>
+              </g>
+            ))}
+          </g>
+        );
+      })()}
     </svg>
   );
 }
@@ -528,7 +546,7 @@ function Tile({ label, value, sub, hint, tone, mini, spark, extra, after, contro
 }
 
 
-export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy: workByIncl, workByEx, pays, saleLines, left, nowMonth, initialGroup, vat, services, initialPeriod, initialDetail, initialCat }: Props) {
+export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesBy, workBy: workByIncl, workByEx, pays, saleLines, left, nowMonth, initialGroup, vat, services, initialPeriod, initialDetail, initialCat }: Props) {
   const [period, setPeriod] = useState<CashflowPeriod>(initialPeriod);
   const [exVat, setExVat] = useState(false);
   const workBy = exVat ? workByEx : workByIncl;
@@ -814,7 +832,7 @@ export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy: wo
         </TileModal>
       )}
 
-      <ClassicTable title={`Cash Flow · ${period === "all" ? "2025–2026" : period} · ${vatNote}, ₽`} months={months} d={d} ser={ser} hasSales={hasSales} filtered={filtered} detail={detail} setDetail={setDetail} hot={hot} setHot={setHot} active={active} setActive={setActive} yearHot={yearHot} setYearHot={setYearHot} vatPay={vatPay} vatRev={vatRev} prepaid={months.map((mo) => prepaidBy[mo] ?? 0)} hasVat={hasSales} />
+      <ClassicTable title={`Cash Flow · ${period === "all" ? "2025–2026" : period} · ${vatNote}, ₽`} months={months} d={d} ser={ser} hasSales={hasSales} filtered={filtered} detail={detail} setDetail={setDetail} hot={hot} setHot={setHot} active={active} setActive={setActive} yearHot={yearHot} setYearHot={setYearHot} vatPay={vatPay} vatRev={vatRev} prepaid={months.map((mo) => prepaidBy[mo] ?? 0)} prepaidList={prepaidList} hasVat={hasSales} />
 
       <section aria-label="Деньги и траты" className="rounded-lg border border-neutral-300 bg-white p-3">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -884,7 +902,7 @@ export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy: wo
 }
 
 /** Классический Cash Flow: статьи в строках, месяцы в столбцах, после декабря — итог года, в конце «Всего». Платежи со знаком минус. */
-function ClassicTable({ vatPay, vatRev, prepaid, hasVat, title, months, d, ser, hasSales, filtered, detail, setDetail, hot, setHot, active, setActive, yearHot, setYearHot }: { vatPay: number[]; vatRev: number[]; prepaid: number[]; hasVat: boolean; title: string; hot: string | null; setHot: (k: string | null) => void; active: number | null; setActive: (i: number | null) => void; yearHot: string | null; setYearHot: (y: string | null) => void; months: string[]; d: CashflowData; ser: { spend: number[]; revenue: number[]; net: number[]; cumNet: number[] }; hasSales: boolean; filtered: boolean; detail: boolean; setDetail: (v: boolean) => void }) {
+function ClassicTable({ vatPay, vatRev, prepaid, prepaidList, hasVat, title, months, d, ser, hasSales, filtered, detail, setDetail, hot, setHot, active, setActive, yearHot, setYearHot }: { vatPay: number[]; vatRev: number[]; prepaid: number[]; prepaidList: PrepaidItem[]; hasVat: boolean; title: string; hot: string | null; setHot: (k: string | null) => void; active: number | null; setActive: (i: number | null) => void; yearHot: string | null; setYearHot: (y: string | null) => void; months: string[]; d: CashflowData; ser: { spend: number[]; revenue: number[]; net: number[]; cumNet: number[] }; hasSales: boolean; filtered: boolean; detail: boolean; setDetail: (v: boolean) => void }) {
   const art = (k: string) => d.articles.find((a) => a.key === k)?.byMonth ?? months.map(() => 0);
   const add = (...xs: number[][]) => months.map((_, i) => xs.reduce((s, x) => s + (x[i] ?? 0), 0));
   const neg = (x: number[]) => x.map((v) => -v);
@@ -923,6 +941,7 @@ function ClassicTable({ vatPay, vatRev, prepaid, hasVat, title, months, d, ser, 
   const aimCol = (c: Col) => { if (c.total) { setActive(null); setYearHot(c.key.startsWith("y") ? c.key.slice(1) : null); } else { setYearHot(null); setActive(c.idx[0]); } };
   const stick = "sticky left-0 z-[1] text-left";
   const [refOpen, setRefOpen] = useState(false);
+  const [prepOpen, setPrepOpen] = useState(false);
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
@@ -970,12 +989,38 @@ function ClassicTable({ vatPay, vatRev, prepaid, hasVat, title, months, d, ser, 
                 </tr>
               </thead>
               <tbody>
-                {([["НДС в составе платежей", vatPay], ...(hasVat ? [["НДС в составе выручки", vatRev], ["Разница НДС", vatRev.map((v, i) => v - (vatPay[i] ?? 0))]] : []), ["Предоплата за непринятые заказы", prepaid]] as [string, number[]][]).map(([lab, arr]) => (
-                  <tr key={lab} className="border-b border-neutral-100">
-                    <th scope="row" title={lab.startsWith("Предоплата") ? "Деньги ушли, товара пока нет: запасы, а не расход" : undefined} className={"bg-white px-2 py-1.5 font-normal " + stick}>{lab}</th>
-                    {colsShown.map((c) => <td key={c.key} className={"min-w-[6.5rem] px-2 py-1.5 text-right tabular-nums whitespace-nowrap " + (c.total ? "border-l border-neutral-300 font-semibold" : "")}>{dash(sum(arr, c))}</td>)}
-                  </tr>
-                ))}
+                {([["НДС в составе платежей", vatPay], ...(hasVat ? [["НДС в составе выручки", vatRev], ["Разница НДС", vatRev.map((v, i) => v - (vatPay[i] ?? 0))]] : []), ["Предоплата за непринятые заказы", prepaid]] as [string, number[]][]).map(([lab, arr]) => {
+                  const isPre = lab.startsWith("Предоплата");
+                  const amtIn = (items: PrepaidItem[], c: Col) => items.filter((it) => c.idx.some((i) => months[i] === it.iso.slice(0, 7))).reduce((t, it) => t + it.amount, 0);
+                  const groups = isPre && prepOpen ? [...new Set(prepaidList.map((it) => it.label))].map((name) => ({ name, items: prepaidList.filter((it) => it.label === name) })) : [];
+                  const cellCls = (c: Col, bold?: boolean) => "min-w-[6.5rem] px-2 py-1.5 text-right tabular-nums whitespace-nowrap " + (c.total ? "border-l border-neutral-300 font-semibold" : bold ? "font-semibold" : "");
+                  return (
+                    <Fragment key={lab}>
+                      <tr className="border-b border-neutral-100">
+                        <th scope="row" title={isPre ? "Деньги ушли, товара пока нет: запасы, а не расход" : undefined} className={"bg-white px-2 py-1.5 font-normal " + stick}>
+                          {isPre && prepaidList.length > 0 ? <button type="button" aria-expanded={prepOpen} onClick={() => setPrepOpen((v) => !v)} className="inline-flex min-h-11 items-center gap-1.5 text-left font-normal underline decoration-dotted underline-offset-2"><span aria-hidden>{prepOpen ? "▾" : "▸"}</span>{lab}</button> : lab}
+                        </th>
+                        {colsShown.map((c) => <td key={c.key} className={cellCls(c)}>{dash(sum(arr, c))}</td>)}
+                      </tr>
+                      {groups.map((g) => (
+                        <Fragment key={g.name}>
+                          <tr className="border-b border-neutral-100 bg-neutral-50">
+                            <th scope="row" className={"bg-neutral-50 px-2 py-1.5 pl-6 text-left font-semibold " + stick}>{g.name}</th>
+                            {colsShown.map((c) => <td key={c.key} className={cellCls(c, true)}>{dash(amtIn(g.items, c))}</td>)}
+                          </tr>
+                          {g.items.map((it) => (
+                            <tr key={it.id} className="border-b border-neutral-100">
+                              <th scope="row" className={"bg-white px-2 py-1.5 pl-10 text-left text-xs font-normal text-neutral-700 " + stick}>
+                                <Link href={it.href} className="underline decoration-neutral-400 underline-offset-2">{it.iso.split("-").reverse().join(".")} · {it.what}{it.doc ? ` · ${it.doc}` : ""}</Link>
+                              </th>
+                              {colsShown.map((c) => <td key={c.key} className={cellCls(c) + " text-xs"}>{dash(amtIn([it], c))}</td>)}
+                            </tr>
+                          ))}
+                        </Fragment>
+                      ))}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>}
@@ -989,7 +1034,7 @@ function ClassicTable({ vatPay, vatRev, prepaid, hasVat, title, months, d, ser, 
  * Блок Cashflow для Главной: накопительный график «потрачено и получено» и под ним свёрнутая таблица Cash Flow.
  * Год — из шапки Главной (period), НДС — из переключателя шапки; цифры те же, что в разделе Cashflow.
  */
-export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy }: { incl: CashflowData; ex: CashflowData; salesAll: SalesMonthly; period: CashflowPeriod; prepaidBy: Record<string, number> }) {
+export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy, prepaidList }: { incl: CashflowData; ex: CashflowData; salesAll: SalesMonthly; period: CashflowPeriod; prepaidBy: Record<string, number>; prepaidList: PrepaidItem[] }) {
   const { mode } = useVatDisplay();
   const exVat = mode === "excl";
   const vatNote = exVat ? "без НДС" : "с НДС";
@@ -1056,7 +1101,7 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy }: { in
           </div>
         </div>
       </section>
-      <ClassicTable title={`Cash Flow · ${period === "all" ? "2025–2026" : period} · ${vatNote}, ₽`} months={months} d={c.d} ser={c.ser} hasSales={hasSales} filtered={false} detail={detail} setDetail={setDetail} hot={hot} setHot={setHot} active={active} setActive={setActive} yearHot={yearHot} setYearHot={setYearHot} vatPay={c.vatPay} vatRev={c.vatRev} prepaid={months.map((mo) => prepaidBy[mo] ?? 0)} hasVat={hasSales} />
+      <ClassicTable title={`Cash Flow · ${period === "all" ? "2025–2026" : period} · ${vatNote}, ₽`} months={months} d={c.d} ser={c.ser} hasSales={hasSales} filtered={false} detail={detail} setDetail={setDetail} hot={hot} setHot={setHot} active={active} setActive={setActive} yearHot={yearHot} setYearHot={setYearHot} vatPay={c.vatPay} vatRev={c.vatRev} prepaid={months.map((mo) => prepaidBy[mo] ?? 0)} prepaidList={prepaidList} hasVat={hasSales} />
     </div>
   );
 }

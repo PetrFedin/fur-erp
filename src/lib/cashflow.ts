@@ -328,3 +328,9 @@ export const PROJECT_START_MONTH = "2025-08";
 export function workMonthIdx(allMonths: string[], nowMonth: string, period: CashflowPeriod): number[] {
   return allMonths.map((m, i) => (m >= PROJECT_START_MONTH && m <= nowMonth && (period === "all" || m.startsWith(period)) ? i : -1)).filter((i) => i >= 0);
 }
+
+/** Предоплата за непринятые заказы: платежи по заказам, по которым товар ещё не принят (за что, когда, сколько, вид, основание). */
+export type PrepaidItem = { id: string; label: string; iso: string; amount: number; what: string; doc: string | null; href: string };
+export function prepaidItems(rows: OverviewRow[], names: Set<string>): PrepaidItem[] {
+  return rows.filter((r) => r.kind === "raw" && names.has(r.label)).map((r) => ({ id: r.id, label: r.label, iso: r.iso.slice(0, 10), amount: r.amount, what: r.what, doc: r.doc, href: r.href })).sort((a, b) => a.label.localeCompare(b.label, "ru") || a.iso.localeCompare(b.iso));
+}

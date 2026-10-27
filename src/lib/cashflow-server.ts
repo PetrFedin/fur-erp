@@ -66,11 +66,11 @@ export async function loadOrderClasses(orgId: string): Promise<Map<string, CatCl
 /** Данные блока Cashflow на Главной: те же расчёты, что на странице Cashflow (оплаты, НДС по документам, продажи) и предоплата за непринятые заказы по месяцам. */
 export async function loadCashflowOverview(orgId: string, unreceivedNames: string[]) {
   const { loadPaymentsOverview } = await import("@/lib/payments-overview");
-  const { buildCashflow, vatShares, aggregateSales, monthsOf } = await import("@/lib/cashflow");
+  const { buildCashflow, vatShares, aggregateSales, monthsOf, prepaidItems } = await import("@/lib/cashflow");
   const [rows, purchaseVat, lines] = await Promise.all([loadPaymentsOverview(orgId), loadPurchaseVat(orgId), loadSalesLines(orgId)]);
   const vs = vatShares(rows, purchaseVat);
   const names = new Set(unreceivedNames);
   const prepaidBy: Record<string, number> = {};
   for (const r of rows) if (r.kind === "raw" && names.has(r.label)) prepaidBy[r.iso.slice(0, 7)] = (prepaidBy[r.iso.slice(0, 7)] ?? 0) + r.amount;
-  return { incl: buildCashflow(rows, "all"), ex: buildCashflow(rows, "all", vs.share), salesAll: aggregateSales(lines, monthsOf("all")), prepaidBy };
+  return { incl: buildCashflow(rows, "all"), ex: buildCashflow(rows, "all", vs.share), salesAll: aggregateSales(lines, monthsOf("all")), prepaidBy, prepaidList: prepaidItems(rows, names) };
 }
