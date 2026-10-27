@@ -8,7 +8,7 @@ import { useVatDisplay } from "@/lib/vat-display";
 import { SEG_GROUP, segCls } from "@/components/segmented";
 import { toCsv } from "@/lib/csv";
 import { saveBase64Xlsx } from "@/lib/download-xlsx";
-import { exportCashflowXlsx } from "./actions";
+import { exportCashflowXlsx, exportCashflowReportXlsx } from "./actions";
 import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
 import { DUE_LABEL, dueHint, payDue } from "@/lib/pay-display";
@@ -832,7 +832,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
         </TileModal>
       )}
 
-      <ClassicTable title={`Cash Flow · ${period === "all" ? "2025–2026" : period} · ${vatNote}, ₽`} months={months} d={d} ser={ser} hasSales={hasSales} filtered={filtered} detail={detail} setDetail={setDetail} hot={hot} setHot={setHot} active={active} setActive={setActive} yearHot={yearHot} setYearHot={setYearHot} vatPay={vatPay} vatRev={vatRev} prepaid={months.map((mo) => prepaidBy[mo] ?? 0)} prepaidList={prepaidList} hasVat={hasSales} />
+      <ClassicTable period={period} title={`Cash Flow · ${period === "all" ? "2025–2026" : period} · ${vatNote}, ₽`} months={months} d={d} ser={ser} hasSales={hasSales} filtered={filtered} detail={detail} setDetail={setDetail} hot={hot} setHot={setHot} active={active} setActive={setActive} yearHot={yearHot} setYearHot={setYearHot} vatPay={vatPay} vatRev={vatRev} prepaid={months.map((mo) => prepaidBy[mo] ?? 0)} prepaidList={prepaidList} hasVat={hasSales} />
 
       <section aria-label="Деньги и траты" className="rounded-lg border border-neutral-300 bg-white p-3">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -902,7 +902,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
 }
 
 /** Классический Cash Flow: статьи в строках, месяцы в столбцах, после декабря — итог года, в конце «Всего». Платежи со знаком минус. */
-function ClassicTable({ vatPay, vatRev, prepaid, prepaidList, hasVat, title, months, d, ser, hasSales, filtered, detail, setDetail, hot, setHot, active, setActive, yearHot, setYearHot }: { vatPay: number[]; vatRev: number[]; prepaid: number[]; prepaidList: PrepaidItem[]; hasVat: boolean; title: string; hot: string | null; setHot: (k: string | null) => void; active: number | null; setActive: (i: number | null) => void; yearHot: string | null; setYearHot: (y: string | null) => void; months: string[]; d: CashflowData; ser: { spend: number[]; revenue: number[]; net: number[]; cumNet: number[] }; hasSales: boolean; filtered: boolean; detail: boolean; setDetail: (v: boolean) => void }) {
+function ClassicTable({ period, vatPay, vatRev, prepaid, prepaidList, hasVat, title, months, d, ser, hasSales, filtered, detail, setDetail, hot, setHot, active, setActive, yearHot, setYearHot }: { period: CashflowPeriod; vatPay: number[]; vatRev: number[]; prepaid: number[]; prepaidList: PrepaidItem[]; hasVat: boolean; title: string; hot: string | null; setHot: (k: string | null) => void; active: number | null; setActive: (i: number | null) => void; yearHot: string | null; setYearHot: (y: string | null) => void; months: string[]; d: CashflowData; ser: { spend: number[]; revenue: number[]; net: number[]; cumNet: number[] }; hasSales: boolean; filtered: boolean; detail: boolean; setDetail: (v: boolean) => void }) {
   const art = (k: string) => d.articles.find((a) => a.key === k)?.byMonth ?? months.map(() => 0);
   const add = (...xs: number[][]) => months.map((_, i) => xs.reduce((s, x) => s + (x[i] ?? 0), 0));
   const neg = (x: number[]) => x.map((v) => -v);
@@ -942,10 +942,16 @@ function ClassicTable({ vatPay, vatRev, prepaid, prepaidList, hasVat, title, mon
   const stick = "sticky left-0 z-[1] text-left";
   const [refOpen, setRefOpen] = useState(false);
   const [prepOpen, setPrepOpen] = useState(false);
+  const [repBusy, setRepBusy] = useState(false);
+  const downloadReport = async () => {
+    setRepBusy(true);
+    try { const res = await exportCashflowReportXlsx(period); if (res.ok) saveBase64Xlsx(res.name, res.base64); } finally { setRepBusy(false); }
+  };
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <h2 className="text-sm font-semibold">{title}</h2>
+        <button type="button" onClick={downloadReport} disabled={repBusy} title="Excel на три листа: «Данные» (откуда собрано), «Сводная» и «Отчёт» (месяцы в столбцах, НДС отдельно снизу)" className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm font-medium disabled:opacity-60 md:min-h-9">{repBusy ? "Готовлю Excel…" : "Скачать Excel"}</button>
         <p className="basis-full text-xs text-neutral-600">Оплаты поставщикам и подрядчику и выручка; без зарплат, аренды, налогов и остатков на счетах.</p>
         <button type="button" aria-expanded={detail} onClick={() => setDetail(!detail)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm md:min-h-9">{detail ? "Скрыть таблицу" : "Показать таблицу"}</button>
         {detail ? (
@@ -1101,7 +1107,7 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy, prepai
           </div>
         </div>
       </section>
-      <ClassicTable title={`Cash Flow · ${period === "all" ? "2025–2026" : period} · ${vatNote}, ₽`} months={months} d={c.d} ser={c.ser} hasSales={hasSales} filtered={false} detail={detail} setDetail={setDetail} hot={hot} setHot={setHot} active={active} setActive={setActive} yearHot={yearHot} setYearHot={setYearHot} vatPay={c.vatPay} vatRev={c.vatRev} prepaid={months.map((mo) => prepaidBy[mo] ?? 0)} prepaidList={prepaidList} hasVat={hasSales} />
+      <ClassicTable period={period} title={`Cash Flow · ${period === "all" ? "2025–2026" : period} · ${vatNote}, ₽`} months={months} d={c.d} ser={c.ser} hasSales={hasSales} filtered={false} detail={detail} setDetail={setDetail} hot={hot} setHot={setHot} active={active} setActive={setActive} yearHot={yearHot} setYearHot={setYearHot} vatPay={c.vatPay} vatRev={c.vatRev} prepaid={months.map((mo) => prepaidBy[mo] ?? 0)} prepaidList={prepaidList} hasVat={hasSales} />
     </div>
   );
 }

@@ -29,3 +29,21 @@ export async function exportCashflowXlsx(v: { title: string; subtitle: string; h
   const buf = Buffer.from(await wb.xlsx.writeBuffer());
   return { ok: true, name: `${String(v.file).replace(/[\\/:*?"<>|]+/g, "_").slice(0, 100) || "cashflow"}.xlsx`, base64: buf.toString("base64") };
 }
+
+/** Excel Cash Flow на три листа: «Данные» (откуда собрано), «Сводная» (настоящая сводная таблица) и «Отчёт» (месяцы в столбцах, НДС отдельно снизу). Период — как на экране; суммы с НДС, без НДС и НДС есть в «Данных». */
+export async function exportCashflowReportXlsx(period: string): Promise<Res> {
+  const session = await requireSession();
+  const org = session.user.organizationId;
+  const { loadPaymentsOverview } = await import("@/lib/payments-overview");
+  const { loadPurchaseVat, loadSalesLines } = await import("@/lib/cashflow-server");
+  const { vatShares, aggregateSales, monthsOf, parsePeriod } = await import("@/lib/cashflow");
+  const { buildCashflowWorkbook, cashflowDataRows } = await import("@/lib/cashflow-xlsx");
+  const p = parsePeriod(period);
+  const [rows, purchaseVat, lines] = await Promise.all([loadPaymentsOverview(org), loadPurchaseVat(org), loadSalesLines(org)]);
+  const months = monthsOf(p);
+  const sales = aggregateSales(lines, months);
+  const data = cashflowDataRows(rows, vatShares(rows, purchaseVat).share, months, sales);
+  const label = p === "all" ? "2025–2026" : p;
+  const buf = await buildCashflowWorkbook({ title: `Cash Flow · ${label}, ₽ с НДС`, subtitle: "Оплаты поставщикам и подрядчику и выручка; без зарплат, аренды, налогов и остатков на счетах. НДС показан отдельным блоком внизу.", months, data, hasSales: sales.available });
+  return { ok: true, name: `Cash Flow ${label}.xlsx`, base64: buf.toString("base64") };
+}
