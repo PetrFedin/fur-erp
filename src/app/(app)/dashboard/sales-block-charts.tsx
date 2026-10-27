@@ -90,7 +90,7 @@ function Chart({ pts, series, label, testId, valueLabels = [] }: { pts: Pt[]; se
               <g key={s.name}>
                 <polyline points={s.vals.map((v, i) => `${x(i)},${f(v)}`).join(" ")} fill="none" stroke={s.color} strokeWidth={hotS === s.name ? 3.5 : 2} opacity={dim(s.name)} />
                 {s.vals.map((v, i) => <circle key={i} cx={x(i)} cy={f(v)} r={hot === i || hotS === s.name ? 4 : 3} fill={s.color} opacity={dim(s.name)}><title>{`${pts[i].label}: ${s.name} ${s.fmt(v)}`}</title></circle>)}
-                {(valueLabels.includes(s.name) || hotS === s.name) ? s.vals.map((v, i) => (Math.abs(v) >= 0.5 ? <text key={"vl" + i} x={x(i)} y={f(v) - 8} textAnchor="middle" fontSize="10" fontWeight="600" fill={s.color} stroke="#fff" strokeWidth="3" paintOrder="stroke" opacity={dim(s.name)}>{s.fmt(v)}</text> : null)) : null}
+                {(valueLabels.includes(s.name) || hotS === s.name) ? s.vals.map((v, i) => (true ? <text key={"vl" + i} x={x(i)} y={f(v) - 8} textAnchor="middle" fontSize="10" fontWeight="600" fill={s.color} stroke="#fff" strokeWidth="3" paintOrder="stroke" opacity={dim(s.name)}>{Math.abs(v) < 0.5 ? "–" : s.fmt(v)}</text> : null)) : null}
               </g>
             );
           })}

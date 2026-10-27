@@ -74,7 +74,7 @@ function Chart({ buckets, series, hot, setHot, label, fmtL, fmtR }: { buckets: B
               <g key={s.name} opacity={dimS(s.name)}>
                 <polyline points={pts.join(" ")} fill="none" stroke={s.color} strokeWidth={hotS === s.name ? 3.5 : 2} />
                 {s.vals.map((v, i) => (Number.isNaN(v) ? null : <circle key={i} cx={x(i)} cy={f(v)} r={hot === i || hotS === s.name ? 4 : n > 40 ? 1.5 : 3} fill={s.color} />))}
-                {hotS === s.name ? s.vals.map((v, i) => (Number.isNaN(v) || i % labEvery !== 0 ? null : <text key={"t" + i} x={x(i)} y={f(v) - 8} textAnchor="middle" fontSize="11" fontWeight="700" fill="#171717" stroke="#fff" strokeWidth="3" paintOrder="stroke">{(s.axis === "l" ? fmtL : fmtR)(v)}</text>)) : null}
+                {hotS === s.name ? s.vals.map((v, i) => (Number.isNaN(v) || i % labEvery !== 0 ? null : <text key={"t" + i} x={x(i)} y={f(v) - 8} textAnchor="middle" fontSize="11" fontWeight="700" fill="#171717" stroke="#fff" strokeWidth="3" paintOrder="stroke">{Math.abs(v) < 0.5 ? "–" : (s.axis === "l" ? fmtL : fmtR)(v)}</text>)) : null}
               </g>
             );
           })}

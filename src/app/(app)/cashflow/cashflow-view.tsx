@@ -222,7 +222,7 @@ function WorkMonthsChart({ months, kinds, units, active, setActive, colW, hotKin
       })}
       {showUnits && <g opacity={hotKind !== null && hotKind !== "units" ? 0.2 : 1}><path d={line} fill="none" stroke={NAVY} strokeWidth={hotKind === "units" ? 3 : 2} />
       {units.map((v, i) => <circle key={i} cx={x(i)} cy={yu(v)} r={active === i || hotKind === "units" ? 5 : 3} fill={NAVY} />)}
-      {hotKind === "units" && units.map((v, i) => (i % Math.max(1, Math.ceil(44 / Math.max(1, colW))) === 0 ? <text key={"u" + i} x={x(i)} y={yu(v) - 9} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{v}</text> : null))}</g>}
+      {hotKind === "units" && units.map((v, i) => (i % Math.max(1, Math.ceil(44 / Math.max(1, colW))) === 0 ? <text key={"u" + i} x={x(i)} y={yu(v) - 9} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{v === 0 ? "–" : v}</text> : null))}</g>}
       {active !== null && <line x1={x(active)} x2={x(active)} y1={top} y2={H - bottom} stroke="#111" opacity={0.35} />}
       {months.map((m, i) => (
         <rect key={m} x={left + i * colW} y={top} width={colW} height={H - top - bottom} fill="transparent" tabIndex={0} aria-label={tip(i)}
