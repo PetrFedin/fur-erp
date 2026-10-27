@@ -82,6 +82,7 @@ const ARTICLE_COLUMNS: PickerColumn[] = [
   { key: "sizes", label: "Размеры" },
   { key: "lining", label: "Состав подкладки" },
   { key: "qty", label: "В выпуске", on: true },
+  { key: "stock", label: "На складе, шт.", on: true },
   { key: "furQty", label: "Шкур, шт." },
   { key: "furSum", label: "Шкуры, сумма" },
   { key: "liningQty", label: "Подкладка, м" },
@@ -248,16 +249,17 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     return wa - wb || compareModelNames(a.name, b.name);
   });
   // Сортировка по клику на заголовок (?sort=…&dir=…) поверх порядка по умолчанию (есть склад или ТЗ — выше, затем по названию).
-  const aSort = readSort(sp, ["name", "photos", "plu", "category", "fur", "color", "sizes", "lining", "qty", "furQty", "furSum", "liningQty", "liningSum", "work", "total", "unit", "price", "markup", "orders"]);
+  const aSort = readSort(sp, ["name", "photos", "plu", "category", "fur", "color", "sizes", "lining", "qty", "stock", "furQty", "furSum", "liningQty", "liningSum", "work", "total", "unit", "price", "markup", "orders"]);
   const rows = sortRows(rows1, aSort, {
     name: (r) => r.name, photos: (r) => photoSummary.get(r.id)?.length ?? 0, plu: (r) => r.plus.map((x) => x.plu).join(", ") || null, category: (r) => r.model.category?.trim() || null, fur: (r) => r.primaryFur, color: (r) => r.colors[0] ?? null, sizes: (r) => r.sizes || null, lining: (r) => r.lining || null,
-    qty: (r) => r.qty, furQty: (r) => r.met.fur.qty, furSum: (r) => r.met.fur.on.incl, liningQty: (r) => r.met.lining.qty, liningSum: (r) => r.met.lining.on.incl,
+    qty: (r) => r.qty, stock: (r) => r.stockQty, furQty: (r) => r.met.fur.qty, furSum: (r) => r.met.fur.on.incl, liningQty: (r) => r.met.lining.qty, liningSum: (r) => r.met.lining.on.incl,
     work: (r) => r.met.work, total: (r) => (r.costIncl > 0 ? r.met.total.on.incl : null), unit: (r) => r.met.unit?.on.incl ?? null,
     price: (r) => r.sellingPrice ?? null, markup: (r) => r.markup ?? null, orders: (r) => r.orderCount,
   });
   const ath = (k: string) => thSort("/articles", sp, k, aSort);
   const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((a, r) => a + pick(r), 0);
   const totalQty = sum((r) => r.qty);
+  const totalStock = sum((r) => r.stockQty);
   const totalCostIncl = sum((r) => r.costIncl);
   const totalCostExcl = sum((r) => r.costExcl);
   const totalFurQty = sum((r) => r.met.fur.qty);
@@ -393,6 +395,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             <Th data-col="sizes" {...ath("sizes")}>Размеры</Th>
             <Th data-col="lining" {...ath("lining")}>Состав подкладки</Th>
             <Th data-col="qty" {...ath("qty")} className="text-right" unit="шт." after={<InfoHint label="Что такое «в выпуске»">Все ТЗ артикула без отменённых и без ремонта: готово (завершённые) + в работе (план ТЗ «В работе» и «Запланировано») — как на Главной.</InfoHint>}>В выпуске</Th>
+            <Th data-col="stock" {...ath("stock")} className="text-right" unit="шт." after={<InfoHint label="На складе">Готовая продукция на складе: оприходовано по завершённым ТЗ минус отгружено; движения склада — в карточке артикула.</InfoHint>}>На складе</Th>
             <Th data-col="furQty" {...ath("furQty")} className="text-right" unit="шт." after={<InfoHint label="Шкуры">Сколько шкур списано в ТЗ артикула и сколько в среднем на 1 изделие (шкур ÷ в выпуске).</InfoHint>}>Шкур</Th>
             <Th data-col="furSum" {...ath("furSum")} className="text-right" unit="₽" after={<InfoHint label="Сумма шкур">Стоимость списанных шкур: основная цифра с 4 %, мелко — без 4 %. Включена в «Полную себестоимость итого». Цена за шкуру по видам меха — в карточке артикула.</InfoHint>}>Шкуры</Th>
             <Th data-col="liningQty" {...ath("liningQty")} className="text-right" unit="м">Подкладка</Th>
@@ -451,6 +454,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <Td data-col="sizes" className="text-neutral-700 text-xs" title={r.sizes}>{r.sizes ? (r.sizes.length > 24 ? `${r.sizes.slice(0, 24)}…` : r.sizes) : "—"}</Td>
               <Td data-col="lining" className="text-neutral-700 text-xs" title={r.lining}>{r.lining ? (r.lining.length > 32 ? `${r.lining.slice(0, 32)}…` : r.lining) : "—"}</Td>
               <Td data-col="qty" className="text-right tabular-nums">{r.qty > 0 ? formatQty(r.qty) : "—"}</Td>
+              <Td data-col="stock" className="text-right tabular-nums">{r.stockQty > 0 ? formatQty(r.stockQty) : "—"}</Td>
               <Td data-col="furQty" className="text-right tabular-nums">
                 {r.met.fur.qty > 0 ? formatDec1(Math.round(r.met.fur.qty * 100) / 100) : "—"}
                 {r.met.fur.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.fur.qty, r.qty)} шк./изд.</div> : null}
@@ -490,6 +494,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <Td data-col="name"><TotalLabel unit="шт." /></Td>
               <Td data-col="photos" /><Td data-col="plu" /><Td data-col="shop" /><Td data-col="category" /><Td data-col="fur" /><Td data-col="color" /><Td data-col="sizes" /><Td data-col="lining" />
               <Td data-col="qty" className="text-right tabular-nums">{totalQty > 0 ? formatQty(totalQty) : "—"}</Td>
+              <Td data-col="stock" className="text-right tabular-nums">{totalStock > 0 ? formatQty(totalStock) : "—"}</Td>
               <Td data-col="furQty" className="text-right tabular-nums">{totalFurQty > 0 ? formatDec1(totalFurQty) : "—"}</Td>
               <Td data-col="furSum" className="text-right"><CostTwo on={sumPair((r) => r.met.fur.on)} off={sumPair((r) => r.met.fur.off)} /></Td>
               <Td data-col="liningQty" className="text-right tabular-nums">{totalLiningQty > 0 ? formatDec1(Math.round(totalLiningQty * 100) / 100) : "—"}</Td>
