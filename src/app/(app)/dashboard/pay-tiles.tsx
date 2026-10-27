@@ -39,8 +39,9 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
       ...(only ? [] : [{ k: "Мех", v: money(fur), share: part(fur, whole), tone: warn && fur > 0 ? "text-amber-700" : undefined }]),
       // Закупки меха по источникам (стоимость «Куплено», с НДС) — те же цифры, что в «Сырьё» → «На аукционах» / «У поставщика».
       ...(bought && !only ? [
-        { k: "куплено на аукционах", v: dash(d.rawSources.auction.incl.recvValue), sub: true },
-        { k: "куплено у поставщика", v: dash(d.rawSources.supplier.incl.recvValue), sub: true },
+        // Это блок «Оплачено»: суммы оплат (как в Cashflow), а не стоимость закупок; доплата подрядчику (НДС по сырью) — у поставщика.
+        { k: "оплачено на аукционах", v: dash(d.paidFurBySource.auction), sub: true },
+        { k: "оплачено поставщику (с доплатой подрядчику)", v: dash(d.paidFurBySource.supplier), sub: true },
       ] : []),
       { k: "остаток на складе", v: dash(furSplit.stock), sub: !only },
       { k: "использовано", v: dash(furSplit.used), sub: !only },
@@ -93,7 +94,13 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
           </InfoHint>
         </div>
         <TileValue compact={bare}>{money(totalAll)}</TileValue>
-        <TileList stack={bare} items={[...list(totalAll, T.fur, { stock: furD.stock, used: furD.used }, furD.c4, T.lining, { stock: linD.stock, used: linD.used }, linD.c4, T.services, T.work, true), ...(Math.abs(roundAll) >= ROUND_MIN ? [{ k: "Округление", v: money(roundAll) }] : [])]} />
+        <TileList stack={bare} items={(() => {
+          const items: TileItem[] = list(totalAll, T.fur, { stock: furD.stock, used: furD.used }, furD.c4, T.lining, { stock: linD.stock, used: linD.used }, linD.c4, T.services, T.work, true);
+          // Доплата подрядчику (НДС 22 % по сырью, 229 150 ₽) входит в оплаты за мех, но не в «Куплено / Использовано / Остаток» (она уже в ТЗ расходом): показываем отдельной строкой, чтобы части сходились с «Мех».
+          const gap = T.fur - furD.stock - furD.used;
+          if (!only && Math.abs(gap) >= 1) { const at = items.findIndex((x) => x.k === "использовано"); items.splice(at < 0 ? items.length : at + 1, 0, { k: "доплата подрядчику (НДС по сырью)", v: dash(gap), sub: true }); }
+          return [...items, ...(Math.abs(roundAll) >= ROUND_MIN ? [{ k: "Округление", v: money(roundAll) }] : [])];
+        })()} />
       </div>
 
       <div key="paid" className={TILE_BOX}>

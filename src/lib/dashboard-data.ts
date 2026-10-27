@@ -113,6 +113,8 @@ export type DashboardData = {
   /** Оплачено по статьям: сырьё (мех / подкладка), услуги по УПД (закупки без позиций сырья), работа подрядчику (в ней неразнесённый аванс), расчётная надбавка 4%. */
   paidByItem: { fur: number; lining: number; services: number; work: number };
   /** Оплачено по типам платежа (аванс, доплата, окончательный расчёт, прочее): сумма и число платежей; Σ = fur + lining + services + work без фильтров. */
+  /** Оплачено за мех по источнику (как в Cashflow): аукционы и поставщик; доплата подрядчику (НДС по сырью) — в «поставщик». */
+  paidFurBySource: { auction: number; supplier: number };
   paidByType: { type: "ADVANCE" | "PARTIAL" | "FINAL" | "OTHER"; amount: number; count: number }[];
   /** Оплаты сырья по типам платежа отдельно для меха и подкладки (страница «Сырьё»). */
   paidByTypeFur: { type: "ADVANCE" | "PARTIAL" | "FINAL" | "OTHER"; amount: number; count: number }[];
@@ -554,6 +556,10 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
   const ovYear = ovAll.filter((r) => year === "all" || r.year === Number(year));
   const sumOv = (k: "fur" | "lining" | "services" | "work") => ovYear.reduce((a, r) => a + r[k], 0);
   const paidByItem = { fur: sumOv("fur"), lining: sumOv("lining"), services: sumOv("services"), work: sumOv("work") };
+  const paidFurBySource = ovYear.reduce((t, r) => {
+    if (r.kind === "raw") { if (r.auction ?? r.edit === "auction") t.auction += r.fur; else t.supplier += r.fur; } else t.supplier += r.hides;
+    return t;
+  }, { auction: 0, supplier: 0 });
   const paidByType = (["ADVANCE", "PARTIAL", "FINAL", "OTHER"] as const).map((type) => {
     const rs = ovYear.filter((r) => r.type === type);
     return { type, amount: rs.reduce((a, r) => a + r.fur + r.lining + r.services + r.work, 0), count: rs.length };
@@ -765,6 +771,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
     c4,
     vat: vatOut,
     paidByItem: paidOut,
+    paidFurBySource,
     paidByType,
     paidByTypeFur,
     paidByTypeLining,

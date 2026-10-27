@@ -8,6 +8,7 @@ import { useVatDisplay } from "@/lib/vat-display";
 import { SEG_GROUP, segCls } from "@/components/segmented";
 import { toCsv } from "@/lib/csv";
 import { saveBase64Xlsx } from "@/lib/download-xlsx";
+import { alignColumn } from "@/lib/money-round";
 import { exportCashflowXlsx, exportCashflowReportXlsx } from "./actions";
 import { InfoHint } from "@/components/info-hint";
 import { CAT_LABEL, type CatClass } from "@/lib/sales-receipts-core";
@@ -619,6 +620,10 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
   const due = payDue(left.raw + left.prod, left.advance);
   /** Виды платежей на плитке «Потрачено»: аванс / доплата / окончательный расчёт / прочее; Σ = главное число. */
   const spendKinds = useMemo(() => (Object.keys(PAY_TYPE_LABEL) as PayType[]).filter((t) => Math.abs(spendByType(pays, months, exVat).find((r) => r.type === t)?.total ?? 0) > 0.5).map((t) => ({ type: t, short: t === "ADVANCE" ? "Авансы" : t === "PARTIAL" ? "Доплаты" : t === "FINAL" ? "Окончательный расчёт" : "Прочее / без вида", total: spendByType(pays, months, exVat).find((r) => r.type === t)?.total ?? 0 })), [pays, months, exVat]);
+  // Части сходятся с итогом «Потрачено» до рубля, а доли — ровно в 100 % (наибольшие остатки), как в плитках Главной.
+  const pctSplit = (vals: number[]) => { const tot = vals.reduce((a, v) => a + v, 0); const raw = vals.map((v) => (tot > 0.5 ? (v / tot) * 100 : 0)); const fl = raw.map(Math.floor); let left = Math.round(raw.reduce((a, v) => a + v, 0)) - fl.reduce((a, v) => a + v, 0); raw.map((v, k) => [v - Math.floor(v), k] as const).sort((x, y) => y[0] - x[0]).forEach(([, k]) => { if (left > 0) { fl[k] += 1; left -= 1; } }); return fl; };
+  const spendAl = alignColumn(spendKinds.map((r) => r.total), h.spent);
+  const spendPct = pctSplit(spendAl.values);
   /** Метрики работы: месяцы от PROJECT_START_MONTH до текущего включительно (в границах периода); по категориям — работа по ТЗ и приход категории. */
   const wm = useMemo(() => {
     const cf = exVat ? ex : incl; // «Без НДС»: работа без НДС, как в таблице и как выручка
@@ -669,6 +674,8 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
   const vatRev = m.keep.map((i) => salesBy.all.revIncl[i] - salesBy.all.revEx[i]);
   const artSum = (...keys: string[]) => d.articles.filter((a) => keys.includes(a.key)).reduce((t, a) => t + a.total, 0);
   const rawSpend = artSum("furAuction", "furPurchase", "hides", "lining"), workSpend = artSum("work", "services");
+  const rwAl = alignColumn([rawSpend, workSpend], h.spent);
+  const rwPct = pctSplit(rwAl.values);
   const fp = useMemo(() => flowPoints(months, ser.net, ser.cumNet), [months, ser]);
   const sum0 = (a: number[]) => a.reduce((x, y) => x + y, 0);
   const workTotalAll = sum0(workBy.clothes) + sum0(workBy.acc) + sum0(workBy.other);
@@ -775,8 +782,8 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
 
       <section aria-label="Ключевые показатели" className="grid grid-cols-1 items-stretch gap-2 min-[480px]:grid-cols-2 md:grid-cols-4">
         <CarouselTile label="Потрачено" onOpen={() => toggleTile("spend")} pages={[
-          { label: "Потрачено", value: money(h.spent), sub: filtered ? "все траты, не по категории" : `${label}, ${vatNote}`, spark: ser.spend, rows: spendKinds.map((r) => [r.short, `${money(r.total)} · ${h.spent ? Math.round((r.total / h.spent) * 100) : 0} %`] as [string, string]), hint: <p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p> },
-          { label: "Сырьё и работа", value: money(rawSpend + workSpend), sub: `куда ушли деньги, ${vatNote}`, rows: [["Сырьё", `${money(rawSpend)} · ${rawSpend + workSpend ? Math.round((rawSpend / (rawSpend + workSpend)) * 100) : 0} %`], ["Работа и услуги", `${money(workSpend)} · ${rawSpend + workSpend ? Math.round((workSpend / (rawSpend + workSpend)) * 100) : 0} %`]] as [string, string][], hint: <p>Сырьё — мех (аукционы и поставщик, включая шкуры подрядчика) и подкладка; работа и услуги — пошив подрядчику и услуги по УПД.</p> },
+          { label: "Потрачено", value: money(h.spent), sub: filtered ? "все траты, не по категории" : `${label}, ${vatNote}`, spark: ser.spend, rows: spendKinds.map((r, i) => [r.short, `${money(spendAl.values[i])} · ${spendPct[i]} %`] as [string, string]), hint: <p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p> },
+          { label: "Сырьё и работа", value: money(h.spent), sub: `куда ушли деньги, ${vatNote}`, rows: [["Сырьё", `${money(rwAl.values[0])} · ${rwPct[0]} %`], ["Работа и услуги", `${money(rwAl.values[1])} · ${rwPct[1]} %`]] as [string, string][], hint: <p>Сырьё — мех (аукционы и поставщик, включая шкуры подрядчика) и подкладка; работа и услуги — пошив подрядчику и услуги по УПД.</p> },
         ]} />
         <Tile label="Получено" value={hasSales ? money(recvSum(cat, exVat)) : "—"} sub={hasSales ? `выручка, ${vatNote}` : "нет данных о продажах"} spark={hasSales ? m.keep.map((i) => (exVat ? salesBy[cat].revEx[i] : salesBy[cat].revIncl[i])) : undefined}
           mini={mini((c) => `${money(recvSum(c, exVat))} · ${recvSum(cat, exVat) ? Math.round((recvSum(c, exVat) / recvSum(cat, exVat)) * 100) : 0} %`)} expandId={hasSales ? "recv" : undefined} onToggle={toggleTile}
@@ -926,18 +933,34 @@ function ClassicTable({ period, vatPay, vatRev, prepaid, prepaidList, hasVat, ti
   const [gran, setGran] = useState<"months" | "years">("months");
   const colsShown = gran === "years" ? cols.filter((c) => c.total) : cols;
   const sum = (x: number[], c: Col) => c.idx.reduce((s, i) => s + (x[i] ?? 0), 0);
-  type R = { label: string; x: number[] | null; lvl: 0 | 1 | 2; cum?: boolean; art?: string };
+  // Показанные суммы статей складываются в показанный итог «ПЛАТЕЖИ» до рубля (наибольшие остатки, как в плитках), поступления и чистый поток — от показанных частей.
+  const aligned = useMemo(() => {
+    const m = new Map<string, number>();
+    const leaves: [string, number[]][] = [["a", auction], ["p", purchase], ["l", lining], ["w", work], ["s", services]];
+    for (const c of cols) {
+      const al = alignColumn(leaves.map(([, x]) => -sum(x, c)), -sum(pay, c));
+      leaves.forEach(([k], i) => m.set(k + "|" + c.key, -al.values[i]));
+      m.set("raw|" + c.key, -(al.values[0] + al.values[1] + al.values[2]));
+      m.set("workAll|" + c.key, -(al.values[3] + al.values[4]));
+      m.set("pay|" + c.key, -al.total);
+      const rev = Math.round(sum(ser.revenue, c));
+      m.set("rev|" + c.key, rev);
+      m.set("net|" + c.key, rev - al.total);
+    }
+    return m;
+  }, [cols, auction, purchase, lining, work, services, pay, ser.revenue]);
+  type R = { label: string; x: number[] | null; lvl: 0 | 1 | 2; cum?: boolean; art?: string; id?: string };
   const rows: R[] = [
-    ...(hasSales ? [{ label: "ПОСТУПЛЕНИЯ", x: ser.revenue, lvl: 0 as const }, { label: "Выручка от продаж", x: ser.revenue, lvl: 1 as const }] : []),
-    { label: "ПЛАТЕЖИ", x: pay, lvl: 0 },
-    { label: "Сырьё и материалы", x: raw, lvl: 1 },
-    { art: "furAuction", label: "Мех: аукционы", x: auction, lvl: 2 },
-    { art: "furPurchase", label: "Мех: закупка у поставщика", x: purchase, lvl: 2 },
-    { art: "lining", label: "Подкладка", x: lining, lvl: 2 },
-    { label: "Работа и услуги", x: workAll, lvl: 1 },
-    { art: "work", label: "Работа подрядчику", x: work, lvl: 2 },
-    { art: "services", label: "Услуги по УПД", x: services, lvl: 2 },
-    ...(hasSales && !filtered ? [{ label: "ЧИСТЫЙ ДЕНЕЖНЫЙ ПОТОК", x: ser.net, lvl: 0 as const }, { label: "Накопленный чистый поток", x: ser.cumNet, lvl: 1 as const, cum: true }] : []),
+    ...(hasSales ? [{ label: "ПОСТУПЛЕНИЯ", x: ser.revenue, lvl: 0 as const, id: "rev" }, { label: "Выручка от продаж", x: ser.revenue, lvl: 1 as const, id: "rev" }] : []),
+    { label: "ПЛАТЕЖИ", x: pay, lvl: 0, id: "pay" },
+    { label: "Сырьё и материалы", x: raw, lvl: 1, id: "raw" },
+    { art: "furAuction", label: "Мех: аукционы", x: auction, lvl: 2, id: "a" },
+    { art: "furPurchase", label: "Мех: закупка у поставщика", x: purchase, lvl: 2, id: "p" },
+    { art: "lining", label: "Подкладка", x: lining, lvl: 2, id: "l" },
+    { label: "Работа и услуги", x: workAll, lvl: 1, id: "workAll" },
+    { art: "work", label: "Работа подрядчику", x: work, lvl: 2, id: "w" },
+    { art: "services", label: "Услуги по УПД", x: services, lvl: 2, id: "s" },
+    ...(hasSales && !filtered ? [{ label: "ЧИСТЫЙ ДЕНЕЖНЫЙ ПОТОК", x: ser.net, lvl: 0 as const, id: "net" }, { label: "Накопленный чистый поток", x: ser.cumNet, lvl: 1 as const, cum: true }] : []),
   ];
   const aimCol = (c: Col) => { if (c.total) { setActive(null); setYearHot(c.key.startsWith("y") ? c.key.slice(1) : null); } else { setYearHot(null); setActive(c.idx[0]); } };
   const stick = "sticky left-0 z-[1] text-left";
@@ -975,7 +998,7 @@ function ClassicTable({ period, vatPay, vatRev, prepaid, prepaidList, hasVat, ti
                 <tr key={r.label} onMouseEnter={() => setHot(r.art ?? null)} className={(r.art && hot === r.art ? "bg-[var(--ui-soft)] " : "") + (r.lvl === 0 ? "border-y border-neutral-300 bg-neutral-100 font-bold" : r.lvl === 1 ? "border-b border-neutral-200 font-semibold" : "border-b border-neutral-100")}>
                   <th scope="row" className={"px-2 py-1.5 " + stick + " " + (r.lvl === 0 ? "bg-neutral-100" : r.art && hot === r.art ? "bg-[var(--ui-soft)]" : "bg-white") + (r.lvl === 2 ? " pl-6 font-normal" : r.lvl === 1 ? " pl-4" : "")}>{r.label}</th>
                   {colsShown.map((c) => {
-                    const v = r.cum ? (c.idx.length ? (r.x as number[])[c.idx[c.idx.length - 1]] : 0) : sum(r.x as number[], c);
+                    const v = r.cum ? (c.idx.length ? (r.x as number[])[c.idx[c.idx.length - 1]] : 0) : (r.id ? aligned.get(r.id + "|" + c.key) : undefined) ?? sum(r.x as number[], c);
                     return <td key={c.key} onMouseEnter={() => aimCol(c)} className={"min-w-[6.5rem] px-2 py-1.5 text-right tabular-nums whitespace-nowrap " + (c.total ? "border-l border-neutral-300 font-semibold" : "")}>{dash(v)}</td>;
                   })}
                 </tr>
