@@ -161,7 +161,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
           if (!fw27 || level < 1 || level > 4 || ctx.acc || n.crit.group || !fur) return label;
           const crit: Crit = { fur, ...(n.crit.cat ? { cat: n.crit.cat } : {}), ...(n.crit.len ? { len: n.crit.len } : {}) };
           const cnt = photoCount(slidesFor(fw27, crit));
-          return cnt ? <span className="inline-flex items-center gap-2 whitespace-nowrap">{label}<button type="button" onClick={() => setPhotoSel({ crit, title: [crit.fur, crit.cat, crit.len].filter(Boolean).join(" · ") })} aria-label={`Фото из презентации: ${label}, ${cnt} шт.`} className="inline-flex min-h-7 items-center rounded border border-current/40 px-1.5 text-[11px] font-normal opacity-90 hover:opacity-100">Фото {cnt}</button></span> : label;
+          return cnt ? <span className="flex items-center justify-between gap-3 whitespace-nowrap">{label}<button type="button" onClick={() => setPhotoSel({ crit, title: [crit.fur, crit.cat, crit.len].filter(Boolean).join(" · ") })} aria-label={`Фото из презентации: ${label}, ${cnt} шт.`} className="-my-0.5 inline-flex min-h-6 shrink-0 items-center rounded border border-current/40 px-1.5 text-[11px] leading-none font-normal opacity-90 hover:opacity-100">Фото {cnt}</button></span> : label;
         })()}</td>
         <td className={`${TD} ${LINE_STRONG[level]}`}>{editable ? inp(vals[i].pcs, (v) => edit(i, "pcs", v), "w-16", "Штуки") : cell(n.pcs)}</td>
         <td className={`${TD} ${LINE[level]}`}>{editable ? inp(vals[i].avg, (v) => edit(i, "avg", v), "w-16", "Шкур на изделие", n.leaf?.avgB != null ? String(Math.round(n.leaf.avgB * 10) / 10) : undefined)
