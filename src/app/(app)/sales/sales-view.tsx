@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
+import { useVatDisplay } from "@/lib/vat-display";
 import type { DatamartStock } from "@/lib/datamart-stock";
 import { makeCtx, type ReportSizeRow } from "@/lib/margin-tree";
 import { deserializeInput, type MarginInputS } from "@/lib/margin";
@@ -63,6 +64,12 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
   const [link, setLink] = useState<string | null>(null);
   const patch = (p: Partial<Ui>) => setUi((u) => ({ ...u, ...p }));
   const setF = (p: Partial<Filters>) => setUi((u) => ({ ...u, f: { ...u.f, ...p } }));
+  // НДС — один на весь сайт (переключатель в шапке, cookie vatDisplay): раздел следует за шапкой, а свой переключатель меняет и шапку.
+  const vatDisp = useVatDisplay();
+  useEffect(() => {
+    const want = vatDisp.mode === "excl" ? "ex" : "in";
+    setUi((u) => (u.vat === want ? u : { ...u, vat: want }));
+  }, [vatDisp.mode]);
 
   useEffect(() => {
     const q = uiQuery(ui);
@@ -168,8 +175,8 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
             <input type="date" value={ui.f.to ?? ""} onChange={(e) => setF({ to: e.target.value || null })} className="min-h-11 rounded-md border border-neutral-300 px-2 text-sm" aria-label="Период по дату" />
           </label>
           <div role="group" aria-label="НДС" className={segGroup}>
-            <button type="button" aria-pressed={!ex} onClick={() => patch({ vat: "in" })} className={seg(!ex)}>С НДС</button>
-            <button type="button" aria-pressed={ex} onClick={() => patch({ vat: "ex" })} className={seg(ex)}>Без НДС</button>
+            <button type="button" aria-pressed={!ex} onClick={() => { patch({ vat: "in" }); vatDisp.setMode("incl"); }} className={seg(!ex)}>С НДС</button>
+            <button type="button" aria-pressed={ex} onClick={() => { patch({ vat: "ex" }); vatDisp.setMode("excl"); }} className={seg(ex)}>Без НДС</button>
           </div>
           <div role="group" aria-label="Категория 1" className={segGroup}>
             {(["all", "clothes", "acc"] as Cat[]).map((k) => <button key={k} type="button" aria-pressed={ui.f.cat === k} onClick={() => setF({ cat: k })} className={seg(ui.f.cat === k)}>{CAT_LABEL[k]}</button>)}

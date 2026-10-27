@@ -18,6 +18,9 @@ type Series = { name: string; color: string; vals: number[]; kind: "bar" | "line
 /** Столбцы и линия по периодам на двух шкалах (слева — столбцы, справа — линия). Подсветка периода общая с таблицей. Широкий ряд прокручивается внутри блока. */
 function Chart({ buckets, series, hot, setHot, label, fmtL, fmtR }: { buckets: Bucket[]; series: Series[]; hot: number | null; setHot: (i: number | null) => void; label: string; fmtL: (v: number) => string; fmtR: (v: number) => string }) {
   const n = buckets.length;
+  // Ряд под курсором в легенде: остальные приглушаются, у выбранного на графике подписаны значения по периодам.
+  const [hotS, setHotS] = useState<string | null>(null);
+  const dimS = (name: string) => (hotS !== null && hotS !== name ? 0.2 : 1);
   // Ширина колонки: не меньше базовой, но график растягивается на всю ширину блока (ResizeObserver); очень длинный ряд прокручивается.
   const box = useRef<HTMLDivElement>(null);
   const [cw, setCw] = useState(0);
@@ -41,6 +44,7 @@ function Chart({ buckets, series, hot, setHot, label, fmtL, fmtR }: { buckets: B
   const x = (i: number) => PL + i * colW + colW / 2;
   const every = Math.ceil(n / Math.max(1, Math.floor((n * colW) / 64)));
   const ticks = [0, 0.5, 1];
+  const labEvery = Math.max(1, Math.ceil(n / Math.max(1, Math.floor((n * colW) / 38))));
   const hotB = hot !== null ? buckets[hot] : null;
   return (
     <div className="relative min-w-0">
@@ -58,7 +62,7 @@ function Chart({ buckets, series, hot, setHot, label, fmtL, fmtR }: { buckets: B
               <rect x={PL + i * colW} y={PT} width={colW} height={H - PT - PB} fill={hot === i ? "#f5f5f5" : "transparent"} />
               {bars.map((s, si) => {
                 const v = s.vals[i], h = (H - PT - PB) * (v / maxL);
-                return v > 0 ? <rect key={s.name} x={x(i) - (bars.length * bw) / 2 + si * bw} y={yL(v)} width={bw - 1} height={h} fill={s.color} rx="1"><title>{`${b.label}: ${s.name} ${fmtL(v)}`}</title></rect> : null;
+                return v > 0 ? <g key={s.name} opacity={dimS(s.name)}><rect x={x(i) - (bars.length * bw) / 2 + si * bw} y={yL(v)} width={bw - 1} height={h} fill={s.color} rx="1"><title>{`${b.label}: ${s.name} ${fmtL(v)}`}</title></rect>{hotS === s.name && i % labEvery === 0 ? <text x={x(i) - (bars.length * bw) / 2 + si * bw + (bw - 1) / 2} y={yL(v) - 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#171717">{fmtL(v)}</text> : null}</g> : null;
               })}
               {i % every === 0 ? <text x={x(i)} y={H - PB + 14} textAnchor="end" fontSize="11" fill="#404040" transform={`rotate(-35 ${x(i)} ${H - PB + 14})`}>{b.label}</text> : null}
             </g>
@@ -67,16 +71,17 @@ function Chart({ buckets, series, hot, setHot, label, fmtL, fmtR }: { buckets: B
             const f = s.axis === "l" ? yL : yR;
             const pts = s.vals.map((v, i) => (Number.isNaN(v) ? null : `${x(i)},${f(v)}`)).filter(Boolean);
             return (
-              <g key={s.name}>
-                <polyline points={pts.join(" ")} fill="none" stroke={s.color} strokeWidth="2" />
-                {s.vals.map((v, i) => (Number.isNaN(v) ? null : <circle key={i} cx={x(i)} cy={f(v)} r={hot === i ? 4 : n > 40 ? 1.5 : 3} fill={s.color} />))}
+              <g key={s.name} opacity={dimS(s.name)}>
+                <polyline points={pts.join(" ")} fill="none" stroke={s.color} strokeWidth={hotS === s.name ? 3.5 : 2} />
+                {s.vals.map((v, i) => (Number.isNaN(v) ? null : <circle key={i} cx={x(i)} cy={f(v)} r={hot === i || hotS === s.name ? 4 : n > 40 ? 1.5 : 3} fill={s.color} />))}
+                {hotS === s.name ? s.vals.map((v, i) => (Number.isNaN(v) || i % labEvery !== 0 ? null : <text key={"t" + i} x={x(i)} y={f(v) - 8} textAnchor="middle" fontSize="11" fontWeight="700" fill="#171717" stroke="#fff" strokeWidth="3" paintOrder="stroke">{(s.axis === "l" ? fmtL : fmtR)(v)}</text>)) : null}
               </g>
             );
           })}
         </svg>
       </div>
       <div className="mt-1 flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-800" aria-live="polite">
-        {series.map((s) => <span key={s.name} className="inline-flex items-center gap-1"><i aria-hidden className="inline-block size-2.5 rounded-sm" style={{ background: s.color }} />{s.name}{hotB && hot !== null ? <b className="tabular-nums"> {s.axis === "l" ? fmtL(s.vals[hot]) : fmtR(s.vals[hot])}</b> : null}</span>)}
+        {series.map((s) => <button key={s.name} type="button" aria-pressed={hotS === s.name} onMouseEnter={() => setHotS(s.name)} onMouseLeave={() => setHotS(null)} onFocus={() => setHotS(s.name)} onBlur={() => setHotS(null)} onClick={() => setHotS(hotS === s.name ? null : s.name)} className={"inline-flex min-h-11 items-center gap-1 rounded-md px-2 " + (hotS === s.name ? "bg-neutral-100 font-semibold" : "")}><i aria-hidden className="inline-block size-2.5 rounded-sm" style={{ background: s.color }} />{s.name}{hotB && hot !== null ? <b className="tabular-nums"> {s.axis === "l" ? fmtL(s.vals[hot]) : fmtR(s.vals[hot])}</b> : null}</button>)}
         {hotB ? <span className="ml-auto font-medium">{hotB.label}</span> : <span className="ml-auto text-neutral-600">Наведите на период, чтобы увидеть числа</span>}
       </div>
     </div>

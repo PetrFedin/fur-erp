@@ -138,7 +138,7 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
     const head = ["Уровень", "Позиция", ...(["Всего", ...groups.map((g) => g.head)].flatMap((h, gi) => measures.filter((ms) => gi === 0 || !ms.totalOnly).map((ms) => `${h}: ${ms.label}`)))];
     const rows: (string | number | null)[][] = [];
     walkTree(tree, (n, depth) => {
-      rows.push([depth === 0 ? "Всего" : SDIM_LABEL[n.dim], n.label, ...n.cols.flatMap((m, gi) => measures.filter((ms) => gi === 0 || !ms.totalOnly).map((ms) => (ms.key === "conf" ? confOf(n) : ms.fmt(m))))]);
+      rows.push([depth === 0 ? "Всего" : SDIM_LABEL[n.dim], n.label, ...n.cols.flatMap((m, gi) => measures.filter((ms) => gi === 0 || !ms.totalOnly).map((ms) => cell(ms, n, m, gi)))]);
     });
     const blob = new Blob([toCsv(head, rows)], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");

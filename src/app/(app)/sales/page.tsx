@@ -1,4 +1,6 @@
+import { cookies } from "next/headers";
 import { requireSession } from "@/lib/session";
+import { parseVatModeCookie } from "@/lib/vat-mode";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { serializeInput } from "@/lib/margin";
 import { loadChain, loadSalesInput } from "@/lib/sales-server";
@@ -20,5 +22,5 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
   const [data, chain, asOf, dmStock] = await Promise.all([loadSalesInput(session.user.organizationId, c4), loadChain(session.user.organizationId, c4), loadDataAsOf(session.user.organizationId), loadDatamartStock(session.user.organizationId)]);
   const rs = (await loadReportSizesState(session.user.organizationId))?.value as { asOf?: string } | undefined;
   const reportDate = rs?.asOf ? rs.asOf.split("-").reverse().join(".") : undefined;
-  return <><DataAsOf asOf={asOf} /><SalesView input={serializeInput(data.input)} sizes={data.sizes} photos={data.photos} today={todayMsk()} initial={parseUi(sp)} chain={chain} dmStock={dmStock} reportDate={reportDate} /></>;
+  return <><DataAsOf asOf={asOf} /><SalesView input={serializeInput(data.input)} sizes={data.sizes} photos={data.photos} today={todayMsk()} initial={{ ...parseUi(sp), vat: parseVatModeCookie((await cookies()).get("vatDisplay")?.value) === "excl" ? "ex" : "in" }} chain={chain} dmStock={dmStock} reportDate={reportDate} /></>;
 }

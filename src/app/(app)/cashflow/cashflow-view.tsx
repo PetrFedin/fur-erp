@@ -60,6 +60,8 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
   const bw = Math.max(10, Math.min(40, Math.round(colW * 0.7)));
   const W = left + right + n * colW;
   const x = (i: number) => left + i * colW + colW / 2;
+  // Подписи значений ряда под курсором в легенде: через столько месяцев, чтобы числа не слипались.
+  const labEvery = Math.max(1, Math.ceil(44 / Math.max(1, colW)));
   // Диапазон оси Y по виду графика.
   let lo = 0, hi = 1;
   if (kind === "money") { hi = Math.max(...ser.revenue, 0); lo = -Math.max(...ser.spend, 0); }
@@ -101,8 +103,10 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
         const dim = (active !== null || yearHot !== null) && !sel;
         return (
           <g key={m} opacity={dim ? 0.3 : 1}>
-            {ser.spend[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={y(0)} height={Math.max(0, y(-ser.spend[i]) - y(0))} fill={SPEND} />}
-            {ser.revenue[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={y(ser.revenue[i])} height={Math.max(0, y(0) - y(ser.revenue[i]))} fill={GET} />}
+            {ser.spend[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={y(0)} height={Math.max(0, y(-ser.spend[i]) - y(0))} fill={SPEND} opacity={hotLine && hotLine !== "spend" ? 0.2 : 1} />}
+            {ser.revenue[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={y(ser.revenue[i])} height={Math.max(0, y(0) - y(ser.revenue[i]))} fill={GET} opacity={hotLine && hotLine !== "get" ? 0.2 : 1} />}
+            {hotLine === "spend" && ser.spend[i] > 0.5 && i % labEvery === 0 && <text x={x(i)} y={y(-ser.spend[i]) + 13} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(ser.spend[i])}</text>}
+            {hotLine === "get" && ser.revenue[i] > 0.5 && i % labEvery === 0 && <text x={x(i)} y={y(ser.revenue[i]) - 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(ser.revenue[i])}</text>}
           </g>
         );
       })}
@@ -111,6 +115,10 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
           <path d={lineOf(ser.cumSpend)} fill="none" stroke={SPEND} strokeWidth={hotLine === "spend" ? 4 : 2.5} opacity={hotLine && hotLine !== "spend" ? 0.2 : 1} />
           {s.available && <path d={lineOf(ser.cumRevenue)} fill="none" stroke={GET} strokeWidth={hotLine === "get" ? 4 : 2.5} opacity={hotLine && hotLine !== "get" ? 0.2 : 1} />}
           {s.available && !filtered && <path d={lineOf(ser.cumNet)} fill="none" stroke={NAVY} strokeWidth={hotLine === "net" ? 4 : 2.5} strokeDasharray="6 4" opacity={hotLine && hotLine !== "net" ? 0.2 : 1} />}
+          {(["spend", "get", "net"] as const).filter((k) => hotLine === k).map((k) => {
+            const arr = k === "spend" ? ser.cumSpend : k === "get" ? ser.cumRevenue : ser.cumNet, col = k === "spend" ? SPEND : k === "get" ? GET : NAVY;
+            return <g key={"lab" + k}>{arr.map((v, i) => (i % labEvery !== 0 && i !== n - 1 ? null : <g key={i}><circle cx={x(i)} cy={y(v)} r={3.5} fill={col} /><text x={x(i)} y={y(v) - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(v)}</text></g>))}</g>;
+          })}
           {active !== null && <circle cx={x(active)} cy={y(ser.cumSpend[active])} r={5} fill={SPEND} />}
           {n > 0 && <text x={x(n - 1) + 8} y={y(ser.cumSpend[n - 1]) + 4} fontSize={11} fontWeight={700} fill={SPEND}>{mln(ser.cumSpend[n - 1])}</text>}
           {n > 0 && s.available && <text x={x(n - 1) + 8} y={y(ser.cumRevenue[n - 1]) + 4} fontSize={11} fontWeight={700} fill={GET}>{mln(ser.cumRevenue[n - 1])}</text>}
@@ -542,6 +550,7 @@ export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy: wo
   const [hot, setHot] = useState<string | null>(null);
   const [yearHot, setYearHot] = useState<string | null>(null);
   const [hotLine, setHotLine] = useState<string | null>(null);
+  const [hotMoney, setHotMoney] = useState<string | null>(null);
   const [hotKind, setHotKind] = useState<string | null>(null);
   const [hotKind2, setHotKind2] = useState<string | null>(null);
   const [kindGroup, setKindGroup] = useState<"all" | "raw" | "work">("all");
@@ -816,10 +825,10 @@ export function CashflowView({ prepaid, prepaidBy, incl, ex, salesBy, workBy: wo
         </div>
         {chartView === "money" ? (
           <>
-        <ChartBox n={months.length}>{(colW) => <Chart kind="money" months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
+        <ChartBox n={months.length}>{(colW) => <Chart kind="money" hotLine={hotMoney} months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: SPEND }} />Потрачено за месяц (вниз)</li>
-          <li className="inline-flex min-h-11 items-center gap-1.5 px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Получено за месяц (вверх)</li>
+          <li><button type="button" aria-pressed={hotMoney === "spend"} onMouseEnter={() => setHotMoney("spend")} onMouseLeave={() => setHotMoney(null)} onFocus={() => setHotMoney("spend")} onBlur={() => setHotMoney(null)} onClick={() => setHotMoney(hotMoney === "spend" ? null : "spend")} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: SPEND }} />Потрачено за месяц (вниз)</button></li>
+          <li><button type="button" aria-pressed={hotMoney === "get"} onMouseEnter={() => setHotMoney("get")} onMouseLeave={() => setHotMoney(null)} onFocus={() => setHotMoney("get")} onBlur={() => setHotMoney(null)} onClick={() => setHotMoney(hotMoney === "get" ? null : "get")} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Получено за месяц (вверх)</button></li>
         </ul>
           </>
         ) : (
@@ -989,6 +998,7 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy }: { in
   const [hot, setHot] = useState<string | null>(null);
   const [yearHot, setYearHot] = useState<string | null>(null);
   const [hotLine, setHotLine] = useState<string | null>(null);
+  const [hotMoney, setHotMoney] = useState<string | null>(null);
   const seg = (on: boolean) => segCls(on);
   const [slide, setSlide] = useState(0);
   const slider = useRef<HTMLDivElement>(null);
@@ -1030,10 +1040,10 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy }: { in
         </div>
         <div ref={slider} onScroll={onSlide} tabIndex={0} role="group" aria-roledescription="карусель" aria-label="Графики: по месяцам и накопительно (листайте вправо-влево)" className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900 [&::-webkit-scrollbar]:hidden">
           <div className="w-full flex-none snap-start" aria-hidden={slide !== 0}>
-            <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="money" months={months} d={c.d} s={c.s} ser={c.ser} stock={c.ser.spend.map(() => 0)} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={false} colW={colW} />}</ChartBox>
+            <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="money" hotLine={hotMoney} months={months} d={c.d} s={c.s} ser={c.ser} stock={c.ser.spend.map(() => 0)} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={false} colW={colW} />}</ChartBox>
             <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-              <li className="inline-flex min-h-11 items-center gap-1.5"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: SPEND }} />Потрачено за месяц</li>
-              {hasSales ? <li className="inline-flex min-h-11 items-center gap-1.5"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: GET }} />Получено за месяц</li> : null}
+          <li><button type="button" aria-pressed={hotMoney === "spend"} onMouseEnter={() => setHotMoney("spend")} onMouseLeave={() => setHotMoney(null)} onFocus={() => setHotMoney("spend")} onBlur={() => setHotMoney(null)} onClick={() => setHotMoney(hotMoney === "spend" ? null : "spend")} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: SPEND }} />Потрачено за месяц</button></li>
+              {hasSales ? (<li><button type="button" aria-pressed={hotMoney === "get"} onMouseEnter={() => setHotMoney("get")} onMouseLeave={() => setHotMoney(null)} onFocus={() => setHotMoney("get")} onBlur={() => setHotMoney(null)} onClick={() => setHotMoney(hotMoney === "get" ? null : "get")} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: GET }} />Получено за месяц</button></li>) : null}
             </ul>
           </div>
           <div className="w-full flex-none snap-start" aria-hidden={slide !== 1}>
