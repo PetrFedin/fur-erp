@@ -166,7 +166,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
         <div role="group" aria-label="Объём таблиц" className={SEG_GROUP}>
           {([["ordered", "Заказано"], ["produced", "Произведено"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={volume === k} onClick={() => setVolume(k)} className={segCls(volume === k)}>{t}</button>)}
         </div>
-        {split ? <span className="text-xs text-neutral-600 tabular-nums">Произведено (получено MVST РМ) {formatQty(split.done + split.extra)} шт.{split.extra > 0 ? ` (по ТЗ ${formatQty(split.done)} + сверх ТЗ ${formatQty(split.extra)})` : ""} · в работе / ждём прихода {formatQty(split.work)} шт. · объём ТЗ {formatQty(split.done + split.work)} шт.</span> : null}
+        {split ? <span className="text-xs text-neutral-600 tabular-nums">Произведено (получено MVST РМ) {formatQty(split.done + split.extra)} шт. · в работе / ждём прихода {formatQty(split.work)} шт.</span> : null}
         <InfoHint label="Заказано и произведено" wide><p><b>Заказано</b> — все ТЗ (завершённые, в работе, запланированные) по плановому количеству. <b>Произведено</b> — только то, что получено MVST РМ (файл прихода), разложенное по ТЗ модели; что не получено, считается «в работе». Деньги и средние считаются по тем же ТЗ, что штуки.</p></InfoHint>
       </div>
       <ProductionTable search={search} volume={volume} />
