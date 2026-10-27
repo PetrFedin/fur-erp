@@ -4,6 +4,8 @@ import { Fragment, useMemo, useState } from "react";
 import { ttlOf, avgOf, buildPcsView, DEFAULT_PCS_PARAMS, type PcsParams, ST_COLS, ST_FILE_LEN, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
 import { formatDec1, formatInt } from "@/lib/utils";
 import { exportPcsXlsx, savePcsParams, savePcsRows } from "./actions";
+import { Fw27Compare, Fw27Dialog } from "./fw27-panel";
+import { photoCount, slidesFor, type Crit, type Fw27Data } from "@/lib/fw27-presentation";
 
 // Заголовки сводки сырья: переносятся на две строки, чтобы колонки были узкими.
 const TH2 = "max-w-[7.5rem] px-2 py-1.5 text-right text-xs font-medium leading-tight text-neutral-500 border-l border-neutral-200";
@@ -24,9 +26,10 @@ const FILTERS: { id: "all" | PcsBlock; label: string; blocks: PcsBlock[] }[] = [
 const runs = <T,>(f: (c: (typeof ST_COLS)[number]) => T) => ST_COLS.reduce<{ v: T; n: number }[]>((a, c) => { const l = a[a.length - 1], v = f(c); if (l && l.v === v) l.n++; else a.push({ v, n: 1 }); return a; }, []);
 const TOP = runs(stTop), YEARS = runs(stYear);
 
-type Props = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; params: PcsParams | null; raw: { fur: string; stock: number; need: number }[]; rawForecast: string | null; mix: { RTW: number; Acc: number }; price: Record<string, number>; rawDate: string; canEdit: boolean };
+type Props = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; params: PcsParams | null; raw: { fur: string; stock: number; need: number }[]; rawForecast: string | null; mix: { RTW: number; Acc: number }; price: Record<string, number>; rawDate: string; canEdit: boolean ; fw27?: Fw27Data | null };
 
-export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, rawForecast, mix, price, rawDate, canEdit }: Props) {
+export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, rawForecast, mix, price, rawDate, canEdit, fw27 = null }: Props) {
+  const [photoSel, setPhotoSel] = useState<{ crit: Crit; title: string } | null>(null);
   const p0 = params ?? DEFAULT_PCS_PARAMS;
   const [pp, setPp] = useState({ l: String(p0.leftoverPct), y: String(p0.lynxPct), n: String(p0.newPct), a: String(p0.accPct ?? DEFAULT_PCS_PARAMS.accPct), u: String(p0.upPct ?? DEFAULT_PCS_PARAMS.upPct) });
   const [rawDetail, setRawDetail] = useState(false);
@@ -146,13 +149,20 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     <input inputMode="decimal" aria-label={label} value={value} placeholder={ph} onChange={(e) => on(e.target.value)}
       className={`${w} min-h-9 rounded border border-neutral-300 bg-white px-1.5 text-right text-sm tabular-nums text-neutral-900 placeholder:italic placeholder:text-neutral-400`} />
   );
-  const rowOf = (n: PcsNode, key: string, label: string, level: number): React.ReactNode => {
+  const rowOf = (n: PcsNode, key: string, label: string, level: number, ctx: { fur?: string; acc?: boolean } = {}): React.ReactNode => {
     const a = avgOf(n);
     const editable = detail && canEdit && n.leaf && n.rowIndex != null && !n.leaf.sys;
     const i = n.rowIndex ?? -1;
     return (
       <tr key={key} className={`${LEVEL[level]} border-b ${level >= 4 ? "border-neutral-200" : LINE[level]}`}>
-        <td className={`sticky left-0 z-[1] bg-inherit px-3 py-1.5 text-sm`} style={{ paddingLeft: 12 + (level === 4 ? 3 : level) * 16 }}>{label}</td>
+        <td className={`sticky left-0 z-[1] bg-inherit px-3 py-1.5 text-sm`} style={{ paddingLeft: 12 + (level === 4 ? 3 : level) * 16 }}>{label}{(() => {
+          // Фото из презентации FW27: у строк «Одежда» (мех / категория / длина) — кнопка с числом фото, открывает окно поверх страницы.
+          const fur = n.crit.fur ?? ctx.fur;
+          if (!fw27 || level < 1 || level > 4 || ctx.acc || n.crit.group || !fur || (n.crit.block && !n.crit.fur && !n.crit.cat && !n.crit.len)) return null;
+          const crit: Crit = { fur, ...(n.crit.cat ? { cat: n.crit.cat } : {}), ...(n.crit.len ? { len: n.crit.len } : {}) };
+          const cnt = photoCount(slidesFor(fw27, crit));
+          return cnt ? <button type="button" onClick={() => setPhotoSel({ crit, title: [crit.fur, crit.cat, crit.len].filter(Boolean).join(" · ") })} aria-label={`Фото из презентации: ${label}, ${cnt} шт.`} className="ml-2 inline-flex min-h-7 items-center rounded border border-current/40 px-1.5 text-[11px] font-normal opacity-90 hover:opacity-100">Фото {cnt}</button> : null;
+        })()}</td>
         <td className={`${TD} ${LINE_STRONG[level]}`}>{editable ? inp(vals[i].pcs, (v) => edit(i, "pcs", v), "w-16", "Штуки") : cell(n.pcs)}</td>
         <td className={`${TD} ${LINE[level]}`}>{editable ? inp(vals[i].avg, (v) => edit(i, "avg", v), "w-16", "Шкур на изделие", n.leaf?.avgB != null ? String(Math.round(n.leaf.avgB * 10) / 10) : undefined)
           : a == null ? "–" : formatDec1(a)}</td>
@@ -161,12 +171,17 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       </tr>
     );
   };
-  const line = (n: PcsNode): React.ReactNode => (hideEmpty && n.level > 0 && n.pcs === 0 ? null : (
-    <Fragment key={n.key}>
-      {rowOf(n, n.key, n.label, n.level)}
-      {n.children.map((c) => line(c))}
-    </Fragment>
-  ));
+  // ctx — мех и признак «аксессуары» от родителей: у вложенных строк (категория, длина) в самом узле меха нет.
+  const line = (n: PcsNode, ctx: { fur?: string; acc?: boolean } = {}): React.ReactNode => {
+    if (hideEmpty && n.level > 0 && n.pcs === 0) return null;
+    const next = { fur: n.crit.fur ?? ctx.fur, acc: ctx.acc || /(^|\|)Acc(\||$)/.test(n.key) || n.crit.block === "Аксессуары" };
+    return (
+      <Fragment key={n.key}>
+        {rowOf(n, n.key, n.label, n.level, ctx.acc || next.acc ? { ...ctx, acc: true } : ctx)}
+        {n.children.map((c) => line(c, next))}
+      </Fragment>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -293,6 +308,8 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
           </tbody>
         </table>
       </div>
+      {fw27 ? <Fw27Compare data={fw27} rows={cur} onOpen={(crit, title) => setPhotoSel({ crit, title })} /> : null}
+      {fw27 && photoSel ? <Fw27Dialog key={photoSel.title} data={fw27} crit={photoSel.crit} title={photoSel.title} onClose={() => setPhotoSel(null)} /> : null}
       <p className="text-xs text-neutral-500">AVG — норма шкур на изделие из бюджета 2027 (при правке в «Детально» подменяется вручную). Продажи: NS AS, EUR без НДС; у аксессуаров «Другие бренды» — вся колонка Other из файла. Кнопки «Вместе / Одежда / Аксессуары» и «Скрыть пустые» (строки с нулевым бюджетом; итоги остаются полными) действуют и на Excel.</p>
     </div>
   );

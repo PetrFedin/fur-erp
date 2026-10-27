@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/session";
 import { getPcs } from "@/lib/budget-pcs-store";
 import { loadRawBalance } from "@/lib/raw-balance";
 import { loadBudgetAvg, withBudgetAvg } from "@/lib/budget-pcs-avg";
+import { loadFw27 } from "@/lib/fw27-presentation-server";
 import { PcsView } from "../pcs-view";
 
 export const metadata = { title: "Budget PCS" };
@@ -16,11 +17,12 @@ export default async function PcsPage({ params }: { params: Promise<{ id: string
   if (!doc) notFound();
   const budget = await loadBudgetAvg(session.user.organizationId);
   const raw = await loadRawBalance(session.user.organizationId);
+  const fw27 = await loadFw27(session.user.organizationId);
   const rawDate = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Moscow" }).format(new Date());
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Бюджеты и прогнозы", href: "/budget" }, { label: doc.name }]} />
-      <PcsView id={doc.id} name={doc.name} season={doc.season} supplier={doc.supplier} asOf={doc.asOf} rows={withBudgetAvg(doc.rows, budget)} params={doc.params ?? null} raw={raw.rows} rawForecast={raw.forecast} mix={raw.mix} price={raw.price} rawDate={rawDate} canEdit={EDIT_ROLES.includes(session.user.role)} />
+      <PcsView fw27={fw27} id={doc.id} name={doc.name} season={doc.season} supplier={doc.supplier} asOf={doc.asOf} rows={withBudgetAvg(doc.rows, budget)} params={doc.params ?? null} raw={raw.rows} rawForecast={raw.forecast} mix={raw.mix} price={raw.price} rawDate={rawDate} canEdit={EDIT_ROLES.includes(session.user.role)} />
     </div>
   );
 }
