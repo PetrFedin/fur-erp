@@ -155,13 +155,13 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     const i = n.rowIndex ?? -1;
     return (
       <tr key={key} className={`${LEVEL[level]} border-b ${level >= 4 ? "border-neutral-200" : LINE[level]}`}>
-        <td className={`sticky left-0 z-[1] bg-inherit px-3 py-1.5 text-sm`} style={{ paddingLeft: 12 + (level === 4 ? 3 : level) * 16 }}>{label}{(() => {
+        <td className={`sticky left-0 z-[1] bg-inherit px-3 py-1.5 text-sm`} style={{ paddingLeft: 12 + (level === 4 ? 3 : level) * 16 }}>{(() => {
           // Фото из презентации FW27: у строк «Одежда» (мех / категория / длина) — кнопка с числом фото, открывает окно поверх страницы.
           const fur = n.crit.fur ?? ctx.fur;
-          if (!fw27 || level < 1 || level > 4 || ctx.acc || n.crit.group || !fur || (n.crit.block && !n.crit.fur && !n.crit.cat && !n.crit.len)) return null;
+          if (!fw27 || level < 1 || level > 4 || ctx.acc || n.crit.group || !fur) return label;
           const crit: Crit = { fur, ...(n.crit.cat ? { cat: n.crit.cat } : {}), ...(n.crit.len ? { len: n.crit.len } : {}) };
           const cnt = photoCount(slidesFor(fw27, crit));
-          return cnt ? <button type="button" onClick={() => setPhotoSel({ crit, title: [crit.fur, crit.cat, crit.len].filter(Boolean).join(" · ") })} aria-label={`Фото из презентации: ${label}, ${cnt} шт.`} className="ml-2 inline-flex min-h-7 items-center rounded border border-current/40 px-1.5 text-[11px] font-normal opacity-90 hover:opacity-100">Фото {cnt}</button> : null;
+          return cnt ? <span className="inline-flex items-center gap-2 whitespace-nowrap">{label}<button type="button" onClick={() => setPhotoSel({ crit, title: [crit.fur, crit.cat, crit.len].filter(Boolean).join(" · ") })} aria-label={`Фото из презентации: ${label}, ${cnt} шт.`} className="inline-flex min-h-7 items-center rounded border border-current/40 px-1.5 text-[11px] font-normal opacity-90 hover:opacity-100">Фото {cnt}</button></span> : label;
         })()}</td>
         <td className={`${TD} ${LINE_STRONG[level]}`}>{editable ? inp(vals[i].pcs, (v) => edit(i, "pcs", v), "w-16", "Штуки") : cell(n.pcs)}</td>
         <td className={`${TD} ${LINE[level]}`}>{editable ? inp(vals[i].avg, (v) => edit(i, "avg", v), "w-16", "Шкур на изделие", n.leaf?.avgB != null ? String(Math.round(n.leaf.avgB * 10) / 10) : undefined)
