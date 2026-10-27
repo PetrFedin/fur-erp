@@ -2,7 +2,7 @@
 import { formatMoney, formatMoneyCompact } from "@/lib/utils";
 import { SEG_GROUP, segCls } from "@/components/segmented";
 
-export const DASH = "—";
+export const DASH = "–";
 export const n0 = (v: number) => (v === 0 ? DASH : v.toLocaleString("ru-RU"));
 /** Штуки со знаком: «+12», «−3». */
 export const nSigned = (v: number) => (v === 0 ? DASH : (v > 0 ? "+" : "−") + Math.abs(v).toLocaleString("ru-RU"));

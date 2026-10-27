@@ -33,7 +33,7 @@ export type ProdModel = {
 const GROUPS = ["Все", "Одежда", "Аксессуары"] as const;
 const TH = "px-1.5 py-1.5 text-right text-xs font-medium text-neutral-500 whitespace-nowrap";
 const TD = "px-1.5 py-1.5 text-right tabular-nums whitespace-nowrap";
-const dash = (v: number, f: (n: number) => string = (n) => formatDec1(String(n))) => (Math.abs(v) < 0.0005 ? "—" : f(v));
+const dash = (v: number, f: (n: number) => string = (n) => formatDec1(String(n))) => (Math.abs(v) < 0.0005 ? "–" : f(v));
 
 const sum = (a: string[]) => a.reduce((s, x) => s + Number(x), 0);
 
@@ -48,7 +48,7 @@ export function LotProducts({ models, recv, unit }: { models: ProdModel[]; recv:
     incl: sum(all.map((o) => o.incl)), excl: sum(all.map((o) => o.excl)),
     incl4: sum(all.map((o) => o.incl4)), excl4: sum(all.map((o) => o.excl4)),
   };
-  const share = (q: number) => (recv > 0 ? formatPercent((q / recv) * 100) : "—");
+  const share = (q: number) => (recv > 0 ? formatPercent((q / recv) * 100) : "–");
   const t = (n: number) => n.toFixed(2);
   const avg = (v: number, q: number) => (q > 0 ? t(v / q) : null);
   return (
@@ -93,20 +93,20 @@ export function LotProducts({ models, recv, unit }: { models: ProdModel[]; recv:
                     <td className={TD}>{share(q)}</td>
                     <td className={TD}><Money incl={t(i)} excl={t(e)} /></td>
                     <td className={TD}><Money incl={t(i4)} excl={t(e4)} /></td>
-                    <td className={TD}>{avg(i, q) ? <Money incl={avg(i, q)!} excl={avg(e, q)!} /> : "—"}</td>
-                    <td className={TD}>{pr > 0 ? formatDec1((q / pr).toFixed(2)) : "—"}</td>
+                    <td className={TD}>{avg(i, q) ? <Money incl={avg(i, q)!} excl={avg(e, q)!} /> : "–"}</td>
+                    <td className={TD}>{pr > 0 ? formatDec1((q / pr).toFixed(2)) : "–"}</td>
                   </tr>,
                   ...m.orders.map((o) => (
                     <tr key={o.orderId} className="border-b border-neutral-100 text-xs">
                       <td className="px-1.5 py-1.5 pl-5"><Link href={`/production/${o.orderId}`} className="text-blue-700 hover:underline" title={`Внутренний номер заказа ${o.number}`}>{o.label}</Link></td>
-                      <td className={TD}>{o.batchNumber != null ? <Link href={`/production/batches/${o.batchNumber}`} className="hover:underline">{o.batchNumber}</Link> : "—"}</td>
-                      <td className={TD}>{o.date ?? "—"}</td>
+                      <td className={TD}>{o.batchNumber != null ? <Link href={`/production/batches/${o.batchNumber}`} className="hover:underline">{o.batchNumber}</Link> : "–"}</td>
+                      <td className={TD}>{o.date ?? "–"}</td>
                       <td className={TD}>{dash(o.qty)}</td>
                       <td className={TD}>{share(o.qty)}</td>
                       <td className={TD}><Money incl={o.incl} excl={o.excl} /></td>
                       <td className={TD}><Money incl={o.incl4} excl={o.excl4} /></td>
-                      <td className={TD}>{o.qty > 0 ? <Money incl={t(Number(o.incl) / o.qty)} excl={t(Number(o.excl) / o.qty)} /> : "—"}</td>
-                      <td className={TD}>{o.produced > 0 ? formatDec1((o.qty / o.produced).toFixed(2)) : "—"}</td>
+                      <td className={TD}>{o.qty > 0 ? <Money incl={t(Number(o.incl) / o.qty)} excl={t(Number(o.excl) / o.qty)} /> : "–"}</td>
+                      <td className={TD}>{o.produced > 0 ? formatDec1((o.qty / o.produced).toFixed(2)) : "–"}</td>
                     </tr>
                   )),
                 ];
@@ -118,8 +118,8 @@ export function LotProducts({ models, recv, unit }: { models: ProdModel[]; recv:
                 <td className={TD}>{share(tot.qty)}</td>
                 <td className={TD}><Money incl={t(tot.incl)} excl={t(tot.excl)} /></td>
                 <td className={TD}><Money incl={t(tot.incl4)} excl={t(tot.excl4)} /></td>
-                <td className={TD}>{avg(tot.incl, tot.qty) ? <Money incl={avg(tot.incl, tot.qty)!} excl={avg(tot.excl, tot.qty)!} /> : "—"}</td>
-                <td className={TD}>{tot.produced > 0 ? formatDec1((tot.qty / tot.produced).toFixed(2)) : "—"}</td>
+                <td className={TD}>{avg(tot.incl, tot.qty) ? <Money incl={avg(tot.incl, tot.qty)!} excl={avg(tot.excl, tot.qty)!} /> : "–"}</td>
+                <td className={TD}>{tot.produced > 0 ? formatDec1((tot.qty / tot.produced).toFixed(2)) : "–"}</td>
               </tr>
             </tbody>
           </table>

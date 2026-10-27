@@ -124,9 +124,9 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
   const dbRow = info?.row ?? null;
   const pp = dbRow?.ppNo ? null : PP_RX.exec(ov.doc ?? "");
   const inv = dbRow?.invoiceNo ? null : INV_RX.exec(ov.doc ?? "");
-  const ppText = dbRow?.ppNo ? bareNo(dbRow.ppNo) : pp ? docNo(pp[1], pp[2]) : r.pp || "—";
-  const invText = dbRow?.invoiceNo ? bareNo(dbRow.invoiceNo) : inv ? docNo(inv[1], inv[2]) : r.invoice || "—";
-  const invHref = (await loadInvoiceLinks(orgId, [{ ...r, invoice: invText !== "—" ? invText : "" }])).get(r.code);
+  const ppText = dbRow?.ppNo ? bareNo(dbRow.ppNo) : pp ? docNo(pp[1], pp[2]) : r.pp || "–";
+  const invText = dbRow?.invoiceNo ? bareNo(dbRow.invoiceNo) : inv ? docNo(inv[1], inv[2]) : r.invoice || "–";
+  const invHref = (await loadInvoiceLinks(orgId, [{ ...r, invoice: invText !== "–" ? invText : "" }])).get(r.code);
   const cpHref = r.cpId ? `/suppliers/${r.cpId}` : null;
   const invRec = info?.invoice ?? null;
   const invOthers = invRec ? invRec.purchases.filter((x) => x.id !== info?.purchaseId) : [];

@@ -18,7 +18,7 @@ function parse(json: string): TzPayload | string {
     return "Некорректные данные ТЗ";
   }
 }
-const titleOf = (p: TzPayload) => `ТЗ № ${p.number.trim() || "—"}${p.kind === "REPAIR" ? " (ремонт)" : ""}`.slice(0, 160);
+const titleOf = (p: TzPayload) => `ТЗ № ${p.number.trim() || "–"}${p.kind === "REPAIR" ? " (ремонт)" : ""}`.slice(0, 160);
 
 export async function saveTzDraft(id: string | null, json: string): Promise<R> {
   const s = await requireSupplierSession();

@@ -105,10 +105,10 @@ export async function loadTzDoc(
     return {
       sum: amount,
       line: {
-        lot: u.lot.lotNumber?.trim() || "—",
+        lot: u.lot.lotNumber?.trim() || "–",
         material: u.rawMaterial.name,
         qty: `${formatQty(q.toString())} ${unit}`.trim(),
-        unitPrice: q.isZero() ? "—" : rub(amount.div(q)),
+        unitPrice: q.isZero() ? "–" : rub(amount.div(q)),
         sum: rub(amount),
       },
     };
@@ -154,8 +154,8 @@ export async function loadTzDoc(
     color: (order.color ?? "").trim(),
     size: collapseSizes((order.size ?? "").trim()),
     qty: formatQty(qty.toString()),
-    workPerUnit: workPerUnit ? rub(workPerUnit) : "—",
-    workSum: workPerUnit ? rub(work) : "—",
+    workPerUnit: workPerUnit ? rub(workPerUnit) : "–",
+    workSum: workPerUnit ? rub(work) : "–",
     material: (order.materialDescription ?? "").trim(),
     liningText,
     hasLining: lining.length > 0 || liningText !== "",
@@ -173,7 +173,7 @@ export async function loadTzDoc(
       fur: rub(furSum),
       lining: rub(liningSum),
       expenses: rub(expenseSum),
-      work: workPerUnit ? rub(work) : "—",
+      work: workPerUnit ? rub(work) : "–",
       total: rub(total),
     },
     raw: {

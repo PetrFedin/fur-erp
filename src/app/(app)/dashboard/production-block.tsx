@@ -107,7 +107,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
                   {years.filter((y) => y.qty !== 0).map((y) => (
                     <div key={y.label} className="flex items-baseline justify-between gap-3">
                       <dt className="text-neutral-600">{y.label}</dt>
-                      <dd className="whitespace-nowrap font-medium tabular-nums"><span className="mr-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{fact.qty ? formatShare(y.qty / fact.qty) : "—"}</span>{formatQty(y.qty)} шт.</dd>
+                      <dd className="whitespace-nowrap font-medium tabular-nums"><span className="mr-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{fact.qty ? formatShare(y.qty / fact.qty) : "–"}</span>{formatQty(y.qty)} шт.</dd>
                     </div>
                   ))}
                 </dl>
@@ -120,7 +120,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
         <TileCarousel sync={grpSync} clickable hoverBlocks title={COST_FULL_LABEL} hintLabel="Что такое полная себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
             <p>Факт по всем ТЗ: мех + подкладка{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Без работы — «Себестоимость сырья»: <b>{money(cost(fact))}</b>.</p>
-            <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "—"}</b>. Режимы: {vatW}, {c4W}.</p>
+            <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "–"}</b>. Режимы: {vatW}, {c4W}.</p>
             <p className="mt-1">«Всего» включает ремонт; «Одежда» и «Аксессуары» — только изделия группы.</p>
           </>}
           slides={[
@@ -136,7 +136,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
                       <dd className="text-right font-medium tabular-nums">
                         {Math.abs(p.v) < 0.5 ? "\u00a0" : (
                           <>
-                            <span className="mr-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{total ? formatShare(p.v / total) : "—"}</span>
+                            <span className="mr-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{total ? formatShare(p.v / total) : "–"}</span>
                             {money(p.v)}
                           </>
                         )}

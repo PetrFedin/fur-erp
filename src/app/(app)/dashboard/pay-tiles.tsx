@@ -28,7 +28,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
   const mln = (v: number) => formatCompactMoney(v);
   const prodPaid = d.paidByItem.work;
   const money = (v: number) => formatMoney(roundRub(v));
-  const dash = (v: number) => (Math.abs(v) < 0.5 ? "—" : money(v));
+  const dash = (v: number) => (Math.abs(v) < 0.5 ? "–" : money(v));
   // Деньги — целые рубли, сходящиеся на экране (src/lib/money-round.ts): мех + подкладка выровнены вместе с плитками «Куплено / Использовано / Остаток»,
   // оплачено и к оплате делятся по статьям так, чтобы Σ статей == показанному итогу.
   const N = payNumbers(d, c4Mode, only);

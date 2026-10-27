@@ -22,8 +22,8 @@ export function DocumentCard({ row }: { row: Row }) {
   const typeLabel = SUPPLIER_DOC_TYPES.find((t) => t.key === p.docType)?.label ?? (p.docType === ("PAYMENT_NOTE" as string) ? "Оплата (прежний тип)" : p.docType);
   const kindLabel = (k: string) => INBOX_FILE_KINDS.find((x) => x.key === k)?.label ?? k;
   const info: [string, string][] = [
-    ["Тип", typeLabel], ["Номер", p.number || "—"], ["Дата", p.date ? p.date.split("-").reverse().join(".") : "—"],
-    ["Закупка", p.purchaseNumber], ["Лот", p.lotNumber || "весь счёт / закупка"], ["Комментарий", p.comment || "—"],
+    ["Тип", typeLabel], ["Номер", p.number || "–"], ["Дата", p.date ? p.date.split("-").reverse().join(".") : "–"],
+    ["Закупка", p.purchaseNumber], ["Лот", p.lotNumber || "весь счёт / закупка"], ["Комментарий", p.comment || "–"],
   ];
   return (
     <div className="flex flex-col gap-4">

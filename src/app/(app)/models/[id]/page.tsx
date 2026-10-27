@@ -76,7 +76,7 @@ function SectionLink({ href, label, count }: { href: string; label: string; coun
       title={count > 0 ? `${label} этого артикула` : `${label}: записей по этому артикулу нет`}
     >
       {label}
-      <span className={"rounded-full px-1.5 text-xs tabular-nums " + (count > 0 ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-400")}>{count > 0 ? count : "—"}</span>
+      <span className={"rounded-full px-1.5 text-xs tabular-nums " + (count > 0 ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-400")}>{count > 0 ? count : "–"}</span>
     </Link>
   );
 }
@@ -241,10 +241,10 @@ export default async function EditModelPage({ params, searchParams }: PageProps<
           <div className="relative">
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
               <TileHead>Розница</TileHead>
-              <TileValue>{price ? formatMoney(price.toFixed(2)) : "—"}</TileValue>
+              <TileValue>{price ? formatMoney(price.toFixed(2)) : "–"}</TileValue>
               <TileCaption>розничная цена, с НДС</TileCaption>
               <TileList items={[
-                { k: "Наценка", v: markup ? formatMarkup(markup) : "—" },
+                { k: "Наценка", v: markup ? formatMarkup(markup) : "–" },
               ]} />
             </div>
             <div className="absolute right-3 top-3">
@@ -292,17 +292,17 @@ export default async function EditModelPage({ params, searchParams }: PageProps<
           />
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 border-t border-neutral-100 pt-3 text-sm">
             <dt className="text-neutral-500">Категория → группа</dt>
-            <dd>{model.category?.trim() || "—"}{group !== NO_GROUP ? <span className="ml-2 text-neutral-600">· {group}</span> : null}<Src href="/settings/categories" title="Справочник категорий и групп" /></dd>
+            <dd>{model.category?.trim() || "–"}{group !== NO_GROUP ? <span className="ml-2 text-neutral-600">· {group}</span> : null}<Src href="/settings/categories" title="Справочник категорий и групп" /></dd>
             <dt className="text-neutral-500">PLU</dt>
             <dd>{pluParams.length ? pluParams.map((p) => (p.name.length > 3 ? `${p.name.slice(3).trim()}: ${p.value}` : p.value)).join("; ") : <span className="text-neutral-500">пока пусто</span>}</dd>
             <dt className="text-neutral-500">Тип меха</dt>
-            <dd>{furType ? furType.fur : "—"}<Src href="/settings/furs" title="Справочник видов меха" /></dd>
+            <dd>{furType ? furType.fur : "–"}<Src href="/settings/furs" title="Справочник видов меха" /></dd>
             <dt className="text-neutral-500">Мех (по ТЗ)</dt>
-            <dd>{met.furNames.length ? met.furNames.join(", ") : "—"}<Src href="/settings/furs" title="Справочник видов меха" /></dd>
+            <dd>{met.furNames.length ? met.furNames.join(", ") : "–"}<Src href="/settings/furs" title="Справочник видов меха" /></dd>
             <dt className="text-neutral-500">Цвет (по ТЗ)</dt>
-            <dd>{colors.length ? colors.join(", ") : "—"}<Src href="/settings/colors" title="Справочник цветов" /></dd>
+            <dd>{colors.length ? colors.join(", ") : "–"}<Src href="/settings/colors" title="Справочник цветов" /></dd>
             <dt className="text-neutral-500">НДС в списаниях</dt>
-            <dd>{met.vatRates.length ? met.vatRates.map((v) => `${v} %`).join(", ") : "—"}</dd>
+            <dd>{met.vatRates.length ? met.vatRates.map((v) => `${v} %`).join(", ") : "–"}</dd>
             <dt className="text-neutral-500">Цена в ценообразовании</dt>
             <dd>{price ? formatMoney(price.toFixed(2)) : "не задана"}<Src href="/analytics/pricing" title="Ценообразование: какую цену заводить для нужной наценки" /></dd>
             <dt className="text-neutral-500">Создан / изменён</dt>
@@ -415,8 +415,8 @@ export default async function EditModelPage({ params, searchParams }: PageProps<
                         {d.docNumber && !d.title.includes(d.docNumber) ? <span className="ml-1 text-neutral-500">№{d.docNumber}</span> : null}
                       </Td>
                       <Td className="text-neutral-600">{DRIVE_DOC_TYPE_LABELS[d.docType as DriveDocTypeKey] ?? d.docType}</Td>
-                      <Td>{d.docDate ? formatDate(d.docDate) : "—"}</Td>
-                      <Td>{o ? <Link href={`/production/${o.id}#drive`} className="text-blue-700 hover:underline">{tzOf(o)}</Link> : "—"}</Td>
+                      <Td>{d.docDate ? formatDate(d.docDate) : "–"}</Td>
+                      <Td>{o ? <Link href={`/production/${o.id}#drive`} className="text-blue-700 hover:underline">{tzOf(o)}</Link> : "–"}</Td>
                     </Tr>
                   );
                 })}

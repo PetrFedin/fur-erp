@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const path = normalizePagePath(url.searchParams.get("path"));
   if (!path) return new Response("Bad path", { status: 400 });
-  const actor: CommentActor = { id: s.user.id, name: s.user.name ?? "—", role: s.user.role, organizationId: s.user.organizationId };
+  const actor: CommentActor = { id: s.user.id, name: s.user.name ?? "–", role: s.user.role, organizationId: s.user.organizationId };
   const ef = entityFromPath(basePath(path));
   const entity = ef ? await resolveEntity(prisma, actor.organizationId, ef.type, ef.key) : null;
   const ent = ef && entity ? { type: ef.type, id: entity.id } : null;

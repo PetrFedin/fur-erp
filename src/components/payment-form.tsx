@@ -11,7 +11,7 @@ import { PAY_KINDS, PRESET_PERCENTS, canConfirm, percentAmount, type DocRole, ty
 import { getPaymentTargets, quotePaymentTarget, savePayment, type Quote, type Recalc, type Spec, type TargetList } from "@/app/(app)/payments/pay-actions";
 import { formatMoney } from "@/lib/utils";
 
-const money = (n: number | null | undefined) => (n == null ? "—" : formatMoney(n));
+const money = (n: number | null | undefined) => (n == null ? "–" : formatMoney(n));
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

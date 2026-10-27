@@ -14,7 +14,7 @@ import { formatMoney } from "@/lib/utils";
 const money = (c: number) => formatMoney(c / 100);
 /** Подпись остатка цели в списке: остаток / оплачено / переплата (минус не показываем). */
 const remLabel = (c: number) => (c >= 100 ? `остаток ${money(c)}` : c <= -100 ? `переплата ${money(-c)}` : "оплачено");
-const rub = (n: number | null) => (n == null ? "—" : formatMoney(n));
+const rub = (n: number | null) => (n == null ? "–" : formatMoney(n));
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -333,7 +333,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
                   {lines.map((l, i) => (
                     <tr key={i} className="border-t border-neutral-100 align-top">
                       <td className="py-1 pr-2"><Select className="h-8 text-xs" value={l.key} onChange={(e) => patchLine(i, { key: e.target.value, why: "выбрано вручную" })} aria-label="Цель разнесения"><option value="">Выберите…</option>{targetOptions(l.key).map((t) => { const k = "key" in t ? t.key : t.id; return <option key={k} value={k}>{t.label} · {remLabel("key" in t ? remainingOf(t) : t.workCents - t.paidCents)}</option>; })}</Select></td>
-                      <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{l.key ? money(remOf(l.key)) : "—"}</td>
+                      <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{l.key ? money(remOf(l.key)) : "–"}</td>
                       <td className="py-1"><Input className="h-8 text-right text-xs" inputMode="decimal" value={l.amount} onChange={(e) => patchLine(i, { amount: e.target.value, why: "изменено вручную" })} aria-label="Сумма" /></td>
                       <td className="py-1 pl-2 text-xs text-neutral-500">{l.why}</td>
                       <td className="py-1 text-right"><button type="button" className="text-xs text-neutral-500 underline" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}>убрать</button></td>
@@ -359,7 +359,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
             <thead className="text-left text-xs text-neutral-500"><tr><th className="py-1">{side === "supplier" ? "Закупка / аукцион" : "ТЗ"}</th><th className="text-right">{side === "supplier" ? "Остаток к оплате" : "Остаток работы"}: было</th><th className="text-right">станет</th></tr></thead>
             <tbody>
               {lines.map((l) => { const before = remOf(l.key); const c = centsOf(l.amount); return (<tr key={l.key} className="border-t border-neutral-100"><td className="py-1">{labelOf(l.key)} <span className="text-xs text-neutral-500">(−{money(c)})</span></td><td className="text-right tabular-nums">{money(before)}</td><td className={"text-right tabular-nums " + (before - c < 0 ? "text-amber-800" : "")}>{money(before - c)}{before - c < 0 ? " (переплата)" : ""}</td></tr>); })}
-              {restC > 0 && <tr className="border-t border-neutral-100"><td className="py-1">{side === "supplier" ? "Аванс без привязки" : "Не разнесено (аванс подрядчику)"}</td><td className="text-right">—</td><td className="text-right tabular-nums text-amber-800">{money(restC)}</td></tr>}
+              {restC > 0 && <tr className="border-t border-neutral-100"><td className="py-1">{side === "supplier" ? "Аванс без привязки" : "Не разнесено (аванс подрядчику)"}</td><td className="text-right">–</td><td className="text-right tabular-nums text-amber-800">{money(restC)}</td></tr>}
             </tbody>
           </table>
           {side === "supplier" ? (

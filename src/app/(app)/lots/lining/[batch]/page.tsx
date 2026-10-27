@@ -96,13 +96,13 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
       <section aria-labelledby="lb-pass" className="rounded-lg border border-neutral-200 bg-white p-3">
         <h2 id="lb-pass" className="mb-2 text-base font-semibold">Партия</h2>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-          <div><dt className="text-xs text-neutral-500">Дата закупки</dt><dd>{dates.length ? formatDate(new Date(Math.min(...dates))) : "—"}</dd></div>
-          <div><dt className="text-xs text-neutral-500">Поставщик</dt><dd>{supplierLinks.length ? supplierLinks.map(([sid, sname], i) => <span key={sid}>{i > 0 ? ", " : ""}<Link href={`/suppliers/${sid}`} className="text-blue-700 hover:underline" title="Карточка поставщика">{sname}</Link></span>) : "—"}</dd></div>
+          <div><dt className="text-xs text-neutral-500">Дата закупки</dt><dd>{dates.length ? formatDate(new Date(Math.min(...dates))) : "–"}</dd></div>
+          <div><dt className="text-xs text-neutral-500">Поставщик</dt><dd>{supplierLinks.length ? supplierLinks.map(([sid, sname], i) => <span key={sid}>{i > 0 ? ", " : ""}<Link href={`/suppliers/${sid}`} className="text-blue-700 hover:underline" title="Карточка поставщика">{sname}</Link></span>) : "–"}</dd></div>
           <div>
             <dt className="text-xs text-neutral-500">{purchases.length > 1 ? "Закупки" : "Закупка"}</dt>
             <dd>{purchases.map((p, i) => <span key={p.id}>{i > 0 ? ", " : ""}<Link href={`/purchases/${p.id}`} className="text-blue-700 hover:underline">{p.number}<span aria-hidden className="ml-0.5 text-[11px] text-neutral-400">↗</span></Link></span>)}</dd>
           </div>
-          <div><dt className="text-xs text-neutral-500">Счёт / УПД</dt><dd>{[...new Set(purchases.map((p) => p.invoiceNumber).filter(Boolean))].join(", ") || "—"}</dd></div>
+          <div><dt className="text-xs text-neutral-500">Счёт / УПД</dt><dd>{[...new Set(purchases.map((p) => p.invoiceNumber).filter(Boolean))].join(", ") || "–"}</dd></div>
           <div><dt className="text-xs text-neutral-500">Сумма, ₽ с НДС</dt><dd className="tabular-nums">{formatMoney(sumAll.toFixed(2))}</dd></div>
           <div>
             <dt className="text-xs text-neutral-500">Оплачено / долг, ₽</dt>

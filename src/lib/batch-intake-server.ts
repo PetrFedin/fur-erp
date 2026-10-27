@@ -154,7 +154,7 @@ export function planBatch(payload: BatchPayload, refs: IntakeRefs, debtNow: numb
   const purchases: PlannedPurchase[] = [...groups.entries()].map(([k, its]) => {
     const invoice = k || h.invoiceNumber.trim();
     const okItems = its.filter((i) => Number.isFinite(i.quantity) && Number.isFinite(i.unitPrice));
-    return { key: k || "—", invoice, items: its, totals: totalsOf(k || "—", invoice, okItems, ctx.rate, currency) };
+    return { key: k || "–", invoice, items: its, totals: totalsOf(k || "–", invoice, okItems, ctx.rate, currency) };
   });
 
   const sum = (f: (p: PurchaseTotals) => number) => purchases.reduce((s, p) => s + f(p.totals), 0);

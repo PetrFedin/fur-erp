@@ -165,9 +165,9 @@ export function YearsTable({ rows: rowsAll, bySrc, c4, info }: { rows: YearRow[]
                       <Fragment>
                         <tr className="row-total">
                           <NameCell className="font-semibold" arrow={<button type="button" onClick={() => toggle("all")} aria-expanded={isOpen} aria-label="Раскрыть по годам: Всего, ₽ мех+подкладка"><Chevron open={isOpen} /></button>}>Всего, ₽ <span className="block text-xs font-normal opacity-80">мех+подкладка</span></NameCell>
-                          <td className={td + GB}>—</td><td className={td}>{rub(t.rv)}</td>
-                          <td className={td + GB}>—</td><td className={td}>{rub(t.uv)}</td>
-                          <td className={td + GB}>—</td><td className={td}>{rub(t.mv)}</td>
+                          <td className={td + GB}>–</td><td className={td}>{rub(t.rv)}</td>
+                          <td className={td + GB}>–</td><td className={td}>{rub(t.uv)}</td>
+                          <td className={td + GB}>–</td><td className={td}>{rub(t.mv)}</td>
                           <td className={td + " border-l border-neutral-300"}>{rub0(all.paid)}</td>
                           <td className={td + (all.debt > 0 ? " text-amber-700" : "")}>{rub0(all.debt)}</td>
                         </tr>
@@ -178,9 +178,9 @@ export function YearsTable({ rows: rowsAll, bySrc, c4, info }: { rows: YearRow[]
                             <Fragment key={"all" + r.key}>
                               <tr className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
                                 <NameCell indent={8} title={r.label} arrow={<button type="button" onClick={() => toggle(yk)} aria-expanded={yOpen} aria-label={`Раскрыть на мех и подкладку: ${r.label}`} className="inline-flex h-6 w-5 items-center justify-center"><Chevron open={yOpen} /></button>}>{shortMaterialName(r.label)}{yearInfo(r)}</NameCell>
-                                <td className={td + GB}>—</td><td className={td}>{rub(y.rv)}</td>
-                                <td className={td + GB}>—</td><td className={td}>{rub(y.uv)}</td>
-                                <td className={td + GB}>—</td><td className={td}>{rub(y.mv)}</td>
+                                <td className={td + GB}>–</td><td className={td}>{rub(y.rv)}</td>
+                                <td className={td + GB}>–</td><td className={td}>{rub(y.uv)}</td>
+                                <td className={td + GB}>–</td><td className={td}>{rub(y.mv)}</td>
                                 <MoneyTds paid={r.paid} due={r.debt} />
                               </tr>
                               {yOpen ? kinds.map((kd) => {
@@ -188,9 +188,9 @@ export function YearsTable({ rows: rowsAll, bySrc, c4, info }: { rows: YearRow[]
                                 return (
                                   <tr key={"all" + r.key + kd.k} className="border-b border-neutral-100 bg-white text-[12px] text-neutral-600">
                                     <NameCell indent={36}>{kd.label}</NameCell>
-                                    <td className={td + GB}>—</td><td className={td}>{rub(c.rv)}</td>
-                                    <td className={td + GB}>—</td><td className={td}>{rub(c.uv)}</td>
-                                    <td className={td + GB}>—</td><td className={td}>{rub(c.mv)}</td>
+                                    <td className={td + GB}>–</td><td className={td}>{rub(c.rv)}</td>
+                                    <td className={td + GB}>–</td><td className={td}>{rub(c.uv)}</td>
+                                    <td className={td + GB}>–</td><td className={td}>{rub(c.mv)}</td>
                                     <MoneyTds paid={m.paid} due={m.debt} />
                                   </tr>
                                 );
@@ -217,9 +217,9 @@ function CellsTds({ c, unit, bold, avg }: { c: Cells; unit: string; bold?: boole
   const cls = td + (bold ? " font-semibold" : "");
   return (
     <>
-      <td className={cls + " border-l border-neutral-100"}>{formatQty(c.rq)} {unit}</td><td className={cls}>{rub(c.rv)}</td>{avg ? <td className={cls + " text-neutral-600"}>{c.ra != null ? rub(c.ra) : "—"}</td> : null}
-      <td className={cls + " border-l border-neutral-100"}>{formatQty(c.uq)} {unit}</td><td className={cls}>{rub(c.uv)}</td>{avg ? <td className={cls + " text-neutral-600"}>{c.ua != null ? rub(c.ua) : "—"}</td> : null}
-      <td className={cls + " border-l border-neutral-100"}>{formatQty(c.mq)} {unit}</td><td className={cls}>{rub(c.mv)}</td>{avg ? <td className={cls + " text-neutral-600"}>{c.ma != null ? rub(c.ma) : "—"}</td> : null}
+      <td className={cls + " border-l border-neutral-100"}>{formatQty(c.rq)} {unit}</td><td className={cls}>{rub(c.rv)}</td>{avg ? <td className={cls + " text-neutral-600"}>{c.ra != null ? rub(c.ra) : "–"}</td> : null}
+      <td className={cls + " border-l border-neutral-100"}>{formatQty(c.uq)} {unit}</td><td className={cls}>{rub(c.uv)}</td>{avg ? <td className={cls + " text-neutral-600"}>{c.ua != null ? rub(c.ua) : "–"}</td> : null}
+      <td className={cls + " border-l border-neutral-100"}>{formatQty(c.mq)} {unit}</td><td className={cls}>{rub(c.mv)}</td>{avg ? <td className={cls + " text-neutral-600"}>{c.ma != null ? rub(c.ma) : "–"}</td> : null}
     </>
   );
 }
@@ -229,8 +229,8 @@ function MoneyTds({ paid, due, bold, note }: { paid: number; due: number; bold?:
   const cls = td + (bold ? " font-semibold" : "");
   return (
     <>
-      <td className={cls + " border-l border-neutral-100"}>{Math.abs(paid) < 0.5 ? <span className="text-neutral-300">—</span> : rub0(paid)}</td>
-      <td className={cls + (due > 0.5 && !isDebtDust(due) ? " text-amber-700" : "")}>{Math.abs(due) < 0.5 ? <span className="text-neutral-300">—</span> : isDebtDust(due) ? <span className="text-neutral-400" title="Остаток в пределах округления: в итог входит">{rub0(due)}</span> : <span title={note && Math.abs(due - 1357.06) < 0.5 ? note : undefined} className={note && Math.abs(due - 1357.06) < 0.5 ? "cursor-help underline decoration-dotted" : undefined}>{rub0(due)}</span>}</td>
+      <td className={cls + " border-l border-neutral-100"}>{Math.abs(paid) < 0.5 ? <span className="text-neutral-300">–</span> : rub0(paid)}</td>
+      <td className={cls + (due > 0.5 && !isDebtDust(due) ? " text-amber-700" : "")}>{Math.abs(due) < 0.5 ? <span className="text-neutral-300">–</span> : isDebtDust(due) ? <span className="text-neutral-400" title="Остаток в пределах округления: в итог входит">{rub0(due)}</span> : <span title={note && Math.abs(due - 1357.06) < 0.5 ? note : undefined} className={note && Math.abs(due - 1357.06) < 0.5 ? "cursor-help underline decoration-dotted" : undefined}>{rub0(due)}</span>}</td>
     </>
   );
 }
@@ -453,9 +453,9 @@ export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _i
             {rows.length > 0 ? (
               <tr className="row-total">
                 <NameCell><TotalLabel note="мех+подкладка" /></NameCell>
-                <td className={td}>—</td><td className={td}>{rub(T.rv)}</td>{avg ? <td className={td}>—</td> : null}
-                <td className={td}>—</td><td className={td}>{rub(T.uv)}</td>{avg ? <td className={td}>—</td> : null}
-                <td className={td}>—</td><td className={td}>{rub(T.mv)}</td>{avg ? <td className={td}>—</td> : null}
+                <td className={td}>–</td><td className={td}>{rub(T.rv)}</td>{avg ? <td className={td}>–</td> : null}
+                <td className={td}>–</td><td className={td}>{rub(T.uv)}</td>{avg ? <td className={td}>–</td> : null}
+                <td className={td}>–</td><td className={td}>{rub(T.mv)}</td>{avg ? <td className={td}>–</td> : null}
                 <td className={td + " border-l border-neutral-300"}>{rub0(tPaid)}</td><td className={td}>{rub0(tDue)}</td>
               </tr>
             ) : null}

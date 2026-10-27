@@ -134,7 +134,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       ["Подтверждение", p.confirmedAt ? `подтверждена ${ruDate(p.confirmedAt)}` : "ждёт платёжку / проверки"],
       ["Прикреплено документов", String((p.documentId ? 1 : 0) + p._count.driveDocuments)],
       ["Распределено", unlinked ? "не распределён: 0,00 ₽ из " + money(amount) : `${money(amount)} из ${money(amount)}`],
-      ["Остаток по платежу", unlinked ? money(amount) : "—"],
+      ["Остаток по платежу", unlinked ? money(amount) : "–"],
       ["Внесена", ruDate(p.createdAt)],
     ];
     const rawLinks: { label: string; href: string }[] = [
@@ -214,7 +214,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       ["Подтверждение", p.confirmedAt ? `подтверждена ${ruDate(p.confirmedAt)}` : "ждёт платёжку / проверки"],
       ["Прикреплено документов", String(p._count.driveDocuments)],
       ["Распределено", `${money(alloc)} из ${money(amount)}`],
-      ["Остаток по платежу", Math.abs(rest) > 0.5 ? money(rest) : "—"],
+      ["Остаток по платежу", Math.abs(rest) > 0.5 ? money(rest) : "–"],
       ["Внесена", ruDate(p.createdAt)],
     ];
     out.push({

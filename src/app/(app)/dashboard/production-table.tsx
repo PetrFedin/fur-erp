@@ -138,7 +138,7 @@ export function build(orders: DrillOrder[], vat: "incl" | "excl", levels: Lvl[],
 }
 
 const money = (v: number) => formatMoney(Math.round(v));
-const dash = (v: number | null, f: (n: number) => string) => (v == null || !isFinite(v) ? "—" : f(v));
+const dash = (v: number | null, f: (n: number) => string) => (v == null || !isFinite(v) ? "–" : f(v));
 
 export function ProductionTable({ search, volume = "ordered" }: { search: Record<string, string[]>; volume?: VolumeMode }) {
   const { mode: vat } = useVatDisplay();
@@ -186,7 +186,7 @@ export function ProductionTable({ search, volume = "ordered" }: { search: Record
     const cls = "whitespace-nowrap px-2 text-right tabular-nums " + (small ? "py-1 text-xs " + (dark ? "text-neutral-900" : "text-neutral-600") : "py-1.5 text-sm");
     return (
       <>
-        <td className={cls}>{noQty ? "—" : formatQty(q)}</td>
+        <td className={cls}>{noQty ? "–" : formatQty(q)}</td>
         <td className={cls}>{dash(q > 0 ? sum5(m) / q : null, money)}</td>
         <td className={cls + (small ? "" : " font-medium")}>{money(sum5(m))}</td>
         <td className={cls + BL}>{money(m.fur + m.other)}</td>

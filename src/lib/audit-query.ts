@@ -96,7 +96,7 @@ export const fmtAt = (d: Date) => msk.format(d).replace(",", "");
 export function actorText(r: Pick<LogRow, "actorName" | "actorRole" | "source">): string {
   const ROLES: Record<string, string> = { OWNER: "владелец", ADMIN: "администратор", PURCHASER: "закупщик", WAREHOUSE: "кладовщик", TECHNOLOGIST: "технолог", ACCOUNTANT: "бухгалтер", VIEWER: "наблюдатель", SUPPLIER: "поставщик" };
   const role = r.actorRole ? `, ${ROLES[r.actorRole] ?? r.actorRole}` : "";
-  if (r.source === "ui" || r.source === "supplier") return `${r.actorName ?? "—"}${role}`;
+  if (r.source === "ui" || r.source === "supplier") return `${r.actorName ?? "–"}${role}`;
   if (r.actorName) return `${r.actorName}${role} · ${r.source}`;
   return r.source;
 }
@@ -108,7 +108,7 @@ const isPair = (v: unknown): v is [unknown, unknown] => Array.isArray(v) && v.le
 function pairLine(k: string, v: [unknown, unknown], full: boolean): string {
   const label = fieldLabel(k);
   if (k === "attributes") {
-    const show = (x: unknown) => (Array.isArray(x) && x.length ? x.map((p) => `${(p as { name?: string })?.name ?? "?"}: ${(p as { value?: string })?.value ?? ""}`).join("; ") : "—");
+    const show = (x: unknown) => (Array.isArray(x) && x.length ? x.map((p) => `${(p as { name?: string })?.name ?? "?"}: ${(p as { value?: string })?.value ?? ""}`).join("; ") : "–");
     return `${label}: ${show(v[0])} → ${show(v[1])}`;
   }
   if (full) return `${label}: ${isComplex(v[0]) ? JSON.stringify(v[0]) : showValue(v[0])} → ${isComplex(v[1]) ? JSON.stringify(v[1]) : showValue(v[1])}`;
@@ -184,7 +184,7 @@ function flatten(v: unknown, path: string[], out: Map<string, string>): void {
   }
   if (v && typeof v === "object") {
     const entries = Object.entries(v as Ch);
-    if (entries.length === 0) out.set(path.join(" · ") || "—", "—");
+    if (entries.length === 0) out.set(path.join(" · ") || "–", "–");
     for (const [k, x] of entries) flatten(x, k === "items" ? path : [...path, nestedLabel(k)], out);
     return;
   }
@@ -209,7 +209,7 @@ export function detailEntries(r: Pick<LogRow, "action" | "changes">): DetailEntr
     flatten(v[1], [], b);
     const keys = Array.from(new Set([...a.keys(), ...b.keys()]));
     const rows = keys
-      .map((key) => ({ key, before: a.get(key) ?? "—", after: b.get(key) ?? "—" }))
+      .map((key) => ({ key, before: a.get(key) ?? "–", after: b.get(key) ?? "–" }))
       .filter((x) => x.before !== x.after);
     out.push({ kind: "table", field: fieldLabel(k), rows, raw: JSON.stringify(v, null, 2) });
   }

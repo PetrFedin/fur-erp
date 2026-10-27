@@ -440,50 +440,50 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 })()}
               </Td>
               <Td data-col="category" className="text-neutral-700">
-                <div>{r.model.category?.trim() || "—"}</div>
+                <div>{r.model.category?.trim() || "–"}</div>
                 {r.group !== NO_GROUP ? <div className="text-[11px] text-neutral-400">{r.group}</div> : null}
               </Td>
               <Td data-col="fur" className="text-neutral-700" title={r.met.furNames.join(", ")}>
-                {r.primaryFur ?? "—"}
+                {r.primaryFur ?? "–"}
                 {r.met.furNames.length > 1 ? <span className="text-[11px] text-neutral-400"> +{r.met.furNames.length - 1}</span> : null}
               </Td>
               <Td data-col="color" className="text-neutral-700" title={r.colors.join(", ")}>
-                {r.colors.length ? r.colors.slice(0, 2).join(", ") : "—"}
+                {r.colors.length ? r.colors.slice(0, 2).join(", ") : "–"}
                 {r.colors.length > 2 ? <span className="text-[11px] text-neutral-400"> +{r.colors.length - 2}</span> : null}
               </Td>
-              <Td data-col="sizes" className="text-neutral-700 text-xs" title={r.sizes}>{r.sizes ? (r.sizes.length > 24 ? `${r.sizes.slice(0, 24)}…` : r.sizes) : "—"}</Td>
-              <Td data-col="lining" className="text-neutral-700 text-xs" title={r.lining}>{r.lining ? (r.lining.length > 32 ? `${r.lining.slice(0, 32)}…` : r.lining) : "—"}</Td>
-              <Td data-col="qty" className="text-right tabular-nums">{r.qty > 0 ? formatQty(r.qty) : "—"}</Td>
-              <Td data-col="stock" className="text-right tabular-nums">{r.stockQty > 0 ? formatQty(r.stockQty) : "—"}</Td>
+              <Td data-col="sizes" className="text-neutral-700 text-xs" title={r.sizes}>{r.sizes ? (r.sizes.length > 24 ? `${r.sizes.slice(0, 24)}…` : r.sizes) : "–"}</Td>
+              <Td data-col="lining" className="text-neutral-700 text-xs" title={r.lining}>{r.lining ? (r.lining.length > 32 ? `${r.lining.slice(0, 32)}…` : r.lining) : "–"}</Td>
+              <Td data-col="qty" className="text-right tabular-nums">{r.qty > 0 ? formatQty(r.qty) : "–"}</Td>
+              <Td data-col="stock" className="text-right tabular-nums">{r.stockQty > 0 ? formatQty(r.stockQty) : "–"}</Td>
               <Td data-col="furQty" className="text-right tabular-nums">
-                {r.met.fur.qty > 0 ? formatDec1(Math.round(r.met.fur.qty * 100) / 100) : "—"}
+                {r.met.fur.qty > 0 ? formatDec1(Math.round(r.met.fur.qty * 100) / 100) : "–"}
                 {r.met.fur.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.fur.qty, r.qty)} шк./изд.</div> : null}
                 {r.supplierFur ? <div className="text-[11px] text-neutral-400" title="Заявка подрядчика по артикулу, не итог по ТЗ">подрядчик: {r.supplierFur} шк./изд.</div> : null}
               </Td>
               <Td data-col="furSum" className="text-right"><CostTwo on={r.met.fur.on} off={r.met.fur.off} /></Td>
               <Td data-col="liningQty" className="text-right tabular-nums">
-                {r.met.lining.qty > 0 ? formatDec1(Math.round(r.met.lining.qty * 100) / 100) : "—"}
+                {r.met.lining.qty > 0 ? formatDec1(Math.round(r.met.lining.qty * 100) / 100) : "–"}
                 {r.met.lining.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.lining.qty, r.qty)} м/изд.</div> : null}
               </Td>
               <Td data-col="liningSum" className="text-right"><CostTwo on={r.met.lining.on} off={r.met.lining.off} /></Td>
               <Td data-col="work" className="text-right tabular-nums">
-                {r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "—"}
+                {r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "–"}
                 {r.supplierWork ? <div className="text-[11px] text-neutral-400" title="Заявка подрядчика по артикулу, не итог по ТЗ">подрядчик: {r.supplierWork}/изд.</div> : null}
               </Td>
               <Td data-col="total" className="text-right"><CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /></Td>
               <Td data-col="unit" className="text-right"><CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /></Td>
-              <Td data-col="vat" className="whitespace-nowrap tabular-nums text-neutral-700" title="Ставки НДС в строках списания">{r.met.vatRates.length ? r.met.vatRates.map((v) => `${v} %`).join(", ") : "—"}</Td>
+              <Td data-col="vat" className="whitespace-nowrap tabular-nums text-neutral-700" title="Ставки НДС в строках списания">{r.met.vatRates.length ? r.met.vatRates.map((v) => `${v} %`).join(", ") : "–"}</Td>
               <Td data-col="price" className="text-right">
                 <ArticlePriceForm modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} canEdit={canCreate} />
               </Td>
-              <Td data-col="markup" className="text-right tabular-nums">{r.markup ? fmtX(r.markup) : "—"}</Td>
+              <Td data-col="markup" className="text-right tabular-nums">{r.markup ? fmtX(r.markup) : "–"}</Td>
               <Td data-col="orders" className="text-right tabular-nums">
                 {r.orderCount > 0 ? (
                   <Link href={`/production?model=${r.id}`} className="text-blue-700 hover:underline" title="ТЗ этого артикула">
                     {r.orderCount}
                   </Link>
                 ) : (
-                  "—"
+                  "–"
                 )}
                 <div><Link href={`/sales/movement?m=${encodeURIComponent(r.name)}`} className="text-[11px] text-blue-700 hover:underline" title="Приход, продажи и остаток артикула">продажи</Link></div>
               </Td>
@@ -493,15 +493,15 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             <Tr className="row-total">
               <Td data-col="name"><TotalLabel unit="шт." /></Td>
               <Td data-col="photos" /><Td data-col="plu" /><Td data-col="shop" /><Td data-col="category" /><Td data-col="fur" /><Td data-col="color" /><Td data-col="sizes" /><Td data-col="lining" />
-              <Td data-col="qty" className="text-right tabular-nums">{totalQty > 0 ? formatQty(totalQty) : "—"}</Td>
-              <Td data-col="stock" className="text-right tabular-nums">{totalStock > 0 ? formatQty(totalStock) : "—"}</Td>
-              <Td data-col="furQty" className="text-right tabular-nums">{totalFurQty > 0 ? formatDec1(totalFurQty) : "—"}</Td>
+              <Td data-col="qty" className="text-right tabular-nums">{totalQty > 0 ? formatQty(totalQty) : "–"}</Td>
+              <Td data-col="stock" className="text-right tabular-nums">{totalStock > 0 ? formatQty(totalStock) : "–"}</Td>
+              <Td data-col="furQty" className="text-right tabular-nums">{totalFurQty > 0 ? formatDec1(totalFurQty) : "–"}</Td>
               <Td data-col="furSum" className="text-right"><CostTwo on={sumPair((r) => r.met.fur.on)} off={sumPair((r) => r.met.fur.off)} /></Td>
-              <Td data-col="liningQty" className="text-right tabular-nums">{totalLiningQty > 0 ? formatDec1(Math.round(totalLiningQty * 100) / 100) : "—"}</Td>
+              <Td data-col="liningQty" className="text-right tabular-nums">{totalLiningQty > 0 ? formatDec1(Math.round(totalLiningQty * 100) / 100) : "–"}</Td>
               <Td data-col="liningSum" className="text-right"><CostTwo on={sumPair((r) => r.met.lining.on)} off={sumPair((r) => r.met.lining.off)} /></Td>
               <Td data-col="work" className="text-right tabular-nums"><Money incl={sum((r) => r.met.work).toFixed(2)} excl={sum((r) => r.met.work).toFixed(2)} /></Td>
               <Td data-col="total" className="text-right"><CostTwo on={totalQty > 0 || totalCostIncl > 0 ? sumPair((r) => r.met.total.on) : null} off={sumPair((r) => r.met.total.off)} /></Td>
-              <Td data-col="unit" className="text-right">{totalQty > 0 ? <CostTwo on={{ incl: totalCostIncl / totalQty, excl: totalCostExcl / totalQty }} off={{ incl: sumPair((r) => r.met.total.off).incl / totalQty, excl: sumPair((r) => r.met.total.off).excl / totalQty }} /> : "—"}</Td>
+              <Td data-col="unit" className="text-right">{totalQty > 0 ? <CostTwo on={{ incl: totalCostIncl / totalQty, excl: totalCostExcl / totalQty }} off={{ incl: sumPair((r) => r.met.total.off).incl / totalQty, excl: sumPair((r) => r.met.total.off).excl / totalQty }} /> : "–"}</Td>
               <Td data-col="vat" /><Td data-col="price" /><Td data-col="markup" /><Td data-col="orders" />
             </Tr>
           )}
@@ -523,11 +523,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             subtitle={[r.model.category?.trim(), r.group !== NO_GROUP ? r.group : null, r.primaryFur, r.colors.slice(0, 2).join(", ") || null].filter(Boolean).join(" · ") || undefined}
             href={`/models/${r.id}`}
             fields={[
-              { label: "В выпуске, шт.", value: r.qty > 0 ? formatQty(r.qty) : "—", strong: true },
+              { label: "В выпуске, шт.", value: r.qty > 0 ? formatQty(r.qty) : "–", strong: true },
               { label: "Полная себестоимость итого", value: <CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /> },
               { label: "За ед.", value: <CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /> },
-              { label: "Наценка", value: r.markup ? fmtX(r.markup) : "—" },
-              { label: "ТЗ", value: r.orderCount > 0 ? <Link href={`/production?model=${r.id}`} className="underline">{r.orderCount}</Link> : "—" },
+              { label: "Наценка", value: r.markup ? fmtX(r.markup) : "–" },
+              { label: "ТЗ", value: r.orderCount > 0 ? <Link href={`/production?model=${r.id}`} className="underline">{r.orderCount}</Link> : "–" },
             ]}
             details={[
               ...(() => {
@@ -541,12 +541,12 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                   ...(canCreate ? [{ label: "Магазин и фото", value: <ArticleShopEditor modelId={r.id} title={r.name} /> }] : []),
                 ];
               })(),
-              { label: "Шкур, шт.", value: r.met.fur.qty > 0 ? `${formatDec1(Math.round(r.met.fur.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.fur.qty, r.qty)}/изд.)` : ""}` : "—" },
+              { label: "Шкур, шт.", value: r.met.fur.qty > 0 ? `${formatDec1(Math.round(r.met.fur.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.fur.qty, r.qty)}/изд.)` : ""}` : "–" },
               { label: "Шкуры, сумма", value: <CostTwo on={r.met.fur.on} off={r.met.fur.off} /> },
-              { label: "Подкладка, м", value: r.met.lining.qty > 0 ? `${formatDec1(Math.round(r.met.lining.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.lining.qty, r.qty)}/изд.)` : ""}` : "—" },
+              { label: "Подкладка, м", value: r.met.lining.qty > 0 ? `${formatDec1(Math.round(r.met.lining.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.lining.qty, r.qty)}/изд.)` : ""}` : "–" },
               { label: "Подкладка, сумма", value: <CostTwo on={r.met.lining.on} off={r.met.lining.off} /> },
-              { label: "Работа", value: r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "—" },
-              { label: "НДС в списаниях", value: r.met.vatRates.length ? r.met.vatRates.map((v) => `${v} %`).join(", ") : "—" },
+              { label: "Работа", value: r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "–" },
+              { label: "НДС в списаниях", value: r.met.vatRates.length ? r.met.vatRates.map((v) => `${v} %`).join(", ") : "–" },
             ]}
             extra={
               <div>

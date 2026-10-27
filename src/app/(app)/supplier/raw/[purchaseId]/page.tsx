@@ -102,7 +102,7 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
       if (p.currency === "RUB" && !(t && t.rate > 0)) return p.currency;
       const differ = rates.length > 1 || (t && t.rate > 0 && rates.some((r) => Math.abs(r - t.rate) > 0.0005));
       return (
-        <span key="rate" className="inline-flex flex-wrap items-center gap-1.5">{p.currency}, курс {main ? formatRate(main) : "—"}
+        <span key="rate" className="inline-flex flex-wrap items-center gap-1.5">{p.currency}, курс {main ? formatRate(main) : "–"}
           {differ && <span className="text-neutral-600">(по счетам: {invoices.filter((i) => i.rate > 0).map((i) => `${i.invoice || i.number} — ${formatRate(i.rate)}`).join("; ")})</span>}
           {h?.cbRate ? <InfoHint label="Из чего курс">Курс, по которому считается себестоимость. Курс ЦБ на дату: {h.cbRate}{h.agentPct ? `; надбавка агента ${h.agentPct} %` : ""}.</InfoHint> : null}
         </span>
@@ -202,7 +202,7 @@ export default async function SupplierAuctionPage({ params, searchParams }: Page
                     <PayChip info={invoicePayInfo(payData, i.id)} compact />
                     {has
                       ? <span className="font-medium text-green-800"><span aria-hidden>✓</span> есть</span>
-                      : <span className="text-neutral-500"><span aria-hidden>—</span> нет</span>}
+                      : <span className="text-neutral-500"><span aria-hidden>–</span> нет</span>}
                   </li>
                 );
               })}

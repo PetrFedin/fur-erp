@@ -44,7 +44,7 @@ export const REGISTRY_UPDATE_CMD = "npx tsx scripts/build-registry-coverage.ts";
 export type RegState = "found" | "partial" | "missing" | "later" | "untracked" | "none";
 export type RegCell = { state: RegState; text: string; title: string };
 
-export const REG_NONE: RegCell = { state: "none", text: "—", title: "" };
+export const REG_NONE: RegCell = { state: "none", text: "–", title: "" };
 
 const maxFoundTz = Math.max(
   0,

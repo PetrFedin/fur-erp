@@ -85,7 +85,7 @@ export default async function InboxPage({ searchParams }: PageProps<"/inbox">) {
                 <Td className="max-w-[22rem]"><Clamp><Link className="font-medium underline" title={r.title} href={`/inbox/${r.id}`}>{shortInboxTitle(r.title)}</Link></Clamp></Td>
                 <Td>{KIND_LABEL[r.kind]}</Td>
                 <Td>{r.supplier.name}</Td>
-                <Td className="tabular-nums">{tot != null ? `${tot} шт.` : "—"}</Td>
+                <Td className="tabular-nums">{tot != null ? `${tot} шт.` : "–"}</Td>
                 <Td>
                   <span className={cn("rounded-full px-2 py-0.5 text-xs", r.status === "SENT" ? "bg-amber-100 text-amber-900" : r.status === "ACCEPTED" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700")}>
                     {r.status === "ACCEPTED" ? "Принято" : INBOX_STATUS_LABEL[r.status]}

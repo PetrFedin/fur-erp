@@ -61,7 +61,7 @@ function Cell({ x }: { x: TileItem }) {
 /** Список «статья — сумма — доля %» под крупной цифрой плитки (как в плитках Оплат на Главной). */
 export function TileList({ items: itemsAll, stack = false }: { items: TileItem[]; /** Узкая плитка (ряд из шести): подпись над цифрой, а не в одну строку. */ stack?: boolean }) {
   // Вложенные строки (склад, использовано, 4%) без значения не выводим вовсе: ни «—», ни пустого места.
-  const items = itemsAll.filter((x) => !(x.sub && (isZeroMoney(x.v) || x.v === "—" || x.v === "")));
+  const items = itemsAll.filter((x) => !(x.sub && (isZeroMoney(x.v) || x.v === "–" || x.v === "")));
   if (stack) {
     return (
       <dl className="mt-2 space-y-1 text-xs">

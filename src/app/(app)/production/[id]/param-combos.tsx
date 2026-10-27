@@ -159,7 +159,7 @@ export function CategoryCell({
   const names = new Map(all.map((c) => [c.id, c.name]));
   const confirmedPick = async (id: string): Promise<CellResult> => {
     if (id === "") return {};
-    const ok = await ask(`Категория изменится у артикула и у всех его ТЗ (${tzCount} шт.). Сменить на «${names.get(id) ?? "—"}»?`, { ok: "Сменить категорию" });
+    const ok = await ask(`Категория изменится у артикула и у всех его ТЗ (${tzCount} шт.). Сменить на «${names.get(id) ?? "–"}»?`, { ok: "Сменить категорию" });
     if (!ok) throw new Error("Смена категории отменена");
     return onSave(id);
   };

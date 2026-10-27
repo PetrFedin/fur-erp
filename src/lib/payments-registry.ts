@@ -106,7 +106,7 @@ export async function loadPaymentsRegistryFull(orgId: string): Promise<RegistryF
     const row: RegistryRow = {
       code: paymentCode(o.kind, o.id), kind: o.kind, iso: o.iso, year: o.year, amount: o.amount,
       payer: PAYER_NAME,
-      counterparty: field(o, "Получатель") || "—",
+      counterparty: field(o, "Получатель") || "–",
       what: o.what === "Оплата" ? "Расчёт" : (o.what as "Аванс" | "Доплата"),
       targets, unallocated: o.unallocated,
       invoice, pp: ppText, cpId: o.kind === "raw" ? ex?.cpId ?? null : supByName.get(field(o, "Получатель")) ?? null, search,

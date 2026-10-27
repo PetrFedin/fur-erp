@@ -9,7 +9,7 @@ import { GroupSwitch, TileCarousel, type GroupSel } from "@/components/tile-caro
 import { TileCaption, TileList, TileValue } from "../dashboard/tile";
 
 const money = (v: number) => formatMoney(v.toFixed(2));
-const moneyNz = (v: number) => (Math.abs(v) < 0.5 ? "—" : money(v));
+const moneyNz = (v: number) => (Math.abs(v) < 0.5 ? "–" : money(v));
 const NO_FUR = "Мех не указан";
 const furOf = (o: DrillOrder) => o.fur || NO_FUR;
 const inGroup = (grp: string, g: GroupSel) => g === "all" || grp === g;
@@ -33,7 +33,7 @@ export function PerUnitCarousel({ orders, c4 }: { orders: DrillOrder[]; c4: "on"
     if (s.qty <= 0) {
       return (
         <>
-          <TileValue>—</TileValue>
+          <TileValue>–</TileValue>
           <TileCaption>нет изделий</TileCaption>
         </>
       );
@@ -98,19 +98,19 @@ export function MarkupCarousel({ rows }: { rows: MarkupRow[] }) {
     if (!a && list.every((r) => r.orders === 0)) {
       return (
         <>
-          <TileValue>—</TileValue>
+          <TileValue>–</TileValue>
           <TileCaption>нет изделий</TileCaption>
         </>
       );
     }
     return (
       <>
-        <TileValue>{a ? fmtX(a.markup) : "—"}</TileValue>
+        <TileValue>{a ? fmtX(a.markup) : "–"}</TileValue>
         <TileCaption>розница ÷ себестоимость, средневзвешенно{a ? "" : " · нет артикулов с ценой"}</TileCaption>
         <TileList items={[
-          { k: "Ср. розничная цена", v: a ? formatMoney(a.price.toFixed(0)) : "—" },
-          { k: "Артикулов с ценой", v: a ? String(a.n) : "—" },
-          { k: "Без цены", v: noPrice || "—" },
+          { k: "Ср. розничная цена", v: a ? formatMoney(a.price.toFixed(0)) : "–" },
+          { k: "Артикулов с ценой", v: a ? String(a.n) : "–" },
+          { k: "Без цены", v: noPrice || "–" },
         ]} />
       </>
     );

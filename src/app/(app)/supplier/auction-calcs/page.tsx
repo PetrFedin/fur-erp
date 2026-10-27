@@ -87,11 +87,11 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
               {heading && <Tr><Td colSpan={8} className="bg-neutral-50 py-1.5 text-sm font-semibold">{yr} год</Td></Tr>}
               <Tr>
                 <Td><Link className="font-medium underline max-md:inline-block max-md:py-3" href={`/supplier/auction-calcs/${r.id}`}>{dotAuctionDates(pl?.header?.auction || r.title)}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 max-w-[16rem] text-xs text-red-700"><Clamp>Замечание: {r.reviewNote}</Clamp></div>}</Td>
-                <Td className="max-w-[12rem]"><Clamp>{pl?.header?.invoice || "—"}</Clamp></Td>
+                <Td className="max-w-[12rem]"><Clamp>{pl?.header?.invoice || "–"}</Clamp></Td>
                 {!isSup && <Td>{r.supplier.name}</Td>}
-                <Td className="text-right tabular-nums">{qty ? formatQty(qty) : "—"}</Td>
-                <Td className="text-right tabular-nums">{qty ? money(total) : "—"}</Td>
-                <Td className="text-right tabular-nums">{qty ? money(total / qty) : "—"}</Td>
+                <Td className="text-right tabular-nums">{qty ? formatQty(qty) : "–"}</Td>
+                <Td className="text-right tabular-nums">{qty ? money(total) : "–"}</Td>
+                <Td className="text-right tabular-nums">{qty ? money(total / qty) : "–"}</Td>
                 <Td>{INBOX_STATUS_LABEL[r.status]}<span className="ml-2"><PayChip info={payOf(r)} compact /></span>{stage && <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${stage === "FINAL" ? "bg-green-50 text-green-800" : "bg-blue-50 text-blue-800"}`}>{STAGE_LABEL[stage]}</span>}</Td>
                 <Td className="whitespace-nowrap tabular-nums">{formatDate(r.sentAt ?? r.updatedAt)}</Td>
               </Tr>
@@ -104,9 +104,9 @@ export default async function AuctionCalcsPage({ searchParams }: PageProps<"/sup
           <tfoot>
             <tr className="row-total">
               <td colSpan={isSup ? 2 : 3} className="px-3 py-1.5"><TotalLabel unit="₽" extra={`· расчётов ${view.length}`} /></td>
-              <td className="px-3 py-1.5 text-right tabular-nums">{totQty ? formatQty(totQty) : "—"}</td>
-              <td className="px-3 py-1.5 text-right tabular-nums">{totQty ? money(totSum) : "—"}</td>
-              <td className="px-3 py-1.5 text-right tabular-nums">{totQty ? money(totSum / totQty) : "—"}</td>
+              <td className="px-3 py-1.5 text-right tabular-nums">{totQty ? formatQty(totQty) : "–"}</td>
+              <td className="px-3 py-1.5 text-right tabular-nums">{totQty ? money(totSum) : "–"}</td>
+              <td className="px-3 py-1.5 text-right tabular-nums">{totQty ? money(totSum / totQty) : "–"}</td>
               <td colSpan={2} />
             </tr>
           </tfoot>

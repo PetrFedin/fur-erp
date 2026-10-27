@@ -129,7 +129,7 @@ export function buildAuctionSummaries(purchases: PurchaseForPay[], auctionPaymen
       a.purchases++;
       a.total = a.total.add(t);
       a.perPurchase.push({ id: p.id, supplierId: p.supplierId, status: p.status, total: t, paid: done });
-      if (!a.suppliers.some((s) => s.id === p.supplierId)) a.suppliers.push({ id: p.supplierId, name: p.supplier?.name ?? "—" });
+      if (!a.suppliers.some((s) => s.id === p.supplierId)) a.suppliers.push({ id: p.supplierId, name: p.supplier?.name ?? "–" });
     }
     map.set(name, a);
   }

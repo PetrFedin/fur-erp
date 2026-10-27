@@ -158,7 +158,7 @@ export function VerifyControl({
 
 /** Отметка для списков: показывает только «не подтверждено» (ведёт в очередь /verify); подтверждённое не выводится. */
 export function VerifyPill({ flag, tab, className }: { flag: { verified: boolean; auto: boolean; letter?: boolean } | undefined; tab: "payments" | "purchases" | "orders" | "batches"; className?: string }) {
-  if (!flag) return <span className="text-neutral-500">—</span>;
+  if (!flag) return <span className="text-neutral-500">–</span>;
   if (flag.verified) return null;
   return (
     <Link

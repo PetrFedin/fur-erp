@@ -49,7 +49,7 @@ export function vatBreakdown(usages: UsageForVat[], mode: Commission4Mode): VatB
 export function vatKindLabel(b: Pick<VatBreakdown, "kind" | "rows">): string {
   switch (b.kind) {
     case "none":
-      return "—";
+      return "–";
     case "mixed":
       return "смешанный";
     case "other":

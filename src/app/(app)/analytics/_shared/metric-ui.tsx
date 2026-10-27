@@ -8,9 +8,9 @@ import { COLUMNS, COL_KEYS, derived, type ColKey, type Metrics, type SortDir } f
 
 export const pct1 = (x: number) => formatShare(x);
 export const pct0 = (x: number) => formatShare(x);
-export const q2 = (x: number | null) => (x == null ? "—" : formatQty(Math.round(x * 100) / 100));
+export const q2 = (x: number | null) => (x == null ? "–" : formatQty(Math.round(x * 100) / 100));
 
-const Dash = () => <span className="text-neutral-500">—</span>;
+const Dash = () => <span className="text-neutral-500">–</span>;
 
 /** Ячейка колонки для показателей строки. total — показатели всей таблицы (для «Доли»). */
 export function MetricCell({ col, m, total }: { col: ColKey; m: Metrics; total: Metrics }): ReactNode {
@@ -21,15 +21,15 @@ export function MetricCell({ col, m, total }: { col: ColKey; m: Metrics; total: 
     case "units":
       return formatQty(m.units);
     case "share":
-      return total.units > 0 ? pct1(m.units / total.units) : "—";
+      return total.units > 0 ? pct1(m.units / total.units) : "–";
     case "skinsUnit":
       return q2(d.skinsPerUnit);
     case "skins":
-      return m.skins > 0 ? formatDec1(m.skins) : "—";
+      return m.skins > 0 ? formatDec1(m.skins) : "–";
     case "liningUnit":
       return q2(d.liningPerUnit);
     case "liningSum":
-      return m.liningM > 0 ? formatDec1(Math.round(m.liningM * 100) / 100) : "—";
+      return m.liningM > 0 ? formatDec1(Math.round(m.liningM * 100) / 100) : "–";
     case "furUnit":
       return d.furPerUnit ? <Money incl={d.furPerUnit.incl} excl={d.furPerUnit.excl} /> : <Dash />;
     case "furSkin":

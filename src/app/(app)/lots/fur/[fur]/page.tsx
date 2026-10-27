@@ -73,7 +73,7 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {["Куплено", "Остаток"].map((t) => (
-            <div key={t} className={TILE_BOX}><TileHead>{t}</TileHead><TileValue compact>—</TileValue><TileCaption>закупок и лотов нет</TileCaption></div>
+            <div key={t} className={TILE_BOX}><TileHead>{t}</TileHead><TileValue compact>–</TileValue><TileCaption>закупок и лотов нет</TileCaption></div>
           ))}
           <div className={TILE_BOX}><TileHead>Использовано</TileHead><TileValue compact>{units} изд.</TileValue><TileCaption>{ords.length} ТЗ · {formatMoney(ords.reduce((a, o) => a + o.work, 0))} по ТЗ</TileCaption></div>
         </div>
@@ -90,10 +90,10 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
                   <tr key={o.id} className="border-t border-neutral-100">
                     <td className="px-2 py-1.5"><Link href={`/production/${o.id}`} className="text-blue-700 hover:underline" title={`Внутренний номер заказа ${o.number}`}>{orderLabel({ ...o, ...tzPos.get(o.id) })}</Link></td>
                     <td className="truncate px-2 py-1.5 text-xs" title={o.modelHint}>{o.modelLabel || o.modelName}</td>
-                    <td className="truncate px-2 py-1.5 text-xs">{o.batchText ?? "—"}</td>
+                    <td className="truncate px-2 py-1.5 text-xs">{o.batchText ?? "–"}</td>
                     <td className="px-2 py-1.5 text-right">{o.qty}</td>
-                    <td className="px-2 py-1.5 text-right">{o.work > 0 ? formatMoney(o.work) : "—"}</td>
-                    <td className="px-2 py-1.5 text-right">{o.work > 0 && o.qty > 0 ? formatMoney(Math.round(o.work / o.qty)) : "—"}</td>
+                    <td className="px-2 py-1.5 text-right">{o.work > 0 ? formatMoney(o.work) : "–"}</td>
+                    <td className="px-2 py-1.5 text-right">{o.work > 0 && o.qty > 0 ? formatMoney(Math.round(o.work / o.qty)) : "–"}</td>
                   </tr>
                 ))}
                 {ords.length === 0 ? <tr><td colSpan={6} className="px-3 py-5 text-center text-neutral-500">ТЗ нет</td></tr> : (

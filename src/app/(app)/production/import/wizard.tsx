@@ -265,7 +265,7 @@ function ResultView({ r }: { r: ImportResult }) {
               <tr key={o.id} className="border-t border-neutral-100">
                 <td className="py-1 pr-3"><Link className="text-blue-600 hover:underline" href={`/production/${o.id}`}>№ {o.workOrderNumber || o.number}</Link></td>
                 <td className="pr-3">{qtyFmt(o.qty)}</td><td className="pr-3">{money(o.cost)}</td><td className="pr-3">{money(o.costWith4)}</td><td className="pr-3">{money(o.work)}</td>
-                <td className="text-xs text-amber-700">{o.missingDocs.length ? o.missingDocs.join("; ") : "—"}</td>
+                <td className="text-xs text-amber-700">{o.missingDocs.length ? o.missingDocs.join("; ") : "–"}</td>
               </tr>
             ))}
           </tbody>

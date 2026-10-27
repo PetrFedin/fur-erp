@@ -14,7 +14,7 @@ export type ActionState = { ok?: boolean; error?: string; id?: string; at?: numb
 async function actor(): Promise<CommentActor | null> {
   const s = await getFreshSession();
   if (!s) return null;
-  return { id: s.user.id, name: s.user.name ?? "—", role: s.user.role, organizationId: s.user.organizationId };
+  return { id: s.user.id, name: s.user.name ?? "–", role: s.user.role, organizationId: s.user.organizationId };
 }
 const NO_SESSION = { ok: false as const, error: "Нужно войти в систему заново." };
 const NO_DB = { ok: false as const, error: "Комментарии ещё не подключены к работающему серверу: после обновления схемы сервер нужно перезапустить." };

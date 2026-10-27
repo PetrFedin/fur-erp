@@ -31,7 +31,7 @@ export type ExtraRow = { key: string; label: string; sub?: string; href?: string
 const money = (v: number) => (Math.abs(v) < 0.005 ? <Dash /> : formatMoney(v.toFixed(2)));
 /** Долг: отрицательный — «Переплата N ₽» (только отображение). */
 const restMoney = (v: number, base?: number) =>
-  isRoundingRest(v, base) ? <span title={roundingRestHint(v)} className="cursor-help">—</span> : v < -OVERPAY_FROM ? formatDebt(v) : money(v);
+  isRoundingRest(v, base) ? <span title={roundingRestHint(v)} className="cursor-help">–</span> : v < -OVERPAY_FROM ? formatDebt(v) : money(v);
 const qty = (v: number) => (Math.abs(v) < 0.0005 ? <Dash /> : formatDec1(v));
 const restCls = (v: number, base?: number) => (isRoundingRest(v, base) ? "" : v > 0.5 ? " text-amber-700" : v < -0.5 ? " text-emerald-700" : "");
 const BL = " border-l border-neutral-200";
@@ -294,7 +294,7 @@ function ItemRows({ x, open, flip, pk }: { x: TreeItem; open: Set<string>; flip:
           {x.lotId ? (
             <Link href={`/analytics/raw/lot/${x.lotId}`} title="Открыть карточку лота" aria-label={`Карточка лота ${x.lot ?? ""}`} className="ml-1.5 text-[11px] text-neutral-400 hover:text-blue-700 hover:underline">↗</Link>
           ) : (
-            <span className="ml-1.5 text-[11px] text-neutral-300" title="Лота на складе ещё нет: закупка не принята" aria-label="Карточки лота нет">—</span>
+            <span className="ml-1.5 text-[11px] text-neutral-300" title="Лота на складе ещё нет: закупка не принята" aria-label="Карточки лота нет">–</span>
           )}
           {detail || prices ? <div className="pl-5 text-[11px] text-neutral-500">{[detail, prices].filter(Boolean).join(" · ")}</div> : null}
         </td>

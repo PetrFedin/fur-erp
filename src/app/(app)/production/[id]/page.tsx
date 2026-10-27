@@ -548,7 +548,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             <SectionRow>Доп. расходы</SectionRow>
             <CollapsibleRows rows={expenseRows} colSpan={8} what="расходы" />
             {order.expenses.length === 0 && <EmptyRow>Нет доп. расходов</EmptyRow>}
-            <TotalRow label={<TotalLabel note="доп. расходы" />} value={expenseCost.isZero() ? "—" : formatMoney(expenseCost.toString())} />
+            <TotalRow label={<TotalLabel note="доп. расходы" />} value={expenseCost.isZero() ? "–" : formatMoney(expenseCost.toString())} />
 
             {!hidesI.isZero() && (
               <>

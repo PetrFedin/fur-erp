@@ -181,7 +181,7 @@ function qtyTextOf(atoms: Atom[], dim: Dim): string {
     const f = atoms.filter((a) => a.k === "f").reduce((s, a) => s + a.q, 0);
     const l = atoms.filter((a) => a.k === "l").reduce((s, a) => s + a.q, 0);
     const parts = [f > 0 ? `${nf(f)} шк.` : "", l > 0 ? `${nf(l)} м` : ""].filter(Boolean);
-    return parts.join(" · ") || "—";
+    return parts.join(" · ") || "–";
   }
   if (atoms.length && atoms.every((a) => a.o.cat === "Ремонт")) return `ремонт · ${new Set(atoms.map((a) => a.o.id)).size} ТЗ`;
   const seen = new Set<string>();

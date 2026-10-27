@@ -38,7 +38,7 @@ function AttrsEditor({ lotId, current, options }: { lotId: string; current: stri
   return (
     <span className="block">
       <span className="flex flex-wrap items-center gap-1.5">
-        {current.length === 0 ? <span className="text-sm text-neutral-500">—</span> : null}
+        {current.length === 0 ? <span className="text-sm text-neutral-500">–</span> : null}
         {current.map((id) => (
           <span key={id} className="inline-flex items-center gap-1 rounded-full border border-neutral-300 px-2 py-0.5 text-xs">
             {byId.get(id)?.name ?? id}
@@ -229,7 +229,7 @@ function PassportBlock({ sec, canEdit, edit }: { sec: PassportSection; canEdit: 
           <tr key={f.label} className="border-t border-neutral-100 align-top">
             <th scope="row" className="w-[40%] px-3 py-1.5 text-xs font-medium text-neutral-500 sm:w-56">{f.label}</th>
             <td className="min-w-0 break-words px-2 py-1 text-sm">
-              {editable ? (f.editor ?? edit(f)) : <span className="block whitespace-pre-wrap px-1.5 py-0.5 tabular-nums">{f.node ?? (f.value ? f.value : "—")}</span>}
+              {editable ? (f.editor ?? edit(f)) : <span className="block whitespace-pre-wrap px-1.5 py-0.5 tabular-nums">{f.node ?? (f.value ? f.value : "–")}</span>}
               {f.note && (editable || !canEdit) ? <span className="block px-1.5 text-[11px] leading-4 text-neutral-500">{f.note}</span> : null}
             </td>
           </tr>

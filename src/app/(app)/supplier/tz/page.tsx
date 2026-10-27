@@ -61,7 +61,7 @@ export default async function SupplierTzPage({ searchParams }: PageProps<"/suppl
             <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
               <span aria-hidden className="inline-block w-3 text-neutral-500 transition-transform group-open:rotate-90">›</span>
               <span className="font-semibold">{batch ? `Партия ${batch}` : "Вне партий"}</span>
-              <span className="text-xs text-neutral-500">ТЗ: {list.length} · изделий: {total || "—"}</span>
+              <span className="text-xs text-neutral-500">ТЗ: {list.length} · изделий: {total || "–"}</span>
             </summary>
             <div className="overflow-x-auto border-t border-neutral-100">
               <Table className="min-w-[820px]">
@@ -78,7 +78,7 @@ export default async function SupplierTzPage({ searchParams }: PageProps<"/suppl
                     <Tr key={r.id}>
                       <Td><Link className="font-medium underline max-md:inline-block max-md:py-3" href={`/supplier/tz/${r.id}`}>{r.title}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 text-xs text-red-700">Замечание: {r.reviewNote}</div>}</Td>
                       {!isSup && <Td>{r.supplier.name}</Td>}
-                      <Td className="text-right tabular-nums">{qty(r) || "—"}</Td>
+                      <Td className="text-right tabular-nums">{qty(r) || "–"}</Td>
                       <Td>{INBOX_STATUS_LABEL[r.status]}<span className="ml-2"><PayChip info={pays.get(r.id) ?? null} compact /></span></Td>
                       <Td className="tabular-nums">{formatDate(r.sentAt ?? r.updatedAt)}</Td>
                       <Td className="whitespace-nowrap"><Link href={`/supplier/tz/${r.id}`} className={buttonVariants({ size: "sm", variant: "outline" })}>Открыть</Link> <TzRowButtons id={r.id} /></Td>

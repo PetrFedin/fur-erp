@@ -35,7 +35,7 @@ export function compareWithPlan(d: Fw27Data | null, rows: PlanRow[]): CompareRow
     const lens = ["Short", "Regular", "Long"].filter((l) => planRows.some((r) => r.len === l && r.pcs > 0) || slides.some((s) => s.len === l));
     const subRow = (len: string | null): CompareRow => {
       const ss = slides.filter((s) => (len === null ? s.len === null : s.len === len));
-      return { key: `${k}|${len ?? "—"}`, fur, cat, len, plan: len === null ? 0 : planRows.filter((r) => r.len === len).reduce((t, r) => t + r.pcs, 0), file: ss.reduce((t, s) => t + slidePcs(s), 0), photos: photoCount(ss), noNumber: ss.reduce((t, s) => t + s.items.filter((i) => i.pcs === null).length, 0), sub: [], crit: { fur, cat, ...(len ? { len } : {}) } };
+      return { key: `${k}|${len ?? "–"}`, fur, cat, len, plan: len === null ? 0 : planRows.filter((r) => r.len === len).reduce((t, r) => t + r.pcs, 0), file: ss.reduce((t, s) => t + slidePcs(s), 0), photos: photoCount(ss), noNumber: ss.reduce((t, s) => t + s.items.filter((i) => i.pcs === null).length, 0), sub: [], crit: { fur, cat, ...(len ? { len } : {}) } };
     };
     const sub = [...lens.map(subRow), ...(slides.some((s) => s.len === null) ? [subRow(null)] : [])];
     out.push({ key: k, fur, cat, len: null, plan: planTotal, file: fileTotal, photos: photoCount(slides), noNumber: slides.reduce((t, s) => t + s.items.filter((i) => i.pcs === null).length, 0), sub, crit: { fur, cat } });

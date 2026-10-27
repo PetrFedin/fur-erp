@@ -170,7 +170,7 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
         <p className="text-sm text-neutral-500">
           {[batch.year ? `${batch.year} г.` : null, batch.plannedUnits != null ? `план ${batch.plannedUnits} изд.` : null]
             .filter(Boolean)
-            .join(" · ") || "—"}
+            .join(" · ") || "–"}
         </p>
         {cleanNote(batch.notes) && <p className="mt-1 text-sm text-neutral-600 whitespace-pre-line">{cleanNote(batch.notes)}</p>}
         {canEditProduction(session.user.role) && (
@@ -206,7 +206,7 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
           <div className="relative">
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
               <TileHead>Остаток работы</TileHead>
-              <TileValue className={t.remaining.greaterThan(1) ? "text-amber-700" : ""}>{t.remaining.abs().lessThan(1) ? "—" : mny(Math.abs(Number(t.remaining)))}</TileValue>
+              <TileValue className={t.remaining.greaterThan(1) ? "text-amber-700" : ""}>{t.remaining.abs().lessThan(1) ? "–" : mny(Math.abs(Number(t.remaining)))}</TileValue>
               <TileCaption>{overpaid ? "оплачено сверх работы" : "работа − оплачено"}</TileCaption>
               <TileList items={[
                 { k: "Работа", v: mny(workN) },
@@ -285,11 +285,11 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
                       {o.client && <span className="block text-xs text-neutral-500">{o.client.name}</span>}
                     </Td>
                     <Td>{formatQty(s.qty.toString())}</Td>
-                    <Td className="hidden whitespace-nowrap sm:table-cell">{s.cost.isZero() ? "—" : formatMoney(s.cost.toString())}</Td>
-                    <Td className="hidden whitespace-nowrap md:table-cell">{s.work.isZero() ? "—" : formatMoney(s.work.toString())}</Td>
-                    <Td className="hidden whitespace-nowrap md:table-cell">{paidByOrder.has(o.id) ? formatMoney(paidByOrder.get(o.id)!.toString()) : "—"}</Td>
+                    <Td className="hidden whitespace-nowrap sm:table-cell">{s.cost.isZero() ? "–" : formatMoney(s.cost.toString())}</Td>
+                    <Td className="hidden whitespace-nowrap md:table-cell">{s.work.isZero() ? "–" : formatMoney(s.work.toString())}</Td>
+                    <Td className="hidden whitespace-nowrap md:table-cell">{paidByOrder.has(o.id) ? formatMoney(paidByOrder.get(o.id)!.toString()) : "–"}</Td>
                     <Td className="hidden whitespace-nowrap md:table-cell">
-                      {s.work.isZero() || o.status === "CANCELLED" ? "—" : (() => { const left = s.work.sub(paidByOrder.get(o.id) ?? 0); return <span className={left.greaterThan(0.005) ? "text-amber-700" : left.lessThan(-0.005) ? "text-red-600" : ""}>{formatMoney(left.toString())}</span>; })()}
+                      {s.work.isZero() || o.status === "CANCELLED" ? "–" : (() => { const left = s.work.sub(paidByOrder.get(o.id) ?? 0); return <span className={left.greaterThan(0.005) ? "text-amber-700" : left.lessThan(-0.005) ? "text-red-600" : ""}>{formatMoney(left.toString())}</span>; })()}
                     </Td>
                     <Td className="hidden whitespace-nowrap md:table-cell">
                       <TzVatBadge b={vatBreakdown(o.materialUsages, c4Mode)} compact />
@@ -331,12 +331,12 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
                   subtitle={<><ArticleName model={o.productModel} />{o.client ? ` · ${o.client.name}` : ""}</>}
                   fields={[
                     { label: "Кол-во, шт.", value: formatQty(s.qty.toString()) },
-                    { label: "Себестоимость сырья, ₽", value: s.cost.isZero() ? "—" : formatMoney(s.cost.toString()) },
-                    { label: "Работа, ₽", value: s.work.isZero() ? "—" : formatMoney(s.work.toString()) },
-                    { label: "Остаток, ₽", value: left == null ? "—" : <span className={left.greaterThan(0.005) ? "text-amber-700" : left.lessThan(-0.005) ? "text-red-600" : ""}>{formatMoney(left.toString())}</span> },
+                    { label: "Себестоимость сырья, ₽", value: s.cost.isZero() ? "–" : formatMoney(s.cost.toString()) },
+                    { label: "Работа, ₽", value: s.work.isZero() ? "–" : formatMoney(s.work.toString()) },
+                    { label: "Остаток, ₽", value: left == null ? "–" : <span className={left.greaterThan(0.005) ? "text-amber-700" : left.lessThan(-0.005) ? "text-red-600" : ""}>{formatMoney(left.toString())}</span> },
                   ]}
                   details={[
-                    { label: "Оплачено, ₽", value: paidByOrder.has(o.id) ? formatMoney(paidByOrder.get(o.id)!.toString()) : "—" },
+                    { label: "Оплачено, ₽", value: paidByOrder.has(o.id) ? formatMoney(paidByOrder.get(o.id)!.toString()) : "–" },
                     { label: "НДС", value: <TzVatBadge b={vatBreakdown(o.materialUsages, c4Mode)} compact /> },
                   ]}
                 />
@@ -345,7 +345,7 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
             {orders.length > 0 && (
               <div className="row-total flex flex-wrap justify-between gap-x-3 gap-y-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm">
                 <span><TotalLabel unit="₽" /> · {tzCountText(t.orders, t.items)}</span>
-                <span className="tabular-nums">{t.work.isZero() ? "—" : formatMoney(t.work.toString())}</span>
+                <span className="tabular-nums">{t.work.isZero() ? "–" : formatMoney(t.work.toString())}</span>
               </div>
             )}
             {orders.length === 0 && <p className="py-4 text-center text-sm text-neutral-500">К партии пока не привязано ни одного ТЗ.</p>}
@@ -397,8 +397,8 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
                     {!p.confirmed && <span className="ml-1 text-xs text-amber-700">не подтверждена</span>}
                   </Td>
                   <Td className="whitespace-nowrap font-medium">{formatMoney(p.amount.toString())}</Td>
-                  <Td className="hidden whitespace-nowrap sm:table-cell">{shareByPay.has(p.id) ? formatMoney(shareByPay.get(p.id)!.toString()) : "—"}</Td>
-                  <Td className="hidden sm:table-cell">{p.docRef ?? "—"}</Td>
+                  <Td className="hidden whitespace-nowrap sm:table-cell">{shareByPay.has(p.id) ? formatMoney(shareByPay.get(p.id)!.toString()) : "–"}</Td>
+                  <Td className="hidden sm:table-cell">{p.docRef ?? "–"}</Td>
                   <Td className="hidden sm:table-cell">{tz.join(", ")}</Td>
                 </Tr>
               ))}
@@ -420,9 +420,9 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
                 subtitle={<>{p.status === "PENDING" && "план"}{!p.confirmed && <span className="text-amber-700">{p.status === "PENDING" ? " · " : ""}не подтверждена</span>}</>}
                 fields={[
                   { label: "Сумма, ₽", value: formatMoney(p.amount.toString()), strong: true },
-                  { label: "На ТЗ партии, ₽", value: shareByPay.has(p.id) ? formatMoney(shareByPay.get(p.id)!.toString()) : "—" },
-                  { label: "Документ", value: p.docRef ?? "—" },
-                  { label: "ТЗ", value: tz.join(", ") || "—" },
+                  { label: "На ТЗ партии, ₽", value: shareByPay.has(p.id) ? formatMoney(shareByPay.get(p.id)!.toString()) : "–" },
+                  { label: "Документ", value: p.docRef ?? "–" },
+                  { label: "ТЗ", value: tz.join(", ") || "–" },
                 ]}
               />
             ))}

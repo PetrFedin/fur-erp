@@ -116,7 +116,7 @@ export function CostBreakdownToggle({
             <div className="border-t border-neutral-200 p-3">
               {(breakdown.exchangeRateInvoice || breakdown.exchangeRateFixed) && (
                 <p className="mb-1 text-neutral-500">
-                  Курс инвойса: {breakdown.exchangeRateInvoice ? fmtRate(Number(breakdown.exchangeRateInvoice)) : "—"} · Курс ЦБ (фиксация): {breakdown.exchangeRateFixed ? fmtRate(Number(breakdown.exchangeRateFixed)) : "—"}
+                  Курс инвойса: {breakdown.exchangeRateInvoice ? fmtRate(Number(breakdown.exchangeRateInvoice)) : "–"} · Курс ЦБ (фиксация): {breakdown.exchangeRateFixed ? fmtRate(Number(breakdown.exchangeRateFixed)) : "–"}
                 </p>
               )}
               <BreakdownTable items={breakdown.items ?? []} />

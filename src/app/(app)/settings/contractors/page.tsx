@@ -44,7 +44,7 @@ export default async function ContractorsPage({ searchParams }: PageProps<"/sett
           {rows.map((c) => (
             <Tr key={c.id} className={c.isActive ? "" : "text-neutral-500"}>
               <Td className="font-medium"><Link href={`/settings/contractors/${c.id}`} className="hover:underline">{c.name}</Link>{!c.isActive && <span className="ml-2 text-xs">в архиве</span>}</Td>
-              <Td>{contracts.filter((k) => k.supplierId === c.id).map((k) => `№ ${k.number}`).join(", ") || "—"}</Td>
+              <Td>{contracts.filter((k) => k.supplierId === c.id).map((k) => `№ ${k.number}`).join(", ") || "–"}</Td>
               <Td className="text-right tabular-nums">{cnt.get(c.id) ?? 0}</Td>
               <Td>{c.suppliesRaw ? "поставляет" : "нет"}</Td>
               <Td>

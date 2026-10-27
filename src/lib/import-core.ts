@@ -60,7 +60,7 @@ export function fmtN(v: number, digits = 0): string {
   return v.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits }).replace(/ /g, NBSP);
 }
 const fmtDay = (iso: string) => iso.split("-").reverse().join(".");
-const show = (v: unknown, digits = 2) => (v == null || v === "" ? "—" : typeof v === "number" ? fmtN(v, Number.isInteger(v) ? 0 : digits) : String(v));
+const show = (v: unknown, digits = 2) => (v == null || v === "" ? "–" : typeof v === "number" ? fmtN(v, Number.isInteger(v) ? 0 : digits) : String(v));
 
 export function cap<T>(list: T[], n: number): T[] { return list.length > n ? list.slice(0, n) : list; }
 
@@ -136,7 +136,7 @@ export function buildModelIndex(models: ModelRef[]): Map<string, ModelRef[]> {
 }
 
 function lineTitle(l: { kind: string; orderNo: string; article: string; colorId: string | null; iso: string }) {
-  return `${l.kind === "SALE" ? "Продажа" : "Поступление"} · ${l.orderNo} · ${l.article} · ${l.colorId ?? "—"} · ${fmtDay(l.iso)}`;
+  return `${l.kind === "SALE" ? "Продажа" : "Поступление"} · ${l.orderNo} · ${l.article} · ${l.colorId ?? "–"} · ${fmtDay(l.iso)}`;
 }
 
 export function dbRowToLine(r: SalesRowDb): ParsedLine {
@@ -177,7 +177,7 @@ export function diffSales(parsed: SalesParsed, db: SalesRowDb[], models: ModelRe
   let same = 0;
   for (const l of lines) {
     const row = dbByKey.get(l.sourceKey);
-    if (!row) { added.push(l); diffs.push({ key: lineTitle(l), field: "строка", before: "—", after: "новая" }); continue; }
+    if (!row) { added.push(l); diffs.push({ key: lineTitle(l), field: "строка", before: "–", after: "новая" }); continue; }
     const fields: string[] = [];
     for (const { f, label, money } of SALES_FIELDS) {
       const a = row[f] as unknown, b = l[f] as unknown;
@@ -225,7 +225,7 @@ export function diffSales(parsed: SalesParsed, db: SalesRowDb[], models: ModelRe
 
 export type PriceRow = { acode: string; color: string; size: string; price: number; modelCode: string };
 export const priceKey = (r: { acode: string; color: string; size: string }) => `${r.acode}|${r.color}|${r.size}`;
-const priceTitle = (r: { acode: string; color: string; size: string }) => `${r.acode} · ${r.color || "—"} · ${r.size || "—"}`;
+const priceTitle = (r: { acode: string; color: string; size: string }) => `${r.acode} · ${r.color || "–"} · ${r.size || "–"}`;
 
 /** Ключи строк с учётом повторов: второй и следующий повтор того же ключа получает суффикс «#2», «#3» (порядок строк в файле). */
 export function withDupKeys<T>(rows: T[], keyOf: (r: T) => string): { key: string; row: T; n: number }[] {
@@ -292,7 +292,7 @@ export function diffPrices(file: { rows: PriceRow[]; errors: string[]; warnings:
   let added = 0, changed = 0, same = 0;
   for (const { key, row: r } of withDupKeys(file.rows, priceKey)) {
     const c = cur.get(key);
-    if (!c) { added++; diffs.push({ key: priceTitle(r), field: "строка", before: "—", after: `${fmtN(r.price)} ₽` }); continue; }
+    if (!c) { added++; diffs.push({ key: priceTitle(r), field: "строка", before: "–", after: `${fmtN(r.price)} ₽` }); continue; }
     if (Math.abs(c.price - r.price) >= 0.005) { changed++; diffs.push({ key: priceTitle(r), field: "Цена, ₽", before: fmtN(c.price), after: fmtN(r.price) }); } else same++;
   }
   const fileKeys = new Set(withDupKeys(file.rows, priceKey).map((x) => x.key));
@@ -340,7 +340,7 @@ export function parseSizesWorkbook(wb: ExcelJS.Workbook): { rows: SizeRow[]; tot
     if (nums.some((x) => !Number.isFinite(x))) { errors.push(`Report, строка ${rn}: в числовых столбцах не число`); return; }
     const r: SizeRow = { acode: String(v[7]), color: String(v[17] ?? ""), size: String(v[14] ?? ""), modelCode: modelCodeOfArticle(String(v[7])), cls: classOfLevel2(String(v[10] ?? "")), conf: nums[0], deliv: nums[1], sold: nums[2], stock: nums[3], nsRub: nums[4], nsRubEx: nums[5] };
     const k = sizeKey(r);
-    if (seen.has(k)) warnings.push(`Report, строка ${rn}: повтор ключа ${r.acode} · ${r.color || "—"} · ${r.size || "—"} — сохраняется по порядку строк`);
+    if (seen.has(k)) warnings.push(`Report, строка ${rn}: повтор ключа ${r.acode} · ${r.color || "–"} · ${r.size || "–"} — сохраняется по порядку строк`);
     seen.add(k);
     rows.push(r);
   });
@@ -366,10 +366,10 @@ export function diffSizes(file: { rows: SizeRow[]; total: SizeTotal; errors: str
   const cur = new Map(withDupKeys(current, sizeKey).map((x) => [x.key, x.row]));
   const diffs: DiffItem[] = [];
   let added = 0, changed = 0, same = 0;
-  const title = (r: SizeRow) => `${r.acode} · ${r.color || "—"} · ${r.size || "—"}`;
+  const title = (r: SizeRow) => `${r.acode} · ${r.color || "–"} · ${r.size || "–"}`;
   for (const { key, row: r } of withDupKeys(file.rows, sizeKey)) {
     const c = cur.get(key);
-    if (!c) { added++; diffs.push({ key: title(r), field: "строка", before: "—", after: `продано ${fmtN(r.sold)}, остаток ${fmtN(r.stock)}` }); continue; }
+    if (!c) { added++; diffs.push({ key: title(r), field: "строка", before: "–", after: `продано ${fmtN(r.sold)}, остаток ${fmtN(r.stock)}` }); continue; }
     let any = false;
     for (const k of SIZE_NUM) if (Math.abs((c[k] ?? 0) - r[k]) >= 0.005) { any = true; diffs.push({ key: title(r), field: SIZE_LABEL[k], before: fmtN(c[k] ?? 0, 2), after: fmtN(r[k], 2) }); }
     if (any) changed++; else same++;
@@ -445,7 +445,7 @@ export function previewPhotos(cands: PhotoCandidate[], models: (ModelRef & { id:
   part.counts = { added, changed: 0, same, removed: 0, errors: 0 };
   part.diffTotal = diffs.length;
   part.diffs = cap(diffs, 3000);
-  part.totals = [{ label: "Строк на листе «фото»", file: fmtN(cands.length), db: "—" }, { label: "Картинок", file: fmtN(use.size), db: "—" }];
+  part.totals = [{ label: "Строк на листе «фото»", file: fmtN(cands.length), db: "–" }, { label: "Картинок", file: fmtN(use.size), db: "–" }];
   if (shared.length) part.warnings.push(`Одна картинка у нескольких строк — не вносится, выбор за вами (${shared.length}): ${shared.slice(0, 5).join("; ")}${shared.length > 5 ? " …" : ""}`);
   if (unmatched.length) part.warnings.push(`Артикул не сопоставлен с изделием (${unmatched.length}): ${unmatched.slice(0, 5).join("; ")}${unmatched.length > 5 ? " …" : ""}`);
   if (ambiguous.length) part.warnings.push(`Неоднозначно, код у нескольких изделий (${ambiguous.length}): ${ambiguous.slice(0, 5).join("; ")}${ambiguous.length > 5 ? " …" : ""}`);

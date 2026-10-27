@@ -56,13 +56,13 @@ const firstOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] :
 /** Карточка /analytics/raw/lot/<id> есть только у настоящих лотов: строки «заказано, не получено» (ordered:…) и «шкуры подрядчика» (hides) — заглушки без лота в БД (404). */
 const hasLotCard = (l: FurLot) => !l.id.startsWith("ordered:") && !l.id.startsWith("hides");
 
-const Q = (n: number | null) => (n == null || Math.abs(n) < 0.005 ? "—" : formatDec1(n));
-const R = (n: number | null) => (n == null || Math.abs(n) < 0.5 ? "—" : formatMoney(n));
+const Q = (n: number | null) => (n == null || Math.abs(n) < 0.005 ? "–" : formatDec1(n));
+const R = (n: number | null) => (n == null || Math.abs(n) < 0.5 ? "–" : formatMoney(n));
 /** Средневзвешенная цена, ₽ за шт. (м): Σ ₽ ÷ Σ шт. — та же функция figures(), что даёт «Цена, ₽/шт.» в плитках. */
 // Сначала до копеек (как avg в плитках: dashboard-data округляет цену до 2 знаков), затем формат — цифры совпадают с плитками.
-const A = (n: number | null) => (n == null || !Number.isFinite(n) || n <= 0 ? "—" : formatMoney(Math.round(n * 100) / 100));
+const A = (n: number | null) => (n == null || !Number.isFinite(n) || n <= 0 ? "–" : formatMoney(Math.round(n * 100) / 100));
 /** Средневзвешенная цена в долларах: только по лотам, у которых цена $ названа в документах. */
-const U = (n: number | null) => (n == null || !Number.isFinite(n) || n <= 0 ? "—" : `$${formatNum(n, 1)}`);
+const U = (n: number | null) => (n == null || !Number.isFinite(n) || n <= 0 ? "–" : `$${formatNum(n, 1)}`);
 
 /**
  * Таблица «куплено → использовано → остаток» по меху или подкладке (расчёт — src/lib/fur-table.ts, одна функция на
@@ -363,7 +363,7 @@ export function FurSelectionTotal({
     return (
       <>
         <Num first strong={o.strong} small={o.small}>
-          {rates.length ? rates.map((r) => `${r} %`).join(" · ") : <span className="text-neutral-300">—</span>}
+          {rates.length ? rates.map((r) => `${r} %`).join(" · ") : <span className="text-neutral-300">–</span>}
           {o.single && l0 ? <div className="text-[11px] font-normal leading-tight text-neutral-500">{l0.year < 2026 ? "куплено до 2026" : "с 2026"}</div> : null}
         </Num>
         <Num strong={o.strong} small={o.small} title={detail ? `в т.ч. ${detail}` : undefined}>
@@ -507,19 +507,19 @@ export function FurSelectionTotal({
         </td>
         {GROUPS.map((g) => (
           <Fragment key={g.key}>
-            {showQty && <Num first small muted>{g.key === "used" ? Q(u.qty) : <span className="text-neutral-300">—</span>}</Num>}
+            {showQty && <Num first small muted>{g.key === "used" ? Q(u.qty) : <span className="text-neutral-300">–</span>}</Num>}
             {showMoney && (
               <Num first={!showQty} small muted>
-                {g.key === "used" ? <><div>{R(sumU)}</div>{extra > 0.005 ? <div className="text-[11px] text-neutral-500">4 %: {R(extra)}</div> : null}</> : <span className="text-neutral-300">—</span>}
+                {g.key === "used" ? <><div>{R(sumU)}</div>{extra > 0.005 ? <div className="text-[11px] text-neutral-500">4 %: {R(extra)}</div> : null}</> : <span className="text-neutral-300">–</span>}
               </Num>
             )}
-            <Num small muted>{g.key === "used" && u.qty > 0 ? A(sumU / u.qty) : <span className="text-neutral-300">—</span>}</Num>
-            {showHam && g.key === "recv" && <Num small muted><span className="text-neutral-300">—</span></Num>}
-            {showUsd && <Num small muted><span className="text-neutral-300">—</span></Num>}
+            <Num small muted>{g.key === "used" && u.qty > 0 ? A(sumU / u.qty) : <span className="text-neutral-300">–</span>}</Num>
+            {showHam && g.key === "recv" && <Num small muted><span className="text-neutral-300">–</span></Num>}
+            {showUsd && <Num small muted><span className="text-neutral-300">–</span></Num>}
           </Fragment>
         ))}
-        {showPay && <><Num first small muted><span className="text-neutral-300">—</span></Num><Num small muted><span className="text-neutral-300">—</span></Num></>}
-        {showVat && <><Num first small muted><span className="text-neutral-300">—</span></Num><Num small muted><span className="text-neutral-300">—</span></Num></>}
+        {showPay && <><Num first small muted><span className="text-neutral-300">–</span></Num><Num small muted><span className="text-neutral-300">–</span></Num></>}
+        {showVat && <><Num first small muted><span className="text-neutral-300">–</span></Num><Num small muted><span className="text-neutral-300">–</span></Num></>}
       </tr>
     );
   };
@@ -543,7 +543,7 @@ export function FurSelectionTotal({
               ) : (
                 // Карточки нет (строка-заглушка «заказано, не получено» / «шкуры подрядчика»): приглушённый «—» с пояснением в «i».
                 <span className="ml-1 inline-flex items-center gap-1 text-[11px] text-neutral-400" onClick={(e) => e.stopPropagation()}>
-                  <span aria-disabled="true" role="link" title="Карточки нет">—</span>
+                  <span aria-disabled="true" role="link" title="Карточки нет">–</span>
                   <InfoHint label="Почему нет карточки лота" align="left">{l.id.startsWith("hides") ? "Шкуры подрядчика: отдельной карточки лота нет, списания — в ТЗ." : "Лот не использован — детализации списаний нет."}</InfoHint>
                 </span>
               )}
@@ -694,7 +694,7 @@ export function FurSelectionTotal({
             const G = (sr: FurSrc, k: string) => grid.get(`${sr}|${k}`) as FlowFigures;
             const used$ = (f: FlowFigures) => (raw.c4 === "on" ? f.usedValueOther : f.usedValue); // «Использовано» без 4 % — как в плитке
             const chk: [string, (f: FlowFigures) => number, boolean][] = [["куплено", (f) => f.recvQty, false], ["куплено", (f) => f.recvValue, true], ["использовано", (f) => f.usedQty, false], ["использовано", used$, true], ["остаток", (f) => f.remQty, false], ["остаток", (f) => f.remValue, true]];
-            const pctOf = (a: number, b: number) => (b > 0 ? formatPercent((a / b) * 100) : "—");
+            const pctOf = (a: number, b: number) => (b > 0 ? formatPercent((a / b) * 100) : "–");
             const shareNote = (of: FlowFigures, f: FlowFigures, what: string, from: string) => <span title={`${what} в «${from}» по количеству и по сумме`}>{what}: {pctOf(f.recvQty, of.recvQty)} шт. · {pctOf(f.recvValue, of.recvValue)} ₽</span>;
             const checkLine = (lhs: string, parts: FlowFigures[], whole: FlowFigures, testid: string) => {
               const sum = (g: (f: FlowFigures) => number) => parts.reduce((a, f) => a + g(f), 0);
@@ -833,9 +833,9 @@ export function FurSelectionTotal({
                   const base = cn("whitespace-nowrap px-2 py-2 text-right tabular-nums", first && "border-l border-neutral-100");
                   if (g.key === "used" && info && info.units > 0) {
                     if (i === 0) return <td key={`${g.key}${i}`} className={base}>{info.units} изд.<div className="text-[11px] text-neutral-500">{info.orders} ТЗ</div></td>;
-                    if (i === 1) return <td key={`${g.key}${i}`} className={base}>{info.work > 0 ? formatMoney(info.work) : "—"}<div className="text-[11px] text-neutral-500">по ТЗ</div></td>;
+                    if (i === 1) return <td key={`${g.key}${i}`} className={base}>{info.work > 0 ? formatMoney(info.work) : "–"}<div className="text-[11px] text-neutral-500">по ТЗ</div></td>;
                   }
-                  return <td key={`${g.key}${i}`} className={cn(base, "text-neutral-300")}>—</td>;
+                  return <td key={`${g.key}${i}`} className={cn(base, "text-neutral-300")}>–</td>;
                 }))}
               </tr>
             ))}

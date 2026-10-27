@@ -277,8 +277,8 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
                           {d.count > 1 && <span className="ml-1.5 whitespace-nowrap rounded-full bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-600">×{d.count}</span>}
                         </td>
                         <td className="px-3 py-2 text-neutral-600">{DRIVE_DOC_TYPE_LABELS[d.docType]}</td>
-                        <td className="break-words px-3 py-2 tabular-nums text-neutral-600">{d.number ?? "—"}</td>
-                        <td className="px-3 py-2 tabular-nums text-neutral-600">{d.date ? formatDate(d.date) : (d.year ?? "—")}</td>
+                        <td className="break-words px-3 py-2 tabular-nums text-neutral-600">{d.number ?? "–"}</td>
+                        <td className="px-3 py-2 tabular-nums text-neutral-600">{d.date ? formatDate(d.date) : (d.year ?? "–")}</td>
                         <td className="px-3 py-2">
                           <GroupLinks d={d} />
                         </td>
@@ -297,8 +297,8 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
                 subtitle={DRIVE_DOC_TYPE_LABELS[d.docType]}
                 badge={d.hasOriginal ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">прикреплён</span> : <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">не прикреплён</span>}
                 fields={[
-                  { label: "№", value: d.number ?? "—" },
-                  { label: "Дата", value: d.date ? formatDate(d.date) : (d.year ?? "—") },
+                  { label: "№", value: d.number ?? "–" },
+                  { label: "Дата", value: d.date ? formatDate(d.date) : (d.year ?? "–") },
                 ]}
                 extra={<GroupLinks d={d} mobile />}
               />
@@ -369,7 +369,7 @@ function SummaryTile({ title, stat, href, strong }: { title: string; stat: Secti
       className={cn(TILE_BOX, "shadow-sm tile-click print:shadow-none", strong && "border-neutral-400")}
     >
       <TileHead>{title}</TileHead>
-      <div className={cn("mt-1 text-2xl font-semibold leading-9 tabular-nums", pctTone(stat.percent))}>{stat.percent === null ? "—" : formatPercent(stat.percent)}</div>
+      <div className={cn("mt-1 text-2xl font-semibold leading-9 tabular-nums", pctTone(stat.percent))}>{stat.percent === null ? "–" : formatPercent(stat.percent)}</div>
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-neutral-100">
         <div className={cn("h-full rounded-full", barTone(stat.percent))} style={{ width: `${stat.percent ?? 0}%` }} />
       </div>

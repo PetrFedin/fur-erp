@@ -212,7 +212,7 @@ export function CustomCell({ row, field, card = false }: { row: LotRow; field: C
   }
 
   if (field.type === "BOOLEAN") {
-    if (!canEdit) return <span>{shown || <span className="text-neutral-300">—</span>}</span>;
+    if (!canEdit) return <span>{shown || <span className="text-neutral-300">–</span>}</span>;
     return (
       <div>
         <select
@@ -222,7 +222,7 @@ export function CustomCell({ row, field, card = false }: { row: LotRow; field: C
           onChange={(e) => save(e.target.value === "" ? null : e.target.value === "true")}
           className={card ? "ui-field h-9 rounded border border-neutral-300 bg-white px-2 text-sm" : "ui-field h-7 rounded border border-neutral-200 bg-white px-1 text-xs"}
         >
-          <option value="">—</option>
+          <option value="">–</option>
           <option value="true">Да</option>
           <option value="false">Нет</option>
         </select>
@@ -232,7 +232,7 @@ export function CustomCell({ row, field, card = false }: { row: LotRow; field: C
   }
 
   if (!editing) {
-    if (!canEdit) return <span>{shown || <span className="text-neutral-300">—</span>}</span>;
+    if (!canEdit) return <span>{shown || <span className="text-neutral-300">–</span>}</span>;
     return (
       <button
         type="button"
@@ -249,7 +249,7 @@ export function CustomCell({ row, field, card = false }: { row: LotRow; field: C
             : "min-h-8 min-w-16 cursor-text sm:min-h-6 rounded px-1 text-left hover:bg-neutral-100"
         }
       >
-        {shown || (card ? <span className="text-xs">нажмите, чтобы ввести</span> : <span className="text-neutral-300">—</span>)}
+        {shown || (card ? <span className="text-xs">нажмите, чтобы ввести</span> : <span className="text-neutral-300">–</span>)}
       </button>
     );
   }

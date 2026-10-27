@@ -23,7 +23,7 @@ async function ctxOf(shipmentId: string) {
   });
   if (!lines.length) return { error: "Отгрузка не найдена" } as const;
   const ctx: Record<string, LineCtx> = {};
-  for (const l of lines) ctx[l.id] = { quantity: l.quantity, accepted: l.acceptedQty, label: `${l.productionOrder?.productModel.salesCode ?? l.customArticle ?? "—"} · ${l.color ?? "—"} · р. ${l.size ?? "—"}` };
+  for (const l of lines) ctx[l.id] = { quantity: l.quantity, accepted: l.acceptedQty, label: `${l.productionOrder?.productModel.salesCode ?? l.customArticle ?? "–"} · ${l.color ?? "–"} · р. ${l.size ?? "–"}` };
   return { session, orgId, lines, ctx } as const;
 }
 

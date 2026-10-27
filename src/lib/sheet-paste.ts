@@ -192,7 +192,7 @@ export function applySheetTable(p: CalcPayload, tableIn: string[][], opts: { rep
       const v = x.params[name];
       if (v !== undefined && Math.abs(Number(v) - evalNum(base)) > 1e-9) {
         x.row["@" + paramKey(name)] = v;
-        rowParams.push(`${name} = ${v.replace(".", ",")} (лот ${x.row.lot || "—"})`);
+        rowParams.push(`${name} = ${v.replace(".", ",")} (лот ${x.row.lot || "–"})`);
       }
     });
   }
@@ -263,7 +263,7 @@ export function applySheetTable(p: CalcPayload, tableIn: string[][], opts: { rep
         if (best) {
           const key = "@" + paramKey(best.name);
           q2.rows = q2.rows.map((r, j) => (j === i ? { ...r, [key]: String(best!.cand) } : r));
-          rowParams.push(`${best.name} = ${String(best.cand).replace(".", ",")} (лот ${q2.rows[i].lot || "—"})`);
+          rowParams.push(`${best.name} = ${String(best.cand).replace(".", ",")} (лот ${q2.rows[i].lot || "–"})`);
           solved = true;
         }
         if (!solved) { setOv(q2, i, id, parsed[k].checks[id]); manualCells++; }

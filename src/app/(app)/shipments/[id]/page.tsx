@@ -97,7 +97,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   const orders = [...new Map(s.lines.flatMap((l) => (l.productionOrder ? [[l.productionOrder.id, l.productionOrder] as const] : []))).values()];
   const pos = await loadTzPositions(orgId, orders);
   const labelOf = (l: (typeof s.lines)[number]) => (l.productionOrder ? orderLabel({ workOrderNumber: l.productionOrder.workOrderNumber, number: l.productionOrder.number, ...pos.get(l.productionOrder.id) }) : "без ТЗ");
-  const articleOfLine = (l: (typeof s.lines)[number]) => l.productionOrder?.productModel.name ?? l.customArticle ?? "—";
+  const articleOfLine = (l: (typeof s.lines)[number]) => l.productionOrder?.productModel.name ?? l.customArticle ?? "–";
 
   // «В ТЗ» — сколько штук по этой строке (цвет, размер) записано в самом ТЗ.
   const qtyTz = new Map<string, number>();
@@ -132,11 +132,11 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
     articleText: [articleOfLine(l), l.productionOrder?.productModel.salesCode ?? "", l.productionOrder?.productModel.salesName ?? ""].join(" "),
     itemNo: l.itemNo ?? "",
     stage: l.stage,
-    stageNote: l.stageChangedAt ? `${STAGE_LABEL[l.stage]}: ${(l.stageChangedBy ? userName.get(l.stageChangedBy) ?? l.stageChangedBy : "—")}, ${stamp(l.stageChangedAt)}` : "",
+    stageNote: l.stageChangedAt ? `${STAGE_LABEL[l.stage]}: ${(l.stageChangedBy ? userName.get(l.stageChangedBy) ?? l.stageChangedBy : "–")}, ${stamp(l.stageChangedAt)}` : "",
     reworks: l.reworks.map((r) => ({
       id: r.id, text: r.text, state: r.state, note: r.note ?? "",
-      created: `${userName.get(r.createdById) ?? "—"}, ${stamp(r.createdAt)}`,
-      updated: r.updatedById ? `${userName.get(r.updatedById) ?? "—"}, ${stamp(r.updatedAt)}` : "",
+      created: `${userName.get(r.createdById) ?? "–"}, ${stamp(r.createdAt)}`,
+      updated: r.updatedById ? `${userName.get(r.updatedById) ?? "–"}, ${stamp(r.updatedAt)}` : "",
     })),
     order: l.productionOrder ? (isSupplier ? <span title={orderHint(l.productionOrder)} className="font-medium">{labelOf(l)}</span> : <Link href={`/production/${l.productionOrder.id}`} title={orderHint(l.productionOrder)} className="font-medium hover:underline">{labelOf(l)}</Link>) : <span className="text-neutral-500" title="Этого артикула ещё нет в ТЗ">без ТЗ</span>,
     article: l.productionOrder ? (isSupplier ? <ArticleName model={l.productionOrder.productModel} /> : <Link href={`/models/${l.productionOrder.productModel.id}`} className="hover:underline"><ArticleName model={l.productionOrder.productModel} /></Link>) : <span>{l.customArticle}</span>,
@@ -300,13 +300,13 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         </div>
         <dl className="grid grid-cols-[8rem_1fr] gap-y-1 text-sm sm:grid-cols-[10rem_1fr]">
           <dt className="text-neutral-500">Подрядчик</dt>
-          <dd>{s.supplier ? (isSupplier ? s.supplier.name : <Link href={`/suppliers/${s.supplier.id}`} className="hover:underline">{s.supplier.name}</Link>) : "—"}</dd>
+          <dd>{s.supplier ? (isSupplier ? s.supplier.name : <Link href={`/suppliers/${s.supplier.id}`} className="hover:underline">{s.supplier.name}</Link>) : "–"}</dd>
           <dt className="text-neutral-500">Партия пошива</dt>
-          <dd>{s.batch ? (isSupplier ? batchText : <Link href={`/production/batches/${s.batch.number}`} className="hover:underline">{batchText}</Link>) : "—"}</dd>
+          <dd>{s.batch ? (isSupplier ? batchText : <Link href={`/production/batches/${s.batch.number}`} className="hover:underline">{batchText}</Link>) : "–"}</dd>
           <dt className="text-neutral-500">Плановая дата</dt>
           <dd>{formatDate(s.plannedDate)}</dd>
           {!isSupplier && (<><dt className="text-neutral-500">Примечание</dt>
-          <dd className="whitespace-pre-wrap">{s.notes ?? "—"}</dd></>)}
+          <dd className="whitespace-pre-wrap">{s.notes ?? "–"}</dd></>)}
         </dl>
       </section>
 
@@ -395,8 +395,8 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                     const resp = respText(e);
                     const side = e.side && SIDE_LABEL[e.side] ? e.side : null;
                     const tone = side === "WELLMEKH" ? { dot: "bg-sky-600 border-sky-600", ring: "border-sky-400", badge: "bg-sky-50 text-sky-800" } : side === "CUM" ? { dot: "bg-emerald-600 border-emerald-600", ring: "border-emerald-400", badge: "bg-emerald-50 text-emerald-800" } : { dot: "bg-neutral-400 border-neutral-400", ring: "border-neutral-300", badge: "bg-neutral-100 text-neutral-500" };
-                    const author = userName.get(e.createdById) ?? (e.createdById.startsWith("script:") ? "скрипт (пример)" : "—");
-                    const trail = `внёс: ${author}, ${stamp(e.createdAt)}${e.updatedById && e.updatedAt.getTime() - e.createdAt.getTime() > 1000 ? ` · изменил: ${userName.get(e.updatedById) ?? "—"}, ${stamp(e.updatedAt)}` : ""}`;
+                    const author = userName.get(e.createdById) ?? (e.createdById.startsWith("script:") ? "скрипт (пример)" : "–");
+                    const trail = `внёс: ${author}, ${stamp(e.createdAt)}${e.updatedById && e.updatedAt.getTime() - e.createdAt.getTime() > 1000 ? ` · изменил: ${userName.get(e.updatedById) ?? "–"}, ${stamp(e.updatedAt)}` : ""}`;
                     const time = e.timeKnown ? wallTimeHm(e.occurredAt) : null;
                     return (
                       <li key={e.id} data-event={e.id} data-expected={e.expected ? "1" : "0"}>
@@ -425,7 +425,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                               <span data-left="time" className={"text-lg font-semibold leading-tight " + (e.expected ? "text-neutral-400" : "text-neutral-900")}>
                                 {time}
                               </span>
-                              <span data-left="who" className="text-[11px] text-neutral-500" title="Автор / ответственный действия">{resp || "—"}</span>
+                              <span data-left="who" className="text-[11px] text-neutral-500" title="Автор / ответственный действия">{resp || "–"}</span>
                             </div>
                             <div className="min-w-0 flex-1 border-t border-neutral-200 pt-2 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0" data-event-divider>
                               <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">

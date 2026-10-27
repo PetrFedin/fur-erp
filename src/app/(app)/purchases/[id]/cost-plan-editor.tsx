@@ -35,7 +35,7 @@ const FIELDS: { name: keyof CostPlanEditorItem; label: string; hint?: string }[]
 ];
 
 const fmt = (n: number) =>
-  Number.isFinite(n) ? formatNum(n, 1) : "—";
+  Number.isFinite(n) ? formatNum(n, 1) : "–";
 const show = (n: number) => String(n).replace(".", ",");
 
 /** Кнопка «Править расчёт» + окно с формой и живым пересчётом себестоимости. */

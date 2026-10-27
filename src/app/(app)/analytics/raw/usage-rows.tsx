@@ -26,7 +26,7 @@ export function UsageGroupLots({ rows, lots, unit, c4, by }: { rows: UsageRow[];
             <div className="col-span-2 md:col-span-1">
               <div className="font-medium">
                 Лот{" "}
-                <Link href={`/analytics/raw/lot/${g.lotId}`} className="underline hover:text-neutral-900">{l?.lotNumber ?? "—"}</Link>
+                <Link href={`/analytics/raw/lot/${g.lotId}`} className="underline hover:text-neutral-900">{l?.lotNumber ?? "–"}</Link>
               </div>
               {l && (
                 <div className="text-xs text-neutral-500">

@@ -139,7 +139,7 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
                     {r.description && <InfoHint label="Что означает признак" wide>{r.description}</InfoHint>}
                   </Td>
                   <Td className="align-top text-sm">{r.furKind ?? <span className="text-neutral-500">любой</span>}</Td>
-                  <Td className="align-top text-sm">{r.aliases.join(", ") || <span className="text-neutral-500">—</span>}</Td>
+                  <Td className="align-top text-sm">{r.aliases.join(", ") || <span className="text-neutral-500">–</span>}</Td>
                   <Td className="text-right align-top">{r.lots}</Td>
                   <Td className="text-right align-top">{formatQty(r.qty)}</Td>
                   <Td className="text-right align-top">{r.ordersOwn} / {r.ordersViaLots}</Td>

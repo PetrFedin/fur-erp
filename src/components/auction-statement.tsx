@@ -111,11 +111,11 @@ export function LotsTable({ rows, partCols = [], path, sp, cur, openId, showInvo
       <Tbody>
         {sorted.map((r) => (
           <Tr key={r.id} className={openId === r.id ? "bg-amber-50" : ""}>
-            {showInvoice && <Td>{r.invoice || "—"}</Td>}
+            {showInvoice && <Td>{r.invoice || "–"}</Td>}
             <Td><Link href={lotHref(r.id)} scroll={false} aria-expanded={openId === r.id} className="inline-flex min-h-11 items-center font-medium text-blue-700 underline md:min-h-0">{r.lot || "без №"}</Link></Td>
-            <Td>{r.fur}</Td><Td className="max-w-[14rem]"><Clamp>{r.size || "—"}</Clamp></Td>
+            <Td>{r.fur}</Td><Td className="max-w-[14rem]"><Clamp>{r.size || "–"}</Clamp></Td>
             <Td className="text-right tabular-nums">{num(r.qty)}</Td><Td className="text-right tabular-nums">{money(r.unit)}</Td><Td className="text-right tabular-nums">{money(r.total)}</Td>
-            {partCols.map((g) => <Td key={g.key} className="text-right tabular-nums">{r.parts ? money(r.parts[g.key] ?? 0) : "—"}</Td>)}
+            {partCols.map((g) => <Td key={g.key} className="text-right tabular-nums">{r.parts ? money(r.parts[g.key] ?? 0) : "–"}</Td>)}
           </Tr>
         ))}
         {rows.length > 1 && (

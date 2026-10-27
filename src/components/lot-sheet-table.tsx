@@ -18,7 +18,7 @@ const num2 = nf(2);
 const num4 = nf(4);
 
 const FIELD = "w-full rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-xs outline-none hover:border-neutral-400 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-300 disabled:opacity-60";
-const money = (v: number | null) => (v == null || Math.abs(v) < 0.005 ? "—" : formatMoney(v));
+const money = (v: number | null) => (v == null || Math.abs(v) < 0.005 ? "–" : formatMoney(v));
 
 type Draft = { title: string; cat: string; src: string; value: string };
 
@@ -116,7 +116,7 @@ export function LotSheetTable({
                         {COMP_CATS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
                       </select>
                     ) : (
-                      <span className="text-xs">{catKey ? CAT_LABEL[catKey] : "—"}</span>
+                      <span className="text-xs">{catKey ? CAT_LABEL[catKey] : "–"}</span>
                     )}
                   </td>
                   <td className="px-1.5 py-1.5 text-right tabular-nums">

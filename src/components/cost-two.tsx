@@ -6,7 +6,7 @@ import { Money } from "@/components/money";
  * Если 4% не добавляют (суммы совпадают) — вторая строка не показывается.
  */
 export function CostTwo({
-  on, off, suffix, empty = "—", className,
+  on, off, suffix, empty = "–", className,
 }: {
   on: { incl: number; excl: number } | null;
   off: { incl: number; excl: number } | null;

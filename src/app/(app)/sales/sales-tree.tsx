@@ -140,7 +140,7 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
     const unit = (ms: Measure) => (ms.money ? (ms.eur ? ", €" : ", ₽") : PCT_KEYS.includes(ms.key) ? ", %" : "");
     const csvCell = (t: string): string => {
       const v = t.trim();
-      if (v === "" || v === DASH || v === "—" || v === "–") return "";
+      if (v === "" || v === DASH || v === "–" || v === "–") return "";
       const m = /^([−-]?)\s*([\d\s\u00a0\u202f]+(?:[,.]\d+)?)\s*(?:₽|€|%|шт\.?)?$/.exec(v);
       return m ? (m[1] ? "-" : "") + m[2].replace(/[\s\u00a0\u202f]/g, "") : v;
     };

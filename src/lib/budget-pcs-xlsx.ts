@@ -6,7 +6,7 @@ import { avgEff, BLOCK_LABEL, buildPcsView, CAT_LABEL, ST_COLS, ST_LEN, stOf, st
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const dateRu = (iso: string) => (iso ? iso.split("-").reverse().join(".") : "");
 const DATA = "Данные";
-const dash = (s: string) => s || "—";
+const dash = (s: string) => s || "–";
 
 /** Колонка листа «Данные» по номеру (1 = A). */
 const colL = (n: number) => { let o = ""; for (let x = n; x > 0; x = Math.floor((x - 1) / 26)) o = String.fromCharCode(65 + ((x - 1) % 26)) + o; return o; };
@@ -78,7 +78,7 @@ export async function buildPcsWorkbook(doc: PcsDoc, opts: { pivot?: boolean; hid
     const k2 = { ...keys, ...n.crit };
     delete (k2 as { group?: unknown }).group;
     if (n.level === 0 && n.crit.block) rootRows.push(row);
-    if (n.leaf && !n.leaf.len && !k2.len) k2.len = "—";
+    if (n.leaf && !n.leaf.len && !k2.len) k2.len = "–";
     const parts: string[] = [];
     if (k2.block) parts.push(`${D("A")},${q(k2.block)}`);
     if (k2.fur) parts.push(`${D("B")},${q(k2.fur)}`);
@@ -129,7 +129,7 @@ async function injectPivot(buf: Buffer, doc: PcsDoc, last: number): Promise<Buff
     strField("Блок") + strField("Мех") + strField("Категория") + strField("Длина") + numField("PCS") + numField("AVG") + numField("TTL") + ST_COLS.map((c) => numField(c.name)).join("") + srcField +
     `<cacheField name="AVG средневзв." numFmtId="0" formula="TTL/PCS" databaseField="0"/></cacheFields></pivotCacheDefinition>`;
   const axisRow = (n: keyof typeof sv) => `<pivotField axis="axisRow" showAll="0"><items count="${sv[n].length + 1}">${sv[n].map((_, k) => `<item x="${k}"/>`).join("")}<item t="default"/></items></pivotField>`;
-  const pivot = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotTableDefinition xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" name="Сводная Budget PCS" cacheId="1" showError="1" errorCaption="—" applyNumberFormats="0" applyBorderFormats="0" applyFontFormats="0" applyPatternFormats="0" applyAlignmentFormats="0" applyWidthHeightFormats="1" dataCaption="Значения" updatedVersion="8" minRefreshableVersion="3" useAutoFormatting="1" itemPrintTitles="1" createdVersion="6" indent="0" outline="1" outlineData="1" multipleFieldFilters="0" rowHeaderCaption="Блок / мех / категория / длина">` +
+  const pivot = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotTableDefinition xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" name="Сводная Budget PCS" cacheId="1" showError="1" errorCaption="–" applyNumberFormats="0" applyBorderFormats="0" applyFontFormats="0" applyPatternFormats="0" applyAlignmentFormats="0" applyWidthHeightFormats="1" dataCaption="Значения" updatedVersion="8" minRefreshableVersion="3" useAutoFormatting="1" itemPrintTitles="1" createdVersion="6" indent="0" outline="1" outlineData="1" multipleFieldFilters="0" rowHeaderCaption="Блок / мех / категория / длина">` +
     `<location ref="A4:${colL(3 + ST_LEN + 1)}90" firstHeaderRow="1" firstDataRow="2" firstDataCol="1"/><pivotFields count="${SRC_COL + 1}">${axisRow("Блок")}${axisRow("Мех")}${axisRow("Категория")}${axisRow("Длина")}<pivotField dataField="1" showAll="0"/><pivotField showAll="0"/><pivotField dataField="1" showAll="0"/>${ST_COLS.map(() => '<pivotField dataField="1" showAll="0"/>').join("")}<pivotField showAll="0"/><pivotField dataField="1" dragToRow="0" dragToCol="0" dragToPage="0" showAll="0" defaultSubtotal="0"/></pivotFields>` +
     `<rowFields count="4"><field x="0"/><field x="1"/><field x="2"/><field x="3"/></rowFields><colFields count="1"><field x="-2"/></colFields>` +
     `<dataFields count="${3 + ST_LEN}"><dataField name="PCS, шт." fld="4" baseField="0" baseItem="0" numFmtId="3"/><dataField name="TTL, шкур" fld="6" baseField="0" baseItem="0" numFmtId="3"/><dataField name="AVG, шкур на изд." fld="${SRC_COL}" baseField="0" baseItem="0" numFmtId="2"/>${ST_COLS.map((c, i) => `<dataField name="Σ ${esc(c.name)}" fld="${ST0 - 1 + i}" baseField="0" baseItem="0" numFmtId="3"/>`).join("")}</dataFields>` +

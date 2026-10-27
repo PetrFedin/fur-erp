@@ -108,9 +108,9 @@ export default async function EditSupplierPage({ params }: PageProps<"/suppliers
                   <Tr key={p.id}>
                     <Td>{Number(p.amount) === 0 ? <span>{formatDate(p.paidAt)}</span> : <Link href={`/payments/s-${p.id}`} className="text-blue-700 hover:underline">{formatDate(p.paidAt)}</Link>}{p.status === "PENDING" && <span className="ml-1 text-xs text-neutral-500">(план)</span>}</Td>
                     <Td>{p.auctionSession ? `Аукцион «${p.auctionSession}»` : p.purchase ? `Закупка ${p.purchase.number}` : "Аванс без привязки"}</Td>
-                    <Td className="text-xs text-neutral-600">{p.docRef ?? "—"}{!p.confirmed && <span className="ml-1 text-amber-700">· не подтверждена</span>}</Td>
+                    <Td className="text-xs text-neutral-600">{p.docRef ?? "–"}{!p.confirmed && <span className="ml-1 text-amber-700">· не подтверждена</span>}</Td>
                     <Td className="text-right tabular-nums">{rub(p.amount.toString())}</Td>
-                    <Td className="text-xs">{payDocs[p.id] ? <SourceDocs compact data={payDocs[p.id]} popover="right" /> : <span className="text-neutral-400">—</span>}</Td>
+                    <Td className="text-xs">{payDocs[p.id] ? <SourceDocs compact data={payDocs[p.id]} popover="right" /> : <span className="text-neutral-400">–</span>}</Td>
                   </Tr>
                 ))}
               </Tbody>
@@ -135,7 +135,7 @@ export default async function EditSupplierPage({ params }: PageProps<"/suppliers
                   <Tr key={p.id}>
                     <Td><Link href={`/purchases/${p.id}`} className="text-blue-700 hover:underline">{p.number}</Link></Td>
                     <Td>{formatDate(p.orderDate)}</Td>
-                    <Td>{p.auctionSession ?? "—"}</Td>
+                    <Td>{p.auctionSession ?? "–"}</Td>
                     <Td>{STATUS_LABELS[p.status] ?? p.status}</Td>
                     <Td className="text-right tabular-nums">{rub(purchaseTotalInclVat(p).toString())}</Td>
                   </Tr>

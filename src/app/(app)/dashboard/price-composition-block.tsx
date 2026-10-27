@@ -200,9 +200,9 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
                       <div className="truncate text-[11px] text-neutral-500" title={l.auction}>{l.auction}{openSlice.key === "raw" && l.excl[NOBD_IDX] > 0.005 ? " · нет расчётного листа" : ""}</div>
                     </td>
                     <td className="truncate px-1.5 py-1.5 text-right text-xs" title={l.fur}>{l.fur}</td>
-                    <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{l.qty > 0 ? formatQty(l.qty) : "—"}</td>
+                    <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{l.qty > 0 ? formatQty(l.qty) : "–"}</td>
                     <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{formatMoney(v)}</td>
-                    <td className="whitespace-nowrap px-1.5 py-1.5 text-right text-neutral-500 tabular-nums">{tot > 0 ? formatPercent((v / tot) * 100) : "—"}</td>
+                    <td className="whitespace-nowrap px-1.5 py-1.5 text-right text-neutral-500 tabular-nums">{tot > 0 ? formatPercent((v / tot) * 100) : "–"}</td>
                   </tr>
                 ))}
                 <tr className="row-total">

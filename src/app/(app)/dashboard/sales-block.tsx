@@ -25,7 +25,7 @@ const ORDERS_OPEN = "FW 26/27";
 const CLS_LABEL: Record<SalesCls, string> = { all: "Всего", clothes: "Одежда", acc: "Аксессуары" };
 const TILE_TITLE: Record<Tile, string> = { ordered: "Заказано", received: "Получено", sold: "Продано", stock: "Остаток" };
 
-const qty = (v: number) => (v === 0 ? "—" : n0(v) + " шт.");
+const qty = (v: number) => (v === 0 ? "–" : n0(v) + " шт.");
 
 /** Плитка-карусель: страницы листаются свайпом или скроллом вправо-влево, стрелками и точками. */
 function Carousel({ label, pages, onOpen, index, onIndex }: { label: string; pages: { key: string; node: React.ReactNode }[]; onOpen: (key: string) => void; index: number; onIndex: (i: number) => void }) {
@@ -73,13 +73,13 @@ function OrdersTable({ s, v, hier }: { s: OrdersSummary; v: "in" | "ex"; hier: H
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (k: string) => setOpen((x) => { const n = new Set(x); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const td = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
-  const rub = (m: { in: number; ex: number }) => (Math.abs(m[v]) < 500 ? "—" : money(Math.round(m[v] / 1000) * 1000));
+  const rub = (m: { in: number; ex: number }) => (Math.abs(m[v]) < 500 ? "–" : money(Math.round(m[v] / 1000) * 1000));
   type Cells = { ordered: number; delivered: number; awaiting: number; orderedRub: { in: number; ex: number }; deliveredRub: { in: number; ex: number }; awaitingRub: { in: number; ex: number } };
   const cells = (l: Cells) => (
     <>
       <td className={td + " border-l border-neutral-100"}>{n0(l.ordered)}</td><td className={td}>{rub(l.orderedRub)}</td>
       <td className={td + " border-l border-neutral-100"}>{n0(l.delivered)}</td><td className={td}>{rub(l.deliveredRub)}</td>
-      <td className={td + " border-l border-neutral-100" + (l.awaiting > 0 ? " font-medium text-[#b4310b]" : "")}>{l.awaiting !== 0 ? n0(l.awaiting) : "—"}</td><td className={td + (l.awaiting > 0 ? " text-[#b4310b]" : "")}>{l.awaiting !== 0 ? rub(l.awaitingRub) : "—"}</td>
+      <td className={td + " border-l border-neutral-100" + (l.awaiting > 0 ? " font-medium text-[#b4310b]" : "")}>{l.awaiting !== 0 ? n0(l.awaiting) : "–"}</td><td className={td + (l.awaiting > 0 ? " text-[#b4310b]" : "")}>{l.awaiting !== 0 ? rub(l.awaitingRub) : "–"}</td>
     </>
   );
   const node = (n: OrderNode, depth: number, path: string): React.ReactNode => {
@@ -182,7 +182,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   const orderLineOf = (c: SalesCls, sk: string = season) => { const o = b.orderSummary[c]; return o ? (sk === "all" ? o.total : o.lines.find((l) => l.key === sk) ?? null) : null; };
   const showOrdered = (season === "all" || season === ORDERS_OPEN) && b.orderSummary.all !== null;
   const itemsOf = (t: Tile, c: SalesCls): TileItem[] => {
-    if (t === "ordered") { const l = orderLineOf(c); return l ? [{ k: "Заказано по прайсу", v: money(l.orderedRub[v]) }, { k: "Ждём по прайсу", v: l.awaiting > 0 ? money(l.awaitingRub[v]) : "—" }] : []; }
+    if (t === "ordered") { const l = orderLineOf(c); return l ? [{ k: "Заказано по прайсу", v: money(l.orderedRub[v]) }, { k: "Ждём по прайсу", v: l.awaiting > 0 ? money(l.awaitingRub[v]) : "–" }] : []; }
     const h = slice.head[c], m = h.money[v];
     if (t === "received") return [{ k: "По себестоимости ТЗ", v: money(m.recvCost) }, { k: "По прайсу", v: money(m.recvList) }];
     if (t === "sold") {
@@ -197,7 +197,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
       ];
     }
     return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, ...(slice.soAsEnd !== null ? [{ k: "SO AS (до конца сезона)", v: pct(h.soAs, 1) }] : []), { k: season === "all" ? "SO" : "SO STD (на сегодня)", v: pct(h.sellThrough, 1) }, { k: "Маркап остатка", v: x2(m.markupStock) },
-      ...(season === "all" ? [] : [{ k: "Сток тотал", v: qty(h.stockCum) }, { k: "Сток тотал в рознице", v: money(h.stockListCum[v]) }, { k: "Маркап стока тотал", v: x2(h.markupStockCum[v]) }, { k: "Доля сезона", v: h.stockCum > 0 ? pct(h.stock / h.stockCum, 0) : "—" }])];
+      ...(season === "all" ? [] : [{ k: "Сток тотал", v: qty(h.stockCum) }, { k: "Сток тотал в рознице", v: money(h.stockListCum[v]) }, { k: "Маркап стока тотал", v: x2(h.markupStockCum[v]) }, { k: "Доля сезона", v: h.stockCum > 0 ? pct(h.stock / h.stockCum, 0) : "–" }])];
   };
   const valueOf = (t: Tile, c: SalesCls, s = slice, sk: string = season) => { if (t === "ordered") return orderLineOf(c, sk)?.ordered ?? 0; const h = s.head[c]; return t === "received" ? h.received : t === "sold" ? h.sold : h.stock; };
   const captionOf = (t: Tile, c: SalesCls) => { if (t === "ordered") { const l = orderLineOf(c); return l ? `пришло ${n0(l.delivered)} · ждём ${n0(l.awaiting)}` : ""; } const h = slice.head[c]; return t === "received" ? `приход · ${h.articles} артикулов` : t === "sold" ? `возвраты ${n0(h.returns)}` : "приход − продано"; };

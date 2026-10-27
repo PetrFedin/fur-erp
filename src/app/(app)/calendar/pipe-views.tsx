@@ -20,7 +20,7 @@ export function StageChip({ stage, word }: { stage: Stage; word?: string }) {
 /** Цветные мелкие числа по стадиям; нули не показываем («—», если пусто). */
 export function Nums({ s, withRepair = true }: { s: StageSums; withRepair?: boolean }) {
   const parts = STAGE_ORDER.filter((k) => s[k] > 0 && (withRepair || k !== "repair"));
-  if (parts.length === 0) return <span className="text-neutral-300">—</span>;
+  if (parts.length === 0) return <span className="text-neutral-300">–</span>;
   return (
     <span className="inline-flex flex-wrap justify-end gap-x-1.5 tabular-nums">
       {parts.map((k) => <span key={k} className={`${STAGE_STYLES[k].text} ${k === "repair" ? "italic" : ""}`} title={`${STAGE_STYLES[k].label}: ${s[k]} шт.`}>{formatQty(s[k])}</span>)}
@@ -38,7 +38,7 @@ export function StageLegend({ only }: { only?: Stage[] }) {
   );
 }
 
-const dateText = (p: PipeItem) => (p.expected ? `${fmtRu(p.expected.date)}` : "—");
+const dateText = (p: PipeItem) => (p.expected ? `${fmtRu(p.expected.date)}` : "–");
 
 /** Строка ТЗ в списках: артикул, мех, кол-во, стадия, ожидаемая дата + источник. */
 export function PipeRow({ p, cardHref }: { p: PipeItem; cardHref: string }) {
@@ -62,7 +62,7 @@ export function PipeCard({ p, closeHref, eventHref }: { p: PipeItem; closeHref: 
   const rawByPurchase = new Map<string, { key: string; purchaseId: string | null; label: string; auction: string; qty: number; dates: string[] }>();
   for (const r of p.raw) {
     const key = r.purchaseId ?? r.lotId;
-    const cur = rawByPurchase.get(key) ?? { key, purchaseId: r.purchaseId, label: r.purchaseNumber ?? `лот ${r.lotNumber ?? "—"}`, auction: r.auction, qty: 0, dates: [] };
+    const cur = rawByPurchase.get(key) ?? { key, purchaseId: r.purchaseId, label: r.purchaseNumber ?? `лот ${r.lotNumber ?? "–"}`, auction: r.auction, qty: 0, dates: [] };
     cur.qty += r.qty;
     if (r.receivedDate) cur.dates.push(`получен ${fmtRu(r.receivedDate)}`);
     else if (r.expectedDate) cur.dates.push(`ожидается ${fmtRu(r.expectedDate)}`);
@@ -76,10 +76,10 @@ export function PipeCard({ p, closeHref, eventHref }: { p: PipeItem; closeHref: 
     ["ТЗ", <Link key="tz" href={`/production/${p.id}`} className="text-blue-700 hover:underline" title={p.wo ? `Внутренний номер ${p.number}` : undefined}>{pipeTitle(p)} → открыть</Link>],
     ["Партия пошива", p.batchNo === "none" ? p.batchLabel : <Link key="b" href={`/production/batches/${p.batchNo}`} className="text-blue-700 hover:underline">{p.batchLabel}</Link>],
     ["Стадия", <span key="st" className="inline-flex items-center gap-1"><StageChip stage={p.stage} word={p.stageWord} /><span className="text-neutral-500">{st.hint}</span></span>],
-    ...(p.status === "COMPLETED" ? [] : [["Плановая дата", p.endDate ? fmtRu(p.endDate) : "—"] as [string, React.ReactNode]]),
-    [p.status === "COMPLETED" ? "Окончание (факт)" : "Ожидаем", p.expected ? <span key="ex">{fmtRu(p.expected.date)} <span className="text-neutral-400">({p.expected.source})</span>{p.overdue ? <span className="ml-1 text-red-600">просрочено</span> : null}</span> : "—"],
-    ["Даты ТЗ", [p.workOrderDate ? `ТЗ от ${fmtRu(p.workOrderDate)}` : "", p.startDate ? `старт ${fmtRu(p.startDate)}` : ""].filter(Boolean).join(" · ") || "—"],
-    ["Сырьё", rawByPurchase.size === 0 ? "—" : (
+    ...(p.status === "COMPLETED" ? [] : [["Плановая дата", p.endDate ? fmtRu(p.endDate) : "–"] as [string, React.ReactNode]]),
+    [p.status === "COMPLETED" ? "Окончание (факт)" : "Ожидаем", p.expected ? <span key="ex">{fmtRu(p.expected.date)} <span className="text-neutral-400">({p.expected.source})</span>{p.overdue ? <span className="ml-1 text-red-600">просрочено</span> : null}</span> : "–"],
+    ["Даты ТЗ", [p.workOrderDate ? `ТЗ от ${fmtRu(p.workOrderDate)}` : "", p.startDate ? `старт ${fmtRu(p.startDate)}` : ""].filter(Boolean).join(" · ") || "–"],
+    ["Сырьё", rawByPurchase.size === 0 ? "–" : (
       <span key="raw" className="flex flex-col gap-0.5">
         {[...rawByPurchase.values()].map((r) => (
           <span key={r.key}>
@@ -197,7 +197,7 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
                 </th>
                 {stages.map((k, i) => (
                   <td key={k} className={`${td} ${i === 0 ? BL : ""} ${cStage === k && cFur === r.fur ? "bg-[var(--ui-soft)]" : ""}`}>
-                    {r.total[k] > 0 ? <Link href={link(k, r.fur)} className={`block hover:underline ${STAGE_STYLES[k].text}`}>{formatQty(r.total[k])}{span(r.fur, k)}</Link> : <span className="text-neutral-400">—</span>}
+                    {r.total[k] > 0 ? <Link href={link(k, r.fur)} className={`block hover:underline ${STAGE_STYLES[k].text}`}>{formatQty(r.total[k])}{span(r.fur, k)}</Link> : <span className="text-neutral-400">–</span>}
                   </td>
                 ))}
                 <td className={`${td} font-medium${BL}`}><Link href={link("*", r.fur)} className="hover:underline">{formatQty(stages.reduce((a, k) => a + r.total[k], 0))}</Link></td>
@@ -208,7 +208,7 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
           <tfoot>
             <tr className="row-total">
               <th scope="row" className="sticky left-0 z-10 px-2 py-1.5 text-left text-xs"><TotalLabel unit="шт." /></th>
-              {stages.map((k, i) => <td key={k} className={`${td}${i === 0 ? BL : ""}`}>{t.grand[k] > 0 ? formatQty(t.grand[k]) : <span className="opacity-60">—</span>}</td>)}
+              {stages.map((k, i) => <td key={k} className={`${td}${i === 0 ? BL : ""}`}>{t.grand[k] > 0 ? formatQty(t.grand[k]) : <span className="opacity-60">–</span>}</td>)}
               <td className={`${td}${BL}`}>{formatQty(stages.reduce((a, k) => a + t.grand[k], 0))}</td>
             </tr>
           </tfoot>

@@ -7,7 +7,7 @@ export function MaterialVatCell({ s }: { s: MaterialVatSummary }) {
       {s.defaultRate != null ? (
         <span className="font-medium">{s.defaultRate} % <span className="text-[11px] font-normal text-neutral-500">у материала</span></span>
       ) : s.groups.length === 0 ? (
-        <span className="text-neutral-400">—</span>
+        <span className="text-neutral-400">–</span>
       ) : (
         <span className="font-medium">
           {s.groups.map((g, i) => (

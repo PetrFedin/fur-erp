@@ -25,9 +25,9 @@ export function SupplierAuctionsRef({ rows }: { rows: AuctionRef[] }) {
           {s.sort(rows).map((r) => (
             <Tr key={r.id}>
               <Td className="align-top font-medium">{r.name}{r.aliases.length > 0 && <div className="mt-1 max-w-[12rem] text-xs font-normal text-neutral-500">раньше: {r.aliases.join("; ")}</div>}</Td>
-              <Td className="max-w-[16rem] align-top text-xs text-neutral-600">{r.fullName ?? "—"}</Td>
-              <Td className="align-top text-sm">{r.house ?? "—"}</Td>
-              <Td className="align-top text-sm">{KIND[r.kind] ?? r.kind}<div className="text-xs tabular-nums text-neutral-500">{r.year ? `${r.year}${r.month ? `/${String(r.month).padStart(2, "0")}` : ""}` : "—"}</div></Td>
+              <Td className="max-w-[16rem] align-top text-xs text-neutral-600">{r.fullName ?? "–"}</Td>
+              <Td className="align-top text-sm">{r.house ?? "–"}</Td>
+              <Td className="align-top text-sm">{KIND[r.kind] ?? r.kind}<div className="text-xs tabular-nums text-neutral-500">{r.year ? `${r.year}${r.month ? `/${String(r.month).padStart(2, "0")}` : ""}` : "–"}</div></Td>
             </Tr>
           ))}
           {rows.length === 0 && <Tr><Td colSpan={4} className="py-8 text-center text-neutral-500">Справочник пуст</Td></Tr>}
@@ -51,8 +51,8 @@ export function SupplierFursRef({ rows }: { rows: FurRef[] }) {
           {s.sort(rows).map((r) => (
             <Tr key={r.id}>
               <Td className="font-medium">{r.name}</Td>
-              <Td>{r.nameEn ?? "—"}</Td>
-              <Td className="text-sm text-neutral-600">{r.aliases.join(", ") || "—"}</Td>
+              <Td>{r.nameEn ?? "–"}</Td>
+              <Td className="text-sm text-neutral-600">{r.aliases.join(", ") || "–"}</Td>
             </Tr>
           ))}
           {rows.length === 0 && <Tr><Td colSpan={3} className="py-8 text-center text-neutral-500">Справочник пуст</Td></Tr>}
@@ -79,9 +79,9 @@ export function SupplierSimpleRef({ title, rows }: { title: string; rows: Simple
           {s.sort(rows).map((r) => (
             <Tr key={r.id}>
               <Td className="font-medium">{r.name}</Td>
-              {hasGroup && <Td className="text-sm">{r.group ?? "—"}</Td>}
-              {hasSub && <Td className="text-sm">{r.sub ?? "—"}</Td>}
-              <Td className="text-sm text-neutral-600">{r.aliases.join(", ") || "—"}</Td>
+              {hasGroup && <Td className="text-sm">{r.group ?? "–"}</Td>}
+              {hasSub && <Td className="text-sm">{r.sub ?? "–"}</Td>}
+              <Td className="text-sm text-neutral-600">{r.aliases.join(", ") || "–"}</Td>
             </Tr>
           ))}
           {rows.length === 0 && <Tr><Td colSpan={4} className="py-8 text-center text-neutral-500">Справочник пуст</Td></Tr>}

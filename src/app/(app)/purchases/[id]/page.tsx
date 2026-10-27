@@ -375,10 +375,10 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                       { label: "Кол-во", value: `${formatQty(item.quantity.toString())} ${UNIT_LABELS[item.rawMaterial.unit]}` },
                       { label: hasPlan ? `Цена лота, ${currencySym}` : "Цена без НДС", value: formatCurrency(item.unitPrice.toString(), purchase.currency) },
                       { label: "НДС", value: `${item.vatRate.toString()} % · ${vatPeriodLabel(purchase.orderDate)}` },
-                      ...(hasPlan ? [{ label: <VatLabel key="unit-label" base="Себестоимость ед." />, value: unitNode ?? "—" }] : []),
+                      ...(hasPlan ? [{ label: <VatLabel key="unit-label" base="Себестоимость ед." />, value: unitNode ?? "–" }] : []),
                       { label: <VatLabel key="total-label" base={hasPlan ? "Всего, ₽" : `Сумма${isForeignCurrency ? ", RUB" : ""}`} />, value: totalNode, strong: true },
                     ],
-                    details: customFields.map((f) => ({ label: f.name, value: formatExtra(f.type, readExtra(item.extra)[f.id]) || "—" })),
+                    details: customFields.map((f) => ({ label: f.name, value: formatExtra(f.type, readExtra(item.extra)[f.id]) || "–" })),
                     // То же, что в ячейках десктопной строки: пометка о ручной правке, «Править расчёт».
                     extra: planInfo ? (
                       <div key="extra" className="flex flex-col items-start gap-1.5">
@@ -450,8 +450,8 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                       }}
                     >
                       <Td>{furKind ? <Link href={`/lots/fur/${encodeURIComponent(furKind)}`} className="text-blue-700 hover:underline" title="Вид меха: все лоты и аукционы">{item.rawMaterial.name}</Link> : item.rawMaterial.name}</Td>
-                      <Td>{item.lotId && item.lotNumber ? <Link href={`/analytics/raw/lot/${item.lotId}`} className="text-blue-700 hover:underline" title="Карточка лота: куплено, использовано, остаток, ТЗ">{item.lotNumber}</Link> : (item.lotNumber ?? "—")}</Td>
-                      {showGradeColor && <Td>{[ruGradeLabel(item.grade), item.color].filter(Boolean).join(" / ") || "—"}</Td>}
+                      <Td>{item.lotId && item.lotNumber ? <Link href={`/analytics/raw/lot/${item.lotId}`} className="text-blue-700 hover:underline" title="Карточка лота: куплено, использовано, остаток, ТЗ">{item.lotNumber}</Link> : (item.lotNumber ?? "–")}</Td>
+                      {showGradeColor && <Td>{[ruGradeLabel(item.grade), item.color].filter(Boolean).join(" / ") || "–"}</Td>}
                       <Td>
                         {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
                       </Td>
@@ -494,7 +494,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                         </>
                       ) : hasPlan ? (
                         <>
-                          <Td className="text-neutral-500">—</Td>
+                          <Td className="text-neutral-500">–</Td>
                           <Td className="whitespace-nowrap">
                             <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
                           </Td>
@@ -510,7 +510,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                         </Td>
                       )}
                       {customFields.map((f) => (
-                        <Td key={f.id}>{formatExtra(f.type, readExtra(item.extra)[f.id]) || "—"}</Td>
+                        <Td key={f.id}>{formatExtra(f.type, readExtra(item.extra)[f.id]) || "–"}</Td>
                       ))}
                     </PurchaseItemRow>
                   );
@@ -779,7 +779,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                   Оплачено
                 </Link>
               }
-              value={auctionPay.paid.greaterThan(0.005) ? formatMoney(auctionPay.paid.toString()) : "—"}
+              value={auctionPay.paid.greaterThan(0.005) ? formatMoney(auctionPay.paid.toString()) : "–"}
               note={`по партии «${auctionPay.name}» из ${formatMoney(auctionPay.total.toString())}`}
             />
             <SummaryCard
@@ -923,7 +923,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                 {purchase.expenses.map((e) => (
                   <Tr key={e.id}>
                     <Td>{e.category.name}</Td>
-                    <Td>{e.description ?? "—"}</Td>
+                    <Td>{e.description ?? "–"}</Td>
                     <Td>{formatMoney(e.amount.toString())}</Td>
                     <Td>{e.vatRate.toString()} %</Td>
                     <Td>

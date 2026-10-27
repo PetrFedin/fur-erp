@@ -88,7 +88,7 @@ export default async function ContractorPage({ params }: PageProps<"/settings/co
               <Tr key={o.id}>
                 <Td><Link href={`/production/${o.id}`} className="text-blue-700 hover:underline">{o.workOrderNumber?.trim() || o.number}</Link></Td>
                 <Td>{o.productModel.name}</Td>
-                <Td>{o.batch ? <Link href={`/production/batches/${o.batch.number}`} className="text-blue-700 hover:underline">{o.batch.number}</Link> : "—"}</Td>
+                <Td>{o.batch ? <Link href={`/production/batches/${o.batch.number}`} className="text-blue-700 hover:underline">{o.batch.number}</Link> : "–"}</Td>
                 <Td className="text-right tabular-nums">{Number(o.plannedQuantity)}</Td>
                 <Td className="text-right tabular-nums">{orderUnits(o)}</Td>
               </Tr>
@@ -108,7 +108,7 @@ export default async function ContractorPage({ params }: PageProps<"/settings/co
           <Thead><Tr><Th>Дата</Th><Th>Тип</Th><Th>Основание</Th><Th className="text-right">Сумма</Th></Tr></Thead>
           <Tbody>
             {payments.slice(0, 15).map((p) => (
-              <Tr key={p.id}><Td>{formatDate(p.paidAt)}</Td><Td>{TYPE[p.paymentType] ?? p.paymentType}</Td><Td className="max-w-md truncate">{p.docRef ?? "—"}</Td><Td className="text-right tabular-nums">{rub(Number(p.amount))}</Td></Tr>
+              <Tr key={p.id}><Td>{formatDate(p.paidAt)}</Td><Td>{TYPE[p.paymentType] ?? p.paymentType}</Td><Td className="max-w-md truncate">{p.docRef ?? "–"}</Td><Td className="text-right tabular-nums">{rub(Number(p.amount))}</Td></Tr>
             ))}
             {payments.length === 0 && <Tr><Td colSpan={4} className="py-6 text-center text-neutral-500">Оплат пока нет</Td></Tr>}
           </Tbody>
@@ -131,7 +131,7 @@ export default async function ContractorPage({ params }: PageProps<"/settings/co
           <Tbody>
             {contracts.map((k) => (
               <Tr key={k.id} className={k.isActive ? "" : "text-neutral-500"}>
-                <Td>№ {k.number}</Td><Td>{k.date ? formatDate(k.date) : "—"}</Td><Td>{KIND_RU[k.kind]}</Td><Td>{k.note ?? "—"}</Td>
+                <Td>№ {k.number}</Td><Td>{k.date ? formatDate(k.date) : "–"}</Td><Td>{KIND_RU[k.kind]}</Td><Td>{k.note ?? "–"}</Td>
                 <Td>{canEdit && <form action={async () => { "use server"; await toggleContract(k.id); }}><Button type="submit" variant="ghost" size="sm">{k.isActive ? "В архив" : "Вернуть"}</Button></form>}</Td>
               </Tr>
             ))}
@@ -153,7 +153,7 @@ export default async function ContractorPage({ params }: PageProps<"/settings/co
       <section className="flex flex-col gap-2" aria-label="Реквизиты">
         <h2 className="text-base font-semibold">Реквизиты</h2>
         {canEdit ? <ContractorForm action={updateContractor.bind(null, id)} contractor={c} /> : (
-          <p className="text-sm text-neutral-700">{[c.inn && `ИНН ${c.inn}`, c.contactName, c.phone, c.email, c.address].filter(Boolean).join(" · ") || "—"}</p>
+          <p className="text-sm text-neutral-700">{[c.inn && `ИНН ${c.inn}`, c.contactName, c.phone, c.email, c.address].filter(Boolean).join(" · ") || "–"}</p>
         )}
       </section>
     </div>

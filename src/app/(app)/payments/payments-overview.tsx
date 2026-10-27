@@ -33,7 +33,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
   const arrow = (isOpen: boolean, onClick: () => void, label: string) => (
     <button type="button" onClick={onClick} aria-expanded={isOpen} aria-label={`Раскрыть: ${label}`}><Chevron open={isOpen} /></button>
   );
-  const debtTd = (v: number, cls = "") => <td className={TD + cls + (v > 0.5 && !isRoundingRest(v) ? " text-amber-700" : "")}>{isRoundingRest(v) ? <span title={roundingRestHint(v)} className="cursor-help">—</span> : v < -OVERPAY_FROM ? formatDebt(v) : m(v)}</td>;
+  const debtTd = (v: number, cls = "") => <td className={TD + cls + (v > 0.5 && !isRoundingRest(v) ? " text-amber-700" : "")}>{isRoundingRest(v) ? <span title={roundingRestHint(v)} className="cursor-help">–</span> : v < -OVERPAY_FROM ? formatDebt(v) : m(v)}</td>;
   const figures = (r: { fur: number; lining: number; services?: number; work: number; paid: number; debt: number | null }, cls = "") => (
     <>
       <td className={TD + " border-l border-neutral-200" + cls}>{m(r.fur)}</td>

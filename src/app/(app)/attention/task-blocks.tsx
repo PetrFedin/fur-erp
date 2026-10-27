@@ -78,7 +78,7 @@ function DecisionCard({ v, canDecide }: { v: DecisionView; canDecide: boolean })
       {v.choice ? (
         <div className="mt-2 rounded-md bg-emerald-50 p-2 text-xs text-emerald-900">
           <b>Решено: {v.choice.label}</b>
-          <div className="text-emerald-800">{v.choice.byName ?? "—"} · {v.choice.at ? ruDate(v.choice.at) : ""}{v.choice.note ? ` · ${stripServiceTags(v.choice.note)}` : ""}</div>
+          <div className="text-emerald-800">{v.choice.byName ?? "–"} · {v.choice.at ? ruDate(v.choice.at) : ""}{v.choice.note ? ` · ${stripServiceTags(v.choice.note)}` : ""}</div>
           {chosen?.then && <div className="mt-1">Дальше: {chosen.then}</div>}
           {canDecide && (
             <form action={reopenDecisionAction} className="mt-1">

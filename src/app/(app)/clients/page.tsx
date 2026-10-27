@@ -92,9 +92,9 @@ export default async function ClientsPage({ searchParams }: PageProps<"/clients"
                   {c.name}
                 </Link>
               </Td>
-              {showContact && <Td>{c.contactName ?? "—"}</Td>}
-              {showPhone && <Td>{c.phone ?? "—"}</Td>}
-              {showEmail && <Td>{c.email ?? "—"}</Td>}
+              {showContact && <Td>{c.contactName ?? "–"}</Td>}
+              {showPhone && <Td>{c.phone ?? "–"}</Td>}
+              {showEmail && <Td>{c.email ?? "–"}</Td>}
               <Td>
                 <form
                   action={async () => {

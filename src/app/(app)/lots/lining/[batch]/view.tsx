@@ -13,7 +13,7 @@ import type { FurLot } from "@/lib/fur-table";
 import { TH, THGroup } from "@/components/table-head";
 import { UNIT } from "@/lib/units";
 
-const D = () => <span className="text-neutral-300">—</span>;
+const D = () => <span className="text-neutral-300">–</span>;
 const money = (v: number) => (Math.abs(v) < 0.5 ? <D /> : formatMoney(v.toFixed(2)));
 const TD = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
 const BL = " border-l border-neutral-200";

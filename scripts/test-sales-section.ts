@@ -45,7 +45,7 @@ const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenue
   ok("страница ленты движений существует", existsSync("src/app/(app)/sales/movement/page.tsx"));
   ok("ссылка ленты ведёт на /sales/movement", (movementHref("M001A/SABLE", "SILVER", null) ?? "").startsWith("/sales/movement?a=M001A%2FSABLE&c=SILVER"));
   ok("страницы изделия и ТЗ существуют (ссылки из ленты)", existsSync("src/app/(app)/models/[id]/page.tsx") && existsSync("src/app/(app)/production/[id]/page.tsx"));
-  ok("нули — прочерком", n0(0) === "—");
+  ok("нули — прочерком", n0(0) === "–");
   const u = parseUi({ from: "2026-01-01", cat: "acc", s: "a", vat: "ex", tab: "stock", cols: "sold,stock,bad", fur: "SABLE|MINK" });
   ok("адрес: разбор и сборка состояния", uiQuery(u) === "from=2026-01-01&fur=SABLE%7CMINK&cat=acc&vat=ex&tab=stock&s=a&cols=sold%2Cstock" && u.cols?.length === 2);
 

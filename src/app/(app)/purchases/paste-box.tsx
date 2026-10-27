@@ -135,7 +135,7 @@ export function PasteBox({
                   <td className="px-2 py-1 text-neutral-500">{r.lineNo}</td>
                   <td className="px-2 py-1">{r.materialName}</td>
                   <td className="px-2 py-1">
-                    {r.lotNumber ?? "—"}
+                    {r.lotNumber ?? "–"}
                     {(r.grade || r.color) && (
                       <span className="text-neutral-500"> · {[r.grade, r.color].filter(Boolean).join(" / ")}</span>
                     )}

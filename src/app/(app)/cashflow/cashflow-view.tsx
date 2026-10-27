@@ -31,8 +31,8 @@ const SHORT: Record<string, string> = { furAuction: "Мех: аукционы", 
 const MON = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 const mon = (m: string) => MON[Number(m.slice(5, 7)) - 1];
 const full = (m: string) => `${mon(m)} ${m.slice(0, 4)}`;
-const dash = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? "—" : formatMoney(v));
-const pcs = (v: number) => (v === 0 ? "—" : v.toLocaleString("ru-RU"));
+const dash = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? "–" : formatMoney(v));
+const pcs = (v: number) => (v === 0 ? "–" : v.toLocaleString("ru-RU"));
 const mln = (v: number) => (v / 1e6).toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " млн";
 
 function niceMax(v: number) {
@@ -269,7 +269,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-const rubOrDash = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? "—" : formatMoney(v));
+const rubOrDash = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? "–" : formatMoney(v));
 
 type WorkBy = Record<"all" | "clothes" | "acc", { work: number[]; units: number[] }>;
 
@@ -288,7 +288,7 @@ function CatSwitch({ cat, setCat }: { cat: "all" | "clothes" | "acc"; setCat: (c
 
 /** Таблица по месяцам проекта: все N месяцев подряд, нули — прочерк. */
 function MonthRows({ months, work, units, st }: { months: string[]; work: number[]; units: number[]; st: ReturnType<typeof workWindowStats> }) {
-  const n1 = (v: number | null) => (v === null || v === 0 ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
+  const n1 = (v: number | null) => (v === null || v === 0 ? "–" : v.toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
   return (
     <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0}>
       <table className="w-full border-collapse text-sm">
@@ -298,11 +298,11 @@ function MonthRows({ months, work, units, st }: { months: string[]; work: number
             <tr key={mo} className="border-b border-neutral-200">
               <td className="px-2 py-1.5">{mo}</td>
               <td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(work[i])}</td>
-              <td className="px-2 py-1.5 text-right tabular-nums">{units[i] || "—"}</td>
-              <td className="px-2 py-1.5 text-right tabular-nums">{units[i] > 0 ? rubOrDash(work[i] / units[i]) : "—"}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{units[i] || "–"}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{units[i] > 0 ? rubOrDash(work[i] / units[i]) : "–"}</td>
             </tr>
           ))}
-          <tr className="border-t-2 border-neutral-400 font-semibold"><td className="px-2 py-1.5">Итого</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.total)}</td><td className="px-2 py-1.5 text-right tabular-nums">{st.unitsTotal || "—"}</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.perUnit)}</td></tr>
+          <tr className="border-t-2 border-neutral-400 font-semibold"><td className="px-2 py-1.5">Итого</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.total)}</td><td className="px-2 py-1.5 text-right tabular-nums">{st.unitsTotal || "–"}</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.perUnit)}</td></tr>
           <tr className="font-semibold"><td className="px-2 py-1.5">Среднее в месяц ({st.n} мес.)</td><td className="px-2 py-1.5 text-right tabular-nums">{rubOrDash(st.avgMonth)}</td><td className="px-2 py-1.5 text-right tabular-nums">{n1(st.avgUnits)}</td><td /></tr>
         </tbody>
       </table>
@@ -314,12 +314,12 @@ function MonthRows({ months, work, units, st }: { months: string[]; work: number
 function WorkMonthWindow({ months, by, initialCat }: { months: string[]; by: WorkBy; initialCat: "all" | "clothes" | "acc" }) {
   const [cat, setCat] = useState(initialCat);
   const st = workWindowStats(by[cat].work, by[cat].units, [], "all");
-  const n1 = (v: number | null) => (v === null || v === 0 ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
+  const n1 = (v: number | null) => (v === null || v === 0 ? "–" : v.toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
   return (
     <div className="flex flex-col gap-4">
       <CatSwitch cat={cat} setCat={setCat} />
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-        <Stat label="Единиц получено, шт." value={st.unitsTotal ? String(st.unitsTotal) : "—"} />
+        <Stat label="Единиц получено, шт." value={st.unitsTotal ? String(st.unitsTotal) : "–"} />
         <Stat label="Месяцев проекта" value={String(st.n)} sub="с августа 2025 по текущий; текущий месяц неполный" />
         <Stat label="Штук в месяц (единицы ÷ месяцы)" value={n1(st.avgUnits)} />
         <Stat label="Работа всего, ₽" value={rubOrDash(st.total)} />
@@ -337,7 +337,7 @@ function WorkUnitWindow({ months, by, initialCat }: { months: string[]; by: Work
   const [table, setTable] = useState(false);
   const st = workWindowStats(by[cat].work, by[cat].units, [], "all");
   const c1 = workWindowStats(by.clothes.work, by.clothes.units, [], "all"), c2 = workWindowStats(by.acc.work, by.acc.units, [], "all");
-  const catLine = (c: ReturnType<typeof workWindowStats>) => (c.perUnit === null ? "—" : `${rubOrDash(c.perUnit)} · ${c.unitsTotal} шт.`);
+  const catLine = (c: ReturnType<typeof workWindowStats>) => (c.perUnit === null ? "–" : `${rubOrDash(c.perUnit)} · ${c.unitsTotal} шт.`);
   return (
     <div className="flex flex-col gap-4">
       <CatSwitch cat={cat} setCat={setCat} />
@@ -345,13 +345,13 @@ function WorkUnitWindow({ months, by, initialCat }: { months: string[]; by: Work
         <div className="col-span-2 rounded-lg border border-neutral-300 p-3 md:col-span-1">
           <div className="text-xs text-neutral-600">Работа на единицу (оплачено ÷ получено)</div>
           <div className="text-lg font-semibold tabular-nums">{rubOrDash(st.perUnit)}</div>
-          <div className="text-xs text-neutral-600">оплачено {rubOrDash(st.total)} ÷ получено {st.unitsTotal || "—"} шт.</div>
+          <div className="text-xs text-neutral-600">оплачено {rubOrDash(st.total)} ÷ получено {st.unitsTotal || "–"} шт.</div>
           <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
             <div className="flex justify-between gap-2"><dt className="text-neutral-600">Одежда</dt><dd className="font-semibold tabular-nums">{catLine(c1)}</dd></div>
             <div className="flex justify-between gap-2"><dt className="text-neutral-600">Аксессуары</dt><dd className="font-semibold tabular-nums">{catLine(c2)}</dd></div>
           </dl>
         </div>
-        <Stat label="Единиц всего" value={st.unitsTotal ? String(st.unitsTotal) : "—"} sub={`месяцев проекта ${st.n}`} />
+        <Stat label="Единиц всего" value={st.unitsTotal ? String(st.unitsTotal) : "–"} sub={`месяцев проекта ${st.n}`} />
         <Stat label="Работа всего" value={rubOrDash(st.total)} />
       </div>
       <div>
@@ -609,8 +609,8 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
   const { d, s, ser, h, g } = m;
   const months = d.months;
   const hasSales = sales.available;
-  const mini = (f: (c: "clothes" | "acc") => string): [string, string][] => [["Одежда", hasSales ? f("clothes") : "—"], ["Аксессуары", hasSales ? f("acc") : "—"]];
-  const soText = (x: { cumReceived: number; cumSold: number; sellThrough: number | null }) => (x.sellThrough === null ? "—" : x.sellThrough.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " %" + (x.cumSold > x.cumReceived ? "*" : x.cumReceived < 10 ? "†" : ""));
+  const mini = (f: (c: "clothes" | "acc") => string): [string, string][] => [["Одежда", hasSales ? f("clothes") : "–"], ["Аксессуары", hasSales ? f("acc") : "–"]];
+  const soText = (x: { cumReceived: number; cumSold: number; sellThrough: number | null }) => (x.sellThrough === null ? "–" : x.sellThrough.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " %" + (x.cumSold > x.cumReceived ? "*" : x.cumReceived < 10 ? "†" : ""));
   const stockEnd = stockSeries(sales).stock.at(-1) ?? 0;
   const label = period === "all" ? "2025–2026" : period;
   const vatNote = exVat ? "без НДС" : "с НДС";
@@ -743,7 +743,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
   const sticky = "sticky left-0 z-[1] text-left";
   const noSalesNote = "Нет данных о продажах: выгрузка поступлений и продаж ещё не загружена.";
   /** Нулевые суммы — прочерк; исключение — результат расчёта «К доплате» (formatMoney напрямую). */
-  const money = (v: number) => (Math.abs(v) < 0.5 ? "—" : formatMoney(v));
+  const money = (v: number) => (Math.abs(v) < 0.5 ? "–" : formatMoney(v));
 
   return (
     <div className="flex flex-col gap-4">
@@ -785,7 +785,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
           { label: "Потрачено", value: money(h.spent), sub: filtered ? "все траты, не по категории" : `${label}, ${vatNote}`, spark: ser.spend, rows: spendKinds.map((r, i) => [r.short, `${money(spendAl.values[i])} · ${spendPct[i]} %`] as [string, string]), hint: <p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p> },
           { label: "Сырьё и работа", value: money(h.spent), sub: `куда ушли деньги, ${vatNote}`, rows: [["Сырьё", `${money(rwAl.values[0])} · ${rwPct[0]} %`], ["Работа и услуги", `${money(rwAl.values[1])} · ${rwPct[1]} %`]] as [string, string][], hint: <p>Сырьё — мех (аукционы и поставщик, включая шкуры подрядчика) и подкладка; работа и услуги — пошив подрядчику и услуги по УПД.</p> },
         ]} />
-        <Tile label="Получено" value={hasSales ? money(recvSum(cat, exVat)) : "—"} sub={hasSales ? `выручка, ${vatNote}` : "нет данных о продажах"} spark={hasSales ? m.keep.map((i) => (exVat ? salesBy[cat].revEx[i] : salesBy[cat].revIncl[i])) : undefined}
+        <Tile label="Получено" value={hasSales ? money(recvSum(cat, exVat)) : "–"} sub={hasSales ? `выручка, ${vatNote}` : "нет данных о продажах"} spark={hasSales ? m.keep.map((i) => (exVat ? salesBy[cat].revEx[i] : salesBy[cat].revIncl[i])) : undefined}
           mini={mini((c) => `${money(recvSum(c, exVat))} · ${recvSum(cat, exVat) ? Math.round((recvSum(c, exVat) / recvSum(cat, exVat)) * 100) : 0} %`)} expandId={hasSales ? "recv" : undefined} onToggle={toggleTile}
           hint={<p>Розничная выручка из выгрузки продаж: чистые продажи после скидок, возвраты вычтены; по дате продажи; режим НДС — как в панели фильтров (внутри окна его можно переключить только для окна). Доля — от выручки всех категорий. {noSalesNote}</p>} />
         {hasSales && !filtered ? (
@@ -794,11 +794,11 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
             { label: "Накопленный итог", value: money(m.cumNetEnd), tone: m.cumNetEnd < 0 ? "bad" : "good", spark: ser.cumNet, sparkKind: "area", sub: `с начала данных на конец периода, ${vatNote}`, hint: <p>Получено минус потрачено нарастающим итогом с первого месяца данных до конца выбранного периода.</p> },
           ]} />
         ) : (
-          <Tile label="Чистый поток / накопленный итог" value="—" sub={filtered ? "траты не делятся по категориям" : "нет данных о продажах"} hint={<p>Чистый денежный поток = получено − потрачено; накопленный итог — то же нарастающим итогом. При фильтре по категории траты не делятся, поэтому не считаются.</p>} />
+          <Tile label="Чистый поток / накопленный итог" value="–" sub={filtered ? "траты не делятся по категориям" : "нет данных о продажах"} hint={<p>Чистый денежный поток = получено − потрачено; накопленный итог — то же нарастающим итогом. При фильтре по категории траты не делятся, поэтому не считаются.</p>} />
         )}
         <CarouselTile label="Работа в месяц" initial={pageOf[cat]} onOpen={(k) => openFor("workMonth", k)} pages={catPages.map((c) => { const st = wm.st[c]; return {
           label: `Работа в месяц · ${c === "all" ? "Всего" : CAT_LABEL[c]}`,
-          value: st.avgUnits === null || st.avgUnits === 0 ? "—" : `${st.avgUnits.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.`,
+          value: st.avgUnits === null || st.avgUnits === 0 ? "–" : `${st.avgUnits.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт./мес.`,
           sub: st.n ? `средневзвешенно за ${st.n} мес. проекта, получено ${pcs(st.unitsTotal)} шт.` : undefined,
           rows: [["Работа в месяц, ₽", rubOrDash(st.avgMonth)]] as [string, string][],
           hint: <p>Штук в месяц = единицы, полученные за период, ÷ число календарных месяцев проекта (общее число единиц, не среднее средних). Работа в месяц = вся работа подрядчику ÷ те же месяцы; по категориям — работа по ТЗ категории и приход категории ÷ N (работа без привязки к ТЗ — только в «Тотал»). Месяцы: от августа 2025 (первая оплата работы) до текущего включительно, в границах периода: {st.n} мес.; в расчёт входят и месяцы без работы и поставок, текущий месяц неполный.</p>,
@@ -806,18 +806,18 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
         <CarouselTile label="Работа на единицу" initial={pageOf[cat]} onOpen={(k) => openFor("workUnit", k)} pages={catPages.map((c) => { const st = wm.st[c]; return {
           label: `Работа на единицу · ${c === "all" ? "Всего" : CAT_LABEL[c]}`,
           value: rubOrDash(st.perUnit),
-          sub: hasSales ? `оплачено ${rubOrDash(st.total)} ÷ получено ${st.unitsTotal || "—"} шт.` : "нет данных о приходе",
+          sub: hasSales ? `оплачено ${rubOrDash(st.total)} ÷ получено ${st.unitsTotal || "–"} шт.` : "нет данных о приходе",
           hint: <p>Вся работа подрядчику за период ÷ все единицы, полученные за период (без привязки к месяцам). Это оценка: оплата и поступление могут приходиться на разные месяцы (аванс за будущее). По категориям — работа по ТЗ категории ÷ приход категории.</p>,
         }; })} />
         {hasSales ? (
           <CarouselTile label="Средняя цена продажи" initial={pageOf[cat]} onOpen={(k) => openFor("price", k)} pages={catPages.map((c) => { const g = groupSales(saleLines, months, exVat, () => "x", c)[0]; return {
             label: `Средняя цена продажи · ${c === "all" ? "Всего" : CAT_LABEL[c]}`,
-            value: g && g.pcs > 0 ? formatMoney(g.rev / g.pcs) : "—",
+            value: g && g.pcs > 0 ? formatMoney(g.rev / g.pcs) : "–",
             sub: g && g.pcs > 0 ? `${pcs(g.pcs)} шт. продано, ${vatNote}` : "нет продаж",
-            rows: [["Выручка", g ? money(g.rev) : "—"], ["Выручка в среднем в месяц", g ? money(g.rev / Math.max(1, m.keep.filter((i) => (exVat ? salesBy[c].revEx[i] : salesBy[c].revIncl[i]) > 0.5).length)) : "—"]] as [string, string][],
+            rows: [["Выручка", g ? money(g.rev) : "–"], ["Выручка в среднем в месяц", g ? money(g.rev / Math.max(1, m.keep.filter((i) => (exVat ? salesBy[c].revEx[i] : salesBy[c].revIncl[i]) > 0.5).length)) : "–"]] as [string, string][],
             hint: <p>Выручка ({vatNote}) ÷ проданные единицы (возвраты минус) за выбранный период и категорию; режим НДС — как в панели (в окне его можно переключить только для окна).</p>,
           }; })} />
-        ) : <Tile label="Средняя цена продажи" value="—" sub="нет данных о продажах" />}
+        ) : <Tile label="Средняя цена продажи" value="–" sub="нет данных о продажах" />}
       </section>
 
       {openTile && (
@@ -830,7 +830,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
                 {fp.firstPositive ? `Первый месяц с положительным потоком: ${monthLabel(fp.firstPositive)}. ` : "Месяцев с положительным потоком нет. "}
                 Самый глубокий накопленный минус: {money(fp.deepest.cum)} ({monthLabel(fp.deepest.month)}). Максимальная просадка накопленного итога от пика: {money(fp.drawdown)}.
               </p>
-              <ExpTable head={["Месяц", "Потрачено", "Получено", "Чистый", "Накопленный"]} rows={months.map((mo, i) => ({ id: mo, cells: [monthLabel(mo), money(ser.spend[i]), money(ser.revenue[i]), money(ser.net[i]), money(ser.cumNet[i])], sub: (["clothes", "acc", "other"] as const).map((c) => [CAT_LABEL[c], "—", money(clsMonth(c, m.keep[i]).rev), "—", "—"]).filter((r) => r[2] !== "—") }))} total={["Итого", money(h.spent), money(h.received), money(h.net), money(m.cumNetEnd)]} />
+              <ExpTable head={["Месяц", "Потрачено", "Получено", "Чистый", "Накопленный"]} rows={months.map((mo, i) => ({ id: mo, cells: [monthLabel(mo), money(ser.spend[i]), money(ser.revenue[i]), money(ser.net[i]), money(ser.cumNet[i])], sub: (["clothes", "acc", "other"] as const).map((c) => [CAT_LABEL[c], "–", money(clsMonth(c, m.keep[i]).rev), "–", "–"]).filter((r) => r[2] !== "–") }))} total={["Итого", money(h.spent), money(h.received), money(h.net), money(m.cumNetEnd)]} />
             </div>
           )}
           {openTile === "workMonth" && <WorkMonthWindow months={wm.months} by={wm.by} initialCat={winCat} />}

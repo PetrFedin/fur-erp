@@ -351,7 +351,7 @@ test.describe.serial("лоты / аукцион на 375 px", () => {
     const first = page.locator("div.md\\:hidden > div.rounded-lg").filter({ has: page.locator('input[type="checkbox"]') }).first();
     await first.locator("summary", { hasText: "Подробнее" }).tap();
     await page.screenshot({ path: `${SHOTS}/15a-card-details.png`, fullPage: false });
-    const cell = first.getByRole("button", { name: "—" }).filter({ visible: true }).last();
+    const cell = first.getByRole("button", { name: "–" }).filter({ visible: true }).last();
     const cellBox = await first.locator('button[title="Нажмите, чтобы изменить"]').boundingBox();
     console.log("custom cell box", cellBox);
     await first.locator('button[title="Нажмите, чтобы изменить"]').tap();

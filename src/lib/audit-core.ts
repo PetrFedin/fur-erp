@@ -275,7 +275,7 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
     case "ShipmentLine": return `Строка отгрузки${s("color") ? " " + s("color") : ""}${s("size") ? " р." + s("size") : ""} ×${s("quantity") ?? ""}`.trim();
     case "SupplierRawStage": return `Этап сырья «${s("stage") ?? ""}»${s("place") ? " · " + s("place") : ""} (${s("status") ?? ""})`;
     case "ShipmentEvent": return `Этап отгрузки «${s("title") ?? ""}» ${day(r.occurredAt)}`.trim();
-    case "ShipmentEventLine": return `Строка этапа: принято ${s("accepted") ?? "—"}, не принято ${s("rejected") ?? "—"}, возвращено ${s("returned") ?? "—"}`;
+    case "ShipmentEventLine": return `Строка этапа: принято ${s("accepted") ?? "–"}, не принято ${s("rejected") ?? "–"}, возвращено ${s("returned") ?? "–"}`;
     case "Fitting": return `Примерка ${day(r.fittingDate)}`.trim();
     case "SupplyPlanEntry": return `План поставок ${day(r.month)}`.trim();
     case "PurchaseExpense": return `Расход закупки ${money(r.amount)}${s("description") ? " · " + s("description") : ""}`.trim();
@@ -284,7 +284,7 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
     case "Comment": return `Комментарий: ${(s("text") ?? "").slice(0, 60)}${s("pageTitle") ? " · " + s("pageTitle") : ""}`.trim();
     case "CommentReply": return `Ответ: ${(s("text") ?? "").slice(0, 60)}`.trim();
     case "ReconciliationGroup": return `Группа сверки ${s("title") ?? ""}`.trim();
-    case "ReconciliationInvoice": return `Счёт в сверке №${s("no") ?? "—"} ${money(r.amountRub)}${s("date") ? " от " + day(r.date) : ""}`.trim();
+    case "ReconciliationInvoice": return `Счёт в сверке №${s("no") ?? "–"} ${money(r.amountRub)}${s("date") ? " от " + day(r.date) : ""}`.trim();
     case "ReconciliationInvoicePayment": return `Оплата счёта по документам ${money(r.amountRub)}${r.paidAt ? " " + day(r.paidAt) : ""}`.trim();
     case "ReconciliationCheck": return `Сверка выполнена ${day(r.checkedDate)}`.trim();
     case "SystemState": return `Решение владельца: ${(s("key") ?? "").replace("owner-decision:", "")}`.trim();
@@ -337,7 +337,7 @@ export const fieldLabel = (k: string) => FIELD_LABELS[k] ?? k;
 
 /** Короткое отображение значения в журнале. */
 export function showValue(v: unknown): string {
-  if (v === null || v === undefined) return "—";
+  if (v === null || v === undefined) return "–";
   if (typeof v === "boolean") return v ? "да" : "нет";
   if (typeof v === "string") {
     if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(v)) {

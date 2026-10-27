@@ -97,10 +97,10 @@ export default async function BatchPrintPage({
                 <tr key={o.id}>
                   <td className={td}>{o.workOrderNumber ?? o.number}</td>
                   <td className={td}>{articleLabel(o.productModel)}</td>
-                  <td className={td}>{cs || "—"}</td>
+                  <td className={td}>{cs || "–"}</td>
                   <td className={tdr}>{formatQty(s.qty.toString())}</td>
-                  <td className={tdr}>{s.cost.isZero() ? "—" : formatMoney(s.cost.toString())}</td>
-                  <td className={tdr}>{s.work.isZero() ? "—" : formatMoney(s.work.toString())}</td>
+                  <td className={tdr}>{s.cost.isZero() ? "–" : formatMoney(s.cost.toString())}</td>
+                  <td className={tdr}>{s.work.isZero() ? "–" : formatMoney(s.work.toString())}</td>
                 </tr>
               );
             })}

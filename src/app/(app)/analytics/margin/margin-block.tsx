@@ -14,7 +14,7 @@ type Cat = "all" | "clothes" | "acc";
 type PhotoIdx = Record<string, { modelId: string; photos: { id: string; variant: string; color?: string; itemId?: string }[] }>;
 type MKey = "conf" | "received" | "salesCost" | "sold" | "revenueEx" | "discountSum" | "discountGiven" | "grossProfit" | "grossMarginPct" | "stock" | "sellThrough" | "avgPrice" | "discountVsRetail" | "gpOfRetail" | "markupW" | "gross" | "grossUnit" | "listPrice" | "toList";
 
-const nodata = "—";
+const nodata = "–";
 const money = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? nodata : formatMoney(v));
 const n0 = (v: number) => (v === 0 ? nodata : String(v));
 const x2 = (v: number | null) => (v === null ? nodata : "×" + v.toFixed(2).replace(".", ","));
@@ -143,7 +143,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
     const order = TREE_ORDERS[treeKey];
     const top = buildTreeBy(ctx, lines, order, preds);
     const count = (f: (l: FullLine) => string) => new Set(lines.map(f)).size;
-    return { groups, order, tree: totalNode(ctx, lines, preds, top), data: buildMargin(inp, cat), n1: count((l) => l.cls), n2: count((l) => (l.level4 ?? l.level3 ?? "—")), n3: count((l) => (l.fabric ?? "").toUpperCase().split(/[\s+/]/)[0]) };
+    return { groups, order, tree: totalNode(ctx, lines, preds, top), data: buildMargin(inp, cat), n1: count((l) => l.cls), n2: count((l) => (l.level4 ?? l.level3 ?? "–")), n3: count((l) => (l.fabric ?? "").toUpperCase().split(/[\s+/]/)[0]) };
   }, [inp, cat, mode, treeKey, vat]);
   const sizeRows = useMemo(() => sizeAgg(sizes, (r) => cat === "all" || r.cls === cat), [sizes, cat]);
 
@@ -210,7 +210,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
               {!isTotal && n.dim === "article" ? <Link href={`/sales/movement?a=${encodeURIComponent(n.label)}`} aria-label={`Продажи и остатки: ${n.label}`} title="Продажи и остатки по артикулу" className="inline-flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded-md text-sm text-neutral-700 hover:text-neutral-900">↗</Link> : null}
             </span>
           </th>
-          {n.cols.map((m, gi) => measures.map((ms) => <td key={gi + ms.key} className={td + (gi === 0 ? " border-r border-neutral-200 font-semibold" : "")}>{ms.key === "conf" ? (gi === 0 ? confOf(n) : nodata) : m.sold === 0 && m.received === 0 ? "—" : ms.fmt(m, cur, vat)}</td>))}
+          {n.cols.map((m, gi) => measures.map((ms) => <td key={gi + ms.key} className={td + (gi === 0 ? " border-r border-neutral-200 font-semibold" : "")}>{ms.key === "conf" ? (gi === 0 ? confOf(n) : nodata) : m.sold === 0 && m.received === 0 ? "–" : ms.fmt(m, cur, vat)}</td>))}
         </tr>
         {isOpen && (n.children.length ? n.children : sizeKids(n)).map((c) => renderNode(c, depth + 1))}
       </Fragment>

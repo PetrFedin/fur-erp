@@ -284,7 +284,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                         <span className="block text-xs font-normal text-neutral-500">{[p.color, p.furType].filter(Boolean).join(" · ")}</span>
                         {!f.modelId && <Badge variant="warning" className="mt-1">нет в справочнике</Badge>}
                       </Td>
-                      {seasonId === "" && <Td>{p.season?.code ?? "—"}</Td>}
+                      {seasonId === "" && <Td>{p.season?.code ?? "–"}</Td>}
                       <Td className="text-xs tabular-nums">{sizesText(p.sizes)}</Td>
                       <Td className="text-right font-semibold tabular-nums">{formatQty(plan)}</Td>
                       <Td className="text-right tabular-nums">{n0(f.produced)}</Td>

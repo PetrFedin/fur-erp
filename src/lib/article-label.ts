@@ -29,7 +29,7 @@ export function articleTitle(m: ArticleLike): string {
 
 /** «M012 · Пальто»; compact — только код «M012». Если названия нет — просто код. */
 export function articleLabel(m: ArticleLike | null | undefined, opts: { compact?: boolean } = {}): string {
-  if (!m) return "—";
+  if (!m) return "–";
   const code = clean(m.name);
   if (opts.compact) return code;
   const t = articleTitle(m);

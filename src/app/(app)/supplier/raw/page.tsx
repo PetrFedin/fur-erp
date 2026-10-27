@@ -240,10 +240,10 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                         <Tbody>
                           {sortRows(lots, sort, { invoice: (r) => r.invoice || r.purchaseNumber, lot: (r) => r.lotNumber, fur: (r) => r.fur, color: (r) => r.color, size: (r) => r.size, qty: (r) => r.quantity, price: (r) => r.unitPrice, unit: (r) => lotCalc.get(`${r.purchaseId}|${lotKey(r.lotNumber)}`)?.unit ?? null, total: (r) => lotCalc.get(`${r.purchaseId}|${lotKey(r.lotNumber)}`)?.total ?? null, doc: (r) => r.doc }).map((r) => (
                             <Tr key={r.itemId}>
-                              <Td>{r.invoice || r.purchaseNumber}</Td><Td>{r.lotNumber || "—"}</Td><Td>{r.fur}</Td><Td className="max-w-[10rem]"><Clamp>{r.color || "—"}</Clamp></Td><Td className="max-w-[14rem]"><Clamp>{r.size || "—"}</Clamp></Td>
+                              <Td>{r.invoice || r.purchaseNumber}</Td><Td>{r.lotNumber || "–"}</Td><Td>{r.fur}</Td><Td className="max-w-[10rem]"><Clamp>{r.color || "–"}</Clamp></Td><Td className="max-w-[14rem]"><Clamp>{r.size || "–"}</Clamp></Td>
                               <Td className="text-right tabular-nums">{num(r.quantity)}</Td>
                               <Td className="whitespace-nowrap text-right tabular-nums">{money(r.unitPrice)} {cur(r.currency)}</Td>
-                              {(() => { const lc = lotCalc.get(`${r.purchaseId}|${lotKey(r.lotNumber)}`); return <><Td className="whitespace-nowrap text-right tabular-nums">{lc ? money(lc.unit) : "—"}</Td><Td className="whitespace-nowrap text-right tabular-nums">{lc ? money(lc.total) : "—"}</Td></>; })()}
+                              {(() => { const lc = lotCalc.get(`${r.purchaseId}|${lotKey(r.lotNumber)}`); return <><Td className="whitespace-nowrap text-right tabular-nums">{lc ? money(lc.unit) : "–"}</Td><Td className="whitespace-nowrap text-right tabular-nums">{lc ? money(lc.total) : "–"}</Td></>; })()}
                               <Td className="max-w-[12rem]">{r.doc ? <Clamp>{r.doc}</Clamp> : <span className="text-neutral-500">нет</span>}</Td>
                               <Td>{isSup && <AttachDocument purchaseId={r.purchaseId} itemId={r.itemId} label="Приложить" />}</Td>
                             </Tr>
@@ -254,8 +254,8 @@ export default async function SupplierRawPage({ searchParams }: PageProps<"/supp
                             <td colSpan={5} className="px-3 py-1.5"><TotalLabel unit="₽" extra={`· лотов ${lots.length}`} /></td>
                             <td className="px-3 py-1.5 text-right tabular-nums">{num(aq)}</td>
                             <td />
-                            <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">{lotsCalcSum != null && aq > 0 ? money(lotsCalcSum / aq) : "—"}</td>
-                            <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">{lotsCalcSum != null ? money(lotsCalcSum) : "—"}</td>
+                            <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">{lotsCalcSum != null && aq > 0 ? money(lotsCalcSum / aq) : "–"}</td>
+                            <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">{lotsCalcSum != null ? money(lotsCalcSum) : "–"}</td>
                             <td colSpan={2} />
                           </tr>
                         </tfoot>

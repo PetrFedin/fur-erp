@@ -95,7 +95,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
       {hidePerUnit ? null : perUnit ?? <div className="relative">
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>На 1 изделие</TileHead>
-          <TileValue>{own.qty > 0 ? money(totalOwn / own.qty) : "—"}</TileValue>
+          <TileValue>{own.qty > 0 ? money(totalOwn / own.qty) : "–"}</TileValue>
           <TileCaption>{own.qty > 0 ? "полная себестоимость ÷ в выпуске, без ремонта" : "изделий нет"}</TileCaption>
           {own.qty > 0 ? (
             <TileList items={[

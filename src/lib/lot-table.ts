@@ -80,7 +80,7 @@ export type MultiKey = (typeof MULTI_KEYS)[number];
 
 export function multiValue(row: LotRow, key: string): string {
   const v = key === "material" ? row.material : key === "size" ? row.size : row.op;
-  return v && v !== "—" ? v : EMPTY_VALUE;
+  return v && v !== "–" ? v : EMPTY_VALUE;
 }
 
 const parseBoundRaw = (s: string): number | null => {
@@ -206,7 +206,7 @@ export type Totals = {
   custom: Record<string, CustomTotals>;
 };
 
-const uniqCount = (xs: string[]) => new Set(xs.filter((x) => x && x !== "—")).size;
+const uniqCount = (xs: string[]) => new Set(xs.filter((x) => x && x !== "–")).size;
 
 export function computeTotals(
   rows: LotRow[],

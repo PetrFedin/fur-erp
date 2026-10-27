@@ -432,14 +432,14 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                       k: `Цена, ₽/${b.kind === "lining" ? "м" : "шт."} (ср.)`,
                       v: (b.kind === "lining" ? b.t.lining : b.t.fur) > 0
                         ? <Money incl={(b.t.total / (b.kind === "lining" ? b.t.lining : b.t.fur)).toFixed(2)} excl={(b.t.totalExcl / (b.kind === "lining" ? b.t.lining : b.t.fur)).toFixed(2)} />
-                        : "—",
+                        : "–",
                     }]} />}
                     <VatLine v={b.vat} className="mt-1" />
                   </div>
                   <div className={TILE_BOX}>
                     <TileHead>Оплачено</TileHead>
                     <TileValue>{formatMoney(b.paid.toFixed(2))}</TileValue>
-                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.paid / b.bought) * 100)} от куплено` : "—"}</TileCaption>
+                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.paid / b.bought) * 100)} от куплено` : "–"}</TileCaption>
                   </div>
                   <div className={TILE_BOX}>
                     <TileHead>{b.rest < -OVERPAY_FROM ? "Переплата" : "Долг по сырью"}</TileHead>
@@ -449,7 +449,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                       </InfoHint>
                     </div>
                     <TileValue className={b.rest > PAY_EPS.toNumber() ? "text-amber-700" : ""}>{formatMoney(Math.abs(b.rest).toFixed(2))}</TileValue>
-                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.rest / b.bought) * 100)} от куплено` : "—"}</TileCaption>
+                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.rest / b.bought) * 100)} от куплено` : "–"}</TileCaption>
                   </div>
                 </div>
               </div>

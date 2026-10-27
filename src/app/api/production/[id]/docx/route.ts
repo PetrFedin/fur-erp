@@ -75,7 +75,7 @@ function lotTable(rows: TzLine[], total: string) {
         children: [cell(r.lot, w[0]), cell(r.material, w[1]), cell(r.qty, w[2], { right: true }), cell(r.unitPrice, w[3], { right: true }), cell(r.sum, w[4], { right: true })],
       }),
   );
-  if (rows.length === 0) body.push(new TableRow({ children: [cell("—", CONTENT_W, { span: 5 })] }));
+  if (rows.length === 0) body.push(new TableRow({ children: [cell("–", CONTENT_W, { span: 5 })] }));
   const foot = new TableRow({
     children: [cell("Итого", w[0] + w[1] + w[2] + w[3], { bold: true, span: 4 }), cell(total, w[4], { bold: true, right: true })],
   });
@@ -91,9 +91,9 @@ function buildDoc(d: TzDoc) {
   kids.push(para(`к ${d.contract}`, { size: 22, align: AlignmentType.CENTER, after: 200 }));
 
   const info: [string, string][] = [
-    ["Заказчик", d.customer || "—"],
-    ["Партия", d.batch || "—"],
-    ["Дата ТЗ", d.date || "—"],
+    ["Заказчик", d.customer || "–"],
+    ["Партия", d.batch || "–"],
+    ["Дата ТЗ", d.date || "–"],
     ["Заказ (внутр.)", d.orderNumber],
   ];
   if (d.material) info.push(["Материал", d.material]);
@@ -123,8 +123,8 @@ function buildDoc(d: TzDoc) {
       new TableRow({
         children: [
           cell(d.model, pw[0]),
-          cell(d.color || "—", pw[1]),
-          cell(d.size || "—", pw[2]),
+          cell(d.color || "–", pw[1]),
+          cell(d.size || "–", pw[2]),
           cell(d.qty, pw[3], { right: true }),
           cell(d.workPerUnit, pw[4], { right: true }),
           cell(d.workSum, pw[5], { right: true }),
@@ -151,7 +151,7 @@ function buildDoc(d: TzDoc) {
       table(ew, [
         new TableRow({ tableHeader: true, children: ["Статья", "Описание", "Сумма"].map((t, i) => cell(t, ew[i], { head: true, right: i === 2 })) }),
         ...d.expenses.map(
-          (e) => new TableRow({ children: [cell(e.name, ew[0]), cell(e.description || "—", ew[1]), cell(e.sum, ew[2], { right: true })] }),
+          (e) => new TableRow({ children: [cell(e.name, ew[0]), cell(e.description || "–", ew[1]), cell(e.sum, ew[2], { right: true })] }),
         ),
         new TableRow({ children: [cell("Итого", ew[0] + ew[1], { bold: true, span: 2 }), cell(d.totals.expenses, ew[2], { bold: true, right: true })] }),
       ]),

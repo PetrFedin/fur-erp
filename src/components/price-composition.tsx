@@ -60,7 +60,7 @@ export function PriceCompositionChart({ slices, total, qty, qtyVals, unitName = 
     return { s, d: ringPath(before * Math.PI * 2, (before + frac) * Math.PI * 2), frac };
   });
   const drawn = [...arcs.filter((a) => a.s.key !== hover), ...arcs.filter((a) => a.s.key === hover)];
-  const perUnit = (v: number) => (qty > 0 ? formatMoney((v / qty).toFixed(2)) : "—");
+  const perUnit = (v: number) => (qty > 0 ? formatMoney((v / qty).toFixed(2)) : "–");
   const money = (v: number) => formatMoney(v.toFixed(2));
   const interactive = !!onSelect;
   const enter = (k: string) => () => setHover(k);
@@ -107,7 +107,7 @@ export function PriceCompositionChart({ slices, total, qty, qtyVals, unitName = 
             </div>
           </div>
         </td>
-        {qtyVals ? <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vQty}>{(qtyVals[s.key] ?? 0) > 0 ? formatQty(qtyVals[s.key]) : "—"}</td> : null}
+        {qtyVals ? <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vQty}>{(qtyVals[s.key] ?? 0) > 0 ? formatQty(qtyVals[s.key]) : "–"}</td> : null}
         <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(s.value)}</td>
         <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vAvg}>{perUnit(s.value)}</td>
         <td className="whitespace-nowrap px-1.5 py-1.5 text-right text-neutral-500 tabular-nums">{formatPercent(share(s.value))}</td>
@@ -173,10 +173,10 @@ export function PriceCompositionChart({ slices, total, qty, qtyVals, unitName = 
           {slices.flatMap((s) => [row(s, null), ...(s.sub && unfolded.has(s.key) ? s.sub.map((c) => row(c, s)) : [])])}
           <tr className="row-total h-9">
             <td className="py-1.5 pl-5 pr-2 text-sm font-semibold">{totalLabel}</td>
-            {qtyVals ? <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vQty}>{qty > 0 ? formatQty(qty) : "—"}</td> : null}
+            {qtyVals ? <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vQty}>{qty > 0 ? formatQty(qty) : "–"}</td> : null}
             <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(total)}</td>
             <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vAvg}>{perUnit(total)}</td>
-            <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{total !== 0 ? "100,0 %" : "—"}</td>
+            <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{total !== 0 ? "100,0 %" : "–"}</td>
           </tr>
         </tbody>
       </table>

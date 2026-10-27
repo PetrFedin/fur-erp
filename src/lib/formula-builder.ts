@@ -106,11 +106,11 @@ export function previewFormula(p: CalcPayload, formula: string, skipId?: string)
       const rowI = cr ? cr.row - 1 : idx;
       const v = sh.cells[c.id]?.[rowI]?.v;
       if (v != null) inputs.push({ name: cr ? n.toUpperCase() : L, value: num(v) });
-    } else if (params.has(paramKey(n))) inputs.push({ name: n, value: params.get(paramKey(n)) || "—" });
+    } else if (params.has(paramKey(n))) inputs.push({ name: n, value: params.get(paramKey(n)) || "–" });
   }
   void lettersBetween;
   const cell = sh.cells["__draft"]?.[idx];
   const result = cell?.v ?? null;
-  const text = `${inputs.map((x) => `${x.name} = ${x.value}`).join(", ")}${inputs.length ? " → " : ""}${result != null ? num(Math.round(result * 1e4) / 1e4) : "—"}`;
+  const text = `${inputs.map((x) => `${x.name} = ${x.value}`).join(", ")}${inputs.length ? " → " : ""}${result != null ? num(Math.round(result * 1e4) / 1e4) : "–"}`;
   return { rowNo: idx + 1, inputs, result, error: cell?.err, text };
 }

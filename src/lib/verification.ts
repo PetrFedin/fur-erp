@@ -107,7 +107,7 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 export function stampOf(at: Date | null | undefined, by: string | null | undefined, userId: string | null, names: Map<string, string>): { text: string | null; auto: boolean } {
   if (!at) return { text: null, auto: false };
   const auto = !!by && by.startsWith("auto:");
-  const who = auto ? "авто по документам" : by && userId && by === userId ? "вы" : by ? (names.get(by) ?? "сотрудник") : "—";
+  const who = auto ? "авто по документам" : by && userId && by === userId ? "вы" : by ? (names.get(by) ?? "сотрудник") : "–";
   return { text: `${formatDate(at)} · ${who}`, auto };
 }
 

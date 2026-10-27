@@ -158,7 +158,7 @@ export function UsageRow({
       <Td className="min-w-[7.5rem]">
         <DraftInput value={usage.quantity} draft={qty} onChange={setQty} onEnter={save} onEscape={cancel} step="0.001" min="0" align="right" label="Количество" suffix={unit} readOnly={readOnly} disabled={ch.busy} />
       </Td>
-      <Td className="whitespace-nowrap text-right tabular-nums">{Number(usage.lotCostExclVat) ? <Money incl={usage.lotCostExclVat} /> : <span className="text-neutral-300">—</span>}</Td>
+      <Td className="whitespace-nowrap text-right tabular-nums">{Number(usage.lotCostExclVat) ? <Money incl={usage.lotCostExclVat} /> : <span className="text-neutral-300">–</span>}</Td>
       <Td className="min-w-[5.5rem]">
         <TextCell
           value={String(Number(usage.vatRate))}

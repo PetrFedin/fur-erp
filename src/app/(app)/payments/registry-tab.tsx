@@ -254,7 +254,7 @@ function Card({ r, invHref }: { r: RegistryRow; invHref?: string }) {
 }
 
 const CELL = "px-3 py-2 h-10";
-const DASH = <span className="text-neutral-400">—</span>;
+const DASH = <span className="text-neutral-400">–</span>;
 
 function Row({ r, invHref }: { r: RegistryRow; invHref?: string }) {
   const href = `/payments/${r.code}?from=${encodeURIComponent("/payments")}`;
@@ -262,7 +262,7 @@ function Row({ r, invHref }: { r: RegistryRow; invHref?: string }) {
   const rest = r.unallocated > 0.5 ? <span className="text-amber-700"> · не разнесено {money(r.unallocated)}</span> : null;
   return (
     <tr className="border-b border-neutral-100">
-      <td data-col="pp" className={CELL}><Clamp className="max-w-[9rem]"><Link href={href} className="text-blue-700 hover:underline" title="Открыть карточку оплаты">{r.pp || "—"} ›</Link></Clamp></td>
+      <td data-col="pp" className={CELL}><Clamp className="max-w-[9rem]"><Link href={href} className="text-blue-700 hover:underline" title="Открыть карточку оплаты">{r.pp || "–"} ›</Link></Clamp></td>
       <td data-col="inv" className={CELL}><Clamp className="max-w-[9rem]">{r.invoice ? (invHref ? <Link href={invHref} className="text-blue-700 hover:underline">{r.invoice}</Link> : r.invoice) : DASH}</Clamp></td>
       <td data-col="cp" className={CELL}><Clamp className="max-w-[14rem]">{cpHref(r) ? <Link href={cpHref(r)!} className="text-blue-700 hover:underline">{r.counterparty}</Link> : r.counterparty}</Clamp></td>
       <td data-col="date" className={CELL + " whitespace-nowrap"}>{ruDate(r.iso)}</td>

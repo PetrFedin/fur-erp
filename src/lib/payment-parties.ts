@@ -21,7 +21,7 @@ export function contractorOfOrders(contracts: (string | null | undefined)[]): { 
   const names = Array.from(new Set(contracts.map(contractorOfContract).filter((x): x is string => !!x)));
   if (names.length === 1) return { name: names[0], key: names[0] };
   if (names.length > 1) return { name: "несколько", key: null };
-  return { name: "—", key: null };
+  return { name: "–", key: null };
 }
 
 /** Номер документа без «№» в начале: «№ 46523» → «46523» (слово «П/п» / «Счёт» стоит в заголовке, дубля быть не должно). */
@@ -46,5 +46,5 @@ export function contractorOfPayment(
   const names = Array.from(new Set(orders.map(contractorNameOfOrder).filter((x): x is string => !!x)));
   if (names.length === 1) return { name: names[0], key: names[0] };
   if (names.length > 1) return { name: "несколько", key: null };
-  return { name: "—", key: null };
+  return { name: "–", key: null };
 }

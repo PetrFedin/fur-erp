@@ -55,11 +55,11 @@ export function SupplierMarks({ shipmentId, lines, supplier, canConfirm, stamp }
                     <>
                       <td className="px-2 py-1"><Select aria-label={`Отметка: ${l.text}`} value={d.kind} onChange={(e) => set(l.id, { kind: e.target.value as MarkKind | "" })}><option value="">— не отмечено</option>{(Object.keys(MARK_LABEL) as MarkKind[]).map((k) => <option key={k} value={k}>{MARK_LABEL[k]}</option>)}</Select></td>
                       <td className="px-2 py-1"><input aria-label={`Пояснение: ${l.text}`} className="h-9 w-full rounded-md border border-neutral-300 px-2 text-sm" value={d.note} maxLength={500} placeholder={d.kind && d.kind !== "ok" ? "что не так (обязательно)" : "по желанию"} onChange={(e) => set(l.id, { note: e.target.value })} /></td>
-                      <td className="px-2 py-1.5 text-xs">{l.mark ? (markConfirmed(l.mark.kind, l.stage) ? <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-900">учтено нами</span> : <span className="text-neutral-500">ждёт нас</span>) : <span className="text-neutral-400">—</span>}</td>
+                      <td className="px-2 py-1.5 text-xs">{l.mark ? (markConfirmed(l.mark.kind, l.stage) ? <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-900">учтено нами</span> : <span className="text-neutral-500">ждёт нас</span>) : <span className="text-neutral-400">–</span>}</td>
                     </>
                   ) : (
                     <>
-                      <td className="px-2 py-1.5">{l.mark ? <span className={`rounded px-1.5 py-0.5 text-xs ${BADGE[l.mark.kind]}`}>Веллмех: {MARK_LABEL[l.mark.kind]}</span> : <span className="text-neutral-400">—</span>}</td>
+                      <td className="px-2 py-1.5">{l.mark ? <span className={`rounded px-1.5 py-0.5 text-xs ${BADGE[l.mark.kind]}`}>Веллмех: {MARK_LABEL[l.mark.kind]}</span> : <span className="text-neutral-400">–</span>}</td>
                       <td className="px-2 py-1.5 text-neutral-700">{l.mark?.note}</td>
                     </>
                   )}

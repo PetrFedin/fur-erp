@@ -573,7 +573,7 @@ const lineSel = {
 
 /** «M018 р. 44 №259» — короткое имя строки для названий этапов. */
 function articleOf(l: { size: string | null; itemNo: string | null; customArticle: string | null; productionOrder: { productModel: { name: string } } | null }): string {
-  return [l.productionOrder?.productModel.name ?? l.customArticle ?? "—", l.size ? `р. ${l.size}` : "", l.itemNo ? `№${l.itemNo}` : ""].filter(Boolean).join(" ");
+  return [l.productionOrder?.productModel.name ?? l.customArticle ?? "–", l.size ? `р. ${l.size}` : "", l.itemNo ? `№${l.itemNo}` : ""].filter(Boolean).join(" ");
 }
 
 async function lineDetails(orgId: string, lines: { id: string; size: string | null; itemNo: string | null; customArticle: string | null; productionOrder: { id: string; number: string; workOrderNumber: string | null; productModel: { name: string } } | null }[]): Promise<string> {

@@ -92,9 +92,9 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
                   {s.name}
                 </Link>
               </Td>
-              {showContact && <Td>{s.contactName ?? "—"}</Td>}
-              {showPhone && <Td>{s.phone ?? "—"}</Td>}
-              {showEmail && <Td>{s.email ?? "—"}</Td>}
+              {showContact && <Td>{s.contactName ?? "–"}</Td>}
+              {showPhone && <Td>{s.phone ?? "–"}</Td>}
+              {showEmail && <Td>{s.email ?? "–"}</Td>}
               <Td>
                 <form
                   action={async () => {

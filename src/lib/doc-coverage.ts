@@ -417,7 +417,7 @@ async function computeDocCoverageImpl(db: PrismaClient, organizationId: string):
         id: p.id, section: "purchases", number: p.number, title: `Закупка ${p.number}`,
         sub: `${p.supplier.name}${p.status === "RECEIVED" ? "" : " · черновик"}`,
         href: `/purchases/${p.id}`, year, auction,
-        groupKey: `${auction ?? "—"}|${year ?? ""}`,
+        groupKey: `${auction ?? "–"}|${year ?? ""}`,
         groupTitle: `${auction ? (isServiceAuction(auction) ? "Без аукциона" : auction) : "Без аукциона"}${year ? ` · ${year}` : ""}`,
         groupSort: year ?? nowYear + 1,
       },
@@ -488,7 +488,7 @@ async function computeDocCoverageImpl(db: PrismaClient, organizationId: string):
     finish(
       {
         id: pay.id, section: "payments",
-        number: pay.purchase?.number ?? (auctionName(pay.auctionSession) ?? "—"),
+        number: pay.purchase?.number ?? (auctionName(pay.auctionSession) ?? "–"),
         title: `${pay.supplier.name} · ${formatMoney(pay.amount.toString())} от ${formatDate(pay.paidAt)}`,
         sub: `${pay.purchase ? `закупка ${pay.purchase.number}` : auctionName(pay.auctionSession) ? `аукцион ${auctionName(pay.auctionSession)}` : "без привязки"}${pay.confirmed ? "" : " · не подтверждена"}`,
         href: pay.purchaseId ? `/purchases/${pay.purchaseId}` : auctionName(pay.auctionSession) ? `/payments?auction=${encodeURIComponent(auctionName(pay.auctionSession)!)}#auction-block` : "/payments",
@@ -505,7 +505,7 @@ async function computeDocCoverageImpl(db: PrismaClient, organizationId: string):
     const first = pp.orders[0]?.productionOrderId;
     finish(
       {
-        id: pp.id, section: "prodPayments", number: pp.docRef?.trim() || "—",
+        id: pp.id, section: "prodPayments", number: pp.docRef?.trim() || "–",
         title: `${pp.client?.name ?? "Заказчик не указан"} · ${formatMoney(pp.amount.toString())} от ${formatDate(pp.paidAt)}`,
         sub: `${pp.orders.length > 0 ? `${pp.orders.length} ТЗ` : "аванс без ТЗ"}${pp.confirmed ? "" : " · не подтверждена"}`,
         href: first ? `/production/${first}` : pp.client ? `/clients/${pp.client.id}` : "/production",

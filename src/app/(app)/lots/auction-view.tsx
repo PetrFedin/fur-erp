@@ -381,7 +381,7 @@ export async function AuctionView({
               <dd className="text-xs text-neutral-500">
                 расходы{" "}
                 {fullIncl.sub(priceIncl).abs().lessThan(1) && fullExcl.sub(priceExcl).abs().lessThan(1) ? (
-                  "—"
+                  "–"
                 ) : (
                   <Money incl={fullIncl.sub(priceIncl)} excl={fullExcl.sub(priceExcl)} />
                 )}
@@ -469,8 +469,8 @@ export async function AuctionView({
         if (groups.length === 0) return null;
         const grand = Number(fullIncl.toString());
         const rest = grand - covered;
-        const per = (v: number) => (Number(totalQty.toString()) > 0 ? formatMoney(Math.round(v / Number(totalQty.toString())).toString()) : "—");
-        const share = (v: number) => (grand > 0 ? `${((v / grand) * 100).toFixed(1).replace(".", ",")}%` : "—");
+        const per = (v: number) => (Number(totalQty.toString()) > 0 ? formatMoney(Math.round(v / Number(totalQty.toString())).toString()) : "–");
+        const share = (v: number) => (grand > 0 ? `${((v / grand) * 100).toFixed(1).replace(".", ",")}%` : "–");
         const rowCls = "border-b border-neutral-100";
         const tdn = "py-1 pl-3 text-right tabular-nums whitespace-nowrap";
         return (

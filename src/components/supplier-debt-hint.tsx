@@ -70,9 +70,9 @@ export function SupplierDebtHint({ debt, year = "all", align = "left" }: { debt:
                 <tr key={a.name} className="border-t border-neutral-100" title={a.invoiceDocs ?? undefined}>
                   <td className="py-0.5 pr-2">{a.name}</td>
                   <td className="whitespace-nowrap py-0.5 pr-2 text-right">{m(a.due)}</td>
-                  <td className="whitespace-nowrap py-0.5 pr-2 text-right">{a.dueReceived.greaterThan(0.5) ? m(a.dueReceived) : "—"}</td>
-                  <td className="whitespace-nowrap py-0.5 pr-2 text-right">{a.dueInvoiced.greaterThan(0.5) ? m(a.dueInvoiced) : "—"}</td>
-                  <td className="whitespace-nowrap py-0.5 text-right">{a.dueExpected.greaterThan(0.5) ? m(a.dueExpected) : "—"}</td>
+                  <td className="whitespace-nowrap py-0.5 pr-2 text-right">{a.dueReceived.greaterThan(0.5) ? m(a.dueReceived) : "–"}</td>
+                  <td className="whitespace-nowrap py-0.5 pr-2 text-right">{a.dueInvoiced.greaterThan(0.5) ? m(a.dueInvoiced) : "–"}</td>
+                  <td className="whitespace-nowrap py-0.5 text-right">{a.dueExpected.greaterThan(0.5) ? m(a.dueExpected) : "–"}</td>
                 </tr>
               ))}
             </tbody>

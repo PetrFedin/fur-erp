@@ -87,7 +87,7 @@ export function InvoiceFormButton({ groupDbId, groupTitle, invoice, label, prefi
 }) {
   return (
     <EditDialog
-      title={invoice ? `Изменить счёт №${invoice.no ?? "—"}` : `Добавить счёт в «${groupTitle}»`}
+      title={invoice ? `Изменить счёт №${invoice.no ?? "–"}` : `Добавить счёт в «${groupTitle}»`}
       label={label ?? (invoice ? "Изменить" : "Добавить счёт")}
       variant="outline"
       className={BTN}

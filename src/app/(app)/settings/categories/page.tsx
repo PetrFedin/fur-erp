@@ -249,7 +249,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
                   {r.name} {!r.confirmed && <Badge variant="warning">ждёт подтверждения</Badge>}
                   {note && <InfoHint label="Примечание" wide>{note}</InfoHint>}
                 </Td>
-                <Td className="max-w-md align-top text-sm">{r.aliases.join("; ") || <span className="text-neutral-500">—</span>}</Td>
+                <Td className="max-w-md align-top text-sm">{r.aliases.join("; ") || <span className="text-neutral-500">–</span>}</Td>
                 <Td className="text-right align-top">{s.models}</Td>
                 <Td className="text-right align-top">{s.orders}</Td>
                 <Td className="align-top">

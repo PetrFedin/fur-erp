@@ -45,8 +45,8 @@ export async function PlanLotCard({ id, orgId }: { id: string; orgId: string }) 
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-neutral-200 bg-white p-3"><div className="text-xs text-neutral-500">Куплено</div><div className="text-xl font-semibold tabular-nums">{formatDec1(String(qty))} шт.</div></div>
-        <div className="rounded-lg border border-neutral-200 bg-white p-3"><div className="text-xs text-neutral-500">Цена за шкуру, с НДС</div><div className="text-xl font-semibold tabular-nums">{unit != null ? formatMoney(unit.toFixed(0)) : "—"}</div></div>
-        <div className="rounded-lg border border-neutral-200 bg-white p-3"><div className="text-xs text-neutral-500">Сумма лота, с НДС</div><div className="text-xl font-semibold tabular-nums">{unit != null ? formatMoney((unit * qty).toFixed(0)) : "—"}</div></div>
+        <div className="rounded-lg border border-neutral-200 bg-white p-3"><div className="text-xs text-neutral-500">Цена за шкуру, с НДС</div><div className="text-xl font-semibold tabular-nums">{unit != null ? formatMoney(unit.toFixed(0)) : "–"}</div></div>
+        <div className="rounded-lg border border-neutral-200 bg-white p-3"><div className="text-xs text-neutral-500">Сумма лота, с НДС</div><div className="text-xl font-semibold tabular-nums">{unit != null ? formatMoney((unit * qty).toFixed(0)) : "–"}</div></div>
       </div>
       <section aria-label="Из чего состоит цена лота" className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3">
         <h2 className="text-base font-semibold">Из чего состоит цена лота</h2>

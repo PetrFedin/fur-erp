@@ -64,7 +64,7 @@ export function ForecastView({ id, name, season, canEdit, initialEdits, initialO
   // Пусто или 0 — прочерк.
   const cell = (v: string, sub: string, cls = "") => {
     const zero = v.trim() === "" || /^0([,.]0)?\s*₽?$/.test(v.trim());
-    return <td className={TD + " whitespace-nowrap leading-tight " + cls}>{zero ? "—" : v}{zero ? null : <div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">{sub}</div>}</td>;
+    return <td className={TD + " whitespace-nowrap leading-tight " + cls}>{zero ? "–" : v}{zero ? null : <div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">{sub}</div>}</td>;
   };
   const nCell = (c: Calc, unpriced: number) => <td className={TD}>{formatInt(c.left + unpriced)}{unpriced ? <div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">без расчёта {formatInt(unpriced)}</div> : null}</td>;
   const results = (c: Calc) => {
@@ -170,7 +170,7 @@ export function ForecastView({ id, name, season, canEdit, initialEdits, initialO
           <tbody>
             {furRows.map((x) => { const rest = x.stock - x.need; return (
               <tr key={x.fur} className="border-b border-neutral-100">
-                <td className="px-3 py-2 text-sm">{x.fur}</td><td className={TD}>{formatInt(x.stock)}</td><td className={TD}>{x.need > 0 ? formatInt(x.need) : "—"}</td>
+                <td className="px-3 py-2 text-sm">{x.fur}</td><td className={TD}>{formatInt(x.stock)}</td><td className={TD}>{x.need > 0 ? formatInt(x.need) : "–"}</td>
                 <td className={TD + (rest < 0 ? " font-semibold text-red-700" : " font-semibold")}>{rest < 0 ? `не хватает ${formatInt(-rest)}` : formatInt(rest)}</td>
               </tr>); })}
             <tr className="bg-neutral-50 font-semibold"><td className="px-3 py-2 text-sm">Итого</td>

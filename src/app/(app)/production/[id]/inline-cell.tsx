@@ -88,7 +88,7 @@ function TextCellInner({
 }: Common & { value: string; type: "text" | "number" | "date"; placeholder?: string; step?: string; min?: string; suffix?: string }) {
   const [draft, setDraft] = useState(value);
   const { pending, error, save, saved } = useSaver(onSave, value);
-  if (readOnly) return <span className={cn("block px-1.5 py-0.5 text-sm", align === "right" && "text-right tabular-nums", className)}>{value || <span className="text-neutral-300">—</span>}{suffix ? ` ${suffix}` : ""}</span>;
+  if (readOnly) return <span className={cn("block px-1.5 py-0.5 text-sm", align === "right" && "text-right tabular-nums", className)}>{value || <span className="text-neutral-300">–</span>}{suffix ? ` ${suffix}` : ""}</span>;
   return (
     <span className="block">
       <span className="flex items-center gap-1">
@@ -127,7 +127,7 @@ export function AreaCell({ value, onSave, readOnly, label, className }: Common &
 function AreaCellInner({ value, onSave, readOnly, label, className }: Common & { value: string }) {
   const [draft, setDraft] = useState(value);
   const { pending, error, save, saved } = useSaver(onSave, value);
-  if (readOnly) return <span className="block whitespace-pre-wrap px-1.5 py-0.5 text-sm">{value || <span className="text-neutral-300">—</span>}</span>;
+  if (readOnly) return <span className="block whitespace-pre-wrap px-1.5 py-0.5 text-sm">{value || <span className="text-neutral-300">–</span>}</span>;
   return (
     <span className="block">
       <textarea
@@ -156,7 +156,7 @@ export type SelectOpt = { value: string; label: string };
 export type LazyOptions = { current: SelectOpt; get: () => SelectOpt[] | null; warm: () => Promise<unknown> };
 
 /** Выпадающий список: выбор сразу сохраняется. */
-export function SelectCell({ value, options, onSave, readOnly, label, className, emptyLabel = "—", lazy, confirmChange, onPick }: Common & { value: string; /** Черновой режим: выбор не сохраняется сразу, а передаётся наверх (значение приходит назад через value). */ onPick?: (value: string) => void; options: SelectOpt[]; emptyLabel?: string; lazy?: LazyOptions; /** Подтверждение смены значения (false — выбор отменяется, прежнее значение возвращается). */ confirmChange?: (next: string, prev: string) => Promise<boolean> }) {
+export function SelectCell({ value, options, onSave, readOnly, label, className, emptyLabel = "–", lazy, confirmChange, onPick }: Common & { value: string; /** Черновой режим: выбор не сохраняется сразу, а передаётся наверх (значение приходит назад через value). */ onPick?: (value: string) => void; options: SelectOpt[]; emptyLabel?: string; lazy?: LazyOptions; /** Подтверждение смены значения (false — выбор отменяется, прежнее значение возвращается). */ confirmChange?: (next: string, prev: string) => Promise<boolean> }) {
   const { pending, error, save, saved } = useSaver(onSave, value);
   const [draft, setDraft] = useState(value);
   const [seen, setSeen] = useState(value);
@@ -165,7 +165,7 @@ export function SelectCell({ value, options, onSave, readOnly, label, className,
   if (seen !== value) { setSeen(value); setDraft(value); }
   const full = lazy && open ? lazy.get() : null;
   const opts = lazy ? (full ? (full.some((o) => o.value === value) ? full : [lazy.current, ...full]) : [lazy.current]) : options;
-  if (readOnly) return <span className="block px-1.5 py-0.5 text-sm">{opts.find((o) => o.value === value)?.label || <span className="text-neutral-300">—</span>}</span>;
+  if (readOnly) return <span className="block px-1.5 py-0.5 text-sm">{opts.find((o) => o.value === value)?.label || <span className="text-neutral-300">–</span>}</span>;
   const warm = () => { if (lazy) lazy.warm().then(() => setTick((t) => t + 1), () => {}); };
   return (
     <span className="block">
@@ -218,7 +218,7 @@ export function DraftInput({
   value: string; draft: string; onChange: (v: string) => void; onEnter: () => void; onEscape: () => void;
   type?: "text" | "number"; step?: string; min?: string; suffix?: string; label?: string; align?: "left" | "right"; placeholder?: string; readOnly?: boolean; disabled?: boolean; className?: string;
 }) {
-  if (readOnly) return <span className={cn("block px-1.5 py-0.5 text-sm", align === "right" && "text-right tabular-nums", className)}>{value || <span className="text-neutral-300">—</span>}{suffix ? ` ${suffix}` : ""}</span>;
+  if (readOnly) return <span className={cn("block px-1.5 py-0.5 text-sm", align === "right" && "text-right tabular-nums", className)}>{value || <span className="text-neutral-300">–</span>}{suffix ? ` ${suffix}` : ""}</span>;
   const dirty = draft.trim() !== value.trim();
   return (
     <span className="flex items-center gap-1">

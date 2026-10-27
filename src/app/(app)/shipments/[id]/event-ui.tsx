@@ -352,8 +352,8 @@ function AcceptFields({ shipmentId, rows, totals, namesId, names }: { shipmentId
                 <tr key={i}>
                   <td className="px-2 py-1">{r.label}</td>
                   <td className="px-2 py-1 text-right tabular-nums">{r.quantity}</td>
-                  <td className="px-2 py-1 text-right tabular-nums">{r.accepted ?? "—"}</td>
-                  <td className="px-2 py-1 text-right tabular-nums">{r.returned ?? "—"}</td>
+                  <td className="px-2 py-1 text-right tabular-nums">{r.accepted ?? "–"}</td>
+                  <td className="px-2 py-1 text-right tabular-nums">{r.returned ?? "–"}</td>
                   <td className="px-2 py-1">{r.comment}</td>
                 </tr>
               ))}

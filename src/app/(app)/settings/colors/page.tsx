@@ -249,7 +249,7 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
                   {r.name} {proposed && <Badge variant="warning">ждёт подтверждения</Badge>}
                   {note && <InfoHint label="Примечание" wide>{note}</InfoHint>}
                 </Td>
-                <Td className="align-top text-sm">{r.aliases.join(", ") || <span className="text-neutral-500">—</span>}</Td>
+                <Td className="align-top text-sm">{r.aliases.join(", ") || <span className="text-neutral-500">–</span>}</Td>
                 <Td className="text-right align-top">{r._count.orders}</Td>
                 <Td className="text-right align-top">{r._count.lots}</Td>
                 <Td className="text-right align-top">{r._count.purchaseItems}</Td>

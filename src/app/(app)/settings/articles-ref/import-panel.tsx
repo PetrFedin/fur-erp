@@ -74,9 +74,9 @@ export function ImportPanel() {
                       <Tr key={r.line} className={r.status === "ambiguous" ? "bg-amber-50" : r.status === "conflict" || r.status === "none" ? "bg-red-50/50" : ""}>
                         <Td>{r.line}</Td>
                         <Td><b>{r.ourCode}</b> <span className="text-neutral-500">{r.ourName}</span></Td>
-                        <Td>{r.salesCode || "—"}</Td>
-                        <Td className="max-w-xs text-xs">{r.salesName || "—"}</Td>
-                        <Td>{r.length || "—"}</Td>
+                        <Td>{r.salesCode || "–"}</Td>
+                        <Td className="max-w-xs text-xs">{r.salesName || "–"}</Td>
+                        <Td>{r.length || "–"}</Td>
                         <Td>
                           <Badge variant={st.variant}>{st.label}</Badge>
                           {r.note && <div className="text-xs text-neutral-500">{r.note}</div>}
@@ -87,7 +87,7 @@ export function ImportPanel() {
                             </select>
                           )}
                         </Td>
-                        <Td>{active ? <input type="checkbox" checked={!skip[r.line]} onChange={(e) => setSkip((s) => ({ ...s, [r.line]: !e.target.checked }))} /> : "—"}</Td>
+                        <Td>{active ? <input type="checkbox" checked={!skip[r.line]} onChange={(e) => setSkip((s) => ({ ...s, [r.line]: !e.target.checked }))} /> : "–"}</Td>
                       </Tr>
                     );
                   })}

@@ -210,7 +210,7 @@ async function loadTaskBlocksImpl(db: Db, organizationId: string, now = new Date
 
     const amount = t.amount ?? Number(debt.debt.toString());
     const overdueDays = open && !t.accountedNote && t.due && t.due < today ? cmpDays(today, t.due) : null;
-    const dueText = t.accountedNote ? `${t.accountedNote} (срок по счёту — ${t.due ? t.due.split("-").reverse().join(".") : "—"})` : t.due ? `${t.due.split("-").reverse().join(".")}${t.dueNote ? ` · ${t.dueNote}` : ""}` : null;
+    const dueText = t.accountedNote ? `${t.accountedNote} (срок по счёту — ${t.due ? t.due.split("-").reverse().join(".") : "–"})` : t.due ? `${t.due.split("-").reverse().join(".")}${t.dueNote ? ` · ${t.dueNote}` : ""}` : null;
     views.push({
       task: t, open, counts: open && !t.later, priority: open ? priorityOf(amount, overdueDays, !!t.later) : "gray",
       amount, overdueDays, dueText, recordHref, uploadHref, closedBy, have, need, missing: open ? missing : null, paymentIds,

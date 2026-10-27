@@ -168,8 +168,8 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   const usdTile = view === "fur";
 
   const usdBought = (() => {
-    if (view === "lining") return { main: <span title="Подкладка закупается без цены в долларах">—</span>, note: "подкладка закупается без цены в долларах" };
-    if (F.usdQty <= 0 || F.usdAvg == null) return { main: <span title="Нет лотов с ценой в USD">—</span>, note: "в выбранном срезе нет лотов с ценой в USD" };
+    if (view === "lining") return { main: <span title="Подкладка закупается без цены в долларах">–</span>, note: "подкладка закупается без цены в долларах" };
+    if (F.usdQty <= 0 || F.usdAvg == null) return { main: <span title="Нет лотов с ценой в USD">–</span>, note: "в выбранном срезе нет лотов с ценой в USD" };
     const share = F.recvQty > 0 ? (F.usdQty / F.recvQty) * 100 : 0;
     const b = F.usdBySource;
     const parts = [
@@ -181,7 +181,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
     return {
       main: usd(F.usdAvg),
       note: `по ${qtyF(F.usdQty)} из ${qtyF(F.recvQty)} шт. с ценой в USD (${formatPercent(share)})`,
-      hint: `Источники цены, шт.: ${parts || "—"}. Остальные лоты — без цены в USD (только рубли или нет курса в документах).`,
+      hint: `Источники цены, шт.: ${parts || "–"}. Остальные лоты — без цены в USD (только рубли или нет курса в документах).`,
     };
   })();
 
@@ -225,7 +225,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
                 <Row k="Сумма" v={rub(cur.recvValue)} strong sub={compact ? <SubLines n={2} /> : ghost} />
               </Duo>
               <Duo>
-                <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.recvAvg != null ? rub(cur.recvAvg) : "—"} />
+                <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.recvAvg != null ? rub(cur.recvAvg) : "–"} />
                 {usdTile && usdBought ? <Row k="Цена, $/шт." v={usdBought.main} sub={usdSub(F.usdQty, F.recvQty)} /> : null}
               </Duo>
               {recvNote ? <div className="mt-2 text-[11px] leading-4 text-neutral-500" data-testid="recv-share">{recvNote}</div> : null}
@@ -251,8 +251,8 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
                 <Row k={lab("Сумма", usedNo4, cur.recvValue)} v={withShare(usedNo4, cur.recvValue, rub(usedNo4))} strong sub={compact ? <SubLines n={2} lines={[`с 4%: ${rub(usedWith4)}`, `надбавка ${rub(usedWith4 - usedNo4)}`]} /> : `с 4%: ${rub(usedWith4)} · надбавка ${rub(usedWith4 - usedNo4)}`} />
               </Duo>
               <Duo>
-                <Row k={`Цена, ₽/${priceUnit}`} v={usedQtyNow > 0 ? rub(usedNo4 / usedQtyNow) : "—"} sub={compact ? <SubLines n={1} lines={usedQtyNow > 0 ? [`с 4%: ${rub(usedWith4 / usedQtyNow)}`] : []} /> : usedQtyNow > 0 ? `с 4%: ${rub(usedWith4 / usedQtyNow)}` : undefined} />
-                {usdTile ? <Row k="Цена, $/шт." v={F.usdUsedAvg != null ? usd(F.usdUsedAvg) : <span title="Нет лотов с ценой в USD">—</span>} sub={usdSub(F.usdUsedQty, F.usedQty)} /> : null}
+                <Row k={`Цена, ₽/${priceUnit}`} v={usedQtyNow > 0 ? rub(usedNo4 / usedQtyNow) : "–"} sub={compact ? <SubLines n={1} lines={usedQtyNow > 0 ? [`с 4%: ${rub(usedWith4 / usedQtyNow)}`] : []} /> : usedQtyNow > 0 ? `с 4%: ${rub(usedWith4 / usedQtyNow)}` : undefined} />
+                {usdTile ? <Row k="Цена, $/шт." v={F.usdUsedAvg != null ? usd(F.usdUsedAvg) : <span title="Нет лотов с ценой в USD">–</span>} sub={usdSub(F.usdUsedQty, F.usedQty)} /> : null}
               </Duo>
               {vatRates ? <VatLine v={vatRates.used} minRem={compact ? 3 : 1} className="mt-auto pt-2" /> : null}
             </>
@@ -274,8 +274,8 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
                 <Row k={lab("Сумма", cur.remValue, cur.recvValue)} v={withShare(cur.remValue, cur.recvValue, rub(cur.remValue))} strong sub={compact ? <SubLines n={2} /> : ghost} />
               </Duo>
               <Duo>
-                <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.remAvg != null ? rub(cur.remAvg) : "—"} />
-                {usdTile ? <Row k="Цена, $/шт." v={F.usdRemAvg != null ? usd(F.usdRemAvg) : <span title="Нет лотов с ценой в USD">—</span>} sub={usdSub(F.usdRemQty, F.remQty)} /> : null}
+                <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.remAvg != null ? rub(cur.remAvg) : "–"} />
+                {usdTile ? <Row k="Цена, $/шт." v={F.usdRemAvg != null ? usd(F.usdRemAvg) : <span title="Нет лотов с ценой в USD">–</span>} sub={usdSub(F.usdRemQty, F.remQty)} /> : null}
               </Duo>
               {vatRates ? <VatLine v={vatRates.rem} minRem={compact ? 3 : 1} className="mt-auto pt-2" /> : null}
             </>
@@ -332,7 +332,7 @@ export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c
   const block = furSrc[nav.src];
   const slidesF = [{ key: "", label: ALL_TYPES_LABEL, fur: block.total }, ...tileTypes[nav.src].map((t) => ({ key: t.name, label: t.name, fur: t.pair }))];
   const slideNow = slidesF[Math.min(cur, slidesF.length - 1)];
-  const pct = (a: number, b: number) => (b > 0 ? formatPercent((a / b) * 100) : "—");
+  const pct = (a: number, b: number) => (b > 0 ? formatPercent((a / b) * 100) : "–");
   const share = (p: Pair, of: Pair, what: string, from: string) => <span title={`${what} в «${from}» по количеству и по сумме`}>{what}: {pct(p[vat].recvQty, of[vat].recvQty)} шт. · {pct(p[vat].recvValue, of[vat].recvValue)} ₽</span>;
   const noteOf = (key: string, p: Pair) => {
     if (!key) return nav.src === "all" ? undefined : share(p, furSrc.all.total, "Доля", FUR_SRC_LABEL.all);
@@ -506,7 +506,7 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
   const cols = (showUsd ? 5 : 4) + (showShare ? 1 : 0);
   // Тонкие вертикальные линии между блоками колонок: «Количество» | «Сумма» | «Цена».
   const BL = " border-l border-neutral-200";
-  const shareCell = (q: number, rq: number, cls = "px-2 py-1.5") => showShare ? <td className={`whitespace-nowrap ${cls} text-right tabular-nums text-neutral-500${BL}`}>{rq > 0 ? formatShare(q / rq) : "—"}</td> : null;
+  const shareCell = (q: number, rq: number, cls = "px-2 py-1.5") => showShare ? <td className={`whitespace-nowrap ${cls} text-right tabular-nums text-neutral-500${BL}`}>{rq > 0 ? formatShare(q / rq) : "–"}</td> : null;
   // Итого по виду: количество, сумма, средневзвешенная цена ₽ и $ (как в карточке).
   const total = (f: FlowFigures | null, kind: "fur" | "lining") =>
     !f ? null : col === "recv" ? { q: f.recvQty, v: pickV(al.tot[kind], f.recvValue), a: f.recvAvg, d: f.usdAvg, rq: f.recvQty } : col === "used" ? { q: f.usedQty, v: pickV(al.tot[kind], c4 === "on" ? f.usedValueOther : f.usedValue), a: f.usedAvg, d: f.usdUsedAvg, rq: f.recvQty } : { q: f.remQty, v: pickV(al.tot[kind], f.remValue), a: f.remAvg, d: f.usdRemAvg, rq: f.recvQty };
@@ -570,7 +570,7 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
                             {shareCell(c.q, c.rq)}
                             <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(c.q)} {unit}</td>
                             <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(c.v)}</td>
-                            <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + BL}>{c.q > 0 ? rub(c.v / c.q) : "—"}</td>
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + BL}>{c.q > 0 ? rub(c.v / c.q) : "–"}</td>
                           </tr>
                         ))}
                         {t ? (
@@ -579,7 +579,7 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
                             {shareCell(t.q, t.rq)}
                             <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(t.q)} {unit}</td>
                             <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(t.v)}</td>
-                            <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{t.a != null ? rub(t.a) : "—"}</td>
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{t.a != null ? rub(t.a) : "–"}</td>
                           </tr>
                         ) : null}
                         <tr className="text-xs text-neutral-500"><td colSpan={cols} className="px-2 pb-1 pt-2">По видам ткани (нажмите — разбивка по годам)</td></tr>
@@ -592,8 +592,8 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
                       {shareCell(restSum.q, restSum.rq)}
                       <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(restSum.q)} {unit}</td>
                       <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(restSum.v)}</td>
-                      <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + BL}>{restSum.q > 0 ? rub(restSum.v / restSum.q) : "—"}</td>
-                      {showUsd ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">—</td> : null}
+                      <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + BL}>{restSum.q > 0 ? rub(restSum.v / restSum.q) : "–"}</td>
+                      {showUsd ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">–</td> : null}
                     </tr>
                   ) : (
                     <Fragment key={x.r.key}>
@@ -602,8 +602,8 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
                       {shareCell(x.q, x.rq)}
                       <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(x.q)} {unit}</td>
                       <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(x.v)}</td>
-                      <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + BL}>{x.a != null ? rub(x.a) : "—"}</td>
-                      {showUsd ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{x.d != null ? usd(x.d) : "—"}</td> : null}
+                      <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + BL}>{x.a != null ? rub(x.a) : "–"}</td>
+                      {showUsd ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{x.d != null ? usd(x.d) : "–"}</td> : null}
                     </tr>
                     {open.has(x.r.key) ? (() => {
                       const kids = x.r.years.map((y) => ({ y, p: pickYear(y.cells, y.usd) })).filter((z) => z.p.q > 0);
@@ -615,8 +615,8 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
                         {shareCell(p.q, p.rq, "px-2 py-1")}
                         <td className={"whitespace-nowrap px-2 py-1 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(p.q)} {unit}</td>
                         <td className={"whitespace-nowrap px-2 py-1 text-right tabular-nums" + BL}>{rub(p.v)}</td>
-                        <td className={"whitespace-nowrap px-2 py-1 text-right tabular-nums" + BL}>{p.a != null ? rub(p.a) : "—"}</td>
-                        {showUsd ? <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{p.d != null ? usd(p.d) : "—"}</td> : null}
+                        <td className={"whitespace-nowrap px-2 py-1 text-right tabular-nums" + BL}>{p.a != null ? rub(p.a) : "–"}</td>
+                        {showUsd ? <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{p.d != null ? usd(p.d) : "–"}</td> : null}
                       </tr>
                     )) : null}
                     </Fragment>
@@ -629,8 +629,8 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
                         {shareCell(t.q, t.rq)}
                         <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(t.q)} {unit}</td>
                         <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(t.v)}</td>
-                        <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{t.a != null ? rub(t.a) : "—"}</td>
-                        {showUsd ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{t.d != null ? usd(t.d) : "—"}</td> : null}
+                        <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{t.a != null ? rub(t.a) : "–"}</td>
+                        {showUsd ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{t.d != null ? usd(t.d) : "–"}</td> : null}
                       </tr>
                     ) : null;
                   })()}

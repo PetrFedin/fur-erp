@@ -452,7 +452,7 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
   };
 }
 
-export const pctText = (p: number | null) => (p == null ? "—" : formatPercent(p));
+export const pctText = (p: number | null) => (p == null ? "–" : formatPercent(p));
 
 // ───────────── списания по изделиям и ТЗ ─────────────
 

@@ -50,7 +50,7 @@ export function summarizeLines(
   for (const l of lines) {
     const label = orderLabel(l.productionOrder);
     const e = byOrder.get(label) ?? { label, parts: [] };
-    e.parts.push(`${l.size ?? "—"}×${l.quantity}`);
+    e.parts.push(`${l.size ?? "–"}×${l.quantity}`);
     byOrder.set(label, e);
   }
   return [...byOrder.values()].map((e) => `${e.label}: ${e.parts.join(", ")}`);

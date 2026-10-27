@@ -227,7 +227,7 @@ export function GroupBody({ g, ids, live, doc, reg, ed }: { g: Group; ids: Set<s
             <InfoHint label="Согласования по группе" wide>
               <ul className="space-y-1">
                 {g.agreements.map((a, i) => (
-                  <li key={i}>{a.date ?? "—"} · {a.by || "—"} — {a.note}</li>
+                  <li key={i}>{a.date ?? "–"} · {a.by || "–"} — {a.note}</li>
                 ))}
               </ul>
             </InfoHint>

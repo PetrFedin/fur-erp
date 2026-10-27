@@ -68,7 +68,7 @@ function segments(a: PriceAgg): Seg[] {
 function Bar({ a }: { a: PriceAgg }) {
   const segs = segments(a);
   const total = segs.reduce((s, x) => s + x.value, 0);
-  if (total <= 0) return <span className="text-neutral-500">—</span>;
+  if (total <= 0) return <span className="text-neutral-500">–</span>;
   return (
     <div className="min-w-32">
       <div className="flex h-3 w-full overflow-hidden rounded-full bg-neutral-100" role="img" aria-label={segs.map((s) => `${s.label} ${formatShare(s.value / total)}`).join(", ")}>
@@ -159,7 +159,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const exCalc = exampleModel ? calcOf(exampleModel) : null;
 
   const baseLabel = p.base === "full" ? "полная себестоимость (с работой)" : "себестоимость сырья (без работы)";
-  const basis = `наценка ${target != null ? formatMarkupPct(target) : "—"}, база — ${baseLabel}, ${c4Mode === "on" ? "с 4%" : "без 4%"}`;
+  const basis = `наценка ${target != null ? formatMarkupPct(target) : "–"}, база — ${baseLabel}, ${c4Mode === "on" ? "с 4%" : "без 4%"}`;
   const qs = pricingParams(p).toString();
   const here = (over: Partial<PricingParams> = {}) => {
     const s = pricingParams(p, over).toString();
@@ -189,7 +189,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const composition = (a: PriceAgg) => {
     const u = (x: number) => perUnit(a, x);
     const full = a.costIncl + a.work;
-    const share = (x: number) => (full > 0 ? pct1((x / full) * 100) : "—");
+    const share = (x: number) => (full > 0 ? pct1((x / full) * 100) : "–");
     const row = (label: React.ReactNode, incl: number, excl: number, shareBase: number, opts: { strong?: boolean; dim?: boolean } = {}) => (
       <Tr key={String(label)} className={opts.strong ? "bg-neutral-50 font-semibold" : opts.dim ? "text-neutral-500" : ""}>
         <Td>{label}</Td>
@@ -219,7 +219,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
               <Td>4 % — не включено (режим «Без 4 %»)</Td>
               <Td className="text-right tabular-nums">+{rub(u(c4Excluded))}</Td>
               <Td className="text-right tabular-nums">+{rub(c4Excluded)}</Td>
-              <Td className="text-right">—</Td>
+              <Td className="text-right">–</Td>
             </Tr>
           )}
           {row("Расходы ТЗ", a.expenses, a.expenses, a.expenses)}
@@ -318,7 +318,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     const d = derived(a.m);
     const c = calcOf(a);
     const r = recommend(a, p.base, target);
-    const dash = <span className="text-neutral-500">—</span>;
+    const dash = <span className="text-neutral-500">–</span>;
     const items: [string, React.ReactNode][] = [
       ["Готово (завершённые ТЗ)", <>{formatQty(a.units)} ед. · ТЗ {a.orders}{a.inWorkOrders ? ` (+${a.inWorkOrders} в работе)` : ""}</>],
       ["По годам", breakdown(a, "year") || dash],
@@ -385,7 +385,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
 
   const costCell = (a: PriceAgg) => {
     const c = calcOf(a);
-    return c.baseIncl == null ? "—" : (
+    return c.baseIncl == null ? "–" : (
       <div>
         <Money incl={c.baseIncl} excl={c.baseExcl} />
         {rangeCell(a)}
@@ -404,15 +404,15 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       ) : (
         <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">цена не задана</span>
       );
-    if (p.view !== "category") return <span className="text-neutral-500">—</span>;
+    if (p.view !== "category") return <span className="text-neutral-500">–</span>;
     const m = catMarkup.get(a.label);
-    return m && m.total > 0 ? <span className="text-xs text-neutral-500">цена у {m.priced} из {m.total} моделей</span> : "—";
+    return m && m.total > 0 ? <span className="text-xs text-neutral-500">цена у {m.priced} из {m.total} моделей</span> : "–";
   };
 
   const markupCell = (a: PriceAgg) => {
     if (a.modelId) {
       const c = calcOf(a);
-      if (c.markupX == null) return "—";
+      if (c.markupX == null) return "–";
       return (
         <div className={c.belowCost ? "text-red-700" : ""}>
           <span className="font-semibold">{formatMarkup(c.markupX)}</span>
@@ -420,9 +420,9 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         </div>
       );
     }
-    if (p.view !== "category") return "—";
+    if (p.view !== "category") return "–";
     const m = catMarkup.get(a.label);
-    return m?.pct != null ? <div>средняя {formatMarkup(1 + m.pct / 100)}<div className="text-[11px] text-neutral-500">по моделям с ценой</div></div> : "—";
+    return m?.pct != null ? <div>средняя {formatMarkup(1 + m.pct / 100)}<div className="text-[11px] text-neutral-500">по моделям с ценой</div></div> : "–";
   };
 
   const recOf = (a: PriceAgg) => recommend(a, p.base, target);
@@ -508,7 +508,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             </p>
             {exampleModel && exCalc && exCalc.baseIncl && exampleModel.price && (
               <p className="mt-1">
-                Пример — модель {exampleModel.label}: цена {formatMoney(exampleModel.price.toFixed(2))} ÷ себестоимость {formatMoney(exCalc.baseIncl.toFixed(2))} = ×{exCalc.markupX!.toFixed(2).replace(".", ",")}, наценка +{formatPercent(exCalc.markupPct!)}, маржа {pct1(exCalc.marginPct!)}. При целевой наценке {target ?? "—"} % рекомендуемая цена = себестоимость × {(1 + (target ?? 0) / 100).toFixed(2).replace(".", ",")}, округлённая до 100 ₽.
+                Пример — модель {exampleModel.label}: цена {formatMoney(exampleModel.price.toFixed(2))} ÷ себестоимость {formatMoney(exCalc.baseIncl.toFixed(2))} = ×{exCalc.markupX!.toFixed(2).replace(".", ",")}, наценка +{formatPercent(exCalc.markupPct!)}, маржа {pct1(exCalc.marginPct!)}. При целевой наценке {target ?? "–"} % рекомендуемая цена = себестоимость × {(1 + (target ?? 0) / 100).toFixed(2).replace(".", ",")}, округлённая до 100 ₽.
               </p>
             )}
             <p className="mt-1">Целевая наценка по умолчанию — средневзвешенная по моделям, у которых цена уже есть (вес — себестоимость партии). <b>Рекомендация — расчёт, а не факт</b>: рынок и скидки в нём не учтены.</p>
@@ -547,7 +547,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             Средняя наценка
             <InfoHint label="Как посчитана" wide>Средневзвешенная по {def.count} моделям с ценой: Σ(наценка × себестоимость партии) ÷ Σ себестоимость партии. База — {baseLabel}{c4Mode === "on" ? ", с 4 %" : ", без 4 %"}.</InfoHint>
           </TileHead>
-          <TileValue>{def.pct != null ? formatMarkup(1 + def.pct / 100) : "—"}</TileValue>
+          <TileValue>{def.pct != null ? formatMarkup(1 + def.pct / 100) : "–"}</TileValue>
         </div>
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>

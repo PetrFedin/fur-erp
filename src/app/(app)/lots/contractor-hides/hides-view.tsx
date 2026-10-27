@@ -18,7 +18,7 @@ export type HidesOrderRow = {
 export type HidesPayment = { id: string; iso: string; date: string; year: number; label: string; doc: string | null; hides: number; amount: number; href: string; confirmed: boolean };
 
 import { useClientSort } from "@/lib/use-client-sort";
-const D = () => <span className="text-neutral-300">—</span>;
+const D = () => <span className="text-neutral-300">–</span>;
 const money = (v: number) => (Math.abs(v) < 0.5 ? <D /> : formatMoney(v.toFixed(2)));
 const TD = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
 const BL = " border-l border-neutral-200";
@@ -80,7 +80,7 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
         {vat === "excl" ? <div className={TILE_BOX}><TileHead>С НДС, ₽</TileHead><TileValue compact>{formatMoney(all.incl.toFixed(2))}</TileValue><TileCaption>как в «Оплатах»</TileCaption></div> : null}
         <div className={TILE_BOX}><TileHead>НДС, ₽</TileHead><TileValue compact>{formatMoney((all.incl - all.excl).toFixed(2))}</TileValue><TileCaption><span title="Партия 8 — 20 %, партия 7 — 22 %">20 % · 22 %</span></TileCaption></div>
         <div className={TILE_BOX}><TileHead>Оплачено, ₽</TileHead><TileValue compact>{formatMoney(paidTotal.toFixed(2))}</TileValue><TileCaption>в счетах за пошив</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>Долг, ₽</TileHead><TileValue compact>—</TileValue><TileCaption>долга нет</TileCaption></div>
+        <div className={TILE_BOX}><TileHead>Долг, ₽</TileHead><TileValue compact>–</TileValue><TileCaption>долга нет</TileCaption></div>
         <div className={TILE_BOX}><TileHead>Платежей / ТЗ</TileHead><TileValue compact>{payments.length} / {orders.length}</TileValue><TileCaption>партий: {batches.length}</TileCaption></div>
       </div>
 

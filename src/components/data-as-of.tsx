@@ -1,6 +1,6 @@
 import type { DataAsOf } from "@/lib/data-as-of";
 
-const ru = (iso: string | null) => (iso ? iso.split("-").reverse().join(".") : "—");
+const ru = (iso: string | null) => (iso ? iso.split("-").reverse().join(".") : "–");
 
 /** Строка «данные на дату»: коротко — когда загружено и до какой даты есть продажи и поступления. */
 export function DataAsOf({ asOf }: { asOf: DataAsOf }) {

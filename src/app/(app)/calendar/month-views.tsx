@@ -75,7 +75,7 @@ function MonthTable({ items, filters, my, href, cell, cardHref }: {
   const hasRepair = t.grand.repair > 0;
   const LBL = "sticky left-0 z-10 w-40 min-w-40 border-r border-neutral-200";
   const hd = "px-2 py-1.5 text-right text-xs font-medium text-neutral-500";
-  const num = (v: number) => (v > 0 ? formatQty(v) : <span className="text-neutral-400">—</span>);
+  const num = (v: number) => (v > 0 ? formatQty(v) : <span className="text-neutral-400">–</span>);
   // Линия слева: у «Без даты», у «Всего» и у января каждого следующего года (при «Все годы»).
   const colBl = (c: string, i: number) => (c === NO_DATE || (i > 0 && c.endsWith("-01")) ? BL : "");
   /** Блок вида меха (или «Всего, шт.»): «Всего по плану» крупно + строки стадий словами. */
@@ -102,7 +102,7 @@ function MonthTable({ items, filters, my, href, cell, cardHref }: {
               <td key={c} className={`p-0${bl}`} style={tot || grand || v === 0 ? undefined : heat(v)}>
                 {v > 0 ? (
                   <Link href={on ? href({ cell: "" }) : link(c, fur)} title={s ? stageTitle(s) : ""} aria-expanded={on} className={`flex min-h-12 items-center justify-end px-2 text-base font-semibold tabular-nums hover:ring-2 hover:ring-inset hover:ring-[var(--ui-accent)] ${on ? "ring-2 ring-inset ring-[var(--ui-accent)]" : ""}`}>{formatQty(v)}</Link>
-                ) : <span className="flex min-h-12 items-center justify-end px-2 text-neutral-400">—</span>}
+                ) : <span className="flex min-h-12 items-center justify-end px-2 text-neutral-400">–</span>}
               </td>
             );
           })}

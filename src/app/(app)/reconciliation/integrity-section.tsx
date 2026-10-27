@@ -19,7 +19,7 @@ function tone(c: CheckResult) {
 /** Величина расхождения по проверке: сумма разниц в ₽ либо число записей. */
 function magnitude(c: CheckResult) {
   const list = c.violations.length ? c.violations : c.known;
-  if (!list.length) return "—";
+  if (!list.length) return "–";
   const rub = list.filter((v) => v.unit === "₽" && v.delta != null).reduce((s, v) => s + Math.abs(v.delta!), 0);
   return rub > 0 ? `всего ${fmtNum(Math.round(rub * 100) / 100)} ₽ · ${list.length} зап.` : `${list.length} зап.`;
 }

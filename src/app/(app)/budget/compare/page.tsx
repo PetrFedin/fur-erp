@@ -38,7 +38,7 @@ function byFur(s: Side) {
 }
 
 const dRub = (a: number, b: number) => formatMoneySigned(b - a);
-const dPct = (a: number, b: number) => (a > 0 ? pct((b / a - 1) * 100) : b > 0 ? "новое" : "—");
+const dPct = (a: number, b: number) => (a > 0 ? pct((b / a - 1) * 100) : b > 0 ? "новое" : "–");
 
 export default async function ComparePage({ searchParams }: { searchParams: Promise<{ a?: string; b?: string }> }) {
   const session = await requireSession();
@@ -84,10 +84,10 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
     return (
       <tr key={kpre + (deep ? "l:" : sub ? "c:" : "f:") + label + (sub ? x + "|" + y : "")} className={deep ? "text-xs text-neutral-500" : sub ? "text-xs text-neutral-600" : "bg-neutral-50 font-medium"}>
         <td className={"px-3 py-2 " + (deep ? "pl-12" : sub ? "pl-8" : "")}>{label}</td>
-        <td className={cell + " border-l border-neutral-200"}>{a ? qty(a.pcs, 0) : "—"}</td>
-        <td className={cell}>{b ? qty(b.pcs, 0) : "—"}</td>
-        <td className={cell + " border-l border-neutral-200"}>{a ? money(x) : "—"}</td>
-        <td className={cell}>{b ? money(y) : "—"}</td>
+        <td className={cell + " border-l border-neutral-200"}>{a ? qty(a.pcs, 0) : "–"}</td>
+        <td className={cell}>{b ? qty(b.pcs, 0) : "–"}</td>
+        <td className={cell + " border-l border-neutral-200"}>{a ? money(x) : "–"}</td>
+        <td className={cell}>{b ? money(y) : "–"}</td>
         <td className={cell + " border-l border-neutral-200" + (y - x === 0 ? "" : " font-medium")}>{dRub(x, y)}</td>
         <td className={cell}>{dPct(x, y)}</td>
       </tr>

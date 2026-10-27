@@ -281,7 +281,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
                 subtitle={[r.s.supplier?.name, r.s.batch ? `Партия ${r.s.batch.number}` : ""].filter(Boolean).join(" · ")}
                 fields={[
                   { label: "Плановая дата", value: formatDate(r.s.plannedDate) },
-                  { label: "Этапов", value: r.s.events.length || "—" },
+                  { label: "Этапов", value: r.s.events.length || "–" },
                   { label: "К отгрузке, шт.", value: formatQty(r.t.inShipment), strong: true },
                   { label: "Принято / не принято", value: `${formatQty(r.t.accepted)} / ${formatQty(r.t.returned)}` },
                 ]}

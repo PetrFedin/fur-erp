@@ -24,9 +24,9 @@ import { DocumentCard } from "./document-card";
 
 export const metadata = { title: "Входящее" };
 
-const money = (n: number) => (Number.isFinite(n) ? formatNum(n, 1) : "—");
-const rateFmt = (n: number) => (Number.isFinite(n) && n > 0 ? formatRate(n) : "—");
-const dash = (s: string | undefined) => (s && s.trim() ? s : "—");
+const money = (n: number) => (Number.isFinite(n) ? formatNum(n, 1) : "–");
+const rateFmt = (n: number) => (Number.isFinite(n) && n > 0 ? formatRate(n) : "–");
+const dash = (s: string | undefined) => (s && s.trim() ? s : "–");
 const kb = formatFileSize;
 
 function Dl({ items }: { items: [string, string][] }) {
@@ -72,9 +72,9 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
         <div className="mt-3 flex flex-col gap-4">
       <Dl items={[
         ["Формат", FORMAT_LABEL[p.format]], ["Аукцион", dash(h.auction)], ["Счёт №", dash(h.invoice)], ["Дата счёта", dash(h.invoiceDate)], ["Продавец", dash(h.seller)],
-        ["Валюта", h.currency], ["Курс ЦБ", dash(h.cbRate)], ["Надбавка агента, %", dash(h.agentPct)], ["Курс для расчёта", rateFmt(t.rate)], ["НДС, %", calcVatPct(p) != null ? String(calcVatPct(p)) : "—"],
+        ["Валюта", h.currency], ["Курс ЦБ", dash(h.cbRate)], ["Надбавка агента, %", dash(h.agentPct)], ["Курс для расчёта", rateFmt(t.rate)], ["НДС, %", calcVatPct(p) != null ? String(calcVatPct(p)) : "–"],
         ["Покупатель", dash(h.buyer)], ["Куда", dash(h.dest)], ["Брокер", dash(h.broker)], ["Срок оплаты", dash(h.dueDate)],
-        ["Аванс", h.advance ? `${h.advance}${h.advanceDate ? ` от ${h.advanceDate}` : ""}` : "—"], ["Промежуточный платёж", dash(h.interim)],
+        ["Аванс", h.advance ? `${h.advance}${h.advanceDate ? ` от ${h.advanceDate}` : ""}` : "–"], ["Промежуточный платёж", dash(h.interim)],
       ]} />
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="text-neutral-500">Стадия:</span>
@@ -93,7 +93,7 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
               {t.sheet.cols.filter((c) => c.kind === "custom").map((c) => (
                 <Tr key={c.id}>
                   <Td className="font-mono">{c.letter}</Td><Td>{c.title}{c.unit && !c.title.includes(c.unit) ? `, ${c.unit}` : ""}</Td><Td className="font-mono text-xs">{c.formula}</Td>
-                  <Td className="text-xs">{[t.sheet.unitCol === c.id ? "идёт в закупку как себестоимость шкуры" : "", t.sheet.qtyCol === c.id ? "количество" : "", t.sheet.colErrors[c.id] ?? "", Object.values(p.overrides ?? {}).filter((o) => o[c.id] !== undefined).length ? `ручных значений: ${Object.values(p.overrides ?? {}).filter((o) => o[c.id] !== undefined).length}` : ""].filter(Boolean).join("; ") || "—"}</Td>
+                  <Td className="text-xs">{[t.sheet.unitCol === c.id ? "идёт в закупку как себестоимость шкуры" : "", t.sheet.qtyCol === c.id ? "количество" : "", t.sheet.colErrors[c.id] ?? "", Object.values(p.overrides ?? {}).filter((o) => o[c.id] !== undefined).length ? `ручных значений: ${Object.values(p.overrides ?? {}).filter((o) => o[c.id] !== undefined).length}` : ""].filter(Boolean).join("; ") || "–"}</Td>
                 </Tr>
               ))}
             </Tbody>
@@ -156,7 +156,7 @@ function TzView({ p }: { p: TzPayload }) {
       </div>
       <div>
         <h3 className="mb-1 text-sm font-semibold">Условия</h3>
-        <Dl items={[["Порядок оплаты", dash(tm.payment)], ["Срок завершения работ", tm.deadline ? ruDate(tm.deadline) : "—"], ["Срок поставки", dash(tm.delivery)], ["Место поставки", dash(tm.place)], ["Способ поставки", dash(tm.method)], ["Иные характеристики", dash(tm.other)]]} />
+        <Dl items={[["Порядок оплаты", dash(tm.payment)], ["Срок завершения работ", tm.deadline ? ruDate(tm.deadline) : "–"], ["Срок поставки", dash(tm.delivery)], ["Место поставки", dash(tm.place)], ["Способ поставки", dash(tm.method)], ["Иные характеристики", dash(tm.other)]]} />
       </div>
     </div>
   );

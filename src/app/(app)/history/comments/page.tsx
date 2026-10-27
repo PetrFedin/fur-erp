@@ -46,7 +46,7 @@ export default async function CommentsPage({ searchParams }: PageProps<"/history
   const f = parseCommentFilters(sp);
   const pageNo = Math.max(1, Number(f.page) || 1);
   const where = commentWhere(orgId, f);
-  const actor = { id: session.user.id, name: session.user.name ?? "—", role: session.user.role, organizationId: orgId };
+  const actor = { id: session.user.id, name: session.user.name ?? "–", role: session.user.role, organizationId: orgId };
 
   const [total, rows, authors, pages, openCount] = await Promise.all([
     prisma.comment.count({ where }),

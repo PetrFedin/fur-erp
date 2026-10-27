@@ -9,7 +9,7 @@ import { sumOrders, sumTotal } from "@/lib/orders-sum";
 import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 
-const money = (v: number) => (Math.abs(v) < 0.5 ? "—" : formatMoney(Math.round(v)));
+const money = (v: number) => (Math.abs(v) < 0.5 ? "–" : formatMoney(Math.round(v)));
 
 /**
  * Итоги ТЗ плитками в формате Главной: себестоимость, на 1 изделие, 4%.
@@ -39,8 +39,8 @@ export function OrderTiles({ order: o, c4, completed, noUsages = false }: { orde
     <WidgetRow id="tz" title="Итоги ТЗ" headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
       <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-3 xl:grid-cols-3">
         {tile("Полная себестоимость", money(total), `${modeLabel}${c4 === "on" ? ", с 4 %" : ""}`, <p>Полная себестоимость: мех + подкладка{c4 === "on" ? " + 4 %" : ""} + расходы ТЗ + работа. Мех {money(s.fur)}, подкладка {money(s.lining)}, расходы и прочее {money(s.other)}, работа {money(s.work)}. Та же цифра — в «Стоимости производства» на Главной и в «Изделиях».</p>)}
-        {tile("На 1 изделие", qty > 0 ? money(total / qty) : "—", qty > 0 ? (noUsages ? `÷ ${formatQty(qty)} шт. · без сырья со склада` : `÷ ${formatQty(qty)} шт.`) : "изделий нет", <><p>Полная себестоимость ТЗ (с работой) ÷ количество ({completed ? "факт" : "план"}).</p>{noUsages ? <p className="mt-1">В этой позиции нет списаний сырья со склада (лоскут, давальческое сырьё): в цифру входят только работа и расходы. В средних по ТЗ такие позиции считайте отдельно.</p> : null}</>)}
-        {tile("4 %", c4 === "on" ? money(s.c4) : "—", c4 === "on" ? "надбавка на мех и подкладку" : "режим «Без 4 %»", <p>Надбавка посредника 4 % к меху и подкладке. Режим «С 4 % / Без 4 %» — общий переключатель в шапке; галочка «4 %» в строке списания включает или отключает надбавку для этой строки.</p>)}
+        {tile("На 1 изделие", qty > 0 ? money(total / qty) : "–", qty > 0 ? (noUsages ? `÷ ${formatQty(qty)} шт. · без сырья со склада` : `÷ ${formatQty(qty)} шт.`) : "изделий нет", <><p>Полная себестоимость ТЗ (с работой) ÷ количество ({completed ? "факт" : "план"}).</p>{noUsages ? <p className="mt-1">В этой позиции нет списаний сырья со склада (лоскут, давальческое сырьё): в цифру входят только работа и расходы. В средних по ТЗ такие позиции считайте отдельно.</p> : null}</>)}
+        {tile("4 %", c4 === "on" ? money(s.c4) : "–", c4 === "on" ? "надбавка на мех и подкладку" : "режим «Без 4 %»", <p>Надбавка посредника 4 % к меху и подкладке. Режим «С 4 % / Без 4 %» — общий переключатель в шапке; галочка «4 %» в строке списания включает или отключает надбавку для этой строки.</p>)}
       </div>
     </WidgetRow>
   );

@@ -6,7 +6,7 @@ import { formatMoney, formatQty } from "@/lib/utils";
 // Очень простая таблица: сколько изделий получено за год и во что обошлось производство.
 // Строки — мех → категория 1 → категория 2, столбцы — статьи расходов; расходы ТЗ входят в мех. Числа те же, что в «Произведено» на Главной (с НДС, до тысяч).
 
-const K = (v: number) => (Math.abs(v) < 500 ? "—" : formatMoney(Math.round(v / 1000) * 1000));
+const K = (v: number) => (Math.abs(v) < 500 ? "–" : formatMoney(Math.round(v / 1000) * 1000));
 const td = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
 
 type Node = { key: string; label: string; orders: DrillOrder[]; kids: Node[] };

@@ -146,14 +146,14 @@ export function SitesMatrix({ shipmentId, rows, state, ziOrder, invoiceTotal, tz
               return (
                 <Fragment key={r.id}>
                   <tr>
-                    <td className={STICKY + " px-2 py-1.5"}><div className="font-medium">{r.article} · {r.color}</div><div className="text-[11px] text-neutral-500">р. {r.size || "—"} · {r.order}</div></td>
+                    <td className={STICKY + " px-2 py-1.5"}><div className="font-medium">{r.article} · {r.color}</div><div className="text-[11px] text-neutral-500">р. {r.size || "–"} · {r.order}</div></td>
                     {sites.map((s) => (
                       <td key={s} className="px-1 py-1 text-center">
                         <Input className="mx-auto h-8 w-14 px-1 text-center tabular-nums max-md:h-11" inputMode="numeric" value={cells[r.id]?.[s] ?? ""} placeholder={(r.ziSites.find((z) => norm(z.site) === norm(s))?.qty ?? "") + ""} aria-label={`${r.label}: ${s}, шт.`} onChange={(e) => setCell(r.id, s, e.target.value)} />
                       </td>
                     ))}
                     <td className="px-1 py-1 text-center">
-                      <Button type="button" size="sm" variant={rejQty(r.id) ? "outline" : "ghost"} className={"h-8 min-w-10 px-2 tabular-nums max-md:h-11 " + (rejQty(r.id) ? "border-red-300 text-red-700" : "")} aria-expanded={openRej === r.id} aria-label={`Не принято: ${r.label}`} onClick={() => setOpenRej(openRej === r.id ? null : r.id)}>{rejQty(r.id) || "—"}</Button>
+                      <Button type="button" size="sm" variant={rejQty(r.id) ? "outline" : "ghost"} className={"h-8 min-w-10 px-2 tabular-nums max-md:h-11 " + (rejQty(r.id) ? "border-red-300 text-red-700" : "")} aria-expanded={openRej === r.id} aria-label={`Не принято: ${r.label}`} onClick={() => setOpenRej(openRej === r.id ? null : r.id)}>{rejQty(r.id) || "–"}</Button>
                     </td>
                     <td className="px-1 py-1.5 text-right tabular-nums">{dist}</td>
                     <td className="px-1 py-1.5 text-right tabular-nums">{r.accepted}/{r.quantity}</td>

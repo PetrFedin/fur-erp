@@ -90,11 +90,11 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
     let st: BudgetStat | undefined, source: ForecastLine["source"] = "ТЗ артикула";
     if (own?.length) st = own[0];
     else if (codeFurs.length) { const c = [mi?.cat, e.l3, cat2].map((k) => (k ? byCat.get(`${[...codeFurs].sort().join(" + ")}|${normKey(k)}`) : undefined)).find((x) => x && x.hidesPer > 0); if (c) { st = c; source = "категория"; } }
-    const furName = st ? st.fur : codeFurs.join(" + ") || "—";
+    const furName = st ? st.fur : codeFurs.join(" + ") || "–";
     const est = wp === null && st ? estimate(key2(furName), cat2) : null;
     lines.push(st
       ? { ...base, wp: est ? est.avg : wp, wpEst: est?.note, fur: st.fur, hp: st.hidesPer, hidePrice: st.hidePrice, mp: st.metersPer, meterPrice: st.meterPrice, source }
-      : { ...base, fur: codeFurs.join(" + ") || "—", hp: null, hidePrice: null, mp: null, meterPrice: null, source: "нет данных" });
+      : { ...base, fur: codeFurs.join(" + ") || "–", hp: null, hidePrice: null, mp: null, meterPrice: null, source: "нет данных" });
   }
   lines.sort((a, b) => a.cat2.localeCompare(b.cat2, "ru") || a.acode.localeCompare(b.acode));
   const stock = dash.rawFurBySource.all.types.map((t) => ({ fur: t.name, stock: t.pair.incl.remQty })).filter((x) => x.stock > 0);

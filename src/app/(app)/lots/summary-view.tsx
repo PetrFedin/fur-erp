@@ -87,16 +87,16 @@ function Metrics({ a, mode, unit }: { a: Agg; mode: Mode; unit?: string }) {
       <span className={cell}>
         <span className={lab}>Остаток</span>
         <span className={isRoundingRest(f.remaining.toNumber()) ? "" : f.remaining.greaterThan(0.005) ? "text-amber-700" : f.remaining.lessThan(-0.005) ? "text-blue-600" : ""}>
-          {isRoundingRest(f.remaining.toNumber()) ? <span title={roundingRestHint(f.remaining.toNumber())} className="cursor-help">—</span> : f.remaining.lessThan(-OVERPAY_FROM) ? `Переплата ${money(f.remaining.neg())}` : money(f.remaining)}
+          {isRoundingRest(f.remaining.toNumber()) ? <span title={roundingRestHint(f.remaining.toNumber())} className="cursor-help">–</span> : f.remaining.lessThan(-OVERPAY_FROM) ? `Переплата ${money(f.remaining.neg())}` : money(f.remaining)}
         </span>
       </span>
       <span className={cell} title="Цена шкур по счетам ÷ число шкур">
         <span className={lab}>Ср. цена шкуры</span>
-        <span>{f.avgPrice == null ? "—" : money(f.avgPrice)}</span>
+        <span>{f.avgPrice == null ? "–" : money(f.avgPrice)}</span>
       </span>
       <span className={cell} title="Стоимость с расходами ÷ число шкур">
         <span className={lab}>Ср. с расходами за шкуру</span>
-        <span>{f.avgFull == null ? "—" : money(f.avgFull)}</span>
+        <span>{f.avgFull == null ? "–" : money(f.avgFull)}</span>
       </span>
     </>
   );

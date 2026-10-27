@@ -101,10 +101,10 @@ export default async function EditClientPage({ params }: PageProps<"/clients/[id
                     <Tr key={p.id}>
                       <Td>{Number(p.amount) === 0 ? <span>{formatDate(p.paidAt)}</span> : <Link href={`/payments/c-${p.id}`} className="text-blue-700 hover:underline">{formatDate(p.paidAt)}</Link>}</Td>
                       <Td>{PAYMENT_TYPE_LABELS_RU[p.paymentType] ?? p.paymentType}</Td>
-                      <Td className="text-xs text-neutral-600">{Number(p.amount) === 0 ? <span className="mr-1 text-neutral-500">0 ₽ — {cleanNote(p.notes) ? <ClampText text={cleanNote(p.notes) ?? ""} /> : "вынесено в оплату закупки"}</span> : null}{p.docRef ? <ClampText text={p.docRef} /> : "—"}{!p.confirmed && <span className="ml-1 text-amber-700">· не подтверждена</span>}</Td>
+                      <Td className="text-xs text-neutral-600">{Number(p.amount) === 0 ? <span className="mr-1 text-neutral-500">0 ₽ — {cleanNote(p.notes) ? <ClampText text={cleanNote(p.notes) ?? ""} /> : "вынесено в оплату закупки"}</span> : null}{p.docRef ? <ClampText text={p.docRef} /> : "–"}{!p.confirmed && <span className="ml-1 text-amber-700">· не подтверждена</span>}</Td>
                       <Td className="text-right tabular-nums">{rub(p.amount.toString())}</Td>
-                      <Td className={"text-right tabular-nums " + (rest > 1 ? "text-amber-700" : "text-neutral-400")}>{rest > 1 ? rub(rest) : "—"}</Td>
-                      <Td className="text-xs">{payDocs[p.id] ? <SourceDocs compact data={payDocs[p.id]} popover="right" /> : <span className="text-neutral-400">—</span>}</Td>
+                      <Td className={"text-right tabular-nums " + (rest > 1 ? "text-amber-700" : "text-neutral-400")}>{rest > 1 ? rub(rest) : "–"}</Td>
+                      <Td className="text-xs">{payDocs[p.id] ? <SourceDocs compact data={payDocs[p.id]} popover="right" /> : <span className="text-neutral-400">–</span>}</Td>
                     </Tr>
                   );
                 })}
@@ -134,8 +134,8 @@ export default async function EditClientPage({ params }: PageProps<"/clients/[id
                   return (
                     <Tr key={o.id}>
                       <Td><Link href={`/production/${o.id}`} className="text-blue-700 hover:underline" title={o.number}>ТЗ {tzLabel(o)}</Link>{g.length > 1 && <span className="ml-1 text-xs text-neutral-500">· {g.length} {articlesWord(g.length)}</span>}</Td>
-                      <Td>{batches.length ? batches.join(", ") : "—"}</Td>
-                      <Td className="text-right tabular-nums">{work > 0 ? cents(work) : "—"}</Td>
+                      <Td>{batches.length ? batches.join(", ") : "–"}</Td>
+                      <Td className="text-right tabular-nums">{work > 0 ? cents(work) : "–"}</Td>
                       <Td className="text-right tabular-nums">{cents(paid)}</Td>
                     </Tr>
                   );

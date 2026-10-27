@@ -46,7 +46,7 @@ export function ExpenseRow({
   const dirty = cat !== expense.categoryId || amountNorm !== expense.amount.trim() || desc.trim() !== (expense.description ?? "").trim();
   useDirtyMark(dirty);
   const cancel = () => { setCat(expense.categoryId); setAmount(expense.amount); setDesc(expense.description ?? ""); ch.setError(null); };
-  const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? "—";
+  const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? "–";
   const save = async () => {
     if (!dirty || ch.busy) return;
     const fd = new FormData();
@@ -56,7 +56,7 @@ export function ExpenseRow({
     const fields: { label: string; before: string; after: string }[] = [];
     if (cat !== expense.categoryId) fields.push({ label: "Статья", before: expense.categoryName, after: catName(cat) });
     if (amountNorm !== expense.amount.trim()) fields.push({ label: "Сумма", before: formatMoney(expense.amount), after: formatMoney(amountNorm) });
-    if (desc.trim() !== (expense.description ?? "").trim()) fields.push({ label: "Описание", before: expense.description || "—", after: desc.trim() || "—" });
+    if (desc.trim() !== (expense.description ?? "").trim()) fields.push({ label: "Описание", before: expense.description || "–", after: desc.trim() || "–" });
     await ch.run(
       `Изменить расход «${expense.categoryName}»`,
       { kind: "expense", expenseId: expense.id, categoryId: cat, amount: amountNorm, description: desc.trim() },

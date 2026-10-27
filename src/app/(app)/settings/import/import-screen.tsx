@@ -20,13 +20,13 @@ const CARDS: { kind: ImportKind; title: string; hint: string }[] = [
 ];
 const KIND_TITLE: Record<ImportKind, string> = { sales: "Поступления и продажи", prices: "Прайс и размеры", photos: "Фото артикулов" };
 
-const dash = (n: number) => (n ? n.toLocaleString("ru-RU") : "—");
+const dash = (n: number) => (n ? n.toLocaleString("ru-RU") : "–");
 const when = (iso: string) =>
   new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
 function sumCounts(c: Counts) {
   const parts = [c.added && `${c.added} нов.`, c.changed && `${c.changed} изм.`, c.removed && `${c.removed} удал.`].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "—";
+  return parts.length ? parts.join(" · ") : "–";
 }
 
 export function ImportScreen({ history }: { history: HistoryItem[] }) {
@@ -206,7 +206,7 @@ export function ImportScreen({ history }: { history: HistoryItem[] }) {
                     <td className="whitespace-nowrap px-3 py-2">{when(h.at)}</td>
                     <td className="px-3 py-2">{KIND_TITLE[h.kind]}</td>
                     <td className="max-w-[16rem] break-all px-3 py-2">{h.fileName}</td>
-                    <td className="px-3 py-2">{h.byName ?? "—"}</td>
+                    <td className="px-3 py-2">{h.byName ?? "–"}</td>
                     <td className="px-3 py-2 text-neutral-600">{h.parts.map((p) => sumCounts(p.counts)).join(" | ")}</td>
                     <td className="whitespace-nowrap px-3 py-2">{h.status === "applied" ? "применена" : `откачена${h.rolledBackAt ? " " + when(h.rolledBackAt) : ""}`}</td>
                     <td className="px-3 py-2 text-right">{h.canRollback && <Button type="button" variant="ghost" size="sm" disabled={!!busy} onClick={() => rollback(h)}>Откатить</Button>}</td>

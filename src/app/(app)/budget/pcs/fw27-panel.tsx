@@ -114,7 +114,7 @@ export function Fw27Dialog({ data, crit, title, onClose, canEdit = false, cats }
                       </div>
                     </div>
                   ) : (
-                    <figcaption className="mt-1 text-xs leading-4 text-neutral-700"><b>{it.pcsText ?? "—"}</b>{it.caption ? <span className="block text-neutral-500">{it.caption}</span> : null}</figcaption>
+                    <figcaption className="mt-1 text-xs leading-4 text-neutral-700"><b>{it.pcsText ?? "–"}</b>{it.caption ? <span className="block text-neutral-500">{it.caption}</span> : null}</figcaption>
                   )}
                 </figure>
               ))}

@@ -237,7 +237,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
 
       {f.model && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Показаны лоты, из которых сделано изделие «{modelName ?? "—"}».
+          Показаны лоты, из которых сделано изделие «{modelName ?? "–"}».
           <Link href={href({ model: null })} className="underline">Показать все</Link>
         </div>
       )}
@@ -314,7 +314,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           hint={
             <>
               <p>Те же цифры, что «Остаток» на Главной: остатки лотов склада + заказано, но не получено. Стоимость лота = остаток × цена лота за единицу — так же считает карточка «Итого стоимость остатков» на странице «Сырьё».</p>
-              <p className="mt-1">Сейчас: {qty(total.rem, unit)} × средняя цена {avgPrice(total) ? rub(avgPrice(total)!.incl) : "—"} ≈ {rub(total.remIncl)} (средняя цена остатка может отличаться от средней закупки — остаток лежит в других лотах).</p>
+              <p className="mt-1">Сейчас: {qty(total.rem, unit)} × средняя цена {avgPrice(total) ? rub(avgPrice(total)!.incl) : "–"} ≈ {rub(total.remIncl)} (средняя цена остатка может отличаться от средней закупки — остаток лежит в других лотах).</p>
             </>
           }
         />
@@ -579,7 +579,7 @@ function Cells({ a, unit, c4 }: { a: Agg; unit: string; c4: "on" | "off" }) {
       <span className="tabular-nums"><span className={lab}>% исп.</span>{pctText(usedPct(a))}</span>
       <span className="tabular-nums">
         <span className={lab}>Ср. цена закупки</span>
-        {p ? <><Money incl={q2(p.incl)} excl={q2(p.excl)} /></> : a.recvIncl.greaterThan(0) ? <><Money incl={q2(a.recvIncl)} excl={q2(a.recvExcl)} /><div className="text-xs text-neutral-500">без количества</div></> : "—"}
+        {p ? <><Money incl={q2(p.incl)} excl={q2(p.excl)} /></> : a.recvIncl.greaterThan(0) ? <><Money incl={q2(a.recvIncl)} excl={q2(a.recvExcl)} /><div className="text-xs text-neutral-500">без количества</div></> : "–"}
       </span>
       <span className="tabular-nums">
         <span className={lab}>Стоимость остатка</span>
@@ -624,11 +624,11 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
         <span className="tabular-nums"><span className={lab}>{single ? "Лотов" : "ТЗ / лотов"}</span>{single ? g.lots : `${g.orders} / ${g.lots}`}</span>
         <span className="tabular-nums"><span className={lab}>Готово</span>{formatQty(g.produced.toString())} шт.</span>
         <span className="font-medium tabular-nums"><span className={lab}>Списано</span>{qty(g.qty, unit)}</span>
-        <span className="tabular-nums"><span className={lab}>На 1 изделие</span>{pu ? `${formatQty(pu.toFixed(2))} ${unit}` : "—"}</span>
+        <span className="tabular-nums"><span className={lab}>На 1 изделие</span>{pu ? `${formatQty(pu.toFixed(2))} ${unit}` : "–"}</span>
         <span className="tabular-nums"><span className={lab}>Стоимость списания</span><CostCell incl={g.incl} excl={g.excl} extraIncl={g.extraIncl} extraExcl={g.extraExcl} c4={c4} /></span>
         <span className="tabular-nums">
           <span className={lab}>Стоимость на 1 изделие</span>
-          {g.produced.greaterThan(0) ? <Money incl={q2(g.incl.div(g.produced))} excl={q2(g.excl.div(g.produced))} /> : "—"}
+          {g.produced.greaterThan(0) ? <Money incl={q2(g.incl.div(g.produced))} excl={q2(g.excl.div(g.produced))} /> : "–"}
         </span>
       </>
     );
@@ -673,7 +673,7 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
           <span />
           <span className="tabular-nums"><span className={lab}>Готово</span>{formatQty(tot.produced.toString())} шт.</span>
           <span className="tabular-nums"><span className={lab}>Списано</span>{qty(tot.qty, unit)}</span>
-          <span className="tabular-nums"><span className={lab}>На 1 изделие</span>{tot.produced.greaterThan(0) ? `${formatQty(tot.qty.div(tot.produced).toFixed(2))} ${unit}` : "—"}</span>
+          <span className="tabular-nums"><span className={lab}>На 1 изделие</span>{tot.produced.greaterThan(0) ? `${formatQty(tot.qty.div(tot.produced).toFixed(2))} ${unit}` : "–"}</span>
           <span className="tabular-nums"><span className={lab}>Стоимость списания</span><CostCell incl={tot.incl} excl={tot.excl} extraIncl={tot.ei} extraExcl={tot.ee} c4={c4} /></span>
           <span />
         </div>

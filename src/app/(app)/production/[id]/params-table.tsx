@@ -103,7 +103,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
   const { ask, node: confirmNode } = useConfirm();
   const [articleKey, setArticleKey] = useState(0);
   const vatEdit = useDraftEdit(d.orderId);
-  const vatNow = d.vat.length === 0 ? "—" : d.vat.map((r) => `${r.rate} %`).join(" / ");
+  const vatNow = d.vat.length === 0 ? "–" : d.vat.map((r) => `${r.rate} %`).join(" / ");
   return (
     <section aria-label="Параметры ТЗ" className="flex flex-col gap-2" id="params">
       <div className="flex items-center gap-2">
@@ -203,7 +203,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
         </Row>
         <Row label="Вид меха" to="/settings/furs" toTitle="Справочник видов меха">
           {ro ? (
-            <span className="block px-1.5 py-0.5 text-sm">{d.furType || <span className="text-neutral-300">—</span>}</span>
+            <span className="block px-1.5 py-0.5 text-sm">{d.furType || <span className="text-neutral-300">–</span>}</span>
           ) : (
             <FurTypeCell
               value={d.furTypeOverride}
@@ -219,7 +219,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
         </Row>
         <Row label="Цвет" to="/settings/colors" toTitle="Справочник цветов">
           {d.colorRows.length > 0 || ro ? (
-            <span className="block px-1.5 py-0.5 text-sm">{d.colorText || <span className="text-neutral-300">—</span>}</span>
+            <span className="block px-1.5 py-0.5 text-sm">{d.colorText || <span className="text-neutral-300">–</span>}</span>
           ) : (
             <ComboFrame onSave={save("color")}>
               {(commit) => <ColorCell current={d.colorText} refId={d.colorRefId} refs={o.colors} canCreate={o.canAddColor} commit={commit} />}
@@ -246,7 +246,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
         </Row>
         <Row label="НДС">
           {ro ? (
-            <span className="block px-1.5 py-0.5 text-sm">{d.vat.length === 0 ? <span className="text-neutral-300">—</span> : d.vat.map((r) => `${r.rate} %`).join(" / ")}</span>
+            <span className="block px-1.5 py-0.5 text-sm">{d.vat.length === 0 ? <span className="text-neutral-300">–</span> : d.vat.map((r) => `${r.rate} %`).join(" / ")}</span>
           ) : (
             <>
               <VatCell
@@ -286,8 +286,8 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
               {d.colorRows.map((c, i) => (
                 <tr key={i} className="border-b border-neutral-100">
                   <td className="px-2 py-1.5">{c.name}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{c.quantity || <span className="text-neutral-300">—</span>}</td>
-                  <td className="px-2 py-1.5">{c.sizes || <span className="text-neutral-300">—</span>}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{c.quantity || <span className="text-neutral-300">–</span>}</td>
+                  <td className="px-2 py-1.5">{c.sizes || <span className="text-neutral-300">–</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -337,7 +337,7 @@ function DraftParam({ orderId, field, title, fieldLabel, value, step, min, suffi
   const cancel = () => { setDraft(value); ch.setError(null); };
   const save = async () => {
     if (!dirty || ch.busy) return;
-    const show = (v: string) => (v === "" ? "—" : suffix ? `${v} ${suffix}` : v);
+    const show = (v: string) => (v === "" ? "–" : suffix ? `${v} ${suffix}` : v);
     await ch.run(title, { kind: "param", field, value: norm }, [{ label: fieldLabel, before: show(value), after: show(norm) }], () => patchProductionOrder(orderId, field, norm));
   };
   return (

@@ -296,7 +296,7 @@ export default async function PaymentsPage({
             <span className={"text-xs font-medium " + (a.percentPaid < 99.95 ? "text-red-600" : "font-normal text-neutral-500")}>{fmtPct(a.percentPaid)}</span>
           </span>
         </Td>
-        {anyPlanned && <Td className="whitespace-nowrap text-right">{a.planned.greaterThan(PAY_EPS) ? formatMoney(a.planned.toString()) : "—"}</Td>}
+        {anyPlanned && <Td className="whitespace-nowrap text-right">{a.planned.greaterThan(PAY_EPS) ? formatMoney(a.planned.toString()) : "–"}</Td>}
         <Td
           className={
             "whitespace-nowrap text-right font-semibold " +
@@ -385,7 +385,7 @@ export default async function PaymentsPage({
       </Td>
       <Td className="whitespace-nowrap text-right">{formatMoney(o ? o.t : e.total.toString())}</Td>
       <Td className="whitespace-nowrap text-right">{formatMoney(o ? o.p : e.paid.toString())}</Td>
-      {anyPlanned && <Td className="text-right">—</Td>}
+      {anyPlanned && <Td className="text-right">–</Td>}
       <Td className={"whitespace-nowrap text-right font-semibold " + (e.rem.greaterThan(0.005) ? "text-amber-700" : "")}>{fmtRemaining(o ? new Decimal(o.r) : e.rem)}</Td>
     </Tr>
   );
@@ -492,10 +492,10 @@ export default async function PaymentsPage({
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                         <span className="inline-flex items-baseline justify-end gap-2">
                           <span>{formatMoney(gp.toString())}</span>
-                          <span className={"text-xs font-medium " + (gt.greaterThan(0) && gp.div(gt).mul(100).lessThan(99.95) ? "text-red-600" : "font-normal text-neutral-500")}>{gt.greaterThan(0) ? fmtPct(Number(gp.div(gt).mul(100).toString())) : "—"}</span>
+                          <span className={"text-xs font-medium " + (gt.greaterThan(0) && gp.div(gt).mul(100).lessThan(99.95) ? "text-red-600" : "font-normal text-neutral-500")}>{gt.greaterThan(0) ? fmtPct(Number(gp.div(gt).mul(100).toString())) : "–"}</span>
                         </span>
                       </td>
-                      {anyPlanned && <td className="px-3 py-2 text-right">—</td>}
+                      {anyPlanned && <td className="px-3 py-2 text-right">–</td>}
                       <td className={"whitespace-nowrap px-3 py-2 text-right tabular-nums " + remClass(gr)}>{fmtRemaining(gr)}</td>
                     </>
                   }
@@ -558,7 +558,7 @@ export default async function PaymentsPage({
     year: p.paidAt.getUTCFullYear(),
     amount: Number(p.amount.toString()),
     type: PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType,
-    client: p.client?.name ?? "—",
+    client: p.client?.name ?? "–",
     // ТЗ оплаты: связанные с платежом и те, на которые есть разнесение (запись разнесения без связи — тоже ТЗ этой оплаты).
     goods: (() => {
       const byId = new Map<string, (typeof p.orders)[number]["productionOrder"]>();
@@ -568,7 +568,7 @@ export default async function PaymentsPage({
         id: oid,
         number: po.number,
         label: orderLabel({ workOrderNumber: po.workOrderNumber, number: po.number, ...tzPos.get(oid) }),
-        model: po.productModel?.salesName || po.productModel?.name || "—",
+        model: po.productModel?.salesName || po.productModel?.name || "–",
         qty: Number(po.plannedQuantity.toString()),
         batch: po.batch?.number ?? null,
         article: orderInfo.get(oid)?.modelName ?? po.productModel?.name ?? null,
@@ -624,7 +624,7 @@ export default async function PaymentsPage({
     const byBatch = new Map<string, BatchRow>();
     for (const o of orderInfo.values()) {
       if (!o.clientName || (year !== "all" && o.year !== Number(year))) continue;
-      const key = o.batchNumber != null ? String(o.batchNumber) : "—";
+      const key = o.batchNumber != null ? String(o.batchNumber) : "–";
       const cur = byBatch.get(key) ?? { key, label: o.batchNumber != null ? `Партия ${o.batchNumber}` : "Вне партий", year: o.year, work: 0, paid: 0 };
       cur.work += o.work;
       cur.paid += allocBy.get(o.id) ?? 0;

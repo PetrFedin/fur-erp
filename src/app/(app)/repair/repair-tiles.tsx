@@ -26,7 +26,7 @@ export function RepairTiles({ orders, c4, filtered = false }: { orders: DrillOrd
         <TileHead>Ремонт</TileHead>
         <TileValue>{s.repairOrders} ТЗ</TileValue>
         <TileCaption>{formatQty(s.repairQty)} шт.</TileCaption>
-        <TileList items={[{ k: "Штук", v: formatQty(s.repairQty) }, { k: "Работа на штуку", v: s.repairQty > 0 ? money(s.work / s.repairQty) : "—" }]} />
+        <TileList items={[{ k: "Штук", v: formatQty(s.repairQty) }, { k: "Работа на штуку", v: s.repairQty > 0 ? money(s.work / s.repairQty) : "–" }]} />
       </a>
         <div className="absolute right-3 top-3">
           <InfoHint label="Что такое ремонт" wide align="right">

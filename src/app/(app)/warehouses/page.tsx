@@ -55,7 +55,7 @@ export default async function WarehousesPage({ searchParams }: PageProps<"/wareh
                   {w.name}
                 </Link>
               </Td>
-              <Td>{w.address?.trim() ? w.address : canCreate ? <Link href={`/warehouses/${w.id}`} className="text-xs text-neutral-500 hover:underline">не указан — заполнить</Link> : "—"}</Td>
+              <Td>{w.address?.trim() ? w.address : canCreate ? <Link href={`/warehouses/${w.id}`} className="text-xs text-neutral-500 hover:underline">не указан — заполнить</Link> : "–"}</Td>
               <Td>{w.isDefault && <Badge variant="info">По умолчанию</Badge>}</Td>
             </Tr>
           ))}

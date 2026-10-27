@@ -24,5 +24,5 @@ export const INDENT = ["pl-2", "pl-5", "pl-9", "pl-12"] as const;
 
 /** «—» вместо нуля и пустоты. */
 export function Dash() {
-  return <span className="text-neutral-300">—</span>;
+  return <span className="text-neutral-300">–</span>;
 }

@@ -37,7 +37,7 @@ export type ArticleRow = {
 };
 
 type SortKey = "name" | "category" | "salesCode" | "price" | "tz" | "produced";
-const fmtPrice = (n: number | null) => (n == null ? "—" : formatMoney(n));
+const fmtPrice = (n: number | null) => (n == null ? "–" : formatMoney(n));
 const fmtQty = (n: number) => formatQty(n);
 
 function MergePanel({ source, rows, onClose }: { source: ArticleRow; rows: ArticleRow[]; onClose: () => void }) {
@@ -206,12 +206,12 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
               <Fragment key={r.id}>
                 <Tr>
                   <Td className="whitespace-nowrap font-medium">{r.name}</Td>
-                  <Td className="max-w-xs text-neutral-600">{(r.category ?? "").replace(/\s+/g, " ") || "—"}</Td>
-                  <Td>{r.sku ?? "—"}</Td>
-                  <Td className="whitespace-nowrap">{r.lengthClass ?? "—"}</Td>
+                  <Td className="max-w-xs text-neutral-600">{(r.category ?? "").replace(/\s+/g, " ") || "–"}</Td>
+                  <Td>{r.sku ?? "–"}</Td>
+                  <Td className="whitespace-nowrap">{r.lengthClass ?? "–"}</Td>
                   <Td className="min-w-48">
                     {noCode && !r.salesName ? (
-                      <span className="text-neutral-400">—</span>
+                      <span className="text-neutral-400">–</span>
                     ) : (
                       <>
                         <div className="font-medium">{r.salesCode ?? <span className="text-amber-700">кода нет</span>}</div>
@@ -219,7 +219,7 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
                       </>
                     )}
                   </Td>
-                  <Td className="max-w-56 text-xs text-neutral-600">{r.aliases.length ? r.aliases.join(", ") : "—"}</Td>
+                  <Td className="max-w-56 text-xs text-neutral-600">{r.aliases.length ? r.aliases.join(", ") : "–"}</Td>
                   <Td className="whitespace-nowrap">
                     {fmtPrice(r.sellingPrice)}
                     {r.seasons.length > 0 && <div className="text-xs text-neutral-500">{r.seasons.join(", ")}</div>}

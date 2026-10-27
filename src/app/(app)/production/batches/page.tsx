@@ -187,7 +187,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           <div className="relative">
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
               <TileHead>{TERMS.workRest}</TileHead>
-              <TileValue className={payRest > 1 ? "text-amber-700" : ""}>{payRest < 1 ? "—" : money(payRest)}</TileValue>
+              <TileValue className={payRest > 1 ? "text-amber-700" : ""}>{payRest < 1 ? "–" : money(payRest)}</TileValue>
               <TileCaption>по партиям пошива, до зачёта аванса</TileCaption>
             </div>
             <div className="absolute right-3 top-3">

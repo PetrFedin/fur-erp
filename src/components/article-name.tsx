@@ -5,7 +5,7 @@ import { articleHint, articleTitle, type ArticleLike } from "@/lib/article-label
  * compact — только код. Работает и на сервере, и в клиентских компонентах.
  */
 export function ArticleName({ model, compact = false, className }: { model: ArticleLike | null | undefined; compact?: boolean; className?: string }) {
-  if (!model) return <>—</>;
+  if (!model) return <>–</>;
   const t = compact ? "" : articleTitle(model);
   return (
     <span className={className} title={articleHint(model)}>

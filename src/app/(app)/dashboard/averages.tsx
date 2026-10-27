@@ -20,10 +20,10 @@ import { addOrder, blank, build, cmpFor, cost, type Agg, type Lvl } from "./prod
 const money = (v: number) => formatMoney(Math.round(v));
 const qtyOf = (g: Agg) => Array.from(g.orders.values()).reduce((s, o) => s + o.qty, 0);
 const per = (v: number, q: number) => (q > 0 ? v / q : null);
-const m = (v: number | null) => (v == null || !isFinite(v) ? "—" : money(v));
-const nz = (v: number | null) => (v == null || Math.abs(v) < 0.05 ? "—" : n1(v));
+const m = (v: number | null) => (v == null || !isFinite(v) ? "–" : money(v));
+const nz = (v: number | null) => (v == null || Math.abs(v) < 0.05 ? "–" : n1(v));
 /** Шкуры и метры на изделие — всегда одна цифра после запятой. */
-const n1 = (v: number | null) => (v == null ? "—" : formatDec1(v));
+const n1 = (v: number | null) => (v == null ? "–" : formatDec1(v));
 
 /** Средние на одно изделие по группе ТЗ (без ремонта). */
 function avgs(g: Agg) {
@@ -107,7 +107,7 @@ export function AveragesTile({ data, sync }: { data: DrillData | null; /** Об�
                   {[
                     ["Шкур на изделие", `${n1(a.hides)} шт.`],
                     ["Средняя цена шкуры", m(a.hidePrice)],
-                    ["Подкладки на изделие", a.meters != null && a.meters >= 0.05 ? `${n1(a.meters)} м` : "—"],
+                    ["Подкладки на изделие", a.meters != null && a.meters >= 0.05 ? `${n1(a.meters)} м` : "–"],
                     ["Средняя цена подкладки, ₽/м", m(a.meterPrice)],
                     ["Работа на изделие", m(a.work)],
                   ].map(([k, v]) => (

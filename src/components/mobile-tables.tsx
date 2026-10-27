@@ -150,7 +150,7 @@ function syncSort(table: HTMLTableElement, id: string) {
   });
   const none = document.createElement("option");
   none.value = "-1";
-  none.textContent = "—";
+  none.textContent = "–";
   sel.insertBefore(none, sel.firstChild);
   sel.value = String(activeIdx);
   sel.addEventListener("change", () => {

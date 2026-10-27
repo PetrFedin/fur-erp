@@ -128,7 +128,7 @@ export function calcToBatchPayload(p: CalcPayload, ctx: CalcMapCtx): CalcMapResu
       }).unitIncl;
     }
     if (customMode) base.planItems = planItemsFor(p, all, index, cur, rate, want, priceN);
-    if (Math.abs(unit - want) > 0.05) errors.push(`${name} (лот ${r.lot || "—"}): при переносе в закупку себестоимость шкуры вышла ${unit.toFixed(2)} ₽, а в расчёте ${want.toFixed(2)} ₽`);
+    if (Math.abs(unit - want) > 0.05) errors.push(`${name} (лот ${r.lot || "–"}): при переносе в закупку себестоимость шкуры вышла ${unit.toFixed(2)} ₽, а в расчёте ${want.toFixed(2)} ₽`);
   });
 
   if (diffs.length) warnings.push(`Себестоимость по выбранному столбцу «${sh.cols.find((c) => c.id === sh.unitCol)?.title ?? ""}» отличается от стандартной раскладки (до ${Math.max(...diffs).toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₽ за шкуру): разница записана в состав цены.`);

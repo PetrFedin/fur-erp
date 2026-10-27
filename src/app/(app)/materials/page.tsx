@@ -132,11 +132,11 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
                   {m.name}
                 </Link>
               </Td>
-              {showSku && <Td>{m.sku ?? "—"}</Td>}
-              {showCategory && <Td>{m.category?.name ?? "—"}</Td>}
+              {showSku && <Td>{m.sku ?? "–"}</Td>}
+              {showCategory && <Td>{m.category?.name ?? "–"}</Td>}
               <Td>{UNIT_LABELS[m.unit]}</Td>
-              {showMin && <Td>{m.minStockLevel ? formatQty(m.minStockLevel.toString()) : "—"}</Td>}
-              <Td className="text-xs">{vatBy.get(m.id) ? <MaterialVatCell s={vatBy.get(m.id)!} /> : "—"}</Td>
+              {showMin && <Td>{m.minStockLevel ? formatQty(m.minStockLevel.toString()) : "–"}</Td>}
+              <Td className="text-xs">{vatBy.get(m.id) ? <MaterialVatCell s={vatBy.get(m.id)!} /> : "–"}</Td>
             </Tr>
           ))}
           {materials.length === 0 && (

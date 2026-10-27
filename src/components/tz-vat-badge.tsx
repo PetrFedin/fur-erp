@@ -17,7 +17,7 @@ const TONE: Record<string, string> = {
  * Ставка берётся у лота каждой строки; суммы — построчные, не одной общей ставкой.
  */
 export function TzVatBadge({ b, compact = false, hint = true, className = "" }: { b: VatBreakdown; compact?: boolean; hint?: boolean; className?: string }) {
-  if (b.kind === "none") return <span className="text-neutral-500">—</span>;
+  if (b.kind === "none") return <span className="text-neutral-500">–</span>;
   const total = b.rows.reduce((s, r) => s.add(r.incl), b.share20.incl.mul(0));
   const totalExcl = b.rows.reduce((s, r) => s.add(r.excl), total.mul(0));
   return (

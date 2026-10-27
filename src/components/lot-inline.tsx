@@ -65,7 +65,7 @@ function InlineTextInner({ value, onSave, label, area, placeholder, maxLength, r
 }) {
   const [draft, setDraft] = useState(value);
   const s = useInlineSave();
-  if (readOnly) return <span className={cn("block whitespace-pre-wrap break-words px-1.5 py-0.5 text-sm", className)}>{value || "—"}</span>;
+  if (readOnly) return <span className={cn("block whitespace-pre-wrap break-words px-1.5 py-0.5 text-sm", className)}>{value || "–"}</span>;
   const commit = () => {
     if (draft.trim() === value.trim()) return s.clearError();
     s.run(() => onSave(draft), () => setDraft(value));
@@ -111,7 +111,7 @@ export type OptionItem = { value: string; label: string };
 
 /** Выбор из списка (выбор сразу сохраняется); allowCustom — пункт «своё…» открывает поле ввода. */
 export function InlineSelect({
-  value, options, onSave, label, readOnly = false, allowCustom = false, emptyLabel = "—",
+  value, options, onSave, label, readOnly = false, allowCustom = false, emptyLabel = "–",
 }: {
   value: string;
   options: OptionItem[];
@@ -124,7 +124,7 @@ export function InlineSelect({
   const known = options.some((o) => o.value === value);
   const [custom, setCustom] = useState(false);
   const s = useInlineSave();
-  if (readOnly) return <span className="block px-1.5 py-0.5 text-sm">{value || "—"}</span>;
+  if (readOnly) return <span className="block px-1.5 py-0.5 text-sm">{value || "–"}</span>;
   if (custom) {
     return (
       <span className="block">

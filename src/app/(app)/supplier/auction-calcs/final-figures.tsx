@@ -1,6 +1,6 @@
 import { cn, formatNum, formatQty, formatDec1 } from "@/lib/utils";
 
-const money = (n: number) => (Number.isFinite(n) ? formatNum(n, 1) : "—");
+const money = (n: number) => (Number.isFinite(n) ? formatNum(n, 1) : "–");
 
 /** Финальные цифры расчёта крупно: шкур, итого, средняя себестоимость шкуры. Без хуков — годится и на сервере. */
 export function FinalFigures({ lots, qty, totalRub, avgRub, className, title = "Финальные цифры" }: { lots: number; qty: number; totalRub: number; avgRub: number; className?: string; title?: string }) {

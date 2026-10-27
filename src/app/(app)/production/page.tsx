@@ -412,20 +412,20 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             const vatB = vatBreakdown(o.materialUsages, c4Mode);
             const full = fullOf(o, total, totalExcl);
             const st = statOf(o, full);
-            const fur = furOf.get(o.id) || "—";
+            const fur = furOf.get(o.id) || "–";
             const card = (
               <RowCard
                 key={o.id}
                 title={`${labelOf(o)}${matchOf(o)?.label ? ` (${matchOf(o)!.label})` : ""}`}
                 href={href}
-                subtitle={`${articleLabel(o.productModel)}${fur !== "—" ? ` · ${fur}` : ""}`}
+                subtitle={`${articleLabel(o.productModel)}${fur !== "–" ? ` · ${fur}` : ""}`}
                 fields={[
                   {
                     label: <VatLabel base={`Себестоимость с работой${c4}`} />,
-                    value: full.incl.isZero() ? "—" : <><Money incl={full.incl} excl={full.excl} /></>,
+                    value: full.incl.isZero() ? "–" : <><Money incl={full.incl} excl={full.excl} /></>,
                     strong: true,
                   },
-                  { label: "Изделий", value: st.units > 0 ? `${formatQty(st.units)} шт.` : "—" },
+                  { label: "Изделий", value: st.units > 0 ? `${formatQty(st.units)} шт.` : "–" },
                 ]}
                 details={[
                   { label: "Артикулов", value: "1" },
@@ -445,7 +445,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             const cell = "p-0";
             const link = "block px-3 py-2";
             const num = `${cell} text-right tabular-nums`;
-            const dash = <span className="text-neutral-300">—</span>;
+            const dash = <span className="text-neutral-300">–</span>;
             // «Без 4%» — не на экране, а в подсказке при наведении.
             const nt = (n: { incl: Decimal; excl: Decimal } | null) => (n ? { title: `Без 4%: ${formatMoney(Math.round(n.incl.toNumber()))} ₽ с НДС` } : {});
             const tr = (
@@ -455,7 +455,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                     <Link href={`/production/batches/${o.batch.number}`} className={`${link} whitespace-nowrap hover:underline`} title={`Партия пошива ${o.batch.number}${o.batch.year ? `, ${o.batch.year}` : ""}`}>{o.batch.number}</Link>
                   ) : (
                     <Link href={`${href}#card-batch`} className={link} title="Партия не указана — откройте ТЗ и выберите или введите партию">
-                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900 ring-1 ring-amber-300">—</span>
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900 ring-1 ring-amber-300">–</span>
                     </Link>
                   )}
                 </Td>
@@ -506,13 +506,13 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     const first = g[0].o;
     const tzNo = orderLabel({ workOrderNumber: first.workOrderNumber, number: first.number });
     const batches = Array.from(new Set(g.map((x) => x.o.batch?.number ?? null)));
-    const furs = Array.from(new Set(g.flatMap((x) => (furOf.get(x.o.id) || "—").split(" + "))));
+    const furs = Array.from(new Set(g.flatMap((x) => (furOf.get(x.o.id) || "–").split(" + "))));
     const models = Array.from(new Set(g.map((x) => articleLabel(x.o.productModel))));
     const count = `${g.length} ${articlesWord(g.length)}`;
     const cell = "p-0";
     const link = "block px-3 py-2";
     const num = `${cell} text-right tabular-nums`;
-    const dash = <span className="text-neutral-300">—</span>;
+    const dash = <span className="text-neutral-300">–</span>;
     const firstHref = `/production/${first.id}`;
     const children = rows.map((r) => renderPos(r.x, true).tr);
     const match = g.map((x) => matchOf(x.o)?.label).find(Boolean);
@@ -520,11 +520,11 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       <RowCard
         key={`tz-${orderKey(first)}`}
         title={`${tzNo} · ${count}`}
-        subtitle={`${models.slice(0, 4).join(", ")}${models.length > 4 ? "…" : ""}${furs[0] !== "—" ? ` · ${furs.join(" + ")}` : ""}${match ? ` (${match})` : ""}`}
+        subtitle={`${models.slice(0, 4).join(", ")}${models.length > 4 ? "…" : ""}${furs[0] !== "–" ? ` · ${furs.join(" + ")}` : ""}${match ? ` (${match})` : ""}`}
         badge={<span className="text-xs text-neutral-500">один ТЗ</span>}
         fields={[
-          { label: <VatLabel base={`Себестоимость с работой${c4}`} />, value: tot.full.incl.isZero() ? "—" : <Money incl={tot.full.incl} excl={tot.full.excl} />, strong: true },
-          { label: "Изделий", value: tot.units > 0 ? `${formatQty(tot.units)} шт.` : "—" },
+          { label: <VatLabel base={`Себестоимость с работой${c4}`} />, value: tot.full.incl.isZero() ? "–" : <Money incl={tot.full.incl} excl={tot.full.excl} />, strong: true },
+          { label: "Изделий", value: tot.units > 0 ? `${formatQty(tot.units)} шт.` : "–" },
         ]}
         details={[
           { label: "Партия пошива", value: batches.length === 1 && first.batch ? batchLabel(first.batch.number, first.batch.year, [first]) : batches.length > 1 ? "несколько" : "вне партий" },
@@ -532,7 +532,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           ...rows.map((r) => ({
             key: r.x.o.id,
             label: <Link href={`/production/${r.x.o.id}`} className="text-blue-700 hover:underline">{articleLabel(r.x.o.productModel)}</Link>,
-            value: `${r.st.units > 0 ? `${formatQty(r.st.units)} шт.` : "—"} · ${labelOf(r.x.o)}`,
+            value: `${r.st.units > 0 ? `${formatQty(r.st.units)} шт.` : "–"} · ${labelOf(r.x.o)}`,
           })),
         ]}
       />,
@@ -548,7 +548,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             {batches.length === 1 && first.batch ? (
               <Link href={`/production/batches/${first.batch.number}`} className={`${link} whitespace-nowrap hover:underline`} title={`Партия пошива ${first.batch.number}${first.batch.year ? `, ${first.batch.year}` : ""}`}>{first.batch.number}</Link>
             ) : batches.length > 1 ? <span className={`${link} text-xs text-neutral-500`}>несколько</span> : (
-              <Link href={`${firstHref}#card-batch`} className={link}><span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900 ring-1 ring-amber-300">—</span></Link>
+              <Link href={`${firstHref}#card-batch`} className={link}><span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900 ring-1 ring-amber-300">–</span></Link>
             )}
           </Td>
         }
@@ -742,7 +742,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           <span className="mr-auto text-xs text-neutral-500">{tzCountText(tzGroups.length, priced.length)}</span>
           <VatLabel base="Всего, ₽ по списку" />
           <Mode4Badge mode={c4Mode} />
-          <span>{totals.incl.total === 0 ? "—" : <Money incl={totals.incl.total} excl={totals.excl.total} />}</span>
+          <span>{totals.incl.total === 0 ? "–" : <Money incl={totals.incl.total} excl={totals.excl.total} />}</span>
           <C4Hint
             mode={c4Mode}
             base={sumMatLines ? sumBase.toFixed(2) : null}

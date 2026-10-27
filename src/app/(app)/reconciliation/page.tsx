@@ -332,7 +332,7 @@ export default async function ReconciliationPage() {
               <ul className="space-y-0.5">
                 {missingInDb.map(({ i, miss }) => (
                   <li key={i.id} className="flex justify-between gap-3">
-                    <span>Счёт №{i.no ?? "—"} от {i.date ?? i.year} ({i.purpose.slice(0, 50)})</span>
+                    <span>Счёт №{i.no ?? "–"} от {i.date ?? i.year} ({i.purpose.slice(0, 50)})</span>
                     <b className="tabular-nums">{money(miss)}</b>
                   </li>
                 ))}

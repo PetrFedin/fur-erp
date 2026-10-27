@@ -136,11 +136,11 @@ function AddLinesBody({ shipmentId, asReady }: { shipmentId: string; asReady: bo
                   <td className="px-2 py-1.5"><input type="checkbox" aria-label={`Выбрать ${c.label}`} checked={p.on} onChange={(e) => set(c, { on: e.target.checked })} /></td>
                   <td className="whitespace-nowrap px-2 py-1.5">{c.label}</td>
                   <td className="px-2 py-1.5">{c.article}</td>
-                  <td className="px-2 py-1.5">{c.color ?? "—"}</td>
-                  <td className="px-2 py-1.5">{c.size ?? "—"}</td>
-                  <td className="px-2 py-1.5">{c.furKind || "—"}</td>
+                  <td className="px-2 py-1.5">{c.color ?? "–"}</td>
+                  <td className="px-2 py-1.5">{c.size ?? "–"}</td>
+                  <td className="px-2 py-1.5">{c.furKind || "–"}</td>
                   <td className="px-2 py-1.5 text-right tabular-nums">{c.qtyTz}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{c.inOthers + c.inHere || "—"}{c.inHere ? <span className="block text-[11px] text-neutral-500">из них здесь {c.inHere}</span> : null}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{c.inOthers + c.inHere || "–"}{c.inHere ? <span className="block text-[11px] text-neutral-500">из них здесь {c.inHere}</span> : null}</td>
                   <td className="px-2 py-1.5 text-right">
                     <Input className={"ml-auto w-24 text-right tabular-nums " + sel} inputMode="numeric" value={p.qty} aria-label={`Количество, ${c.label}`}
                       onChange={(e) => set(c, { qty: e.target.value, on: p.on || e.target.value !== "" })} />

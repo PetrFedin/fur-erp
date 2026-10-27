@@ -55,10 +55,10 @@ function Th({ children, tip, unit, className = "" }: { children: ReactNode; tip:
 
 const sepL = "border-l border-neutral-200";
 /** В таблицах нулевые значения — «—». */
-const mz = (v: number | null | undefined) => (v ? money(v) : "—");
+const mz = (v: number | null | undefined) => (v ? money(v) : "–");
 /** В сводной таблице без «₽»: единица стоит в заголовке колонки (так таблица вмещается в ширину). */
-const mt = (v: number | null | undefined) => (v ? money(v).replace(" ₽", "") : "—");
-const qz = (v: number | null | undefined, d = 0) => (v ? qty(v, d) : "—");
+const mt = (v: number | null | undefined) => (v ? money(v).replace(" ₽", "") : "–");
+const qz = (v: number | null | undefined, d = 0) => (v ? qty(v, d) : "–");
 
 export function BudgetEditor(p: Props) {
   const router = useRouter();
@@ -517,10 +517,10 @@ export function BudgetEditor(p: Props) {
             </div>
           </td>
           <td className={c}>{qz(a.pcs)}</td>
-          <td className={c + " " + sepL}>{hidesPer ? formatDec1(hidesPer) : "—"}</td>
+          <td className={c + " " + sepL}>{hidesPer ? formatDec1(hidesPer) : "–"}</td>
           <td className={c}>{mz(hidePrice)}</td>
           <td className={c + " text-neutral-700"}>{mz(mexPer)}</td>
-          <td className={c + " " + sepL}>{metersPer ? formatDec1(metersPer) : "—"}</td>
+          <td className={c + " " + sepL}>{metersPer ? formatDec1(metersPer) : "–"}</td>
           <td className={c}>{mz(meterPrice)}</td>
           <td className={c + " text-neutral-700"}>{mz(liningPer)}</td>
           <td className={c + " " + sepL}>{mz(workPer)}</td>
@@ -541,10 +541,10 @@ export function BudgetEditor(p: Props) {
     const per = (v: number, a: Agg) => (a.pcs > 0 ? v / a.pcs : 0);
     const rows: { label: string; v: (a: Agg) => string; bold?: boolean }[] = [
       { label: "Бюджет, шт.", v: (a) => qz(a.pcs) },
-      { label: "Шкур на изделие", v: (a) => (a.pcs > 0 && a.hides > 0 ? formatDec1(a.hides / a.pcs) : "—") },
+      { label: "Шкур на изделие", v: (a) => (a.pcs > 0 && a.hides > 0 ? formatDec1(a.hides / a.pcs) : "–") },
       { label: "Ср. цена шкуры", v: (a) => mz(a.hides > 0 ? a.mex / a.hides : null) },
       { label: `Мех + ${formatPercent(params.c4)}`, v: (a) => mz(per(a.mex * k, a) || null) },
-      { label: "Подкладка, м", v: (a) => (a.pcs > 0 && a.meters > 0 ? formatDec1(a.meters / a.pcs) : "—") },
+      { label: "Подкладка, м", v: (a) => (a.pcs > 0 && a.meters > 0 ? formatDec1(a.meters / a.pcs) : "–") },
       { label: "Цена за метр", v: (a) => mz(a.meters > 0 ? a.lining / a.meters : null) },
       { label: `Подкладка + ${formatPercent(params.c4)}`, v: (a) => mz(per(a.lining * k, a) || null) },
       { label: "Работа", v: (a) => mz(per(a.work, a) || null) },
@@ -612,14 +612,14 @@ export function BudgetEditor(p: Props) {
       const bg = n.kind === "fur" ? "bg-neutral-100" : hasKids ? "bg-neutral-50" : "bg-white";
       const av = avg(a);
       const g = (v: number | null, d = 1) => <td className="px-2 text-right text-xs tabular-nums text-neutral-500">{qz(v, d)}</td>;
-      const gm = (v: number | null) => <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{v == null ? "—" : money(v)}</td>;
+      const gm = (v: number | null) => <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{v == null ? "–" : money(v)}</td>;
       const row = (
         <tr key={n.id} className={`${bg} ${n.kind === "fur" ? "font-semibold" : ""} [&>td]:border-b [&>td]:border-neutral-100`}>
           {nameCell(n, depth, hasKids, open)}
           {leaf ? numCell(n, "pcs", "Бюджет, шт.", "w-[84px] min-w-[84px] " + sepL, undefined, ) : <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qz(a.pcs)}</td>}
           {leaf ? numCell(n, "hides", "Шкур на изделие", "w-[80px] min-w-[80px]") : g(av.hides)}
           <td className="px-2 text-right text-xs tabular-nums text-neutral-600">{qz(a.hides)}<Avg sum={a.hides} per={a.pcs} unit="шк./изд." d={1} /></td>
-          {leaf ? numCell(n, "hidePrice", "Цена шкуры", "w-[150px] min-w-[150px] " + sepL, "upFur") : <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500 ${sepL}`}>{av.hidePrice == null ? "—" : money(av.hidePrice)}</td>}
+          {leaf ? numCell(n, "hidePrice", "Цена шкуры", "w-[150px] min-w-[150px] " + sepL, "upFur") : <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500 ${sepL}`}>{av.hidePrice == null ? "–" : money(av.hidePrice)}</td>}
           {leaf ? numCell(n, "meters", "Подкладка, м на изделие", "w-[84px] min-w-[84px]") : g(av.meters)}
           {leaf ? numCell(n, "meterPrice", "Цена подкладки за м", "w-[132px] min-w-[132px]", "upLining") : gm(av.meterPrice)}
           {leaf ? numCell(n, "work", "Работа на изделие", "w-[150px] min-w-[150px]", "upWork") : gm(av.work)}
@@ -647,7 +647,7 @@ export function BudgetEditor(p: Props) {
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.work)}<Avg sum={total.work} per={total.pcs} unit="₽/изд." /></td>
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}<Avg sum={total.c4} per={total.pcs} unit="₽/изд." /></td>
       <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(total.total)}</td>
-      <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums text-neutral-400">—</td>
+      <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums text-neutral-400">–</td>
       <td className="border-l border-neutral-200 lg:sticky lg:right-0 lg:z-10" />
     </tr>
   );

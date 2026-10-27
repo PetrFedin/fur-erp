@@ -21,7 +21,7 @@ const nfTwo = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximum
 /** Число по общему правилу: целое; если |n| < smallBelow — максимум 1 знак. */
 export function formatNum(value: number | string, smallBelow = 10): string {
   const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "–";
   if (Math.abs(n) >= smallBelow) return fixMinus(nfWhole.format(n));
   const r = fixMinus(nfOne.format(n));
   return r === "−0" ? "0" : r;
@@ -30,27 +30,27 @@ export function formatNum(value: number | string, smallBelow = 10): string {
 /** Курс валют: всегда 2 знака (92,45). */
 export function formatRate(value: number | string): string {
   const n = Number(value);
-  return Number.isFinite(n) ? fixMinus(nfTwo.format(n)) : "—";
+  return Number.isFinite(n) ? fixMinus(nfTwo.format(n)) : "–";
 }
 
 /** Число с запятой и заданным числом знаков после неё («1183,7», «2,5»); пустое/не число — «—». Вместо n.toFixed(k) и точки. */
 export function formatDecimal(value: number | string | null | undefined, digits = 1, opts?: { trim?: boolean }): string {
-  if (value == null || value === "") return "—";
+  if (value == null || value === "") return "–";
   const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "–";
   return fixMinus(new Intl.NumberFormat("ru-RU", { minimumFractionDigits: opts?.trim ? 0 : digits, maximumFractionDigits: digits }).format(n));
 }
 
 /** Наценка множителем: ×1,25 (всегда 2 знака). */
 export function formatMarkup(value: number | string): string {
   const n = Number(value);
-  return Number.isFinite(n) ? `×${nfTwo.format(n)}` : "—";
+  return Number.isFinite(n) ? `×${nfTwo.format(n)}` : "–";
 }
 
 /** Наценка в процентах: «25,00 %» (всегда 2 знака). v уже в процентах. */
 export function formatMarkupPct(value: number | string): string {
   const n = Number(value);
-  return Number.isFinite(n) ? `${fixMinus(nfTwo.format(n))}${NBSP}%` : "—";
+  return Number.isFinite(n) ? `${fixMinus(nfTwo.format(n))}${NBSP}%` : "–";
 }
 
 const rubFormatter = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -71,13 +71,13 @@ const rubExact = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "
 /** Сумма с копейками («1 234,50 ₽»): ТОЛЬКО там, где копейки решают (сверка с накладной/счётом, платёжка). Везде остальное — formatMoney. */
 export function formatMoneyExact(value: number | string): string {
   const n = Number(value);
-  return Number.isFinite(n) ? fixMinus(rubExact.format(n)) : "—";
+  return Number.isFinite(n) ? fixMinus(rubExact.format(n)) : "–";
 }
 
 /** Крупная сумма коротко: «353,9 млн ₽», «12 тыс. ₽» (от 10 тыс.), меньше — обычная formatMoney. Для плиток и подписей графиков; в таблицах — formatMoney. */
 export function formatMoneyCompact(value: number | string, opts?: { unit?: boolean }): string {
   const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "–";
   const unit = opts?.unit === false ? "" : `${NBSP}₽`;
   const a = Math.abs(n);
   if (a >= 1e6) return fixMinus(`${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: a >= 1e8 ? 0 : 1 }).format(n / 1e6)}${NBSP}млн${unit}`);
@@ -88,7 +88,7 @@ export function formatMoneyCompact(value: number | string, opts?: { unit?: boole
 /** Сумма со знаком для приращений: «+1 234 ₽», «−500 ₽», ноль без знака. */
 export function formatMoneySigned(value: number | string): string {
   const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "–";
   return `${n > 0.5 ? "+" : ""}${formatMoney(n)}`;
 }
 
@@ -116,13 +116,13 @@ export function formatCurrency(value: number | string, currency: string) {
 /** Одна цифра после запятой всегда (шкуры и подкладка в метрах на 1 изделие): 9,0 · 1,3 · 94,2. */
 export function formatDec1(value: number | string | null | undefined): string {
   const n = typeof value === "string" ? Number(value) : value;
-  return n == null || !Number.isFinite(n) ? "—" : new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
+  return n == null || !Number.isFinite(n) ? "–" : new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
 }
 
 /** Целое число (шкуры в шт.): без запятой и знака после неё. */
 export function formatInt(value: number | string | null | undefined): string {
   const n = typeof value === "string" ? Number(value) : value;
-  return n == null || !Number.isFinite(n) ? "—" : new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(n));
+  return n == null || !Number.isFinite(n) ? "–" : new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(n));
 }
 
 export function formatQty(value: number | string) {
@@ -131,9 +131,9 @@ export function formatQty(value: number | string) {
 
 /** Процент: целый; меньше 1% — один знак (0,4%); положительное меньше 0,1 → «<0,1\u00a0%». v — уже в процентах (12.3). Наценку так НЕ форматировать: formatMarkupPct. */
 export function formatPercent(v: number | string | null | undefined, opts?: { sign?: boolean }): string {
-  if (v == null) return "—";
+  if (v == null) return "–";
   const n = Number(v);
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "–";
   if (n > 0 && n < 0.1) return "<0,1\u00a0%";
   const body = formatNum(Math.abs(n), 1);
   const zero = body === "0";
@@ -143,7 +143,7 @@ export function formatPercent(v: number | string | null | undefined, opts?: { si
 
 /** Доля (0.123 → «12 %»). */
 export function formatShare(fraction: number | null | undefined, opts?: { sign?: boolean }): string {
-  return fraction == null ? "—" : formatPercent(fraction * 100, opts);
+  return fraction == null ? "–" : formatPercent(fraction * 100, opts);
 }
 
 const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
@@ -164,7 +164,7 @@ export function formatDateTime(value: Date | string): string {
 
 /** Размер файла: «512 КБ», «1,4 МБ». */
 export function formatFileSize(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return "—";
+  if (!Number.isFinite(bytes) || bytes < 0) return "–";
   return bytes >= 1048576 ? `${formatDecimal(bytes / 1048576, 1)}${NBSP}МБ` : `${Math.max(1, Math.round(bytes / 1024))}${NBSP}КБ`;
 }
 

@@ -5,7 +5,7 @@ import { compareCalcs } from "@/lib/calc-compare";
 import type { CalcPayload } from "@/lib/supplier-calc";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 
-const money = (n: number | null) => (n == null || !Number.isFinite(n) ? "—" : formatNum(n, 1));
+const money = (n: number | null) => (n == null || !Number.isFinite(n) ? "–" : formatNum(n, 1));
 const sign = (n: number) => (n > 0 ? "+" : "") + money(n);
 
 /** Окончательный расчёт против предварительного: итого и разница, по лотам «за шкуру было → стало». */
@@ -29,8 +29,8 @@ export async function CompareBlock({ s, payload }: { s: Pick<SupplierSess, "user
             <Tbody>
               {changed.map((r, i) => (
                 <Tr key={i}>
-                  <Td>{r.lot || "—"}</Td><Td>{r.fur || "—"}</Td>
-                  <Td className="text-right tabular-nums">{r.qtyBefore === r.qtyAfter ? formatQty(r.qtyAfter ?? 0) : `${r.qtyBefore == null ? "—" : formatQty(r.qtyBefore)} → ${r.qtyAfter == null ? "—" : formatQty(r.qtyAfter)}`}</Td>
+                  <Td>{r.lot || "–"}</Td><Td>{r.fur || "–"}</Td>
+                  <Td className="text-right tabular-nums">{r.qtyBefore === r.qtyAfter ? formatQty(r.qtyAfter ?? 0) : `${r.qtyBefore == null ? "–" : formatQty(r.qtyBefore)} → ${r.qtyAfter == null ? "–" : formatQty(r.qtyAfter)}`}</Td>
                   <Td className="text-right tabular-nums">{money(r.unitBefore)}</Td>
                   <Td className="text-right tabular-nums">{money(r.unitAfter)}</Td>
                   <Td className="text-right tabular-nums">{money(r.totalBefore)} → {money(r.totalAfter)}</Td>

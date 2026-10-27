@@ -177,14 +177,14 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
                   </Link>
                 </Td>
                 <Td className="p-0">
-                  <Link href={href} className={link}>{f.productionOrder.client?.name ?? "—"}</Link>
+                  <Link href={href} className={link}>{f.productionOrder.client?.name ?? "–"}</Link>
                 </Td>
                 <Td className="p-0">
-                  <Link href={href} className={link}>{f.size ?? "—"}</Link>
+                  <Link href={href} className={link}>{f.size ?? "–"}</Link>
                 </Td>
                 <Td className="p-0">
                   <Link href={href} className={`${link} max-w-xs`} title={f.comment ?? undefined}>
-                    {truncate(f.comment, 100) || "—"}
+                    {truncate(f.comment, 100) || "–"}
                   </Link>
                 </Td>
                 <Td className="p-0">

@@ -234,7 +234,7 @@ export async function previewInbox(orgId: string, row: Row): Promise<{ problems:
   const plan = planBatch(m.payload, refs, Number(debt.debt.toFixed(2)), known);
   const t = plan.preview.totals;
   const lines = [
-    `Будет создано закупок (черновиков): ${plan.purchases.length} — по одной на аукционный счёт (${plan.purchases.map((x) => x.invoice || "—").join(", ")}) · ${plan.auctionName}${m.payload.header.newAuction ? " — аукциона нет в справочнике, он будет создан" : ""}`,
+    `Будет создано закупок (черновиков): ${plan.purchases.length} — по одной на аукционный счёт (${plan.purchases.map((x) => x.invoice || "–").join(", ")}) · ${plan.auctionName}${m.payload.header.newAuction ? " — аукциона нет в справочнике, он будет создан" : ""}`,
     `Лотов ${t.lots}, шкур ${t.qty}, ${formatNum(t.inclVat, 1)} ₽ с НДС; на склад не принимается`,
     ...m.warnings,
     ...docLines(row, m.payload.rows.map((x) => x.invoice).filter(Boolean)),

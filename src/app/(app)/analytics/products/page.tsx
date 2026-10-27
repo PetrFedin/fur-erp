@@ -106,7 +106,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
               ТЗ {orderLabel(r)}
             </Link>
             <span title={r.modelHint}>{r.modelLabel}</span>
-            <span>разм. {r.sizeRaw || "—"}</span>
+            <span>разм. {r.sizeRaw || "–"}</span>
             <span>{formatQty(r.qty)} ед.</span>
             <span>{r.costIncl > 0 ? <Money incl={r.costIncl / Math.max(r.qty, 1)} excl={r.costExcl / Math.max(r.qty, 1)} /> : "себестоимость 0"} за ед.</span>
             {r.work > 0 && <span>работа {formatMoney((r.work / Math.max(r.qty, 1)).toFixed(2))}</span>}
@@ -462,7 +462,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         <p className="mt-2 text-xs text-neutral-500">Проверки по всем ТЗ выбранного года (без фильтров таблицы). Данные не правятся — только показано, где неполно.</p>
         <ul className="flex flex-col mt-2 gap-2">
           <li>
-            Молоток записан у <b>{sAll.m.lotsHammer}</b> из <b>{sAll.m.lots}</b> лотов меха, использованных в ТЗ ({sAll.d.hammerSkinShare != null ? pct0(sAll.d.hammerSkinShare) : "—"} шкур). ТЗ, где молоток известен не для всех шкур: <b>{partHammer.length}</b>
+            Молоток записан у <b>{sAll.m.lotsHammer}</b> из <b>{sAll.m.lots}</b> лотов меха, использованных в ТЗ ({sAll.d.hammerSkinShare != null ? pct0(sAll.d.hammerSkinShare) : "–"} шкур). ТЗ, где молоток известен не для всех шкур: <b>{partHammer.length}</b>
             {partHammer.length > 0 && (
               <details className="mt-1">
                 <summary className="cursor-pointer text-neutral-600">Показать ТЗ (в среднее молотка идут только шкуры с данными)</summary>

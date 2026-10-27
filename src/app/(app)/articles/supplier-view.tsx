@@ -114,14 +114,14 @@ export async function SupplierArticles({ orgId, q, noname, sp = {} }: { orgId: s
               <Td className="font-medium">{m.name}{!m.isActive && <span className="ml-2 text-xs font-normal">не активен</span>}</Td>
               <Td>{photos.get(m.id) ? <PhotoGalleryButton modelId={m.id} photos={photos.get(m.id)!} groups={galleryExtras(photos.get(m.id)!, null, supRefs).groups} title={m.name} compact /> : null}</Td>
               <Td className="max-w-[20rem]">{m.title ? <Clamp>{m.title}</Clamp> : <span className="text-amber-800">Нет названия</span>}</Td>
-              <Td>{m.category || "—"}</Td>
-              <Td>{m.lengthClass || "—"}</Td>
-              <Td>{m.furType || "—"}</Td>
+              <Td>{m.category || "–"}</Td>
+              <Td>{m.lengthClass || "–"}</Td>
+              <Td>{m.furType || "–"}</Td>
               <Td>
-                <div className="max-w-[16rem]"><Clamp>{m.fur || "—"}</Clamp>{m.lining ? <Clamp className="text-xs text-neutral-500">подкладка: {m.lining}</Clamp> : null}</div>
+                <div className="max-w-[16rem]"><Clamp>{m.fur || "–"}</Clamp>{m.lining ? <Clamp className="text-xs text-neutral-500">подкладка: {m.lining}</Clamp> : null}</div>
               </Td>
-              <Td className="max-w-[10rem] text-xs"><Clamp>{m.sizes || "—"}</Clamp></Td>
-              <Td className="max-w-[10rem] text-xs"><Clamp>{m.colors || "—"}</Clamp></Td>
+              <Td className="max-w-[10rem] text-xs"><Clamp>{m.sizes || "–"}</Clamp></Td>
+              <Td className="max-w-[10rem] text-xs"><Clamp>{m.colors || "–"}</Clamp></Td>
             </Tr>
           ))}
           {rows.length === 0 && (

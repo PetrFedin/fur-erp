@@ -401,8 +401,8 @@ export function CalcDetail({ p, setP, t, ro, lockReason }: { p: CalcPayload; set
           return (
             <div key={c.id} className="flex flex-wrap items-end gap-2">
               <div><Label>Название</Label><Input className="w-48" value={c.title} readOnly={ro} onChange={(e) => upd({ title: e.target.value })} /></div>
-              <div><Label>Итог столбца</Label><Select className="w-44" value={c.a} disabled={ro} onChange={(e) => upd({ a: e.target.value })}><option value="">—</option>{sumCols.map((s) => <option key={s.id} value={s.letter}>{s.letter} — {s.title.slice(0, 24)}</option>)}</Select></div>
-              <div><Label>минус итог столбца</Label><Select className="w-44" value={c.b} disabled={ro} onChange={(e) => upd({ b: e.target.value })}><option value="">—</option>{sumCols.map((s) => <option key={s.id} value={s.letter}>{s.letter} — {s.title.slice(0, 24)}</option>)}</Select></div>
+              <div><Label>Итог столбца</Label><Select className="w-44" value={c.a} disabled={ro} onChange={(e) => upd({ a: e.target.value })}><option value="">–</option>{sumCols.map((s) => <option key={s.id} value={s.letter}>{s.letter} — {s.title.slice(0, 24)}</option>)}</Select></div>
+              <div><Label>минус итог столбца</Label><Select className="w-44" value={c.b} disabled={ro} onChange={(e) => upd({ b: e.target.value })}><option value="">–</option>{sumCols.map((s) => <option key={s.id} value={s.letter}>{s.letter} — {s.title.slice(0, 24)}</option>)}</Select></div>
               <div><Label>Допуск</Label><Input className="w-24" inputMode="decimal" value={c.tol} readOnly={ro} onChange={(e) => upd({ tol: e.target.value })} /></div>
               <span className={`pb-2 text-sm ${r?.ok ? "text-emerald-700" : "text-red-600"}`}>{r?.diff == null ? r?.note : `${fmt(r.diff)} ${r.ok ? "— в допуске" : "— больше допуска"}`}</span>
               {!ro && <button type="button" className="px-2 pb-2 text-neutral-400 hover:text-red-600" onClick={() => setP((x) => ({ ...x, checks: (x.checks ?? []).filter((_, j) => j !== i) }))}>×</button>}

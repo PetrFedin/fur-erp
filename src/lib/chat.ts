@@ -414,7 +414,7 @@ export async function groupMembers(orgId: string, threadId: string) {
   const users = await prisma.user.findMany({ where: { id: { in: ms.map((m) => m.userId) } }, select: { id: true, name: true, role: true, supplierId: true } });
   const by = new Map(users.map((u) => [u.id, u]));
   const sn = await supplierNames(orgId, users.map((u) => u.supplierId));
-  return ms.map((m) => { const u = by.get(m.userId); return { userId: m.userId, role: m.role, name: u?.name ?? "—", userRole: u?.role ?? "", isSupplier: u?.role === "SUPPLIER", supplierId: u?.supplierId ?? null, orgName: (u?.supplierId && sn.get(u.supplierId)) || "Подрядчик" }; });
+  return ms.map((m) => { const u = by.get(m.userId); return { userId: m.userId, role: m.role, name: u?.name ?? "–", userRole: u?.role ?? "", isSupplier: u?.role === "SUPPLIER", supplierId: u?.supplierId ?? null, orgName: (u?.supplierId && sn.get(u.supplierId)) || "Подрядчик" }; });
 }
 
 export async function changeMember(v: ChatViewer, threadId: string, userId: string, op: "add" | "remove"): Promise<{ error?: string }> {
@@ -499,7 +499,7 @@ export async function loadReactions(v: ChatViewer, messageIds: string[]): Promis
     const name = new Map(users.map((u) => [u.id, u.name]));
     const grouped = new Map<string, { emoji: string; userId: string }[]>();
     for (const r of rows) (grouped.get(r.messageId) ?? grouped.set(r.messageId, []).get(r.messageId)!).push(r);
-    for (const [id, list] of grouped) byMessage.set(id, groupReactions(list, v.id, (u) => name.get(u) ?? "—"));
+    for (const [id, list] of grouped) byMessage.set(id, groupReactions(list, v.id, (u) => name.get(u) ?? "–"));
     return { available: true, byMessage };
   } catch {
     return { available: false, byMessage };

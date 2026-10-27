@@ -73,11 +73,11 @@ export default async function FittingPage({ params }: PageProps<"/fittings/[id]"
             </div>
             <div>
               <dt className="text-xs text-neutral-500">Заказчик</dt>
-              <dd>{o.client?.name ?? "—"}</dd>
+              <dd>{o.client?.name ?? "–"}</dd>
             </div>
             <div>
               <dt className="text-xs text-neutral-500">Размер</dt>
-              <dd>{fitting.size ?? "—"}</dd>
+              <dd>{fitting.size ?? "–"}</dd>
             </div>
             <div>
               <dt className="text-xs text-neutral-500">Дата</dt>
@@ -85,7 +85,7 @@ export default async function FittingPage({ params }: PageProps<"/fittings/[id]"
             </div>
             <div className="sm:col-span-2">
               <dt className="text-xs text-neutral-500">Комментарий</dt>
-              <dd className="whitespace-pre-wrap">{fitting.comment ?? "—"}</dd>
+              <dd className="whitespace-pre-wrap">{fitting.comment ?? "–"}</dd>
             </div>
           </dl>
           {canEdit && (

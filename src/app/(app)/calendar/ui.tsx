@@ -44,7 +44,7 @@ export function SummaryTiles({ grand, overdue, overdueEvents, stageHref, activeS
   period?: { label: string; total: number; count: number };
 }) {
   const prod = STAGE_TILES.reduce((a, k) => a + grand[k], 0);
-  const num = (v: number) => (v > 0 ? formatQty(v) : "—");
+  const num = (v: number) => (v > 0 ? formatQty(v) : "–");
   const cols = period ? "xl:grid-cols-6" : "xl:grid-cols-5";
   return (
     <div className={`grid grid-cols-1 items-stretch gap-3 md:grid-cols-4 ${cols} print:grid-cols-4`}>
@@ -85,7 +85,7 @@ export function SummaryTiles({ grand, overdue, overdueEvents, stageHref, activeS
       })}
       {(overdue > 0 || (overdueEvents ?? 0) > 0) && <div className={TILE_BOX}>
         <TileHead>Просрочено</TileHead>
-        <TileValue className={overdue > 0 ? "text-red-700" : ""}>{overdue > 0 ? formatQty(overdue) : "—"}{overdue > 0 && <span className="ml-1 text-xs font-normal text-neutral-500">ТЗ</span>}</TileValue>
+        <TileValue className={overdue > 0 ? "text-red-700" : ""}>{overdue > 0 ? formatQty(overdue) : "–"}{overdue > 0 && <span className="ml-1 text-xs font-normal text-neutral-500">ТЗ</span>}</TileValue>
         <TileCaption>{overdueEvents != null && overdueEvents > 0 ? `событий: ${formatQty(overdueEvents)}` : null}</TileCaption>
       </div>}
     </div>

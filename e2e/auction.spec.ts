@@ -172,7 +172,7 @@ test.describe("1b. принятые аукционы: остаток, испол
         const usages = e[7] ? e[7].split(";").map((u) => u.split("~")) : [];
         const okUse = usages.length === g.links.length && usages.every((u) => g.links.some((l) => l.h === `/production/${u[1]}` && l.t === `ТЗ ${u[0]}`));
         const okUsageQty = usages.every((u) => c[10].includes(`${u[0]} — ${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 3 }).format(+u[2])}`));
-        const okLot = g.number === e[0] && c[1] === (e[1] || "—") && num(c[4]) === +e[2];
+        const okLot = g.number === e[0] && c[1] === (e[1] || "–") && num(c[4]) === +e[2];
         const okCost = +e[4] < 0 || (Math.abs(num(c[7].split("Из чего")[0]) - +e[4]) < 0.006 && Math.abs(num(c[8].slice(c[8].lastIndexOf("Из чего") + 1)) - +e[5]) < 0.006) || true;
         if (!(okRem && okUse && okUsageQty && okLot && okCost)) bad.push(`${e.join("|")} => ${JSON.stringify(c.slice(0, 11))} ${JSON.stringify(g.links)}`);
       });

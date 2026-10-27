@@ -20,14 +20,14 @@ const TONE: Record<string, string> = {
 const BAR = "#2a78d6";
 const BAR_ACTIVE = "#184f95";
 
-const sharePct = (part: number, whole: number) => (whole ? formatShare(part / whole) : "—");
+const sharePct = (part: number, whole: number) => (whole ? formatShare(part / whole) : "–");
 
 /** Ячейка состава: сумма и рядом аккуратная доля от себестоимости строки. */
 function PartCell({ v, whole, hide }: { v: number; whole: number; hide?: boolean }) {
-  if (hide) return <td className="px-2 py-1.5 text-right text-neutral-400">—</td>;
+  if (hide) return <td className="px-2 py-1.5 text-right text-neutral-400">–</td>;
   return (
     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
-      {v === 0 ? <span className="text-neutral-400">—</span> : <>{formatMoney(v)}<span className="ml-1 text-[11px] text-neutral-500">{sharePct(v, whole)}</span></>}
+      {v === 0 ? <span className="text-neutral-400">–</span> : <>{formatMoney(v)}<span className="ml-1 text-[11px] text-neutral-500">{sharePct(v, whole)}</span></>}
     </td>
   );
 }
@@ -242,7 +242,7 @@ export function ProductionModal({
                   const showFurQ = level.items.some((i) => (i.furQ ?? 0) > 0);
                   const showLinQ = level.items.some((i) => (i.liningQ ?? 0) > 0);
                   const GL = " border-l border-neutral-200";
-                  const nq = (v?: number) => (v && v > 0 ? formatQty(v) : "—");
+                  const nq = (v?: number) => (v && v > 0 ? formatQty(v) : "–");
                   return (
                     <table className={"w-full text-sm " + (rich ? "min-w-[900px]" : "min-w-[520px]")}>
                       <thead>
@@ -279,10 +279,10 @@ export function ProductionModal({
                               {it.sub ? <div className="ml-[18px] text-xs text-neutral-500">{it.sub}</div> : null}
                             </td>
                             <td className="whitespace-nowrap px-2 py-1.5 text-right text-neutral-600">{it.qtyText}</td>
-                            {perUnit ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{it.qty && !it.outside ? formatMoney(it.value / it.qty) : "—"}</td> : null}
+                            {perUnit ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{it.qty && !it.outside ? formatMoney(it.value / it.qty) : "–"}</td> : null}
                             {showFurQ ? <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700" + GL}>{nq(it.furQ)}</td> : null}
                             {showLinQ ? <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700" + (showFurQ ? "" : GL)}>{nq(it.liningQ)}</td> : null}
-                            <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + GL}>{it.asWork ? <span className="font-normal text-neutral-400">—</span> : formatMoney(it.value)}</td>
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + GL}>{it.asWork ? <span className="font-normal text-neutral-400">–</span> : formatMoney(it.value)}</td>
                             {rich ? (
                               <>
                                 <PartCell v={it.parts?.fur ?? 0} whole={it.value} hide={!it.parts} />
@@ -291,8 +291,8 @@ export function ProductionModal({
                                 {showOther ? <PartCell v={othOf(it)} whole={it.value} hide={!it.parts} /> : null}
                               </>
                             ) : null}
-                            {workCol ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{workOf(it) ? formatMoney(workOf(it)) : "—"}</td> : null}
-                            <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-600" + GL}>{it.outside ? "—" : pct(it.share)}</td>
+                            {workCol ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{workOf(it) ? formatMoney(workOf(it)) : "–"}</td> : null}
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-600" + GL}>{it.outside ? "–" : pct(it.share)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -312,7 +312,7 @@ export function ProductionModal({
                               {showOther ? <PartCell v={sumOther} whole={level.total} /> : null}
                             </>
                           ) : null}
-                          {workCol ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{level.items.reduce((x, i) => x + workOf(i), 0) ? formatMoney(level.items.reduce((x, i) => x + workOf(i), 0)) : "—"}</td> : null}
+                          {workCol ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{level.items.reduce((x, i) => x + workOf(i), 0) ? formatMoney(level.items.reduce((x, i) => x + workOf(i), 0)) : "–"}</td> : null}
                           <td className={"px-2 py-1.5 text-right" + GL}>100,0%</td>
                         </tr>
                       </tfoot>

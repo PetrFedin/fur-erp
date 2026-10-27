@@ -104,11 +104,11 @@ export default async function TzPrintPage({
 
         <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
           <dt className="text-neutral-600">Заказчик</dt>
-          <dd className="font-medium">{d.customer || "—"}</dd>
+          <dd className="font-medium">{d.customer || "–"}</dd>
           <dt className="text-neutral-600">Партия</dt>
-          <dd>{d.batch || "—"}</dd>
+          <dd>{d.batch || "–"}</dd>
           <dt className="text-neutral-600">Дата ТЗ</dt>
-          <dd>{d.date || "—"}</dd>
+          <dd>{d.date || "–"}</dd>
           <dt className="text-neutral-600">Заказ (внутр.)</dt>
           <dd>{d.orderNumber}</dd>
           {d.material && (
@@ -135,8 +135,8 @@ export default async function TzPrintPage({
             <tbody>
               <tr>
                 <td className={td}>{d.model}</td>
-                <td className={td}>{d.color || "—"}</td>
-                <td className={td}>{d.size || "—"}</td>
+                <td className={td}>{d.color || "–"}</td>
+                <td className={td}>{d.size || "–"}</td>
                 <td className={tdr}>{d.qty}</td>
                 <td className={tdr}>{d.workPerUnit}</td>
                 <td className={tdr}>{d.workSum}</td>
@@ -169,7 +169,7 @@ export default async function TzPrintPage({
                 {d.expenses.map((e, i) => (
                   <tr key={i}>
                     <td className={td}>{e.name}</td>
-                    <td className={td}>{e.description || "—"}</td>
+                    <td className={td}>{e.description || "–"}</td>
                     <td className={tdr}>{e.sum}</td>
                   </tr>
                 ))}

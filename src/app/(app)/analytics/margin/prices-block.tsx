@@ -85,7 +85,7 @@ export function PricesBlock({ models, canEdit }: { models: PriceModel[]; canEdit
                         return (<>
                           <td className={td}>{pcs}</td>
                           <td className={td}>{m.real.length > 1 ? range(m.real.map((r) => Math.round(r.price))) : formatMoney(Math.round(avg))}</td>
-                          <td className={td + (d !== null && Math.abs(d) >= 0.02 ? (d < 0 ? " text-[#b4310b]" : " text-[#17613c]") : "")}>{d === null ? "—" : `${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d * 100).toFixed(0)} %`}</td>
+                          <td className={td + (d !== null && Math.abs(d) >= 0.02 ? (d < 0 ? " text-[#b4310b]" : " text-[#17613c]") : "")}>{d === null ? "–" : `${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d * 100).toFixed(0)} %`}</td>
                         </>);
                       })()}
                     </tr>

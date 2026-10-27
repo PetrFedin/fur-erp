@@ -197,11 +197,11 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
             {shown.map((e) => (
               <Tr key={e.id}>
                 <Td className="font-medium">{e.articleCode}{e.docNote && <div className="text-xs font-normal text-neutral-500">№ {e.docNote}</div>}</Td>
-                <Td>{e.color || "—"}</Td><Td>{e.size || "—"}</Td><Td className="tabular-nums">{e.quantity}</Td>
+                <Td>{e.color || "–"}</Td><Td>{e.size || "–"}</Td><Td className="tabular-nums">{e.quantity}</Td>
                 <Td><StageBadge status={e.status} /></Td>
                 <Td className="tabular-nums">{fmtRu(e.planDate)}</Td>
-                <Td className="tabular-nums">{e.factDate ? fmtRu(e.factDate) : "—"}</Td>
-                <Td className="max-w-64 break-words text-xs">{e.notes || "—"}</Td>
+                <Td className="tabular-nums">{e.factDate ? fmtRu(e.factDate) : "–"}</Td>
+                <Td className="max-w-64 break-words text-xs">{e.notes || "–"}</Td>
                 {isSup && <Td><div className="flex items-center gap-1"><RowActions entry={e} models={modelNames} /><ChatLink type="CalendarEvent" id={e.id} role={s.user.role} label="Написать" className="!py-0.5 text-xs" /></div></Td>}
               </Tr>
             ))}

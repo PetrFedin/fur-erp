@@ -36,7 +36,7 @@ const METHODS = ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] as const;
 const METHOD_RU: Record<string, string> = { BANK_TRANSFER: "банковский перевод", CASH: "наличные", CARD: "карта", OTHER: "другое" };
 const ru = (d: Date) => d.toISOString().slice(0, 10).split("-").reverse().join(".");
 const money = (d: Decimal | number | string) => formatMoney(d.toString());
-const txt = (v: string | null | undefined) => (v && v.trim() ? v.trim() : "—");
+const txt = (v: string | null | undefined) => (v && v.trim() ? v.trim() : "–");
 
 /** № счёта и № п/п оплаты: из полей, а если они ещё пусты — из старого разбора docRef (так показывает и карточка). */
 const effRefs = (r: { invoiceNo: string | null; ppNo: string | null; docRef: string | null }) => {

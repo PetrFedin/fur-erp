@@ -17,7 +17,7 @@ import { FORMAT_LABEL, STAGE_LABEL, calcYear, remapCustomRefs, syncLetters, calc
 import { attachInboxFile, deleteCalcDraft, parseCalcFile, removeInboxFile, saveCalcDraft, sendCalc } from "./actions";
 import { formatRate, formatNum, formatQty, formatDecimal, formatDec1 } from "@/lib/utils";
 
-const money = (n: number) => (Number.isFinite(n) ? formatNum(n, 1) : "—");
+const money = (n: number) => (Number.isFinite(n) ? formatNum(n, 1) : "–");
 export type FileRow = { id: string; originalName: string; kind: string; sizeBytes: number };
 
 export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [], lockReason }: { id: string | null; initial: CalcPayload; readOnly: boolean; files: FileRow[]; reviewNote?: string | null; years?: number[]; lockReason?: string | null }) {
@@ -157,7 +157,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [],
         <H label="Надбавка агента, %" v={p.header.agentPct} on={(v) => setH("agentPct", v)} ro={ro} ph="например 1,5" />
         <div>
           <Label>Курс для расчёта</Label>
-          <div className="flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-50 px-3 text-sm tabular-nums">{t.rate ? formatRate(t.rate) : "—"}</div>
+          <div className="flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-50 px-3 text-sm tabular-nums">{t.rate ? formatRate(t.rate) : "–"}</div>
         </div>
         <div className="sm:col-span-2"><H label="Комментарий к курсу" v={p.header.rateComment} on={(v) => setH("rateComment", v)} ro={ro} ph="Расчётный курс ЦБ на … + 1,5 % агентская комиссия" /></div>
         </>)}
@@ -232,8 +232,8 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote, years = [],
                   </Td>
                 ))}
                 <Td className="whitespace-nowrap text-right tabular-nums">{c.ok ? money(c.unitRub) : <span className="text-xs text-red-600">{c.problems.join(", ")}</span>}</Td>
-                {p.format === "SAGA" && <Td className="whitespace-nowrap text-right tabular-nums">{c.unitUsd != null && c.ok ? money(c.unitUsd) : "—"}</Td>}
-                <Td className="whitespace-nowrap text-right tabular-nums">{c.ok ? money(c.totalRub) : "—"}</Td>
+                {p.format === "SAGA" && <Td className="whitespace-nowrap text-right tabular-nums">{c.unitUsd != null && c.ok ? money(c.unitUsd) : "–"}</Td>}
+                <Td className="whitespace-nowrap text-right tabular-nums">{c.ok ? money(c.totalRub) : "–"}</Td>
                 {!ro && <Td className="p-1"><button type="button" className="px-2 text-neutral-400 hover:text-red-600" title="Убрать строку" onClick={() => setP((x) => ({ ...x, rows: x.rows.filter((_, j) => j !== i) }))}>×</button></Td>}
               </Tr>
             );

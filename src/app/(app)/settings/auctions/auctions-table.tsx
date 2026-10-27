@@ -64,8 +64,8 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
   const [bulk, setBulk] = useState(false);
   const [adding, setAdding] = useState(false);
 
-  const houseOpts = useMemo(() => [...new Set(rows.map((r) => r.house ?? "—"))].sort((a, b) => a.localeCompare(b, "ru")).map((h) => ({ value: h, label: h, count: rows.filter((r) => (r.house ?? "—") === h).length })), [rows]);
-  const yearOpts = useMemo(() => [...new Set(rows.map((r) => String(r.year ?? "—")))].sort().reverse().map((y) => ({ value: y, label: y, count: rows.filter((r) => String(r.year ?? "—") === y).length })), [rows]);
+  const houseOpts = useMemo(() => [...new Set(rows.map((r) => r.house ?? "–"))].sort((a, b) => a.localeCompare(b, "ru")).map((h) => ({ value: h, label: h, count: rows.filter((r) => (r.house ?? "–") === h).length })), [rows]);
+  const yearOpts = useMemo(() => [...new Set(rows.map((r) => String(r.year ?? "–")))].sort().reverse().map((y) => ({ value: y, label: y, count: rows.filter((r) => String(r.year ?? "–") === y).length })), [rows]);
   const kindOpts = (Object.keys(KIND_LABELS) as (keyof typeof KIND_LABELS)[]).map((k) => ({ value: k, label: KIND_LABELS[k], count: rows.filter((r) => r.kind === k).length }));
   const confOpts = [
     { value: "yes", label: "Подтверждено", count: rows.filter((r) => r.confirmed).length },
@@ -75,8 +75,8 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
   const shown = useMemo(() => {
     const list = rows.filter(
       (r) =>
-        (!houses.length || houses.includes(r.house ?? "—")) &&
-        (!years.length || years.includes(String(r.year ?? "—"))) &&
+        (!houses.length || houses.includes(r.house ?? "–")) &&
+        (!years.length || years.includes(String(r.year ?? "–"))) &&
         (!kinds.length || kinds.includes(r.kind)) &&
         (!conf.length || conf.includes(r.confirmed ? "yes" : "no")),
     );
@@ -149,15 +149,15 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
                       <NameEditor row={r} canEdit={canEdit} onResult={report} />
                       {r.aliases.length > 0 && <div className="mt-1 max-w-[10rem] text-xs text-neutral-500">раньше: {r.aliases.join("; ")}</div>}
                     </Td>
-                    <Td className="max-w-[13rem] align-top text-xs text-neutral-600"><Clamp>{r.fullName ?? "—"}</Clamp></Td>
-                    <Td className="align-top text-sm">{r.house ?? "—"}</Td>
+                    <Td className="max-w-[13rem] align-top text-xs text-neutral-600"><Clamp>{r.fullName ?? "–"}</Clamp></Td>
+                    <Td className="align-top text-sm">{r.house ?? "–"}</Td>
                     <Td className="align-top text-sm">
                       {KIND_LABELS[r.kind]}
                       {r.isService && <div><Badge>служебный</Badge></div>}
-                      <div className="text-xs tabular-nums text-neutral-500">{r.year ? `${r.year}${r.month ? `/${String(r.month).padStart(2, "0")}` : ""}` : "—"}</div>
+                      <div className="text-xs tabular-nums text-neutral-500">{r.year ? `${r.year}${r.month ? `/${String(r.month).padStart(2, "0")}` : ""}` : "–"}</div>
                     </Td>
                     <Td className="text-right align-top tabular-nums">{r.purchaseCount}</Td>
-                    <Td className="whitespace-nowrap text-right align-top tabular-nums">{r.total ? formatMoney(r.total) : "—"}</Td>
+                    <Td className="whitespace-nowrap text-right align-top tabular-nums">{r.total ? formatMoney(r.total) : "–"}</Td>
                     <Td className="max-w-[9rem] align-top"><StatusCell row={r} canEdit={canEdit} onResult={report} /></Td>
                     <Td className="w-px whitespace-nowrap align-top">
                       <Button variant="ghost" size="sm" onClick={() => setOpen(open === r.id ? null : r.id)} aria-expanded={open === r.id}>
@@ -187,8 +187,8 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
             badge={r.confirmed ? <Badge variant="success">подтверждено</Badge> : <Badge variant="warning">ждёт подтверждения</Badge>}
             fields={[
               { label: "Закупок", value: r.purchaseCount },
-              { label: "Сумма", value: r.total ? formatMoney(r.total) : "—" },
-              { label: "Дом", value: r.house ?? "—" },
+              { label: "Сумма", value: r.total ? formatMoney(r.total) : "–" },
+              { label: "Дом", value: r.house ?? "–" },
               { label: "Вид", value: KIND_LABELS[r.kind] },
             ]}
             extra={
@@ -337,9 +337,9 @@ function Details({ row, all, canEdit, onResult }: { row: AuctionRowData; all: Au
         </form>
       ) : (
         <dl className="text-sm text-neutral-600">
-          <dt className="text-xs text-neutral-500">Полное название</dt><dd>{row.fullName ?? "—"}</dd>
-          <dt className="mt-2 text-xs text-neutral-500">Валюта</dt><dd>{row.currency ?? "—"}</dd>
-          <dt className="mt-2 text-xs text-neutral-500">Дата аукциона</dt><dd>{row.auctionDate ?? "—"}</dd>
+          <dt className="text-xs text-neutral-500">Полное название</dt><dd>{row.fullName ?? "–"}</dd>
+          <dt className="mt-2 text-xs text-neutral-500">Валюта</dt><dd>{row.currency ?? "–"}</dd>
+          <dt className="mt-2 text-xs text-neutral-500">Дата аукциона</dt><dd>{row.auctionDate ?? "–"}</dd>
         </dl>
       )}
     </div>

@@ -526,7 +526,7 @@ function ReviewStep({
   if (previewErr) return <p className="text-sm text-red-700">{previewErr}</p>;
   if (!preview) return <p className="text-sm text-neutral-500">Считаем итоги…</p>;
   const t = preview.totals;
-  const aName = header.newAuction ? `${header.newAuction.name.trim()} (новый)` : (refs.auctions.find((a) => a.id === header.auctionId)?.name ?? "—");
+  const aName = header.newAuction ? `${header.newAuction.name.trim()} (новый)` : (refs.auctions.find((a) => a.id === header.auctionId)?.name ?? "–");
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
@@ -560,7 +560,7 @@ function ReviewStep({
               <thead className="text-left text-neutral-500"><tr><th className="py-1">Лот</th><th>Мех</th><th className="text-right">Шт.</th><th className="text-right">За шкуру, ₽</th><th className="text-right">Итого, ₽</th></tr></thead>
               <tbody>
                 {comp.perLot.map((l) => (
-                  <tr key={l.n} className="border-t border-neutral-100"><td className="py-0.5">{l.lot || "—"}</td><td>{l.material}</td><td className="text-right tabular-nums">{fmt(l.qty)}</td><td className="text-right tabular-nums">{fmt(l.unitIncl, 0)}</td><td className="text-right tabular-nums">{fmt(l.totalIncl, 0)}</td></tr>
+                  <tr key={l.n} className="border-t border-neutral-100"><td className="py-0.5">{l.lot || "–"}</td><td>{l.material}</td><td className="text-right tabular-nums">{fmt(l.qty)}</td><td className="text-right tabular-nums">{fmt(l.unitIncl, 0)}</td><td className="text-right tabular-nums">{fmt(l.totalIncl, 0)}</td></tr>
                 ))}
               </tbody>
             </table>
@@ -573,7 +573,7 @@ function ReviewStep({
             <thead className="text-left text-neutral-600"><tr><th className="py-1">Счёт аукциона</th><th>Лотов</th><th>Шт.</th><th className="text-right">С НДС</th><th className="text-right">Без НДС</th></tr></thead>
             <tbody>
               {preview.purchases.map((p) => (
-                <tr key={p.key} className="border-t border-neutral-100"><td className="py-1">{p.invoice || "—"}</td><td>{p.lots}</td><td>{fmt(p.qty)}</td><td className="text-right">{money(p.inclVat)}</td><td className="text-right">{money(p.exclVat)}</td></tr>
+                <tr key={p.key} className="border-t border-neutral-100"><td className="py-1">{p.invoice || "–"}</td><td>{p.lots}</td><td>{fmt(p.qty)}</td><td className="text-right">{money(p.inclVat)}</td><td className="text-right">{money(p.exclVat)}</td></tr>
               ))}
             </tbody>
           </table>

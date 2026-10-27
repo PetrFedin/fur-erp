@@ -16,7 +16,7 @@ import { DeleteButton, InvoiceFormButton, LinkDocButton, LinkPaymentButton, Paid
 /** Что нужно строке счёта для правки: кандидаты платежей и документов, уже сделанные привязки. Нет — кнопок нет (чтение). */
 export type InvEdit = { candidates: PayCandidateView[]; docs: { id: string; title: string }[]; links: { id: string; label: string }[] };
 
-export const money = (v: number | null | undefined) => (v == null ? "—" : formatMoney(v));
+export const money = (v: number | null | undefined) => (v == null ? "–" : formatMoney(v));
 const dmy = (d: string | null, approx?: boolean) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}${approx ? " (≈)" : ""}` : "дата не найдена");
 const pct = (v: number) => formatPercent(v);
 
@@ -135,7 +135,7 @@ function dbCell(c: InvCalc, db: InvDb | undefined) {
   if (diff > TOL && dbPaid <= TOL) return { text: "нет в базе", sub: docs > TOL ? "есть в документах" : "", tone: docs > TOL ? "text-red-700" : "text-neutral-500" };
   if (diff > TOL) return { text: money(dbPaid), sub: `не хватает ${money(diff)}`, tone: "text-amber-700" };
   if (diff < -TOL) return { text: money(dbPaid), sub: `больше, чем в документах на ${money(-diff)}: расхождение с документом, решение владельца`, tone: "text-amber-700" };
-  return { text: dbPaid > TOL ? money(dbPaid) : "—", sub: dbPaid > TOL ? "сходится" : "", tone: dbPaid > TOL ? "text-emerald-700" : "text-neutral-500" };
+  return { text: dbPaid > TOL ? money(dbPaid) : "–", sub: dbPaid > TOL ? "сходится" : "", tone: dbPaid > TOL ? "text-emerald-700" : "text-neutral-500" };
 }
 
 export function InvoiceRow({ c, db, groupId, ed }: { c: InvCalc; db: InvDb | undefined; groupId: string; ed?: InvEdit }) {
@@ -151,7 +151,7 @@ export function InvoiceRow({ c, db, groupId, ed }: { c: InvCalc; db: InvDb | und
     >
       <div className="font-medium">
         {invLabel(inv)}
-        <span className="block text-xs font-normal text-neutral-500">{dmy(inv.date) === "дата не найдена" ? (inv.year ? `${inv.year}, дата не найдена` : "—") : dmy(inv.date)}</span>
+        <span className="block text-xs font-normal text-neutral-500">{dmy(inv.date) === "дата не найдена" ? (inv.year ? `${inv.year}, дата не найдена` : "–") : dmy(inv.date)}</span>
       </div>
       <div className="xl:order-last">
         <StatusPill c={c} />
@@ -171,7 +171,7 @@ export function InvoiceRow({ c, db, groupId, ed }: { c: InvCalc; db: InvDb | und
       </div>
       <div className="col-span-2 min-w-0 text-xs text-neutral-700 xl:col-span-1">
         {label("За что")}
-        <span className="break-words">{inv.purpose || "—"}</span>
+        <span className="break-words">{inv.purpose || "–"}</span>
         {inv.fileId ? (
           <span className="ml-1 text-neutral-500">счёт назван в реестре</span>
         ) : (
@@ -231,7 +231,7 @@ export function InvoiceRow({ c, db, groupId, ed }: { c: InvCalc; db: InvDb | und
             </span>
           ))}
           <span className="ml-auto" />
-          <DeleteButton kind="invoice" id={inv.dbId} what={`Удалить счёт №${inv.no ?? "—"} на ${money(inv.amountRub)} из сверки?`} />
+          <DeleteButton kind="invoice" id={inv.dbId} what={`Удалить счёт №${inv.no ?? "–"} на ${money(inv.amountRub)} из сверки?`} />
         </div>
       ) : null}
     </div>

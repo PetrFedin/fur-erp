@@ -12,7 +12,7 @@ import { TILE_BOX, TileHead, TileValue, TileList, type TileItem } from "./tile";
  */
 export function FilteredPayTiles({ figs, paid, due, c4 }: { figs: FlowFigures; paid: number; due: number; c4: "on" | "off" }) {
   const money = (v: number) => formatMoney(roundRub(v));
-  const dash = (v: number) => (Math.abs(v) < 0.5 ? "—" : money(v));
+  const dash = (v: number) => (Math.abs(v) < 0.5 ? "–" : money(v));
   // Целые рубли, сходящиеся на экране (src/lib/money-round.ts): оплачено + к оплате = общая стоимость, остаток + использовано = их части.
   const fa = alignFlowMoney(figs, c4 === "on");
   const D = { stock: fa.remValue, used: c4 === "on" ? fa.usedValueOther : fa.usedValue, c4: Math.abs(fa.usedValue - fa.usedValueOther) };
@@ -51,7 +51,7 @@ export function FilteredPayTiles({ figs, paid, due, c4 }: { figs: FlowFigures; p
         <TileHead>К оплате</TileHead>
         {isDebtDust(due) ? (
           <>
-            <TileValue compact><span title={`округление (${money(due)})`}>—</span></TileValue>
+            <TileValue compact><span title={`округление (${money(due)})`}>–</span></TileValue>
             <div className="text-xs text-neutral-500">округление ({money(due)})</div>
           </>
         ) : (

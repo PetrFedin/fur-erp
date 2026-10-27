@@ -84,8 +84,8 @@ export function LotUsageViz({
 
   const cells = (s: UsageSeg) => ({
     title: s.kind === "order" ? (s.href ? <Link href={s.href} className="text-blue-700 hover:underline">{s.label}</Link> : s.label) : s.kind === "rem" ? <b>Остаток</b> : "Прочее списание (не через ТЗ)",
-    sku: s.kind === "order" ? (s.sku ?? "—") : "—",
-    date: s.kind === "order" ? (s.date ?? "—") : "—",
+    sku: s.kind === "order" ? (s.sku ?? "–") : "–",
+    date: s.kind === "order" ? (s.date ?? "–") : "–",
   });
 
   return (
@@ -173,7 +173,7 @@ export function LotUsageViz({
                   <td className="py-1.5 pr-3">{c.sku}</td>
                   <td className="py-1.5 pr-3 text-right tabular-nums">{formatDec1(s.qty)}</td>
                   <td className="py-1.5 pr-3 text-right tabular-nums">{formatPercent(pct(s.qty, total))}</td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums">{s.cost ?? "—"}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{s.cost ?? "–"}</td>
                   <td className="whitespace-nowrap py-1.5">{c.date}</td>
                 </tr>
               );
@@ -183,7 +183,7 @@ export function LotUsageViz({
               <td className="py-1.5 pr-3" colSpan={2}>Куплено (всего)</td>
               <td className="py-1.5 pr-3 text-right tabular-nums">{formatDec1(total)}</td>
               <td className="py-1.5 pr-3 text-right tabular-nums">{formatPercent(100)}</td>
-              <td className="py-1.5 pr-3 text-right tabular-nums">{totalCost ?? "—"}</td>
+              <td className="py-1.5 pr-3 text-right tabular-nums">{totalCost ?? "–"}</td>
               <td />
             </tr>
           </tbody>
@@ -202,7 +202,7 @@ export function LotUsageViz({
               </div>
               <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-neutral-600">
                 {s.kind === "order" && (<><dt>Артикул</dt><dd className="break-words">{c.sku}</dd><dt>Дата</dt><dd>{c.date}</dd></>)}
-                <dt>Сумма, ₽</dt><dd className="tabular-nums">{s.cost ?? "—"}</dd>
+                <dt>Сумма, ₽</dt><dd className="tabular-nums">{s.cost ?? "–"}</dd>
               </dl>
             </li>
           );
@@ -307,7 +307,7 @@ function RemainderChart({ unit, recv, startDate, orders, other }: { unit: string
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b border-neutral-100"><td className="py-1 pr-3">Покупка</td><td className="py-1 pr-3">{startDate}</td><td className="py-1 pr-3 text-right">—</td><td className="py-1 text-right tabular-nums">{formatDec1(recv)}</td></tr>
+            <tr className="border-b border-neutral-100"><td className="py-1 pr-3">Покупка</td><td className="py-1 pr-3">{startDate}</td><td className="py-1 pr-3 text-right">–</td><td className="py-1 text-right tabular-nums">{formatDec1(recv)}</td></tr>
             {steps.map((s) => (
               <tr key={s.key} className="border-b border-neutral-100">
                 <td className="py-1 pr-3">{s.label}</td>

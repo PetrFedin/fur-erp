@@ -172,7 +172,7 @@ function TotalsFooter({
               {!c || c.n === 0 ? null : f.type === "NUMBER" ? (
                 <>
                   <Stat k="Σ" tip={TIP.sum}>{formatExtra("NUMBER", c.sum)}</Stat>
-                  <Stat k="ср. взвеш." tip={TIP.avg}>{c.wavg != null ? formatAvg(c.wavg) : "—"}</Stat>
+                  <Stat k="ср. взвеш." tip={TIP.avg}>{c.wavg != null ? formatAvg(c.wavg) : "–"}</Stat>
                   <Note>заполнено у {c.n} из {t.count}</Note>
                 </>
               ) : f.type === "BOOLEAN" ? (
@@ -253,7 +253,7 @@ function TotalsList({ view, fields }: { view: ScopeView; fields: CustomFieldDef[
   if (!empty && t.rateAvg != null && single) items.push({ label: "Курс, ср. взвеш.", value: rateFmt(t.rateAvg) });
   if (!empty && q > 0) items.push({ label: "Себестоимость ед., ср. взвеш.", value: <Money incl={t.totalIncl / q} excl={t.totalExcl / q} /> });
   items.push({ label: "Себестоимость всего", value: empty ? "0" : <Money incl={t.totalIncl} excl={t.totalExcl} /> });
-  items.push({ label: "Остаток на складе", value: t.onStock > 0 ? `${formatDec1(t.remaining)} (на складе ${t.onStock} лот.)` : empty ? "—" : "ещё не на складе" });
+  items.push({ label: "Остаток на складе", value: t.onStock > 0 ? `${formatDec1(t.remaining)} (на складе ${t.onStock} лот.)` : empty ? "–" : "ещё не на складе" });
   if (t.used > 0) items.push({ label: "Использовано в ТЗ", value: formatDec1(t.used) });
   for (const f of fields) {
     const c = t.custom[f.id];
@@ -542,17 +542,17 @@ function LotRowView({
       <Td className="whitespace-nowrap">
         {r.lotNumber ? (
           <Link href={`/analytics/raw/lot/${r.lotId ?? r.id}`} className="text-blue-700 hover:underline" title="Карточка лота: из чего сложилась цена">{r.lotNumber}</Link>
-        ) : "—"}
+        ) : "–"}
       </Td>
       <Td className="min-w-48">
-        {r.size || "—"}
+        {r.size || "–"}
         {(r.attrs?.length ?? 0) > 0 && (
           <div className="mt-0.5 flex flex-wrap gap-1" data-lot-attrs>
             {r.attrs!.map((a) => <span key={a} title="Признак меха" className="rounded-full bg-amber-50 px-1.5 text-[11px] leading-4 text-amber-800 ring-1 ring-amber-200">{a}</span>)}
           </div>
         )}
       </Td>
-      <Td className="min-w-32 text-xs text-neutral-600">{r.op || "—"}</Td>
+      <Td className="min-w-32 text-xs text-neutral-600">{r.op || "–"}</Td>
       <Td className="whitespace-nowrap">
         {formatDec1(r.qty)} {r.unit}
       </Td>
@@ -583,7 +583,7 @@ function LotRowView({
       </Td>
       <Td>
         {r.usages.length === 0
-          ? "—"
+          ? "–"
           : r.usages.map((u) => (
               <div key={u.id} className="whitespace-nowrap">
                 <Link href={`/production/${u.orderId}`} className="hover:underline">
@@ -698,7 +698,7 @@ function LotCardView({
 }
 
 const pct = (v: number, total: number) => {
-  if (Math.abs(total) < 0.005) return "—";
+  if (Math.abs(total) < 0.005) return "–";
   const p = Math.round((v / total) * 1000) / 10;
   return formatPercent(p);
 };
@@ -866,11 +866,11 @@ export function FlatLotsPanel() {
   const mainRows = split.noTz.length > 0 ? split.withTz : rows;
   const flatCard = (r: LotRow) => {
     const m = purchases.get(r.purchaseId);
-    return <LotCardView key={r.id} row={r} fields={fields} hasEditCol={false} currency={r.currency} invoice={{ label: m?.label ?? "—", number: m?.number ?? "" }} />;
+    return <LotCardView key={r.id} row={r} fields={fields} hasEditCol={false} currency={r.currency} invoice={{ label: m?.label ?? "–", number: m?.number ?? "" }} />;
   };
   const flatRow = (r: LotRow) => {
     const m = purchases.get(r.purchaseId);
-    return <LotRowView key={r.id} row={r} fields={fields} hasEditCol={false} currency={r.currency} invoice={{ label: m?.label ?? "—", number: m?.number ?? "" }} />;
+    return <LotRowView key={r.id} row={r} fields={fields} hasEditCol={false} currency={r.currency} invoice={{ label: m?.label ?? "–", number: m?.number ?? "" }} />;
   };
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-3" data-auction-flat>

@@ -6,7 +6,7 @@ import { sumOrders, type Sum } from "@/lib/orders-sum";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../../dashboard/tile";
 
-const per = (q: number, n: number) => (n > 0 ? formatQty(Math.round((q / n) * 100) / 100) : "—");
+const per = (q: number, n: number) => (n > 0 ? formatQty(Math.round((q / n) * 100) / 100) : "–");
 const mat = (s: Sum) => s.fur + s.lining + s.c4;
 
 /**
@@ -26,7 +26,7 @@ export function WeightedTile({ met, orders }: { met: ArticleMetrics; orders: Dri
     <div className="relative">
       <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
         <TileHead>Средневзвешенные</TileHead>
-        <TileValue>{n > 0 && met.fur.qty > 0 ? `${per(met.fur.qty, n)} шк.` : "—"}</TileValue>
+        <TileValue>{n > 0 && met.fur.qty > 0 ? `${per(met.fur.qty, n)} шк.` : "–"}</TileValue>
         <TileCaption>{n > 0 ? "расход меха на изделие" : "изделий нет"}</TileCaption>
         {n > 0 ? (
           <TileList items={[

@@ -13,7 +13,7 @@ import { formatDec1, formatMoney, formatQty } from "@/lib/utils";
 // Цены с НДС, до тысяч; надбавка 4 % — на мех и подкладку (как в системе).
 
 const C4 = 4;
-const K = (v: number | null | undefined) => (v == null || !Number.isFinite(v) || v <= 0 ? "—" : formatMoney(Math.round(v / 1000) * 1000));
+const K = (v: number | null | undefined) => (v == null || !Number.isFinite(v) || v <= 0 ? "–" : formatMoney(Math.round(v / 1000) * 1000));
 const GROUPED = new Set(Object.values(BUDGET_CAT_GROUPS).flat());
 const LEN_ORDER = ["Short", "Regular", "Long"];
 
@@ -29,10 +29,10 @@ const calc = (s: BudgetStat): Calc => {
 function CompareTable({ cols }: { cols: { key: string; label: string; c: Calc }[] }) {
   const rows: { label: string; v: (c: Calc) => string; bold?: boolean }[] = [
     { label: "Изделий в основе", v: (c) => formatQty(c.qty) },
-    { label: "Шкур на изделие", v: (c) => (c.hides > 0 ? formatDec1(c.hides) : "—") },
+    { label: "Шкур на изделие", v: (c) => (c.hides > 0 ? formatDec1(c.hides) : "–") },
     { label: "Ср. цена шкуры", v: (c) => K(c.hidePrice) },
     { label: `Мех + ${C4} %`, v: (c) => K(c.mexC4) },
-    { label: "Подкладка, м", v: (c) => (c.meters > 0 ? formatDec1(c.meters) : "—") },
+    { label: "Подкладка, м", v: (c) => (c.meters > 0 ? formatDec1(c.meters) : "–") },
     { label: "Цена за метр", v: (c) => K(c.meterPrice) },
     { label: `Подкладка + ${C4} %`, v: (c) => K(c.liningC4) },
     { label: "Работа", v: (c) => K(c.work) },
@@ -122,10 +122,10 @@ export function UnitCostNow({ stats }: { stats: BudgetStat[] }) {
                 <>
                   <td className={c}>{formatQty(x.qty)}</td>
                   <td className={c + GB + (strong ? " font-semibold" : "")}>{K(x.total)}</td>
-                  <td className={c + GB}>{x.hides > 0 ? formatDec1(x.hides) : "—"}</td>
+                  <td className={c + GB}>{x.hides > 0 ? formatDec1(x.hides) : "–"}</td>
                   <td className={c}>{K(x.hidePrice)}</td>
                   <td className={c}>{K(x.mexC4)}</td>
-                  <td className={c + GB}>{x.meters > 0 ? formatDec1(x.meters) : "—"}</td>
+                  <td className={c + GB}>{x.meters > 0 ? formatDec1(x.meters) : "–"}</td>
                   <td className={c}>{K(x.meterPrice)}</td>
                   <td className={c}>{K(x.liningC4)}</td>
                   <td className={c + GB}>{K(x.work)}</td>

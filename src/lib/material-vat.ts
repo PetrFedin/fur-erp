@@ -40,7 +40,7 @@ export function summarizeMaterialVat(defaultRate: number | null, lots: MaterialL
     };
   }
   if (groups.length === 0) {
-    return { defaultRate, groups, mismatch, text: "—", note: "Лотов нет: в ТЗ — ставка лота, а для новой закупки — по дате (до 2026 — 20%, с 2026 — 22%)." };
+    return { defaultRate, groups, mismatch, text: "–", note: "Лотов нет: в ТЗ — ставка лота, а для новой закупки — по дате (до 2026 — 20%, с 2026 — 22%)." };
   }
   return {
     defaultRate,

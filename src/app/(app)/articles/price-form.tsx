@@ -50,7 +50,7 @@ export function ArticlePriceForm({
   }, [justSaved]);
 
   if (!canEdit) {
-    return <span>{sellingPrice ? formatMoney(sellingPrice) : "—"}</span>;
+    return <span>{sellingPrice ? formatMoney(sellingPrice) : "–"}</span>;
   }
 
   return (

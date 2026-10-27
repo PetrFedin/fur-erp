@@ -42,7 +42,7 @@ export function VatLine({ v, minRem = 0, className = "mt-2" }: { v: VatByRate | 
 
 const fmtEntries = (v: VatByRate | undefined) => {
   const e = vatEntries(v);
-  return e.length ? e.map(([r, x]) => `${r}% — ${rub0(x)}`).join(" · ") : "—";
+  return e.length ? e.map(([r, x]) => `${r}% — ${rub0(x)}`).join(" · ") : "–";
 };
 
 /** Абзацы для «i» таблиц: НДС по ставкам для меха и подкладки (куплено / использовано без 4% / остаток). */

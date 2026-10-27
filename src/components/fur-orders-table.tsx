@@ -30,7 +30,7 @@ type Row = {
   vatBy: Map<number, number>;
 };
 
-const D = () => <span className="text-neutral-300">—</span>;
+const D = () => <span className="text-neutral-300">–</span>;
 const money = (v: number) => (Math.abs(v) < 0.5 ? <D /> : formatMoney(v));
 const usd = (v: number) => `$${formatNum(v, 1)}`;
 const BL = " border-l border-neutral-200";
@@ -153,8 +153,8 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="tz-tiles">
         <div className={TILE_BOX}><TileHead>ТЗ</TileHead><TileValue compact>{shown.length}</TileValue><TileCaption>{rows.length !== shown.length ? `из ${rows.length}` : "уникальных"}</TileCaption></div>
         <div className={TILE_BOX}><TileHead>{kind === "lining" ? "Метров всего" : "Шкур всего"}</TileHead><TileValue compact>{formatQty(T.qty)}</TileValue><TileCaption>{unit}</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>{kind === "lining" ? "Метров на изделие" : "Шкур на изделие"}</TileHead><TileValue compact>{T.units > 0 ? formatQty(Math.round((T.qty / T.units) * 100) / 100) : "—"}</TileValue><TileCaption>в среднем</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>Ср. цена, ₽/{unit}</TileHead><TileValue compact>{T.qty > 0 ? formatMoney(Math.round((totBase / T.qty) * 100) / 100) : "—"}</TileValue><TileCaption><span title={T.usdQty > 0 ? `Цена в $ есть у ${formatQty(T.usdQty)} из ${formatQty(T.qty)}` : undefined}>{T.usdQty > 0 ? `${usd(T.usdSum / T.usdQty)} · ${formatQty(T.usdQty)} / ${formatQty(T.qty)}` : "—"}</span></TileCaption></div>
+        <div className={TILE_BOX}><TileHead>{kind === "lining" ? "Метров на изделие" : "Шкур на изделие"}</TileHead><TileValue compact>{T.units > 0 ? formatQty(Math.round((T.qty / T.units) * 100) / 100) : "–"}</TileValue><TileCaption>в среднем</TileCaption></div>
+        <div className={TILE_BOX}><TileHead>Ср. цена, ₽/{unit}</TileHead><TileValue compact>{T.qty > 0 ? formatMoney(Math.round((totBase / T.qty) * 100) / 100) : "–"}</TileValue><TileCaption><span title={T.usdQty > 0 ? `Цена в $ есть у ${formatQty(T.usdQty)} из ${formatQty(T.qty)}` : undefined}>{T.usdQty > 0 ? `${usd(T.usdSum / T.usdQty)} · ${formatQty(T.usdQty)} / ${formatQty(T.qty)}` : "–"}</span></TileCaption></div>
         <div className={TILE_BOX}><TileHead>Сумма, ₽</TileHead><TileValue compact>{formatMoney(totBase)}</TileValue><TileCaption>без 4 %</TileCaption></div>
         <div className={TILE_BOX}><TileHead>Сумма с 4 %, ₽</TileHead><TileValue compact>{formatMoney(totC4)}</TileValue><TileCaption>надбавка {formatMoney(totC4 - totBase)}</TileCaption></div>
       </div>

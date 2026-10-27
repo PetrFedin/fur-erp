@@ -64,7 +64,7 @@ export function OrderNav({
     <nav aria-label="Разделы этого ТЗ" className="flex gap-1 overflow-x-auto border-b border-neutral-200 pb-2">
       {items.map((it) => {
         const badge = it.count == null ? null : (
-          <span className={"rounded-full px-1.5 text-[11px] tabular-nums " + (it.active ? "bg-white/20" : "bg-neutral-100 text-neutral-600")}>{it.count > 0 ? (it.unit ? `${it.count} ${it.unit}` : it.count) : "—"}</span>
+          <span className={"rounded-full px-1.5 text-[11px] tabular-nums " + (it.active ? "bg-white/20" : "bg-neutral-100 text-neutral-600")}>{it.count > 0 ? (it.unit ? `${it.count} ${it.unit}` : it.count) : "–"}</span>
         );
         return it.active ? (
           <span key={it.key} aria-current="page" title={it.title} className={cls + " bg-neutral-900 text-white"}>{it.label}</span>
