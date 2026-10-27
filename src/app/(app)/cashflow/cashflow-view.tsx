@@ -105,8 +105,8 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
           <g key={m} opacity={dim ? 0.3 : 1}>
             {ser.spend[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={y(0)} height={Math.max(0, y(-ser.spend[i]) - y(0))} fill={SPEND} opacity={hotLine && hotLine !== "spend" ? 0.2 : 1} />}
             {ser.revenue[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={y(ser.revenue[i])} height={Math.max(0, y(0) - y(ser.revenue[i]))} fill={GET} opacity={hotLine && hotLine !== "get" ? 0.2 : 1} />}
-            {hotLine === "spend" && ser.spend[i] > 0.5 && i % labEvery === 0 && <text x={x(i)} y={y(-ser.spend[i]) + 13} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(ser.spend[i])}</text>}
-            {hotLine === "get" && ser.revenue[i] > 0.5 && i % labEvery === 0 && <text x={x(i)} y={y(ser.revenue[i]) - 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(ser.revenue[i])}</text>}
+            {hotLine === "spend" && ser.spend[i] > 0.5 && i % labEvery === 0 && <text x={x(i)} y={y(-ser.spend[i]) + 13} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{Math.abs(ser.spend[i]) < 0.5 ? "–" : mln(ser.spend[i])}</text>}
+            {hotLine === "get" && ser.revenue[i] > 0.5 && i % labEvery === 0 && <text x={x(i)} y={y(ser.revenue[i]) - 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{Math.abs(ser.revenue[i]) < 0.5 ? "–" : mln(ser.revenue[i])}</text>}
           </g>
         );
       })}
@@ -117,7 +117,7 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
           {s.available && !filtered && <path d={lineOf(ser.cumNet)} fill="none" stroke={NAVY} strokeWidth={hotLine === "net" ? 4 : 2.5} strokeDasharray="6 4" opacity={hotLine && hotLine !== "net" ? 0.2 : 1} />}
           {(["spend", "get", "net"] as const).filter((k) => hotLine === k).map((k) => {
             const arr = k === "spend" ? ser.cumSpend : k === "get" ? ser.cumRevenue : ser.cumNet, col = k === "spend" ? SPEND : k === "get" ? GET : NAVY;
-            return <g key={"lab" + k}>{arr.map((v, i) => (i % labEvery !== 0 && i !== n - 1 ? null : <g key={i}><circle cx={x(i)} cy={y(v)} r={3.5} fill={col} /><text x={x(i)} y={y(v) - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(v)}</text></g>))}</g>;
+            return <g key={"lab" + k}>{arr.map((v, i) => (i % labEvery !== 0 && i !== n - 1 ? null : <g key={i}><circle cx={x(i)} cy={y(v)} r={3.5} fill={col} /><text x={x(i)} y={y(v) - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{Math.abs(v) < 0.5 ? "–" : mln(v)}</text></g>))}</g>;
           })}
           {active !== null && <circle cx={x(active)} cy={y(ser.cumSpend[active])} r={5} fill={SPEND} />}
           {n > 0 && <text x={x(n - 1) + 8} y={y(ser.cumSpend[n - 1]) + 4} fontSize={11} fontWeight={700} fill={SPEND}>{mln(ser.cumSpend[n - 1])}</text>}
@@ -215,7 +215,7 @@ function WorkMonthsChart({ months, kinds, units, active, setActive, colW, hotKin
               if (v <= 0.5) return null;
               const y0 = yw(acc), y1 = yw(acc + v);
               acc += v;
-              return <g key={k}><rect x={x(i) - bw / 2} width={bw} y={y1} height={Math.max(0, y0 - y1)} fill={k === "PARTIAL" ? "url(#hatch-partial)" : k === "FINAL" ? "url(#dots-final)" : KIND_COLOR[k]} opacity={(hotKind !== null && hotKind !== k) ? 0.2 : active !== null && active !== i ? 0.35 : 1} stroke={hotKind === k ? "#111" : "none"}><title>{`${PAY_TYPE_LABEL[k]}: ${formatMoney(v)}`}</title></rect>{hotKind === k && i % Math.max(1, Math.ceil(44 / Math.max(1, colW))) === 0 && <text x={x(i)} y={y1 - 4} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(v)}</text>}</g>;
+              return <g key={k}><rect x={x(i) - bw / 2} width={bw} y={y1} height={Math.max(0, y0 - y1)} fill={k === "PARTIAL" ? "url(#hatch-partial)" : k === "FINAL" ? "url(#dots-final)" : KIND_COLOR[k]} opacity={(hotKind !== null && hotKind !== k) ? 0.2 : active !== null && active !== i ? 0.35 : 1} stroke={hotKind === k ? "#111" : "none"}><title>{`${PAY_TYPE_LABEL[k]}: ${formatMoney(v)}`}</title></rect>{hotKind === k && i % Math.max(1, Math.ceil(44 / Math.max(1, colW))) === 0 && <text x={x(i)} y={y1 - 4} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{Math.abs(v) < 0.5 ? "–" : mln(v)}</text>}</g>;
             })}
           </g>
         );
@@ -743,15 +743,17 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-x-3">
         <h1 className="text-xl font-semibold">Cashflow</h1>
-        <span className="flex items-center gap-3 text-xs print:hidden"><Link href="/payments" className="text-blue-700 hover:underline">→ Оплаты</Link><Link href="/sales" className="text-blue-700 hover:underline">→ Продажи</Link></span>
         </div>
-        <InfoHint label="Что такое Cashflow" align="right" wide>
-          <p><b>Потрачено</b> — все проведённые оплаты («Оплачено» в разделе «Оплаты») по статьям и по дате платежа. Запланированные и неподтверждённые платежи не входят. Итог за 2025–2026 равен «Оплачено всего» (с НДС).</p>
-          <p className="mt-1">На странице «Оплаты» годы для закупок вне аукциона считаются по году закупки, а здесь — по дате платежа, поэтому по годам суммы могут отличаться, итог и месяцы те же.</p>
-          <p className="mt-1"><b>Получено</b> — розничная выручка из выгрузки продаж по дате продажи (чистая, после скидок, возвраты вычтены), а не движение по расчётному счёту.</p>
-          <p className="mt-1">«Без НДС»: у платежей за сырьё НДС берётся из закупок (ставка позиций, 20% или 22%); у оплаты работы подрядчику и авансов без привязки к закупке НДС в данных нет — эти суммы остаются как есть
-            {exVat && vat.unknown > 0.5 ? ` (${money(vat.unknown)} из ${money(vat.total)})` : ""}. У продаж НДС взят из выгрузки (столбцы «с НДС» и «без НДС»).</p>
-        </InfoHint>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-3 text-xs print:hidden"><Link href="/payments" className="text-blue-700 hover:underline">→ Оплаты</Link><Link href="/sales" className="text-blue-700 hover:underline">→ Продажи</Link></span>
+          <InfoHint label="Что такое Cashflow" align="right" wide>
+            <p><b>Потрачено</b> — все проведённые оплаты («Оплачено» в разделе «Оплаты») по статьям и по дате платежа. Запланированные и неподтверждённые платежи не входят. Итог за 2025–2026 равен «Оплачено всего» (с НДС).</p>
+            <p className="mt-1">На странице «Оплаты» годы для закупок вне аукциона считаются по году закупки, а здесь — по дате платежа, поэтому по годам суммы могут отличаться, итог и месяцы те же.</p>
+            <p className="mt-1"><b>Получено</b> — розничная выручка из выгрузки продаж по дате продажи (чистая, после скидок, возвраты вычтены), а не движение по расчётному счёту.</p>
+            <p className="mt-1">«Без НДС»: у платежей за сырьё НДС берётся из закупок (ставка позиций, 20% или 22%); у оплаты работы подрядчику и авансов без привязки к закупке НДС в данных нет — эти суммы остаются как есть
+              {exVat && vat.unknown > 0.5 ? ` (${money(vat.unknown)} из ${money(vat.total)})` : ""}. У продаж НДС взят из выгрузки (столбцы «с НДС» и «без НДС»).</p>
+          </InfoHint>
+        </div>
       </div>
 
       <div id="cf-filters" className="sticky top-0 z-20 -mx-3 border-b border-neutral-300 bg-white/95 px-3 py-1 backdrop-blur print:hidden md:-mx-4 md:px-4">
@@ -766,8 +768,6 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
             <button type="button" aria-pressed={!exVat} onClick={() => setExVat(false)} className={seg(!exVat)}>С НДС</button>
             <button type="button" aria-pressed={exVat} onClick={() => setExVat(true)} className={seg(exVat)}>Без НДС</button>
           </div>
-          <button type="button" onClick={xlsx} disabled={xlsxBusy} className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs disabled:opacity-50">Скачать Excel</button>
-          <button type="button" onClick={csv} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-xs">Скачать CSV</button>
         </div>
       </div>
       {exVat && vat.unknown > 0.5 && <p className="text-xs text-neutral-700">Без НДС остаются авансы без привязки к закупке и счёту ({money(vat.unknown)}): ставка по документам не определена, суммы показаны как есть. НДС работы подрядчика берётся по счёту (20 % до 2026 года, 22 % с 2026).</p>}
@@ -952,7 +952,6 @@ function ClassicTable({ period, vatPay, vatRev, prepaid, prepaidList, hasVat, ti
     <>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <h2 className="text-sm font-semibold">{title}</h2>
-        <button type="button" onClick={downloadReport} disabled={repBusy} title="Excel на три листа: «Данные» (откуда собрано), «Сводная» и «Отчёт» (месяцы в столбцах, НДС отдельно снизу)" className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm font-medium disabled:opacity-60 md:min-h-9">{repBusy ? "Готовлю Excel…" : "Скачать Excel"}</button>
         <p className="basis-full text-xs text-neutral-600">Оплаты поставщикам и подрядчику и выручка; без зарплат, аренды, налогов и остатков на счетах.</p>
         <button type="button" aria-expanded={detail} onClick={() => setDetail(!detail)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm md:min-h-9">{detail ? "Скрыть таблицу" : "Показать таблицу"}</button>
         {detail ? (
@@ -960,6 +959,7 @@ function ClassicTable({ period, vatPay, vatRev, prepaid, prepaidList, hasVat, ti
             {([["months", "По месяцам"], ["years", "По годам"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={gran === k} onClick={() => setGran(k)} className={segCls(gran === k)}>{t}</button>)}
           </div>
         ) : null}
+        <button type="button" onClick={downloadReport} disabled={repBusy} title="Excel на три листа: «Данные» (откуда собрано), «Сводная» и «Отчёт» (месяцы в столбцах, НДС отдельно снизу)" className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm font-medium disabled:opacity-60 md:min-h-9">{repBusy ? "Готовлю Excel…" : "Скачать Excel"}</button>
       </div>
       {detail && (
         <div className="max-h-[75vh] overflow-auto rounded-lg border border-neutral-300 bg-white" tabIndex={0} role="region" aria-label="Cash Flow: статьи в строках, месяцы и итоги года в столбцах">

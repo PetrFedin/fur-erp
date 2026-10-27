@@ -496,6 +496,7 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
   const list = rows.map((r) => ({ r, ...pick(r) })).filter((x) => x.q > 0);
   const kinds: ("fur" | "lining")[] = ["fur", "lining"];
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [restOpen, setRestOpen] = useState(false);
   const pcs = useClientSort<{ r: RawTableRow; q: number; v: number; a: number | null; d: number | null; rq: number }>({ name: (x) => x.r.label, share: (x) => (x.rq > 0 ? x.q / x.rq : null), q: (x) => x.q, v: (x) => x.v, a: (x) => x.a, d: (x) => x.d });
   const toggle = (k: string) => setOpen((o) => { const n = new Set(o); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const pickYear = (c: RawTableRow["years"][number]["cells"], u: RawTableRow["usd"]) => { const x = c[vat]; const b = col === "recv" ? { q: x.rq, v: x.rv, a: x.ra, d: u.bought } : col === "used" ? { q: x.uq, v: x.uv, a: x.ua, d: u.used } : { q: x.mq, v: x.mv, a: x.ma, d: u.rem }; return { ...b, rq: x.rq }; };
@@ -541,6 +542,11 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
               const part = pcs.sort(list.filter((x) => x.r.kind === k).sort((a, b) => b.v - a.v));
               if (part.length === 0) return null;
               const unit = k === "lining" ? "м" : "шт.";
+              // Основной мех — строками; остальное сырьё свёрнуто одной строкой, разворачивается по желанию.
+              const isMain = (x: (typeof part)[number]) => k === "lining" || MAIN_FUR_TILES.includes(x.r.label);
+              const mainPart = part.filter(isMain), restPart = part.filter((x) => !isMain(x));
+              const restSum = restPart.reduce((t, x) => ({ q: t.q + x.q, v: t.v + x.v, rq: t.rq + x.rq }), { q: 0, v: 0, rq: 0 });
+              const shown: ((typeof part)[number] | "rest")[] = restPart.length ? [...mainPart, "rest", ...(restOpen ? restPart : [])] : mainPart;
               return (
                 <Fragment key={k}>
                   <tr data-hover-block={k} data-block={k} className="bg-neutral-100 text-xs font-semibold uppercase tracking-wide text-neutral-600"><td colSpan={cols} className="px-2 py-1">{k === "fur" ? "Мех" : "Подкладка"}</td></tr>
@@ -580,7 +586,16 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
                       </>
                     );
                   })() : null}
-                  {part.map((x) => (
+                  {shown.map((x) => x === "rest" ? (
+                    <tr key="rest" data-block={k} className="cursor-pointer border-b border-neutral-100 bg-neutral-50 hover:bg-neutral-100" onClick={() => setRestOpen((v) => !v)} aria-expanded={restOpen}>
+                      <td className="py-1.5 pr-2 text-neutral-700"><span aria-hidden className="mr-1 inline-block w-3 text-neutral-400">{restOpen ? "▾" : "▸"}</span>Остальное сырьё ({restPart.length})</td>
+                      {shareCell(restSum.q, restSum.rq)}
+                      <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(restSum.q)} {unit}</td>
+                      <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(restSum.v)}</td>
+                      <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + BL}>{restSum.q > 0 ? rub(restSum.v / restSum.q) : "—"}</td>
+                      {showUsd ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">—</td> : null}
+                    </tr>
+                  ) : (
                     <Fragment key={x.r.key}>
                     <tr data-block={k} className="cursor-pointer border-b border-neutral-100 hover:bg-neutral-50" onClick={() => toggle(x.r.key)} aria-expanded={open.has(x.r.key)}>
                       <td className="py-1.5 pr-2"><span aria-hidden className="mr-1 inline-block w-3 text-neutral-400">{open.has(x.r.key) ? "▾" : "▸"}</span>{k === "fur" && (x.r.lots > 0 || x.q > 0) ? <Link href={`/lots/fur/${encodeURIComponent(x.r.label)}`} onClick={(e) => e.stopPropagation()} className="hover:underline focus-visible:underline" title={`Страница вида меха «${x.r.label}»`}>{shortMaterialName(x.r.label)}<span aria-hidden className="ml-1 text-[11px] text-neutral-400">↗</span></Link> : shortMaterialName(x.r.label)}</td>

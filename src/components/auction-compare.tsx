@@ -15,8 +15,8 @@ type Row = { key: string; label: string; supplier: boolean; qty: number; value: 
 type Node = Row & { depth: 0 | 1 | 2; children: Node[] };
 /** «SAGA 03.26» → «SAGA»: аукционный дом без даты сессии; названия без даты остаются как есть. */
 const houseOf = (label: string) => label.replace(/[\s-]*\d{2}[.-]\d{2}$/, "").trim() || label;
-/** Тип аукциона: РП, СП, у поставщика, остальные. */
-const typeOf = (label: string, supplier: boolean) => (supplier ? "У поставщика" : /^(РП|СП)$/.test(houseOf(label)) ? houseOf(label) : "Остальные");
+/** Тип аукциона: РП, СП (российские), у поставщика, иностранные (SAGA, FH, AME и др.). */
+const typeOf = (label: string, supplier: boolean) => (supplier ? "У поставщика" : /^(РП|СП)$/.test(houseOf(label)) ? houseOf(label) : "Иностранные аукционы");
 
 const FUR_ORDER_LIMIT = 6;
 const K = (v: number) => formatMoney(Math.round(v));

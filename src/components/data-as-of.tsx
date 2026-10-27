@@ -2,15 +2,14 @@ import type { DataAsOf } from "@/lib/data-as-of";
 
 const ru = (iso: string | null) => (iso ? iso.split("-").reverse().join(".") : "—");
 
-/** Строка «данные на дату»: откуда продажи и поступления, когда загружены и до какой даты в них есть строки. */
+/** Строка «данные на дату»: коротко — когда загружено и до какой даты есть продажи и поступления. */
 export function DataAsOf({ asOf }: { asOf: DataAsOf }) {
   const { sales, receipts } = asOf;
   if (!sales && !receipts) return null;
+  const loaded = sales?.loaded || receipts?.loaded || "";
   return (
     <p className="text-xs text-neutral-600 print:text-black" data-as-of>
-      {sales ? <>Продажи: {sales.source}, загружено {ru(sales.loaded)}, последняя продажа {ru(sales.last)}. </> : null}
-      {receipts ? <>Поступления: {receipts.source}, загружено {ru(receipts.loaded)}, последнее поступление {ru(receipts.last)}. </> : null}
-      Остатки считаются как поступления минус продажи по этим данным.
+      Данные на {ru(loaded)}{sales ? <> · продажи по {ru(sales.last)}</> : null}{receipts ? <> · поступления по {ru(receipts.last)}</> : null}
     </p>
   );
 }

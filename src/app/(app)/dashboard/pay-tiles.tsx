@@ -59,19 +59,20 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
   // Оплачено по типам платежа: аванс, доплата, окончательный расчёт и прочее (только те, что есть); сумма и число платежей.
   // Показываем, когда Σ типов = «Оплачено всего» (без фильтров); при фильтрах «Оплачено» пересчитано по статьям, разбивки по типам для него нет.
   const TYPE_LABEL = { ADVANCE: "Аванс", PARTIAL: "Доплата", FINAL: "Окончательный платёж", OTHER: "Прочие платежи" } as const;
-  const typeRows = d.paidByType.filter((t) => t.count > 0 || Math.abs(t.amount) >= 0.5);
+  const typeRows = (only === "lining" ? d.paidByTypeLining : only ? d.paidByTypeFur : d.paidByType).filter((t) => t.count > 0 || Math.abs(t.amount) >= 0.5);
   const typeSum = typeRows.reduce((a, t) => a + t.amount, 0);
-  const typesOk = inWork && !only && typeRows.length > 0 && Math.abs(typeSum - paidAll) < 1;
-  const typeAl = alignColumn(typeRows.map((t) => t.amount), paidAll); // типы платежа складываются в показанное «Оплачено всего»
+  const typesOk = only ? typeRows.length > 0 : inWork && typeRows.length > 0 && Math.abs(typeSum - paidAll) < 1;
+  const typeAl = only ? { values: typeRows.map((t) => Math.round(t.amount)) } : alignColumn(typeRows.map((t) => t.amount), paidAll); // типы платежа складываются в показанное «Оплачено всего»
   // Проценты типов платежа — целые и в сумме ровно 100 (метод наибольших остатков), без «101 %».
   const typePct = (() => {
-    const raw = typeAl.values.map((v) => (paidAll > 0.5 ? (v / paidAll) * 100 : 0));
+    const base = only ? typeAl.values.reduce((x, v) => x + v, 0) : paidAll;
+    const raw = typeAl.values.map((v) => (base > 0.5 ? (v / base) * 100 : 0));
     const fl = raw.map((x) => Math.floor(x));
     let left = Math.round(raw.reduce((a, x) => a + x, 0)) - fl.reduce((a, x) => a + x, 0);
     raw.map((x, i) => [x - Math.floor(x), i] as const).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left > 0) { fl[i] += 1; left -= 1; } });
     return fl;
   })();
-  const typeItems: TileItem[] = typeRows.map((t, i) => ({ k: TYPE_LABEL[t.type], v: money(typeAl.values[i]), share: paidAll > 0.5 ? typePct[i] / 100 : null }));
+  const typeItems: TileItem[] = typeRows.map((t, i) => ({ k: TYPE_LABEL[t.type], v: money(typeAl.values[i]), share: (only ? typeAl.values.reduce((x, v) => x + v, 0) : paidAll) > 0.5 ? typePct[i] / 100 : null }));
 
   // Строки долга ведут к спискам, где этот остаток виден по партиям закупки и по ТЗ (только на страницах «Оплаты»).
   const DEBT_LINK: Record<string, string> = { "Мех": "/payments?tab=suppliers&asort=rem&adir=desc", "Подкладка": "/payments?tab=suppliers&asort=rem&adir=desc", [SERVICES_LABEL]: "/payments?tab=suppliers&asort=rem&adir=desc", [TERMS.workRest]: "/payments?tab=clients" };

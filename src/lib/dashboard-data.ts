@@ -114,6 +114,9 @@ export type DashboardData = {
   paidByItem: { fur: number; lining: number; services: number; work: number };
   /** Оплачено по типам платежа (аванс, доплата, окончательный расчёт, прочее): сумма и число платежей; Σ = fur + lining + services + work без фильтров. */
   paidByType: { type: "ADVANCE" | "PARTIAL" | "FINAL" | "OTHER"; amount: number; count: number }[];
+  /** Оплаты сырья по типам платежа отдельно для меха и подкладки (страница «Сырьё»). */
+  paidByTypeFur: { type: "ADVANCE" | "PARTIAL" | "FINAL" | "OTHER"; amount: number; count: number }[];
+  paidByTypeLining: { type: "ADVANCE" | "PARTIAL" | "FINAL" | "OTHER"; amount: number; count: number }[];
   /** Платёжек (п/п) среди всех строк оплат: одна п/п бывает разнесена на несколько строк (сырьё и работа, партии, ТЗ). */
   paidSlips: { slips: number; rows: number };
   /** Осталось оплатить: сырьё (долг поставщику) и производство (долг по работе подрядчику) — те же числа, что в «Оплаты → Все». */
@@ -555,6 +558,11 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
     const rs = ovYear.filter((r) => r.type === type);
     return { type, amount: rs.reduce((a, r) => a + r.fur + r.lining + r.services + r.work, 0), count: rs.length };
   });
+  const typesOf = (pick: (r: (typeof ovYear)[number]) => number) => (["ADVANCE", "PARTIAL", "FINAL", "OTHER"] as const).map((type) => {
+    const rs = ovYear.filter((r) => r.type === type && r.kind === "raw" && Math.abs(pick(r)) >= 0.005);
+    return { type, amount: rs.reduce((x, r) => x + pick(r), 0), count: rs.length };
+  });
+  const paidByTypeFur = typesOf((r) => r.fur), paidByTypeLining = typesOf((r) => r.lining);
   const leftYears = Array.from(ovLeft.byYear.entries()).filter(([y]) => year === "all" || y === Number(year));
   const leftRaw = leftYears.reduce((a, [, v]) => a + v.raw, 0);
   // Остаток по сырью делим на мех и подкладку по доле подкладки в лотах каждого аукциона; прочее (закупки без аукциона, зачёты) — мех.
@@ -758,6 +766,8 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
     vat: vatOut,
     paidByItem: paidOut,
     paidByType,
+    paidByTypeFur,
+    paidByTypeLining,
     paidSlips: { slips: countPayslips(ovYear), rows: ovYear.length },
     left: leftOut,
     advance: advanceOut,
