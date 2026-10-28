@@ -17,7 +17,7 @@ const prisma = new PrismaClient();
 const JOURNAL = join(resolve(__dirname, ".."), "docs-inventory", "corrections-journal-complete-received-2026-10-28.json");
 const APPLY = process.argv.includes("--apply");
 const ROLLBACK = process.argv.includes("--rollback");
-const MARK = "[завершено по приходу MVST РМ 2026-10-28]";
+const MARK = "[завершено по приходу 2026-10-28]";
 const D = Prisma.Decimal;
 const N = (s: string) => s.replace(/[-\s_/.]/g, "").toUpperCase();
 
@@ -77,7 +77,7 @@ async function main() {
       const res = await prisma.$transaction(async (tx) => {
         const moved = await tx.productionOrder.updateMany({ where: { id: order.id, status: { in: ["PLANNED", "IN_PROGRESS"] } }, data: { status: "COMPLETED" } });
         if (moved.count === 0) return null;
-        await tx.productionOrder.update({ where: { id: order.id }, data: { status: "COMPLETED", producedQuantity: qty, materialCost, expenseCost, totalCost, unitCost, endDate: new Date(), notes: `${order.notes ? order.notes + "\n" : ""}${MARK} получено MVST РМ по файлу прихода` } });
+        await tx.productionOrder.update({ where: { id: order.id }, data: { status: "COMPLETED", producedQuantity: qty, materialCost, expenseCost, totalCost, unitCost, endDate: new Date(), notes: `${order.notes ? order.notes + "\n" : ""}${MARK} получено по файлу прихода` } });
         const mv = await tx.finishedGoodsMovement.create({ data: { organizationId: order.organizationId, warehouseId: order.finishedWarehouseId, productModelId: order.productModelId, type: "PRODUCTION_IN", quantity: qty, unitCost: fg.total.div(qty), totalCost: fg.total, productionOrderId: order.id, notes: FG_FULL_COST_NOTE } });
         const ex = await tx.finishedGoodsStock.findUnique({ where: { warehouseId_productModelId: { warehouseId: order.finishedWarehouseId, productModelId: order.productModelId } } });
         if (!ex) await tx.finishedGoodsStock.create({ data: { organizationId: order.organizationId, warehouseId: order.finishedWarehouseId, productModelId: order.productModelId, quantity: qty, avgUnitCost: fg.total.div(qty) } });
