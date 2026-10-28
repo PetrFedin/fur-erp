@@ -37,8 +37,10 @@ function Chart({ buckets, series, hot, setHot, label, fmtL, fmtR }: { buckets: B
   const colW = Math.max(baseW, cw > 0 && n > 0 ? Math.floor(((cw - 2 - PL - PR) / n) * 100) / 100 : 0);
   const W = PL + PR + n * colW;
   const bars = series.filter((s) => s.kind === "bar"), lines = series.filter((s) => s.kind === "line");
-  const maxL = niceMax(Math.max(...bars.flatMap((s) => s.vals), ...series.filter((s) => s.axis === "l" && s.kind === "line").flatMap((s) => s.vals), 0));
-  const maxR = niceMax(Math.max(...series.filter((s) => s.axis === "r").flatMap((s) => s.vals), 0));
+  // NaN в рядах (нет цены/данных за период) не должен давать NaN в шкале: берём только конечные значения
+  const fin = (xs: number[]) => xs.filter((v) => Number.isFinite(v));
+  const maxL = niceMax(Math.max(...fin(bars.flatMap((s) => s.vals)), ...fin(series.filter((s) => s.axis === "l" && s.kind === "line").flatMap((s) => s.vals)), 0));
+  const maxR = niceMax(Math.max(...fin(series.filter((s) => s.axis === "r").flatMap((s) => s.vals)), 0));
   const yL = (v: number) => PT + (H - PT - PB) * (1 - v / maxL), yR = (v: number) => PT + (H - PT - PB) * (1 - v / maxR);
   const bw = Math.max(4, Math.min(28, (colW - 8) / Math.max(1, bars.length)));
   const x = (i: number) => PL + i * colW + colW / 2;

@@ -119,12 +119,15 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
       how: <p>SO = продано ÷ получено, единицы за период. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений. Приход 0 — «—».</p>,
       cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "SO", get: (e) => pct(e.sellThrough) }] },
   ];
-  const fg = chain.produced - chain.shipped;
+  // Цепочка по фактам владельца: заказано (все ТЗ без ремонта) → получено в рознице (приход) → продано → остаток. То, что не получено, считаем «в производстве»
+  // (статус по таким изделиям не знаем); получено = отгружено и принято, поэтому отдельной «готовой продукции на складе ателье» в этой цепочке нет.
+  const ordered = chain.produced + chain.inWork;
+  const inProd = Math.max(0, ordered - head.received);
   type Link_ = { id: string; label: string; value: string; sub?: string; how: React.ReactNode; to: string[][] };
   const links = ([
-    { id: "produced", label: "Произведено", value: n0(chain.produced), sub: chain.inWork ? `в работе ${n0(chain.inWork)}` : undefined, how: <p>Единицы завершённых ТЗ (без ремонта). В работе — план ТЗ «В работе» и «Запланировано».</p>, to: [["/production", "Открыть ТЗ"]] },
-    { id: "fg", label: "Готовая продукция", value: n0(fg), sub: "склад ателье", how: <p>Готовая продукция = произведено − отгружено. Это товар на складе ателье, ещё не уехавший в розницу.</p>, to: [["/finished-stock", "Готовая продукция"], ["/production", "ТЗ"]] },
-    { id: "shipped", label: "Отгружено", value: n0(chain.shipped), sub: chain.shipments ? `${chain.shipments} отгрузок · принято ${n0(chain.accepted)}` : undefined, how: <p>Единицы по отгрузкам со статусом «Отгружена» и «Принята»; приёмка по строкам: принято {n0(chain.accepted)}, возвращено {n0(chain.returned)}.</p>, to: [["/shipments", "Отгрузки"]] },
+    { id: "produced", label: "Произведено", value: n0(head.received), sub: `заказано ${n0(ordered)} · в производстве ${n0(inProd)}`, how: <><p>Произведено = получено в рознице по файлу прихода: {n0(head.received)} шт. Заказано по всем ТЗ (без ремонта): {n0(ordered)} шт.</p><p className="mt-1">Остальное ({n0(inProd)} шт.) считаем изделиями в производстве: статус по ним неизвестен, в «Произведено» они не входят.</p></>, to: [["/production", "Открыть ТЗ"]] },
+    { id: "shipped", label: "Отгружено и получено", value: n0(head.received), sub: "приход в рознице", how: <p>Всё, что получено, отгружено и принято: {n0(head.received)} шт. по файлу прихода (все даты приёмок — в разделе «Отгрузки и календарь»).</p>, to: [["/shipments", "Отгрузки и календарь"]] },
+    { id: "sold", label: "Продано", value: n0(head.sold), sub: `остаток ${n0(stockEnd)}`, how: <p>Продано (нетто возвратов) из полученного. Остаток в рознице = приход {n0(head.received)} − продано {n0(head.sold)}.</p>, to: [["/sales", "Продажи и остатки"]] },
   ] as Link_[]);
   const openLink = links.find((x) => x.id === link);
   const openDef = tiles.find((t) => t.id === tile);
@@ -228,7 +231,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
       ) : null}
 
       {openLink && (
-        <SalesModal title={openLink.label} subtitle="Произведено → Готовая продукция → Отгружено → Принято → Продано → Остаток" onClose={() => setLink(null)}>
+        <SalesModal title={openLink.label} subtitle="Произведено → Отгружено и получено → Продано → Остаток" onClose={() => setLink(null)}>
           <div className="text-sm text-neutral-800">{openLink.how}</div>
           <p className="text-3xl font-semibold tabular-nums">{openLink.value}</p>
           <div className="flex flex-wrap gap-2">{openLink.to.map(([h, t]) => <Link key={h} href={h} className={btn}>{t} →</Link>)}</div>

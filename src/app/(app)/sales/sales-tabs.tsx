@@ -114,20 +114,20 @@ export function StockTab({ ctx, env, lines, photos, today }: Common & { photos: 
   );
 }
 
-function Top({ title, hint, rows, value, sub, extra, total, photos, tone }: { title: string; hint?: string; rows: Group[]; value: (g: Group) => { v: number; text: string }; sub: (g: Group) => string; /** Вторая мера: значение и место в топ-10 по ней (если артикула там нет — пусто). */ extra?: { label: string; of: (g: Group) => { text: string; place: number } | null }; total: number; photos: PhotoIdx; tone: "top" | "out" }) {
+function Top({ title, hint, rows, value, sub, extra, total, photos, tone, reserve }: { /** Занять место заголовка второй меры (чтобы строки двух списков стояли на одном уровне). */ reserve?: boolean; title: string; hint?: string; rows: Group[]; value: (g: Group) => { v: number; text: string }; sub: (g: Group) => string; /** Вторая мера: значение и место в топ-10 по ней (если артикула там нет — пусто). */ extra?: { label: string; of: (g: Group) => { text: string; place: number } | null }; total: number; photos: PhotoIdx; tone: "top" | "out" }) {
   const max = Math.max(...rows.map((g) => Math.abs(value(g).v)), 1);
   return (
     <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4">
       <div>
         <h3 className="text-base font-semibold">{title}</h3>
-        {hint ? <p className="mt-0.5 text-xs text-neutral-500">{hint}</p> : null}
+        {hint ? <p className="mt-0.5 min-h-8 text-xs text-neutral-500">{hint}</p> : null}
       </div>
       {rows.length === 0 ? <p className="text-sm text-neutral-700">Нет данных.</p> : (
         <>
-        {extra ? (
+        {extra || reserve ? (
           <div className="flex items-center gap-3 text-xs text-neutral-500" aria-hidden>
             <span className="min-w-0 flex-1" /><span className="w-28 shrink-0 text-right">{title === "Лидеры" ? "По выбранной мере" : ""}</span>
-            <span className="w-28 shrink-0 border-l border-transparent pl-3 text-right">{extra.label}</span>
+            <span className="w-28 shrink-0 border-l border-transparent pl-3 text-right">{extra ? extra.label : ""}</span>
           </div>
         ) : null}
         <ol className="flex flex-col divide-y divide-neutral-100">
@@ -135,7 +135,7 @@ function Top({ title, hint, rows, value, sub, extra, total, photos, tone }: { ti
             const val = value(g), href = movementHref(g.article, null, g.modelCode);
             const share = total > 0 && val.v > 0 ? `${((val.v / total) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "";
             return (
-              <li key={g.key} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+              <li key={g.key} className="flex h-[4.25rem] items-center gap-3">
                 <span className={"inline-flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums " + (tone === "top" && i < 3 ? "bg-[var(--ui-accent)] text-white" : "bg-neutral-100 text-neutral-600")}>{i + 1}</span>
                 <span className="size-12 shrink-0"><Thumb g={g} photos={photos} /></span>
                 <span className="min-w-0 flex-1">
@@ -192,7 +192,7 @@ export function TopTab({ ctx, env, lines, photos }: Common & { photos: PhotoIdx 
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Top tone="top" title="Лидеры" hint={`10 лучших по показателю «${TOP_LABEL[by].toLowerCase()}», % — доля от всех артикулов`} rows={top} value={fmt} sub={subTop} extra={extra} total={total} photos={photos} />
-        <Top tone="out" title="Аутсайдеры" hint="Есть на остатке, а продаж мало или нет совсем" rows={out} value={fmt} sub={subOut} total={0} photos={photos} />
+        <Top tone="out" title="Аутсайдеры" hint="Есть на остатке, а продаж мало или нет совсем" rows={out} value={fmt} sub={subOut} total={0} photos={photos} reserve={!!extra} />
       </div>
     </section>
   );
