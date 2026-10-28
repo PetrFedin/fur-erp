@@ -23,7 +23,7 @@ import { ShipmentsFeed } from "./shipments-feed";
 import { ShipmentsTabs } from "./tabs";
 import { loadShipmentsFeed } from "@/lib/shipments-feed";
 
-export const metadata = { title: "Отгрузки" };
+export const metadata = { title: "Отгрузки и календарь" };
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
 
@@ -158,10 +158,10 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Отгрузки" }]} />
+      <Breadcrumbs items={[{ label: "Отгрузки и календарь" }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold">Отгрузки</h1>
+          <h1 className="text-xl font-semibold">Отгрузки и календарь</h1>
           <YearNote year={year} />
           <InfoHint label="Об отгрузках" wide>
             <p>Отгрузка — карточка, в которой мы ведём путь партии изделий от поставщика до приёмки: примерка (позиции из ТЗ) и этапы по порядку, у каждого — дата, время и ответственный.</p>

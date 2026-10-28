@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { Chart, type Pt, type Series } from "../dashboard/sales-block-charts";
-import { GET, REV, money, moneyC, n0, seg, segGroup } from "../sales/sales-fmt";
+import { GET, NAVY, REV, money, moneyC, n0, seg, segGroup } from "../sales/sales-fmt";
 import type { FeedRow } from "@/lib/shipments-feed";
 
 // «Приёмки по датам»: что и когда пришло (приход по файлу), график по месяцам с первой приёмки по текущий месяц (пустые месяцы — нули),
@@ -37,11 +37,15 @@ export function ShipmentsFeed({ rows }: { rows: FeedRow[] }) {
   const by = (grp: string) => pts.map((p) => f.filter((r) => r.date.startsWith(p.key) && r.grp === grp).reduce((a, r) => a + val(r), 0));
   const clothes = by("Одежда"), acc = by("Аксессуары"), other = by("Прочее");
   const fmt = unit === "pcs" ? n0 : moneyC;
+  const barName = unit === "pcs" ? "Принято, шт." : `Принято, ₽ (${mode === "incl" ? "с НДС" : "без НДС"})`;
+  const lineName = unit === "pcs" ? "Приход нарастающим итогом, шт." : "Приход нарастающим итогом, ₽";
+  const monthly = pts.map((_, i) => clothes[i] + acc[i] + other[i]);
+  const cum: number[] = []; monthly.reduce((a, v, i) => (cum[i] = a + v), 0);
   const series: Series[] = [{
-    name: unit === "pcs" ? "Принято, шт." : `Принято, ₽ (${mode === "incl" ? "с НДС" : "без НДС"})`, color: GET, kind: "bar", axis: "l", fmt,
-    vals: pts.map((_, i) => clothes[i] + acc[i] + other[i]), partLabel: "Принято",
+    name: barName, color: GET, kind: "bar", axis: "l", fmt,
+    vals: monthly, partLabel: "Принято",
     parts: [{ name: "Одежда", color: GET, vals: clothes }, { name: "Аксессуары", color: REV, vals: acc }, ...(other.some((v) => v > 0) ? [{ name: "Прочее", color: "#9ca3af", vals: other }] : [])],
-  }];
+  }, { name: lineName, color: NAVY, kind: "line", axis: "r", fmt, vals: cum }];
 
   // Список по датам.
   const days = useMemo(() => {
@@ -69,7 +73,7 @@ export function ShipmentsFeed({ rows }: { rows: FeedRow[] }) {
           </label>
         </div>
       </div>
-      {pts.length ? <Chart pts={pts} series={series} label={`Принято по месяцам: ${unit === "pcs" ? "штуки" : "деньги"}`} testId="shipments-chart" /> : <p className="text-sm text-neutral-600">Приёмок пока нет.</p>}
+      {pts.length ? <Chart pts={pts} series={series} label={`Принято по месяцам: ${unit === "pcs" ? "штуки" : "деньги"}`} testId="shipments-chart" valueLabels={[barName, lineName]} /> : <p className="text-sm text-neutral-600">Приёмок пока нет.</p>}
 
       <div className="divide-y divide-neutral-200 rounded-lg border border-neutral-200">
         {days.map(([d, rs]) => {

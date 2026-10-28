@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { BTN, BTN_PRIMARY, FIELD, Modal, dateRu } from "./ui";
-import { createPcs, duplicatePcs, removePcs, renamePcs } from "./pcs/actions";
+import { createPcs, duplicatePcs, exportPcsXlsx, removePcs, renamePcs } from "./pcs/actions";
+import { saveBase64Xlsx } from "@/lib/download-xlsx";
 
 export type PcsCard = { id: string; name: string; season: string; updatedAt: string; updatedBy: string | null };
 const ICON = "btn-accent inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-50 md:h-7 md:w-7 max-xl:min-h-11 max-xl:min-w-11";
@@ -26,6 +27,7 @@ export function PcsCards({ items, canEdit }: { items: PcsCard[]; canEdit: boolea
         if (then) then(r.id); else router.refresh();
       } catch { setError("Не удалось выполнить действие. Попробуйте ещё раз."); }
     });
+  const download = (f: PcsCard) => start(async () => { setError(null); try { const r = await exportPcsXlsx(f.id); if (r.ok) saveBase64Xlsx(r.name, r.base64); else setError(r.error ?? "Не удалось сформировать Excel"); } catch { setError("Не удалось сформировать Excel"); } });
   return (
     <section aria-label="Budget PCS" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -44,6 +46,7 @@ export function PcsCards({ items, canEdit }: { items: PcsCard[]; canEdit: boolea
               </div>
               <div className="relative z-10 flex shrink-0 items-center gap-1">
                 <Link href={`/budget/pcs/${f.id}`} className={ICON} aria-label={`Открыть: ${f.name}`} title="Открыть">{svg("M14 4H7a1 1 0 0 0-1 1v15M14 4v16M14 4l5 1.5V19l-5 1M3 20h18")}</Link>
+                <button type="button" className={ICON} disabled={busy} onClick={() => download(f)} aria-label={`Скачать Excel: ${f.name}`} title="Скачать Excel">{svg("M12 4v11m0 0l-4-4m4 4l4-4M5 20h14")}</button>
                 {canEdit ? (
                   <>
                     <button type="button" className={ICON} onClick={() => setDialog({ kind: "rename", f })} aria-label={`Переименовать: ${f.name}`} title="Переименовать">{svg("M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4")}</button>
@@ -53,8 +56,8 @@ export function PcsCards({ items, canEdit }: { items: PcsCard[]; canEdit: boolea
                 ) : null}
               </div>
             </div>
-            <p className="pointer-events-none relative z-10 mt-3 text-xs text-neutral-600">Штуки, расход шкур на изделие (AVG) и итог шкур (TTL) по типам меха, категориям и длинам. Можно править в режиме «Детально» и скачать в Excel.</p>
-            <p className="mt-2 text-[11px] text-neutral-600">Изменён {dateRu(f.updatedAt)}{f.updatedBy ? ` · ${f.updatedBy}` : ""}</p>
+            <p className="pointer-events-none relative z-10 mt-3 text-xs text-neutral-600">Шкуры на изделие (AVG) и итог (TTL) по типам меха, категориям и длинам.</p>
+            <p className="mt-2 text-xs font-medium text-neutral-700">Изменён {dateRu(f.updatedAt)}{f.updatedBy ? ` · ${f.updatedBy}` : ""}</p>
           </li>
         ))}
       </ul>
