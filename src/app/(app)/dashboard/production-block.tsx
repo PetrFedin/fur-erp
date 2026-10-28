@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useSeasonScope } from "./season-scope";
-import { isRepair, sumOrders } from "@/lib/orders-sum";
+import { isRepair, sumOrders, sumTotal } from "@/lib/orders-sum";
 import { seasonRank } from "@/lib/sales-section";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
@@ -31,7 +31,7 @@ const addNums = (a: ProdNums, b: ProdNums): ProdNums => ({ items: a.items + b.it
 
 type VatPair = { incl: number; excl: number };
 
-export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind = "", hides: hidesP, c4Parts: c4PartsP, years: yearsP, done: doneP, work: workP, all: allP, c4, search, info, bridge, noTz = 0 }: { /** Получено, но в ТЗ нет объёма под эти штуки (шт.). */ noTz?: number; /** «→ ТЗ» с фильтрами Главной. */ href?: string; hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
+export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind = "", hides: hidesP, c4Parts: c4PartsP, years: yearsP, done: doneP, work: workP, all: allP, c4, search, info, bridge }: { /** «→ ТЗ» с фильтрами Главной. */ href?: string; hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
   const { mode: vat } = useVatDisplay();
   const [open, setOpen] = useState<null | "done" | "work" | "all">(null);
   // Всего / Одежда / Аксессуары листаются вместе во всех плитках блока.
@@ -65,11 +65,23 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
   const fact = { ...addNums(done, work), orders: all.orders, items: all.items, repairOrders: all.repairOrders };
   const cost = (n: ProdNums) => (vat === "incl" ? n.costIncl : n.costExcl);
   const repairCost = vat === "incl" ? fact.repairCostIncl : fact.repairCostExcl;
+  // Сверка «объём ТЗ → получено»: те же ТЗ, деньги долей qf (получено ÷ объём ТЗ модели). Итог = «Получено · по себестоимости ТЗ» в плитке ниже.
+  const bridgeRows = useMemo(() => {
+    if (!drill) return null;
+    const own = drill.orders.filter((o) => !isRepair(o) && o.id !== "no-tz" && o.qf !== undefined);
+    const cost = (o: typeof own[number]) => sumTotal(sumOrders([o], vat));
+    let all = 0, less = 0, more = 0, lessQ = 0, moreQ = 0, vol = 0;
+    for (const o of drill.orders) if (o.id === "no-tz") moreQ += o.qd ?? 0; // модель без ТЗ: штуки есть, себестоимости нет
+    for (const o of own) { const c = cost(o), f = o.qf ?? 0; all += c; vol += o.qty; if (f < 1) { less += c * (1 - f); lessQ += o.qty * (1 - f); } else if (f > 1) { more += c * (f - 1); moreQ += o.qty * (f - 1); } }
+    return { all, less, more, lessQ, moreQ, vol, got: all - less + more };
+  }, [drill, vat]);
   const split = (() => {
     if (!drill) return null;
-    let done = 0, work = 0;
-    for (const o of drill.orders) { if (isRepair(o)) continue; const total = o.st === "COMPLETED" ? o.qty : (o.qo ?? o.qty); const got = o.qd ?? 0; done += got; work += Math.max(0, total - got); }
-    return { done, work, extra: 0 };
+    // Произведено = получено по приходу (qd); «в работе» = объём ТЗ, которого ещё нет в приходе; получено сверх объёма ТЗ — отдельно (ТЗ на эти штуки не заведены).
+    let done = 0, work = 0, vol = 0;
+    for (const o of drill.orders) { if (isRepair(o)) continue; const got = o.qd ?? 0; done += got; vol += o.qty; work += Math.max(0, o.qty - got); }
+    const over = done - (vol - work);
+    return { done, work, vol, over: Math.round(over) };
   })();
   const avg = fact.qty > 0 ? (cost(fact) - repairCost) / fact.qty : null;
   const D = vat === "incl"
@@ -166,8 +178,20 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
         <div role="group" aria-label="Объём таблиц" className={SEG_GROUP}>
           {([["ordered", "Заказано"], ["produced", "Произведено"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={volume === k} onClick={() => setVolume(k)} className={segCls(volume === k)}>{t}</button>)}
         </div>
-        {split ? <span className="text-xs text-neutral-600 tabular-nums">Произведено (получено по приходу) {formatQty(split.done + split.extra)} шт. · в работе / ждём прихода {formatQty(split.work)} шт.</span> : null}
+        {split ? <span className="text-xs text-neutral-600 tabular-nums">Произведено (получено по приходу) {formatQty(split.done)} шт. · в работе / ждём прихода {formatQty(split.work)} шт.{split.over > 0 ? ` · объём ТЗ ${formatQty(split.vol)} шт.; ещё ${formatQty(split.over)} шт. получено сверх объёма ТЗ (ТЗ не заведены)` : ` · объём ТЗ ${formatQty(split.vol)} шт.`}</span> : null}
         <InfoHint label="Заказано и произведено" wide><p><b>Заказано</b> — все ТЗ (завершённые, в работе, запланированные) по плановому количеству. <b>Произведено</b> — только то, что получено по файлу прихода, разложенное по ТЗ модели; что не получено, считается «в работе». Деньги и средние считаются по тем же ТЗ, что штуки.</p></InfoHint>
+      </div>
+      {bridgeRows ? (
+        <table className="mb-1 ml-auto w-full max-w-xl text-xs tabular-nums text-neutral-700" aria-label="Сверка: от объёма ТЗ к полученному">
+          <tbody>
+            <tr><td className="py-0.5">Затраты всех ТЗ, объём {formatQty(bridgeRows.vol)} шт.</td><td className="py-0.5 text-right">{formatMoney(bridgeRows.all)}</td></tr>
+            <tr><td className="py-0.5">− ещё не получено (в работе / ждём прихода), {formatQty(Math.round(bridgeRows.lessQ))} шт.</td><td className="py-0.5 text-right">−{formatMoney(bridgeRows.less)}</td></tr>
+            {bridgeRows.moreQ > 0.5 ? <tr><td className="py-0.5">+ получено сверх объёма ТЗ (ТЗ не заведены), {formatQty(Math.round(bridgeRows.moreQ))} шт., по средней себестоимости модели</td><td className="py-0.5 text-right">+{formatMoney(bridgeRows.more)}</td></tr> : null}
+            <tr className="border-t border-neutral-300 font-medium text-neutral-900"><td className="py-0.5">= Получено {formatQty(Math.round(bridgeRows.vol - bridgeRows.lessQ + bridgeRows.moreQ))} шт. (плитка «Получено», «По себестоимости ТЗ»)</td><td className="py-0.5 text-right">{formatMoney(bridgeRows.got)}</td></tr>
+          </tbody>
+        </table>
+      ) : null}
+      <div className="hidden">
       </div>
       <ProductionTable search={search} volume={volume} />
       <AveragesTable data={drill} volume={volume} />

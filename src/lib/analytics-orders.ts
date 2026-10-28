@@ -157,31 +157,18 @@ function makeResolver(refs: Ref[]) {
 
 
 const normModelKey = (s: string) => s.replace(/[-\s_/.]/g, "").toUpperCase();
-/** Приход (SalesReceiptLine RECEIPT) по моделям → раскладка по ТЗ модели (по номеру, до объёма ТЗ). Возвращает ТЗ → получено шт. */
-async function allocateReceivedDetail(orgId: string): Promise<{ out: Map<string, number>; unallocated: number }> {
-  const [models, receipts, all] = await Promise.all([
+/** Приход (SalesReceiptLine RECEIPT, все годы) по моделям: id модели → получено шт. Сопоставление по коду без дефисов и по псевдонимам. */
+export async function receivedByModel(orgId: string): Promise<Map<string, number>> {
+  const [models, receipts] = await Promise.all([
     prisma.productModel.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, sku: true, salesCode: true, aliases: true } }),
     prisma.salesReceiptLine.findMany({ where: { organizationId: orgId, kind: "RECEIPT" }, select: { article: true, modelCode: true, pcs: true } }),
-    prisma.productionOrder.findMany({ where: { organizationId: orgId, status: { not: "CANCELLED" } }, select: { id: true, number: true, status: true, productModelId: true, plannedQuantity: true, producedQuantity: true }, orderBy: { number: "asc" } }),
   ]);
   const keyOf = new Map<string, string>();
   for (const m of models) for (const k of [m.name, m.sku, m.salesCode, ...(m.aliases ?? [])]) if (k) { keyOf.set(normModelKey(k), m.id); const b = normModelKey(k.split(/[ /+]/)[0]); if (!keyOf.has(b)) keyOf.set(b, m.id); }
-  const left = new Map<string, number>();
-  for (const r of receipts) { const id = keyOf.get(normModelKey(r.modelCode ?? "")) ?? keyOf.get(normModelKey(r.article.split(/[ /+]/)[0])); if (id) left.set(id, (left.get(id) ?? 0) + (r.pcs ?? 0)); }
   const out = new Map<string, number>();
-  for (const o of all) {
-    const cap = orderUnits(o);
-    const have = left.get(o.productModelId) ?? 0;
-    const take = Math.min(cap, Math.max(0, have));
-    if (take > 0) { out.set(o.id, take); left.set(o.productModelId, have - take); }
-  }
-  let unallocated = 0;
-  for (const v of left.values()) unallocated += Math.max(0, v);
-  return { out, unallocated };
+  for (const r of receipts) { const id = keyOf.get(normModelKey(r.modelCode ?? "")) ?? keyOf.get(normModelKey(r.article.split(/[ /+]/)[0])); if (id) out.set(id, (out.get(id) ?? 0) + (r.pcs ?? 0)); }
+  return out;
 }
-const allocateReceivedToOrders = async (orgId: string) => (await allocateReceivedDetail(orgId)).out;
-/** Приход, под который в ТЗ нет объёма (получено больше, чем в ТЗ модели), шт. */
-export const receivedWithoutOrders = async (orgId: string) => (await allocateReceivedDetail(orgId)).unallocated;
 
 async function loadOrderRowsImpl(orgId: string, year: YearFilter, mode: Commission4Mode): Promise<OrderRow[]> {
   const [orders, colorRefs, furRefs] = await Promise.all([
@@ -267,9 +254,6 @@ async function loadOrderRowsImpl(orgId: string, year: YearFilter, mode: Commissi
     }),
   );
 
-  // «Произведено» = то, что реально получено (приход MVST РМ, файл прихода): приход по модели раскладывается на её ТЗ по возрастанию номера
-  // (по ВСЕМ годам, чтобы фильтр года не сдвигал раскладку); ТЗ получает не больше своего объёма. Остальное — «в работе / ждём прихода».
-  const producedAlloc = await allocateReceivedToOrders(orgId);
   return orders.map((o) => {
     const qty = orderUnits(o); // production-totals.ts: выпуск завершённого ТЗ, план ТЗ в работе
     const furUs = o.materialUsages.filter((u) => u.rawMaterial.unit !== "M");
@@ -375,7 +359,7 @@ async function loadOrderRowsImpl(orgId: string, year: YearFilter, mode: Commissi
       group: o.status === "COMPLETED" ? "done" : "work",
       qty: q,
       qtyOrdered: Number(o.plannedQuantity),
-      qtyProduced: producedAlloc.get(o.id) ?? 0,
+      qtyProduced: 0, // «Произведено» (= получено) считается в loadDrillOrders по приходу модели
       // мех и подкладка — БЕЗ надбавки 4% (она отдельной строкой c4*)
       furIncl: Number(fs.incl.sub(fs.extraIncl)),
       furExcl: Number(fs.excl.sub(fs.extraExcl)),

@@ -50,6 +50,8 @@ export type DrillOrder = {
   /** Заказано (план ТЗ) и произведено (выпуск завершённого) — для переключателя «Заказано / Произведено» в таблицах Главной. */
   qo?: number;
   qd?: number;
+  /** Доля ТЗ в «Произведено»: получено по модели ÷ объём всех ТЗ модели (получено ≤ объёма → ТЗ берётся долей; больше → долей >1). Деньги и штуки «Произведено» = ТЗ × qf. */
+  qf?: number;
   work: number;
   /** Доли сезонов ТЗ (сумма 1) по приходу модели — для переключателя «Сезон» на Главной (src/lib/order-seasons.ts); нет — ТЗ целиком в любом сезоне. */
   sw?: Record<string, number>;
@@ -352,10 +354,16 @@ export function drillTotals(orders: DrillOrder[], vat: VatSel) {
 
 /** Объём таблиц Главной по выбору: «Заказано» — все ТЗ по плановому количеству; «Произведено» — только завершённые по фактическому выпуску. Деньги — по тем же ТЗ. */
 export type VolumeMode = "ordered" | "produced";
+const scaled = (o: DrillOrder, f: number): DrillOrder => ({
+  ...o, qty: (o.qd ?? o.qty * f), work: o.work * f, exp: o.exp * f, hI: o.hI * f, hE: o.hE * f, resI: o.resI * f, resE: o.resE * f,
+  xs: o.xs?.map((x) => ({ ...x, a: x.a * f })),
+  lines: o.lines.map((l) => ({ ...l, q: l.q * f, i: l.i * f, e: l.e * f, ci: l.ci * f, ce: l.ce * f })),
+});
 export function withVolume(data: DrillData | null, mode: VolumeMode): DrillData | null {
   if (!data) return data;
   const orders = mode === "ordered"
     ? data.orders.filter((o) => o.id !== "no-tz").map((o) => (o.qo != null ? { ...o, qty: o.qo } : o))
-    : data.orders.filter((o) => (o.qd ?? 0) > 0).map((o) => ({ ...o, qty: o.qd ?? 0 }));
+    // «Произведено» = получено по приходу: ТЗ модели берутся долей qf (деньги и штуки), ремонт — как есть (не изделия)
+    : data.orders.filter((o) => o.id === "no-tz" || o.qf === undefined || o.qf > 0).map((o) => (o.id === "no-tz" ? { ...o, qty: o.qd ?? 0 } : o.qf === undefined ? o : scaled(o, o.qf)));
   return { ...data, orders };
 }

@@ -5,8 +5,8 @@ import { getYearFilter } from "@/lib/year-filter";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { lotFiltersOn, orderFiltersOn, parseDashFilters } from "@/lib/dashboard-calc";
 import { NO_GROUP } from "@/lib/category-groups";
-import { receivedWithoutOrders } from "@/lib/analytics-orders";
-import { loadDrillOrders } from "@/lib/dashboard-data";
+
+import { loadDrillOrders, receivedWithoutTz } from "@/lib/dashboard-data";
 import type { DrillData } from "@/lib/dashboard-drill";
 
 const TTL_MS = 15_000;
@@ -32,7 +32,7 @@ export async function loadProductionDrill(scope: "done" | "work" | "all", search
     const out = orders.slice(0, MAX_ORDERS);
     // Приход MVST РМ, под который в ТЗ нет объёма: отдельная строка без стоимости, чтобы «Произведено» в таблицах сходилось с «Получено».
     if (sc === "all" && year === "all" && !orderFiltersOn(f) && !lotFiltersOn(f)) {
-      const extra = await receivedWithoutOrders(orgId);
+      const extra = await receivedWithoutTz(orgId, c4);
       if (extra > 0) out.push({ id: "no-tz", number: "—", wo: null, bk: "none", bl: "Вне партий", y: null, st: "COMPLETED", cat: "Получено, ТЗ не заведены", grp: NO_GROUP, mid: "no-tz", ml: "Получено, ТЗ не заведены", fur: "—", qty: 0, qo: 0, qd: extra, work: 0, exp: 0, hI: 0, hE: 0, resI: 0, resE: 0, lines: [] });
     }
     return { c4, orders: out };

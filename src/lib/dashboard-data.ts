@@ -10,7 +10,7 @@ import { loadFurLots } from "@/lib/fur-table-server";
 import { classifyLotSource } from "@/lib/purchase-source";
 import { figures, flowOf, NOT_SET, type C4Kind, type FlowFigures, type FurLot } from "@/lib/fur-table";
 import { orderUnits } from "@/lib/production-totals";
-import { loadOrderRows, type OrderRow } from "@/lib/analytics-orders";
+import { loadOrderRows, receivedByModel, type OrderRow } from "@/lib/analytics-orders";
 import { canonicalFur } from "@/lib/fur-ref";
 import { lotUsdPrice } from "@/lib/lot-hammer";
 import { getFurIndex } from "@/lib/fur-ref-server";
@@ -206,7 +206,29 @@ export async function loadDrillOrders(orgId: string, year: YearFilter, f: DashFi
     const rowOf = new Map(selected.map((r) => [r.id, r]));
     for (const o of orders) { const r = rowOf.get(o.id); if (r) o.sw = orderSeasonShares({ model: r.modelName, date: dateOf.get(o.id) ?? null, year: r.year }, byModel); }
   }
+  // «Произведено» = получено по приходу (все годы): доля ТЗ модели qf = получено ÷ объём всех ТЗ модели (кроме ремонта); тот же знаменатель, что у себестоимости единицы в loadModelCosts.
+  if (scope === "all") {
+    const [recv, all] = await Promise.all([receivedByModel(orgId), loadOrderRows(orgId, "all", c4)]);
+    const cap = new Map<string, number>();
+    for (const r of all) if (r.category !== REPAIR_CATEGORY) cap.set(r.modelId, (cap.get(r.modelId) ?? 0) + r.qty);
+    const modelOf = new Map(selected.map((r) => [r.id, r.modelId]));
+    for (const o of orders) {
+      if (o.cat === REPAIR_CATEGORY) continue;
+      const m = modelOf.get(o.id), c = m ? cap.get(m) ?? 0 : 0;
+      o.qf = c > 0 && m ? (recv.get(m) ?? 0) / c : 0;
+      o.qd = o.qty * o.qf;
+    }
+  }
   return orders;
+}
+
+/** Получено по моделям, у которых нет ни одного ТЗ (кроме ремонта): в «Произведено» их нечем оценить. */
+export async function receivedWithoutTz(orgId: string, c4: Commission4Mode): Promise<number> {
+  const [recv, all] = await Promise.all([receivedByModel(orgId), loadOrderRows(orgId, "all", c4)]);
+  const has = new Set(all.filter((r) => r.category !== REPAIR_CATEGORY && r.qty > 0).map((r) => r.modelId));
+  let n = 0;
+  for (const [m, q] of recv) if (!has.has(m) && q > 0) n += q;
+  return n;
 }
 
 const DEADLINE_RE = /срок\s+(\d{2})\.(\d{2})\.(\d{4})/i;
