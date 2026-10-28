@@ -1,11 +1,9 @@
 import Link from "next/link";
 
-/** Вкладки раздела «Отгрузки»: приёмки по датам, календарь (аукционы, отгрузки, оплаты, планируемые действия), лист отгрузок и архив. */
+/** Вкладки раздела «Отгрузки»: приёмки по датам, календарь (аукционы, отгрузки, планируемые действия). */
 const TABS = [
   { k: "feed", label: "Приёмки", href: "/shipments" },
   { k: "calendar", label: "Календарь", href: "/calendar" },
-  { k: "sheet", label: "Лист отгрузок", href: "/shipments?tab=sheet" },
-  { k: "archive", label: "Архив отгрузок", href: "/shipments?tab=archive" },
 ] as const;
 
 export function ShipmentsTabs({ active }: { active: (typeof TABS)[number]["k"] }) {
