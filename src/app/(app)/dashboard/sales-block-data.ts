@@ -402,8 +402,11 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
   };
 }
 
+import { tzAwaitSizes } from "@/lib/tz-await";
+
 export async function loadSalesBlock(orgId: string, c4: Commission4Mode, year: YearFilter, furNames: string[] = []): Promise<SalesBlock> {
   const data = await loadSalesInput(orgId, c4);
-  return buildSalesBlock(data.input, year, data.sizes, furNames);
+  // «Ждём» и заказ — по нашим ТЗ (объём ТЗ − получено), а не по заказу из отчёта: заказ в продажах равен «В выпуске» в производстве.
+  return buildSalesBlock(data.input, year, await tzAwaitSizes(orgId, c4), furNames);
 }
 

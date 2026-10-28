@@ -23,7 +23,7 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const cells = (r: SalesRow) => (
     <>
-      {ordCol ? <td className={td}>{r.ordered != null ? n0(r.ordered) : DASH}</td> : null}
+      {ordCol ? <td className={td + " !px-1"}>{r.ordered != null ? n0(r.ordered) : DASH}</td> : null}
       <td className={td + GB}>{n0(r.received)}</td>
       <td className={td}>{r.recvCost[v] > 0.5 ? money(r.recvCost[v]) : DASH}</td>
       <td className={td}>{r.recvCost[v] > 0.5 && r.recvCostPcs > 0 ? moneyK(r.recvCost[v] / r.recvCostPcs) : DASH}</td>
@@ -66,12 +66,12 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
   };
   return (
     <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white" data-keep-scroll tabIndex={0}>
-      <table suppressHydrationWarning className={"table-keep w-full table-fixed text-sm " + (ordCol ? "min-w-[1774px]" : "min-w-[1700px]")} data-testid={testId}>
-        <colgroup>{(() => { const w = cumCol ? [...WIDTHS, 64, 70, 124, 104, 74] : [...WIDTHS]; if (soAs) w.splice(8, 0, 64); if (ordCol) w.splice(1, 0, 74); return w; })().map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+      <table suppressHydrationWarning className={"table-keep w-full table-fixed text-sm " + (ordCol ? "min-w-[1740px]" : "min-w-[1700px]")} data-testid={testId}>
+        <colgroup>{(() => { const w = cumCol ? [...WIDTHS, 64, 70, 124, 104, 74] : [...WIDTHS]; if (soAs) w.splice(8, 0, 64); if (ordCol) w.splice(1, 0, 40); return w; })().map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead>
           <tr className="border-b border-neutral-200">
             <TH rowSpan={2} align="left" className="sticky left-0 z-[2] bg-white px-2" label="Тип меха / категория" />
-            {ordCol ? <TH rowSpan={2} label="Заказано" unit={UNIT.pcs} /> : null}
+            {ordCol ? <TH rowSpan={2} className="px-1" label="Заказано" unit={UNIT.pcs} /> : null}
             <THGroup colSpan={3}>Получено</THGroup>
             <THGroup colSpan={4}>Продажи, {vatNote}</THGroup>
             {soAs ? <THGroup colSpan={2}>SO</THGroup> : <TH rowSpan={2} sep align="center" label={cumCol ? "SO STD" : "SO"} unit={UNIT.pct} />}
