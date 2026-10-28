@@ -10,7 +10,7 @@ import { loadFurLots } from "@/lib/fur-table-server";
 import { classifyLotSource } from "@/lib/purchase-source";
 import { figures, flowOf, NOT_SET, type C4Kind, type FlowFigures, type FurLot } from "@/lib/fur-table";
 import { orderUnits } from "@/lib/production-totals";
-import { loadOrderRows, receivedByModel, receivedByModelSeason, receivedForModelsWithout, type OrderRow } from "@/lib/analytics-orders";
+import { loadOrderRows, receivedByModel, receivedByModelBucket, receivedForModelsWithout, type OrderRow } from "@/lib/analytics-orders";
 import { canonicalFur } from "@/lib/fur-ref";
 import { lotUsdPrice } from "@/lib/lot-hammer";
 import { getFurIndex } from "@/lib/fur-ref-server";
@@ -220,20 +220,40 @@ export async function loadDrillOrders(orgId: string, year: YearFilter, f: DashFi
     }
     // Сезоны «Произведено» = сезоны прихода: приход модели по сезонам раскладывается на её ТЗ по возрастанию номера, ранние сезоны — в ранние ТЗ
     // (так по сезонам получается ровно приход: FW 25/26, SS 2026, FW 26/27). Год ТЗ определяет порядок, а не долю по истории продаж.
-    const bySeason = await receivedByModelSeason(orgId);
+    const byBucket = await receivedByModelBucket(orgId);
     const seasonKey = (x: string) => { const fw = /(\d{2})\/(\d{2})/.exec(x); return fw ? (2000 + Number(fw[1])) * 2 + 1 : (Number((/(20\d{2})/.exec(x) ?? [])[1]) || 0) * 2; };
     const byModel = new Map<string, DrillOrder[]>();
     for (const o of orders) { if (o.cat === REPAIR_CATEGORY) continue; const m = modelOf.get(o.id); if (m) (byModel.get(m) ?? byModel.set(m, []).get(m)!).push(o); }
     for (const [m, list] of byModel) {
-      const seas = Object.entries(bySeason.get(m) ?? {}).filter(([, v]) => v > 0).sort((a, b) => seasonKey(a[0]) - seasonKey(b[0])).map(([k, v]) => ({ k, left: v }));
+      const seas = (byBucket.get(m) ?? []).filter((b) => b.pcs > 0).map((b) => ({ k: b.k, left: b.pcs }));
       if (!seas.length) continue;
       let si = 0;
+      const parts: { o: DrillOrder; got: Record<string, number>; tot: number }[] = [];
       for (const o of list.sort((a, b) => a.number.localeCompare(b.number))) {
         let need = o.qd ?? 0; const got: Record<string, number> = {}; const tot = need;
         while (need > 1e-9 && si < seas.length) { const take = Math.min(need, seas[si].left); got[seas[si].k] = (got[seas[si].k] ?? 0) + take; seas[si].left -= take; need -= take; if (seas[si].left <= 1e-9) si++; }
-        if (tot > 0) o.sw = Object.fromEntries(Object.entries(got).map(([k, v]) => [k, v / tot]));
+        if (tot > 0) { const bs: Record<string, number> = {}; for (const [k, v] of Object.entries(got)) { const sn = k.split("|")[0]; bs[sn] = (bs[sn] ?? 0) + v / tot; } o.swd = bs; }
+        parts.push({ o, got: { ...got }, tot });
+      }
+      // Заказ (объём ТЗ) по сезонам: полученное — в сезон прихода; полученное сверх объёма ТЗ модели в заказ не входит (снимаем с самых поздних сезонов и ТЗ);
+      // ещё не полученное — в открытый сезон (FW 26/27).
+      let excess = parts.reduce((a, x) => a + x.tot, 0) - parts.reduce((a, x) => a + x.o.qty, 0);
+      for (let i = parts.length - 1; i >= 0 && excess > 1e-9; i--) {
+        for (const k of Object.keys(parts[i].got).reverse()) { const t = Math.min(excess, parts[i].got[k]); parts[i].got[k] -= t; excess -= t; if (excess <= 1e-9) break; }
+      }
+      // Доли заказа по сезонам одинаковы у всех ТЗ модели (итог по модели: полученное по сезонам + ещё не полученное в открытом сезоне).
+      const Q = parts.reduce((a, x) => a + x.o.qty, 0), M: Record<string, number> = {};
+      for (const { got } of parts) for (const [k, v] of Object.entries(got)) M[k] = (M[k] ?? 0) + v;
+      const unrecv = Math.max(0, Q - Object.values(M).reduce((a, v) => a + v, 0));
+      if (unrecv > 1e-9) M[OPEN_SEASON + "|2026"] = (M[OPEN_SEASON + "|2026"] ?? 0) + unrecv;
+      if (Q > 0) for (const { o } of parts) {
+        o.swy = Object.fromEntries(Object.entries(M).filter(([, v]) => v > 1e-9).map(([k, v]) => [k, v / Q]));
+        const bs: Record<string, number> = {}; for (const [k, v] of Object.entries(o.swy)) { const sn = k.split("|")[0]; bs[sn] = (bs[sn] ?? 0) + v; }
+        o.sw = bs;
       }
     }
+    // Модели без прихода вовсе: весь объём ТЗ ждёт прихода в открытом сезоне.
+    for (const o of orders) if (o.cat !== REPAIR_CATEGORY && o.swd === undefined && o.qty > 0) { o.sw = { [OPEN_SEASON]: 1 }; o.swy = { [OPEN_SEASON + "|2026"]: 1 }; }
   }
   return orders;
 }
@@ -245,6 +265,8 @@ export async function receivedWithoutTz(orgId: string, c4: Commission4Mode): Pro
   return receivedForModelsWithout(orgId, has);
 }
 
+/** Открытый сезон: заказ больше прихода (ещё придёт). */
+const OPEN_SEASON = "FW 26/27";
 const DEADLINE_RE = /срок\s+(\d{2})\.(\d{2})\.(\d{4})/i;
 
 /**

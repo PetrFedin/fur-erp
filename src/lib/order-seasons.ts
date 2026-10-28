@@ -27,7 +27,7 @@ export function modelSeasonShares(receipts: { article: string; iso: string; pcs:
 }
 
 /** Год начала сезона: «FW 25/26» → 2025, «SS 2026» → 2026, «FW 26/27» → 2026. */
-const seasonStartYear = (s: string): number => { const fw = /(\d{2})\/(\d{2})/.exec(s); if (fw) return 2000 + Number(fw[1]); const y = /(20\d{2})/.exec(s); return y ? Number(y[1]) : 0; };
+export const seasonStartYear = (s: string): number => { const fw = /(\d{2})\/(\d{2})/.exec(s); if (fw) return 2000 + Number(fw[1]); const y = /(20\d{2})/.exec(s); return y ? Number(y[1]) : 0; };
 
 /** Доли сезонов для ТЗ: model — код модели (артикул ТЗ), date — ISO даты ТЗ (может не быть), year — год ТЗ. */
 export function orderSeasonShares(o: { model: string; date: string | null; year: number | null }, byModel: Map<string, SeasonShares>): SeasonShares {

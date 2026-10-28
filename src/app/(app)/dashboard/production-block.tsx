@@ -47,17 +47,29 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
     const own = drill.orders.filter((o) => !isRepair(o));
     const I = sumOrders(own, "incl"), E = sumOrders(own, "excl");
     const nums: ProdNums = { items: I.items, repairOrders: 0, repairQty: 0, repairCostIncl: 0, repairCostExcl: 0, orders: I.orders, qty: I.qty, costIncl: I.fur + I.lining + I.c4 + I.other, costExcl: E.fur + E.lining + E.c4 + E.other, work: I.work, furIncl: I.fur, furExcl: E.fur, liningIncl: I.lining, liningExcl: E.lining, matIncl: I.fur + I.lining, matExcl: E.fur + E.lining, c4Incl: I.c4, c4Excl: E.c4 };
+    // Годы — по году прихода (а не по дате ТЗ): в сезоне, начавшемся в 2026, не бывает «2025»; FW 25/26 делится на пришедшее в 2025 и в 2026.
     const ys = new Map<string, number>();
-    for (const o of own) { const k = o.y != null ? String(o.y) : "без года"; ys.set(k, (ys.get(k) ?? 0) + o.qty); }
+    for (const o of own) {
+      const base = o.orig ?? o;
+      const inSeason = Object.entries(base.swy ?? {}).filter(([k]) => k.split("|")[0] === season), tot = inSeason.reduce((a, [, v]) => a + v, 0);
+      if (tot > 0) { for (const [k, share] of inSeason) { const yy = k.split("|")[1]; ys.set(yy, (ys.get(yy) ?? 0) + o.qty * (share / tot)); } }
+      else { const k = o.y != null ? String(o.y) : "без года"; ys.set(k, (ys.get(k) ?? 0) + o.qty); }
+    }
     return { nums, years: Array.from(ys).sort((a, b) => a[0].localeCompare(b[0])).map(([label, qty]) => ({ label, qty })) };
   }, [season, drill]);
   const ZERO: ProdNums = { items: 0, repairOrders: 0, repairQty: 0, repairCostIncl: 0, repairCostExcl: 0, orders: 0, qty: 0, costIncl: 0, costExcl: 0, work: 0, furIncl: 0, furExcl: 0, liningIncl: 0, liningExcl: 0, matIncl: 0, matExcl: 0, c4Incl: 0, c4Excl: 0 };
   // На «Все» в плитке «В выпуске» — разбивка по сезонам (доли ТЗ по приходу модели), а не по годам ТЗ; пока ТЗ не загрузились — годы страницы.
   const seasonQty = useMemo(() => {
     if (season !== "all" || !drill) return null;
-    const m = new Map<string, number>();
-    for (const o of drill.orders) { if (isRepair(o)) continue; for (const [k, w] of Object.entries(o.sw ?? {})) m.set(k, (m.get(k) ?? 0) + o.qty * w); }
-    return Array.from(m).sort((a, b) => seasonRank(a[0]) - seasonRank(b[0])).map(([label, qty]) => ({ label, qty }));
+    // Заказ по сезонам (объём ТЗ) и «пришло» (получено по приходу): закрытые сезоны — заказ = приход, открытый — заказ больше прихода на «ещё придёт».
+    const m = new Map<string, number>(), got = new Map<string, number>();
+    for (const o of drill.orders) {
+      if (isRepair(o) || o.id.startsWith("no-tz")) continue;
+      for (const [k, w] of Object.entries(o.sw ?? {})) m.set(k, (m.get(k) ?? 0) + o.qty * w);
+      for (const [k, w] of Object.entries(o.swd ?? {})) got.set(k, (got.get(k) ?? 0) + (o.qd ?? 0) * w);
+    }
+    for (const o of drill.orders) if (o.id.startsWith("no-tz")) got.set("FW 26/27", (got.get("FW 26/27") ?? 0) + (o.qd ?? 0));
+    return Array.from(m).sort((a, b) => seasonRank(a[0]) - seasonRank(b[0])).map(([label, qty]) => ({ label, qty, got: Math.round(got.get(label) ?? 0) }));
   }, [season, drill]);
   const done = sn ? sn.nums : doneP, work = sn ? ZERO : workP, all = sn ? sn.nums : allP, years = sn ? sn.years : seasonQty && seasonQty.length > 0 ? seasonQty : yearsP;
   const hides = sn ? { incl: 0, excl: 0 } : hidesP, c4Parts = sn ? { fur: { incl: 0, excl: 0 }, lining: { incl: 0, excl: 0 } } : c4PartsP, vatCost: VatByRate = sn ? {} : vatCostP;
@@ -122,12 +134,16 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
                 <TileValue>{formatQty(fact.qty)} шт.</TileValue>
                 <TileCaption>{kind === "repair" ? `Ремонт: ${fact.repairOrders} ТЗ` : `${fact.orders} ТЗ${fact.repairOrders > 0 ? ` / ${fact.repairOrders} ТЗ ремонт` : ""}`}</TileCaption>
                 <dl className="mt-1 space-y-0.5 text-xs">
-                  {years.filter((y) => y.qty !== 0).map((y) => (
+                  {years.filter((y) => y.qty !== 0).map((y) => {
+                    // По сезонам: справа заказ (объём ТЗ), слева — какая часть заказа уже пришла; по годам — доля года в общем объёме.
+                    const g = (y as { got?: number }).got;
+                    const left = g !== undefined ? (y.qty > 0 ? `${Math.round((g / y.qty) * 100)} % пришло` : "–") : fact.qty ? formatShare(y.qty / fact.qty) : "–";
+                    return (
                     <div key={y.label} className="flex items-baseline justify-between gap-3">
                       <dt className="text-neutral-600">{y.label}</dt>
-                      <dd className="whitespace-nowrap font-medium tabular-nums"><span className="mr-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{fact.qty ? formatShare(y.qty / fact.qty) : "–"}</span>{formatQty(y.qty)} шт.</dd>
+                      <dd className="whitespace-nowrap font-medium tabular-nums"><span className="mr-1.5 inline-block min-w-12 text-right text-[11px] font-normal text-neutral-500">{left}</span>{formatQty(y.qty)} шт.</dd>
                     </div>
-                  ))}
+                  ); })}
                 </dl>
               </button>) },
             ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: (

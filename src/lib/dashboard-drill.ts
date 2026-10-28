@@ -1,3 +1,4 @@
+import { scaleOrder } from "@/lib/season-orders";
 // «Стоимость производства» Сводки: данные ТЗ для окна-гистограммы и чистый расчёт уровней «проваливания».
 // Без базы и React: одни и те же функции считают окно (клиент) и scripts/test-dashboard-numbers.ts (Σ столбцов = итог плитки).
 //
@@ -55,6 +56,13 @@ export type DrillOrder = {
   work: number;
   /** Доли сезонов ТЗ (сумма 1) по приходу модели — для переключателя «Сезон» на Главной (src/lib/order-seasons.ts); нет — ТЗ целиком в любом сезоне. */
   sw?: Record<string, number>;
+  /** Доли сезонов «Произведено» (= приход модели по сезонам, Σ = 1 от qd). */
+  swd?: Record<string, number>;
+  /** Доли заказа (объём ТЗ) по «сезон|год прихода»: полученное — по сезону и году прихода, ещё не полученное — «FW 26/27|2026». Σ = 1. */
+  swy?: Record<string, number>;
+  /** Исходное ТЗ и сезон, если ТЗ уже умножено на долю сезона (нужно, чтобы «Произведено» пересчитать долями прихода). */
+  orig?: DrillOrder;
+  sn?: string;
   /** Расходы ТЗ (одинаково с НДС и без). */
   exp: number;
   /** Расходы ТЗ по статьям («Фурнитура», «Прочие расходы»…): Σ a = exp. */
@@ -364,6 +372,12 @@ export function withVolume(data: DrillData | null, mode: VolumeMode): DrillData 
   const orders = mode === "ordered"
     ? data.orders.filter((o) => !o.id.startsWith("no-tz")).map((o) => (o.qo != null ? { ...o, qty: o.qo } : o))
     // «Произведено» = получено по приходу: ТЗ модели берутся долей qf (деньги и штуки), ремонт — как есть (не изделия)
-    : data.orders.filter((o) => o.id.startsWith("no-tz") || o.qf === undefined || o.qf > 0).map((o) => (o.id.startsWith("no-tz") ? { ...o, qty: o.qd ?? 0 } : o.qf === undefined ? o : scaled(o, o.qf)));
+    : data.orders.map((o) => {
+      if (o.id.startsWith("no-tz")) return { ...o, qty: o.qd ?? 0 };
+      const base = o.orig ?? o;
+      if (base.qf === undefined) return o;
+      const wd = o.sn ? (base.swd ? base.swd[o.sn] ?? 0 : 0) : 1;
+      return wd > 0 && base.qf > 0 ? scaled(wd >= 0.9995 ? base : scaleOrder(base, wd), base.qf) : null;
+    }).filter((o): o is DrillOrder => o !== null);
   return { ...data, orders };
 }

@@ -158,15 +158,15 @@ function makeResolver(refs: Ref[]) {
 
 const normModelKey = (s: string) => s.replace(/[-\s_/.]/g, "").toUpperCase();
 /** Приход (SalesReceiptLine RECEIPT, все годы) по моделям: id модели → получено шт. Сопоставление по коду без дефисов и по псевдонимам. */
-async function receivedEntries(orgId: string): Promise<{ model: string; pcs: number; level2: string; season: string }[]> {
+async function receivedEntries(orgId: string): Promise<{ model: string; pcs: number; level2: string; season: string; date: string }[]> {
   const [models, receipts] = await Promise.all([
     prisma.productModel.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, sku: true, salesCode: true, aliases: true } }),
-    prisma.salesReceiptLine.findMany({ where: { organizationId: orgId, kind: "RECEIPT" }, select: { article: true, modelCode: true, pcs: true, level2: true, season: true } }),
+    prisma.salesReceiptLine.findMany({ where: { organizationId: orgId, kind: "RECEIPT" }, select: { article: true, modelCode: true, pcs: true, level2: true, season: true, date: true } }),
   ]);
   const keyOf = new Map<string, string>();
   for (const m of models) for (const k of [m.name, m.sku, m.salesCode, ...(m.aliases ?? [])]) if (k) { keyOf.set(normModelKey(k), m.id); const b = normModelKey(k.split(/[ /+]/)[0]); if (!keyOf.has(b)) keyOf.set(b, m.id); }
-  const out: { model: string; pcs: number; level2: string; season: string }[] = [];
-  for (const r of receipts) { const id = keyOf.get(normModelKey(r.modelCode ?? "")) ?? keyOf.get(normModelKey(r.article.split(/[ /+]/)[0])); if (id) out.push({ model: id, pcs: r.pcs ?? 0, level2: r.level2 ?? "", season: r.season ?? "" }); }
+  const out: { model: string; pcs: number; level2: string; season: string; date: string }[] = [];
+  for (const r of receipts) { const id = keyOf.get(normModelKey(r.modelCode ?? "")) ?? keyOf.get(normModelKey(r.article.split(/[ /+]/)[0])); if (id) out.push({ model: id, pcs: r.pcs ?? 0, level2: r.level2 ?? "", season: r.season ?? "", date: r.date.toISOString().slice(0, 10) }); }
   return out;
 }
 /** Приход (SalesReceiptLine RECEIPT, все годы) по моделям: id модели → получено шт. Сопоставление по коду без дефисов и по псевдонимам. */
@@ -179,6 +179,22 @@ export async function receivedByModel(orgId: string): Promise<Map<string, number
 export async function receivedByModelSeason(orgId: string): Promise<Map<string, Record<string, number>>> {
   const out = new Map<string, Record<string, number>>();
   for (const e of await receivedEntries(orgId)) { const m = out.get(e.model) ?? {}; m[e.season] = (m[e.season] ?? 0) + e.pcs; out.set(e.model, m); }
+  return out;
+}
+/** Приход по моделям в разрезе «сезон|год прихода» в порядке дат: id модели → [{ k: "FW 25/26|2025", pcs }]. */
+export async function receivedByModelBucket(orgId: string): Promise<Map<string, { k: string; pcs: number }[]>> {
+  const rows = (await receivedEntries(orgId)).sort((a, b) => a.date.localeCompare(b.date));
+  const out = new Map<string, { k: string; pcs: number }[]>();
+  for (const e of rows) { const k = `${e.season}|${e.date.slice(0, 4)}`; const l = out.get(e.model) ?? []; const last = l[l.length - 1]; if (last && last.k === k) last.pcs += e.pcs; else l.push({ k, pcs: e.pcs }); out.set(e.model, l); }
+  // Возвраты (отрицательные строки) гасят приход того же сезона у той же модели: иначе «потерянный» минус завышает сезон на штуку.
+  for (const [m, l] of out) {
+    for (let i = 0; i < l.length; i++) {
+      if (l[i].pcs >= 0) continue;
+      const sn = l[i].k.split("|")[0];
+      for (let j = i - 1; j >= 0 && l[i].pcs < 0; j--) if (l[j].k.split("|")[0] === sn && l[j].pcs > 0) { const t = Math.min(l[j].pcs, -l[i].pcs); l[j].pcs -= t; l[i].pcs += t; }
+    }
+    out.set(m, l.filter((b) => b.pcs > 0));
+  }
   return out;
 }
 /** Получено по моделям, которых нет среди заданных (у них нет ТЗ): группа («Одежда» / «Аксессуары» по Level 2 прихода) → шт. */
