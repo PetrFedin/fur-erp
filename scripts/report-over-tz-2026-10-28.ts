@@ -22,9 +22,9 @@ import "./stubs/server-only-shim";
   const sizeTokens = (s: string | null) => (s ?? "").replace(/единый размер/gi, "NS").split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean).map((x) => (/^(ns|един)/i.test(x) ? "NS" : x));
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Сверх ТЗ");
-  ws.addRow(["Получено сверх объёма ТЗ: по артикулу, цвету и размеру (приход MVST 2025–2026 против ТЗ в системе, на 28.10.2026). Приход по размерам в файле прихода не указан, поэтому по размерам взят отчёт MVST «Total – Custom Report» 27.10 (Conf — заказано, Delivery — пришло). Размеры ТЗ — из поля «Размер» ТЗ (по одному на изделие). «Сверх ТЗ» по размеру = пришло по отчёту − в ТЗ, если больше нуля. Итог по артикулу — по файлу прихода: он полнее отчёта (в отчёте «пришло» по размерам меньше, чем в файле прихода, поэтому 16 шт. сверх ТЗ видны в строке артикула, а по размерам главный сигнал — колонка «Где именно больше»: сколько заказал MVST и чего не хватает в ТЗ)."]);
+  ws.addRow(["16 шт., полученных сверх объёма ТЗ (на 28.10.2026): по артикулам и размерам. Разница = заказано MVST по размеру − в ТЗ по размеру (чего не хватает в ТЗ). Размеры берутся из отчёта MVST: в файле прихода размеров нет, а «пришло» по размерам в отчёте меньше, чем в файле прихода."]);
   ws.addRow([]);
-  ws.addRow(["Артикул", "Цвет", "Размер", "В каких ТЗ (номер: шт. этого размера)", "В ТЗ, шт.", "Заказано MVST (отчёт), шт.", "Пришло (отчёт), шт.", "Сверх ТЗ, шт.", "Где именно больше, чем в ТЗ", "Когда пришло сверх (по файлу прихода)", "Стоимость сверх ТЗ, ₽ с НДС"]);
+  ws.addRow(["Артикул", "Размер", "В каких ТЗ (номер: шт.)", "В ТЗ, шт.", "Заказано MVST, шт.", "Пришло (отчёт), шт.", "Разница: заказано − в ТЗ", "Пришло сверх ТЗ (по файлу прихода)"]);
   let tot = 0, totCost = 0;
   const bold: number[] = [];
   for (const m of models) {
@@ -55,23 +55,23 @@ import "./stubs/server-only-shim";
       const sizes = [...new Set([...tzBy.keys(), ...repBy.keys()])].sort((a, b) => (Number(a) || 999) - (Number(b) || 999) || a.localeCompare(b));
       const cost = unit ? Math.round(e.over * unit) : null;
       tot += e.over; if (cost) totCost += cost;
-      const hr = ws.addRow([art, colorName, "", `ТЗ модели: ${useTz.length ? useTz.map((o) => o.number).join(", ") : "нет"}`, [...tzBy.values()].reduce((a, x) => a + x.n, 0), [...repBy.values()].reduce((a, x) => a + x.conf, 0), [...repBy.values()].reduce((a, x) => a + x.deliv, 0), e.over, "итого по артикулу (по файлу прихода)", [...e.dates].join(", "), cost ?? "нет себестоимости"]);
+      const hr = ws.addRow([art + (colorName && !art.includes(colorName) ? ` — ${colorName}` : ""), "итого", `ТЗ: ${useTz.length ? useTz.map((o) => o.number).join(", ") : "нет"}`, [...tzBy.values()].reduce((a, x) => a + x.n, 0), [...repBy.values()].reduce((a, x) => a + x.conf, 0), [...repBy.values()].reduce((a, x) => a + x.deliv, 0), "", `${e.over} шт., ${[...e.dates].join(", ")}`]);
       hr.font = { bold: true }; hr.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEFEF" } };
       for (const sz of sizes) {
         const t = tzBy.get(sz), r = repBy.get(sz), inTz = t?.n ?? 0, dl = r?.deliv ?? 0, cf = r?.conf ?? 0;
         const over = Math.max(0, dl - inTz);
         const where = tzs.length === 0 ? "ТЗ на модель нет" : over > 0 ? (inTz === 0 ? `размера ${sz} нет ни в одном ТЗ` : `пришло ${dl}, в ТЗ ${inTz}`) : (cf > inTz && cf > 0 ? `заказано MVST ${cf}, в ТЗ ${inTz}: ТЗ не хватает на ${cf - inTz}` : "");
-        const row = ws.addRow(["", "", sz, t ? t.docs.join("; ") : "в ТЗ этого размера нет", inTz, cf, dl, over || "", where]);
-        if (over > 0) row.getCell(8).font = row.getCell(9).font = { bold: true, color: { argb: "FFB00020" } };
+        const row = ws.addRow(["", sz, t ? t.docs.join("; ") : "в ТЗ нет", inTz, cf, dl, cf - inTz > 0 ? cf - inTz : ""]);
+        if (cf - inTz > 0) row.getCell(7).font = { bold: true, color: { argb: "FFB00020" } };
       }
     }
   }
   ws.addRow([]);
-  const total = ws.addRow(["ИТОГО по файлу прихода", "", "", "", "", "", "", tot, "", "", totCost]); total.font = { bold: true };
-  ws.getRow(1).alignment = { wrapText: true, vertical: "top" }; ws.mergeCells(1, 1, 1, 11); ws.getRow(1).height = 96;
+  const total = ws.addRow(["ИТОГО сверх ТЗ", "", "", "", "", "", "", `${tot} шт.`]); total.font = { bold: true };
+  ws.getRow(1).alignment = { wrapText: true, vertical: "top" }; ws.mergeCells(1, 1, 1, 8); ws.getRow(1).height = 60;
   ws.getRow(3).font = { bold: true }; ws.getRow(3).alignment = { wrapText: true };
-  [30, 30, 10, 62, 10, 14, 12, 10, 40, 20, 20].forEach((w, i) => (ws.getColumn(i + 1).width = w));
-  ws.getColumn(4).alignment = { wrapText: true, vertical: "top" };
+  [40, 10, 60, 10, 16, 16, 18, 28].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  ws.getColumn(3).alignment = { wrapText: true, vertical: "top" };
   ws.views = [{ state: "frozen", ySplit: 3 }];
   await wb.xlsx.writeFile(process.argv[2]);
   console.log("сверх ТЗ шт.", tot, "сумма", totCost);
