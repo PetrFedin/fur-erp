@@ -4,8 +4,8 @@ import "server-only";
 // новые только суммы «по себестоимости» и «по прайсу» (приход и остаток), с охватом в штуках — где цены или себестоимости нет, строка не считается и охват это показывает.
 import { exVatAt, type MarginInput } from "@/lib/margin";
 import { makeCtx, type Ctx, type ReportSizeRow, type VatMode } from "@/lib/margin-tree";
-import { furTypeOfFabric, seasonEndIso } from "@/lib/sales-receipts-core";
-import { todayMsk, type Cat, type SDim } from "@/lib/sales-section";
+import { classOfLevel2, furTypeOfFabric, seasonEndIso, seasonOfDate } from "@/lib/sales-receipts-core";
+import { seasonRank, todayMsk, type Cat, type SDim } from "@/lib/sales-section";
 import { applyFilters, bucketsOf, buildSalesTree, extOf, lastMonthOf, NO_FILTERS, openingStock, sizeNodes, sortSeasons, totalSalesNode, type Ext, type Filters, type SLine, type SNode } from "@/lib/sales-section";
 import { loadSalesInput } from "@/lib/sales-server";
 import type { Commission4Mode } from "@/lib/commission4-mode";
@@ -78,6 +78,23 @@ export function ordersSummary(sizes: ReportSizeRow[], cls: SalesCls, received: {
 export type SalesView = { rows: SalesRow[]; total: SalesRow };
 /** Срез блока: «все сезоны» или один сезон; внутри — Тотал / Одежда / Аксессуары, две иерархии таблицы (мех → кат.1 → кат.2 и кат.1 → кат.2 → мех) и ряд по месяцам. */
 export type SalesSlice = { /** Дата окончания сезона, если он закончился (тогда есть SO AS), иначе null. */ soAsEnd: string | null; head: Record<SalesCls, SalesHead>; months: Record<SalesCls, SalesMonth[]>; views: Record<SalesCls, { fur: SalesView; cls: SalesView }> };
+/** Продажи по календарным сезонам (по дате продажи): весь проданный товар, товар того же сезона (SSN) и товара прошлых сезонов (non-SSN). */
+export type SsnPart = { pcs: number; rub: OrderMoney };
+export type SsnRow = { key: string; total: SsnPart; ssn: SsnPart; non: SsnPart };
+function ssnRowsOf(lines: SLine[], cls: SalesCls): SsnRow[] {
+  const blank = (): SsnPart => ({ pcs: 0, rub: { in: 0, ex: 0 } });
+  const by = new Map<string, SsnRow>();
+  for (const l of lines) {
+    if (l.kind !== "SALE") continue;
+    const c = classOfLevel2(l.level2);
+    if (cls !== "all" && c !== (cls === "clothes" ? "clothes" : "acc")) continue;
+    const key = seasonOfDate(l.iso);
+    const row = by.get(key) ?? by.set(key, { key, total: blank(), ssn: blank(), non: blank() }).get(key)!;
+    const part = l.season === key ? row.ssn : row.non;
+    for (const p of [row.total, part]) { p.pcs += l.pcs; p.rub.in += l.retailRub ?? 0; p.rub.ex += l.retailRubExVat ?? 0; }
+  }
+  return [...by.values()].sort((a, b) => seasonRank(a.key) - seasonRank(b.key));
+}
 export type SalesBlock = {
   year: YearFilter; periodNote: string;
   orders: number; articles: number;
@@ -86,6 +103,8 @@ export type SalesBlock = {
   seasons: SalesSeason[]; months: SalesMonth[]; rows: SalesRow[]; total: SalesRow;
   /** Срезы по сезонам: ключ «all» или сезон (FW25/26 …). */
   slices: Record<string, SalesSlice>;
+  /** Продажи по календарным сезонам: SSN-товар и non-SSN-товар (для Всего / Одежда / Аксессуары). */
+  ssn: Record<SalesCls, SsnRow[]>;
   /** Заказ и приход по сезонам (отчёт по товарам) для Тотал / Одежда / Аксессуары; нет данных — null. */
   orderSummary: Record<SalesCls, OrdersSummary | null>;
   /** Адрес страницы «Продажи и остатки» с тем же периодом (год) и режимом НДС. */
@@ -397,6 +416,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
     received: h.received, sold: h.sold, gross: h.gross, returns: h.returns, opening: h.opening, stock: h.stock, sellThrough: h.sellThrough, firstReceipt: hIn.firstReceipt, lastSale: hIn.lastSale,
     money: h.money, seasons, months: all0.months.all, rows: all0.views.all.fur.rows, total: all0.views.all.fur.total, slices,
     orderSummary,
+    ssn: Object.fromEntries(SALES_CLS.map((c) => [c, ssnRowsOf(all, c)])) as Record<SalesCls, SsnRow[]>,
     href: { in: salesHref(year, "in"), ex: salesHref(year, "ex") },
     hasData: all.length > 0,
   };

@@ -23,7 +23,8 @@ import { YEARS } from "@/lib/year-filter";
 import { WidgetRow } from "@/components/widget-row";
 import { buildMonthGrid, buildMonthTable, inScope, unitsFor, type TableFilters } from "@/lib/calendar-table";
 import type { Stage } from "@/lib/calendar-actions";
-import { BTN, BTN_ICON, Segment, SummaryTiles } from "./ui";
+import { BTN, BTN_ICON, Segment } from "./ui";
+import { ShipmentsTabs } from "../shipments/tabs";
 import { Badge } from "@/components/ui/badge";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick, stateParam } from "@/lib/filters";
@@ -320,6 +321,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
   return (
     <div className="flex flex-col gap-4">
+      <ShipmentsTabs active="calendar" />
       <Breadcrumbs items={[{ label: "Календарь", href: "/calendar" }, { label: mode === "months" ? "По месяцам" : mode === "stages" ? "Стадии" : `Детально · ${title}` }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center">
@@ -376,10 +378,6 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         />
       </div>
 
-      <WidgetRow id="cal-summary" title="Сводка" headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
-        <SummaryTiles grand={sumGrand} overdue={sumOverdue} overdueEvents={mode === "detail" ? overdueCount : undefined} stageHref={stageHref} activeStage={stageActive}
-          period={mode === "detail" ? { label: view === "week" ? "неделя" : "месяц", total: periodTotal, count: periodEvents } : undefined} />
-      </WidgetRow>
 
       {mode !== "detail" && (
         mode === "months"

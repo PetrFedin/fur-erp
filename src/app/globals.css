@@ -192,6 +192,11 @@ div.row-total {
   opacity: 0.55; animation: tap-hint 2.6s ease-in-out infinite;
 }
 .tile-click[aria-roledescription="carousel"]::after { bottom: auto; top: 0.55rem; right: 2.3rem; }
+/* Ссылка-плитка: общий «расширитель цели касания» a[href]::after (44 px) иначе растягивает руку на всю плитку — возвращаем маленькую руку в угол. */
+html:root a.tile-click::after { top: auto; left: auto; right: 0.6rem; bottom: 0.5rem; width: 1.05rem; height: 1.05rem; transform: none; }
+html:root a.tile-click[aria-roledescription="carousel"]::after { top: 0.55rem; bottom: auto; right: 2.3rem; }
+/* Плитка без детализации (только переход/фильтр): без руки-подсказки. */
+.tile-nohand::after, html:root a.tile-nohand::after { display: none; }
 @keyframes tap-hint { 0%, 100% { opacity: 0.25; transform: translateY(0); } 50% { opacity: 0.85; transform: translateY(-2px); } }
 @media (prefers-reduced-motion: reduce) { .tile-click::after { animation: none; opacity: 0.6; } }
 @media print { .tile-click::after { display: none; } }

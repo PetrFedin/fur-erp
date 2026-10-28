@@ -13,9 +13,8 @@ export const NAV_LINKS = [
   { href: "/sales", label: "Продажи и остатки", also: ["/sales/movement"] },
   { href: "/payments", label: "Оплаты", also: [] },
   { href: "/budget", label: "Бюджеты и прогнозы", also: [] },
-  { href: "/calendar", label: "Календарь", also: [] },
   // «Отгрузки» — карточки отгрузок с хронологией этапов (состав из ТЗ, приёмка по строкам).
-  { href: "/shipments", label: "Отгрузки", also: [] },
+  { href: "/shipments", label: "Отгрузки", also: ["/calendar"] },
   // «Чат» — обсуждения и запросы с поставщиком (Веллмех); значок — непрочитанное. Виден ролям из ACCESS.chat.
   { href: "/chat", label: "Чат", also: [] },
   // «Настройки» — только справочники и параметры.

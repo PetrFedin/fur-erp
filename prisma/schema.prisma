@@ -247,6 +247,7 @@ model Organization {
   furAttrRefs            FurAttrRef[]
   commentReplies         CommentReply[]
   paymentAllocations     PaymentAllocation[]
+  shipmentPlanRows ShipmentPlanRow[]
 }
 
 enum UserRole {
@@ -2270,4 +2271,31 @@ model ReconciliationCheck {
   details        Json?
 
   @@index([organizationId, checkedDate])
+}
+
+
+/// Лист отгрузок (план и факт по датам): строка = артикул · категория · цвет · размер · мех · подкладка · количество · статус производства · дата.
+/// Статус — из списка (выделка, покраска, пошив, примерка, отгружено, принято в Коптево …) или вписанный вручную.
+model ShipmentPlanRow {
+  id                String       @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  date              DateTime     @db.Date
+  article           String
+  productModelId    String?
+  productionOrderId String?
+  category          String?
+  color             String?
+  size              String?
+  fur               String?
+  lining            String?
+  qty               Int          @default(1)
+  status            String
+  notes             String?
+  createdById       String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([organizationId, date])
+  @@index([organizationId, status])
 }

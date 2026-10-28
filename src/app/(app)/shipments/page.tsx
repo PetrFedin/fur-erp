@@ -20,6 +20,7 @@ import { nextShipmentName } from "@/lib/shipment-data";
 import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { CreateShipmentButton } from "./create-shipment";
 import { ShipmentsFeed } from "./shipments-feed";
+import { ShipmentsTabs } from "./tabs";
 import { loadShipmentsFeed } from "@/lib/shipments-feed";
 
 export const metadata = { title: "Отгрузки" };
@@ -171,138 +172,9 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         {createButton}
       </div>
 
+      <ShipmentsTabs active="feed" />
       {feed.length ? <ShipmentsFeed rows={feed} /> : null}
 
-      <details className="rounded-lg border border-neutral-200 bg-white">
-        <summary className="min-h-11 cursor-pointer px-3 py-2.5 text-sm font-medium hover:bg-neutral-50">Прежние карточки отгрузок (примерка и приёмка в Коптево)</summary>
-        <div className="flex flex-col gap-4 p-3">
-      {isEmpty ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-10 text-center text-sm text-neutral-500">
-          <p>Отгрузок пока нет.</p>
-          {createButton}
-        </div>
-      ) : (
-        <>
-          <div className="print:hidden">
-            <FilterBar
-              title="Фильтры отгрузок"
-              oneRow
-              hideChips
-              controls={[
-                { type: "text", name: "q", label: "Поиск", placeholder: "Название, № ТЗ, артикул, цвет" },
-                { type: "multi", name: "supplier", label: "Подрядчик", options: supplierFilter },
-                { type: "multi", name: "batch", label: "Партия пошива", options: batchFilter },
-                { type: "multi", name: "stage", label: "Этап", options: stageFilter, hint: "По названию этапа" },
-                { type: "date", name: "from", label: "Плановая дата с" },
-                { type: "date", name: "to", label: "Плановая дата по" },
-                { type: "multi", name: "model", label: "Артикул", more: true, options: articleOpts.map((m) => ({ value: m.id, label: m.name })) },
-                { type: "multi", name: "year", label: "Год отгрузки", more: true, options: yearOptionsFrom(allDates.map((d) => d.plannedDate)), hint: "По плановой дате; дополнительно к году в шапке" },
-              ]}
-            />
-          </div>
-
-          <SummaryTiles
-            id="shipments"
-            title="Отгрузки — итоги"
-            tiles={[
-              { key: "in", label: "К отгрузке, шт.", value: sum.inS ? formatQty(sum.inS) : <Dash />, caption: `${formatQty(rows.length)} ${plural(rows.length, "отгрузка", "отгрузки", "отгрузок")}${hasFilters ? " · по фильтрам" : ""}` },
-              { key: "acc", label: "Принято, шт.", value: sum.acc ? formatQty(sum.acc) : <Dash />, caption: share(sum.acc, sum.inS, "от «К отгрузке»"), hint: <p>Сумма колонки «Принято» в составе отгрузок.</p> },
-              {
-                key: "ret",
-                label: "Не принято, шт.",
-                value: sum.inS ? formatQty(sum.ret) : <Dash />,
-                caption: sum.inS ? [share(sum.ret, sum.inS, ""), `ждёт приёмки ${formatQty(sum.rem)} шт.`].filter(Boolean).join(" · ") : undefined,
-                hint: <p>Сумма колонки «Возврат» (возвращено подрядчику / не принято). «Ещё ждёт приёмки» — в отгрузке минус принято и минус возврат по каждой строке.</p>,
-              },
-            ]}
-          />
-
-          <h2 className="text-base font-semibold">Список отгрузок</h2>
-          <ResponsiveRows
-            table={
-              <Table stickyHeader className="min-w-[960px]">
-                <Thead>
-                  <Tr>
-                    <Th {...th("name")}>Название</Th>
-                    <Th {...th("supplier")}>Подрядчик</Th>
-                    <Th {...th("batch")}>Партия</Th>
-                    <Th {...th("date")}>Плановая дата</Th>
-                    <Th {...th("qty")} className="text-right" unit="шт.">К отгрузке · принято · не принято</Th>
-                    <Th {...th("last")}>Последний этап</Th>
-                    <Th {...th("events")} className="text-right">Этапов</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {rows.map((r) => (
-                    <Tr key={r.s.id}>
-                      <Td>
-                        <Link href={`/shipments/${r.s.id}`} className="font-medium hover:underline">
-                          {r.s.name ?? `Отгрузка на ${formatDate(r.s.plannedDate)}`}
-                        </Link>
-                      </Td>
-                      <Td>{r.s.supplier?.name ?? <Dash />}</Td>
-                      <Td className="whitespace-nowrap">{r.s.batch ? `Партия ${r.s.batch.number}` : <Dash />}</Td>
-                      <Td className="whitespace-nowrap">{formatDate(r.s.plannedDate)}</Td>
-                      <Td className="whitespace-nowrap text-right tabular-nums">
-                        {formatQty(r.t.inShipment)} · {formatQty(r.t.accepted)} · {formatQty(r.t.returned)}
-                        {r.all !== r.t.inShipment && <span className="block text-[11px] font-normal text-neutral-500">в отгрузке всего {formatQty(r.all)}</span>}
-                      </Td>
-                      <Td>
-                        {r.last ? (
-                          <>
-                            <div>{r.last.title}</div>
-                            <div className="text-xs text-neutral-500">
-                              {fmtWall(r.last.occurredAt, r.last.timeKnown)}
-                              {respOf(r.last) ? ` · ${respOf(r.last)}` : ""}
-                            </div>
-                          </>
-                        ) : (
-                          <Dash />
-                        )}
-                        {r.next && <div className="text-xs text-neutral-600">далее: {r.next.title} · {fmtWall(r.next.occurredAt, r.next.timeKnown)}</div>}
-                      </Td>
-                      <Td className="text-right tabular-nums">{r.s.events.length || <Dash />}</Td>
-                    </Tr>
-                  ))}
-                  {rows.length > 0 && (
-                    <Tr className="row-total">
-                      <Td colSpan={4}><TotalLabel unit="шт." /></Td>
-                      <Td className="whitespace-nowrap text-right tabular-nums">{formatQty(sum.inS)} · {formatQty(sum.acc)} · {formatQty(sum.ret)}</Td>
-                      <Td colSpan={2} />
-                    </Tr>
-                  )}
-                  {rows.length === 0 && (
-                    <Tr>
-                      <Td colSpan={7} className="py-8 text-center text-neutral-500">
-                        {hasFilters ? "Ничего не найдено" : emptyForYear(year, "отгрузок", "Отгрузок пока нет")}
-                      </Td>
-                    </Tr>
-                  )}
-                </Tbody>
-              </Table>
-            }
-          >
-            {rows.map((r) => (
-              <RowCard
-                key={r.s.id}
-                title={r.s.name ?? `Отгрузка на ${formatDate(r.s.plannedDate)}`}
-                href={`/shipments/${r.s.id}`}
-                subtitle={[r.s.supplier?.name, r.s.batch ? `Партия ${r.s.batch.number}` : ""].filter(Boolean).join(" · ")}
-                fields={[
-                  { label: "Плановая дата", value: formatDate(r.s.plannedDate) },
-                  { label: "Этапов", value: r.s.events.length || "–" },
-                  { label: "К отгрузке, шт.", value: formatQty(r.t.inShipment), strong: true },
-                  { label: "Принято / не принято", value: `${formatQty(r.t.accepted)} / ${formatQty(r.t.returned)}` },
-                ]}
-                details={[{ label: "Последний этап", value: lastText(r) }]}
-              />
-            ))}
-            {rows.length === 0 && <p className="py-6 text-center text-sm text-neutral-500">{hasFilters ? "Ничего не найдено" : "Отгрузок пока нет"}</p>}
-          </ResponsiveRows>
-        </>
-      )}
-        </div>
-      </details>
     </div>
   );
 }
