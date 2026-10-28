@@ -19,6 +19,8 @@ import { compareEvents, fmtWall, shareOf, shipmentTotals } from "@/lib/shipment-
 import { nextShipmentName } from "@/lib/shipment-data";
 import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { CreateShipmentButton } from "./create-shipment";
+import { ShipmentsFeed } from "./shipments-feed";
+import { loadShipmentsFeed } from "@/lib/shipments-feed";
 
 export const metadata = { title: "Отгрузки" };
 
@@ -151,6 +153,8 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
     <CreateShipmentButton defaultName={defaultName} suppliers={supplierOptions} defaultSupplierId={defaultSupplierId} batches={batchChoices} />
   ) : null;
 
+  const feed = isSupplier ? [] : await loadShipmentsFeed(orgId);
+
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Отгрузки" }]} />
@@ -167,6 +171,11 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         {createButton}
       </div>
 
+      {feed.length ? <ShipmentsFeed rows={feed} /> : null}
+
+      <details className="rounded-lg border border-neutral-200 bg-white">
+        <summary className="min-h-11 cursor-pointer px-3 py-2.5 text-sm font-medium hover:bg-neutral-50">Прежние карточки отгрузок (примерка и приёмка в Коптево)</summary>
+        <div className="flex flex-col gap-4 p-3">
       {isEmpty ? (
         <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-10 text-center text-sm text-neutral-500">
           <p>Отгрузок пока нет.</p>
@@ -292,6 +301,8 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
           </ResponsiveRows>
         </>
       )}
+        </div>
+      </details>
     </div>
   );
 }

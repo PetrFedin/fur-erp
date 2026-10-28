@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { furRu } from "@/app/(app)/dashboard/sales-block-data";
 import { loadModelCosts } from "@/lib/margin-server";
-import { normCode } from "@/lib/sales-receipts-core";
+import { furTypeOfFabric, normCode } from "@/lib/sales-receipts-core";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 
 /** Приёмки товара (приход по файлу «поступления и продажи»): строка = артикул · цвет · дата. Для раздела «Отгрузки». */
@@ -30,7 +30,7 @@ export async function loadShipmentsFeed(orgId: string): Promise<FeedRow[]> {
     const cost = model ? costs.get(normCode(model.name)) : undefined;
     const g = (l.level2 ?? "").trim().toLowerCase();
     return {
-      date: l.date.toISOString().slice(0, 10), article: l.article, color: l.colorId ?? "", fur: furRu(l.fabric ?? "Не указан"),
+      date: l.date.toISOString().slice(0, 10), article: l.article, color: l.colorId ?? "", fur: furRu(furTypeOfFabric(l.fabric)),
       grp: g === "одежда" ? "Одежда" : g === "аксессуары" ? "Аксессуары" : "Прочее", cat: l.level4 ?? l.level3 ?? "—",
       qty: l.pcs ?? 0, costIncl: cost ? cost.unitIncl * (l.pcs ?? 0) : 0, costExcl: cost ? cost.unitExcl * (l.pcs ?? 0) : 0,
       model, orders: model ? byModel.get(model.id) ?? [] : [],
