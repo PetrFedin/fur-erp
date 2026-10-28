@@ -180,7 +180,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   const slice = b.slices[season] ?? b.slices.all;
   /** Заказ и приход выбранного сезона: «Все» — итог, иначе строка сезона (нет такой строки — null). */
   const orderLineOf = (c: SalesCls, sk: string = season) => { const o = b.orderSummary[c]; return o ? (sk === "all" ? o.total : o.lines.find((l) => l.key === sk) ?? null) : null; };
-  const showOrdered = (season === "all" || season === ORDERS_OPEN) && b.orderSummary.all !== null;
+  const showOrdered = false; // плитка «Заказано» убрана (заказ и приход по сезонам — в «Производстве» и в таблице по сезонам)
   const itemsOf = (t: Tile, c: SalesCls): TileItem[] => {
     if (t === "ordered") { const l = orderLineOf(c); return l ? [{ k: "Заказано по прайсу", v: money(l.orderedRub[v]) }, { k: "Ждём по прайсу", v: l.awaiting > 0 ? money(l.awaitingRub[v]) : "–" }] : []; }
     const h = slice.head[c], m = h.money[v];
@@ -194,9 +194,11 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         { k: "Скидка", v: money(sm.discount), share: sm.grossRev > 0.5 && sm.discount > 0.5 ? sm.discount / sm.grossRev : null, shareFirst: true },
         { k: "Ср. цена, ₽/шт.", v: moneyK(sm.avgPrice) },
         { k: "Маркап продаж", v: x2(sm.markupSold) },
+        ...(slice.soAsEnd !== null ? [{ k: "SO AS (до конца сезона)", v: pct(h.soAs, 1) }] : []),
+        { k: season === "all" ? "SO" : "SO STD (на сегодня)", v: pct(h.sellThrough, 1) },
       ];
     }
-    return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, ...(slice.soAsEnd !== null ? [{ k: "SO AS (до конца сезона)", v: pct(h.soAs, 1) }] : []), { k: season === "all" ? "SO" : "SO STD (на сегодня)", v: pct(h.sellThrough, 1) }, { k: "Маркап остатка", v: x2(m.markupStock) },
+    return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, { k: "Маркап остатка", v: x2(m.markupStock) },
       ...(season === "all" ? [] : [{ k: "Сток тотал", v: qty(h.stockCum) }, { k: "Сток тотал в рознице", v: money(h.stockListCum[v]) }, { k: "Маркап стока тотал", v: x2(h.markupStockCum[v]) }, { k: "Доля сезона", v: h.stockCum > 0 ? pct(h.stock / h.stockCum, 0) : "–" }])];
   };
   const valueOf = (t: Tile, c: SalesCls, s = slice, sk: string = season) => { if (t === "ordered") return orderLineOf(c, sk)?.ordered ?? 0; const h = s.head[c]; return t === "received" ? h.received : t === "sold" ? h.sold : h.stock; };
