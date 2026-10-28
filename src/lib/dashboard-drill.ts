@@ -362,8 +362,8 @@ const scaled = (o: DrillOrder, f: number): DrillOrder => ({
 export function withVolume(data: DrillData | null, mode: VolumeMode): DrillData | null {
   if (!data) return data;
   const orders = mode === "ordered"
-    ? data.orders.filter((o) => o.id !== "no-tz").map((o) => (o.qo != null ? { ...o, qty: o.qo } : o))
+    ? data.orders.filter((o) => !o.id.startsWith("no-tz")).map((o) => (o.qo != null ? { ...o, qty: o.qo } : o))
     // «Произведено» = получено по приходу: ТЗ модели берутся долей qf (деньги и штуки), ремонт — как есть (не изделия)
-    : data.orders.filter((o) => o.id === "no-tz" || o.qf === undefined || o.qf > 0).map((o) => (o.id === "no-tz" ? { ...o, qty: o.qd ?? 0 } : o.qf === undefined ? o : scaled(o, o.qf)));
+    : data.orders.filter((o) => o.id.startsWith("no-tz") || o.qf === undefined || o.qf > 0).map((o) => (o.id.startsWith("no-tz") ? { ...o, qty: o.qd ?? 0 } : o.qf === undefined ? o : scaled(o, o.qf)));
   return { ...data, orders };
 }

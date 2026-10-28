@@ -10,7 +10,7 @@ import { loadFurLots } from "@/lib/fur-table-server";
 import { classifyLotSource } from "@/lib/purchase-source";
 import { figures, flowOf, NOT_SET, type C4Kind, type FlowFigures, type FurLot } from "@/lib/fur-table";
 import { orderUnits } from "@/lib/production-totals";
-import { loadOrderRows, receivedByModel, type OrderRow } from "@/lib/analytics-orders";
+import { loadOrderRows, receivedByModel, receivedByModelSeason, receivedForModelsWithout, type OrderRow } from "@/lib/analytics-orders";
 import { canonicalFur } from "@/lib/fur-ref";
 import { lotUsdPrice } from "@/lib/lot-hammer";
 import { getFurIndex } from "@/lib/fur-ref-server";
@@ -218,17 +218,31 @@ export async function loadDrillOrders(orgId: string, year: YearFilter, f: DashFi
       o.qf = c > 0 && m ? (recv.get(m) ?? 0) / c : 0;
       o.qd = o.qty * o.qf;
     }
+    // Сезоны «Произведено» = сезоны прихода: приход модели по сезонам раскладывается на её ТЗ по возрастанию номера, ранние сезоны — в ранние ТЗ
+    // (так по сезонам получается ровно приход: FW 25/26, SS 2026, FW 26/27). Год ТЗ определяет порядок, а не долю по истории продаж.
+    const bySeason = await receivedByModelSeason(orgId);
+    const seasonKey = (x: string) => { const fw = /(\d{2})\/(\d{2})/.exec(x); return fw ? (2000 + Number(fw[1])) * 2 + 1 : (Number((/(20\d{2})/.exec(x) ?? [])[1]) || 0) * 2; };
+    const byModel = new Map<string, DrillOrder[]>();
+    for (const o of orders) { if (o.cat === REPAIR_CATEGORY) continue; const m = modelOf.get(o.id); if (m) (byModel.get(m) ?? byModel.set(m, []).get(m)!).push(o); }
+    for (const [m, list] of byModel) {
+      const seas = Object.entries(bySeason.get(m) ?? {}).filter(([, v]) => v > 0).sort((a, b) => seasonKey(a[0]) - seasonKey(b[0])).map(([k, v]) => ({ k, left: v }));
+      if (!seas.length) continue;
+      let si = 0;
+      for (const o of list.sort((a, b) => a.number.localeCompare(b.number))) {
+        let need = o.qd ?? 0; const got: Record<string, number> = {}; const tot = need;
+        while (need > 1e-9 && si < seas.length) { const take = Math.min(need, seas[si].left); got[seas[si].k] = (got[seas[si].k] ?? 0) + take; seas[si].left -= take; need -= take; if (seas[si].left <= 1e-9) si++; }
+        if (tot > 0) o.sw = Object.fromEntries(Object.entries(got).map(([k, v]) => [k, v / tot]));
+      }
+    }
   }
   return orders;
 }
 
-/** Получено по моделям, у которых нет ни одного ТЗ (кроме ремонта): в «Произведено» их нечем оценить. */
-export async function receivedWithoutTz(orgId: string, c4: Commission4Mode): Promise<number> {
-  const [recv, all] = await Promise.all([receivedByModel(orgId), loadOrderRows(orgId, "all", c4)]);
+/** Получено по моделям, у которых нет ни одного ТЗ (кроме ремонта), по группам: в «Произведено» их нечем оценить. */
+export async function receivedWithoutTz(orgId: string, c4: Commission4Mode): Promise<Record<string, number>> {
+  const all = await loadOrderRows(orgId, "all", c4);
   const has = new Set(all.filter((r) => r.category !== REPAIR_CATEGORY && r.qty > 0).map((r) => r.modelId));
-  let n = 0;
-  for (const [m, q] of recv) if (!has.has(m) && q > 0) n += q;
-  return n;
+  return receivedForModelsWithout(orgId, has);
 }
 
 const DEADLINE_RE = /срок\s+(\d{2})\.(\d{2})\.(\d{4})/i;

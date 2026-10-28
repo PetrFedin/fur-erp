@@ -26,10 +26,20 @@ export function modelSeasonShares(receipts: { article: string; iso: string; pcs:
   return out;
 }
 
+/** Год начала сезона: «FW 25/26» → 2025, «SS 2026» → 2026, «FW 26/27» → 2026. */
+const seasonStartYear = (s: string): number => { const fw = /(\d{2})\/(\d{2})/.exec(s); if (fw) return 2000 + Number(fw[1]); const y = /(20\d{2})/.exec(s); return y ? Number(y[1]) : 0; };
+
 /** Доли сезонов для ТЗ: model — код модели (артикул ТЗ), date — ISO даты ТЗ (может не быть), year — год ТЗ. */
 export function orderSeasonShares(o: { model: string; date: string | null; year: number | null }, byModel: Map<string, SeasonShares>): SeasonShares {
   const m = byModel.get(normCode(o.model));
-  if (m) return m;
+  if (m) {
+    // ТЗ размещено в год Y — не может относиться к сезону, который начинается позже (ТЗ 2025 года не бывает в SS 2026 и FW 26/27).
+    if (o.year != null) {
+      const ok = Object.entries(m).filter(([s, w]) => w > 0 && seasonStartYear(s) <= o.year!);
+      const sum = ok.reduce((a, [, w]) => a + w, 0);
+      if (sum > 0) return Object.fromEntries(ok.map(([s, w]) => [s, w / sum]));
+    } else return m;
+  }
   if (o.date) return { [seasonOfDate(o.date)]: 1 };
   return { [o.year != null && o.year >= 2026 ? "SS 2026" : "FW 25/26"]: 1 };
 }

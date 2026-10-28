@@ -7,7 +7,7 @@ const scaleLine = (l: DrillLine, w: number): DrillLine => ({ ...l, q: l.q * w, i
 
 export function scaleOrder(o: DrillOrder, w: number): DrillOrder {
   return {
-    ...o, qty: o.qty * w, work: o.work * w, exp: o.exp * w, xs: o.xs?.map((x) => ({ ...x, a: x.a * w })),
+    ...o, qty: o.qty * w, qo: o.qo === undefined ? undefined : o.qo * w, qd: o.qd === undefined ? undefined : o.qd * w, work: o.work * w, exp: o.exp * w, xs: o.xs?.map((x) => ({ ...x, a: x.a * w })),
     hI: o.hI * w, hE: o.hE * w, resI: o.resI * w, resE: o.resE * w, lines: o.lines.map((l) => scaleLine(l, w)),
   };
 }
@@ -17,6 +17,7 @@ export function ordersForSeason(orders: DrillOrder[], season: string): DrillOrde
   if (season === "all") return orders;
   const out: DrillOrder[] = [];
   for (const o of orders) {
+    if (o.id.startsWith("no-tz")) continue; // получено без ТЗ — только в «Все сезоны»: сезон у таких штук неизвестен
     const w = o.sw ? o.sw[season] ?? 0 : 1;
     if (w > 0.0005) out.push(w >= 0.9995 ? o : scaleOrder(o, w));
   }
