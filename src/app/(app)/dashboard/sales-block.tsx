@@ -10,6 +10,7 @@ import { SalesModal } from "../sales/sales-modal";
 import { money, n0, pct, seg, segGroup, x2 } from "../sales/sales-fmt";
 import { FlowChart } from "./sales-block-charts";
 import { SeasonSwitch, useSeasonScope } from "./season-scope";
+import { SsnTable } from "./sales-block-ssn";
 import { SalesTable, moneyK } from "./sales-block-table";
 import { HierSwitch, type Hier } from "@/components/hier-switch";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue, type TileItem } from "./tile";
@@ -159,6 +160,8 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   /** Строка таблицы под курсором: график «Приход · Продажи · Остаток» показывает её ряд (тип меха, категория). */
   const [hotRow, setHotRow] = useState<SalesRow | null>(null);
   const season = scope ? scope.season : ownSeason;
+  /** Продажи по: товару сезона (как пришёл) или календарному сезону (по дате продажи: SSN / non-SSN). */
+  const [salesBy, setSalesBy] = useState<"goods" | "cal">("goods");
   /** Категория (Тотал / Одежда / Аксессуары): общая для трёх плиток, графика и таблицы. */
   const [cls, setCls] = useState<SalesCls>("all");
   const [hier, setHier] = useState<Hier>("fur");
@@ -185,6 +188,15 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
     if (t === "ordered") { const l = orderLineOf(c); return l ? [{ k: "Заказано по прайсу", v: money(l.orderedRub[v]) }, { k: "Ждём по прайсу", v: l.awaiting > 0 ? money(l.awaitingRub[v]) : "–" }] : []; }
     const h = slice.head[c], m = h.money[v];
     if (t === "received") return [{ k: "По себестоимости ТЗ", v: money(m.recvCost) }, { k: "По прайсу", v: money(m.recvList) }];
+    if (t === "sold" && salesBy === "cal") {
+      const k = calOf(c), share = k.total.pcs !== 0 ? k.ssn.pcs / k.total.pcs : null;
+      return [
+        { k: `Выручка, ${vatNote}`, v: money(k.total.rub[v]) },
+        { k: "SSN-товар (этого сезона)", v: `${qty(k.ssn.pcs)} · ${money(k.ssn.rub[v])}` },
+        { k: "non-SSN-товар (прошлых сезонов)", v: `${qty(k.non.pcs)} · ${money(k.non.rub[v])}` },
+        { k: "Доля SSN", v: pct(share, 0) },
+      ];
+    }
     if (t === "sold") {
       const sm = h.money[v], sw = vatNote;
       return [
@@ -201,8 +213,14 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
     return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, { k: "Маркап остатка", v: x2(m.markupStock) },
       ...(season === "all" ? [] : [{ k: "Сток тотал", v: qty(h.stockCum) }, { k: "Сток тотал в рознице", v: money(h.stockListCum[v]) }, { k: "Маркап стока тотал", v: x2(h.markupStockCum[v]) }, { k: "Доля сезона", v: h.stockCum > 0 ? pct(h.stock / h.stockCum, 0) : "–" }])];
   };
-  const valueOf = (t: Tile, c: SalesCls, s = slice, sk: string = season) => { if (t === "ordered") return orderLineOf(c, sk)?.ordered ?? 0; const h = s.head[c]; return t === "received" ? h.received : t === "sold" ? h.sold : h.stock; };
-  const captionOf = (t: Tile, c: SalesCls) => { if (t === "ordered") { const l = orderLineOf(c); return l ? `пришло ${n0(l.delivered)} · ждём ${n0(l.awaiting)}` : ""; } const h = slice.head[c]; return t === "received" ? `приход 2025–2026 · ${h.articles} артикулов` : t === "sold" ? `возвраты ${n0(h.returns)}` : "приход − продано"; };
+  const zeroPart = { pcs: 0, rub: { in: 0, ex: 0 } };
+  const calOf = (c: SalesCls) => {
+    const rows = b.ssn[c].filter((r) => season === "all" || r.key === season);
+    const add = (f: (r: (typeof rows)[number]) => { pcs: number; rub: { in: number; ex: number } }) => rows.reduce((a, r) => ({ pcs: a.pcs + f(r).pcs, rub: { in: a.rub.in + f(r).rub.in, ex: a.rub.ex + f(r).rub.ex } }), zeroPart);
+    return { total: add((r) => r.total), ssn: add((r) => r.ssn), non: add((r) => r.non) };
+  };
+  const valueOf = (t: Tile, c: SalesCls, s = slice, sk: string = season) => { if (t === "sold" && salesBy === "cal") return calOf(c).total.pcs; if (t === "ordered") return orderLineOf(c, sk)?.ordered ?? 0; const h = s.head[c]; return t === "received" ? h.received : t === "sold" ? h.sold : h.stock; };
+  const captionOf = (t: Tile, c: SalesCls) => { if (t === "sold" && salesBy === "cal") { const k = calOf(c); return `SSN ${n0(k.ssn.pcs)} · non-SSN ${n0(k.non.pcs)}`; } if (t === "ordered") { const l = orderLineOf(c); return l ? `пришло ${n0(l.delivered)} · ждём ${n0(l.awaiting)}` : ""; } const h = slice.head[c]; return t === "received" ? `приход 2025–2026 · ${h.articles} артикулов` : t === "sold" ? `возвраты ${n0(h.returns)}` : "приход − продано"; };
   const hintOf = (t: Tile) => t === "ordered" ? <p>Заказ: пришло + ждём. По FW 25/26 и SS 2026 больше ничего не ждём (заказано = пришло); по FW 26/27 ждём Conf − поступило (отчёт по товарам). Нажмите — таблица по сезонам со штуками и деньгами.</p>
     : t === "received" ? <p>Приход товара: штуки по строкам прихода выгрузки. Суммы — по себестоимости ТЗ и по прайсу; штуки без цены в сумму не входят.</p>
     : t === "sold" ? <p>Нетто: продажи минус возвраты. Цена — выручка ({vatNote}) ÷ нетто-штуки.</p>
@@ -276,10 +294,19 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
           </InfoHint>
         }
         headerEnd={<Link href={href} data-testid="dash-sales-link" className="text-xs text-blue-700 hover:underline print:hidden">→ Продажи и остатки</Link>}>
+        <div className="mb-2 flex flex-wrap items-center gap-2 print:hidden">
+          <span className="text-xs text-neutral-600">Продажи по:</span>
+          <div role="group" aria-label="Продажи по товару сезона или календарному сезону" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
+            {([["goods", "Товару сезона"], ["cal", "Календарному сезону"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={salesBy === k} onClick={() => setSalesBy(k)} className={"min-h-9 rounded-md px-3 text-sm " + (salesBy === k ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")}>{t}</button>)}
+          </div>
+          <span className="text-xs text-neutral-500">{salesBy === "goods" ? "SO AS — продажи в сезоне ÷ приход сезона; SO STD — на сегодня (в идущем сезоне только STD)" : "в календарном сезоне: SSN — товар этого сезона, non-SSN — товар прошлых сезонов"}</span>
+        </div>
         <div className={"grid grid-cols-1 items-stretch gap-3 print:grid-cols-3 " + (showOrdered ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3")}>
           {(showOrdered ? (["ordered", "received", "sold", "stock"] as const) : (["received", "sold", "stock"] as const)).map(tile)}
         </div>
       </WidgetRow>
+
+      <SsnTable rows={b.ssn[cls]} v={v} vatNote={vatNote} active={season === "all" ? undefined : season} />
 
       <FlowChart
         points={hotRow?.series ? slice.months[cls].map((m, i) => ({ key: m.key, label: m.label, received: hotRow.series!.r[i] ?? 0, sold: hotRow.series!.s[i] ?? 0, stock: hotRow.series!.st[i] ?? 0, soldBySeason: Object.fromEntries(Object.entries(hotRow.series!.ss).map(([k, a]) => [k, a[i] ?? 0])) })) : slice.months[cls]}
