@@ -46,7 +46,7 @@ import "./stubs/server-only-shim";
       const tzBy = new Map<string, { n: number; docs: string[] }>();
       for (const o of useTz) {
         const toks = sizeTokens(o.size), qty = o.status === "COMPLETED" ? Number(o.producedQuantity) : Number(o.plannedQuantity);
-        const list = toks.length === qty ? toks : toks.length === 0 ? Array(qty).fill("не указан") : Array(qty).fill("не указан");
+        const list = toks.length === qty ? toks : toks.length === 1 ? Array(qty).fill(toks[0]) : Array(qty).fill("не указан");
         const c = new Map<string, number>(); for (const t of list) c.set(t, (c.get(t) ?? 0) + 1);
         for (const [t, n] of c) { const x = tzBy.get(t) ?? { n: 0, docs: [] }; x.n += n; x.docs.push(`${o.number}: ${n}`); tzBy.set(t, x); }
       }
