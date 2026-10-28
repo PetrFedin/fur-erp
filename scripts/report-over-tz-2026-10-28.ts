@@ -22,9 +22,9 @@ import "./stubs/server-only-shim";
   const sizeTokens = (s: string | null) => (s ?? "").replace(/единый размер/gi, "NS").split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean).map((x) => (/^(ns|един)/i.test(x) ? "NS" : x));
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Сверх ТЗ");
-  ws.addRow(["16 шт., полученных сверх объёма ТЗ (на 28.10.2026): по артикулам и размерам. Разница = заказано MVST по размеру − в ТЗ по размеру (чего не хватает в ТЗ). Размеры берутся из отчёта MVST: в файле прихода размеров нет, а «пришло» по размерам в отчёте меньше, чем в файле прихода."]);
+  ws.addRow(["16 шт., полученных сверх объёма ТЗ (на 28.10.2026). Приход сверх ТЗ = всё, что пришло по артикулу после того, как набран объём его ТЗ. «Не покрыто ТЗ» = заказано MVST по размеру − в ТЗ по размеру: именно под эти заказы нет ТЗ в системе, к ним и относятся 16 шт. (по размеру приход в файле не указан, поэтому какие именно размеры пришли — неизвестно, видны только размеры, не покрытые ТЗ)."]);
   ws.addRow([]);
-  ws.addRow(["Артикул", "Размер", "В каких ТЗ (номер: шт.)", "В ТЗ, шт.", "Заказано MVST, шт.", "Пришло (отчёт), шт.", "Разница: заказано − в ТЗ", "Пришло сверх ТЗ (по файлу прихода)"]);
+  ws.addRow(["Артикул", "Размер", "В каких ТЗ (номер: шт.)", "В ТЗ, шт.", "Заказано MVST, шт.", "Не покрыто ТЗ, шт.", "Пришло сверх ТЗ"]);
   let tot = 0, totCost = 0;
   const bold: number[] = [];
   for (const m of models) {
@@ -55,22 +55,23 @@ import "./stubs/server-only-shim";
       const sizes = [...new Set([...tzBy.keys(), ...repBy.keys()])].sort((a, b) => (Number(a) || 999) - (Number(b) || 999) || a.localeCompare(b));
       const cost = unit ? Math.round(e.over * unit) : null;
       tot += e.over; if (cost) totCost += cost;
-      const hr = ws.addRow([art + (colorName && !art.includes(colorName) ? ` — ${colorName}` : ""), "итого", `ТЗ: ${useTz.length ? useTz.map((o) => o.number).join(", ") : "нет"}`, [...tzBy.values()].reduce((a, x) => a + x.n, 0), [...repBy.values()].reduce((a, x) => a + x.conf, 0), [...repBy.values()].reduce((a, x) => a + x.deliv, 0), "", `${e.over} шт., ${[...e.dates].join(", ")}`]);
+      const totT = [...tzBy.values()].reduce((a, x) => a + x.n, 0), totC = [...repBy.values()].reduce((a, x) => a + x.conf, 0);
+      const hr = ws.addRow([art + (colorName && !art.includes(colorName) ? ` — ${colorName}` : ""), "итого", `ТЗ: ${useTz.length ? useTz.map((o) => o.number).join(", ") : "нет"}`, totT, totC, Math.max(0, totC - totT), `${e.over} шт. (${[...e.dates].join(", ")})`]);
       hr.font = { bold: true }; hr.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEFEF" } };
       for (const sz of sizes) {
         const t = tzBy.get(sz), r = repBy.get(sz), inTz = t?.n ?? 0, dl = r?.deliv ?? 0, cf = r?.conf ?? 0;
         const over = Math.max(0, dl - inTz);
         const where = tzs.length === 0 ? "ТЗ на модель нет" : over > 0 ? (inTz === 0 ? `размера ${sz} нет ни в одном ТЗ` : `пришло ${dl}, в ТЗ ${inTz}`) : (cf > inTz && cf > 0 ? `заказано MVST ${cf}, в ТЗ ${inTz}: ТЗ не хватает на ${cf - inTz}` : "");
-        const row = ws.addRow(["", sz, t ? t.docs.join("; ") : "в ТЗ нет", inTz, cf, dl, cf - inTz > 0 ? cf - inTz : ""]);
-        if (cf - inTz > 0) row.getCell(7).font = { bold: true, color: { argb: "FFB00020" } };
+        const row = ws.addRow(["", sz, t ? t.docs.join("; ") : "в ТЗ нет", inTz, cf, cf - inTz > 0 ? cf - inTz : ""]);
+        if (cf - inTz > 0) row.getCell(6).font = { bold: true, color: { argb: "FFB00020" } };
       }
     }
   }
   ws.addRow([]);
   const total = ws.addRow(["ИТОГО сверх ТЗ", "", "", "", "", "", "", `${tot} шт.`]); total.font = { bold: true };
-  ws.getRow(1).alignment = { wrapText: true, vertical: "top" }; ws.mergeCells(1, 1, 1, 8); ws.getRow(1).height = 60;
+  ws.getRow(1).alignment = { wrapText: true, vertical: "top" }; ws.mergeCells(1, 1, 1, 7); ws.getRow(1).height = 75;
   ws.getRow(3).font = { bold: true }; ws.getRow(3).alignment = { wrapText: true };
-  [40, 10, 60, 10, 16, 16, 18, 28].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  [42, 10, 60, 10, 16, 16, 26].forEach((w, i) => (ws.getColumn(i + 1).width = w));
   ws.getColumn(3).alignment = { wrapText: true, vertical: "top" };
   ws.views = [{ state: "frozen", ySplit: 3 }];
   await wb.xlsx.writeFile(process.argv[2]);
