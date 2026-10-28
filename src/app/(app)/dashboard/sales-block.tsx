@@ -3,8 +3,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
-import { useDrill } from "./averages";
-import { receivedSplit } from "@/lib/received-split";
 import { InfoHint } from "@/components/info-hint";
 import { PinSection } from "@/components/pin-section";
 import { WidgetRow } from "@/components/widget-row";
@@ -147,12 +145,10 @@ function OrdersTable({ s, v, hier }: { s: OrdersSummary; v: "in" | "ex"; hier: H
   );
 }
 
-const NO_SEARCH: Record<string, string[]> = {};
 export function SalesBlockView({ b }: { b: SalesBlock }) {
   const { mode } = useVatDisplay();
   const v = mode === "incl" ? "in" : "ex";
   const vatNote = v === "in" ? "с НДС" : "без НДС";
-  const { data: drillAll } = useDrill(NO_SEARCH);
   const href = b.href[v];
   const seasonKeys = b.seasons.map((s) => s.key);
   // Сезон общий с панелью «Сезон» (она начинается с раздела «Производство» и закреплена); вне панели — свой выбор.
@@ -188,14 +184,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   const itemsOf = (t: Tile, c: SalesCls): TileItem[] => {
     if (t === "ordered") { const l = orderLineOf(c); return l ? [{ k: "Заказано по прайсу", v: money(l.orderedRub[v]) }, { k: "Ждём по прайсу", v: l.awaiting > 0 ? money(l.awaitingRub[v]) : "–" }] : []; }
     const h = slice.head[c], m = h.money[v];
-    if (t === "received") {
-      const cost = { k: "По себестоимости ТЗ", v: money(m.recvCost) }, list = { k: "По прайсу", v: money(m.recvList) };
-      // Разбивка «по ТЗ / без ТЗ» — только за все сезоны и когда данные ТЗ загружены; сумма = «По себестоимости ТЗ».
-      if (season !== "all" || !drillAll) return [cost, list];
-      const sp = receivedSplit(drillAll.orders, mode === "incl" ? "incl" : "excl", c === "all" ? "all" : c === "clothes" ? "Одежда" : "Аксессуары");
-      if (sp.overQty < 0.5) return [cost, list];
-      return [cost, { k: "из них по ТЗ", v: `${qty(Math.round(sp.tzQty))} · ${money(sp.tzCost)}` }, { k: "без ТЗ (выяснить)", v: `${qty(Math.round(sp.overQty))} · ${money(sp.overCost)}` }, list];
-    }
+    if (t === "received") return [{ k: "По себестоимости ТЗ", v: money(m.recvCost) }, { k: "По прайсу", v: money(m.recvList) }];
     if (t === "sold") {
       const sm = h.money[v], sw = vatNote;
       return [
