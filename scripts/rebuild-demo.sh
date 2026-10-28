@@ -69,7 +69,7 @@ run_ts "$CHK" scripts/test-no-external-refs.ts | tail -3 || fail "test-no-extern
   printf '%s\n' MVST mvst Вельмакин Павлов Коношенко Желнин Киржнер "Google" "drive.google"
 } | grep -v -x -E 'Демо.*|.*@demo\.local|Веллмех-демо.*' | sort -u > "$WORK/needles.txt"
 gzip -dc "$DUMP" > "$WORK/dump.sql"
-LEAK=$(grep -i -F -f "$WORK/needles.txt" "$WORK/dump.sql" | grep -v -E '^(COPY|--)' | cut -c1-120 | head -5 || true)
+LEAK=$(grep -i -w -F -f "$WORK/needles.txt" "$WORK/dump.sql" | grep -v -E '^(COPY|--)' | cut -c1-120 | head -5 || true)
 [ -z "$LEAK" ] || { echo "$LEAK"; fail "в дампе остались реальные названия/ИНН/имена"; }
 echo "  OK  в дампе нет реальных названий контрагентов, ИНН, имён, MVST, Google/Drive ($(wc -l < "$WORK/needles.txt" | tr -d ' ') образцов)"
 ORG=$(pg "$CHK" -Atc 'select name from "Organization" order by "createdAt" limit 1')
