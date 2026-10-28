@@ -215,7 +215,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   };
   const zeroPart = { pcs: 0, rub: { in: 0, ex: 0 } };
   const calOf = (c: SalesCls) => {
-    const rows = b.ssn[c].filter((r) => season === "all" || r.key === season);
+    const rows = b.ssn[c].rows.filter((r) => season === "all" || r.key === season);
     const add = (f: (r: (typeof rows)[number]) => { pcs: number; rub: { in: number; ex: number } }) => rows.reduce((a, r) => ({ pcs: a.pcs + f(r).pcs, rub: { in: a.rub.in + f(r).rub.in, ex: a.rub.ex + f(r).rub.ex } }), zeroPart);
     return { total: add((r) => r.total), ssn: add((r) => r.ssn), non: add((r) => r.non) };
   };
@@ -306,7 +306,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         </div>
       </WidgetRow>
 
-      <SsnTable rows={b.ssn[cls]} v={v} vatNote={vatNote} active={season === "all" ? undefined : season} />
+      <SsnTable data={b.ssn[cls]} v={v} vatNote={vatNote} active={season === "all" ? undefined : season} />
 
       <FlowChart
         points={hotRow?.series ? slice.months[cls].map((m, i) => ({ key: m.key, label: m.label, received: hotRow.series!.r[i] ?? 0, sold: hotRow.series!.s[i] ?? 0, stock: hotRow.series!.st[i] ?? 0, soldBySeason: Object.fromEntries(Object.entries(hotRow.series!.ss).map(([k, a]) => [k, a[i] ?? 0])) })) : slice.months[cls]}

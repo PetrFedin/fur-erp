@@ -80,20 +80,30 @@ export type SalesView = { rows: SalesRow[]; total: SalesRow };
 export type SalesSlice = { /** Дата окончания сезона, если он закончился (тогда есть SO AS), иначе null. */ soAsEnd: string | null; head: Record<SalesCls, SalesHead>; months: Record<SalesCls, SalesMonth[]>; views: Record<SalesCls, { fur: SalesView; cls: SalesView }> };
 /** Продажи по календарным сезонам (по дате продажи): весь проданный товар, товар того же сезона (SSN) и товара прошлых сезонов (non-SSN). */
 export type SsnPart = { pcs: number; rub: OrderMoney };
-export type SsnRow = { key: string; total: SsnPart; ssn: SsnPart; non: SsnPart };
-function ssnRowsOf(lines: SLine[], cls: SalesCls): SsnRow[] {
+/** Календарный сезон (по дате): пришло (приход по дате прихода), продано всего, SSN — товар этого сезона, non-SSN — товар прошлых сезонов. */
+export type SsnRow = { key: string; recv: number; total: SsnPart; ssn: SsnPart; non: SsnPart };
+/** Матрица как в отчёте Sales: строки — сезон товара (приход, продано по календарным сезонам), столбцы — календарные сезоны продаж. */
+export type SsnMatrixRow = { goods: string; recv: number; sold: SsnPart; cells: Record<string, SsnPart> };
+export type SsnData = { rows: SsnRow[]; matrix: SsnMatrixRow[]; cal: string[] };
+function ssnDataOf(lines: SLine[], cls: SalesCls): SsnData {
   const blank = (): SsnPart => ({ pcs: 0, rub: { in: 0, ex: 0 } });
-  const by = new Map<string, SsnRow>();
+  const by = new Map<string, SsnRow>(), mx = new Map<string, SsnMatrixRow>();
+  const row = (key: string) => by.get(key) ?? by.set(key, { key, recv: 0, total: blank(), ssn: blank(), non: blank() }).get(key)!;
+  const mrow = (goods: string) => mx.get(goods) ?? mx.set(goods, { goods, recv: 0, sold: blank(), cells: {} }).get(goods)!;
   for (const l of lines) {
-    if (l.kind !== "SALE") continue;
     const c = classOfLevel2(l.level2);
     if (cls !== "all" && c !== (cls === "clothes" ? "clothes" : "acc")) continue;
     const key = seasonOfDate(l.iso);
-    const row = by.get(key) ?? by.set(key, { key, total: blank(), ssn: blank(), non: blank() }).get(key)!;
-    const part = l.season === key ? row.ssn : row.non;
-    for (const p of [row.total, part]) { p.pcs += l.pcs; p.rub.in += l.retailRub ?? 0; p.rub.ex += l.retailRubExVat ?? 0; }
+    if (l.kind === "RECEIPT") { row(key).recv += l.pcs; mrow(l.season).recv += l.pcs; continue; }
+    if (l.kind !== "SALE") continue;
+    const r = row(key), part = l.season === key ? r.ssn : r.non;
+    for (const p of [r.total, part]) { p.pcs += l.pcs; p.rub.in += l.retailRub ?? 0; p.rub.ex += l.retailRubExVat ?? 0; }
+    const m = mrow(l.season), cell = (m.cells[key] ??= blank());
+    for (const p of [m.sold, cell]) { p.pcs += l.pcs; p.rub.in += l.retailRub ?? 0; p.rub.ex += l.retailRubExVat ?? 0; }
   }
-  return [...by.values()].sort((a, b) => seasonRank(a.key) - seasonRank(b.key));
+  const rows = [...by.values()].sort((a, b) => seasonRank(a.key) - seasonRank(b.key));
+  const matrix = [...mx.values()].sort((a, b) => seasonRank(a.goods) - seasonRank(b.goods));
+  return { rows, matrix, cal: rows.map((r) => r.key) };
 }
 export type SalesBlock = {
   year: YearFilter; periodNote: string;
@@ -104,7 +114,7 @@ export type SalesBlock = {
   /** Срезы по сезонам: ключ «all» или сезон (FW25/26 …). */
   slices: Record<string, SalesSlice>;
   /** Продажи по календарным сезонам: SSN-товар и non-SSN-товар (для Всего / Одежда / Аксессуары). */
-  ssn: Record<SalesCls, SsnRow[]>;
+  ssn: Record<SalesCls, SsnData>;
   /** Заказ и приход по сезонам (отчёт по товарам) для Тотал / Одежда / Аксессуары; нет данных — null. */
   orderSummary: Record<SalesCls, OrdersSummary | null>;
   /** Адрес страницы «Продажи и остатки» с тем же периодом (год) и режимом НДС. */
@@ -416,7 +426,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
     received: h.received, sold: h.sold, gross: h.gross, returns: h.returns, opening: h.opening, stock: h.stock, sellThrough: h.sellThrough, firstReceipt: hIn.firstReceipt, lastSale: hIn.lastSale,
     money: h.money, seasons, months: all0.months.all, rows: all0.views.all.fur.rows, total: all0.views.all.fur.total, slices,
     orderSummary,
-    ssn: Object.fromEntries(SALES_CLS.map((c) => [c, ssnRowsOf(all, c)])) as Record<SalesCls, SsnRow[]>,
+    ssn: Object.fromEntries(SALES_CLS.map((c) => [c, ssnDataOf(all, c)])) as Record<SalesCls, SsnData>,
     href: { in: salesHref(year, "in"), ex: salesHref(year, "ex") },
     hasData: all.length > 0,
   };
