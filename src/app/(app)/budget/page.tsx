@@ -34,9 +34,9 @@ export default async function BudgetListPage() {
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Бюджеты и прогнозы" }]} />
+      <ForecastCards canEdit={EDIT_ROLES.includes(session.user.role)} items={forecasts.map((f) => ({ id: f.id, name: f.name, season: f.season, updatedAt: f.updatedAt, updatedBy: f.updatedBy }))} />
       <BudgetList items={items} canEdit={EDIT_ROLES.includes(session.user.role)} />
       <PcsCards canEdit={EDIT_ROLES.includes(session.user.role)} items={pcsDocs.map((f) => ({ id: f.id, name: f.name, season: f.season, updatedAt: f.updatedAt, updatedBy: f.updatedBy }))} />
-      <ForecastCards canEdit={EDIT_ROLES.includes(session.user.role)} items={forecasts.map((f) => ({ id: f.id, name: f.name, season: f.season, updatedAt: f.updatedAt, updatedBy: f.updatedBy }))} />
     </div>
   );
 }

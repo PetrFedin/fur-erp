@@ -40,11 +40,11 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Бюджеты
+          <h2 className="text-xl font-semibold">Бюджет FW27
             <InfoHint label="Что такое бюджет" wide>
               <p>Версии бюджета расходов по меху: тип сырья → категория → артикул, расчёт идёт сам. Сделайте копию, чтобы сравнить варианты.</p>
             </InfoHint>
-          </h1>
+          </h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {items.length >= 1 ? <button type="button" disabled={busy} onClick={() => start(async () => { setError(null); try { const r = await exportBudgetsReportXlsx(); if (r.ok) saveBase64Xlsx(r.name, r.base64); else setError(r.error); } catch { setError("Не удалось сформировать Excel"); } })} className={BTN}>Скачать Excel</button> : null}

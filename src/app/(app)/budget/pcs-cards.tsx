@@ -29,7 +29,7 @@ export function PcsCards({ items, canEdit }: { items: PcsCard[]; canEdit: boolea
   return (
     <section aria-label="Budget PCS" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">Budget PCS</h2>
+        <h2 className="text-xl font-semibold">Бюджет FW27 + статистика</h2>
         {canEdit ? <button type="button" onClick={() => setDialog({ kind: "new" })} className={BTN_PRIMARY}>+ Новый файл</button> : null}
       </div>
       {error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p> : null}
