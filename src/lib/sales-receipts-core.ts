@@ -176,6 +176,14 @@ export function assignSeasons<T extends { id?: string; kind: string; iso: string
   return lines.flatMap((l) => out.get(l) ?? [l]);
 }
 
+/** Первый день сезона: SS YYYY → 1 февраля, FW YY/YY+1 → 1 августа первого года. */
+export function seasonStartIso(season: string): string | null {
+  const ss = /^SS\s+(\d{4})$/.exec(season.trim());
+  if (ss) return `${ss[1]}-02-01`;
+  const fw = /^FW\s+(\d{2})\/(\d{2})$/.exec(season.trim());
+  return fw ? `20${fw[1]}-08-01` : null;
+}
+
 /** Последний день сезона: SS YYYY → 31 июля, FW YY/YY+1 → 31 января второго года. */
 export function seasonEndIso(season: string): string | null {
   const ss = /^SS\s+(\d{4})$/.exec(season.trim());

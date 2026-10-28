@@ -11,6 +11,7 @@ import { formatCompactMoney } from "./compact";
 import { loadProductionDrill } from "./actions";
 import { useSeasonScope } from "./season-scope";
 import { drillForSeason } from "@/lib/season-orders";
+import { withVolume } from "@/lib/dashboard-drill";
 import { levelFor, ROOT_MODES, type DrillData, type Item, type PathStep, type RootMode } from "@/lib/dashboard-drill";
 
 // Палитра — валидированная категориальная (навык dataviz): одна серия — синий, состав — фиксированный порядок оттенков.
@@ -51,7 +52,8 @@ export function ProductionModal({
   const { mode: vat } = useVatDisplay();
   const [rawData, setData] = useState<DrillData | null>(null);
   const seasonSel = useSeasonScope()?.season ?? "all";
-  const data = useMemo(() => drillForSeason(rawData, seasonSel), [rawData, seasonSel]);
+  // «Произведено» = получено по приходу, как плитка (иначе столбцы окна не сойдутся с плиткой): доля ТЗ модели qf.
+  const data = useMemo(() => withVolume(drillForSeason(rawData, seasonSel), "produced"), [rawData, seasonSel]);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<RootMode>("batch");
   const [path, setPath] = useState<PathStep[]>([]);
@@ -323,7 +325,7 @@ export function ProductionModal({
 
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-600">
                 {matches != null ? (
-                  <span className={matches ? "text-emerald-700" : "text-red-700"}>{matches ? "✓ Сходится с плиткой" : `Σ столбцов ${formatMoney(level.total)} ≠ плитка ${formatMoney(tileTotal)}: в окне ограничено число ТЗ`}</span>
+                  <span className={matches ? "text-emerald-700" : "text-red-700"}>{matches ? "✓ Сходится с плиткой" : `Σ столбцов ${formatMoney(level.total)} ≠ плитка ${formatMoney(tileTotal)}`}</span>
                 ) : null}
                 {level.links.map((l) => <Link key={l.href} href={l.href} className="text-blue-700 underline-offset-2 hover:underline">{l.label} →</Link>)}
                 {level.kind === "composition" ? <span>Нажмите составляющую — лоты и закупки.</span> : null}

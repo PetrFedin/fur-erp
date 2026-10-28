@@ -88,12 +88,15 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
     for (const o of drill.orders) if (o.id.startsWith("no-tz")) got.set("FW 26/27", (got.get("FW 26/27") ?? 0) + (o.qd ?? 0));
     return Array.from(m).sort((a, b) => seasonRank(a[0]) - seasonRank(b[0])).map(([label, qty]) => ({ label, qty, got: Math.round(got.get(label) ?? 0) }));
   }, [season, drill]);
-  const done = sn ? sn.nums : doneP, work = sn ? ZERO : workP, all = sn ? sn.nums : allP;
-  const hides = sn ? { incl: 0, excl: 0 } : hidesP, c4Parts = sn ? { fur: { incl: 0, excl: 0 }, lining: { incl: 0, excl: 0 } } : c4PartsP, vatCost: VatByRate = sn ? {} : vatCostP;
+  // Пока данные ТЗ не загрузились — нули и «…» (серверные числа считались по статусам ТЗ и расходились с «получено»).
+  const ready = !!sn;
+  const done = sn ? sn.nums : ZERO, work = ZERO, all = sn ? sn.nums : ZERO;
+  const hides = { incl: 0, excl: 0 }, c4Parts = { fur: { incl: 0, excl: 0 }, lining: { incl: 0, excl: 0 } }, vatCost: VatByRate = {};
+  void hidesP; void c4PartsP; void vatCostP; void doneP; void workP; void allP;
   // «В выпуске» — заказ: на «Все» по сезонам (закрытые: заказ = приход; открытый FW 26/27: заказ и % пришло), в сезоне — по годам прихода.
   const ordOwn = useMemo(() => (drill ? drill.orders.filter((o) => !isRepair(o) && !o.id.startsWith("no-tz")) : []), [drill]);
   const ordQty = drill ? ordOwn.reduce((a, o) => a + o.qty, 0) : allP.qty;
-  const ordOrders = drill ? ordOwn.filter((o) => o.qty > 0).length : allP.orders;
+  const ordOrders = drill ? sumOrders(ordOwn.filter((o) => o.qty > 0), "incl").orders : allP.orders;
   const ordYears = drill ? (season === "all" && seasonQty && seasonQty.length > 0 ? seasonQty : yearsOf(ordOwn, season)) : yearsP;
   // «Произведено» — получено по приходу: на «Все» по сезонам прихода, в сезоне — по годам прихода.
   const prodSeasons = useMemo(() => (drill && season === "all" ? producedSeasons(drill.orders) : null), [season, drill]);
@@ -132,12 +135,12 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
   const money = (v: number) => formatMoney(v.toFixed(2));
   const active = open === "work" ? work : open === "all" ? fact : done;
 
-  const outputTile = (t: { title: string; hintLabel: string; hint: import("react").ReactNode; qty: number; orders: number; years: { label: string; qty: number; got?: number }[]; orders2: DrillOrder[]; got: boolean; split?: { clothes: { label: string; qty: number }[]; acc: { label: string; qty: number }[]; clothesQty: number; accQty: number } | null }) => (
+  const outputTile = (t: { title: string; hintLabel: string; hint: import("react").ReactNode; qty: number; orders: number; years: { label: string; qty: number; got?: number }[]; orders2: DrillOrder[]; got: boolean; loading?: boolean; split?: { clothes: { label: string; qty: number }[]; acc: { label: string; qty: number }[]; clothesQty: number; accQty: number } | null }) => (
     <TileCarousel sync={grpSync} clickable hoverBlocks title={t.title} hintLabel={t.hintLabel} slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа" hint={t.hint}
       slides={[
         { key: "total", label: "Всего", body: (
           <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label={`${t.title} — открыть себестоимость по статьям`} className={SLIDE_BTN}>
-            <TileValue>{formatQty(t.qty)} шт.</TileValue>
+            <TileValue>{t.loading ? "…" : `${formatQty(t.qty)} шт.`}</TileValue>
             <TileCaption>{`${t.orders} ТЗ`}</TileCaption>
             <dl className="mt-1 space-y-0.5 text-xs">
               {t.years.filter((y) => y.qty !== 0).map((y) => {
@@ -172,7 +175,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
         headerEnd={<Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">
         {outputTile({ title: OUTPUT_LABEL, hintLabel: "Что такое «в выпуске»", hint: <><p><b>{OUTPUT_LABEL}</b> — заказ: изделия по ТЗ. Закрытые сезоны (FW 25/26, SS 2026): заказ = приход. Открытый сезон (FW 26/27): заказ больше прихода на то, что ещё придёт; справа от сезона — какая часть заказа уже пришла.</p><p className="mt-1">Ремонт в штуки не входит (страница «Ремонт»). «Одежда» и «Аксессуары» дают «Всего».</p></>, qty: ordQty, orders: ordOrders, years: ordYears, orders2: drill?.orders ?? [], got: true })}
-        {outputTile({ title: "Произведено", hintLabel: "Что такое «произведено»", hint: <><p><b>Произведено</b> — то, что получено по файлу прихода, раскладывается на ТЗ модели. Стоимость и среднее на изделие справа считаются по произведённому.</p><p className="mt-1">Сезоны и годы — по сезону и году прихода. Внутри плиток можно переключать «Все» и сезоны на панели «Сезон».</p></>, qty: all.qty, orders: all.orders, years: prodYears, orders2: drillOrders, got: false, split: prodByGrp })}
+        {outputTile({ title: "Произведено", hintLabel: "Что такое «произведено»", hint: <><p><b>Произведено</b> — то, что получено по файлу прихода, раскладывается на ТЗ модели. Стоимость и среднее на изделие справа считаются по произведённому.</p><p className="mt-1">Сезоны и годы — по сезону и году прихода. Внутри плиток можно переключать «Все» и сезоны на панели «Сезон».</p></>, qty: all.qty, orders: all.orders, years: prodYears, orders2: drillOrders, got: false, loading: !ready, split: prodByGrp })}
         <TileCarousel sync={grpSync} clickable hoverBlocks title={`${COST_FULL_LABEL} произведённого`} hintLabel="Что такое полная себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
             <p>Факт по всем ТЗ: мех + подкладка{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Без работы — «Себестоимость сырья»: <b>{money(cost(fact))}</b>.</p>
@@ -182,7 +185,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
           slides={[
             { key: "total", label: "Всего", body: (
               <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Полная себестоимость (факт списания по всем ТЗ) — открыть гистограмму по партиям, годам, категориям и меху" className={SLIDE_BTN}>
-                <TileValue>{money(total)}</TileValue>
+                <TileValue>{ready ? money(total) : "…"}</TileValue>
                 <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-600">{c4 === "on" ? `${money(total - D.c4)} без 4%` : null}</div>
                 <TileCaption>{null}</TileCaption>
                 <dl className="mt-1 space-y-0.5 text-xs">
@@ -218,7 +221,7 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
           workTotal={active.work}
           search={search}
           totals={{ costIncl: active.costIncl + (open === "all" ? hides.incl : 0), costExcl: active.costExcl + (open === "all" ? hides.excl : 0), qty: active.qty, orders: active.orders }}
-          title={open === "done" ? `В выпуске ${formatQty(fact.qty)} шт.` : open === "all" ? `В выпуске ${formatQty(fact.qty)} шт. · полная себестоимость ${money(total)}` : `В выпуске ${formatQty(work.qty)} шт.`}
+          title={open === "done" ? `Произведено ${formatQty(fact.qty)} шт.` : open === "all" ? `Произведено ${formatQty(fact.qty)} шт. · полная себестоимость ${money(total)}` : `Произведено ${formatQty(work.qty)} шт.`}
           onClose={() => setOpen(null)}
         />
       ) : null}
@@ -238,10 +241,10 @@ function ProdBridgeHint({ done, c4, vat, bridge, vatCost }: { vatCost: VatByRate
   const vatAmount = done.costIncl - done.costExcl;
   return (
     <BridgeHint label="Как сходятся цифры производства" warn={!bridge.comparable}>
-      <p><b>Себестоимость сырья (все ТЗ, с ремонтом) {mln(D.cost)} = мех + подкладка {mln(D.mat)} + {c4 === "on" ? <>4%: {mln(D.c4)}</> : "4%: не начислено"} + расходы ТЗ и прочее {mln(other)}.</b> Работа {mln(done.work)} сюда не входит: полная себестоимость = сырьё + работа = {mln(D.cost + done.work)}.</p>
+      <p><b>Себестоимость сырья произведённого (получено, без ремонта) {mln(D.cost)} = мех + подкладка {mln(D.mat)} + {c4 === "on" ? <>4%: {mln(D.c4)}</> : "4%: не начислено"} + расходы ТЗ и прочее {mln(other)}.</b> Работа {mln(done.work)} сюда не входит: полная себестоимость = сырьё + работа = {mln(D.cost + done.work)}.</p>
       <p className="mt-1">НДС в себестоимости ({vat === "incl" ? "учтён" : "вычтен"}): {mln(vatAmount)}, по ставке лота (20% или 22%){vatEntries(vatCost).length ? <>; без 4%: {vatEntries(vatCost).map(([r, x]) => `${r}% — ${mln(x)}`).join(" · ")}</> : null}. 4% — только на мех и подкладку.</p>
       {bridge.comparable ? (
-        <p className="mt-1"><b>С блоком «Сырьё» сходится:</b> использовано {mln(bridge.usedBase[vat])} (без 4%) = мех и подкладка во всех ТЗ {mln(D.mat)}.</p>
+        <p className="mt-1"><b>С блоком «Сырьё»:</b> использовано {mln(bridge.usedBase[vat])} (без 4%) — сырьё по всем ТЗ, включая изделия, ещё не полученные, и ремонт. В «Произведено» только полученная часть: мех и подкладка {mln(D.mat)}; разница {mln(bridge.usedBase[vat] - D.mat)} — сырьё изделий в производстве и ремонта.</p>
       ) : (
         <p className="mt-1"><b>С блоком «Сырьё» не равно:</b>{" "}
           {bridge.yearOnly ? "«Сырьё» отбирает лоты по году закупки, «Производство» — ТЗ по году ТЗ. " : ""}

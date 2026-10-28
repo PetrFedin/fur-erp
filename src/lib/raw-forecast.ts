@@ -7,9 +7,10 @@ import { parseDashFilters } from "@/lib/dashboard-calc";
 import { normKey, type BudgetStat } from "@/lib/budget-calc";
 import type { ReportSizeRow } from "@/lib/margin-tree";
 import { loadReportSizes } from "@/lib/margin-server";
+import { tzAwaitSizes } from "@/lib/tz-await";
 
 /**
- * Прогноз сырья на остаток заказа FW26 (заказано − поступило по отчёту о товарах, по артикулу с учётом излишков других размеров — как «ждём» на Главной).
+ * Прогноз сырья на остаток заказа FW26 (объём ТЗ модели − получено по приходу — как «ждём» на Главной).
  * Значения на изделие: шкуры, цена шкуры, подкладка, цена метра — средние по ТЗ артикула (у новых — по категории), ₽ с НДС;
  * работа — прежняя цена модели из ТЗ (как в Excel «Работа на остаток заказа»). Где данных нет — null (поле пустое, вводится вручную).
  */
@@ -34,7 +35,9 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
     prisma.salesReceiptLine.findMany({ select: { article: true, modelCode: true, level4: true } }),
     prisma.productionOrder.findMany({ where: { clientWorkPricePerUnit: { not: null } }, select: { plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true, productModel: { select: { salesCode: true, sku: true } } } }),
   ]);
-  const rows: ReportSizeRow[] = sizeRows;
+  // Остаток заказа — по нашим ТЗ (объём ТЗ модели − получено по приходу), как «ждём» на Главной; отчёт о товарах не используется.
+  void sizeRows;
+  const rows: ReportSizeRow[] = await tzAwaitSizes(orgId, "off");
   const idOf = new Map<string, { id: string; cat: string | null }>();
   for (const m of models) for (const c of [m.salesCode, m.sku]) if (c) idOf.set(norm(c), { id: m.id, cat: m.category });
   const catByArt = new Map<string, string>(), catByModel = new Map<string, string>();

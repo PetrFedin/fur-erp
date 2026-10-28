@@ -1,4 +1,5 @@
 import "server-only";
+import { prisma } from "@/lib/prisma";
 import { loadRawForecast } from "@/lib/raw-forecast";
 import { listForecasts } from "@/lib/forecast-store";
 import { loadOrderRows } from "@/lib/analytics-orders";
@@ -24,6 +25,20 @@ export async function loadRawBalance(orgId: string): Promise<{ rows: RawBalance;
   }
   const price: Record<string, number> = {};
   for (const [f, [sum, h]] of acc) if (h > 0) price[f] = sum / h;
+  // Цены шкуры по типу меха, по которому в ТЗ расхода шкур нет (рысь): берём из бюджета FW27 (узлы этого меха с ценой шкуры), средневзвешенно по шкурам.
+  if (!price["Рысь"]) {
+    const sc = await prisma.budgetScenario.findFirst({ where: { organizationId: orgId }, orderBy: { updatedAt: "desc" }, select: { lines: true } });
+    let sum = 0, hides = 0;
+    const walk = (x: unknown) => {
+      if (Array.isArray(x)) { x.forEach(walk); return; }
+      if (!x || typeof x !== "object") return;
+      const o = x as Record<string, unknown>;
+      if ((o.fur === "Рысь" || o.statFur === "Рысь") && Number(o.hidePrice) > 0) { const h = Math.max(1, Number(o.hides) * Number(o.pcs || 1) || Number(o.hides) || 1); sum += h * Number(o.hidePrice); hides += h; }
+      Object.values(o).forEach(walk);
+    };
+    walk(sc?.lines);
+    if (hides > 0) price["Рысь"] = sum / hides;
+  }
   // Как реально делим мех в изделиях «Норка + Соболь»: шкуры норки и соболя по строкам ТЗ.
   const use = { RTW: [0, 0], Acc: [0, 0] };
   for (const o of orders) {

@@ -4,7 +4,7 @@ import "server-only";
 // новые только суммы «по себестоимости» и «по прайсу» (приход и остаток), с охватом в штуках — где цены или себестоимости нет, строка не считается и охват это показывает.
 import { exVatAt, type MarginInput } from "@/lib/margin";
 import { makeCtx, type Ctx, type ReportSizeRow, type VatMode } from "@/lib/margin-tree";
-import { classOfLevel2, furTypeOfFabric, seasonEndIso, seasonOfDate } from "@/lib/sales-receipts-core";
+import { classOfLevel2, furTypeOfFabric, seasonEndIso, seasonOfDate, seasonStartIso } from "@/lib/sales-receipts-core";
 import { seasonRank, todayMsk, type Cat, type SDim } from "@/lib/sales-section";
 import { applyFilters, bucketsOf, buildSalesTree, extOf, lastMonthOf, NO_FILTERS, openingStock, sizeNodes, sortSeasons, totalSalesNode, type Ext, type Filters, type SLine, type SNode } from "@/lib/sales-section";
 import { loadSalesInput } from "@/lib/sales-server";
@@ -258,7 +258,13 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
     const opening = openingStock(all, f);
     const hIn = extOf(ctxs.in, lines, env), hEx = extOf(ctxs.ex, lines, env);
     return {
-      soAs: (() => { const se = f.seasons.length === 1 ? finishedEnd(f.seasons[0]) : null; return se && hIn.received > 0 ? lines.filter((l) => l.kind === "SALE" && l.iso <= se).reduce((a, l) => a + l.pcs, 0) / hIn.received : null; })(),
+      soAs: (() => {
+        // SO AS: продажи товара сезона до конца сезона ÷ приход этого товара внутри календарного окна сезона (то, что пришло позже конца сезона, в знаменатель не входит).
+        const se = f.seasons.length === 1 ? finishedEnd(f.seasons[0]) : null, ss = f.seasons.length === 1 ? seasonStartIso(f.seasons[0]) : null;
+        if (!se || !ss) return null;
+        const inWin = lines.filter((l) => l.kind === "RECEIPT" && l.iso >= ss && l.iso <= se).reduce((a, l) => a + l.pcs, 0);
+        return inWin > 0 ? lines.filter((l) => l.kind === "SALE" && l.iso <= se).reduce((a, l) => a + l.pcs, 0) / inWin : null;
+      })(),
       stockCum: 0, stockListCum: { in: 0, ex: 0 }, markupStockCum: { in: null, ex: null },
       received: hIn.received, sold: hIn.sold, gross: hIn.gross, returns: hIn.returns, opening, stock: opening + hIn.received - hIn.sold, sellThrough: hIn.sellThrough,
       orders: new Set(lines.map((l) => l.orderNo)).size, articles: new Set(lines.map((l) => l.article)).size,
