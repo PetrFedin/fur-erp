@@ -16,7 +16,7 @@ import { GroupCostSlide, GroupProducedSlide, PROD_GROUPS } from "@/components/pr
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
 import { SEG_GROUP, segCls } from "@/components/segmented";
-import type { VolumeMode } from "@/lib/dashboard-drill";
+import { withVolume, type VolumeMode } from "@/lib/dashboard-drill";
 import { TileCaption, TileValue } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
 import { formatCompactMoney } from "./compact";
@@ -39,24 +39,26 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
   const [volume, setVolume] = useState<VolumeMode>("ordered");
   const grpSync = { index: grpIdx, onChange: setGrpIdx };
   const { data: drill } = useDrill(search);
-  const drillOrders = drill?.orders ?? [];
+  // Плитки и таблицы блока считаются по выбранному объёму: «Заказано» — все ТЗ, «Произведено» — получено по приходу.
+  const vdrill = useMemo(() => (volume === "produced" ? withVolume(drill, "produced") : drill), [drill, volume]);
+  const drillOrders = vdrill?.orders ?? [];
   // Сезон из панели «Сезон» Главной: плитки считаются от ТЗ выбранного сезона (доли ТЗ по приходу модели, см. order-seasons.ts); «Все» — готовые числа страницы.
   const season = useSeasonScope()?.season ?? "all";
   const sn = useMemo(() => {
-    if (season === "all" || !drill) return null;
-    const own = drill.orders.filter((o) => !isRepair(o));
+    if (!vdrill || (season === "all" && volume === "ordered")) return null;
+    const own = vdrill.orders.filter((o) => !isRepair(o));
     const I = sumOrders(own, "incl"), E = sumOrders(own, "excl");
     const nums: ProdNums = { items: I.items, repairOrders: 0, repairQty: 0, repairCostIncl: 0, repairCostExcl: 0, orders: I.orders, qty: I.qty, costIncl: I.fur + I.lining + I.c4 + I.other, costExcl: E.fur + E.lining + E.c4 + E.other, work: I.work, furIncl: I.fur, furExcl: E.fur, liningIncl: I.lining, liningExcl: E.lining, matIncl: I.fur + I.lining, matExcl: E.fur + E.lining, c4Incl: I.c4, c4Excl: E.c4 };
     // Годы — по году прихода (а не по дате ТЗ): в сезоне, начавшемся в 2026, не бывает «2025»; FW 25/26 делится на пришедшее в 2025 и в 2026.
     const ys = new Map<string, number>();
     for (const o of own) {
       const base = o.orig ?? o;
-      const inSeason = Object.entries(base.swy ?? {}).filter(([k]) => k.split("|")[0] === season), tot = inSeason.reduce((a, [, v]) => a + v, 0);
+      const inSeason = Object.entries(base.swy ?? {}).filter(([k]) => season === "all" || k.split("|")[0] === season), tot = inSeason.reduce((a, [, v]) => a + v, 0);
       if (tot > 0) { for (const [k, share] of inSeason) { const yy = k.split("|")[1]; ys.set(yy, (ys.get(yy) ?? 0) + o.qty * (share / tot)); } }
       else { const k = o.y != null ? String(o.y) : "без года"; ys.set(k, (ys.get(k) ?? 0) + o.qty); }
     }
     return { nums, years: Array.from(ys).sort((a, b) => a[0].localeCompare(b[0])).map(([label, qty]) => ({ label, qty })) };
-  }, [season, drill]);
+  }, [season, vdrill, volume]);
   const ZERO: ProdNums = { items: 0, repairOrders: 0, repairQty: 0, repairCostIncl: 0, repairCostExcl: 0, orders: 0, qty: 0, costIncl: 0, costExcl: 0, work: 0, furIncl: 0, furExcl: 0, liningIncl: 0, liningExcl: 0, matIncl: 0, matExcl: 0, c4Incl: 0, c4Excl: 0 };
   // На «Все» в плитке «В выпуске» — разбивка по сезонам (доли ТЗ по приходу модели), а не по годам ТЗ; пока ТЗ не загрузились — годы страницы.
   const seasonQty = useMemo(() => {
@@ -109,6 +111,12 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
 
   return (
     <section aria-label="Производство" className="space-y-2">
+      {/* Объём блока: «Заказано» — все ТЗ по плану, «Произведено» — получено по приходу. Плитки и таблицы ниже считаются по выбранному объёму. */}
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
+        <span className="text-xs text-neutral-600">Показывать:</span>
+        <div role="group" aria-label="Объём: заказано или произведено" className={SEG_GROUP}>
+          {([["ordered", "Заказано"], ["produced", "Произведено"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={volume === k} onClick={() => setVolume(k)} className={segCls(volume === k)}>{t}</button>)}
+        </div>
       <WidgetRow id="prod" title="Производство"
         headerExtra={<ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />}
         headerEnd={<Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
@@ -175,15 +183,9 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
                 <GroupCostSlide all={drillOrders} grp={g} vat={vat} c4={c4} loading={!drill} compact />
               </button>) })),
           ]} />
-        <AveragesTile data={drill} sync={{ index: Math.max(0, grpIdx - 1), onChange: (i) => setGrpIdx(i + 1) }} />
+        <AveragesTile data={vdrill} sync={{ index: Math.max(0, grpIdx - 1), onChange: (i) => setGrpIdx(i + 1) }} />
       </div>
       </WidgetRow>
-      {/* Объём таблиц: «Заказано» — все ТЗ по плану (план ТЗ), «Произведено» — только завершённые по фактическому выпуску. Деньги — по тем же ТЗ. */}
-      <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <span className="text-xs text-neutral-600">Объём в таблицах ниже:</span>
-        <div role="group" aria-label="Объём таблиц" className={SEG_GROUP}>
-          {([["ordered", "Заказано"], ["produced", "Произведено"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={volume === k} onClick={() => setVolume(k)} className={segCls(volume === k)}>{t}</button>)}
-        </div>
         <InfoHint label="Заказано и произведено" wide><p><b>Заказано</b> — все ТЗ (завершённые, в работе, запланированные) по плановому количеству. <b>Произведено</b> — только то, что получено по файлу прихода, разложенное по ТЗ модели; что не получено, считается «в работе». Деньги и средние считаются по тем же ТЗ, что штуки.</p></InfoHint>
       </div>
 

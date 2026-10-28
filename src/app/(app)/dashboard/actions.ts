@@ -33,7 +33,7 @@ export async function loadProductionDrill(scope: "done" | "work" | "all", search
     // Приход MVST РМ, под который в ТЗ нет объёма: отдельная строка без стоимости, чтобы «Произведено» в таблицах сходилось с «Получено».
     if (sc === "all" && year === "all" && !orderFiltersOn(f) && !lotFiltersOn(f)) {
       const extra = await receivedWithoutTz(orgId, c4);
-      for (const [g, n] of Object.entries(extra)) out.push({ id: `no-tz-${g}`, number: "—", wo: null, bk: "none", bl: "Вне партий", y: null, st: "COMPLETED", cat: "Получено, ТЗ не заведены", grp: g === "Без группы" ? NO_GROUP : g, mid: `no-tz-${g}`, ml: "Получено, ТЗ не заведены", fur: "—", qty: 0, qo: 0, qd: n, work: 0, exp: 0, hI: 0, hE: 0, resI: 0, resE: 0, lines: [] });
+      for (const [g, n] of Object.entries(extra)) out.push({ id: `no-tz-${g}`, number: "—", wo: null, bk: "none", bl: "Вне партий", y: 2026, st: "COMPLETED", cat: "Получено, ТЗ не заведены", grp: g === "Без группы" ? NO_GROUP : g, mid: `no-tz-${g}`, ml: "Получено, ТЗ не заведены", fur: "—", qty: 0, qo: 0, qd: n, work: 0, exp: 0, hI: 0, hE: 0, resI: 0, resE: 0, lines: [] });
     }
     return { c4, orders: out };
   });
