@@ -19,7 +19,7 @@ import { Prisma } from "@prisma/client";
 const APPLY = process.argv.includes("--apply");
 const ROLLBACK = process.argv.includes("--rollback");
 const DIR = process.argv.find((a) => a.startsWith("--dir="))?.slice(6) ?? join(homedir(), "Downloads");
-const JOURNAL = join(resolve(__dirname, ".."), "docs-inventory", "corrections-journal-fill-tz-184-189-2026-10-28.json");
+const JOURNAL = join(resolve(__dirname, ".."), "docs-inventory", process.argv.includes("--second") ? "corrections-journal-fill-tz-190-192-2026-10-28.json" : "corrections-journal-fill-tz-184-189-2026-10-28.json");
 const D = Prisma.Decimal;
 const num = (s: string) => Number(s.replace(/\s/g, "").replace(",", "."));
 
@@ -41,7 +41,10 @@ function parse(text: string): Parsed {
   // позиции: после «ИТОГО в руб. в т.ч. НДС 22%» идут группами по 10 ячеек: №, наименование, цвет, модель, материал, размер, подкладка, кол-во, работа, цена, итого → 11
   const iHead = lines.findIndex((l) => l.startsWith("ИТОГО в руб. в т.ч. НДС"));
   const iTot = lines.findIndex((l, i) => i > iHead && l.startsWith("Итого:"));
-  const flat = lines.slice(iHead + 1, iTot).map((l) => l.replace(/\s*\|\s*/g, ""));
+  const flat0 = lines.slice(iHead + 1, iTot).map((l) => l.replace(/\s*\|\s*/g, ""));
+  // ячейка с переносом строки («…;» + продолжение) — склеиваем
+  const flat: string[] = [];
+  for (const l of flat0) { if (flat.length && flat[flat.length - 1].endsWith(";")) flat[flat.length - 1] += " " + l; else flat.push(l); }
   const items: Parsed["items"] = [];
   for (let i = 0; i + 10 < flat.length; i += 11) items.push({ name: flat[i + 1], color: flat[i + 2].trim(), model: flat[i + 3], material: flat[i + 4], size: flat[i + 5], lining: flat[i + 6], qty: num(flat[i + 7]), work: num(flat[i + 8]), price: num(flat[i + 9]) });
   // материалы: после «Общая стоимость товаров в т.ч. НДС 22%» группами по 7: наименование, лот, ед., кол-во, цена без НДС, НДС, итого
@@ -74,6 +77,7 @@ async function main() {
       for (const o of j.orders.slice().reverse()) {
         await tx.productionExpense.deleteMany({ where: { id: { in: o.expenseIds } } });
         for (const e of o.delExpenses) await tx.productionExpense.create({ data: { productionOrderId: o.id, categoryId: e.categoryId, amount: e.amount, date: new Date(e.date), description: e.description } });
+        if ((o.before as { __created?: boolean }).__created) { await tx.productionOrder.delete({ where: { id: o.id } }); continue; }
         await tx.productionOrder.update({ where: { id: o.id }, data: o.before as never });
         if (o.movement) await tx.finishedGoodsMovement.update({ where: { id: o.movement.id }, data: { totalCost: o.movement.totalCost, unitCost: o.movement.unitCost } });
         if (o.stock) await tx.finishedGoodsStock.update({ where: { id: o.stock.id }, data: { quantity: o.stock.quantity, avgUnitCost: o.stock.avgUnitCost } });
@@ -86,8 +90,9 @@ async function main() {
   }
   if (APPLY && existsSync(JOURNAL)) { console.log("Журнал уже есть — сначала --rollback."); await prisma.$disconnect(); return; }
 
-  const files = readdirSync(DIR).filter((f) => /^ПРИЛОЖЕНИЕ.{0,3}(184|185|186|187|188|189)\D.*\.docx$/i.test(f.normalize("NFC")) || /^ПРИЛОЖЕНИЕ[ _](184|185|186|187|188|189)[ _(]/.test(f.normalize("NFC")));
-  const docs = files.map((f) => parse(docxText(join(DIR, f))));
+  const files = readdirSync(DIR).filter((f) => /^ПРИЛОЖЕНИЕ.{0,3}(184|185|186|187|188|189|190|191|192)\D.*\.docx$/i.test(f.normalize("NFC")) || /^ПРИЛОЖЕНИЕ[ _](184|185|186|187|188|189|190|191|192)[ _(]/.test(f.normalize("NFC")));
+  const SECOND = process.argv.includes("--second");
+  const docs = files.map((f) => parse(docxText(join(DIR, f)))).filter((d) => !SECOND || Number(d.wo) >= 190);
   docs.sort((a, b) => Number(a.wo) - Number(b.wo));
   const org = await prisma.organization.findFirstOrThrow({ orderBy: { createdAt: "asc" } });
   let cat = await prisma.expenseCategory.findFirst({ where: { organizationId: org.id, name: "Материалы заказчика по документу ТЗ" } });
@@ -95,7 +100,29 @@ async function main() {
 
   for (const doc of docs) {
     const order = await prisma.productionOrder.findFirst({ where: { organizationId: org.id, workOrderNumber: doc.wo }, include: { expenses: true } });
-    if (!order) { console.log(`ТЗ ${doc.wo}: в системе нет — пропуск`); continue; }
+    if (!order) {
+      // Нового ТЗ (не получено в рознице): заводим «Запланировано», без выпуска и без прихода на склад; модель и подрядчик — по образцу последнего ТЗ этой модели.
+      const code = doc.items[0].model.replace(/[-\s]/g, "").toUpperCase();
+      const models = await prisma.productModel.findMany({ where: { organizationId: org.id }, select: { id: true, name: true } });
+      const model = models.find((m) => m.name.replace(/[-\s]/g, "").toUpperCase().replace(/М/g, "M").replace(/А/g, "A") === code.replace(/М/g, "M").replace(/А/g, "A"));
+      const tpl = model ? await prisma.productionOrder.findFirst({ where: { productModelId: model.id }, orderBy: { number: "desc" } }) : null;
+      if (!model || !tpl) { console.log(`ТЗ ${doc.wo}: нет модели/образца — пропуск`); continue; }
+      const first = doc.items[0], qty = doc.items.reduce((a, i) => a + i.qty, 0);
+      const matsIncl = doc.matsTotal, matsEx = matsIncl / 1.22;
+      const lastNo = (await prisma.productionOrder.findMany({ where: { number: { startsWith: "П-2026-" } }, select: { number: true } })).map((o) => Number(o.number.slice(7))).reduce((a, b) => Math.max(a, b), 0);
+      const lotLines = doc.mats.map((m) => `• ${m.name}${m.lot ? ` (лот ${m.lot})` : ""}: ${m.qty} ${m.unit} × ${m.unitEx.toLocaleString("ru-RU")} ₽ без НДС = ${m.total.toLocaleString("ru-RU")} ₽ с НДС 22 %`).join("\n");
+      const notes = [`ТЗ №${doc.wo} от ${doc.date.split("-").reverse().join(".")}: данные внесены из приложения к Договору подряда №1605 (docx). Изделие пока НЕ получено в рознице: считается «в производстве» (статус неизвестен).`, `Изделие: ${first.name}; цвет ${first.color}; модель ${first.model}; материал ${first.material}; размеры ${first.size}; подкладка ${first.lining}. Цена работы ${first.work.toLocaleString("ru-RU")} ₽/шт., итого по ТЗ ${doc.docTotal.toLocaleString("ru-RU")} ₽.`, `Материалы заказчика (на склад не списаны):\n${lotLines}\nИтого материалы: ${matsIncl.toLocaleString("ru-RU")} ₽ с НДС 22 %.`, `Срок завершения работ: до ${doc.deadline}. Оплата: аванс 70 %, доплата по готовности.`].join("\n");
+      console.log(`ТЗ ${doc.wo}: НОВОЕ (${model.name} ${qty} шт., ${first.color}, ${first.size}), материалы ${matsIncl.toLocaleString("ru-RU")} ₽ — статус «Запланировано»`);
+      if (!APPLY) continue;
+      await prisma.$transaction(async (tx) => {
+        if (!cat) { cat = await tx.expenseCategory.create({ data: { organizationId: org.id, name: "Материалы заказчика по документу ТЗ", kind: "PRODUCTION" } }); journal.categoryCreated = cat.id; }
+        const colorRef = await tx.colorRef.findFirst({ where: { organizationId: org.id, name: { equals: first.color, mode: "insensitive" } } });
+        const o = await tx.productionOrder.create({ data: { organizationId: org.id, number: `П-2026-${String(lastNo + 1).padStart(4, "0")}`, productModelId: model.id, rawWarehouseId: tpl.rawWarehouseId, finishedWarehouseId: tpl.finishedWarehouseId, status: "PLANNED", plannedQuantity: new D(qty), producedQuantity: new D(0), color: first.color, colorRefId: colorRef?.id ?? null, size: first.size, materialDescription: first.material, lining: first.lining === "-" ? null : first.lining, notes, clientId: tpl.clientId, contractNumber: tpl.contractNumber, contractorId: tpl.contractorId, workOrderNumber: doc.wo, workOrderDate: new Date(doc.date + "T00:00:00.000Z"), clientWorkPricePerUnit: new D(first.work) } });
+        const ex = await tx.productionExpense.create({ data: { productionOrderId: o.id, categoryId: cat.id, amount: new D(matsEx.toFixed(2)), date: new Date(doc.date + "T00:00:00.000Z"), description: `материалы заказчика по документу ТЗ №${doc.wo} (без НДС; с НДС 22 % ${matsIncl.toLocaleString("ru-RU")} ₽)` } });
+        journal.orders.push({ id: o.id, before: { __created: true }, expenseIds: [ex.id], delExpenses: [], movement: null, stock: null });
+      });
+      continue;
+    }
     const qty = doc.items.reduce((s, i) => s + i.qty, 0);
     if (!new D(qty).eq(order.plannedQuantity)) { console.log(`ТЗ ${doc.wo}: количество в документе ${qty} ≠ в системе ${order.plannedQuantity} — пропуск`); continue; }
     const first = doc.items[0];
