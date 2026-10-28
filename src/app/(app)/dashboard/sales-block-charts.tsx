@@ -9,8 +9,8 @@ import { seasonRank } from "@/lib/sales-section";
 // Графики блока «Продажи и остатки» на Главной: столбцы и линия на двух шкалах, как в разделе /sales, но в оформлении плиток Главной.
 // Широкий ряд прокручивается внутри карточки; подсказка с цифрами — при наведении или касании периода и в строке под графиком.
 
-type Series = { name: string; color: string; vals: number[]; kind: "bar" | "line"; axis: "l" | "r"; fmt: (v: number) => string; /** Столбец составной: части друг на друге (продано по сезонам товара). */ parts?: { name: string; color: string; vals: number[] }[] };
-type Pt = { key: string; label: string };
+export type Series = { name: string; color: string; vals: number[]; kind: "bar" | "line"; axis: "l" | "r"; fmt: (v: number) => string; /** Столбец составной: части друг на друге (продано по сезонам товара). */ parts?: { name: string; color: string; vals: number[] }[]; /** Префикс подписи частей в легенде (по умолчанию «Продано»). */ partLabel?: string };
+export type Pt = { key: string; label: string };
 
 function niceMax(v: number) {
   if (v <= 0) return 1;
@@ -21,7 +21,7 @@ function niceMax(v: number) {
 
 const H = 230, PT = 14, PB = 46, PL = 46, PR = 52;
 
-function Chart({ pts, series, label, testId, valueLabels = [] }: { pts: Pt[]; series: Series[]; label: string; testId: string; /** Ряды, над которыми подписываются значения (например, «Продано, шт.» и «Остаток, шт.» при наведении на строку таблицы). */ valueLabels?: string[] }) {
+export function Chart({ pts, series, label, testId, valueLabels = [] }: { pts: Pt[]; series: Series[]; label: string; testId: string; /** Ряды, над которыми подписываются значения (например, «Продано, шт.» и «Остаток, шт.» при наведении на строку таблицы). */ valueLabels?: string[] }) {
   const [hot, setHot] = useState<number | null>(null);
   /** Ряд, на который навели в подписях под графиком: остальные приглушаются (мышь, клавиатура, касание). */
   const [hotS, setHotS] = useState<string | null>(null);
@@ -97,7 +97,7 @@ function Chart({ pts, series, label, testId, valueLabels = [] }: { pts: Pt[]; se
         </svg>
       </div>
       <div className="mt-1 flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-700" aria-live="polite">
-        {series.flatMap((s) => (s.parts ? s.parts.map((pt) => ({ name: `Продано, ${pt.name}`, color: pt.color, fmt: s.fmt, vals: pt.vals })) : [s])).map((s) => <span key={s.name} tabIndex={0} role="button" aria-pressed={hotS === s.name} onMouseEnter={() => setHotS(s.name)} onMouseLeave={() => setHotS(null)} onFocus={() => setHotS(s.name)} onBlur={() => setHotS(null)} onClick={() => setHotS((c) => (c === s.name ? null : s.name))} className={"inline-flex min-h-6 cursor-pointer items-center gap-1 rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-blue-600 " + (hotS === s.name ? "bg-neutral-100 font-medium text-neutral-900" : "")}><i aria-hidden className="inline-block size-2.5 rounded-sm" style={{ background: s.color }} />{s.name}{hot !== null ? <b className="tabular-nums text-neutral-900"> {s.fmt(s.vals[hot])}</b> : null}</span>)}
+        {series.flatMap((s) => (s.parts ? s.parts.map((pt) => ({ name: `${s.partLabel ?? "Продано"}, ${pt.name}`, color: pt.color, fmt: s.fmt, vals: pt.vals })) : [s])).map((s) => <span key={s.name} tabIndex={0} role="button" aria-pressed={hotS === s.name} onMouseEnter={() => setHotS(s.name)} onMouseLeave={() => setHotS(null)} onFocus={() => setHotS(s.name)} onBlur={() => setHotS(null)} onClick={() => setHotS((c) => (c === s.name ? null : s.name))} className={"inline-flex min-h-6 cursor-pointer items-center gap-1 rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-blue-600 " + (hotS === s.name ? "bg-neutral-100 font-medium text-neutral-900" : "")}><i aria-hidden className="inline-block size-2.5 rounded-sm" style={{ background: s.color }} />{s.name}{hot !== null ? <b className="tabular-nums text-neutral-900"> {s.fmt(s.vals[hot])}</b> : null}</span>)}
         {hot !== null ? <span className="ml-auto font-medium text-neutral-900">{pts[hot].label}</span> : null}
       </div>
     </div>

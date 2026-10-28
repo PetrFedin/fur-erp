@@ -117,6 +117,9 @@ export function seasonOfDate(iso: string): string {
  * делится на две строки (штуки и суммы — пропорционально). Отрицательный приход уменьшает самую раннюю партию с остатком.
  * Нет прихода — сезон по дате самой строки.
  */
+/** Сезон прихода: сезон товара из выгрузки («FW 25/26», «SS 2026», «FW 26/27»), если он указан; иначе по дате прихода. */
+const seasonOfLine = (l: { iso: string; season: string }) => (/^(FW|SS)\s?\d/i.test((l.season ?? "").trim()) ? l.season.trim().replace(/^(FW|SS)(\d)/i, "$1 $2") : seasonOfDate(l.iso));
+
 export function assignSeasons<T extends { id?: string; kind: string; iso: string; article: string; colorId: string | null; pcs: number; season: string }>(lines: T[]): T[] {
   const keyOf = (l: T) => l.article + "|" + (l.colorId ?? "");
   const groups = new Map<string, T[]>();
@@ -126,10 +129,10 @@ export function assignSeasons<T extends { id?: string; kind: string; iso: string
     const sorted = [...g].sort((x, y) => (x.iso < y.iso ? -1 : x.iso > y.iso ? 1 : (x.kind === "RECEIPT" ? 0 : 1) - (y.kind === "RECEIPT" ? 0 : 1)));
     const firstRec = sorted.find((l) => l.kind === "RECEIPT" && l.pcs > 0);
     const queue: { season: string; left: number }[] = [];
-    let lastSeason = firstRec ? seasonOfDate(firstRec.iso) : null;
+    let lastSeason = firstRec ? seasonOfLine(firstRec) : null;
     for (const l of sorted) {
       if (l.kind === "RECEIPT" && l.pcs > 0) {
-        const season = seasonOfDate(l.iso);
+        const season = seasonOfLine(l);
         queue.push({ season, left: l.pcs }); lastSeason = season;
         out.set(l, [{ ...l, season }]);
         continue;
@@ -138,7 +141,7 @@ export function assignSeasons<T extends { id?: string; kind: string; iso: string
         // Отрицательный приход (корректировка): уменьшает самую раннюю партию, где ещё есть что снять.
         let need = -l.pcs;
         const q = queue.find((x) => x.left > 0);
-        const season = q?.season ?? (firstRec ? seasonOfDate(firstRec.iso) : seasonOfDate(l.iso));
+        const season = q?.season ?? (firstRec ? seasonOfLine(firstRec) : seasonOfDate(l.iso));
         for (const x of queue) { if (need <= 0) break; const t = Math.min(x.left, need); x.left -= t; need -= t; }
         out.set(l, [{ ...l, season }]);
         continue;
