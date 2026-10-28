@@ -24,7 +24,7 @@ import "./stubs/server-only-shim";
   const ws = wb.addWorksheet("Сверх ТЗ");
   ws.addRow(["Полученное сверх ТЗ по артикулу и цвету (на 28.10.2026). Сверх ТЗ = пришло по артикулу − объём ТЗ этого цвета, если больше нуля. Разница только в размере — не сверх: пришедшие размеры вписаны как пришли (по отчёту MVST), остаток прихода без известного размера положен на свободные размеры ТЗ. Размеров в файле прихода нет."]);
   ws.addRow([]);
-  ws.addRow(["Артикул / размер", "В каких ТЗ (номер: шт.)", "В ТЗ, шт.", "Пришло, шт.", "Разница (пришло − в ТЗ)", "Когда пришло сверх", "Стоимость сверх ТЗ, ₽ с НДС"]);
+  ws.addRow(["Артикул / размер", "В каких ТЗ (номер: шт.)", "В ТЗ, шт.", "Пришли эти размеры (отчёт MVST), шт.", "Пришло всего (с остатком без размера), шт.", "Разница (пришло − в ТЗ)", "Когда пришло сверх", "Стоимость сверх ТЗ, ₽ с НДС"]);
   let tot = 0, totCost = 0;
   for (const m of models) {
     const lines = rc.filter((r) => (keyOf.get(N(r.modelCode || "")) ?? keyOf.get(N(r.article.split(/[ /+]/)[0]))) === m.id);
@@ -57,25 +57,25 @@ import "./stubs/server-only-shim";
       const cost = unit ? Math.round(over * unit) : null;
       tot += over; if (cost) totCost += cost;
       const colorName = art.split("/").slice(1).join("/").trim();
-      const hr = ws.addRow([`${art}${ru.length && useTz.length ? ` (${[...new Set(useTz.map((o) => o.color).filter(Boolean))].join(", ")})` : ""}`, useTz.length ? useTz.map((o) => o.number).join(", ") : "ТЗ на модель нет", tzQty, got, `+${over}`, [...lastDates].join(", "), cost ?? "нет себестоимости"]);
+      const hr = ws.addRow([`${art}${ru.length && useTz.length ? ` (${[...new Set(useTz.map((o) => o.color).filter(Boolean))].join(", ")})` : ""}`, useTz.length ? useTz.map((o) => o.number).join(", ") : "ТЗ на модель нет", tzQty, known, got, `+${over}`, [...lastDates].join(", "), cost ?? "нет себестоимости"]);
       hr.font = { bold: true }; hr.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEFEF" } };
       for (const k of sizes) {
         const t = tzBy.get(k)?.n ?? 0, a = shown.get(k) ?? 0;
         if (t === 0 && a === 0) continue;
-        const row = ws.addRow([`   размер ${k}`, tzBy.get(k) ? tzBy.get(k)!.docs.join("; ") : "в ТЗ этого размера нет", t, a, a - t === 0 ? "" : a - t > 0 ? `+${a - t}` : `${a - t}`]);
-        if (a > t) row.getCell(5).font = { bold: true, color: { argb: "FFB00020" } };
+        const row = ws.addRow([`   размер ${k}`, tzBy.get(k) ? tzBy.get(k)!.docs.join("; ") : "в ТЗ этого размера нет", t, arrived.get(k) ?? 0, a, a - t === 0 ? "" : a - t > 0 ? `+${a - t}` : `${a - t}`]);
+        if (a > t) row.getCell(6).font = { bold: true, color: { argb: "FFB00020" } };
       }
-      if (rest > 0) { const row = ws.addRow(["   размер неизвестен (пришло сверх всех размеров ТЗ)", "", 0, rest, `+${rest}`]); row.getCell(5).font = { bold: true, color: { argb: "FFB00020" } }; }
+      if (rest > 0) { const row = ws.addRow(["   размер не указан в приходе (сверх всех размеров ТЗ)", "", 0, 0, rest, `+${rest}`]); row.getCell(6).font = { bold: true, color: { argb: "FFB00020" } }; }
       void colorName; void unk;
     }
   }
   ws.addRow([]);
-  const total = ws.addRow(["ИТОГО сверх ТЗ (по артикулу и цвету)", "", "", "", `+${tot}`, "", totCost]); total.font = { bold: true };
+  const total = ws.addRow(["ИТОГО сверх ТЗ (по артикулу и цвету)", "", "", "", "", `+${tot}`, "", totCost]); total.font = { bold: true };
   ws.addRow(["Примечание: на Главной «получено сверх ТЗ» 16 шт. считается по модели целиком: у M012 по другим цветам ТЗ получены не полностью (−1), поэтому там 6, а здесь по цвету BGL 7. Деньги здесь по цвету, на Главной по модели."]);
-  ws.getRow(1).alignment = { wrapText: true, vertical: "top" }; ws.mergeCells(1, 1, 1, 7); ws.getRow(1).height = 75;
+  ws.getRow(1).alignment = { wrapText: true, vertical: "top" }; ws.mergeCells(1, 1, 1, 8); ws.getRow(1).height = 75;
   ws.getRow(3).font = { bold: true }; ws.getRow(3).alignment = { wrapText: true };
-  [48, 60, 10, 12, 18, 20, 22].forEach((w, i) => (ws.getColumn(i + 1).width = w));
-  ws.getColumn(2).alignment = { wrapText: true, vertical: "top" };
+  [52, 90, 10, 20, 22, 16, 18, 22].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  ws.getColumn(2).alignment = { wrapText: false, vertical: "top" };
   ws.views = [{ state: "frozen", ySplit: 3 }];
   await wb.xlsx.writeFile(process.argv[2]);
   console.log("сверх ТЗ шт.", tot, "сумма", totCost);
