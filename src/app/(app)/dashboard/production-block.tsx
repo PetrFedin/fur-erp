@@ -16,7 +16,7 @@ import { GroupCostSlide, GroupProducedSlide, PROD_GROUPS } from "@/components/pr
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
 import { SEG_GROUP, segCls } from "@/components/segmented";
-import { withVolume, type VolumeMode } from "@/lib/dashboard-drill";
+import { withVolume, type DrillOrder, type VolumeMode } from "@/lib/dashboard-drill";
 import { TileCaption, TileValue } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
 import { formatCompactMoney } from "./compact";
@@ -31,34 +31,49 @@ const addNums = (a: ProdNums, b: ProdNums): ProdNums => ({ items: a.items + b.it
 
 type VatPair = { incl: number; excl: number };
 
+/** Годы — по году прихода (а не по дате ТЗ): в сезоне, начавшемся в 2026, не бывает «2025»; FW 25/26 делится на пришедшее в 2025 и в 2026. На «Все» — по всем сезонам. */
+function yearsOf(orders: DrillOrder[], season: string): { label: string; qty: number }[] {
+  const ys = new Map<string, number>();
+  for (const o of orders) {
+    const base = o.orig ?? o;
+    const inSeason = Object.entries(base.swy ?? {}).filter(([k]) => season === "all" || k.split("|")[0] === season), tot = inSeason.reduce((a, [, v]) => a + v, 0);
+    if (tot > 0) { for (const [k, share] of inSeason) { const yy = k.split("|")[1]; ys.set(yy, (ys.get(yy) ?? 0) + o.qty * (share / tot)); } }
+    else { const k = o.y != null ? String(o.y) : "2026"; ys.set(k, (ys.get(k) ?? 0) + o.qty); }
+  }
+  return Array.from(ys).sort((a, b) => a[0].localeCompare(b[0])).map(([label, qty]) => ({ label, qty }));
+}
+
+/** «Произведено» по сезонам прихода: Σ qd × доля сезона; штуки без ТЗ — в открытый сезон. grp — только группа категорий (или все). */
+function producedSeasons(orders: DrillOrder[], grp?: string): { label: string; qty: number }[] {
+  const m = new Map<string, number>();
+  for (const o of orders) {
+    if (isRepair(o) || (grp && o.grp !== grp)) continue;
+    if (o.id.startsWith("no-tz")) { m.set("FW 26/27", (m.get("FW 26/27") ?? 0) + (o.qd ?? 0)); continue; }
+    for (const [k, w] of Object.entries(o.swd ?? {})) m.set(k, (m.get(k) ?? 0) + (o.qd ?? 0) * w);
+  }
+  return Array.from(m).sort((a, b) => seasonRank(a[0]) - seasonRank(b[0])).map(([label, qty]) => ({ label, qty: Math.round(qty) }));
+}
+
 export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind = "", hides: hidesP, c4Parts: c4PartsP, years: yearsP, done: doneP, work: workP, all: allP, c4, search, info, bridge }: { /** «→ ТЗ» с фильтрами Главной. */ href?: string; hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
   const { mode: vat } = useVatDisplay();
   const [open, setOpen] = useState<null | "done" | "work" | "all">(null);
   // Всего / Одежда / Аксессуары листаются вместе во всех плитках блока.
   const [grpIdx, setGrpIdx] = useState(0);
-  const [volume, setVolume] = useState<VolumeMode>("ordered");
+  // Блок показывает произведённое (= получено по приходу); «В выпуске» — заказ по сезонам (закрытые: заказ = приход, открытый: заказ больше прихода).
+  const volume: VolumeMode = "produced";
   const grpSync = { index: grpIdx, onChange: setGrpIdx };
   const { data: drill } = useDrill(search);
-  // Плитки и таблицы блока считаются по выбранному объёму: «Заказано» — все ТЗ, «Произведено» — получено по приходу.
-  const vdrill = useMemo(() => (volume === "produced" ? withVolume(drill, "produced") : drill), [drill, volume]);
+  const vdrill = useMemo(() => withVolume(drill, "produced"), [drill]);
   const drillOrders = vdrill?.orders ?? [];
   // Сезон из панели «Сезон» Главной: плитки считаются от ТЗ выбранного сезона (доли ТЗ по приходу модели, см. order-seasons.ts); «Все» — готовые числа страницы.
   const season = useSeasonScope()?.season ?? "all";
   const sn = useMemo(() => {
-    if (!vdrill || (season === "all" && volume === "ordered")) return null;
+    if (!vdrill) return null;
     const own = vdrill.orders.filter((o) => !isRepair(o));
     const I = sumOrders(own, "incl"), E = sumOrders(own, "excl");
     const nums: ProdNums = { items: I.items, repairOrders: 0, repairQty: 0, repairCostIncl: 0, repairCostExcl: 0, orders: I.orders, qty: I.qty, costIncl: I.fur + I.lining + I.c4 + I.other, costExcl: E.fur + E.lining + E.c4 + E.other, work: I.work, furIncl: I.fur, furExcl: E.fur, liningIncl: I.lining, liningExcl: E.lining, matIncl: I.fur + I.lining, matExcl: E.fur + E.lining, c4Incl: I.c4, c4Excl: E.c4 };
-    // Годы — по году прихода (а не по дате ТЗ): в сезоне, начавшемся в 2026, не бывает «2025»; FW 25/26 делится на пришедшее в 2025 и в 2026.
-    const ys = new Map<string, number>();
-    for (const o of own) {
-      const base = o.orig ?? o;
-      const inSeason = Object.entries(base.swy ?? {}).filter(([k]) => season === "all" || k.split("|")[0] === season), tot = inSeason.reduce((a, [, v]) => a + v, 0);
-      if (tot > 0) { for (const [k, share] of inSeason) { const yy = k.split("|")[1]; ys.set(yy, (ys.get(yy) ?? 0) + o.qty * (share / tot)); } }
-      else { const k = o.y != null ? String(o.y) : "без года"; ys.set(k, (ys.get(k) ?? 0) + o.qty); }
-    }
-    return { nums, years: Array.from(ys).sort((a, b) => a[0].localeCompare(b[0])).map(([label, qty]) => ({ label, qty })) };
-  }, [season, vdrill, volume]);
+    return { nums, years: yearsOf(own, season) };
+  }, [season, vdrill]);
   const ZERO: ProdNums = { items: 0, repairOrders: 0, repairQty: 0, repairCostIncl: 0, repairCostExcl: 0, orders: 0, qty: 0, costIncl: 0, costExcl: 0, work: 0, furIncl: 0, furExcl: 0, liningIncl: 0, liningExcl: 0, matIncl: 0, matExcl: 0, c4Incl: 0, c4Excl: 0 };
   // На «Все» в плитке «В выпуске» — разбивка по сезонам (доли ТЗ по приходу модели), а не по годам ТЗ; пока ТЗ не загрузились — годы страницы.
   const seasonQty = useMemo(() => {
@@ -73,20 +88,28 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
     for (const o of drill.orders) if (o.id.startsWith("no-tz")) got.set("FW 26/27", (got.get("FW 26/27") ?? 0) + (o.qd ?? 0));
     return Array.from(m).sort((a, b) => seasonRank(a[0]) - seasonRank(b[0])).map(([label, qty]) => ({ label, qty, got: Math.round(got.get(label) ?? 0) }));
   }, [season, drill]);
-  const done = sn ? sn.nums : doneP, work = sn ? ZERO : workP, all = sn ? sn.nums : allP, years = sn ? sn.years : seasonQty && seasonQty.length > 0 ? seasonQty : yearsP;
+  const done = sn ? sn.nums : doneP, work = sn ? ZERO : workP, all = sn ? sn.nums : allP;
   const hides = sn ? { incl: 0, excl: 0 } : hidesP, c4Parts = sn ? { fur: { incl: 0, excl: 0 }, lining: { incl: 0, excl: 0 } } : c4PartsP, vatCost: VatByRate = sn ? {} : vatCostP;
+  // «В выпуске» — заказ: на «Все» по сезонам (закрытые: заказ = приход; открытый FW 26/27: заказ и % пришло), в сезоне — по годам прихода.
+  const ordOwn = useMemo(() => (drill ? drill.orders.filter((o) => !isRepair(o) && !o.id.startsWith("no-tz")) : []), [drill]);
+  const ordQty = drill ? ordOwn.reduce((a, o) => a + o.qty, 0) : allP.qty;
+  const ordOrders = drill ? ordOwn.filter((o) => o.qty > 0).length : allP.orders;
+  const ordYears = drill ? (season === "all" && seasonQty && seasonQty.length > 0 ? seasonQty : yearsOf(ordOwn, season)) : yearsP;
+  // «Произведено» — получено по приходу: на «Все» по сезонам прихода, в сезоне — по годам прихода.
+  const prodSeasons = useMemo(() => (drill && season === "all" ? producedSeasons(drill.orders) : null), [season, drill]);
+  // Разбивка строк «Произведено» на одежду и аксессуары: по сезонам (на «Все») или по годам прихода (в сезоне).
+  const prodByGrp = useMemo(() => {
+    if (!drill || !vdrill) return null;
+    const rows = (g: string) => (season === "all" ? producedSeasons(drill.orders, g) : yearsOf(vdrill.orders.filter((o) => !isRepair(o) && o.grp === g), season).map((y) => ({ label: y.label, qty: Math.round(y.qty) })));
+    const clothes = rows("Одежда"), acc = rows("Аксессуары");
+    const q = (l: { label: string; qty: number }[]) => l.reduce((a, x) => a + x.qty, 0);
+    return { clothes, acc, clothesQty: q(clothes), accQty: q(acc) };
+  }, [season, drill, vdrill]);
+  const prodYears = prodSeasons && prodSeasons.length > 0 ? prodSeasons : sn ? sn.years : yearsP;
   // Себестоимость — факт списания по всем ТЗ.
   const fact = { ...addNums(done, work), orders: all.orders, items: all.items, repairOrders: all.repairOrders };
   const cost = (n: ProdNums) => (vat === "incl" ? n.costIncl : n.costExcl);
   const repairCost = vat === "incl" ? fact.repairCostIncl : fact.repairCostExcl;
-  const split = (() => {
-    if (!drill) return null;
-    // Произведено = получено по приходу (qd); «в работе» = объём ТЗ, которого ещё нет в приходе; получено сверх объёма ТЗ — отдельно (ТЗ на эти штуки не заведены).
-    let done = 0, work = 0, vol = 0;
-    for (const o of drill.orders) { if (isRepair(o)) continue; const got = o.qd ?? 0; done += got; vol += o.qty; work += Math.max(0, o.qty - got); }
-    const over = done - (vol - work);
-    return { done, work, vol, over: Math.round(over) };
-  })();
   const avg = fact.qty > 0 ? (cost(fact) - repairCost) / fact.qty : null;
   const D = vat === "incl"
     ? { fur: fact.furIncl + hides.incl, lining: fact.liningIncl, c4: fact.c4Incl }
@@ -109,47 +132,48 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
   const money = (v: number) => formatMoney(v.toFixed(2));
   const active = open === "work" ? work : open === "all" ? fact : done;
 
-  return (
-    <section aria-label="Производство" className="space-y-2">
-      {/* Объём блока: «Заказано» — все ТЗ по плану, «Произведено» — получено по приходу. Плитки и таблицы ниже считаются по выбранному объёму. */}
-      <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <span className="text-xs text-neutral-600">Показывать:</span>
-        <div role="group" aria-label="Объём: заказано или произведено" className={SEG_GROUP}>
-          {([["ordered", "Заказано"], ["produced", "Произведено"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={volume === k} onClick={() => setVolume(k)} className={segCls(volume === k)}>{t}</button>)}
-        </div>
-      <WidgetRow id="prod" title="Производство"
-        headerExtra={<ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />}
-        headerEnd={<Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
-      <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
-        <TileCarousel sync={grpSync} clickable hoverBlocks title={OUTPUT_LABEL} hintLabel="Что такое «в выпуске»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
-          hint={<>
-            <p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ по факту списания сырья; ТЗ без списаний и в плане — плановым количеством. Ремонт в штуки не входит (страница «Ремонт»).</p>
-            <p className="mt-1">«Одежда» и «Аксессуары» — то же по группе категорий, вместе дают «Всего». Так же считаются себестоимость, таблица ниже и окно состава.</p>
-          </>}
-          slides={[
-            { key: "total", label: "Всего", body: (
-              <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="В выпуске изделий — открыть себестоимость по статьям" className={SLIDE_BTN}>
-                <TileValue>{formatQty(fact.qty)} шт.</TileValue>
-                <TileCaption>{kind === "repair" ? `Ремонт: ${fact.repairOrders} ТЗ` : `${fact.orders} ТЗ${fact.repairOrders > 0 ? ` / ${fact.repairOrders} ТЗ ремонт` : ""}`}</TileCaption>
-                <dl className="mt-1 space-y-0.5 text-xs">
-                  {years.filter((y) => y.qty !== 0).map((y) => {
-                    // По сезонам: справа заказ (объём ТЗ), слева — какая часть заказа уже пришла; по годам — доля года в общем объёме.
-                    const g = (y as { got?: number }).got;
-                    const left = g !== undefined ? (y.qty > 0 ? `${Math.round((g / y.qty) * 100)} % пришло` : "–") : fact.qty ? formatShare(y.qty / fact.qty) : "–";
-                    return (
-                    <div key={y.label} className="flex items-baseline justify-between gap-3">
+  const outputTile = (t: { title: string; hintLabel: string; hint: import("react").ReactNode; qty: number; orders: number; years: { label: string; qty: number; got?: number }[]; orders2: DrillOrder[]; got: boolean; split?: { clothes: { label: string; qty: number }[]; acc: { label: string; qty: number }[]; clothesQty: number; accQty: number } | null }) => (
+    <TileCarousel sync={grpSync} clickable hoverBlocks title={t.title} hintLabel={t.hintLabel} slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа" hint={t.hint}
+      slides={[
+        { key: "total", label: "Всего", body: (
+          <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label={`${t.title} — открыть себестоимость по статьям`} className={SLIDE_BTN}>
+            <TileValue>{formatQty(t.qty)} шт.</TileValue>
+            <TileCaption>{`${t.orders} ТЗ`}</TileCaption>
+            <dl className="mt-1 space-y-0.5 text-xs">
+              {t.years.filter((y) => y.qty !== 0).map((y) => {
+                // «В выпуске» по сезонам: слева — какая часть заказа пришла; иначе — доля от всего.
+                const g = t.got ? y.got : undefined;
+                const left = g !== undefined ? (y.qty > 0 ? `${Math.round((g / y.qty) * 100)} % пришло` : "–") : t.qty ? formatShare(y.qty / t.qty) : "–";
+                const c = t.split?.clothes.find((x) => x.label === y.label)?.qty, a2 = t.split?.acc.find((x) => x.label === y.label)?.qty;
+                return (
+                  <div key={y.label}>
+                    <div className="flex items-baseline justify-between gap-3">
                       <dt className="text-neutral-600">{y.label}</dt>
                       <dd className="whitespace-nowrap font-medium tabular-nums"><span className="mr-1.5 inline-block min-w-12 text-right text-[11px] font-normal text-neutral-500">{left}</span>{formatQty(y.qty)} шт.</dd>
                     </div>
-                  ); })}
-                </dl>
-              </button>) },
-            ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: (
-              <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label={`В выпуске: ${g} — открыть состав`} className={SLIDE_BTN}>
-                <GroupProducedSlide all={drillOrders} grp={g} vat={vat} loading={!drill} compact />
-              </button>) })),
-          ]} />
-        <TileCarousel sync={grpSync} clickable hoverBlocks title={COST_FULL_LABEL} hintLabel="Что такое полная себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
+                    {t.split ? <div className="text-right text-[11px] tabular-nums text-neutral-500">одежда {formatQty(c ?? 0)} · аксессуары {formatQty(a2 ?? 0)}</div> : null}
+                  </div>
+                );
+              })}
+              {t.split ? <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-neutral-200 pt-1"><dt className="text-neutral-600">Всего</dt><dd className="whitespace-nowrap text-[11px] tabular-nums text-neutral-700">одежда <b>{formatQty(t.split.clothesQty)}</b> · аксессуары <b>{formatQty(t.split.accQty)}</b></dd></div> : null}
+            </dl>
+          </button>) },
+        ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: (
+          <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label={`${t.title}: ${g} — открыть состав`} className={SLIDE_BTN}>
+            <GroupProducedSlide all={t.orders2} grp={g} vat={vat} loading={!drill} compact />
+          </button>) })),
+      ]} />
+  );
+
+  return (
+    <section aria-label="Производство" className="space-y-2">
+      <WidgetRow id="prod" title="Производство"
+        headerExtra={<ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />}
+        headerEnd={<Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
+      <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">
+        {outputTile({ title: OUTPUT_LABEL, hintLabel: "Что такое «в выпуске»", hint: <><p><b>{OUTPUT_LABEL}</b> — заказ: изделия по ТЗ. Закрытые сезоны (FW 25/26, SS 2026): заказ = приход. Открытый сезон (FW 26/27): заказ больше прихода на то, что ещё придёт; справа от сезона — какая часть заказа уже пришла.</p><p className="mt-1">Ремонт в штуки не входит (страница «Ремонт»). «Одежда» и «Аксессуары» дают «Всего».</p></>, qty: ordQty, orders: ordOrders, years: ordYears, orders2: drill?.orders ?? [], got: true })}
+        {outputTile({ title: "Произведено", hintLabel: "Что такое «произведено»", hint: <><p><b>Произведено</b> — то, что получено по файлу прихода (MVST РМ), раскладывается на ТЗ модели. Стоимость и среднее на изделие справа считаются по произведённому.</p><p className="mt-1">Сезоны и годы — по сезону и году прихода. Внутри плиток можно переключать «Все» и сезоны на панели «Сезон».</p></>, qty: all.qty, orders: all.orders, years: prodYears, orders2: drillOrders, got: false, split: prodByGrp })}
+        <TileCarousel sync={grpSync} clickable hoverBlocks title={`${COST_FULL_LABEL} произведённого`} hintLabel="Что такое полная себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
             <p>Факт по всем ТЗ: мех + подкладка{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Без работы — «Себестоимость сырья»: <b>{money(cost(fact))}</b>.</p>
             <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "–"}</b>. Режимы: {vatW}, {c4W}.</p>
@@ -186,13 +210,8 @@ export function ProductionBlock({ href = "/production", vatCost: vatCostP, kind 
         <AveragesTile data={vdrill} sync={{ index: Math.max(0, grpIdx - 1), onChange: (i) => setGrpIdx(i + 1) }} />
       </div>
       </WidgetRow>
-        <InfoHint label="Заказано и произведено" wide><p><b>Заказано</b> — все ТЗ (завершённые, в работе, запланированные) по плановому количеству. <b>Произведено</b> — только то, что получено по файлу прихода, разложенное по ТЗ модели; что не получено, считается «в работе». Деньги и средние считаются по тем же ТЗ, что штуки.</p></InfoHint>
-      </div>
-
-      <div className="hidden">
-      </div>
-      <ProductionTable search={search} volume={volume} />
-      <AveragesTable data={drill} volume={volume} />
+      <ProductionTable search={search} volume="produced" />
+      <AveragesTable data={drill} volume="produced" />
       {open ? (
         <ProductionModal
           scope={open}

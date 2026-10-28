@@ -1,4 +1,5 @@
 import { scaleOrder } from "@/lib/season-orders";
+import { seasonStartYear } from "@/lib/order-seasons";
 // «Стоимость производства» Сводки: данные ТЗ для окна-гистограммы и чистый расчёт уровней «проваливания».
 // Без базы и React: одни и те же функции считают окно (клиент) и scripts/test-dashboard-numbers.ts (Σ столбцов = итог плитки).
 //
@@ -377,7 +378,9 @@ export function withVolume(data: DrillData | null, mode: VolumeMode): DrillData 
       const base = o.orig ?? o;
       if (base.qf === undefined) return o;
       const wd = o.sn ? (base.swd ? base.swd[o.sn] ?? 0 : 0) : 1;
-      return wd > 0 && base.qf > 0 ? scaled(wd >= 0.9995 ? base : scaleOrder(base, wd), base.qf) : null;
+      if (!(wd > 0 && base.qf > 0)) return null;
+      const r = scaled(wd >= 0.9995 ? base : scaleOrder(base, wd), base.qf);
+      return o.sn ? { ...r, y: Math.max(base.y ?? 0, seasonStartYear(o.sn)) || base.y } : r;
     }).filter((o): o is DrillOrder => o !== null);
   return { ...data, orders };
 }
