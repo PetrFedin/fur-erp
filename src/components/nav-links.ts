@@ -9,12 +9,11 @@ export const NAV_LINKS = [
   // Скрытые модули (/fittings, /plan, /supply-plan) в «also» не держим: недостижимые страницы не должны подсвечивать пункт (HIDDEN_MODULES).
   { href: "/production", label: "ТЗ", also: [] },
   { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/repair", "/analytics/products", "/analytics/pricing", "/analytics/margin"] },
+  { href: "/shipments", label: "Отгрузки и календарь", also: ["/calendar"] },
   // «Продажи и остатки» — приход, продажи и остатки товара по сезонам, артикулам, заказам и периодам; закрыт для внешнего поставщика.
   { href: "/sales", label: "Продажи и остатки", also: ["/sales/movement"] },
   { href: "/payments", label: "Оплаты", also: [] },
   { href: "/budget", label: "Бюджеты и прогнозы", also: [] },
-  // «Отгрузки» — карточки отгрузок с хронологией этапов (состав из ТЗ, приёмка по строкам).
-  { href: "/shipments", label: "Отгрузки и календарь", also: ["/calendar"] },
   // «Чат» — обсуждения и запросы с поставщиком (Веллмех); значок — непрочитанное. Виден ролям из ACCESS.chat.
   { href: "/chat", label: "Чат", also: [] },
   // «Настройки» — только справочники и параметры.
