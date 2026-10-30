@@ -22,7 +22,7 @@ import { PrismaClient } from "@prisma/client";
   const forecast = fc.lines.filter((l) => !off.has(l.acode)).map((l) => {
     const e = doc?.edits[l.acode] ?? {};
     return { acode: l.acode, cls: l.cls === "acc" ? "Аксессуары" : "Одежда", cat2: l.cat2, fur: l.fur, left: l.left, hp: num(e.hp, l.hp), hidePrice: num(e.hidePrice, l.hidePrice),
-      mp: num(e.mp, l.mp), meterPrice: num(e.meterPrice, l.meterPrice), wp: num(e.wp, l.wp), extra: num(e.extra, 0), source: l.source, wpEst: l.wpEst ?? null, issued: l.issued ?? 0, issuedM: l.issuedM ?? 0 };
+      mp: num(e.mp, l.mp), meterPrice: num(e.meterPrice, l.meterPrice), wp: num(e.wp, l.wp), extra: num(e.extra, 0), source: l.source, wpEst: l.wpEst ?? null, issued: l.issued ?? 0, issuedM: l.issuedM ?? 0, produced: l.produced ?? 0, inWork: l.inWork ?? 0, notStarted: l.notStarted ?? 0, sourceNote: l.sourceNote ?? null };
   });
 
   const sc = await prisma.budgetScenario.findFirstOrThrow({ where: { organizationId: org, name: "FW27" } });

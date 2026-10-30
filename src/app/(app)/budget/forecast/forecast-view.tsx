@@ -27,10 +27,15 @@ const add = (a: Calc, b: Calc): Calc => ({ left: a.left + b.left, hides: a.hides
 function calc(l: ForecastLine, v: Vals): Calc | null {
   const hp = num(v.hp), mp = num(v.mp), wp = num(v.wp);
   if (!hp && !mp && !wp) return null; // ни шкур, ни подкладки, ни работы — без расчёта
-  // Шкуры и подкладка, уже выданные по ТЗ в работе, со склада списаны и в себестоимость ТЗ вошли — второй раз не считаем (работа ещё впереди — считаем).
-  const hides = Math.max(0, hp * l.left - (l.issued ?? 0)), meters = Math.max(0, mp * l.left - (l.issuedM ?? 0));
-  const fur = hides * num(v.hidePrice), lining = meters * num(v.meterPrice), work = wp * l.left, extra = num(v.extra) * l.left, c4 = ((fur + lining) * C4) / 100;
-  return { left: l.left, hides, fur, meters, lining, c4, work, extra, total: fur + lining + c4 + work + extra };
+  // Расход и затраты — на все непроизведённые изделия. Со склада из них уйдёт только часть (см. fromStock): по ТЗ, отмеченным завершёнными,
+  // и по уже выданному в работу шкуры уже списаны.
+  const fur = hp * l.left * num(v.hidePrice), lining = mp * l.left * num(v.meterPrice), work = wp * l.left, extra = num(v.extra) * l.left, c4 = ((fur + lining) * C4) / 100;
+  return { left: l.left, hides: hp * l.left, fur, meters: mp * l.left, lining, c4, work, extra, total: fur + lining + c4 + work + extra };
+}
+/** Шкуры, которые ещё уйдут со склада: в работе × шкур на изд. − уже выдано (без разбивки — весь остаток). */
+function fromStock(l: ForecastLine, hp: number): number {
+  const w = l.inWork ?? (l.notStarted == null ? l.left : 0);
+  return Math.max(0, w * hp - (l.issued ?? 0)) + (l.notStarted ?? 0) * hp;
 }
 
 export function ForecastView({ id, name, season, canEdit, initialEdits, initialOff, lines, stock, asOf, mix }: { id: string; name: string; season: string; canEdit: boolean; initialEdits: ForecastEdits; initialOff: string[]; lines: ForecastLine[]; stock: RawForecast["stock"]; asOf: string | null; mix?: { RTW: number; Acc: number } }) {
@@ -50,7 +55,7 @@ export function ForecastView({ id, name, season, canEdit, initialEdits, initialO
   };
   const edited = (l: ForecastLine, f: Field) => vals[l.acode][f] !== init(l)[f];
 
-  const rows = useMemo(() => lines.map((l) => ({ l, c: off.has(l.acode) ? null : calc(l, vals[l.acode]), on: !off.has(l.acode) })), [lines, vals, off]);
+  const rows = useMemo(() => lines.map((l) => ({ l, c: off.has(l.acode) ? null : calc(l, vals[l.acode] ?? init(l)), on: !off.has(l.acode) })), [lines, vals, off]);
   const counts = new Map<string, number>();
   for (const r of rows) counts.set(key(r.l.fur), (counts.get(key(r.l.fur)) ?? 0) + r.l.left);
   const opts = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
@@ -104,13 +109,16 @@ export function ForecastView({ id, name, season, canEdit, initialEdits, initialO
   const big = all.filter((x) => x.stock + x.need >= 100), small = all.filter((x) => x.stock + x.need < 100);
   const furRows = small.length ? [...big, { fur: "Остальной мех", stock: small.reduce((a, x) => a + x.stock, 0), need: small.reduce((a, x) => a + x.need, 0) }] : big;
   const totalLeft = lines.reduce((a, l) => a + l.left, 0);
+  const tProd = lines.reduce((a, l) => a + (l.produced ?? 0), 0), tWork = lines.reduce((a, l) => a + (l.inWork ?? 0), 0);
+  const onRows = rows.filter((r) => r.on && r.c);
+  const tHides = onRows.reduce((a, r) => a + (r.c?.hides ?? 0), 0), tStock = onRows.reduce((a, r) => a + fromStock(r.l, num(vals[r.l.acode]?.hp ?? "")), 0);
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-semibold">{name}{season && !name.includes(season) ? <span className="ml-2 text-sm font-normal text-neutral-500">{season}</span> : null}</h1>
-          <p className="mt-1 text-xs text-neutral-500">Ждём {formatInt(totalLeft)} изд.{asOf ? ` (отчёт о товарах на ${asOf.split("-").reverse().join(".")})` : ""}. Суммы ₽ с НДС, до тысяч; итоги — средневзвешенные.</p>
+          <p className="mt-1 text-xs text-neutral-500">Не произведено {formatInt(totalLeft)} изд.: по ТЗ, отмеченным завершёнными, — {formatInt(tProd)}; в работе и запланировано — {formatInt(tWork)}. Шкур на них {formatInt(tHides)}, из них уже списано со склада по ТЗ {formatInt(Math.max(0, tHides - tStock))}, ещё уйдёт со склада {formatInt(tStock)}.{asOf ? ` Приход — на ${asOf.split("-").reverse().join(".")}.` : ""} Суммы ₽ с НДС, до тысяч; итоги — средневзвешенные.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
         {canEdit && detail ? <button type="button" onClick={save} disabled={!dirty} className="min-h-11 rounded-lg bg-neutral-900 px-4 text-sm font-medium text-white disabled:opacity-50">Сохранить</button> : null}
@@ -151,8 +159,8 @@ export function ForecastView({ id, name, season, canEdit, initialEdits, initialO
                     <tr key={l.acode} className={"border-b border-neutral-100 " + (on ? "" : "text-neutral-600")}>
                       {detail && <td className="px-3 py-2 text-center"><input type="checkbox" checked={on} aria-label={`Учитывать ${l.acode}`} onChange={() => { setDirty(true); setOff((p) => { const n = new Set(p); if (n.has(l.acode)) n.delete(l.acode); else n.add(l.acode); return n; }); }} className="h-5 w-5" /></td>}
                       <td className="px-3 py-2 text-sm text-neutral-600">{l.cat2}</td>
-                      <td className="min-w-[190px] px-3 py-2 text-sm">{l.acode}{detail && l.source !== "ТЗ артикула" ? <span className="ml-1 text-[11px] text-neutral-600">{[l.source === "категория" ? "шкуры по категории" : "", l.wpEst ? "работа — ориентир" : ""].filter(Boolean).join(", ")}</span> : null}</td>
-                      <td className={TD}>{formatInt(l.left)}</td>
+                      <td className="min-w-[190px] px-3 py-2 text-sm">{l.acode}{detail && l.source !== "ТЗ артикула" ? <span className="ml-1 text-[11px] text-neutral-600">{[l.source === "категория" ? "шкуры по категории" : l.source === "аналог" ? "шкуры по аналогу" : "", l.wpEst ? "работа — ориентир" : ""].filter(Boolean).join(", ")}</span> : null}</td>
+                      <td className={TD} title={`по завершённым ТЗ ${formatInt(l.produced ?? 0)}, в работе ${formatInt(l.inWork ?? 0)}`}>{formatInt(l.left)}{l.inWork ? <div className="whitespace-nowrap text-[11px] font-normal text-neutral-500">в работе {formatInt(l.inWork)}</div> : null}</td>
                       {detail && <>{inp(l, "hp")}{inp(l, "hidePrice", "w-20")}{inp(l, "mp")}{inp(l, "meterPrice", "w-20")}{inp(l, "wp", "w-20")}{inp(l, "extra", "w-20")}</>}
                       {results(c ?? ZERO)}
                     </tr>
