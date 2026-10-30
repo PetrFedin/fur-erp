@@ -47,6 +47,11 @@
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/autobackup.sh\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "(bash /Users/petr/Projects/fur-erp/scripts/hub-sync.sh >/dev/null 2>&1 &) ; exit 0",
+            "timeout": 10
           }
         ]
       }
