@@ -27,8 +27,10 @@ const add = (a: Calc, b: Calc): Calc => ({ left: a.left + b.left, hides: a.hides
 function calc(l: ForecastLine, v: Vals): Calc | null {
   const hp = num(v.hp), mp = num(v.mp), wp = num(v.wp);
   if (!hp && !mp && !wp) return null; // ни шкур, ни подкладки, ни работы — без расчёта
-  const fur = hp * l.left * num(v.hidePrice), lining = mp * l.left * num(v.meterPrice), work = wp * l.left, extra = num(v.extra) * l.left, c4 = ((fur + lining) * C4) / 100;
-  return { left: l.left, hides: hp * l.left, fur, meters: mp * l.left, lining, c4, work, extra, total: fur + lining + c4 + work + extra };
+  // Шкуры и подкладка, уже выданные по ТЗ в работе, со склада списаны и в себестоимость ТЗ вошли — второй раз не считаем (работа ещё впереди — считаем).
+  const hides = Math.max(0, hp * l.left - (l.issued ?? 0)), meters = Math.max(0, mp * l.left - (l.issuedM ?? 0));
+  const fur = hides * num(v.hidePrice), lining = meters * num(v.meterPrice), work = wp * l.left, extra = num(v.extra) * l.left, c4 = ((fur + lining) * C4) / 100;
+  return { left: l.left, hides, fur, meters, lining, c4, work, extra, total: fur + lining + c4 + work + extra };
 }
 
 export function ForecastView({ id, name, season, canEdit, initialEdits, initialOff, lines, stock, asOf, mix }: { id: string; name: string; season: string; canEdit: boolean; initialEdits: ForecastEdits; initialOff: string[]; lines: ForecastLine[]; stock: RawForecast["stock"]; asOf: string | null; mix?: { RTW: number; Acc: number } }) {

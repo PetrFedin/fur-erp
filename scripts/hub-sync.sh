@@ -26,7 +26,11 @@ say() { echo "$(date '+%d.%m %H:%M:%S') $*" >> "$LOG"; }
 D_DB="$HUB/02_БАЗА_ДАННЫХ"; D_UP="$HUB/03_ЗАГРУЖЕННЫЕ_ФАЙЛЫ"; D_DOC="$HUB/04_ДОКУМЕНТАЦИЯ"
 D_SRC="$HUB/05_ИСХОДНЫЕ_ДАННЫЕ"; D_CHG="$HUB/06_ЖУРНАЛ_ИЗМЕНЕНИЙ"; D_REQ="$HUB/07_ЖУРНАЛ_ЗАПРОСОВ"
 D_MEM="$HUB/09_ПАМЯТЬ_CLAUDE"; D_CFG="$HUB/10_НАСТРОЙКИ_CLAUDE"; D_GIT="$HUB/11_ПОЛНАЯ_КОПИЯ_КОДА"
-mkdir -p "$D_DB" "$D_UP" "$D_DOC" "$D_SRC" "$D_CHG" "$D_REQ" "$D_MEM" "$D_CFG" "$D_GIT" "$HUB/99_АРХИВ"
+D_REP="$HUB/12_ОТЧЁТЫ"
+mkdir -p "$D_DB" "$D_UP" "$D_DOC" "$D_SRC" "$D_CHG" "$D_REQ" "$D_MEM" "$D_CFG" "$D_GIT" "$D_REP" "$HUB/99_АРХИВ"
+# Отчёты и выгрузки для владельца (Excel и т. п.): docs-inventory/reports → 12_ОТЧЁТЫ; спорные вопросы — туда же
+[ -d docs-inventory/reports ] && rsync -a docs-inventory/reports/ "$D_REP/" 2>>"$LOG"
+for f in docs-inventory/pending-decisions-*.md; do [ -f "$f" ] && cp -f "$f" "$D_REP/"; done
 
 # 1. Ярлыки: код и все автокопии
 [ -L "$HUB/01_КОД_ПРОЕКТА" ] || ln -s "$PROJ" "$HUB/01_КОД_ПРОЕКТА"

@@ -20,7 +20,13 @@ export type ForecastLine = {
   /** Работа взята как ориентир (среднее по моделям того же меха и категории 2), своей цены ТЗ у модели ещё нет. */
   wpEst?: string;
   source: "ТЗ артикула" | "категория" | "нет данных";
+  /** Уже выдано подрядчику по ТЗ этой модели, которые ещё в работе (шкуры и метры подкладки списаны со склада, изделие не получено):
+   *  из потребности на остаток вычитается, иначе эти шкуры считались бы дважды — и в складе, и в «уйдёт». Делится между артикулами модели по остатку. */
+  issued?: number; issuedM?: number;
 };
+/** Шкуры, которые ещё уйдут на артикул: остаток × шкур на изделие минус уже выданное по ТЗ в работе. */
+export const hidesToGo = (l: Pick<ForecastLine, "left" | "issued">, hp: number) => Math.max(0, l.left * hp - (l.issued ?? 0));
+export const metersToGo = (l: Pick<ForecastLine, "left" | "issuedM">, mp: number) => Math.max(0, l.left * mp - (l.issuedM ?? 0));
 export type RawForecast = { lines: ForecastLine[]; stock: { fur: string; stock: number }[]; asOf: string | null };
 
 const FUR_RE: [RegExp, string][] = [[/SABLE/, "Соболь"], [/MINK/, "Норка"], [/LYNX/, "Рысь"], [/FOX/, "Лиса"], [/KARAKUL|SWAKARA/, "Свакара"]];
@@ -98,6 +104,24 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
     lines.push(st
       ? { ...base, wp: est ? est.avg : wp, wpEst: est?.note, fur: st.fur, hp: st.hidesPer, hidePrice: st.hidePrice, mp: st.metersPer, meterPrice: st.meterPrice, source }
       : { ...base, fur: codeFurs.join(" + ") || "–", hp: null, hidePrice: null, mp: null, meterPrice: null, source: "нет данных" });
+  }
+  // Уже выданное по ТЗ в работе (IN_PROGRESS / PLANNED со списаниями): шкуры (штучные материалы) и подкладка (метры) по модели → по артикулам модели пропорционально остатку.
+  const wip = await prisma.productionOrder.findMany({
+    where: { organizationId: orgId, status: { in: ["IN_PROGRESS", "PLANNED"] }, materialUsages: { some: {} } },
+    select: { productModel: { select: { salesCode: true, sku: true } }, materialUsages: { select: { quantity: true, rawMaterial: { select: { unit: true } } } } },
+  });
+  const issuedBy = new Map<string, { h: number; m: number }>();
+  for (const o of wip) {
+    const code = norm(o.productModel.salesCode || o.productModel.sku || ""); if (!code) continue;
+    const x = issuedBy.get(code) ?? { h: 0, m: 0 };
+    for (const u of o.materialUsages) { if (u.rawMaterial.unit === "M") x.m += Number(u.quantity); else x.h += Number(u.quantity); }
+    issuedBy.set(code, x);
+  }
+  const leftByModel = new Map<string, number>();
+  for (const l of lines) { const m = norm(left.get(l.acode)!.model); leftByModel.set(m, (leftByModel.get(m) ?? 0) + l.left); }
+  for (const l of lines) {
+    const m = norm(left.get(l.acode)!.model), iss = issuedBy.get(m), tot = leftByModel.get(m) ?? 0;
+    if (iss && tot > 0) { l.issued = iss.h * (l.left / tot); l.issuedM = iss.m * (l.left / tot); }
   }
   lines.sort((a, b) => a.cat2.localeCompare(b.cat2, "ru") || a.acode.localeCompare(b.acode));
   const stock = dash.rawFurBySource.all.types.map((t) => ({ fur: t.name, stock: t.pair.incl.remQty })).filter((x) => x.stock > 0);

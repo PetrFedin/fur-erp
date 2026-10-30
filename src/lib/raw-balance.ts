@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { loadRawForecast } from "@/lib/raw-forecast";
+import { hidesToGo, loadRawForecast } from "@/lib/raw-forecast";
 import { listForecasts } from "@/lib/forecast-store";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import { loadBudgetStats } from "@/lib/budget-stats";
@@ -56,13 +56,13 @@ export async function loadRawBalance(orgId: string): Promise<{ rows: RawBalance;
     if (hp == null || !(hp > 0)) continue;
     if (l.fur.includes(" + ")) {
       // Смесь «Норка + Соболь»: потребность делим на норку и соболя по реальной пропорции ТЗ (одежда и аксессуары отдельно) — как в таблице бюджета.
-      const mink = share(l.cls === "acc" ? use.Acc : use.RTW), total = l.left * hp;
+      const mink = share(l.cls === "acc" ? use.Acc : use.RTW), total = hidesToGo(l, hp);
       need.set("Норка", (need.get("Норка") ?? 0) + total * mink);
       need.set("Соболь", (need.get("Соболь") ?? 0) + total * (1 - mink));
       continue;
     }
     const f = NAME[l.fur] ?? l.fur;
-    need.set(f, (need.get(f) ?? 0) + l.left * hp);
+    need.set(f, (need.get(f) ?? 0) + hidesToGo(l, hp));
   }
   const stock = new Map<string, number>();
   for (const s of raw.stock) { const f = NAME[s.fur] ?? s.fur; stock.set(f, (stock.get(f) ?? 0) + s.stock); }
