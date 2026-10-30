@@ -30,6 +30,7 @@ import os from "node:os";
 import path from "node:path";
 import { checkCalcScale, scaleCalcPayload, scaleTzPayload } from "./demo-inbox-scale";
 import type { CalcPayload } from "../src/lib/supplier-calc";
+import { installSyntheticBudgetFixtures } from "./demo-budget-fixtures";
 
 const dbUrl = process.env.DATABASE_URL ?? "";
 if (!/\/[a-z0-9_]*_demo(\?|$)/i.test(dbUrl)) {
@@ -297,6 +298,9 @@ async function main() {
   writeFileSync(file, `Демо-логины THE FUR (создано ${new Date().toISOString()}). Файл личный, не пересылать.\nАдрес: см. docs/DEPLOY.md (после публикации).\nСлужебное: ${K === 1 ? "коэффициент денег 1 (суммы настоящие)" : `коэффициент денег ${K} (для проверки: RECON_TOL_SCALE=${K} npx tsx scripts/test-reconciliation.ts); внешним не сообщать`}.\n\n${creds.join("\n\n")}\n`, { mode: 0o600 });
   chmodSync(file, 0o600);
   log(`пользователи пересозданы, логины записаны в ${file} (права 600)`);
+
+  // Complete synthetic budgets: no copied confidential budget/PCS/forecast values survive.
+  await installSyntheticBudgetFixtures(org.id);
 
   // 8. Контроль: ничего старого не осталось
   let leftovers = 0;
