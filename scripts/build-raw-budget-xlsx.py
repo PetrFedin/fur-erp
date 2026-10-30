@@ -8,7 +8,10 @@ data.json — scripts/export-raw-budget-data.ts (прогноз по артик�
 Жёлтые ячейки — ввод: меняете — пересчитываются сводные и закупка.
 """
 import json
+import os
 import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from xlsx_pivot import add_pivot  # noqa: E402
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter as L
@@ -84,10 +87,10 @@ title(ws1, "Всё купленное сырьё по лотам", [
     f"Данные на {data['asOf']} (МСК). Как на Главной: лоты склада + «Заказано, не получено» + шкуры подрядчика. Суммы в ₽ — с НДС.",
     "Цена $ — цена молотка за шкуру на аукционе (там, где она есть в документах); средневзвешенная по количеству. Подкладка и прочие материалы в лист не входят.",
 ])
-C1 = ["Тип меха", "Год", "Аукцион / поставщик", "Источник", "Лот", "Сорт / описание", "Цвет",
-      "Куплено, шк.", "Ср. цена $", "Ср. цена ₽", "Сумма куплено, ₽",
-      "Потрачено, шк.", "Потрачено, ₽", "Остаток, шк.", "Остаток, ₽",
-      "Шк. с ценой $", "Сумма $", "Потрачено шк. с $", "Потрачено $", "Остаток шк. с $", "Остаток $"]
+C1 = ["Тип меха", "Год", "Аукцион", "Источник", "Лот", "Сорт", "Цвет",
+      "Куплено шк", "Ср цена USD", "Ср цена руб", "Куплено руб",
+      "Потрачено шк", "Потрачено руб", "Остаток шк", "Остаток руб",
+      "Куплено шк с USD", "Куплено USD", "Потрачено шк с USD", "Потрачено USD", "Остаток шк с USD", "Остаток USD"]
 HR1 = 5
 head(ws1, HR1, C1, [12, 7, 20, 20, 16, 34, 14, 10, 11, 12, 15, 10, 15, 10, 15, 10, 13, 10, 13, 10, 13])
 rows = sorted(lots, key=lambda r: (FUR_ORDER.index(fur_of(r["item"])) if fur_of(r["item"]) in FUR_ORDER else 99, r["item"], r["year"], r["auction"], r["lot"]))
@@ -131,186 +134,138 @@ LOT = lambda col: f"'1 Лоты'!${col}${HR1+1}:${col}${LAST1}"
 # Лист 2. Сводная: тип меха → год
 # =====================================================================
 ws2 = wb.create_sheet("2 Сводная сырьё")
-title(ws2, "Сводная: куплено, потрачено, остаток по типам меха и годам", [
-    "Формулы от листа «1 Лоты». Ср. цена ₽ = сумма ₽ ÷ шкуры; ср. цена $ — только по шкурам с ценой молотка.",
+title(ws2, "Сводная (pivot) по листу «1 Лоты»: тип меха → год — куплено, потрачено, остаток", [
+    "Настоящая сводная таблица Excel: поля можно перетаскивать (Анализ сводной таблицы → Список полей). После правок листа 1 — Данные → Обновить всё.",
 ])
-C2 = ["Тип меха", "Год",
-      "Куплено, шк.", "Ср. $", "Ср. ₽", "Сумма, ₽",
-      "Потрачено, шк.", "Ср. $", "Ср. ₽", "Сумма, ₽",
-      "Остаток, шк.", "Ср. $", "Ср. ₽", "Сумма, ₽"]
-HR2 = 4
-head(ws2, HR2, C2, [14, 8, 11, 10, 11, 15, 11, 10, 11, 15, 11, 10, 11, 15])
-for c0, t in [(3, "КУПЛЕНО"), (7, "ПОТРАЧЕНО"), (11, "ОСТАТОК")]:
-    ws2.merge_cells(start_row=HR2 - 1, start_column=c0, end_row=HR2 - 1, end_column=c0 + 3)
-    x = ws2.cell(HR2 - 1, c0, t)
-    x.font, x.alignment, x.fill = BOLD, Alignment(horizontal="center"), F_GRP
+add_pivot(ws2, ws1, HR1, LAST1, C1, ["Тип меха", "Год"], [
+    ("Куплено, шк.", "Куплено шк", 3), ("Куплено, ср. $", "Ср USD куплено", 4), ("Куплено, ср. ₽", "Ср руб куплено", 3), ("Куплено, ₽", "Куплено руб", 3),
+    ("Потрачено, шк.", "Потрачено шк", 3), ("Потрачено, ср. $", "Ср USD потрачено", 4), ("Потрачено, ср. ₽", "Ср руб потрачено", 3), ("Потрачено, ₽", "Потрачено руб", 3),
+    ("Остаток, шк.", "Остаток шк", 3), ("Остаток, ср. $", "Ср USD остаток", 4), ("Остаток, ср. ₽", "Ср руб остаток", 3), ("Остаток, ₽", "Остаток руб", 3),
+], "Сводная_сырьё", calc=[
+    ("Ср USD куплено", "=IFERROR('Куплено USD'/'Куплено шк с USD',0)"), ("Ср руб куплено", "=IFERROR('Куплено руб'/'Куплено шк',0)"),
+    ("Ср USD потрачено", "=IFERROR('Потрачено USD'/'Потрачено шк с USD',0)"), ("Ср руб потрачено", "=IFERROR('Потрачено руб'/'Потрачено шк',0)"),
+    ("Ср USD остаток", "=IFERROR('Остаток USD'/'Остаток шк с USD',0)"), ("Ср руб остаток", "=IFERROR('Остаток руб'/'Остаток шк',0)"),
+], anchor="A4")
 furs_all = []
 for x in rows:
     f = fur_of(x["item"])
     if f not in furs_all:
         furs_all.append(f)
-years = sorted({int(x["year"]) for x in rows if str(x["year"]).isdigit()})
-# пары: (шк., сумма ₽, шк. с $, сумма $) для блоков куплено / потрачено / остаток
-BLK = [("H", "K", "P", "Q"), ("L", "M", "R", "S"), ("N", "O", "T", "U")]
-
-
-def block_formulas(ws, r, crit):
-    for i, (q, rub, uq, us) in enumerate(BLK):
-        c = 3 + i * 4
-        put(ws, r, c, f"=SUMIFS({LOT(q)},{crit})", INT)
-        put(ws, r, c + 1, f"=IFERROR(SUMIFS({LOT(us)},{crit})/SUMIFS({LOT(uq)},{crit}),0)", USD)
-        put(ws, r, c + 3, f"=SUMIFS({LOT(rub)},{crit})", RUB)
-        put(ws, r, c + 2, f"=IFERROR({L(c+3)}{r}/{L(c)}{r},0)", RUB)
-
-
-r = HR2 + 1
-fur_rows = []
-for f in furs_all:
-    put(ws2, r, 1, f, fill=F_FUR, bold=True)
-    put(ws2, r, 2, "все годы", fill=F_FUR, bold=True)
-    block_formulas(ws2, r, f'{LOT("A")},$A{r}')
-    for c in range(3, 15):
-        ws2.cell(r, c).fill, ws2.cell(r, c).font = F_FUR, BOLD
-    fur_rows.append(r)
-    fr = r
-    r += 1
-    for y in years:
-        if not any(fur_of(x["item"]) == f and str(x["year"]) == str(y) for x in rows):
-            continue
-        put(ws2, r, 1, f)
-        ws2.cell(r, 1).font = Font(color="9AA5B1")
-        put(ws2, r, 2, y)
-        block_formulas(ws2, r, f'{LOT("A")},$A{r},{LOT("B")},$B{r}')
-        r += 1
-put(ws2, r, 1, "ВСЕГО", fill=F_TOT, bold=True)
-put(ws2, r, 2, "", fill=F_TOT)
-for i, (q, rub, uq, us) in enumerate(BLK):
-    c = 3 + i * 4
-    put(ws2, r, c, "=" + "+".join(f"{L(c)}{x}" for x in fur_rows), INT, F_TOT, True)
-    put(ws2, r, c + 3, "=" + "+".join(f"{L(c+3)}{x}" for x in fur_rows), RUB, F_TOT, True)
-    put(ws2, r, c + 2, f"=IFERROR({L(c+3)}{r}/{L(c)}{r},0)", RUB, F_TOT, True)
-    put(ws2, r, c + 1, f"=IFERROR(SUM({LOT(us)})/SUM({LOT(uq)}),0)", USD, F_TOT, True)
-ws2.freeze_panes = f"C{HR2+1}"
-STOCK_ROW = {f: fr for f, fr in zip(furs_all, fur_rows)}  # строка типа меха: остаток шк. — столбец K, сумма — N
 
 # =====================================================================
 # Лист 3. Артикулы остатка FW26 в производстве
 # =====================================================================
-ws3 = wb.create_sheet("3 Артикулы в производстве")
-title(ws3, "Артикулы заказа FW26, которые ещё в производстве: сколько шкур и денег ещё уйдёт", [
-    f"Прогноз «{data.get('forecastName') or '—'}»: осталось сшить = объём ТЗ модели − получено. Шкур на изделие и цены — из ТЗ артикула или средние по категории (столбец «Источник»).",
-    "«Уже выдано» — шкуры и подкладка, списанные со склада по ТЗ этой модели, которые ещё в работе: они уже не на складе и второй раз не считаются.",
-    "Жёлтые ячейки можно менять (например, вписать расход шкур там, где «нет данных»). «Норка + Соболь» делится на норку и соболь на листе 4.",
+ws3 = wb.create_sheet("3 Артикулы FW26")
+title(ws3, "Данные: непроизведённые изделия заказа FW26 — расход сырья и затраты по каждому артикулу", [
+    "Не произведено = объём ТЗ модели − получено в рознице (как в приложении, «Сырьё на остаток FW26»): по ТЗ, отмеченным завершёнными, + в работе.",
+    "Шкуры по ТЗ, отмеченным завершёнными, и уже выданные в работу — со склада списаны; «Ещё уйдёт со склада» = в работе × шкур на изд. − выдано.",
+    "Расход на изделие — из ТЗ этой модели; нет своих ТЗ — по категории того же меха или аналогу (столбец «Источник»). Жёлтые ячейки можно менять.",
 ])
-C3 = ["Артикул", "Одежда / аксессуары", "Категория", "Тип меха", "Осталось сшить, шт.", "Шкур на изделие", "Уже выдано по ТЗ в работе, шк.", "Ещё уйдёт шкур",
-      "Цена шкуры, ₽", "Сырьё, ₽", "Подкладка, м/изд.", "Уже выдано, м", "Цена м, ₽", "Подкладка, ₽", "Работа, ₽/изд.", "Работа, ₽", "Прочее, ₽", "Итого ещё затрат, ₽", "Источник"]
-HR3 = 5
-head(ws3, HR3, C3, [26, 12, 18, 16, 10, 10, 12, 10, 12, 14, 10, 10, 10, 12, 12, 14, 11, 15, 30])
-fc = sorted(data["forecast"], key=lambda l: (l["fur"], l["cls"], l["acode"]))
+C3 = ["Артикул", "Блок", "Категория", "Тип меха", "Не произведено шт", "По завершенным ТЗ шт", "В работе шт", "Шкур на изд", "Шкур всего",
+      "Выдано в работу шк", "Еще уйдет со склада шк", "Уже списано шк", "Цена шкуры руб", "Сырье руб", "Подкладка м на изд", "Подкладка м",
+      "Цена м руб", "Подкладка руб", "Работа руб на изд", "Работа руб", "Надбавка 4 руб", "Итого руб", "Источник"]
+HR3 = 6
+head(ws3, HR3, C3, [18, 12, 18, 14, 11, 11, 10, 9, 10, 10, 11, 10, 11, 14, 9, 9, 10, 12, 12, 14, 11, 15, 46])
+fc = sorted(data["forecast"], key=lambda l: (l["cls"], l["cat2"], l["acode"]))
 r = HR3 + 1
 for l in fc:
     f = l["fur"] if " + " in l["fur"] else fur_of(l["fur"])
-    put(ws3, r, 1, l["acode"])
-    put(ws3, r, 2, l["cls"])
-    put(ws3, r, 3, l["cat2"])
-    put(ws3, r, 4, f)
-    put(ws3, r, 5, l["left"], INT)
-    inp(ws3, r, 6, l["hp"] if l["hp"] else None, DEC)
-    put(ws3, r, 7, round(l.get("issued") or 0, 2), DEC)
-    put(ws3, r, 8, f"=MAX(0,E{r}*F{r}-G{r})", DEC)
-    hp_price = l["hidePrice"] or data["price"].get(f) or None
-    inp(ws3, r, 9, round(hp_price) if hp_price else None, RUB)
-    put(ws3, r, 10, f"=H{r}*I{r}", RUB)
-    inp(ws3, r, 11, l["mp"] or None, DEC)
-    put(ws3, r, 12, round(l.get("issuedM") or 0, 2), DEC)
-    inp(ws3, r, 13, round(l["meterPrice"]) if l["meterPrice"] else None, RUB)
-    put(ws3, r, 14, f"=MAX(0,E{r}*K{r}-L{r})*M{r}", RUB)
-    inp(ws3, r, 15, round(l["wp"]) if l["wp"] else None, RUB)
-    put(ws3, r, 16, f"=E{r}*O{r}", RUB)
-    inp(ws3, r, 17, l["extra"] or None, RUB)
-    put(ws3, r, 18, f"=J{r}+N{r}+P{r}+Q{r}", RUB)
-    src = l["source"] + (" · работа ориентировочно" if l.get("wpEst") else "") + ("" if l["hp"] else " · НЕТ РАСХОДА ШКУР — впишите")
-    put(ws3, r, 19, src)
+    vals = [l["acode"], l["cls"], l["cat2"], f, l["left"]]
+    for c, v in enumerate(vals, 1):
+        put(ws3, r, c, v, INT if c == 5 else None)
+    put(ws3, r, 6, round(l.get("produced") or 0, 2), INT)
+    put(ws3, r, 7, round(l.get("inWork") or 0, 2), INT)
+    inp(ws3, r, 8, round(l["hp"], 2) if l["hp"] else None, DEC)
+    put(ws3, r, 9, f"=E{r}*H{r}", DEC)
+    put(ws3, r, 10, round(l.get("issued") or 0, 2), DEC)
+    put(ws3, r, 11, f"=MAX(0,G{r}*H{r}-J{r})", DEC)
+    put(ws3, r, 12, f"=I{r}-K{r}", DEC)
+    pr = l["hidePrice"] or data["price"].get(f)
+    inp(ws3, r, 13, round(pr) if pr else None, RUB)
+    put(ws3, r, 14, f"=I{r}*M{r}", RUB)
+    inp(ws3, r, 15, round(l["mp"], 2) if l["mp"] else 0, DEC)
+    put(ws3, r, 16, f"=E{r}*O{r}", DEC)
+    inp(ws3, r, 17, round(l["meterPrice"]) if l["meterPrice"] else 0, RUB)
+    put(ws3, r, 18, f"=P{r}*Q{r}", RUB)
+    inp(ws3, r, 19, round(l["wp"]) if l["wp"] else None, RUB)
+    put(ws3, r, 20, f"=E{r}*S{r}", RUB)
+    put(ws3, r, 21, f"=(N{r}+R{r})*0.04", RUB)
+    put(ws3, r, 22, f"=N{r}+R{r}+T{r}+U{r}", RUB)
+    src = l["source"] + (f" · {l['sourceNote']}" if l.get("sourceNote") else "") + (f" · работа: {l['wpEst']}" if l.get("wpEst") else "")
+    put(ws3, r, 23, src)
     r += 1
 LAST3 = r - 1
+r += 1
 put(ws3, r, 1, "ИТОГО", fill=F_TOT, bold=True)
-for c in range(2, 20):
+for c in range(2, 24):
     put(ws3, r, c, None, fill=F_TOT)
-for c in [5, 7, 8, 10, 12, 14, 16, 17, 18]:
-    put(ws3, r, c, f"=SUBTOTAL(9,{L(c)}{HR3+1}:{L(c)}{LAST3})", ws3.cell(LAST3, c).number_format, F_TOT, True)
-ws3.auto_filter.ref = f"A{HR3}:{L(len(C3))}{LAST3}"
+for c in [5, 6, 7, 9, 10, 11, 12, 14, 16, 18, 20, 21, 22]:
+    put(ws3, r, c, f"=SUM({L(c)}{HR3+1}:{L(c)}{LAST3})", ws3.cell(LAST3, c).number_format, F_TOT, True)
 ws3.freeze_panes = f"B{HR3+1}"
-ART = lambda col: f"'3 Артикулы в производстве'!${col}${HR3+1}:${col}${LAST3}"
+ART = lambda col: f"'3 Артикулы FW26'!${col}${HR3+1}:${col}${LAST3}"
+
+ws3a = wb.create_sheet("3а Сводная артикулы")
+title(ws3a, "Сводная (pivot) по листу 3: блок → категория → тип меха", ["После правок жёлтых ячеек листа 3 — Данные → Обновить всё."])
+add_pivot(ws3a, ws3, HR3, LAST3, C3, ["Блок", "Категория", "Тип меха"], [
+    ("Не произведено, шт.", "Не произведено шт", 3), ("Шкур всего", "Шкур всего", 3), ("Уже списано, шк.", "Уже списано шк", 3),
+    ("Ещё уйдёт со склада, шк.", "Еще уйдет со склада шк", 3), ("Сырьё, ₽", "Сырье руб", 3), ("Подкладка, ₽", "Подкладка руб", 3),
+    ("Работа, ₽", "Работа руб", 3), ("Надбавка 4 %, ₽", "Надбавка 4 руб", 3), ("Итого, ₽", "Итого руб", 3),
+], "Сводная_артикулы", anchor="A3")
 
 # =====================================================================
 # Лист 4. Сводная: что уйдёт на остаток FW26 и что останется
 # =====================================================================
-ws4 = wb.create_sheet("4 Остаток FW26 сводная")
-title(ws4, "Сколько шкур и денег ещё уйдёт на оставшиеся артикулы FW26 и сколько сырья останется", [
-    "На складе — остаток с листа 2 (включая заказанное, но не полученное). «Уйдёт» — без шкур, уже выданных по ТЗ в работе (они уже списаны со склада). «Норка + Соболь» делится по фактической доле норки в ТЗ (жёлтые ячейки).",
+ws4 = wb.create_sheet("4 Остаток FW26")
+title(ws4, "Отчёт: сырьё на складе, сколько ещё уйдёт на непроизведённые изделия FW26 и что останется", [
+    "Склад — остаток по лотам (лист 1, с заказанным, но не полученным). «Уйдёт со склада» — с листа 3 (без шкур, уже списанных по ТЗ). «Норка + Соболь» делится по доле норки (жёлтые ячейки).",
 ])
 ws4["A4"], ws4["A5"] = "Доля норки в «Норка + Соболь», одежда", "Доля норки в «Норка + Соболь», аксессуары"
-for a in ("A4", "A5"):
-    ws4[a].font = BOLD
+for a_ in ("A4", "A5"):
+    ws4[a_].font = BOLD
 inp(ws4, 4, 3, round(data["mix"]["RTW"], 4), PCT)
 inp(ws4, 5, 3, round(data["mix"]["Acc"], 4), PCT)
-MIX_RTW, MIX_ACC = "'4 Остаток FW26 сводная'!$C$4", "'4 Остаток FW26 сводная'!$C$5"
-C4 = ["Тип меха", "На складе сейчас, шк.", "Сумма склада, ₽", "Уйдёт на остаток FW26, шк.", "из них одежда", "из них аксессуары",
-      "Сырьё на остаток FW26, ₽", "Подкладка, работа, прочее, ₽", "Всего затрат на остаток FW26, ₽", "Останется после производства, шк.", "Останется, ₽ (по ср. цене склада)", "Не хватает, шк."]
+MIX_RTW, MIX_ACC = "'4 Остаток FW26'!$C$4", "'4 Остаток FW26'!$C$5"
+C4 = ["Тип меха", "На складе, шк.", "Склад, ₽", "Ещё уйдёт со склада, шк.", "из них одежда", "из них аксессуары",
+      "Шкур на непроизведённые всего", "из них уже списано по ТЗ", "Затраты на непроизведённые, ₽", "Останется после производства, шк.", "Останется, ₽ (ср. цена склада)", "Не хватает, шк."]
 HR4 = 7
-head(ws4, HR4, C4, [32, 13, 15, 13, 11, 11, 15, 15, 16, 14, 16, 11])
+head(ws4, HR4, C4, [32, 12, 15, 13, 11, 11, 14, 13, 16, 14, 16, 11])
+
+
+def by_fur(col, fur, blk=None):
+    cond = f',{ART("B")},"{blk}"' if blk else ""
+    own = f'SUMIFS({ART(col)},{ART("D")},"{fur}"{cond})'
+    if fur not in ("Норка", "Соболь"):
+        return own
+    sh = lambda b_, mix: f'SUMIFS({ART(col)},{ART("D")},"Норка + Соболь",{ART("B")},"{b_}")*{mix if fur == "Норка" else "(1-" + mix + ")"}'
+    parts = [p_ for p_ in (("Одежда", MIX_RTW), ("Аксессуары", MIX_ACC)) if blk in (None, p_[0])]
+    return own + "".join("+" + sh(b_, m_) for b_, m_ in parts)
+
+
 r = HR4 + 1
 rows4 = []
-
-
-def need_formula(fur, col_block=None):
-    """Шкуры на остаток FW26 по типу меха (с долей норки/соболя из «Норка + Соболь»); col_block — 'Одежда'/'Аксессуары' или None."""
-    blk = f',{ART("B")},"{col_block}"' if col_block else ""
-    own = f'SUMIFS({ART("H")},{ART("D")},"{fur}"{blk})'
-    if fur not in ("Норка", "Соболь"):
-        return own
-    part = lambda b, mix: f'SUMIFS({ART("H")},{ART("D")},"Норка + Соболь",{ART("B")},"{b}")*{mix if fur == "Норка" else "(1-" + mix + ")"}'
-    if col_block == "Одежда":
-        return f"{own}+{part('Одежда', MIX_RTW)}"
-    if col_block == "Аксессуары":
-        return f"{own}+{part('Аксессуары', MIX_ACC)}"
-    return f"{own}+{part('Одежда', MIX_RTW)}+{part('Аксессуары', MIX_ACC)}"
-
-
-def money_formula(fur, col):
-    own = f'SUMIFS({ART(col)},{ART("D")},"{fur}")'
-    if fur not in ("Норка", "Соболь"):
-        return own
-    # деньги смеси делим по той же доле шкур
-    sh = lambda b, mix: f'SUMIFS({ART(col)},{ART("D")},"Норка + Соболь",{ART("B")},"{b}")*{mix if fur == "Норка" else "(1-" + mix + ")"}'
-    return f"{own}+{sh('Одежда', MIX_RTW)}+{sh('Аксессуары', MIX_ACC)}"
-
-
 for f in furs_all:
-    sr = STOCK_ROW[f]
     put(ws4, r, 1, f, bold=f in FUR_ORDER)
-    put(ws4, r, 2, f"='2 Сводная сырьё'!K{sr}", INT)
-    put(ws4, r, 3, f"='2 Сводная сырьё'!N{sr}", RUB)
-    put(ws4, r, 4, f"={need_formula(f)}", INT)
-    put(ws4, r, 5, f"={need_formula(f, 'Одежда')}", INT)
-    put(ws4, r, 6, f"={need_formula(f, 'Аксессуары')}", INT)
-    put(ws4, r, 7, f"={money_formula(f, 'J')}", RUB)
-    put(ws4, r, 8, f"={money_formula(f, 'N')}+{money_formula(f, 'P')}+{money_formula(f, 'Q')}", RUB)
-    put(ws4, r, 9, f"=G{r}+H{r}", RUB)
+    put(ws4, r, 2, f'=SUMIFS({LOT("N")},{LOT("A")},A{r})', INT)
+    put(ws4, r, 3, f'=SUMIFS({LOT("O")},{LOT("A")},A{r})', RUB)
+    put(ws4, r, 4, f"={by_fur('K', f)}", INT)
+    put(ws4, r, 5, f"={by_fur('K', f, 'Одежда')}", INT)
+    put(ws4, r, 6, f"={by_fur('K', f, 'Аксессуары')}", INT)
+    put(ws4, r, 7, f"={by_fur('I', f)}", INT)
+    put(ws4, r, 8, f"={by_fur('L', f)}", INT)
+    put(ws4, r, 9, f"={by_fur('V', f)}", RUB)
     put(ws4, r, 10, f"=MAX(0,B{r}-D{r})", INT)
     put(ws4, r, 11, f"=IFERROR(J{r}*C{r}/B{r},0)", RUB)
     put(ws4, r, 12, f"=MAX(0,D{r}-B{r})", INT)
     rows4.append(r)
     r += 1
 put(ws4, r, 1, "ВСЕГО", fill=F_TOT, bold=True)
-for c, fmt in zip(range(2, 13), [INT, RUB, INT, INT, INT, RUB, RUB, RUB, INT, RUB, INT]):
+for c, fmt in zip(range(2, 13), [INT, RUB, INT, INT, INT, INT, INT, RUB, INT, RUB, INT]):
     put(ws4, r, c, f"=SUM({L(c)}{HR4+1}:{L(c)}{r-1})", fmt, F_TOT, True)
 TOT4 = r
-r += 2
-ws4.cell(r, 1, "Проверка: шкур на остаток FW26 по листу 3 (без деления смеси)").font = NOTE
-put(ws4, r, 4, f"=SUM({ART('H')})", INT)
-ws4.cell(r + 1, 1, "Проверка: затраты на остаток FW26 по листу 3").font = NOTE
-put(ws4, r + 1, 9, f"=SUM({ART('R')})", RUB)
+ws4.cell(r + 2, 1, "Проверка: по листу 3 — шкур всего, ещё уйдёт со склада, затраты").font = NOTE
+put(ws4, r + 2, 7, f"=SUM({ART('I')})", INT)
+put(ws4, r + 2, 4, f"=SUM({ART('K')})", INT)
+put(ws4, r + 2, 9, f"=SUM({ART('V')})", RUB)
 ws4.freeze_panes = f"B{HR4+1}"
 LEFT_ROW = {f: x for f, x in zip(furs_all, rows4)}
 
@@ -322,7 +277,7 @@ title(ws5, "План производства 2027 (бюджет FW27): кате
     "Одежда — как в бюджете (RTW от 19.10). Аксессуары — новые количества по файлу MVST W FURS ACC от 27.10 (905 шт.).",
     "Шкур на изделие — из бюджета FW27 (статистика ТЗ по категории и длине; курсивом в бюджете — примерная оценка по аналогам, см. столбец «Оценка»).",
 ])
-C5 = ["Тип меха", "Одежда / аксессуары", "Категория", "Длина", "Кол-во, шт.", "Шкур на изделие", "Шкур всего", "Подкладка, м/изд.", "Подкладка всего, м", "Оценка (нет данных системы)"]
+C5 = ["Тип меха", "Блок", "Категория", "Длина", "Кол-во шт", "Шкур на изд", "Шкур всего", "Подкладка м на изд", "Подкладка м", "Оценка"]
 HR5 = 5
 head(ws5, HR5, C5, [14, 13, 24, 10, 10, 11, 11, 11, 12, 60])
 FO = ["Соболь", "Норка", "Норка+Соболь", "Лиса", "Каракульча", "Рысь"]
@@ -349,22 +304,14 @@ for c in range(2, 11):
 for c in [5, 7, 9]:
     put(ws5, r, c, f"=SUBTOTAL(9,{L(c)}{HR5+1}:{L(c)}{LAST5})", ws5.cell(LAST5, c).number_format, F_TOT, True)
 put(ws5, r, 6, f"=IFERROR(G{r}/E{r},0)", DEC, F_TOT, True)
-r += 2
-ws5.cell(r, 1, "Итого по типам меха и блокам").font = BOLD
-r += 1
-head(ws5, r, ["Тип меха", "Одежда / аксессуары", "", "", "Кол-во, шт.", "Шкур на изделие", "Шкур всего"])
-P5 = lambda col: f"${col}${HR5+1}:${col}${LAST5}"
-r += 1
-for f in FO:
-    for g in ["Одежда", "Аксессуары"]:
-        put(ws5, r, 1, f)
-        put(ws5, r, 2, g)
-        put(ws5, r, 5, f'=SUMIFS({P5("E")},{P5("A")},A{r},{P5("B")},B{r})', INT)
-        put(ws5, r, 7, f'=SUMIFS({P5("G")},{P5("A")},A{r},{P5("B")},B{r})', INT)
-        put(ws5, r, 6, f"=IFERROR(G{r}/E{r},0)", DEC)
-        r += 1
 ws5.auto_filter.ref = f"A{HR5}:{L(len(C5))}{LAST5}"
 ws5.freeze_panes = f"E{HR5+1}"
+
+ws5a = wb.create_sheet("5а Сводная план 2027")
+title(ws5a, "Сводная (pivot) по листу 5: тип меха → блок → категория → длина", ["После правок количества или расхода на листе 5 — Данные → Обновить всё."])
+add_pivot(ws5a, ws5, HR5, LAST5, C5, ["Тип меха", "Блок", "Категория", "Длина"], [
+    ("Кол-во, шт.", "Кол-во шт", 3), ("Шкур всего", "Шкур всего", 3), ("Шкур на изделие", "Ср шкур", 4), ("Подкладка, м", "Подкладка м", 4),
+], "Сводная_план_2027", calc=[("Ср шкур", "=IFERROR('Шкур всего'/'Кол-во шт',0)")], anchor="A3")
 
 # =====================================================================
 # Лист 6. Budget PCS 2027: деньги на сырьё
@@ -506,8 +453,8 @@ tot_rows = []
 for f in FUR_ORDER:
     p = PR[f]
     lr = LEFT_ROW.get(f)
-    left_total = f"'4 Остаток FW26 сводная'!J{lr}" if lr else "0"
-    short_total = f"'4 Остаток FW26 сводная'!L{lr}" if lr else "0"
+    left_total = f"'4 Остаток FW26'!J{lr}" if lr else "0"
+    short_total = f"'4 Остаток FW26'!L{lr}" if lr else "0"
     first = r
     for blk in ["Одежда", "Аксессуары"]:
         put(ws7, r, 1, f, bold=True)
@@ -556,9 +503,9 @@ r += 2
 ws7.cell(r, 1, "Кратко").font = TITLE
 r += 1
 for t, fml, fmt in [
-    ("Сырьё на складе сейчас, шк. (лист 4)", f"='4 Остаток FW26 сводная'!B{TOT4}", INT),
-    ("Уйдёт на остаток заказа FW26, шк.", f"='4 Остаток FW26 сводная'!D{TOT4}", INT),
-    ("Останется после FW26, шк.", f"='4 Остаток FW26 сводная'!J{TOT4}", INT),
+    ("Сырьё на складе сейчас, шк. (лист 4)", f"='4 Остаток FW26'!B{TOT4}", INT),
+    ("Уйдёт на остаток заказа FW26, шк.", f"='4 Остаток FW26'!D{TOT4}", INT),
+    ("Останется после FW26, шк.", f"='4 Остаток FW26'!J{TOT4}", INT),
     ("Нужно шкур на план 2027 (TTL)", f"=D{TOT7}", INT),
     ("Из остатка можно использовать, шк.", f"=H{TOT7}", INT),
     ("Закупить с запасом, шк.", f"=K{TOT7}", INT),
