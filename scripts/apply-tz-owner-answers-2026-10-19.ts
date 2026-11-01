@@ -242,7 +242,7 @@ async function main() {
         const other = await Promise.all((["DriveDocument", "PurchaseDocument", "RawMaterialLotAttr", "SupplierRawStage"] as const).map(async (t) => Number((await prisma.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM "${t}" WHERE "lotId" = $1`, lot1.id))[0].n)));
         if (out.length !== 1 || inn.length !== 1 || mv.length !== 2 || out[0].productionOrderId !== o121.id || p1.items.length !== 1 || other.some((x) => x > 0)) problems.push(`красная лиса: у лота З-2026-0001 есть связи кроме списания ТЗ 121 и прихода (движения ${mv.length}, позиций закупки ${p1.items.length}, документов/атрибутов ${other.join("/")}) — отмена не по плану, нужно решение`);
         else {
-          fox = { o121, usage, lot1, lot2, purchase1: p1, purchase2: p2, item1Id: p1.items[0].id, movId: out[0].id, movLot: out[0].lotId!, movRaw: out[0].rawMaterialId } as never;
+          fox = { o121, usage, lot1, lot2, purchase1: p1, purchase2: p2, item1Id: p1.items[0].id, movId: out[0].id, movLot: out[0].lotId!, movRaw: out[0].rawMaterialId } as unknown as FoxPlan;
           fox!.lot2 = { id: lot2.id, quantityRemaining: D(lot2.quantityRemaining), unitCost: D(lot2.unitCost), rawMaterialId: lot2.rawMaterialId };
           const before = sumOrder(o121);
           table.push({ obj: "ТЗ 121", what: "списание 55 шт. красной лисы: лот З-2026-0001 → лот З-2026-0059 (остаток лота 55 → 0)", before: `${rub(before)}; лот З-2026-0059 остаток ${lot2.quantityRemaining}`, after: `${rub(before)}; остаток 0`, rub: "0,00", basis: "письмо «Закупка. Приложение 19 (88 шкур красной лисы)» 17.07.2026: 88 = 8 изд. × 11, в работе 5 изд. (55); счёт/УПД №209 от 16.07.2026; ТЗ 158 — 33 (3 изд.)" });
