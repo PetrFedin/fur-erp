@@ -20,6 +20,7 @@ from openpyxl.worksheet.properties import PageSetupProperties
 lots = json.load(open(sys.argv[1], encoding="utf-8"))
 data = json.load(open(sys.argv[2], encoding="utf-8"))
 OUT = sys.argv[3]
+USAGE = json.load(open(sys.argv[4], encoding="utf-8")) if len(sys.argv) > 4 else []  # списания норки по ТЗ (scripts/export-mink-usage-json.ts)
 HERE = os.path.dirname(os.path.abspath(__file__))
 OWNER = json.load(open(os.path.join(HERE, "fw27-owner-plan-2026-11-01.json"), encoding="utf-8"))  # решения владельца 01.11: запас, доли норки, пол, комментарии
 SEX = json.load(open(os.path.join(HERE, "..", "src", "lib", "data", "mink-lot-sex.json"), encoding="utf-8"))  # пол шкур норки по лотам (общий с приложением)
@@ -89,13 +90,14 @@ ws1.title = "1 Лоты"
 title(ws1, "Всё купленное сырьё по лотам", [
     f"Данные на {data['asOf']} (МСК). Как на Главной: лоты склада + «Заказано, не получено» + шкуры подрядчика. Суммы в ₽ — с НДС.",
     "Цена $ — цена молотка за шкуру на аукционе (там, где она есть в документах); средневзвешенная по количеству. Подкладка и прочие материалы в лист не входят.",
+    "Пол норки — признак лота «Самец» / «Самка» (Настройки → Признаки меха); «Признаки» — все признаки лота из справочника.",
 ])
 C1 = ["Тип меха", "Год", "Аукцион", "Источник", "Лот", "Сорт", "Цвет",
       "Куплено шк", "Ср цена USD", "Ср цена руб", "Куплено руб",
       "Потрачено шк", "Потрачено руб", "Остаток шк", "Остаток руб",
-      "Куплено шк с USD", "Куплено USD", "Потрачено шк с USD", "Потрачено USD", "Остаток шк с USD", "Остаток USD", "Пол норки", "Пол: откуда"]
+      "Куплено шк с USD", "Куплено USD", "Потрачено шк с USD", "Потрачено USD", "Остаток шк с USD", "Остаток USD", "Пол норки", "Пол: откуда", "Признаки"]
 HR1 = 5
-head(ws1, HR1, C1, [12, 7, 20, 20, 16, 34, 14, 10, 11, 12, 15, 10, 15, 10, 15, 10, 13, 10, 13, 10, 13, 9, 50])
+head(ws1, HR1, C1, [12, 7, 20, 20, 16, 34, 14, 10, 11, 12, 15, 10, 15, 10, 15, 10, 13, 10, 13, 10, 13, 9, 50, 30])
 rows = sorted(lots, key=lambda r: (FUR_ORDER.index(fur_of(r["item"])) if fur_of(r["item"]) in FUR_ORDER else 99, r["item"], r["year"], r["auction"], r["lot"]))
 r = HR1 + 1
 for x in rows:
@@ -127,10 +129,11 @@ for x in rows:
     else:
         put(ws1, r, 22, "—")
         put(ws1, r, 23, None)
+    put(ws1, r, 24, x.get("attrs") or "—")
     r += 1
 LAST1 = r - 1
 put(ws1, r, 1, "ИТОГО", fill=F_TOT, bold=True)
-for c in [2, 3, 4, 5, 6, 7, 22, 23]:
+for c in [2, 3, 4, 5, 6, 7, 22, 23, 24]:
     put(ws1, r, c, None, fill=F_TOT)
 for c in [8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]:
     put(ws1, r, c, f"=SUBTOTAL(9,{L(c)}{HR1+1}:{L(c)}{LAST1})", ws1.cell(LAST1, c).number_format, F_TOT, True)
@@ -597,6 +600,38 @@ for t, fml, fmt in [
     put(ws7, r, 4, fml, fmt, bold=True)
     r += 1
 ws7.freeze_panes = f"C{HR7+1}"
+
+# =====================================================================
+# Лист 8. Где использована норка: пол → лот → ТЗ → артикул → партия
+# =====================================================================
+if USAGE:
+    ws8 = wb.create_sheet("8 Норка по полу в ТЗ")
+    title(ws8, "Данные: каждое списание шкур норки в ТЗ — пол лота, лот, аукцион, ТЗ, артикул, партия", [
+        "Пол — признак лота «Самец» / «Самка» (из названия лота и реестров закупок). ТЗ без отменённых. ₽ — стоимость списания с НДС, как в ТЗ.",
+    ])
+    C8 = ["Пол", "Лот", "Год", "Аукцион", "Сорт лота", "Признаки лота", "ТЗ", "Статус ТЗ", "Артикул", "Категория", "Партия", "Изделий в ТЗ", "Шкур", "Сумма руб", "Дата списания"]
+    HR8 = 4
+    head(ws8, HR8, C8, [12, 14, 7, 18, 34, 22, 16, 12, 14, 16, 22, 10, 9, 14, 12])
+    r = HR8 + 1
+    for u in USAGE:
+        for c, v in enumerate([u["sex"], u["lot"], int(u["year"]) if u["year"].isdigit() else u["year"], u["auction"], u["grade"], u["attrs"], u["tz"], u["status"], u["article"], u["category"], u["batch"]], 1):
+            put(ws8, r, c, v)
+        put(ws8, r, 12, u["pcs"], INT)
+        put(ws8, r, 13, u["qty"], DEC)
+        put(ws8, r, 14, u["sum"], RUB)
+        put(ws8, r, 15, u["date"])
+        r += 1
+    LAST8 = r - 1
+    put(ws8, r, 1, "ИТОГО", fill=F_TOT, bold=True)
+    for c in range(2, 16):
+        put(ws8, r, c, None, fill=F_TOT)
+    put(ws8, r, 13, f"=SUBTOTAL(9,M{HR8+1}:M{LAST8})", DEC, F_TOT, True)
+    put(ws8, r, 14, f"=SUBTOTAL(9,N{HR8+1}:N{LAST8})", RUB, F_TOT, True)
+    ws8.auto_filter.ref = f"A{HR8}:{L(len(C8))}{LAST8}"
+    ws8.freeze_panes = f"C{HR8+1}"
+    ws8a = wb.create_sheet("8а Сводная пол норки")
+    title(ws8a, "Сводная (pivot) по листу 8: пол → артикул → ТЗ → лот (шкур и ₽); партию и аукцион можно перетащить из списка полей", ["После правок листа 8 — Данные → Обновить всё."])
+    add_pivot(ws8a, ws8, HR8, LAST8, C8, ["Пол", "Артикул", "ТЗ", "Лот"], [("Шкур", "Шкур", 3), ("Сумма, ₽", "Сумма руб", 3)], "Сводная_пол_норки", anchor="A3")
 
 for ws in wb.worksheets:
     ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
