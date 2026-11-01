@@ -4,6 +4,7 @@
 import "./stubs/server-only-shim";
 import { writeFileSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
+import { orderLabel } from "../src/lib/order-label";
 
 (async () => {
   const prisma = new PrismaClient();
@@ -46,12 +47,38 @@ import { PrismaClient } from "@prisma/client";
   const avg = await loadBudgetAvg(org);
   const pcsRows = withBudgetAvg(pcsDoc.rows, avg).filter((r) => r.pcs > 0).map((r) => ({ block: r.block === "Acc" ? "Аксессуары" : "Одежда", fur: r.fur, cat: r.cat, len: r.len, pcs: r.pcs, avg: r.avg ?? (r as { avgB?: number | null }).avgB ?? null }));
 
+  // Непроизведённые изделия FW26 по ТЗ (цвет, размер): строки прогноза (по модели) раскладываются на ТЗ этой модели.
+  // «Завершены, не получены» — на завершённые ТЗ, «в работе» — на ТЗ в работе/запланированные; полученное считаем пришедшим из более ранних ТЗ,
+  // поэтому остаток кладём на ТЗ с большим номером. Списано — фактические шкуры меха ТЗ (доля остатка); ещё уйдёт — по норме за вычетом выданного.
+  const { loadOrderRows } = await import("../src/lib/analytics-orders");
+  const orderRows = (await loadOrderRows(org, "all", "off")).filter((r) => r.category !== "Ремонт");
+  const tzNum = (r: { workOrderNumber: string | null; number: string }) => parseFloat((r.workOrderNumber ?? "").replace(/[^\d.]/g, "")) || 0;
+  const fw26: unknown[] = [];
+  for (const l of forecast) {
+    const model = l.acode.split("/")[0];
+    const rs = orderRows.filter((r) => r.modelName === model).sort((a, b) => tzNum(b) - tzNum(a) || b.number.localeCompare(a.number));
+    const take = (group: "done" | "work", need: number, kind: string) => {
+      for (const r of rs.filter((x) => x.group === group)) {
+        if (need <= 1e-9) break;
+        const q = Math.min(need, r.qty); need -= q;
+        const issued = r.qty > 0 ? r.furQty * (q / r.qty) : 0; // шкур меха, списанных по ТЗ, на эту часть
+        const done = group === "done" ? issued : Math.min(issued, (l.hp ?? 0) * q);
+        const toGo = group === "done" ? 0 : Math.max(0, (l.hp ?? 0) * q - issued);
+        fw26.push({ acode: l.acode, model, fur: l.fur, cls: l.cls, cat2: l.cat2, tz: orderLabel(r), status: kind, color: r.color, size: r.size || "—", batch: r.batchText ?? "Без партии",
+          qty: q, hp: l.hp, done, toGo, hpSource: l.source + (l.sourceNote ? ` · ${l.sourceNote}` : "") });
+      }
+      if (need > 1e-6) fw26.push({ acode: l.acode, model, fur: l.fur, cls: l.cls, cat2: l.cat2, tz: "ТЗ не найдено", status: kind, color: "—", size: "—", batch: "—", qty: need, hp: l.hp, done: 0, toGo: group === "done" ? 0 : (l.hp ?? 0) * need, hpSource: l.source });
+    };
+    take("done", l.produced, "ТЗ завершено, не получено");
+    take("work", l.inWork, "ТЗ в работе / запланировано");
+  }
+
   const out = {
     asOf: new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", dateStyle: "short", timeStyle: "short" }).format(new Date()),
     forecastName: doc?.name ?? null,
     forecast, stock: bal.rows, price: bal.price, mix: bal.mix,
     budgetParams: { ...DEFAULT_PARAMS, ...(sc.params as object) }, budget,
-    pcsParams: pcsDoc.params ?? null, pcsRows,
+    pcsParams: pcsDoc.params ?? null, pcsRows, fw26,
   };
   writeFileSync(process.argv[2], JSON.stringify(out, null, 1));
   console.log(`прогноз: ${forecast.length} строк, остаток ${forecast.reduce((s, l) => s + l.left, 0)} шт.; бюджет: ${budget.length} строк, ${budget.reduce((s: number, b: any) => s + b.pcs, 0)} шт.; PCS: ${pcsRows.length} строк, ${pcsRows.reduce((s, r) => s + r.pcs, 0)} шт.`);
