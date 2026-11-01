@@ -16,7 +16,11 @@ export type PcsRow = { block: PcsBlock; fur: string; cat: string; len: string; p
 export type PcsParams = { leftoverPct: number; lynxPct: number; newPct: number; /** Какая доля используемого остатка сырья (кроме рыси) идёт на аксессуары, %; остальное — лучшая часть — на одежду. */ accPct?: number; /** Рост цены шкуры к средневзвешенной, %. */ upPct?: number; /** Свои значения «остаток после производства» по типам меха, шкур. */ left?: Record<string, number>; /** Свои шкуры норки и соболя из смеси «Норка+Соболь». */ mix?: { mink: number; sable: number } | null;
   /** Желаемый остаток после всего заказа по типам меха, % от закупки («закупить = нужно ÷ (1 − %)»); нет значения — 100 − newPct. */ reserve?: Record<string, number>;
   /** Доля норки, %, в строках «Норка+Соболь» по ключу pcsMixKey («категория|длина»); нет значения — по факту ТЗ. */ mixRows?: Record<string, number>;
-  /** Пол шкур норки по строкам, ключ pcsSexKey («мех|категория|длина»): M — самцы, F — самки; нет значения — пол не важен. */ minkSex?: Record<string, "M" | "F"> };
+  /** Пол шкур норки по строкам, ключ pcsSexKey («мех|категория|длина»): M — самцы, F — самки; нет значения — по длине (Short — самцы, Regular и Long — самки), иначе пол не важен. */ minkSex?: Record<string, "M" | "F">;
+  /** Годный остаток — в одежду, % по типам меха (остальное — в аксессуары); нет значения — 100 − accPct. */ rtw?: Record<string, number> };
+/** Пол норки строки плана: явное значение, иначе по длине (история ТЗ: Short — 100 % самцы, Regular и Long — 91–100 % самки). */
+export const minkSexOf = (r: { fur: string; cat: string; len: string }, map?: Record<string, "M" | "F">): "M" | "F" | null =>
+  map?.[pcsSexKey(r)] ?? (r.len === "Short" ? "M" : r.len === "Regular" || r.len === "Long" ? "F" : null);
 export const pcsMixKey = (r: { cat: string; len: string }) => `${r.cat}|${r.len || ""}`;
 export const pcsSexKey = (r: { fur: string; cat: string; len: string }) => `${r.fur}|${r.cat}|${r.len || ""}`;
 /** Остаток норки на складе по полу: M — самцы, F — самки, U — пол не указан. */

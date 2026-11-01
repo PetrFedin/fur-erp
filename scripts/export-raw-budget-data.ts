@@ -40,7 +40,11 @@ import { orderLabel } from "../src/lib/order-label";
     const leaves = lens.length ? lens : [c];
     for (const l of leaves) {
       if (!(l.pcs > 0)) continue;
-      budget.push({ fur, group, cat: c.name, len: l.kind === "len" ? l.name : "", pcs: l.pcs, hides: l.hides, hidePrice: l.hidePrice, meters: l.meters, meterPrice: l.meterPrice, work: l.work, est: (l as { est?: string }).est ?? (c as { est?: string }).est ?? null, src: l.src });
+      // Цена шкуры без роста: base системы (у длины — своя, иначе категории); нет base — цена бюджета ÷ (1 + надбавка): в цене бюджета уже заложен рост.
+      const up = 1 + ((l.upFur ?? c.upFur ?? (sc.params as { upFur?: number } | null)?.upFur ?? 10) / 100);
+      const basePrice = l.base?.hidePrice || c.base?.hidePrice || l.hidePrice / up;
+      budget.push({ fur, group, cat: c.name, len: l.kind === "len" ? l.name : "", pcs: l.pcs, hides: l.hides, hidePrice: l.hidePrice, basePrice, statHides: l.base?.hides ?? null,
+        meters: l.meters, meterPrice: l.meterPrice, work: l.work, est: (l as { est?: string }).est ?? (c as { est?: string }).est ?? null, src: l.src, sample: l.sample, locked: l.locked });
     }
   }
   const pcsDoc = (await listPcs(org)).find((d) => d.id === "fw27-mvst") ?? (await listPcs(org))[0];

@@ -3,8 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { hidesToGo, loadRawForecast } from "@/lib/raw-forecast";
 import { listForecasts } from "@/lib/forecast-store";
 import { loadOrderRows } from "@/lib/analytics-orders";
-import { loadBudgetStats } from "@/lib/budget-stats";
-import { BUDGET_CAT_GROUPS } from "@/lib/budget-calc";
+import { loadFurLots } from "@/lib/fur-table-server";
 
 /** Сырьё по типам меха: сколько шкур на складе и сколько уйдёт на допроизводство заказанного (остаток заказа FW26 по прогнозу). Имена типов — как в Budget PCS. */
 /** Доля норки в изделиях «Норка + Соболь» по фактическому расходу шкур в ТЗ: одежда и аксессуары отдельно (остальное — соболь). */
@@ -14,31 +13,28 @@ const NAME: Record<string, string> = { "Свакара": "Каракульча" 
 const num = (s: string | undefined, d: number | null) => { const v = parseFloat(String(s ?? "").replace(",", ".").replace(/\s/g, "")); return Number.isFinite(v) ? v : d; };
 
 export async function loadRawBalance(orgId: string): Promise<{ rows: RawBalance; forecast: string | null; mix: MixShare; price: Record<string, number> }> {
-  const [raw, docs, orders, stats] = await Promise.all([loadRawForecast(orgId), listForecasts(orgId), loadOrderRows(orgId, "all", "off"), loadBudgetStats(orgId)]);
-  // Средневзвешенная цена шкуры по типу меха (₽ с НДС): Σ(шкуры × цена) ÷ Σ шкуры по ТЗ; сводные категории («Шубы») не берём — они дублируют входящие в них.
-  const acc = new Map<string, [number, number]>();
-  const groups = new Set(Object.keys(BUDGET_CAT_GROUPS));
-  for (const st of stats) {
-    if (st.len || st.modelId || groups.has(st.cat) || st.fur.includes(" + ") || !(st.hidePrice > 0)) continue;
-    const f = NAME[st.fur] ?? st.fur, h = st.qty * st.hidesPer, a = acc.get(f) ?? [0, 0];
-    a[0] += h * st.hidePrice; a[1] += h; acc.set(f, a);
+  const [raw, docs, orders, lots] = await Promise.all([loadRawForecast(orgId), listForecasts(orgId), loadOrderRows(orgId, "all", "off"), loadFurLots(prisma, orgId, { kind: "fur", year: "all" })]);
+  // Средневзвешенная цена шкуры по типу меха (₽ с НДС, без роста): Σ ₽ списанных в ТЗ шкур ÷ Σ шкур — по лотам («потрачено»), как в Excel (лист 8 = лист 1).
+  // Нет списаний (рысь) — средняя цена закупки по лотам. Цены бюджета FW27 не берём: в них уже заложен рост (+10 %), иначе рост считался бы дважды.
+  const acc = new Map<string, [number, number, number, number]>();
+  for (const l of lots) {
+    if (l.purchaseStatus === "CANCELLED") continue;
+    const f = NAME[l.item] ?? l.item, a = acc.get(f) ?? [0, 0, 0, 0];
+    // Закупка-черновик (рысь FH: заказано, не получено) — только для средней цены закупки, списаний по ней нет.
+    if (l.purchaseStatus !== "DRAFT") { a[0] += l.usedIncl; a[1] += l.used; }
+    a[2] += l.recvIncl; a[3] += l.recv; acc.set(f, a);
   }
   const price: Record<string, number> = {};
-  for (const [f, [sum, h]] of acc) if (h > 0) price[f] = sum / h;
-  // Цены шкуры по типу меха, по которому в ТЗ расхода шкур нет (рысь): берём из бюджета FW27 (узлы этого меха с ценой шкуры), средневзвешенно по шкурам.
-  if (!price["Рысь"]) {
-    const sc = await prisma.budgetScenario.findFirst({ where: { organizationId: orgId }, orderBy: { updatedAt: "desc" }, select: { lines: true } });
-    let sum = 0, hides = 0;
-    const walk = (x: unknown) => {
-      if (Array.isArray(x)) { x.forEach(walk); return; }
-      if (!x || typeof x !== "object") return;
-      const o = x as Record<string, unknown>;
-      if ((o.fur === "Рысь" || o.statFur === "Рысь") && Number(o.hidePrice) > 0) { const h = Math.max(1, Number(o.hides) * Number(o.pcs || 1) || Number(o.hides) || 1); sum += h * Number(o.hidePrice); hides += h; }
-      Object.values(o).forEach(walk);
-    };
-    walk(sc?.lines);
-    if (hides > 0) price["Рысь"] = sum / hides;
+  for (const [f, [usedRub, used, recvRub, recv]] of acc) { if (used > 0) price[f] = usedRub / used; else if (recv > 0) price[f] = recvRub / recv; }
+  // Меха без лотов на складе (рысь: только «Заказано, не получено» на Главной) — средняя цена заказанного, как на листе лотов Excel.
+  const { loadDashboard } = await import("@/lib/dashboard-data");
+  const { parseDashFilters } = await import("@/lib/dashboard-calc");
+  for (const s of (await loadDashboard(orgId, "all", parseDashFilters({}), "off")).syntheticLots) {
+    const f = NAME[s.item] ?? s.item;
+    if (price[f] || s.id.startsWith("hides:") || !(s.recv > 0)) continue;
+    const a = acc.get(`synth:${f}`) ?? [0, 0, 0, 0]; a[2] += s.recvIncl; a[3] += s.recv; acc.set(`synth:${f}`, a);
   }
+  for (const [k, a] of acc) if (k.startsWith("synth:") && a[3] > 0) price[k.slice(6)] = a[2] / a[3];
   // Как реально делим мех в изделиях «Норка + Соболь»: шкуры норки и соболя по строкам ТЗ.
   const use = { RTW: [0, 0], Acc: [0, 0] };
   for (const o of orders) {
