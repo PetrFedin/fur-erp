@@ -22,7 +22,7 @@ data = json.load(open(sys.argv[2], encoding="utf-8"))
 OUT = sys.argv[3]
 HERE = os.path.dirname(os.path.abspath(__file__))
 OWNER = json.load(open(os.path.join(HERE, "fw27-owner-plan-2026-11-01.json"), encoding="utf-8"))  # решения владельца 01.11: запас, доли норки, пол, комментарии
-SEX = json.load(open(os.path.join(HERE, "mink-lot-sex.json"), encoding="utf-8"))  # пол шкур норки по лотам
+SEX = json.load(open(os.path.join(HERE, "..", "src", "lib", "data", "mink-lot-sex.json"), encoding="utf-8"))  # пол шкур норки по лотам (общий с приложением)
 
 NAME = {"Свакара": "Каракульча"}  # как в бюджете и Budget PCS
 FUR_ORDER = ["Соболь", "Норка", "Каракульча", "Лиса", "Рысь"]
@@ -121,7 +121,7 @@ for x in rows:
     put(ws1, r, 20, x["usdRQty"], INT)
     put(ws1, r, 21, x["usdRSub"], USD)
     if fur_of(x["item"]) == "Норка":
-        sx = SEX.get(x["lot"]) or (["?", "заказано, не получено: пол не указан"] if x["lot"] == "Заказано, не получено" else ["?", "нет в списке scripts/mink-lot-sex.json"])
+        sx = SEX.get(x["lot"]) or (["?", "заказано, не получено: пол не указан"] if x["lot"] == "Заказано, не получено" else ["?", "нет в списке src/lib/data/mink-lot-sex.json"])
         put(ws1, r, 22, sx[0])
         put(ws1, r, 23, sx[1])
     else:

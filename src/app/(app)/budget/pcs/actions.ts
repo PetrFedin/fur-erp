@@ -79,7 +79,11 @@ export async function savePcsParams(id: string, p: PcsParams): Promise<Res> {
   const left: Record<string, number> = {};
   for (const [k, v] of Object.entries(p.left ?? {})) { const x = Number(v); if (Number.isFinite(x) && x >= 0) left[s(k, 40)] = Math.min(1e8, x); }
   const mx = p.mix && Number.isFinite(Number(p.mix.mink)) && Number.isFinite(Number(p.mix.sable)) ? { mink: Math.min(1e8, Math.max(0, Number(p.mix.mink))), sable: Math.min(1e8, Math.max(0, Number(p.mix.sable))) } : null;
-  await putPcs(orgId, d.id, { ...d, params: { leftoverPct: pct(p.leftoverPct), lynxPct: pct(p.lynxPct), newPct: pct(p.newPct, 1), accPct: pct(p.accPct ?? 75), upPct: Math.min(500, Math.max(0, Math.round(Number(p.upPct ?? 10) * 10) / 10) || 0), left, mix: mx }, updatedBy: session.user.name ?? null });
+  // Желаемый остаток 0…99 % (делитель 1 − %), доля норки в смеси 0…100 %, пол — только M или F.
+  const pctMap = (o: Record<string, number> | undefined, max: number) => Object.fromEntries(Object.entries(o ?? {}).map(([k, v]) => [s(k, 120), Number(v)] as const).filter(([, v]) => Number.isFinite(v)).map(([k, v]) => [k, Math.min(max, Math.max(0, Math.round(v * 100) / 100))]));
+  const reserve = pctMap(p.reserve, 99), mixRows = pctMap(p.mixRows, 100);
+  const minkSex = Object.fromEntries(Object.entries(p.minkSex ?? {}).filter(([, v]) => v === "M" || v === "F").map(([k, v]) => [s(k, 120), v]));
+  await putPcs(orgId, d.id, { ...d, params: { leftoverPct: pct(p.leftoverPct), lynxPct: pct(p.lynxPct), newPct: pct(p.newPct, 1), accPct: pct(p.accPct ?? 75), upPct: Math.min(500, Math.max(0, Math.round(Number(p.upPct ?? 10) * 10) / 10) || 0), left, mix: mx, reserve, mixRows, minkSex }, updatedBy: session.user.name ?? null });
   revalidateAll();
   return { ok: true };
 }
