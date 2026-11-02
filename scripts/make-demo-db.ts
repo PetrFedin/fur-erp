@@ -146,6 +146,8 @@ async function main() {
   // 1. Очистка таблиц целиком
   for (const t of WIPE) if (await tableExists(t)) await x(`delete from ${q(t)}`);
   await x(`delete from "SystemState" where key like 'owner-decision:%'`);
+  // Ключи с названием заказчика (budget-pcs:fw27-mvst) → нейтральные (budget-pcs:fw27): ключи текстовая чистка не трогает, а MVST в демо быть не должно.
+  await x(`update "SystemState" set key = regexp_replace(key, '-?mvst', '', 'gi') where key ~* 'mvst'`);
   // Фото артикулов и ссылки «Товар в магазине» в обезличенную демо не входят (реальные карточки товаров; файлы в демо не копируются).
   await x(`delete from "SystemState" where key like 'article-photos:%' or key like 'article-shop-links:%'`);
   // PLU — внутренние коды заказчика: в демо пусто (свойства артикула «PLU…» убираются, остальные остаются).
@@ -168,7 +170,8 @@ async function main() {
     const r = await rows<{ id: string; v: unknown }>(`select id, ${q(c)} as v from ${q(t)} where ${q(c)} is not null and jsonb_typeof(${q(c)}) = 'object'`);
     for (const row of r) await x(`update ${q(t)} set ${q(c)} = $1::jsonb where id = $2`, JSON.stringify(scaleJson(row.v)), row.id);
   }
-  await x(`update "BudgetScenario" set lines = '[]'::jsonb, params = '{}'::jsonb, comment = NULL`);
+  // Бюджет FW27 (строки, цены, нормы) остаётся: в нём нет контрагентов, а заказчик должен видеть бюджет и расчёт закупки (владелец 02.11). Комментарий версии — свободный текст, стираем.
+  await x(`update "BudgetScenario" set comment = NULL`);
   log(K === 1 ? "деньги не умножались (коэффициент 1, суммы настоящие)" : "деньги домножены на скрытый коэффициент (в логе не печатается)");
 
   // 3. Контрагенты
@@ -239,7 +242,7 @@ async function main() {
   // 6. Старые названия — вон из всех текстовых и JSON-полей
   const textCols = await rows<{ table_name: string; column_name: string; data_type: string }>(
     `select table_name, column_name, data_type from information_schema.columns where table_schema='public' and table_name <> '_prisma_migrations'
-       and data_type in ('text','character varying','jsonb') and column_name not in ('id','passwordHash','email') and column_name not like '%Id'`);
+       and data_type in ('text','character varying','jsonb') and column_name not in ('id','key','passwordHash','email') and column_name not like '%Id'`);
   const repl = [...originals].filter((n) => n.length >= 4).sort((a, b) => b.length - a.length);
   const sqlLit = (s: string) => `'${s.replace(/'/g, "''")}'`;
   for (const c of textCols) {
