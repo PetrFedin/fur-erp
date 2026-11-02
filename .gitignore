@@ -60,3 +60,5 @@ docs-inventory/
 .next-*
 
 .next-t1/
+
+__pycache__/
