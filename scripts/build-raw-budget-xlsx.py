@@ -11,6 +11,7 @@ data.json  — scripts/export-raw-budget-data.ts (непроизведённые
 Цены бюджета FW27 уже содержат рост — на листе 6 из них берётся цена без роста (base), чтобы рост не считался дважды.
 """
 import json
+import math
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -648,18 +649,22 @@ ws7.freeze_panes = f"C{HR7+1}"
 # =====================================================================
 # Лист 8. План производства 2027 по месяцам (январь — ноябрь) и сырьё
 # =====================================================================
+from openpyxl.worksheet.properties import Outline
 MONTHS = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя"]
 NM = len(MONTHS)
-# Приход сырья на склад по месяцам — как приходило с аукционов в 2025–2026 (дата прихода лотов, сырьё приходит через 2–5 мес. после аукциона):
-# соболь РП/СП 03–05 → май–июль, СП 05 → сентябрь, СП 12 → декабрь (здесь — ноябрь); норка SAGA 03 → июль–август, AME 05 → сентябрь, Дуденко 07 → июль–август;
-# каракульча SAGA 03/06 → июль–август, «нет информации» → октябрь; лиса SAGA 03 → июль–август; рысь FH 06 → октябрь–ноябрь (спецификация №12).
+# Приход купленного сырья на склад по месяцам (выделанные шкуры; по датам прихода лотов 2025–2026, весенние аукционы — не раньше лета):
+# соболь РП/СП март–май → июнь–июль, СП осень → сентябрь, СП декабрь → ноябрь; норка SAGA март → июль–август, AME май → сентябрь;
+# каракульча SAGA март/июнь → июль–август, прочее → октябрь; лиса SAGA март → июль–август; рысь FH июнь → октябрь.
 INTAKE = {
-    "Соболь": {5: 0.405, 7: 0.407, 9: 0.167, 11: 0.021},
-    "Норка": {6: 0.025, 7: 0.447, 8: 0.476, 9: 0.052},
-    "Каракульча": {7: 0.404, 8: 0.451, 10: 0.145},
+    "Соболь": {6: 0.40, 7: 0.40, 9: 0.17, 11: 0.03},
+    "Норка": {7: 0.45, 8: 0.50, 9: 0.05},
+    "Каракульча": {7: 0.40, 8: 0.45, 10: 0.15},
     "Лиса": {7: 0.65, 8: 0.35},
-    "Рысь": {10: 0.5, 11: 0.5},
+    "Рысь": {10: 1.0},
 }
+# Целевая загрузка одежды (владелец 02.11): с января не меньше 50 %, июль 25–30 % (отпуска), к сентябрю ≈ 70 % плана, без 100 % в конце года.
+TARGET_LOAD = [0.5] * 6 + [0.28] + [0.8] * 4
+LYNX_FROM = 8  # рысь шьём к сентябрю–ноябрю (сырьё — остаток 2026, есть с декабря 2026)
 
 
 def spread(total, weights):
@@ -673,8 +678,7 @@ def spread(total, weights):
         out[i] += 1
     return out
 
-
-# --- значения листов 4 и 7 (те же формулы, что в ячейках) — только чтобы разложить штуки; дальше лист 8 считает формулами
+# --- значения листов 4 и 7 (те же формулы, что в ячейках) — для раскладки; дальше лист 8 считает формулами
 stock_v = {f: sum(x["rem"] for x in rows1 if fur_of(x["item"]) == f) for f in FURS}
 norm_v = {f: sum(x["qty"] * (x["hp"] or 0) for x in fw if x["fur"] == f) for f in FURS}
 togo0_v = {f: sum(0 if x["status"].startswith("ТЗ завершено") else max(0, x["qty"] * (x["hp"] or 0) - x["done"]) for x in fw if x["fur"] == f) for f in FURS}
@@ -688,143 +692,213 @@ for b in bud:
         ttl_v["Соболь"][b["group"]] += t_ * (1 - s_)
     elif b["fur"] in FURS:
         ttl_v[b["fur"]][b["group"]] += t_
-use_frac = {}  # доля потребности блока, закрытая остатком 2026
+lpool, buy_v = {}, {}
 for f in FURS:
     X = OWNER["reserve"][f]
-    for g, sh in (("Одежда", OWNER["rtwShare"][f]), ("Аксессуары", 1 - OWNER["rtwShare"][f])):
-        T = ttl_v[f][g]
-        To = ttl_v[f]["Аксессуары" if g == "Одежда" else "Одежда"]
-        uo = left_v[f] * (1 - sh) * (1 - X)  # годное другого блока
-        use_frac[(f, g)] = min(T, left_v[f] * sh * (1 - X) + max(0, uo - To)) / T if T else 0
+    u = {"Одежда": left_v[f] * OWNER["rtwShare"][f] * (1 - X), "Аксессуары": left_v[f] * (1 - OWNER["rtwShare"][f]) * (1 - X)}
+    need_buy = 0.0
+    for g, o in (("Одежда", "Аксессуары"), ("Аксессуары", "Одежда")):
+        h = min(ttl_v[f][g], u[g] + max(0, u[o] - ttl_v[f][o]))   # своё годное + лишнее другого блока (как лист 7)
+        lpool[(f, g)] = h
+        need_buy += ttl_v[f][g] - h
+    buy_v[f] = need_buy / (1 - X)
 
-# --- строки производства: тип меха × блок; сколько штук можно сшить к концу каждого месяца (сырьё уже есть)
-PROWS = []
+# --- строки производства и шкур на изделие по видам сырья
+PR8 = []
 for f in FO:
     for g in ("Одежда", "Аксессуары"):
-        pcs = sum(b["pcs"] for b in bud if b["fur"] == f and b["group"] == g)
+        bs = [b for b in bud if b["fur"] == f and b["group"] == g]
+        pcs = sum(b["pcs"] for b in bs)
         if not pcs:
             continue
-        u = min(use_frac[("Норка", g)], use_frac[("Соболь", g)]) if f == "Норка+Соболь" else use_frac[(f, g)]
-        from_left = int(pcs * u + 1e-9)  # вниз: из остатка блока не больше, чем его годная доля
-        prof = INTAKE["Норка" if f == "Норка+Соболь" else f]
-        # из остатка 2026 — с января; из покупки — с месяца после прихода сырья (приход в месяце mo → шьём с mo+1; позже ноября — в ноябре)
-        cum, ub = 0.0, []
-        for m in range(NM):
-            cum += sum(sh for mo, sh in prof.items() if min(mo, NM - 1) == m)
-            ub.append(from_left + (pcs - from_left) * min(1.0, cum))
-        ub[-1] = pcs
-        PROWS.append({"f": f, "g": g, "pcs": pcs, "left": from_left, "ub": ub})
+        per = {}
+        for b in bs:
+            t_ = b["pcs"] * b["hides"]
+            if f == "Норка+Соболь":
+                s_ = OWNER["minkShare"].get(f'{b["cat"]}|{b["len"]}', MIX["RTW" if g == "Одежда" else "Acc"])
+                per["Норка"] = per.get("Норка", 0) + t_ * s_
+                per["Соболь"] = per.get("Соболь", 0) + t_ * (1 - s_)
+            else:
+                per[f] = per.get(f, 0) + t_
+        PR8.append({"f": f, "g": g, "pcs": pcs, "per": {k: v / pcs for k, v in per.items()}})
 
 
-def level(rows):
-    """Выравнивание по месяцам: минимальная мощность C, при которой всё шьётся к ноябрю; каждый месяц — примерно поровну, но не больше C
-    и не больше, чем позволяет пришедшее сырьё; внутри месяца — пропорционально доступному по типам меха."""
-    total = sum(r["pcs"] for r in rows)
-
-    def run(C, keep=False):
-        done = [0] * len(rows)
-        plan = [[0] * NM for _ in rows]
-        for m in range(NM):
-            avail = [int(r["ub"][m] + 1e-9) - d for r, d in zip(rows, done)]
-            rem, ml = total - sum(done), NM - m
-            # то, что уже можно шить, растягиваем ровно до месяца, когда придёт новое сырьё
-            tot_ub = [sum(r["ub"][k] for r in rows) for k in range(NM)]
-            nxt = next((k for k in range(m + 1, NM) if tot_ub[k] > tot_ub[m] + 0.5), NM)
-            want = max(min(-(-rem // ml), -(-sum(avail) // (nxt - m))), rem - C * (ml - 1))
-            q = max(0, min(C, sum(avail), want))
-            parts = spread(q, avail) if q else [0] * len(rows)
-            parts = [min(p_, a_) for p_, a_ in zip(parts, avail)]
-            short = q - sum(parts)
-            for i in sorted(range(len(rows)), key=lambda i: avail[i] - parts[i], reverse=True):
-                if short <= 0:
+def schedule(rtw_targets):
+    """Помесячная раскладка: сначала сырьё из остатка 2026 своего блока, потом купленное (с месяца после прихода)."""
+    lp = dict(lpool); bp = {f: 0.0 for f in FURS}
+    left = [r["pcs"] for r in PR8]; out = [[0] * NM for _ in PR8]
+    def can(i):
+        r = PR8[i]
+        return all(lp[(fu, r["g"])] + bp[fu] >= p - 1e-9 for fu, p in r["per"].items())
+    def take(i):
+        r = PR8[i]
+        for fu, p in r["per"].items():
+            a = min(p, lp[(fu, r["g"])]); lp[(fu, r["g"])] -= a; bp[fu] -= p - a
+        left[i] -= 1
+    for m in range(NM):
+        for fu in FURS:
+            bp[fu] += buy_v[fu] * INTAKE[fu].get(m, 0)   # приход в месяце m (номер 1..12) → шьём с месяца m+1 (индекс m)
+        for g in ("Одежда", "Аксессуары"):
+            idx = [i for i, r in enumerate(PR8) if r["g"] == g and not (r["f"] == "Рысь" and m < LYNX_FROM)]
+            rem = sum(left[i] for i in idx) + (sum(left[i] for i, r in enumerate(PR8) if r["g"] == g and r["f"] == "Рысь") if m < LYNX_FROM else 0)
+            t = rtw_targets[m] if g == "Одежда" and rtw_targets[m] is not None else -(-rem // (NM - m))
+            got = [0] * len(PR8)
+            # рысь — ровно по месяцам сентябрь–ноябрь (не больше своей доли месяца)
+            lim = {i: (-(-left[i] // (NM - m)) if PR8[i]["f"] == "Рысь" else 10 ** 6) for i in idx}  # на начало месяца
+            for _ in range(int(t)):
+                cand = [i for i in idx if left[i] > 0 and got[i] < lim[i] and can(i)]
+                if not cand:
                     break
-                add = min(short, avail[i] - parts[i]); parts[i] += add; short -= add
-            for i, p_ in enumerate(parts):
-                done[i] += p_; plan[i][m] = p_
-        return plan if sum(done) == total else None
-
-    C = max(1, -(-total // NM))
-    while run(C) is None:
-        C += 1
-    return C, run(C)
+                i = max(cand, key=lambda i: left[i] / PR8[i]["pcs"])
+                take(i); out[i][m] += 1; got[i] += 1
+    return out, left
 
 
-CAP = {}
-for g in ("Одежда", "Аксессуары"):
-    rows_g = [r for r in PROWS if r["g"] == g]
-    CAP[g], plan_g = level(rows_g)
-    for r, pl in zip(rows_g, plan_g):
-        r["months"] = pl
-PROWS = [(r["f"], r["g"], r["pcs"], r["left"], r["months"]) for r in PROWS]
+RTW_TOTAL = sum(r["pcs"] for r in PR8 if r["g"] == "Одежда")
+C_TARGET = math.ceil(RTW_TOTAL / sum(TARGET_LOAD))  # мощность, при которой целевой профиль даёт ровно план
+# 1) сколько одежды можно сшить из остатка 2026 до первого прихода купленного (январь–июнь)
+probe, _ = schedule([999] * 6 + [0] + [None] * 4)
+early = sum(probe[i][m] for i, r in enumerate(PR8) if r["g"] == "Одежда" for m in range(6))
+# 2) январь–июнь ровно из остатка; июль — целевая загрузка (отпуска) из пришедшего соболя; остальное — август–ноябрь
+tg = spread(early, [1] * 6) + [round(C_TARGET * TARGET_LOAD[6])] + [None] * 4
+plan8, left8 = schedule(tg)
+assert sum(left8) == 0, f"не разложено {left8}"
+rtw_m = [sum(plan8[i][m] for i, r in enumerate(PR8) if r["g"] == "Одежда") for m in range(NM)]
+acc_m = [sum(plan8[i][m] for i, r in enumerate(PR8) if r["g"] == "Аксессуары") for m in range(NM)]
+C_ACC = max(acc_m)
+
+# 3) что нужно, чтобы шить по целевой загрузке: сырьё к концу месяца сверх достижимого
+tgt = [round(C_TARGET * x) for x in TARGET_LOAD]
+tgt[-1] = RTW_TOTAL - sum(tgt[:-1])
+need_cum = {f: [0.0] * NM for f in FURS}; have_cum = {f: [0.0] * NM for f in FURS}
+rem_rtw = {i: r["pcs"] for i, r in enumerate(PR8) if r["g"] == "Одежда"}
+acc_use = {f: [0.0] * NM for f in FURS}
+for i, r in enumerate(PR8):
+    if r["g"] == "Аксессуары":
+        for m in range(NM):
+            for fu, p in r["per"].items():
+                acc_use[fu][m] += plan8[i][m] * p
+nc = {f: 0.0 for f in FURS}; hc = {f: sum(lpool[(f, g)] for g in ("Одежда", "Аксессуары")) for f in FURS}
+for m in range(NM):
+    q = tgt[m]
+    pool_i = [i for i in rem_rtw if rem_rtw[i] > 0 and not (PR8[i]["f"] == "Рысь" and m < LYNX_FROM)]
+    tot_rem = sum(rem_rtw[i] for i in pool_i) or 1
+    parts = spread(min(q, sum(rem_rtw[i] for i in pool_i)), [rem_rtw[i] / tot_rem for i in pool_i])
+    for i, k in zip(pool_i, parts):
+        rem_rtw[i] -= k
+        for fu, p in PR8[i]["per"].items():
+            nc[fu] += k * p
+    for fu in FURS:
+        if m > 0:
+            hc[fu] += buy_v[fu] * INTAKE[fu].get(m, 0)
+        nc[fu] += acc_use[fu][m]
+        need_cum[fu][m] = max(0.0, nc[fu] - hc[fu])
 
 ws8 = wb.create_sheet("8 План производства 2027")
+ws8.sheet_properties.outlinePr = Outline(summaryBelow=False, summaryRight=False)
 title(ws8, "План производства 2027 по месяцам: сколько изделий шьём, приход и расход сырья, остаток на складе (январь — ноябрь)", [
-    "Логика: шьём ровно по месяцам; из годного остатка 2026 — с января (его хватает в основном на аксессуары), из купленного — с месяца после прихода сырья. Приход по месяцам — как сырьё приходило с аукционов в 2025–2026.",
-    "Одежда должна быть готова к поставкам в розницу сентябрь–ноябрь, аксессуары — октябрь–январь (так приходил товар FW25/26 и FW26/27).",
-    "Жёлтые ячейки можно менять: штуки по месяцам (итог должен совпасть с планом — столбец «Сверка»), мощность, приход по месяцам. Сырьё пересчитывается само; «не хватает» — шкур меньше, чем нужно на шитьё к концу месяца.",
-    "Шкур на изделие — средняя по блоку (короткие и длинные вместе), поэтому помесячный расход сырья примерный. Рысь, пришедшую в октябре–ноябре, шьём уже в ноябре (позже ноября план не идёт).",
+    "До августа одежду можно шить только из годного остатка 2026 (её доля + лишнее аксессуаров): купленное весной приходит в июне–августе и идёт в работу с месяца после прихода. Рысь — сентябрь–ноябрь из остатка (есть с декабря 2026).",
+    "Поэтому план ниже: январь–июнь одежда ровно из остатка, июль меньше (отпуска), остальное — август–ноябрь; аксессуары ровно весь год. Целевую загрузку (≥50 %, июль 25–30 %, 70 % к сентябрю) без более раннего сырья не выполнить — см. раздел 4.",
+    "Править: «+» слева от строки раскрывает «долю по месяцам, %» и «поправку, шт.» — штуки месяца = план × доля + поправка, ноябрь — остаток до плана. Мощность, целевая загрузка и приход сырья — жёлтые ячейки; сырьё пересчитывается само.",
+    "Шкур на изделие — средняя по блоку (короткие и длинные вместе), поэтому помесячный расход сырья примерный.",
 ])
-CAPR = 6
+CAPR = 7
 ws8.cell(CAPR, 1, "Мощность в месяц, изделий: одежда").font = BOLD
-inp(ws8, CAPR, 3, CAP["Одежда"], INT)
-ws8.cell(CAPR, 5, "← по умолчанию — минимально нужная при таком приходе сырья: меньше нельзя, не успеем к ноябрю").font = NOTE
+inp(ws8, CAPR, 3, C_TARGET, INT)
+ws8.cell(CAPR, 5, "← по умолчанию — мощность, при которой целевая загрузка (строка «Целевая загрузка одежды») даёт ровно план одежды").font = NOTE
 ws8.cell(CAPR + 1, 1, "Мощность в месяц, изделий: аксессуары").font = BOLD
-inp(ws8, CAPR + 1, 3, CAP["Аксессуары"], INT)
+inp(ws8, CAPR + 1, 3, C_ACC, INT)
 r = CAPR + 3
-ws8.cell(r, 1, "1. Производство, шт.").font = H2
+ws8.cell(r, 1, "1. Производство, шт. (раскройте «+», чтобы править долю по месяцам и поправку)").font = H2
 r += 1
 C8 = ["Тип меха", "Блок"] + MONTHS + ["Итого", "По плану (лист 5)", "Сверка", "Шкур на изделие, среднее по блоку: свой мех (у «Норка+Соболь» — норка)", "Шкур на изделие: соболь (у «Норка+Соболь»)"]
 HR8 = r
-head(ws8, HR8, C8, [16, 12] + [8] * NM + [9, 11, 9, 16, 14], height=75)
+head(ws8, HR8, C8, [34, 12] + [8] * NM + [9, 11, 9, 16, 14], height=75)
 r += 1
-MC = lambda i: L(3 + i)  # столбец месяца
+MC = lambda i: L(3 + i)
 COL_TOT, COL_PLAN, COL_CHK, COL_S1, COL_S2 = 3 + NM, 4 + NM, 5 + NM, 6 + NM, 7 + NM
 prow_of = {}
-first8 = r
-for f, g, pcs, from_left, months in PROWS:
-    put(ws8, r, 1, f, bold=True)
-    put(ws8, r, 2, g)
-    for i, v in enumerate(months):
-        inp(ws8, r, 3 + i, v, INT)
-    put(ws8, r, COL_TOT, f"=SUM({MC(0)}{r}:{MC(NM-1)}{r})", INT)
-    put(ws8, r, COL_PLAN, f'=SUMIFS({P5("E")},{P5("A")},"{f}",{P5("B")},"{g}")', INT)
-    put(ws8, r, COL_CHK, f'=IF({L(COL_TOT)}{r}={L(COL_PLAN)}{r},"✓","≠ "&TEXT({L(COL_TOT)}{r}-{L(COL_PLAN)}{r},"0"))', fill=F_OK)
+main_rows = {"Одежда": [], "Аксессуары": []}
+for i, pr in enumerate(PR8):
+    f, g, pcs = pr["f"], pr["g"], pr["pcs"]
+    rm, rs, rc = r, r + 1, r + 2
+    put(ws8, rm, 1, f, bold=True)
+    put(ws8, rm, 2, g)
+    put(ws8, rm, COL_PLAN, f'=SUMIFS({P5("E")},{P5("A")},"{f}",{P5("B")},"{g}")', INT)
+    put(ws8, rs, 1, "   доля плана по месяцам, %")
+    put(ws8, rs, 2, "")
+    put(ws8, rc, 1, "   поправка, шт. (+/−)")
+    put(ws8, rc, 2, "")
+    for m in range(NM):
+        inp(ws8, rs, 3 + m, round(plan8[i][m] / pcs, 6) if pcs else 0, '0.0%')
+        inp(ws8, rc, 3 + m, 0, INT)
+        if m < NM - 1:
+            put(ws8, rm, 3 + m, f"=ROUND(${L(COL_PLAN)}{rm}*{MC(m)}{rs},0)+{MC(m)}{rc}", INT)
+        else:
+            put(ws8, rm, 3 + m, f"=${L(COL_PLAN)}{rm}-SUM({MC(0)}{rm}:{MC(NM-2)}{rm})", INT)
+    put(ws8, rs, COL_TOT, f"=SUM({MC(0)}{rs}:{MC(NM-1)}{rs})", '0.0%')
+    put(ws8, rc, COL_TOT, f"=SUM({MC(0)}{rc}:{MC(NM-1)}{rc})", INT)
+    put(ws8, rm, COL_TOT, f"=SUM({MC(0)}{rm}:{MC(NM-1)}{rm})", INT)
+    put(ws8, rm, COL_CHK, f'=IF(AND({L(COL_TOT)}{rm}={L(COL_PLAN)}{rm},MIN({MC(0)}{rm}:{MC(NM-1)}{rm})>=0),"✓","≠ проверить")', fill=F_OK)
     pc = f'SUMIFS({P5("E")},{P5("A")},"{f}",{P5("B")},"{g}")'
     if f == "Норка+Соболь":
-        put(ws8, r, COL_S1, f'=IFERROR(SUMIFS({P5("I")},{P5("A")},"{f}",{P5("B")},"{g}")/{pc},0)', DEC)
-        put(ws8, r, COL_S2, f'=IFERROR(SUMIFS({P5("J")},{P5("A")},"{f}",{P5("B")},"{g}")/{pc},0)', DEC)
+        put(ws8, rm, COL_S1, f'=IFERROR(SUMIFS({P5("I")},{P5("A")},"{f}",{P5("B")},"{g}")/{pc},0)', DEC)
+        put(ws8, rm, COL_S2, f'=IFERROR(SUMIFS({P5("J")},{P5("A")},"{f}",{P5("B")},"{g}")/{pc},0)', DEC)
     else:
-        put(ws8, r, COL_S1, f'=IFERROR(SUMIFS({P5("G")},{P5("A")},"{f}",{P5("B")},"{g}")/{pc},0)', DEC)
-        put(ws8, r, COL_S2, None)
-    prow_of[(f, g)] = r
-    r += 1
-last8 = r - 1
+        put(ws8, rm, COL_S1, f'=IFERROR(SUMIFS({P5("G")},{P5("A")},"{f}",{P5("B")},"{g}")/{pc},0)', DEC)
+    ws8.row_dimensions.group(rs, rc, outline_level=1, hidden=True)
+    prow_of[(f, g)] = rm
+    main_rows[g].append(rm)
+    r += 3
 blk_rows = {}
 for g in ("Одежда", "Аксессуары"):
     put(ws8, r, 1, f"{g} — всего", fill=F_GRP, bold=True)
     put(ws8, r, 2, "", fill=F_GRP)
-    for c in range(3, COL_PLAN + 1):
-        put(ws8, r, c, f'=SUMIFS({L(c)}{first8}:{L(c)}{last8},$B${first8}:$B${last8},"{g}")', INT, F_GRP, True)
+    for c in list(range(3, 3 + NM)) + [COL_TOT, COL_PLAN]:
+        put(ws8, r, c, "=" + "+".join(f"{L(c)}{x}" for x in main_rows[g]), INT, F_GRP, True)
     blk_rows[g] = r
     r += 1
 put(ws8, r, 1, "ВСЕГО изделий", fill=F_TOT, bold=True)
 put(ws8, r, 2, "", fill=F_TOT)
-for c in range(3, COL_PLAN + 1):
+for c in list(range(3, 3 + NM)) + [COL_TOT, COL_PLAN]:
     put(ws8, r, c, f"={L(c)}{blk_rows['Одежда']}+{L(c)}{blk_rows['Аксессуары']}", INT, F_TOT, True)
 put(ws8, r, COL_CHK, f'=IF({L(COL_TOT)}{r}={L(COL_PLAN)}{r},"✓ "&TEXT({L(COL_TOT)}{r},"0"),"≠ проверить")', fill=F_OK, bold=True)
-TOT8 = r
 r += 1
+LOADR = {}
 for g, cr in (("Одежда", CAPR), ("Аксессуары", CAPR + 1)):
     put(ws8, r, 1, f"Загрузка мощности: {g.lower()}")
     put(ws8, r, 2, "")
-    for i in range(NM):
-        put(ws8, r, 3 + i, f"=IFERROR({MC(i)}{blk_rows[g]}/$C${cr},0)", PCT)
+    for m in range(NM):
+        put(ws8, r, 3 + m, f"=IFERROR({MC(m)}{blk_rows[g]}/$C${cr},0)", PCT)
     put(ws8, r, COL_TOT, f'=IF(MAX({MC(0)}{r}:{MC(NM-1)}{r})>1,"перегруз","✓ не выше 100 %")', fill=F_OK)
+    LOADR[g] = r
     r += 1
+put(ws8, r, 1, "Одежда: сшито нарастающим итогом, % плана")
+put(ws8, r, 2, "")
+for m in range(NM):
+    put(ws8, r, 3 + m, f"=IFERROR(SUM(${MC(0)}{blk_rows['Одежда']}:{MC(m)}{blk_rows['Одежда']})/${L(COL_PLAN)}{blk_rows['Одежда']},0)", PCT)
+CUMR = r
 r += 1
+put(ws8, r, 1, "Целевая загрузка одежды, % мощности")
+put(ws8, r, 2, "")
+for m in range(NM):
+    inp(ws8, r, 3 + m, TARGET_LOAD[m], PCT)
+TLR = r
+r += 1
+put(ws8, r, 1, "Одежда по целевой загрузке, шт.")
+put(ws8, r, 2, "")
+for m in range(NM):
+    put(ws8, r, 3 + m, f"=ROUND($C${CAPR}*{MC(m)}{TLR},0)", INT)
+put(ws8, r, COL_TOT, f"=SUM({MC(0)}{r}:{MC(NM-1)}{r})", INT)
+r += 1
+put(ws8, r, 1, "Одежда по целевой загрузке: нарастающим итогом, % плана")
+put(ws8, r, 2, "")
+for m in range(NM):
+    put(ws8, r, 3 + m, f"=IFERROR(SUM(${MC(0)}{r-1}:{MC(m)}{r-1})/${L(COL_PLAN)}{blk_rows['Одежда']},0)", PCT)
+r += 2
 
 # --- приход сырья по месяцам, доли
-ws8.cell(r, 1, "2. Приход купленного сырья по месяцам, % от закупки (лист 7) — по 2025–2026").font = H2
+ws8.cell(r, 1, "2. Приход купленного сырья на склад по месяцам, % от закупки (лист 7); в работу — с месяца после прихода").font = H2
 r += 1
 head(ws8, r, ["Тип меха", ""] + MONTHS + ["Итого"], height=30)
 r += 1
@@ -832,12 +906,12 @@ INR = {}
 for f in FURS:
     put(ws8, r, 1, f, bold=True)
     put(ws8, r, 2, "")
-    for i in range(NM):
-        inp(ws8, r, 3 + i, INTAKE[f].get(i + 1, 0), PCT)
+    for m in range(NM):
+        inp(ws8, r, 3 + m, INTAKE[f].get(m + 1, 0), PCT)
     put(ws8, r, COL_TOT, f"=SUM({MC(0)}{r}:{MC(NM-1)}{r})", PCT)
     INR[f] = r
     r += 1
-ws8.cell(r, 1, "Соболь СП 12 обычно приходит в декабре — здесь отнесён на ноябрь. Рысь FH 06.26 — поставка октябрь–ноябрь (спецификация №12).").font = NOTE
+ws8.cell(r, 1, "По датам прихода лотов 2025–2026: соболь РП/СП март–май пришёл в мае–июле, СП май — в сентябре, СП декабрь — в декабре (здесь — ноябрь); норка SAGA март — июль–август, AME май — сентябрь; каракульча и лиса — июль–август; рысь FH июнь — октябрь–ноябрь.").font = NOTE
 r += 2
 
 # --- сырьё по видам меха
@@ -853,21 +927,20 @@ for f in FURS:
     for k, lab in enumerate(labels):
         put(ws8, r0 + k, 1, f if k == 0 else "", bold=k == 0, fill=F_FUR if k == 0 else None)
         put(ws8, r0 + k, 2, lab, fill=F_FUR if k == 0 else None)
-    for i in range(NM):
-        c = MC(i)
-        put(ws8, r0, 3 + i, f"={L4('K', f)}" if i == 0 else f"={MC(i-1)}{r0+3}", INT, F_FUR)
-        put(ws8, r0 + 1, 3 + i, f"='7 Расчёт закупки 2027'!$K${tr}*{c}{INR[f]}", INT)
-        # расход: штуки месяца × шкур на изделие (норка и соболь — и из «Норка+Соболь»)
+    for m in range(NM):
+        c = MC(m)
+        put(ws8, r0, 3 + m, f"={L4('K', f)}" if m == 0 else f"={MC(m-1)}{r0+3}", INT, F_FUR)
+        put(ws8, r0 + 1, 3 + m, f"='7 Расчёт закупки 2027'!$K${tr}*{c}{INR[f]}", INT)
         parts = []
         for (pf, pg), pr in prow_of.items():
             if pf == f:
                 parts.append(f"{c}{pr}*${L(COL_S1)}{pr}")
             elif pf == "Норка+Соболь" and f in ("Норка", "Соболь"):
                 parts.append(f"{c}{pr}*${L(COL_S1 if f == 'Норка' else COL_S2)}{pr}")
-        put(ws8, r0 + 2, 3 + i, "=" + ("+".join(parts) if parts else "0"), INT)
-        put(ws8, r0 + 3, 3 + i, f"={c}{r0}+{c}{r0+1}-{c}{r0+2}", INT, bold=True)
-        put(ws8, r0 + 4, 3 + i, f"='7 Расчёт закупки 2027'!$F${tr}", INT)
-        put(ws8, r0 + 5, 3 + i, f"={c}{r0+3}-{c}{r0+4}", INT)
+        put(ws8, r0 + 2, 3 + m, "=" + ("+".join(parts) if parts else "0"), INT)
+        put(ws8, r0 + 3, 3 + m, f"={c}{r0}+{c}{r0+1}-{c}{r0+2}", INT, bold=True)
+        put(ws8, r0 + 4, 3 + m, f"='7 Расчёт закупки 2027'!$F${tr}", INT)
+        put(ws8, r0 + 5, 3 + m, f"={c}{r0+3}-{c}{r0+4}", INT)
     put(ws8, r0, COL_TOT, None, fill=F_FUR)
     put(ws8, r0 + 1, COL_TOT, f"=SUM({MC(0)}{r0+1}:{MC(NM-1)}{r0+1})", INT)
     put(ws8, r0 + 2, COL_TOT, f"=SUM({MC(0)}{r0+2}:{MC(NM-1)}{r0+2})", INT)
@@ -875,7 +948,23 @@ for f in FURS:
     put(ws8, r0 + 4, COL_TOT, None)
     put(ws8, r0 + 5, COL_TOT, f'=IF(MIN({MC(0)}{r0+5}:{MC(NM-1)}{r0+5})<0,"≠ не хватает — сдвиньте шитьё","✓ хватает")', fill=F_OK)
     r = r0 + len(labels)
-ws8.cell(r, 1, "Расход за год = шкур на план 2027 (лист 7); остаток на конец ноября ≈ «всего останется после 2027» листа 7 (неиспользованный остаток 2026 + запас купленного).").font = NOTE
+ws8.cell(r, 1, "Расход за год = шкур на план 2027 (лист 7); остаток на конец ноября = «всего останется после 2027» листа 7. Проверка по меху целиком; распределение между одеждой и аксессуарами — как на листе 7.").font = NOTE
+r += 2
+
+# --- что нужно для целевой загрузки
+ws8.cell(r, 1, "4. Чтобы шить одежду по целевой загрузке: сколько шкур не хватает к концу месяца (нарастающим итогом, сверх остатка 2026 и прихода выше)").font = H2
+r += 1
+ws8.cell(r, 1, f"Расчёт при мощности {C_TARGET} изд./мес. и целевой загрузке строки выше (на момент построения файла). Ноль — сырья хватает. Закрыть разрыв можно только сырьём раньше: часть закупки на зимних аукционах (декабрь 2026 — февраль 2027) или быстрее получать весенние лоты.").font = NOTE
+r += 1
+head(ws8, r, ["Тип меха", ""] + MONTHS + ["Макс."], height=30)
+r += 1
+for f in FURS:
+    put(ws8, r, 1, f, bold=True)
+    put(ws8, r, 2, "")
+    for m in range(NM):
+        put(ws8, r, 3 + m, round(need_cum[f][m]), INT)
+    put(ws8, r, COL_TOT, round(max(need_cum[f])), INT, bold=True)
+    r += 1
 ws8.freeze_panes = f"C{HR8+1}"
 
 for ws in wb.worksheets:
