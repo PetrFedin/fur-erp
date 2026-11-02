@@ -1,5 +1,5 @@
 // Остаток норки на складе по полу шкур: самцы (M), самки (F), пол не указан (U).
-// Пол лота — из src/lib/data/mink-lot-sex.json (название лота и реестры закупок; проверено 01.11.2026). Тот же файл читает Excel «Сырьё и бюджет FW27».
+// Пол лота — признак меха «Самец» / «Самка» (группа «Пол», Настройки → Признаки меха); у лота без признака — по src/lib/data/mink-lot-sex.json.
 import { prisma } from "@/lib/prisma";
 import { loadFurLots } from "@/lib/fur-table-server";
 import type { MinkSexStock } from "@/lib/budget-pcs";
@@ -16,7 +16,7 @@ export async function loadMinkSexStock(orgId: string, total: number): Promise<Mi
   let M = 0, F = 0;
   for (const l of lots) {
     if (l.item !== "Норка" || l.purchaseStatus === "DRAFT" || l.purchaseStatus === "CANCELLED" || !(l.rem > 0)) continue;
-    const s = sexOf(l.lotNumber);
+    const s = l.attrs.includes("Самец") ? "M" : l.attrs.includes("Самка") ? "F" : sexOf(l.lotNumber);
     if (s === "M") M += l.rem; else if (s === "F") F += l.rem;
   }
   return { M, F, U: Math.max(0, total - M - F) };

@@ -83,7 +83,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
   const rtwOf = (fur: string) => { const v = parseFloat((ovRtw[fur] ?? "").replace(",", ".")); return (Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : rtwDefault) / 100; };
   const supply = useMemo(() => {
     const own = (v: string, d: number) => (v.trim() === "" || !Number.isFinite(parseFloat(v.replace(",", "."))) ? d : Math.max(0, parseFloat(v.replace(",", "."))));
-    const up = Math.max(0, parseFloat(pp.u.replace(",", ".")) || 0);
+    const up = pctOr(pp.u, 10); // пустое поле — 10 %, «0» — без роста
     // Шкуры по типу меха и блоку. «Норка+Соболь» делим на норку и соболь по доле норки строки (решение владельца), без неё — по факту ТЗ.
     const minkShare = (r: PcsRow) => { const v = p0.mixRows?.[pcsMixKey(r)]; return v != null ? v / 100 : mix[r.block]; };
     const ttlB = new Map<string, Record<PcsBlock, number>>();
@@ -106,7 +106,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     const rowsOut = furs.map((f) => {
       if (f.label === "Норка+Соболь") return { label: f.label, ttl: f.ttl, mixed: true as const, toMink, toSable, calcMink, calcSable };
       // Ещё возьмём со склада на оставшиеся модели FW26: не выданное по ТЗ + запас % к их расходу по норме (как Excel, лист 4).
-      const extra = Math.max(0, parseFloat(pp.x.replace(",", ".")) || 0) / 100;
+      const extra = pctOr(pp.x, 5) / 100; // пустое поле — 5 %, «0» — без запаса
       const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = (r?.need ?? 0) + extra * (r?.total ?? 0);
       const calcLeft = Math.max(0, stock - need), leftAll = own(ovLeft[f.label] ?? "", calcLeft);
       const res = resOf(f.label);
@@ -145,10 +145,12 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       // Закупить по полу = не хватает ÷ (1 − X), как в Excel; закупка норки по блокам выше должна быть не меньше суммы.
       for (const x of [M, F, U]) x.buy = x.short / (1 - resM / 100);
       sex = { rows: [M, F, U], buy: M.buy + F.buy + U.buy };
+      // Закупка норки = большее из «по блокам» и «по полу» (как Excel, лист 7): самцов и самок должно хватить.
+      if (sex.buy > mink.buy) { const k = sex.buy / mink.buy; mink.buy = sex.buy; mink.buyPriced = mink.pr > 0 ? sex.buy : 0; mink.money *= k; }
     }
     return { rows: rowsOut, sex, total: { stock: sum("stock"), need: sum("need"), left: sum("left"), use: sum("use"), np: sum("np"), buy: sum("buy"), buyPriced: sum("buyPriced"), money: sum("money") } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [furs, rawBy, pp, cur, blocks, mix, ovLeft, ovMix, ovRes, price, minkStock]);
+  }, [furs, rawBy, pp, cur, blocks, mix, ovLeft, ovMix, ovRes, ovRtw, price, minkStock]);
   const lastSaved = useRef<string | null>(null);
   if (lastSaved.current === null) {
     const l0 = Object.fromEntries(Object.entries(p0.left ?? {}).filter(([, v]) => Number.isFinite(v)));
@@ -163,7 +165,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     const reserve = Object.fromEntries(Object.entries(ovRes).filter(([, v]) => v.trim() !== "" && Number.isFinite(num(v))).map(([k, v]) => [k, Math.min(99, Math.max(0, num(v)))]));
     const mixOk = Number.isFinite(num(ovMix.mink)) && Number.isFinite(num(ovMix.sable));
     // Доли норки по строкам и пол норки на экране не правятся — сохраняются как были (иначе первое же сохранение их сотрёт).
-    const payload = { leftoverPct: pctOr(pp.l, 70), lynxPct: pctOr(pp.y, 85), newPct: pctOr(pp.n, 70, 1), accPct: pctOr(pp.a, 75), upPct: Math.max(0, parseFloat(pp.u.replace(",", ".")) || 0), left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null, reserve, mixRows: p0.mixRows ?? {}, minkSex: p0.minkSex ?? {}, rtw, fw26Extra: Math.max(0, parseFloat(pp.x.replace(",", ".")) || 0) };
+    const payload = { leftoverPct: pctOr(pp.l, 70), lynxPct: pctOr(pp.y, 85), newPct: pctOr(pp.n, 70, 1), accPct: pctOr(pp.a, 75), upPct: pctOr(pp.u, 10), left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null, reserve, mixRows: p0.mixRows ?? {}, minkSex: p0.minkSex ?? {}, rtw, fw26Extra: pctOr(pp.x, 5) };
     // Пишем в базу только если что-то изменилось (уход из поля без правки не меняет «Изменён …» и не пересчитывает страницы).
     const sig = JSON.stringify(payload);
     if (sig === lastSaved.current) return;
@@ -317,7 +319,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               <td className={`${TD} border-neutral-200`} />
               <td className={`${TD} border-neutral-200`} />
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.buy)}</td>
-              <td className={`${TD} border-neutral-200`}>{supply.total.buyPriced > 0 ? cell(supply.total.money / (supply.total.buyPriced * (1 + (parseFloat(pp.u.replace(",", ".")) || 0) / 100))) : "–"}</td>
+              <td className={`${TD} border-neutral-200`}>{supply.total.buyPriced > 0 ? cell(supply.total.money / (supply.total.buyPriced * (1 + pctOr(pp.u, 10) / 100))) : "–"}</td>
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.money)}</td>
             </tr>
             {furs.map((f) => (

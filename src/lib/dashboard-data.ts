@@ -861,7 +861,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
         const ls = src === "all" ? furLots : furLots.filter((l) => classifyLotSource(l) === src);
         const types = names.flatMap((t) => {
           let p = figuresPair(flowOf(ls.filter((l) => l.item === t)), c4k);
-          // Заказанное, но не принятое, в «Куплено» не входит (решение владельца 20.10), кроме рыси: она возвращена по поправке владельца.
+          // Заказанное, но не принятое, входит в «Куплено» по всем мехам (BOUGHT_ORDERED, решение владельца 21.10; раньше — только рысь).
           if (BOUGHT_ORDERED.has(t) && src !== "supplier") { const o = unreceived.byFur.find((g) => g.label === t)?.ordered; if (o) p = { incl: bumpFigures(p.incl, o.qty, o.incl), excl: bumpFigures(p.excl, o.qty, o.excl) }; }
           if (hasHides && t === "Свакара" && src !== "auction") p = { incl: addHidesFig(p.incl, hidesTotal.incl), excl: addHidesFig(p.excl, hidesTotal.excl) };
           const f = p.incl;
