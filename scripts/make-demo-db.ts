@@ -25,7 +25,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { checkCalcScale, scaleCalcPayload, scaleTzPayload } from "./demo-inbox-scale";
@@ -273,7 +273,13 @@ async function main() {
   log("старые названия вычищены из текстов");
 
   // 7. Пользователи
-  const pw = () => randomBytes(12).toString("base64url");
+  // Пароли не меняются от пересборки к пересборке: берём прежние из файла логинов (на стенде Render они же записаны в DEMO_LOGIN_PASSWORD / DEMO_SUPPLIER_PASSWORD).
+  // Новый случайный пароль — только для нового пользователя или если файла нет. DEMO_NEW_PASSWORDS=1 — выдать всем новые.
+  const keepFile = process.env.DEMO_KEEP_LOGINS || path.join(os.homedir(), "Backups", "fur-erp", "demo-logins.txt");
+  const kept = new Map<string, string>();
+  if (process.env.DEMO_NEW_PASSWORDS !== "1" && existsSync(keepFile))
+    for (const m of readFileSync(keepFile, "utf8").matchAll(/email:\s*(\S+)\s*\n\s*пароль:\s*(\S+)/g)) kept.set(m[1], m[2]);
+  const pw = (email: string) => kept.get(email) ?? randomBytes(12).toString("base64url");
   const demoUsers = [
     { key: "owner", email: "owner@demo.local", name: "Демо Владелец", role: "OWNER" },
     { key: "technologist", email: "technologist@demo.local", name: "Демо Технолог", role: "TECHNOLOGIST" },
@@ -285,7 +291,7 @@ async function main() {
   await x(`delete from "User"`);
   const creds: string[] = [];
   for (const u of demoUsers) {
-    const password = pw();
+    const password = pw(u.email);
     await prisma.user.create({
       data: { organizationId: org.id, email: u.email, name: u.name, role: u.role, passwordHash: await bcrypt.hash(password, 12), supplierId: u.role === "SUPPLIER" ? supplierId : null },
     });
@@ -296,7 +302,7 @@ async function main() {
   const file = process.env.DEMO_LOGINS_FILE || path.join(dir, "demo-logins.txt");
   writeFileSync(file, `Демо-логины THE FUR (создано ${new Date().toISOString()}). Файл личный, не пересылать.\nАдрес: см. docs/DEPLOY.md (после публикации).\nСлужебное: ${K === 1 ? "коэффициент денег 1 (суммы настоящие)" : `коэффициент денег ${K} (для проверки: RECON_TOL_SCALE=${K} npx tsx scripts/test-reconciliation.ts); внешним не сообщать`}.\n\n${creds.join("\n\n")}\n`, { mode: 0o600 });
   chmodSync(file, 0o600);
-  log(`пользователи пересозданы, логины записаны в ${file} (права 600)`);
+  log(`пользователи пересозданы (прежних паролей: ${demoUsers.filter((u) => kept.has(u.email)).length} из ${demoUsers.length}), логины записаны в ${file} (права 600)`);
 
   // 8. Контроль: ничего старого не осталось
   let leftovers = 0;
