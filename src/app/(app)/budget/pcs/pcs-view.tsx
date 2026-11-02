@@ -41,6 +41,8 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
   const [ovRes, setOvRes] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(p0.reserve ?? {}).map(([k, v]) => [k, String(v)])));
   // Годный остаток — в одежду, % по типам меха (пусто — 100 − «на аксессуары»).
   const [ovRtw, setOvRtw] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(p0.rtw ?? {}).map(([k, v]) => [k, String(v)])));
+  // Останется купленного после заказа 2027, % по типам меха (пусто — как невостребованное): закупить = нужно ÷ (1 − %).
+  const [ovBuyRes, setOvBuyRes] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(p0.buyRes ?? {}).map(([k, v]) => [k, String(v)])));
   const [detail, setDetail] = useState(false);
   const [stats, setStats] = useState(true);
   const [hideEmpty, setHideEmpty] = useState(true); // строки с нулевым бюджетом (PCS) скрыты, итоги считаются по всем
@@ -80,13 +82,14 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
   const resDefault = 30;
   const resOf = (fur: string) => { const v = parseFloat((ovRes[fur] ?? "").replace(",", ".")); return Number.isFinite(v) ? Math.min(99, Math.max(0, v)) : resDefault; };
   const rtwDefault = 100 - pctOr(pp.a, 75);
+  const buyResOf = (fur: string) => { const v = parseFloat((ovBuyRes[fur] ?? "").replace(",", ".")); return Number.isFinite(v) ? Math.min(99, Math.max(0, v)) : resOf(fur); };
   const rtwOf = (fur: string) => { const v = parseFloat((ovRtw[fur] ?? "").replace(",", ".")); return (Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : rtwDefault) / 100; };
   const supply = useMemo(() => {
     const own = (v: string, d: number) => (v.trim() === "" || !Number.isFinite(parseFloat(v.replace(",", "."))) ? d : Math.max(0, parseFloat(v.replace(",", "."))));
     const up = pctOr(pp.u, 10); // пустое поле — 10 %, «0» — без роста
     // Шкуры по типу меха и блоку. «Норка+Соболь» делим на норку и соболь по доле норки строки (решение владельца), без неё — по факту ТЗ.
     const minkShare = (r: PcsRow) => { const v = p0.mixRows?.[pcsMixKey(r)]; return v != null ? v / 100 : mix[r.block]; };
-    // Шкуры по типу меха и блоку для выбранных блоков (ttlB) и для обоих (ttlAll — чтобы лишний годный остаток одного блока отдать другому).
+    // Шкуры по типу меха и блоку для выбранных блоков.
     const buildTtl = (bl: PcsBlock[]) => {
       const ttl = new Map<string, Record<PcsBlock, number>>();
       const add = (fur: string, b: PcsBlock, v: number) => { const o = ttl.get(fur) ?? { RTW: 0, Acc: 0 }; o[b] += v; ttl.set(fur, o); };
@@ -105,10 +108,10 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       if (cS === 0 && tS > 0) add("Соболь", bl[0], tS);
       return { ttl, calcMink: cM, calcSable: cS, toMink: tM, toSable: tS, kM };
     };
-    const sel = buildTtl(blocks), ttlB = sel.ttl, ttlAll = blocks.length === 2 ? sel.ttl : buildTtl(["RTW", "Acc"]).ttl;
+    const sel = buildTtl(blocks), ttlB = sel.ttl;
     const { calcMink, calcSable, toMink, toSable, kM } = sel;
     // Остаток всегда делится между блоками, как в Excel: в одежду — свой % вида меха (лучшая часть), остальное — в аксессуары;
-    // лишний годный остаток одного блока отдаём другому блоку того же меха (решение владельца 02.11).
+    // каждый блок берёт только своё годное: старое сырьё из доли аксессуаров в одежду не идёт, сверх нужного — остаётся на складе (владелец 02.11).
     const share = (fur: string, b: PcsBlock) => (b === "RTW" ? rtwOf(fur) : 1 - rtwOf(fur));
     const rowsOut = furs.map((f) => {
       if (f.label === "Норка+Соболь") return { label: f.label, ttl: f.ttl, mixed: true as const, toMink, toSable, calcMink, calcSable };
@@ -119,18 +122,20 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       const res = resOf(f.label);
       // Как в Excel (лист 7): годный остаток = остаток × (1 − невостребованное); используем меньшее из «нужно» и «своё годное + лишнее другого блока»;
       // закупить = нужно из покупки ÷ (1 − X): после заказа от купленного остаётся X %; неиспользованный остаток 2026 в этот процент не входит.
-      let t = 0, left = 0, use = 0, np = 0;
+      const bres = buyResOf(f.label);
+      let t = 0, left = 0, use = 0, np = 0, used = 0;
       for (const b of blocks) {
         const sh = share(f.label, b), tb = ttlB.get(f.label)?.[b] ?? 0, lb = leftAll * sh, ub = lb * (1 - res / 100);
-        const ob: PcsBlock = b === "RTW" ? "Acc" : "RTW", spare = Math.max(0, leftAll * share(f.label, ob) * (1 - res / 100) - (ttlAll.get(f.label)?.[ob] ?? 0));
         // Нехватка на уже запланированное (склад меньше «нужно»): тоже покупаем, по доле блока.
-        t += tb; left += lb; use += ub; np += tb - Math.min(tb, ub + spare) + Math.max(0, need - stock) * sh;
+        t += tb; left += lb; use += ub; used += Math.min(tb, ub); np += tb - Math.min(tb, ub) + Math.max(0, need - stock) * sh;
       }
-      const buy = np / (1 - res / 100);
+      const buy = np / (1 - bres / 100);
       const pr = price[f.label] ?? 0, money = buy * pr * (1 + up / 100);
-      return { label: f.label, ttl: f.ttl, mixed: false as const, t, stock, need, left, leftAll, calcLeft, use, np, res, buy, buyPriced: pr > 0 ? buy : 0, pr, money };
+      // Останется после заказа 2027: от остатка 2026 (невостребованное + годное сверх нужного блокам) и купленного (запас).
+      const rem26 = left - used, remBuy = buy - np;
+      return { label: f.label, ttl: f.ttl, mixed: false as const, t, stock, need, left, leftAll, calcLeft, use, np, res, bres, buy, buyPriced: pr > 0 ? buy : 0, pr, money, rem26, remBuy };
     });
-    const sum = (k: "stock" | "need" | "left" | "use" | "np" | "buy" | "buyPriced" | "money") => rowsOut.reduce((a, r) => a + (r.mixed ? 0 : r[k]), 0);
+    const sum = (k: "stock" | "need" | "left" | "use" | "np" | "buy" | "buyPriced" | "money" | "rem26" | "remBuy") => rowsOut.reduce((a, r) => a + (r.mixed ? 0 : r[k]), 0);
     // Норка по полу (только «Вместе»): короткие шубы — самцы, длинные — самки (параметр minkSex); остальным пол не важен.
     let sex: null | { rows: { code: "M" | "F" | "U"; label: string; stock: number; left: number; use: number; need: number; short: number; extra: number; buy: number }[]; buy: number } = null;
     const mink = rowsOut.find((x) => x.label === "Норка");
@@ -151,29 +156,30 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       const avail = U.use + M.extra + F.extra;
       U.short = Math.max(0, U.need - avail); U.extra = Math.max(0, avail - U.need);
       // Закупить по полу = не хватает ÷ (1 − X), как в Excel; закупка норки по блокам выше должна быть не меньше суммы.
-      for (const x of [M, F, U]) x.buy = x.short / (1 - resM / 100);
+      for (const x of [M, F, U]) x.buy = x.short / (1 - mink.bres / 100);
       sex = { rows: [M, F, U], buy: M.buy + F.buy + U.buy };
       // Закупка норки = большее из «по блокам» и «по полу» (как Excel, лист 7): самцов и самок должно хватить.
-      if (sex.buy > mink.buy) { const k = sex.buy / mink.buy; mink.buy = sex.buy; mink.buyPriced = mink.pr > 0 ? sex.buy : 0; mink.money *= k; }
+      if (sex.buy > mink.buy) { const k = sex.buy / mink.buy; mink.buy = sex.buy; mink.buyPriced = mink.pr > 0 ? sex.buy : 0; mink.money *= k; mink.remBuy = mink.buy - mink.np; }
     }
-    return { rows: rowsOut, sex, total: { stock: sum("stock"), need: sum("need"), left: sum("left"), use: sum("use"), np: sum("np"), buy: sum("buy"), buyPriced: sum("buyPriced"), money: sum("money") } };
+    return { rows: rowsOut, sex, total: { stock: sum("stock"), need: sum("need"), left: sum("left"), use: sum("use"), np: sum("np"), buy: sum("buy"), buyPriced: sum("buyPriced"), money: sum("money"), rem26: sum("rem26"), remBuy: sum("remBuy") } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [furs, rawBy, pp, cur, blocks, mix, ovLeft, ovMix, ovRes, ovRtw, price, minkStock]);
+  }, [furs, rawBy, pp, cur, blocks, mix, ovLeft, ovMix, ovRes, ovRtw, ovBuyRes, price, minkStock]);
   const lastSaved = useRef<string | null>(null);
   if (lastSaved.current === null) {
     const l0 = Object.fromEntries(Object.entries(p0.left ?? {}).filter(([, v]) => Number.isFinite(v)));
     const r0 = Object.fromEntries(Object.entries(p0.reserve ?? {}).filter(([, v]) => Number.isFinite(v)));
-    lastSaved.current = JSON.stringify({ leftoverPct: p0.leftoverPct ?? 70, lynxPct: p0.lynxPct ?? 85, newPct: p0.newPct ?? 70, accPct: p0.accPct ?? 75, upPct: Math.max(0, p0.upPct ?? DEFAULT_PCS_PARAMS.upPct ?? 10), left: l0, mix: p0.mix ? { mink: p0.mix.mink, sable: p0.mix.sable } : null, reserve: r0, mixRows: p0.mixRows ?? {}, minkSex: p0.minkSex ?? {}, rtw: Object.fromEntries(Object.entries(p0.rtw ?? {}).filter(([, v]) => Number.isFinite(v))), fw26Extra: p0.fw26Extra ?? 5 });
+    lastSaved.current = JSON.stringify({ leftoverPct: p0.leftoverPct ?? 70, lynxPct: p0.lynxPct ?? 85, newPct: p0.newPct ?? 70, accPct: p0.accPct ?? 75, upPct: Math.max(0, p0.upPct ?? DEFAULT_PCS_PARAMS.upPct ?? 10), left: l0, mix: p0.mix ? { mink: p0.mix.mink, sable: p0.mix.sable } : null, reserve: r0, mixRows: p0.mixRows ?? {}, minkSex: p0.minkSex ?? {}, rtw: Object.fromEntries(Object.entries(p0.rtw ?? {}).filter(([, v]) => Number.isFinite(v))), fw26Extra: p0.fw26Extra ?? 5, buyRes: Object.fromEntries(Object.entries(p0.buyRes ?? {}).filter(([, v]) => Number.isFinite(v))) });
   }
   const saveParams = () => {
     if (!canEdit) return;
     const num = (v: string) => parseFloat(v.replace(",", "."));
     const left = Object.fromEntries(Object.entries(ovLeft).filter(([, v]) => v.trim() !== "" && Number.isFinite(num(v))).map(([k, v]) => [k, num(v)]));
+    const buyRes = Object.fromEntries(Object.entries(ovBuyRes).filter(([, v]) => v.trim() !== "" && Number.isFinite(num(v))).map(([k, v]) => [k, Math.min(99, Math.max(0, num(v)))]));
     const rtw = Object.fromEntries(Object.entries(ovRtw).filter(([, v]) => v.trim() !== "" && Number.isFinite(num(v))).map(([k, v]) => [k, Math.min(100, Math.max(0, num(v)))]));
     const reserve = Object.fromEntries(Object.entries(ovRes).filter(([, v]) => v.trim() !== "" && Number.isFinite(num(v))).map(([k, v]) => [k, Math.min(99, Math.max(0, num(v)))]));
     const mixOk = Number.isFinite(num(ovMix.mink)) && Number.isFinite(num(ovMix.sable));
     // Доли норки по строкам и пол норки на экране не правятся — сохраняются как были (иначе первое же сохранение их сотрёт).
-    const payload = { leftoverPct: pctOr(pp.l, 70), lynxPct: pctOr(pp.y, 85), newPct: pctOr(pp.n, 70, 1), accPct: pctOr(pp.a, 75), upPct: pctOr(pp.u, 10), left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null, reserve, mixRows: p0.mixRows ?? {}, minkSex: p0.minkSex ?? {}, rtw, fw26Extra: pctOr(pp.x, 5) };
+    const payload = { leftoverPct: pctOr(pp.l, 70), lynxPct: pctOr(pp.y, 85), newPct: pctOr(pp.n, 70, 1), accPct: pctOr(pp.a, 75), upPct: pctOr(pp.u, 10), left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null, reserve, mixRows: p0.mixRows ?? {}, minkSex: p0.minkSex ?? {}, rtw, fw26Extra: pctOr(pp.x, 5), buyRes };
     // Пишем в базу только если что-то изменилось (уход из поля без правки не меняет «Изменён …» и не пересчитывает страницы).
     const sig = JSON.stringify(payload);
     if (sig === lastSaved.current) return;
@@ -192,7 +198,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       <td className="px-3 py-1 text-sm" style={{ paddingLeft: 28 }}>из смеси: {name} ({Math.round((key === "mink" ? mixRow.toMink : mixRow.toSable) / Math.max(1, mixRow.toMink + mixRow.toSable) * 100)} %)</td>
       <td className={`${TD} border-neutral-200`} /><td className={`${TD} border-neutral-200`} /><td className={`${TD} border-neutral-200`} />
       <td className={`${TD} border-neutral-200`}>{rawDetail && canEdit ? supplyInp(ovMix[key], (x) => setOvMix((o) => ({ ...o, [key]: x })), String(Math.round(calc)), `Шкур ${name} из смеси`) : cell(v)}</td>
-      <td colSpan={8} className={`${TD} border-neutral-200 text-xs text-neutral-500`}>входит в {name === "норка" ? "норку" : "соболя"} выше</td>
+      <td colSpan={10} className={`${TD} border-neutral-200 text-xs text-neutral-500`}>входит в {name === "норка" ? "норку" : "соболя"} выше</td>
     </tr>
   )) : null;
 
@@ -298,7 +304,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
         ))}
         <button type="button" aria-pressed={rawDetail} onClick={() => setRawDetail((v) => !v)}
           className={"min-h-11 rounded-lg border px-4 text-sm " + (rawDetail ? "border-[var(--ui-accent)] bg-[var(--ui-soft)] font-semibold" : "border-neutral-300 bg-white hover:border-neutral-500")}>Детально</button>
-        <p className="max-w-md text-xs text-neutral-600">Остаток — что останется после того, как сошьём оставшиеся изделия FW26 (на {rawDate.split("-").reverse().join(".")}), с запасом {pp.x} % к их расходу по норме. Невостребованное сырьё, % (по виду меха, в таблице) — часть остатка 2026, которая не пойдёт в дело, и доля купленного, которая останется после заказа 2027: закупить = нужно ÷ (1 − %). Годный остаток делится: «в одежду, %» по виду меха, остальное — в аксессуары; лишнее одного блока отдаём другому блоку того же меха. Цена шкуры — средневзвешенная по ТЗ без роста, рост задаётся здесь. Так же считает Excel «Сырьё и бюджет FW27», лист 7.</p>
+        <p className="max-w-md text-xs text-neutral-600">Остаток — что останется после того, как сошьём оставшиеся изделия FW26 (на {rawDate.split("-").reverse().join(".")}), с запасом {pp.x} % к их расходу по норме. Невостребованное, % — часть остатка 2026, которая не пойдёт в дело; «останется купленного, %» — запас от закупки: закупить = нужно ÷ (1 − %). Годный остаток делится: «в одежду, %» по виду меха, остальное — в аксессуары; блок берёт только своё, сверх нужного — остаётся на складе. Цена шкуры — средневзвешенная по ТЗ без роста, рост задаётся здесь. Так же считает Excel «Сырьё и бюджет FW27», лист 7.</p>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
@@ -308,11 +314,13 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               <th className={TH2} title="Шкуры, которые останутся на складе после того, как сделаем все запланированные изделия (отчёт-прогноз)">Остаток после производства</th>
               <th className={TH2} title="Остаток после производства × (1 − невостребованное)">Годный остаток<span className="block font-normal text-neutral-500">без невостребованного</span></th>
               <th className={TH2} title="TTL минус то, что можно использовать">Нужно из новой покупки</th>
-              <th className={TH2} title="Часть остатка 2026, которая не пойдёт в дело, и доля купленного в 2027, которая останется после заказа. Владелец: соболь, норка, каракульча 30, лиса 20, рысь 15">Невостребованное, %</th>
-              <th className={TH2} title="Годный остаток 2026 — в одежду (лучшая часть), остальное — в аксессуары. Владелец: рысь 80 / 20, остальные 25 / 75">Годное в одежду, %</th>
-              <th className={TH2} title="Нужно из покупки ÷ (1 − невостребованное %): после заказа от купленного остаётся этот процент">Закупить<span className="block font-normal text-neutral-500">с запасом</span></th>
+              <th className={TH2} title="Часть остатка 2026, которая не пойдёт в дело (старое, негодное). Владелец: соболь, норка, каракульча 30, лиса 20, рысь 15">Невостребованное в остатке 2026, %</th>
+              <th className={TH2} title="Годный остаток 2026 — в одежду (лучшая часть), остальное — в аксессуары; блок берёт только своё. Владелец: рысь 80 / 20, остальные 25 / 75">Годное в одежду, %</th>
+              <th className={TH2} title="Сколько процентов купленного в 2027 останется после заказа: закупить = нужно из покупки ÷ (1 − %). Пусто — как невостребованное">Останется купленного после 2027, %</th>
+              <th className={TH2} title="Нужно из покупки ÷ (1 − «останется купленного, %»)">Закупить<span className="block font-normal text-neutral-500">с запасом</span></th>
               <th className={TH2} title="Средневзвешенная цена шкуры по ТЗ, ₽ с НДС, без роста. Нет цены (например, у рыси в ТЗ) — прочерк, в закупку не входит">Ср. цена шкуры, ₽</th>
-              <th className={TH2} title="Закупить × средняя цена × (1 + рост цены)">На закупку, ₽<span className="block font-normal text-neutral-500">цена +{pp.u} %</span></th></tr>
+              <th className={TH2} title="Закупить × средняя цена × (1 + рост цены)">На закупку, ₽<span className="block font-normal text-neutral-500">цена +{pp.u} %</span></th>
+              <th className={TH2} title="Остаток 2026, который не пойдёт в дело (невостребованное + годное сверх нужного блоку) + запас купленного">Останется после 2027, шк.<span className="block font-normal text-neutral-500">2026 + купленного</span></th></tr>
           </thead>
           <tbody>
             <tr className="border-b border-neutral-200 bg-neutral-100 font-semibold">
@@ -326,9 +334,11 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.np)}</td>
               <td className={`${TD} border-neutral-200`} />
               <td className={`${TD} border-neutral-200`} />
+              <td className={`${TD} border-neutral-200`} />
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.buy)}</td>
               <td className={`${TD} border-neutral-200`}>{supply.total.buyPriced > 0 ? cell(supply.total.money / (supply.total.buyPriced * (1 + pctOr(pp.u, 10) / 100))) : "–"}</td>
               <td className={`${TD} border-neutral-200`}>{cell(supply.total.money)}</td>
+              <td className={`${TD} border-neutral-200`} title={`от 2026: ${cell(supply.total.rem26)}, купленного: ${cell(supply.total.remBuy)}`}>{cell(supply.total.rem26 + supply.total.remBuy)}</td>
             </tr>
             {furs.map((f) => (
               <Fragment key={f.label}>
@@ -342,11 +352,13 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
                 <td className={`${TD} border-neutral-200`}>{total.pcs ? `${formatDec1((f.pcs / total.pcs) * 100)} %` : "–"}</td>
                 <td className={`${TD} border-neutral-200`}>{f.hasAvg && f.pcsA > 0 ? formatDec1(f.ttl / f.pcsA) : "–"}</td>
                 <td className={`${TD} border-neutral-200`}>{f.hasAvg ? cell(f.ttl) : "–"}</td>
-                {(() => { const r = supply.rows.find((x) => x.label === f.label); if (!r) return null; if (r.mixed) return <td colSpan={8} className={`${TD} border-neutral-200 text-xs text-neutral-600`}>–</td>;
+                {(() => { const r = supply.rows.find((x) => x.label === f.label); if (!r) return null; if (r.mixed) return <td colSpan={10} className={`${TD} border-neutral-200 text-xs text-neutral-600`}>–</td>;
                   const resCell = <td key="res" className={`${TD} border-neutral-200`}>{canEdit ? supplyInp(ovRes[f.label] ?? "", (x) => setOvRes((o) => ({ ...o, [f.label]: x })), String(resDefault), `Невостребованное сырьё, ${f.label}`) : `${formatDec1(r.res)} %`}</td>;
                   const cells = [r.left, r.use, r.np, r.buy, r.pr, r.money].map((v, k) => <td key={k} className={`${TD} border-neutral-200`} title={k === 0 ? `на складе ${cell(r.stock)}, уйдёт на запланированное ${cell(r.need)}; свой остаток вводится на весь вид меха` : undefined}>{k === 0 && rawDetail && canEdit ? supplyInp(ovLeft[f.label] ?? "", (x) => setOvLeft((o) => ({ ...o, [f.label]: x })), String(Math.round(r.calcLeft)), "Остаток после производства, всего по виду меха") : cell(v)}</td>);
                   const rtwCell = <td key="rtw" className={`${TD} border-neutral-200`}>{canEdit ? supplyInp(ovRtw[f.label] ?? "", (x) => setOvRtw((o) => ({ ...o, [f.label]: x })), String(rtwDefault), `Годное в одежду, ${f.label}`) : `${formatDec1(rtwOf(f.label) * 100)} %`}</td>;
-                  return [...cells.slice(0, 3), resCell, rtwCell, ...cells.slice(3)]; })()}
+                  const bresCell = <td key="bres" className={`${TD} border-neutral-200`}>{canEdit ? supplyInp(ovBuyRes[f.label] ?? "", (x) => setOvBuyRes((o) => ({ ...o, [f.label]: x })), String(resOf(f.label)), `Останется купленного после 2027, ${f.label}`) : `${formatDec1(r.bres)} %`}</td>;
+                  const remCell = <td key="rem" className={`${TD} border-neutral-200`} title={`от 2026: ${cell(r.rem26)}, купленного: ${cell(r.remBuy)}`}>{cell(r.rem26 + r.remBuy)}</td>;
+                  return [...cells.slice(0, 3), resCell, rtwCell, bresCell, ...cells.slice(3), remCell]; })()}
               </tr>
               {f.label === "Норка+Соболь" && (mixOpen || rawDetail) ? mixedRows : null}
               </Fragment>
@@ -356,6 +368,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       </div>
 
       <p className="text-sm font-semibold tabular-nums" data-purchase-total>На закупку сырья: {formatInt(Math.round(supply.total.money))} ₽ <span className="font-normal text-neutral-600">({formatInt(Math.round(supply.total.buy))} шкур, средняя цена {supply.total.buyPriced > 0 ? formatInt(Math.round(supply.total.money / supply.total.buyPriced)) : "–"} ₽ с ростом {pp.u} %, с НДС{supply.total.buy - supply.total.buyPriced > 0.5 ? `; без цены в ТЗ: ${formatInt(Math.round(supply.total.buy - supply.total.buyPriced))} шкур` : ""})</span></p>
+      <p className="text-sm font-semibold tabular-nums" data-remain-total>Останется меха после заказа 2027: {formatInt(Math.round(supply.total.rem26 + supply.total.remBuy))} шкур <span className="font-normal text-neutral-600">(от остатка 2026 — {formatInt(Math.round(supply.total.rem26))}: невостребованное и годное сверх нужного блокам; купленного — {formatInt(Math.round(supply.total.remBuy))})</span></p>
 
       {supply.sex ? (
         <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white" data-mink-sex>
