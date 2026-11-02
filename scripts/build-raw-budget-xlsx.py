@@ -756,49 +756,67 @@ def schedule(rtw_targets):
 
 RTW_TOTAL = sum(r["pcs"] for r in PR8 if r["g"] == "Одежда")
 C_TARGET = math.ceil(RTW_TOTAL / sum(TARGET_LOAD))  # мощность, при которой целевой профиль даёт ровно план
-# 1) сколько одежды можно сшить из остатка 2026 до первого прихода купленного (январь–июнь)
-probe, _ = schedule([999] * 6 + [0] + [None] * 4)
-early = sum(probe[i][m] for i, r in enumerate(PR8) if r["g"] == "Одежда" for m in range(6))
-# 2) январь–июнь ровно из остатка; июль — целевая загрузка (отпуска) из пришедшего соболя; остальное — август–ноябрь
-tg = spread(early, [1] * 6) + [round(C_TARGET * TARGET_LOAD[6])] + [None] * 4
-plan8, left8 = schedule(tg)
+# Одежда по целевой загрузке, шт. по месяцам
+tgt = [round(C_TARGET * x) for x in TARGET_LOAD]
+tgt[-1] = RTW_TOTAL - sum(tgt[:-1])
+SUMMER = {f: dict(v) for f, v in INTAKE.items()}  # приход как в 2025–2026 (весенние аукционы — летом)
+
+
+def deficits(acc_plan):
+    """Сколько шкур не хватает к концу каждого месяца, чтобы шить одежду по целевой загрузке (нарастающим итогом)."""
+    need = {f: [0.0] * NM for f in FURS}
+    rem = {i: r["pcs"] for i, r in enumerate(PR8) if r["g"] == "Одежда"}
+    nc = {f: 0.0 for f in FURS}; hc = {f: sum(lpool[(f, g)] for g in ("Одежда", "Аксессуары")) for f in FURS}
+    for m in range(NM):
+        pool_i = [i for i in rem if rem[i] > 0 and not (PR8[i]["f"] == "Рысь" and m < LYNX_FROM)]
+        tot = sum(rem[i] for i in pool_i) or 1
+        for i, k in zip(pool_i, spread(min(tgt[m], sum(rem[i] for i in pool_i)), [rem[i] / tot for i in pool_i])):
+            rem[i] -= k
+            for fu, p in PR8[i]["per"].items():
+                nc[fu] += k * p
+        for fu in FURS:
+            hc[fu] += buy_v[fu] * INTAKE[fu].get(m, 0)
+            for i, r in enumerate(PR8):
+                if r["g"] == "Аксессуары":
+                    nc[fu] += acc_plan[i][m] * r["per"].get(fu, 0)
+            need[fu][m] = max(0.0, nc[fu] - hc[fu])
+    return need
+
+
+# Без зимней закупки: сколько не хватает (для справки на листе)
+base_plan, _ = schedule(tgt[:-1] + [None])
+need_base = deficits(base_plan)
+# Зимние аукционы (декабрь 2026 — февраль 2027): часть закупки приходит к месяцу, когда без неё не хватит; летний приход уменьшается на столько же
+WINTER = {f: {} for f in FURS}
+for _ in range(10):
+    plan_try, _l = schedule(tgt[:-1] + [None])
+    nd = deficits(plan_try)
+    if all(max(v) < 0.5 for v in nd.values()):
+        break
+    for f in FURS:
+        firsts = [m for m in range(NM) if nd[f][m] >= 0.5]
+        if not firsts:
+            continue
+        key = max(1, firsts[0])  # пришло в месяце key (январь = 1) → в работу с месяца key + 1
+        WINTER[f][key] = WINTER[f].get(key, 0) + math.ceil(max(nd[f]) * 1.15) / buy_v[f]
+    for f in FURS:
+        w_ = sum(WINTER[f].values())
+        INTAKE[f] = {k: v * (1 - w_) for k, v in SUMMER[f].items()}
+        for k, v in WINTER[f].items():
+            INTAKE[f][k] = INTAKE[f].get(k, 0) + v
+TGT_RUN = tgt[:-1] + [None]  # ноябрь — всё, что осталось до плана
+need_cum = deficits(schedule(TGT_RUN)[0])
+plan8, left8 = schedule(TGT_RUN)
 assert sum(left8) == 0, f"не разложено {left8}"
 rtw_m = [sum(plan8[i][m] for i, r in enumerate(PR8) if r["g"] == "Одежда") for m in range(NM)]
 acc_m = [sum(plan8[i][m] for i, r in enumerate(PR8) if r["g"] == "Аксессуары") for m in range(NM)]
 C_ACC = max(acc_m)
 
-# 3) что нужно, чтобы шить по целевой загрузке: сырьё к концу месяца сверх достижимого
-tgt = [round(C_TARGET * x) for x in TARGET_LOAD]
-tgt[-1] = RTW_TOTAL - sum(tgt[:-1])
-need_cum = {f: [0.0] * NM for f in FURS}; have_cum = {f: [0.0] * NM for f in FURS}
-rem_rtw = {i: r["pcs"] for i, r in enumerate(PR8) if r["g"] == "Одежда"}
-acc_use = {f: [0.0] * NM for f in FURS}
-for i, r in enumerate(PR8):
-    if r["g"] == "Аксессуары":
-        for m in range(NM):
-            for fu, p in r["per"].items():
-                acc_use[fu][m] += plan8[i][m] * p
-nc = {f: 0.0 for f in FURS}; hc = {f: sum(lpool[(f, g)] for g in ("Одежда", "Аксессуары")) for f in FURS}
-for m in range(NM):
-    q = tgt[m]
-    pool_i = [i for i in rem_rtw if rem_rtw[i] > 0 and not (PR8[i]["f"] == "Рысь" and m < LYNX_FROM)]
-    tot_rem = sum(rem_rtw[i] for i in pool_i) or 1
-    parts = spread(min(q, sum(rem_rtw[i] for i in pool_i)), [rem_rtw[i] / tot_rem for i in pool_i])
-    for i, k in zip(pool_i, parts):
-        rem_rtw[i] -= k
-        for fu, p in PR8[i]["per"].items():
-            nc[fu] += k * p
-    for fu in FURS:
-        if m > 0:
-            hc[fu] += buy_v[fu] * INTAKE[fu].get(m, 0)
-        nc[fu] += acc_use[fu][m]
-        need_cum[fu][m] = max(0.0, nc[fu] - hc[fu])
-
 ws8 = wb.create_sheet("8 План производства 2027")
 ws8.sheet_properties.outlinePr = Outline(summaryBelow=False, summaryRight=False)
 title(ws8, "План производства 2027 по месяцам: сколько изделий шьём, приход и расход сырья, остаток на складе (январь — ноябрь)", [
-    "До августа одежду можно шить только из годного остатка 2026 (её доля + лишнее аксессуаров): купленное весной приходит в июне–августе и идёт в работу с месяца после прихода. Рысь — сентябрь–ноябрь из остатка (есть с декабря 2026).",
-    "Поэтому план ниже: январь–июнь одежда ровно из остатка, июль меньше (отпуска), остальное — август–ноябрь; аксессуары ровно весь год. Целевую загрузку (≥50 %, июль 25–30 %, 70 % к сентябрю) без более раннего сырья не выполнить — см. раздел 4.",
+    "Одежда — по целевой загрузке (владелец 02.11): с января 50 % мощности, июль 28 % (отпуска), август–ноябрь ≈80 %, к сентябрю ≈75 % плана. Аксессуары — ровно весь год. Рысь — сентябрь–ноябрь из остатка (есть с декабря 2026).",
+    "Весенний мех приходит только летом, поэтому часть закупки заложена на зимних аукционах (декабрь 2026 — февраль 2027) — сколько и к какому месяцу, см. раздел 4; общий объём закупки (лист 7) не меняется, меняются только сроки.",
     "Править: «+» слева от строки раскрывает «долю по месяцам, %» и «поправку, шт.» — штуки месяца = план × доля + поправка, ноябрь — остаток до плана. Мощность, целевая загрузка и приход сырья — жёлтые ячейки; сырьё пересчитывается само.",
     "Шкур на изделие — средняя по блоку (короткие и длинные вместе), поэтому помесячный расход сырья примерный.",
 ])
@@ -911,7 +929,7 @@ for f in FURS:
     put(ws8, r, COL_TOT, f"=SUM({MC(0)}{r}:{MC(NM-1)}{r})", PCT)
     INR[f] = r
     r += 1
-ws8.cell(r, 1, "По датам прихода лотов 2025–2026: соболь РП/СП март–май пришёл в мае–июле, СП май — в сентябре, СП декабрь — в декабре (здесь — ноябрь); норка SAGA март — июль–август, AME май — сентябрь; каракульча и лиса — июль–август; рысь FH июнь — октябрь–ноябрь.").font = NOTE
+ws8.cell(r, 1, "Январь–май — приход с зимних аукционов (раздел 4). Летний — по датам прихода лотов 2025–2026: соболь РП/СП весна — июнь–июль, СП осень — сентябрь; норка SAGA март — июль–август, AME май — сентябрь; каракульча и лиса — июль–август; рысь FH июнь — октябрь.").font = NOTE
 r += 2
 
 # --- сырьё по видам меха
@@ -952,9 +970,26 @@ ws8.cell(r, 1, "Расход за год = шкур на план 2027 (лист
 r += 2
 
 # --- что нужно для целевой загрузки
-ws8.cell(r, 1, "4. Чтобы шить одежду по целевой загрузке: сколько шкур не хватает к концу месяца (нарастающим итогом, сверх остатка 2026 и прихода выше)").font = H2
+ws8.cell(r, 1, "4. Закупка на зимних аукционах (декабрь 2026 — февраль 2027), чтобы шить одежду по целевой загрузке").font = H2
 r += 1
-ws8.cell(r, 1, f"Расчёт при мощности {C_TARGET} изд./мес. и целевой загрузке строки выше (на момент построения файла). Ноль — сырья хватает. Закрыть разрыв можно только сырьём раньше: часть закупки на зимних аукционах (декабрь 2026 — февраль 2027) или быстрее получать весенние лоты.").font = NOTE
+ws8.cell(r, 1, "Сколько шкур должно прийти к началу месяца, чтобы не встать: остальная закупка — летом, как обычно. Где покупать — СП (соболь, декабрь; в 2025 пришёл в том же месяце), зимние продажи SAGA (норка, каракульча, лиса) — уточнить у Веллмеха сроки и выделку.").font = NOTE
+r += 1
+head(ws8, r, ["Тип меха", "", "Закупить зимой, шк.", "Доля закупки 2027", "Должно прийти (месяц)", "Без зимней закупки не хватило бы, шк. (макс.)", "к месяцу"], height=45)
+r += 1
+for f in FURS:
+    w_ = WINTER[f]
+    qty = sum(v for v in w_.values()) * buy_v[f]
+    put(ws8, r, 1, f, bold=True)
+    put(ws8, r, 2, "")
+    put(ws8, r, 3, f"='7 Расчёт закупки 2027'!$K${tot_rows[FURS.index(f)]}*({'+'.join(f'{MC(k-1)}{INR[f]}' for k in sorted(w_)) or '0'})" if w_ else 0, INT, bold=True)
+    put(ws8, r, 4, f"=IFERROR(C{r}/'7 Расчёт закупки 2027'!$K${tot_rows[FURS.index(f)]},0)", PCT)
+    put(ws8, r, 5, ", ".join(MONTHS[k - 1] for k in sorted(w_)) if w_ else "не нужно")
+    mx = max(need_base[f])
+    put(ws8, r, 6, round(mx), INT)
+    put(ws8, r, 7, MONTHS[need_base[f].index(mx)] if mx >= 0.5 else "—")
+    r += 1
+r += 1
+ws8.cell(r, 1, "Проверка: сколько не хватает к концу месяца при приходе выше (на момент построения файла; должно быть 0)").font = NOTE
 r += 1
 head(ws8, r, ["Тип меха", ""] + MONTHS + ["Макс."], height=30)
 r += 1
