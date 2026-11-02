@@ -239,9 +239,13 @@ export function withDupKeys<T>(rows: T[], keyOf: (r: T) => string): { key: strin
 }
 
 export function parsePricesWorkbook(wb: ExcelJS.Workbook, models: ModelRef[]): { rows: PriceRow[]; errors: string[]; warnings: string[] } {
-  const ws = wb.worksheets.find((w) => w.name === "Current Price");
-  if (!ws) throw new ImportFormatError("В файле нет листа «Current Price»");
-  const head = rowCells(ws.getRow(1)).map((c) => String(c ?? "").trim().toLowerCase());
+  // Лист прайса: «Current Price» (выгрузка до 02.11.2026) или «цены» (выгрузка «заказ и продажи» с 02.11.2026) — шапка та же.
+  const ws = wb.worksheets.find((w) => w.name === "Current Price") ?? wb.worksheets.find((w) => w.name.trim().toLowerCase() === "цены");
+  if (!ws) throw new ImportFormatError("В файле нет листа «Current Price» (или «цены»)");
+  // Шапка — первая строка со столбцом ACODE (у листа «цены» над ней бывают пустые строки).
+  let headRn = 1;
+  for (let rn = 1; rn <= Math.min(ws.rowCount, 15); rn++) if (rowCells(ws.getRow(rn)).some((c) => String(c ?? "").trim().toUpperCase() === "ACODE")) { headRn = rn; break; }
+  const head = rowCells(ws.getRow(headRn)).map((c) => String(c ?? "").trim().toLowerCase());
   const col = (n: string) => head.indexOf(n.toLowerCase());
   const iA = col("ACODE"), iS = col("SizeID"), iC = col("OrderColorID"), iP = col("Current Price");
   const missing = [["ACODE", iA], ["SizeID", iS], ["OrderColorID", iC], ["Current Price", iP]].filter(([, i]) => (i as number) < 0).map(([n]) => n);
@@ -251,7 +255,7 @@ export function parsePricesWorkbook(wb: ExcelJS.Workbook, models: ModelRef[]): {
   const unmatched: string[] = [], ambiguous: string[] = [];
   const dup = new Map<string, number>();
   ws.eachRow((row, rn) => {
-    if (rn === 1) return;
+    if (rn <= headRn) return;
     const v = rowCells(row);
     if (!v[iA]) return;
     const price = numOrNull(v[iP]);
@@ -312,44 +316,107 @@ export function diffPrices(file: { rows: PriceRow[]; errors: string[]; warnings:
 
 /* ============================== Размеры из отчёта (лист Report) ============================== */
 
-export type SizeRow = { acode: string; color: string; size: string; modelCode: string | null; cls: string; conf: number; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number };
-export type SizeTotal = { conf: number; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number };
+/** Сезонные блоки отчёта (с 02.11.2026): заказано (Conf) / поступило (Deliv), шт. и €; продажи за период сезона — всего, своего сезона (SSN) и прошлых (Old): шт., ₽ с НДС и без. */
+export type SeasonCell = { conf?: number; confEur?: number; deliv?: number; delivEur?: number; soldAll?: number; rubAll?: number; rubExAll?: number; soldSsn?: number; rubSsn?: number; rubExSsn?: number; soldOld?: number; rubOld?: number; rubExOld?: number;
+  /** Скидка ₽ с НДС (Discount RUR) за период сезона: всего / сезонного / прошлых. */ discAll?: number; discSsn?: number; discOld?: number };
+export const REPORT_SEASONS = ["FW26/27", "SS26", "FW25/26"] as const;
+export type SizeRow = { acode: string; color: string; size: string; modelCode: string | null; cls: string; conf: number; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number;
+  /** Вид меха (Analog Code), категории KTT Level 02–05. */ fur?: string; l2?: string; l3?: string; l4?: string; l5?: string;
+  /** Совместимость с прежними полями (apply-report-orders-2026-10-21): FW26 заказано/поступило, SS26 и FW25 поступило. */ fw26Conf?: number; fw26Deliv?: number; ss26Deliv?: number; fw25Deliv?: number;
+  seas?: Record<string, SeasonCell> };
+export type SizeTotal = { conf: number; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number; seas?: Record<string, SeasonCell> };
 const SIZE_NUM = ["conf", "deliv", "sold", "stock", "nsRub", "nsRubEx"] as const;
 const SIZE_LABEL: Record<(typeof SIZE_NUM)[number], string> = { conf: "Подтверждено, шт.", deliv: "Поступило, шт.", sold: "Продано, шт.", stock: "Остаток, шт.", nsRub: "Выручка ₽ с НДС", nsRubEx: "Выручка ₽ без НДС" };
 export const sizeKey = (r: { acode: string; color: string; size: string }) => `${r.acode}|${r.color}|${r.size}`;
 
+/** Путь столбца в многоярусной шапке отчёта: блок (TTL Conf / FW26/27 …) › вид (STD/Conf/Deliv/AS) › срез (All/SSN/Old/–) › мера (PCS/EUR/NS RUR…); пустые ячейки блока/вида/среза тянутся слева. */
+function headerPaths(ws: ExcelJS.Worksheet, headRn: number): string[][] {
+  const tiers = [headRn - 3, headRn - 2, headRn - 1].map((rn) => (rn >= 1 ? rowCells(ws.getRow(rn)).map((c) => String(c ?? "").trim()) : []));
+  const last = rowCells(ws.getRow(headRn)).map((c) => String(c ?? "").trim());
+  const n = Math.max(last.length, ...tiers.map((x) => x.length));
+  const out: string[][] = [];
+  const carry = ["", "", ""];
+  for (let i = 0; i < n; i++) {
+    tiers.forEach((tier, k) => { if (tier[i]) { carry[k] = tier[i]; for (let q = k + 1; q < 3; q++) carry[q] = ""; } });
+    out.push([...carry, last[i] ?? ""]);
+  }
+  return out;
+}
+
 export function parseSizesWorkbook(wb: ExcelJS.Workbook): { rows: SizeRow[]; total: SizeTotal; errors: string[]; warnings: string[] } {
-  const ws = wb.worksheets.find((w) => w.name === "Report");
-  if (!ws) throw new ImportFormatError("В файле нет листа Report");
-  // Шапка: строка со столбцами ACODE (8-й) и SizeID (15-й).
+  // Лист: «Report» (отчёт о товарах до 02.11.2026) или «заказ и продажи» (с 02.11.2026); столбцы ищутся по названиям, порядок описательных столбцов у выгрузок разный.
+  const ws = wb.worksheets.find((w) => w.name === "Report") ?? wb.worksheets.find((w) => w.name.trim().toLowerCase().startsWith("заказ и продажи"));
+  if (!ws) throw new ImportFormatError("В файле нет листа Report (или «заказ и продажи»)");
   let headRn = 0;
   for (let rn = 1; rn <= Math.min(ws.rowCount, 40); rn++) {
-    const c = rowCells(ws.getRow(rn));
-    if (String(c[7] ?? "").trim().toUpperCase() === "ACODE" && String(c[14] ?? "").trim().toLowerCase() === "sizeid") { headRn = rn; break; }
+    const c = rowCells(ws.getRow(rn)).map((x) => String(x ?? "").trim().toLowerCase());
+    if (c.includes("acode") && c.includes("sizeid")) { headRn = rn; break; }
   }
-  if (!headRn) throw new ImportFormatError("Лист Report: не найдена шапка со столбцами ACODE и SizeID");
+  if (!headRn) throw new ImportFormatError("Лист отчёта: не найдена шапка со столбцами ACODE и SizeID");
+  const paths = headerPaths(ws, headRn);
+  const nameCol = (n: string) => paths.findIndex((p) => p[3].toLowerCase() === n.toLowerCase());
+  const iA = nameCol("ACODE"), iS = nameCol("SizeID"), iC = nameCol("OrderColorID"), iF = nameCol("Analog Code"), iL2 = nameCol("KTT Level 02");
+  if (iA < 0 || iS < 0 || iC < 0 || iL2 < 0) throw new ImportFormatError("Лист отчёта: нет столбцов ACODE / SizeID / OrderColorID / KTT Level 02");
+  const pick = (block: string, kind: string | null, sub: string | null, measure: RegExp) => paths.findIndex((p) => p[0] === block && (kind === null || p[1] === kind) && (sub === null || p[2] === sub) && measure.test(p[3]));
+  const base = { conf: pick("TTL Conf", null, null, /^PCS$/), deliv: pick("TTL Delivery", null, null, /^PCS$/), sold: pick("TTL Sales", null, null, /^PCS$/), stock: pick("TTL Stock", "STD", "All", /^PCS$/), nsRub: pick("TTL Sales", null, null, /^NS RUR$/), nsRubEx: pick("TTL Sales", null, null, /^NS RUR excl VAT$/) };
+  const missBase = Object.entries(base).filter(([, i]) => i < 0).map(([k]) => SIZE_LABEL[k as (typeof SIZE_NUM)[number]]);
+  if (missBase.length) throw new ImportFormatError(`Лист отчёта: не найдены столбцы ${missBase.join(", ")}`);
+  // Сезоны: продажи «всего» — срез All у вида STD/AS; SSN — свой сезон; Old — прошлые сезоны. «SSN incl pre» не берём (равен SSN или включает предзаказ).
+  const seasonCols = Object.fromEntries(REPORT_SEASONS.filter((s) => paths.some((p) => p[0] === s)).map((s) => {
+    const sales = (sub: string, m: RegExp) => { const i = paths.findIndex((p) => p[0] === s && (p[1] === "STD" || p[1] === "AS") && p[2] === sub && m.test(p[3])); return i; };
+    const c: Record<keyof SeasonCell, number> = {
+      conf: pick(s, "Conf", null, /^PCS$/), confEur: pick(s, "Conf", null, /^EUR$/), deliv: pick(s, "Deliv", null, /^PCS$/), delivEur: pick(s, "Deliv", null, /^EUR$/),
+      soldAll: sales("All", /^Sales PCS$/), rubAll: sales("All", /^NS RUR$/), rubExAll: sales("All", /^NS RUR excl VAT$/),
+      soldSsn: sales("SSN", /^Sales PCS$/), rubSsn: sales("SSN", /^NS RUR$/), rubExSsn: sales("SSN", /^NS RUR excl VAT$/),
+      soldOld: sales("Old", /^Sales PCS$/), rubOld: sales("Old", /^NS RUR$/), rubExOld: sales("Old", /^NS RUR excl VAT$/),
+      discAll: sales("All", /^(NS )?Discount RUR$/), discSsn: sales("SSN", /^(NS )?Discount RUR$/), discOld: sales("Old", /^(NS )?Discount RUR$/),
+    };
+    return [s, c];
+  })) as Record<string, Record<keyof SeasonCell, number>>;
+  const readSeas = (v: unknown[]) => {
+    const out: Record<string, SeasonCell> = {};
+    for (const [s, cols] of Object.entries(seasonCols)) {
+      const cell: SeasonCell = {};
+      for (const [k, i] of Object.entries(cols) as [keyof SeasonCell, number][]) if (i >= 0) cell[k] = num0(v[i]);
+      // «Всего» нет (у FW25/26 только SSN) — всего = SSN + Old
+      if (cols.soldAll < 0 && cols.soldSsn >= 0) { cell.soldAll = (cell.soldSsn ?? 0) + (cell.soldOld ?? 0); cell.rubAll = (cell.rubSsn ?? 0) + (cell.rubOld ?? 0); cell.rubExAll = (cell.rubExSsn ?? 0) + (cell.rubExOld ?? 0); cell.discAll = (cell.discSsn ?? 0) + (cell.discOld ?? 0); }
+      out[s] = cell;
+    }
+    return out;
+  };
   const rows: SizeRow[] = [], errors: string[] = [], warnings: string[] = [];
   let total: SizeTotal | null = null;
   const seen = new Set<string>();
   ws.eachRow((row, rn) => {
     if (rn <= headRn) return;
     const v = rowCells(row);
-    if (v[6] === "Total") { total = { conf: num0(v[18]), deliv: num0(v[20]), sold: num0(v[28]), stock: num0(v[31]), nsRub: num0(v[26]), nsRubEx: num0(v[30]) }; return; }
-    if (v[2] !== 1 || !v[7]) return;
-    const nums = [v[18], v[20], v[28], v[31], v[26], v[30]].map(num0);
-    if (nums.some((x) => !Number.isFinite(x))) { errors.push(`Report, строка ${rn}: в числовых столбцах не число`); return; }
-    const r: SizeRow = { acode: String(v[7]), color: String(v[17] ?? ""), size: String(v[14] ?? ""), modelCode: modelCodeOfArticle(String(v[7])), cls: classOfLevel2(String(v[10] ?? "")), conf: nums[0], deliv: nums[1], sold: nums[2], stock: nums[3], nsRub: nums[4], nsRubEx: nums[5] };
+    const nb = (k: keyof typeof base) => num0(v[base[k]]);
+    if (v.slice(0, iA + 1).some((x) => String(x ?? "").trim() === "Total")) { total = { conf: nb("conf"), deliv: nb("deliv"), sold: nb("sold"), stock: nb("stock"), nsRub: nb("nsRub"), nsRubEx: nb("nsRubEx"), seas: readSeas(v) }; return; }
+    if (v[2] !== 1 || !v[iA]) return;
+    const nums = SIZE_NUM.map((k) => nb(k));
+    if (nums.some((x) => !Number.isFinite(x))) { errors.push(`Отчёт, строка ${rn}: в числовых столбцах не число`); return; }
+    const seas = readSeas(v);
+    const s = (k: string) => String(v[nameCol(k)] ?? "");
+    const r: SizeRow = { acode: String(v[iA]), color: String(v[iC] ?? ""), size: String(v[iS] ?? ""), modelCode: modelCodeOfArticle(String(v[iA])), cls: classOfLevel2(String(v[iL2] ?? "")),
+      conf: nums[0], deliv: nums[1], sold: nums[2], stock: nums[3], nsRub: nums[4], nsRubEx: nums[5],
+      fur: iF >= 0 ? String(v[iF] ?? "") : undefined, l2: s("KTT Level 02"), l3: s("KTT Level 03"), l4: s("KTT Level 04"), l5: s("KTT Level 05"),
+      fw26Conf: seas["FW26/27"]?.conf, fw26Deliv: seas["FW26/27"]?.deliv, ss26Deliv: seas["SS26"]?.deliv, fw25Deliv: seas["FW25/26"]?.deliv,
+      seas: Object.keys(seas).length ? seas : undefined };
     const k = sizeKey(r);
-    if (seen.has(k)) warnings.push(`Report, строка ${rn}: повтор ключа ${r.acode} · ${r.color || "–"} · ${r.size || "–"} — сохраняется по порядку строк`);
+    if (seen.has(k)) warnings.push(`Отчёт, строка ${rn}: повтор ключа ${r.acode} · ${r.color || "–"} · ${r.size || "–"} — сохраняется по порядку строк`);
     seen.add(k);
     rows.push(r);
   });
-  if (!total) throw new ImportFormatError("Лист Report: нет строки Total для сверки");
-  if (rows.length === 0) throw new ImportFormatError("Лист Report: нет размерных строк");
+  if (!total) throw new ImportFormatError("Лист отчёта: нет строки Total для сверки");
+  if (rows.length === 0) throw new ImportFormatError("Лист отчёта: нет размерных строк");
   const t: SizeTotal = total;
   for (const k of SIZE_NUM) {
     const s = rows.reduce((a, r) => a + r[k], 0);
     if (Math.abs(s - t[k]) >= 0.01) errors.push(`Размерные строки не сходятся с Total: ${SIZE_LABEL[k]} — строки ${fmtN(s, 2)}, Total ${fmtN(t[k], 2)}`);
+  }
+  for (const [sn, tc] of Object.entries(t.seas ?? {})) for (const k of Object.keys(tc) as (keyof SeasonCell)[]) {
+    const s = rows.reduce((a, r) => a + (r.seas?.[sn]?.[k] ?? 0), 0);
+    if (Math.abs(s - (tc[k] ?? 0)) >= 0.01) errors.push(`Сезон ${sn}, ${k}: строки ${fmtN(s, 2)}, Total ${fmtN(tc[k] ?? 0, 2)}`);
   }
   return { rows, total: t, errors, warnings };
 }
@@ -388,7 +455,7 @@ export function diffSizes(file: { rows: SizeRow[]; total: SizeTotal; errors: str
     { label: "Выручка с НДС", unit: "₽", file: fmtN(S(file.rows, "nsRub")), db: fmtN(S(current, "nsRub")) },
   ];
   const merged = removeMissing ? file.rows : [...file.rows, ...removed];
-  const total: SizeTotal = removed.length && !removeMissing ? Object.fromEntries(SIZE_NUM.map((k) => [k, r4(S(merged, k))])) as SizeTotal : file.total;
+  const total: SizeTotal = removed.length && !removeMissing ? Object.fromEntries(SIZE_NUM.map((k) => [k, r4(S(merged, k))])) as unknown as SizeTotal : file.total;
   return { part, merged, total, changedAny: added + changed > 0 || (removeMissing && removed.length > 0) };
 }
 

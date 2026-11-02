@@ -223,7 +223,7 @@ export function sizeNodes(n: SNode, sizes: ReportSizeRow[], cat: Cat, colCount: 
     // Выручка размера — в режиме НДС таблицы (в Report скидки нет: Gross = выручка).
     const rev = vat === "in" ? r.nsRub : r.nsRubEx;
     const m: Ext = { ...base, sold: r.sold, gross: r.sold, received: r.deliv, stock: r.stock, revenueEx: r.nsRubEx, revenueIncl: r.nsRub, revenue: rev, grossRev: rev, avgPrice: r.sold > 0 ? rev / r.sold : null, priceBefore: r.sold > 0 ? rev / r.sold : null, sellThrough: r.deliv > 0 ? r.sold / r.deliv : null };
-    return { id: `${n.id}/size:${r.size}:${r.acode}`, dim: "size" as const, label: `${r.size} · по Report`, modelCode: null, variant: null, article: null, color: null, n: 0, lines: [], cols: [m, ...Array.from({ length: colCount }, () => zeroExt())], children: [] };
+    return { id: `${n.id}/size:${r.size}:${r.acode}`, dim: "size" as const, label: `${r.size}`, modelCode: null, variant: null, article: null, color: null, n: 0, lines: [], cols: [m, ...Array.from({ length: colCount }, () => zeroExt())], children: [] };
   });
 }
 

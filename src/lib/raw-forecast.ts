@@ -11,7 +11,8 @@ import { tzAwaitSizes } from "@/lib/tz-await";
 import { loadOrderRows, receivedByModel } from "@/lib/analytics-orders";
 
 /**
- * Прогноз сырья и затрат на изделия заказа FW26, которые ещё не произведены (по нашим ТЗ: объём ТЗ модели − получено в рознице, как «ждём» на Главной).
+ * Прогноз сырья и затрат на изделия заказа FW26, которые ещё не получены: по отчёту «заказ и продажи» FW26/27 заказано (Conf) − поступило (Deliv) по артикулу
+ * (владелец 02.11.2026; без сезонных данных в отчёте — по нашим ТЗ: объём ТЗ модели − получено в рознице).
  * По каждой модели «ждём» делится: produced — по ТЗ, отмеченным завершёнными (шкуры уже списаны со склада), и inWork — ТЗ в работе / запланированы
  * (нужно за вычетом уже выданного подрядчику, issued). Расход и затраты показываются на все изделия; со склада ещё уйдёт только непокрытая часть.
  * Значения на изделие: по ТЗ этой модели («ТЗ артикула»), иначе по категории того же меха («категория»), иначе — той же категории другого меха
@@ -64,7 +65,17 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
     prisma.productionOrder.findMany({ where: { organizationId: orgId, clientWorkPricePerUnit: { not: null } }, select: { plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true, productModelId: true } }),
     loadOrderRows(orgId, "all", "off"), receivedByModel(orgId),
   ]);
-  const tzRows: ReportSizeRow[] = await tzAwaitSizes(orgId, "off");
+  // «Осталось сшить» по FW26 (владелец 02.11.2026): заказано (Conf) − поступило (Deliv) по отчёту «заказ и продажи», по артикулу.
+  // Нет сезонных данных в отчёте — по-старому: объём наших ТЗ − получено (tz-await).
+  const byArt = new Map<string, ReportSizeRow>();
+  for (const r of sizeRows) {
+    const s = r.seas?.["FW26/27"]; if (!s) continue;
+    const e = byArt.get(r.acode) ?? { ...r, color: "", size: "", conf: 0, deliv: 0, sold: 0, stock: 0, nsRub: 0, nsRubEx: 0, fw26Conf: 0, fw26Deliv: 0 };
+    e.fw26Conf = (e.fw26Conf ?? 0) + (s.conf ?? 0) - (s.deliv ?? 0);
+    byArt.set(r.acode, e);
+  }
+  const fromReport = [...byArt.values()].filter((r) => (r.fw26Conf ?? 0) > 0);
+  const tzRows: ReportSizeRow[] = sizeRows.some((r) => r.seas?.["FW26/27"]) ? fromReport : await tzAwaitSizes(orgId, "off");
   // Модель по любому её коду: название, артикул, код продаж, псевдонимы.
   const idOf = new Map<string, { id: string; name: string; cat: string | null }>();
   for (const m of models) for (const c of [m.name, m.sku, m.salesCode, ...(m.aliases ?? [])]) if (c && !idOf.has(base(c))) idOf.set(base(c), { id: m.id, name: m.name, cat: m.category });
@@ -111,7 +122,9 @@ export async function loadRawForecast(orgId: string): Promise<RawForecast> {
     awaitByModel.set(mi.id, (awaitByModel.get(mi.id) ?? 0) + (r.fw26Conf ?? 0));
   }
   for (const r of tzRows) {
-    const mi = idOf.get(base(r.modelCode ?? r.acode)); const n = r.fw26Conf ?? 0; if (!mi || n <= 0) continue;
+    const mi = idOf.get(base(r.modelCode ?? r.acode)); const n = r.fw26Conf ?? 0; if (n <= 0) continue;
+    // Модели ещё нет в системе (M059 на 02.11.2026): ТЗ по ней нет — всё «не начато», расход по категории/аналогу.
+    if (!mi) { ent.set(r.acode, { modelId: null, model: r.modelCode ?? base(r.acode), acode: r.acode, cls: r.cls === "acc" ? "acc" : "clothes", l3: r.l4 || r.l3 || "", produced: 0, inWork: 0, notStarted: n }); continue; }
     const t = tz.get(mi.id) ?? { prod: 0, work: 0 }, aw = awaitByModel.get(mi.id) ?? n;
     const prodNR = Math.min(aw, Math.max(0, t.prod - (recv.get(mi.id) ?? 0)));
     const share = n / aw;

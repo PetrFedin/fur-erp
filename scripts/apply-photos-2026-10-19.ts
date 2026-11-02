@@ -25,6 +25,8 @@ const ROLLBACK = process.argv.includes("--rollback");
 const LIVE = process.argv.includes("--live");
 const ROOT = join(__dirname, "..");
 const DIR = join(ROOT, "docs-inventory", "cashflow-sales-2026-10-19");
+const PHOTOS_ARG = process.argv.find((a) => a.startsWith("--photos-dir="))?.slice(13);
+const PHOTOS = PHOTOS_ARG ? join(ROOT, PHOTOS_ARG) : join(DIR, "photos");
 
 type Anchor = { row: number; img: string; a: string; b: string };
 type Journal = { script: string; status: "applied" | "rolled-back"; at: string; db: string; models: { modelId: string; name: string; key: string; before: unknown | null; files: string[] }[] };
@@ -65,7 +67,8 @@ async function main() {
     return;
   }
 
-  const anchors: Anchor[] = JSON.parse(readFileSync(join(DIR, "photo-anchors.json"), "utf8"));
+  // --photos-dir=<папка> — картинки и photo-anchors.json из другой выгрузки (02.11.2026: docs-inventory/incoming-2026-11-02/photos)
+  const anchors: Anchor[] = JSON.parse(readFileSync(join(PHOTOS, "photo-anchors.json"), "utf8"));
   const models = await prisma.productModel.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, salesCode: true, aliases: true } });
   const byCode = new Map<string, typeof models>();
   for (const m of models) for (const k of new Set([normCode(m.name), ...(m.salesCode ? [normCode(m.salesCode)] : [])])) byCode.set(k, [...(byCode.get(k) ?? []), m]);
@@ -130,8 +133,8 @@ async function main() {
     for (const x of p.additions) {
       const id = randomUUID();
       const file = join(dirRel, `${id}.jpg`), thumb = join(dirRel, `${id}-t.jpg`);
-      copyFileSync(join(DIR, "photos", x.img), join(UPLOAD_ROOT, file));
-      copyFileSync(join(DIR, "photos", x.img), join(UPLOAD_ROOT, thumb));
+      copyFileSync(join(PHOTOS, x.img), join(UPLOAD_ROOT, file));
+      copyFileSync(join(PHOTOS, x.img), join(UPLOAD_ROOT, thumb));
       entry.files.push(file, thumb);
       const meta = await sharp(join(UPLOAD_ROOT, file)).metadata();
       photos.push({ id, file, thumb, w: meta.width ?? 0, h: meta.height ?? 0, variant: x.variant });

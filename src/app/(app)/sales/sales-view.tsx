@@ -16,6 +16,7 @@ import { SalesCharts } from "./sales-charts";
 import { SeasonsTab, StockTab, TopTab } from "./sales-tabs";
 import type { Chain } from "@/lib/sales-server";
 import { SalesTree, type PhotoIdx } from "./sales-tree";
+import { SeasonReport } from "./season-report";
 
 type Props = { input: MarginInputS; sizes: ReportSizeRow[]; photos: PhotoIdx; today: string; initial: Ui; chain: Chain; dmStock?: DatamartStock | null; reportDate?: string };
 
@@ -77,6 +78,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
   }, [ui]);
 
   const inp = useMemo(() => deserializeInput(input), [input]);
+  const fabricByArt = useMemo(() => { const m: Record<string, string> = {}; for (const l of input.lines as SLine[]) if (l.fabric && !m[l.article]) m[l.article] = l.fabric; return m; }, [input]);
   const all = input.lines as SLine[];
   const ex = ui.vat === "ex";
   const vatNote = ex ? "без НДС" : "с НДС";
@@ -136,6 +138,8 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
     { key: "all", label: "Всё", f: { from: null, to: null } },
     { key: "2025", label: "2025", f: { from: "2025-01-01", to: "2025-12-31" } },
     { key: "2026", label: "2026", f: { from: "2026-01-01", to: "2026-12-31" } },
+    { key: "today", label: "Сегодня", f: { from: today, to: today } },
+    { key: "7", label: "7 дней", f: { from: addDays(today, -6), to: today } },
     { key: "30", label: "30 дней", f: { from: addDays(today, -29), to: today } },
     { key: "90", label: "90 дней", f: { from: addDays(today, -89), to: today } },
   ];
@@ -163,7 +167,18 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
         </div>
       </div>
 
-      <div id="sales-filters" className="sticky top-0 z-20 -mx-3 border-b border-neutral-300 bg-white/95 px-3 py-1 backdrop-blur print:hidden md:-mx-4 md:px-4">
+      {ui.tab === "report" ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="НДС" className={segGroup}>
+            <button type="button" aria-pressed={!ex} onClick={() => { patch({ vat: "in" }); vatDisp.setMode("incl"); }} className={seg(!ex)}>С НДС</button>
+            <button type="button" aria-pressed={ex} onClick={() => { patch({ vat: "ex" }); vatDisp.setMode("excl"); }} className={seg(ex)}>Без НДС</button>
+          </div>
+          <div role="group" aria-label="Категория 1" className={segGroup}>
+            {(["all", "clothes", "acc"] as Cat[]).map((k) => <button key={k} type="button" aria-pressed={ui.f.cat === k} onClick={() => setF({ cat: k })} className={seg(ui.f.cat === k)}>{CAT_LABEL[k]}</button>)}
+          </div>
+        </div>
+      ) : null}
+      <div id="sales-filters" hidden={ui.tab === "report"} className="sticky top-0 z-20 -mx-3 border-b border-neutral-300 bg-white/95 px-3 py-1 backdrop-blur print:hidden md:-mx-4 md:px-4">
         <button type="button" aria-expanded={fOpen} aria-controls="sales-filters-panel" onClick={() => setFOpen((v) => !v)} className="flex min-h-11 w-full items-center justify-between text-left text-sm md:hidden">
           <span><b>Фильтры:</b> {periodNote} · {CAT_LABEL[ui.f.cat]} · {vatNote}</span><span aria-hidden>{fOpen ? "▴" : "▾"}</span>
         </button>
@@ -196,7 +211,9 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
         {TABS.map((t) => <button key={t.key} type="button" role="tab" aria-selected={ui.tab === t.key} onClick={() => patch({ tab: t.key as Tab })} className={seg(ui.tab === t.key)}>{t.label}</button>)}
       </nav>
 
-      {lines.length === 0 ? (
+      {ui.tab === "report" ? (
+        <SeasonReport sizes={sizes} photos={photos} cat={ui.f.cat} ex={ex} reportDate={reportDate} fabricByArt={fabricByArt} prices={input.prices} costs={input.costs} />
+      ) : lines.length === 0 ? (
         <p className="rounded-lg border border-neutral-300 bg-white p-3 text-sm text-neutral-800">По выбранным фильтрам строк нет. Измените период, категорию или поиск.</p>
       ) : ui.tab === "overview" ? (
         <>

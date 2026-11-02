@@ -80,11 +80,11 @@ async function buildPlan(db: Db, orgId: string, kind: ImportKind, fileName: stri
     parts.push(dp.part, ds.part);
     const pv = (curP?.value ?? {}) as { vatIncluded?: boolean; vatRatePct?: number };
     if (dp.changedAny) {
-      plan.versions.push({ type: "prices", prefix: RETAIL_PREFIX, key: versionKey(RETAIL_PREFIX, asOf), value: { asOf, vatIncluded: pv.vatIncluded ?? true, vatRatePct: pv.vatRatePct ?? 22, source: `${fileName}, лист «Current Price»`, rows: dp.merged } });
+      plan.versions.push({ type: "prices", prefix: RETAIL_PREFIX, key: versionKey(RETAIL_PREFIX, asOf), value: { asOf, vatIncluded: pv.vatIncluded ?? true, vatRatePct: pv.vatRatePct ?? 22, source: `${fileName}, лист прайса («Current Price» / «цены»)`, rows: dp.merged } });
       wantChange = true;
     }
     if (ds.changedAny) {
-      plan.versions.push({ type: "sizes", prefix: SIZES_PREFIX, key: versionKey(SIZES_PREFIX, asOf), value: { asOf, source: `${fileName}, лист Report`, total: ds.total, rows: ds.merged } });
+      plan.versions.push({ type: "sizes", prefix: SIZES_PREFIX, key: versionKey(SIZES_PREFIX, asOf), value: { asOf, source: `${fileName}, лист отчёта (Report / «заказ и продажи»)`, total: ds.total, rows: ds.merged } });
       wantChange = true;
     }
   } else {

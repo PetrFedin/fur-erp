@@ -83,3 +83,21 @@ export async function loadModelPhotos(orgId: string): Promise<Record<string, { m
   for (const m of models) { const ph = summary.get(m.id); if (ph?.length) out[normCode(m.name)] = { modelId: m.id, photos: ph }; }
   return out;
 }
+
+/** Итоги сезонов отчёта «заказ и продажи» (Главная, «Производство»): заказано и поступило, всего и по одежде / аксессуарам. Закрытые сезоны (SS26, FW25): заказано = поступило. */
+export type ReportSeasonTotal = { label: string; conf: number; deliv: number; clothes: { conf: number; deliv: number }; acc: { conf: number; deliv: number } };
+export async function loadReportSeasonTotals(orgId: string): Promise<ReportSeasonTotal[] | null> {
+  const rows = await loadReportSizes(orgId);
+  if (!rows.some((r) => r.seas)) return null;
+  const LABEL: Record<string, string> = { "FW25/26": "FW 25/26", SS26: "SS 2026", "FW26/27": "FW 26/27" };
+  return ["FW25/26", "SS26", "FW26/27"].map((s) => {
+    const t: ReportSeasonTotal = { label: LABEL[s], conf: 0, deliv: 0, clothes: { conf: 0, deliv: 0 }, acc: { conf: 0, deliv: 0 } };
+    for (const r of rows) {
+      const c = r.seas?.[s]; if (!c) continue;
+      const conf = s === "FW26/27" ? c.conf ?? 0 : c.conf ?? c.deliv ?? 0, deliv = c.deliv ?? 0;
+      t.conf += conf; t.deliv += deliv;
+      const g = r.cls === "acc" ? t.acc : t.clothes; g.conf += conf; g.deliv += deliv;
+    }
+    return t;
+  }).filter((t) => t.conf || t.deliv);
+}

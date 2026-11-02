@@ -12,13 +12,15 @@ import {
   type Cat, type Env, type Ext, type SLine, type SNode, type Struct,
 } from "@/lib/sales-section";
 import { movementHref, type MKey } from "@/lib/sales-url";
+import { colorOfLine } from "@/lib/sales-receipts-core";
+import { furKeyOfRow } from "./season-report";
 import { DASH, btn, d1, dateRu, money, n0, pct, seg, segGroup, spct, x2 } from "./sales-fmt";
 
 export type PhotoIdx = Record<string, { modelId: string; photos: { id: string; variant: string; color?: string; itemId?: string }[] }>;
 
 type Measure = { key: MKey; label: string; hint: React.ReactNode; money?: boolean; eur?: boolean; totalOnly?: boolean; fmt: (m: Ext) => string };
 export const MEASURES: Measure[] = [
-  { key: "conf", label: "Заказано (Conf)", totalOnly: true, hint: <p>Conf (TTL Conf PCS в Report): подтверждено заказов, шт. В Report нет дат и сезонов выгрузки, поэтому Conf есть только в строке «Всего» и по Категории 1.</p>, fmt: () => DASH },
+  { key: "conf", label: "Заказано (Conf)", hint: <p>Conf отчёта «заказ и продажи»: подтверждено заказов, шт., по меху, категории, артикулу и цвету узла. В столбце сезона — заказ этого сезона (по SS26 и FW25 заказ закрыт: заказано = поступило). Размеры — без заказа.</p>, fmt: () => DASH },
   { key: "received", label: "Получено, шт.", hint: <p>Delivery: получено единиц по строкам прихода, корректировки с минусом учтены.</p>, fmt: (m) => n0(m.received) },
   { key: "sold", label: "Продано, шт.", hint: <p>Sales PCS: проданные единицы нетто, возвраты минус.</p>, fmt: (m) => n0(m.sold) },
   { key: "returns", label: "Возвраты, шт.", hint: <p>Возвраты: модуль отрицательных штук в строках продаж.</p>, fmt: (m) => n0(m.returns) },
@@ -125,10 +127,21 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
     walk(tree, 0);
     setOpen(ids);
   };
-  const confOf = (n: SNode) => (!hasConf ? DASH : n.id === "total" ? String(confRows.reduce((a, r) => a + (r.conf ?? 0), 0)) : n.dim === "cls" && n.id.split("/").length === 2 ? String(confRows.filter((r) => r.cls === (n.label === "Одежда" ? "clothes" : n.label === "Аксессуары" ? "acc" : "other")).reduce((a, r) => a + (r.conf ?? 0), 0) || DASH) : DASH);
+  // Заказано по узлу: строки отчёта с тем же Кат.1 / Кат.2 / мехом / артикулом / цветом, что в пути узла (/cls:…/fur:…/article:…/color:…).
+  const fabricByArt = useMemo(() => { const m: Record<string, string> = {}; for (const l of lines) if (l.fabric && !m[l.article]) m[l.article] = l.fabric; return m; }, [lines]);
+  const rowKey = (r: ReportSizeRow, d: string) => d === "cls" ? r.cls : d === "c2" ? (r.l4 || r.l3 || "Без категории").trim() : d === "fur" ? furKeyOfRow(r, fabricByArt) : d === "article" ? r.acode : d === "color" ? colorOfLine(r.color) : "";
+  const seasonKey = (s: string) => s.replace(/\s+/g, "");
+  const confOf = (n: SNode, gi: number) => {
+    if (!hasConf || n.dim === "size") return DASH;
+    const segs = n.id === "total" ? [] : n.id.split("/").filter(Boolean).map((s) => [s.slice(0, s.indexOf(":")), s.slice(s.indexOf(":") + 1)] as const);
+    const rs = confRows.filter((r) => segs.every(([d, k]) => rowKey(r, d) === k));
+    const season = gi > 0 ? seasonKey(groups[gi - 1]?.head ?? "") : null;
+    const v = rs.reduce((a, r) => { if (!season) return a + (r.conf ?? 0); const c = r.seas?.[season]; return a + (c ? (season === "FW26/27" ? c.conf ?? 0 : c.conf ?? c.deliv ?? 0) : 0); }, 0);
+    return v ? n0(v) : DASH;
+  };
   const cell = (ms: Measure, n: SNode, m: Ext, gi: number) => {
     if (ms.totalOnly && gi > 0) return DASH;
-    if (ms.key === "conf") return confOf(n) === "0" ? DASH : confOf(n);
+    if (ms.key === "conf") return confOf(n, gi);
     if (n.dim === "size" && !["received", "sold", "revenue", "avgPrice", "stock", "sellThrough"].includes(ms.key)) return DASH;
     if (m.sold === 0 && m.received === 0 && m.discountSum === 0) return DASH;
     return ms.fmt(m);

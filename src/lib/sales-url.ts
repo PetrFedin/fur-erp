@@ -3,12 +3,12 @@ import { NO_FILTERS, parseStruct, type Cat, type Filters, type Gran, type Struct
 
 export const MKEYS = ["conf", "received", "sold", "returns", "revenue", "revenueEur", "discountSum", "discountGiven", "avgPrice", "avgPriceEur", "grossRev", "priceBefore", "listPrice", "priceToList", "unitCost", "markupW", "grossProfit", "grossMarginPct", "stock", "sellThrough", "coverMonths", "firstReceipt", "lastSale"] as const;
 export type MKey = (typeof MKEYS)[number];
-export type Tab = "overview" | "seasons" | "stock" | "top";
+export type Tab = "report" | "overview" | "seasons" | "stock" | "top";
 export const TABS: { key: Tab; label: string }[] = [
-  { key: "overview", label: "Обзор" }, { key: "seasons", label: "Динамика по сезонам" }, { key: "stock", label: "Остатки" }, { key: "top", label: "Топ и аутсайдеры" },
+  { key: "report", label: "Сезоны: заказ и продажи" }, { key: "overview", label: "Обзор по дням" }, { key: "seasons", label: "Динамика по сезонам" }, { key: "stock", label: "Остатки" }, { key: "top", label: "Топ и аутсайдеры" },
 ];
 export type Ui = { f: Filters; vat: "ex" | "in"; tab: Tab; struct: Struct; gran: Gran; cols: MKey[] | null; chain: boolean };
-export const DEFAULT_UI: Ui = { f: NO_FILTERS, vat: "in", tab: "overview", struct: "b", gran: "month", cols: null, chain: false };
+export const DEFAULT_UI: Ui = { f: NO_FILTERS, vat: "in", tab: "report", struct: "b", gran: "month", cols: null, chain: false };
 
 type Sp = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -23,7 +23,7 @@ export function parseUi(sp: Sp): Ui {
   return {
     f: { from: iso(one(sp.from)), to: iso(one(sp.to)), seasons: list(sp.season), cat2: list(sp.c2), furs: list(sp.fur), cat: (cat === "clothes" || cat === "acc" ? cat : "all") as Cat, q: (one(sp.q) ?? "").slice(0, 80) },
     vat: one(sp.vat) === "ex" ? "ex" : "in",
-    tab: TABS.some((t) => t.key === tab) ? (tab as Tab) : "overview",
+    tab: TABS.some((t) => t.key === tab) ? (tab as Tab) : "report",
     struct: parseStruct(one(sp.s)),
     gran: g === "season" ? "season" : "month",
     cols: cols.length ? cols : null,

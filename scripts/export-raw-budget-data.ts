@@ -87,6 +87,8 @@ import { orderLabel } from "../src/lib/order-label";
     };
     take("done", l.produced, "ТЗ завершено, не получено");
     take("work", l.inWork, "ТЗ в работе / запланировано");
+    // Заказано, но ТЗ ещё нет (модель без ТЗ, например M059 на 02.11.2026): всё по норме.
+    if ((l.notStarted ?? 0) > 1e-9) fw26.push({ acode: l.acode, model, fur: l.fur, cls: l.cls, cat2: l.cat2, tz: "ТЗ ещё нет", status: "ТЗ ещё нет", color: "—", size: "—", batch: "—", qty: l.notStarted, hp: l.hp, done: 0, toGo: (l.hp ?? 0) * (l.notStarted ?? 0), hpSource: l.source + (l.sourceNote ? ` · ${l.sourceNote}` : "") });
   }
 
   const out = {
