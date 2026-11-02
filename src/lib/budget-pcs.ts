@@ -17,7 +17,8 @@ export type PcsParams = { leftoverPct: number; lynxPct: number; newPct: number; 
   /** Желаемый остаток после всего заказа по типам меха, % от закупки («закупить = нужно ÷ (1 − %)»); нет значения — 100 − newPct. */ reserve?: Record<string, number>;
   /** Доля норки, %, в строках «Норка+Соболь» по ключу pcsMixKey («категория|длина»); нет значения — по факту ТЗ. */ mixRows?: Record<string, number>;
   /** Пол шкур норки по строкам, ключ pcsSexKey («мех|категория|длина»): M — самцы, F — самки; нет значения — по длине (Short — самцы, Regular и Long — самки), иначе пол не важен. */ minkSex?: Record<string, "M" | "F">;
-  /** Годный остаток — в одежду, % по типам меха (остальное — в аксессуары); нет значения — 100 − accPct. */ rtw?: Record<string, number> };
+  /** Годный остаток — в одежду, % по типам меха (остальное — в аксессуары); нет значения — 100 − accPct. */ rtw?: Record<string, number>;
+  /** Запас на оставшиеся модели FW26, % к их расходу по норме (сверх него склад уменьшится); нет значения — 5. */ fw26Extra?: number };
 /** Пол норки строки плана: явное значение, иначе по длине (история ТЗ: Short — 100 % самцы, Regular и Long — 91–100 % самки). */
 export const minkSexOf = (r: { fur: string; cat: string; len: string }, map?: Record<string, "M" | "F">): "M" | "F" | null =>
   map?.[pcsSexKey(r)] ?? (r.len === "Short" ? "M" : r.len === "Regular" || r.len === "Long" ? "F" : null);

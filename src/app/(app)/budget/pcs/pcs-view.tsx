@@ -26,12 +26,12 @@ const FILTERS: { id: "all" | PcsBlock; label: string; blocks: PcsBlock[] }[] = [
 const runs = <T,>(f: (c: (typeof ST_COLS)[number]) => T) => ST_COLS.reduce<{ v: T; n: number }[]>((a, c) => { const l = a[a.length - 1], v = f(c); if (l && l.v === v) l.n++; else a.push({ v, n: 1 }); return a; }, []);
 const TOP = runs(stTop), YEARS = runs(stYear);
 
-type Props = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; params: PcsParams | null; raw: { fur: string; stock: number; need: number }[]; rawForecast: string | null; mix: { RTW: number; Acc: number }; price: Record<string, number>; rawDate: string; canEdit: boolean ; fw27?: Fw27Data | null; minkStock?: MinkSexStock | null };
+type Props = { id: string; name: string; season: string; supplier: string; asOf: { RTW: string; Acc: string }; rows: PcsRow[]; params: PcsParams | null; raw: { fur: string; stock: number; need: number; total?: number }[]; rawForecast: string | null; mix: { RTW: number; Acc: number }; price: Record<string, number>; rawDate: string; canEdit: boolean ; fw27?: Fw27Data | null; minkStock?: MinkSexStock | null };
 
 export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, rawForecast, mix, price, rawDate, canEdit, fw27 = null, minkStock = null }: Props) {
   const [photoSel, setPhotoSel] = useState<{ crit: Crit; title: string } | null>(null);
   const p0 = params ?? DEFAULT_PCS_PARAMS;
-  const [pp, setPp] = useState({ l: String(p0.leftoverPct), y: String(p0.lynxPct), n: String(p0.newPct), a: String(p0.accPct ?? DEFAULT_PCS_PARAMS.accPct), u: String(p0.upPct ?? DEFAULT_PCS_PARAMS.upPct) });
+  const [pp, setPp] = useState({ l: String(p0.leftoverPct), y: String(p0.lynxPct), n: String(p0.newPct), a: String(p0.accPct ?? DEFAULT_PCS_PARAMS.accPct), u: String(p0.upPct ?? DEFAULT_PCS_PARAMS.upPct), x: String(p0.fw26Extra ?? 5) });
   const [rawDetail, setRawDetail] = useState(false);
   const [mixOpen, setMixOpen] = useState(false); // строки «из смеси» свёрнуты по умолчанию
   // Свои значения (пусто — считается по прогнозу и ТЗ): остаток после производства по типам меха и шкуры норки / соболя из смеси.
@@ -105,7 +105,9 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     const share = (fur: string, b: PcsBlock) => (b === "RTW" ? rtwOf(fur) : 1 - rtwOf(fur));
     const rowsOut = furs.map((f) => {
       if (f.label === "Норка+Соболь") return { label: f.label, ttl: f.ttl, mixed: true as const, toMink, toSable, calcMink, calcSable };
-      const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = r?.need ?? 0;
+      // Ещё возьмём со склада на оставшиеся модели FW26: не выданное по ТЗ + запас % к их расходу по норме (как Excel, лист 4).
+      const extra = Math.max(0, parseFloat(pp.x.replace(",", ".")) || 0) / 100;
+      const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = (r?.need ?? 0) + extra * (r?.total ?? 0);
       const calcLeft = Math.max(0, stock - need), leftAll = own(ovLeft[f.label] ?? "", calcLeft);
       const res = resOf(f.label);
       // Как в Excel (лист 7): годный остаток = остаток × (1 − невостребованное); используем меньшее из «нужно» и «годного» по блоку;
@@ -151,7 +153,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
   if (lastSaved.current === null) {
     const l0 = Object.fromEntries(Object.entries(p0.left ?? {}).filter(([, v]) => Number.isFinite(v)));
     const r0 = Object.fromEntries(Object.entries(p0.reserve ?? {}).filter(([, v]) => Number.isFinite(v)));
-    lastSaved.current = JSON.stringify({ leftoverPct: p0.leftoverPct ?? 70, lynxPct: p0.lynxPct ?? 85, newPct: p0.newPct ?? 70, accPct: p0.accPct ?? 75, upPct: Math.max(0, p0.upPct ?? DEFAULT_PCS_PARAMS.upPct ?? 10), left: l0, mix: p0.mix ? { mink: p0.mix.mink, sable: p0.mix.sable } : null, reserve: r0, mixRows: p0.mixRows ?? {}, minkSex: p0.minkSex ?? {}, rtw: Object.fromEntries(Object.entries(p0.rtw ?? {}).filter(([, v]) => Number.isFinite(v))) });
+    lastSaved.current = JSON.stringify({ leftoverPct: p0.leftoverPct ?? 70, lynxPct: p0.lynxPct ?? 85, newPct: p0.newPct ?? 70, accPct: p0.accPct ?? 75, upPct: Math.max(0, p0.upPct ?? DEFAULT_PCS_PARAMS.upPct ?? 10), left: l0, mix: p0.mix ? { mink: p0.mix.mink, sable: p0.mix.sable } : null, reserve: r0, mixRows: p0.mixRows ?? {}, minkSex: p0.minkSex ?? {}, rtw: Object.fromEntries(Object.entries(p0.rtw ?? {}).filter(([, v]) => Number.isFinite(v))), fw26Extra: p0.fw26Extra ?? 5 });
   }
   const saveParams = () => {
     if (!canEdit) return;
@@ -161,7 +163,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     const reserve = Object.fromEntries(Object.entries(ovRes).filter(([, v]) => v.trim() !== "" && Number.isFinite(num(v))).map(([k, v]) => [k, Math.min(99, Math.max(0, num(v)))]));
     const mixOk = Number.isFinite(num(ovMix.mink)) && Number.isFinite(num(ovMix.sable));
     // Доли норки по строкам и пол норки на экране не правятся — сохраняются как были (иначе первое же сохранение их сотрёт).
-    const payload = { leftoverPct: pctOr(pp.l, 70), lynxPct: pctOr(pp.y, 85), newPct: pctOr(pp.n, 70, 1), accPct: pctOr(pp.a, 75), upPct: Math.max(0, parseFloat(pp.u.replace(",", ".")) || 0), left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null, reserve, mixRows: p0.mixRows ?? {}, minkSex: p0.minkSex ?? {}, rtw };
+    const payload = { leftoverPct: pctOr(pp.l, 70), lynxPct: pctOr(pp.y, 85), newPct: pctOr(pp.n, 70, 1), accPct: pctOr(pp.a, 75), upPct: Math.max(0, parseFloat(pp.u.replace(",", ".")) || 0), left, mix: mixOk ? { mink: num(ovMix.mink), sable: num(ovMix.sable) } : null, reserve, mixRows: p0.mixRows ?? {}, minkSex: p0.minkSex ?? {}, rtw, fw26Extra: Math.max(0, parseFloat(pp.x.replace(",", ".")) || 0) };
     // Пишем в базу только если что-то изменилось (уход из поля без правки не меняет «Изменён …» и не пересчитывает страницы).
     const sig = JSON.stringify(payload);
     if (sig === lastSaved.current) return;
@@ -278,7 +280,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       </div>
 
       <div className="flex flex-wrap items-end gap-3" role="group" aria-label="Доли использования сырья">
-        {([["u", "Рост цены, %"]] as const).map(([k, label]) => (
+        {([["x", "Запас на оставшиеся FW26, %"], ["u", "Рост цены, %"]] as const).map(([k, label]) => (
           <label key={k} className="flex flex-col gap-1 text-xs text-neutral-600">{label}
             <input inputMode="decimal" value={pp[k]} disabled={!canEdit} onChange={(e) => setPp((v) => ({ ...v, [k]: e.target.value }))} onBlur={saveParams}
               className="min-h-11 w-24 rounded-lg border border-neutral-300 bg-white px-2 text-right text-sm tabular-nums text-neutral-900 disabled:opacity-60" />
@@ -286,7 +288,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
         ))}
         <button type="button" aria-pressed={rawDetail} onClick={() => setRawDetail((v) => !v)}
           className={"min-h-11 rounded-lg border px-4 text-sm " + (rawDetail ? "border-[var(--ui-accent)] bg-[var(--ui-soft)] font-semibold" : "border-neutral-300 bg-white hover:border-neutral-500")}>Детально</button>
-        <p className="max-w-md text-xs text-neutral-600">Остаток — что останется по окончании производства заказа FW26 (на {rawDate.split("-").reverse().join(".")}). Невостребованное сырьё, % (по виду меха, в таблице) — часть остатка 2026, которая не пойдёт в дело, и доля купленного, которая останется после заказа 2027: закупить = нужно ÷ (1 − %). Годный остаток делится: «в одежду, %» по виду меха, остальное — в аксессуары; лишнее одного блока в другой не переходит. Цена шкуры — средневзвешенная по ТЗ без роста, рост задаётся здесь. Так же считает Excel «Сырьё и бюджет FW27», лист 7.</p>
+        <p className="max-w-md text-xs text-neutral-600">Остаток — что останется после того, как сошьём оставшиеся изделия FW26 (на {rawDate.split("-").reverse().join(".")}), с запасом {pp.x} % к их расходу по норме. Невостребованное сырьё, % (по виду меха, в таблице) — часть остатка 2026, которая не пойдёт в дело, и доля купленного, которая останется после заказа 2027: закупить = нужно ÷ (1 − %). Годный остаток делится: «в одежду, %» по виду меха, остальное — в аксессуары; лишнее одного блока в другой не переходит. Цена шкуры — средневзвешенная по ТЗ без роста, рост задаётся здесь. Так же считает Excel «Сырьё и бюджет FW27», лист 7.</p>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">

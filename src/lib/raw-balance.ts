@@ -8,7 +8,7 @@ import { loadFurLots } from "@/lib/fur-table-server";
 /** Сырьё по типам меха: сколько шкур на складе и сколько уйдёт на допроизводство заказанного (остаток заказа FW26 по прогнозу). Имена типов — как в Budget PCS. */
 /** Доля норки в изделиях «Норка + Соболь» по фактическому расходу шкур в ТЗ: одежда и аксессуары отдельно (остальное — соболь). */
 export type MixShare = { RTW: number; Acc: number };
-export type RawBalance = { fur: string; stock: number; need: number }[];
+export type RawBalance = { fur: string; stock: number; need: number; /** Шкур на все непроизведённые изделия по норме (штук × норма), включая уже выданные по ТЗ — база для запаса %. */ total: number }[];
 const NAME: Record<string, string> = { "Свакара": "Каракульча" };
 const num = (s: string | undefined, d: number | null) => { const v = parseFloat(String(s ?? "").replace(",", ".").replace(/\s/g, "")); return Number.isFinite(v) ? v : d; };
 
@@ -45,7 +45,8 @@ export async function loadRawBalance(orgId: string): Promise<{ rows: RawBalance;
   const share = (b: number[]) => (b[0] + b[1] > 0 ? b[0] / (b[0] + b[1]) : 0.5);
   const doc = docs[0];
   const off = new Set(doc?.off ?? []);
-  const need = new Map<string, number>();
+  const need = new Map<string, number>(), total = new Map<string, number>();
+  const addT = (f: string, v: number) => total.set(f, (total.get(f) ?? 0) + v);
   for (const l of raw.lines) {
     if (off.has(l.acode)) continue;
     const hp = num(doc?.edits[l.acode]?.hp, l.hp);
@@ -55,13 +56,15 @@ export async function loadRawBalance(orgId: string): Promise<{ rows: RawBalance;
       const mink = share(l.cls === "acc" ? use.Acc : use.RTW), total = hidesToGo(l, hp);
       need.set("Норка", (need.get("Норка") ?? 0) + total * mink);
       need.set("Соболь", (need.get("Соболь") ?? 0) + total * (1 - mink));
+      addT("Норка", l.left * hp * mink); addT("Соболь", l.left * hp * (1 - mink));
       continue;
     }
     const f = NAME[l.fur] ?? l.fur;
     need.set(f, (need.get(f) ?? 0) + hidesToGo(l, hp));
+    addT(f, l.left * hp);
   }
   const stock = new Map<string, number>();
   for (const s of raw.stock) { const f = NAME[s.fur] ?? s.fur; stock.set(f, (stock.get(f) ?? 0) + s.stock); }
   const furs = [...new Set([...stock.keys(), ...need.keys()])];
-  return { rows: furs.map((fur) => ({ fur, stock: stock.get(fur) ?? 0, need: need.get(fur) ?? 0 })), forecast: doc?.name ?? null, mix: { RTW: share(use.RTW), Acc: share(use.Acc) }, price };
+  return { rows: furs.map((fur) => ({ fur, stock: stock.get(fur) ?? 0, need: need.get(fur) ?? 0, total: total.get(fur) ?? 0 })), forecast: doc?.name ?? null, mix: { RTW: share(use.RTW), Acc: share(use.Acc) }, price };
 }

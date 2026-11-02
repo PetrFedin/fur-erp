@@ -83,7 +83,7 @@ export async function savePcsParams(id: string, p: PcsParams): Promise<Res> {
   const pctMap = (o: Record<string, number> | undefined, max: number) => Object.fromEntries(Object.entries(o ?? {}).map(([k, v]) => [s(k, 120), Number(v)] as const).filter(([, v]) => Number.isFinite(v)).map(([k, v]) => [k, Math.min(max, Math.max(0, Math.round(v * 100) / 100))]));
   const reserve = pctMap(p.reserve, 99), mixRows = pctMap(p.mixRows, 100), rtw = pctMap(p.rtw, 100);
   const minkSex = Object.fromEntries(Object.entries(p.minkSex ?? {}).filter(([, v]) => v === "M" || v === "F").map(([k, v]) => [s(k, 120), v]));
-  await putPcs(orgId, d.id, { ...d, params: { leftoverPct: pct(p.leftoverPct), lynxPct: pct(p.lynxPct), newPct: pct(p.newPct, 1), accPct: pct(p.accPct ?? 75), upPct: Math.min(500, Math.max(0, Math.round(Number(p.upPct ?? 10) * 10) / 10) || 0), left, mix: mx, reserve, mixRows, minkSex, rtw }, updatedBy: session.user.name ?? null });
+  await putPcs(orgId, d.id, { ...d, params: { leftoverPct: pct(p.leftoverPct), lynxPct: pct(p.lynxPct), newPct: pct(p.newPct, 1), accPct: pct(p.accPct ?? 75), upPct: Math.min(500, Math.max(0, Math.round(Number(p.upPct ?? 10) * 10) / 10) || 0), left, mix: mx, reserve, mixRows, minkSex, rtw, fw26Extra: Math.min(100, Math.max(0, Number(p.fw26Extra ?? 5) || 0)) }, updatedBy: session.user.name ?? null });
   revalidateAll();
   return { ok: true };
 }
