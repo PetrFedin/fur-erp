@@ -1,6 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { hidesToGo, loadRawForecast } from "@/lib/raw-forecast";
+import { loadRawForecast } from "@/lib/raw-forecast";
+import { actualTotal, remainingByTz } from "@/lib/fw26-remaining";
+import { orderLabel } from "@/lib/order-label";
 import { listForecasts } from "@/lib/forecast-store";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import { loadFurLots } from "@/lib/fur-table-server";
@@ -8,7 +10,7 @@ import { loadFurLots } from "@/lib/fur-table-server";
 /** Сырьё по типам меха: сколько шкур на складе и сколько уйдёт на допроизводство заказанного (остаток заказа FW26 по прогнозу). Имена типов — как в Budget PCS. */
 /** Доля норки в изделиях «Норка + Соболь» по фактическому расходу шкур в ТЗ: одежда и аксессуары отдельно (остальное — соболь). */
 export type MixShare = { RTW: number; Acc: number };
-export type RawBalance = { fur: string; stock: number; need: number; /** Шкур на все непроизведённые изделия по норме (штук × норма), включая уже выданные по ТЗ — база для запаса %. */ total: number }[];
+export type RawBalance = { fur: string; stock: number; /** Ещё возьмём со склада: части без списания по ТЗ, по норме. */ need: number; /** Весь расход на оставшиеся изделия FW26: по ТЗ со списанием — точно как в ТЗ, остальное — по норме. */ total: number; /** Уже списано по ТЗ (изделия у подрядчика). */ issued: number }[];
 const NAME: Record<string, string> = { "Свакара": "Каракульча" };
 const num = (s: string | undefined, d: number | null) => { const v = parseFloat(String(s ?? "").replace(",", ".").replace(/\s/g, "")); return Number.isFinite(v) ? v : d; };
 
@@ -45,26 +47,26 @@ export async function loadRawBalance(orgId: string): Promise<{ rows: RawBalance;
   const share = (b: number[]) => (b[0] + b[1] > 0 ? b[0] / (b[0] + b[1]) : 0.5);
   const doc = docs[0];
   const off = new Set(doc?.off ?? []);
-  const need = new Map<string, number>(), total = new Map<string, number>();
-  const addT = (f: string, v: number) => total.set(f, (total.get(f) ?? 0) + v);
-  for (const l of raw.lines) {
-    if (off.has(l.acode)) continue;
-    const hp = num(doc?.edits[l.acode]?.hp, l.hp);
-    if (hp == null || !(hp > 0)) continue;
-    if (l.fur.includes(" + ")) {
-      // Смесь «Норка + Соболь»: потребность делим на норку и соболя по реальной пропорции ТЗ (одежда и аксессуары отдельно) — как в таблице бюджета.
-      const mink = share(l.cls === "acc" ? use.Acc : use.RTW), total = hidesToGo(l, hp);
-      need.set("Норка", (need.get("Норка") ?? 0) + total * mink);
-      need.set("Соболь", (need.get("Соболь") ?? 0) + total * (1 - mink));
-      addT("Норка", l.left * hp * mink); addT("Соболь", l.left * hp * (1 - mink));
+  // Расход на оставшиеся изделия FW26 (fw26-remaining): по ТЗ со списанием — ровно как в ТЗ (по мехам, уже списано, со склада второй раз не берём),
+  // остальное — по норме: это «ещё возьмём со склада» (need). total = весь расход, issued = уже списано по ТЗ.
+  const need = new Map<string, number>(), total = new Map<string, number>(), issued = new Map<string, number>();
+  const add = (m: Map<string, number>, f: string, v: number) => m.set(f, (m.get(f) ?? 0) + v);
+  const lines = raw.lines.filter((l) => !off.has(l.acode)).map((l) => ({ ...l, hp: num(doc?.edits[l.acode]?.hp, l.hp) }));
+  for (const r of remainingByTz(lines, orders, orderLabel)) {
+    const act = actualTotal(r);
+    if (act > 0) { for (const [f0, v] of Object.entries(r.actual)) { const f = NAME[f0] ?? f0; add(total, f, v); add(issued, f, v); } continue; }
+    if (!(r.norm > 0)) continue;
+    if (r.fur.includes(" + ")) {
+      // Смесь «Норка + Соболь» без списания: по реальной пропорции ТЗ (одежда и аксессуары отдельно) — как в таблице бюджета.
+      const mink = share(r.cls === "acc" ? use.Acc : use.RTW);
+      for (const [f, k] of [["Норка", mink], ["Соболь", 1 - mink]] as const) { add(need, f, r.norm * k); add(total, f, r.norm * k); }
       continue;
     }
-    const f = NAME[l.fur] ?? l.fur;
-    need.set(f, (need.get(f) ?? 0) + hidesToGo(l, hp));
-    addT(f, l.left * hp);
+    const f = NAME[r.fur] ?? r.fur;
+    add(need, f, r.norm); add(total, f, r.norm);
   }
   const stock = new Map<string, number>();
   for (const s of raw.stock) { const f = NAME[s.fur] ?? s.fur; stock.set(f, (stock.get(f) ?? 0) + s.stock); }
-  const furs = [...new Set([...stock.keys(), ...need.keys()])];
-  return { rows: furs.map((fur) => ({ fur, stock: stock.get(fur) ?? 0, need: need.get(fur) ?? 0, total: total.get(fur) ?? 0 })), forecast: doc?.name ?? null, mix: { RTW: share(use.RTW), Acc: share(use.Acc) }, price };
+  const furs = [...new Set([...stock.keys(), ...need.keys(), ...total.keys()])];
+  return { rows: furs.map((fur) => ({ fur, stock: stock.get(fur) ?? 0, need: need.get(fur) ?? 0, total: total.get(fur) ?? 0, issued: issued.get(fur) ?? 0 })), forecast: doc?.name ?? null, mix: { RTW: share(use.RTW), Acc: share(use.Acc) }, price };
 }

@@ -63,33 +63,13 @@ import { orderLabel } from "../src/lib/order-label";
   const plan = { prows, lpool: pin.lpool, buy: pin.buy, state: pd.state, ...planRes,
     supply: supRows.map((r) => ({ fur: r.label, leftAll: r.leftAll, use: r.use, np: r.np, buy: r.buy, money: r.money, rem26: r.rem26, remBuy: r.remBuy })), supplyTotal: sup.total };
 
-  // Непроизведённые изделия FW26 по ТЗ (цвет, размер): строки прогноза (по модели) раскладываются на ТЗ этой модели.
-  // «Завершены, не получены» — на завершённые ТЗ, «в работе» — на ТЗ в работе/запланированные; полученное считаем пришедшим из более ранних ТЗ,
-  // поэтому остаток кладём на ТЗ с большим номером. Списано — фактические шкуры меха ТЗ (доля остатка); ещё уйдёт — по норме за вычетом выданного.
+  // Непроизведённые изделия FW26 по ТЗ (src/lib/fw26-remaining — та же раскладка, что в приложении): по ТЗ со списанием расход точно как в ТЗ
+  // (actual — шкуры по мехам, уже списаны), без списания и без ТЗ — по норме (norm), это и возьмём со склада.
   const { loadOrderRows } = await import("../src/lib/analytics-orders");
-  const orderRows = (await loadOrderRows(org, "all", "off")).filter((r) => r.category !== "Ремонт");
-  const tzNum = (r: { workOrderNumber: string | null; number: string }) => parseFloat((r.workOrderNumber ?? "").replace(/[^\d.]/g, "")) || 0;
-  const fw26: unknown[] = [];
-  for (const l of forecast) {
-    const model = l.acode.split("/")[0];
-    const rs = orderRows.filter((r) => r.modelName === model).sort((a, b) => tzNum(b) - tzNum(a) || b.number.localeCompare(a.number));
-    const take = (group: "done" | "work", need: number, kind: string) => {
-      for (const r of rs.filter((x) => x.group === group)) {
-        if (need <= 1e-9) break;
-        const q = Math.min(need, r.qty); need -= q;
-        const issued = r.qty > 0 ? r.furQty * (q / r.qty) : 0; // шкур меха, списанных по ТЗ, на эту часть
-        const done = group === "done" ? issued : Math.min(issued, (l.hp ?? 0) * q);
-        const toGo = group === "done" ? 0 : Math.max(0, (l.hp ?? 0) * q - issued);
-        fw26.push({ acode: l.acode, model, fur: l.fur, cls: l.cls, cat2: l.cat2, tz: orderLabel(r), status: kind, color: r.color, size: r.size || "—", batch: r.batchText ?? "Без партии",
-          qty: q, hp: l.hp, done, toGo, hpSource: l.source + (l.sourceNote ? ` · ${l.sourceNote}` : "") });
-      }
-      if (need > 1e-6) fw26.push({ acode: l.acode, model, fur: l.fur, cls: l.cls, cat2: l.cat2, tz: "ТЗ не найдено", status: kind, color: "—", size: "—", batch: "—", qty: need, hp: l.hp, done: 0, toGo: group === "done" ? 0 : (l.hp ?? 0) * need, hpSource: l.source });
-    };
-    take("done", l.produced, "ТЗ завершено, не получено");
-    take("work", l.inWork, "ТЗ в работе / запланировано");
-    // Заказано, но ТЗ ещё нет (модель без ТЗ, например M059 на 02.11.2026): всё по норме.
-    if ((l.notStarted ?? 0) > 1e-9) fw26.push({ acode: l.acode, model, fur: l.fur, cls: l.cls, cat2: l.cat2, tz: "ТЗ ещё нет", status: "ТЗ ещё нет", color: "—", size: "—", batch: "—", qty: l.notStarted, hp: l.hp, done: 0, toGo: (l.hp ?? 0) * (l.notStarted ?? 0), hpSource: l.source + (l.sourceNote ? ` · ${l.sourceNote}` : "") });
-  }
+  const { remainingByTz, actualTotal } = await import("../src/lib/fw26-remaining");
+  const orderRows = await loadOrderRows(org, "all", "off");
+  const fw26 = remainingByTz(forecast.map((l) => ({ ...l, hp: l.hp, sourceNote: l.sourceNote ?? undefined })), orderRows, orderLabel)
+    .map((r) => ({ ...r, cls: r.cls, done: actualTotal(r), toGo: actualTotal(r) > 0 ? 0 : r.norm }));
 
   const out = {
     asOf: new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", dateStyle: "short", timeStyle: "short" }).format(new Date()),

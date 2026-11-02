@@ -74,9 +74,10 @@ export function computeSupply(inp: SupplyInput) {
   const share = (fur: string, b: PcsBlock) => (b === "RTW" ? rtwOf(fur) : 1 - rtwOf(fur));
   const rows: (SupplyFurRow | SupplyMixRow)[] = furs.map((f) => {
     if (f.label === "Норка+Соболь") return { label: f.label, ttl: f.ttl, mixed: true as const, toMink, toSable, calcMink, calcSable };
-    // Возьмём со склада на оставшиеся изделия FW26 = штук × норма + запас % (владелец 02.11: выдано подрядчику или нет — не делим, как Excel, лист 4).
+    // Возьмём со склада на оставшиеся изделия FW26 = части без списания по ТЗ, по норме, + запас % к ним; по ТЗ со списанием расход точный и уже списан —
+    // второй раз не вычитаем (владелец 02.11 вечер; как Excel, лист 4).
     const extra = pctOr(ov.x, 5) / 100;
-    const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = (r?.total ?? 0) * (1 + extra);
+    const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = (r?.need ?? 0) * (1 + extra);
     const calcLeft = Math.max(0, stock - need), leftAll = own(ov.left[f.label] ?? "", calcLeft);
     const res = resOf(f.label), bres = buyResOf(f.label);
     // Годный остаток = остаток × (1 − невостребованное); блок использует меньшее из «нужно» и «своё годное»;
