@@ -4,7 +4,7 @@
 // Правила (владелец 02.11.2026):
 //  • сырьё из остатка 2026 — только своё годное каждого блока (одежда / аксессуары), как в расчёте закупки (fw26-supply);
 //  • купленное идёт в работу не раньше чем через LEAD месяцев после прихода на склад (по умолчанию 2: приход, выделка, раскрой);
-//  • одежда — по целевой загрузке мощности (≥50 % с января, июль ≈28 %, ≈80 % в конце); если сырья нет — сколько позволяет остаток;
+//  • одежда — по целевой загрузке мощности (50 % с января, июль ≈28 %, август–октябрь 80 %, ноябрь 100 %); если сырья нет — сколько позволяет остаток;
 //  • аксессуары — ровно по месяцам; рысь — сентябрь–ноябрь;
 //  • правка любого месяца (производство или приход) — следующие месяцы пропорционально подстраиваются, итог всегда = план (или 100 % закупки).
 import { ttlOf, type PcsRow, type PcsBlock, type PcsParams } from "@/lib/budget-pcs";
@@ -31,7 +31,8 @@ export const SUMMER_INTAKE: Record<string, Partial<Record<number, number>>> = {
   // рысь: FH июнь → октябрь
   Рысь: { 11: 1.0 },
 };
-export const TARGET_LOAD_DEFAULT = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.28, 0.8, 0.8, 0.8, 0.8];
+// Целевая загрузка одежды (владелец 02.11): с января 50 %, июль ≈28 % (отпуска), август–октябрь 80 %, к ноябрю 100 % — как аксессуары.
+export const TARGET_LOAD_DEFAULT = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.28, 0.8, 0.8, 0.8, 1.0];
 export const LEAD_DEFAULT = 2;
 export const LYNX_FROM = 8; // сентябрь
 
@@ -194,7 +195,16 @@ export function buildPlan(inp: PlanInput): PlanResult {
   const lead = Math.max(0, Math.min(6, Math.round(state.lead ?? LEAD_DEFAULT)));
   const targetLoad = Array.from({ length: NM }, (_, m) => state.targetLoad?.[m] ?? TARGET_LOAD_DEFAULT[m]);
   const rtwTotal = prows.filter((r) => r.block === "RTW").reduce((a, r) => a + r.pcs, 0);
-  const capRtw = state.capRtw && state.capRtw > 0 ? state.capRtw : Math.ceil(rtwTotal / targetLoad.reduce((a, b) => a + b, 0));
+  // Мощность по умолчанию — такая, чтобы при целевой загрузке ноябрь (остаток до плана) вышел ровно на свою загрузку (100 %).
+  const fitCap = () => {
+    let best = Math.ceil(rtwTotal / targetLoad.reduce((a, b) => a + b, 0)), gap = Infinity;
+    for (let c = Math.max(1, best - 15); c <= best + 15; c++) {
+      const nov = rtwTotal - targetLoad.slice(0, -1).reduce((a, x) => a + Math.round(c * x), 0), g = Math.abs(nov - c * targetLoad[NM - 1]);
+      if (nov >= 0 && nov <= c && g < gap) { gap = g; best = c; }
+    }
+    return best;
+  };
+  const capRtw = state.capRtw && state.capRtw > 0 ? state.capRtw : fitCap();
   const targetRtw = targetLoad.map((x) => Math.round(capRtw * x)); targetRtw[NM - 1] = Math.max(0, rtwTotal - targetRtw.slice(0, -1).reduce((a, b) => a + b, 0));
   const runTarget: (number | null)[] = [...targetRtw.slice(0, -1), null];
   // Приход: лето (как в 2025–2026) + зимняя часть закупки, чтобы шить по целевой загрузке (если не отключено). Свои доли — «следующие пропорционально».

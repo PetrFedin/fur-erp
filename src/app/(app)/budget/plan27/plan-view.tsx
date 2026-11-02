@@ -3,7 +3,7 @@
 import { Fragment, useMemo, useState } from "react";
 import type { MinkSexStock, PcsParams, PcsRow } from "@/lib/budget-pcs";
 import { computeSupply, overridesFromParams, type SupplyFurRow } from "@/lib/fw27-supply";
-import { buildPlan, INTAKE_MONTHS, NI, NM, PLAN_MONTHS, planInputFromSupply, planRows, RAW_FURS, type PlanState } from "@/lib/fw27-plan";
+import { buildPlan, INTAKE_MONTHS, NI, NM, PLAN_MONTHS, planInputFromSupply, planRows, RAW_FURS, TARGET_LOAD_DEFAULT, type PlanState } from "@/lib/fw27-plan";
 import { formatInt } from "@/lib/utils";
 import { savePlanState } from "./actions";
 
@@ -98,7 +98,7 @@ export function PlanView({ data, canEdit }: { data: Data; canEdit: boolean }) {
             {([["Загрузка: одежда", plan.rtw.map((x) => x / plan.capRtw)], ["Загрузка: аксессуары", plan.acc.map((x) => x / plan.capAcc)], ["Одежда: сшито нарастающим итогом, % плана", plan.rtwCum]] as const).map(([lab, arr]) => (
               <tr key={lab} className="border-b border-neutral-100"><td className="px-3 py-1 text-sm">{lab}</td>{arr.map((x, m) => <td key={m} className={TD + (lab.startsWith("Загрузка") && x > 1.0001 ? " text-red-700 font-semibold" : "")}>{pctTxt(x)}</td>)}<td className={TD} colSpan={3} /></tr>
             ))}
-            <tr className="border-b border-neutral-100"><td className="px-3 py-1 text-sm">Целевая загрузка одежды, %</td>{plan.targetLoad.map((x, m) => <td key={m} className={TD}><Cell value={String(Math.round(x * 100))} suffix="" manual={st.targetLoad != null && Math.round(st.targetLoad[m] * 100) !== Math.round([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.28, 0.8, 0.8, 0.8, 0.8][m] * 100)} disabled={!canEdit} label={`Целевая загрузка, ${PLAN_MONTHS[m]}`} onSet={(nv) => setLoad(m, nv)} /></td>)}<td className={TD} colSpan={3} /></tr>
+            <tr className="border-b border-neutral-100"><td className="px-3 py-1 text-sm">Целевая загрузка одежды, %</td>{plan.targetLoad.map((x, m) => <td key={m} className={TD}><Cell value={String(Math.round(x * 100))} suffix="" manual={st.targetLoad != null && Math.round(st.targetLoad[m] * 100) !== Math.round(TARGET_LOAD_DEFAULT[m] * 100)} disabled={!canEdit} label={`Целевая загрузка, ${PLAN_MONTHS[m]}`} onSet={(nv) => setLoad(m, nv)} /></td>)}<td className={TD} colSpan={3} /></tr>
           </tbody>
         </table>
       </section>
