@@ -1,9 +1,10 @@
 "use client";
 
 import { Fragment, useMemo, useRef, useState } from "react";
-import { CAT_LABEL, ttlOf, avgOf, buildPcsView, DEFAULT_PCS_PARAMS, type PcsParams, pcsMixKey, minkSexOf, type MinkSexStock, ST_COLS, ST_FILE_LEN, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
+import { CAT_LABEL, avgOf, buildPcsView, DEFAULT_PCS_PARAMS, type PcsParams, type MinkSexStock, ST_COLS, ST_FILE_LEN, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
 import { formatDec1, formatInt } from "@/lib/utils";
 import { exportPcsXlsx, savePcsParams, savePcsRows } from "./actions";
+import { computeSupply, pctOr, RES_DEFAULT, supplyKnobs, type SupplyOverrides } from "@/lib/fw27-supply";
 import { Fw27Compare, Fw27Dialog } from "./fw27-panel";
 import { photoCount, slidesFor, type Crit, type Fw27Data } from "@/lib/fw27-presentation";
 
@@ -75,95 +76,13 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
 
   // Сырьё: сколько шкур есть, сколько уйдёт на допроизводство заказанного, сколько можно использовать и сколько докупать.
   // Пустое поле — значение по умолчанию, ноль — действительно ноль (например, «из остатков 0 %»: остатки не используем).
-  const pctOr = (v: string, d: number, min = 0) => { if (v.trim() === "") return d; const x = parseFloat(v.replace(",", ".")); return Number.isFinite(x) ? Math.min(100, Math.max(min, x)) : d; };
-  const pct = (v: string) => { const x = parseFloat(v.replace(",", ".")); return Number.isFinite(x) && x > 0 ? Math.min(100, x) : 0; };
-  const rawBy = useMemo(() => new Map(raw.map((r) => [r.fur, r])), [raw]);
-  // Проценты как при сохранении: пусто или 0 — значение по умолчанию (иначе экран и сохранённое расходятся).
-  const resDefault = 30;
-  const resOf = (fur: string) => { const v = parseFloat((ovRes[fur] ?? "").replace(",", ".")); return Number.isFinite(v) ? Math.min(99, Math.max(0, v)) : resDefault; };
-  const rtwDefault = 100 - pctOr(pp.a, 75);
-  const buyResOf = (fur: string) => { const v = parseFloat((ovBuyRes[fur] ?? "").replace(",", ".")); return Number.isFinite(v) ? Math.min(99, Math.max(0, v)) : resOf(fur); };
-  const rtwOf = (fur: string) => { const v = parseFloat((ovRtw[fur] ?? "").replace(",", ".")); return (Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : rtwDefault) / 100; };
-  const supply = useMemo(() => {
-    const own = (v: string, d: number) => (v.trim() === "" || !Number.isFinite(parseFloat(v.replace(",", "."))) ? d : Math.max(0, parseFloat(v.replace(",", "."))));
-    const up = pctOr(pp.u, 10); // пустое поле — 10 %, «0» — без роста
-    // Шкуры по типу меха и блоку. «Норка+Соболь» делим на норку и соболь по доле норки строки (решение владельца), без неё — по факту ТЗ.
-    const minkShare = (r: PcsRow) => { const v = p0.mixRows?.[pcsMixKey(r)]; return v != null ? v / 100 : mix[r.block]; };
-    // Шкуры по типу меха и блоку для выбранных блоков.
-    const buildTtl = (bl: PcsBlock[]) => {
-      const ttl = new Map<string, Record<PcsBlock, number>>();
-      const add = (fur: string, b: PcsBlock, v: number) => { const o = ttl.get(fur) ?? { RTW: 0, Acc: 0 }; o[b] += v; ttl.set(fur, o); };
-      const mM = { RTW: 0, Acc: 0 }, mS = { RTW: 0, Acc: 0 };
-      for (const r of cur) {
-        if (!bl.includes(r.block)) continue;
-        const t = ttlOf(r) ?? 0;
-        if (r.fur === "Норка+Соболь") { const s = minkShare(r); mM[r.block] += t * s; mS[r.block] += t * (1 - s); } else add(r.fur, r.block, t);
-      }
-      const cM = mM.RTW + mM.Acc, cS = mS.RTW + mS.Acc;
-      const tM = own(ovMix.mink, cM), tS = own(ovMix.sable, cS);
-      // Свои шкуры из смеси делим по блокам в той же пропорции, что и расчётные.
-      const kM = cM > 0 ? tM / cM : 0, kS = cS > 0 ? tS / cS : 0;
-      for (const b of bl) { add("Норка", b, mM[b] * kM); add("Соболь", b, mS[b] * kS); }
-      if (cM === 0 && tM > 0) add("Норка", bl[0], tM);
-      if (cS === 0 && tS > 0) add("Соболь", bl[0], tS);
-      return { ttl, calcMink: cM, calcSable: cS, toMink: tM, toSable: tS, kM };
-    };
-    const sel = buildTtl(blocks), ttlB = sel.ttl;
-    const { calcMink, calcSable, toMink, toSable, kM } = sel;
-    // Остаток всегда делится между блоками, как в Excel: в одежду — свой % вида меха (лучшая часть), остальное — в аксессуары;
-    // каждый блок берёт только своё годное: старое сырьё из доли аксессуаров в одежду не идёт, сверх нужного — остаётся на складе (владелец 02.11).
-    const share = (fur: string, b: PcsBlock) => (b === "RTW" ? rtwOf(fur) : 1 - rtwOf(fur));
-    const rowsOut = furs.map((f) => {
-      if (f.label === "Норка+Соболь") return { label: f.label, ttl: f.ttl, mixed: true as const, toMink, toSable, calcMink, calcSable };
-      // Ещё возьмём со склада на оставшиеся модели FW26: не выданное по ТЗ + запас % к их расходу по норме (как Excel, лист 4).
-      const extra = pctOr(pp.x, 5) / 100; // пустое поле — 5 %, «0» — без запаса
-      const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = (r?.need ?? 0) + extra * (r?.total ?? 0);
-      const calcLeft = Math.max(0, stock - need), leftAll = own(ovLeft[f.label] ?? "", calcLeft);
-      const res = resOf(f.label);
-      // Как в Excel (лист 7): годный остаток = остаток × (1 − невостребованное); используем меньшее из «нужно» и «своё годное + лишнее другого блока»;
-      // закупить = нужно из покупки ÷ (1 − X): после заказа от купленного остаётся X %; неиспользованный остаток 2026 в этот процент не входит.
-      const bres = buyResOf(f.label);
-      let t = 0, left = 0, use = 0, np = 0, used = 0;
-      for (const b of blocks) {
-        const sh = share(f.label, b), tb = ttlB.get(f.label)?.[b] ?? 0, lb = leftAll * sh, ub = lb * (1 - res / 100);
-        // Нехватка на уже запланированное (склад меньше «нужно»): тоже покупаем, по доле блока.
-        t += tb; left += lb; use += ub; used += Math.min(tb, ub); np += tb - Math.min(tb, ub) + Math.max(0, need - stock) * sh;
-      }
-      const buy = np / (1 - bres / 100);
-      const pr = price[f.label] ?? 0, money = buy * pr * (1 + up / 100);
-      // Останется после заказа 2027: от остатка 2026 (невостребованное + годное сверх нужного блокам) и купленного (запас).
-      const rem26 = left - used, remBuy = buy - np;
-      return { label: f.label, ttl: f.ttl, mixed: false as const, t, stock, need, left, leftAll, calcLeft, use, np, res, bres, buy, buyPriced: pr > 0 ? buy : 0, pr, money, rem26, remBuy };
-    });
-    const sum = (k: "stock" | "need" | "left" | "use" | "np" | "buy" | "buyPriced" | "money" | "rem26" | "remBuy") => rowsOut.reduce((a, r) => a + (r.mixed ? 0 : r[k]), 0);
-    // Норка по полу (только «Вместе»): короткие шубы — самцы, длинные — самки (параметр minkSex); остальным пол не важен.
-    let sex: null | { rows: { code: "M" | "F" | "U"; label: string; stock: number; left: number; use: number; need: number; short: number; extra: number; buy: number }[]; buy: number } = null;
-    const mink = rowsOut.find((x) => x.label === "Норка");
-    if (minkStock && blocks.length === 2 && mink && !mink.mixed) {
-      const needBy = { M: 0, F: 0, U: 0 };
-      for (const r of cur) {
-        if (r.fur !== "Норка" && r.fur !== "Норка+Соболь") continue;
-        const t = (ttlOf(r) ?? 0) * (r.fur === "Норка" ? 1 : minkShare(r) * (kM || 1));
-        needBy[minkSexOf(r, p0.minkSex) ?? "U"] += t;
-      }
-      const st = minkStock, all = st.M + st.F + st.U, resM = mink.res;
-      const base = (code: "M" | "F" | "U", label: string) => {
-        const left = all > 0 ? mink.leftAll * (st[code] / all) : 0, use = left * (1 - resM / 100);
-        return { code, label, stock: st[code], left, use, need: needBy[code], short: 0, extra: 0, buy: 0 };
-      };
-      const M = base("M", "Самцы (M)"), F = base("F", "Самки (F)"), U = base("U", "Пол не указан / не важен");
-      for (const x of [M, F]) { x.short = Math.max(0, x.need - x.use); x.extra = Math.max(0, x.use - x.need); }
-      const avail = U.use + M.extra + F.extra;
-      U.short = Math.max(0, U.need - avail); U.extra = Math.max(0, avail - U.need);
-      // Закупить по полу = не хватает ÷ (1 − X), как в Excel; закупка норки по блокам выше должна быть не меньше суммы.
-      for (const x of [M, F, U]) x.buy = x.short / (1 - mink.bres / 100);
-      sex = { rows: [M, F, U], buy: M.buy + F.buy + U.buy };
-      // Закупка норки = большее из «по блокам» и «по полу» (как Excel, лист 7): самцов и самок должно хватить.
-      if (sex.buy > mink.buy) { const k = sex.buy / mink.buy; mink.buy = sex.buy; mink.buyPriced = mink.pr > 0 ? sex.buy : 0; mink.money *= k; mink.remBuy = mink.buy - mink.np; }
-    }
-    return { rows: rowsOut, sex, total: { stock: sum("stock"), need: sum("need"), left: sum("left"), use: sum("use"), np: sum("np"), buy: sum("buy"), buyPriced: sum("buyPriced"), money: sum("money"), rem26: sum("rem26"), remBuy: sum("remBuy") } };
+  // Расчёт закупки — общий с отчётом «План производства 2027» и Excel (src/lib/fw27-supply.ts); здесь — с правками с экрана.
+  const ov: SupplyOverrides = useMemo(() => ({ left: ovLeft, mix: ovMix, res: ovRes, rtw: ovRtw, buyRes: ovBuyRes, u: pp.u, x: pp.x, a: pp.a }), [ovLeft, ovMix, ovRes, ovRtw, ovBuyRes, pp]);
+  const { resOf, rtwDefault, rtwOf } = supplyKnobs(ov);
+  const resDefault = RES_DEFAULT;
+  const supply = useMemo(() => computeSupply({ rows: cur, blocks, raw, mix, price, minkStock, params: p0, ov }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [furs, rawBy, pp, cur, blocks, mix, ovLeft, ovMix, ovRes, ovRtw, ovBuyRes, price, minkStock]);
+    [cur, blocks, raw, mix, price, minkStock, ov]);
   const lastSaved = useRef<string | null>(null);
   if (lastSaved.current === null) {
     const l0 = Object.fromEntries(Object.entries(p0.left ?? {}).filter(([, v]) => Number.isFinite(v)));
@@ -391,7 +310,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               </tr>
             </tbody>
           </table>
-          <p className="px-3 py-2 text-xs text-neutral-600">Short — из самцов, Regular и Long — из самок (так шили по всем прошлым ТЗ); аксессуарам пол не важен, им идут лоты без пола и лишние самцы и самки. Пол лота — признак «Самец» / «Самка»; остаток 2026 делится по полу как склад. По полу нужно купить {cell(supply.sex.buy)} шкур, по блокам выше — {cell(supply.rows.find((x) => x.label === "Норка" && !x.mixed)?.buy ?? 0)}: закупать большее, самцов и самок — не меньше, чем здесь.</p>
+          <p className="px-3 py-2 text-xs text-neutral-600">Short — из самцов, Regular и Long — из самок (так шили по всем прошлым ТЗ); аксессуарам пол не важен, им идут лоты без пола и лишние самцы и самки. Пол лота — признак «Самец» / «Самка»; остаток 2026 делится по полу как склад. По полу нужно купить {cell(supply.sex.buy)} шкур, по блокам выше — {cell((supply.rows.find((x) => x.label === "Норка" && !x.mixed) as { buy?: number } | undefined)?.buy ?? 0)}: закупать большее, самцов и самок — не меньше, чем здесь.</p>
         </div>
       ) : null}
 

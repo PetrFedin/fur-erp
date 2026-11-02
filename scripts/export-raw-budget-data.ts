@@ -51,6 +51,18 @@ import { orderLabel } from "../src/lib/order-label";
   const avg = await loadBudgetAvg(org);
   const pcsRows = withBudgetAvg(pcsDoc.rows, avg).filter((r) => r.pcs > 0).map((r) => ({ block: r.block === "Acc" ? "Аксессуары" : "Одежда", fur: r.fur, cat: r.cat, len: r.len, pcs: r.pcs, avg: r.avg ?? (r as { avgB?: number | null }).avgB ?? null }));
 
+  // План производства 2027 — тот же расчёт, что отчёт «План производства 2027» (src/lib/fw27-plan.ts) с сохранёнными правками.
+  const { computeSupply, overridesFromParams } = await import("../src/lib/fw27-supply");
+  const { buildPlan, planRows, planInputFromSupply } = await import("../src/lib/fw27-plan");
+  const { loadPlanData } = await import("../src/lib/fw27-plan-data");
+  const pd = await loadPlanData(org);
+  const sup = computeSupply({ rows: pd.rows, blocks: ["RTW", "Acc"], raw: pd.raw, mix: pd.mix, price: pd.price, minkStock: pd.minkStock, params: pd.params, ov: overridesFromParams(pd.params) });
+  const supRows = sup.rows.filter((r) => !r.mixed) as import("../src/lib/fw27-supply").SupplyFurRow[];
+  const prows = planRows(pd.rows, pd.params, pd.mix), pin = planInputFromSupply(supRows);
+  const planRes = buildPlan({ prows, ...pin, state: pd.state });
+  const plan = { prows, lpool: pin.lpool, buy: pin.buy, state: pd.state, ...planRes,
+    supply: supRows.map((r) => ({ fur: r.label, leftAll: r.leftAll, use: r.use, np: r.np, buy: r.buy, money: r.money, rem26: r.rem26, remBuy: r.remBuy })), supplyTotal: sup.total };
+
   // Непроизведённые изделия FW26 по ТЗ (цвет, размер): строки прогноза (по модели) раскладываются на ТЗ этой модели.
   // «Завершены, не получены» — на завершённые ТЗ, «в работе» — на ТЗ в работе/запланированные; полученное считаем пришедшим из более ранних ТЗ,
   // поэтому остаток кладём на ТЗ с большим номером. Списано — фактические шкуры меха ТЗ (доля остатка); ещё уйдёт — по норме за вычетом выданного.
@@ -82,7 +94,7 @@ import { orderLabel } from "../src/lib/order-label";
     forecastName: doc?.name ?? null,
     forecast, stock: bal.rows, price: bal.price, mix: bal.mix,
     budgetParams: { ...DEFAULT_PARAMS, ...(sc.params as object) }, budget,
-    pcsParams: pcsDoc.params ?? null, pcsRows, fw26,
+    pcsParams: pcsDoc.params ?? null, pcsRows, fw26, plan,
   };
   writeFileSync(process.argv[2], JSON.stringify(out, null, 1));
   console.log(`прогноз: ${forecast.length} строк, остаток ${forecast.reduce((s, l) => s + l.left, 0)} шт.; бюджет: ${budget.length} строк, ${budget.reduce((s: number, b: any) => s + b.pcs, 0)} шт.; PCS: ${pcsRows.length} строк, ${pcsRows.reduce((s, r) => s + r.pcs, 0)} шт.`);
