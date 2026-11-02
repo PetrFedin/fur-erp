@@ -86,22 +86,29 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
     const up = pctOr(pp.u, 10); // пустое поле — 10 %, «0» — без роста
     // Шкуры по типу меха и блоку. «Норка+Соболь» делим на норку и соболь по доле норки строки (решение владельца), без неё — по факту ТЗ.
     const minkShare = (r: PcsRow) => { const v = p0.mixRows?.[pcsMixKey(r)]; return v != null ? v / 100 : mix[r.block]; };
-    const ttlB = new Map<string, Record<PcsBlock, number>>();
-    const add = (fur: string, b: PcsBlock, v: number) => { const o = ttlB.get(fur) ?? { RTW: 0, Acc: 0 }; o[b] += v; ttlB.set(fur, o); };
-    const mixM = { RTW: 0, Acc: 0 }, mixS = { RTW: 0, Acc: 0 };
-    for (const r of cur) {
-      if (!blocks.includes(r.block)) continue;
-      const t = ttlOf(r) ?? 0;
-      if (r.fur === "Норка+Соболь") { const s = minkShare(r); mixM[r.block] += t * s; mixS[r.block] += t * (1 - s); } else add(r.fur, r.block, t);
-    }
-    const calcMink = mixM.RTW + mixM.Acc, calcSable = mixS.RTW + mixS.Acc;
-    const toMink = own(ovMix.mink, calcMink), toSable = own(ovMix.sable, calcSable);
-    // Свои шкуры из смеси делим по блокам в той же пропорции, что и расчётные.
-    const kM = calcMink > 0 ? toMink / calcMink : 0, kS = calcSable > 0 ? toSable / calcSable : 0;
-    for (const b of blocks) { add("Норка", b, mixM[b] * kM); add("Соболь", b, mixS[b] * kS); }
-    if (calcMink === 0 && toMink > 0) add("Норка", blocks[0], toMink);
-    if (calcSable === 0 && toSable > 0) add("Соболь", blocks[0], toSable);
-    // Остаток всегда делится между блоками, как в Excel: в одежду — свой % вида меха (лучшая часть), остальное — в аксессуары; лишнее одного блока в другой не переходит.
+    // Шкуры по типу меха и блоку для выбранных блоков (ttlB) и для обоих (ttlAll — чтобы лишний годный остаток одного блока отдать другому).
+    const buildTtl = (bl: PcsBlock[]) => {
+      const ttl = new Map<string, Record<PcsBlock, number>>();
+      const add = (fur: string, b: PcsBlock, v: number) => { const o = ttl.get(fur) ?? { RTW: 0, Acc: 0 }; o[b] += v; ttl.set(fur, o); };
+      const mM = { RTW: 0, Acc: 0 }, mS = { RTW: 0, Acc: 0 };
+      for (const r of cur) {
+        if (!bl.includes(r.block)) continue;
+        const t = ttlOf(r) ?? 0;
+        if (r.fur === "Норка+Соболь") { const s = minkShare(r); mM[r.block] += t * s; mS[r.block] += t * (1 - s); } else add(r.fur, r.block, t);
+      }
+      const cM = mM.RTW + mM.Acc, cS = mS.RTW + mS.Acc;
+      const tM = own(ovMix.mink, cM), tS = own(ovMix.sable, cS);
+      // Свои шкуры из смеси делим по блокам в той же пропорции, что и расчётные.
+      const kM = cM > 0 ? tM / cM : 0, kS = cS > 0 ? tS / cS : 0;
+      for (const b of bl) { add("Норка", b, mM[b] * kM); add("Соболь", b, mS[b] * kS); }
+      if (cM === 0 && tM > 0) add("Норка", bl[0], tM);
+      if (cS === 0 && tS > 0) add("Соболь", bl[0], tS);
+      return { ttl, calcMink: cM, calcSable: cS, toMink: tM, toSable: tS, kM };
+    };
+    const sel = buildTtl(blocks), ttlB = sel.ttl, ttlAll = blocks.length === 2 ? sel.ttl : buildTtl(["RTW", "Acc"]).ttl;
+    const { calcMink, calcSable, toMink, toSable, kM } = sel;
+    // Остаток всегда делится между блоками, как в Excel: в одежду — свой % вида меха (лучшая часть), остальное — в аксессуары;
+    // лишний годный остаток одного блока отдаём другому блоку того же меха (решение владельца 02.11).
     const share = (fur: string, b: PcsBlock) => (b === "RTW" ? rtwOf(fur) : 1 - rtwOf(fur));
     const rowsOut = furs.map((f) => {
       if (f.label === "Норка+Соболь") return { label: f.label, ttl: f.ttl, mixed: true as const, toMink, toSable, calcMink, calcSable };
@@ -110,13 +117,14 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       const r = rawBy.get(f.label), stock = r?.stock ?? 0, need = (r?.need ?? 0) + extra * (r?.total ?? 0);
       const calcLeft = Math.max(0, stock - need), leftAll = own(ovLeft[f.label] ?? "", calcLeft);
       const res = resOf(f.label);
-      // Как в Excel (лист 7): годный остаток = остаток × (1 − невостребованное); используем меньшее из «нужно» и «годного» по блоку;
+      // Как в Excel (лист 7): годный остаток = остаток × (1 − невостребованное); используем меньшее из «нужно» и «своё годное + лишнее другого блока»;
       // закупить = нужно из покупки ÷ (1 − X): после заказа от купленного остаётся X %; неиспользованный остаток 2026 в этот процент не входит.
       let t = 0, left = 0, use = 0, np = 0;
       for (const b of blocks) {
         const sh = share(f.label, b), tb = ttlB.get(f.label)?.[b] ?? 0, lb = leftAll * sh, ub = lb * (1 - res / 100);
+        const ob: PcsBlock = b === "RTW" ? "Acc" : "RTW", spare = Math.max(0, leftAll * share(f.label, ob) * (1 - res / 100) - (ttlAll.get(f.label)?.[ob] ?? 0));
         // Нехватка на уже запланированное (склад меньше «нужно»): тоже покупаем, по доле блока.
-        t += tb; left += lb; use += ub; np += tb - Math.min(tb, ub) + Math.max(0, need - stock) * sh;
+        t += tb; left += lb; use += ub; np += tb - Math.min(tb, ub + spare) + Math.max(0, need - stock) * sh;
       }
       const buy = np / (1 - res / 100);
       const pr = price[f.label] ?? 0, money = buy * pr * (1 + up / 100);
@@ -290,7 +298,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
         ))}
         <button type="button" aria-pressed={rawDetail} onClick={() => setRawDetail((v) => !v)}
           className={"min-h-11 rounded-lg border px-4 text-sm " + (rawDetail ? "border-[var(--ui-accent)] bg-[var(--ui-soft)] font-semibold" : "border-neutral-300 bg-white hover:border-neutral-500")}>Детально</button>
-        <p className="max-w-md text-xs text-neutral-600">Остаток — что останется после того, как сошьём оставшиеся изделия FW26 (на {rawDate.split("-").reverse().join(".")}), с запасом {pp.x} % к их расходу по норме. Невостребованное сырьё, % (по виду меха, в таблице) — часть остатка 2026, которая не пойдёт в дело, и доля купленного, которая останется после заказа 2027: закупить = нужно ÷ (1 − %). Годный остаток делится: «в одежду, %» по виду меха, остальное — в аксессуары; лишнее одного блока в другой не переходит. Цена шкуры — средневзвешенная по ТЗ без роста, рост задаётся здесь. Так же считает Excel «Сырьё и бюджет FW27», лист 7.</p>
+        <p className="max-w-md text-xs text-neutral-600">Остаток — что останется после того, как сошьём оставшиеся изделия FW26 (на {rawDate.split("-").reverse().join(".")}), с запасом {pp.x} % к их расходу по норме. Невостребованное сырьё, % (по виду меха, в таблице) — часть остатка 2026, которая не пойдёт в дело, и доля купленного, которая останется после заказа 2027: закупить = нужно ÷ (1 − %). Годный остаток делится: «в одежду, %» по виду меха, остальное — в аксессуары; лишнее одного блока отдаём другому блоку того же меха. Цена шкуры — средневзвешенная по ТЗ без роста, рост задаётся здесь. Так же считает Excel «Сырьё и бюджет FW27», лист 7.</p>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
