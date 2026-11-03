@@ -93,15 +93,18 @@ export function ProductionBlock({ reportSeasons, href = "/production", vatCost: 
   const done = sn ? sn.nums : ZERO, work = ZERO, all = sn ? sn.nums : ZERO;
   const hides = { incl: 0, excl: 0 }, c4Parts = { fur: { incl: 0, excl: 0 }, lining: { incl: 0, excl: 0 } }, vatCost: VatByRate = {};
   void hidesP; void c4PartsP; void vatCostP; void doneP; void workP; void allP;
-  // «В выпуске» — заказ: на «Все» по сезонам (закрытые: заказ = приход; открытый FW 26/27: заказ и % пришло), в сезоне — по годам прихода.
+  // «В выпуске» — заказ: по отчёту по сезонам (закрытые: заказ = приход; открытый FW 26/27: заказ и % пришло); без данных отчёта — запасной расчёт по ТЗ (доли по приходу модели / годы прихода).
   const ordOwn = useMemo(() => (drill ? drill.orders.filter((o) => !isRepair(o) && !o.id.startsWith("no-tz")) : []), [drill]);
-  // На «Все» — заказ по отчёту «заказ и продажи» (владелец 02.11.2026): FW25 и SS26 — поступило, FW26 — заказано (Conf) и сколько пришло.
-  const rep = season === "all" && reportSeasons && reportSeasons.length ? reportSeasons : null;
+  // Заказ и поступление — по отчёту «заказ и продажи» (владелец 02.11.2026): на «Все» — все сезоны (FW25 и SS26 закрыты: заказ = поступило; FW26 — заказано Conf и сколько пришло),
+  // в конкретном сезоне — его строка отчёта. До этого в сезоне плитки считались от ТЗ/прихода файла поступлений и расходились с отчётом (FW 25/26 → 292 вместо 267, SS 2026 → 61 вместо 64, FW 26/27 → 389 вместо 509).
+  const repAll = reportSeasons && reportSeasons.length ? reportSeasons : null;
+  const repSel = repAll && season !== "all" ? repAll.filter((s) => s.label === season) : null;
+  const rep = season === "all" ? repAll : repSel && repSel.length ? repSel : null;
   const ordQty = rep ? rep.reduce((a, s) => a + s.conf, 0) : drill ? ordOwn.reduce((a, o) => a + o.qty, 0) : allP.qty;
   const ordOrders = drill ? sumOrders(ordOwn.filter((o) => o.qty > 0), "incl").orders : allP.orders;
   const ordYears = rep ? rep.map((s) => ({ label: s.label, qty: s.conf, got: s.deliv })) : drill ? (season === "all" && seasonQty && seasonQty.length > 0 ? seasonQty : yearsOf(ordOwn, season)) : yearsP;
   const ordSplit = rep ? { clothes: rep.map((s) => ({ label: s.label, qty: s.clothes.conf })), acc: rep.map((s) => ({ label: s.label, qty: s.acc.conf })), clothesQty: rep.reduce((a, s) => a + s.clothes.conf, 0), accQty: rep.reduce((a, s) => a + s.acc.conf, 0) } : null;
-  // «Произведено» — получено по приходу: на «Все» по сезонам прихода, в сезоне — по годам прихода.
+  // «Произведено» — получено по отчёту: по сезонам прихода (на «Все» — все, в сезоне — выбранный); без отчёта — запасной расчёт по ТЗ.
   const prodSeasons = useMemo(() => (drill && season === "all" ? producedSeasons(drill.orders) : null), [season, drill]);
   // Разбивка строк «Произведено» на одежду и аксессуары: по сезонам (на «Все») или по годам прихода (в сезоне).
   const prodByGrp = useMemo(() => {
