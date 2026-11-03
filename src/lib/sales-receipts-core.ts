@@ -191,3 +191,15 @@ export function seasonEndIso(season: string): string | null {
   const fw = /^FW\s+(\d{2})\/(\d{2})$/.exec(season.trim());
   return fw ? `20${fw[2]}-01-31` : null;
 }
+
+/** Мех строки отчёта «заказ и продажи» (код SABLE / MINK / FOX / SWAKARA / LYNX): по ткани строк прихода/продаж того же артикула, иначе по словам в «Analog Code»/артикуле. */
+/** Артикул без пробелов, «/» и «-»: отчёт пишет «MH-05/MINK BROWN», поступления — «MH-05 MINK BROWN». */
+export const articleKey = (a: string) => a.toUpperCase().replace(/[\s/-]+/g, "");
+export function furKeyOfReportRow(r: { acode: string; fur?: string }, fabricByArt: Record<string, string>): string {
+  const f = fabricByArt[r.acode] ?? fabricByArt[articleKey(r.acode)];
+  if (f) return furTypeOfFabric(f);
+  const s = `${r.fur ?? ""} ${r.acode}`.toUpperCase();
+  if (/SABLE/.test(s) && /MINK/.test(s)) return "SABLE";
+  for (const [re, k] of [[/SABLE/, "SABLE"], [/MINK/, "MINK"], [/FOX/, "FOX"], [/SWAKARA|KARAKUL|BROADTAIL/, "SWAKARA"], [/LYNX/, "LYNX"]] as const) if (re.test(s)) return k;
+  return furTypeOfFabric(variantOfArticle(r.acode));
+}

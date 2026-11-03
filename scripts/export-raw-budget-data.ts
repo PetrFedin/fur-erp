@@ -71,12 +71,26 @@ import { orderLabel } from "../src/lib/order-label";
   const fw26 = remainingByTz(forecast.map((l) => ({ ...l, hp: l.hp, sourceNote: l.sourceNote ?? undefined })), orderRows, orderLabel)
     .map((r) => ({ ...r, cls: r.cls, done: actualTotal(r), toGo: actualTotal(r) > 0 ? 0 : r.norm }));
 
+  // Заказ и приход по месяцам (Excel, лист 9): приход — строки поступлений по месяцу, сезону заказа, меху, Кат.1/Кат.2; FW26 заказано (Conf) — отчёт «заказ и продажи».
+  const { furTypeOfFabric, furKeyOfReportRow } = await import("../src/lib/sales-receipts-core");
+  const recLines = await prisma.salesReceiptLine.findMany({ where: { kind: "RECEIPT" }, select: { date: true, season: true, pcs: true, fabric: true, article: true, level2: true, level4: true, level3: true } });
+  const fabricByArt: Record<string, string> = {};
+  for (const l of recLines) if (l.fabric && !fabricByArt[l.article]) fabricByArt[l.article] = l.fabric;
+  const monthly = recLines.map((l) => ({ month: l.date.toISOString().slice(0, 7), season: l.season, pcs: Number(l.pcs), fur: furTypeOfFabric(l.fabric), cat1: l.level2 ?? "", cat2: (l.level4 ?? l.level3 ?? "").trim() }));
+  const { loadReportSizes } = await import("../src/lib/margin-server");
+  // Ключ артикула (мех, Кат.1, Кат.2) — как у его строк прихода, чтобы заказ FW26 и приход FW26 попадали в одну строку листа 9; нет прихода — по отчёту.
+  // Артикул пишут то «MH-05/MINK BROWN» (отчёт), то «MH-05 MINK BROWN» (поступления): сравниваем без пробелов, «/» и «-».
+  const artKey = (a: string) => a.toUpperCase().replace(/[\s/-]+/g, "");
+  const keyByArt = new Map<string, { fur: string; cat1: string; cat2: string }>();
+  for (const m of recLines) if (!keyByArt.has(artKey(m.article))) keyByArt.set(artKey(m.article), { fur: furTypeOfFabric(m.fabric), cat1: m.level2 ?? "", cat2: (m.level4 ?? m.level3 ?? "").trim() });
+  const fw26conf = (await loadReportSizes(org)).filter((r) => (r.seas?.["FW26/27"]?.conf ?? 0) > 0).map((r) => ({ ...(keyByArt.get(artKey(r.acode)) ?? { fur: furKeyOfReportRow(r, fabricByArt), cat1: r.l2 ?? "", cat2: (r.l4 || r.l3 || "").trim() }), conf: r.seas!["FW26/27"]!.conf ?? 0, acode: r.acode }));
+
   const out = {
     asOf: new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", dateStyle: "short", timeStyle: "short" }).format(new Date()),
     forecastName: doc?.name ?? null,
     forecast, stock: bal.rows, price: bal.price, mix: bal.mix,
     budgetParams: { ...DEFAULT_PARAMS, ...(sc.params as object) }, budget,
-    pcsParams: pcsDoc.params ?? null, pcsRows, fw26, plan,
+    pcsParams: pcsDoc.params ?? null, pcsRows, fw26, plan, monthly, fw26conf,
   };
   writeFileSync(process.argv[2], JSON.stringify(out, null, 1));
   console.log(`прогноз: ${forecast.length} строк, остаток ${forecast.reduce((s, l) => s + l.left, 0)} шт.; бюджет: ${budget.length} строк, ${budget.reduce((s: number, b: any) => s + b.pcs, 0)} шт.; PCS: ${pcsRows.length} строк, ${pcsRows.reduce((s, r) => s + r.pcs, 0)} шт.`);

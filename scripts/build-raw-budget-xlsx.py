@@ -848,6 +848,73 @@ for f in FURS:
 ws8.cell(r, 1, "Расход за год = шкур на план 2027; на конец ноября остаётся запас купленного (лист 7 «останется купленного»). Невостребованное и годное сверх нужного блокам лежат на складе отдельно (лист 7).").font = NOTE
 ws8.freeze_panes = f"C{HR8+1}"
 
+# =====================================================================
+# Лист 9. Заказ и приход по месяцам: тип меха → Кат. 1 → Кат. 2
+# =====================================================================
+ws9 = wb.create_sheet("9 Заказ и приход по месяцам")
+title(ws9, "Заказ и приход по месяцам и годам: тип меха → категория 1 → категория 2 (штуки)", [
+    "Пришло — файл поступлений по месяцу прихода (корректировки с минусом учтены). Заказано: FW 25/26 и SS 2026 закрыты — заказано = пришло по этим сезонам; FW 26/27 — Conf отчёта «заказ и продажи».",
+    "Ждём = заказано − пришло (только FW 26/27: заказано 509 − пришло 286); по решению владельца записано на ноябрь 2027.",
+])
+FUR_RU9 = {"SABLE": "Соболь", "MINK": "Норка", "FOX": "Лиса", "SWAKARA": "Каракульча (свакара)", "LYNX": "Рысь"}
+f9 = lambda k: FUR_RU9.get(k, k.capitalize() if k else "Не указан")
+SEAS9 = [("FW 25/26", "FW 25/26"), ("SS 2026", "SS 2026"), ("FW 26/27", "FW 26/27")]
+mon = sorted({m["month"] for m in data["monthly"]})
+years = sorted({m[:4] for m in mon})
+MRU = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
+agg = {}
+def key9(fur, c1, c2): return (f9(fur), c1 or "—", c2 or "—")
+for m in data["monthly"]:
+    k = key9(m["fur"], m["cat1"], m["cat2"]); e = agg.setdefault(k, {"seas": {}, "mon": {}, "conf26": 0})
+    e["seas"][m["season"]] = e["seas"].get(m["season"], 0) + m["pcs"]
+    e["mon"][m["month"]] = e["mon"].get(m["month"], 0) + m["pcs"]
+for c in data["fw26conf"]:
+    k = key9(c["fur"], c["cat1"], c["cat2"]); e = agg.setdefault(k, {"seas": {}, "mon": {}, "conf26": 0})
+    e["conf26"] += c["conf"]
+# столбцы
+HR9 = 6
+cols = ["Тип меха", "Категория 1", "Категория 2", "Заказано FW 25/26", "Заказано SS 2026", "Заказано FW 26/27", "Заказано всего"]
+mcol = {}; ycol = {}
+for y in years:
+    for m in [x for x in mon if x.startswith(y)]:
+        cols.append(f"{MRU[int(m[5:])-1]} {y}"); mcol[m] = len(cols)
+    cols.append(f"Пришло за {y}"); ycol[y] = len(cols)
+cols += ["Пришло всего", "Ждём — ноябрь 2027"]
+C_REC, C_WAIT = len(cols) - 1, len(cols)
+head(ws9, HR9, cols, [14, 12, 22, 10, 10, 10, 10] + [8] * (len(cols) - 9) + [10, 12], height=45)
+for y in years:  # год — подзаголовок над месяцами
+    ms = [mcol[m] for m in mon if m.startswith(y)]
+    ws9.cell(HR9 - 1, ms[0], y).font = BOLD
+r = HR9 + 1
+fur_rows = []
+order = sorted(agg, key=lambda k: (["Соболь", "Норка", "Каракульча (свакара)", "Лиса", "Рысь"].index(k[0]) if k[0] in ["Соболь", "Норка", "Каракульча (свакара)", "Лиса", "Рысь"] else 9, k[1], k[2]))
+for fur in dict.fromkeys(k[0] for k in order):
+    first = r
+    for k in [k for k in order if k[0] == fur]:
+        e = agg[k]
+        for c, v in enumerate(k, 1): put(ws9, r, c, v)
+        put(ws9, r, 4, e["seas"].get("FW 25/26", 0), INT); put(ws9, r, 5, e["seas"].get("SS 2026", 0), INT); put(ws9, r, 6, e["conf26"], INT)
+        put(ws9, r, 7, f"=SUM(D{r}:F{r})", INT, bold=True)
+        for m, c in mcol.items(): put(ws9, r, c, e["mon"].get(m, 0) or None, INT)
+        for y, c in ycol.items():
+            ms = [mcol[m] for m in mon if m.startswith(y)]
+            put(ws9, r, c, f"=SUM({L(ms[0])}{r}:{L(ms[-1])}{r})", INT, F_GRP, True)
+        put(ws9, r, C_REC, "=" + "+".join(f"{L(c)}{r}" for c in ycol.values()), INT, bold=True)
+        put(ws9, r, C_WAIT, f"=G{r}-{L(C_REC)}{r}", INT, F_IN, True)
+        r += 1
+    # итог по меху
+    put(ws9, r, 1, f"{fur} — итого", fill=F_FUR, bold=True)
+    for c in range(2, C_WAIT + 1):
+        put(ws9, r, c, None if c < 4 else f"=SUBTOTAL(9,{L(c)}{first}:{L(c)}{r-1})", INT, F_FUR, True)
+    fur_rows.append(r); r += 1
+put(ws9, r, 1, "ВСЕГО", fill=F_TOT, bold=True)
+for c in range(2, C_WAIT + 1):
+    put(ws9, r, c, None if c < 4 else "=" + "+".join(f"{L(c)}{fr}" for fr in fur_rows), INT, F_TOT, True)
+TOT9 = r
+ws9.cell(r + 2, 1, f'=IF(AND(ABS(G{r}-{L(C_REC)}{r}-{L(C_WAIT)}{r})<0.5,COUNTIF({L(C_WAIT)}{HR9+1}:{L(C_WAIT)}{r},"<0")=0),"✓ сходится: заказано = пришло + ждём, отрицательных «ждём» нет","≠ проверить")')
+ws9.cell(r + 3, 1, f'="Пришло всего "&TEXT({L(C_REC)}{r},"0")&" шт.; ждём "&TEXT({L(C_WAIT)}{r},"0")&" шт. (FW 26/27: заказано "&TEXT(F{r},"0")&")."').font = NOTE
+ws9.freeze_panes = f"D{HR9+1}"
+
 for ws in wb.worksheets:
     ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
     ws.page_setup.orientation = "landscape"

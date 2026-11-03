@@ -8,7 +8,7 @@ import { InfoHint } from "@/components/info-hint";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
 import type { ReportSizeRow } from "@/lib/margin-tree";
 import type { ModelCost, RetailRow } from "@/lib/margin";
-import { CAT_LABEL, colorOfLine, furTypeOfFabric, variantOfArticle } from "@/lib/sales-receipts-core";
+import { CAT_LABEL, colorOfLine, furKeyOfReportRow as furKeyOfRow, variantOfArticle } from "@/lib/sales-receipts-core";
 import type { Cat } from "@/lib/sales-section";
 import { DASH, btn, money, moneyC, n0, pct, seg, segGroup, x2 } from "./sales-fmt";
 import type { PhotoIdx } from "./sales-tree";
@@ -23,15 +23,7 @@ const LEVEL_LABEL: Record<Level, string> = { fur: "Мех", cat: "Категор
 
 const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Каракульча (свакара)", LYNX: "Рысь", BEAVER: "Бобр", CHINCHILLA: "Шиншилла" };
 const furRu = (k: string) => FUR_RU[k] ?? (k === "Не указан" ? k : k.charAt(0) + k.slice(1).toLowerCase());
-/** Мех строки отчёта: по ткани строк продаж того же артикула (как дерево «Обзор по дням»), иначе по словам в «Analog Code»/артикуле. */
-export function furKeyOfRow(r: ReportSizeRow, fabricByArt: Record<string, string>): string {
-  const f = fabricByArt[r.acode];
-  if (f) return furTypeOfFabric(f);
-  const s = `${r.fur ?? ""} ${r.acode}`.toUpperCase();
-  if (/SABLE/.test(s) && /MINK/.test(s)) return "SABLE";
-  for (const [re, k] of [[/SABLE/, "SABLE"], [/MINK/, "MINK"], [/FOX/, "FOX"], [/SWAKARA|KARAKUL|BROADTAIL/, "SWAKARA"], [/LYNX/, "LYNX"]] as const) if (re.test(s)) return k;
-  return furTypeOfFabric(variantOfArticle(r.acode));
-}
+export { furKeyOfReportRow as furKeyOfRow } from "@/lib/sales-receipts-core";
 
 /** Показатели сезона. По SS26 и FW25 заказ закрыт: заказано = поступило (правило владельца 21.10.2026). */
 type M = { conf: number; confEur: number; deliv: number; ssn: number; old: number; all: number; rub: number; rubIn: number; disc: number; grossC: number; costSold: number };

@@ -7,7 +7,7 @@ import { useVatDisplay } from "@/lib/vat-display";
 import type { DatamartStock } from "@/lib/datamart-stock";
 import { makeCtx, type ReportSizeRow } from "@/lib/margin-tree";
 import { deserializeInput, type MarginInputS } from "@/lib/margin";
-import { CAT_LABEL } from "@/lib/sales-receipts-core";
+import { CAT_LABEL, articleKey } from "@/lib/sales-receipts-core";
 import { addDays, applyFilters, cat2Of, furOf, bucketsOf, extOf, groupBy, lastMonthOf, NO_FILTERS, openingStock, sortSeasons, type Cat, type Ext, type Filters, type SLine } from "@/lib/sales-section";
 import { DEFAULT_UI, TABS, uiQuery, type Tab, type Ui } from "@/lib/sales-url";
 import { DASH, btn, dateRu, money, moneyC, n0, pct, seg, segGroup } from "./sales-fmt";
@@ -78,7 +78,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
   }, [ui]);
 
   const inp = useMemo(() => deserializeInput(input), [input]);
-  const fabricByArt = useMemo(() => { const m: Record<string, string> = {}; for (const l of input.lines as SLine[]) if (l.fabric && !m[l.article]) m[l.article] = l.fabric; return m; }, [input]);
+  const fabricByArt = useMemo(() => { const m: Record<string, string> = {}; for (const l of input.lines as SLine[]) if (l.fabric && !m[l.article]) { m[l.article] = l.fabric; m[articleKey(l.article)] = l.fabric; } return m; }, [input]);
   const all = input.lines as SLine[];
   const ex = ui.vat === "ex";
   const vatNote = ex ? "без НДС" : "с НДС";

@@ -12,7 +12,7 @@ import {
   type Cat, type Env, type Ext, type SLine, type SNode, type Struct,
 } from "@/lib/sales-section";
 import { movementHref, type MKey } from "@/lib/sales-url";
-import { colorOfLine } from "@/lib/sales-receipts-core";
+import { articleKey, colorOfLine } from "@/lib/sales-receipts-core";
 import { furKeyOfRow } from "./season-report";
 import { DASH, btn, d1, dateRu, money, n0, pct, seg, segGroup, spct, x2 } from "./sales-fmt";
 
@@ -128,13 +128,13 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
     setOpen(ids);
   };
   // Заказано по узлу: строки отчёта с тем же Кат.1 / Кат.2 / мехом / артикулом / цветом, что в пути узла (/cls:…/fur:…/article:…/color:…).
-  const fabricByArt = useMemo(() => { const m: Record<string, string> = {}; for (const l of lines) if (l.fabric && !m[l.article]) m[l.article] = l.fabric; return m; }, [lines]);
+  const fabricByArt = useMemo(() => { const m: Record<string, string> = {}; for (const l of lines) if (l.fabric && !m[l.article]) { m[l.article] = l.fabric; m[articleKey(l.article)] = l.fabric; } return m; }, [lines]);
   const rowKey = (r: ReportSizeRow, d: string) => d === "cls" ? r.cls : d === "c2" ? (r.l4 || r.l3 || "Без категории").trim() : d === "fur" ? furKeyOfRow(r, fabricByArt) : d === "article" ? r.acode : d === "color" ? colorOfLine(r.color) : "";
   const seasonKey = (s: string) => s.replace(/\s+/g, "");
   const confOf = (n: SNode, gi: number) => {
     if (!hasConf || n.dim === "size") return DASH;
     const segs = n.id === "total" ? [] : n.id.split("/").filter(Boolean).map((s) => [s.slice(0, s.indexOf(":")), s.slice(s.indexOf(":") + 1)] as const);
-    const rs = confRows.filter((r) => segs.every(([d, k]) => rowKey(r, d) === k));
+    const rs = confRows.filter((r) => segs.every(([d, k]) => (d === "article" ? articleKey(r.acode) === articleKey(k) : rowKey(r, d) === k)));
     const season = gi > 0 ? seasonKey(groups[gi - 1]?.head ?? "") : null;
     const v = rs.reduce((a, r) => { if (!season) return a + (r.conf ?? 0); const c = r.seas?.[season]; return a + (c ? (season === "FW26/27" ? c.conf ?? 0 : c.conf ?? c.deliv ?? 0) : 0); }, 0);
     return v ? n0(v) : DASH;
