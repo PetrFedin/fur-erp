@@ -43,8 +43,9 @@ export function useSlideWindow(count: number, wideQuery = "(min-width: 1024px)",
   }, [goTo, cur, perView]);
   const onScroll = () => { const el = scroller.current; if (el && el.clientWidth) setIdx(Math.round(el.scrollLeft / (el.clientWidth / perView))); };
   // Общий индекс: пролистали эту ленту — сообщаем остальным; общий индекс сменился — ставим ленту на него.
-  const syncRef = useRef(sync); syncRef.current = sync;
-  useEffect(() => { const sy = syncRef.current; if (sy && cur !== sy.index) sy.onChange(cur); // eslint-disable-next-line react-hooks/exhaustive-deps
+  const syncRef = useRef(sync);
+  useEffect(() => { syncRef.current = sync; });
+  useEffect(() => { const sy = syncRef.current; if (sy && cur !== sy.index) sy.onChange(cur);
   }, [cur]);
   useEffect(() => { if (sync && sync.index !== cur && sync.index >= 0 && sync.index <= maxStart) goTo(sync.index); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sync?.index]);
@@ -101,6 +102,7 @@ export function useSlideWindow(count: number, wideQuery = "(min-width: 1024px)",
  */
 export function useActiveSlideHeight(scroller: { current: HTMLElement | null }, cur: number) {
   useEffect(() => {
+    /* eslint-disable react-hooks/immutability -- el — DOM-элемент из ref-объекта ленты; его style меняем прямой записью осознанно, без повторных рендеров (см. документацию хука). */
     const el = scroller.current;
     if (!el) return;
     const mq = window.matchMedia("(max-width: 767px)");
@@ -119,5 +121,6 @@ export function useActiveSlideHeight(scroller: { current: HTMLElement | null }, 
     apply();
     mq.addEventListener("change", apply);
     return () => { mq.removeEventListener("change", apply); ro?.disconnect(); el.style.height = ""; el.style.overflowY = ""; };
+    /* eslint-enable react-hooks/immutability */
   }, [scroller, cur]);
 }

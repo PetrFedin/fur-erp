@@ -83,8 +83,9 @@ export function AveragesTile({ data, sync }: { data: DrillData | null; /** Об�
 
   const goTo = (i: number) => scroller.current?.scrollTo({ left: i * scroller.current.clientWidth, behavior: "smooth" });
   // Листание вместе с остальными плитками блока.
-  const syncRef = useRef(sync); syncRef.current = sync;
-  useEffect(() => { const sy = syncRef.current; if (sy && idx !== sy.index) sy.onChange(idx); // eslint-disable-next-line react-hooks/exhaustive-deps
+  const syncRef = useRef(sync);
+  useEffect(() => { syncRef.current = sync; });
+  useEffect(() => { const sy = syncRef.current; if (sy && idx !== sy.index) sy.onChange(idx);
   }, [idx]);
   useEffect(() => { if (sync && sync.index !== idx && sync.index < groups.length) goTo(sync.index); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sync?.index]);

@@ -67,10 +67,13 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
   const setF = (p: Partial<Filters>) => setUi((u) => ({ ...u, f: { ...u.f, ...p } }));
   // НДС — один на весь сайт (переключатель в шапке, cookie vatDisplay): раздел следует за шапкой, а свой переключатель меняет и шапку.
   const vatDisp = useVatDisplay();
-  useEffect(() => {
-    const want = vatDisp.mode === "excl" ? "ex" : "in";
-    setUi((u) => (u.vat === want ? u : { ...u, vat: want }));
-  }, [vatDisp.mode]);
+  // Подстройка ui.vat под режим шапки — при рендере (react.dev: «adjusting state when a prop changes»), не эффектом.
+  const wantVat = vatDisp.mode === "excl" ? "ex" : "in";
+  const [prevVatMode, setPrevVatMode] = useState(vatDisp.mode);
+  if (prevVatMode !== vatDisp.mode) {
+    setPrevVatMode(vatDisp.mode);
+    setUi((u) => (u.vat === wantVat ? u : { ...u, vat: wantVat }));
+  }
 
   useEffect(() => {
     const q = uiQuery(ui);

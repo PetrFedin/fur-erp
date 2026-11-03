@@ -29,6 +29,11 @@ import { loadReportSeasonTotals } from "@/lib/margin-server";
 
 export const metadata = { title: "Главная" };
 
+/** Панель «Сезон»: при наличии блока продаж оборачивает детей в общий SeasonScope, иначе просто рендерит их. */
+function SeasonWrap({ seasons, children }: { seasons: { key: string }[] | null; children: React.ReactNode }) {
+  return seasons ? <SeasonScope keys={seasons.map((x) => x.key)}>{children}</SeasonScope> : <>{children}</>;
+}
+
 const PRINT_CSS = `
 @media print {
   @page { size: A4 landscape; margin: 8mm; }
@@ -81,7 +86,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const rawHref = "/lots" + qs([["fur", f.fur], ["color", f.color], ["attr", f.attr], ["batch", f.auction]]);
   const prodHref = "/production" + qs([["auction", f.auction], ["fur", f.fur], ["attr", f.attr], ["batch", f.batch], ["catgroup", f.catgroup]]);
 
-  const SeasonWrap = ({ children }: { children: React.ReactNode }) => (salesBlock ? <SeasonScope keys={salesBlock.seasons.map((x) => x.key)}>{children}</SeasonScope> : <>{children}</>);
   return (
     <div className="flex flex-col gap-5">
       <style>{PRINT_CSS}</style>
@@ -156,7 +160,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </FurScope>
 
       {/* Панель «Сезон» начинается с «Производства» и закреплена сверху при прокрутке «Производства» и «Продаж и остатков». */}
-      <SeasonWrap>
+      <SeasonWrap seasons={salesBlock ? salesBlock.seasons : null}>
         <ProductionBlock reportSeasons={reportSeasons} href={prodHref} vatCost={d.vat.cost} kind={f.kind?.[0] ?? ""} hides={d.hides} c4Parts={{ fur: { incl: Math.abs(d.raw.fur.incl.usedValue - d.raw.fur.incl.usedValueOther), excl: Math.abs(d.raw.fur.excl.usedValue - d.raw.fur.excl.usedValueOther) }, lining: { incl: Math.abs(d.raw.lining.incl.usedValue - d.raw.lining.incl.usedValueOther), excl: Math.abs(d.raw.lining.excl.usedValue - d.raw.lining.excl.usedValueOther) } }} years={d.years.filter((y) => y.key !== "all").map((y) => ({ label: y.label, qty: y.prod.qty }))} done={prodNums(d.prod.done)} all={prodNums(d.prod.all)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} info={info} bridge={{ usedBase: d.bridge.usedBase, comparable: d.bridge.usedComparable, lotFilters: lotFiltersOn(f), yearOnly: year !== "all" }} />
 
         {/* ───────── Продажи и остатки (после «Оплат», последним на странице) ───────── */}

@@ -165,7 +165,12 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   /** Категория (Тотал / Одежда / Аксессуары): общая для трёх плиток, графика и таблицы. */
   const [cls, setCls] = useState<SalesCls>("all");
   const [hier, setHier] = useState<Hier>("fur");
-  useEffect(() => { setHotRow(null); }, [season, hier, cls]);
+  // Сброс «горячей» строки графика при смене сезона/иерархии/категории — при рендере (react.dev: «adjusting state when a prop changes»), не эффектом.
+  const [prevSel, setPrevSel] = useState<[string, Hier, SalesCls]>([season, hier, cls]);
+  if (prevSel[0] !== season || prevSel[1] !== hier || prevSel[2] !== cls) {
+    setPrevSel([season, hier, cls]);
+    setHotRow(null);
+  }
   const [open, setOpen] = useState<{ tile: Tile; cls: SalesCls } | null>(null);
   const [mSeason, setMSeason] = useState("all");
   const [mHier, setMHier] = useState<Hier>("fur");

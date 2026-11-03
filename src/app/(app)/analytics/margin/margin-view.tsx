@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -28,10 +28,13 @@ export function MarginView({ input, sizes, photos, priceModels, canEdit, initial
   const setCur = (c: "rub" | "eur") => { setCurState(c); router.replace(urlOf(cat, tree, c, vat), { scroll: false }); };
   // НДС — один на весь сайт (переключатель в шапке): раздел следует за шапкой, а свой переключатель меняет и шапку.
   const vatDisp = useVatDisplay();
-  useEffect(() => {
-    const want = vatDisp.mode === "excl" ? "ex" : "in";
-    setVatState((v) => (v === want ? v : want));
-  }, [vatDisp.mode]);
+  // Подстройка локального состояния под режим шапки — при рендере (react.dev: «adjusting state when a prop changes»), не эффектом.
+  const wantVat: "ex" | "in" = vatDisp.mode === "excl" ? "ex" : "in";
+  const [prevVatMode, setPrevVatMode] = useState(vatDisp.mode);
+  if (prevVatMode !== vatDisp.mode) {
+    setPrevVatMode(vatDisp.mode);
+    setVatState((v) => (v === wantVat ? v : wantVat));
+  }
   const setVat = (v: "ex" | "in") => { setVatState(v); vatDisp.setMode(v === "ex" ? "excl" : "incl"); router.replace(urlOf(cat, tree, cur, v), { scroll: false }); };
   // Счётчики на кнопках — единицы прихода по строкам выгрузки (категория по Level 02, как в Cashflow).
   const count = (k: Cat) => (input ? input.lines.filter((l) => l.kind === "RECEIPT" && (k === "all" || l.cls === k)).reduce((a, l) => a + l.pcs, 0) : 0);
