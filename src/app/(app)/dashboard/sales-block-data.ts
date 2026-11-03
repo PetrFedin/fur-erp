@@ -439,10 +439,14 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
 }
 
 import { tzAwaitSizes } from "@/lib/tz-await";
+import { loadReportSizes } from "@/lib/margin-server";
 
 export async function loadSalesBlock(orgId: string, c4: Commission4Mode, year: YearFilter, furNames: string[] = []): Promise<SalesBlock> {
   const data = await loadSalesInput(orgId, c4);
-  // «Ждём» и заказ — по нашим ТЗ (объём ТЗ − получено), а не по заказу из отчёта: заказ в продажах равен «В выпуске» в производстве.
-  return buildSalesBlock(data.input, year, await tzAwaitSizes(orgId, c4), furNames);
+  // «Ждём» и заказ — по отчёту «заказ и продажи» (Conf − поступило по FW 26/27): заказ в «Продажах» равен «В выпуске» в «Производстве» (509).
+  // Запасной вариант, если отчёт не загружен, — по нашим ТЗ (объём ТЗ − получено), как в raw-forecast.
+  const report = await loadReportSizes(orgId);
+  const sizes = report.some((r) => r.seas?.["FW26/27"]) ? report : await tzAwaitSizes(orgId, c4);
+  return buildSalesBlock(data.input, year, sizes, furNames);
 }
 
