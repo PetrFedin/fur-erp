@@ -18,7 +18,7 @@ export function SsnTable({ data, v, vatNote, active }: { data: SsnData; v: "in" 
   const cellTxt = (c: SsnPart | undefined) => (c && c.pcs !== 0 ? `${n0(c.pcs)} · ${money(c.rub[v])}` : "–");
   return (
     <details className="rounded-lg border border-neutral-200 bg-white" data-testid="dash-sales-ssn">
-      <summary className="min-h-11 cursor-pointer px-3 py-2.5 text-sm font-medium hover:bg-neutral-50">Продажи по календарным сезонам: SSN и non-SSN <span className="font-normal text-neutral-500">· развернуть таблицу</span></summary>
+      <summary className="min-h-11 cursor-pointer px-3 py-2.5 text-sm font-medium hover:bg-neutral-50">Продажи по календарным сезонам</summary>
       <div className="space-y-2 px-3 pb-3">
         <div className="flex flex-wrap items-center gap-2">
           <div role="group" aria-label="Вид таблицы" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
@@ -30,8 +30,8 @@ export function SsnTable({ data, v, vatNote, active }: { data: SsnData; v: "in" 
           {view === "rows" ? (
             <table className="w-full min-w-[860px] text-sm">
               <thead><tr className="border-b border-neutral-300 text-xs text-neutral-600">
-                <th className="px-2 py-1 text-left">Календарный сезон</th><th className={TH}>Пришло, шт.</th><th className={TH}>Продано, шт.</th><th className={TH}>SSN, шт.</th><th className={TH}>non-SSN, шт.</th><th className={TH}>Доля SSN</th>
-                <th className={TH}>Выручка, ₽</th><th className={TH}>SSN, ₽</th><th className={TH}>non-SSN, ₽</th>
+                <th className="px-2 py-1 text-left">Календарный сезон</th><th className={TH}>Пришло, шт.</th><th className={TH}>Продано, шт.</th><th className={TH}>Свой сезон, шт.</th><th className={TH}>Прошлые, шт.</th><th className={TH}>Доля своего</th>
+                <th className={TH}>Выручка, ₽</th><th className={TH}>Свой сезон, ₽</th><th className={TH}>Прошлые, ₽</th>
               </tr></thead>
               <tbody>
                 {rows.map((r) => (
@@ -73,7 +73,7 @@ export function SsnTable({ data, v, vatNote, active }: { data: SsnData; v: "in" 
             </table>
           )}
         </div>
-        {view === "cols" ? <p className="text-xs text-neutral-600">Ячейка на диагонали (сезон товара = календарный сезон) — это SSN; справа от неё товар продаётся уже после окончания своего сезона (non-SSN для следующих сезонов).</p> : null}
+        {view === "cols" ? <p className="text-xs text-neutral-600">Ячейка на диагонали (сезон товара = календарный сезон) — продажи своего сезона; правее — продажи после окончания сезона.</p> : null}
       </div>
     </details>
   );

@@ -21,7 +21,7 @@ import type { OrderNode, OrdersSummary, SalesBlock, SalesCls, SalesRow } from ".
 
 const SALES_CLS: SalesCls[] = ["all", "clothes", "acc"];
 type Tile = "ordered" | "received" | "sold" | "stock";
-/** Сезон отчёта, по которому ещё что-то ждём (заказано больше, чем пришло): плитка «Заказано» только для «Все» и этого сезона. Значение дублирует ORDERS_OPEN_SEASON (в серверном модуле) — в клиент значения оттуда не импортируются. */
+/** Сезон отчёта, по которому ещё что-то ждём (заказано больше, чем пришло): колонка «Заказано» только в срезе этого сезона. На «Все» колонки нет — заказ по сезонам показывает плитка «В выпуске» в «Производстве» (по отчёту: 267 + 64 + 509 = 840), чтобы не было двух разных итогов заказа на одном экране. Значение дублирует ORDERS_OPEN_SEASON (в серверном модуле) — в клиент значения оттуда не импортируются. */
 const ORDERS_OPEN = "FW 26/27";
 const CLS_LABEL: Record<SalesCls, string> = { all: "Всего", clothes: "Одежда", acc: "Аксессуары" };
 const TILE_TITLE: Record<Tile, string> = { ordered: "Заказано", received: "Получено", sold: "Продано", stock: "Остаток" };
@@ -197,9 +197,9 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
       const k = calOf(c), share = k.total.pcs !== 0 ? k.ssn.pcs / k.total.pcs : null;
       return [
         { k: `Выручка, ${vatNote}`, v: money(k.total.rub[v]) },
-        { k: "SSN-товар (этого сезона)", v: `${qty(k.ssn.pcs)} · ${money(k.ssn.rub[v])}` },
-        { k: "non-SSN-товар (прошлых сезонов)", v: `${qty(k.non.pcs)} · ${money(k.non.rub[v])}` },
-        { k: "Доля SSN", v: pct(share, 0) },
+        { k: "Товар этого сезона", v: `${qty(k.ssn.pcs)} · ${money(k.ssn.rub[v])}` },
+        { k: "Товар прошлых сезонов", v: `${qty(k.non.pcs)} · ${money(k.non.rub[v])}` },
+        { k: "Доля своего сезона", v: pct(share, 0) },
       ];
     }
     if (t === "sold") {
@@ -211,8 +211,8 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         { k: "Скидка", v: money(sm.discount), share: sm.grossRev > 0.5 && sm.discount > 0.5 ? sm.discount / sm.grossRev : null, shareFirst: true },
         { k: "Ср. цена, ₽/шт.", v: moneyK(sm.avgPrice) },
         { k: "Маркап продаж", v: x2(sm.markupSold) },
-        ...(slice.soAsEnd !== null ? [{ k: "SO AS (до конца сезона)", v: pct(h.soAs, 1) }] : []),
-        { k: season === "all" ? "SO" : "SO STD (на сегодня)", v: pct(h.sellThrough, 1) },
+        ...(slice.soAsEnd !== null ? [{ k: "Распродано до конца сезона, %", v: pct(h.soAs, 1) }] : []),
+        { k: "Распродано, %", v: pct(h.sellThrough, 1) },
       ];
     }
     return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, { k: "Маркап остатка", v: x2(m.markupStock) },
@@ -225,8 +225,8 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
     return { total: add((r) => r.total), ssn: add((r) => r.ssn), non: add((r) => r.non) };
   };
   const valueOf = (t: Tile, c: SalesCls, s = slice, sk: string = season) => { if (t === "sold" && salesBy === "cal") return calOf(c).total.pcs; if (t === "ordered") return orderLineOf(c, sk)?.ordered ?? 0; const h = s.head[c]; return t === "received" ? h.received : t === "sold" ? h.sold : h.stock; };
-  const captionOf = (t: Tile, c: SalesCls) => { if (t === "sold" && salesBy === "cal") { const k = calOf(c); return `SSN ${n0(k.ssn.pcs)} · non-SSN ${n0(k.non.pcs)}`; } if (t === "ordered") { const l = orderLineOf(c); return l ? `пришло ${n0(l.delivered)} · ждём ${n0(l.awaiting)}` : ""; } const h = slice.head[c]; return t === "received" ? `приход 2025–2026 · ${h.articles} артикулов` : t === "sold" ? `возвраты ${n0(h.returns)}` : "приход − продано"; };
-  const hintOf = (t: Tile) => t === "ordered" ? <p>Заказ: пришло + ждём. По FW 25/26 и SS 2026 больше ничего не ждём (заказано = пришло); по FW 26/27 ждём Conf − поступило (отчёт по товарам). Нажмите — таблица по сезонам со штуками и деньгами.</p>
+  const captionOf = (t: Tile, c: SalesCls) => { if (t === "sold" && salesBy === "cal") { const k = calOf(c); return `свой сезон ${n0(k.ssn.pcs)} · прошлые ${n0(k.non.pcs)}`; } if (t === "ordered") { const l = orderLineOf(c); return l ? `пришло ${n0(l.delivered)} · ждём ${n0(l.awaiting)}` : ""; } const h = slice.head[c]; return t === "received" ? `${h.articles} артикулов` : t === "sold" ? `возвраты ${n0(h.returns)}` : "приход − продано"; };
+  const hintOf = (t: Tile) => t === "ordered" ? <p>Заказ = пришло + ждём. По закрытым сезонам ждать нечего; по FW 26/27 ждём — заказ минус поступившее по отчёту.</p>
     : t === "received" ? <p>Приход товара: штуки по строкам прихода выгрузки. Суммы — по себестоимости ТЗ и по прайсу; штуки без цены в сумму не входят.</p>
     : t === "sold" ? <p>Нетто: продажи минус возвраты. Цена — выручка ({vatNote}) ÷ нетто-штуки.</p>
     : <p>Остаток = приход − продано. SO = продано ÷ получено.</p>;
@@ -304,7 +304,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
           <div role="group" aria-label="Продажи по товару сезона или календарному сезону" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
             {([["goods", "Товару сезона"], ["cal", "Календарному сезону"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={salesBy === k} onClick={() => setSalesBy(k)} className={"min-h-9 rounded-md px-3 text-sm " + (salesBy === k ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")}>{t}</button>)}
           </div>
-          <span className="text-xs text-neutral-500">{salesBy === "goods" ? "SO AS — продажи в сезоне ÷ приход сезона; SO STD — на сегодня (в идущем сезоне только STD)" : "в календарном сезоне: SSN — товар этого сезона, non-SSN — товар прошлых сезонов"}</span>
+          <span className="text-xs text-neutral-500">{salesBy === "goods" ? "Распродано = продажи ÷ приход: за весь сезон и на сегодня" : "«свой сезон» — товар этого сезона, «прошлые» — товар прошлых сезонов"}</span>
         </div>
         <div className={"grid grid-cols-1 items-stretch gap-3 print:grid-cols-3 " + (showOrdered ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3")}>
           {(showOrdered ? (["ordered", "received", "sold", "stock"] as const) : (["received", "sold", "stock"] as const)).map(tile)}
@@ -320,7 +320,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
 
       <PinSection id="sales-table" title={`Продажи и остатки по типам меха · ${CLS_LABEL[cls]}`} value={[hier]} onRestore={(x) => { if (x[0] === "fur" || x[0] === "cls") setHier(x[0]); }}>
         <div className="mb-2 flex justify-end print:hidden"><HierSwitch value={hier} onChange={setHier} /></div>
-        <SalesTable key={season + hier + cls} view={slice.views[cls][hier]} v={v} vatNote={vatNote} testId="dash-sales-table" ordCol={slice.views[cls][hier].total.ordered !== undefined && (season === "all" || season === ORDERS_OPEN)} onHover={setHotRow} cumCol={season !== "all"} soAs={slice.soAsEnd !== null} />
+        <SalesTable key={season + hier + cls} view={slice.views[cls][hier]} v={v} vatNote={vatNote} testId="dash-sales-table" ordCol={slice.views[cls][hier].total.ordered !== undefined && season === ORDERS_OPEN} onHover={setHotRow} cumCol={season !== "all"} soAs={slice.soAsEnd !== null} />
       </PinSection>
       {modal}
     </section>

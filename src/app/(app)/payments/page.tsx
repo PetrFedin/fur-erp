@@ -372,7 +372,7 @@ export default async function PaymentsPage({
       const paid = new Decimal(noAucRows.filter((r) => r.year === y).reduce((a, r) => a + r.amount, 0)).add(y === lastYear ? svcPaid : zeroD);
       const rem = y === lastYear ? noAucDebt.add(svcRemaining) : zeroD;
       if (paid.abs().greaterThan(PAY_EPS) || rem.abs().greaterThan(PAY_EPS)) {
-        addExtra(y, { label: "Закупки без аукциона", href: "/payments?noauction=1#noauction-block", title: "Закупки, купленные не на аукционе: З-2026-0001, 0008–0013 (шкуры, оплаты 2025 — начало 2026) и З-2026-0059 (красная лиса, счёт №209)", total: paid.add(rem), paid, rem });
+        addExtra(y, { label: "Закупки без аукциона", href: "/payments?noauction=1#noauction-block", title: "Закупки вне аукционов", total: paid.add(rem), paid, rem });
       }
       const h = new Decimal(hidesRows.filter((r) => r.year === y).reduce((a, r) => a + r.hides, 0));
       if (h.greaterThan(PAY_EPS)) addExtra(y, { label: "Шкуры подрядчика", title: "Шкуры подрядчика, оплаченные в составе счетов за пошив (мех, в ТЗ не списаны)", total: h, paid: h, rem: zeroD });

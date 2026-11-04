@@ -209,7 +209,7 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
             {shown.length === 0 && (
               <Tr>
                 <Td colSpan={7} className="py-8 text-center text-neutral-500">
-                  {rows.length > 0 ? "Ничего не найдено" : "Признаков пока нет. Добавьте вручную (или попросите разработчика завести стандартные признаки)."}
+                  {rows.length > 0 ? "Ничего не найдено" : "Признаков пока нет — добавьте вручную."}
                 </Td>
               </Tr>
             )}

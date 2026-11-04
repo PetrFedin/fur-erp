@@ -36,14 +36,14 @@ const eur = (v: number) => (Math.abs(v) < 0.5 ? DASH : Math.round(v).toLocaleStr
 
 type Col = { key: string; label: string; short: string; hint: string; get: (m: M, s: Season) => string; strong?: boolean; full?: boolean };
 const COLS: Col[] = [
-  { key: "conf", label: "Заказано, шт.", short: "Заказ", hint: "Conf отчёта. По SS26 и FW25 заказ закрыт — заказано = поступило.", get: (m) => n0(m.conf) },
+  { key: "conf", label: "Заказано, шт.", short: "Заказ", hint: "Подтверждённый заказ по отчёту. По закрытым сезонам заказано = поступило.", get: (m) => n0(m.conf) },
   { key: "deliv", label: "Поступило, шт.", short: "Пришло", hint: "Поступило в розницу по этому сезону.", get: (m) => n0(m.deliv) },
   { key: "wait", label: "Ждём, шт.", short: "Ждём", hint: "Заказано − поступило (только FW26).", get: (m, s) => (s === "FW26/27" ? n0(Math.max(0, m.conf - m.deliv)) : DASH), full: true },
-  { key: "ssn", label: "Продано сезонного, шт.", short: "Сезон.", hint: "SSN: продано товара этого сезона в его период.", get: (m) => n0(m.ssn), full: true },
-  { key: "so", label: "SO сезона", short: "SO", hint: "Продано сезонного ÷ поступило этого сезона.", get: (m) => pct(so(m)), full: true },
-  { key: "old", label: "Продано не сезонного, шт.", short: "Не сез.", hint: "Old: в период сезона продано товара прошлых сезонов.", get: (m) => n0(m.old), full: true },
+  { key: "ssn", label: "Продано сезонного, шт.", short: "Сезон.", hint: "Продано товара этого сезона в его период.", get: (m) => n0(m.ssn), full: true },
+  { key: "so", label: "Распродано, %", short: "Распродано", hint: "Продано сезонного ÷ поступило этого сезона.", get: (m) => pct(so(m)), full: true },
+  { key: "old", label: "Продано не сезонного, шт.", short: "Не сез.", hint: "В период сезона продано товара прошлых сезонов.", get: (m) => n0(m.old), full: true },
   { key: "all", label: "Продано всего, шт.", short: "Продано", hint: "Сезонного + не сезонного за период сезона.", get: (m) => n0(m.all), strong: true },
-  { key: "rub", label: "Выручка, ₽", short: "Выручка", hint: "Net sales RUR за период сезона: после скидки, возвраты минус. С НДС или без — как в шапке.", get: (m) => moneyC(m.rub), strong: true },
+  { key: "rub", label: "Выручка, ₽", short: "Выручка", hint: "Выручка за период сезона: после скидки, возвраты минус. С НДС или без — как в шапке.", get: (m) => moneyC(m.rub), strong: true },
   { key: "price", label: "Цена продажи, ₽/шт.", short: "Цена", hint: "(Выручка ₽ + скидка ₽) ÷ продано шт., с НДС — по какой цене продавали до скидки.", get: (m) => moneyC(priceOf(m)), full: true },
   { key: "markup", label: "Маркап", short: "Маркап", hint: "Цена продажи до скидки ÷ себестоимость изделия из ТЗ (с НДС), по проданным штукам, у которых есть себестоимость.", get: (m) => x2(markupOf(m)) },
 ];
@@ -156,7 +156,7 @@ export function SeasonReport({ sizes, photos, cat, ex, reportDate, fabricByArt, 
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-base font-semibold">Заказ, поступление и продажи по сезонам</h2>
         <InfoHint label="Откуда цифры" wide>
-          <p>Отчёт «заказ и продажи» на {reportDate ?? "дату загрузки"}. По каждому сезону: заказано (Conf) и поступило; продажи за период сезона (FW — август–январь, SS — февраль–июль): своего сезона (SSN) и прошлых (Old). {CAT_LABEL[cat]}; выручка {ex ? "без НДС" : "с НДС"}.</p>
+          <p>Отчёт «заказ и продажи» на {reportDate ?? "дату загрузки"}. По каждому сезону: заказано и поступило; продажи за период сезона (FW — август–январь, SS — февраль–июль): своего сезона и прошлых. {CAT_LABEL[cat]}; выручка {ex ? "без НДС" : "с НДС"}.</p>
           <p className="mt-1">Цена продажи = (выручка + скидка) ÷ продано, с НДС. Маркап = цена продажи ÷ себестоимость изделия по ТЗ (с НДС). «Цена сейчас» — текущий прайс розницы.</p>
         </InfoHint>
       </div>

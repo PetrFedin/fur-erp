@@ -5,7 +5,7 @@ import { PAY_KIND_LABEL, PAY_STATE_LABEL, type PayInfo } from "@/lib/supplier-pa
 const CLS = { PAID: "bg-green-100 text-green-800", PARTIAL: "bg-amber-100 text-amber-900", UNPAID: "bg-neutral-100 text-neutral-700", NOINVOICE: "bg-neutral-100 text-neutral-700" } as const;
 
 /** Подсказка «i» — одна на все места, где подрядчик видит статус оплаты. */
-export const PAY_HINT = "Статус появляется, когда мы подтвердили оплату у себя. Снимем подтверждение — статус обновится. Статус считается по сумме вашего счёта; если суммы счёта у нас нет — «Нет счёта». Показаны только оплаты вашего счёта, аукциона или ТЗ.";
+export const PAY_HINT = "Статус — по подтверждённым оплатам вашего счёта, аукциона или ТЗ; если суммы счёта у нас нет — «Нет счёта».";
 
 /** Чип «Оплачено / Частично / Не оплачено» (+ сумма и дата последней проведённой оплаты). info = null — оплат не касается: ничего не рисуем. */
 export function PayChip({ info, compact = false }: { info: PayInfo | null; compact?: boolean }) {

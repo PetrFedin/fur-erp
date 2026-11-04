@@ -20,14 +20,14 @@ export type PhotoIdx = Record<string, { modelId: string; photos: { id: string; v
 
 type Measure = { key: MKey; label: string; hint: React.ReactNode; money?: boolean; eur?: boolean; totalOnly?: boolean; fmt: (m: Ext) => string };
 export const MEASURES: Measure[] = [
-  { key: "conf", label: "Заказано (Conf)", hint: <p>Conf отчёта «заказ и продажи»: подтверждено заказов, шт., по меху, категории, артикулу и цвету узла. В столбце сезона — заказ этого сезона (по SS26 и FW25 заказ закрыт: заказано = поступило). Размеры — без заказа.</p>, fmt: () => DASH },
-  { key: "received", label: "Получено, шт.", hint: <p>Delivery: получено единиц по строкам прихода, корректировки с минусом учтены.</p>, fmt: (m) => n0(m.received) },
-  { key: "sold", label: "Продано, шт.", hint: <p>Sales PCS: проданные единицы нетто, возвраты минус.</p>, fmt: (m) => n0(m.sold) },
+  { key: "conf", label: "Заказано, шт.", hint: <p>Подтверждённый заказ по отчёту «заказ и продажи», шт., по меху, категории, артикулу и цвету узла. В столбце сезона — заказ этого сезона (по закрытым сезонам заказано = поступило). Размеры — без заказа.</p>, fmt: () => DASH },
+  { key: "received", label: "Получено, шт.", hint: <p>Получено единиц по строкам прихода, корректировки с минусом учтены.</p>, fmt: (m) => n0(m.received) },
+  { key: "sold", label: "Продано, шт.", hint: <p>Проданные единицы нетто, возвраты минус.</p>, fmt: (m) => n0(m.sold) },
   { key: "returns", label: "Возвраты, шт.", hint: <p>Возвраты: модуль отрицательных штук в строках продаж.</p>, fmt: (m) => n0(m.returns) },
   { key: "stock", label: "Остаток, шт.", hint: <p>Расчётный остаток = получено − продано.</p>, fmt: (m) => n0(m.stock) },
-  { key: "sellThrough", label: "SO", hint: <p>Продано ÷ получено, единицы. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений.</p>, fmt: (m) => pct(m.sellThrough) },
-  { key: "revenue", label: "Выручка (Net sales)", money: true, hint: <p>Retail RUR после скидки, возвраты минус; с НДС или без — по переключателю.</p>, fmt: (m) => money(m.revenue) },
-  { key: "revenueEur", label: "Выручка (Net sales)", money: true, eur: true, hint: <p>Sales Retail EUR файла после скидки, возвраты минус; с НДС или без — по переключателю.</p>, fmt: (m) => eur(m.revenueEur) },
+  { key: "sellThrough", label: "Распродано, %", hint: <p>Продано ÷ получено, единицы. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений.</p>, fmt: (m) => pct(m.sellThrough) },
+  { key: "revenue", label: "Выручка", money: true, hint: <p>Розничная выручка после скидки, возвраты минус; с НДС или без — по переключателю.</p>, fmt: (m) => money(m.revenue) },
+  { key: "revenueEur", label: "Выручка", money: true, eur: true, hint: <p>Розничная выручка в евро после скидки, возвраты минус; с НДС или без — по переключателю.</p>, fmt: (m) => eur(m.revenueEur) },
   { key: "grossRev", label: "Розница до скидки (Gross)", money: true, hint: <p>Gross = Выручка + Скидка (Discount).</p>, fmt: (m) => money(m.grossRev) },
   { key: "discountSum", label: "Скидка", money: true, hint: <p>Discount файла, уже вычтен из выручки.</p>, fmt: (m) => money(m.discountSum) },
   { key: "discountGiven", label: "Скидка, %", hint: <p>Скидка при продаже = Discount ÷ Gross.</p>, fmt: (m) => pct(m.discountGiven === null ? null : m.discountGiven, 1) },

@@ -120,9 +120,9 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
     { id: "stock", label: "Остаток, шт.", value: n0(stockEnd), sub: dmRef !== null && isPlain ? `datamart на ${dmDate}: ${n0(dmRef)} · разница ${n0(Math.abs(dmDiff))}` : hasReport && isPlain ? `Report на ${reportDate}: ${n0(reportStock)} · разница ${n0(Math.abs(diff))}` : "приход − продано",
       how: <><p>Расчётный остаток = приход − продано нарастающим итогом на конец периода{opening ? ` (на начало периода: ${n0(opening)} шт.)` : ""}.</p>{dmStock && dmRef !== null && isPlain ? <p className="mt-1">Остаток по витрине datamart (по нашим заказам): {dmStock.snapshots.map((x) => `${x.date.split("-").reverse().join(".")} — ${n0(ui.f.cat === "clothes" ? x.rtw : ui.f.cat === "acc" ? x.acc : x.total)} шт.`).join(", ")}. Расчёт на {dmDate}: {n0(stockEnd)} шт., разница {n0(Math.abs(dmDiff))} шт.</p> : null}{hasReport && isPlain ? <p className="mt-1">В отчёте о товарах (Report) на {reportDate} остаток {n0(reportStock)} шт., расчёт даёт {n0(stockEnd)} шт.: {diff === 0 ? "совпадает" : `разница ${n0(Math.abs(diff))} шт.`}. Причина в выгрузке не видна.</p> : null}</>,
       cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "Остаток", get: (e) => n0(e.stock) }] },
-    { id: "sellThrough", label: "SO", value: pct(head.sellThrough), sub: "продано ÷ получено",
-      how: <p>SO = продано ÷ получено, единицы за период. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений. Приход 0 — «—».</p>,
-      cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "SO", get: (e) => pct(e.sellThrough) }] },
+    { id: "sellThrough", label: "Распродано, %", value: pct(head.sellThrough), sub: "продано ÷ получено",
+      how: <p>Распродано = продано ÷ получено, единицы за период. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений. Приход 0 — «—».</p>,
+      cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "Распродано, %", get: (e) => pct(e.sellThrough) }] },
   ];
   // Цепочка по фактам владельца: заказано (все ТЗ без ремонта) → получено в рознице (приход) → продано → остаток. То, что не получено, считаем «в производстве»
   // (статус по таким изделиям не знаем); получено = отгружено и принято, поэтому отдельной «готовой продукции на складе ателье» в этой цепочке нет.

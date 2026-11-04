@@ -74,7 +74,7 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
             {ordCol ? <TH rowSpan={2} className="px-1" label="Заказано" unit={UNIT.pcs} /> : null}
             <THGroup colSpan={3}>Получено</THGroup>
             <THGroup colSpan={4}>Продажи, {vatNote}</THGroup>
-            {soAs ? <THGroup colSpan={2}>SO</THGroup> : <TH rowSpan={2} sep align="center" label={cumCol ? "SO STD" : "SO"} unit={UNIT.pct} />}
+            {soAs ? <THGroup colSpan={2}>Распродано</THGroup> : <TH rowSpan={2} sep align="center" label="Распродано" unit={UNIT.pct} />}
             <THGroup colSpan={cumCol ? 5 : 4}>{cumCol ? "Сток сезонный" : "Остаток"}</THGroup>
             {cumCol ? <THGroup colSpan={4}>Сток тотал</THGroup> : null}
           </tr>
@@ -86,8 +86,8 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
             <TH label="Выручка" unit={UNIT.rub} />
             <TH label="Ср. цена" unit={UNIT.rubPerPcs} />
             <TH label="Маркап" unit="×" />
-            {soAs ? <TH sep align="center" label="AS" unit={UNIT.pct} /> : null}
-            {soAs ? <TH align="center" label="STD" unit={UNIT.pct} /> : null}
+            {soAs ? <TH sep align="center" label="за сезон" unit={UNIT.pct} /> : null}
+            {soAs ? <TH align="center" label="сегодня" unit={UNIT.pct} /> : null}
             <TH sep label="Штуки" unit={UNIT.pcs} />
             <TH label="В розничных ценах" unit={UNIT.rub} />
             <TH label="Ср. цена" unit={UNIT.rubPerPcs} />

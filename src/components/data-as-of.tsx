@@ -8,7 +8,7 @@ export function DataAsOf({ asOf }: { asOf: DataAsOf }) {
   if (!sales && !receipts && !report) return null;
   return (
     <p className="text-xs text-neutral-600 print:text-black" data-as-of>
-      Данные на {ru(report ?? sales?.loaded ?? receipts?.loaded ?? "")}{report ? " (отчёт)" : null}{sales ? <> · продажи по {ru(sales.last)}</> : null}{receipts ? <> · поступления по {ru(receipts.last)}</> : null}
+      Данные на {ru(report ?? sales?.loaded ?? receipts?.loaded ?? "")}{sales ? <> · продажи по {ru(sales.last)}</> : null}{receipts ? <> · поступления по {ru(receipts.last)}</> : null}
     </p>
   );
 }
