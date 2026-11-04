@@ -1,0 +1,126 @@
+{
+  "key": "sales-report-sizes:2026-11-02",
+  "at": "2026-11-04T14:38:47.727Z",
+  "before": [
+    {
+      "acode": "M002A/SABLE WILD SILVER 6",
+      "color": "NATURAL",
+      "size": "46",
+      "fur": "M002A/SABLE WILD SILVER 6"
+    },
+    {
+      "acode": "M059/ SABLE WILD SIL1/2",
+      "color": "NATURAL",
+      "size": "42",
+      "fur": "M059/ SABLE WILD SIL1/2"
+    },
+    {
+      "acode": "M059/ SABLE WILD SIL1/2",
+      "color": "NATURAL",
+      "size": "44",
+      "fur": "M059/ SABLE WILD SIL1/2"
+    },
+    {
+      "acode": "M059/ SABLE WILD SIL1/2",
+      "color": "NATURAL",
+      "size": "46",
+      "fur": "M059/ SABLE WILD SIL1/2"
+    },
+    {
+      "acode": "M058/SABLE WILD SIL1/2",
+      "color": "NATURAL",
+      "size": "42",
+      "fur": "M058/SABLE WILD SIL1/2"
+    },
+    {
+      "acode": "M058/SABLE WILD SIL1/2",
+      "color": "NATURAL",
+      "size": "44",
+      "fur": "M058/SABLE WILD SIL1/2"
+    },
+    {
+      "acode": "M058/SABLE WILD SIL1/2",
+      "color": "NATURAL",
+      "size": "46",
+      "fur": "M058/SABLE WILD SIL1/2"
+    },
+    {
+      "acode": "M002A/SABLE WILD SILVER 5",
+      "color": "NATURAL",
+      "size": "44",
+      "fur": "M002A/SABLE WILD SILVER 5"
+    },
+    {
+      "acode": "M018/SWAKARA FONDU",
+      "color": "BROWN",
+      "size": "42",
+      "fur": "M018/SWAKARA FONDU"
+    },
+    {
+      "acode": "M018/SWAKARA FONDU",
+      "color": "BROWN",
+      "size": "44",
+      "fur": "M018/SWAKARA FONDU"
+    },
+    {
+      "acode": "M018/SWAKARA FONDU",
+      "color": "BROWN",
+      "size": "46",
+      "fur": "M018/SWAKARA FONDU"
+    },
+    {
+      "acode": "M018/SWAKARA FONDU",
+      "color": "BROWN",
+      "size": "48",
+      "fur": "M018/SWAKARA FONDU"
+    },
+    {
+      "acode": "MSC-02 WILD SABLE SIL 3",
+      "color": "NATURAL",
+      "size": "NS",
+      "fur": "MSC-02 WILD SABLE SIL 3"
+    },
+    {
+      "acode": "MSC-04/MINK MAHOGANY/MINK MAHOGANY",
+      "color": "MAHOGANY",
+      "size": "NS",
+      "fur": "MSC-04/MINK MAHOGANY/MINK MAHOGANY"
+    },
+    {
+      "acode": "MSC-04/MINK BORDEAUX/MINK BORDEAUX",
+      "color": "BORDEAUX",
+      "size": "NS",
+      "fur": "MSC-04/MINK BORDEAUX/MINK BORDEAUX"
+    },
+    {
+      "acode": "MSC-06/SILVER FOX/SILVER FOX",
+      "color": "SILVER",
+      "size": "NS",
+      "fur": "MSC-06/SILVER FOX/SILVER FOX"
+    },
+    {
+      "acode": "MCF-02/ MINK MAHOGANY",
+      "color": "BROWN",
+      "size": "NS",
+      "fur": "MCF-02/ MINK MAHOGANY"
+    },
+    {
+      "acode": "MCF-01/SABLE WILD NO SILVER",
+      "color": "NATURAL",
+      "size": "NS",
+      "fur": "MCF-01/SABLE WILD NO SILVER"
+    },
+    {
+      "acode": "MSC-01 MINK SHAVED WHITE/MINK SHAVED WHITE",
+      "color": "WHITE",
+      "size": "NS",
+      "fur": "MSC-01 MINK SHAVED WHITE/MINK SHAVED WHITE"
+    },
+    {
+      "acode": "MSC-01 MINK SHAVED BLACK/MINK SHAVED BLACK",
+      "color": "BLACK",
+      "size": "NS",
+      "fur": "MSC-01 MINK SHAVED BLACK/MINK SHAVED BLACK"
+    }
+  ]
+}

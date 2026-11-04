@@ -8,7 +8,7 @@ import { InfoHint } from "@/components/info-hint";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
 import type { ReportSizeRow } from "@/lib/margin-tree";
 import type { ModelCost, RetailRow } from "@/lib/margin";
-import { CAT_LABEL, colorOfLine, furKeyOfReportRow as furKeyOfRow, variantOfArticle } from "@/lib/sales-receipts-core";
+import { CAT_LABEL, colorOfLine, furKeyOfReportRow as furKeyOfRow, furRuLabel, variantOfArticle } from "@/lib/sales-receipts-core";
 import type { Cat, SLine } from "@/lib/sales-section";
 import { DASH, btn, money, moneyC, n0, pct, seg, segGroup, x2 } from "./sales-fmt";
 import type { PhotoIdx } from "./sales-tree";
@@ -24,7 +24,7 @@ const HIER = { fur: ["fur", "cat1", "cat2", "article", "color", "size"] as Level
 const LEVEL_LABEL: Record<Level, string> = { fur: "Мех", cat1: "Категория 1", cat2: "Категория 2", article: "Артикул", color: "Цвет", size: "Размер" };
 
 const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Каракульча (свакара)", LYNX: "Рысь", BEAVER: "Бобр", CHINCHILLA: "Шиншилла" };
-const furRu = (k: string) => FUR_RU[k] ?? (k === "Не указан" ? k : k.charAt(0) + k.slice(1).toLowerCase());
+const furRu = (k: string) => furRuLabel(k, FUR_RU);
 export { furKeyOfReportRow as furKeyOfRow } from "@/lib/sales-receipts-core";
 
 /** Показатели сезона. По SS26 и FW25 заказ закрыт: заказано = поступило (правило владельца 21.10.2026). */

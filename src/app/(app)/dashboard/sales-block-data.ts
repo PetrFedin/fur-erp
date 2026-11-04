@@ -4,7 +4,7 @@ import "server-only";
 // новые только суммы «по себестоимости» и «по прайсу» (приход и остаток), с охватом в штуках — где цены или себестоимости нет, строка не считается и охват это показывает.
 import { exVatAt, type MarginInput } from "@/lib/margin";
 import { makeCtx, type Ctx, type ReportSizeRow, type VatMode } from "@/lib/margin-tree";
-import { classOfLevel2, furTypeOfFabric, seasonEndIso, seasonOfDate, seasonStartIso } from "@/lib/sales-receipts-core";
+import { classOfLevel2, furRuLabel, furTypeOfFabric, seasonEndIso, seasonOfDate, seasonStartIso } from "@/lib/sales-receipts-core";
 import { seasonRank, todayMsk, type Cat, type SDim } from "@/lib/sales-section";
 import { applyFilters, bucketsOf, buildSalesTree, extOf, lastMonthOf, NO_FILTERS, openingStock, sizeNodes, sortSeasons, totalSalesNode, type Ext, type Filters, type SLine, type SNode } from "@/lib/sales-section";
 import { loadSalesInput } from "@/lib/sales-server";
@@ -123,8 +123,8 @@ export type SalesBlock = {
 };
 
 /** Русские названия типов меха (в выгрузке — английские). Неизвестный тип остаётся как в выгрузке. */
-const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", SWAKARA: "Свакара", FOX: "Лиса", "ARCTIC FOX": "Песец", LYNX: "Рысь", BEAVER: "Бобр", "Не указан": "Тип меха не указан" };
-export const furRu = (k: string) => FUR_RU[k.toUpperCase()] ?? k;
+const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", SWAKARA: "Свакара", FOX: "Лиса", "ARCTIC FOX": "Песец", LYNX: "Рысь", BEAVER: "Бобр", "НЕ УКАЗАН": "Тип меха не указан" };
+export const furRu = (k: string) => furRuLabel(k, FUR_RU);
 
 /** Суммы «по себестоимости» и «по прайсу» для прихода и остатка набора строк (до конца периода). Остаток по артикулу и цвету = приход − продано. */
 function stockMoney(ctx: Ctx, lines: SLine[], scope: SLine[]): Pick<SalesMoney, "recvCost" | "recvCostPcs" | "recvList" | "recvListPcs" | "stockCost" | "stockCostPcs" | "stockList" | "stockListPcs" | "soldCost" | "soldCostPcs" | "markupSold" | "markupStock"> {

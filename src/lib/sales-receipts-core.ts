@@ -92,6 +92,15 @@ export function furTypeOfFabric(fabric: string | null | undefined): string {
   return f.split(/[\s+/]/)[0];
 }
 
+/** Русское название меха; составной («SABLE+MINK», «SABLE + MINK») переводится по частям → «Соболь+Норка». */
+export function furRuLabel(k: string | null | undefined, dict: Record<string, string>): string {
+  const v = (k ?? "").trim();
+  if (!v) return dict["НЕ УКАЗАН"] ?? "Не указан";
+  if (dict[v.toUpperCase()]) return dict[v.toUpperCase()];
+  if (v === "Не указан") return v;
+  return v.split(/\s*\+\s*/).map((p) => { const u = p.toUpperCase(); return dict[u] ?? (u === p && /^[A-Z ]+$/.test(p) ? p.charAt(0) + p.slice(1).toLowerCase() : p); }).join("+");
+}
+
 /** Цвет из выгрузки без хвоста-кода и с общими написаниями («CLOUD 239264» → CLOUD, LAVANDER → LAVENDER, BLACKGLAMA → BLACK GLAMA). */
 export function colorOfLine(c: string | null | undefined): string {
   const v = (c ?? "").toUpperCase().replace(/\s+\d+$/, "").trim();

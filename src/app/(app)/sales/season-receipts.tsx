@@ -9,6 +9,7 @@ import { Fragment, useMemo, useState } from "react";
 import { InfoHint } from "@/components/info-hint";
 import type { ReportSizeRow } from "@/lib/margin-tree";
 import type { SLine } from "@/lib/sales-section";
+import { furRuLabel, furTypeOfFabric } from "@/lib/sales-receipts-core";
 import { btn, DASH, n0, seg, segGroup } from "./sales-fmt";
 
 const SEASONS = ["FW26/27", "SS26", "FW25/26"] as const;
@@ -18,7 +19,7 @@ const SEASON_BG: Record<Season, string> = { "FW26/27": "bg-sky-50/60", SS26: "bg
 /** Сезон строки прихода (файл) → ключ отчёта. */
 const SALES_TO_REPORT: Record<string, Season> = { "FW 25/26": "FW25/26", "SS 2026": "SS26", "FW 26/27": "FW26/27" };
 const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Свакара", LYNX: "Рысь", BEAVER: "Бобр", CHINCHILLA: "Шиншилла" };
-const furRu = (k: string) => FUR_RU[k] ?? k;
+const furRu = (k: string) => furRuLabel(k, FUR_RU);
 const MONTH_RU = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 const monthLabel = (k: string) => `${MONTH_RU[Number(k.slice(5, 7)) - 1]} ${k.slice(2, 4)}`;
 
@@ -33,13 +34,13 @@ export function SeasonReceipts({ sizes, lines, tzAwait }: { sizes: ReportSizeRow
   const [season, setSeason] = useState<Season | "all">("all");
   const [open, setOpen] = useState<Set<string>>(new Set());
 
-  /** Приход по месяцам: артикул (нормализованный) → сезон отчёта → месяц → шт. */
+  /** Приход по месяцам: артикул+цвет (нормализованные) → сезон отчёта → месяц → шт. */
   const byArt = useMemo(() => {
     const m = new Map<string, Map<Season, Map<string, number>>>();
     for (const l of lines) {
       if (l.kind !== "RECEIPT" || !l.pcs) continue;
       const s = SALES_TO_REPORT[l.season]; if (!s) continue;
-      const k = key(l.article), mk = l.iso.slice(0, 7);
+      const k = `${key(l.article)}|${(l.colorId ?? "").toUpperCase()}`, mk = l.iso.slice(0, 7);
       const a = m.get(k) ?? new Map(); m.set(k, a);
       const sm = a.get(s) ?? new Map(); a.set(s, sm);
       sm.set(mk, (sm.get(mk) ?? 0) + l.pcs);
@@ -56,30 +57,47 @@ export function SeasonReceipts({ sizes, lines, tzAwait }: { sizes: ReportSizeRow
   }, [sizes, tzAwait]);
 
   const buildSeason = (s: Season): { months: string[]; roots: RNode[]; total: RNode } => {
-    const rows = sizes.filter((r) => r.seas?.[s]);
-    const months = [...new Set(rows.flatMap((r) => [...(byArt.get(key(r.acode))?.get(s)?.keys() ?? [])]))].sort();
+    // Листья — по артикулу+цвету: заказ и поступило из отчёта (по строкам размеров суммируем один раз),
+    // месяцы прихода из файла поступлений (тоже один раз на артикул). «Пришло» в таблице = факт файла поступлений.
+    type Leaf = { conf: number; mm: Map<string, number> | undefined; l1: string; fur: string; l2: string; label: string };
+    const leaves = new Map<string, Leaf>();
+    if (s === "FW26/27") {
+      for (const r of sizes.filter((r) => r.seas?.[s])) {
+        const c = r.seas?.[s] ?? {};
+        const k = `${key(r.acode)}|${(r.color ?? "").toUpperCase()}`;
+        const leaf = leaves.get(k) ?? { conf: 0, mm: byArt.get(k)?.get(s), l1: (r.l3 || "(без категории)").trim(), fur: furRu(r.fur ?? "Не указан"), l2: (r.l4 || r.l5 || "(без категории)").trim(), label: r.color ? `${r.acode} · ${r.color}` : r.acode };
+        leaf.conf += c.conf ?? 0;
+        leaves.set(k, leaf);
+      }
+    } else {
+      for (const l of lines) {
+        if (l.kind !== "RECEIPT" || !l.pcs || SALES_TO_REPORT[l.season] !== s) continue;
+        const k = `${key(l.article)}|${(l.colorId ?? "").toUpperCase()}`, mk = l.iso.slice(0, 7);
+        const leaf = leaves.get(k) ?? { conf: 0, mm: new Map<string, number>(), l1: (l.level3 || "(без категории)").trim(), fur: furRu(furTypeOfFabric(l.fabric)), l2: (l.level4 || "(без категории)").trim(), label: l.colorId ? `${l.article} · ${l.colorId}` : l.article };
+        leaf.mm!.set(mk, (leaf.mm!.get(mk) ?? 0) + l.pcs);
+        leaves.set(k, leaf);
+      }
+    }
+    const months = [...new Set([...leaves.values()].flatMap((l) => [...(l.mm?.keys() ?? [])]))].sort();
     const roots: RNode[] = [];
     const node = (id: string, label: string): RNode => ({ id, label, conf: 0, deliv: 0, months: new Map(), nov: 0, dec: 0, children: [] });
     const cat1s = new Map<string, RNode>();
     const total = node("total", "Всего");
-    for (const r of rows) {
-      const c = r.seas?.[s] ?? {};
-      const conf = s === "FW26/27" ? c.conf ?? 0 : c.conf ?? c.deliv ?? 0, deliv = c.deliv ?? 0;
-      const mm = byArt.get(key(r.acode))?.get(s);
-      const inRows = conf || deliv || mm;
-      if (!inRows) continue;
-      const l1 = (r.l3 || "(без категории)").trim(), fur = furRu(r.fur ?? "Не указан"), l2 = (r.l4 || r.l5 || "(без категории)").trim();
-      let n1 = cat1s.get(l1); if (!n1) { n1 = node(`c1:${l1}`, l1); cat1s.set(l1, n1); roots.push(n1); }
-      let n2 = n1.children.find((x) => x.label === fur); if (!n2) { n2 = node(`${n1.id}/f:${fur}`, fur); n1.children.push(n2); }
-      let n3 = n2.children.find((x) => x.label === l2); if (!n3) { n3 = node(`${n2.id}/c2:${l2}`, l2); n2.children.push(n3); }
-      const artKey = `${r.acode} · ${r.color}`;
-      let leaf = n3.children.find((x) => x.id === `${n3.id}/a:${artKey}`);
-      if (!leaf) { leaf = node(`${n3.id}/a:${artKey}`, r.acode); n3.children.push(leaf); }
-      const aw = s === "FW26/27" ? Math.max(0, conf - deliv) : 0;
+    for (const [k, l] of leaves) {
+      const deliv = [...(l.mm?.values() ?? [])].reduce((a, x) => a + x, 0);
+      if (!l.conf && !deliv) continue;
+      let n1 = cat1s.get(l.l1); if (!n1) { n1 = node(`c1:${l.l1}`, l.l1); cat1s.set(l.l1, n1); roots.push(n1); }
+      let n2 = n1.children.find((x) => x.label === l.fur); if (!n2) { n2 = node(`${n1.id}/f:${l.fur}`, l.fur); n1.children.push(n2); }
+      let n3 = n2.children.find((x) => x.label === l.l2); if (!n3) { n3 = node(`${n2.id}/c2:${l.l2}`, l.l2); n2.children.push(n3); }
+      const leaf = node(`${n3.id}/a:${k}`, l.label);
+      const aw = s === "FW26/27" ? Math.max(0, l.conf - deliv) : 0;
       const nov = Math.round(aw * tzShare + (aw - aw * tzShare) / 2), dec = aw - nov;
-      for (const n of [leaf, n3, n2, n1, total]) {
-        n.conf += conf; n.deliv += deliv; n.nov += nov; n.dec += dec;
-        if (mm) for (const [mk, pcs] of mm) n.months.set(mk, (n.months.get(mk) ?? 0) + pcs);
+      leaf.conf = l.conf; leaf.deliv = deliv; leaf.nov = nov; leaf.dec = dec;
+      if (l.mm) for (const [mk, pcs] of l.mm) leaf.months.set(mk, pcs);
+      n3.children.push(leaf);
+      for (const n of [n3, n2, n1, total]) {
+        n.conf += leaf.conf; n.deliv += deliv; n.nov += nov; n.dec += dec;
+        if (l.mm) for (const [mk, pcs] of l.mm) n.months.set(mk, (n.months.get(mk) ?? 0) + pcs);
       }
     }
     const sortRec = (ns: RNode[]) => { ns.sort((a, b) => b.deliv - a.deliv || b.conf - a.conf || a.label.localeCompare(b.label)); for (const n of ns) sortRec(n.children); };
