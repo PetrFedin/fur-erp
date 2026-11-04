@@ -24,6 +24,7 @@ async function main() {
   const m = await prisma.productModel.findUniqueOrThrow({ where: { id: MODEL_ID } });
   if (m.name !== "М030") throw new Error(`ожидался артикул М030, найден ${m.name}`);
   const ref = await prisma.categoryRef.findFirstOrThrow({ where: { organizationId: m.organizationId, name: CATEGORY } });
+  if (process.argv.includes("--apply") && existsSync(JOURNAL)) throw new Error("журнал уже есть: правка применена, повторный запуск затёр бы исходное состояние");
   console.log(`М030: категория ${m.category ?? "—"} → ${CATEGORY} (${ref.group}), ref ${m.categoryRefId ?? "—"} → ${ref.id}`);
   if (!process.argv.includes("--apply")) { console.log("сухой прогон — добавьте --apply"); return; }
   writeFileSync(JOURNAL, JSON.stringify({ modelId: m.id, before: { category: m.category, categoryRefId: m.categoryRefId }, appliedAt: new Date().toISOString() }, null, 2));

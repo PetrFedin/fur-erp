@@ -147,7 +147,7 @@ export function buildFw26Plan(input: PlanInput): Plan {
     add(total, l.conf, l.deliv, l.aw, l.mm, fc);
     // Размеры: заказ и приход по отчёту; прогноз цвета делится по «ждём» размеров.
     const sz = [...l.sizes].sort((a, b) => (Number(a.size) || 1e6) - (Number(b.size) || 1e6) || String(a.size).localeCompare(String(b.size)));
-    const sAw = sz.map((r) => Math.max(0, (r.seas?.[S]?.conf ?? 0) - (r.seas?.[S]?.deliv ?? 0)));
+    const sAw = splitInt(l.aw, sz.map((r) => Math.max(0, (r.seas?.[S]?.conf ?? 0) - (r.seas?.[S]?.deliv ?? 0))));
     const sFc: Record<string, number[]> = {};
     for (const m of fcMonths) sFc[m] = splitInt(fc[m], sAw);
     sz.forEach((r, j) => {

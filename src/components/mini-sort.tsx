@@ -34,7 +34,7 @@ export function useMiniSort(rows: ReactNode[][]) {
     return rows
       .map((r, i) => { const t = textOf(r[st.col]); return { r, i, t, n: numFrom(t) }; })
       .sort((a, b) => {
-        const ae = a.t.trim() === "" || a.t.trim() === "–", be = b.t.trim() === "" || b.t.trim() === "–";
+        const ae = /^[–—-]?$/.test(a.t.trim()), be = /^[–—-]?$/.test(b.t.trim());
         if (ae || be) return ae && be ? a.i - b.i : ae ? 1 : -1;
         const c = a.n != null && b.n != null ? a.n - b.n : collator.compare(a.t, b.t);
         return sign * c || a.i - b.i;
