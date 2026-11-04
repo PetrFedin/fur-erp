@@ -57,7 +57,7 @@ function Tile({ def, onOpen }: { def: TileDef; onOpen: (id: string) => void }) {
   );
 }
 
-export function SalesView({ input, sizes, photos, today, initial, chain, dmStock, reportDate = "19.10.2026" }: Props) {
+export function SalesView({ input, sizes, photos, today, initial, chain, dmStock, reportDate = "19.10.2026", tzAwait }: Props) {
   const [ui, setUi] = useState<Ui>(initial);
   const [hot, setHot] = useState<number | null>(null);
   const [tile, setTile] = useState<string | null>(null);
@@ -215,7 +215,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
       </nav>
 
       {ui.tab === "report" ? (
-        <SeasonReport sizes={sizes} photos={photos} cat={ui.f.cat} ex={ex} reportDate={reportDate} fabricByArt={fabricByArt} prices={input.prices} costs={input.costs} />
+        <SeasonReport sizes={sizes} photos={photos} cat={ui.f.cat} ex={ex} reportDate={reportDate} fabricByArt={fabricByArt} prices={input.prices} costs={input.costs} lines={all} tzAwait={tzAwait} />
       ) : lines.length === 0 ? (
         <p className="rounded-lg border border-neutral-300 bg-white p-3 text-sm text-neutral-800">По выбранным фильтрам строк нет. Измените период, категорию или поиск.</p>
       ) : ui.tab === "overview" ? (
