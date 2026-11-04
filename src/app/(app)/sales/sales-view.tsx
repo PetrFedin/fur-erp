@@ -18,7 +18,7 @@ import type { Chain } from "@/lib/sales-server";
 import { SalesTree, type PhotoIdx } from "./sales-tree";
 import { SeasonReport } from "./season-report";
 
-type Props = { input: MarginInputS; sizes: ReportSizeRow[]; photos: PhotoIdx; today: string; initial: Ui; chain: Chain; dmStock?: DatamartStock | null; reportDate?: string };
+type Props = { input: MarginInputS; sizes: ReportSizeRow[]; photos: PhotoIdx; today: string; initial: Ui; chain: Chain; dmStock?: DatamartStock | null; reportDate?: string; tzAwait: { fur: string; cls: string; qty: number }[] };
 
 type Col = { head: string; get: (e: Ext) => string };
 type TileDef = { id: string; label: string; value: string; sub?: string; how: React.ReactNode; cols: Col[]; extra?: React.ReactNode };
