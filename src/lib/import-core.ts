@@ -2,7 +2,7 @@
 // Формат файлов — как в scripts/import-receipts-sales-2026-10-19.ts, apply-retail-prices-2026-10-19.ts, apply-report-sizes-2026-10-19.ts.
 import ExcelJS from "exceljs";
 import { createHash } from "node:crypto";
-import { classOfLevel2, modelCodeOfArticle, normCode, parseSheetRow, type ParsedLine } from "@/lib/sales-receipts-core";
+import { classOfLevel2, furTypeOfFabric, modelCodeOfArticle, normCode, parseSheetRow, type ParsedLine } from "@/lib/sales-receipts-core";
 
 export const MAX_IMPORT_BYTES = 20 * 1024 * 1024;
 export type ImportKind = "sales" | "prices" | "photos";
@@ -399,7 +399,8 @@ export function parseSizesWorkbook(wb: ExcelJS.Workbook): { rows: SizeRow[]; tot
     const s = (k: string) => String(v[nameCol(k)] ?? "");
     const r: SizeRow = { acode: String(v[iA]), color: String(v[iC] ?? ""), size: String(v[iS] ?? ""), modelCode: modelCodeOfArticle(String(v[iA])), cls: classOfLevel2(String(v[iL2] ?? "")),
       conf: nums[0], deliv: nums[1], sold: nums[2], stock: nums[3], nsRub: nums[4], nsRubEx: nums[5],
-      fur: iF >= 0 ? String(v[iF] ?? "") : undefined, l2: s("KTT Level 02"), l3: s("KTT Level 03"), l4: s("KTT Level 04"), l5: s("KTT Level 05"),
+      // Мех — «Analog Code»; у части строк там повторён артикул (с «/») вместо вида меха — тогда вид из «Fabric» («SABLE WILD SILVER 6» → SABLE).
+      fur: (() => { const raw = iF >= 0 ? String(v[iF] ?? "") : ""; if (!raw.includes("/")) return raw || undefined; const f = furTypeOfFabric(s("Fabric")); return f === "Не указан" ? raw : f; })(), l2: s("KTT Level 02"), l3: s("KTT Level 03"), l4: s("KTT Level 04"), l5: s("KTT Level 05"),
       fw26Conf: seas["FW26/27"]?.conf, fw26Deliv: seas["FW26/27"]?.deliv, ss26Deliv: seas["SS26"]?.deliv, fw25Deliv: seas["FW25/26"]?.deliv,
       seas: Object.keys(seas).length ? seas : undefined };
     const k = sizeKey(r);

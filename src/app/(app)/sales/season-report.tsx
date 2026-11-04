@@ -9,17 +9,19 @@ import { PhotoGalleryButton } from "@/components/photo-gallery";
 import type { ReportSizeRow } from "@/lib/margin-tree";
 import type { ModelCost, RetailRow } from "@/lib/margin";
 import { CAT_LABEL, colorOfLine, furKeyOfReportRow as furKeyOfRow, variantOfArticle } from "@/lib/sales-receipts-core";
-import type { Cat } from "@/lib/sales-section";
+import type { Cat, SLine } from "@/lib/sales-section";
 import { DASH, btn, money, moneyC, n0, pct, seg, segGroup, x2 } from "./sales-fmt";
 import type { PhotoIdx } from "./sales-tree";
+import { SeasonReceipts, type TzAwait } from "./season-receipts";
 
 const SEASONS = ["FW26/27", "SS26", "FW25/26"] as const;
 type Season = (typeof SEASONS)[number];
 const SEASON_LABEL: Record<Season, string> = { "FW26/27": "FW26", SS26: "SS26", "FW25/26": "FW25" };
 const SEASON_BG: Record<Season, string> = { "FW26/27": "bg-sky-50/60", SS26: "bg-amber-50/60", "FW25/26": "bg-emerald-50/50" };
-type Level = "fur" | "cat" | "article" | "color" | "size";
-const LEVELS: Level[] = ["fur", "cat", "article", "color", "size"];
-const LEVEL_LABEL: Record<Level, string> = { fur: "Мех", cat: "Категория", article: "Артикул", color: "Цвет", size: "Размер" };
+type Level = "fur" | "cat1" | "cat2" | "article" | "color" | "size";
+/** Два порядка разворота (04.11.2026, владелец): мех → кат.1 → кат.2 или кат.1 → кат.2 → мех; дальше артикул → цвет → размер. */
+const HIER = { fur: ["fur", "cat1", "cat2", "article", "color", "size"] as Level[], cat: ["cat1", "cat2", "fur", "article", "color", "size"] as Level[] };
+const LEVEL_LABEL: Record<Level, string> = { fur: "Мех", cat1: "Категория 1", cat2: "Категория 2", article: "Артикул", color: "Цвет", size: "Размер" };
 
 const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Каракульча (свакара)", LYNX: "Рысь", BEAVER: "Бобр", CHINCHILLA: "Шиншилла" };
 const furRu = (k: string) => FUR_RU[k] ?? (k === "Не указан" ? k : k.charAt(0) + k.slice(1).toLowerCase());
@@ -50,9 +52,10 @@ const COLS: Col[] = [
 
 type Node = { id: string; level: Level; label: string; sub?: string; modelCode: string | null; variant: string | null; rows: ReportSizeRow[]; m: Record<Season, M>; stock: number; children: Node[] };
 
-export function SeasonReport({ sizes, photos, cat, ex, reportDate, fabricByArt, prices, costs }: { sizes: ReportSizeRow[]; photos: PhotoIdx; cat: Cat; ex: boolean; reportDate?: string; fabricByArt: Record<string, string>; prices: RetailRow[]; costs: [string, ModelCost][] }) {
+export function SeasonReport({ sizes, photos, cat, ex, reportDate, fabricByArt, prices, costs, lines, tzAwait }: { sizes: ReportSizeRow[]; photos: PhotoIdx; cat: Cat; ex: boolean; reportDate?: string; fabricByArt: Record<string, string>; prices: RetailRow[]; costs: [string, ModelCost][]; lines: SLine[]; tzAwait: TzAwait[] }) {
   const [pick, setPick] = useState<Season[]>([...SEASONS]);
-  const [view, setView] = useState<"tree" | "cards">("tree");
+  const [view, setView] = useState<"tree" | "cards" | "receipts">("tree");
+  const [hier, setHier] = useState<"fur" | "cat">("fur");
   const [detail, setDetail] = useState(false);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [q, setQ] = useState("");
@@ -67,8 +70,9 @@ export function SeasonReport({ sizes, photos, cat, ex, reportDate, fabricByArt, 
   const priceIdx = useMemo(() => { const m = new Map<string, number>(); for (const p of prices) { const k = `${p.acode}|${p.color}|${p.size}`; if (!m.has(k)) m.set(k, p.price); } return m; }, [prices]);
   const nowPrice = (r: ReportSizeRow) => priceIdx.get(`${r.acode}|${r.color}|${r.size}`) ?? null;
 
+  const LEVELS = HIER[hier];
   const rows = useMemo(() => sizes.filter((r) => r.seas && (cat === "all" || r.cls === cat)), [sizes, cat]);
-  const keyOf = (r: ReportSizeRow, l: Level) => l === "fur" ? furRu(furKeyOfRow(r, fabricByArt)) : l === "cat" ? (r.l4 || r.l5 || "(без категории)") : l === "article" ? r.acode : l === "color" ? colorOfLine(r.color) : r.size || "(без размера)";
+  const keyOf = (r: ReportSizeRow, l: Level) => l === "fur" ? furRu(furKeyOfRow(r, fabricByArt)) : l === "cat1" ? (r.l3 || "(без категории)") : l === "cat2" ? (r.l4 || r.l5 || "(без категории)") : l === "article" ? r.acode : l === "color" ? colorOfLine(r.color) : r.size || "(без размера)";
   const furs = useMemo(() => [...new Set(rows.map((r) => keyOf(r, "fur")))].sort(), [rows, fabricByArt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const mOf = (rs: ReportSizeRow[]) => {
@@ -87,7 +91,7 @@ export function SeasonReport({ sizes, photos, cat, ex, reportDate, fabricByArt, 
     }
     return out;
   };
-  const filtered = useMemo(() => rows.filter((r) => (furPick === "all" || keyOf(r, "fur") === furPick) && (!q || `${r.acode} ${keyOf(r, "fur")} ${keyOf(r, "cat")} ${r.color} ${r.size}`.toLowerCase().includes(q.toLowerCase()))), [rows, furPick, q, fabricByArt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const filtered = useMemo(() => rows.filter((r) => (furPick === "all" || keyOf(r, "fur") === furPick) && (!q || `${r.acode} ${keyOf(r, "fur")} ${keyOf(r, "cat1")} ${keyOf(r, "cat2")} ${r.color} ${r.size}`.toLowerCase().includes(q.toLowerCase()))), [rows, furPick, q, fabricByArt]); // eslint-disable-line react-hooks/exhaustive-deps
   const sortVal = (n: Node) => seasons.reduce((a, s) => a + (sort === "rub" ? n.m[s].rub : sort === "all" ? n.m[s].all : sort === "conf" ? n.m[s].conf : sort === "so" ? so(n.m[s]) ?? 0 : sort === "markup" ? markupOf(n.m[s]) ?? 0 : n.m[s].ssn), 0);
   const tree = useMemo(() => {
     const build = (rs: ReportSizeRow[], depth: number, path: string): Node[] => {
@@ -97,13 +101,13 @@ export function SeasonReport({ sizes, photos, cat, ex, reportDate, fabricByArt, 
       for (const r of rs) { const k = keyOf(r, l); (g.get(k) ?? g.set(k, []).get(k)!).push(r); }
       return [...g].map(([k, list]) => {
         const id = `${path}/${l}:${k}`, first = list[0];
-        const node: Node = { id, level: l, label: k, sub: l === "article" ? `${keyOf(first, "fur")} · ${keyOf(first, "cat")}` : undefined, modelCode: first.modelCode, variant: variantOfArticle(first.acode), rows: list, m: mOf(list), stock: list.reduce((a, r) => a + r.stock, 0), children: [] };
+        const node: Node = { id, level: l, label: k, sub: l === "article" ? `${keyOf(first, "fur")} · ${keyOf(first, "cat1")}` : undefined, modelCode: first.modelCode, variant: variantOfArticle(first.acode), rows: list, m: mOf(list), stock: list.reduce((a, r) => a + r.stock, 0), children: [] };
         node.children = build(list, depth + 1, id);
         return node;
       }).filter((n) => seasons.some((s) => n.m[s].conf || n.m[s].deliv || n.m[s].all) || n.stock).sort((a, b) => (l === "size" ? (Number(a.label) || 1e6) - (Number(b.label) || 1e6) : sortVal(b) - sortVal(a) || a.label.localeCompare(b.label)));
     };
     return build(filtered, 0, "");
-  }, [filtered, sort, ex, seasonsKey, costOf]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filtered, sort, ex, seasonsKey, costOf, hier]); // eslint-disable-line react-hooks/exhaustive-deps
   const total = useMemo(() => mOf(filtered), [filtered, ex, costOf]); // eslint-disable-line react-hooks/exhaustive-deps
   const totalAll = useMemo(() => mOf(rows), [rows, ex, costOf]); // eslint-disable-line react-hooks/exhaustive-deps
   const stockAll = filtered.reduce((a, r) => a + r.stock, 0);
@@ -187,7 +191,14 @@ export function SeasonReport({ sizes, photos, cat, ex, reportDate, fabricByArt, 
         <div role="group" aria-label="Вид" className={segGroup}>
           <button type="button" aria-pressed={view === "tree"} onClick={() => setView("tree")} className={seg(view === "tree")}>Мех → артикул → размер</button>
           <button type="button" aria-pressed={view === "cards"} onClick={() => setView("cards")} className={seg(view === "cards")}>Карточки с фото</button>
+          <button type="button" aria-pressed={view === "receipts"} onClick={() => setView("receipts")} className={seg(view === "receipts")}>Приход по месяцам</button>
         </div>
+        {view === "tree" ? (
+          <div role="group" aria-label="Порядок разворота" className={segGroup}>
+            <button type="button" aria-pressed={hier === "fur"} onClick={() => setHier("fur")} className={seg(hier === "fur")}>Мех → кат. 1 → кат. 2</button>
+            <button type="button" aria-pressed={hier === "cat"} onClick={() => setHier("cat")} className={seg(hier === "cat")}>Кат. 1 → кат. 2 → мех</button>
+          </div>
+        ) : null}
         <label className="flex items-center gap-1 text-xs text-neutral-700">Мех
           <select value={furPick} onChange={(e) => setFurPick(e.target.value)} className="min-h-11 rounded-md border border-neutral-300 bg-white px-2 text-sm" aria-label="Мех">
             <option value="all">все</option>{furs.map((f) => <option key={f} value={f}>{f}</option>)}
@@ -202,7 +213,9 @@ export function SeasonReport({ sizes, photos, cat, ex, reportDate, fabricByArt, 
         {seasons.length > 1 && view === "tree" ? <button type="button" aria-pressed={detail} onClick={() => setDetail((v) => !v)} className={seg(detail)}>{detail ? "Кратко" : "Все показатели"}</button> : null}
       </div>
 
-      {view === "tree" ? (
+      {view === "receipts" ? (
+        <SeasonReceipts sizes={rows} lines={lines} tzAwait={tzAwait} />
+      ) : view === "tree" ? (
         <>
           <div className="flex flex-wrap items-center gap-1 text-sm">
             <span className="text-xs text-neutral-700">Развернуть до:</span>
@@ -213,7 +226,7 @@ export function SeasonReport({ sizes, photos, cat, ex, reportDate, fabricByArt, 
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-neutral-50">
                 <tr>
-                  <th rowSpan={2} className="sticky left-0 z-20 bg-neutral-50 px-2 py-2 text-left text-xs font-semibold">Мех → категория → артикул → цвет → размер</th>
+                  <th rowSpan={2} className="sticky left-0 z-20 bg-neutral-50 px-2 py-2 text-left text-xs font-semibold">{LEVELS.map((l) => LEVEL_LABEL[l]).join(" → ")}</th>
                   {seasons.map((s) => <th key={s} colSpan={cols.length} className={`border-l border-neutral-300 px-2 py-1 text-center text-xs font-semibold ${SEASON_BG[s]}`}>{SEASON_LABEL[s]}</th>)}
                   <th rowSpan={2} className="border-l border-neutral-300 px-2 py-1 text-right text-[11px] font-semibold">Остаток сейчас, шт.</th>
                 </tr>
