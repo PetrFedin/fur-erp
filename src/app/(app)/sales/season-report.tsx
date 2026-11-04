@@ -71,6 +71,8 @@ const COLS: Col[] = [
   { key: "left", label: "Остаток сезона, шт.", short: "Остаток сезона, шт.", hint: "Товар, заказанный на этот сезон: поступило − продано всего = остаток.", get: (m) => n0(m.stock), strong: true },
   { key: "rubS", label: "Выручка за сезон, ₽", short: "Выручка сезон", hint: "Выручка с продаж товара этого сезона в его календарь: после скидки. С НДС или без — как в шапке.", get: (m) => moneyC(m.rubS), strong: true },
   { key: "rubA", label: "Выручка всего, ₽", short: "Выручка всего", hint: "Выручка с продаж товара этого сезона за всё время (в свой сезон и позже).", get: (m) => moneyC(m.rubA), strong: true },
+  { key: "after", label: "Продано после сезона, шт.", short: "После сезона, шт.", hint: "Товар этого сезона, проданный уже после его календаря (как олд-товар в следующих сезонах): продано всего − продано за сезон.", get: (m) => n0(Math.max(0, m.all - m.ssn)) },
+  { key: "rubAfter", label: "Выручка после сезона, ₽", short: "Выручка после сезона", hint: "Выручка с продаж товара этого сезона после его календаря: выручка всего − выручка за сезон. С НДС или без — как в шапке.", get: (m) => moneyC(Math.max(0, m.rubA - m.rubS)), strong: true },
   { key: "priceS", label: "Цена за сезон, ₽/шт.", short: "Цена сезон", hint: "Средневзвешенная: (выручка + скидка) ÷ продано за сезон, с НДС — по какой цене продавали до скидки.", get: (m) => moneyC(priceS(m)), full: true },
   { key: "priceA", label: "Цена всего, ₽/шт.", short: "Цена всего", hint: "Средневзвешенная: (выручка + скидка) ÷ продано всего, с НДС.", get: (m) => moneyC(priceA(m)), full: true },
   { key: "mkS", label: "Маркап за сезон", short: "Маркап сезон", hint: "Средневзвешенный: цена до скидки ÷ себестоимость изделия из ТЗ (с НДС), по проданным за сезон штукам, у которых есть себестоимость.", get: (m) => x2(mkS(m)) },
@@ -102,7 +104,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   const seasonsKey = seasons.join(",");
   const full = detail || seasons.length === 1;
   // Кратко: артикулы, заказ, получено, продано, SO, остаток сезона, выручка и маркап выбранной базы; «Все показатели» — все столбцы обеих баз (цена — только там).
-  const compactKeys = ["arts", "conf", "deliv", basis === "season" ? "ssn" : "all", basis === "season" ? "soS" : "soA", "left", basis === "season" ? "rubS" : "rubA", basis === "season" ? "mkS" : "mkA"];
+  const compactKeys = ["arts", "conf", "deliv", basis === "season" ? "ssn" : "all", basis === "season" ? "soS" : "soA", "left", basis === "season" ? "rubS" : "rubA", "after", "rubAfter", basis === "season" ? "mkS" : "mkA"];
   const cols = TCOLS.filter((c) => (full || compactKeys.includes(c.key)) && (full || !c.full));
 
   const costOf = useMemo(() => new Map(costs), [costs]);
@@ -338,7 +340,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   const BASIS_LABEL: Record<string, string> = { ssn: "Продано, шт.", all: "Продано, шт.", soS: "SO, %", soA: "SO, %", rubS: "Выручка, ₽", rubA: "Выручка, ₽", priceS: "Цена, ₽/шт.", priceA: "Цена, ₽/шт.", mkS: "Маркап", mkA: "Маркап" };
   const bk = (a: string, b: string) => byKey[basis === "season" ? a : b];
   const eurCol: Col = { key: "confEur", label: "Заказано, €", short: "", hint: "Conf EUR отчёта — закупочная стоимость заказа; по SS 2026 и FW 25/26 — поступило в €.", get: (m: M) => eur(m.confEur) };
-  const SUMMARY: Col[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait, bk("ssn", "all"), bk("soS", "soA"), byKey.left, bk("rubS", "rubA"), bk("priceS", "priceA"), bk("mkS", "mkA")]
+  const SUMMARY: Col[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait, bk("ssn", "all"), bk("soS", "soA"), byKey.left, bk("rubS", "rubA"), byKey.after, byKey.rubAfter, bk("priceS", "priceA"), bk("mkS", "mkA")]
     .map((c) => (BASIS_LABEL[c.key] ? { ...c, label: BASIS_LABEL[c.key] } : c));
 
   return (
@@ -477,7 +479,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
                     </div>
                   </div>
                   <div className="min-w-0 flex-1 overflow-x-auto">
-                    <table className={"w-full text-sm " + (detail ? "min-w-[900px]" : "min-w-[640px]")}>
+                    <table className={"w-full text-sm " + (detail ? "min-w-[900px]" : "min-w-[780px]")}>
                       <thead><tr className="text-neutral-700"><th className="py-1 text-left font-normal">Сезон</th>{cols.filter((c) => c.key !== "arts").map((c) => <th key={c.key} title={c.hint} className="px-1 text-right font-normal whitespace-nowrap">{c.short}</th>)}</tr></thead>
                       <tbody>
                         {seasons.map((s) => <tr key={s} className={`border-t border-neutral-200 tabular-nums ${SEASON_BG[s]}`}><td className="py-1.5 pl-1">{SEASON_LABEL[s]}</td>{cols.filter((c) => c.key !== "arts").map((c) => <td key={c.key} className={"px-1 text-right whitespace-nowrap " + (c.strong ? "font-semibold" : "")}>{c.get(n.m[s], s)}</td>)}</tr>)}
