@@ -101,8 +101,8 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   const seasons = SEASONS.filter((s) => pick.includes(s));
   const seasonsKey = seasons.join(",");
   const full = detail || seasons.length === 1;
-  // Кратко: артикулы, заказ, получено, продано, SO, остаток сезона; «Все показатели» — все столбцы обеих баз.
-  const compactKeys = ["arts", "conf", "deliv", basis === "season" ? "ssn" : "all", basis === "season" ? "soS" : "soA", "left"];
+  // Кратко: артикулы, заказ, получено, продано, SO, остаток сезона, выручка и маркап выбранной базы; «Все показатели» — все столбцы обеих баз (цена — только там).
+  const compactKeys = ["arts", "conf", "deliv", basis === "season" ? "ssn" : "all", basis === "season" ? "soS" : "soA", "left", basis === "season" ? "rubS" : "rubA", basis === "season" ? "mkS" : "mkA"];
   const cols = TCOLS.filter((c) => (full || compactKeys.includes(c.key)) && (full || !c.full));
 
   const costOf = useMemo(() => new Map(costs), [costs]);
@@ -477,7 +477,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
                     </div>
                   </div>
                   <div className="min-w-0 flex-1 overflow-x-auto">
-                    <table className={"w-full text-sm " + (detail ? "min-w-[900px]" : "min-w-[460px]")}>
+                    <table className={"w-full text-sm " + (detail ? "min-w-[900px]" : "min-w-[640px]")}>
                       <thead><tr className="text-neutral-700"><th className="py-1 text-left font-normal">Сезон</th>{cols.filter((c) => c.key !== "arts").map((c) => <th key={c.key} title={c.hint} className="px-1 text-right font-normal whitespace-nowrap">{c.short}</th>)}</tr></thead>
                       <tbody>
                         {seasons.map((s) => <tr key={s} className={`border-t border-neutral-200 tabular-nums ${SEASON_BG[s]}`}><td className="py-1.5 pl-1">{SEASON_LABEL[s]}</td>{cols.filter((c) => c.key !== "arts").map((c) => <td key={c.key} className={"px-1 text-right whitespace-nowrap " + (c.strong ? "font-semibold" : "")}>{c.get(n.m[s], s)}</td>)}</tr>)}
