@@ -81,7 +81,7 @@ const ARTICLE_COLUMNS: PickerColumn[] = [
   { key: "color", label: "Цвет" },
   { key: "sizes", label: "Размеры" },
   { key: "lining", label: "Состав подкладки" },
-  { key: "qty", label: "В выпуске", on: true },
+  { key: "qty", label: "Заведено в ТЗ", on: true },
   { key: "stock", label: "На складе, шт.", on: true },
   { key: "furQty", label: "Шкур, шт." },
   { key: "furSum", label: "Шкуры, сумма" },
@@ -394,15 +394,15 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             <Th data-col="color" {...ath("color")}>Цвет</Th>
             <Th data-col="sizes" {...ath("sizes")}>Размеры</Th>
             <Th data-col="lining" {...ath("lining")}>Состав подкладки</Th>
-            <Th data-col="qty" {...ath("qty")} className="text-right" unit="шт." after={<InfoHint label="Что такое «в выпуске»">Все ТЗ артикула без отменённых и без ремонта: готово (завершённые) + в работе (план ТЗ «В работе» и «Запланировано») — как на Главной.</InfoHint>}>В выпуске</Th>
+            <Th data-col="qty" {...ath("qty")} className="text-right" unit="шт." after={<InfoHint label="Что такое «заведено в ТЗ»">Все ТЗ артикула без отменённых и без ремонта: готово (завершённые) + в работе (план ТЗ «В работе» и «Запланировано»). «В выпуске» на Главной — заказ по отчёту, в него входит и заказ без ТЗ.</InfoHint>}>Заведено в ТЗ</Th>
             <Th data-col="stock" {...ath("stock")} className="text-right" unit="шт." after={<InfoHint label="На складе">Готовая продукция на складе: оприходовано по завершённым ТЗ минус отгружено; движения склада — в карточке артикула.</InfoHint>}>На складе</Th>
-            <Th data-col="furQty" {...ath("furQty")} className="text-right" unit="шт." after={<InfoHint label="Шкуры">Сколько шкур списано в ТЗ артикула и сколько в среднем на 1 изделие (шкур ÷ в выпуске).</InfoHint>}>Шкур</Th>
+            <Th data-col="furQty" {...ath("furQty")} className="text-right" unit="шт." after={<InfoHint label="Шкуры">Сколько шкур списано в ТЗ артикула и сколько в среднем на 1 изделие (шкур ÷ заведено в ТЗ).</InfoHint>}>Шкур</Th>
             <Th data-col="furSum" {...ath("furSum")} className="text-right" unit="₽" after={<InfoHint label="Сумма шкур">Стоимость списанных шкур: основная цифра с 4 %, мелко — без 4 %. Включена в «Полную себестоимость итого». Цена за шкуру по видам меха — в карточке артикула.</InfoHint>}>Шкуры</Th>
             <Th data-col="liningQty" {...ath("liningQty")} className="text-right" unit="м">Подкладка</Th>
             <Th data-col="liningSum" {...ath("liningSum")} className="text-right" unit="₽">Подкладка</Th>
             <Th data-col="work" {...ath("work")} className="text-right" unit="₽">Работа</Th>
             <Th data-col="total" {...ath("total")} className="text-right" unit="₽" after={<InfoHint label="Из чего складывается">Шкуры + подкладка + 4 % + расходы + работа по всем ТЗ артикула. Итог равен «Полной себестоимости (с работой)» изделий (без ремонта) на Главной. Основная цифра — с 4 %, мелко — без 4 %.</InfoHint>}>Себестоимость итого</Th>
-            <Th data-col="unit" {...ath("unit")} className="text-right" unit="₽/шт." after={<InfoHint label="Полная себестоимость единицы">Полная себестоимость итого ÷ «В выпуске».</InfoHint>}>Средневзв. себестоимость</Th>
+            <Th data-col="unit" {...ath("unit")} className="text-right" unit="₽/шт." after={<InfoHint label="Полная себестоимость единицы">Полная себестоимость итого ÷ «Заведено в ТЗ».</InfoHint>}>Средневзв. себестоимость</Th>
             <Th data-col="vat">
               НДС
               <InfoHint label="НДС">Ставки НДС в строках списания шкур и подкладки (из лотов или заданные в ТЗ). Все суммы в таблице показываются «с НДС» или «без НДС» по переключателю в шапке.</InfoHint>
@@ -523,7 +523,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             subtitle={[r.model.category?.trim(), r.group !== NO_GROUP ? r.group : null, r.primaryFur, r.colors.slice(0, 2).join(", ") || null].filter(Boolean).join(" · ") || undefined}
             href={`/models/${r.id}`}
             fields={[
-              { label: "В выпуске, шт.", value: r.qty > 0 ? formatQty(r.qty) : "–", strong: true },
+              { label: "Заведено в ТЗ, шт.", value: r.qty > 0 ? formatQty(r.qty) : "–", strong: true },
               { label: "Полная себестоимость итого", value: <CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /> },
               { label: "За ед.", value: <CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /> },
               { label: "Наценка", value: r.markup ? fmtX(r.markup) : "–" },
@@ -571,7 +571,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           { id: "group", label: "Группы", dims: ["group", "category", "fur", "article", "order"] },
           { id: "article", label: "Артикулы", dims: ["article", "order"] },
         ]}
-        hint={<p>Количество — «В выпуске» (готово + в работе) как на Главной (все ТЗ без отменённых и без ремонта). Номер артикула ведёт в его карточку, номер ТЗ — в карточку ТЗ; в составе — ссылки на лот и закупку. Ремонт здесь не показывается — см. «Ремонт».</p>}
+        hint={<p>Количество — «Заведено в ТЗ» (готово + в работе; все ТЗ без отменённых и без ремонта). «В выпуске» на Главной — заказ по отчёту, включает заказ без ТЗ. Номер артикула ведёт в его карточку, номер ТЗ — в карточку ТЗ; в составе — ссылки на лот и закупку. Ремонт здесь не показывается — см. «Ремонт».</p>}
         empty="ТЗ по выбранным изделиям нет."
       />
 

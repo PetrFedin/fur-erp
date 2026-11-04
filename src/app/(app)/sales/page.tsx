@@ -24,6 +24,6 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
   const rs = (await loadReportSizesState(session.user.organizationId))?.value as { asOf?: string } | undefined;
   const reportDate = rs?.asOf ? rs.asOf.split("-").reverse().join(".") : undefined;
   // «Ждём по ТЗ» для прогноза ноября в «Приходе по месяцам»: вид меха из кода строки (MODEL/FURKEY), количество.
-  const tzAwait = tz.map((r) => ({ fur: r.acode.includes("/") ? r.acode.slice(r.acode.indexOf("/") + 1) : "", cls: r.cls, qty: r.fw26Conf ?? 0 }));
+  const tzAwait = tz.map((r) => ({ fur: r.acode.includes("/") ? r.acode.slice(r.acode.indexOf("/") + 1) : "", cls: r.cls, qty: r.fw26Conf ?? 0, model: r.modelCode ?? "" }));
   return <><DataAsOf asOf={asOf} /><SalesView input={serializeInput(data.input)} sizes={data.sizes} photos={data.photos} today={todayMsk()} initial={{ ...parseUi(sp), vat: parseVatModeCookie((await cookies()).get("vatDisplay")?.value) === "excl" ? "ex" : "in" }} chain={chain} dmStock={dmStock} reportDate={reportDate} tzAwait={tzAwait} /></>;
 }

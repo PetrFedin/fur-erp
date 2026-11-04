@@ -54,7 +54,7 @@ function producedSeasons(orders: DrillOrder[], grp?: string): { label: string; q
   return Array.from(m).sort((a, b) => seasonRank(a[0]) - seasonRank(b[0])).map(([label, qty]) => ({ label, qty: Math.round(qty) }));
 }
 
-export function ProductionBlock({ reportSeasons, href = "/production", vatCost: vatCostP, kind = "", hides: hidesP, c4Parts: c4PartsP, years: yearsP, done: doneP, work: workP, all: allP, c4, search, info, bridge }: { /** «→ ТЗ» с фильтрами Главной. */ href?: string; hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge; /** Сезоны отчёта «заказ и продажи»: на «Все» — заказ и поступление по сезонам (вместо объёма ТЗ). */ reportSeasons?: import("@/lib/margin-server").ReportSeasonTotal[] | null }) {
+export function ProductionBlock({ scoped = false, reportSeasons, href = "/production", vatCost: vatCostP, kind = "", hides: hidesP, c4Parts: c4PartsP, years: yearsP, done: doneP, work: workP, all: allP, c4, search, info, bridge }: { /** Выбран год или фильтры Главной: отчёт «заказ и продажи» по ним не делится, плитки считаются по нашим ТЗ. */ scoped?: boolean; /** «→ ТЗ» с фильтрами Главной. */ href?: string; hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge; /** Сезоны отчёта «заказ и продажи»: на «Все» — заказ и поступление по сезонам (вместо объёма ТЗ). */ reportSeasons?: import("@/lib/margin-server").ReportSeasonTotal[] | null }) {
   const { mode: vat } = useVatDisplay();
   const [open, setOpen] = useState<null | "done" | "work" | "all">(null);
   // Всего / Одежда / Аксессуары листаются вместе во всех плитках блока.
@@ -62,7 +62,7 @@ export function ProductionBlock({ reportSeasons, href = "/production", vatCost: 
   // Блок показывает произведённое (= получено по приходу); «В выпуске» — заказ по сезонам (закрытые: заказ = приход, открытый: заказ больше прихода).
   const volume: VolumeMode = "produced";
   const grpSync = { index: grpIdx, onChange: setGrpIdx };
-  const { data: drill } = useDrill(search);
+  const { data: drill, raw: rawDrill } = useDrill(search);
   const vdrill = useMemo(() => withVolume(drill, "produced"), [drill]);
   const drillOrders = vdrill?.orders ?? [];
   // Сезон из панели «Сезон» Главной: плитки считаются от ТЗ выбранного сезона (доли ТЗ по приходу модели, см. order-seasons.ts); «Все» — готовые числа страницы.
@@ -97,7 +97,20 @@ export function ProductionBlock({ reportSeasons, href = "/production", vatCost: 
   const ordOwn = useMemo(() => (drill ? drill.orders.filter((o) => !isRepair(o) && !o.id.startsWith("no-tz")) : []), [drill]);
   // Заказ и поступление — по отчёту «заказ и продажи» (владелец 02.11.2026): на «Все» — все сезоны (FW25 и SS26 закрыты: заказ = поступило; FW26 — заказано Conf и сколько пришло),
   // в конкретном сезоне — его строка отчёта. До этого в сезоне плитки считались от ТЗ/прихода файла поступлений и расходились с отчётом (FW 25/26 → 292 вместо 267, SS 2026 → 61 вместо 64, FW 26/27 → 389 вместо 509).
-  const repAll = reportSeasons && reportSeasons.length ? reportSeasons : null;
+  // «Произведено» = «Получено» (владелец 04.11.2026): штуки прихода берём из ТЗ-разреза (как раздел «Продажи и остатки»), а не из отчёта «заказ и продажи».
+  // Произведено, но не получено, остаётся только «в выпуске»: заказ закрытых сезонов равен приходу, у открытого сезона заказ не меньше прихода.
+  // Берём ПОЛНЫЕ ТЗ (до выбора сезона): в разрезе сезона ТЗ уже умножены на доли, и приход считался бы дважды взвешенным (290 / 59 / 228 вместо 292 / 61 / 286).
+  const recvAll = useMemo(() => (rawDrill ? producedSeasons(rawDrill.orders) : null), [rawDrill]);
+  const recvCls = useMemo(() => (rawDrill ? { clothes: producedSeasons(rawDrill.orders, "Одежда"), acc: producedSeasons(rawDrill.orders, "Аксессуары") } : null), [rawDrill]);
+  const repAll = useMemo(() => {
+    if (scoped || !reportSeasons || !reportSeasons.length) return null;
+    if (!recvAll || !recvCls) return reportSeasons;
+    const g = (l: { label: string; qty: number }[], label: string) => l.find((x) => x.label === label)?.qty ?? 0;
+    return reportSeasons.map((s) => {
+      const closed = s.label !== "FW 26/27", d = g(recvAll, s.label), dc = g(recvCls.clothes, s.label), da = g(recvCls.acc, s.label);
+      return { ...s, deliv: d, conf: closed ? d : Math.max(s.conf, d), clothes: { deliv: dc, conf: closed ? dc : Math.max(s.clothes.conf, dc) }, acc: { deliv: da, conf: closed ? da : Math.max(s.acc.conf, da) } };
+    });
+  }, [scoped, reportSeasons, recvAll, recvCls]);
   const repSel = repAll && season !== "all" ? repAll.filter((s) => s.label === season) : null;
   const rep = season === "all" ? repAll : repSel && repSel.length ? repSel : null;
   const ordQty = rep ? rep.reduce((a, s) => a + s.conf, 0) : drill ? ordOwn.reduce((a, o) => a + o.qty, 0) : allP.qty;
@@ -143,26 +156,24 @@ export function ProductionBlock({ reportSeasons, href = "/production", vatCost: 
   const money = (v: number) => formatMoney(v.toFixed(2));
   const active = open === "work" ? work : open === "all" ? fact : done;
 
-  const outputTile = (t: { title: string; hintLabel: string; hint: import("react").ReactNode; qty: number; orders: number; years: { label: string; qty: number; got?: number }[]; orders2: DrillOrder[]; got: boolean; loading?: boolean; split?: { clothes: { label: string; qty: number }[]; acc: { label: string; qty: number }[]; clothesQty: number; accQty: number } | null }) => (
+  const outputTile = (t: { title: string; hintLabel: string; hint: import("react").ReactNode; qty: number; orders: number; years: { label: string; qty: number; got?: number }[]; orders2: DrillOrder[]; got: boolean; loading?: boolean; /** Строка под «N ТЗ»: например, «из них заведено в ТЗ 742 шт.». */ note?: string; split?: { clothes: { label: string; qty: number }[]; acc: { label: string; qty: number }[]; clothesQty: number; accQty: number } | null }) => (
     <TileCarousel sync={grpSync} clickable hoverBlocks title={t.title} hintLabel={t.hintLabel} slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа" hint={t.hint}
       slides={[
         { key: "total", label: "Всего", body: (
           <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label={`${t.title} — открыть себестоимость по статьям`} className={SLIDE_BTN}>
             <TileValue>{t.loading ? "…" : `${formatQty(t.qty)} шт.`}</TileValue>
-            <TileCaption>{Number.isNaN(t.orders) ? "… ТЗ" : `${t.orders} ТЗ`}</TileCaption>
+            <TileCaption>{Number.isNaN(t.orders) ? "… ТЗ" : `${t.orders} ТЗ`}{t.note ? ` · ${t.note}` : ""}</TileCaption>
             <dl className="mt-1 space-y-0.5 text-xs">
               {t.years.filter((y) => y.qty !== 0).map((y) => {
                 // «В выпуске» по сезонам: слева — какая часть заказа пришла; иначе — доля от всего.
                 const g = t.got ? y.got : undefined;
                 const left = g !== undefined ? (y.qty > 0 ? `${Math.round((g / y.qty) * 100)} % пришло` : "–") : t.qty ? formatShare(y.qty / t.qty) : "–";
-                const c = t.split?.clothes.find((x) => x.label === y.label)?.qty, a2 = t.split?.acc.find((x) => x.label === y.label)?.qty;
                 return (
                   <div key={y.label}>
                     <div className="flex items-baseline justify-between gap-3">
                       <dt className="text-neutral-600">{y.label}</dt>
                       <dd className="whitespace-nowrap font-medium tabular-nums"><span className="mr-1.5 inline-block min-w-12 text-right text-[11px] font-normal text-neutral-500">{left}</span>{formatQty(y.qty)} шт.</dd>
                     </div>
-                    {t.split ? <div className="text-right text-[11px] tabular-nums text-neutral-500">одежда {formatQty(c ?? 0)} · аксессуары {formatQty(a2 ?? 0)}</div> : null}
                   </div>
                 );
               })}
@@ -182,13 +193,13 @@ export function ProductionBlock({ reportSeasons, href = "/production", vatCost: 
         headerExtra={<ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />}
         headerEnd={<Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">
-        {outputTile({ title: OUTPUT_LABEL, hintLabel: "Что такое «в выпуске»", hint: <><p><b>{OUTPUT_LABEL}</b> — заказ по отчёту «заказ и продажи»: FW 26/27 — заказано, закрытые сезоны — заказ = поступило. Слева от числа — какая часть заказа пришла. «ТЗ» — сколько наших ТЗ по этим изделиям. Ремонт не входит.</p></>, qty: ordQty, orders: ordOrders, years: ordYears, orders2: drill?.orders ?? [], got: true, split: ordSplit })}
-        {outputTile({ title: "Произведено", hintLabel: "Что такое «произведено»", hint: <><p><b>Произведено</b> — поступило в розницу по отчёту по сезонам. «ТЗ» — сколько ТЗ закрыто приходом (изделия ещё у подрядчика сюда не входят). Стоимость и среднее справа — по ТЗ, на которые разложен приход.</p></>, qty: prodQty, orders: ready ? all.orders : NaN, years: prodYears, orders2: drillOrders, got: false, loading: !ready && !rep, split: prodSplit })}
+        {outputTile({ title: OUTPUT_LABEL, hintLabel: "Что такое «в выпуске»", hint: <><p><b>{OUTPUT_LABEL}</b> — {scoped ? "при выбранном годе или фильтрах — заказ по нашим ТЗ (отчёт «заказ и продажи» по году и фильтрам не делится; без года и фильтров здесь заказ по отчёту)." : "заказ по отчёту «заказ и продажи»: FW 26/27 — заказано, закрытые сезоны — заказ = поступило."} Слева от числа — какая часть заказа пришла. «ТЗ» — сколько наших ТЗ по этим изделиям. Ремонт не входит.</p></>, qty: ordQty, orders: ordOrders, years: ordYears, orders2: drill?.orders ?? [], got: true, note: rep && ordQty !== ordOwn.reduce((a, o) => a + o.qty, 0) ? `из них заведено в ТЗ ${formatQty(Math.round(ordOwn.reduce((a, o) => a + o.qty, 0)))} шт.` : undefined, split: ordSplit })}
+        {outputTile({ title: "Произведено", hintLabel: "Что такое «произведено»", hint: <><p><b>Произведено</b> = «Получено» в «Продажи и остатки»: поступило в розницу по файлу «поступления и продажи» (сезоны — по сезону партии). «ТЗ» — сколько ТЗ закрыто приходом (изделия ещё у подрядчика сюда не входят). Стоимость и среднее справа — по ТЗ, на которые разложен приход; при выбранном годе или фильтрах — по нашим ТЗ.</p></>, qty: prodQty, orders: ready ? all.orders : NaN, years: prodYears, orders2: drillOrders, got: false, loading: !ready && !rep, split: prodSplit })}
         <TileCarousel sync={grpSync} clickable hoverBlocks title={`${COST_FULL_LABEL} произведённого`} hintLabel="Что такое полная себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
-            <p>Факт по всем ТЗ: мех + подкладка{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Без работы — «Себестоимость сырья»: <b>{money(cost(fact))}</b>.</p>
+            <p>Факт по ТЗ, на которые разложен приход: мех + подкладка{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Без работы — «Себестоимость сырья»: <b>{money(cost(fact))}</b>.</p>
             <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "–"}</b>. Режимы: {vatW}, {c4W}.</p>
-            <p className="mt-1">«Всего» включает ремонт; «Одежда» и «Аксессуары» — только изделия группы.</p>
+            <p className="mt-1">Считается по полученному, ремонт не входит; «Одежда» и «Аксессуары» — только изделия группы.</p>
           </>}
           slides={[
             { key: "total", label: "Всего", body: (

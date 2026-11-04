@@ -7,7 +7,7 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 import { showTotals } from "@/lib/orders-sum";
-import { COST_FULL_LABEL, OUTPUT_LABEL } from "@/lib/cost-labels";
+import { COST_FULL_LABEL, TZ_OUTPUT_LABEL as OUTPUT_LABEL, TZ_OUTPUT_NOTE } from "@/lib/cost-labels";
 import { TileCarousel } from "@/components/tile-carousel";
 import { GroupCostSlide, GroupProducedSlide, PROD_GROUPS } from "@/components/prod-group-slides";
 import { WidgetRow } from "@/components/widget-row";
@@ -53,21 +53,21 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
     <WidgetRow id={id} title={title} headerEnd={headerEnd} defaultCollapsed={defaultCollapsed}>
     <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (["xl:grid-cols-1", "xl:grid-cols-2", "xl:grid-cols-3", "xl:grid-cols-4", "xl:grid-cols-5"][Math.min(4, (hideProduced ? 0 : 1) + 1 + (hidePerUnit ? 0 : 1) + extraCount - 1)])}>
       {hideProduced ? null : carousel ? (
-        <TileCarousel clickable hoverBlocks title={OUTPUT_LABEL} hintLabel="Что такое «в выпуске»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
-          hint={<><p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ без отменённых и без ремонта. «Всего» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают «Всего» без ремонта). Ремонт — только в «Всего» и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
+        <TileCarousel clickable hoverBlocks title={OUTPUT_LABEL} hintLabel="Что такое «заведено в ТЗ»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
+          hint={<><p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ без отменённых и без ремонта. {TZ_OUTPUT_NOTE} «Всего» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают «Всего» без ремонта). Ремонт — только в «Всего» и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
           slides={[
-            { key: "total", label: "Всего", body: <a href={`#${treeId}`} className={slideLink} aria-label="В выпуске — перейти к составу">{producedTotal}</a> },
-            ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: <a href={`#${treeId}`} className={slideLink} aria-label={`В выпуске: ${g} — перейти к составу`}><GroupProducedSlide all={orders} grp={g} vat={vat} link /></a> })),
+            { key: "total", label: "Всего", body: <a href={`#${treeId}`} className={slideLink} aria-label="Заведено в ТЗ — перейти к составу">{producedTotal}</a> },
+            ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: <a href={`#${treeId}`} className={slideLink} aria-label={`Заведено в ТЗ: ${g} — перейти к составу`}><GroupProducedSlide all={orders} grp={g} vat={vat} link /></a> })),
           ]} />
       ) : (
       <div className="relative">
-        <a {...link(`#${treeId}`)} aria-label="В выпуске — перейти к составу">
+        <a {...link(`#${treeId}`)} aria-label="Заведено в ТЗ — перейти к составу">
           <TileHead>{OUTPUT_LABEL}</TileHead>
           {producedTotal}
         </a>
         <div className="absolute right-3 top-3">
-          <InfoHint label="Что такое «в выпуске»" wide align="right">
-            <p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ без отменённых и без ремонта (как на Главной). Ремонт считается отдельно (страница «Ремонт»).</p>
+          <InfoHint label="Что такое «заведено в ТЗ»" wide align="right">
+            <p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ без отменённых и без ремонта. {TZ_OUTPUT_NOTE} Ремонт считается отдельно (страница «Ремонт»).</p>
           </InfoHint>
         </div>
       </div>
@@ -87,7 +87,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
         </a>
         <div className="absolute right-3 top-3">
           <InfoHint label="Что такое себестоимость" wide align="right">
-            <p>Мех (с шкурами подрядчика) + подкладка + 4 % (в режиме «С 4 %») + расходы ТЗ и прочее + работа. Это та же «Полная себестоимость (с работой)», что в блоке «Производство» на Главной; без работы она называется «Себестоимость сырья» (таблица партий, «Аналитика → Изделия»); в неё входит ремонт (отдельной строкой «из них ремонт»). Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4 %" : "без 4 %"}.</p>
+            <p>Мех (с шкурами подрядчика) + подкладка + 4 % (в режиме «С 4 %») + расходы ТЗ и прочее + работа. Это «Полная себестоимость (с работой)» по всем заведённым ТЗ; на Главной та же формула, но только по полученному (без ремонта), поэтому там сумма меньше. Без работы она называется «Себестоимость сырья» (таблица партий, «Аналитика → Изделия»); в неё входит ремонт (отдельной строкой «из них ремонт»). Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4 %" : "без 4 %"}.</p>
           </InfoHint>
         </div>
       </div>
@@ -96,13 +96,13 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>На 1 изделие</TileHead>
           <TileValue>{own.qty > 0 ? money(totalOwn / own.qty) : "–"}</TileValue>
-          <TileCaption>{own.qty > 0 ? "полная себестоимость ÷ в выпуске, без ремонта" : "изделий нет"}</TileCaption>
+          <TileCaption>{own.qty > 0 ? "полная себестоимость ÷ заведено в ТЗ, без ремонта" : "изделий нет"}</TileCaption>
           {own.qty > 0 ? (
             <TileList items={[
               { k: "Сырьё (мех + подкладка)", v: money((own.fur + own.lining) / own.qty), share: share(own.fur + own.lining, totalOwn) },
               ...(c4 === "on" ? [{ k: "Надбавка 4 %", v: money(own.c4 / own.qty), share: share(own.c4, totalOwn) }] : []),
               ...(Math.abs(own.other) > 0.5 && Math.abs(own.other) >= totalOwn * 0.001 ? [{ k: "Расходы ТЗ и прочее", v: money(own.other / own.qty), share: share(own.other, totalOwn) }] : []),
-              { k: "Работа (начислено ÷ в выпуске)", v: money(own.work / own.qty), share: share(own.work, totalOwn) },
+              { k: "Работа (начислено ÷ заведено в ТЗ)", v: money(own.work / own.qty), share: share(own.work, totalOwn) },
             ]} />
           ) : null}
         </div>

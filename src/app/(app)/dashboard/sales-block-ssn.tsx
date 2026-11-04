@@ -10,7 +10,7 @@ import type { SsnData, SsnPart, SsnRow } from "./sales-block-data";
 const TD = "px-2 py-1.5 text-right tabular-nums", TH = "px-2 py-1 text-right";
 const share = (a: number, b: number) => (b !== 0 ? a / b : null);
 
-export function SsnTable({ data, v, vatNote, active }: { data: SsnData; v: "in" | "ex"; vatNote: string; active?: string }) {
+export function SsnTable({ data, v, vatNote, active, allTime = false }: { data: SsnData; v: "in" | "ex"; vatNote: string; active?: string; /** Год шапки выбран, а таблица считается по всем датам: сезон не режется годом. */ allTime?: boolean }) {
   const [view, setView] = useState<"rows" | "cols">("rows");
   const { rows, matrix, cal } = data;
   const sum = (f: (r: SsnRow) => number) => rows.reduce((a, r) => a + f(r), 0);
@@ -24,7 +24,7 @@ export function SsnTable({ data, v, vatNote, active }: { data: SsnData; v: "in" 
           <div role="group" aria-label="Вид таблицы" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
             {([["rows", "Календарные сезоны в строках"], ["cols", "Календарные сезоны в столбцах"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={view === k} onClick={() => setView(k)} className={"min-h-9 rounded-md px-3 text-sm " + (view === k ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")}>{t}</button>)}
           </div>
-          <span className="text-xs text-neutral-600">Календарный сезон — по дате (SS: февраль–июль, FW: август–январь). Выручка {vatNote}.</span>
+          <span className="text-xs text-neutral-600">Календарный сезон — по дате (SS: февраль–июль, FW: август–январь). Выручка {vatNote}.{allTime ? " Таблица за всё время: год из шапки здесь не применяется, сезон считается целиком." : ""}</span>
         </div>
         <div className="overflow-x-auto" data-keep-scroll tabIndex={0}>
           {view === "rows" ? (

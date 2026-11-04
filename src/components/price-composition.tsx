@@ -132,8 +132,6 @@ export function PriceCompositionChart({ slices, total, qty, qtyVals, unitName = 
         );
       })}
       <text x={C} y={C - 3} textAnchor="middle" className="fill-neutral-900 text-[11px] font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>{qty > 0 ? perUnit(total) : money(total)}</text>
-      <text x={C} y={C + 8} textAnchor="middle" className="fill-neutral-500 text-[5.5px]">{qty > 0 ? `за ${unitName}` : "всего"}</text>
-      {caption ? <text x={C} y={C + 16} textAnchor="middle" className="fill-neutral-500 text-[5px]">{caption}</text> : null}
     </svg>
   );
 
@@ -196,7 +194,7 @@ export function PriceCompositionChart({ slices, total, qty, qtyVals, unitName = 
   return (
     <div className="flex max-w-[56rem] flex-col gap-3">
       <div className={"flex flex-wrap items-start gap-x-6 gap-y-3 " + (compact ? "" : "")}>
-        <div className="mx-auto shrink-0 sm:mx-0 sm:self-center">{ring}</div>
+        <div className="mx-auto shrink-0 sm:mx-0 sm:self-center">{ring}<p className="mt-1 text-center text-[11px] leading-tight text-neutral-600">{qty > 0 ? `за ${unitName}` : "всего"}{caption ? ` · ${caption}` : ""}</p></div>
         {legend}
       </div>
       {bar}

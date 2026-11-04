@@ -299,13 +299,13 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="relative">
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-            <TileHead>В выпуске</TileHead>
+            <TileHead>Заведено в ТЗ</TileHead>
             <TileValue>{formatQty(sOwn.m.units)} шт.</TileValue>
             <TileCaption>{sOwn.m.orders} ТЗ · {sAll.batches} {sAll.batches === 1 ? "партия" : "партий"} пошива</TileCaption>
           </div>
           <div className="absolute right-3 top-3">
-            <InfoHint label="Что такое «в выпуске»" wide align="right">
-              <p><b>В выпуске</b> — все ТЗ без отменённых и без ремонта (как на Главной за {year === "all" ? "все годы" : `${year} год`}). Остальные плитки считаются по всем ТЗ года, включая ремонт{repairUnits > 0 ? ` (${formatQty(repairUnits)} шт.)` : ""}. {sOwn.m.items} позиций ТЗ.</p>
+            <InfoHint label="Что такое «заведено в ТЗ»" wide align="right">
+              <p><b>Заведено в ТЗ</b> — все ТЗ без отменённых и без ремонта. «В выпуске» на Главной — заказ по отчёту, в него входит и заказ без ТЗ. Остальные плитки считаются по всем ТЗ года, включая ремонт{repairUnits > 0 ? ` (${formatQty(repairUnits)} шт.)` : ""}. {sOwn.m.items} позиций ТЗ.</p>
             </InfoHint>
           </div>
         </div>

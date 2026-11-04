@@ -60,7 +60,7 @@ export function useDrill(search: Record<string, string[]>) {
     loadProductionDrill("all", search).then((d) => alive && setData(d)).catch(() => alive && setError(true));
     return () => { alive = false; };
   }, [search]);
-  return { data, error };
+  return { data, raw, error };
 }
 
 export function AveragesTile({ data, sync }: { data: DrillData | null; /** Общий индекс группы с плитками выше (индекс слайда; в этой плитке нет «Всего»). */ sync?: { index: number; onChange: (i: number) => void } }) {

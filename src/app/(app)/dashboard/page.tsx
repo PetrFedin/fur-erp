@@ -68,7 +68,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   // Сезоны по отчёту «заказ и продажи» (владелец 02.11.2026): «В выпуске» = заказано (FW25 и SS26 закрыты: заказ = поступило), «Произведено» = поступило.
   const reportSeasons = session.user.role === "SUPPLIER" ? null : await loadReportSeasonTotals(organizationId);
   const asOf = session.user.role === "SUPPLIER" ? null : await loadDataAsOf(organizationId);
-  const cashflow = session.user.role === "SUPPLIER" ? null : await loadCashflowOverview(organizationId, d.rawMoneyTotal.unreceived.names);
+  // Предоплата за непринятые заказы — как на странице Cashflow: по всем годам и без фильтров Главной (иначе при годе 2025 или фильтре «Соболь» она обнулялась).
+  const prepaidNames = session.user.role === "SUPPLIER" ? [] : year === "all" && !filtersOn ? d.rawMoneyTotal.unreceived.names : (await loadDashboard(organizationId, "all", parseDashFilters({}), "off")).rawMoneyTotal.unreceived.names;
+  const cashflow = session.user.role === "SUPPLIER" ? null : await loadCashflowOverview(organizationId, prepaidNames);
   const yl = yearLabel(year);
   const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, attr: f.attr, batch: f.batch, catgroup: f.catgroup, kind: f.kind ?? [] };
   const prodNums = (t: typeof d.prod.done) => ({ items: t.items, repairOrders: t.repairOrders, repairQty: t.repairQty, repairCostIncl: t.repairCostIncl, repairCostExcl: t.repairCostExcl, orders: t.orders, qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum, furIncl: t.furIncl, furExcl: t.furExcl, liningIncl: t.liningIncl, liningExcl: t.liningExcl, matIncl: t.furIncl + t.liningIncl, matExcl: t.furExcl + t.liningExcl, c4Incl: t.c4Incl, c4Excl: t.c4Excl });
@@ -129,9 +131,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           footer={
             <div className="mt-2 flex items-center gap-1 text-[11px] leading-4 text-neutral-500">
               <InfoHint label="Что фильтруется на Главной" wide>
-                <p>Год — общий, из шапки ({year === "all" ? "все годы" : `${year} год`}); ставки НДС показаны внутри карточек.</p>
+                <p><b>Год</b> ({year === "all" ? "все годы" : `${year} год`}), <b>цены (с НДС / без НДС)</b> и <b>4% к сырью</b> переключаются в шапке сайта и действуют на всю страницу; ставки НДС показаны внутри карточек.</p>
                 <p className="mt-1">Аукцион / закупка, вид меха, цвет и признак отбирают лоты (куплено, остаток, использовано) и ТЗ, где списан такой лот. Вид меха без лотов (например, бобр подрядчика) отбирает только ТЗ. Партия производства, группа категорий и тип отбирают ТЗ.</p>
-                <p className="mt-1">Фильтры сужают «Сырьё», «Производство», обе таблицы динамики и, по виду меха, «Продажи и остатки». «Оплаты» показывают деньги по выбранным лотам. Cashflow от фильтров не зависит: это все платежи и вся выручка{filtersOn ? " — сейчас фильтры включены" : ""}.</p>
+                <p className="mt-1">Фильтры сужают «Сырьё», «Производство», обе таблицы динамики и, по виду меха, «Продажи и остатки». «Оплаты» показывают деньги по выбранным лотам. Долг и оплаты поставщику (всегда с НДС) от фильтров и 4% не зависят; долг по работе подрядчику — в «Оплаты → За работу». «Динамика по годам» показывает все годы. Cashflow от фильтров не зависит: это все платежи и вся выручка{filtersOn ? " — сейчас фильтры включены" : ""}.</p>
               </InfoHint>
             </div>
           }
@@ -139,7 +141,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
 
       {/* ───────── Оплаты, долги, задачи ───────── */}
-      <PayTiles d={d} c4Mode={c4Mode} year={year} headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>} />
+      <PayTiles brief d={d} c4Mode={c4Mode} year={year} headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>} />
 
       {cashflow ? <CashflowOverview incl={cashflow.incl} ex={cashflow.ex} salesAll={cashflow.salesAll} period={parsePeriod(String(year))} prepaidBy={cashflow.prepaidBy} prepaidList={cashflow.prepaidList} /> : null}
 
@@ -161,7 +163,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       {/* Панель «Сезон» начинается с «Производства» и закреплена сверху при прокрутке «Производства» и «Продаж и остатков». */}
       <SeasonWrap seasons={salesBlock ? salesBlock.seasons : null}>
-        <ProductionBlock reportSeasons={reportSeasons} href={prodHref} vatCost={d.vat.cost} kind={f.kind?.[0] ?? ""} hides={d.hides} c4Parts={{ fur: { incl: Math.abs(d.raw.fur.incl.usedValue - d.raw.fur.incl.usedValueOther), excl: Math.abs(d.raw.fur.excl.usedValue - d.raw.fur.excl.usedValueOther) }, lining: { incl: Math.abs(d.raw.lining.incl.usedValue - d.raw.lining.incl.usedValueOther), excl: Math.abs(d.raw.lining.excl.usedValue - d.raw.lining.excl.usedValueOther) } }} years={d.years.filter((y) => y.key !== "all").map((y) => ({ label: y.label, qty: y.prod.qty }))} done={prodNums(d.prod.done)} all={prodNums(d.prod.all)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} info={info} bridge={{ usedBase: d.bridge.usedBase, comparable: d.bridge.usedComparable, lotFilters: lotFiltersOn(f), yearOnly: year !== "all" }} />
+        <ProductionBlock scoped={year !== "all" || filtersOn} reportSeasons={reportSeasons} href={prodHref} vatCost={d.vat.cost} kind={f.kind?.[0] ?? ""} hides={d.hides} c4Parts={{ fur: { incl: Math.abs(d.raw.fur.incl.usedValue - d.raw.fur.incl.usedValueOther), excl: Math.abs(d.raw.fur.excl.usedValue - d.raw.fur.excl.usedValueOther) }, lining: { incl: Math.abs(d.raw.lining.incl.usedValue - d.raw.lining.incl.usedValueOther), excl: Math.abs(d.raw.lining.excl.usedValue - d.raw.lining.excl.usedValueOther) } }} years={d.years.filter((y) => y.key !== "all").map((y) => ({ label: y.label, qty: y.prod.qty }))} done={prodNums(d.prod.done)} all={prodNums(d.prod.all)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} info={info} bridge={{ usedBase: d.bridge.usedBase, comparable: d.bridge.usedComparable, lotFilters: lotFiltersOn(f), yearOnly: year !== "all" }} />
 
         {/* ───────── Продажи и остатки (после «Оплат», последним на странице) ───────── */}
         {salesBlock ? <SalesBlockView b={salesBlock} /> : null}

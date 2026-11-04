@@ -12,6 +12,7 @@ import { loadProductionDrill } from "./actions";
 import { useSeasonScope } from "./season-scope";
 import { drillForSeason } from "@/lib/season-orders";
 import { withVolume } from "@/lib/dashboard-drill";
+import { isRepair } from "@/lib/orders-sum";
 import { levelFor, ROOT_MODES, type DrillData, type Item, type PathStep, type RootMode } from "@/lib/dashboard-drill";
 
 // Палитра — валидированная категориальная (навык dataviz): одна серия — синий, состав — фиксированный порядок оттенков.
@@ -53,7 +54,8 @@ export function ProductionModal({
   const [rawData, setData] = useState<DrillData | null>(null);
   const seasonSel = useSeasonScope()?.season ?? "all";
   // «Произведено» = получено по приходу, как плитка (иначе столбцы окна не сойдутся с плиткой): доля ТЗ модели qf.
-  const data = useMemo(() => withVolume(drillForSeason(rawData, seasonSel), "produced"), [rawData, seasonSel]);
+  // Окно раскрывает плитку, а плитка «Произведено» ремонт не включает (ремонт — отдельная страница): иначе Σ столбцов больше плитки на стоимость ремонта.
+  const data = useMemo(() => { const d = withVolume(drillForSeason(rawData, seasonSel), "produced"); return d ? { ...d, orders: d.orders.filter((o) => !isRepair(o)) } : d; }, [rawData, seasonSel]);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<RootMode>("batch");
   const [path, setPath] = useState<PathStep[]>([]);
@@ -120,6 +122,7 @@ export function ProductionModal({
           <div className="min-w-0">
             <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Стоимость производства</div>
             <h2 id="prod-modal-title" className="mt-0.5 text-lg font-semibold">{title}</h2>
+            <div className="mt-0.5 text-xs text-neutral-600">Окно раскрывает произведённое (получено по приходу). «В выпуске» — заказ, он больше: в него входит ещё не полученное.</div>
             <div className="mt-0.5 text-xs text-neutral-500">
               {vat === "incl" ? "С НДС" : "Без НДС"} · {data?.c4 === "on" ? "с 4%" : "без 4%"} · с работой
               <InfoHint label="Что в столбцах" wide>
@@ -212,13 +215,13 @@ export function ProductionModal({
                   const rep = level.items.reduce((x, i) => x + (i.repairQty ?? 0), 0);
                   return (
                     <p className="mt-2 text-xs font-medium text-neutral-800" data-testid="batch-sum-note">
-                      Партии {formatQty(ownQty)} + Вне партий {formatQty(noneQty)} = {formatQty(ownQty + noneQty)} шт. («В выпуске»); ремонт (ТЗ 116) — отдельно: {formatQty(rep)} шт.
+                      Партии {formatQty(ownQty)} + Вне партий {formatQty(noneQty)} = {formatQty(ownQty + noneQty)} шт. (произведено); ремонт — отдельно: {formatQty(rep)} шт.
                     </p>
                   );
                 })() : null}
                 {level.items.some((it) => it.key === "none" && /Вне партий/.test(it.label)) ? (
                   <p className="mt-2 text-xs text-neutral-600" data-testid="no-batch-note">
-                    <b>Вне партий</b> — ТЗ вне партий пошива (письмо №135): отдельная поставка (ТЗ 117) и переделка (ТЗ 116, ремонт, 7 шт.). Ремонт в «В выпуске» не входит.{" "}
+                    <b>Вне партий</b> — ТЗ вне партий пошива (письмо №135): отдельная поставка (ТЗ 117) и переделка (ТЗ 116, ремонт, 7 шт.). Ремонт в «Заведено в ТЗ» и «В выпуске» не входит.{" "}
                     <Link href="/production?batch=none" className="text-blue-700 underline-offset-2 hover:underline">Открыть эти ТЗ →</Link>
                   </p>
                 ) : null}

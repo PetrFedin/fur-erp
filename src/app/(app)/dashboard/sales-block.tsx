@@ -207,7 +207,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
       return [
         { k: "По себестоимости ТЗ", v: money(sm.soldCost) },
         { k: `Выручка, ${sw}`, v: money(sm.revenue) },
-        { k: "Gross (до скидки)", v: money(sm.grossRev) },
+        { k: "До скидки", v: money(sm.grossRev) },
         { k: "Скидка", v: money(sm.discount), share: sm.grossRev > 0.5 && sm.discount > 0.5 ? sm.discount / sm.grossRev : null, shareFirst: true },
         { k: "Ср. цена, ₽/шт.", v: moneyK(sm.avgPrice) },
         { k: "Маркап продаж", v: x2(sm.markupSold) },
@@ -311,7 +311,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         </div>
       </WidgetRow>
 
-      <SsnTable data={b.ssn[cls]} v={v} vatNote={vatNote} active={season === "all" ? undefined : season} />
+      <SsnTable data={b.ssn[cls]} v={v} vatNote={vatNote} active={season === "all" ? undefined : season} allTime={b.year !== "all"} />
 
       <FlowChart
         points={hotRow?.series ? slice.months[cls].map((m, i) => ({ key: m.key, label: m.label, received: hotRow.series!.r[i] ?? 0, sold: hotRow.series!.s[i] ?? 0, stock: hotRow.series!.st[i] ?? 0, soldBySeason: Object.fromEntries(Object.entries(hotRow.series!.ss).map(([k, a]) => [k, a[i] ?? 0])) })) : slice.months[cls]}

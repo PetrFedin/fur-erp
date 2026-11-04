@@ -4,7 +4,7 @@ import type { DrillOrder } from "@/lib/dashboard-drill";
 import { formatMoney, formatQty } from "@/lib/utils";
 
 // Очень простая таблица: сколько изделий получено за год и во что обошлось производство.
-// Строки — мех → категория 1 → категория 2, столбцы — статьи расходов; расходы ТЗ входят в мех. Числа те же, что в «Произведено» на Главной (с НДС, до тысяч).
+// Строки — мех → категория 1 → категория 2, столбцы — статьи расходов; расходы ТЗ входят в мех. Числа — по всем ТЗ (как «Заведено в ТЗ»), не по приходу (с НДС, до тысяч).
 
 const K = (v: number) => (Math.abs(v) < 500 ? "–" : formatMoney(Math.round(v / 1000) * 1000));
 const td = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
@@ -44,9 +44,13 @@ export function YearProductionTable({ orders, year }: { orders: DrillOrder[]; ye
   };
   const tot = sumOrders(own, "incl");
   return (
-    <section aria-label={`Изделия ${year}: расходы на производство`} className="rounded-lg border border-neutral-300 bg-white p-3" data-testid="year-production">
-      <h2 className="mb-2 text-sm font-semibold">Получено в {year} и расходы на производство, ₽ с НДС</h2>
-      <div className="overflow-x-auto rounded-lg border border-neutral-200" data-keep-scroll tabIndex={0}>
+    <details aria-label={`Изделия ${year}: расходы на производство`} className="group rounded-lg border border-neutral-300 bg-white p-3" data-testid="year-production">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+        <span aria-hidden className="inline-block text-neutral-500 transition-transform group-open:rotate-90">▸</span>
+        <h2 className="text-sm font-semibold">Заведено в ТЗ в {year} и расходы на производство, ₽ с НДС</h2>
+        <span className="ml-auto text-xs font-normal tabular-nums text-neutral-600">{formatQty(tot.qty)} шт. · {K(sumTotal(tot))}</span>
+      </summary>
+      <div className="mt-2 overflow-x-auto rounded-lg border border-neutral-200" data-keep-scroll tabIndex={0}>
         <table className="table-keep w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600">
@@ -73,6 +77,6 @@ export function YearProductionTable({ orders, year }: { orders: DrillOrder[]; ye
           </tbody>
         </table>
       </div>
-    </section>
+    </details>
   );
 }

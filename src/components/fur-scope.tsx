@@ -49,7 +49,8 @@ export function FurScope({ info, section = "home", children }: { /** Год и �
           </div>
           <span className="min-w-0 text-xs text-neutral-600" data-testid="fur-scope-now">
             <span className="sr-only" aria-live="polite">Выбрано: {FUR_SRC_LABEL[src]}. </span>
-            {info.year}{info.filters ? ` · ${info.filters}` : ""}
+            {/* Год уже написан в заголовке страницы: здесь только фильтры, если они включены. */}
+            {info.filters ?? ""}
           </span>
           <InfoHint label={section === "raw" ? "Что меняет источник закупки" : "Что меняет источник меха"} wide>
             <p>{section === "raw" ? "Источник действует на все данные раздела: плитки, закупки, лоты, годы и суммы. Подкладка закупается у поставщика." : "Источник действует на сырьё, динамику и состав стоимости меха. Производство и оплаты не меняются."}</p>

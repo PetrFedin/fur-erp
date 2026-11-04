@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { MiniSortTh, useMiniSort } from "@/components/mini-sort";
 
 /** Окно деталей поверх страницы: Esc и клик вне окна закрывают, фокус заперт внутри, на телефоне на весь экран (как в Cashflow). */
 export function SalesModal({ title, subtitle, onClose, children, wide = false }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
@@ -41,13 +42,14 @@ export function SalesModal({ title, subtitle, onClose, children, wide = false }:
 
 /** Небольшая таблица для окон: первый столбец слева, остальные числа справа. */
 export function MiniTable({ head, rows, total }: { head: string[]; rows: string[][]; total?: string[] }) {
+  const { rows: sorted, st, click } = useMiniSort(rows);
   const cell = (c: string, i: number, k: string | number) => <td key={k} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "text-left" : "text-right whitespace-nowrap")}>{c}</td>;
   return (
     <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0}>
       <table suppressHydrationWarning className="table-keep w-full border-collapse text-sm">
-        <thead><tr className="border-b border-neutral-300">{head.map((h, i) => <th key={h + i} scope="col" className={"px-2 py-2 text-xs font-semibold " + (i === 0 ? "text-left" : "text-right")}>{h}</th>)}</tr></thead>
+        <thead><tr className="border-b border-neutral-300">{head.map((h, i) => <MiniSortTh key={h + i} label={h} col={i} st={st} click={click} left={i === 0} />)}</tr></thead>
         <tbody>
-          {rows.map((r, ri) => <tr key={ri} className="border-b border-neutral-200">{r.map((c, i) => cell(c, i, i))}</tr>)}
+          {(sorted as string[][]).map((r, ri) => <tr key={ri} className="border-b border-neutral-200">{r.map((c, i) => cell(c, i, i))}</tr>)}
           {total ? <tr className="border-t-2 border-neutral-400 font-semibold">{total.map((c, i) => cell(c, i, i))}</tr> : null}
         </tbody>
       </table>

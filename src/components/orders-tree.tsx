@@ -350,7 +350,7 @@ export function OrdersTree({
                     <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><TotalLabel note="без ремонта" /></td>{figs(nonRepair, { pay: payBy ? { paid: sumPaid(orders.filter((o) => !isRepair(o))), work: nonRepair.work } : undefined })}
                   </tr>
                   <tr className="border-b border-neutral-100">
-                    <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><Link href="/repair" className="text-blue-700 hover:underline">Ремонт ›</Link><span className="ml-1.5 text-xs text-neutral-500">{repair.repairOrders} ТЗ, не входит в «В выпуске»</span></td>{figs(repair, { qty: false })}
+                    <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><Link href="/repair" className="text-blue-700 hover:underline">Ремонт ›</Link><span className="ml-1.5 text-xs text-neutral-500">{repair.repairOrders} ТЗ, не входит в «Заведено в ТЗ»</span></td>{figs(repair, { qty: false })}
                   </tr>
                   <tr className="row-total">
                     <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><TotalLabel note="с ремонтом" /></td>{figs(grand, { qty: false, pay: payBy ? { paid: sumPaid(orders), work: grand.work } : undefined })}

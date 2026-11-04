@@ -7,11 +7,12 @@ import { TotalLabel } from "@/components/total-label";
 const m = (v: { toString(): string }) => formatMoney(v.toString());
 
 /** Значок «i» у долга поставщику: из чего он складывается, три части, таблица по аукционам, правила года и 4%. Цифры — из loadSupplierDebt. */
-export function SupplierDebtHint({ debt, year = "all", align = "left" }: { debt: SupplierDebt; year?: YearFilter; align?: "left" | "right" }) {
+export function SupplierDebtHint({ debt, year = "all", align = "left", lead }: { debt: SupplierDebt; year?: YearFilter; align?: "left" | "right"; /** Что ещё сказать в этой же подсказке (на Главной — как сходится долг до зачёта аванса): одна «i» вместо двух. */ lead?: React.ReactNode }) {
   const rows = debt.byAuction.slice(0, 14);
   const rest = debt.byAuction.length - rows.length;
   return (
     <InfoHint wide align={align} label="Из чего складывается долг поставщику">
+      {lead ? <div className="mb-2 border-b border-neutral-200 pb-2">{lead}</div> : null}
       <p>
         <b>Долг поставщику (Веллмех), с НДС.</b> Стоимость закупок без отменённых <b>{m(debt.total)}</b> − оплачено <b>{m(debt.paid)}</b> − авансы без привязки{" "}
         <b>{m(debt.unlinkedAdvances)}</b> = <b>{m(debt.debt)}</b>. Переплата одного аукциона не гасит долг другого.

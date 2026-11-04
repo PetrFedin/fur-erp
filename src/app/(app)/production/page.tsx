@@ -657,14 +657,14 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         <p className="text-sm text-neutral-600">Найдено: {tzGroups.length} ТЗ · {priced.length} {positionsWord(priced.length)}</p>
       )}
 
-      <ProdTiles orders={grouped ? drill : slimForTiles(drill)} c4={c4Mode} treeId="orders-tree" id="orders" title="ТЗ — итоги" headerEnd={<Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии пошива</Link>} />
+      <ProdTiles orders={grouped ? drill : slimForTiles(drill)} c4={c4Mode} treeId="orders-tree" id="orders" title="Итоги" headerEnd={<Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии пошива</Link>} />
 
       {grouped ? (
         <OrdersTree
           orders={drill}
           c4={c4Mode}
           title="ТЗ по партиям пошива"
-          hint={<p><b>Партия пошива → ТЗ → состав.</b> Те же ТЗ и суммы, что в плитках выше и в блоке «Производство» на Главной. Другие разрезы — вкладки справа.</p>}
+          hint={<p><b>Партия пошива → ТЗ → состав.</b> Те же ТЗ и суммы, что в плитках выше. На Главной считается только полученное по приходу, поэтому там суммы меньше. Другие разрезы — вкладки справа.</p>}
           modes={[
             { id: "batch", label: "Партии", dims: ["batch", "order"] },
             { id: "year", label: "Годы → партии", dims: ["year", "batch", "order"] },
@@ -675,7 +675,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         />
       ) : (
       <>
-      <h2 className="text-base font-semibold">Список ТЗ</h2>
       <ResponsiveRows table={
       <Table anchor="table:production" label="Таблица ТЗ" stickyHeader className="min-w-[1040px]">
         <Thead>

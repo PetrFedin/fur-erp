@@ -3,7 +3,7 @@
 // Остаток расчётный: приход − продано нарастающим итогом (корректировки прихода с минусом и возвраты уже в штуках со знаком).
 import { exVatAt, vatPctAt, type FullLine } from "@/lib/margin";
 import { metricsOf, type Ctx, type Metrics, type ReportSizeRow } from "@/lib/margin-tree";
-import { CAT_LABEL, colorOfLine, furTypeOfFabric, variantOfArticle, type CatClass } from "@/lib/sales-receipts-core";
+import { articleKey, CAT_LABEL, colorOfLine, furTypeOfFabric, variantOfArticle, type CatClass } from "@/lib/sales-receipts-core";
 
 /** Строка выгрузки с полями для ленты движений: заказ, категории 1/4, источник. */
 export type SLine = FullLine & { id: string; orderNo: string; level2: string | null; level5: string | null; importTag: string };
@@ -217,7 +217,9 @@ export function totalSalesNode(ctx: Ctx, env: Env, lines: SLine[], preds: Pred[]
 /** Размеры из Report как справочный уровень под цветом: итоги по Report, с датами и сезонами не связаны. */
 export function sizeNodes(n: SNode, sizes: ReportSizeRow[], cat: Cat, colCount: number, vat: "in" | "ex" = "in"): SNode[] {
   if (n.dim !== "color" || !n.modelCode) return [];
-  const rows = sizes.filter((r) => r.modelCode === n.modelCode && colorOfLine(r.color) === n.label && (cat === "all" || r.cls === cat));
+  // Размеры того же АРТИКУЛА и цвета: разные артикулы одной модели (SILVER 4-5 / 6, WILD / FARM) не должны получать чужие размеры.
+  const sameArticle = (acode: string) => { if (!n.article) return true; const k = articleKey(n.article); if (articleKey(acode) === k) return true; const cut = acode.lastIndexOf("/"); return cut > 0 && articleKey(acode.slice(0, cut)) === k; };
+  const rows = sizes.filter((r) => r.modelCode === n.modelCode && sameArticle(r.acode) && colorOfLine(r.color) === n.label && (cat === "all" || r.cls === cat));
   return rows.map((r) => {
     const base = zeroExt();
     // Выручка размера — в режиме НДС таблицы (в Report скидки нет: Gross = выручка).
@@ -267,3 +269,22 @@ export function movements(lines: SLine[]): MoveRow[] {
 
 /** Ставка НДС строки (на дату продажи). */
 export const vatOf = vatPctAt;
+
+/**
+ * «В выпуске» = заказ по отчёту «заказ и продажи» (решение владельца 05.11.2026): закрытые сезоны (FW 25/26, SS 2026) — заказано = получено по файлу прихода,
+ * открытый FW 26/27 — заказано по отчёту, но не меньше полученного. Та же формула, что на Главной (production-block.tsx) и в таблице сезонов.
+ * Категория учитывается; период и прочие фильтры — нет (заказ не привязан к дате прихода).
+ */
+export function orderedByReport(sizes: ReportSizeRow[], lines: FullLine[], cat: Cat): number {
+  const OPEN = "FW 26/27";
+  const got = new Map<string, number>();
+  for (const l of lines) {
+    if (l.kind !== "RECEIPT" || !l.pcs || (cat !== "all" && l.cls !== cat)) continue;
+    got.set(l.season, (got.get(l.season) ?? 0) + l.pcs);
+  }
+  const conf = sizes.filter((r) => cat === "all" || r.cls === cat).reduce((a, r) => a + (r.seas?.["FW26/27"]?.conf ?? 0), 0);
+  let total = 0;
+  for (const [season, v] of got) total += season === OPEN ? Math.max(conf, v) : v;
+  if (!got.has(OPEN)) total += conf;
+  return total;
+}

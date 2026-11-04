@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { BTN, BTN_PRIMARY, FIELD, Modal, dateRu } from "./ui";
+import { BTN, BTN_PRIMARY, BTN_SECONDARY, FIELD, Modal, dateRu } from "./ui";
 import { createPcs, duplicatePcs, exportPcsXlsx, removePcs, renamePcs } from "./pcs/actions";
 import { saveBase64Xlsx } from "@/lib/download-xlsx";
 
@@ -32,7 +32,7 @@ export function PcsCards({ items, canEdit }: { items: PcsCard[]; canEdit: boolea
     <section aria-label="Budget PCS" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold">Бюджет FW27 + статистика</h2>
-        {canEdit ? <button type="button" onClick={() => setDialog({ kind: "new" })} className={BTN_PRIMARY}>+ Новый файл</button> : null}
+        {canEdit ? <button type="button" onClick={() => setDialog({ kind: "new" })} className={BTN_SECONDARY}>+ Новый файл</button> : null}
       </div>
       {error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p> : null}
       <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">

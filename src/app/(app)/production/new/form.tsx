@@ -449,7 +449,7 @@ function FormBody({
         </ul>
       )}
 
-      <Step n={1} title="Параметры" id="params" hint={<><p>Что заведено в ТЗ — те же поля, что на карточке. Артикул, цвет, вид меха, партия, заказчик выбираются из справочников или вносятся новые.</p><p className="mt-1">Количество → «В выпуске» и «Изделия»; работа ₽/ед. × количество → себестоимость и оплаты за работу; партия → «Партии пошива»; артикул → категория, группа и цена продажи.</p></>}>
+      <Step n={1} title="Параметры" id="params" hint={<><p>Что заведено в ТЗ — те же поля, что на карточке. Артикул, цвет, вид меха, партия, заказчик выбираются из справочников или вносятся новые.</p><p className="mt-1">Количество → «Заведено в ТЗ» и «Изделия»; работа ₽/ед. × количество → себестоимость и оплаты за работу; партия → «Партии пошива»; артикул → категория, группа и цена продажи.</p></>}>
         <div className={`${cardCls} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
           <Field label="Артикул *" className="sm:col-span-2" hint="Выберите артикул из справочника или «+ Ввести новый артикул» — он сразу сохранится в справочник артикулов.">
             <ArticleSelect name="articleText" onlyActive defaultValue={initialArticleId || undefined} onChange={(a) => setModelId(a?.id ?? "")} />
@@ -522,7 +522,7 @@ function FormBody({
           </Field>
 
           <Field htmlFor="size" label="Размеры"><Input id="size" name="size" placeholder="42, 44" value={f.size ?? ""} onChange={set("size")} /></Field>
-          <Field htmlFor="plannedQuantity" label="Кол-во изделий, шт *" hint="Плановое количество. Уходит в «В выпуске», «Изделия», себестоимость на 1 изделие и работу.">
+          <Field htmlFor="plannedQuantity" label="Кол-во изделий, шт *" hint="Плановое количество. Уходит в «Заведено в ТЗ», «Изделия», себестоимость на 1 изделие и работу.">
             <Input id="plannedQuantity" name="plannedQuantity" type="number" step="1" min="1" inputMode="numeric" value={f.plannedQuantity ?? ""} onChange={set("plannedQuantity")} />
           </Field>
           <Field htmlFor="clientWorkPricePerUnit" label="Работа, ₽ за шт." hint="Цена работы подрядчика за единицу. Сумма = цена × количество — входит в себестоимость и оплаты за работу.">

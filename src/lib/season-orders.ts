@@ -19,7 +19,8 @@ export function ordersForSeason(orders: DrillOrder[], season: string): DrillOrde
   if (season === "all") return orders;
   const out: DrillOrder[] = [];
   for (const o of orders) {
-    if (o.id.startsWith("no-tz")) continue; // получено без ТЗ — только в «Все сезоны» и в открытом сезоне ниже
+    // Получено без ТЗ: в «Все сезоны» и в открытом сезоне (как в producedSeasons: всё без ТЗ — это приход FW 26/27); закрытые сезоны его не получают.
+    if (o.id.startsWith("no-tz")) { if (season === OPEN_SEASON) out.push({ ...o, orig: o, sn: season }); continue; }
     // Закрытые сезоны (FW 25/26, SS 2026): всё получено, заказ = приход — ТЗ берётся долей полученного (qd × доля сезона), «ждём» и «сверх ТЗ» нет.
     if (season !== OPEN_SEASON && o.qf !== undefined) {
       const w = o.swd?.[season] ?? 0;

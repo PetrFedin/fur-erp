@@ -130,7 +130,7 @@ export default async function BatchPrintPage({
               <td className={tdr}>{t.orders}{itemsSuffix(t.orders, t.items)}</td>
             </tr>
             <tr>
-              <td className={td}>В выпуске, шт.</td>
+              <td className={td}>Заведено в ТЗ, шт.</td>
               <td className={tdr}>{formatQty(t.producedUnits.toString())}</td>
             </tr>
             <tr>

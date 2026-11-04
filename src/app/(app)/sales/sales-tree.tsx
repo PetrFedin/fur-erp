@@ -28,12 +28,12 @@ export const MEASURES: Measure[] = [
   { key: "sellThrough", label: "Распродано, %", hint: <p>Продано ÷ получено, единицы. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений.</p>, fmt: (m) => pct(m.sellThrough) },
   { key: "revenue", label: "Выручка", money: true, hint: <p>Розничная выручка после скидки, возвраты минус; с НДС или без — по переключателю.</p>, fmt: (m) => money(m.revenue) },
   { key: "revenueEur", label: "Выручка", money: true, eur: true, hint: <p>Розничная выручка в евро после скидки, возвраты минус; с НДС или без — по переключателю.</p>, fmt: (m) => eur(m.revenueEur) },
-  { key: "grossRev", label: "Розница до скидки (Gross)", money: true, hint: <p>Gross = Выручка + Скидка (Discount).</p>, fmt: (m) => money(m.grossRev) },
+  { key: "grossRev", label: "Розница до скидки", money: true, hint: <p>Розница до скидки = Выручка + Скидка.</p>, fmt: (m) => money(m.grossRev) },
   { key: "discountSum", label: "Скидка", money: true, hint: <p>Discount файла, уже вычтен из выручки.</p>, fmt: (m) => money(m.discountSum) },
-  { key: "discountGiven", label: "Скидка, %", hint: <p>Скидка при продаже = Discount ÷ Gross.</p>, fmt: (m) => pct(m.discountGiven === null ? null : m.discountGiven, 1) },
+  { key: "discountGiven", label: "Скидка, %", hint: <p>Скидка при продаже = Скидка ÷ розница до скидки.</p>, fmt: (m) => pct(m.discountGiven === null ? null : m.discountGiven, 1) },
   { key: "avgPrice", label: "Цена продажи, ₽/шт.", hint: <p>Выручка ÷ проданные штуки (средневзвешенно).</p>, fmt: (m) => money(m.avgPrice) },
   { key: "avgPriceEur", label: "Цена продажи, €/шт.", hint: <p>Выручка в евро ÷ проданные штуки (средневзвешенно).</p>, fmt: (m) => eur(m.avgPriceEur) },
-  { key: "priceBefore", label: "Цена до скидки, ₽/шт.", hint: <p>Gross ÷ проданные штуки (средневзвешенно).</p>, fmt: (m) => money(m.priceBefore) },
+  { key: "priceBefore", label: "Цена до скидки, ₽/шт.", hint: <p>Розница до скидки ÷ проданные штуки (средневзвешенно).</p>, fmt: (m) => money(m.priceBefore) },
   { key: "listPrice", label: "Прайс, ₽/шт.", hint: <p>Цена прайса 19.10.2026, средняя по проданным штукам.</p>, fmt: (m) => money(m.listPrice) },
   { key: "priceToList", label: "К прайсу, %", hint: <p>Выручка с НДС ÷ (штуки × прайс) − 1.</p>, fmt: (m) => spct(m.priceToList) },
   { key: "unitCost", label: "Себестоимость", money: true, hint: <p>Себестоимость единицы из ТЗ (с работой) по проданным единицам, где она есть.</p>, fmt: (m) => money(m.unitCost) },
@@ -130,18 +130,27 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
   // Заказано по узлу: строки отчёта с тем же Кат.1 / Кат.2 / мехом / артикулом / цветом, что в пути узла (/cls:…/fur:…/article:…/color:…).
   const fabricByArt = useMemo(() => { const m: Record<string, string> = {}; for (const l of lines) if (l.fabric && !m[l.article]) { m[l.article] = l.fabric; m[articleKey(l.article)] = l.fabric; } return m; }, [lines]);
   const rowKey = (r: ReportSizeRow, d: string) => d === "cls" ? r.cls : d === "c2" ? (r.l4 || r.l3 || "Без категории").trim() : d === "fur" ? furKeyOfRow(r, fabricByArt) : d === "article" ? r.acode : d === "color" ? colorOfLine(r.color) : "";
-  const seasonKey = (s: string) => s.replace(/\s+/g, "");
-  const confOf = (n: SNode, gi: number) => {
+  const seasonKey = (s: string) => ({ "FW25/26": "FW25/26", SS2026: "SS26", "FW26/27": "FW26/27" } as Record<string, string>)[s.replace(/\s+/g, "")] ?? s.replace(/\s+/g, "");
+  const confOf = (n: SNode, gi: number, recv = 0) => {
     if (!hasConf || n.dim === "size") return DASH;
-    const segs = n.id === "total" ? [] : n.id.split("/").filter(Boolean).map((s) => [s.slice(0, s.indexOf(":")), s.slice(s.indexOf(":") + 1)] as const);
+    const segs = n.id === "total" ? [] : n.id.split(/\/(?=(?:cls|c2|fur|article|color|size):)/).filter(Boolean).map((s) => [s.slice(0, s.indexOf(":")), s.slice(s.indexOf(":") + 1)] as const);
     const rs = confRows.filter((r) => segs.every(([d, k]) => (d === "article" ? articleKey(r.acode) === articleKey(k) : rowKey(r, d) === k)));
     const season = gi > 0 ? seasonKey(groups[gi - 1]?.head ?? "") : null;
-    const v = rs.reduce((a, r) => { if (!season) return a + (r.conf ?? 0); const c = r.seas?.[season]; return a + (c ? (season === "FW26/27" ? c.conf ?? 0 : c.conf ?? c.deliv ?? 0) : 0); }, 0);
-    return v ? n0(v) : DASH;
+    const confOfSeason = (sk: string) => rs.reduce((a, r) => a + (r.seas?.[sk]?.conf ?? 0), 0);
+    // «Всего» = сумма колонок сезонов (закрытые — по приходу файла, FW26 — заказ отчёта), а не Conf отчёта целиком (876): иначе «Всего» ≠ 292 + 61 + 509.
+    if (!season) {
+      const tot = groups.reduce((a, g, i) => a + (seasonKey(g.head ?? "") === "FW26/27" ? confOfSeason("FW26/27") : n.cols[i + 1]?.received ?? 0), 0);
+      return tot ? n0(tot) : DASH;
+    }
+    const v = season === "FW26/27" ? confOfSeason(season) : 0;
+    // Закрытые сезоны (SS26, FW25): заказано = получено по файлу прихода (как в таблице «Сезоны»); FW26 — заказ отчёта.
+    const closed = season !== null && season !== "FW26/27";
+    const out = closed ? recv : v;
+    return out ? n0(out) : DASH;
   };
   const cell = (ms: Measure, n: SNode, m: Ext, gi: number) => {
     if (ms.totalOnly && gi > 0) return DASH;
-    if (ms.key === "conf") return confOf(n, gi);
+    if (ms.key === "conf") return confOf(n, gi, m.received);
     if (n.dim === "size" && !["received", "sold", "revenue", "avgPrice", "stock", "sellThrough"].includes(ms.key)) return DASH;
     if (m.sold === 0 && m.received === 0 && m.discountSum === 0) return DASH;
     return ms.fmt(m);
@@ -170,10 +179,21 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
     URL.revokeObjectURL(a.href);
   };
 
+  /** Сортировка по клику на подпись показателя: порядок строк среди соседей одного уровня (повторный клик — обратный, третий снимает). */
+  const [colSort, setColSort] = useState<{ gi: number; key: string; dir: "asc" | "desc" } | null>(null);
+  const clickSort = (gi: number, key: string) => setColSort((c) => (c && c.gi === gi && c.key === key ? (c.dir === "asc" ? { gi, key, dir: "desc" } : null) : { gi, key, dir: "asc" }));
+  const sortVal = (n: SNode): number => {
+    if (!colSort) return 0;
+    const m = n.cols[colSort.gi];
+    if (colSort.key === "conf") { const t = confOf(n, colSort.gi, m?.received ?? 0).replace(/[\s\u00a0]/g, ""); const v = Number(t); return Number.isFinite(v) ? v : -1; }
+    const v = (m as unknown as Record<string, unknown> | undefined)?.[colSort.key];
+    return typeof v === "number" && Number.isFinite(v) ? v : -1;
+  };
+  const sortKids = (ns: SNode[]): SNode[] => (colSort ? [...ns].sort((x, y) => (colSort.dir === "desc" ? -1 : 1) * (sortVal(x) - sortVal(y)) || x.label.localeCompare(y.label, "ru", { numeric: true })) : ns);
   const renderNode = (n: SNode, depth: number): React.ReactNode => {
     const isTotal = n.id === "total";
     const isOpen = isTotal || open.includes(n.id);
-    const k = kids(n);
+    const k = sortKids(kids(n));
     const hasPhoto = !isTotal && n.modelCode && (n.dim === "article" || n.dim === "color");
     const photo = hasPhoto ? photos[n.modelCode!] : undefined;
     const vphotos = photo && n.variant ? photo.photos.filter((p) => p.variant.trim().toUpperCase() === n.variant!.trim().toUpperCase()) : [];
@@ -228,8 +248,11 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
             </tr>
             <tr className="border-b border-neutral-300">
               {heads.map((h, gi) => msOf(gi).map((ms) => (
-                <th key={h + ms.key} scope="col" className={th + " sticky top-9 z-[2] h-9 bg-white font-normal text-neutral-700"}>
-                  {ms.label}{ms.money ? (ms.eur ? ", €" : ", ₽") : ""}{gi === 0 ? <InfoHint label={`Как считается: ${ms.label}`} wide>{ms.hint}</InfoHint> : null}
+                <th key={h + ms.key} scope="col" aria-sort={colSort && colSort.gi === gi && colSort.key === ms.key ? (colSort.dir === "asc" ? "ascending" : "descending") : undefined} className={th + " sticky top-9 z-[2] h-9 bg-white font-normal text-neutral-700"}>
+                  <button type="button" onClick={() => clickSort(gi, ms.key)} aria-label={`Сортировать: ${h}, ${ms.label}`} className="hover:underline max-md:min-h-11">
+                    {ms.label}{ms.money ? (ms.eur ? ", €" : ", ₽") : ""}<span aria-hidden className="inline-block w-2.5 text-[10px] text-[color:var(--ui-accent)]">{colSort && colSort.gi === gi && colSort.key === ms.key ? (colSort.dir === "asc" ? "▲" : "▼") : ""}</span>
+                  </button>
+                  {gi === 0 ? <InfoHint label={`Как считается: ${ms.label}`} wide>{ms.hint}</InfoHint> : null}
                 </th>
               )))}
             </tr>

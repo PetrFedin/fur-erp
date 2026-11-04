@@ -216,7 +216,7 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <StageLegend />
-        <InfoHint wide label="Как читать стадии">Изделие проходит стадии слева направо: план → сырьё (мех уже закуплен и списан) → в работе (раскрой / пошив) → готово → отгружено. Под числом — ожидаемые сроки ТЗ этой стадии (от самого раннего до самого позднего), «без срока» — ТЗ, у которых срока нет. Ремонт — отдельно, в «В выпуске» не входит: итог «Всего с ремонтом» ({formatQty(sumOf(t.grand, true))} шт.) = «В выпуске» {formatQty(sumOf(t.grand, false))} шт. + ремонт {formatQty(t.grand.repair)} шт. Число изделий без ремонта: {formatQty(sumOf(t.grand, false))} шт.</InfoHint>
+        <InfoHint wide label="Как читать стадии">Изделие проходит стадии слева направо: план → сырьё (мех уже закуплен и списан) → в работе (раскрой / пошив) → готово → отгружено. Под числом — ожидаемые сроки ТЗ этой стадии (от самого раннего до самого позднего), «без срока» — ТЗ, у которых срока нет. Ремонт — отдельно, в «Заведено в ТЗ» не входит: итог «Всего с ремонтом» ({formatQty(sumOf(t.grand, true))} шт.) = «Заведено в ТЗ» {formatQty(sumOf(t.grand, false))} шт. + ремонт {formatQty(t.grand.repair)} шт. Число изделий без ремонта: {formatQty(sumOf(t.grand, false))} шт.</InfoHint>
       </div>
       {open.length > 0 && (
         <section id="cell" aria-label="ТЗ ячейки" className="flex flex-col gap-1 rounded-lg border border-neutral-200 bg-white p-3">

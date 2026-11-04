@@ -25,7 +25,7 @@ export const TERMS = {
   overpay: "Переплата",
   total: "Общая стоимость",
   stock: "Остаток на складе",
-  inProduction: "В выпуске",
+  inProduction: "В выпуске", // заказ по отчёту; ТЗ-страницы: «Заведено в ТЗ» (cost-labels.ts)
   sold: "Продано",
 } as const;
 

@@ -9,6 +9,8 @@ export { money, qty, pct, share, dateRu };
 
 export const BTN = "btn-accent inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-800 transition hover:bg-neutral-50 disabled:opacity-50 md:min-h-8 md:py-1";
 export const BTN_PRIMARY = "btn-accent inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-neutral-900 px-3 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 md:min-h-8 md:py-1";
+/** Второстепенное действие рядом с главным (одна главная кнопка на экран): та же форма, рамка вместо заливки. */
+export const BTN_SECONDARY = "btn-accent inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-50 md:min-h-8 md:py-1";
 export const FIELD = "ui-field w-full rounded-lg border border-neutral-300 bg-white px-2.5 py-2 text-sm focus-visible:outline-none md:py-1.5";
 /** Сегмент-переключатель (как на Главной): активная кнопка bg-neutral-900 text-white. */
 export const SEG_BOX = "inline-flex overflow-hidden rounded-lg border border-neutral-300 text-xs";

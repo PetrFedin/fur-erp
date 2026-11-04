@@ -24,14 +24,14 @@ function Trend({ cur, prev }: { cur: number | null; prev: number | null | undefi
   return <span role="img" aria-label={up ? "выше, чем в прошлом сезоне" : "ниже, чем в прошлом сезоне"} className="ml-1 text-xs text-neutral-600">{up ? "▲" : "▼"}</span>;
 }
 
-export function SeasonsTab({ ctx, env, lines, vatNote, gran, onGran, ex }: Common & { gran: Gran; onGran: (g: Gran) => void; ex: boolean }) {
-  const rows = useMemo(() => bucketsOf(ctx, env, lines, "season", 0), [ctx, env, lines]);
-  const series = useMemo(() => bucketsOf(ctx, env, lines, gran, 0), [ctx, env, lines, gran]);
+export function SeasonsTab({ ctx, env, lines, vatNote, gran, onGran, ex, opening = 0 }: Common & { gran: Gran; onGran: (g: Gran) => void; ex: boolean; /** Остаток на начало периода (при фильтре периода): без него накопительный остаток «Динамики» стартует с нуля и расходится с плиткой. */ opening?: number }) {
+  const rows = useMemo(() => bucketsOf(ctx, env, lines, "season", opening), [ctx, env, lines, opening]);
+  const series = useMemo(() => bucketsOf(ctx, env, lines, gran, opening), [ctx, env, lines, gran, opening]);
   if (!rows.length) return <section className={sec}><p className="text-sm text-neutral-700">Нет данных за выбранный период.</p></section>;
   const cols: { label: string; get: (m: Ext, stock: number) => number | null; fmt: (v: number | null) => string }[] = [
     { label: "Приход, шт.", get: (m) => m.received, fmt: (v) => n0(v ?? 0) },
     { label: "Продано, шт.", get: (m) => m.sold, fmt: (v) => n0(v ?? 0) },
-    { label: "Остаток на конец, шт.", get: (_m, s) => s, fmt: (v) => n0(v ?? 0) },
+    { label: "Остаток на конец периода (накопительно), шт.", get: (_m, s) => s, fmt: (v) => n0(v ?? 0) },
     { label: "Распродано, %", get: (m) => m.sellThrough, fmt: (v) => pct(v) },
     { label: `Выручка, ₽ (${vatNote})`, get: (m) => m.revenue, fmt: (v) => money(v) },
     { label: "Средняя цена, ₽", get: (m) => m.avgPrice, fmt: (v) => money(v) },

@@ -21,7 +21,7 @@ function niceMax(v: number) {
 
 const H = 230, PT = 14, PB = 46, PL = 46, PR = 52;
 
-export function Chart({ pts, series, label, testId, valueLabels = [] }: { pts: Pt[]; series: Series[]; label: string; testId: string; /** Ряды, над которыми подписываются значения (например, «Продано, шт.» и «Остаток, шт.» при наведении на строку таблицы). */ valueLabels?: string[] }) {
+export function Chart({ pts, series, label, testId, valueLabels = [], selectedKey = null, onSelect }: { pts: Pt[]; series: Series[]; label: string; testId: string; /** Выбранный месяц (подсвечен) и обработчик клика по периоду: повторный клик снимает выбор. */ selectedKey?: string | null; onSelect?: (key: string | null) => void; /** Ряды, над которыми подписываются значения (например, «Продано, шт.» и «Остаток, шт.» при наведении на строку таблицы). */ valueLabels?: string[] }) {
   const [hot, setHot] = useState<number | null>(null);
   /** Ряд, на который навели в подписях под графиком: остальные приглушаются (мышь, клавиатура, касание). */
   const [hotS, setHotS] = useState<string | null>(null);
@@ -60,8 +60,8 @@ export function Chart({ pts, series, label, testId, valueLabels = [] }: { pts: P
             </g>
           ))}
           {pts.map((p, i) => (
-            <g key={p.key} onMouseEnter={() => setHot(i)} onClick={() => setHot(i)}>
-              <rect x={PL + i * colW} y={PT} width={colW} height={H - PT - PB} fill={hot === i ? "#f5f5f5" : "transparent"} />
+            <g key={p.key} onMouseEnter={() => setHot(i)} onClick={() => { setHot(i); onSelect?.(selectedKey === p.key ? null : p.key); }} className={onSelect ? "cursor-pointer" : undefined} role={onSelect ? "button" : undefined} aria-pressed={onSelect ? selectedKey === p.key : undefined} aria-label={onSelect ? `${p.label}: показать только этот месяц` : undefined} tabIndex={onSelect ? 0 : undefined} onKeyDown={onSelect ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(selectedKey === p.key ? null : p.key); } } : undefined}>
+              <rect x={PL + i * colW} y={PT} width={colW} height={H - PT - PB} fill={selectedKey === p.key ? "#e8eefc" : hot === i ? "#f5f5f5" : "transparent"} stroke={selectedKey === p.key ? "#4f6bb5" : "none"} />
               {bars.map((s, si) => {
                 const v = s.vals[i], h = (H - PT - PB) * (v / maxL);
                 if (s.parts && v > 0) {

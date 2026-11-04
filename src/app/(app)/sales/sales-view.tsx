@@ -8,7 +8,7 @@ import type { DatamartStock } from "@/lib/datamart-stock";
 import { makeCtx, type ReportSizeRow } from "@/lib/margin-tree";
 import { deserializeInput, type MarginInputS } from "@/lib/margin";
 import { CAT_LABEL, articleKey } from "@/lib/sales-receipts-core";
-import { addDays, applyFilters, cat2Of, furOf, bucketsOf, extOf, groupBy, lastMonthOf, NO_FILTERS, openingStock, sortSeasons, type Cat, type Ext, type Filters, type SLine } from "@/lib/sales-section";
+import { addDays, applyFilters, cat2Of, furOf, bucketsOf, extOf, groupBy, lastMonthOf, NO_FILTERS, openingStock, orderedByReport, sortSeasons, type Cat, type Ext, type Filters, type SLine } from "@/lib/sales-section";
 import { DEFAULT_UI, TABS, uiQuery, type Tab, type Ui } from "@/lib/sales-url";
 import { DASH, btn, dateRu, money, moneyC, n0, pct, seg, segGroup } from "./sales-fmt";
 import { MiniTable, SalesModal } from "./sales-modal";
@@ -18,7 +18,7 @@ import type { Chain } from "@/lib/sales-server";
 import { SalesTree, type PhotoIdx } from "./sales-tree";
 import { SeasonReport } from "./season-report";
 
-type Props = { input: MarginInputS; sizes: ReportSizeRow[]; photos: PhotoIdx; today: string; initial: Ui; chain: Chain; dmStock?: DatamartStock | null; reportDate?: string; tzAwait: { fur: string; cls: string; qty: number }[] };
+type Props = { input: MarginInputS; sizes: ReportSizeRow[]; photos: PhotoIdx; today: string; initial: Ui; chain: Chain; dmStock?: DatamartStock | null; reportDate?: string; tzAwait: { fur: string; cls: string; qty: number; model: string }[] };
 
 type Col = { head: string; get: (e: Ext) => string };
 type TileDef = { id: string; label: string; value: string; sub?: string; how: React.ReactNode; cols: Col[]; extra?: React.ReactNode };
@@ -117,7 +117,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
     { id: "sold", label: "Продано, шт.", value: n0(head.sold), sub: `выручка ${moneyC(head.revenue)} · ${vatNote}`,
       how: <><p>Нетто = валовое {n0(head.gross)} − возвраты {n0(head.returns)}. Деньги — за тот же период ({vatNote}; НДС 20 % до 2026, 22 % с 2026).</p>{head.noPcs > 0 ? <p className="mt-1">{head.noPcs} строк продаж без штук: только скидка, в штуки не входят.</p> : null}</>,
       cols: [{ head: "Нетто, шт.", get: (e) => n0(e.sold) }, { head: "Выручка, ₽", get: (e) => money(e.revenue) }, { head: "Ср. цена, ₽", get: (e) => money(e.avgPrice) }, { head: "Скидка", get: (e) => pct(e.discountGiven, 1) }, { head: "Маржа", get: (e) => (e.grossMarginPct === null ? DASH : pct(e.grossMarginPct / 100, 1)) }] },
-    { id: "stock", label: "Остаток, шт.", value: n0(stockEnd), sub: dmRef !== null && isPlain ? `datamart на ${dmDate}: ${n0(dmRef)} · разница ${n0(Math.abs(dmDiff))}` : hasReport && isPlain ? `Report на ${reportDate}: ${n0(reportStock)} · разница ${n0(Math.abs(diff))}` : "приход − продано",
+    { id: "stock", label: "Остаток, шт.", value: n0(stockEnd), sub: dmRef !== null && isPlain ? `datamart на ${dmDate}: ${n0(dmRef)} · разница ${n0(Math.abs(dmDiff))}` : hasReport && isPlain ? `Отчёт на ${reportDate}: ${n0(reportStock)} · разница ${n0(Math.abs(diff))}` : "приход − продано",
       how: <><p>Расчётный остаток = приход − продано нарастающим итогом на конец периода{opening ? ` (на начало периода: ${n0(opening)} шт.)` : ""}.</p>{dmStock && dmRef !== null && isPlain ? <p className="mt-1">Остаток по витрине datamart (по нашим заказам): {dmStock.snapshots.map((x) => `${x.date.split("-").reverse().join(".")} — ${n0(ui.f.cat === "clothes" ? x.rtw : ui.f.cat === "acc" ? x.acc : x.total)} шт.`).join(", ")}. Расчёт на {dmDate}: {n0(stockEnd)} шт., разница {n0(Math.abs(dmDiff))} шт.</p> : null}{hasReport && isPlain ? <p className="mt-1">В отчёте о товарах (Report) на {reportDate} остаток {n0(reportStock)} шт., расчёт даёт {n0(stockEnd)} шт.: {diff === 0 ? "совпадает" : `разница ${n0(Math.abs(diff))} шт.`}. Причина в выгрузке не видна.</p> : null}</>,
       cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "Остаток", get: (e) => n0(e.stock) }] },
     { id: "sellThrough", label: "Распродано, %", value: pct(head.sellThrough), sub: "продано ÷ получено",
@@ -126,11 +126,13 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
   ];
   // Цепочка по фактам владельца: заказано (все ТЗ без ремонта) → получено в рознице (приход) → продано → остаток. То, что не получено, считаем «в производстве»
   // (статус по таким изделиям не знаем); получено = отгружено и принято, поэтому отдельной «готовой продукции на складе ателье» в этой цепочке нет.
-  const ordered = chain.produced + chain.inWork;
+  // «В выпуске» = заказ по отчёту (как на Главной): закрытые сезоны = приход, FW 26/27 = заказано. ТЗ заведено — chain.produced + chain.inWork (без ремонта).
+  const ordered = orderedByReport(sizes, all, ui.f.cat);
+  const inTz = chain.produced + chain.inWork;
   const inProd = Math.max(0, ordered - head.received);
   type Link_ = { id: string; label: string; value: string; sub?: string; how: React.ReactNode; to: string[][] };
   const links = ([
-    { id: "produced", label: "Произведено", value: n0(head.received), sub: `заказано ${n0(ordered)} · в производстве ${n0(inProd)} (завершены по ТЗ, но не получены ${n0(chain.inProdDone)} · в работе и запланированы ${n0(chain.inProdWork)})`, how: <><p>Произведено = получено в рознице по файлу прихода: {n0(head.received)} шт. Заказано по всем ТЗ (без ремонта): {n0(ordered)} шт.</p><p className="mt-1">Остальное ({n0(inProd)} шт.) считаем изделиями в производстве: статус по ним неизвестен, в «Произведено» они не входят.</p></>, to: [["/production", "Открыть ТЗ"]] },
+    { id: "produced", label: "Произведено", value: n0(head.received), sub: `в выпуске ${n0(ordered)} · в производстве ${n0(inProd)}${ui.f.cat === "all" ? ` (в ТЗ ${n0(Math.max(0, inTz - head.received))} · ещё без ТЗ ${n0(Math.max(0, inProd - Math.max(0, inTz - head.received)))})` : ""}`, how: <><p>Произведено = получено в рознице по файлу прихода: {n0(head.received)} шт. В выпуске — заказ по отчёту «заказ и продажи»: {n0(ordered)} шт. (закрытые сезоны — по приходу).</p><p className="mt-1">Остальное ({n0(inProd)} шт.) — в производстве: статус по ним неизвестен, в «Произведено» они не входят.{ui.f.cat === "all" ? ` Из них заведено в ТЗ ${n0(Math.max(0, inTz - head.received))} шт., ещё без ТЗ ${n0(Math.max(0, inProd - Math.max(0, inTz - head.received)))} шт. (всего в ТЗ ${n0(inTz)} шт.).` : ""}</p></>, to: [["/production", "Открыть ТЗ"]] },
     { id: "shipped", label: "Отгружено и получено", value: n0(head.received), sub: "приход в рознице", how: <p>Всё, что получено, отгружено и принято: {n0(head.received)} шт. по файлу прихода (все даты приёмок — в разделе «Отгрузки и календарь»).</p>, to: [["/shipments", "Отгрузки и календарь"]] },
     { id: "sold", label: "Продано", value: n0(head.sold), sub: `остаток ${n0(stockEnd)}`, how: <p>Продано (нетто возвратов) из полученного. Остаток в рознице = приход {n0(head.received)} − продано {n0(head.sold)}.</p>, to: [["/sales", "Продажи и остатки"]] },
   ] as Link_[]);
@@ -170,17 +172,6 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
         </div>
       </div>
 
-      {ui.tab === "report" ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label="НДС" className={segGroup}>
-            <button type="button" aria-pressed={!ex} onClick={() => { patch({ vat: "in" }); vatDisp.setMode("incl"); }} className={seg(!ex)}>С НДС</button>
-            <button type="button" aria-pressed={ex} onClick={() => { patch({ vat: "ex" }); vatDisp.setMode("excl"); }} className={seg(ex)}>Без НДС</button>
-          </div>
-          <div role="group" aria-label="Категория 1" className={segGroup}>
-            {(["all", "clothes", "acc"] as Cat[]).map((k) => <button key={k} type="button" aria-pressed={ui.f.cat === k} onClick={() => setF({ cat: k })} className={seg(ui.f.cat === k)}>{CAT_LABEL[k]}</button>)}
-          </div>
-        </div>
-      ) : null}
       <div id="sales-filters" hidden={ui.tab === "report"} className="sticky top-0 z-20 -mx-3 border-b border-neutral-300 bg-white/95 px-3 py-1 backdrop-blur print:hidden md:-mx-4 md:px-4">
         <button type="button" aria-expanded={fOpen} aria-controls="sales-filters-panel" onClick={() => setFOpen((v) => !v)} className="flex min-h-11 w-full items-center justify-between text-left text-sm md:hidden">
           <span><b>Фильтры:</b> {periodNote} · {CAT_LABEL[ui.f.cat]} · {vatNote}</span><span aria-hidden>{fOpen ? "▴" : "▾"}</span>
@@ -215,7 +206,15 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
       </nav>
 
       {ui.tab === "report" ? (
-        <SeasonReport sizes={sizes} photos={photos} cat={ui.f.cat} ex={ex} reportDate={reportDate} fabricByArt={fabricByArt} prices={input.prices} costs={input.costs} lines={all} tzAwait={tzAwait} />
+        <SeasonReport controls={<div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="НДС" className={segGroup}>
+            <button type="button" aria-pressed={!ex} onClick={() => { patch({ vat: "in" }); vatDisp.setMode("incl"); }} className={seg(!ex)}>С НДС</button>
+            <button type="button" aria-pressed={ex} onClick={() => { patch({ vat: "ex" }); vatDisp.setMode("excl"); }} className={seg(ex)}>Без НДС</button>
+          </div>
+          <div role="group" aria-label="Категория 1" className={segGroup}>
+            {(["all", "clothes", "acc"] as Cat[]).map((k) => <button key={k} type="button" aria-pressed={ui.f.cat === k} onClick={() => setF({ cat: k })} className={seg(ui.f.cat === k)}>{CAT_LABEL[k]}</button>)}
+          </div>
+        </div>} sizes={sizes} photos={photos} cat={ui.f.cat} ex={ex} reportDate={reportDate} fabricByArt={fabricByArt} prices={input.prices} costs={input.costs} lines={all} tzAwait={tzAwait} />
       ) : lines.length === 0 ? (
         <p className="rounded-lg border border-neutral-300 bg-white p-3 text-sm text-neutral-800">По выбранным фильтрам строк нет. Измените период, категорию или поиск.</p>
       ) : ui.tab === "overview" ? (
@@ -243,7 +242,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
             picked={ui.cols} onPicked={(k) => patch({ cols: k })} filtersNote={note} />
         </>
       ) : ui.tab === "seasons" ? (
-        <SeasonsTab ctx={ctx} env={env} lines={lines} vatNote={vatNote} gran={ui.gran} onGran={(g) => patch({ gran: g })} ex={ex} />
+        <SeasonsTab ctx={ctx} env={env} lines={lines} vatNote={vatNote} gran={ui.gran} onGran={(g) => patch({ gran: g })} ex={ex} opening={opening} />
       ) : ui.tab === "stock" ? (
         <StockTab ctx={ctx} env={env} lines={lines} vatNote={vatNote} photos={photos} today={today} />
       ) : ui.tab === "top" ? (
@@ -277,7 +276,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
             <p className="text-sm text-neutral-800">datamart на {dmDate}: {n0(dmRef)} шт. · расчёт: {n0(stockEnd)} шт. · разница: {dmDiff === 0 ? DASH : n0(Math.abs(dmDiff)) + " шт."}. Снимки: {dmStock!.snapshots.map((x) => `${x.date.split("-").reverse().join(".")} — ${n0(ui.f.cat === "clothes" ? x.rtw : ui.f.cat === "acc" ? x.acc : x.total)}`).join(", ")}.</p>
           ) : null}
           {openDef.id === "stock" && hasReport && isPlain ? (
-            <p className="text-sm text-neutral-800">Report на {reportDate}: {n0(reportStock)} шт. · расчёт: {n0(stockEnd)} шт. · разница: {diff === 0 ? DASH : n0(Math.abs(diff)) + " шт."}. Причина в выгрузке не видна.</p>
+            <p className="text-sm text-neutral-800">Отчёт на {reportDate}: {n0(reportStock)} шт. · расчёт: {n0(stockEnd)} шт. · разница: {diff === 0 ? DASH : n0(Math.abs(diff)) + " шт."}. Причина в выгрузке не видна.</p>
           ) : null}
           <div className="flex flex-wrap gap-2">
             <button type="button" className={btn} onClick={() => { setTile(null); patch({ tab: "stock" }); }}>Остатки по артикулам</button>

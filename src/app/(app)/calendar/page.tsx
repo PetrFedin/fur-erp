@@ -335,16 +335,13 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden">
+        <Segment label="Вид календаря" items={([["month", "Месяц"], ["week", "Неделя"], ["list", "Список"], ["months", "По месяцам"], ["stages", "Стадии"]] as const).map(([v, t]) => ({ key: v, label: t, on: mode === "detail" ? view === v : mode === v, href: href({ view: v, w: v === "week" ? weekStart : "", event: "", new: "", cell: "", ord: "" }) }))} />
+        {mode === "detail" && canEdit && (
+          <Link href={href({ day: today.startsWith(month) ? today : `${month}-01`, event: "" })} scroll={false} className="btn btn-accent inline-flex h-8 items-center rounded-md border border-neutral-900 bg-neutral-900 px-3 text-xs font-medium text-white max-md:min-h-10">+ Добавить событие</Link>
+        )}
           {!HIDDEN_MODULES.orderPlan && <Link href="/plan" className={BTN}>План заказа</Link>}
           {!HIDDEN_MODULES.supplyPlan && <Link href="/supply-plan" className={BTN}>План поставок</Link>}
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <Segment label="Вид календаря" items={([["month", "Месяц"], ["week", "Неделя"], ["list", "Список"], ["months", "По месяцам"], ["stages", "Стадии"]] as const).map(([v, t]) => ({ key: v, label: t, on: mode === "detail" ? view === v : mode === v, href: href({ view: v, w: v === "week" ? weekStart : "", event: "", new: "", cell: "", ord: "" }) }))} />
-        {mode === "detail" && canEdit && (
-          <Link href={href({ day: today.startsWith(month) ? today : `${month}-01`, event: "" })} scroll={false} className="btn btn-accent ml-auto inline-flex h-8 items-center rounded-md border border-neutral-900 bg-neutral-900 px-3 text-xs font-medium text-white max-md:min-h-10">+ Добавить событие</Link>
-        )}
       </div>
 
       {cardItem && (
@@ -559,7 +556,7 @@ function WeekRow({ wk, month, view, today, dayBlock, dayTotal, evByDay, canEdit,
               <Link href={href({ day: d, event: "" })} scroll={false} title="Открыть день" className={`rounded px-1 hover:bg-neutral-100 ${d === today ? "font-bold" : "font-medium"}`}>{Number(d.slice(8))}</Link>
               <span className="flex items-center gap-1">
                 {dayTotal(d) > 0 && <span className="rounded bg-neutral-100 px-1 text-[11px] text-neutral-700" title="Единиц за день">Σ {dayTotal(d)}</span>}
-                {canEdit && <Link href={href({ day: d, event: "" })} scroll={false} className="rounded px-1 text-neutral-500 opacity-0 transition-opacity hover:bg-neutral-100 hover:text-neutral-900 focus-visible:opacity-100 group-hover:opacity-100 max-md:hidden" title="Добавить в этот день" aria-label={`Добавить событие на ${d}`}>+</Link>}
+                {canEdit && <Link href={href({ day: d, event: "" })} scroll={false} className="relative rounded px-1 text-neutral-500 opacity-0 transition-opacity after:absolute after:-inset-3 after:content-[''] hover:bg-neutral-100 hover:text-neutral-900 focus-visible:opacity-100 group-hover:opacity-100 max-md:hidden" title="Добавить в этот день" aria-label={`Добавить событие на ${d}`}>+</Link>}
               </span>
             </div>
             <div className="flex flex-col gap-0.5">{dayBlock(d, view !== "week")}</div>

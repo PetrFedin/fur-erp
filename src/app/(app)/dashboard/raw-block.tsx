@@ -371,7 +371,7 @@ export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c
                 {g.view === "fur" ? (
                   <>
                     <div className="raw-group-label flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="fur-slide-label">
-                      <span>{g.label} · {FUR_SRC_LABEL[nav.src]}{slideNow?.key ? <> · <span className="font-semibold text-orange-700" data-testid="fur-type-now">{slideNow.label}</span></> : ""}</span>{slideCtl}{srcHint}
+                      <span>{g.label}{slideNow?.key ? <> · <span className="font-semibold text-orange-700" data-testid="fur-type-now">{slideNow.label}</span></> : ""}</span>{slideCtl}{srcHint}
                     </div>
                     <div ref={scroller} onScroll={onScroll} {...dragProps} tabIndex={0} data-testid="fur-slides" role="group" aria-roledescription="карусель" aria-label={`Мех · ${FUR_SRC_LABEL[nav.src]}: слайды по типам меха`}
                       onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "ArrowRight") { e.preventDefault(); step(1); } else if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); } }}
@@ -509,7 +509,7 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
   const shareCell = (q: number, rq: number, cls = "px-2 py-1.5") => showShare ? <td className={`whitespace-nowrap ${cls} text-right tabular-nums text-neutral-500${BL}`}>{rq > 0 ? formatShare(q / rq) : "–"}</td> : null;
   // Итого по виду: количество, сумма, средневзвешенная цена ₽ и $ (как в карточке).
   const total = (f: FlowFigures | null, kind: "fur" | "lining") =>
-    !f ? null : col === "recv" ? { q: f.recvQty, v: pickV(al.tot[kind], f.recvValue), a: f.recvAvg, d: f.usdAvg, rq: f.recvQty } : col === "used" ? { q: f.usedQty, v: pickV(al.tot[kind], c4 === "on" ? f.usedValueOther : f.usedValue), a: f.usedAvg, d: f.usdUsedAvg, rq: f.recvQty } : { q: f.remQty, v: pickV(al.tot[kind], f.remValue), a: f.remAvg, d: f.usdRemAvg, rq: f.recvQty };
+    !f ? null : col === "recv" ? { q: f.recvQty, v: pickV(al.tot[kind], f.recvValue), a: f.recvAvg, d: f.usdAvg, rq: f.recvQty } : col === "used" ? { q: f.usedQty, v: pickV(al.tot[kind], c4 === "on" ? f.usedValueOther : f.usedValue), a: f.usedQty > 0 ? (c4 === "on" ? f.usedValueOther : f.usedValue) / f.usedQty : f.usedAvg, d: f.usdUsedAvg, rq: f.recvQty } : { q: f.remQty, v: pickV(al.tot[kind], f.remValue), a: f.remAvg, d: f.usdRemAvg, rq: f.recvQty };
   return (
     <dialog ref={ref} onClose={onClose} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }} className="m-auto w-[calc(100vw-2rem)] max-w-3xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
       <div className="max-h-[88vh] overflow-y-auto p-4">

@@ -1,5 +1,6 @@
 "use client";
 
+import { MiniSortTh, useMiniSort } from "@/components/mini-sort";
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/utils";
@@ -13,12 +14,13 @@ const MONTHS = ["январь", "февраль", "март", "апрель", "�
 export const monthLabel = (mo: string) => `${MONTHS[Number(mo.slice(5, 7)) - 1]} ${mo.slice(0, 4)}`;
 
 export function MiniTable({ head, rows, total }: { head: string[]; rows: React.ReactNode[][]; total?: React.ReactNode[] }) {
+  const { rows: sorted, st, click } = useMiniSort(rows);
   return (
     <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0}>
       <table className="w-full border-collapse text-sm">
-        <thead><tr className="border-b border-neutral-300">{head.map((h, i) => <th key={h + i} scope="col" className={"px-2 py-2 text-xs font-semibold " + (i === 0 ? "text-left" : "text-right")}>{h}</th>)}</tr></thead>
+        <thead><tr className="border-b border-neutral-300">{head.map((h, i) => <MiniSortTh key={h + i} label={h} col={i} st={st} click={click} left={i === 0} />)}</tr></thead>
         <tbody>
-          {rows.map((r, ri) => <tr key={ri} className="border-b border-neutral-200">{r.map((c, i) => <td key={i} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "text-left" : "text-right whitespace-nowrap")}>{c}</td>)}</tr>)}
+          {sorted.map((r, ri) => <tr key={ri} className="border-b border-neutral-200">{r.map((c, i) => <td key={i} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "text-left" : "text-right whitespace-nowrap")}>{c}</td>)}</tr>)}
           {total ? <tr className="border-t-2 border-neutral-400 font-semibold">{total.map((c, i) => <td key={i} className={"px-2 py-1.5 tabular-nums " + (i === 0 ? "text-left" : "text-right whitespace-nowrap")}>{c}</td>)}</tr> : null}
         </tbody>
       </table>

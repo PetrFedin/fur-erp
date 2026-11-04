@@ -44,5 +44,5 @@ export const STAGE_STYLES: Record<Stage, { label: string; short: string; hint: s
   work: { label: "ТЗ", short: "тз", hint: "ТЗ оформлено: раскрой / пошив", chip: "bg-amber-100 text-amber-800 border-amber-200", dot: "bg-amber-500", text: "text-amber-700" },
   ready: { label: "На складе", short: "на складе", hint: "Изделия приняты на склад готовой продукции (ещё не отгружены)", chip: "bg-emerald-100 text-emerald-800 border-emerald-200", dot: "bg-emerald-500", text: "text-emerald-700" },
   shipped: { label: "Отгружено", short: "отгружено", hint: "Отгружено по проведённым отгрузкам", chip: "bg-indigo-100 text-indigo-800 border-indigo-200", dot: "bg-indigo-500", text: "text-indigo-700" },
-  repair: { label: "Ремонт", short: "ремонт", hint: "Ремонт — считается отдельно и в «В выпуске» не входит", chip: "bg-rose-100 text-rose-800 border-rose-200", dot: "bg-rose-500", text: "text-rose-700" },
+  repair: { label: "Ремонт", short: "ремонт", hint: "Ремонт — считается отдельно и в «Заведено в ТЗ» не входит", chip: "bg-rose-100 text-rose-800 border-rose-200", dot: "bg-rose-500", text: "text-rose-700" },
 };

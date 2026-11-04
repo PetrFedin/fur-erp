@@ -82,7 +82,7 @@ export default async function ContractorPage({ params }: PageProps<"/settings/co
       <section className="flex flex-col gap-2" aria-label="ТЗ">
         <h2 className="text-base font-semibold">ТЗ <span className="font-normal text-neutral-500">· {orders.length}</span></h2>
         <Table>
-          <Thead><Tr><Th>ТЗ</Th><Th>Изделие</Th><Th>Партия</Th><Th className="text-right">План, шт</Th><Th className="text-right">В выпуске, шт</Th></Tr></Thead>
+          <Thead><Tr><Th>ТЗ</Th><Th>Изделие</Th><Th>Партия</Th><Th className="text-right">План, шт</Th><Th className="text-right">В ТЗ, шт</Th></Tr></Thead>
           <Tbody>
             {orders.slice(0, SHOWN).map((o) => (
               <Tr key={o.id}>
