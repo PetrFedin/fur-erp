@@ -186,7 +186,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   })();
 
   /** Под ценой в $: по скольким штукам из скольких посчитана средняя (у остальных нет цены в $ в расчёте лота). */
-  const usdSub = (have: number | null | undefined, of: number) => (of > 0 ? <span className="text-[11px] font-normal text-neutral-500">по {formatQty(have ?? 0)} из {formatQty(of)} шт.</span> : undefined);
+  const usdSub = (have: number | null | undefined, of: number) => (of > 0 ? <span className="text-[11px] font-normal text-neutral-500">посчитано по {formatQty(have ?? 0)} из {formatQty(of)} шт.</span> : undefined);
   const px = (q: number | null | undefined, of: number) => (q != null && q > 0 ? `по ${formatQty(q)} из ${formatQty(of)} шт.` : "");
   const sumNow = (k: "recvValue" | "remValue" | "usedValue" | "usedValueOther") => (all ? F[k] + L[k] : cur[k]);
   // «Использовано»: сумма без 4% и под ней с 4% — независимо от режима шапки.

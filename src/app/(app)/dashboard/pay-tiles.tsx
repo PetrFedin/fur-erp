@@ -10,7 +10,7 @@ import { DetailDialog, DetailTable } from "@/components/detail-dialog";
 import { WidgetRow } from "@/components/widget-row";
 import { SERVICES_LABEL } from "@/lib/service-purchase";
 import { TERMS } from "@/lib/terms";
-import { TILE_BOX, TileHead, TileValue, TileList, type TileItem } from "./tile";
+import { TILE_BOX, TileHead, TileValue, TileCaption, TileList, type TileItem } from "./tile";
 import { BridgeHint } from "./mode-line";
 import { formatCompactMoney } from "./compact";
 
@@ -102,6 +102,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
           </InfoHint>
         </div>
         <TileValue compact={bare}>{money(totalAll)}</TileValue>
+        {!only ? <TileCaption>Закупки сырья и услуг плюс работа подрядчика по ТЗ, с НДС</TileCaption> : null}
         <TileList stack={bare} items={(() => {
           const items: TileItem[] = list(totalAll, T.fur, { stock: furD.stock, used: furD.used }, furD.c4, T.lining, { stock: linD.stock, used: linD.used }, linD.c4, T.services, T.work, true);
           return [...items, ...(Math.abs(roundAll) >= ROUND_MIN ? [{ k: "Округление", v: money(roundAll) }] : [])];
@@ -132,6 +133,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
           </div>
         ) : null}
         <TileValue compact={bare}>{money(paidAll)}</TileValue>
+        {!only ? <TileCaption>Все платежи поставщикам и подрядчику, с НДС</TileCaption> : null}
         <div data-testid="paid-by-item">
           <TileList stack={bare} items={list(paidAll, P.fur, furPaidD, furD.c4, P.lining, linPaidD, linD.c4, P.services, P.work, true, undefined, true)} />
         </div>
@@ -177,6 +179,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
           <SupplierDebtHint debt={debt} year={year} align="right" />
         </div>
         <TileValue compact={bare} className={(inWork ? due.net : leftAll) > 0 ? "text-amber-700" : ""}>{money(inWork ? due.net : leftAll)}</TileValue>
+        {!only ? <TileCaption>{inWork ? "Долг по сырью и остаток работы за вычетом аванса подрядчику" : "Осталось оплатить за сырьё и услуги"}</TileCaption> : null}
         <TileList stack={bare} items={drillItems(list(leftAll, L.fur, furLeftD, 0, L.lining, linLeftD, 0, L.services, L.work, true, TERMS.workRest))} />
         {drill && !only && split ? (
           <div data-testid="debt-split" className="mt-2 border-t border-neutral-100 pt-2">

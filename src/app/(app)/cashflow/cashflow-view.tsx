@@ -53,11 +53,15 @@ type ChartProps = {
   colW: number;
   /** Линия накопительного графика под курсором в легенде: spend / get / net. */
   hotLine?: string | null;
+  /** Накопительный график: столбцы (по умолчанию) или линии. */
+  cumStyle?: CumStyle;
 };
+type CumStyle = "bars" | "lines";
 
-function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot, yearHot, filtered, colW, hotLine = null }: ChartProps) {
+function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot, yearHot, filtered, colW, hotLine = null, cumStyle = "bars" }: ChartProps) {
   const n = months.length;
-  const left = 58, right = kind === "cum" ? 84 : kind === "goods" ? 44 : 12, top = 12, bottom = 40, H = 250;
+  const cumLines = kind === "cum" && cumStyle === "lines", cumBars = kind === "cum" && cumStyle === "bars";
+  const left = 58, right = cumLines ? 84 : kind === "goods" ? 44 : 12, top = 12, bottom = 40, H = 250;
   const bw = Math.max(10, Math.min(40, Math.round(colW * 0.7)));
   const W = left + right + n * colW;
   const x = (i: number) => left + i * colW + colW / 2;
@@ -77,11 +81,11 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
   const ticks = Array.from({ length: Math.round((top2 - bot2) / step) + 1 }, (_, i) => bot2 + i * step);
   const fmt = kind === "goods" ? (v: number) => String(Math.round(v)) : mln;
   const lineOf = (a: (number | null)[]) => a.map((v, i) => (v === null ? "" : `${i === 0 || a[i - 1] === null ? "M" : "L"}${x(i)},${y(v)}`)).join(" ");
-  const label = { money: "Траты и поступления денег по месяцам", cum: "Накопительно: траты, полученные деньги, чистый итог", goods: "Приход, продажи и остаток в штуках по месяцам", work: "Работа подрядчику на одну единицу нарастающим итогом" }[kind];
+  const label = { money: "Оплаты и поступления денег по месяцам", cum: "Накопительно: оплачено, выручка, чистый итог", goods: "Приход, продажи и остаток в штуках по месяцам", work: "Работа подрядчику на одну единицу нарастающим итогом" }[kind];
   const aria = (i: number) => {
     const m = full(months[i]);
-    if (kind === "money") return `${m}: траты ${dash(ser.spend[i])}, выручка ${dash(ser.revenue[i])}, чистый поток ${dash(ser.net[i])}`;
-    if (kind === "cum") return `${m}: накопленные траты ${dash(ser.cumSpend[i])}, выручка ${dash(ser.cumRevenue[i])}, чистый ${dash(ser.cumNet[i])}`;
+    if (kind === "money") return `${m}: оплачено ${dash(ser.spend[i])}, выручка ${dash(ser.revenue[i])}, чистый поток ${dash(ser.net[i])}`;
+    if (kind === "cum") return `${m}: накопленные оплаты ${dash(ser.cumSpend[i])}, выручка ${dash(ser.cumRevenue[i])}, чистый ${dash(ser.cumNet[i])}`;
     if (kind === "goods") return `${m}: приход ${s.recPcs[i]} шт., продано ${s.salePcs[i]} шт., остаток ${stock[i]} шт.`;
     return `${m}: работа на единицу ${dash(ser.cumWorkPerUnit[i])}`;
   };
@@ -111,7 +115,26 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
           </g>
         );
       })}
-            {kind === "cum" && (
+      {cumBars && (
+        <>
+          {months.map((m, i) => {
+            const dim = active !== null && active !== i;
+            const half = Math.max(5, bw / 2 - 1);
+            const showGet = s.available;
+            return (
+              <g key={m} opacity={dim ? 0.35 : 1}>
+                {ser.cumSpend[i] > 0.5 && <rect x={showGet ? x(i) - half - 1 : x(i) - half / 2 - 1} width={half} y={y(ser.cumSpend[i])} height={Math.max(0, y(0) - y(ser.cumSpend[i]))} fill={SPEND} opacity={hotLine && hotLine !== "spend" ? 0.2 : 1} />}
+                {showGet && ser.cumRevenue[i] > 0.5 && <rect x={x(i) + 1} width={half} y={y(ser.cumRevenue[i])} height={Math.max(0, y(0) - y(ser.cumRevenue[i]))} fill={GET} opacity={hotLine && hotLine !== "get" ? 0.2 : 1} />}
+                {showGet && !filtered && <circle cx={x(i)} cy={y(ser.cumNet[i])} r={3.5} fill={NAVY} stroke="#fff" strokeWidth={1.5} opacity={hotLine && hotLine !== "net" ? 0.2 : 1} />}
+                {hotLine === "spend" && ser.cumSpend[i] > 0.5 && (i % labEvery === 0 || i === n - 1) && <text x={x(i)} y={y(ser.cumSpend[i]) - 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(ser.cumSpend[i])}</text>}
+                {hotLine === "get" && showGet && ser.cumRevenue[i] > 0.5 && (i % labEvery === 0 || i === n - 1) && <text x={x(i)} y={y(ser.cumRevenue[i]) - 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(ser.cumRevenue[i])}</text>}
+                {hotLine === "net" && showGet && !filtered && (i % labEvery === 0 || i === n - 1) && <text x={x(i)} y={y(ser.cumNet[i]) - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(ser.cumNet[i])}</text>}
+              </g>
+            );
+          })}
+        </>
+      )}
+      {cumLines && (
         <>
           <path d={lineOf(ser.cumSpend)} fill="none" stroke={SPEND} strokeWidth={hotLine === "spend" ? 4 : 2.5} opacity={hotLine && hotLine !== "spend" ? 0.2 : 1} />
           {s.available && <path d={lineOf(ser.cumRevenue)} fill="none" stroke={GET} strokeWidth={hotLine === "get" ? 4 : 2.5} opacity={hotLine && hotLine !== "get" ? 0.2 : 1} />}
@@ -148,12 +171,12 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
         const m = months[active];
         const lines: [string, string, string][] =
           kind === "money" ? [
-            ["Потрачено", dash(ser.spend[active]), SPEND],
+            ["Оплачено", dash(ser.spend[active]), SPEND],
             ...d.articles.filter((a) => a.byMonth[active] >= 0.5).map((a): [string, string, string] => ["   " + a.label, formatMoney(a.byMonth[active]), COLORS[a.key]]),
             ["Выручка", dash(ser.revenue[active]), GET],
             ...(filtered || !s.available ? [] : [["Чистый поток", dash(ser.net[active]), NAVY] as [string, string, string]]),
           ]
-          : kind === "cum" ? [["Потрачено", dash(ser.cumSpend[active]), SPEND], ["Выручка", dash(ser.cumRevenue[active]), GET], ["Чистый итог", dash(ser.cumNet[active]), NAVY]]
+          : kind === "cum" ? [["Оплачено", dash(ser.cumSpend[active]), SPEND], ["Выручка", dash(ser.cumRevenue[active]), GET], ["Чистый итог", dash(ser.cumNet[active]), NAVY]]
           : kind === "goods" ? [["Приход", `${pcs(s.recPcs[active])} шт.`, NAVY], ["Продано", `${pcs(s.salePcs[active])} шт.`, GET], ["Остаток", `${stock[active]} шт.`, STOCK]]
           : [["Работа на единицу", dash(ser.cumWorkPerUnit[active]), SPEND]];
         const bw = kind === "money" ? 270 : 214, bh = 24 + lines.length * 17;
@@ -173,6 +196,15 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
         );
       })()}
     </svg>
+  );
+}
+
+/** Переключатель вида накопительного графика: столбцы (основной) / линии. */
+function CumStyleSwitch({ value, onChange, seg }: { value: CumStyle; onChange: (v: CumStyle) => void; seg: (on: boolean) => string }) {
+  return (
+    <div role="group" aria-label="Вид накопительного графика" className={SEG_GROUP + " print:hidden"}>
+      {([["bars", "Столбцы"], ["lines", "Линии"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={value === k} onClick={() => onChange(k)} className={seg(value === k)}>{t}</button>)}
+    </div>
   );
 }
 
@@ -570,6 +602,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
   const [hot, setHot] = useState<string | null>(null);
   const [yearHot, setYearHot] = useState<string | null>(null);
   const [hotLine, setHotLine] = useState<string | null>(null);
+  const [cumStyle, setCumStyle] = useState<CumStyle>("bars");
   const [hotMoney, setHotMoney] = useState<string | null>(null);
   const [hotKind, setHotKind] = useState<string | null>(null);
   const [hotKind2, setHotKind2] = useState<string | null>(null);
@@ -618,9 +651,9 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
   /** Месяц по категориям: выручка выбранного режима НДС, единицы прихода и продажи, остаток, работа подрядчика по ТЗ; траты по категориям не делятся. */
   const clsMonth = (c: "clothes" | "acc" | "other", gi: number) => ({ rev: (exVat ? salesBy[c].revEx : salesBy[c].revIncl)[gi], rec: salesBy[c].recPcs[gi], sale: salesBy[c].salePcs[gi], stock: stockBy[c][gi], work: workBy[c][gi] });
   const due = payDue(left.raw + left.prod, left.advance);
-  /** Виды платежей на плитке «Потрачено»: аванс / доплата / окончательный расчёт / прочее; Σ = главное число. */
+  /** Виды платежей на плитке «Оплачено»: аванс / доплата / окончательный расчёт / прочее; Σ = главное число. */
   const spendKinds = useMemo(() => (Object.keys(PAY_TYPE_LABEL) as PayType[]).filter((t) => Math.abs(spendByType(pays, months, exVat).find((r) => r.type === t)?.total ?? 0) > 0.5).map((t) => ({ type: t, short: t === "ADVANCE" ? "Авансы" : t === "PARTIAL" ? "Доплаты" : t === "FINAL" ? "Окончательный расчёт" : "Прочее / без вида", total: spendByType(pays, months, exVat).find((r) => r.type === t)?.total ?? 0 })), [pays, months, exVat]);
-  // Части сходятся с итогом «Потрачено» до рубля, а доли — ровно в 100 % (наибольшие остатки), как в плитках Главной.
+  // Части сходятся с итогом «Оплачено» до рубля, а доли — ровно в 100 % (наибольшие остатки), как в плитках Главной.
   const pctSplit = (vals: number[]) => { const tot = vals.reduce((a, v) => a + v, 0); const raw = vals.map((v) => (tot > 0.5 ? (v / tot) * 100 : 0)); const fl = raw.map(Math.floor); let left = Math.round(raw.reduce((a, v) => a + v, 0)) - fl.reduce((a, v) => a + v, 0); raw.map((v, k) => [v - Math.floor(v), k] as const).sort((x, y) => y[0] - x[0]).forEach(([, k]) => { if (left > 0) { fl[k] += 1; left -= 1; } }); return fl; };
   const spendAl = alignColumn(spendKinds.map((r) => r.total), h.spent);
   const spendPct = pctSplit(spendAl.values);
@@ -708,7 +741,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
   /** Тонкая вертикальная граница слева у первого подстолбца блока статьи (блоки статей и видов платежа отделены друг от друга). */
   const blk = (c: Col) => { const k = artCols.findIndex((x) => x.id === c.id); return k === 0 || artCols[k - 1].art !== c.art ? " border-l border-neutral-300" : ""; };
   const csv = () => {
-    const head = ["Период", ...artCols.map((c) => `${c.head}: ${c.sub}`), "Потрачено", "Выручка", "Чистый поток", "Накопительно потрачено", "Накопительно получено", "Накопительно чистый", "Единиц получено", "Единиц продано", "Остаток, шт.", "Работа за период", "Работа на единицу"];
+    const head = ["Период", ...artCols.map((c) => `${c.head}: ${c.sub}`), "Оплачено", "Выручка", "Чистый поток", "Накопительно оплачено", "Накопительно получено", "Накопительно чистый", "Единиц получено", "Единиц продано", "Остаток, шт.", "Работа за период", "Работа на единицу"];
     const nf = (v: number | null) => (v === null ? "" : v.toFixed(2).replace(".", ","));
     const body = rows.map((r) => {
       const u = sum(r, (i) => s.recPcs[i]), w = sum(r, workOf);
@@ -727,7 +760,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
   const xlsx = async () => {
     setXlsxBusy(true);
     try {
-      const head = ["Период", ...artCols.map((c) => `${c.head}: ${c.sub}`), "Потрачено", "Выручка", "Чистый поток", "Накопительно потрачено", "Накопительно получено", "Накопительно чистый", "Единиц получено", "Единиц продано", "Остаток, шт.", "Работа за период", "Работа на единицу"];
+      const head = ["Период", ...artCols.map((c) => `${c.head}: ${c.sub}`), "Оплачено", "Выручка", "Чистый поток", "Накопительно оплачено", "Накопительно получено", "Накопительно чистый", "Единиц получено", "Единиц продано", "Остаток, шт.", "Работа за период", "Работа на единицу"];
       const body = rows.map((r) => {
         const u = sum(r, (i) => s.recPcs[i]), w = sum(r, workOf);
         return { label: r.label, kind: r.kind, cells: [...artCols.map((c) => c.get(r)), sum(r, (i) => ser.spend[i]), sum(r, (i) => ser.revenue[i]), filtered ? null : sum(r, (i) => ser.net[i]), lastOf(r, ser.cumSpend), lastOf(r, ser.cumRevenue), filtered ? null : lastOf(r, ser.cumNet), u, sum(r, (i) => s.salePcs[i]), lastOf(r, m.stock), w, perUnit(w, u)] };
@@ -754,7 +787,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-3 text-xs print:hidden"><Link href="/payments" className="text-blue-700 hover:underline">→ Оплаты</Link><Link href="/sales" className="text-blue-700 hover:underline">→ Продажи</Link></span>
           <InfoHint label="Что такое Cashflow" align="right" wide>
-            <p><b>Потрачено</b> — все проведённые оплаты («Оплачено» в разделе «Оплаты») по статьям и по дате платежа. Запланированные и неподтверждённые платежи не входят. Итог за 2025–2026 равен «Оплачено всего» (с НДС).</p>
+            <p><b>Оплачено</b> — все проведённые оплаты («Оплачено» в разделе «Оплаты») по статьям и по дате платежа. Запланированные и неподтверждённые платежи не входят. Итог за 2025–2026 равен «Оплачено всего» (с НДС).</p>
             <p className="mt-1">На странице «Оплаты» годы для закупок вне аукциона считаются по году закупки, а здесь — по дате платежа, поэтому по годам суммы могут отличаться, итог и месяцы те же.</p>
             <p className="mt-1"><b>Выручка</b> — розничная выручка из выгрузки продаж по дате продажи (чистая, после скидок, возвраты вычтены), а не движение по расчётному счёту.</p>
             <p className="mt-1">«Без НДС»: у платежей за сырьё НДС берётся из закупок (ставка позиций, 20% или 22%); у оплаты работы подрядчику и авансов без привязки к закупке НДС в данных нет — эти суммы остаются как есть
@@ -781,8 +814,8 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
 
 
       <section aria-label="Ключевые показатели" className="grid grid-cols-1 items-stretch gap-2 min-[480px]:grid-cols-2 min-[1100px]:grid-cols-4">
-        <CarouselTile label="Потрачено" onOpen={() => toggleTile("spend")} pages={[
-          { label: "Потрачено", value: money(h.spent), sub: filtered ? "все траты, не по категории" : `${label}, ${vatNote}`, spark: ser.spend, rows: spendKinds.map((r, i) => [r.short, `${money(spendAl.values[i])} · ${spendPct[i]} %`] as [string, string]), hint: <p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p> },
+        <CarouselTile label="Оплачено" onOpen={() => toggleTile("spend")} pages={[
+          { label: "Оплачено", value: money(h.spent), sub: filtered ? "все оплаты, не по категории" : `${label}, ${vatNote}`, spark: ser.spend, rows: spendKinds.map((r, i) => [r.short, `${money(spendAl.values[i])} · ${spendPct[i]} %`] as [string, string]), hint: <p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p> },
           { label: "Сырьё и работа", value: money(h.spent), sub: `куда ушли деньги, ${vatNote}`, rows: [["Сырьё", `${money(rwAl.values[0])} · ${rwPct[0]} %`], ["Работа и услуги", `${money(rwAl.values[1])} · ${rwPct[1]} %`]] as [string, string][], hint: <p>Сырьё — мех (аукционы и поставщик, включая шкуры подрядчика) и подкладка; работа и услуги — пошив подрядчику и услуги по УПД.</p> },
         ]} />
         <Tile label="Выручка" value={hasSales ? money(recvSum(cat, exVat)) : "–"} sub={hasSales ? `выручка, ${vatNote}` : "нет данных о продажах"} spark={hasSales ? m.keep.map((i) => (exVat ? salesBy[cat].revEx[i] : salesBy[cat].revIncl[i])) : undefined}
@@ -790,11 +823,11 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
           hint={<p>Розничная выручка из выгрузки продаж: чистые продажи после скидок, возвраты вычтены; по дате продажи; режим НДС — как в панели фильтров (внутри окна его можно переключить только для окна). Доля — от выручки всех категорий. {noSalesNote}</p>} />
         {hasSales && !filtered ? (
           <CarouselTile onOpen={() => toggleTile("flow")} pages={[
-            { label: "Чистый денежный поток", value: money(h.net), tone: h.net < 0 ? "bad" : "good", spark: ser.net, sparkKind: "bars", sub: `${h.net < 0 ? "в минусе за период" : "в плюсе за период"}, ${vatNote}`, hint: <p>Выручка минус потрачено за период, на одной базе НДС — как в панели фильтров ({vatNote}): «с НДС» — движение денег, «без НДС» — экономика.</p> },
-            { label: "Накопленный итог", value: money(m.cumNetEnd), tone: m.cumNetEnd < 0 ? "bad" : "good", spark: ser.cumNet, sparkKind: "area", sub: `с начала данных на конец периода, ${vatNote}`, hint: <p>Выручка минус потрачено нарастающим итогом с первого месяца данных до конца выбранного периода.</p> },
+            { label: "Чистый денежный поток", value: money(h.net), tone: h.net < 0 ? "bad" : "good", spark: ser.net, sparkKind: "bars", sub: `${h.net < 0 ? "в минусе за период" : "в плюсе за период"}, ${vatNote}`, hint: <p>Выручка минус оплачено за период, на одной базе НДС — как в панели фильтров ({vatNote}): «с НДС» — движение денег, «без НДС» — экономика.</p> },
+            { label: "Накопленный итог", value: money(m.cumNetEnd), tone: m.cumNetEnd < 0 ? "bad" : "good", spark: ser.cumNet, sparkKind: "area", sub: `с начала данных на конец периода, ${vatNote}`, hint: <p>Выручка минус оплачено нарастающим итогом с первого месяца данных до конца выбранного периода.</p> },
           ]} />
         ) : (
-          <Tile label="Чистый поток / накопленный итог" value="–" sub={filtered ? "траты не делятся по категориям" : "нет данных о продажах"} hint={<p>Чистый денежный поток = получено − потрачено; накопленный итог — то же нарастающим итогом. При фильтре по категории траты не делятся, поэтому не считаются.</p>} />
+          <Tile label="Чистый поток / накопленный итог" value="–" sub={filtered ? "траты не делятся по категориям" : "нет данных о продажах"} hint={<p>Чистый денежный поток = получено − оплачено; накопленный итог — то же нарастающим итогом. При фильтре по категории траты не делятся, поэтому не считаются.</p>} />
         )}
         <CarouselTile label="Работа в месяц" initial={pageOf[cat]} onOpen={(k) => openFor("workMonth", k)} pages={catPages.map((c) => { const st = wm.st[c]; return {
           label: `Работа в месяц · ${c === "all" ? "Всего" : CAT_LABEL[c]}`,
@@ -821,7 +854,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
       </section>
 
       {openTile && (
-        <TileModal title={{ spend: "Потрачено", recv: "Выручка", flow: "Денежный поток по месяцам", workMonth: "Работа в месяц", workUnit: "Работа на единицу", price: "Средняя цена продажи" }[openTile] ?? ""} subtitle={openTile === "recv" || openTile === "price" ? shownText.replace(/с НДС|без НДС/, modalExEff ? "без НДС" : "с НДС") : shownText} onClose={() => { setOpenTile(null); setModalEx(null); }}>
+        <TileModal title={{ spend: "Оплачено", recv: "Выручка", flow: "Денежный поток по месяцам", workMonth: "Работа в месяц", workUnit: "Работа на единицу", price: "Средняя цена продажи" }[openTile] ?? ""} subtitle={openTile === "recv" || openTile === "price" ? shownText.replace(/с НДС|без НДС/, modalExEff ? "без НДС" : "с НДС") : shownText} onClose={() => { setOpenTile(null); setModalEx(null); }}>
           {openTile === "spend" && <SpendDetail pays={pays} months={months} exVat={exVat} d={d} total={h.spent} />}
           {openTile === "recv" && <RecvDetail lines={saleLines} months={months} exVat={modalExEff} cat={catArg} total={recvSum(cat, modalExEff)} controls={<VatSeg choice={modalChoice} setChoice={(c) => setModalEx(c === "ex")} globalEx={exVat} />} />}
           {openTile === "flow" && (
@@ -830,7 +863,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
                 {fp.firstPositive ? `Первый месяц с положительным потоком: ${monthLabel(fp.firstPositive)}. ` : "Месяцев с положительным потоком нет. "}
                 Самый глубокий накопленный минус: {money(fp.deepest.cum)} ({monthLabel(fp.deepest.month)}). Максимальная просадка накопленного итога от пика: {money(fp.drawdown)}.
               </p>
-              <ExpTable head={["Месяц", "Потрачено", "Выручка", "Чистый", "Накопленный"]} rows={months.map((mo, i) => ({ id: mo, cells: [monthLabel(mo), money(ser.spend[i]), money(ser.revenue[i]), money(ser.net[i]), money(ser.cumNet[i])], sub: (["clothes", "acc", "other"] as const).map((c) => [CAT_LABEL[c], "–", money(clsMonth(c, m.keep[i]).rev), "–", "–"]).filter((r) => r[2] !== "–") }))} total={["Итого", money(h.spent), money(h.received), money(h.net), money(m.cumNetEnd)]} />
+              <ExpTable head={["Месяц", "Оплачено", "Выручка", "Чистый", "Накопленный"]} rows={months.map((mo, i) => ({ id: mo, cells: [monthLabel(mo), money(ser.spend[i]), money(ser.revenue[i]), money(ser.net[i]), money(ser.cumNet[i])], sub: (["clothes", "acc", "other"] as const).map((c) => [CAT_LABEL[c], "–", money(clsMonth(c, m.keep[i]).rev), "–", "–"]).filter((r) => r[2] !== "–") }))} total={["Итого", money(h.spent), money(h.received), money(h.net), money(m.cumNetEnd)]} />
             </div>
           )}
           {openTile === "workMonth" && <WorkMonthWindow months={wm.months} by={wm.by} initialCat={winCat} />}
@@ -841,18 +874,18 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
 
       <ClassicTable period={period} title={`Cashflow · ${period === "all" ? "2025–2026" : period} · ${vatNote}, ₽`} months={months} d={d} ser={ser} hasSales={hasSales} filtered={filtered} detail={detail} setDetail={setDetail} hot={hot} setHot={setHot} active={active} setActive={setActive} yearHot={yearHot} setYearHot={setYearHot} vatPay={vatPay} vatRev={vatRev} prepaid={months.map((mo) => prepaidBy[mo] ?? 0)} prepaidList={prepaidList} hasVat={hasSales} />
 
-      <section aria-label="Деньги и траты" className="rounded-lg border border-neutral-300 bg-white p-3">
+      <section aria-label="Деньги и оплаты" className="rounded-lg border border-neutral-300 bg-white p-3">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">{chartView === "money" ? "Траты и полученные деньги по месяцам" : "Траты по видам оплаты"}</h2>
+          <h2 className="text-sm font-semibold">{chartView === "money" ? "Оплаты и полученные деньги по месяцам" : "Оплаты по видам платежа"}</h2>
           <div role="group" aria-label="График" className={SEG_GROUP + " print:hidden"}>
-            {([["money", "Траты и выручка"], ["kinds", "Виды оплаты"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={chartView === k} onClick={() => setChartView(k)} className={seg(chartView === k)}>{t}</button>)}
+            {([["money", "Оплаты и выручка"], ["kinds", "Виды оплаты"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={chartView === k} onClick={() => setChartView(k)} className={seg(chartView === k)}>{t}</button>)}
           </div>
         </div>
         {chartView === "money" ? (
           <>
         <ChartBox n={months.length}>{(colW) => <Chart kind="money" hotLine={hotMoney} months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-          <li><button type="button" aria-pressed={hotMoney === "spend"} onMouseEnter={() => setHotMoney("spend")} onMouseLeave={() => setHotMoney(null)} onFocus={() => setHotMoney("spend")} onBlur={() => setHotMoney(null)} onClick={() => setHotMoney(hotMoney === "spend" ? null : "spend")} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: SPEND }} />Потрачено за месяц (вниз)</button></li>
+          <li><button type="button" aria-pressed={hotMoney === "spend"} onMouseEnter={() => setHotMoney("spend")} onMouseLeave={() => setHotMoney(null)} onFocus={() => setHotMoney("spend")} onBlur={() => setHotMoney(null)} onClick={() => setHotMoney(hotMoney === "spend" ? null : "spend")} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: SPEND }} />Оплачено за месяц (вниз)</button></li>
           <li><button type="button" aria-pressed={hotMoney === "get"} onMouseEnter={() => setHotMoney("get")} onMouseLeave={() => setHotMoney(null)} onFocus={() => setHotMoney("get")} onBlur={() => setHotMoney(null)} onClick={() => setHotMoney(hotMoney === "get" ? null : "get")} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: GET }} />Выручка за месяц (вверх)</button></li>
         </ul>
           </>
@@ -873,13 +906,16 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
       </section>
 
       <section aria-label="Накопительно" className="rounded-lg border border-neutral-300 bg-white p-3">
-        <h2 className="mb-1 flex items-center gap-1 text-sm font-semibold">Накопительно: потрачено и выручка
-          <InfoHint label="Как читать накопительный график" wide><p>Две линии растут с первого месяца данных: оранжевая — сколько потрачено, зелёная — сколько получено. Пунктир — разрыв между ними: ниже нуля «в минусе», выше — «в плюсе».</p></InfoHint>
-        </h2>
-        <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="cum" hotLine={hotLine} months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-1 text-sm font-semibold">Накопительно: оплачено и выручка
+            <InfoHint label="Как читать накопительный график" wide><p>Каждый месяц — итог с первого месяца данных: оранжевый столбец — сколько оплачено, зелёный — сколько получено. Тёмная точка — разница между ними: ниже нуля «в минусе», выше — «в плюсе». Кнопка «Линии» показывает то же линиями.</p></InfoHint>
+          </h2>
+          <CumStyleSwitch value={cumStyle} onChange={setCumStyle} seg={seg} />
+        </div>
+        <ChartBox n={months.length} extra={cumStyle === "lines" ? 142 : 70}>{(colW) => <Chart kind="cum" cumStyle={cumStyle} hotLine={hotLine} months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-          {([["spend", SPEND, "Потрачено нарастающим итогом", false], ["get", GET, "Выручка нарастающим итогом", true], ["net", NAVY, "Чистый итог (получено − потрачено)", true]] as const).filter((x) => x[0] === "spend" || (hasSales && (x[0] === "get" || !filtered))).map(([k, c, t]) => (
-            <li key={k}><button type="button" aria-pressed={hotLine === k} onMouseEnter={() => setHotLine(k)} onMouseLeave={() => setHotLine(null)} onFocus={() => setHotLine(k)} onBlur={() => setHotLine(null)} onClick={() => setHotLine(hotLine === k ? null : k)} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className={"inline-block h-0.5 w-4 " + (k === "net" ? "border-t-2 border-dashed" : "")} style={k === "net" ? { borderColor: c } : { background: c }} />{t}</button></li>
+          {([["spend", SPEND, "Оплачено нарастающим итогом", false], ["get", GET, "Выручка нарастающим итогом", true], ["net", NAVY, "Чистый итог (получено − оплачено)", true]] as const).filter((x) => x[0] === "spend" || (hasSales && (x[0] === "get" || !filtered))).map(([k, c, t]) => (
+            <li key={k}><button type="button" aria-pressed={hotLine === k} onMouseEnter={() => setHotLine(k)} onMouseLeave={() => setHotLine(null)} onFocus={() => setHotLine(k)} onBlur={() => setHotLine(null)} onClick={() => setHotLine(hotLine === k ? null : k)} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2">{cumStyle === "bars" ? <span aria-hidden className={k === "net" ? "inline-block h-2.5 w-2.5 rounded-full" : "inline-block h-3 w-3 rounded-sm"} style={{ background: c }} /> : <span aria-hidden className={"inline-block h-0.5 w-4 " + (k === "net" ? "border-t-2 border-dashed" : "")} style={k === "net" ? { borderColor: c } : { background: c }} />}{t}</button></li>
           ))}
         </ul>
       </section>
@@ -1060,7 +1096,7 @@ function ClassicTable({ period, vatPay, vatRev, prepaid, prepaidList, hasVat, ti
 }
 
 /**
- * Блок Cashflow для Главной: накопительный график «потрачено и получено» и под ним свёрнутая таблица Cash Flow.
+ * Блок Cashflow для Главной: накопительный график «оплачено и получено» и под ним свёрнутая таблица Cash Flow.
  * Год — из шапки Главной (period), НДС — из переключателя шапки; цифры те же, что в разделе Cashflow.
  */
 export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy, prepaidList }: { incl: CashflowData; ex: CashflowData; salesAll: SalesMonthly; period: CashflowPeriod; prepaidBy: Record<string, number>; prepaidList: PrepaidItem[] }) {
@@ -1072,6 +1108,7 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy, prepai
   const [hot, setHot] = useState<string | null>(null);
   const [yearHot, setYearHot] = useState<string | null>(null);
   const [hotLine, setHotLine] = useState<string | null>(null);
+  const [cumStyle, setCumStyle] = useState<CumStyle>("bars");
   const [hotMoney, setHotMoney] = useState<string | null>(null);
   const seg = (on: boolean) => segCls(on);
   const [slide, setSlide] = useState(0);
@@ -1112,10 +1149,10 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy, prepai
   if (months.length === 0) return null;
   return (
     <div className="flex flex-col gap-3">
-      <section aria-label="Траты и полученные деньги" className="rounded-lg border border-neutral-300 bg-white p-3">
+      <section aria-label="Оплаты и полученные деньги" className="rounded-lg border border-neutral-300 bg-white p-3">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-1 text-sm font-semibold">{slide === 0 ? "Траты и полученные деньги по месяцам" : "Накопительно: потрачено и выручка"}
-            <InfoHint label="Как читать накопительный график" wide><p>Линии растут с первого месяца данных: оранжевая — потрачено, зелёная — получено, пунктир — разрыв между ними.</p></InfoHint>
+          <h2 className="flex items-center gap-1 text-sm font-semibold">{slide === 0 ? "Оплаты и полученные деньги по месяцам" : "Накопительно: оплачено и выручка"}
+            <InfoHint label="Как читать накопительный график" wide><p>Столбцы — итог с первого месяца данных: оранжевый — оплачено, зелёный — получено, тёмная точка — разница. Кнопка «Линии» показывает то же линиями.</p></InfoHint>
           </h2>
           <div className="flex items-center gap-2">
             <div role="group" aria-label="Вид графика" className={SEG_GROUP + " print:hidden"}>
@@ -1128,15 +1165,16 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy, prepai
           <div className="w-full flex-none snap-start" aria-hidden={slide !== 0}>
             <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="money" hotLine={hotMoney} months={months} d={c.d} s={c.s} ser={c.ser} stock={c.ser.spend.map(() => 0)} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={false} colW={colW} />}</ChartBox>
             <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-          <li><button type="button" aria-pressed={hotMoney === "spend"} onMouseEnter={() => setHotMoney("spend")} onMouseLeave={() => setHotMoney(null)} onFocus={() => setHotMoney("spend")} onBlur={() => setHotMoney(null)} onClick={() => setHotMoney(hotMoney === "spend" ? null : "spend")} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: SPEND }} />Потрачено за месяц</button></li>
+          <li><button type="button" aria-pressed={hotMoney === "spend"} onMouseEnter={() => setHotMoney("spend")} onMouseLeave={() => setHotMoney(null)} onFocus={() => setHotMoney("spend")} onBlur={() => setHotMoney(null)} onClick={() => setHotMoney(hotMoney === "spend" ? null : "spend")} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: SPEND }} />Оплачено за месяц</button></li>
               {hasSales ? (<li><button type="button" aria-pressed={hotMoney === "get"} onMouseEnter={() => setHotMoney("get")} onMouseLeave={() => setHotMoney(null)} onFocus={() => setHotMoney("get")} onBlur={() => setHotMoney(null)} onClick={() => setHotMoney(hotMoney === "get" ? null : "get")} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: GET }} />Выручка за месяц</button></li>) : null}
             </ul>
           </div>
           <div className="w-full flex-none snap-start" aria-hidden={slide !== 1}>
-            <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="cum" hotLine={hotLine} months={months} d={c.d} s={c.s} ser={c.ser} stock={c.ser.spend.map(() => 0)} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={false} colW={colW} />}</ChartBox>
+            {slide === 1 && <div className="mb-1 flex justify-end"><CumStyleSwitch value={cumStyle} onChange={setCumStyle} seg={seg} /></div>}
+            <ChartBox n={months.length} extra={cumStyle === "lines" ? 142 : 70}>{(colW) => <Chart kind="cum" cumStyle={cumStyle} hotLine={hotLine} months={months} d={c.d} s={c.s} ser={c.ser} stock={c.ser.spend.map(() => 0)} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={false} colW={colW} />}</ChartBox>
             <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-          {([["spend", SPEND, "Потрачено нарастающим итогом"], ["get", GET, "Выручка нарастающим итогом"], ["net", NAVY, "Чистый итог (получено − потрачено)"]] as const).filter((x) => x[0] === "spend" || hasSales).map(([k, col, t]) => (
-            <li key={k}><button type="button" aria-pressed={hotLine === k} onMouseEnter={() => setHotLine(k)} onMouseLeave={() => setHotLine(null)} onFocus={() => setHotLine(k)} onBlur={() => setHotLine(null)} onClick={() => setHotLine(hotLine === k ? null : k)} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2"><span aria-hidden className={"inline-block h-0.5 w-4 " + (k === "net" ? "border-t-2 border-dashed" : "")} style={k === "net" ? { borderColor: col } : { background: col }} />{t}</button></li>
+          {([["spend", SPEND, "Оплачено нарастающим итогом"], ["get", GET, "Выручка нарастающим итогом"], ["net", NAVY, "Чистый итог (получено − оплачено)"]] as const).filter((x) => x[0] === "spend" || hasSales).map(([k, col, t]) => (
+            <li key={k}><button type="button" aria-pressed={hotLine === k} onMouseEnter={() => setHotLine(k)} onMouseLeave={() => setHotLine(null)} onFocus={() => setHotLine(k)} onBlur={() => setHotLine(null)} onClick={() => setHotLine(hotLine === k ? null : k)} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2">{cumStyle === "bars" ? <span aria-hidden className={k === "net" ? "inline-block h-2.5 w-2.5 rounded-full" : "inline-block h-3 w-3 rounded-sm"} style={{ background: col }} /> : <span aria-hidden className={"inline-block h-0.5 w-4 " + (k === "net" ? "border-t-2 border-dashed" : "")} style={k === "net" ? { borderColor: col } : { background: col }} />}{t}</button></li>
           ))}
         </ul>
           </div>

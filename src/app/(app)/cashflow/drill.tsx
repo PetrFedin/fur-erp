@@ -80,7 +80,7 @@ function Spark({ values }: { values: number[] }) {
   return <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-7 w-full" role="img" aria-label="Динамика по месяцам"><polyline points={pts} fill="none" stroke="#d93a0e" strokeWidth={1.5} vectorEffect="non-scaling-stroke" /></svg>;
 }
 
-/** «Потрачено»: все статьи или выбранная статья — по видам платежа (сумма, доля, число), по месяцам и список платежей. */
+/** «Оплачено»: все статьи или выбранная статья — по видам платежа (сумма, доля, число), по месяцам и список платежей. */
 export function SpendDetail({ pays, months, exVat, d, total }: { pays: PayLite[]; months: string[]; exVat: boolean; d: CashflowData; total: number }) {
   const [sel, setSel] = useState<"all" | ArticleKey>("all");
   const [sort, setSort] = useState<"date" | "amount">("date");
