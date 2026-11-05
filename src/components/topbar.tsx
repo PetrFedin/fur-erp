@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Smartphone } from "lucide-react";
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
@@ -53,6 +55,11 @@ export function Topbar({
         {isSupplier && <span className="shrink-0 rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-800 max-md:order-last max-md:max-w-full max-md:basis-full max-md:truncate max-md:shrink">{cabinetLabel ? `Кабинет: ${cabinetLabel}` : "Кабинет Веллмеха"}</span>}
       </div>
       <div className="flex shrink-0 items-center gap-2 md:gap-3">
+        {!isSupplier && (
+          <Link href="/catalog" className={SWITCH_BTN} title="Каталог для телефона: карточки с фото" aria-label="Каталог для телефона: карточки с фото">
+            <Smartphone className="h-5 w-5" aria-hidden />
+          </Link>
+        )}
         {!isSupplier && <GlobalSearch />}
         <ThemeToggle className="hidden xl:flex" />
         <TopbarModes yearOnly={isSupplier} />
