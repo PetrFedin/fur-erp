@@ -175,15 +175,15 @@ export function ProductionModal({
 
               {/* Гистограмма */}
               <div className="mt-3 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50/60 p-3">
-                <div className="flex items-end gap-[2px]" style={{ height: 230, minWidth: Math.max(0, level.items.length * 38) }} role="list" aria-label={`Гистограмма ${level.title}`}>
+                <div className="flex min-w-[calc(var(--n)*38px)] items-end gap-[2px] max-md:min-w-[calc(var(--n)*60px)]" style={{ height: 230, ["--n" as string]: level.items.length }} role="list" aria-label={`Гистограмма ${level.title}`}>
                   {level.items.map((it) => {
                     const h = Math.max(it.value === 0 ? 0 : 3, (Math.abs(it.value) / max) * 170);
                     const color = it.outside ? undefined : it.tone ? TONE[it.tone] : BAR;
                     const can = it.drillable && !it.outside;
                     const active = shown?.key === it.key;
                     return (
-                      <div key={it.key} role="listitem" className="flex min-w-[34px] flex-1 flex-col items-center justify-end">
-                        <div className="mb-0.5 text-[11px] leading-3 tabular-nums text-neutral-700">{formatCompactMoney(it.value).replace(" ₽", "")}</div>
+                      <div key={it.key} role="listitem" className="flex min-w-[34px] flex-1 flex-col items-center justify-end max-md:min-w-[58px]">
+                        <div className="mb-0.5 whitespace-nowrap text-[11px] leading-3 tabular-nums text-neutral-700">{formatCompactMoney(it.value).replace(/[\s\u00a0]*₽/, "")}</div>
                         <button
                           type="button"
                           onClick={() => pick(it)}

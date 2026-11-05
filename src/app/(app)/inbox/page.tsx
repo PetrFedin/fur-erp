@@ -64,15 +64,15 @@ export default async function InboxPage({ searchParams }: PageProps<"/inbox">) {
             key={f.key}
             href={href(f.key)}
             aria-current={st === f.key ? "page" : undefined}
-            className={cn("rounded-full border px-3 py-1 text-sm max-md:inline-flex max-md:min-h-11 max-md:items-center", st === f.key ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 hover:bg-neutral-100")}
+            className={cn("rounded-full border px-3 py-1 text-sm max-md:inline-flex max-md:min-h-11 max-md:items-center max-md:gap-1.5", st === f.key ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 hover:bg-neutral-100")}
           >
             {f.label} <span className="tabular-nums opacity-70">{cnt(f.key)}</span>
           </Link>
         ))}
-        <form action="/inbox" className="ml-auto flex items-center gap-2">
+        <form action="/inbox" className="ml-auto flex items-center gap-2 max-md:ml-0 max-md:w-full">
           <input type="hidden" name="status" value={st} />
-          <input name="q" defaultValue={q} placeholder="Номер, аукцион, подрядчик" className="h-9 w-64 rounded-md border border-neutral-300 px-3 text-sm" />
-          <button className="h-9 rounded-md border border-neutral-300 px-3 text-sm hover:bg-neutral-100">Найти</button>
+          <input name="q" defaultValue={q} placeholder="Номер, аукцион, подрядчик" className="h-9 w-64 rounded-md border border-neutral-300 px-3 text-sm max-md:h-11 max-md:min-w-0 max-md:flex-1" />
+          <button className="h-9 rounded-md border border-neutral-300 px-3 text-sm hover:bg-neutral-100 max-md:h-11">Найти</button>
         </form>
       </div>
       <Table className="min-w-[720px]">

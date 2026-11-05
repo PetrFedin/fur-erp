@@ -9,8 +9,8 @@ export const HIER_LABEL: Record<Hier, string> = { fur: "Тип меха → ка
 
 export function HierSwitch({ value, onChange, className }: { value: Hier; onChange: (h: Hier) => void; className?: string }) {
   return (
-    <div role="group" aria-label="Иерархия строк" className={SEG_GROUP + " print:hidden" + (className ? " " + className : "")}>
-      {(["fur", "cls"] as const).map((h) => <button key={h} type="button" aria-pressed={value === h} onClick={() => onChange(h)} className={segCls(value === h, "sm")}>{HIER_LABEL[h]}</button>)}
+    <div role="group" aria-label="Иерархия строк" className={SEG_GROUP + " max-sm:flex max-sm:w-full max-sm:flex-col print:hidden" + (className ? " " + className : "")}>
+      {(["fur", "cls"] as const).map((h) => <button key={h} type="button" aria-pressed={value === h} onClick={() => onChange(h)} className={segCls(value === h, "sm") + " max-sm:justify-center"}>{HIER_LABEL[h]}</button>)}
     </div>
   );
 }

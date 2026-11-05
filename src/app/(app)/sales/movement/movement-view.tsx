@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
 import { variantOfArticle } from "@/lib/sales-receipts-core";
@@ -18,13 +18,16 @@ const th = "px-2 py-2 text-right text-xs font-semibold whitespace-nowrap";
 const td = "px-2 py-1.5 text-right text-sm tabular-nums whitespace-nowrap";
 
 function StockChart({ rows, hot, setHot }: { rows: MoveRow[]; hot: number | null; setHot: (i: number | null) => void }) {
-  const W = Math.max(320, rows.length * 28 + 90), H = 200, PL = 44, PR = 12, PT = 12, PB = 30;
+  const box = useRef<HTMLDivElement>(null);
+  const [cw, setCw] = useState(0);
+  useEffect(() => { const el = box.current; if (!el) return; const upd = () => setCw(el.clientWidth); upd(); const ro = new ResizeObserver(upd); ro.observe(el); return () => ro.disconnect(); }, []);
+  const W = Math.max(300, rows.length * 24 + 90, cw - 2), H = 200, PL = 44, PR = 22, PT = 12, PB = 30;
   const maxV = Math.max(1, ...rows.map((r) => r.stock)), minV = Math.min(0, ...rows.map((r) => r.stock));
   const y = (v: number) => PT + (H - PT - PB) * (1 - (v - minV) / (maxV - minV));
   const x = (i: number) => PL + (rows.length <= 1 ? 0 : (i * (W - PL - PR)) / (rows.length - 1));
   const pts = rows.map((r, i) => `${x(i)},${y(r.stock)}`);
   return (
-    <div className="overflow-x-auto" data-keep-scroll tabIndex={0} role="img" aria-label="Остаток по артикулу нарастающим итогом после каждого движения">
+    <div ref={box} className="overflow-x-auto" data-keep-scroll tabIndex={0} role="img" aria-label="Остаток по артикулу нарастающим итогом после каждого движения">
       <svg width={W} height={H} className="block" onMouseLeave={() => setHot(null)}>
         {[minV, (minV + maxV) / 2, maxV].map((v) => <g key={v}><line x1={PL} x2={W - PR} y1={y(v)} y2={y(v)} stroke="#e5e5e5" /><text x={PL - 6} y={y(v) + 4} textAnchor="end" fontSize="11" fill="#525252">{Math.round(v)}</text></g>)}
         {rows.map((r, i) => <rect key={r.line.id} x={x(i) - 4} y={y(Math.max(0, r.delta > 0 ? r.stock : r.stock - r.delta))} width="8" height={Math.max(2, Math.abs(y(r.stock) - y(r.stock - r.delta)))} fill={r.delta >= 0 ? NAVY : GET} opacity="0.35" />)}
@@ -67,11 +70,11 @@ export function MovementView({ card, rows }: { card: Card; rows: MoveRow[] }) {
           {fact("Себестоимость (ТЗ)", card.costIncl ? <>{money(card.costIncl)} с НДС{card.costExcl ? <span className="text-neutral-700"> · {money(card.costExcl)} без</span> : null}</> : DASH)}
           {fact("Маркап", markup === null ? DASH : "×" + markup.toFixed(2).replace(".", ","))}
           {fact("Изделие", card.modelId ? <Link href={`/models/${card.modelId}`} className="inline-flex min-h-11 items-center underline">Карточка изделия {card.modelCode ?? ""}</Link> : DASH)}
-          {fact("ТЗ и оплаты", card.tz.length ? <ul className="flex flex-col">{card.tz.map((t) => <li key={t.id}><Link href={`/production/${t.id}`} className="inline-flex min-h-11 items-center underline">ТЗ {t.number}</Link><span className="text-neutral-700"> · оплачено {money(t.paid)}</span></li>)}</ul> : DASH)}
+          {fact("ТЗ и оплаты", card.tz.length ? <ul className="flex flex-col">{card.tz.map((t) => <li key={t.id} className="flex min-h-11 flex-col justify-center py-0.5"><Link href={`/production/${t.id}`} className="inline-flex min-h-6 items-center self-start underline">ТЗ {t.number}</Link><span className="text-xs text-neutral-700">оплачено {money(t.paid)}</span></li>)}</ul> : DASH)}
         </dl>
       </section>
       <section aria-label="Итоги" className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        {[["Приход, шт.", n0(received)], ["Продано, шт.", n0(sold)], ["Остаток, шт.", n0(received - sold)], ["Выручка", `${money(revIn)} с НДС · ${money(revEx)} без`]].map(([k, v]) => <div key={k} className="rounded-lg border border-neutral-300 bg-white p-3"><div className="text-xs text-neutral-700">{k}</div><div className="text-lg font-semibold tabular-nums">{v}</div></div>)}
+        {[["Приход, шт.", n0(received)], ["Продано, шт.", n0(sold)], ["Остаток, шт.", n0(received - sold)], ["Выручка", <>{money(revIn)} <span className="text-xs font-normal">с НДС</span><span className="block text-sm font-medium text-neutral-700">{money(revEx)} без НДС</span></>]].map(([k, v]) => <div key={k as string} className={"rounded-lg border border-neutral-300 bg-white p-3" + (k === "Выручка" ? " max-sm:col-span-2" : "")}><div className="text-xs text-neutral-700">{k}</div><div className="text-lg font-semibold tabular-nums">{v}</div></div>)}
       </section>
       {rows.length === 0 ? <p className="rounded-lg border border-neutral-300 bg-white p-3 text-sm">По этому артикулу движений в выгрузке нет.</p> : (
         <>

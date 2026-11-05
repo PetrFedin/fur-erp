@@ -94,7 +94,7 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
       />
 
       <WidgetRow id="materials" title="Материалы — состав" headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
-        <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3">
+        <div className="grid grid-cols-1 max-sm:grid-cols-3! items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3">
           <div className={TILE_BOX}>
             <TileHead>Материалов</TileHead>
             <TileValue>{materials.length}</TileValue>

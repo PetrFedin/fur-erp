@@ -102,7 +102,7 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
                     await toggleSupplierActive(s.id);
                   }}
                 >
-                  <Button type="submit" variant="ghost" size="sm">
+                  <Button type="submit" variant="ghost" size="sm" className="max-md:-ml-3 max-md:min-h-11">
                     {s.isActive ? "Деактивировать" : "Активировать"}
                   </Button>
                 </form>

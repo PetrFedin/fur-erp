@@ -50,7 +50,7 @@ export default async function SettingsPage() {
                 <CardTitle>{item.title}</CardTitle>
                 <CardDescription>{item.description}</CardDescription>
               </CardHeader>
-              <CardContent />
+              <CardContent className="max-md:p-0 max-md:pb-2" />
             </Card>
           </Link>
         ))}

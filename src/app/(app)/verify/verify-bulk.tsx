@@ -101,9 +101,9 @@ export function VerifyQueue({ items, readyAll }: { items: Item[]; readyAll: { ke
             return (
               <li key={row.key} className="flex items-start gap-2">
                 {can ? (
-                  <input type="checkbox" checked={sel.has(row.key)} onChange={() => toggle(row.key)} aria-label={`Выбрать: ${row.title}`} className="mt-3.5 size-4 shrink-0" />
+                  <label className="relative mt-3.5 shrink-0 after:absolute after:-inset-3.5 after:content-['']"><input type="checkbox" checked={sel.has(row.key)} onChange={() => toggle(row.key)} aria-label={`Выбрать: ${row.title}`} className="block size-4" /></label>
                 ) : (
-                  <span className="size-4 shrink-0" aria-hidden />
+                  <span className="size-4 shrink-0 max-md:hidden" aria-hidden />
                 )}
                 <div className="min-w-0 flex-1">
                   <ul><VerifyRowCard row={row} canEdit={canEdit} /></ul>

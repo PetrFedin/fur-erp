@@ -191,7 +191,7 @@ export default async function EditModelPage({ params, searchParams }: PageProps<
       <div className="flex flex-wrap items-center gap-y-2">
         <h1 className="text-xl font-semibold"><ArticleName model={model} /></h1>
         <YearNote year={year} />
-        <ChatLink type="ProductModel" id={model.id} role={session.user.role} className="ml-3" />
+        <ChatLink type="ProductModel" id={model.id} role={session.user.role} className="sm:ml-3" />
         <span className="ml-2 inline-flex">
           <InfoHint label="О карточке артикула" wide>
             <p>Всё по артикулу: итоги, показатели, реквизиты и цена, ТЗ с составом по лотам и закупкам, отгрузки, документы ТЗ. Числа — все ТЗ артикула без отменённых и без ремонта («Заведено в ТЗ»; «В выпуске» на Главной — заказ по отчёту, он включает и заказ без ТЗ). Год в шапке ограничивает ТЗ и себестоимость.</p>
@@ -348,8 +348,8 @@ export default async function EditModelPage({ params, searchParams }: PageProps<
 
 
       {!HIDDEN_MODULES.shipments && (
-      <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-        <summary className="block-title cursor-pointer">Отгрузки ({shipments.length})</summary>
+      <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3 max-md:py-0">
+        <summary className="block-title cursor-pointer max-md:py-2.5">Отгрузки ({shipments.length})</summary>
         <div className="mt-2">
           {shipments.length === 0 ? (
             <p className="text-sm text-neutral-500">Отгрузок нет</p>
@@ -373,8 +373,8 @@ export default async function EditModelPage({ params, searchParams }: PageProps<
       )}
 
       {!HIDDEN_MODULES.fittings && (
-      <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-        <summary className="block-title cursor-pointer">Примерки ({fittings.length})</summary>
+      <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3 max-md:py-0">
+        <summary className="block-title cursor-pointer max-md:py-2.5">Примерки ({fittings.length})</summary>
         <div className="mt-2">
           {fittings.length === 0 ? (
             <p className="text-sm text-neutral-500">Примерок по этому артикулу пока нет</p>
@@ -397,8 +397,8 @@ export default async function EditModelPage({ params, searchParams }: PageProps<
       </details>
       )}
 
-      <details id="docs" className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-        <summary className="block-title cursor-pointer">Документы ТЗ артикула ({docs.length})</summary>
+      <details id="docs" className="rounded-xl border border-neutral-200 bg-white px-4 py-3 max-md:py-0">
+        <summary className="block-title cursor-pointer max-md:py-2.5">Документы ТЗ артикула ({docs.length})</summary>
         <div className="mt-2">
           {docs.length === 0 ? (
             <p className="text-sm text-neutral-500">Документов нет</p>

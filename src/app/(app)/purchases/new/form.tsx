@@ -69,7 +69,7 @@ export function PurchaseCreateForm({
       className="flex flex-col gap-4"
     >
       {guard}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
         <div>
           <Label htmlFor="orderDate">Дата</Label>
           <Input id="orderDate" name="orderDate" type="date" defaultValue={today} required />

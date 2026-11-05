@@ -56,7 +56,7 @@ export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickabl
   const arrow = CAROUSEL_ARROW;
   return (
     <div className="relative">
-      <div data-hover-block={hoverBlocks ? (slides[cur]?.key === "total" ? "prod" : grpBlock(slides[cur]?.key ?? "")) : undefined} className={twoUp ? "flex h-full flex-col gap-1 pr-8" : TILE_BOX + (clickable ? " tile-click" : "") + " shadow-sm print:shadow-none"}>
+      <div data-hover-block={hoverBlocks ? (slides[cur]?.key === "total" ? "prod" : grpBlock(slides[cur]?.key ?? "")) : undefined} className={twoUp ? "flex h-full flex-col gap-1 lg:pr-8" : TILE_BOX + (clickable ? " tile-click" : "") + " shadow-sm print:shadow-none"}>
         <TileHead>{title} · {perView > 1 ? slides.slice(cur, cur + perView).map((x) => x.label).join(" · ") : slides[cur]?.label}</TileHead>
         {toolbar}
         <div ref={scroller} onScroll={onScroll} {...dragProps} tabIndex={0}

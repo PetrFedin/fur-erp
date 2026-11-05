@@ -8,8 +8,8 @@ import type { ReactNode } from "react";
 
 export const TILE_BOX = "tile-box relative flex h-full flex-col rounded-lg border border-neutral-200 bg-white p-4 text-left print:break-inside-avoid";
 
-export function TileHead({ children }: { children: ReactNode }) {
-  return <div data-comment-title className="flex min-h-5 items-start gap-1.5 pr-6 text-xs font-semibold uppercase leading-4 tracking-wide text-neutral-500">{children}</div>;
+export function TileHead({ children, wide = false }: { children: ReactNode; /** Справа две подсказки вместо одной: запас под обе, чтобы заголовок не заходил под значки. */ wide?: boolean }) {
+  return <div data-comment-title className={"flex min-h-5 items-start gap-1.5 text-xs font-semibold uppercase leading-4 tracking-wide text-neutral-500 " + (wide ? "pr-14" : "pr-6")}>{children}</div>;
 }
 
 export function TileValue({ children, className = "", compact = false }: { children: ReactNode; className?: string; /** Узкая плитка оплат в ряду «Сырьё | Оплаты»: цифра text-base сразу под названием. */ compact?: boolean }) {

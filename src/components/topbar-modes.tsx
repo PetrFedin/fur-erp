@@ -48,8 +48,9 @@ export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
   }, [open]);
 
   if (!narrow) {
+    // До гидратации narrow всегда false: на телефоне ряд переключателей не показываем (иначе шапка на миг вылезает за экран).
     return (
-      <>
+      <div className="hidden xl:contents">
         <div className="flex items-center gap-1.5">
           <span className="hidden text-xs text-neutral-500 xl:inline">Год:</span>
           <YearToggle supplier={yearOnly} />
@@ -66,7 +67,7 @@ export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
             </div>
           </>
         )}
-      </>
+      </div>
     );
   }
   return (

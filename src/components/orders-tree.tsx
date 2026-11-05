@@ -313,7 +313,7 @@ export function OrdersTree({
         ) : null}
       </div>
       <div className={SCROLL_BOX}>
-        <table className={"w-full min-w-[1120px] text-sm" + (compact ? " text-[13px] [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap [&_td]:!py-0.5 [&_td:nth-child(2)]:max-w-[340px] [&_td:nth-child(2)]:overflow-hidden [&_td:nth-child(2)]:text-ellipsis" : "")}>
+        <table className={"w-full min-w-[1120px] text-sm max-xl:[&_td:nth-child(2)]:min-w-[240px] max-xl:[&_th:nth-child(2)]:min-w-[240px]" + (compact ? " text-[13px] [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap [&_td]:!py-0.5 [&_td:nth-child(2)]:max-w-[340px] [&_td:nth-child(2)]:overflow-hidden [&_td:nth-child(2)]:text-ellipsis" : "")}>
           <thead>
             <tr>
               <th />

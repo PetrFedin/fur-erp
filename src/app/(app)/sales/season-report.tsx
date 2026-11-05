@@ -369,7 +369,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
           <tbody>
             {SUMMARY.map((c) => (
               <tr key={c.key} className="border-t border-neutral-200">
-                <td className={"px-3 py-2 " + (c.strong ? "font-semibold" : "")}>{c.label}<InfoHint label={c.label}><p>{c.hint}</p></InfoHint></td>
+                <td className={"px-3 py-2 " + (c.strong ? "font-semibold" : "")}>{c.label}<span className="ml-1 inline-flex align-middle [&_.info-i]:!h-5 [&_.info-i]:!min-h-0 [&_.info-i]:!w-5 [&_.info-i]:!min-w-0"><InfoHint label={c.label}><p>{c.hint}</p></InfoHint></span></td>
                 {seasons.map((s) => <td key={s} data-season={s} data-metric={c.key} className={`px-3 py-2 text-right tabular-nums ${SEASON_BG[s]} ${c.strong ? "font-semibold" : ""}`}>{c.key === "rubS" || c.key === "rubA" ? money(totalAll[s][c.key]) : c.get(totalAll[s], s)}</td>)}
                 {seasons.length > 1 ? <td className="px-3 py-2 text-right tabular-nums text-neutral-800">{c.key === "wait" ? (seasons.includes("FW26/27") ? n0(Math.max(0, totalAll["FW26/27"].conf - totalAll["FW26/27"].deliv)) : DASH) : c.key === "rubS" || c.key === "rubA" ? money(sumAll[c.key]) : c.get(sumAll, "FW25/26")}</td> : null}
               </tr>
@@ -381,7 +381,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
       <p className="-mt-1 text-xs text-neutral-600">Деньги по сезонам здесь — по товару сезона (отчёт «заказ и продажи»). В «Обзоре по дням» сезоны делятся по партии строк продаж, поэтому суммы по сезонам там другие; общий итог одинаковый.</p>
 
       {/* Панель: вид, мех, поиск, сортировка */}
-      <div className="sticky top-0 z-[15] flex flex-wrap items-center gap-2 rounded-lg bg-white/95 py-1 backdrop-blur">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg bg-white/95 py-1 backdrop-blur xl:sticky xl:top-0 xl:z-[15]">
         {controls}
         <div role="group" aria-label="Вид" className={segGroup}>
           <button type="button" aria-pressed={view === "tree"} onClick={() => setView("tree")} className={seg(view === "tree")}>Мех → артикул → размер</button>
@@ -404,7 +404,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
             <option value="rub">по выручке</option><option value="all">по продажам</option><option value="ssn">по продажам сезонного</option><option value="so">по SO</option><option value="markup">по маркапу</option><option value="conf">по заказу</option>
           </select>
         </label>
-        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Артикул, мех, категория, цвет" aria-label="Поиск" className="min-h-11 w-56 max-w-full rounded-md border border-neutral-300 px-3 text-sm" />
+        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Артикул, мех, категория, цвет" aria-label="Поиск" className="min-h-11 w-full min-w-0 rounded-md border border-neutral-300 px-3 text-sm sm:w-72" />
         {seasons.length > 1 && view !== "receipts" ? <button type="button" aria-pressed={detail} onClick={() => setDetail((v) => !v)} className={seg(detail)}>{detail ? "Кратко" : "Все показатели"}</button> : null}
       </div>
 
@@ -464,13 +464,13 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
               const cost = costLine(n), now = nowRange(n), sum = seasons.reduce((a, s) => plus(a, n.m[s]), zero());
               const nowNum = n.rows.map(nowPrice).find((x) => x !== null) ?? null;
               return (
-                <li key={n.id} className="flex flex-col gap-3 rounded-xl border border-neutral-300 bg-white p-3 md:flex-row">
-                  <div className="flex items-start gap-3 md:w-72 md:shrink-0">
+                <li key={n.id} className="flex flex-col gap-3 rounded-xl border border-neutral-300 bg-white p-3 xl:flex-row">
+                  <div className="flex items-start gap-3 xl:w-72 xl:shrink-0">
                     {thumb(n, true)}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold leading-snug" title={n.label}>{n.label}</p>
                       <p className="text-xs text-neutral-700">{n.sub}</p>
-                      <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-xs">
+                      <dl className="mt-1.5 grid max-w-sm grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-xs">
                         <dt className="text-neutral-700">Цена сейчас</dt><dd className="text-right font-semibold tabular-nums">{now ?? DASH}</dd>
                         <dt className="text-neutral-700">Себестоимость</dt><dd className="text-right tabular-nums">{cost ? money(cost) : DASH}</dd>
                         <dt className="text-neutral-700">Маркап по цене сейчас</dt><dd className="text-right tabular-nums">{cost && nowNum ? x2(nowNum / cost) : DASH}</dd>
@@ -482,7 +482,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
                     <table className={"w-full text-sm " + (detail ? "min-w-[900px]" : "min-w-[780px]")}>
                       <thead><tr className="text-neutral-700"><th className="py-1 text-left font-normal">Сезон</th>{cols.filter((c) => c.key !== "arts").map((c) => <th key={c.key} title={c.hint} className="px-1 text-right font-normal whitespace-nowrap">{c.short}</th>)}</tr></thead>
                       <tbody>
-                        {seasons.map((s) => <tr key={s} className={`border-t border-neutral-200 tabular-nums ${SEASON_BG[s]}`}><td className="py-1.5 pl-1">{SEASON_LABEL[s]}</td>{cols.filter((c) => c.key !== "arts").map((c) => <td key={c.key} className={"px-1 text-right whitespace-nowrap " + (c.strong ? "font-semibold" : "")}>{c.get(n.m[s], s)}</td>)}</tr>)}
+                        {seasons.map((s) => <tr key={s} className={`border-t border-neutral-200 tabular-nums ${SEASON_BG[s]}`}><td className="whitespace-nowrap py-1.5 pl-1 pr-2">{SEASON_LABEL[s]}</td>{cols.filter((c) => c.key !== "arts").map((c) => <td key={c.key} className={"px-1 text-right whitespace-nowrap " + (c.strong ? "font-semibold" : "")}>{c.get(n.m[s], s)}</td>)}</tr>)}
                         {seasons.length > 1 ? <tr className="border-t-2 border-neutral-400 font-semibold tabular-nums"><td className="py-1.5 pl-1">Итого</td>{cols.filter((c) => c.key !== "arts").map((c) => <td key={c.key} className="px-1 text-right whitespace-nowrap">{c.key === "wait" ? (seasons.includes("FW26/27") ? n0(Math.max(0, n.m["FW26/27"].conf - n.m["FW26/27"].deliv)) : DASH) : c.get(sum, "FW25/26")}</td>)}</tr> : null}
                       </tbody>
                     </table>

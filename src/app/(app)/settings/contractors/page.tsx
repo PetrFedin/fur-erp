@@ -50,7 +50,7 @@ export default async function ContractorsPage({ searchParams }: PageProps<"/sett
               <Td>
                 {canEdit && (
                   <form action={async () => { "use server"; await toggleContractorActive(c.id); }}>
-                    <Button type="submit" variant="ghost" size="sm">{c.isActive ? "В архив" : "Вернуть из архива"}</Button>
+                    <Button type="submit" variant="ghost" size="sm" className="max-md:min-h-11">{c.isActive ? "В архив" : "Вернуть из архива"}</Button>
                   </form>
                 )}
               </Td>

@@ -179,7 +179,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
       </div>
 
       <h2 className="text-base font-semibold">Реестр оплат</h2>
-      <ResponsiveRows table={
+      <ResponsiveRows cardsUntil="xl" table={
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table data-colset="payments-registry" className="w-full min-w-[1180px] text-sm">
           <thead>

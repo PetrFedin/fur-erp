@@ -122,7 +122,7 @@ function EditDialogBody({ title, action, children, version, hint, saveLabel = "Ð
       }}
       className={`m-auto w-[calc(100vw-2rem)] ${wide ? "max-w-2xl" : "max-w-lg"} rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40`}
     >
-      <form ref={keepRef} onSubmit={keepSubmit} onChange={() => setDirty(true)} className="flex max-h-[85vh] flex-col">
+      <form ref={keepRef} onSubmit={keepSubmit} onChange={() => setDirty(true)} className="flex max-h-[85dvh] flex-col">
         <div className="border-b border-neutral-200 px-4 py-3">
           <h2 className="text-base font-semibold text-neutral-900">{title}</h2>
           {hint && <div className="mt-1 text-xs text-neutral-500">{hint}</div>}

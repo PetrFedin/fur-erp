@@ -99,7 +99,7 @@ export function ShipmentsFeed({ rows }: { rows: FeedRow[] }) {
         </div>
       ) : <p className="text-xs text-neutral-600">Нажмите на месяц на графике — в списке останутся его приёмки. Нажмите на дату — откроется окно с артикулами, ТЗ и партиями.</p>}
       <div className="overflow-x-auto rounded-lg border border-neutral-200">
-        <div role="row" className="grid min-w-[420px] grid-cols-[7rem_1fr_1fr_1fr] items-center border-b border-neutral-200 bg-neutral-50">
+        <div role="row" className="grid grid-cols-[5.75rem_minmax(2.25rem,1fr)_minmax(6rem,1.5fr)_minmax(4.5rem,1fr)] gap-x-2 md:min-w-[460px] md:grid-cols-[6.5rem_minmax(3rem,1fr)_minmax(7.5rem,1.5fr)_minmax(4.5rem,1fr)] md:gap-x-3 items-center border-b border-neutral-200 bg-neutral-50">
           {([["date", "Дата", undefined, true], ["qty", "Штук", "шт.", false], ["sum", "Сумма", mode === "incl" ? "₽ с НДС" : "₽ без НДС", false], ["arts", "Артикулов", undefined, false]] as const).map(([k, label, unit, left]) => (
             <div key={k} role="columnheader" aria-sort={daySort?.key === k ? (daySort.dir === "asc" ? "ascending" : "descending") : undefined} className={left ? "text-left" : "text-right"}>
               <button type="button" onClick={() => setDaySort(flip(daySort, k))} className={"inline-flex min-h-11 flex-col justify-center px-1.5 text-xs font-medium text-neutral-600 hover:underline " + (left ? "items-start" : "items-end")}>
@@ -114,7 +114,7 @@ export function ShipmentsFeed({ rows }: { rows: FeedRow[] }) {
             const q = rs.reduce((a, r) => a + r.qty, 0), sm = rs.reduce((a, r) => a + sum(r), 0), arts = new Set(rs.map((r) => r.article)).size;
             return (
               <li key={d}>
-                <button type="button" onClick={() => setOpenDay(d)} aria-haspopup="dialog" className="grid min-h-11 w-full min-w-[420px] grid-cols-[7rem_1fr_1fr_1fr] items-center px-1.5 py-1 text-left text-sm tabular-nums hover:bg-neutral-50">
+                <button type="button" onClick={() => setOpenDay(d)} aria-haspopup="dialog" className="grid min-h-11 w-full grid-cols-[5.75rem_minmax(2.25rem,1fr)_minmax(6rem,1.5fr)_minmax(4.5rem,1fr)] gap-x-2 md:min-w-[460px] md:grid-cols-[6.5rem_minmax(3rem,1fr)_minmax(7.5rem,1.5fr)_minmax(4.5rem,1fr)] md:gap-x-3 items-center px-1.5 py-1 text-left text-sm tabular-nums hover:bg-neutral-50">
                   <span className="font-medium">{dateRu(d)}</span>
                   <span className="text-right">{n0(q)}</span>
                   <span className="text-right text-neutral-700">{money(sm)}</span>

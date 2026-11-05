@@ -524,8 +524,8 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         opts={opts}
         aucOf={aucOf}
         lead={[
-          { type: "text", name: "m", label: "Целевая наценка, %", state: true, inputMode: "decimal", placeholder: defRounded != null ? String(defRounded) : "например 300", className: "sm:w-40" },
-          { type: "multi", name: "base", label: "База наценки", single: true, state: true, allLabel: "Себестоимость сырья (без работы)", options: [{ value: "full", label: "Полная себестоимость (с работой)" }], className: "sm:w-72" },
+          { type: "text", name: "m", label: "Целевая наценка, %", state: true, inputMode: "decimal", placeholder: defRounded != null ? String(defRounded) : "например 300", className: "min-w-0 xl:w-40" },
+          { type: "multi", name: "base", label: "База наценки", single: true, state: true, allLabel: "Себестоимость сырья (без работы)", options: [{ value: "full", label: "Полная себестоимость (с работой)" }], className: "min-w-0 xl:w-72" },
           { type: "multi", name: "only", label: "Показывать", single: true, state: true, allLabel: "Все", options: [{ value: "noprice", label: "Только без цены" }, { value: "issues", label: "Только с замечаниями" }] },
         ]}
       />
@@ -585,7 +585,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       <div className="flex flex-wrap items-center gap-2">
         <ViewBar all={p.all} picked={p.cols.length > 0} cols={cols} toggleAllHref={toggleAll} action="/analytics/pricing" hidden={pickerHidden} />
         <MobileSort items={mobileSortItems} cur={sortState} />
-        <span className="text-xs text-neutral-500">Строк: {shown.length}<InfoHint label="Сортировка">Клик по заголовку колонки — сортировка.</InfoHint></span>
+        <span className="text-xs text-neutral-500">Строк: {shown.length}<InfoHint className="ml-1.5" label="Сортировка">Клик по заголовку колонки — сортировка.</InfoHint></span>
       </div>
 
       <ResponsiveRows
@@ -615,7 +615,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             <Tbody>
               {shown.map((a, idx) => (
                 <Tr key={a.key} id={`row-${idx}`} className={a.modelId && !a.price ? "bg-amber-50/60" : ""}>
-                  <Td className="font-medium">
+                  <Td className="min-w-44 font-medium">
                     <div title={a.modelId ? a.rows[0]?.modelHint : undefined}>{a.modelId ? (a.rows[0]?.modelLabel ?? a.label) : a.label}</div>
                     <div className="mt-0.5 font-normal">{lazyDetails(a, idx)}</div>
                     <div className="text-[11px] font-normal text-neutral-500">

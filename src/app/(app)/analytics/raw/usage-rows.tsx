@@ -5,7 +5,7 @@ import { usageByLot, type RawLot, type UsageRow } from "@/lib/raw-analytics";
 import { CostCell } from "./cost-cell";
 
 /** Колонки сводной таблицы «по изделию / по ТЗ». */
-export const USAGE_COLS = "md:grid-cols-[2fr_0.8fr_1fr_1fr_1fr_1.4fr_1.2fr]";
+export const USAGE_COLS = "lg:grid-cols-[2fr_0.8fr_1fr_1fr_1fr_1.4fr_1.2fr]";
 
 /** Лоты одного изделия (или ТЗ) — раскрытие строки: какой лот, сколько ушло и во сколько обошлось. */
 export function UsageGroupLots({ rows, lots, unit, c4, by }: { rows: UsageRow[]; lots: Map<string, RawLot>; unit: string; c4: "on" | "off"; by: "article" | "order" }) {

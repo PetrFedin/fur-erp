@@ -369,7 +369,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
             <UsageTable groups={usageGroups} by={by} f={f} unit={unit} c4={c4} lots={lots.length} year={year} />
           ) : (
             <>
-              <div className={`hidden gap-2 border-b border-neutral-200 px-3 pb-2 text-xs font-medium text-neutral-500 md:grid ${LOT_COLS}`}>
+              <div className={`hidden gap-2 border-b border-neutral-200 px-3 pb-2 text-xs font-medium text-neutral-500 lg:grid ${LOT_COLS}`}>
                 <span>{GROUPS.find((g) => g.key === by)!.label}</span>
                 <span>Куплено</span>
                 <span>Использовано</span>
@@ -390,7 +390,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
               ))}
               {groups.length > 0 && (
                 <div className={`row-total grid grid-cols-2 gap-2 px-3 py-2 text-sm ${LOT_COLS}`}>
-                  <span className="col-span-2 md:col-span-1"><TotalLabel extra={`${whLots.length} лотов`} /></span>
+                  <span className="col-span-2 md:col-span-4 lg:col-span-1"><TotalLabel extra={`${whLots.length} лотов`} /></span>
                   <Cells a={total} unit={unit} c4={c4} />
                 </div>
               )}
@@ -567,7 +567,7 @@ function Check({ ok, warn, text, children }: { ok: boolean; warn?: boolean; text
 
 function Cells({ a, unit, c4 }: { a: Agg; unit: string; c4: "on" | "off" }) {
   const p = avgPrice(a);
-  const lab = "block text-xs font-normal text-neutral-500 md:hidden";
+  const lab = "block text-xs font-normal text-neutral-500 lg:hidden";
   return (
     <>
       <span className="tabular-nums"><span className={lab}>Куплено</span>{qty(a.recv, unit)}</span>
@@ -599,7 +599,7 @@ function GroupRow({ g, by, f, unit, c4 }: { g: Group; by: GroupBy; f: RawFilters
           className={`grid cursor-pointer list-none grid-cols-2 gap-2 px-3 py-2 hover:bg-neutral-50 ${LOT_COLS} [&::-webkit-details-marker]:hidden`}
           title={g.title}
         >
-          <span className="col-span-2 font-medium md:col-span-1">
+          <span className="col-span-2 font-medium md:col-span-4 lg:col-span-1">
             <span className="mr-1 inline-block text-neutral-500 transition-transform group-open:rotate-90">›</span>
             {g.label}
             {g.label === SYNTHETIC_LABEL.ordered || g.label === SYNTHETIC_LABEL.hides ? null : <span className="ml-1 text-xs font-normal text-neutral-500">· {g.agg.lots} лот.</span>}
@@ -612,7 +612,7 @@ function GroupRow({ g, by, f, unit, c4 }: { g: Group; by: GroupBy; f: RawFilters
 }
 
 function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGroup[]; by: "article" | "order"; f: RawFilters; unit: string; c4: "on" | "off"; lots: number; year: string }) {
-  const lab = "block text-xs font-normal text-neutral-500 md:hidden";
+  const lab = "block text-xs font-normal text-neutral-500 lg:hidden";
   const tot = groups.reduce(
     (a, g) => ({ qty: a.qty.add(g.qty), incl: a.incl.add(g.incl), excl: a.excl.add(g.excl), ei: a.ei.add(g.extraIncl), ee: a.ee.add(g.extraExcl), produced: a.produced.add(g.produced) }),
     { qty: new Decimal(0), incl: new Decimal(0), excl: new Decimal(0), ei: new Decimal(0), ee: new Decimal(0), produced: new Decimal(0) },
@@ -635,7 +635,7 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
   };
   return (
     <>
-      <div className={`hidden gap-2 border-b border-neutral-200 px-3 pb-2 text-xs font-medium text-neutral-500 md:grid ${USAGE_COLS}`}>
+      <div className={`hidden gap-2 border-b border-neutral-200 px-3 pb-2 text-xs font-medium text-neutral-500 lg:grid ${USAGE_COLS}`}>
         <span>{by === "article" ? "Изделие (артикул)" : "ТЗ"}</span>
         <span>{by === "article" ? "ТЗ / лотов" : "Лотов"}</span>
         <span>Готово</span>
@@ -657,7 +657,7 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
           load={loadUsageGroupLots.bind(null, by, g.key, f)}
           summary={
             <summary className={`grid cursor-pointer list-none grid-cols-2 gap-2 px-3 py-2 hover:bg-neutral-50 ${USAGE_COLS} [&::-webkit-details-marker]:hidden`}>
-              <span className="col-span-2 font-medium md:col-span-1">
+              <span className="col-span-2 font-medium lg:col-span-1">
                 <span className="mr-1 inline-block text-neutral-500 transition-transform group-open:rotate-90">›</span>
                 {g.label}
                 <span className="block pl-3 text-xs font-normal text-neutral-500">{g.sub}</span>
@@ -669,7 +669,7 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
       ))}
       {groups.length > 0 && (
         <div className={`row-total grid grid-cols-2 gap-2 px-3 py-2 text-sm ${USAGE_COLS}`}>
-          <span className="col-span-2 md:col-span-1"><TotalLabel extra={`${groups.length} · лотов в выборке: ${lots}`} /></span>
+          <span className="col-span-2 lg:col-span-1"><TotalLabel extra={`${groups.length} · лотов в выборке: ${lots}`} /></span>
           <span />
           <span className="tabular-nums"><span className={lab}>Готово</span>{formatQty(tot.produced.toString())} шт.</span>
           <span className="tabular-nums"><span className={lab}>Списано</span>{qty(tot.qty, unit)}</span>

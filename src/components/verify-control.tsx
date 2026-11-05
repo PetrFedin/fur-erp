@@ -119,14 +119,16 @@ export function VerifyControl({
         <ul className="flex flex-col gap-1 rounded-md border border-amber-200 bg-amber-50/70 px-3 py-2">
           <li className="text-xs font-semibold text-amber-900">Что не сходится:</li>
           {v.blockers.map((b, i) => (
-            <li key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-amber-950">
-              <span aria-hidden>•</span>
-              {b.href ? (
-                <Link href={b.href} className="min-w-0 break-words text-blue-800 underline decoration-dotted underline-offset-2 hover:decoration-solid">{b.text}</Link>
-              ) : (
-                <span className="min-w-0 break-words">{b.text}</span>
-              )}
-              {canEdit && b.upload && <UploadTargetButton upload={b.upload} />}
+            <li key={i} className="flex flex-col items-start gap-1 text-xs text-amber-950 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
+              <span className="flex min-w-0 items-baseline gap-2">
+                <span aria-hidden>•</span>
+                {b.href ? (
+                  <Link href={b.href} className="min-w-0 break-words text-blue-800 underline decoration-dotted underline-offset-2 hover:decoration-solid">{b.text}</Link>
+                ) : (
+                  <span className="min-w-0 break-words">{b.text}</span>
+                )}
+              </span>
+              {canEdit && b.upload && <span className="max-sm:pl-4"><UploadTargetButton upload={b.upload} /></span>}
             </li>
           ))}
         </ul>

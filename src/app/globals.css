@@ -114,12 +114,24 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
 @media (max-width: 767px) {
   td a[href]:not(.truncate) { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
   td a.block { display: flex; }
+  /* Ссылки в карточках (строки таблиц → карточки): зона касания 44 px сохраняется, но отрицательные поля не раздувают межстрочный зазор. */
+  table[data-cards] td a[href]:not(.truncate):not(.block) { margin-block: -0.75rem; }
+  table[data-cards] td:not([data-title]) a[href]:not(.truncate):not(.block) { font-size: 0.75rem; line-height: 1rem; }
   td a.truncate { display: block; padding-block: 14px; }
-  td button[aria-label^="Раскрыть"], td button[aria-expanded] { min-width: 44px; }
+  /* Название-ссылка и шеврон в шапке карточки-строки: зона касания 44 px остаётся, но не раздувает шапку (было 77 px при строке в 22 px) и не уводит название вправо от шеврона. */
+  table[data-cards] td a.truncate { margin-block: -14px; }
+  table[data-cards] td button[aria-expanded]:is([aria-label^="Раскрыть"], [aria-label^="Свернуть"]):not(.info-i) { justify-content: flex-start; margin-block: -12px; margin-right: -28px; }
+  table[data-cards] td[data-title] button:not(.info-i) { margin-block: -12px; }
+  /* Кнопка-плитка 44 px с рамкой (size-11): отрицательное поле справа предназначено для узкого шеврона и наезжало на название. */
+  table[data-cards] td button[aria-expanded][class*="size-11"]:not(.info-i) { margin-right: 0; margin-block: 0; justify-content: center; }
+  td button[aria-label^="Раскрыть"]:not(.info-i), td button[aria-expanded]:not(.info-i) { min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  /* Шеврон «›» раскрытия в названии строки-карточки: у левого края, чтобы широкая зона касания не сдвигала значок на текст. */
+  td button[aria-label^="Раскрыть"]:not(.info-i) { justify-content: flex-start; }
   nav a.rounded-md { display: flex; align-items: center; min-height: 44px; }
   input[type="checkbox"]:not([data-touch-ok]) { margin: 14px; }
   input[type="file"] { min-height: 44px; }
-  button:not([role="tab"]):not(.info-i):not([data-touch-ok]) { min-width: 44px; }
+  /* min-w-full у кнопок-слайдов каруселей: без исключения 44 px перебивают «100 %», и два слайда встают рядом по половине ширины. */
+  button:not([role="tab"]):not(.info-i):not([data-touch-ok]):not([class*="min-w-full"]) { min-width: 44px; }
 }
 
 /* Телефон: ссылки-кнопки и блочные ссылки в списках/абзацах (карточки «Задачи», строки списков) — невидимая зона 44 px, вид прежний. */
@@ -195,6 +207,8 @@ div.row-total {
 /* Ссылка-плитка: общий «расширитель цели касания» a[href]::after (44 px) иначе растягивает руку на всю плитку — возвращаем маленькую руку в угол. */
 html:root .tile-click::after { top: auto; left: auto; right: 0.6rem; bottom: 0.5rem; width: 1.05rem !important; height: 1.05rem !important; max-width: 1.05rem; max-height: 1.05rem; transform: none; }
 html:root .tile-click[aria-roledescription="carousel"]::after { top: 0.55rem; bottom: auto; right: 2.3rem; }
+/* Рука в верхнем углу (плитки-карусели): заголовок плитки не заходит под неё и под значок «i». */
+.tile-click[aria-roledescription="carousel"] [data-comment-title] { padding-right: 3.5rem; }
 /* Плитка без детализации (только переход/фильтр): без руки-подсказки. */
 .tile-nohand::after, html:root a.tile-nohand::after { display: none; }
 @keyframes tap-hint { 0%, 100% { opacity: 0.25; transform: translateY(0); } 50% { opacity: 0.85; transform: translateY(-2px); } }
@@ -245,11 +259,13 @@ html:root :is(button, [role="button"], a.btn, summary):not(:disabled, [aria-disa
   /* Плитки сырья/оплат: столбец, без горизонтальной ленты. */
   .raw-tiles { display: flex; flex-direction: column; gap: 0.5rem; }
   .raw-tiles > * { flex: 0 0 auto; min-width: 0; }
+  /* h-full плитки внутри flex-колонки с неопределённой высотой раздувалась до высоты экрана и налезала на блок ниже: на телефоне высота по содержимому. */
+  .raw-tiles > .tile-box { height: auto; }
 }
 
 /* «Сырьё | Оплаты» (страница «Сырьё»): в узких плитках «Общая стоимость» занимает две строки — резервируем две строки у всех шести,
    чтобы цифры стояли на одном уровне. На широком экране (≥1600) и на планшете подпись в одну строку — запас не нужен. */
-@media (min-width: 1280px) and (max-width: 1599px), (max-width: 767px) {
+@media (min-width: 1280px) and (max-width: 1599px) {
   .raw-row-pay .tile-box [data-comment-title] { min-height: 2rem; }
   /* Плитки оплат: сумма сразу под названием, без резерва второй строки (иначе под «Оплачено» остаётся пустое место). */
   .raw-row-pay .raw-pay .tile-box [data-comment-title] { min-height: 0; }
@@ -356,6 +372,9 @@ table thead th { line-height: 1.15; }
     z-index: 1;
     padding: 0 !important;
   }
+  /* Второй управляющий элемент в карточке (например «×» удалить после флажка) — в нижнем правом углу, а не поверх первого. */
+  table[data-cards] tr > [data-ctl] ~ [data-ctl] { top: auto; bottom: 0.125rem; }
+  table[data-cards] tr > [data-ctl] button { min-width: 44px; justify-content: center; }
   table[data-cards] tr:has(> [data-ctl]) > [data-title] { padding-right: 2.75rem !important; }
   /* Итог — отдельная карточка. */
   table[data-cards] tr.row-total {
@@ -414,11 +433,17 @@ table thead th { line-height: 1.15; }
 
   /* Матрицы (.table-keep): прокрутка только внутри матрицы, с тенью у края; шапка/колонка остаются закреплёнными внутри неё. */
   .table-keep { overflow: auto !important; max-width: 100%; max-height: 70vh; position: relative; }
-  .table-keep::before {
+  /* Матрица продаж: закреплённая первая колонка 250 px съедала весь телефон — сужаем, название переносится. */
+  .sales-matrix > colgroup > col:first-child { width: 132px !important; }
+  /* Подсказка внизу рамки (sticky bottom), а не в потоке сверху: иначе перекрывала закреплённую шапку матрицы. */
+  .table-keep::after {
     content: "Матрица: листайте внутри рамки вбок и вниз";
-    display: block; position: sticky; left: 0; z-index: 40; width: max-content; max-width: 100%;
-    padding: 0.25rem 0.5rem; font-size: 0.6875rem; line-height: 1rem; color: #555; background: #fffbe6; border-bottom: 1px solid #eadf9a;
+    display: block; position: sticky; left: 0; bottom: 0; z-index: 40; width: max-content; max-width: 100%;
+    padding: 0.25rem 0.5rem; font-size: 0.6875rem; line-height: 1rem; color: #555; background: #fffbe6; border-top: 1px solid #eadf9a;
   }
+  /* Если .table-keep стоит на самой <table>, блок ::after попадал в анонимную ячейку первой колонки и раздувал её (фото-колонка 250 px).
+     Для таблицы подсказка — подпись под таблицей (caption), на ширину колонок не влияет. */
+  table.table-keep::after { display: table-caption; caption-side: bottom; position: static; width: auto; }
 }
 
 /* Планшет и малый ноутбук (768–1279): кнопки и ссылки в таблицах, флажки и переключатели — зона касания 44 px без смены вида. */
@@ -451,6 +476,8 @@ table thead th { line-height: 1.15; }
 /* Телефон и планшет: заголовок раскрывающегося блока (summary) — не ниже 44 px, как и на 768–1279. */
 @media (max-width: 1279px) {
   summary { min-height: 44px; }
+  /* Название строки таблицы в summary: цель 44 px набирается отступами, а не min-height, иначе текст прижат к верху и не стоит на одной линии с цифрами строки. */
+  td > details > summary { min-height: 0; padding-block: 10px; }
 }
 
 /* ── Единый вид таблиц (волна 1 унификации, 20.10.2026) ── */
@@ -469,4 +496,9 @@ table[data-sticky-first] > tbody > tr.row-total > td:first-child { background-co
 @media (max-width: 767px) {
   table[data-sticky-first] > thead > tr > th:first-child,
   table[data-sticky-first] > tbody > tr > td:first-child { position: static; box-shadow: none; }
+}
+
+/* Dev-инструменты (индикатор Next «N», панель Agentation) на телефоне и планшете закрывают контент и кнопку комментария. */
+@media (max-width: 1279px) {
+  nextjs-portal, agentation-toolbar { display: none !important; }
 }

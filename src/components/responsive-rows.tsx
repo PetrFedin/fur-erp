@@ -4,11 +4,11 @@ import { cn } from "@/lib/utils";
 
 // На ≥ md показываем обычную таблицу (table), на < md — список карточек (children).
 // Оба варианта рендерятся на сервере, переключает их только CSS: состояния нет.
-export function ResponsiveRows({ table, children, className }: { table: ReactNode; children: ReactNode; className?: string }) {
+export function ResponsiveRows({ table, children, className, cardsUntil = "md" }: { table: ReactNode; children: ReactNode; className?: string; /** С какой ширины показывать таблицу вместо карточек: «md» (768, по умолчанию) или «xl» (1280) — для широких таблиц, которые на планшете не помещаются. */ cardsUntil?: "md" | "xl" }) {
   return (
     <>
-      <div className="hidden md:block">{table}</div>
-      <div className={cn("flex flex-col gap-2 md:hidden", className)}>{children}</div>
+      <div className={cardsUntil === "xl" ? "hidden xl:block" : "hidden md:block"}>{table}</div>
+      <div className={cn("flex flex-col gap-2", cardsUntil === "xl" ? "xl:hidden" : "md:hidden", className)}>{children}</div>
     </>
   );
 }

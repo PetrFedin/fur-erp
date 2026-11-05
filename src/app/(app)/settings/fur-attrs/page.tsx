@@ -64,8 +64,8 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
       {flashOk && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{flashOk}</p>}
 
       {canEdit && (
-        <details className="max-w-3xl rounded-xl border border-neutral-200 bg-white px-4 py-3">
-          <summary className="cursor-pointer text-sm font-medium max-md:py-3">+ Добавить признак</summary>
+        <details className="max-w-3xl rounded-xl border border-neutral-200 bg-white px-4 py-3 max-lg:py-0 max-lg:open:pb-3">
+          <summary className="cursor-pointer text-sm font-medium max-lg:leading-[44px]">+ Добавить признак</summary>
           <div className="mt-3">
             <form action={createFurAttr} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div>
@@ -143,11 +143,11 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
                   <Td className="text-right align-top">{r.lots}</Td>
                   <Td className="text-right align-top">{formatQty(r.qty)}</Td>
                   <Td className="text-right align-top">{r.ordersOwn} / {r.ordersViaLots}</Td>
-                  <Td className="align-top">
+                  <Td className="align-top max-md:col-span-2 max-md:before:!hidden">
                     {canEdit && (
-                      <details className="text-sm">
+                      <details className="text-sm md:relative">
                         <summary className={ICON_BTN + " cursor-pointer list-none"} title="Изменить" aria-label="Изменить"><IconPencil /></summary>
-                        <div className="mt-2 flex w-80 max-w-full flex-col gap-3 rounded-md border border-neutral-200 bg-white p-3">
+                        <div className="mt-2 flex w-80 max-w-full md:absolute md:max-w-none md:right-0 md:z-20 md:shadow-lg flex-col gap-3 rounded-md border border-neutral-200 bg-white p-3">
                           {!r.confirmed && (
                             <form action={confirmFurAttr}>
                               <input type="hidden" name="id" value={r.id} />

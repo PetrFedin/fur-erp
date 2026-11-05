@@ -110,7 +110,7 @@ export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact,
       <button
         type="button"
         onClick={() => { setI(0); setGk(null); setOpen(true); }}
-        className={thumbOnly ? (big ? "inline-flex h-28 w-20 shrink-0" : "inline-flex size-11") + " items-center justify-center overflow-hidden rounded border border-neutral-300 bg-white p-0 hover:bg-neutral-50" : "inline-flex min-h-11 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-2 py-1 text-sm hover:bg-neutral-50 sm:min-h-9"}
+        className={thumbOnly ? (big ? "inline-flex h-28 w-20 shrink-0" : "inline-flex size-11") + " items-center justify-center overflow-hidden rounded border border-neutral-300 bg-white p-0 hover:bg-neutral-50" : "inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-lg border border-neutral-300 bg-white py-1 text-sm hover:bg-neutral-50 sm:min-h-9 " + (compact ? "gap-1.5 px-1.5" : "gap-2 px-2")}
         aria-haspopup="dialog"
         aria-label={`Фото артикула ${title}${thumbOnly ? ` (${total})` : ""}`}
         title={`Фото артикула ${title}`}
@@ -144,8 +144,8 @@ export function PhotoGalleryButton({ modelId, photos: allPhotos, title, compact,
                 {shop?.plu ? <span className="text-neutral-200"> · PLU {shop.plu}</span> : null}
                 {group && (group.label !== "Фото" || cur.variant) ? <span className="text-neutral-500"> · {group.label}{cur.variant && cur.variant !== group.label ? ` (${cur.variant})` : ""}</span> : null}
               </p>
-              <div className="flex items-center gap-2">
-                <span className="text-sm tabular-nums text-neutral-500">{i + 1} / {n}</span>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="whitespace-nowrap text-sm tabular-nums text-neutral-500">{i + 1} / {n}</span>
                 {canDelete && (
                   <button type="button" onClick={() => { setErr(""); setMode(mode ? null : "menu"); }} aria-label="Удалить фото" aria-expanded={mode !== null} title="Удалить фото" className="inline-flex size-11 items-center justify-center rounded-full hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
                     <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></svg>

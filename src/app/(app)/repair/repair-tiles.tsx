@@ -20,7 +20,7 @@ export function RepairTiles({ orders, c4, filtered = false }: { orders: DrillOrd
   const share = (v: number) => (total ? v / total : null);
   return (
     <WidgetRow id="repair" title={filtered ? "Ремонт — по фильтрам" : "Ремонт"} headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
-    <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2">
+    <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
       <div className="relative">
       <a href="#orders-tree" aria-label="Ремонт — перейти к составу ТЗ" className={TILE_BOX + " w-full shadow-sm tile-click print:shadow-none"}>
         <TileHead>Ремонт</TileHead>

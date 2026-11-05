@@ -481,13 +481,13 @@ function CarouselTile({ pages, onOpen, label = "Чистый поток и на�
         className="flex flex-1 snap-x snap-mandatory overflow-x-auto motion-safe:scroll-smooth [scrollbar-width:none]" data-keep-scroll>
         {pages.map((p, k) => (
           <div key={p.label} role="group" aria-roledescription="slide" aria-label={`${k + 1} из ${pages.length}: ${p.label}`} onClick={() => onOpen(k)} className="flex w-full shrink-0 cursor-pointer snap-start flex-col gap-0.5 p-3">
-            <div className="flex items-center gap-1 text-xs text-neutral-600">{p.label}{p.hint ? <span onClick={(e) => e.stopPropagation()}><InfoHint label={`Как считается: ${p.label}`} wide>{p.hint}</InfoHint></span> : null}</div>
+            <div className="flex items-center gap-1 pr-6 text-xs text-neutral-600">{p.label}{p.hint ? <span onClick={(e) => e.stopPropagation()}><InfoHint label={`Как считается: ${p.label}`} wide>{p.hint}</InfoHint></span> : null}</div>
             <div className={"text-lg font-semibold tabular-nums " + (p.tone === "bad" ? "text-[#b4310b]" : p.tone === "good" ? "text-[#17613c]" : "text-neutral-900")}>{p.value}</div>
             {p.sub ? <div className="text-xs text-neutral-600">{p.sub}</div> : null}
             {p.spark ? <Spark values={p.spark} kind={p.sparkKind} /> : null}
             {p.rows?.length ? (
               <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
-                {p.rows.map(([k2, v2]) => <div key={k2} className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{k2}</dt><dd className="font-semibold tabular-nums text-neutral-900">{v2}</dd></div>)}
+                {p.rows.map(([k2, v2]) => <div key={k2} className="flex flex-wrap items-baseline justify-between gap-x-2"><dt className="min-w-0 text-neutral-600">{k2}</dt><dd className="ml-auto font-semibold tabular-nums text-neutral-900">{v2}</dd></div>)}
               </dl>
             ) : null}
           </div>
@@ -520,7 +520,7 @@ function VatSeg({ choice, setChoice, globalEx }: { choice: VatChoice; setChoice:
 function Tile({ label, value, sub, hint, tone, mini, spark, extra, after, controls, expandId, onToggle }: { /** Свои элементы управления внутри плитки (например «С НДС | Без НДС»). */ controls?: React.ReactNode; /** Второй блок под мини-строками: подпись, значение, мини-строки (деньги после количеств). */ after?: { label: string; value: string; mini?: [string, string][] }; label: string; value: string; sub?: string; hint?: React.ReactNode; tone?: "bad" | "good"; /** Две мини-строки «Одежда … / Аксессуары …» со своими значениями. */ mini?: [string, string][]; spark?: number[]; extra?: string; expandId?: string; /** устарело, не используется */ openId?: string | null; onToggle?: (id: string) => void }) {
   const clickable = !!expandId && !!onToggle;
   return (
-    <div className={"relative flex min-w-0 flex-col rounded-lg border border-neutral-300 bg-white" + (clickable ? " tile-click" : "")}>
+    <div className={"relative flex min-w-0 flex-col rounded-lg border border-neutral-300 bg-white" + (clickable ? " tile-click [&::after]:!bottom-auto [&::after]:!right-[1.7rem] [&::after]:!top-[0.65rem]" : "")}>
       {/* Вся плитка — кнопка: клик открывает окно с деталями поверх страницы (как плитки на Главной); значок «i» и ссылки остаются отдельными. */}
       {clickable ? <button type="button" aria-haspopup="dialog" aria-label={`Подробнее: ${label}`} onClick={() => onToggle!(expandId!)} className="absolute inset-0 rounded-lg print:hidden" /> : null}
       <div className="pointer-events-none relative flex flex-col gap-0.5 p-3">
@@ -532,7 +532,7 @@ function Tile({ label, value, sub, hint, tone, mini, spark, extra, after, contro
         {spark ? <Spark values={spark} /> : null}
         {mini ? (
           <dl className="mt-1 flex flex-col gap-0.5 border-t border-neutral-200 pt-1 text-xs">
-            {mini.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><dt className="text-neutral-600">{k}</dt><dd className="font-semibold tabular-nums whitespace-nowrap text-neutral-900">{v}</dd></div>)}
+            {mini.map(([k, v]) => <div key={k} className="flex flex-wrap items-baseline justify-between gap-x-2"><dt className="min-w-0 text-neutral-600">{k}</dt><dd className="ml-auto font-semibold tabular-nums whitespace-nowrap text-neutral-900">{v}</dd></div>)}
           </dl>
         ) : null}
         {after ? (
@@ -780,7 +780,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
       {exVat && vat.unknown > 0.5 && <p className="text-xs text-neutral-700">Без НДС остаются авансы без привязки к закупке и счёту ({money(vat.unknown)}): ставка по документам не определена, суммы показаны как есть. НДС работы подрядчика берётся по счёту (20 % до 2026 года, 22 % с 2026).</p>}
 
 
-      <section aria-label="Ключевые показатели" className="grid grid-cols-1 items-stretch gap-2 min-[480px]:grid-cols-2 md:grid-cols-4">
+      <section aria-label="Ключевые показатели" className="grid grid-cols-1 items-stretch gap-2 min-[480px]:grid-cols-2 min-[1100px]:grid-cols-4">
         <CarouselTile label="Потрачено" onOpen={() => toggleTile("spend")} pages={[
           { label: "Потрачено", value: money(h.spent), sub: filtered ? "все траты, не по категории" : `${label}, ${vatNote}`, spark: ser.spend, rows: spendKinds.map((r, i) => [r.short, `${money(spendAl.values[i])} · ${spendPct[i]} %`] as [string, string]), hint: <p>Все проведённые оплаты периода по дате платежа ({vatNote}).</p> },
           { label: "Сырьё и работа", value: money(h.spent), sub: `куда ушли деньги, ${vatNote}`, rows: [["Сырьё", `${money(rwAl.values[0])} · ${rwPct[0]} %`], ["Работа и услуги", `${money(rwAl.values[1])} · ${rwPct[1]} %`]] as [string, string][], hint: <p>Сырьё — мех (аукционы и поставщик, включая шкуры подрядчика) и подкладка; работа и услуги — пошив подрядчику и услуги по УПД.</p> },
@@ -1076,6 +1076,18 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy, prepai
   const seg = (on: boolean) => segCls(on);
   const [slide, setSlide] = useState(0);
   const slider = useRef<HTMLDivElement>(null);
+  // Высота карусели = высота видимого слайда (у «Накопительно» легенда длиннее): иначе под графиком «По месяцам» остаётся пустой провал.
+  const [slideH, setSlideH] = useState<number | null>(null);
+  useEffect(() => {
+    const el = slider.current;
+    if (!el) return;
+    const measure = () => { const h = (el.children[slide] as HTMLElement | undefined)?.offsetHeight; if (h) setSlideH(h); };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el.children[slide] as Element);
+    return () => ro.disconnect();
+  }, [slide]);
   const onSlide = () => { const el = slider.current; if (el && el.clientWidth > 0) setSlide(Math.round(el.scrollLeft / el.clientWidth)); };
   const goSlide = (k: number) => {
     const el = slider.current; if (!el) return;
@@ -1112,7 +1124,7 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy, prepai
             <Link href="/cashflow" className="text-xs text-blue-700 hover:underline print:hidden">→ Cashflow</Link>
           </div>
         </div>
-        <div ref={slider} onScroll={onSlide} tabIndex={0} role="group" aria-roledescription="карусель" aria-label="Графики: по месяцам и накопительно (листайте вправо-влево)" className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900 [&::-webkit-scrollbar]:hidden">
+        <div ref={slider} onScroll={onSlide} style={slideH ? { height: slideH } : undefined} tabIndex={0} role="group" aria-roledescription="карусель" aria-label="Графики: по месяцам и накопительно (листайте вправо-влево)" className="flex snap-x snap-mandatory items-start overflow-x-auto overflow-y-hidden [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900 [&::-webkit-scrollbar]:hidden">
           <div className="w-full flex-none snap-start" aria-hidden={slide !== 0}>
             <ChartBox n={months.length} extra={142}>{(colW) => <Chart kind="money" hotLine={hotMoney} months={months} d={c.d} s={c.s} ser={c.ser} stock={c.ser.spend.map(() => 0)} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={false} colW={colW} />}</ChartBox>
             <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">

@@ -166,7 +166,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
       </div>
 
       <div key="left" className={TILE_BOX} data-testid="debt-bridge">
-        <TileHead>{inWork ? DUE_LABEL : "К оплате всего"}</TileHead>
+        <TileHead wide={!only}>{inWork ? DUE_LABEL : "К оплате всего"}</TileHead>
         <div className={"absolute right-3 top-3 flex items-center gap-1" + (only ? " hidden" : "")}>
           <BridgeHint label="Как сходится долг поставщику">
             {inWork ? <p><b>{DUE_LABEL}</b> = долг до зачёта аванса {money(leftAll)} − аванс подрядчику {money(due.adv)}, не меньше нуля. {dueHint(money(leftAll), money(L.work))}</p> : null}

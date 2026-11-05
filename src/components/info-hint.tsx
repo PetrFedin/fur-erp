@@ -56,6 +56,38 @@ export function InfoHint({
     if (dx) tip.style.transform = `translateX(${Math.round(dx)}px)`;
   }, [open, flip]);
 
+  // Телефон (<768): окно фиксировано по краям экрана; по вертикали ставим рядом со значком — снизу, а если там тесно, то сверху.
+  useLayoutEffect(() => {
+    const tip = tipRef.current;
+    const box = ref.current;
+    if (!open || !tip || !box || window.innerWidth >= 768) return;
+    const place = () => {
+      const vh = window.innerHeight;
+      const r = box.getBoundingClientRect();
+      tip.style.maxHeight = "";
+      const h = tip.offsetHeight;
+      const below = vh - r.bottom - 12;
+      const above = r.top - 12;
+      const useBelow = h <= below || below >= above;
+      const room = Math.max(120, Math.min(vh * 0.7, useBelow ? below : above));
+      tip.style.maxHeight = `${Math.round(room)}px`;
+      const hh = Math.min(h, room);
+      const top = useBelow ? r.bottom + 6 : Math.max(8, r.top - 6 - hh);
+      tip.style.top = `${Math.round(Math.min(Math.max(8, top), vh - hh - 8))}px`;
+    };
+    place();
+    const onScroll = (e: Event) => {
+      if (e.target instanceof Node && tip.contains(e.target)) return;
+      place();
+    };
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!pinned) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPinned(false);
@@ -99,7 +131,7 @@ export function InfoHint({
             wide ? "w-[min(26rem,calc(100vw-2rem))]" : "w-[min(20rem,calc(100vw-2rem))]",
             (flip ?? align) === "right" ? "right-0" : "left-0",
             // Телефон: подсказка на всю ширину экрана с полями, а не от значка (иначе уезжает за край).
-            "max-md:fixed max-md:inset-x-4 max-md:top-auto max-md:w-auto",
+            "max-md:fixed max-md:inset-x-4 max-md:top-2 max-md:mt-0 max-md:w-auto max-md:overscroll-contain",
           )}
         >
           {children}

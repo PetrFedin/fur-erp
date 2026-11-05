@@ -6,7 +6,7 @@ import { formatQty, formatDec1 } from "@/lib/utils";
 import { aggOf, pctText, usedPct, type RawLot } from "@/lib/raw-analytics";
 
 /** Колонки таблицы лотов и итоговых строк групп (одинаковые, чтобы цифры стояли друг под другом). */
-export const LOT_COLS = "md:grid-cols-[2fr_1fr_1fr_1fr_1fr_0.8fr_1.2fr_1.4fr]";
+export const LOT_COLS = "md:grid-cols-4 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_0.8fr_1.2fr_1.4fr]";
 
 const q2 = (d: Decimal) => d.toFixed(2);
 const qty = (d: Decimal, unit: string) => `${formatDec1(d.toString())} ${unit}`;
@@ -24,13 +24,13 @@ export function GroupLots({ lots, unit, c4, showAuction }: { lots: RawLot[]; uni
 
 function LotRowView({ l, unit, c4, showAuction }: { l: RawLot; unit: string; c4: "on" | "off"; showAuction: boolean }) {
   const a = aggOf([l]);
-  const lab = "block text-xs text-neutral-500 md:hidden";
+  const lab = "block text-xs text-neutral-500 lg:hidden";
   if (l.synthetic) {
     // Строка моста до Главной (не лот склада): без ссылок на карточку лота.
     return (
       <div className="border-t border-neutral-200 py-2 text-sm first:border-t-0">
         <div className={`grid grid-cols-2 gap-2 ${LOT_COLS}`}>
-          <div className="col-span-2 md:col-span-1">
+          <div className="col-span-2 md:col-span-4 lg:col-span-1">
             <div className="font-medium">{l.synthetic === "ordered" ? `Заказано, не получено · ${l.kind}` : `Шкуры подрядчика · ${l.year}`}</div>
             <div className="text-xs text-neutral-500">{l.synthetic === "ordered" ? `${l.auctionLabel} · лотов склада ещё нет` : "оплачены в составе пошива, в ТЗ не списаны"}</div>
           </div>
@@ -48,7 +48,7 @@ function LotRowView({ l, unit, c4, showAuction }: { l: RawLot; unit: string; c4:
   return (
     <div className="border-t border-neutral-200 py-2 text-sm first:border-t-0">
       <div className={`grid grid-cols-2 gap-2 ${LOT_COLS}`}>
-        <div className="col-span-2 md:col-span-1">
+        <div className="col-span-2 md:col-span-4 lg:col-span-1">
           <div className="font-medium">
             Лот{" "}
             <Link href={`/analytics/raw/lot/${l.id}`} className="underline hover:text-neutral-900" title="Карточка лота: где использован, учёт, остаток">{l.lotNumber}</Link>

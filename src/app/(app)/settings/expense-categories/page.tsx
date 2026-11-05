@@ -41,8 +41,8 @@ export default async function ExpenseCategoriesPage({ searchParams }: PageProps<
           <CardTitle>Добавить статью</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={createExpenseCategory} className="flex items-end gap-2">
-            <div className="flex-1">
+          <form action={createExpenseCategory} className="flex flex-wrap items-end gap-2">
+            <div className="min-w-full flex-1 sm:min-w-[12rem]">
               <Label htmlFor="name">Название</Label>
               <Input id="name" name="name" required placeholder="Например, «Доставка»" />
             </div>

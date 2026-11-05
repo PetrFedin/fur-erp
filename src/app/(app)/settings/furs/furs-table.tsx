@@ -102,12 +102,12 @@ export function FursTable({ rows, allRows = rows, canEdit }: { rows: FurRow[]; a
               <Tr>
                 <Td className="font-medium">{r.name}{r.note && <div className="text-xs font-normal text-neutral-500"><ClampText text={r.note} /></div>}</Td>
                 <Td>{r.nameEn ?? <span className="text-amber-700">не указано</span>}</Td>
-                <Td className="max-w-md text-xs text-neutral-600">{r.aliases.length ? r.aliases.join(", ") : "–"}</Td>
+                <Td className="min-w-[10rem] max-w-md text-xs text-neutral-600">{r.aliases.length ? r.aliases.join(", ") : "–"}</Td>
                 <Td className="text-right">{r.lots}</Td>
                 <Td className="text-right">{r.items}</Td>
                 <Td className="text-right">{r.orders}</Td>
                 {canEdit && (
-                  <Td className="whitespace-nowrap">
+                  <Td className="min-w-[7rem] xl:whitespace-nowrap">
                     <button type="button" className={ICON_BTN} onClick={() => { setEditing(editing === r.id ? null : r.id); setMerging(null); setAdding(false); }} title="Изменить" aria-label="Изменить"><IconPencil /></button>
                     <button type="button" className="ml-3 text-neutral-500 hover:underline" onClick={() => { setMerging(merging === r.id ? null : r.id); setEditing(null); }}>Объединить…</button>
                     {r.lots + r.items + r.orders === 0 && (

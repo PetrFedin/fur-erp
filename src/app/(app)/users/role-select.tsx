@@ -33,7 +33,7 @@ export function RoleSelect({
     <Select
       value={value}
       disabled={disabled || pending}
-      className="h-8 w-44"
+      className="h-8 w-44 max-md:h-11 max-md:w-full md:w-56"
       onChange={(e) => {
         const next = e.target.value;
         setValue(next);

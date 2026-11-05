@@ -399,14 +399,14 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <div className="ml-auto" />
           <ChatLink type="ProductionOrder" id={order.id} role={session.user.role} label="Написать Веллмеху" />
           <GroupLink type="ProductionOrder" id={order.id} role={session.user.role} label={`Создать группу по ${tzTitle}`} />
-          <a href={`/api/production/${id}/word`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Финальный Word этого ТЗ: сохранённое приложение, а если его нет — печатная форма из данных ТЗ">
+          <a href={`/api/production/${id}/word`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50 max-md:inline-flex max-md:min-h-11 max-md:items-center" title="Финальный Word этого ТЗ: сохранённое приложение, а если его нет — печатная форма из данных ТЗ">
             Word ТЗ
           </a>
-          <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">
+          <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50 max-md:inline-flex max-md:min-h-11 max-md:items-center" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">
             Печать / PDF
           </Link>
           <details className="relative">
-            <summary className="cursor-pointer list-none rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Ещё: документы, оплаты, история, Word, цвета, отмена ТЗ" aria-label="Ещё: документы, оплаты, история, Word, цвета, отмена ТЗ">⋯</summary>
+            <summary className="cursor-pointer list-none rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50 max-md:inline-flex max-md:min-h-11 max-md:min-w-11 max-md:items-center max-md:justify-center" title="Ещё: документы, оплаты, история, Word, цвета, отмена ТЗ" aria-label="Ещё: документы, оплаты, история, Word, цвета, отмена ТЗ">⋯</summary>
             <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col gap-2 rounded-md border border-neutral-200 bg-white p-2 shadow">
               <a href="#drive" className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Перейти к блоку «Документы-основания» внизу этой страницы">Документы-основания ↓</a>
               <Link href={`/documents?q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Документы ТЗ: приложение, акты, счета — в разделе «Документы»">Документы</Link>
@@ -623,7 +623,7 @@ function EmptyRow({ children }: { children: React.ReactNode }) {
 function TotalRow({ label, value, extra, strong }: { label: React.ReactNode; value: React.ReactNode; extra?: React.ReactNode; strong?: boolean }) {
   return (
     <Tr className="row-total" data-strong={strong ? "1" : undefined}>
-      <Td colSpan={6} className="text-right">
+      <Td colSpan={6} className="text-right max-xl:text-left">
         {label}
         {extra ? <span className="ml-1 tabular-nums">{extra}</span> : null}
       </Td>

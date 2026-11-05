@@ -38,7 +38,7 @@ export function Chart({ pts, series, label, testId, valueLabels = [], selectedKe
   }, []);
   const n = pts.length;
   // Столбцы растягиваются на всю ширину карточки; если месяцев много, ряд прокручивается.
-  const colW = Math.max(n > 20 ? 34 : n > 8 ? 44 : 72, n > 0 && cw > 0 ? Math.floor((cw - PL - PR) / n) : 0);
+  const colW = Math.max(cw > 0 && cw < 600 ? 16 : n > 20 ? 34 : n > 8 ? 44 : 72, n > 0 && cw > 0 ? Math.floor((cw - PL - PR) / n) : 0);
   const W = PL + PR + n * colW;
   const bars = series.filter((s) => s.kind === "bar"), lines = series.filter((s) => s.kind === "line");
   const maxL = niceMax(Math.max(...series.filter((s) => s.axis === "l").flatMap((s) => s.vals), 0));
@@ -81,7 +81,7 @@ export function Chart({ pts, series, label, testId, valueLabels = [], selectedKe
                 return v > 0 ? <rect key={s.name} x={x(i) - (bars.length * bw) / 2 + si * bw} y={yL(v)} width={bw - 1} height={h} fill={s.color} rx="1" opacity={dim(s.name)}><title>{`${p.label}: ${s.name} ${s.fmt(v)}`}</title></rect> : null;
               })}
               {bars.map((s, si) => ((valueLabels.includes(s.name) || hotS === s.name) && s.vals[i] > 0 ? <text key={"vl" + s.name} x={x(i) - (bars.length * bw) / 2 + si * bw + (bw - 1) / 2} y={yL(s.vals[i]) - 3} textAnchor="middle" fontSize="11" fontWeight="600" fill="#171717" opacity={dim(s.name)}>{s.fmt(s.vals[i])}</text> : null))}
-              <text x={x(i)} y={H - PB + 14} textAnchor={n > 8 ? "end" : "middle"} fontSize="11" fill="#404040" transform={n > 8 ? `rotate(-35 ${x(i)} ${H - PB + 14})` : undefined}>{p.label}</text>
+              {colW < 20 && i % 2 === 1 && selectedKey !== p.key ? null : <text x={x(i)} y={H - PB + 14} textAnchor={n > 8 ? "end" : "middle"} fontSize="11" fill="#404040" transform={n > 8 ? `rotate(-35 ${x(i)} ${H - PB + 14})` : undefined}>{p.label}</text>}
             </g>
           ))}
           {lines.map((s) => {

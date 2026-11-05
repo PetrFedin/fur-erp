@@ -65,7 +65,7 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
               <Link href={`/budget/${b.id}`} className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900" aria-label={`Открыть бюджет: ${b.name}`} />
               <div className="flex items-start justify-between gap-2">
                 <div className="pointer-events-none relative z-10 min-w-0">
-                  <span className="block truncate text-base font-semibold">{b.name}</span>
+                  <span className="block break-words text-base font-semibold leading-snug">{b.name}</span>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
                     {b.season && b.season !== b.name ? <span>{b.season}</span> : null}
                     {b.parentName ? <span title="Получен копированием">копия «{b.parentName}»</span> : null}

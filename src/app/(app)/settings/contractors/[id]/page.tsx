@@ -132,7 +132,7 @@ export default async function ContractorPage({ params }: PageProps<"/settings/co
             {contracts.map((k) => (
               <Tr key={k.id} className={k.isActive ? "" : "text-neutral-500"}>
                 <Td>№ {k.number}</Td><Td>{k.date ? formatDate(k.date) : "–"}</Td><Td>{KIND_RU[k.kind]}</Td><Td>{k.note ?? "–"}</Td>
-                <Td>{canEdit && <form action={async () => { "use server"; await toggleContract(k.id); }}><Button type="submit" variant="ghost" size="sm">{k.isActive ? "В архив" : "Вернуть"}</Button></form>}</Td>
+                <Td>{canEdit && <form action={async () => { "use server"; await toggleContract(k.id); }}><Button type="submit" variant="ghost" size="sm" className="max-md:min-h-11">{k.isActive ? "В архив" : "Вернуть"}</Button></form>}</Td>
               </Tr>
             ))}
             {contracts.length === 0 && <Tr><Td colSpan={5} className="py-4 text-center text-neutral-500">Договоров нет</Td></Tr>}

@@ -16,7 +16,7 @@ export function DetailDialog({ title, children, label = "Подробнее" }: 
       </button>
       <dialog ref={ref} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}
         className="m-auto w-[calc(100vw-2rem)] max-w-2xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
-        <div className="max-h-[88vh] overflow-y-auto p-4">
+        <div className="max-h-[88dvh] overflow-y-auto p-4">
           <div className="mb-3 flex items-start justify-between gap-3">
             <h3 className="text-base font-semibold text-neutral-900">{title}</h3>
             <button type="button" onClick={() => ref.current?.close()} className="min-h-11 shrink-0 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">✕ Закрыть</button>

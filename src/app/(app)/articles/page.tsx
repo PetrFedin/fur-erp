@@ -421,7 +421,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 </Link>
                 {r.bySupplier && <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800" title="Артикул завёл поставщик — проверьте и проставьте цену">внёс: Веллмех</span>}
               </Td>
-              <Td data-col="photos">
+              <Td data-col="photos" className="min-w-52">
                 <div className="flex items-center gap-2 whitespace-nowrap">
                 {photoSummary.get(r.id) ? (() => {
                   const ex = galleryExtras(photoSummary.get(r.id)!, shopLinksAll.get(r.id) ?? [], colorRefs);

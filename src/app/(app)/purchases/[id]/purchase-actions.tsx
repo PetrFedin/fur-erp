@@ -31,7 +31,7 @@ export function PurchaseActions({
 
   if (status === "RECEIVED" && canCancel) {
     return (
-      <div className="flex flex-col items-end gap-1">
+      <div className="flex flex-col items-end gap-1 max-md:items-start">
         <Button
           variant="outline"
           size="sm"
@@ -47,7 +47,7 @@ export function PurchaseActions({
         >
           {pending ? "Отменяем..." : "Отменить закупку"}
         </Button>
-        {cancelBlocker && <p className="max-w-xs text-right text-xs text-neutral-500">Нельзя отменить: {cancelBlocker.charAt(0).toLowerCase() + cancelBlocker.slice(1).replace(/ — отмена невозможна$/, "")}</p>}
+        {cancelBlocker && <p className="max-w-xs text-right text-xs text-neutral-500 max-md:text-left">Нельзя отменить: {cancelBlocker.charAt(0).toLowerCase() + cancelBlocker.slice(1).replace(/ — отмена невозможна$/, "")}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
         {node}
       </div>

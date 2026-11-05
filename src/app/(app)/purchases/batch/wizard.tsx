@@ -408,13 +408,15 @@ export function BatchWizard({
                   </div>
                 )}
                 {/* Место под поле курса резервируется и для рубля: при выборе USD/EUR остальная разметка не сдвигается. */}
-                {header.currency === "RUB" && <div aria-hidden className="invisible h-[6.25rem]" />}
+                {header.currency === "RUB" && <div aria-hidden className="invisible hidden h-[6.25rem] lg:block" />}
               </div>
 
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-2 text-sm max-sm:items-start">
                 <input type="checkbox" checked={header.receiveNow} onChange={(e) => set("receiveNow", e.target.checked)} />
-                Принять на склад сразу
-                <span className="text-xs text-neutral-500">без галочки — черновик, мех в пути</span>
+                <span className="min-w-0 max-sm:flex max-sm:flex-col max-sm:py-2.5">
+                  Принять на склад сразу
+                  <span className="text-xs text-neutral-500 sm:ml-2">без галочки — черновик, мех в пути</span>
+                </span>
               </label>
 
               <details className="rounded-md border border-neutral-200 px-3 py-2">
@@ -487,9 +489,9 @@ export function BatchWizard({
       {confirmNode}
 
       {step < 4 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-20 sm:pb-16">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-20 max-sm:flex-col-reverse max-sm:items-stretch sm:pb-16">
           <Button type="button" variant="outline" disabled={step === 1 || pending} onClick={() => setStep(step - 1)}>← Назад</Button>
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col items-end gap-1 max-sm:items-stretch max-sm:[&>button]:w-full max-sm:[&>span]:text-left">
             {step === 1 && headerProblems.length > 0 && <span className="text-xs text-neutral-500">{headerProblems[0]}</span>}
             {step === 2 && !canNext2 && <span className="text-xs text-neutral-500">{rows.length === 0 ? "Добавьте хотя бы один лот" : `Исправьте ошибки в таблице: ${validation.errorCount}`}</span>}
             {step === 1 && <Button type="button" disabled={headerProblems.length > 0} onClick={() => setStep(2)}>Далее: лоты →</Button>}

@@ -60,11 +60,11 @@ function Block({ title, hint, children }: { title: string; hint?: ReactNode; chi
 
 function Dl({ items }: { items: [string, ReactNode][] }) {
   return (
-    <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-[minmax(9rem,14rem)_1fr]">
+    <dl className="grid grid-cols-1 gap-x-6 gap-y-0 text-sm sm:grid-cols-[minmax(9rem,14rem)_1fr] sm:gap-y-1.5">
       {items.map(([k, v]) => (
         <div key={k} className="contents">
           <dt className="text-neutral-500">{k}</dt>
-          <dd className="min-w-0 break-words font-medium text-neutral-900">{v}</dd>
+          <dd className="min-w-0 break-words font-medium text-neutral-900 max-sm:mb-2.5">{v}</dd>
         </div>
       ))}
     </dl>
@@ -217,7 +217,7 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
           </div>
         )}
         <details open={ov.parts.length <= 1} className="group">
-          {ov.parts.length > 1 && <summary className="mb-1 cursor-pointer text-xs text-neutral-500 hover:text-neutral-800">Показать таблицей с суммами</summary>}
+          <summary className={ov.parts.length > 1 ? "mb-1 cursor-pointer text-xs text-neutral-500 hover:text-neutral-800" : "hidden"}>Показать таблицей с суммами</summary>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[420px] text-sm">
             <thead>

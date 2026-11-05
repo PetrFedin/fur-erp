@@ -650,8 +650,8 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
       <OpenOnHash />
       <IntegrityBanner kind="purchase" id={purchase.id} />
       <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Закупки", href: "/purchases" }, { label: purchase.number }]} />
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex flex-col items-start justify-between gap-3 md:flex-row">
+        <div className="min-w-0 max-md:w-full">
           {/* «i» — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Закупка З-… О закупке». */}
           <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-semibold">Закупка {purchase.number}</h1>
@@ -731,7 +731,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
             </div>
           )}
         </div>
-        <div className="flex flex-wrap items-start justify-end gap-2">
+        <div className="flex flex-wrap items-start justify-end gap-2 max-md:w-full max-md:justify-start">
         {canEditRole && purchase.status !== "CANCELLED" && <PaymentFormButton label="+ Оплата" preset={{ side: "supplier", purchaseId: id }} />}
         <PurchaseActions
           purchaseId={id}

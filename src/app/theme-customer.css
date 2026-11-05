@@ -124,6 +124,19 @@ html[data-theme="customer"] tr:is(.bg-neutral-50\/70, .bg-neutral-50\/60):not(.r
 html[data-theme="customer"] tr.bg-neutral-50:not(.row-total):not(.font-semibold) > :first-child {
   box-shadow: inset 3px 0 0 var(--ui-accent);
 }
+/* Телефон: строка-карточка (table[data-cards]) — оранжевая полоса на самой карточке, а не на её первой ячейке:
+   у ячейки в карточке нет левого поля, и полоса налезала на шеврон «›» и текст названия. */
+@media (max-width: 767px) {
+  html[data-theme="customer"] table[data-cards] tr:is(.bg-neutral-50\/70, .bg-neutral-50\/60):not(.row-total) > :first-child,
+  html[data-theme="customer"] table[data-cards] tr.bg-neutral-50:not(.row-total):not(.font-semibold) > :first-child {
+    box-shadow: none;
+  }
+  html[data-theme="customer"] table[data-cards] tr:is(.bg-neutral-50\/70, .bg-neutral-50\/60):not(.row-total),
+  html[data-theme="customer"] table[data-cards] tr.bg-neutral-50:not(.row-total):not(.font-semibold) {
+    box-shadow: inset 3px 0 0 var(--ui-accent);
+    padding-left: 1rem;
+  }
+}
 html[data-theme="customer"] :is(thead, tfoot).bg-neutral-50 { background-color: #fff; }
 html[data-theme="customer"] tr:is(.bg-neutral-100, .bg-neutral-100\/70, .bg-neutral-50, .bg-neutral-50\/70, .bg-neutral-50\/60):not(.row-total):hover {
   background-color: #fff;

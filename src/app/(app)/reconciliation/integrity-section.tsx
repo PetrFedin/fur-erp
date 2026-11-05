@@ -52,7 +52,7 @@ export async function IntegritySection({ organizationId }: { organizationId: str
       {r && (
         <>
           <WidgetRow id="integrity" title="Итоги">
-          <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          <div className="grid grid-cols-2 max-sm:grid-cols-2! items-stretch gap-3 sm:grid-cols-3 xl:grid-cols-5">
             {[
               { k: "Ошибок", v: r.failingErrors, tone: r.failingErrors ? "text-red-700" : "text-emerald-700" },
               { k: "Предупреждений", v: r.failingWarns, tone: r.failingWarns ? "text-amber-700" : "text-emerald-700" },

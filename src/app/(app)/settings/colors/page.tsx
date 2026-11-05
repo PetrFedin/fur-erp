@@ -161,9 +161,9 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
                       <Td>
                         {canEdit && (
                           <div className="flex flex-col gap-1">
-                            <form action={bindColorText} className="flex items-center gap-1">
+                            <form action={bindColorText} className="flex items-center gap-1 max-md:flex-wrap">
                               <input type="hidden" name="text" value={text} />
-                              <Select name="refId" defaultValue={sug?.ref.id ?? ""} className="h-8 w-44 text-xs" aria-label="Цвет справочника">
+                              <Select name="refId" defaultValue={sug?.ref.id ?? ""} className="h-8 w-44 text-xs max-md:min-w-[12rem] max-md:flex-1" aria-label="Цвет справочника">
                                 <option value="">— выбрать цвет —</option>
                                 {refs.map((r) => (
                                   <option key={r.id} value={r.id}>
@@ -197,8 +197,8 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
       )}
 
       {canEdit && (
-        <details className="max-w-3xl rounded-xl border border-neutral-200 bg-white px-4 py-3">
-          <summary className="cursor-pointer text-sm font-medium max-md:py-3">+ Добавить цвет</summary>
+        <details className="max-w-3xl rounded-xl border border-neutral-200 bg-white px-4 py-3 max-lg:py-0 max-lg:open:pb-3">
+          <summary className="cursor-pointer text-sm font-medium max-lg:leading-[44px]">+ Добавить цвет</summary>
           <div className="mt-3">
             <form action={createColor} className="flex flex-wrap items-end gap-2">
               <div className="min-w-48 flex-1">
@@ -253,11 +253,11 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
                 <Td className="text-right align-top">{r._count.orders}</Td>
                 <Td className="text-right align-top">{r._count.lots}</Td>
                 <Td className="text-right align-top">{r._count.purchaseItems}</Td>
-                <Td className="align-top">
+                <Td className="align-top max-md:col-span-2 max-md:before:!hidden">
                   {canEdit && (
-                    <details className="text-sm">
+                    <details className="text-sm md:relative">
                       <summary className={ICON_BTN + " cursor-pointer list-none"} title="Изменить" aria-label="Изменить"><IconPencil /></summary>
-                      <div className="mt-2 flex w-80 max-w-full flex-col gap-3 rounded-md border border-neutral-200 bg-white p-3">
+                      <div className="mt-2 flex w-80 max-w-full md:absolute md:max-w-none md:right-0 md:z-20 md:shadow-lg flex-col gap-3 rounded-md border border-neutral-200 bg-white p-3">
                         {proposed && (
                           <form action={confirmColor}>
                             <input type="hidden" name="id" value={r.id} />

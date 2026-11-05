@@ -51,7 +51,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
   );
   return (
     <WidgetRow id={id} title={title} headerEnd={headerEnd} defaultCollapsed={defaultCollapsed}>
-    <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (["xl:grid-cols-1", "xl:grid-cols-2", "xl:grid-cols-3", "xl:grid-cols-4", "xl:grid-cols-5"][Math.min(4, (hideProduced ? 0 : 1) + 1 + (hidePerUnit ? 0 : 1) + extraCount - 1)])}>
+    <div className={"grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:items-stretch " + ((hideProduced ? 0 : 1) + 1 + (hidePerUnit ? 0 : 1) + extraCount === 3 ? "md:grid-cols-3 " : "") + (["xl:grid-cols-1", "xl:grid-cols-2", "xl:grid-cols-3", "xl:grid-cols-4", "xl:grid-cols-5"][Math.min(4, (hideProduced ? 0 : 1) + 1 + (hidePerUnit ? 0 : 1) + extraCount - 1)])}>
       {hideProduced ? null : carousel ? (
         <TileCarousel clickable hoverBlocks title={OUTPUT_LABEL} hintLabel="Что такое «заведено в ТЗ»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<><p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ без отменённых и без ремонта. {TZ_OUTPUT_NOTE} «Всего» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают «Всего» без ремонта). Ремонт — только в «Всего» и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}

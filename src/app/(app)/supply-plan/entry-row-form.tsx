@@ -24,7 +24,7 @@ export function EntryRowForm({
   return (
     <details className="text-xs">
       <summary className="flex min-h-11 min-w-11 cursor-pointer list-none items-center gap-1 text-neutral-600 hover:text-neutral-900" title={notes ? `${notes} — изменить` : "Изменить"} aria-label="Изменить запись">
-        {notes ? <span className="max-w-[9rem] truncate">{notes}</span> : null}
+        {notes ? <span className="max-w-[9rem] truncate max-md:min-w-0 max-md:overflow-visible max-md:whitespace-normal max-md:break-words">{notes}</span> : null}
         <span aria-hidden>✎</span>
       </summary>
     <form

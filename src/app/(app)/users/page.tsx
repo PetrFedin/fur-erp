@@ -99,11 +99,11 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
           {users.map((u) => (
             <Tr key={u.id}>
               <Td className="font-medium">
-                {u.name}
+                <span className="mr-1.5 break-words">{u.name}</span>
                 {canManage && (isOwner || u.role !== "OWNER") && <UserNameEdit userId={u.id} name={u.name} version={rowVersion(u, ["name"])} />}
               </Td>
               <Td>{u.email}</Td>
-              <Td>
+              <Td className="max-md:col-span-2">
                 {canManage && (isOwner || u.role !== "OWNER") ? (
                   <RoleSelect
                     userId={u.id}
@@ -124,7 +124,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
                       if (res.error) redirect(`/users?error=${encodeURIComponent(res.error)}`);
                     }}
                   >
-                    <Button type="submit" variant="ghost" size="sm">
+                    <Button type="submit" variant="ghost" size="sm" className="max-md:min-h-11">
                       {u.isActive ? "Деактивировать" : "Активировать"}
                     </Button>
                   </form>

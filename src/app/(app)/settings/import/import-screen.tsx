@@ -195,7 +195,7 @@ export function ImportScreen({ history }: { history: HistoryItem[] }) {
           <Button type="button" variant="outline" size="sm" disabled={!latestOverall || !!busy} onClick={() => latestOverall && rollback(latestOverall)}>Откатить последнюю загрузку</Button>
         </div>
         {history.length === 0 ? <p className="text-sm text-neutral-500">Загрузок пока не было.</p> : (
-          <div className="table-keep scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+          <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
             <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
                 <tr><th className="px-3 py-2 font-medium">Дата</th><th className="px-3 py-2 font-medium">Что</th><th className="px-3 py-2 font-medium">Файл</th><th className="px-3 py-2 font-medium">Кто</th><th className="px-3 py-2 font-medium">Итог</th><th className="px-3 py-2 font-medium">Статус</th><th className="px-3 py-2" /></tr>

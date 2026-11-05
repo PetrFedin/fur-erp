@@ -37,7 +37,7 @@ function ConfirmBox({ state, onClose }: { state: Ask; onClose: (v: boolean) => v
         e.preventDefault();
         onClose(false);
       }}
-      className={(state.wide ? "max-w-2xl max-h-[85vh] overflow-y-auto " : "max-w-sm ") + "m-auto w-[calc(100vw-2rem)] rounded-xl border border-neutral-200 bg-white p-4 text-left text-sm shadow-xl backdrop:bg-black/40"}
+      className={(state.wide ? "max-w-2xl max-h-[85dvh] overflow-y-auto " : "max-w-sm ") + "m-auto w-[calc(100vw-2rem)] rounded-xl border border-neutral-200 bg-white p-4 text-left text-sm shadow-xl backdrop:bg-black/40"}
     >
       <div className="mb-3">{state.text}</div>
       <div className="flex flex-wrap justify-end gap-2">

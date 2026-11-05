@@ -87,7 +87,7 @@ function Tile({ label, value, hint, onOpen, valueClass, items, children }: { lab
       aria-haspopup={onOpen ? "dialog" : undefined}
       title={onOpen ? "Показать детализацию по партиям закупки" : undefined}
     >
-      <TileHead>{label}</TileHead>
+      <TileHead><span className="block min-w-0 pr-12">{label}</span></TileHead>
       {hint ? <div className="absolute right-3 top-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>{hint}</div> : null}
       <TileValue className={valueClass}>{value}</TileValue>
       {items ? <TileList items={items} /> : null}

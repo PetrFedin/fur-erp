@@ -71,7 +71,7 @@ function Body({ title, hint, wide, children, onClose }: { title: string; hint?: 
       onClose={onClose}
       className={`m-auto w-[calc(100vw-2rem)] ${wide ? "max-w-3xl" : "max-w-2xl"} rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40`}
     >
-      <div className="max-h-[88vh] overflow-y-auto">
+      <div className="max-h-[88dvh] overflow-y-auto">
         <div className="border-b border-neutral-200 px-4 py-3">
           <h2 className="text-base font-semibold text-neutral-900">{title}</h2>
           {hint && <div className="mt-1 text-xs text-neutral-500">{hint}</div>}

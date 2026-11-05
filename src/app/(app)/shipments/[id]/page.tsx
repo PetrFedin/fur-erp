@@ -441,14 +441,14 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                               {(e.documents.length > 0 || docs.length > 0) && (
                                 <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
                                   {e.documents.map((d) => (
-                                    <li key={d.id} className="flex items-center">
+                                    <li key={d.id} className="flex min-w-0 max-w-full items-center">
                                       <Clip />
                                       <a href={`/api/drive-docs/${d.id}`} target="_blank" rel="noopener noreferrer" className="ml-1 max-w-[16rem] truncate text-blue-700 hover:underline" title={d.title}>{d.title}</a>
                                       {(canEdit || (isSupplier && e.createdById === session.user.id)) && <DocRemove id={d.id} title={d.title} />}
                                     </li>
                                   ))}
                                   {docs.map((d, k) => (
-                                    <li key={k} className="flex items-center">
+                                    <li key={k} className="flex min-w-0 max-w-full items-center">
                                       <Clip />
                                       {d.href ? <a href={d.href} target="_blank" rel="noopener noreferrer" className="ml-1 max-w-[16rem] truncate text-blue-700 hover:underline">{d.text}</a> : <span className="ml-1">{d.text}</span>}
                                     </li>

@@ -136,7 +136,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
       </div>
 
       <WidgetRow id="verify" title="Итоги">
-      <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 max-sm:grid-cols-2! items-stretch gap-3 lg:grid-cols-4">
         {[
           { label: "Подтверждено", v: total.verified, sub: total.auto ? `авто по документам: ${total.auto}` : null, tone: "text-emerald-700" },
           { label: "Не подтверждено", v: total.waiting, sub: null, tone: total.waiting > 0 ? "text-amber-700" : "" },

@@ -102,7 +102,7 @@ export default async function ClientsPage({ searchParams }: PageProps<"/clients"
                     await toggleClientActive(c.id);
                   }}
                 >
-                  <Button type="submit" variant="ghost" size="sm">
+                  <Button type="submit" variant="ghost" size="sm" className="max-md:-ml-3 max-md:min-h-11">
                     {c.isActive ? "Деактивировать" : "Активировать"}
                   </Button>
                 </form>

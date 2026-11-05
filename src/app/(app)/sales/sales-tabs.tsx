@@ -125,7 +125,7 @@ function Top({ title, hint, rows, value, sub, extra, total, photos, tone, reserv
       {rows.length === 0 ? <p className="text-sm text-neutral-700">Нет данных.</p> : (
         <>
         {extra || reserve ? (
-          <div className="flex items-center gap-3 text-xs text-neutral-500" aria-hidden>
+          <div className="flex items-center gap-3 text-xs text-neutral-500 max-sm:hidden" aria-hidden>
             <span className="min-w-0 flex-1" /><span className="w-28 shrink-0 text-right">{title === "Лидеры" ? "По выбранной мере" : ""}</span>
             <span className="w-28 shrink-0 border-l border-transparent pl-3 text-right">{extra ? extra.label : ""}</span>
           </div>
@@ -135,20 +135,21 @@ function Top({ title, hint, rows, value, sub, extra, total, photos, tone, reserv
             const val = value(g), href = movementHref(g.article, null, g.modelCode);
             const share = total > 0 && val.v > 0 ? `${((val.v / total) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "";
             return (
-              <li key={g.key} className="flex h-[4.25rem] items-center gap-3">
+              <li key={g.key} className="flex min-h-[4.25rem] flex-wrap items-center gap-x-3 gap-y-1 py-1 sm:h-[4.25rem] sm:flex-nowrap sm:py-0">
                 <span className={"inline-flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums " + (tone === "top" && i < 3 ? "bg-[var(--ui-accent)] text-white" : "bg-neutral-100 text-neutral-600")}>{i + 1}</span>
                 <span className="size-12 shrink-0"><Thumb g={g} photos={photos} /></span>
-                <span className="min-w-0 flex-1">
-                  {href ? <Link href={href} className="block truncate text-sm font-medium hover:underline" title={g.label}>{g.label}</Link> : <span className="block truncate text-sm font-medium">{g.label}</span>}
-                  <span className="block truncate text-xs text-neutral-500">{sub(g)}</span>
+                <span className="min-w-0 flex-1 basis-0 max-sm:min-w-[8rem]">
+                  {href ? <Link href={href} className="block truncate text-sm font-medium hover:underline max-sm:whitespace-normal max-sm:break-words" title={g.label}>{g.label}</Link> : <span className="block truncate text-sm font-medium max-sm:whitespace-normal max-sm:break-words">{g.label}</span>}
+                  <span className="block truncate text-xs text-neutral-500 max-sm:whitespace-normal">{sub(g)}</span>
                   <span className="mt-1 block h-1.5 rounded-full bg-neutral-100"><span className={"block h-1.5 rounded-full " + (tone === "top" ? "bg-[var(--ui-accent)]" : "bg-neutral-400")} style={{ width: `${Math.max(2, (Math.abs(val.v) / max) * 100)}%` }} /></span>
                 </span>
-                <span className="w-28 shrink-0 text-right">
+                <span className={"w-28 shrink-0 text-right max-sm:w-auto max-sm:text-left " + (extra ? "max-sm:ml-10 max-sm:flex-1" : "max-sm:text-right")}>
                   <span className="block text-sm font-semibold tabular-nums">{val.text}</span>
                   {share ? <span className="block text-xs tabular-nums text-neutral-500">{share}</span> : null}
                 </span>
                 {extra ? (() => { const x = extra.of(g); return (
-                  <span className="w-28 shrink-0 border-l border-neutral-100 pl-3 text-right">
+                  <span className="w-28 shrink-0 border-l border-neutral-100 pl-3 text-right max-sm:w-auto max-sm:flex-1 max-sm:text-left">
+                    {x ? <span className="hidden text-xs text-neutral-500 max-sm:block">{extra.label}</span> : null}
                     <span className="block text-sm tabular-nums text-neutral-700">{x ? x.text : ""}</span>
                     <span className="block text-xs tabular-nums text-neutral-500">{x ? `№ ${x.place} из 10` : ""}</span>
                   </span>); })() : null}

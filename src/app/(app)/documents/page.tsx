@@ -186,7 +186,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
 
       {/* ---------- сводка */}
       <WidgetRow id="docs-coverage" title="Покрытие документами">
-      <section aria-label="Сводка покрытия" className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+      <section aria-label="Сводка покрытия" className="grid grid-cols-2 max-sm:grid-cols-2! items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
         <SummaryTile title="Всего" stat={sum.total} href={buildHref({ section: null, gaps: "1", dpage: null })} strong />
         {sum.sections.map((s) => (
           <SummaryTile key={s.key} title={SECTION_TITLES[s.key]} stat={s} href={buildHref({ section: s.key, gaps: "1", dpage: null })} />
@@ -560,7 +560,7 @@ function RegistryBlock() {
         <span className="text-xs text-neutral-500">сверка от {regDate(r.checkedAt)} · в реестре, но не в базе: {r.registryOnly.length} · <span className="text-blue-700">показать ›</span></span>
       </summary>
       <div className="mt-3 flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 max-sm:grid-cols-2! gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {r.coverage.map((s) => (
           <RegStatTile key={s.key} s={s} />
         ))}

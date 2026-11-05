@@ -343,7 +343,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           <Link href="/analytics/raw" className="mt-1 inline-block text-sm text-neutral-600 underline hover:text-neutral-900">Аналитика сырья →</Link>
         </div>
         {/* Кнопки зависят от вкладки: «Подкладка» — одна «Купить подкладку» (вся закупка партии в одной форме); «Мех» — новая партия закупки и материал. */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 max-md:w-full">
           {tab === "lining" ? (
             canEditDocs && (
               <Link href="/purchases/lining/new" className={`${buttonVariants()} max-md:w-full`}>
@@ -353,7 +353,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           ) : (
             <>
               {canEditDocs && (
-                <Link href="/purchases/batch" className={buttonVariants({ variant: "outline" })}>
+                <Link href="/purchases/batch" className={`${buttonVariants({ variant: "outline" })} max-md:w-full`}>
                   + Закупка меха
                 </Link>
               )}
@@ -379,6 +379,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         <section aria-labelledby="raw-fur" className="space-y-3">
           <div className="flex items-center gap-2">
             <h2 id="raw-fur" className="sr-only">{kindTitle}</h2>
+            <span aria-hidden className="text-xs text-neutral-500 xl:hidden">Как читать плитки сырья</span>
             <InfoHint label="Как читать плитки сырья" wide>
               <p>Цифры те же, что на Главной: <b>Куплено = Использовано + Остаток</b> (без 4 %). Нажмите на плитку — цены по видам. Справа: Оплачено и К оплате по меху (с НДС).</p>
             </InfoHint>
@@ -391,6 +392,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         <section aria-labelledby="raw-lining" className="space-y-3">
           <div className="flex items-center gap-2">
             <h2 id="raw-lining" className="sr-only">{kindTitle}</h2>
+            <span aria-hidden className="text-xs text-neutral-500 xl:hidden">Как читать плитки подкладки</span>
             <InfoHint label="Как читать плитки подкладки" wide>
               <p>Цифры те же, что на Главной: <b>Куплено = Использовано + Остаток</b> (м и ₽, без 4 %). Справа: Оплачено и К оплате по подкладке (с НДС).</p>
             </InfoHint>

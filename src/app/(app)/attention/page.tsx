@@ -107,7 +107,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
               От поставщика ждут проверки
               <span className="ml-1.5 align-middle"><InfoHint wide label="Что проверять"><p>Расчёты аукционов, ТЗ и документы от Веллмеха: принять в учёт или вернуть с комментарием.</p></InfoHint></span>
             </span>
-            <Link href="/inbox" className="inline-flex h-8 shrink-0 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Открыть входящие →</Link>
+            <Link href="/inbox" className="inline-flex h-8 max-md:h-11 shrink-0 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Открыть входящие →</Link>
             <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", BADGE.yellow)}>{counts.inbox}</span>
           </div>
         </Card>
@@ -122,7 +122,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
                 {[chat.awaiting > 0 ? `ждут ответа ${chat.awaiting}` : "", chat.unread > 0 ? `не прочитано ${chat.unread}` : ""].filter(Boolean).join(" · ")}
               </span>
             </span>
-            <Link href={chat.awaiting > 0 ? "/chat?f=await" : "/chat"} className="inline-flex h-8 shrink-0 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Открыть чат →</Link>
+            <Link href={chat.awaiting > 0 ? "/chat?f=await" : "/chat"} className="inline-flex h-8 max-md:h-11 shrink-0 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Открыть чат →</Link>
             <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", BADGE.yellow)}>{chat.awaiting || chat.unread}</span>
           </div>
         </Card>
@@ -317,7 +317,7 @@ function SummaryRow({ id, count, text, href, tone }: { id: TaskCategoryId; count
           </span>
           <span className="block text-xs font-normal text-neutral-500">{text}</span>
         </span>
-        <Link href={href} className="inline-flex h-8 shrink-0 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">
+        <Link href={href} className="inline-flex h-8 max-md:h-11 shrink-0 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">
           {t.action} →
         </Link>
         <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", BADGE[tone])}>{count}</span>
@@ -354,7 +354,7 @@ function TaskCard({ cat }: { cat: TaskCategory }) {
                 {e.sub && <span className="block break-words text-xs text-neutral-500">{e.sub}</span>}
               </span>
               <span className="min-w-0 flex-1 text-xs text-neutral-600">{e.text}</span>
-              <Link href={e.actionHref} className="inline-flex h-8 shrink-0 items-center self-start rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100 sm:self-auto">
+              <Link href={e.actionHref} className="inline-flex h-8 max-md:h-11 shrink-0 items-center self-start rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100 sm:self-auto">
                 {t.action} →
               </Link>
             </li>

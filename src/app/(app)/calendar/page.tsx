@@ -390,7 +390,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         <Link href={next} className={BTN_ICON} aria-label="Вперёд">›</Link>
         <Link href={href({ m: today.slice(0, 7), w: "", event: "", new: "" })} className={BTN}>Сегодня</Link>
       </div>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs empty:hidden">
         {[...byAction.entries()].map(([a, q]) => (
           <span key={a} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${actionDef(a).chip}`}>{a}: {formatQty(q)}</span>
         ))}
@@ -426,7 +426,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
               <Link href={href({ day: d, event: "" })} scroll={false} className="font-medium hover:underline">{dayLabel(d)}, {WEEKDAYS[(parseYmd(d).getUTCDay() + 6) % 7]}{d === today ? " · сегодня" : ""}</Link>
               <span className="flex items-center gap-2 text-xs text-neutral-500">
                 {dayTotal(d) > 0 && <span>Σ {formatQty(dayTotal(d))} шт.</span>}
-                <Link href={href({ day: d, event: "" })} scroll={false} className="rounded border border-neutral-300 px-2 py-1 hover:bg-neutral-100" aria-label={`${canEdit ? "Открыть день и добавить событие" : "Открыть день"}: ${dayLabel(d)}`}>{canEdit ? "+" : "›"}</Link>
+                <Link href={href({ day: d, event: "" })} scroll={false} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded border border-neutral-300 px-2 py-1 hover:bg-neutral-100" aria-label={`${canEdit ? "Открыть день и добавить событие" : "Открыть день"}: ${dayLabel(d)}`}>{canEdit ? "+" : "›"}</Link>
               </span>
             </div>
             <div className="flex flex-col gap-1">{dayBlock(d, false)}</div>

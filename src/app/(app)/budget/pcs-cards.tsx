@@ -39,12 +39,12 @@ export function PcsCards({ items, canEdit }: { items: PcsCard[]; canEdit: boolea
         {items.map((f) => (
           <li key={f.id} className="relative flex flex-col rounded-lg border border-neutral-200 bg-white p-4 tile-click">
             <Link href={`/budget/pcs/${f.id}`} className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900" aria-label={`Открыть файл: ${f.name}`} />
-            <div className="flex items-start justify-between gap-2">
-              <div className="pointer-events-none relative z-10 min-w-0">
-                <span className="block truncate text-base font-semibold">{f.name}</span>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="pointer-events-none relative z-10 min-w-0 flex-1 basis-40">
+                <span className="block break-words text-base font-semibold leading-snug">{f.name}</span>
                 {f.season && !f.name.includes(f.season) ? <div className="mt-1 text-xs text-neutral-500">{f.season}</div> : null}
               </div>
-              <div className="relative z-10 flex shrink-0 items-center gap-1">
+              <div className="relative z-10 ml-auto flex shrink-0 items-center gap-1">
                 <Link href={`/budget/pcs/${f.id}`} className={ICON} aria-label={`Открыть: ${f.name}`} title="Открыть">{svg("M14 4H7a1 1 0 0 0-1 1v15M14 4v16M14 4l5 1.5V19l-5 1M3 20h18")}</Link>
                 <button type="button" className={ICON} disabled={busy} onClick={() => download(f)} aria-label={`Скачать Excel: ${f.name}`} title="Скачать Excel">{svg("M12 4v11m0 0l-4-4m4 4l4-4M5 20h14")}</button>
                 {canEdit ? (

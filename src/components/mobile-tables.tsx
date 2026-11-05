@@ -98,10 +98,14 @@ function processTable(table: HTMLTableElement) {
         if (EMPTY.test(text) && !interactive) cell.setAttribute("data-empty", "");
         else cell.removeAttribute("data-empty");
         // Управляющий элемент без текста (шеврон «раскрыть», флажок): в углу карточки, а не отдельной строкой.
-        if (!text && hasControl(cell)) cell.setAttribute("data-ctl", "");
+        // Кнопка-крестик «×» (удалить строку) тоже управляющий элемент: текст-значок не делает её отдельной строкой карточки.
+        const bareGlyph = /^[×✕✖⨯]$/.test(text) && hasControl(cell);
+        // Ячейка с полем ввода значения (прогноз, количество) — обычная ячейка с подписью, а не угловая кнопка.
+        const valueField = Boolean(cell.querySelector("input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea"));
+        if ((!text || bareGlyph) && hasControl(cell) && !valueField) cell.setAttribute("data-ctl", "");
         else cell.removeAttribute("data-ctl");
         // Главный идентификатор — первая ячейка с текстом; в строке-группе (colspan) она же и есть заголовок.
-        if (!titleSet && text && !EMPTY.test(text)) {
+        if (!titleSet && text && !bareGlyph && !EMPTY.test(text)) {
           cell.setAttribute("data-title", "");
           cell.removeAttribute("data-label");
           titleSet = true;

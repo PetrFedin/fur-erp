@@ -286,7 +286,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   return (
     <section aria-label="Продажи и остатки" className="space-y-3" data-testid="dash-sales">
       {scope ? null : (
-        <div data-testid="dash-sales-season-bar" className="sticky top-0 z-30 -mx-1 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur print:hidden">
+        <div data-testid="dash-sales-season-bar" className="sticky top-0 z-30 sm:-mx-1 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur print:hidden">
           <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Сезон</span>
           <SeasonSwitch keys={seasonKeys} value={season} onChange={setOwnSeason} />
         </div>

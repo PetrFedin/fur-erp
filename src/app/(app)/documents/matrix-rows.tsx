@@ -118,7 +118,7 @@ export function sortGroupRows(section: SectionKey, rows: CovRow[], f: CovFilters
 export function sectionLayout(rows: CovRow[]) {
   const cols = COLUMNS.filter((c) => rows.some((r) => r.cells[c.key].need !== "na"));
   const withReg = rows.some((r) => r.registry.state !== "none");
-  const template = `minmax(0,1fr) repeat(${cols.length}, 4.75rem)${withReg ? " 9.5rem" : ""}`;
+  const template = `minmax(0,1fr) repeat(${cols.length}, 4.25rem)${withReg ? " 6.5rem" : ""}`;
   return { cols, withReg, template };
 }
 

@@ -39,7 +39,7 @@ export function ForecastCards({ items, canEdit }: { items: ForecastCard[]; canEd
             <Link href={`/budget/forecast/${f.id}`} className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900" aria-label={`Открыть прогноз: ${f.name}`} />
             <div className="flex items-start justify-between gap-2">
               <div className="pointer-events-none relative z-10 min-w-0">
-                <span className="block truncate text-base font-semibold">{f.name}</span>
+                <span className="block break-words text-base font-semibold leading-snug">{f.name}</span>
                 {f.season && !f.name.includes(f.season) ? <div className="mt-1 text-xs text-neutral-500">{f.season}</div> : null}
               </div>
               <div className="relative z-10 flex shrink-0 items-center gap-1">

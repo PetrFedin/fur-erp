@@ -11,7 +11,7 @@ function niceMax(v: number) {
   return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
 }
 
-const H = 230, PT = 14, PB = 46, PL = 44, PR = 48;
+const H = 230, PT = 14, PB = 46, PL = 44, PR = 60;
 
 type Series = { name: string; color: string; vals: number[]; kind: "bar" | "line"; axis: "l" | "r" };
 
@@ -33,7 +33,7 @@ function Chart({ buckets, series, hot, setHot, label, fmtL, fmtR }: { buckets: B
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const baseW = n > 40 ? 22 : n > 20 ? 34 : 56;
+  const baseW = n > 40 ? 22 : cw > 0 && cw < 520 ? 18 : n > 20 ? 34 : 56; // на телефоне ряд помещается в экран, без прокрутки до правой шкалы
   const colW = Math.max(baseW, cw > 0 && n > 0 ? Math.floor(((cw - 2 - PL - PR) / n) * 100) / 100 : 0);
   const W = PL + PR + n * colW;
   const bars = series.filter((s) => s.kind === "bar"), lines = series.filter((s) => s.kind === "line");

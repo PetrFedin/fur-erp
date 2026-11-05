@@ -160,9 +160,9 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
                     <Td>
                       {canEdit && (
                         <div className="flex flex-col gap-1">
-                          <form action={bindCategoryModels} className="flex items-center gap-1">
+                          <form action={bindCategoryModels} className="flex items-center gap-1 max-md:flex-wrap">
                             <input type="hidden" name="ids" value={r.ids.join(",")} />
-                            <Select name="refId" defaultValue={r.sug?.ref.id ?? ""} className="h-8 w-44 text-xs" aria-label="Категория справочника">
+                            <Select name="refId" defaultValue={r.sug?.ref.id ?? ""} className="h-8 w-44 text-xs max-md:min-w-[12rem] max-md:flex-1" aria-label="Категория справочника">
                               <option value="">— выбрать категорию —</option>
                               {refs.map((x) => (
                                 <option key={x.id} value={x.id}>{x.name}</option>
@@ -190,8 +190,8 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
       )}
 
       {canEdit && (
-        <details className="max-w-3xl rounded-xl border border-neutral-200 bg-white px-4 py-3">
-          <summary className="cursor-pointer text-sm font-medium max-md:py-3">+ Добавить категорию</summary>
+        <details className="max-w-3xl rounded-xl border border-neutral-200 bg-white px-4 py-3 max-lg:py-0 max-lg:open:pb-3">
+          <summary className="cursor-pointer text-sm font-medium max-lg:leading-[44px]">+ Добавить категорию</summary>
           <div className="mt-3">
             <form action={createCategory} className="flex flex-wrap items-end gap-2">
               <div className="min-w-48 flex-1">
@@ -252,11 +252,11 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
                 <Td className="max-w-md align-top text-sm">{r.aliases.join("; ") || <span className="text-neutral-500">–</span>}</Td>
                 <Td className="text-right align-top">{s.models}</Td>
                 <Td className="text-right align-top">{s.orders}</Td>
-                <Td className="align-top">
+                <Td className="align-top max-md:col-span-2 max-md:before:!hidden">
                   {canEdit && (
-                    <details className="text-sm">
+                    <details className="text-sm md:relative">
                       <summary className={ICON_BTN + " cursor-pointer list-none"} title="Изменить" aria-label="Изменить"><IconPencil /></summary>
-                      <div className="mt-2 flex w-80 max-w-full flex-col gap-3 rounded-md border border-neutral-200 bg-white p-3">
+                      <div className="mt-2 flex w-80 max-w-full md:absolute md:max-w-none md:right-0 md:z-20 md:shadow-lg flex-col gap-3 rounded-md border border-neutral-200 bg-white p-3">
                         {!r.confirmed && (
                           <form action={confirmCategory}>
                             <input type="hidden" name="id" value={r.id} />

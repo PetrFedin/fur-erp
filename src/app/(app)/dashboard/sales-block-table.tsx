@@ -66,7 +66,7 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
   };
   return (
     <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white" data-keep-scroll tabIndex={0}>
-      <table suppressHydrationWarning className={"table-keep w-full table-fixed text-sm " + (ordCol ? "min-w-[1740px]" : "min-w-[1700px]")} data-testid={testId}>
+      <table suppressHydrationWarning className={"table-keep sales-matrix w-full table-fixed text-sm " + (ordCol ? "min-w-[1740px]" : "min-w-[1700px]")} data-testid={testId}>
         <colgroup>{(() => { const w = cumCol ? [...WIDTHS, 64, 70, 124, 104, 74] : [...WIDTHS]; if (soAs) w.splice(8, 0, 64); if (ordCol) w.splice(1, 0, 40); return w; })().map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead>
           <tr className="border-b border-neutral-200">

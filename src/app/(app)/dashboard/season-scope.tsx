@@ -55,7 +55,7 @@ export function SeasonScope({ keys, children }: { keys: string[]; children: Reac
   return (
     <SeasonCtx.Provider value={{ season, setSeason, keys }}>
       <div ref={wrap} data-testid="dash-season-scope" className="space-y-6">
-        <div data-testid="dash-sales-season-bar" className="sticky top-0 z-30 -mx-1 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur print:hidden">
+        <div data-testid="dash-sales-season-bar" className="sticky top-0 z-30 sm:-mx-1 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur print:hidden">
           <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Сезон</span>
           <SeasonSwitch keys={keys} value={season} onChange={setSeason} />
         </div>

@@ -181,13 +181,13 @@ function BridgeCard({ b, invCount }: { b: ReconBridge; invCount: number }) {
         </InfoHint>
       </div>
       <div className="mt-2 w-full max-w-4xl">
-          <div className="flex items-baseline justify-between gap-3 border-t border-neutral-200 font-medium"><div className="min-w-0 py-1">Реестр документов ({invCount} счетов, все годы)</div><div className="min-w-0 whitespace-nowrap py-1 text-right tabular-nums">{money(sh.registry.total)}</div></div>
+          <div className="flex items-baseline justify-between gap-3 border-t border-neutral-200 font-medium"><div className="min-w-0 py-1">Реестр документов ({invCount} счетов, все годы)</div><div className="shrink-0 whitespace-nowrap py-1 text-right tabular-nums">{money(sh.registry.total)}</div></div>
           <div className="flex items-baseline justify-between gap-3 text-neutral-600"><div className="min-w-0 py-1 pl-4">в т. ч. закупки сырья {money(sh.registry.purchase)} · производство {money(sh.registry.production)}</div></div>
           <div className="flex items-baseline justify-between gap-3 font-medium"><div className="min-w-0 pt-2">Закупки сырья: Главная − реестр ({signed(sh.sp)})</div></div>
           {rows(b.purchase, sh.purchase)}
           <div className="flex items-baseline justify-between gap-3 font-medium"><div className="min-w-0 pt-2">Работа подрядчику: Главная − реестр ({signed(sh.sw)})</div></div>
           {rows(b.production, sh.production)}
-          <div className="flex items-baseline justify-between gap-3 border-t border-neutral-300 font-semibold"><div className="min-w-0 py-1">Главная: сырьё {money(sh.main.raw)} + работа подрядчику {money(sh.main.work)}</div><div className="min-w-0 whitespace-nowrap py-1 text-right tabular-nums">{money(sh.main.total)}</div></div>
+          <div className="flex items-baseline justify-between gap-3 border-t border-neutral-300 font-semibold"><div className="min-w-0 py-1">Главная: сырьё {money(sh.main.raw)} + работа подрядчику {money(sh.main.work)}</div><div className="shrink-0 whitespace-nowrap py-1 text-right tabular-nums">{money(sh.main.total)}</div></div>
       </div>
     </Card>
   );
@@ -378,9 +378,9 @@ export default async function ReconciliationPage() {
         const sorted = [...list].sort((a, b) => order(a) - order(b));
         return (
           <section key={sec.key} className="space-y-2">
-            <h2 className="flex items-center gap-1.5 text-base font-semibold">
+            <h2 className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-base font-semibold">
               {sec.title}
-              <span className="text-sm font-normal text-neutral-500">· {list.length} групп</span>
+              <span className="whitespace-nowrap text-sm font-normal text-neutral-500">· {list.length} групп</span>
               <InfoHint label="Что в этом разделе" wide>
                 {sec.key === "purchase"
                   ? "Аукционы и закупки меха и сырья (СП — Союзпушнина, РП — Русьпушнина, SAGA, AME, FH и др.). Группа = аукцион; в ней — счета Веллмех (аванс, промежуточные платежи, финал). Общие платежи на два аукциона (аванс 34 825 000 ₽ СП+РП 03.25; 27 912 500 ₽ РП 04-26+СП 05-26; 30 666 300 ₽ СП+РП 05.25) показаны один раз в каждой группе долей и помечены «общий платёж»."
