@@ -148,22 +148,59 @@ async function boot() {
       // Метка загруженного дампа: sha256 файла. Новый дамп в образе (после «Демо-дамп пересобран») → демо-база обновляется сама.
       const dumpSha = crypto.createHash("sha256").update(readFileSync(DUMP)).digest("hex");
       const mark = async () => psql(["-c", `create table if not exists public._demo_dump (sha text not null); delete from public._demo_dump; insert into public._demo_dump values ('${dumpSha}')`]);
+      // ---- Сохранность записей посетителей (комментарии, ответы, журнал действий из интерфейса) ----
+      // Копия лежит в отдельной схеме demo_keep: «drop schema public» её не трогает; при новом дампе записи возвращаются в таблицы.
+      // Строки только добавляются/обновляются, ничего не удаляется. Если копия не удалась — база НЕ очищается.
+      const ARCHIVE_SQL = `create schema if not exists demo_keep;
+create table if not exists demo_keep.archive (tbl text not null, id text not null, payload jsonb not null, saved_at timestamptz not null default now(), primary key (tbl, id));
+do $do$ begin
+  if to_regclass('public."Comment"') is not null then
+    insert into demo_keep.archive (tbl, id, payload) select 'Comment', c.id, to_jsonb(c) from public."Comment" c on conflict (tbl, id) do update set payload = excluded.payload, saved_at = now();
+  end if;
+  if to_regclass('public."CommentReply"') is not null then
+    insert into demo_keep.archive (tbl, id, payload) select 'CommentReply', c.id, to_jsonb(c) from public."CommentReply" c on conflict (tbl, id) do update set payload = excluded.payload, saved_at = now();
+  end if;
+  if to_regclass('public."AuditLog"') is not null then
+    insert into demo_keep.archive (tbl, id, payload) select 'AuditLog', c.id, to_jsonb(c) from public."AuditLog" c where c.source = 'ui' on conflict (tbl, id) do update set payload = excluded.payload, saved_at = now();
+  end if;
+end $do$;`;
+      const archiveUserData = async () => {
+        const r = await psql(["-c", ARCHIVE_SQL]);
+        if (r.status !== 0) { log(`копия записей посетителей не удалась:\n   ${cleanErr(r)}`); return false; }
+        const c = await psql(["-tAc", "select tbl || ' ' || count(*) from demo_keep.archive group by tbl order by tbl"]);
+        log(`записи посетителей сохранены в demo_keep: ${c.stdout.trim().split("\n").join("; ") || "пока пусто"}`);
+        return true;
+      };
+      const restoreUserData = async () => {
+        const has = await psql(["-tAc", "select to_regclass('demo_keep.archive') is not null"]);
+        if (has.status !== 0 || has.stdout.trim() !== "t") return;
+        const one = (tbl, extra = "") => `insert into public."${tbl}" select r.* from demo_keep.archive a, lateral jsonb_populate_record(null::public."${tbl}", a.payload) r where a.tbl = '${tbl}' and exists (select 1 from public."Organization" o where o.id = r."organizationId")${extra} on conflict (id) do nothing`;
+        for (const [tbl, extra] of [["Comment", ""], ["CommentReply", ` and exists (select 1 from public."Comment" c where c.id = r."commentId")`], ["AuditLog", ""]]) {
+          const r = await psql(["-c", one(tbl, extra)]);
+          if (r.status !== 0) log(`возврат записей ${tbl} не удался (копия в demo_keep цела):\n   ${cleanErr(r)}`);
+        }
+        const c = await psql(["-tAc", `select (select count(*) from public."Comment") || ' комментариев, ' || (select count(*) from public."CommentReply") || ' ответов'`]);
+        log(`записи посетителей возвращены: ${c.stdout.trim()}`);
+      };
       const loadDump = async () => {
         const r = await run("sh", ["-c", `gzip -dc "$DUMP" | grep -vE '^\\\\(un)?restrict ' | psql "$PGURL" -X -q --single-transaction -v ON_ERROR_STOP=1 -o /dev/null`], { env: { ...process.env, DUMP, PGURL: pgUrl } });
         if (r.status !== 0) die(`демо-дамп не загрузился (откат выполнен):\n   ${cleanErr(r)}`);
         await mark();
+        await restoreUserData();
         const c = await psql(["-tAc", `select (select count(*) from "User") || ' пользователей, ' || (select count(*) from "Purchase") || ' закупок'`]);
         log(`дамп загружен: ${c.stdout.trim()}`);
       };
       if (chk.stdout.trim() === "t") {
+        const archived = await archiveUserData();
         const cur = await psql(["-tAc", `select case when to_regclass('public._demo_dump') is null then '' else coalesce((select sha from public._demo_dump limit 1), '') end`]);
         const curSha = cur.status === 0 ? cur.stdout.trim() : "";
         // Автообновление: только в демо-базе (все пользователи — *@demo.local); боевую базу это не затронет.
         if (curSha !== dumpSha && process.env.DEMO_AUTO_RELOAD !== "false") {
           const g = await psql(["-tAc", `select count(*) filter (where email not like '%@demo.local') || '/' || count(*) from "User"`]);
           const [foreign, total] = g.stdout.trim().split("/").map(Number);
-          if (g.status === 0 && foreign === 0 && total > 0) {
-            log("в образе новый демо-дамп: пересоздаю демо-базу (изменения тестировщиков будут потеряны)…");
+          if (!archived) log("новый дамп не загружен: не удалось сохранить записи посетителей (защита от потери данных).");
+          else if (g.status === 0 && foreign === 0 && total > 0) {
+            log("в образе новый демо-дамп: пересоздаю демо-базу (комментарии и журнал действий посетителей сохранены и вернутся)…");
             const d = await psql(["-c", "drop schema public cascade; create schema public;"]);
             if (d.status !== 0) log(`не удалось очистить демо-базу (оставляю прежние данные):\n   ${cleanErr(d)}`);
             else await loadDump();
