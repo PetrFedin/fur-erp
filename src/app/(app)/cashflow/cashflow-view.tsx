@@ -67,9 +67,12 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
   const x = (i: number) => left + i * colW + colW / 2;
   // Подписи значений ряда под курсором в легенде: через столько месяцев, чтобы числа не слипались.
   const labEvery = Math.max(1, Math.ceil(44 / Math.max(1, colW)));
+  // Подписи чистого итога над столбцами короче («−272,2»): шаг по ширине колонки, отсчёт от последнего месяца.
+  const netStep = Math.max(1, Math.ceil(40 / Math.max(1, colW)));
   // Диапазон оси Y по виду графика.
   let lo = 0, hi = 1;
   if (kind === "money") { hi = Math.max(...ser.revenue, 0); lo = -Math.max(...ser.spend, 0); }
+  else if (cumBars) { hi = Math.max(...(s.available ? ser.cumRevenue : [0]), 0); lo = -Math.max(...ser.cumSpend, 0); }
   else if (kind === "cum") { hi = Math.max(...ser.cumSpend, ...ser.cumRevenue, 0); lo = filtered ? 0 : Math.min(...ser.cumNet, 0); }
   else if (kind === "goods") { hi = Math.max(...s.recPcs, ...s.salePcs, ...stock, 0); lo = Math.min(...stock, 0); }
   else { hi = Math.max(...ser.cumWorkPerUnit.map((v) => v ?? 0), 0); lo = 0; }
@@ -119,16 +122,16 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
         <>
           {months.map((m, i) => {
             const dim = active !== null && active !== i;
-            const half = Math.max(5, bw / 2 - 1);
             const showGet = s.available;
+            const net = ser.cumNet[i];
+            const showNet = showGet && !filtered && (hotLine === "net" || (n - 1 - i) % netStep === 0);
+            const topY = showGet && ser.cumRevenue[i] > 0.5 ? y(ser.cumRevenue[i]) : y(0);
+            const signed = (v: number) => (Math.abs(v) < 0.5 ? "0" : (v > 0 ? "+" : "−") + (Math.abs(v) / 1e6).toLocaleString("ru-RU", { maximumFractionDigits: 1 }));
             return (
               <g key={m} opacity={dim ? 0.35 : 1}>
-                {ser.cumSpend[i] > 0.5 && <rect x={showGet ? x(i) - half - 1 : x(i) - half / 2 - 1} width={half} y={y(ser.cumSpend[i])} height={Math.max(0, y(0) - y(ser.cumSpend[i]))} fill={SPEND} opacity={hotLine && hotLine !== "spend" ? 0.2 : 1} />}
-                {showGet && ser.cumRevenue[i] > 0.5 && <rect x={x(i) + 1} width={half} y={y(ser.cumRevenue[i])} height={Math.max(0, y(0) - y(ser.cumRevenue[i]))} fill={GET} opacity={hotLine && hotLine !== "get" ? 0.2 : 1} />}
-                {showGet && !filtered && <circle cx={x(i)} cy={y(ser.cumNet[i])} r={3.5} fill={NAVY} stroke="#fff" strokeWidth={1.5} opacity={hotLine && hotLine !== "net" ? 0.2 : 1} />}
-                {hotLine === "spend" && ser.cumSpend[i] > 0.5 && (i % labEvery === 0 || i === n - 1) && <text x={x(i)} y={y(ser.cumSpend[i]) - 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(ser.cumSpend[i])}</text>}
-                {hotLine === "get" && showGet && ser.cumRevenue[i] > 0.5 && (i % labEvery === 0 || i === n - 1) && <text x={x(i)} y={y(ser.cumRevenue[i]) - 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(ser.cumRevenue[i])}</text>}
-                {hotLine === "net" && showGet && !filtered && (i % labEvery === 0 || i === n - 1) && <text x={x(i)} y={y(ser.cumNet[i]) - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{mln(ser.cumNet[i])}</text>}
+                {ser.cumSpend[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={y(0)} height={Math.max(0, y(-ser.cumSpend[i]) - y(0))} fill={SPEND} opacity={hotLine && hotLine !== "spend" ? 0.2 : 1} />}
+                {showGet && ser.cumRevenue[i] > 0.5 && <rect x={x(i) - bw / 2} width={bw} y={y(ser.cumRevenue[i])} height={Math.max(0, y(0) - y(ser.cumRevenue[i]))} fill={GET} opacity={hotLine && hotLine !== "get" ? 0.2 : 1} />}
+                {showNet && <text x={x(i)} y={topY - 5} textAnchor="middle" fontSize={11} fontWeight={700} fill={net < -0.5 ? "#b4310b" : net > 0.5 ? "#17613c" : "#52525b"} stroke="#fff" strokeWidth={3} paintOrder="stroke" opacity={hotLine && hotLine !== "net" ? 0.35 : 1}>{signed(net)}</text>}
               </g>
             );
           })}
@@ -176,7 +179,7 @@ function Chart({ kind, months, d, s, ser, stock, active, setActive, hot, setHot,
             ["Выручка", dash(ser.revenue[active]), GET],
             ...(filtered || !s.available ? [] : [["Чистый поток", dash(ser.net[active]), NAVY] as [string, string, string]]),
           ]
-          : kind === "cum" ? [["Оплачено", dash(ser.cumSpend[active]), SPEND], ["Выручка", dash(ser.cumRevenue[active]), GET], ["Чистый итог", dash(ser.cumNet[active]), NAVY]]
+          : kind === "cum" ? [["Оплачено", dash(ser.cumSpend[active]), SPEND], ["Выручка", dash(ser.cumRevenue[active]), GET], ["Чистый итог", dash(ser.cumNet[active]), NAVY], ["За месяц", dash(ser.net[active]), NAVY]]
           : kind === "goods" ? [["Приход", `${pcs(s.recPcs[active])} шт.`, NAVY], ["Продано", `${pcs(s.salePcs[active])} шт.`, GET], ["Остаток", `${stock[active]} шт.`, STOCK]]
           : [["Работа на единицу", dash(ser.cumWorkPerUnit[active]), SPEND]];
         const bw = kind === "money" ? 270 : 214, bh = 24 + lines.length * 17;
@@ -908,14 +911,14 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
       <section aria-label="Накопительно" className="rounded-lg border border-neutral-300 bg-white p-3">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-1 text-sm font-semibold">Накопительно: оплачено и выручка
-            <InfoHint label="Как читать накопительный график" wide><p>Каждый месяц — итог с первого месяца данных: оранжевый столбец — сколько оплачено, зелёный — сколько получено. Тёмная точка — разница между ними: ниже нуля «в минусе», выше — «в плюсе». Кнопка «Линии» показывает то же линиями.</p></InfoHint>
+            <InfoHint label="Как читать накопительный график" wide><p>Каждый месяц — итог с первого месяца данных: красный столбец вниз — сколько оплачено, зелёный вверх — сколько получено. Число над столбцом — чистый итог (получено − оплачено): зелёное «+» — в плюсе, красное «−» — в минусе. Кнопка «Линии» показывает то же линиями.</p></InfoHint>
           </h2>
           <CumStyleSwitch value={cumStyle} onChange={setCumStyle} seg={seg} />
         </div>
         <ChartBox n={months.length} extra={cumStyle === "lines" ? 142 : 70}>{(colW) => <Chart kind="cum" cumStyle={cumStyle} hotLine={hotLine} months={months} d={d} s={s} ser={ser} stock={m.stock} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={filtered} colW={colW} />}</ChartBox>
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-          {([["spend", SPEND, "Оплачено нарастающим итогом", false], ["get", GET, "Выручка нарастающим итогом", true], ["net", NAVY, "Чистый итог (получено − оплачено)", true]] as const).filter((x) => x[0] === "spend" || (hasSales && (x[0] === "get" || !filtered))).map(([k, c, t]) => (
-            <li key={k}><button type="button" aria-pressed={hotLine === k} onMouseEnter={() => setHotLine(k)} onMouseLeave={() => setHotLine(null)} onFocus={() => setHotLine(k)} onBlur={() => setHotLine(null)} onClick={() => setHotLine(hotLine === k ? null : k)} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2">{cumStyle === "bars" ? <span aria-hidden className={k === "net" ? "inline-block h-2.5 w-2.5 rounded-full" : "inline-block h-3 w-3 rounded-sm"} style={{ background: c }} /> : <span aria-hidden className={"inline-block h-0.5 w-4 " + (k === "net" ? "border-t-2 border-dashed" : "")} style={k === "net" ? { borderColor: c } : { background: c }} />}{t}</button></li>
+          {([["spend", SPEND, cumStyle === "bars" ? "Оплачено нарастающим итогом (вниз)" : "Оплачено нарастающим итогом", false], ["get", GET, cumStyle === "bars" ? "Выручка нарастающим итогом (вверх)" : "Выручка нарастающим итогом", true], ["net", NAVY, cumStyle === "bars" ? "Чистый итог над столбцом (выручка − оплачено)" : "Чистый итог (получено − оплачено)", true]] as const).filter((x) => x[0] === "spend" || (hasSales && (x[0] === "get" || !filtered))).map(([k, c, t]) => (
+            <li key={k}><button type="button" aria-pressed={hotLine === k} onMouseEnter={() => setHotLine(k)} onMouseLeave={() => setHotLine(null)} onFocus={() => setHotLine(k)} onBlur={() => setHotLine(null)} onClick={() => setHotLine(hotLine === k ? null : k)} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2">{cumStyle === "bars" ? k === "net" ? <span aria-hidden className="inline-block w-3 text-center text-xs font-bold leading-none">±</span> : <span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: c }} /> : <span aria-hidden className={"inline-block h-0.5 w-4 " + (k === "net" ? "border-t-2 border-dashed" : "")} style={k === "net" ? { borderColor: c } : { background: c }} />}{t}</button></li>
           ))}
         </ul>
       </section>
@@ -1034,7 +1037,9 @@ function ClassicTable({ period, vatPay, vatRev, prepaid, prepaidList, hasVat, ti
                   <th scope="row" className={"px-2 py-1.5 " + stick + " " + (r.lvl === 0 ? "bg-neutral-100" : r.art && hot === r.art ? "bg-[var(--ui-soft)]" : "bg-white") + (r.lvl === 2 ? " pl-6 font-normal" : r.lvl === 1 ? " pl-4" : "")}>{r.label}</th>
                   {colsShown.map((c) => {
                     const v = r.cum ? (c.idx.length ? (r.x as number[])[c.idx[c.idx.length - 1]] : 0) : (r.id ? aligned.get(r.id + "|" + c.key) : undefined) ?? sum(r.x as number[], c);
-                    return <td key={c.key} onMouseEnter={() => aimCol(c)} className={"min-w-[6.5rem] px-2 py-1.5 text-right tabular-nums whitespace-nowrap " + (c.total ? "border-l border-neutral-300 font-semibold" : "")}>{dash(v)}</td>;
+                    // Минус красным, плюс зелёным (те же цвета, что у плиток «Чистый денежный поток»).
+                    const tone = v < -0.5 ? " text-[#b4310b]" : v > 0.5 ? " text-[#17613c]" : "";
+                    return <td key={c.key} onMouseEnter={() => aimCol(c)} className={"min-w-[6.5rem] px-2 py-1.5 text-right tabular-nums whitespace-nowrap" + tone + " " + (c.total ? "border-l border-neutral-300 font-semibold" : "")}>{dash(v)}</td>;
                   })}
                 </tr>
               ))}
@@ -1152,7 +1157,7 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy, prepai
       <section aria-label="Оплаты и полученные деньги" className="rounded-lg border border-neutral-300 bg-white p-3">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-1 text-sm font-semibold">{slide === 0 ? "Оплаты и полученные деньги по месяцам" : "Накопительно: оплачено и выручка"}
-            <InfoHint label="Как читать накопительный график" wide><p>Столбцы — итог с первого месяца данных: оранжевый — оплачено, зелёный — получено, тёмная точка — разница. Кнопка «Линии» показывает то же линиями.</p></InfoHint>
+            <InfoHint label="Как читать накопительный график" wide><p>Столбцы — итог с первого месяца данных: красный вниз — оплачено, зелёный вверх — получено, число над столбцом — чистый итог. Кнопка «Линии» показывает то же линиями.</p></InfoHint>
           </h2>
           <div className="flex items-center gap-2">
             <div role="group" aria-label="Вид графика" className={SEG_GROUP + " print:hidden"}>
@@ -1173,8 +1178,8 @@ export function CashflowOverview({ incl, ex, salesAll, period, prepaidBy, prepai
             {slide === 1 && <div className="mb-1 flex justify-end"><CumStyleSwitch value={cumStyle} onChange={setCumStyle} seg={seg} /></div>}
             <ChartBox n={months.length} extra={cumStyle === "lines" ? 142 : 70}>{(colW) => <Chart kind="cum" cumStyle={cumStyle} hotLine={hotLine} months={months} d={c.d} s={c.s} ser={c.ser} stock={c.ser.spend.map(() => 0)} active={active} setActive={setActive} hot={hot} setHot={setHot} yearHot={yearHot} filtered={false} colW={colW} />}</ChartBox>
             <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-700">
-          {([["spend", SPEND, "Оплачено нарастающим итогом"], ["get", GET, "Выручка нарастающим итогом"], ["net", NAVY, "Чистый итог (получено − оплачено)"]] as const).filter((x) => x[0] === "spend" || hasSales).map(([k, col, t]) => (
-            <li key={k}><button type="button" aria-pressed={hotLine === k} onMouseEnter={() => setHotLine(k)} onMouseLeave={() => setHotLine(null)} onFocus={() => setHotLine(k)} onBlur={() => setHotLine(null)} onClick={() => setHotLine(hotLine === k ? null : k)} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2">{cumStyle === "bars" ? <span aria-hidden className={k === "net" ? "inline-block h-2.5 w-2.5 rounded-full" : "inline-block h-3 w-3 rounded-sm"} style={{ background: col }} /> : <span aria-hidden className={"inline-block h-0.5 w-4 " + (k === "net" ? "border-t-2 border-dashed" : "")} style={k === "net" ? { borderColor: col } : { background: col }} />}{t}</button></li>
+          {([["spend", SPEND, cumStyle === "bars" ? "Оплачено нарастающим итогом (вниз)" : "Оплачено нарастающим итогом"], ["get", GET, cumStyle === "bars" ? "Выручка нарастающим итогом (вверх)" : "Выручка нарастающим итогом"], ["net", NAVY, cumStyle === "bars" ? "Чистый итог над столбцом (выручка − оплачено)" : "Чистый итог (получено − оплачено)"]] as const).filter((x) => x[0] === "spend" || hasSales).map(([k, col, t]) => (
+            <li key={k}><button type="button" aria-pressed={hotLine === k} onMouseEnter={() => setHotLine(k)} onMouseLeave={() => setHotLine(null)} onFocus={() => setHotLine(k)} onBlur={() => setHotLine(null)} onClick={() => setHotLine(hotLine === k ? null : k)} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2">{cumStyle === "bars" ? k === "net" ? <span aria-hidden className="inline-block w-3 text-center text-xs font-bold leading-none">±</span> : <span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: col }} /> : <span aria-hidden className={"inline-block h-0.5 w-4 " + (k === "net" ? "border-t-2 border-dashed" : "")} style={k === "net" ? { borderColor: col } : { background: col }} />}{t}</button></li>
           ))}
         </ul>
           </div>
