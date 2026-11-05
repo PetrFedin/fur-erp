@@ -1,8 +1,8 @@
 /**
- * Excel FW 26/27, вариант «Массив + Сводная» (05.11.2026).
- * Лист 1 «Массив» — одна строка = тип меха × кат. 1 × кат. 2 × артикул × цвет: заказ и приход (моделей, шт., €), приход шт. по месяцам,
+ * Excel FW 26/27, вариант «Данные + Сводная» (05.11.2026).
+ * Лист 1 «Данные» — одна строка = тип меха × кат. 1 × кат. 2 × артикул × цвет: заказ и приход (моделей, шт., €), приход шт. по месяцам,
  * «в ТЗ есть, но не пришло» (считаем: придёт в ноябре), план от остатка на ноябрь и декабрь.
- * Лист 2 «Сводная» — формулы СУММЕСЛИМН по листу «Массив»: тип меха → кат. 1 → кат. 2 (группировка строк).
+ * Лист 2 «Сводная» — формулы СУММЕСЛИМН по листу «Данные»: тип меха → кат. 1 → кат. 2 (группировка строк).
  * Запуск: NODE_PATH=<папка с пустым server-only> node --env-file=.env node_modules/.bin/tsx scripts/gen-fw26-array-xlsx.ts [папка]
  */
 import { writeFileSync } from "node:fs";
@@ -67,7 +67,7 @@ async function main() {
   // ───────── Лист 1: Массив ─────────
   const wb = new ExcelJS.Workbook();
   wb.creator = "МехУчёт";
-  const ws = wb.addWorksheet("Массив", { views: [{ state: "frozen", xSplit: 5, ySplit: 3 }] });
+  const ws = wb.addWorksheet("Данные", { views: [{ state: "frozen", xSplit: 5, ySplit: 3 }] });
   const labels = ["Тип меха", "Категория 1", "Категория 2", "Артикул", "Цвет"];
   type NumCol = { head: string; group: string; get: (l: Leaf) => number; fmt: string };
   const N0 = "#,##0;-#,##0;–", N2 = "#,##0;-#,##0;–";
@@ -90,7 +90,7 @@ async function main() {
   const c0 = labels.length + 1; // первый числовой столбец
   const colL = (i: number) => ws.getColumn(c0 + i).letter;
 
-  ws.getCell(1, 1).value = `FW 26/27 — массив: заказ, приход, не пришло и план на ${new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" })}`;
+  ws.getCell(1, 1).value = `FW 26/27 — данные: заказ, приход, не пришло и план на ${new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" })}`;
   ws.getCell(1, 1).font = { bold: true, size: 13 };
   // группы шапки и шапка
   const GROUP_FILL: Record<string, string> = { "Заказ": "FFE8EEFC", "Приход": "FFE7F5EC", "Приход по месяцам, шт.": "FFDDF0E4", "Не пришло": "FFFFF4DC", "План прихода от остатка, шт.": "FFE0F0FA" };
@@ -132,7 +132,7 @@ async function main() {
   // ───────── Лист 2: Сводная ─────────
   const pv = wb.addWorksheet("Сводная", { views: [{ state: "frozen", xSplit: 3, ySplit: 3 }], properties: { outlineLevelRow: 3 } });
   pv.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
-  pv.getCell(1, 1).value = "FW 26/27 — сводная по листу «Массив» (формулы; меняете «Массив» — сводная пересчитывается)";
+  pv.getCell(1, 1).value = "FW 26/27 — сводная по листу «Данные» (формулы; меняете «Данные» — сводная пересчитывается)";
   pv.getCell(1, 1).font = { bold: true, size: 13 };
   gs = 0;
   const pc0 = 4;
@@ -152,8 +152,8 @@ async function main() {
     x.fill = { type: "pattern", pattern: "solid", fgColor: { argb: c < pc0 ? "FFEFEFEF" : GROUP_FILL[cols[c - pc0].group] } }; x.border = { bottom: { style: "thin" } };
   }
   ph.height = 62;
-  const rng = (i: number) => `Массив!$${colL(i)}$${FIRST}:$${colL(i)}$${LAST}`;
-  const A = `Массив!$A$${FIRST}:$A$${LAST}`, B = `Массив!$B$${FIRST}:$B$${LAST}`, C = `Массив!$C$${FIRST}:$C$${LAST}`;
+  const rng = (i: number) => `Данные!$${colL(i)}$${FIRST}:$${colL(i)}$${LAST}`;
+  const A = `Данные!$A$${FIRST}:$A$${LAST}`, B = `Данные!$B$${FIRST}:$B$${LAST}`, C = `Данные!$C$${FIRST}:$C$${LAST}`;
   const LVL_FILL = ["FF1B2A5C", "FFDDE3F5", "FFF6F7FB"];
   let pr = 4;
   const writeRow = (level: number, a: string, b: string, c: string, subset: Leaf[]) => {
@@ -193,17 +193,17 @@ async function main() {
   const info = wb.addWorksheet("Как читать");
   [
     "Что в файле",
-    "• «Массив» — одна строка на тип меха × категория 1 × категория 2 × артикул × цвет. Включён фильтр: итог внизу считается по видимым строкам.",
+    "• «Данные» — одна строка на тип меха × категория 1 × категория 2 × артикул × цвет. Включён фильтр: итог внизу считается по видимым строкам.",
     "• «Моделей» — число позиций (артикул-цвет), по которым есть заказ / приход (1 или 0 на строку); в сводной это число позиций. «Евро» — сумма из отчёта «заказ и продажи» (Conf EUR / Deliv EUR).",
     "• «Приход по месяцам» — файл «поступления и продажи» по дате прихода; корректировки с минусом зачтены в предыдущие месяцы того же артикула и цвета.",
     "• «Всего не пришло» = заказ − приход (не меньше нуля). «В ТЗ есть, не пришло — получим в ноябре» — часть этого остатка, которая заведена в наши ТЗ (включая уже сделанное): считаем, что она придёт в ноябре точно.",
     "• «План прихода от остатка»: ноябрь = ТЗ + половина остатка без ТЗ, декабрь = вторая половина. Если правили план в разделе «Приход по месяцам» — берутся правки.",
-    "• «Сводная» — формулы по листу «Массив»: тип меха → кат. 1 → кат. 2, слева кнопки 1–3 сворачивают уровни.",
+    "• «Сводная» — формулы по листу «Данные»: тип меха → кат. 1 → кат. 2, слева кнопки 1–3 сворачивают уровни.",
   ].forEach((t, i) => { const c = info.getCell(i + 1, 1); c.value = t; c.alignment = { wrapText: true, vertical: "top" }; if (i === 0) c.font = { bold: true, size: 13 }; });
   info.getColumn(1).width = 130;
 
   const iso = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Moscow" });
-  const path = `${dir}/FW26_массив_и_сводная_${iso}.xlsx`;
+  const path = `${dir}/FW26_данные_и_сводная_${iso}.xlsx`;
   writeFileSync(path, Buffer.from(await wb.xlsx.writeBuffer()));
   const t = (f: (l: Leaf) => number) => list.reduce((a, l) => a + f(l), 0);
   console.log(path, JSON.stringify({ rows: list.length, conf: t((l) => l.conf), confEur: Math.round(t((l) => l.confEur)), deliv: t((l) => l.deliv), delivEur: Math.round(t((l) => l.delivEur)), aw: t((l) => l.aw), tz: t((l) => l.tz), nov: t((l) => l.nov), dec: t((l) => l.dec), months }));
