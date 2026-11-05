@@ -624,6 +624,29 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 text-xs print:hidden" role="group" aria-label="Группа категорий">
+        <span className="text-neutral-500">Группа:</span>
+        <div className="inline-flex overflow-hidden rounded-lg border border-neutral-300">
+          {([[null, "Все"], ...CATEGORY_GROUPS.map((g) => [g, g] as const)] as const).map(([g, text]) => {
+            // Быстрый выбор группы категорий; остальные фильтры сохраняются.
+            const on = g === null ? f.catgroup.length === 0 : f.catgroup.length === 1 && f.catgroup[0] === g;
+            return (
+              <Link
+                key={text}
+                href={filterHref(PROD_FILTERS, "/production", f, { catgroup: g === null ? [] : [g] })}
+                aria-current={on ? "page" : undefined}
+                className={
+                  "px-3 py-1.5 max-md:inline-flex max-md:min-h-11 max-md:items-center " +
+                  (on ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-100")
+                }
+              >
+                {text}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="print:hidden">
       <FilterBar
         title="Фильтры производства"
