@@ -34,7 +34,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
   const N = payNumbers(d, c4Mode, only);
   const { furD, linD, inFur, inLin, inWork, inServ, adv, P, L, T, paidAll, leftAll, due, roundAll, totalAll, furPaidD, linPaidD, furLeftD, linLeftD } = N;
   const part = (v: number, whole: number) => (whole > 0.5 ? v / whole : null);
-  const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, serv: number, work: number, warn?: boolean, workLabel = "Работа подрядчику", bought = false): TileItem[] => [
+  const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, serv: number, work: number, warn?: boolean, workLabel = "Работа подрядчику", bought = false, detail = false): TileItem[] => [
     ...(inFur ? [
       ...(only ? [] : [{ k: "Мех", v: money(fur), share: part(fur, whole), tone: warn && fur > 0 ? "text-amber-700" : undefined }]),
       // Закупки меха по источникам (стоимость «Куплено», с НДС) — те же цифры, что в «Сырьё» → «На аукционах» / «У поставщика».
@@ -43,15 +43,20 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
         { k: "оплачено на аукционах", v: dash(d.paidFurBySource.auction), sub: true },
         { k: "оплачено поставщику (с доплатой подрядчику)", v: dash(d.paidFurBySource.supplier), sub: true },
       ] : []),
-      { k: "остаток на складе", v: dash(furSplit.stock), sub: !only },
-      { k: "использовано", v: dash(furSplit.used), sub: !only },
-      { k: "4%", v: dash(furC4), sub: !only },
+      // «Остаток на складе / использовано / 4%» — свойство стоимости: только в «Общей стоимости». В «Оплачено» и «К оплате» эти строки были долями, распределёнными пропорционально, и путали (одно слово — три разные суммы).
+      ...(detail || only ? [
+        { k: "остаток на складе", v: dash(furSplit.stock), sub: !only },
+        { k: "использовано", v: dash(furSplit.used), sub: !only },
+        { k: "4% (справочно, не входят в сумму)", v: dash(furC4), sub: !only },
+      ] : []),
     ] : []),
     ...(inLin ? [
       ...(only ? [] : [{ k: "Подкладка", v: money(lin), share: part(lin, whole), tone: warn && lin > 0 ? "text-amber-700" : undefined }]),
-      { k: "остаток на складе", v: dash(linSplit.stock), sub: !only },
-      { k: "использовано", v: dash(linSplit.used), sub: !only },
-      { k: "4%", v: dash(linC4), sub: !only },
+      ...(detail || only ? [
+        { k: "остаток на складе", v: dash(linSplit.stock), sub: !only },
+        { k: "использовано", v: dash(linSplit.used), sub: !only },
+        { k: "4% (справочно, не входят в сумму)", v: dash(linC4), sub: !only },
+      ] : []),
     ] : []),
     ...(inServ && Math.abs(serv) >= 0.5 ? [{ k: SERVICES_LABEL, v: money(serv), share: part(serv, whole), tone: warn && serv > 0 ? "text-amber-700" : undefined }] : []),
     ...(inWork ? [{ k: workLabel, v: money(work), share: part(work, whole), tone: warn && work > 0 ? "text-amber-700" : undefined }] : []),
@@ -89,14 +94,15 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
         <TileHead>Общая стоимость</TileHead>
         <div className="absolute right-3 top-3">
           <InfoHint label="Что такое общая стоимость" align="right">
-            <p>Оплачено + К оплате: сырьё (мех с шкурами подрядчика, подкладка), услуги по УПД и работа по заведённым ТЗ. Всегда с НДС, 4% отдельно не добавляются. Доля — от общей стоимости.</p>
+            <p>Оплачено + К оплате: сырьё (мех с шкурами подрядчика, подкладка), услуги по УПД и работа по заведённым ТЗ. Всегда с НДС. Доля — от общей стоимости.</p>
+            <p className="mt-1">У меха и подкладки: <b>остаток на складе</b> — стоимость лежащего на складе, <b>использовано</b> — стоимость ушедшего в ТЗ (без 4%). Эти две строки в сумме дают «Мех» (у меха плюс доплата подрядчику). 4% к сырью оплачены в составе оплат ТЗ и в сумму не входят. «Оплачено» и «К оплате» делятся иначе — по назначению платежа, поэтому «использовано» в них не повторяется.</p>
             {!only && Math.abs(T.fur - furD.stock - furD.used) >= 1 ? <p className="mt-1">В «Мех» входит доплата подрядчику (НДС по сырью) {money(T.fur - furD.stock - furD.used)}: её нет в «Куплено» на плитках сырья, поэтому «Мех» здесь на эту сумму больше.</p> : null}
             {adv >= 1 ? <p className="mt-1">Аванс подрядчику (неразнесённый) {money(adv)} в стоимость не входит: это предоплата работ по ТЗ, которых ещё нет в базе. Он есть в «Оплачено всего».</p> : null}
           </InfoHint>
         </div>
         <TileValue compact={bare}>{money(totalAll)}</TileValue>
         <TileList stack={bare} items={(() => {
-          const items: TileItem[] = list(totalAll, T.fur, { stock: furD.stock, used: furD.used }, furD.c4, T.lining, { stock: linD.stock, used: linD.used }, linD.c4, T.services, T.work, true);
+          const items: TileItem[] = list(totalAll, T.fur, { stock: furD.stock, used: furD.used }, furD.c4, T.lining, { stock: linD.stock, used: linD.used }, linD.c4, T.services, T.work, true, undefined, false, true);
           // Доплата подрядчику (НДС 22 % по сырью, 229 150 ₽) входит в оплаты за мех, но не в «Куплено / Использовано / Остаток» (она уже в ТЗ расходом): показываем отдельной строкой, чтобы части сходились с «Мех».
           const gap = T.fur - furD.stock - furD.used;
           if (!only && Math.abs(gap) >= 1) { const at = items.findIndex((x) => x.k === "использовано"); items.splice(at < 0 ? items.length : at + 1, 0, { k: "доплата подрядчику (НДС по сырью)", v: dash(gap), sub: true }); }
