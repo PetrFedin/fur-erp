@@ -42,7 +42,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
       ...(bought && !only ? [
         // Это блок «Оплачено»: суммы оплат (как в Cashflow), а не стоимость закупок; доплата подрядчику (НДС по сырью) — у поставщика.
         { k: "оплачено на аукционах", v: dash(d.paidFurBySource.auction), sub: true },
-        { k: "оплачено поставщику (с доплатой подрядчику)", v: dash(d.paidFurBySource.supplier), sub: true },
+        { k: "оплачено поставщику (вкл подрядчиков)", v: dash(d.paidFurBySource.supplier), sub: true },
       ] : []),
       // «Остаток на складе / использовано / 4%» — свойство стоимости: только в «Общей стоимости». В «Оплачено» и «К оплате» эти строки были долями, распределёнными пропорционально, и путали (одно слово — три разные суммы).
       ...(detail || only ? [
@@ -147,7 +147,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
               ...(inFur ? [
                 { k: "Мех", cells: [money(P.fur)] },
                 { k: "оплачено на аукционах", sub: true, cells: [dash(d.paidFurBySource.auction)] },
-                { k: "оплачено поставщику (с доплатой подрядчику)", sub: true, cells: [dash(d.paidFurBySource.supplier)] },
+                { k: "оплачено поставщику (вкл подрядчиков)", sub: true, cells: [dash(d.paidFurBySource.supplier)] },
               ] : []),
               ...(inLin ? [{ k: "Подкладка", cells: [money(P.lining)] }] : []),
               ...(inServ && Math.abs(P.services) >= 0.5 ? [{ k: SERVICES_LABEL, cells: [money(P.services)] }] : []),
