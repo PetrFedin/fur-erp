@@ -6,6 +6,7 @@ import type { YearFilter } from "@/lib/year-filter";
 import { InfoHint } from "@/components/info-hint";
 import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import type { DashboardData } from "@/lib/dashboard-data";
+import { DetailDialog, DetailTable } from "@/components/detail-dialog";
 import { WidgetRow } from "@/components/widget-row";
 import { SERVICES_LABEL } from "@/lib/service-purchase";
 import { TERMS } from "@/lib/terms";
@@ -47,7 +48,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
       ...(detail || only ? [
         { k: "остаток на складе", v: dash(furSplit.stock), sub: !only },
         { k: "использовано", v: dash(furSplit.used), sub: !only },
-        { k: "4% (справочно, не входят в сумму)", v: dash(furC4), sub: !only },
+        { k: "4%", v: dash(furC4), sub: !only },
       ] : []),
     ] : []),
     ...(inLin ? [
@@ -55,7 +56,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
       ...(detail || only ? [
         { k: "остаток на складе", v: dash(linSplit.stock), sub: !only },
         { k: "использовано", v: dash(linSplit.used), sub: !only },
-        { k: "4% (справочно, не входят в сумму)", v: dash(linC4), sub: !only },
+        { k: "4%", v: dash(linC4), sub: !only },
       ] : []),
     ] : []),
     ...(inServ && Math.abs(serv) >= 0.5 ? [{ k: SERVICES_LABEL, v: money(serv), share: part(serv, whole), tone: warn && serv > 0 ? "text-amber-700" : undefined }] : []),
@@ -102,12 +103,23 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
         </div>
         <TileValue compact={bare}>{money(totalAll)}</TileValue>
         <TileList stack={bare} items={(() => {
-          const items: TileItem[] = list(totalAll, T.fur, { stock: furD.stock, used: furD.used }, furD.c4, T.lining, { stock: linD.stock, used: linD.used }, linD.c4, T.services, T.work, true, undefined, false, true);
-          // Доплата подрядчику (НДС 22 % по сырью, 229 150 ₽) входит в оплаты за мех, но не в «Куплено / Использовано / Остаток» (она уже в ТЗ расходом): показываем отдельной строкой, чтобы части сходились с «Мех».
-          const gap = T.fur - furD.stock - furD.used;
-          if (!only && Math.abs(gap) >= 1) { const at = items.findIndex((x) => x.k === "использовано"); items.splice(at < 0 ? items.length : at + 1, 0, { k: "доплата подрядчику (НДС по сырью)", v: dash(gap), sub: true }); }
+          const items: TileItem[] = list(totalAll, T.fur, { stock: furD.stock, used: furD.used }, furD.c4, T.lining, { stock: linD.stock, used: linD.used }, linD.c4, T.services, T.work, true);
           return [...items, ...(Math.abs(roundAll) >= ROUND_MIN ? [{ k: "Округление", v: money(roundAll) }] : [])];
         })()} />
+        {!only ? (
+          <DetailDialog title="Общая стоимость: из чего состоит">
+            <DetailTable head={["Статья", "Сумма", "Остаток на складе", "Использовано", "Доплата подрядчику (НДС по сырью)", "4% (справочно)"]} rows={[
+              ...(inFur ? [{ k: "Мех", cells: [money(T.fur), dash(furD.stock), dash(furD.used), dash(T.fur - furD.stock - furD.used), dash(furD.c4)] }] : []),
+              ...(inLin ? [{ k: "Подкладка", cells: [money(T.lining), dash(linD.stock), dash(linD.used), "–", dash(linD.c4)] }] : []),
+              ...(inServ && Math.abs(T.services) >= 0.5 ? [{ k: SERVICES_LABEL, cells: [money(T.services), "", "", "", ""] }] : []),
+              ...(inWork ? [{ k: "Работа подрядчику", cells: [money(T.work), "", "", "", ""] }] : []),
+              ...(Math.abs(roundAll) >= ROUND_MIN ? [{ k: "Округление", cells: [money(roundAll), "", "", "", ""] }] : []),
+              { k: "Всего", strong: true, cells: [money(totalAll), "", "", "", ""] },
+            ]} />
+            <p className="mt-3 text-xs text-neutral-600">«Мех» = остаток на складе + использовано + доплата подрядчику (НДС по сырью): она уже входит в «Мех», отдельно не добавляется. 4% к сырью оплачены в составе оплат ТЗ и в сумму не входят. Всегда с НДС.</p>
+            {adv >= 1 ? <p className="mt-1 text-xs text-neutral-600">Аванс подрядчику (неразнесённый) {money(adv)} в стоимость не входит: это предоплата работ по ТЗ, которых ещё нет в базе. Он есть в «Оплачено всего».</p> : null}
+          </DetailDialog>
+        ) : null}
       </div>
 
       <div key="paid" className={TILE_BOX}>
@@ -128,6 +140,28 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
             <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">По типам платежа</div>
             <TileList stack={bare} items={typeItems} />
           </div>
+        ) : null}
+        {!only ? (
+          <DetailDialog title="Оплачено всего: куда ушли платежи">
+            <DetailTable head={["Статья", "Сумма"]} rows={[
+              ...(inFur ? [
+                { k: "Мех", cells: [money(P.fur)] },
+                { k: "оплачено на аукционах", sub: true, cells: [dash(d.paidFurBySource.auction)] },
+                { k: "оплачено поставщику (с доплатой подрядчику)", sub: true, cells: [dash(d.paidFurBySource.supplier)] },
+              ] : []),
+              ...(inLin ? [{ k: "Подкладка", cells: [money(P.lining)] }] : []),
+              ...(inServ && Math.abs(P.services) >= 0.5 ? [{ k: SERVICES_LABEL, cells: [money(P.services)] }] : []),
+              ...(inWork ? [{ k: "Работа подрядчику", cells: [money(P.work)] }] : []),
+              { k: "Всего оплачено", strong: true, cells: [money(paidAll)] },
+            ]} />
+            {typesOk ? (
+              <>
+                <div className="mb-1 mt-4 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">По типам платежа</div>
+                <DetailTable head={["Тип", "Сумма", "Платежей"]} rows={typeRows.map((t, i) => ({ k: TYPE_LABEL[t.type], cells: [money(typeAl.values[i]), String(t.count)] }))} />
+              </>
+            ) : null}
+            {inWork && d.clientDebtInfo.unallocated >= 1 ? <p className="mt-3 text-xs text-neutral-600">В «Оплачено всего» входит аванс подрядчику, ещё не отнесённый к партиям: {money(d.clientDebtInfo.unallocated)}.</p> : null}
+          </DetailDialog>
         ) : null}
       </div>
 
@@ -169,6 +203,27 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
               return <div key={x.auction + x.date} className={late ? "text-red-700" : undefined}>{x.date} · {x.auction} · <b className="tabular-nums">{formatMoney(x.amount.toFixed(0))}</b>{late ? " · просрочен" : ""}</div>;
             })}
           </div>
+        ) : null}
+        {!only ? (
+          <DetailDialog title={`${inWork ? DUE_LABEL : "К оплате всего"}: из чего состоит`}>
+            <DetailTable head={["Статья", "Сумма"]} rows={[
+              ...(inFur ? [{ k: "Мех", cells: [money(L.fur)] }] : []),
+              ...(inLin ? [{ k: "Подкладка", cells: [dash(L.lining)] }] : []),
+              ...(inServ && Math.abs(L.services) >= 0.5 ? [{ k: SERVICES_LABEL, cells: [money(L.services)] }] : []),
+              ...(inWork ? [{ k: TERMS.workRest, cells: [money(L.work)] }] : []),
+              { k: "Всего до зачёта аванса", strong: true, cells: [money(leftAll)] },
+              ...(inWork && adv >= 1 ? [{ k: "аванс подрядчику (зачёт)", sub: true, cells: [`−${money(adv)}`] }, { k: DUE_LABEL, strong: true, cells: [money(due.net)] }] : []),
+            ]} />
+            {split ? (
+              <>
+                <div className="mb-1 mt-4 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{TERMS.rawDebt}</div>
+                <DetailTable rows={[
+                  { k: "за поставленное (УПД и счета)", cells: [money(split[0])] },
+                  { k: "по заказам, ещё не поставлено", cells: [money(split[1])] },
+                ]} />
+              </>
+            ) : null}
+          </DetailDialog>
         ) : null}
       </div>
     </>
