@@ -21,7 +21,7 @@ export function WidgetRow({ id, title = "Виджеты", children, className = 
     let c = defaultCollapsed, p = false;
     try {
       const raw = window.localStorage.getItem(key);
-      if (raw) { const v = JSON.parse(raw) as { c?: boolean; p?: boolean }; c = v.c === undefined ? defaultCollapsed : !!v.c; p = !!v.p; }
+      if (raw) { const v = JSON.parse(raw) as { c?: boolean; p?: boolean; v?: number }; c = v.v !== 2 || v.c === undefined ? defaultCollapsed : !!v.c; p = !!v.p; }
     } catch { /* без памяти браузера работает так же, просто без запоминания */ }
     setCollapsed(c); setPinned(p);
     setReady(true);
@@ -29,7 +29,7 @@ export function WidgetRow({ id, title = "Виджеты", children, className = 
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const save = (c: boolean, p: boolean) => {
-    try { window.localStorage.setItem(key, JSON.stringify({ c, p })); } catch { /* ничего */ }
+    try { window.localStorage.setItem(key, JSON.stringify({ v: 2, c, p })); } catch { /* ничего */ }
   };
   const toggleCollapsed = () => { const v = !collapsed; setCollapsed(v); save(v, pinned); };
   const togglePinned = () => { const v = !pinned; setPinned(v); save(collapsed, v); };

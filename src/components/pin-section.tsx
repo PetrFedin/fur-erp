@@ -33,8 +33,9 @@ export function PinSection({ id, title, headerExtra, value, onRestore, children,
     try {
       const raw = window.localStorage.getItem(key);
       if (raw) {
-        const v = JSON.parse(raw) as { c?: boolean; p?: boolean; s?: unknown };
-        c = !!v.c; p = !!v.p;
+        const v = JSON.parse(raw) as { c?: boolean; p?: boolean; s?: unknown; v?: number };
+        // v < 2: прежний сохранённый «свёрнуто» сбрасываем (раздел по умолчанию развёрнут), закрепление и раскрытые строки остаются.
+        c = v.v === 2 && !!v.c; p = !!v.p;
         if (p && Array.isArray(v.s)) s = v.s.filter((x): x is string => typeof x === "string");
       }
     } catch { /* без памяти браузера — без запоминания */ }
@@ -49,7 +50,7 @@ export function PinSection({ id, title, headerExtra, value, onRestore, children,
   useEffect(() => {
     if (!ready) return;
     try {
-      window.localStorage.setItem(key, JSON.stringify(pinned ? { c: collapsed, p: true, s: JSON.parse(serialized) } : { c: collapsed, p: false }));
+      window.localStorage.setItem(key, JSON.stringify(pinned ? { v: 2, c: collapsed, p: true, s: JSON.parse(serialized) } : { v: 2, c: collapsed, p: false }));
     } catch { /* ничего */ }
   }, [ready, key, collapsed, pinned, serialized]);
 
