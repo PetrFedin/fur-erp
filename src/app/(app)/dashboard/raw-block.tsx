@@ -461,7 +461,7 @@ function SrcModal({ src, active, types, total, vat, c4, onClose }: { src: FurSrc
             </tr>
           </tbody>
         </table>
-        <p className="mt-2 text-[11px] leading-4 text-neutral-500">Куплено = использовано (без 4%) + остаток. В «У поставщика» к «Свакаре» добавлены шкуры подрядчика; заказанное, но не полученное входит в «На аукционах».</p>
+        
       </div>
     </dialog>
   );
@@ -640,7 +640,7 @@ function PriceModal({ col, rows, vat, fur, lining, c4, onClose }: { col: "recv" 
             {list.length === 0 ? <tr><td colSpan={cols} className="px-2 py-6 text-center text-neutral-500">По выбранным фильтрам нет данных.</td></tr> : null}
           </tbody>
         </table>
-        <p className="mt-2 text-[11px] leading-4 text-neutral-500">Бобр: закупленные лоты не списаны в ТЗ (остаток = куплено); бобр подрядчика без лотов закупки — см. <Link href="/lots/fur/%D0%91%D0%BE%D0%B1%D1%80" className="text-blue-700 hover:underline">Сырьё › Мех › Бобр</Link>.</p>
+        
       </div>
     </dialog>
   );

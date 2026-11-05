@@ -257,7 +257,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         <SalesModal wide title={`Заказ и приход · ${CLS_LABEL[open.cls]}, шт.`} subtitle={`все сезоны · деньги по прайсу · ${vatNote}`} onClose={() => setOpen(null)}>
           <HierSwitch value={mHier} onChange={setMHier} />
           <OrdersTable key={mHier + open.cls} s={os} v={v} hier={mHier} />
-          <p className="text-xs text-neutral-600">По FW 25/26 и SS 2026 больше ничего не ждём: заказано = пришло. По FW 26/27 заказано = пришло + ждём, где ждём = Conf − поступило (отчёт по товарам). Conf отчёта целиком: {n0(os.confReport)} шт. Штуки без цены в прайсе в рубли не входят. Сезон разворачивается стрелкой ›.</p>
+          
           <Link href={href} className="inline-flex min-h-11 items-center text-sm text-blue-700 hover:underline">Продажи и остатки ›</Link>
         </SalesModal>
       );

@@ -1013,7 +1013,7 @@ function ClassicTable({ period, vatPay, vatRev, prepaid, prepaidList, hasVat, ti
     <>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <h2 className="text-sm font-semibold">{title}</h2>
-        <p className="basis-full text-xs text-neutral-600">Оплаты поставщикам и подрядчику и выручка; без зарплат, аренды, налогов и остатков на счетах.</p>
+        
         <button type="button" aria-expanded={detail} onClick={() => setDetail(!detail)} className="inline-flex min-h-11 items-center rounded-lg border border-neutral-300 bg-white px-3 text-sm md:min-h-9">{detail ? "Скрыть таблицу" : "Показать таблицу"}</button>
         {detail ? (
           <div role="group" aria-label="Столбцы" className={SEG_GROUP}>

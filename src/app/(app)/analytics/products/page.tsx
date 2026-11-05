@@ -459,7 +459,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         <summary className="block-title cursor-pointer">
           Качество данных
         </summary>
-        <p className="mt-2 text-xs text-neutral-500">Проверки по всем ТЗ выбранного года (без фильтров таблицы). Данные не правятся — только показано, где неполно.</p>
+        
         <ul className="flex flex-col mt-2 gap-2">
           <li>
             Молоток записан у <b>{sAll.m.lotsHammer}</b> из <b>{sAll.m.lots}</b> лотов меха, использованных в ТЗ ({sAll.d.hammerSkinShare != null ? pct0(sAll.d.hammerSkinShare) : "–"} шкур). ТЗ, где молоток известен не для всех шкур: <b>{partHammer.length}</b>

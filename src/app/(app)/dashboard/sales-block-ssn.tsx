@@ -73,7 +73,7 @@ export function SsnTable({ data, v, vatNote, active, allTime = false }: { data: 
             </table>
           )}
         </div>
-        {view === "cols" ? <p className="text-xs text-neutral-600">Ячейка на диагонали (сезон товара = календарный сезон) — продажи своего сезона; правее — продажи после окончания сезона.</p> : null}
+        {view === "cols" ? null : null}
       </div>
     </details>
   );

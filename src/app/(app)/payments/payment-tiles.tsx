@@ -137,7 +137,7 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
               <>
                 {paid.unlinked > 0.5 ? <p className="mb-3 text-xs text-neutral-500">Авансы без привязки к партии: {rub(paid.unlinked)}</p> : null}
                 <Bars rows={paid.rows} tone="paid" />
-                {hidesMemo && hidesMemo > 0.5 ? <p className="mt-4 text-xs text-neutral-500">В «Мех» входят шкуры подрядчика, оплаченные в составе счетов за пошив: <b className="tabular-nums">{rub(hidesMemo)}</b>.</p> : null}
+                {hidesMemo && hidesMemo > 0.5 ? null : null}
               </>
             ) : (
               <>

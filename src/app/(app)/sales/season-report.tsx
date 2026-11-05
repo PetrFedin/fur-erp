@@ -378,7 +378,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         </table>
       </div>
 
-      <p className="-mt-1 text-xs text-neutral-600">Деньги по сезонам здесь — по товару сезона (отчёт «заказ и продажи»). В «Обзоре по дням» сезоны делятся по партии строк продаж, поэтому суммы по сезонам там другие; общий итог одинаковый.</p>
+      
 
       {/* Панель: вид, мех, поиск, сортировка */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg bg-white/95 py-1 backdrop-blur xl:sticky xl:top-0 xl:z-[15]">

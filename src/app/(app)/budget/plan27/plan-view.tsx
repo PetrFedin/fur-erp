@@ -56,7 +56,7 @@ export function PlanView({ data, canEdit }: { data: Data; canEdit: boolean }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">План производства 2027 по месяцам</h1>
-          <p className="mt-1 max-w-4xl text-xs text-neutral-600">Сколько изделий шьём в месяц, приход и расход сырья, остаток на складе (январь — ноябрь). Закупка и годный остаток 2026 — из «{data.pcsName}» (те же проценты). Купленное идёт в работу не раньше чем через {plan.lead} мес. после прихода. Правка любого месяца — следующие месяцы пропорционально подстраиваются, итог остаётся равным плану (или 100 % закупки). Своё значение подсвечено; очистите поле — снова расчёт. Так же считает Excel «Сырьё и бюджет FW27», лист 8.</p>
+          
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {dirty ? <span className="text-xs text-neutral-500" role="status">Есть несохранённые изменения</span> : msg ? <span className="text-xs text-neutral-500" role="status">{msg}</span> : null}
@@ -148,7 +148,7 @@ export function PlanView({ data, canEdit }: { data: Data; canEdit: boolean }) {
             })}
           </tbody>
         </table>
-        <p className="px-3 py-2 text-xs text-neutral-600">Остаток на начало января — годное из остатка 2026, которое пойдёт в план (по блокам, как в расчёте закупки), + пришедшее в ноябре–декабре 2026. На конец ноября остаётся запас купленного; невостребованное и годное сверх нужного блокам остаются на складе отдельно (см. Budget PCS). {allOk ? "Сырья хватает в каждом месяце." : "Где красным — сырья к этому месяцу не хватает."}</p>
+        
       </section>
 
       {shortT.length ? <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm">Чтобы шить одежду по целевой загрузке, при таком приходе не хватает: {shortT.map((x) => `${x.f} ${formatInt(Math.round(x.max))} шк.`).join(", ")} — включите «Докупать зимой» или перенесите приход на более ранние месяцы.</p> : null}
