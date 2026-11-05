@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { loadReportSizesState } from "@/lib/import-keys";
+import { memoRequest, jsonKey } from "@/lib/req-memo";
 
 export type AsOfPart = { loaded: string; last: string | null; source: string };
 export type DataAsOf = { sales: AsOfPart | null; receipts: AsOfPart | null; report: string | null };
@@ -9,7 +10,7 @@ export type DataAsOf = { sales: AsOfPart | null; receipts: AsOfPart | null; repo
 const SOURCE = (tag: string) => (tag.startsWith("datamart") ? "витрина datamart" : "файл «поступления и продажи»");
 
 /** На какую дату данные: дата отчёта «заказ и продажи» (report), даты загрузки и последних строк продаж и поступлений. Нет таблицы или строк — null. */
-export async function loadDataAsOf(orgId: string): Promise<DataAsOf> {
+async function loadDataAsOfImpl(orgId: string): Promise<DataAsOf> {
   try {
     const part = async (kind: "SALE" | "RECEIPT"): Promise<AsOfPart | null> => {
       const [tags, last] = await Promise.all([
@@ -29,3 +30,6 @@ export async function loadDataAsOf(orgId: string): Promise<DataAsOf> {
     return { sales: null, receipts: null, report: null };
   }
 }
+
+/** Кэш: в запросе и между запросами на демо-стенде (см. req-memo.ts); результат общий, менять на месте нельзя. */
+export const loadDataAsOf = memoRequest("data-as-of", loadDataAsOfImpl, (orgId) => orgId, { shared: true });

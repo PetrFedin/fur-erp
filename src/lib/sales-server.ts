@@ -11,6 +11,7 @@ import { isRepair } from "@/lib/orders-sum";
 import { loadModelCosts, loadModelPhotos, loadReportSizes } from "@/lib/margin-server";
 import type { SLine } from "@/lib/sales-section";
 import type { ReportSizeRow } from "@/lib/margin-tree";
+import { memoRequest, jsonKey } from "@/lib/req-memo";
 
 export type SalesInput = { lines: SLine[]; input: MarginInput; sizes: ReportSizeRow[]; photos: Awaited<ReturnType<typeof loadModelPhotos>>; models: Record<string, { id: string; name: string }> };
 
@@ -45,7 +46,7 @@ export async function loadPricing(orgId: string, c4: Commission4Mode): Promise<{
   };
 }
 
-export async function loadSalesInput(orgId: string, c4: Commission4Mode): Promise<SalesInput> {
+async function loadSalesInputImpl(orgId: string, c4: Commission4Mode): Promise<SalesInput> {
   const [lines, pricing, sizes, photos] = await Promise.all([loadSalesLines(orgId), loadPricing(orgId, c4), loadReportSizes(orgId), loadModelPhotos(orgId)]);
   return { lines, input: { lines, prices: pricing.prices, modelPrice: pricing.modelPrice, costs: pricing.costs }, sizes, photos, models: pricing.models };
 }
@@ -79,3 +80,6 @@ export async function loadChain(orgId: string, c4: Commission4Mode): Promise<Cha
     shipments: new Set(lines.map((l) => l.shipmentId)).size,
   };
 }
+
+/** Кэш: в запросе и между запросами на демо-стенде (см. req-memo.ts); результат общий, менять на месте нельзя. */
+export const loadSalesInput = memoRequest("sales-input", loadSalesInputImpl, (orgId, c4) => `${orgId}|${c4}`, { shared: true });

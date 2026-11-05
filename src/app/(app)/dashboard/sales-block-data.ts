@@ -10,6 +10,7 @@ import { applyFilters, bucketsOf, buildSalesTree, extOf, lastMonthOf, NO_FILTERS
 import { loadSalesInput } from "@/lib/sales-server";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 import type { YearFilter } from "@/lib/year-filter";
+import { memoRequest, jsonKey } from "@/lib/req-memo";
 
 export type VatPair = { in: number; ex: number };
 const nul = (v: number | null) => v;
@@ -441,7 +442,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
 import { tzAwaitSizes } from "@/lib/tz-await";
 import { loadReportSizes } from "@/lib/margin-server";
 
-export async function loadSalesBlock(orgId: string, c4: Commission4Mode, year: YearFilter, furNames: string[] = []): Promise<SalesBlock> {
+async function loadSalesBlockImpl(orgId: string, c4: Commission4Mode, year: YearFilter, furNames: string[] = []): Promise<SalesBlock> {
   const data = await loadSalesInput(orgId, c4);
   // «Ждём» и заказ — по отчёту «заказ и продажи» (Conf − поступило по FW 26/27): заказ в «Продажах» равен «В выпуске» в «Производстве» (509).
   // Запасной вариант, если отчёт не загружен, — по нашим ТЗ (объём ТЗ − получено), как в raw-forecast.
@@ -450,3 +451,5 @@ export async function loadSalesBlock(orgId: string, c4: Commission4Mode, year: Y
   return buildSalesBlock(data.input, year, sizes, furNames);
 }
 
+/** Кэш: в запросе и между запросами на демо-стенде (см. req-memo.ts); результат общий, менять на месте нельзя. */
+export const loadSalesBlock = memoRequest("sales-block", loadSalesBlockImpl, (orgId, c4, year, furNames) => `${orgId}|${c4}|${year}|${jsonKey(furNames ?? [])}`, { shared: true });

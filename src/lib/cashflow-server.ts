@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { OverviewRow } from "@/lib/payments-overview";
 import { classOfGroup, classOfLevel2, type CatClass, type SalesAggLine } from "@/lib/sales-receipts-core";
+import { memoRequest, jsonKey } from "@/lib/req-memo";
 
 /** Доля НДС в сумме закупки (по позициям: Σ база·ставка / Σ база·(1+ставка); у закупок-услуг без позиций — по расходам). */
 export async function loadPurchaseVat(orgId: string): Promise<Map<string, number>> {
@@ -64,7 +65,7 @@ export async function loadOrderClasses(orgId: string): Promise<Map<string, CatCl
 }
 
 /** Данные блока Cashflow на Главной: те же расчёты, что на странице Cashflow (оплаты, НДС по документам, продажи) и предоплата за непринятые заказы по месяцам. */
-export async function loadCashflowOverview(orgId: string, unreceivedNames: string[]) {
+async function loadCashflowOverviewImpl(orgId: string, unreceivedNames: string[]) {
   const { loadPaymentsOverview } = await import("@/lib/payments-overview");
   const { buildCashflow, vatShares, aggregateSales, monthsOf, prepaidItems } = await import("@/lib/cashflow");
   const [rows, purchaseVat, lines] = await Promise.all([loadPaymentsOverview(orgId), loadPurchaseVat(orgId), loadSalesLines(orgId)]);
@@ -74,3 +75,6 @@ export async function loadCashflowOverview(orgId: string, unreceivedNames: strin
   for (const r of rows) if (r.kind === "raw" && names.has(r.label)) prepaidBy[r.iso.slice(0, 7)] = (prepaidBy[r.iso.slice(0, 7)] ?? 0) + r.amount;
   return { incl: buildCashflow(rows, "all"), ex: buildCashflow(rows, "all", vs.share), salesAll: aggregateSales(lines, monthsOf("all")), prepaidBy, prepaidList: prepaidItems(rows, names) };
 }
+
+/** Кэш: в запросе и между запросами на демо-стенде (см. req-memo.ts); результат общий, менять на месте нельзя. */
+export const loadCashflowOverview = memoRequest("cashflow-overview", loadCashflowOverviewImpl, (orgId, names) => `${orgId}|${jsonKey(names)}`, { shared: true });

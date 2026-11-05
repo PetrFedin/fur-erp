@@ -434,4 +434,4 @@ async function loadOrderRowsImpl(orgId: string, year: YearFilter, mode: Commissi
   });
 }
 
-export const loadOrderRows = memoRequest("orderRows", loadOrderRowsImpl, (orgId, year, mode) => `${orgId}|${year}|${mode}`);
+export const loadOrderRows = memoRequest("orderRows", loadOrderRowsImpl, (orgId, year, mode) => `${orgId}|${year}|${mode}`, { shared: true });

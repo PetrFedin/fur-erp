@@ -45,6 +45,7 @@ export async function loadMarginInput(orgId: string, c4: Commission4Mode): Promi
 
 import { type ReportSizeRow } from "@/lib/margin-tree";
 import { loadPhotoSummary } from "@/lib/article-photos";
+import { memoRequest, jsonKey } from "@/lib/req-memo";
 
 /** Размеры из отчёта о товарах (apply-report-sizes-2026-10-19.ts); нет ключа — пусто. */
 export async function loadReportSizes(orgId: string): Promise<ReportSizeRow[]> {
@@ -86,7 +87,7 @@ export async function loadModelPhotos(orgId: string): Promise<Record<string, { m
 
 /** Итоги сезонов отчёта «заказ и продажи» (Главная, «Производство»): заказано и поступило, всего и по одежде / аксессуарам. Закрытые сезоны (SS26, FW25): заказано = поступило. */
 export type ReportSeasonTotal = { label: string; conf: number; deliv: number; clothes: { conf: number; deliv: number }; acc: { conf: number; deliv: number } };
-export async function loadReportSeasonTotals(orgId: string): Promise<ReportSeasonTotal[] | null> {
+async function loadReportSeasonTotalsImpl(orgId: string): Promise<ReportSeasonTotal[] | null> {
   const rows = await loadReportSizes(orgId);
   if (!rows.some((r) => r.seas)) return null;
   const LABEL: Record<string, string> = { "FW25/26": "FW 25/26", SS26: "SS 2026", "FW26/27": "FW 26/27" };
@@ -101,3 +102,6 @@ export async function loadReportSeasonTotals(orgId: string): Promise<ReportSeaso
     return t;
   }).filter((t) => t.conf || t.deliv);
 }
+
+/** Кэш: в запросе и между запросами на демо-стенде (см. req-memo.ts); результат общий, менять на месте нельзя. */
+export const loadReportSeasonTotals = memoRequest("report-season-totals", loadReportSeasonTotalsImpl, (orgId) => orgId, { shared: true });

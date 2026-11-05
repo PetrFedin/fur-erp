@@ -4,6 +4,7 @@ import { loadOrderRows, receivedByModel } from "@/lib/analytics-orders";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 import { normCode } from "@/lib/sales-receipts-core";
 import type { ReportSizeRow } from "@/lib/margin-tree";
+import { memoRequest, jsonKey } from "@/lib/req-memo";
 
 /**
  * «Ждём» по нашим ТЗ: по каждой модели — объём ТЗ (без ремонта) минус получено по приходу, если положительный. Заказ в «Продажах и остатках» =
@@ -12,7 +13,7 @@ import type { ReportSizeRow } from "@/lib/margin-tree";
  */
 const FUR_KEY: Record<string, string> = { Норка: "MINK", Соболь: "SABLE", Лиса: "FOX", Песец: "ARCTIC FOX", Свакара: "SWAKARA", Рысь: "LYNX", Бобр: "BEAVER", Каракульча: "KARAKULCHA", Каракуль: "BROADTAIL" };
 
-export async function tzAwaitSizes(orgId: string, c4: Commission4Mode): Promise<ReportSizeRow[]> {
+async function tzAwaitSizesImpl(orgId: string, c4: Commission4Mode): Promise<ReportSizeRow[]> {
   const [rows, recv, models] = await Promise.all([
     loadOrderRows(orgId, "all", c4),
     receivedByModel(orgId),
@@ -39,3 +40,6 @@ export async function tzAwaitSizes(orgId: string, c4: Commission4Mode): Promise<
   }
   return out;
 }
+
+/** Кэш: в запросе и между запросами на демо-стенде (см. req-memo.ts); результат общий, менять на месте нельзя. */
+export const tzAwaitSizes = memoRequest("tz-await-sizes", tzAwaitSizesImpl, (orgId, c4) => `${orgId}|${c4}`, { shared: true });

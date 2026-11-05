@@ -898,4 +898,4 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
   };
 }
 
-export const loadDashboard = memoRequest("dashboard", loadDashboardImpl, (orgId, year, f, c4) => `${orgId}|${year}|${c4}|${jsonKey(f)}`);
+export const loadDashboard = memoRequest("dashboard", loadDashboardImpl, (orgId, year, f, c4) => `${orgId}|${year}|${c4}|${jsonKey(f)}`, { shared: true });
