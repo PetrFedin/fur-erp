@@ -30,7 +30,7 @@ async function main() {
     if (l.kind !== "RECEIPT" || !l.pcs || l.season === "FW 26/27") continue;
     const kk = leafKeyOf(l.article, l.colorId);
     priorByLeaf.set(kk, (priorByLeaf.get(kk) ?? 0) + l.pcs);
-    if (!priorAttr.has(kk)) priorAttr.set(kk, { fur: furRuLabel(furTypeOfFabric(l.fabric), FUR_RU), c1: (l.level2 || "(без категории)").trim(), c2: (l.level4 || l.level5 || "(без категории)").trim(), article: l.article, color: (l.colorId ?? "").trim() });
+    if (!priorAttr.has(kk)) priorAttr.set(kk, { fur: furRuLabel(furTypeOfFabric(l.fabric), FUR_RU), c1: ((l as { level2?: string | null }).level2 || "(без категории)").trim(), c2: (l.level4 || (l as { level5?: string | null }).level5 || "(без категории)").trim(), article: l.article, color: (l.colorId ?? "").trim() });
   }
   const priorTotal = [...priorByLeaf.values()].reduce((a, x) => a + x, 0);
   const claimed = new Set<string>();
