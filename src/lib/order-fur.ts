@@ -12,10 +12,13 @@ export const NO_LOTS_FUR_TITLE = "Сырьё подрядчика: лотов з
 export const furKindsOfOrder = (fur: string | null | undefined): string[] =>
   (fur ?? "").split(" + ").map((s) => s.trim()).filter((s) => s && s !== UNDEFINED_FUR);
 
+/** Виды, которые владелец вывел из учёта сырья (06.11.2026): образцы, «иные расходы». В списках и фильтрах не показываем. */
+export const HIDDEN_FUR_KINDS = new Set(["Бобр", "Выдра", "Рысевидная кошка", "Фишер", "Шиншилла"]);
+
 /** Все виды меха по ТЗ (уникальные, по алфавиту). */
 export function orderFurKinds(orders: Iterable<{ fur: string }>): string[] {
   const out = new Set<string>();
-  for (const o of orders) for (const k of furKindsOfOrder(o.fur)) out.add(k);
+  for (const o of orders) for (const k of furKindsOfOrder(o.fur)) if (!HIDDEN_FUR_KINDS.has(k)) out.add(k);
   return Array.from(out).sort((a, b) => a.localeCompare(b, "ru"));
 }
 

@@ -37,13 +37,13 @@ const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[]
       eq(`${tag} оплачено услуги по УПД: виджет = Оплаты→Все`, d.paidByItem.services, sumOv("services", y));
       eq(`${tag} оплачено всего: мех + подкладка + услуги + работа = Σ оплат Оплаты→Все`, d.paidByItem.fur + d.paidByItem.lining + d.paidByItem.services + d.paidByItem.work, ov.filter((r) => y === "all" || r.year === Number(y)).reduce((a, r) => a + r.amount, 0));
       eq(`${tag} оплаты по типам: Σ типов = Σ статей`, d.paidByType.reduce((a, t) => a + t.amount, 0), d.paidByItem.fur + d.paidByItem.lining + d.paidByItem.services + d.paidByItem.work);
-      eq(`${tag} оплачено сырьё: Σ строк таблицы + «не получен» = виджет`, paidRows + d.rawMoneyTotal.unreceived.paid, d.rawMoneyTotal.paid); // + доплата подрядчику (НДС 22 % по сырью): деньги в «Оплачено», но не лоты
+      eq(`${tag} оплачено сырьё: Σ строк таблицы + «не получен» + услуги по УПД = виджет`, paidRows + d.rawMoneyTotal.unreceived.paid, d.rawMoneyTotal.paid); // + доплата подрядчику (НДС 22 % по сырью): деньги в «Оплачено», но не лоты
       eq(`${tag} оплачено подкладка: строка таблицы = виджет`, linRows.reduce((a, r) => a + r.paid, 0), d.paidByItem.lining);
       eq(`${tag} оплачено мех: Σ видов = виджет`, furRows.reduce((a, r) => a + r.paid, 0), d.paidByItem.fur);
       if (y === "all") eq(`${tag} оплачено сырьё: годы Σ = таблица`, d.years.find((r) => r.key === "all")!.paid, d.rawMoneyTotal.paid);
 
       // 2. Долг (К оплате): виджет = таблица = годы = Оплаты→Все = расчёт долга
-      eq(`${tag} долг сырьё: Σ строк таблицы + «не получен» = виджет`, dueRows + d.rawMoneyTotal.unreceived.due, d.left.raw);
+      eq(`${tag} долг сырьё: Σ строк таблицы + «не получен» + услуги по УПД = виджет`, dueRows + d.rawMoneyTotal.unreceived.due + d.left.services, d.left.raw);
       eq(`${tag} долг: мех + подкладка + услуги = сырьё`, d.left.fur + d.left.lining + d.left.services, d.left.raw);
       // «К оплате» по работе — остаток работы по заведённым ТЗ, не меньше нуля; неразнесённый аванс подрядчику — отдельной строкой, не минусом
       eq(`${tag} долг по работе не отрицателен (аванс отдельной строкой)`, Math.min(d.left.prod, 0), 0, 0.005);
@@ -130,7 +130,7 @@ const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[]
     const tag = `[фильтр: ${name}]`;
     const F = d.raw.fur.incl, L = d.raw.lining.incl;
     eq(`${tag} оплачено сырьё: Σ строк = виджет`, d.rawTable.reduce((a, r) => a + r.paid, 0) + d.rawMoneyTotal.unreceived.paid, d.paidByItem.fur + d.paidByItem.lining);
-    eq(`${tag} долг сырьё: Σ строк = виджет`, d.rawTable.reduce((a, r) => a + r.due, 0) + d.rawMoneyTotal.unreceived.due, d.left.raw);
+    eq(`${tag} долг сырьё: Σ строк = виджет`, d.rawTable.reduce((a, r) => a + r.due, 0) + d.rawMoneyTotal.unreceived.due + d.left.services, d.left.raw);
     eq(`${tag} мех: общая стоимость = куплено + заказано, не принято`, d.paidByItem.fur + d.left.fur, F.recvValue + d.ordered.incl - d.orderedBought.incl, 5);
     eq(`${tag} подкладка: общая стоимость = куплено`, d.paidByItem.lining + d.left.lining, L.recvValue, 300);
     // Статус ТЗ и партия сужают только «Использовано»: куплено − использовано ≠ остаток (так и задумано).

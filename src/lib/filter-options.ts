@@ -47,7 +47,7 @@ async function load(orgId: string, year: YearFilter, key: OptionKey): Promise<Fi
     }
     case "fur": {
       const [mats, idx] = await Promise.all([
-        prisma.rawMaterial.findMany({ where: { organizationId: orgId, unit: { not: "M" } }, select: { name: true } }),
+        prisma.rawMaterial.findMany({ where: { organizationId: orgId, unit: { not: "M" }, isActive: true }, select: { name: true } }),
         getFurIndex(orgId),
       ]);
       const names = new Set(mats.map((m) => canonicalFur(m.name, idx)?.name ?? m.name));
