@@ -280,10 +280,11 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         facts: [["Цена сейчас", now ?? DASH], ["Себестоимость", cost ? money(cost) : DASH], ["Маркап по цене сейчас", cost && nowNum ? x2(nowNum / cost) : DASH], ["Остаток сейчас", `${n0(n.stock)} шт.`]],
         seasons: seasonsOf.map((s) => {
           const m = n.m[s], kr = (v: number | null) => (v == null ? DASH : Math.round(v / 1000).toLocaleString("ru-RU")), live = s === "FW26/27";
-          const common: [string, string][] = [["Заказано, шт.", n0(m.conf)], ["Получено, шт.", n0(m.deliv)], ...(live && m.conf - m.deliv > 0 ? [["Ждём, шт.", n0(m.conf - m.deliv)] as [string, string]] : []), ["Остаток сезона, шт.", n0(m.stock)]];
+          const common: [string, string][] = [["Заказано, шт.", n0(m.conf)], ["Получено, шт.", n0(m.deliv)], ...(live && m.conf - m.deliv > 0 ? [["В производстве, шт.", n0(m.conf - m.deliv)] as [string, string]] : [])];
           const pairs = [
             { k: "Продано, шт.", ssn: n0(m.ssn), ttl: n0(m.all) },
             { k: "SO, %", ssn: pct(soS(m)), ttl: pct(soA(m)) },
+            { k: "Остаток, шт.", ssn: n0(m.stock), ttl: n0(m.stock) },
             { k: "NS", ssn: kr(m.rubS), ttl: kr(m.rubA) },
             { k: "Retail Price", ssn: kr(priceS(m)), ttl: kr(priceA(m)) },
             { k: "Маркап", ssn: x2(mkS(m)), ttl: x2(mkA(m)) },
@@ -293,7 +294,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         total: (() => {
           if (seasonsOf.length < 2) return null;
           const t = seasonsOf.reduce((a, s) => plus(a, n.m[s]), zero()), kr = (v: number | null) => (v == null ? DASH : Math.round(v / 1000).toLocaleString("ru-RU"));
-          return { common: [["Заказано, шт.", n0(t.conf)], ["Получено, шт.", n0(t.deliv)], ["Остаток сезона, шт.", n0(t.stock)]] as [string, string][], pairs: [{ k: "Продано, шт.", v: n0(t.all) }, { k: "SO, %", v: pct(soA(t)) }, { k: "NS", v: kr(t.rubA) }, { k: "Retail Price", v: kr(priceA(t)) }, { k: "Маркап", v: x2(mkA(t)) }] };
+          return { common: [["Заказано, шт.", n0(t.conf)], ["Получено, шт.", n0(t.deliv)]] as [string, string][], pairs: [{ k: "Продано, шт.", v: n0(t.all) }, { k: "SO, %", v: pct(soA(t)) }, { k: "Остаток, шт.", v: n0(t.stock) }, { k: "NS", v: kr(t.rubA) }, { k: "Retail Price", v: kr(priceA(t)) }, { k: "Маркап", v: x2(mkA(t)) }] };
         })(),
         colors: n.children.map((c) => { const sm = (nd: Node) => { const t = seasonsOf.reduce((a, s) => plus(a, nd.m[s]), zero()); return { conf: t.conf, deliv: t.deliv, sold: t.all, stock: t.stock }; }; return { label: c.label, ...sm(c), sizes: c.children.map((z) => ({ label: z.label, ...sm(z) })).filter((z) => z.conf || z.deliv || z.sold || z.stock) }; }).filter((c) => c.conf || c.deliv || c.sold || c.stock),
       };
