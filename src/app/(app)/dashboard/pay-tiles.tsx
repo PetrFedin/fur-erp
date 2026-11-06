@@ -147,6 +147,23 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
             <TileList stack={bare} items={typeItems} />
           </div>
         ) : null}
+        {!only ? (
+          <DetailDialog title="Оплачено всего">
+            <DetailTable head={["Статья", "Сумма"]} rows={[
+              ...(inFur ? [
+                { k: "Мех", strong: true, cells: [money(P.fur)] },
+                { k: "оплачено на аукционах", sub: true, cells: [dash(d.paidFurBySource.auction)] },
+                { k: "оплачено поставщику (вкл подрядчиков)", sub: true, cells: [dash(d.paidFurBySource.supplier)] },
+              ] : []),
+              ...(inLin ? [{ k: "Подкладка", strong: true, cells: [money(P.lining)] }] : []),
+              ...(inServ && Math.abs(P.services) >= 0.5 ? [{ k: SERVICES_LABEL, strong: true, cells: [money(P.services)] }] : []),
+              ...(inWork ? [{ k: "Работа подрядчику", strong: true, cells: [money(P.work)] }] : []),
+              ...(inWork && d.clientDebtInfo.unallocated >= 1 ? [{ k: "в т. ч. аванс подрядчику, не отнесён к партиям", sub: true, cells: [money(d.clientDebtInfo.unallocated)] }] : []),
+              { k: "Всего оплачено", strong: true, cells: [money(paidAll)] },
+            ]} />
+            {typesOk ? <DetailTable head={["Тип платежа", "Сумма", "Платежей"]} rows={typeRows.map((t, i) => ({ k: TYPE_LABEL[t.type], cells: [money(typeAl.values[i]), String(t.count)] }))} /> : null}
+          </DetailDialog>
+        ) : null}
       </div>
 
       <div key="left" className={TILE_BOX} data-testid="debt-bridge">
@@ -188,6 +205,19 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
               return <div key={x.auction + x.date} className={late ? "text-red-700" : undefined}>{x.date} · {x.auction} · <b className="tabular-nums">{formatMoney(x.amount.toFixed(0))}</b>{late ? " · просрочен" : ""}</div>;
             })}
           </div>
+        ) : null}
+        {!only ? (
+          <DetailDialog title={inWork ? DUE_LABEL : "К оплате всего"}>
+            <DetailTable head={["Статья", "Сумма"]} rows={[
+              ...(inFur ? [{ k: "Мех", cells: [money(L.fur)] }] : []),
+              ...(inLin ? [{ k: "Подкладка", cells: [dash(L.lining)] }] : []),
+              ...(inServ && Math.abs(L.services) >= 0.5 ? [{ k: SERVICES_LABEL, cells: [money(L.services)] }] : []),
+              ...(inWork ? [{ k: TERMS.workRest, cells: [money(L.work)] }] : []),
+              { k: "Всего до зачёта аванса", strong: true, cells: [money(leftAll)] },
+              ...(inWork && adv >= 1 ? [{ k: "аванс подрядчику (зачёт)", sub: true, cells: [`−${money(adv)}`] }, { k: DUE_LABEL, strong: true, cells: [money(due.net)] }] : []),
+            ]} />
+            {split ? <DetailTable head={[TERMS.rawDebt, "Сумма"]} rows={[{ k: "за поставленное (УПД и счета)", cells: [money(split[0])] }, { k: "по заказам, ещё не поставлено", cells: [money(split[1])] }]} /> : null}
+          </DetailDialog>
         ) : null}
       </div>
     </>
