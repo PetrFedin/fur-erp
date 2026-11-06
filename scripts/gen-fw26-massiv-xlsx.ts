@@ -93,9 +93,62 @@ async function main() {
   cols.forEach((_, i) => { ws.getColumn(c0 + i).width = 15; });
   ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: LAST, column: c0 + cols.length - 1 } };
 
+  // ───────── Лист 2: Сводная (формулы по «Массив»): категория 1 → тип меха → категория 2 ─────────
+  const pv = wb.addWorksheet("Сводная", { views: [{ state: "frozen", xSplit: 1, ySplit: 2 }], properties: { outlineLevelRow: 3 } });
+  pv.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
+  const colL = (i: number) => ws.getColumn(c0 + i).letter;
+  const rng = (i: number) => `Массив!$${colL(i)}$${FIRST}:$${colL(i)}$${LAST}`;
+  const A = `Массив!$B$${FIRST}:$B$${LAST}`, F = `Массив!$A$${FIRST}:$A$${LAST}`, B = `Массив!$C$${FIRST}:$C$${LAST}`;
+  const q = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const pcs: { head: string; fill: string; idx: number[] }[] = [
+    { head: "Заказ FW26, шт.", fill: FILL[G1], idx: [0] },
+    { head: "Приход FW26, шт.", fill: FILL[G1], idx: [2] },
+    { head: "Продажи FW26, шт.", fill: FILL[G1], idx: [5] },
+    { head: "Остаток FW26, шт.", fill: FILL[G3], idx: [9] },
+    { head: "Продажи всего в FW26 с олдами, шт.", fill: FILL[G2], idx: [5, 7] },
+    { head: "Остаток всего с олдами, шт.", fill: FILL[G3], idx: [11] },
+  ];
+  const resOf = (c: { idx: number[] }, rows: Leaf[]) => rows.reduce((a, l) => a + c.idx.reduce((t, k) => t + cols[k].get(l), 0), 0);
+  pv.getCell(1, 1).value = "Сводная по листу «Массив»: категория 1 → тип меха → категория 2 (формулы). Кнопки 1–3 слева сворачивают уровни. «С олдами» — товар FW26 плюс товар прошлых сезонов.";
+  pv.getCell(1, 1).font = { bold: true, size: 12 };
+  pv.getCell(2, 1).value = "Категория 1 → тип меха → категория 2";
+  pcs.forEach((c, i) => { pv.getCell(2, 2 + i).value = c.head; });
+  for (let c = 1; c <= 1 + pcs.length; c++) {
+    const x = pv.getCell(2, c); x.font = { bold: true, size: 10 }; x.alignment = { wrapText: true, vertical: "middle", horizontal: c === 1 ? "left" : "center" };
+    x.fill = { type: "pattern", pattern: "solid", fgColor: { argb: c === 1 ? "FFEFEFEF" : pcs[c - 2].fill } }; x.border = { bottom: { style: "thin" } };
+  }
+  pv.getRow(2).height = 48; pv.getColumn(1).width = 44; pcs.forEach((_, i) => { pv.getColumn(2 + i).width = 17; });
+  let prow = 3;
+  const write = (label: string, lvl: 0 | 1 | 2, crit: string, rows: Leaf[]) => {
+    const x = pv.getRow(prow++);
+    x.getCell(1).value = label; x.getCell(1).alignment = { indent: lvl * 2 };
+    pcs.forEach((c, i) => {
+      const cell = x.getCell(2 + i);
+      cell.value = { formula: c.idx.map((k) => `SUMIFS(${rng(k)}${crit})`).join("+"), result: resOf(c, rows) } as ExcelJS.CellFormulaValue; cell.numFmt = N0;
+    });
+    x.outlineLevel = lvl;
+    if (lvl === 0) { x.font = { bold: true }; x.eachCell((cell) => { cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F4F9" } }; }); }
+    else if (lvl === 1) x.font = { bold: true, color: { argb: "FF333333" } };
+  };
+  for (const c1 of [...new Set(list.map((l) => l.c1))]) {
+    const rows1 = list.filter((l) => l.c1 === c1);
+    write(c1, 0, `,${A},${q(c1)}`, rows1);
+    for (const fur of [...new Set(rows1.map((l) => l.fur))]) {
+      const rows2 = rows1.filter((l) => l.fur === fur);
+      write(fur, 1, `,${A},${q(c1)},${F},${q(fur)}`, rows2);
+      for (const c2 of [...new Set(rows2.map((l) => l.c2))]) write(c2, 2, `,${A},${q(c1)},${F},${q(fur)},${B},${q(c2)}`, rows2.filter((l) => l.c2 === c2));
+    }
+  }
+  const tx = pv.getRow(prow++);
+  tx.getCell(1).value = "ИТОГО";
+  pcs.forEach((c, i) => { const cell = tx.getCell(2 + i); cell.value = { formula: c.idx.map((k) => `SUM(${rng(k)})`).join("+"), result: resOf(c, list) } as ExcelJS.CellFormulaValue; cell.numFmt = N0; });
+  for (let c = 1; c <= 1 + pcs.length; c++) { tx.getCell(c).font = { bold: true, color: { argb: "FFFFFFFF" } }; tx.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B2A5C" } }; }
+  wb.calcProperties.fullCalcOnLoad = true;
+
   const info = wb.addWorksheet("Как читать");
   [
-    "Как читать лист «Массив»",
+    "Как читать файл",
+    "• Лист «Сводная» — формулы по «Массив»: категория 1 → тип меха → категория 2 (кнопки 1–3 слева сворачивают уровни). «С олдами» = товар FW26 плюс товар прошлых сезонов.",
     "• Одна строка = тип меха × категория 1 × категория 2 × артикул × цвет. Фильтры включены, итог внизу считает только видимые строки.",
     "• «Товар FW26/27» — заказано и пришло по отчёту (шт., €); «в производстве» = заказано − пришло; «продано» — товар FW26, проданный в календаре самого сезона (август 2026 – январь 2027).",
     "• «Продажи других сезонов в календарном FW26» — товар прошлых сезонов (SS26, FW25 и старше), проданный в календаре FW26.",

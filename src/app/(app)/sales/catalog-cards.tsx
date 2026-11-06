@@ -40,16 +40,16 @@ const cell = (v: number) => (Math.abs(v) < 0.5 ? "–" : n0(v));
 function CardKpis({ item }: { item: CatalogItem }) {
   const t = item.seasons.reduce((a, s) => ({ conf: a.conf + s.conf, sold: a.sold + s.sold, rubK: a.rubK + s.rubK }), { conf: 0, sold: 0, rubK: 0 });
   const so = t.conf > 0 ? `${Math.round((t.sold / t.conf) * 100)} %` : "–";
-  const stat = (cap: string, val: string, title: string) => (
-    <span className="flex min-w-0 flex-col" title={title}><span className="text-[11px] leading-4 text-neutral-500">{cap}</span><b className="truncate text-xs font-semibold">{val}</b></span>
+  const stat = (cap: string, val: string, title: string, unit?: string) => (
+    <span className="flex min-w-0 flex-col" title={title}><span className="text-[11px] leading-4 text-neutral-500">{cap}</span><b className="whitespace-nowrap text-xs font-semibold">{val}{unit ? <span className="ml-0.5 text-[11px] font-normal text-neutral-600">{unit}</span> : null}</b></span>
   );
   return (
     <span className="flex flex-col gap-1 tabular-nums">
       <b className="text-xs">{item.retailNow ?? "–"}</b>
-      <span className="grid grid-cols-[auto_auto_1fr] gap-x-3">
+      <span className="grid grid-cols-[auto_auto_1fr] gap-x-2">
         {stat("MU", item.markupNow ?? "–", "Маркап по цене сейчас")}
         {stat("SO", so, "Продано ÷ заказано")}
-        {stat("NS", cell(t.rubK), "Выручка по сезонам, тысяч рублей")}
+        {stat("NS", cell(t.rubK), "Выручка по сезонам, тысяч рублей", t.rubK >= 0.5 ? "kRUR" : undefined)}
       </span>
     </span>
   );
@@ -66,7 +66,7 @@ function SeasonLines({ item }: { item: CatalogItem }) {
         <span className="truncate text-neutral-700">{label}</span>
         <span className="text-right">{cell(v.conf)}</span><span className="text-right">{cell(v.deliv)}</span><span className="text-right">{cell(v.sold)}</span><span className="text-right font-semibold">{cell(v.stock)}</span>
       </div>
-      {strong ? null : <div className="text-right text-[11px] leading-4 text-neutral-600" title="NS — выручка после скидок, тысяч рублей">NS {cell(v.rubK)}</div>}
+      {strong ? null : <div className="text-right text-[11px] leading-4 text-neutral-600" title="NS — выручка после скидок, тысяч рублей">NS {cell(v.rubK)}{v.rubK >= 0.5 ? " kRUR" : ""}</div>}
     </div>
   );
   return (
