@@ -19,6 +19,9 @@ import { parseSupplierDescription } from "@/lib/supplier-article";
 import { compareModelNames } from "@/lib/model-code";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { ArticlePriceForm } from "./price-form";
+import { ActiveToggle } from "./active-toggle";
+import { loadRetailPricesState } from "@/lib/import-keys";
+import { normCode } from "@/lib/sales-receipts-core";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick, stateParam } from "@/lib/filters";
 import { articleModelWhere, hasLiningText, isTzFilterActive, matchedOrderIds, tzOptions } from "@/lib/article-filters";
@@ -64,6 +67,7 @@ const ARTICLE_FILTERS = defineFilters({
   tzyear: { kind: "multi", label: "Год ТЗ", pattern: /^\d{4}$/ },
   tz: { kind: "multi", label: "ТЗ", maxLen: 60 },
   price: { kind: "multi", label: "Цена", allowed: ["yes", "no"] },
+  active: { kind: "multi", label: "Вкл / выкл", allowed: ["on", "off"] },
   param: { kind: "multi", label: "Параметры", maxLen: 90 },
   empty: stateParam("Состав списка", { allowed: ["1"] }),
   src: stateParam("Источник", { allowed: ["supplier"] }),
@@ -73,6 +77,7 @@ const ARTICLE_FILTERS = defineFilters({
 /** Колонки таблицы «Изделия»: на виду главные (артикул, фото, категория, мех, выпуск, себестоимость, цена, наценка, ТЗ), остальные — в «Колонки ▾». */
 const ARTICLE_COLUMNS: PickerColumn[] = [
   { key: "name", label: "Артикул", fixed: true },
+  { key: "active", label: "Вкл / выкл", on: true },
   { key: "photos", label: "Фото", on: true },
   { key: "plu", label: "PLU" },
   { key: "shop", label: "Ссылка на магазин" },
@@ -109,6 +114,14 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const canCreate = hasRole(session.user.role, ACCESS.models);
   const orgId = session.user.organizationId;
   const unitStats = await loadBudgetStats(orgId);
+  // Цена из прайса (файл цен) — запасная для моделей без своей розничной цены: самая частая цена по артикулам модели.
+  const listPriceByCode = new Map<string, number>();
+  {
+    const rowsP = ((await loadRetailPricesState(orgId))?.value as { rows?: { acode: string; price: number }[] } | null)?.rows ?? [];
+    const by = new Map<string, Map<number, number>>();
+    for (const p of rowsP) { const code = normCode(p.acode.split("/")[0] ?? ""); const mm = by.get(code) ?? by.set(code, new Map()).get(code)!; mm.set(p.price, (mm.get(p.price) ?? 0) + 1); }
+    for (const [code, mm] of by) listPriceByCode.set(code, [...mm.entries()].sort((x, y) => y[1] - x[1] || y[0] - x[0])[0][0]);
+  }
   const stocks = await prisma.finishedGoodsStock.findMany({ where: { organizationId: orgId }, select: { productModelId: true, quantity: true, avgUnitCost: true } });
   const articleOpts = await getFilterOptions(orgId, year, ["category", "model"]);
 
@@ -196,7 +209,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     const stockExcl = doneQty > 0 ? (stockQty * doneExcl) / doneQty : stockIncl;
     const wipIncl = sumTotal(sumOrders(wip, "incl"));
     const wipExcl = sumTotal(sumOrders(wip, "excl"));
-    const price = m.sellingPrice ? m.sellingPrice.toNumber() : null;
+    const listPrice = listPriceByCode.get(normCode(m.name)) ?? null;
+    const price = m.sellingPrice ? m.sellingPrice.toNumber() : listPrice;
     // Показатели из тех же ТЗ: шкуры, подкладка, средневзвешенное, НДС, основной вид меха (src/lib/article-metrics.ts).
     const met = articleMetrics(os);
     // Профиль из описания артикула (строки «Мех/Подкладка/Размеры/Цвета» — собраны из Word-ТЗ): цвета — если нет ТЗ в базе.
@@ -219,6 +233,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       qty, wipQty, wipIncl, wipExcl, stockQty, stockIncl, stockExcl,
       costIncl, costExcl, unitIncl, unitExcl,
       sellingPrice: price,
+      ownPrice: m.sellingPrice ? m.sellingPrice.toString() : "",
+      listOnly: !m.sellingPrice && listPrice != null,
       retailStock: price ? price * stockQty : null,
       markup: price && unitIncl && unitIncl > 0 ? price / unitIncl : null,
       primaryFur: met.primaryFur ?? furTypes.get(m.id)?.fur ?? null,
@@ -234,7 +250,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   // Фильтры по ТЗ (вид меха, подкладка, год ТЗ, ТЗ, партия, цвет, размер, сезон): остаются артикулы, у которых есть подходящие ТЗ.
   const baseRows = year === "all" ? rows0.filter((r) => r.stockQty > 0 || r.orderCount > 0 || r.bySupplier) : rows0.filter((r) => r.orderCount > 0 || r.bySupplier);
   const emptyCount = tzActive ? 0 : rows0.length - baseRows.length;
-  const modelFilterOn = !!q || f.category.length > 0 || f.catgroup.length > 0 || f.model.length > 0 || f.len.length > 0 || f.price.length > 0 || f.param.length > 0;
+  const modelFilterOn = !!q || f.category.length > 0 || f.catgroup.length > 0 || f.model.length > 0 || f.len.length > 0 || f.price.length > 0 || f.param.length > 0 || f.active.length > 0;
   const grpHref = (g: string) => {
     const u = new URLSearchParams();
     for (const [k, v] of Object.entries(sp)) if (k !== "grp" && v !== undefined) for (const x of Array.isArray(v) ? v : [v]) u.append(k, x);
@@ -243,7 +259,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     return `/articles${t ? `?${t}` : ""}`;
   };
   const grpName = f.grp === "clothes" ? "Одежда" : f.grp === "acc" ? "Аксессуары" : null;
-  const rows1 = (f.src === "supplier" ? rows0.filter((r) => r.bySupplier) : tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).filter((r) => !grpName || r.group === grpName).sort((a, b) => {
+  const rows1 = (f.src === "supplier" ? rows0.filter((r) => r.bySupplier) : tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).filter((r) => !grpName || r.group === grpName).filter((r) => f.active.length === 0 || f.active.includes(r.isActive ? "on" : "off")).sort((a, b) => {
     const wa = a.stockQty > 0 || a.orderCount > 0 ? 0 : 1;
     const wb = b.stockQty > 0 || b.orderCount > 0 ? 0 : 1;
     return wa - wb || compareModelNames(a.name, b.name);
@@ -279,14 +295,22 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     return { n: priced.length, price: retail / sumW, markup: cost > 0 ? retail / cost : 0 };
   };
   const catOf = (r: (typeof rows)[number]) => r.model.category?.trim() || "Без категории";
+  // Мех → категория 1 (Одежда / Аксессуары) → категория 2 (категория артикула); пересчитывается по тем же фильтрам, что и список.
   const furGroups = Array.from(new Set(rows.filter((r) => r.markup && r.primaryFur).map((r) => r.primaryFur!)))
     .map((fur) => {
       const inFur = rows.filter((r) => r.primaryFur === fur);
-      const cats = Array.from(new Set(inFur.filter((r) => r.markup).map(catOf)))
-        .map((cat) => ({ cat, agg: aggOf(inFur.filter((r) => catOf(r) === cat))! }))
-        .filter((c) => c.agg)
+      const grps = Array.from(new Set(inFur.filter((r) => r.markup).map((r) => r.group)))
+        .map((grp) => {
+          const inGrp = inFur.filter((r) => r.group === grp);
+          const cats = Array.from(new Set(inGrp.filter((r) => r.markup).map(catOf)))
+            .map((cat) => ({ cat, agg: aggOf(inGrp.filter((r) => catOf(r) === cat))! }))
+            .filter((c) => c.agg)
+            .sort((x, y) => y.agg.markup - x.agg.markup);
+          return { grp, agg: aggOf(inGrp)!, cats };
+        })
+        .filter((g) => g.agg)
         .sort((x, y) => y.agg.markup - x.agg.markup);
-      return { fur, total: aggOf(inFur)!, cats };
+      return { fur, total: aggOf(inFur)!, grps };
     })
     .filter((g) => g.total)
     .sort((x, y) => y.total.markup - x.total.markup);
@@ -350,10 +374,68 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           { type: "multi", name: "size", label: "Размер изделия", options: tzOpts.size, more: true },
           { type: "multi", name: "season", label: "Сезон", options: tzOpts.season, noneLabel: "Без сезона", more: true },
           ...(paramOpts.length ? [{ type: "multi" as const, name: "param", label: "Параметры", more: true, options: paramOpts, hint: "свои параметры артикула из карточки" }] : []),
+          { type: "multi", name: "active", label: "Вкл / выкл", options: [{ value: "on", label: "Вкл" }, { value: "off", label: "Выкл" }], allLabel: "Все" },
           { type: "multi", name: "price", label: "Цена", more: true, options: [{ value: "yes", label: "Есть цена" }, { value: "no", label: "Нет цены" }] },
         ]}
       />
       </div>
+
+      {markupTotal ? (
+        <details open className="rounded-lg border border-neutral-200 bg-white" data-testid="articles-markup">
+          <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium max-md:py-3">Retail Price и маркап: мех → категория 1 → категория 2</summary>
+          <div className="overflow-x-auto border-t border-neutral-200">
+          <table className="w-full min-w-[420px] text-sm">
+            <thead>
+              <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
+                <Th>Мех / категория</Th>
+                <Th className="text-right" unit="шт.">Артикулов</Th>
+                <Th className="text-right" unit="₽">Ср. Retail Price</Th>
+                <Th className="text-right">
+                  Ср. маркап
+                  <InfoHint label="Как считается средневзвешенное">Взвешено по выпуску (артикулы с ценой): Retail Price = Σ(цена × выпуск) ÷ Σ выпуск, маркап = Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск). Меняете фильтры — таблица пересчитывается.</InfoHint>
+                </Th>
+              </tr>
+            </thead>
+            <tbody>
+              {furGroups.map((g) => (
+                <Fragment key={g.fur}>
+                  <tr className="border-b border-neutral-100 bg-neutral-50 font-semibold">
+                    <td className="px-3 py-1.5">{g.fur}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">{g.total.n}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">{formatMoney(g.total.price.toFixed(0))}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">{fmtX(g.total.markup)}</td>
+                  </tr>
+                  {g.grps.map((gr) => (
+                    <Fragment key={g.fur + gr.grp}>
+                      <tr className="border-b border-neutral-100 font-medium">
+                        <td className="px-3 py-1.5 pl-6">{gr.grp}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">{gr.agg.n}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">{formatMoney(gr.agg.price.toFixed(0))}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">{fmtX(gr.agg.markup)}</td>
+                      </tr>
+                      {gr.cats.map((c) => (
+                        <tr key={g.fur + gr.grp + c.cat} className="border-b border-neutral-100 text-neutral-700">
+                          <td className="px-3 py-1 pl-10">{c.cat}</td>
+                          <td className="px-3 py-1 text-right tabular-nums">{c.agg.n}</td>
+                          <td className="px-3 py-1 text-right tabular-nums">{formatMoney(c.agg.price.toFixed(0))}</td>
+                          <td className="px-3 py-1 text-right tabular-nums">{fmtX(c.agg.markup)}</td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  ))}
+                </Fragment>
+              ))}
+              <tr className="row-total">
+                <td className="px-3 py-1.5"><TotalLabel unit="₽" avg /></td>
+                <td className="px-3 py-1.5 text-right tabular-nums">{markupTotal.n}</td>
+                <td className="px-3 py-1.5 text-right tabular-nums">{formatMoney(markupTotal.price.toFixed(0))}</td>
+                <td className="px-3 py-1.5 text-right tabular-nums">{fmtX(markupTotal.markup)}</td>
+              </tr>
+            </tbody>
+          </table>
+          </div>
+        </details>
+      ) : null}
 
       <ProdTiles
         orders={[...drill, ...repairDrill]}
@@ -386,6 +468,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         <Thead>
           <Tr>
             <Th data-col="name" {...ath("name")}>Артикул</Th>
+            <Th data-col="active">Вкл / выкл</Th>
             <Th data-col="photos" {...ath("photos")}>Фото</Th>
             <Th data-col="plu" {...ath("plu")}>PLU</Th>
             <Th data-col="shop"><span className="sr-only">Ссылка на магазин</span></Th>
@@ -421,6 +504,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 </Link>
                 {r.bySupplier && <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800" title="Артикул завёл поставщик — проверьте и проставьте цену">внёс: Веллмех</span>}
               </Td>
+              <Td data-col="active"><ActiveToggle modelId={r.id} active={r.isActive} canEdit={canCreate} /></Td>
               <Td data-col="photos" className="min-w-52">
                 <div className="flex items-center gap-2 whitespace-nowrap">
                 {photoSummary.get(r.id) ? (() => {
@@ -474,7 +558,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <Td data-col="unit" className="text-right"><CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /></Td>
               <Td data-col="vat" className="whitespace-nowrap tabular-nums text-neutral-700" title="Ставки НДС в строках списания">{r.met.vatRates.length ? r.met.vatRates.map((v) => `${v} %`).join(", ") : "–"}</Td>
               <Td data-col="price" className="text-right">
-                <ArticlePriceForm modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} canEdit={canCreate} />
+                <ArticlePriceForm modelId={r.id} sellingPrice={r.ownPrice} fallback={r.listOnly && r.sellingPrice ? String(r.sellingPrice) : ""} canEdit={canCreate} />
               </Td>
               <Td data-col="markup" className="text-right tabular-nums">{r.markup ? fmtX(r.markup) : "–"}</Td>
               <Td data-col="orders" className="text-right tabular-nums">
@@ -492,7 +576,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           {rows.length > 0 && (
             <Tr className="row-total">
               <Td data-col="name"><TotalLabel unit="шт." /></Td>
-              <Td data-col="photos" /><Td data-col="plu" /><Td data-col="shop" /><Td data-col="category" /><Td data-col="fur" /><Td data-col="color" /><Td data-col="sizes" /><Td data-col="lining" />
+              <Td data-col="active" /><Td data-col="photos" /><Td data-col="plu" /><Td data-col="shop" /><Td data-col="category" /><Td data-col="fur" /><Td data-col="color" /><Td data-col="sizes" /><Td data-col="lining" />
               <Td data-col="qty" className="text-right tabular-nums">{totalQty > 0 ? formatQty(totalQty) : "–"}</Td>
               <Td data-col="stock" className="text-right tabular-nums">{totalStock > 0 ? formatQty(totalStock) : "–"}</Td>
               <Td data-col="furQty" className="text-right tabular-nums">{totalFurQty > 0 ? formatDec1(totalFurQty) : "–"}</Td>
@@ -527,6 +611,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               { label: "Полная себестоимость итого", value: <CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /> },
               { label: "За ед.", value: <CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /> },
               { label: "Наценка", value: r.markup ? fmtX(r.markup) : "–" },
+              { label: "Вкл / выкл", value: <ActiveToggle modelId={r.id} active={r.isActive} canEdit={canCreate} /> },
               { label: "ТЗ", value: r.orderCount > 0 ? <Link href={`/production?model=${r.id}`} className="underline">{r.orderCount}</Link> : "–" },
             ]}
             details={[
@@ -551,7 +636,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             extra={
               <div>
                 <div className="mb-1 text-xs text-neutral-500">Розничная цена, с НДС</div>
-                <ArticlePriceForm mobile modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} canEdit={canCreate} />
+                <ArticlePriceForm mobile modelId={r.id} sellingPrice={r.ownPrice} fallback={r.listOnly && r.sellingPrice ? String(r.sellingPrice) : ""} canEdit={canCreate} />
               </div>
             }
           />
@@ -575,56 +660,6 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         empty="ТЗ по выбранным изделиям нет."
       />
 
-      {markupTotal ? (
-        <details className="rounded-lg border border-neutral-200 bg-white" data-testid="articles-markup">
-          <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium max-md:py-3">Наценка по меху и категориям</summary>
-          <div className="overflow-x-auto border-t border-neutral-200">
-          <table className="w-full min-w-[520px] text-sm">
-            <thead>
-              <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
-                <Th>Мех</Th>
-                <Th>Категория</Th>
-                <Th className="text-right" unit="шт.">Артикулов</Th>
-                <Th className="text-right" unit="₽">Ср. розничная цена</Th>
-                <Th className="text-right">
-                  Ср. наценка
-                  <InfoHint label="Как считается средневзвешенная наценка">Взвешено по выпуску (артикулы с ценой): цена = Σ(цена × выпуск) ÷ Σ выпуск, наценка = Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск). Мех артикула — тот, на который списано больше всего меха в его ТЗ. Считается по артикулам после фильтров.</InfoHint>
-                </Th>
-              </tr>
-            </thead>
-            <tbody>
-              {furGroups.map((g) => (
-                <Fragment key={g.fur}>
-                  <tr className="border-b border-neutral-100 bg-neutral-50">
-                    <td className="px-3 py-1.5">{g.fur}</td>
-                    <td className="px-3 py-1.5 text-neutral-500">все категории</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{g.total.n}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{formatMoney(g.total.price.toFixed(0))}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{fmtX(g.total.markup)}</td>
-                  </tr>
-                  {g.cats.map((c) => (
-                    <tr key={g.fur + c.cat} className="border-b border-neutral-100">
-                      <td className="px-3 py-1" />
-                      <td className="px-3 py-1 text-neutral-700">{c.cat}</td>
-                      <td className="px-3 py-1 text-right tabular-nums">{c.agg.n}</td>
-                      <td className="px-3 py-1 text-right tabular-nums">{formatMoney(c.agg.price.toFixed(0))}</td>
-                      <td className="px-3 py-1 text-right tabular-nums">{fmtX(c.agg.markup)}</td>
-                    </tr>
-                  ))}
-                </Fragment>
-              ))}
-              <tr className="row-total">
-                <td className="px-3 py-1.5"><TotalLabel unit="₽" avg /></td>
-                <td className="px-3 py-1.5" />
-                <td className="px-3 py-1.5 text-right tabular-nums">{markupTotal.n}</td>
-                <td className="px-3 py-1.5 text-right tabular-nums">{formatMoney(markupTotal.price.toFixed(0))}</td>
-                <td className="px-3 py-1.5 text-right tabular-nums">{fmtX(markupTotal.markup)}</td>
-              </tr>
-            </tbody>
-          </table>
-          </div>
-        </details>
-      ) : null}
     </div>
   );
 }

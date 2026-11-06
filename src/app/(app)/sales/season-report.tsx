@@ -84,7 +84,7 @@ const cellNode = (c: Col, m: M, s: Season) => { const sub = c.sub?.(m); return <
 
 type Node = { id: string; level: Level; label: string; sub?: string; modelCode: string | null; variant: string | null; rows: ReportSizeRow[]; m: Record<Season, M>; stock: number; children: Node[] };
 
-export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fabricByArt, prices, costs, lines, tzAwait, catalog = false }: { /** Каталог «как в магазине» (раздел «Телефон»): вместо таблицы и фильтров отчёта — карточки с фото. */ catalog?: boolean; /** НДС и «Одежда / Аксессуары»: живут в разделе, показываются ниже основных переключателей. */ controls?: React.ReactNode; sizes: ReportSizeRow[]; photos: PhotoIdx; cat: Cat; ex: boolean; reportDate?: string; fabricByArt: Record<string, string>; prices: RetailRow[]; costs: [string, ModelCost][]; lines: SLine[]; tzAwait: TzAwait[] }) {
+export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fabricByArt, prices, costs, lines, tzAwait, catalog = false, onVat }: { /** Переключатель НДС каталога (кнопки в панели). */ onVat?: (ex: boolean) => void; /** Каталог «как в магазине» (раздел «Телефон»): вместо таблицы и фильтров отчёта — карточки с фото. */ catalog?: boolean; /** НДС и «Одежда / Аксессуары»: живут в разделе, показываются ниже основных переключателей. */ controls?: React.ReactNode; sizes: ReportSizeRow[]; photos: PhotoIdx; cat: Cat; ex: boolean; reportDate?: string; fabricByArt: Record<string, string>; prices: RetailRow[]; costs: [string, ModelCost][]; lines: SLine[]; tzAwait: TzAwait[] }) {
   const [pick, setPick] = useState<Season[]>([...SEASONS]);
   const [view, setView] = useState<"tree" | "cards" | "receipts">("tree");
   const [hier, setHier] = useState<"fur" | "cat">("fur");
@@ -276,20 +276,20 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         facts: [["Цена сейчас", now ?? DASH], ["Себестоимость", cost ? money(cost) : DASH], ["Маркап по цене сейчас", cost && nowNum ? x2(nowNum / cost) : DASH], ["Остаток сейчас", `${n0(n.stock)} шт.`]],
         seasons: seasons.filter((s) => n.m[s].conf || n.m[s].deliv || n.m[s].all).map((s) => {
           const m = n.m[s], kr = (v: number | null) => (v == null ? DASH : Math.round(v / 1000).toLocaleString("ru-RU")), live = s === "FW26/27";
-          const common: [string, string][] = [["Заказано, шт.", n0(m.conf)], ["Получено, шт.", n0(m.deliv)], ...(live ? [["Ждём, шт.", n0(Math.max(0, m.conf - m.deliv))] as [string, string]] : []), ["Остаток сезона, шт.", n0(m.stock)]];
+          const common: [string, string][] = [["Заказано, шт.", n0(m.conf)], ["Получено, шт.", n0(m.deliv)], ...(live && m.conf - m.deliv > 0 ? [["Ждём, шт.", n0(m.conf - m.deliv)] as [string, string]] : []), ["Остаток сезона, шт.", n0(m.stock)]];
           const pairs = [
             { k: "Продано, шт.", ssn: n0(m.ssn), ttl: n0(m.all) },
             { k: "SO, %", ssn: pct(soS(m)), ttl: pct(soA(m)) },
-            { k: "Выручка, kRUR", ssn: kr(m.rubS), ttl: kr(m.rubA) },
-            { k: "Цена до скидки, kRUR", ssn: kr(priceS(m)), ttl: kr(priceA(m)) },
+            { k: "NS, kRUR", ssn: kr(m.rubS), ttl: kr(m.rubA) },
+            { k: "Retail Price, kRUR", ssn: kr(priceS(m)), ttl: kr(priceA(m)) },
             { k: "Маркап", ssn: x2(mkS(m)), ttl: x2(mkA(m)) },
           ];
-          return { key: s, label: SEASON_LABEL[s], short: s === "FW26/27" ? "FW26" : s === "SS26" ? "SS26" : "FW25", conf: m.conf, deliv: m.deliv, sold: m.all, stock: m.stock, rubK: m.rubA / 1000, showTtl: !live, common, pairs };
+          return { key: s, label: SEASON_LABEL[s], short: s === "FW26/27" ? "FW26" : s === "SS26" ? "SS26" : "FW25", conf: m.conf, deliv: m.deliv, sold: m.all, stock: m.stock, rubK: m.rubA / 1000, showTtl: !live && pairs.some((p) => p.ssn !== p.ttl), common, pairs };
         }),
         stockBy: n.children.filter((c) => c.stock > 0).map((c) => ({ label: c.label, stock: c.stock, sizes: c.children.filter((z) => z.stock > 0).map((z) => `${z.label}: ${n0(z.stock)}`).join(", ") })),
       };
     });
-    return <CatalogCards items={items} seasonOptions={SEASONS.map((x) => ({ key: x, label: SEASON_LABEL[x] }))} picked={pick} onToggleSeason={(k) => toggle(k as Season)} furs={furs} furPick={furPick} onFur={setFurPick} q={q} onQ={setQ} />;
+    return <CatalogCards items={items} seasonOptions={SEASONS.map((x) => ({ key: x, label: SEASON_LABEL[x] }))} picked={pick} onToggleSeason={(k) => toggle(k as Season)} furs={furs} furPick={furPick} onFur={setFurPick} q={q} onQ={setQ} vatEx={ex} onVat={onVat} />;
   }
 
   const thumb = (n: Node, big = false) => {

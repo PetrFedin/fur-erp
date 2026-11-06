@@ -8,6 +8,7 @@ export type CatalogPhoto = { id: string; variant: string };
 export type CatalogSeason = {
   key: string; label: string; short: string;
   conf: number; deliv: number; sold: number; stock: number; rubK: number;
+  /** TTL (всего) показываем только если он отличается от SSN (за сезон): у идущего сезона и там, где всё продано внутри сезона, колонки TTL нет. */
   showTtl: boolean; common: [string, string][]; pairs: { k: string; ssn: string; ttl: string }[];
 };
 export type CatalogItem = {
@@ -43,7 +44,7 @@ function SeasonLines({ item }: { item: CatalogItem }) {
         <span className="truncate text-neutral-700">{label}</span>
         <span className="text-right">{cell(v.conf)}</span><span className="text-right">{cell(v.deliv)}</span><span className="text-right">{cell(v.sold)}</span><span className="text-right font-semibold">{cell(v.stock)}</span>
       </div>
-      <div className="text-right text-[11px] leading-4 text-neutral-600">{cell(v.rubK)} kRUR</div>
+      <div className="text-right text-[11px] leading-4 text-neutral-600" title="NS — выручка после скидок, тысяч рублей">NS {cell(v.rubK)} kRUR</div>
     </div>
   );
   return (
@@ -124,6 +125,36 @@ function Lightbox({ item, start, onClose }: { item: CatalogItem; start: number; 
   );
 }
 
+/** Одна таблица на все сезоны модели: сезоны — колонки; блоки «Заказ и остаток», «SSN · за сезон» и «TTL · всего» (только если хоть у одного сезона TTL отличается). */
+function SeasonTable({ seasons }: { seasons: CatalogSeason[] }) {
+  const n = seasons.length;
+  const commonKeys = [...new Set(seasons.flatMap((s) => s.common.map(([k]) => k)))];
+  const pairKeys = [...new Set(seasons.flatMap((s) => s.pairs.map((p) => p.k)))];
+  const anyTtl = seasons.some((s) => s.showTtl);
+  const cols = { gridTemplateColumns: `minmax(0,1fr) repeat(${n}, minmax(3.5rem, auto))` };
+  const val = (v: string | undefined) => v ?? "–";
+  const head = (t: string) => <div role="row" className="contents"><span role="columnheader" className="col-span-full mt-3 border-b border-neutral-300 pb-1 text-xs font-semibold uppercase tracking-wide text-neutral-600">{t}</span></div>;
+  const line = (k: string, vals: (string | undefined)[], key: string) => (
+    <div role="row" key={key} className="contents">
+      <span role="rowheader" className="border-b border-neutral-100 py-1.5 pr-2 text-neutral-600">{k}</span>
+      {vals.map((v, i) => <span role="cell" key={i} className="border-b border-neutral-100 py-1.5 pl-3 text-right">{val(v)}</span>)}
+    </div>
+  );
+  return (
+    <div role="table" aria-label="Показатели по сезонам" className="grid text-sm tabular-nums" style={cols}>
+      <div role="row" className="contents">
+        <span role="columnheader" className="py-1"><span className="sr-only">Показатель</span></span>
+        {seasons.map((s) => <span role="columnheader" key={s.key} className="py-1 pl-3 text-right text-xs font-semibold text-neutral-800">{s.short}</span>)}
+      </div>
+      {commonKeys.map((k) => line(k, seasons.map((s) => s.common.find(([kk]) => kk === k)?.[1]), "c" + k))}
+      {head("SSN · за сезон")}
+      {pairKeys.map((k) => line(k, seasons.map((s) => s.pairs.find((p) => p.k === k)?.ssn), "s" + k))}
+      {anyTtl ? head("TTL · всего") : null}
+      {anyTtl ? pairKeys.map((k) => line(k, seasons.map((s) => (s.showTtl ? s.pairs.find((p) => p.k === k)?.ttl : undefined)), "t" + k)) : null}
+    </div>
+  );
+}
+
 /** Детализация карточки: фото, цена/себестоимость/маркап/остаток, показатели по каждому сезону, остаток по цветам и размерам. */
 function Detail({ item, onZoom, onClose }: { item: CatalogItem; onZoom: (i: number) => void; onClose: () => void }) {
   const dlg = useRef<HTMLDialogElement>(null);
@@ -147,28 +178,7 @@ function Detail({ item, onZoom, onClose }: { item: CatalogItem; onZoom: (i: numb
                 {item.facts.map(([k, v]) => <div key={k} className="contents"><dt className="text-neutral-600">{k}</dt><dd className="text-right font-semibold tabular-nums">{v}</dd></div>)}
               </dl>
             </div>
-            {item.seasons.map((s) => (
-              <section key={s.key} aria-label={s.label}>
-                <h3 className="mb-1 text-sm font-semibold">{s.label}</h3>
-                <dl className="grid grid-cols-[1fr_auto] border-t border-neutral-200 text-sm">
-                  {s.common.map(([k, v]) => <div key={k} className="contents"><dt className="border-b border-neutral-100 py-1.5 text-neutral-600">{k}</dt><dd className="border-b border-neutral-100 py-1.5 pl-3 text-right tabular-nums">{v}</dd></div>)}
-                </dl>
-                <div role="table" aria-label={`${s.label}: за сезон и всего`} className={"mt-2 grid text-sm tabular-nums " + (s.showTtl ? "grid-cols-[1fr_auto_auto]" : "grid-cols-[1fr_auto]")}>
-                  <div role="row" className="contents">
-                    <span role="columnheader" className="py-1"><span className="sr-only">Показатель</span></span>
-                    <span role="columnheader" className="py-1 pl-4 text-right text-xs font-semibold text-neutral-700">SSN<span className="block text-[11px] font-normal text-neutral-500">за сезон</span></span>
-                    {s.showTtl ? <span role="columnheader" className="py-1 pl-4 text-right text-xs font-semibold text-neutral-700">TTL<span className="block text-[11px] font-normal text-neutral-500">всего</span></span> : null}
-                  </div>
-                  {s.pairs.map((r) => (
-                    <div role="row" key={r.k} className="contents">
-                      <span role="rowheader" className="border-t border-neutral-100 py-1.5 pr-2 text-neutral-600">{r.k}</span>
-                      <span role="cell" className="border-t border-neutral-100 py-1.5 pl-4 text-right">{r.ssn}</span>
-                      {s.showTtl ? <span role="cell" className="border-t border-neutral-100 py-1.5 pl-4 text-right">{r.ttl}</span> : null}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))}
+            <SeasonTable seasons={item.seasons} />
             {item.stockBy.length ? (
               <section aria-label="Остаток по цветам и размерам">
                 <h3 className="mb-1 text-sm font-semibold">Остаток по цветам и размерам</h3>
@@ -190,7 +200,8 @@ function Detail({ item, onZoom, onClose }: { item: CatalogItem; onZoom: (i: numb
 }
 
 /** Окно фильтров: сезоны (можно несколько), тип меха, поиск. Закрывается кнопкой «Показать N» — карточки меняются сразу. */
-function FiltersDialog({ seasonOptions, picked, onToggleSeason, furs, furPick, onFur, q, onQ, total, onClose }: {
+function FiltersDialog({ seasonOptions, picked, onToggleSeason, furs, furPick, onFur, q, onQ, total, onClose, vatEx, onVat }: {
+  vatEx: boolean; onVat?: (ex: boolean) => void;
   seasonOptions: SeasonOption[]; picked: string[]; onToggleSeason: (key: string) => void; furs: string[]; furPick: string; onFur: (f: string) => void; q: string; onQ: (v: string) => void; total: number; onClose: () => void;
 }) {
   const dlg = useRef<HTMLDialogElement>(null);
@@ -203,6 +214,9 @@ function FiltersDialog({ seasonOptions, picked, onToggleSeason, furs, furPick, o
           <button type="button" onClick={() => { for (const s of seasonOptions) if (!picked.includes(s.key)) onToggleSeason(s.key); onFur("all"); onQ(""); }} className="inline-flex min-h-11 items-center text-sm text-neutral-600 underline">Сбросить</button>
         </div>
         <div className="flex flex-col gap-4 overflow-y-auto p-4">
+          {onVat ? <section aria-label="НДС"><h3 className="mb-2 text-sm font-semibold">НДС</h3>
+            <div className="flex gap-2">{([[false, "С НДС"], [true, "Без НДС"]] as const).map(([ex, t]) => <button key={t} type="button" aria-pressed={vatEx === ex} onClick={() => onVat(ex)} className={chip(vatEx === ex)}>{t}</button>)}</div>
+          </section> : null}
           <section aria-label="Сезоны"><h3 className="mb-2 text-sm font-semibold">Сезоны</h3>
             <div className="flex flex-wrap gap-2">{seasonOptions.map((s) => <button key={s.key} type="button" aria-pressed={picked.includes(s.key)} onClick={() => onToggleSeason(s.key)} className={chip(picked.includes(s.key))}>{s.label}</button>)}</div>
           </section>
@@ -224,7 +238,8 @@ function FiltersDialog({ seasonOptions, picked, onToggleSeason, furs, furPick, o
   );
 }
 
-export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, furs, furPick, onFur, q, onQ }: {
+export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, furs, furPick, onFur, q, onQ, vatEx = false, onVat }: {
+  vatEx?: boolean; onVat?: (ex: boolean) => void;
   items: CatalogItem[]; seasonOptions: SeasonOption[]; picked: string[]; onToggleSeason: (key: string) => void;
   furs: string[]; furPick: string; onFur: (f: string) => void; q: string; onQ: (v: string) => void;
 }) {
@@ -245,6 +260,11 @@ export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, fur
             <button key={k} type="button" aria-pressed={cat === k} onClick={() => setCat(k)} className={chip(cat === k) + " !px-3.5"} aria-label={`${t}: ${counts[k]}`}>{t}</button>
           ))}
         </div>
+        {onVat ? (
+          <div className="flex shrink-0 gap-1" role="group" aria-label="НДС">
+            {([[false, "С НДС"], [true, "Без НДС"]] as const).map(([ex, t]) => <button key={t} type="button" aria-pressed={vatEx === ex} onClick={() => onVat(ex)} className={chip(vatEx === ex) + " !px-3 max-[430px]:hidden"}>{t}</button>)}
+          </div>
+        ) : null}
         <button type="button" onClick={() => setFilters(true)} className={chip(activeFilters > 0) + " gap-1.5 max-[430px]:!px-3"} aria-haspopup="dialog" aria-label="Фильтры">
           <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg>
           <span className="max-[430px]:sr-only">Фильтры</span>{activeFilters > 0 ? <span className="rounded-full bg-white px-1.5 text-xs font-semibold text-neutral-900">{activeFilters}</span> : null}
@@ -271,7 +291,7 @@ export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, fur
         </section>
       ))}
 
-      {filters ? <FiltersDialog seasonOptions={seasonOptions} picked={picked} onToggleSeason={onToggleSeason} furs={furs} furPick={furPick} onFur={onFur} q={q} onQ={onQ} total={shown.length} onClose={() => setFilters(false)} /> : null}
+      {filters ? <FiltersDialog seasonOptions={seasonOptions} picked={picked} onToggleSeason={onToggleSeason} furs={furs} furPick={furPick} onFur={onFur} q={q} onQ={onQ} total={shown.length} onClose={() => setFilters(false)} vatEx={vatEx} onVat={onVat} /> : null}
       {open ? <Detail item={open} onClose={() => setOpen(null)} onZoom={(i) => setZoom({ item: open, i })} /> : null}
       {zoom ? <Lightbox item={zoom.item} start={zoom.i} onClose={closeZoom} /> : null}
     </div>

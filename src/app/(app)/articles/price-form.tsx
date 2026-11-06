@@ -29,11 +29,14 @@ export function ArticlePriceForm({
   sellingPrice,
   mobile = false,
   canEdit = true,
+  fallback = "",
 }: {
   modelId: string;
   sellingPrice: string;
   mobile?: boolean;
   canEdit?: boolean;
+  /** Цена из прайса, если в карточке своей нет: показываем приглушённо, сохраняется только то, что введено. */
+  fallback?: string;
 }) {
   const bound = updateSellingPrice.bind(null, modelId);
   const [saved, setSaved] = useState(sellingPrice);
@@ -50,7 +53,7 @@ export function ArticlePriceForm({
   }, [justSaved]);
 
   if (!canEdit) {
-    return <span>{sellingPrice ? formatMoney(sellingPrice) : "–"}</span>;
+    return sellingPrice ? <span>{formatMoney(sellingPrice)}</span> : fallback ? <span className="text-neutral-500" title="Цена из прайса">{formatMoney(fallback)}</span> : <span>–</span>;
   }
 
   return (
@@ -82,7 +85,7 @@ export function ArticlePriceForm({
       <Input
         type="text"
         inputMode="decimal"
-        value={focused ? value : value ? `${groupDigits(value)} ₽` : ""}
+        value={focused ? value : value ? `${groupDigits(value)} ₽` : fallback ? `${groupDigits(fallback)} ₽` : ""}
         onChange={(e) => {
           setValue(e.target.value);
           setError(null);
@@ -92,7 +95,7 @@ export function ArticlePriceForm({
         aria-label="Розничная цена"
         aria-invalid={error ? true : undefined}
         title="Цена применяется к незавершённым ТЗ (в плане и в работе); у завершённых не меняется"
-        className="ui-field h-8 w-36 rounded-lg text-right tabular-nums"
+        className={"ui-field h-8 w-36 rounded-lg text-right tabular-nums" + (!value && fallback && !focused ? " text-neutral-500" : "")}
       />
       {dirty && !pending ? (
         <button type="submit" className="h-8 rounded-md border border-neutral-300 bg-white px-2 text-xs font-medium hover:bg-neutral-50">Сохранить</button>
@@ -101,7 +104,7 @@ export function ArticlePriceForm({
         role={error ? "alert" : "status"}
         className={`text-xs ${error ? "text-red-600" : justSaved ? "text-emerald-700" : "text-neutral-500"}`}
       >
-        {error ?? (pending ? "Сохраняю…" : justSaved ? "✓ Сохранено" : dirty ? "Не сохранено" : saved ? "" : "Не задана")}
+        {error ?? (pending ? "Сохраняю…" : justSaved ? "✓ Сохранено" : dirty ? "Не сохранено" : saved ? "" : fallback ? "Из прайса" : "Не задана")}
       </span>
     </form>
   );
