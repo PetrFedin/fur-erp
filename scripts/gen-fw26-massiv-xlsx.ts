@@ -10,6 +10,7 @@ import ExcelJS from "exceljs";
 import { prisma } from "@/lib/prisma";
 import { loadSalesInput } from "@/lib/sales-server";
 import { furRuLabel } from "@/lib/sales-receipts-core";
+import { leafKeyOf } from "@/lib/fw26-plan";
 
 const S = "FW26/27";
 const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Свакара", LYNX: "Рысь" };
@@ -22,13 +23,23 @@ async function main() {
   const org = await prisma.organization.findFirstOrThrow();
   const data = await loadSalesInput(org.id, "on");
   const leaves = new Map<string, Leaf>();
+  // Приход прошлых сезонов (все, кроме FW26/27) по файлу «поступления и продажи» — как «В выпуске / Заказано 862» в Продажах: артикул+цвет → шт.
+  const priorByLeaf = new Map<string, number>();
+  for (const l of data.input.lines) {
+    if (l.kind !== "RECEIPT" || !l.pcs || l.season === "FW 26/27") continue;
+    const kk = leafKeyOf(l.article, l.colorId);
+    priorByLeaf.set(kk, (priorByLeaf.get(kk) ?? 0) + l.pcs);
+  }
+  const priorTotal = [...priorByLeaf.values()].reduce((a, x) => a + x, 0);
+  const claimed = new Set<string>();
   for (const r of data.sizes) {
     const fur = furRuLabel(r.fur ?? "Не указан", FUR_RU), c1 = (r.l2 || "(без категории)").trim(), c2 = (r.l4 || r.l5 || "(без категории)").trim(), color = (r.color ?? "").trim();
     const k = [fur, c1, c2, r.acode, color].join("|");
     const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
     lf.stockAll += r.stock ?? 0;
-    // Закрытые сезоны: заказано = пришло (правило владельца), поэтому берём приход SS26 и FW25/26.
-    lf.prior += (r.seas?.["SS26"]?.deliv ?? 0) + (r.seas?.["FW25/26"]?.deliv ?? 0);
+    // Закрытые сезоны: заказано = пришло (правило владельца): приход прошлых сезонов по файлу поступлений (весь, включая старше FW25).
+    const lk = leafKeyOf(r.acode, r.color);
+    if (!claimed.has(lk)) { claimed.add(lk); lf.prior += priorByLeaf.get(lk) ?? 0; }
     const c = r.seas?.[S];
     if (c) {
       lf.conf += c.conf ?? 0; lf.confEur += c.confEur ?? 0; lf.deliv += c.deliv ?? 0; lf.delivEur += c.delivEur ?? 0;
@@ -40,7 +51,12 @@ async function main() {
     }
     leaves.set(k, lf);
   }
-  const list = [...leaves.values()].filter((l) => l.conf || l.deliv || l.sold || l.oldSold || l.stockAll);
+  const list = [...leaves.values()].filter((l) => l.conf || l.deliv || l.sold || l.oldSold || l.stockAll || l.prior);
+  const priorMatched = list.reduce((a, l) => a + l.prior, 0);
+  if (priorTotal - priorMatched > 0.5) {
+    // Приход прошлых сезонов по артикулам, которых нет среди строк отчёта: отдельная строка, чтобы «Заказ всего» сошёлся с экраном «Продажи».
+    list.push({ fur: "Не указан", c1: "(нет в отчёте)", c2: "(нет в отчёте)", article: "Приход прошлых сезонов без строки отчёта", color: "", conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: priorTotal - priorMatched, gS: 0, cS: 0, gO: 0, cO: 0 });
+  }
   list.sort((a, b) => a.c1.localeCompare(b.c1, "ru") || a.fur.localeCompare(b.fur, "ru") || a.c2.localeCompare(b.c2, "ru") || a.article.localeCompare(b.article) || a.color.localeCompare(b.color));
   const stock26 = (l: Leaf) => Math.max(0, l.deliv - l.sold);
   const stockOth = (l: Leaf) => Math.max(0, l.stockAll - stock26(l));
@@ -181,6 +197,6 @@ async function main() {
   const path = `${dir}/FW26_массив_${iso}.xlsx`;
   writeFileSync(path, Buffer.from(await wb.xlsx.writeBuffer()));
   const t = (f: (l: Leaf) => number) => Math.round(list.reduce((a, l) => a + f(l), 0));
-  console.log(path, JSON.stringify({ rows: list.length, conf: t((l) => l.conf), deliv: t((l) => l.deliv), sold: t((l) => l.sold), old: t((l) => l.oldSold), st26: t(stock26), stOth: t(stockOth), stAll: t((l) => l.stockAll) }));
+  console.log(path, JSON.stringify({ priorTotal, priorMatched, orderAll: t((l) => l.prior + l.conf), rows: list.length, conf: t((l) => l.conf), deliv: t((l) => l.deliv), sold: t((l) => l.sold), old: t((l) => l.oldSold), st26: t(stock26), stOth: t(stockOth), stAll: t((l) => l.stockAll) }));
 }
 main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
