@@ -26,7 +26,7 @@ type Level = "fur" | "cat1" | "cat2" | "article" | "color" | "size";
 const HIER = { fur: ["fur", "cat1", "cat2", "article", "color", "size"] as Level[], cat: ["cat1", "fur", "cat2", "article", "color", "size"] as Level[] };
 const LEVEL_LABEL: Record<Level, string> = { fur: "Мех", cat1: "Категория 1", cat2: "Категория 2", article: "Артикул", color: "Цвет", size: "Размер" };
 
-const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Каракульча (свакара)", LYNX: "Рысь", BEAVER: "Бобр", CHINCHILLA: "Шиншилла" };
+const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Каракульча", LYNX: "Рысь", BEAVER: "Бобр", CHINCHILLA: "Шиншилла" };
 const furRu = (k: string) => furRuLabel(k, FUR_RU);
 export { furKeyOfReportRow as furKeyOfRow } from "@/lib/sales-receipts-core";
 
@@ -272,8 +272,20 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
       return {
         id: n.id, title: n.label, fur: keyOf(first, "fur"), category: keyOf(first, "cat2"), cls: (first?.cls ?? "other") as CatalogItem["cls"],
         modelId: ph?.modelId ?? null, photos: [...own, ...rest].map((x) => ({ id: x.id, variant: x.variant })),
+        retailNow: now, markupNow: cost && nowNum ? x2(nowNum / cost) : null,
         facts: [["Цена сейчас", now ?? DASH], ["Себестоимость", cost ? money(cost) : DASH], ["Маркап по цене сейчас", cost && nowNum ? x2(nowNum / cost) : DASH], ["Остаток сейчас", `${n0(n.stock)} шт.`]],
-        seasons: seasons.filter((s) => n.m[s].conf || n.m[s].deliv || n.m[s].all).map((s) => ({ key: s, label: SEASON_LABEL[s], conf: n.m[s].conf, deliv: n.m[s].deliv, stock: n.m[s].stock, rows: TCOLS.filter((c) => c.key !== "arts").map((c) => [c.label, c.get(n.m[s], s)] as [string, string]) })),
+        seasons: seasons.filter((s) => n.m[s].conf || n.m[s].deliv || n.m[s].all).map((s) => {
+          const m = n.m[s], kr = (v: number | null) => (v == null ? DASH : Math.round(v / 1000).toLocaleString("ru-RU")), live = s === "FW26/27";
+          const common: [string, string][] = [["Заказано, шт.", n0(m.conf)], ["Получено, шт.", n0(m.deliv)], ...(live ? [["Ждём, шт.", n0(Math.max(0, m.conf - m.deliv))] as [string, string]] : []), ["Остаток сезона, шт.", n0(m.stock)]];
+          const pairs = [
+            { k: "Продано, шт.", ssn: n0(m.ssn), ttl: n0(m.all) },
+            { k: "SO, %", ssn: pct(soS(m)), ttl: pct(soA(m)) },
+            { k: "Выручка, kRUR", ssn: kr(m.rubS), ttl: kr(m.rubA) },
+            { k: "Цена до скидки, kRUR", ssn: kr(priceS(m)), ttl: kr(priceA(m)) },
+            { k: "Маркап", ssn: x2(mkS(m)), ttl: x2(mkA(m)) },
+          ];
+          return { key: s, label: SEASON_LABEL[s], short: s === "FW26/27" ? "FW26" : s === "SS26" ? "SS26" : "FW25", conf: m.conf, deliv: m.deliv, sold: m.all, stock: m.stock, rubK: m.rubA / 1000, showTtl: !live, common, pairs };
+        }),
         stockBy: n.children.filter((c) => c.stock > 0).map((c) => ({ label: c.label, stock: c.stock, sizes: c.children.filter((z) => z.stock > 0).map((z) => `${z.label}: ${n0(z.stock)}`).join(", ") })),
       };
     });

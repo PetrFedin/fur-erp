@@ -4,10 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /** Каталог «как в магазине»: карточки с фото, под фото — сезоны (заказ · пришло · остаток); тап по подписи открывает детализацию. Данные готовит SeasonReport. */
 export type CatalogPhoto = { id: string; variant: string };
-export type CatalogSeason = { key: string; label: string; conf: number; deliv: number; stock: number; rows: [string, string][] };
+/** Строка сезона под фото: заказ · пришло · продано · остаток · выручка (тыс. ₽). pairs — таблица SSN (за сезон) / TTL (всего) в детализации; showTtl=false у идущего сезона. */
+export type CatalogSeason = {
+  key: string; label: string; short: string;
+  conf: number; deliv: number; sold: number; stock: number; rubK: number;
+  showTtl: boolean; common: [string, string][]; pairs: { k: string; ssn: string; ttl: string }[];
+};
 export type CatalogItem = {
   id: string; title: string; fur: string; category: string; cls: "clothes" | "acc" | "other";
   modelId: string | null; photos: CatalogPhoto[];
+  /** Розничная цена сейчас и маркап по ней — под фото на карточке. */
+  retailNow: string | null; markupNow: string | null;
   /** Цена сейчас, себестоимость, маркап по цене сейчас, остаток сейчас — строки шапки детализации. */
   facts: [string, string][];
   seasons: CatalogSeason[];
@@ -19,9 +26,36 @@ export type SeasonOption = { key: string; label: string };
 const photoSrc = (modelId: string, id: string, thumb: boolean) => `/api/article-photos/${modelId}/${id}${thumb ? "?size=thumb" : ""}`;
 const CLS_LABEL: Record<CatalogItem["cls"], string> = { clothes: "Одежда", acc: "Аксессуары", other: "Прочее" };
 const n0 = (v: number) => Math.round(v).toLocaleString("ru-RU");
+/** Ячейки без «0»: пусто — тире, чтобы строка читалась быстрее. */
+const cell = (v: number) => (Math.abs(v) < 0.5 ? "–" : n0(v));
 
 const CHIP = "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900";
 const chip = (on: boolean) => CHIP + (on ? " border-neutral-900 bg-neutral-900 text-white" : " border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50");
+
+const COLS = "grid-cols-[2.25rem_repeat(4,minmax(0,1fr))]";
+/** Под фото: заголовок и по сезону — строка «сезон · заказ · пришло · продано · остаток» и под ней выручка в тыс. ₽ (kRUR); внизу TTL по всем сезонам. */
+function SeasonLines({ item }: { item: CatalogItem }) {
+  const tot = item.seasons.reduce((a, s) => ({ conf: a.conf + s.conf, deliv: a.deliv + s.deliv, sold: a.sold + s.sold, stock: a.stock + s.stock, rubK: a.rubK + s.rubK }), { conf: 0, deliv: 0, sold: 0, stock: 0, rubK: 0 });
+  const H = "text-right text-[11px] leading-4 text-neutral-500";
+  const block = (key: string, label: string, v: { conf: number; deliv: number; sold: number; stock: number; rubK: number }, strong = false) => (
+    <div key={key} className={"border-t pb-0.5 tabular-nums " + (strong ? "border-neutral-300 font-semibold" : "border-neutral-100")}>
+      <div className={`grid ${COLS} items-baseline gap-x-1.5 text-[11px] leading-5`}>
+        <span className="truncate text-neutral-700">{label}</span>
+        <span className="text-right">{cell(v.conf)}</span><span className="text-right">{cell(v.deliv)}</span><span className="text-right">{cell(v.sold)}</span><span className="text-right font-semibold">{cell(v.stock)}</span>
+      </div>
+      <div className="text-right text-[11px] leading-4 text-neutral-600">{cell(v.rubK)} kRUR</div>
+    </div>
+  );
+  return (
+    <div className="mt-auto pt-1" role="group" aria-label="Сезоны: заказано, пришло, продано, остаток; ниже выручка в тысячах рублей">
+      <div className={`grid ${COLS} gap-x-1.5`}>
+        <span /><span className={H} title="Заказано, шт.">Зак</span><span className={H} title="Пришло, шт.">Приш</span><span className={H} title="Продано, шт.">Прод</span><span className={H} title="Остаток, шт.">Ост</span>
+      </div>
+      {item.seasons.map((s) => block(s.key, s.short, s))}
+      {item.seasons.length > 1 ? block("ttl", "TTL", tot, true) : null}
+    </div>
+  );
+}
 
 /** Горизонтальная лента фото со свайпом (scroll-snap). Тап по фото или кнопка-лупа — увеличить, не открывая карточку. */
 function Carousel({ item, onZoom, ratio = "aspect-[3/4]" }: { item: CatalogItem; onZoom: (i: number) => void; ratio?: string }) {
@@ -31,15 +65,15 @@ function Carousel({ item, onZoom, ratio = "aspect-[3/4]" }: { item: CatalogItem;
   const onScroll = () => { const el = ref.current; if (el && el.clientWidth) setI(Math.round(el.scrollLeft / el.clientWidth)); };
   const go = (d: number) => { const el = ref.current; if (el) el.scrollBy({ left: d * el.clientWidth, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); };
   if (!item.modelId || n === 0) {
-    return <div role="img" aria-label="Фото нет" className={`${ratio} flex w-full items-center justify-center bg-neutral-100 text-sm text-neutral-500`}>Фото нет</div>;
+    return <div role="img" aria-label="Фото нет" className={`${ratio} flex w-full overflow-hidden items-center justify-center bg-neutral-50 text-sm text-neutral-500`}>Фото нет</div>;
   }
   return (
-    <div className={`group relative ${ratio} w-full bg-neutral-100`}>
+    <div className={`group relative ${ratio} w-full overflow-hidden bg-neutral-50`}>
       <div ref={ref} onScroll={onScroll} style={{ scrollSnapType: "x mandatory" }} className="flex h-full w-full overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-keep-scroll role="group" aria-roledescription="карусель" aria-label={`Фото: ${item.title}`}>
         {item.photos.map((p, k) => (
           <button key={p.id} type="button" onClick={() => onZoom(k)} aria-label={`Увеличить фото ${k + 1} из ${n}`} className="h-full w-full shrink-0 snap-center cursor-zoom-in">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photoSrc(item.modelId!, p.id, true)} alt={k === 0 ? item.title : ""} loading={k === 0 ? "eager" : "lazy"} decoding="async" draggable={false} className="h-full w-full object-cover" />
+            <img src={photoSrc(item.modelId!, p.id, true)} alt={k === 0 ? item.title : ""} loading={k === 0 ? "eager" : "lazy"} decoding="async" draggable={false} className="h-full w-full object-contain" />
           </button>
         ))}
       </div>
@@ -103,7 +137,7 @@ function Detail({ item, onZoom, onClose }: { item: CatalogItem; onZoom: (i: numb
         </div>
         <div className="flex-1 overflow-y-auto overscroll-contain md:grid md:grid-cols-[22rem_1fr]">
           <div className="md:sticky md:top-0 md:self-start">
-            <Carousel item={item} onZoom={onZoom} ratio="aspect-[3/4] max-h-[70dvh]" />
+            <div className="mx-auto w-full max-w-[18rem] md:max-w-none"><Carousel item={item} onZoom={onZoom} ratio="aspect-[3/4]" /></div>
           </div>
           <div className="flex flex-col gap-4 p-3">
             <div>
@@ -117,8 +151,22 @@ function Detail({ item, onZoom, onClose }: { item: CatalogItem; onZoom: (i: numb
               <section key={s.key} aria-label={s.label}>
                 <h3 className="mb-1 text-sm font-semibold">{s.label}</h3>
                 <dl className="grid grid-cols-[1fr_auto] border-t border-neutral-200 text-sm">
-                  {s.rows.map(([k, v]) => <div key={k} className="contents"><dt className="border-b border-neutral-100 py-1.5 text-neutral-600">{k}</dt><dd className="border-b border-neutral-100 py-1.5 pl-3 text-right tabular-nums">{v}</dd></div>)}
+                  {s.common.map(([k, v]) => <div key={k} className="contents"><dt className="border-b border-neutral-100 py-1.5 text-neutral-600">{k}</dt><dd className="border-b border-neutral-100 py-1.5 pl-3 text-right tabular-nums">{v}</dd></div>)}
                 </dl>
+                <div role="table" aria-label={`${s.label}: за сезон и всего`} className={"mt-2 grid text-sm tabular-nums " + (s.showTtl ? "grid-cols-[1fr_auto_auto]" : "grid-cols-[1fr_auto]")}>
+                  <div role="row" className="contents">
+                    <span role="columnheader" className="py-1"><span className="sr-only">Показатель</span></span>
+                    <span role="columnheader" className="py-1 pl-4 text-right text-xs font-semibold text-neutral-700">SSN<span className="block text-[11px] font-normal text-neutral-500">за сезон</span></span>
+                    {s.showTtl ? <span role="columnheader" className="py-1 pl-4 text-right text-xs font-semibold text-neutral-700">TTL<span className="block text-[11px] font-normal text-neutral-500">всего</span></span> : null}
+                  </div>
+                  {s.pairs.map((r) => (
+                    <div role="row" key={r.k} className="contents">
+                      <span role="rowheader" className="border-t border-neutral-100 py-1.5 pr-2 text-neutral-600">{r.k}</span>
+                      <span role="cell" className="border-t border-neutral-100 py-1.5 pl-4 text-right">{r.ssn}</span>
+                      {s.showTtl ? <span role="cell" className="border-t border-neutral-100 py-1.5 pl-4 text-right">{r.ttl}</span> : null}
+                    </div>
+                  ))}
+                </div>
               </section>
             ))}
             {item.stockBy.length ? (
@@ -207,22 +255,15 @@ export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, fur
       {groups.map(({ c, list }) => (
         <section key={c} aria-label={CLS_LABEL[c]}>
           <h2 className="mb-2 text-base font-semibold">{CLS_LABEL[c]} <span className="text-sm font-normal text-neutral-500">{list.length}</span></h2>
-          <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          <ul className="grid auto-rows-fr grid-cols-2 gap-2 sm:justify-start sm:gap-3 sm:[grid-template-columns:repeat(auto-fill,minmax(180px,210px))]">
             {list.map((it) => (
-              <li key={it.id} className="flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white">
+              <li key={it.id} className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white">
                 <Carousel item={it} onZoom={(i) => setZoom({ item: it, i })} />
-                <button type="button" onClick={() => setOpen(it)} aria-label={`Подробнее: ${it.title}`} className="flex flex-1 flex-col gap-1.5 p-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-neutral-900">
-                  <span className="text-xs text-neutral-500">{it.fur} · {it.category}</span>
-                  <span className="line-clamp-2 text-sm font-medium leading-snug">{it.title}</span>
-                  <span className="mt-auto grid grid-cols-3 gap-x-1 pt-1 text-center tabular-nums">
-                    <span className="text-[11px] text-neutral-500">Заказ</span><span className="text-[11px] text-neutral-500">Пришло</span><span className="text-[11px] text-neutral-500">Остаток</span>
-                    {it.seasons.map((s) => (
-                      <span key={s.key} className="contents">
-                        <span className="col-span-3 mt-1 border-t border-neutral-100 pt-1 text-left text-xs font-medium text-neutral-700">{s.label}</span>
-                        <span className="text-sm">{n0(s.conf)}</span><span className="text-sm">{n0(s.deliv)}</span><span className="text-sm font-semibold">{n0(s.stock)}</span>
-                      </span>
-                    ))}
-                  </span>
+                <button type="button" onClick={() => setOpen(it)} aria-label={`Подробнее: ${it.title}`} className="flex flex-1 flex-col gap-1 p-2 text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-neutral-900">
+                  <span className="truncate text-[11px] text-neutral-500">{it.fur} · {it.category}</span>
+                  <span className="line-clamp-2 min-h-10 text-sm font-medium leading-5 [overflow-wrap:anywhere]">{it.title}</span>
+                  <span className="text-xs tabular-nums"><b>{it.retailNow ?? "–"}</b><span className="text-neutral-600"> · {it.markupNow ?? "–"}</span></span>
+                  <SeasonLines item={it} />
                 </button>
               </li>
             ))}
