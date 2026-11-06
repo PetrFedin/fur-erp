@@ -198,21 +198,27 @@ async function main() {
   const dA = `Данные!$B$${FIRST}:$B$${LAST}`, dF = `Данные!$A$${FIRST}:$A$${LAST}`, dB = `Данные!$C$${FIRST}:$C$${LAST}`;
   const qs = (v: string) => `"${v.replace(/"/g, '""')}"`;
   type RC = { head: string; grp: string; idx: number[]; den?: number[]; kind: "sum" | "mu" | "so"; fmt: string };
-  const RG1 = "Заказ FW26", RG2 = "Приход FW26", RG3 = "Продажи и маркап", RG4 = "Остатки";
-  const RFILL: Record<string, string> = { [RG1]: "FFE7F5EC", [RG2]: "FFDDEBFA", [RG3]: "FFFDF1DC", [RG4]: "FFE8EEFC" };
+  const RG1 = "Заказ FW26", RG2 = "Приход FW26", RG3 = "Продажи FW26 (товар сезона)", RG5 = "Олды: продажи прошлых сезонов в календарном FW26", RG6 = "Всего продаж в FW26 с олдами", RG4 = "Остатки";
+  const RFILL: Record<string, string> = { [RG1]: "FFE7F5EC", [RG2]: "FFDDEBFA", [RG3]: "FFFDF1DC", [RG5]: "FFF6E3D0", [RG6]: "FFFBE9C6", [RG4]: "FFE8EEFC" };
   const rcs: RC[] = [
     { grp: RG1, head: "Заказ, €", idx: [1], kind: "sum", fmt: N0 },
     { grp: RG1, head: "Заказ, шт.", idx: [0], kind: "sum", fmt: N0 },
+    { grp: RG1, head: "Заказ всего, шт. (приход SS26 + FW25 + заказ FW26)", idx: [2], kind: "sum", fmt: N0 },
     { grp: RG2, head: "Приход, шт.", idx: [3], kind: "sum", fmt: N0 },
     { grp: RG2, head: "Приход, €", idx: [4], kind: "sum", fmt: N0 },
-    { grp: RG3, head: "Продано FW26, шт.", idx: [6], kind: "sum", fmt: N0 },
-    { grp: RG3, head: "SO FW26, %", idx: [6], den: [0], kind: "so", fmt: "0%;-0%;–" },
-    { grp: RG3, head: "Выручка FW26, ₽ с НДС", idx: [7], kind: "sum", fmt: N0 },
+    { grp: RG2, head: "В производстве, шт.", idx: [5], kind: "sum", fmt: N0 },
+    { grp: RG3, head: "Продано, шт.", idx: [6], kind: "sum", fmt: N0 },
+    { grp: RG3, head: "SO, %", idx: [6], den: [0], kind: "so", fmt: "0%;-0%;–" },
+    { grp: RG3, head: "Выручка, ₽ с НДС", idx: [7], kind: "sum", fmt: N0 },
     { grp: RG3, head: "Ср. MU FW26, ×", idx: [13], den: [14], kind: "mu", fmt: "0.00;-0.00;–" },
-    { grp: RG3, head: "Продано всего с олдами, шт.", idx: [6, 8], kind: "sum", fmt: N0 },
-    { grp: RG3, head: "Выручка с олдами, ₽ с НДС", idx: [7, 9], kind: "sum", fmt: N0 },
-    { grp: RG3, head: "Ср. MU всех продаж, ×", idx: [13, 15], den: [14, 16], kind: "mu", fmt: "0.00;-0.00;–" },
+    { grp: RG5, head: "Продано олдов, шт.", idx: [8], kind: "sum", fmt: N0 },
+    { grp: RG5, head: "Выручка олдов, ₽ с НДС", idx: [9], kind: "sum", fmt: N0 },
+    { grp: RG5, head: "Ср. MU олдов, ×", idx: [15], den: [16], kind: "mu", fmt: "0.00;-0.00;–" },
+    { grp: RG6, head: "Продано всего, шт.", idx: [6, 8], kind: "sum", fmt: N0 },
+    { grp: RG6, head: "Выручка всего, ₽ с НДС", idx: [7, 9], kind: "sum", fmt: N0 },
+    { grp: RG6, head: "Ср. MU всех продаж, ×", idx: [13, 15], den: [14, 16], kind: "mu", fmt: "0.00;-0.00;–" },
     { grp: RG4, head: "Остаток FW26, шт.", idx: [10], kind: "sum", fmt: N0 },
+    { grp: RG4, head: "Остаток остальных сезонов, шт.", idx: [11], kind: "sum", fmt: N0 },
     { grp: RG4, head: "Остаток всего, шт.", idx: [12], kind: "sum", fmt: N0 },
   ];
   const sumI = (ix: number[], rows: Leaf[]) => rows.reduce((a, l) => a + ix.reduce((t, k) => t + cols[k].get(l), 0), 0);
