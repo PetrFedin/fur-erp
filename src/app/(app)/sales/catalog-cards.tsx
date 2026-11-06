@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CloseX, chip } from "./catalog-ui";
 import { CatalogReport, type ReportData } from "./catalog-report";
+import type { SupplyLeaf } from "@/lib/supply-report";
 
 /** Каталог «как в магазине»: карточки с фото, под фото — сезоны (заказ · пришло · остаток); тап по подписи открывает детализацию. Данные готовит SeasonReport. */
 export type CatalogPhoto = { id: string; variant: string };
@@ -21,8 +22,10 @@ export type CatalogItem = {
   /** Цена сейчас, себестоимость, маркап по цене сейчас, остаток сейчас — строки шапки детализации. */
   facts: [string, string][];
   seasons: CatalogSeason[];
-  /** Остаток по цветам и размерам: «Чёрный — 5 шт. · 42: 2, 44: 3». */
-  stockBy: { label: string; stock: number; sizes: string }[];
+  /** Общий TTL по всем показанным сезонам (если их два и больше): суммы и средневзвешенные (цена продажи, маркап по проданному товару этих сезонов). */
+  total: { common: [string, string][]; pairs: { k: string; v: string }[] } | null;
+  /** Цвета и размеры: заказано, пришло, продано, остаток (по показанным сезонам вместе). */
+  colors: { label: string; conf: number; deliv: number; sold: number; stock: number; sizes: { label: string; conf: number; deliv: number; sold: number; stock: number }[] }[];
 };
 export type SeasonOption = { key: string; label: string };
 
@@ -144,38 +147,86 @@ function Lightbox({ item, start, onClose }: { item: CatalogItem; start: number; 
   );
 }
 
-/** Одна таблица на все сезоны модели: у каждого сезона колонка SSN (за сезон) и рядом TTL (всего) — TTL только если отличается от SSN (у идущего сезона его нет). */
-function SeasonTable({ seasons }: { seasons: CatalogSeason[] }) {
-  const cols = seasons.flatMap((s) => [{ s, kind: "ssn" as const }, ...(s.showTtl ? [{ s, kind: "ttl" as const }] : [])]);
-  const commonKeys = [...new Set(seasons.flatMap((s) => s.common.map(([k]) => k)))];
+/** Таблица сезонов: у каждого сезона колонка SSN (за сезон), справа ОДИН общий TTL по всем сезонам (суммы и средневзвешенные). Если сезон один — SSN и, если отличается, TTL. */
+function SeasonTable({ seasons, total }: { seasons: CatalogSeason[]; total: CatalogItem["total"] }) {
+  type Col = { id: string; head: string; sub: string; ttl: boolean; s?: CatalogSeason };
+  const cols: Col[] = [
+    ...seasons.flatMap((s) => [{ id: s.key + "ssn", head: s.short, sub: "SSN", ttl: false, s } as Col, ...(!total && s.showTtl ? [{ id: s.key + "ttl", head: s.short, sub: "TTL", ttl: true, s } as Col] : [])]),
+    ...(total ? [{ id: "total", head: "Итого", sub: "TTL", ttl: true } as Col] : []),
+  ];
+  const commonKeys = [...new Set([...seasons.flatMap((s) => s.common.map(([k]) => k)), ...(total?.common.map(([k]) => k) ?? [])])];
   const pairKeys = [...new Set(seasons.flatMap((s) => s.pairs.map((p) => p.k)))];
   const grid = { gridTemplateColumns: `minmax(0,1fr) repeat(${cols.length}, minmax(2.6rem, auto))` };
-  const common = (k: string, c: (typeof cols)[number]) => (c.kind === "ssn" ? c.s.common.find(([kk]) => kk === k)?.[1] ?? "–" : "");
-  const pair = (k: string, c: (typeof cols)[number]) => { const p = c.s.pairs.find((x) => x.k === k); return p ? (c.kind === "ssn" ? p.ssn : p.ttl) : "–"; };
+  const common = (k: string, c: Col) => (c.id === "total" ? total?.common.find(([kk]) => kk === k)?.[1] ?? "" : c.ttl ? "" : c.s?.common.find(([kk]) => kk === k)?.[1] ?? "–");
+  const pair = (k: string, c: Col) => (c.id === "total" ? total?.pairs.find((p) => p.k === k)?.v ?? "–" : (() => { const p = c.s?.pairs.find((x) => x.k === k); return p ? (c.ttl ? p.ttl : p.ssn) : "–"; })());
   const cellCls = "border-b border-neutral-100 py-1.5 pl-2 text-right text-[13px]";
+  const heads: { label: string; span: number }[] = [];
+  for (const c of cols) { const last = heads[heads.length - 1]; if (last && last.label === c.head && c.id !== "total") last.span++; else heads.push({ label: c.head, span: 1 }); }
   return (
     <div role="table" aria-label="Показатели по сезонам" className="grid text-sm tabular-nums" style={grid}>
       <div role="row" className="contents">
         <span role="columnheader" className="py-1 text-[11px] text-neutral-500">тыс. ₽, шт.</span>
-        {seasons.map((s) => <span role="columnheader" key={s.key} style={{ gridColumn: `span ${s.showTtl ? 2 : 1}` }} className="border-b border-neutral-300 py-1 pl-2 text-right text-xs font-semibold text-neutral-800">{s.short}</span>)}
+        {heads.map((h, i) => <span role="columnheader" key={i} style={{ gridColumn: `span ${h.span}` }} className="border-b border-neutral-300 py-1 pl-2 text-right text-xs font-semibold text-neutral-800">{h.label}</span>)}
       </div>
       <div role="row" className="contents">
         <span role="columnheader" />
-        {cols.map((c) => <span role="columnheader" key={c.s.key + c.kind} title={c.kind === "ssn" ? "За сезон" : "Всего"} className="py-0.5 pl-2 text-right text-[11px] font-medium text-neutral-500">{c.kind === "ssn" ? "SSN" : "TTL"}</span>)}
+        {cols.map((c) => <span role="columnheader" key={c.id} title={c.ttl ? "Всего" : "За сезон"} className="py-0.5 pl-2 text-right text-[11px] font-medium text-neutral-500">{c.sub}</span>)}
       </div>
       {commonKeys.map((k) => (
         <div role="row" key={"c" + k} className="contents">
           <span role="rowheader" className="border-b border-neutral-100 py-1.5 pr-2 text-neutral-600">{k}</span>
-          {cols.map((c) => <span role="cell" key={c.s.key + c.kind} className={cellCls}>{common(k, c)}</span>)}
+          {cols.map((c) => <span role="cell" key={c.id} className={cellCls}>{common(k, c)}</span>)}
         </div>
       ))}
       {pairKeys.map((k) => (
         <div role="row" key={"p" + k} className="contents">
           <span role="rowheader" className="border-b border-neutral-100 py-1.5 pr-2 text-neutral-600">{k}</span>
-          {cols.map((c) => <span role="cell" key={c.s.key + c.kind} className={cellCls}>{pair(k, c)}</span>)}
+          {cols.map((c) => <span role="cell" key={c.id} className={cellCls}>{pair(k, c)}</span>)}
         </div>
       ))}
     </div>
+  );
+}
+
+/** Цвета × размеры: заказано, пришло, продано, остаток. Кнопка «Размеры» раскрывает размеры у всех цветов; клик по цвету — только у него. */
+function ColorSizes({ colors }: { colors: CatalogItem["colors"] }) {
+  const [all, setAll] = useState(false);
+  const [one, setOne] = useState<Set<string>>(new Set());
+  if (!colors.length) return null;
+  const T = colors.reduce((a, c) => ({ conf: a.conf + c.conf, deliv: a.deliv + c.deliv, sold: a.sold + c.sold, stock: a.stock + c.stock }), { conf: 0, deliv: 0, sold: 0, stock: 0 });
+  const g = "grid-cols-[minmax(0,1fr)_repeat(4,minmax(2.4rem,auto))]";
+  const line = (key: string, label: React.ReactNode, v: { conf: number; deliv: number; sold: number; stock: number }, cls = "") => (
+    <div role="row" key={key} className={`grid ${g} items-center gap-x-2 border-b border-neutral-100 text-[13px] tabular-nums ${cls}`}>
+      <span role="rowheader" className="min-w-0">{label}</span>
+      <span role="cell" className="text-right">{cell(v.conf)}</span><span role="cell" className="text-right">{cell(v.deliv)}</span><span role="cell" className="text-right">{cell(v.sold)}</span><span role="cell" className="text-right font-semibold">{cell(v.stock)}</span>
+    </div>
+  );
+  return (
+    <section aria-label="Цвета и размеры">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Цвета и размеры</h3>
+        <button type="button" aria-pressed={all} onClick={() => { setAll((v) => !v); setOne(new Set()); }} className={chip(all) + " !min-h-9 !px-3 text-xs"}>Размеры</button>
+      </div>
+      <div role="table" className="border-t border-neutral-200">
+        <div role="row" className={`grid ${g} gap-x-2 py-1 text-[11px] text-neutral-500`}>
+          <span role="columnheader" />{["Заказ", "Пришло", "Продано", "Остаток"].map((t) => <span role="columnheader" key={t} className="text-right">{t}</span>)}
+        </div>
+        {colors.map((c) => {
+          const open = all || one.has(c.label), can = c.sizes.length > 0;
+          return (
+            <div key={c.label}>
+              {line("c" + c.label, can ? (
+                <button type="button" aria-expanded={open} onClick={() => setOne((x) => { const n = new Set(x); if (n.has(c.label)) n.delete(c.label); else n.add(c.label); return n; })} className="flex min-h-10 w-full items-center gap-1.5 py-1 text-left font-medium">
+                  <span aria-hidden className="w-3 text-[10px]">{open ? "▾" : "▸"}</span><span className="truncate">{c.label}</span>
+                </button>
+              ) : <span className="block py-2 pl-[1.1rem] font-medium">{c.label}</span>, c)}
+              {open ? c.sizes.map((z) => line("s" + c.label + z.label, <span className="block py-1.5 pl-7 text-neutral-600">{z.label}</span>, z, "bg-neutral-50")) : null}
+            </div>
+          );
+        })}
+        {line("tot", <span className="block py-1.5 pl-[1.1rem] font-semibold">Итого</span>, T, "border-t border-neutral-300 font-semibold")}
+      </div>
+    </section>
   );
 }
 
@@ -202,20 +253,8 @@ function Detail({ item, onZoom, onClose }: { item: CatalogItem; onZoom: (i: numb
                 {item.facts.map(([k, v]) => <div key={k} className="contents"><dt className="text-neutral-600">{k}</dt><dd className="text-right font-semibold tabular-nums">{v}</dd></div>)}
               </dl>
             </div>
-            <SeasonTable seasons={item.seasons} />
-            {item.stockBy.length ? (
-              <section aria-label="Остаток по цветам и размерам">
-                <h3 className="mb-1 text-sm font-semibold">Остаток по цветам и размерам</h3>
-                <ul className="border-t border-neutral-200 text-sm">
-                  {item.stockBy.map((c) => (
-                    <li key={c.label} className="border-b border-neutral-100 py-1.5">
-                      <div className="flex justify-between gap-3"><span>{c.label}</span><span className="font-semibold tabular-nums">{n0(c.stock)} шт.</span></div>
-                      {c.sizes ? <p className="text-xs text-neutral-600">{c.sizes}</p> : null}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+            <SeasonTable seasons={item.seasons} total={item.total} />
+            <ColorSizes colors={item.colors} />
           </div>
         </div>
       </div>
@@ -265,14 +304,14 @@ function FiltersDialog({ seasonOptions, picked, onToggleSeason, furs, furPick, o
   );
 }
 
-export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, furs, furPick, onFur, q, onQ, vatEx = false, onVat, report }: {
-  vatEx?: boolean; onVat?: (ex: boolean) => void; report?: ReportData;
+export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, furs, furPick, onFur, q, onQ, vatEx = false, onVat, report, supply = [] }: {
+  vatEx?: boolean; onVat?: (ex: boolean) => void; report?: ReportData; supply?: SupplyLeaf[];
   items: CatalogItem[]; seasonOptions: SeasonOption[]; picked: string[]; onToggleSeason: (key: string) => void;
   furs: string[]; furPick: string; onFur: (f: string) => void; q: string; onQ: (v: string) => void;
 }) {
   const [cat, setCat] = useState<"all" | "clothes" | "acc">("all");
   const [filters, setFilters] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
+  const [reportTab, setReportTab] = useState<null | "sales" | "supply">(null);
   const activeFilters = (picked.length < seasonOptions.length ? 1 : 0) + (furPick !== "all" ? 1 : 0) + (q.trim() ? 1 : 0);
   const [open, setOpen] = useState<CatalogItem | null>(null);
   const [zoom, setZoom] = useState<{ item: CatalogItem; i: number } | null>(null);
@@ -285,10 +324,14 @@ export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, fur
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Каталог</h1>
         {report ? (
-          <button type="button" onClick={() => setReportOpen(true)} aria-haspopup="dialog" className={chip(false) + " gap-2"}>
-            <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M4 5h16v14H4zM4 10h16M10 5v14" /></svg>
-            Отчёт
-          </button>
+          <div className="flex gap-2">
+            {([["sales", "Продажи"], ["supply", "Поставки"]] as const).map(([k, t]) => (
+              <button key={k} type="button" onClick={() => setReportTab(k)} aria-haspopup="dialog" className={chip(false) + " gap-2 !px-3.5"}>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M4 5h16v14H4zM4 10h16M10 5v14" /></svg>
+                Отчёт: {t.toLowerCase()}
+              </button>
+            ))}
+          </div>
         ) : null}
       </div>
       <div className="sticky top-0 z-20 -mx-3 flex items-center gap-2 border-b border-neutral-200 bg-white/95 px-3 py-2 backdrop-blur">
@@ -328,7 +371,7 @@ export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, fur
         </section>
       ))}
 
-      {reportOpen && report ? <CatalogReport data={report} cat={cat} onClose={() => setReportOpen(false)} /> : null}
+      {reportTab && report ? <CatalogReport key={reportTab} data={report} supply={supply} tab={reportTab} cat={cat} vatEx={vatEx} onVat={onVat} onClose={() => setReportTab(null)} /> : null}
       {filters ? <FiltersDialog seasonOptions={seasonOptions} picked={picked} onToggleSeason={onToggleSeason} furs={furs} furPick={furPick} onFur={onFur} q={q} onQ={onQ} total={shown.length} onClose={() => setFilters(false)} vatEx={vatEx} onVat={onVat} /> : null}
       {open ? <Detail item={open} onClose={() => setOpen(null)} onZoom={(i) => setZoom({ item: open, i })} /> : null}
       {zoom ? <Lightbox item={zoom.item} start={zoom.i} onClose={closeZoom} /> : null}

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CloseX, chip } from "./catalog-ui";
+import { SupplyTable } from "./catalog-supply";
+import type { SupplyLeaf } from "@/lib/supply-report";
 
 /** Показатели одного сезона по артикулу (всё в штуках и рублях; € — из отчёта заказа/прихода). */
 export type ReportVals = {
@@ -52,14 +54,17 @@ const nf = (v: number) => Math.round(v).toLocaleString("ru-RU");
 const th = "sticky z-10 bg-neutral-50 px-2 text-[11px] font-semibold leading-4 text-neutral-600";
 
 /** Отчёт поверх каталога: категория 1 → тип меха → категория 2; период (всего / сезон) и валюта (EUR / RUR) переключаются кнопками, деньги — в тысячах. */
-export function CatalogReport({ data, cat, onClose }: { data: ReportData; cat: "all" | "clothes" | "acc"; onClose: () => void }) {
+export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, onVat }: { data: ReportData; supply: SupplyLeaf[]; tab: "sales" | "supply"; cat: "all" | "clothes" | "acc"; onClose: () => void; vatEx: boolean; onVat?: (ex: boolean) => void }) {
   const dlg = useRef<HTMLDialogElement>(null);
   useEffect(() => { const d = dlg.current; if (d && !d.open) d.showModal(); }, []);
+  const [tab, setTab] = useState<"sales" | "supply">(tab0);
   const [scope, setScope] = useState<Scope>("all");
   const [cur, setCur] = useState<"EUR" | "RUR">("RUR");
   const [depth, setDepth] = useState<1 | 2 | 3>(3);
   const [shut, setShut] = useState<Set<string>>(new Set());
   const keys = scope === "all" ? ALL_KEYS : [scope];
+  const toggleShut = (id: string) => setShut((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const supplyLeaves = useMemo(() => supply.filter((l) => cat === "all" || l.cls === cat), [supply, cat]);
   const rate = data.eurRate || 1;
   const leaves = useMemo(() => data.leaves.filter((l) => cat === "all" || l.cls === cat), [data.leaves, cat]);
   const tree = useMemo(() => buildTree(leaves, keys), [leaves, scope]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -100,21 +105,33 @@ export function CatalogReport({ data, cat, onClose }: { data: ReportData; cat: "
     <dialog ref={dlg} onClose={onClose} className="m-0 h-dvh max-h-none w-screen max-w-none bg-white p-0 text-neutral-900 md:mx-auto md:my-4 md:h-[calc(100dvh-2rem)] md:w-[min(96rem,100vw-2rem)] md:rounded-2xl">
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between gap-2 border-b border-neutral-200 px-3 py-2">
-          <p className="text-base font-semibold">Отчёт</p>
+          <div className="flex gap-2" role="tablist" aria-label="Отчёт">
+            {([["sales", "Продажи"], ["supply", "Поставки"]] as const).map(([k, t]) => <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={chip(tab === k) + " !px-4"}>Отчёт: {t.toLowerCase()}</button>)}
+          </div>
           <CloseX onClick={onClose} />
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-neutral-200 px-3 py-2">
           <div className="flex gap-2 overflow-x-auto" data-keep-scroll role="group" aria-label="Период">
             {SCOPES.map(([key, t]) => <button key={key} type="button" aria-pressed={scope === key} onClick={() => setScope(key)} className={chip(scope === key) + " !px-3.5"}>{t}</button>)}
           </div>
-          <div className="flex gap-2" role="group" aria-label="Валюта">
+          {tab === "sales" && onVat ? (
+            <div className="flex gap-2" role="group" aria-label="НДС">
+              {([[false, "С НДС"], [true, "Без НДС"]] as const).map(([ex, t]) => <button key={t} type="button" aria-pressed={vatEx === ex} onClick={() => onVat(ex)} className={chip(vatEx === ex) + " !px-3.5"}>{t}</button>)}
+            </div>
+          ) : null}
+          {tab === "sales" ? <div className="flex gap-2" role="group" aria-label="Валюта">
             {(["EUR", "RUR"] as const).map((c) => <button key={c} type="button" aria-pressed={cur === c} onClick={() => setCur(c)} className={chip(cur === c) + " !px-3.5"}>{c}</button>)}
-          </div>
+          </div> : null}
           <div className="flex gap-2 overflow-x-auto" data-keep-scroll role="group" aria-label="Уровень">
             {([[1, "Кат. 1"], [2, "Мех"], [3, "Кат. 2"]] as const).map(([d, t]) => <button key={d} type="button" aria-pressed={depth === d} onClick={() => { setDepth(d); setShut(new Set()); }} className={chip(depth === d) + " !px-3.5"}>{t}</button>)}
           </div>
-          <p className="text-xs text-neutral-600" title="Заказ и приход в деньгах — в € по отчёту, продажи и цены — в ₽; другая валюта считается по среднему курсу из файла продаж">деньги — тыс. {sym} · курс {rate ? rate.toFixed(1).replace(".", ",") : "–"} ₽/€</p>
+          {tab === "sales" ? <p className="text-xs text-neutral-600" title="Заказ и приход в деньгах — в € по отчёту, продажи и цены — в ₽; другая валюта считается по среднему курсу из файла продаж">деньги — тыс. {sym} · курс {rate ? rate.toFixed(1).replace(".", ",") : "–"} ₽/€</p> : null}
         </div>
+        {tab === "supply" ? (
+          <div className="min-h-0 flex-1 overflow-auto overscroll-contain p-2" data-keep-scroll tabIndex={0} role="region" aria-label="Таблица отчёта по заказу и поставкам">
+            <SupplyTable leaves={supplyLeaves} keys={keys} depth={depth} shut={shut} onToggle={toggleShut} />
+          </div>
+        ) : (
         <div className="min-h-0 flex-1 overflow-auto overscroll-contain" data-keep-scroll tabIndex={0} role="region" aria-label="Таблица отчёта">
           <div role="table" aria-label="Отчёт: категория 1, тип меха, категория 2" className={`grid min-w-[1050px] md:min-w-[1180px] ${COLS}`}>
             <div role="row" className="contents">
@@ -133,6 +150,7 @@ export function CatalogReport({ data, cat, onClose }: { data: ReportData; cat: "
             {row("Итого", 0, aggOf(leaves, keys))}
           </div>
         </div>
+        )}
       </div>
     </dialog>
   );

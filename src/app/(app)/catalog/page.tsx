@@ -5,6 +5,7 @@ import { loadSalesInput } from "@/lib/sales-server";
 import { articleKey } from "@/lib/sales-receipts-core";
 import { CatalogClient } from "./catalog-client";
 import { tzAwaitSizes } from "@/lib/tz-await";
+import { loadSupplyLeaves } from "@/lib/supply-report";
 
 export const metadata = { title: "Каталог" };
 
@@ -12,7 +13,7 @@ export const metadata = { title: "Каталог" };
 export default async function CatalogPage() {
   const session = await requireSession();
   const c4 = await getCommission4Mode();
-  const [data, tz] = await Promise.all([loadSalesInput(session.user.organizationId, c4), tzAwaitSizes(session.user.organizationId, c4)]);
+  const [data, tz, supply] = await Promise.all([loadSalesInput(session.user.organizationId, c4), tzAwaitSizes(session.user.organizationId, c4), loadSupplyLeaves(session.user.organizationId, c4)]);
   const input = serializeInput(data.input);
   const lines = input.lines as { article: string; fabric?: string }[];
   const fabricByArt: Record<string, string> = {};
@@ -20,7 +21,7 @@ export default async function CatalogPage() {
   const tzAwait = tz.map((r) => ({ fur: r.acode.includes("/") ? r.acode.slice(r.acode.indexOf("/") + 1) : "", cls: r.cls, qty: r.fw26Conf ?? 0, model: r.modelCode ?? "" }));
   return (
     <div className="flex flex-col gap-3 p-3 md:p-4">
-      <CatalogClient sizes={data.sizes} photos={data.photos} cat="all" fabricByArt={fabricByArt} prices={input.prices} costs={input.costs} lines={input.lines as never} tzAwait={tzAwait} />
+      <CatalogClient supply={supply} sizes={data.sizes} photos={data.photos} cat="all" fabricByArt={fabricByArt} prices={input.prices} costs={input.costs} lines={input.lines as never} tzAwait={tzAwait} />
     </div>
   );
 }
