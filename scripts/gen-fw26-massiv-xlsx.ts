@@ -76,16 +76,16 @@ async function main() {
     { g: G1, head: "Пришло, €", get: (l) => r2(l.delivEur) },
     { g: G1, head: "В производстве, шт. (заказано − пришло)", get: (l) => Math.max(0, l.conf - l.deliv) },
     { g: G1, head: "Продано товара FW26 в календарном FW26, шт.", get: (l) => l.sold },
-    { g: G1, head: "NS EUR excl VAT, товар FW26", get: (l) => Math.round(l.nsEx) },
+    { g: G1, head: "NS EUR excl VAT, товар FW26", get: (l) => r2(l.nsEx) },
     { g: G2, head: "Продано, шт.", get: (l) => l.oldSold },
-    { g: G2, head: "NS EUR excl VAT, олды в FW26", get: (l) => Math.round(l.oldNsEx) },
+    { g: G2, head: "NS EUR excl VAT, олды в FW26", get: (l) => r2(l.oldNsEx) },
     { g: G3, head: "Остаток товара FW26, шт.", get: stock26 },
     { g: G3, head: "Остаток всех остальных сезонов, шт.", get: stockOth },
     { g: G3, head: "Остаток всего, шт.", get: (l) => stock26(l) + stockOth(l) },
-    { g: G4, head: "MU: NS EUR + Discount EUR, товар FW26", get: (l) => Math.round(l.gS) },
-    { g: G4, head: "MU: SC EUR, товар FW26", get: (l) => Math.round(l.cS) },
-    { g: G4, head: "MU: NS EUR + Discount EUR, олды", get: (l) => Math.round(l.gO) },
-    { g: G4, head: "MU: SC EUR, олды", get: (l) => Math.round(l.cO) },
+    { g: G4, head: "MU: NS EUR + Discount EUR, товар FW26", get: (l) => r2(l.gS) },
+    { g: G4, head: "MU: SC EUR, товар FW26", get: (l) => r2(l.cS) },
+    { g: G4, head: "MU: NS EUR + Discount EUR, олды", get: (l) => r2(l.gO) },
+    { g: G4, head: "MU: SC EUR, олды", get: (l) => r2(l.cO) },
   ];
   const labels = ["Тип меха", "Категория 1", "Категория 2", "Артикул", "Цвет"], c0 = labels.length + 1, FIRST = 4, LAST = FIRST + list.length - 1;
 
