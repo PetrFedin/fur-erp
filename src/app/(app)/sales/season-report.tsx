@@ -306,7 +306,12 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
       const by: ReportLeaf["by"] = {};
       for (const k of SES) {
         const m = n.m[k];
-        by[k] = { conf: m.conf, confEur: m.confEur, deliv: m.deliv, delivEur: m.delivEur, sold: m.all, rub: m.rubA, priceNum: m.rubAIn + m.discA, priceDen: m.allR, gross: m.grossA, cost: m.costA, stock: m.stock,
+        // Продажи товара прошлых сезонов в календаре этого сезона (в FW25 их не было) и остаток всех сезонов до этого включительно.
+        const old = k === "FW25/26" ? { n: 0, rIn: 0, rEx: 0, d: 0 } : n.rows.reduce((o, r) => { const c = r.seas?.[k]; return { n: o.n + Math.max(0, c?.soldOld ?? 0), rIn: o.rIn + (c?.rubOld ?? 0), rEx: o.rEx + (c?.rubExOld ?? 0), d: o.d + (c?.discOld ?? 0) }; }, { n: 0, rIn: 0, rEx: 0, d: 0 });
+        const totalStock = n.rows.reduce((t, r) => t + Math.max(0, r.stock ?? 0), 0);
+        const tStock = k === "FW26/27" ? totalStock : k === "SS26" ? Math.max(0, totalStock - n.m["FW26/27"].stock) : 0;
+        by[k] = { oSold: old.n, oRub: ex ? old.rEx : old.rIn, oPriceNum: old.rIn + old.d, oGross: cost && old.n ? old.rIn + old.d : 0, oCost: cost ? old.n * cost : 0,
+          tStock, tRetail: price ? price * tStock : 0, tPriced: price ? tStock : 0, tRetailBoth: price && cost ? price * tStock : 0, tCostBoth: price && cost ? cost * tStock : 0, conf: m.conf, confEur: m.confEur, deliv: m.deliv, delivEur: m.delivEur, sold: m.all, rub: m.rubA, priceNum: m.rubAIn + m.discA, priceDen: m.allR, gross: m.grossA, cost: m.costA, stock: m.stock,
           sRetail: price ? price * m.stock : 0, sPriced: price ? m.stock : 0, sRetailBoth: price && cost ? price * m.stock : 0, sCostBoth: price && cost ? cost * m.stock : 0 };
       }
       return { cls: (first?.cls ?? "other") as ReportLeaf["cls"], cat1: first?.l2 || "(без категории)", fur: keyOf(first, "fur"), cat2: first?.l4 || first?.l5 || "(без категории)", model: n.modelCode ?? n.label, by };
