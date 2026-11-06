@@ -216,6 +216,9 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         o.grossA += a.grossC * f; o.costA += a.costS * f;
       }
     }
+    // Штуки продаж — из отчёта (SSN + продажи позже как «не сезон»), как и деньги: так «продано» и выручка по сезону считаются по одному источнику
+    // (раньше штуки брались из файла продаж: у FW26 55 шт. против 60 в отчёте при тех же 111 шт. продаж в календаре сезона; делили их по-разному).
+    for (const s of SEASONS) { out[s].ssn = out[s].ssnR; out[s].all = out[s].allR; }
     for (const s of SEASONS) { out[s].arts = artSet[s].size; if (s !== "FW26/27") out[s].conf = out[s].deliv; out[s].stock = Math.max(0, out[s].deliv - out[s].all); }
     return out;
   };
