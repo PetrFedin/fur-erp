@@ -18,7 +18,7 @@ export type SupplyLeaf = {
 };
 
 const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Каракульча", LYNX: "Рысь", BEAVER: "Бобр", CHINCHILLA: "Шиншилла" };
-const SEASONS = ["FW26/27", "SS26", "FW25/26"] as const;
+const SEASONS = ["FW25/26", "SS26", "FW26/27"] as const;
 const FROM_LINE: Record<string, (typeof SEASONS)[number]> = { "FW 25/26": "FW25/26", "SS 2026": "SS26", "FW 26/27": "FW26/27" };
 
 export async function loadSupplyLeaves(orgId: string, c4: Commission4Mode): Promise<SupplyLeaf[]> {

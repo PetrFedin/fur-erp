@@ -17,7 +17,7 @@ import { DASH, btn, money, moneyC, n0, pct, seg, segGroup, x2 } from "./sales-fm
 import type { PhotoIdx } from "./sales-tree";
 import { SeasonReceipts, type TzAwait } from "./season-receipts";
 
-const SEASONS = ["FW26/27", "SS26", "FW25/26"] as const;
+const SEASONS = ["FW25/26", "SS26", "FW26/27"] as const;
 type Season = (typeof SEASONS)[number];
 const SEASON_LABEL: Record<Season, string> = { "FW26/27": "FW 26/27", SS26: "SS 2026", "FW25/26": "FW 25/26" };
 /** Сезон строки файла → ключ отчёта. */

@@ -15,9 +15,9 @@ export type ReportVals = {
 export type ReportLeaf = { cls: "clothes" | "acc" | "other"; cat1: string; fur: string; cat2: string; model: string; by: Record<string, ReportVals> };
 export type ReportData = { leaves: ReportLeaf[]; eurRate: number; ex: boolean };
 
-const SCOPES = [["all", "Всего"], ["FW26/27", "FW26"], ["SS26", "SS26"], ["FW25/26", "FW25"]] as const;
+const SCOPES = [["FW25/26", "FW25"], ["SS26", "SS26"], ["FW26/27", "FW26"], ["all", "Всего"]] as const;
 type Scope = (typeof SCOPES)[number][0];
-const ALL_KEYS = ["FW26/27", "SS26", "FW25/26"];
+const ALL_KEYS = ["FW25/26", "SS26", "FW26/27"];
 
 type Agg = { models: number } & Omit<ReportVals, never>;
 const zero = (): Agg => ({ models: 0, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, priceNum: 0, priceDen: 0, gross: 0, cost: 0, stock: 0, sRetail: 0, sPriced: 0, sRetailBoth: 0, sCostBoth: 0 });

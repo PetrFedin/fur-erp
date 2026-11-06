@@ -16,7 +16,7 @@ import { btn, DASH, n0, seg, segGroup } from "./sales-fmt";
 import { loadFw26Forecast, saveFw26Forecast } from "./forecast-actions";
 import { FC_MONTHS, baseForecast, netMonths, splitInt, tzPartsByModel, type Overrides } from "@/lib/fw26-plan";
 
-const SEASONS = ["FW26/27", "SS26", "FW25/26"] as const;
+const SEASONS = ["FW25/26", "SS26", "FW26/27"] as const;
 type Season = (typeof SEASONS)[number];
 const SEASON_LABEL: Record<Season, string> = { "FW26/27": "FW 26/27", SS26: "SS 2026", "FW25/26": "FW 25/26" };
 const SEASON_BG: Record<Season, string> = { "FW26/27": "bg-sky-50/60", SS26: "bg-amber-50/60", "FW25/26": "bg-emerald-50/50" };
