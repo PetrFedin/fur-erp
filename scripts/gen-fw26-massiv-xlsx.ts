@@ -14,7 +14,7 @@ import { furRuLabel } from "@/lib/sales-receipts-core";
 const S = "FW26/27";
 const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Свакара", LYNX: "Рысь" };
 
-type Leaf = { fur: string; c1: string; c2: string; article: string; color: string; conf: number; confEur: number; deliv: number; delivEur: number; sold: number; rub: number; oldSold: number; oldRub: number; stockAll: number; gS: number; cS: number; gO: number; cO: number };
+type Leaf = { fur: string; c1: string; c2: string; article: string; color: string; conf: number; confEur: number; deliv: number; delivEur: number; sold: number; rub: number; oldSold: number; oldRub: number; stockAll: number; prior: number; gS: number; cS: number; gO: number; cO: number };
 
 async function main() {
   const dir = process.argv[2] ?? "docs-inventory/reports";
@@ -25,8 +25,10 @@ async function main() {
   for (const r of data.sizes) {
     const fur = furRuLabel(r.fur ?? "Не указан", FUR_RU), c1 = (r.l2 || "(без категории)").trim(), c2 = (r.l4 || r.l5 || "(без категории)").trim(), color = (r.color ?? "").trim();
     const k = [fur, c1, c2, r.acode, color].join("|");
-    const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
+    const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
     lf.stockAll += r.stock ?? 0;
+    // Закрытые сезоны: заказано = пришло (правило владельца), поэтому берём приход SS26 и FW25/26.
+    lf.prior += (r.seas?.["SS26"]?.deliv ?? 0) + (r.seas?.["FW25/26"]?.deliv ?? 0);
     const c = r.seas?.[S];
     if (c) {
       lf.conf += c.conf ?? 0; lf.confEur += c.confEur ?? 0; lf.deliv += c.deliv ?? 0; lf.delivEur += c.delivEur ?? 0;
@@ -50,6 +52,7 @@ async function main() {
   const cols: { g: string; head: string; get: (l: Leaf) => number }[] = [
     { g: G1, head: "Заказано, шт.", get: (l) => l.conf },
     { g: G1, head: "Заказано, €", get: (l) => r2(l.confEur) },
+    { g: G1, head: "Заказ всего, шт. (приход SS26 + FW25 + заказ FW26)", get: (l) => l.prior + l.conf },
     { g: G1, head: "Пришло, шт.", get: (l) => l.deliv },
     { g: G1, head: "Пришло, €", get: (l) => r2(l.delivEur) },
     { g: G1, head: "В производстве, шт. (заказано − пришло)", get: (l) => Math.max(0, l.conf - l.deliv) },
@@ -110,15 +113,16 @@ async function main() {
   const q = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const pcs: { head: string; fill: string; idx: number[]; den?: number[] }[] = [
     { head: "Заказ FW26, шт.", fill: FILL[G1], idx: [0] },
-    { head: "Приход FW26, шт.", fill: FILL[G1], idx: [2] },
-    { head: "Продажи FW26, шт.", fill: FILL[G1], idx: [5] },
-    { head: "Остаток FW26, шт.", fill: FILL[G3], idx: [9] },
-    { head: "Продажи всего в FW26 с олдами, шт.", fill: FILL[G2], idx: [5, 7] },
-    { head: "Остаток всего с олдами, шт.", fill: FILL[G3], idx: [11] },
-    { head: "Выручка FW26, ₽ с НДС", fill: FILL[G1], idx: [6] },
-    { head: "Выручка всего в FW26 с олдами, ₽ с НДС", fill: FILL[G2], idx: [6, 8] },
-    { head: "MU FW26 (средневзв.), ×", fill: FILL[G1], idx: [12], den: [13] },
-    { head: "MU всего в FW26 с олдами (средневзв.), ×", fill: FILL[G2], idx: [12, 14], den: [13, 15] },
+    { head: "Заказ всего, шт. (приход SS26 + FW25 + заказ FW26)", fill: FILL[G1], idx: [2] },
+    { head: "Приход FW26, шт.", fill: FILL[G1], idx: [3] },
+    { head: "Продажи FW26, шт.", fill: FILL[G1], idx: [6] },
+    { head: "Остаток FW26, шт.", fill: FILL[G3], idx: [10] },
+    { head: "Продажи всего в FW26 с олдами, шт.", fill: FILL[G2], idx: [6, 8] },
+    { head: "Остаток всего с олдами, шт.", fill: FILL[G3], idx: [12] },
+    { head: "Выручка FW26, ₽ с НДС", fill: FILL[G1], idx: [7] },
+    { head: "Выручка всего в FW26 с олдами, ₽ с НДС", fill: FILL[G2], idx: [7, 9] },
+    { head: "MU FW26 (средневзв.), ×", fill: FILL[G1], idx: [13], den: [14] },
+    { head: "MU всего в FW26 с олдами (средневзв.), ×", fill: FILL[G2], idx: [13, 15], den: [14, 16] },
   ];
   const sumIdx = (ix: number[], rows: Leaf[]) => rows.reduce((a, l) => a + ix.reduce((t, k) => t + cols[k].get(l), 0), 0);
   const resOf = (c: { idx: number[]; den?: number[] }, rows: Leaf[]) => (c.den ? (sumIdx(c.den, rows) > 0 ? sumIdx(c.idx, rows) / sumIdx(c.den, rows) : 0) : sumIdx(c.idx, rows));
