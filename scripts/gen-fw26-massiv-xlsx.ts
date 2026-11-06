@@ -13,9 +13,9 @@ import { furRuLabel, furTypeOfFabric } from "@/lib/sales-receipts-core";
 import { leafKeyOf } from "@/lib/fw26-plan";
 
 const S = "FW26/27";
-const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Свакара", LYNX: "Рысь" };
+const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Каракульча", LYNX: "Рысь" };
 
-type Leaf = { fur: string; c1: string; c2: string; article: string; color: string; conf: number; confEur: number; deliv: number; delivEur: number; sold: number; rub: number; oldSold: number; oldRub: number; stockAll: number; prior: number; gS: number; cS: number; gO: number; cO: number };
+type Leaf = { fur: string; c1: string; c2: string; article: string; color: string; conf: number; confEur: number; deliv: number; delivEur: number; sold: number; nsEx: number; oldSold: number; oldNsEx: number; stockAll: number; prior: number; gS: number; cS: number; gO: number; cO: number };
 
 async function main() {
   const dir = process.argv[2] ?? "docs-inventory/reports";
@@ -37,7 +37,7 @@ async function main() {
   for (const r of data.sizes) {
     const fur = furRuLabel(r.fur ?? "Не указан", FUR_RU), c1 = (r.l2 || "(без категории)").trim(), c2 = (r.l4 || r.l5 || "(без категории)").trim(), color = (r.color ?? "").trim();
     const k = [fur, c1, c2, r.acode, color].join("|");
-    const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
+    const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, nsEx: 0, oldSold: 0, oldNsEx: 0, stockAll: 0, prior: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
     lf.stockAll += r.stock ?? 0;
     // Закрытые сезоны: заказано = пришло (правило владельца): приход прошлых сезонов по файлу поступлений (весь, включая старше FW25).
     const lk = leafKeyOf(r.acode, r.color);
@@ -45,11 +45,10 @@ async function main() {
     const c = r.seas?.[S];
     if (c) {
       lf.conf += c.conf ?? 0; lf.confEur += c.confEur ?? 0; lf.deliv += c.deliv ?? 0; lf.delivEur += c.delivEur ?? 0;
-      lf.sold += c.soldSsn ?? 0; lf.rub += c.rubSsn ?? 0; lf.oldSold += c.soldOld ?? 0; lf.oldRub += c.rubOld ?? 0;
-      // Для MU: цена до скидки проданного и его себестоимость (как в «Продажи → Сезоны»): только проданные штуки, у которых есть себестоимость.
-      const cost = r.modelCode ? data.input.costs.get(r.modelCode)?.unitIncl ?? 0 : 0, nS = c.soldSsn ?? 0, nO = c.soldOld ?? 0;
-      if (cost > 0 && nS > 0) { lf.gS += (c.rubSsn ?? 0) + (c.discSsn ?? 0); lf.cS += nS * cost; }
-      if (cost > 0 && nO > 0) { lf.gO += (c.rubOld ?? 0) + (c.discOld ?? 0); lf.cO += nO * cost; }
+      lf.sold += c.soldSsn ?? 0; lf.nsEx += c.eurExSsn ?? 0; lf.oldSold += c.soldOld ?? 0; lf.oldNsEx += c.eurExOld ?? 0;
+      // MU по отчёту: (NS EUR + Discount EUR) ÷ SC EUR — полная розничная цена продажи с учётом скидки к себестоимости продаж в €.
+      lf.gS += (c.eurSsn ?? 0) + (c.discEurSsn ?? 0); lf.cS += c.scSsn ?? 0;
+      lf.gO += (c.eurOld ?? 0) + (c.discEurOld ?? 0); lf.cO += c.scOld ?? 0;
     }
     leaves.set(k, lf);
   }
@@ -59,7 +58,7 @@ async function main() {
   for (const [kk, n] of priorByLeaf) {
     if (claimed.has(kk) || n <= 0) continue;
     const at = priorAttr.get(kk)!;
-    list.push({ ...at, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: n, gS: 0, cS: 0, gO: 0, cO: 0 });
+    list.push({ ...at, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, nsEx: 0, oldSold: 0, oldNsEx: 0, stockAll: 0, prior: n, gS: 0, cS: 0, gO: 0, cO: 0 });
   }
   list.sort((a, b) => a.c1.localeCompare(b.c1, "ru") || a.fur.localeCompare(b.fur, "ru") || a.c2.localeCompare(b.c2, "ru") || a.article.localeCompare(b.article) || a.color.localeCompare(b.color));
   const stock26 = (l: Leaf) => Math.max(0, l.deliv - l.sold);
@@ -77,16 +76,16 @@ async function main() {
     { g: G1, head: "Пришло, €", get: (l) => r2(l.delivEur) },
     { g: G1, head: "В производстве, шт. (заказано − пришло)", get: (l) => Math.max(0, l.conf - l.deliv) },
     { g: G1, head: "Продано товара FW26 в календарном FW26, шт.", get: (l) => l.sold },
-    { g: G1, head: "Выручка товара FW26, ₽ с НДС", get: (l) => Math.round(l.rub) },
+    { g: G1, head: "NS EUR excl VAT, товар FW26", get: (l) => Math.round(l.nsEx) },
     { g: G2, head: "Продано, шт.", get: (l) => l.oldSold },
-    { g: G2, head: "Выручка, ₽ с НДС", get: (l) => Math.round(l.oldRub) },
+    { g: G2, head: "NS EUR excl VAT, олды в FW26", get: (l) => Math.round(l.oldNsEx) },
     { g: G3, head: "Остаток товара FW26, шт.", get: stock26 },
     { g: G3, head: "Остаток всех остальных сезонов, шт.", get: stockOth },
     { g: G3, head: "Остаток всего, шт.", get: (l) => stock26(l) + stockOth(l) },
-    { g: G4, head: "Цена до скидки, FW26 товар, ₽", get: (l) => Math.round(l.gS) },
-    { g: G4, head: "Себестоимость, FW26 товар, ₽", get: (l) => Math.round(l.cS) },
-    { g: G4, head: "Цена до скидки, олды в FW26, ₽", get: (l) => Math.round(l.gO) },
-    { g: G4, head: "Себестоимость, олды в FW26, ₽", get: (l) => Math.round(l.cO) },
+    { g: G4, head: "MU: NS EUR + Discount EUR, товар FW26", get: (l) => Math.round(l.gS) },
+    { g: G4, head: "MU: SC EUR, товар FW26", get: (l) => Math.round(l.cS) },
+    { g: G4, head: "MU: NS EUR + Discount EUR, олды", get: (l) => Math.round(l.gO) },
+    { g: G4, head: "MU: SC EUR, олды", get: (l) => Math.round(l.cO) },
   ];
   const labels = ["Тип меха", "Категория 1", "Категория 2", "Артикул", "Цвет"], c0 = labels.length + 1, FIRST = 4, LAST = FIRST + list.length - 1;
 
@@ -190,87 +189,70 @@ async function main() {
     wb.addWorksheet("Пивот").getCell(1, 1).value = "Сводная таблица Excel по листу «Данные»";
   }
 
-  // ───────── Лист 3: Отчёт (формулы по «Данные»): категория 1 → тип меха → категория 2, упорядочено по деньгам заказа FW26 (€), средневзвешенный MU ─────────
-  const rp = wb.addWorksheet("Отчёт", { views: [{ state: "frozen", xSplit: 1, ySplit: 3 }], properties: { outlineLevelRow: 3 } });
+  // ───────── Лист 3: Отчёт — оформление как в отчёте владельца (Order / Delivery / Sales / Stock), формулы по «Данные»; NS — EUR excl VAT ─────────
+  const rp = wb.addWorksheet("Отчёт", { views: [{ state: "frozen", xSplit: 8, ySplit: 6 }], properties: { outlineLevelRow: 3 } });
   rp.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
   const dl = (i: number) => ws.getColumn(c0 + i).letter;
   const dr = (i: number) => `Данные!$${dl(i)}$${FIRST}:$${dl(i)}$${LAST}`;
   const dA = `Данные!$B$${FIRST}:$B$${LAST}`, dF = `Данные!$A$${FIRST}:$A$${LAST}`, dB = `Данные!$C$${FIRST}:$C$${LAST}`;
   const qs = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  type RC = { head: string; grp: string; idx: number[]; den?: number[]; kind: "sum" | "mu" | "so"; fmt: string };
-  const RG1 = "Заказ FW26", RG2 = "Приход FW26", RG3 = "Продажи FW26 (товар сезона)", RG5 = "Олды: продажи прошлых сезонов в календарном FW26", RG6 = "Всего продаж в FW26 с олдами", RG4 = "Остатки";
-  const RFILL: Record<string, string> = { [RG1]: "FFE7F5EC", [RG2]: "FFDDEBFA", [RG3]: "FFFDF1DC", [RG5]: "FFF6E3D0", [RG6]: "FFFBE9C6", [RG4]: "FFE8EEFC" };
+  type RC = { idx: number[]; den?: number[]; kind: "sum" | "so" | "mu"; fmt: string; head: string };
+  const MUF = "0.00;-0.00;–", SOF = "0%;-0%;–";
+  // Колонки I..Z: Order (TTL PCS, FW26 PCS, EUR) · Delivery (PCS, EUR) · Sales: SSN FW26 (PCS, SO, NS, Avg MU), Old (PCS, NS, Avg MU), Calendar FW26 (PCS, NS, Avg MU) · Stock (FW26, Old, TTL)
   const rcs: RC[] = [
-    { grp: RG1, head: "Заказ, €", idx: [1], kind: "sum", fmt: N0 },
-    { grp: RG1, head: "Заказ, шт.", idx: [0], kind: "sum", fmt: N0 },
-    { grp: RG1, head: "Заказ всего, шт. (приход SS26 + FW25 + заказ FW26)", idx: [2], kind: "sum", fmt: N0 },
-    { grp: RG2, head: "Приход, шт.", idx: [3], kind: "sum", fmt: N0 },
-    { grp: RG2, head: "Приход, €", idx: [4], kind: "sum", fmt: N0 },
-    { grp: RG2, head: "В производстве, шт.", idx: [5], kind: "sum", fmt: N0 },
-    { grp: RG3, head: "Продано, шт.", idx: [6], kind: "sum", fmt: N0 },
-    { grp: RG3, head: "SO, %", idx: [6], den: [0], kind: "so", fmt: "0%;-0%;–" },
-    { grp: RG3, head: "Выручка, ₽ с НДС", idx: [7], kind: "sum", fmt: N0 },
-    { grp: RG3, head: "Ср. MU FW26, ×", idx: [13], den: [14], kind: "mu", fmt: "0.00;-0.00;–" },
-    { grp: RG5, head: "Продано олдов, шт.", idx: [8], kind: "sum", fmt: N0 },
-    { grp: RG5, head: "Выручка олдов, ₽ с НДС", idx: [9], kind: "sum", fmt: N0 },
-    { grp: RG5, head: "Ср. MU олдов, ×", idx: [15], den: [16], kind: "mu", fmt: "0.00;-0.00;–" },
-    { grp: RG6, head: "Продано всего, шт.", idx: [6, 8], kind: "sum", fmt: N0 },
-    { grp: RG6, head: "Выручка всего, ₽ с НДС", idx: [7, 9], kind: "sum", fmt: N0 },
-    { grp: RG6, head: "Ср. MU всех продаж, ×", idx: [13, 15], den: [14, 16], kind: "mu", fmt: "0.00;-0.00;–" },
-    { grp: RG4, head: "Остаток FW26, шт.", idx: [10], kind: "sum", fmt: N0 },
-    { grp: RG4, head: "Остаток остальных сезонов, шт.", idx: [11], kind: "sum", fmt: N0 },
-    { grp: RG4, head: "Остаток всего, шт.", idx: [12], kind: "sum", fmt: N0 },
+    { head: "PCS", idx: [2], kind: "sum", fmt: N0 }, { head: "PCS", idx: [0], kind: "sum", fmt: N0 }, { head: "EUR", idx: [1], kind: "sum", fmt: N0 },
+    { head: "PCS", idx: [3], kind: "sum", fmt: N0 }, { head: "EUR", idx: [4], kind: "sum", fmt: N0 },
+    { head: "PCS", idx: [6], kind: "sum", fmt: N0 }, { head: "SO, %", idx: [6], den: [0], kind: "so", fmt: SOF }, { head: "NS EUR excl VAT", idx: [7], kind: "sum", fmt: N0 }, { head: "Avg MU", idx: [13], den: [14], kind: "mu", fmt: MUF },
+    { head: "PCS", idx: [8], kind: "sum", fmt: N0 }, { head: "NS EUR excl VAT", idx: [9], kind: "sum", fmt: N0 }, { head: "Avg MU", idx: [15], den: [16], kind: "mu", fmt: MUF },
+    { head: "PCS", idx: [6, 8], kind: "sum", fmt: N0 }, { head: "NS EUR excl VAT", idx: [7, 9], kind: "sum", fmt: N0 }, { head: "Avg MU", idx: [13, 15], den: [14, 16], kind: "mu", fmt: MUF },
+    { head: "PCS", idx: [10], kind: "sum", fmt: N0 }, { head: "PCS", idx: [11], kind: "sum", fmt: N0 }, { head: "PCS", idx: [12], kind: "sum", fmt: N0 },
   ];
+  const RC0 = 9; // первая колонка данных — I
   const sumI = (ix: number[], rows: Leaf[]) => rows.reduce((a, l) => a + ix.reduce((t, k) => t + cols[k].get(l), 0), 0);
   const resR = (c: RC, rows: Leaf[]) => (c.den ? (sumI(c.den, rows) > 0 ? sumI(c.idx, rows) / sumI(c.den, rows) : 0) : sumI(c.idx, rows));
-  rp.getCell(1, 1).value = "Отчёт FW26: заказ, приход, продажи, средневзвешенный MU и остатки. Категория 1 → тип меха → категория 2, внутри каждого уровня — по убыванию заказа FW26 в €. Формулы по листу «Данные»; кнопки 1–3 слева сворачивают уровни.";
-  rp.getCell(1, 1).font = { bold: true, size: 12 };
-  let rg0 = 0;
-  rcs.forEach((c, i) => {
-    rp.getCell(3, 2 + i).value = c.head;
-    if (i === rcs.length - 1 || rcs[i + 1].grp !== c.grp) {
-      rp.mergeCells(2, 2 + rg0, 2, 2 + i);
-      const g = rp.getCell(2, 2 + rg0); g.value = c.grp; g.font = { bold: true, size: 10 }; g.alignment = { horizontal: "center" };
-      for (let j = rg0; j <= i; j++) rp.getCell(2, 2 + j).fill = { type: "pattern", pattern: "solid", fgColor: { argb: RFILL[c.grp] } };
-      rg0 = i + 1;
-    }
-  });
-  rp.getCell(3, 1).value = "Категория 1 → тип меха → категория 2";
-  for (let c = 1; c <= 1 + rcs.length; c++) {
-    const x = rp.getCell(3, c); x.font = { bold: true, size: 10 }; x.alignment = { wrapText: true, vertical: "middle", horizontal: c === 1 ? "left" : "center" };
-    x.fill = { type: "pattern", pattern: "solid", fgColor: { argb: c === 1 ? "FFEFEFEF" : RFILL[rcs[c - 2].grp] } }; x.border = { bottom: { style: "thin" } };
-  }
-  rp.getRow(3).height = 48; rp.getColumn(1).width = 44; rcs.forEach((_, i) => { rp.getColumn(2 + i).width = 15; });
-  let rrow = 4;
-  const rwrite = (label: string, lvl: 0 | 1 | 2, crit: string, rows: Leaf[]) => {
-    const x = rp.getRow(rrow++);
-    x.getCell(1).value = label; x.getCell(1).alignment = { indent: lvl * 2 };
-    rcs.forEach((c, i) => {
-      const cell = x.getCell(2 + i);
-      const sm = (ix: number[]) => ix.map((k) => `SUMIFS(${dr(k)}${crit})`).join("+");
-      cell.value = { formula: c.den ? `IFERROR((${sm(c.idx)})/(${sm(c.den)}),0)` : sm(c.idx), result: resR(c, rows) } as ExcelJS.CellFormulaValue; cell.numFmt = c.fmt;
-    });
-    x.outlineLevel = lvl;
-    if (lvl === 0) { x.font = { bold: true }; x.eachCell((cell) => { cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F4F9" } }; }); }
-    else if (lvl === 1) x.font = { bold: true, color: { argb: "FF333333" } };
+  const BOLD = { bold: true, size: 10 };
+  rp.getCell(1, 5).value = "Отчет по продажам меховых изделий MVST FW26"; rp.getCell(1, 5).font = { bold: true, size: 13 };
+  rp.getCell(2, 5).value = new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" }); rp.getCell(2, 5).font = { size: 10 };
+  rp.getCell(3, 5).value = "NS EUR excl VAT"; rp.getCell(3, 5).font = { bold: true, size: 11 };
+  const grp = (r: number, c1: number, c2: number, text: string, fill?: string) => {
+    if (c2 > c1) rp.mergeCells(r, c1, r, c2);
+    const x = rp.getCell(r, c1); x.value = text; x.font = BOLD; x.alignment = { horizontal: "center" };
+    for (let c = c1; c <= c2; c++) { const y = rp.getCell(r, c); y.border = { bottom: { style: "thin" } }; if (fill) y.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill } }; }
   };
-  const byMoney = <T,>(items: [string, Leaf[]][]) => items.sort((a, b) => sumI([1], b[1]) - sumI([1], a[1]) || a[0].localeCompare(b[0], "ru"));
-  const grp = (arr: Leaf[], pick: (l: Leaf) => string): [string, Leaf[]][] => { const m = new Map<string, Leaf[]>(); for (const l of arr) (m.get(pick(l)) ?? m.set(pick(l), []).get(pick(l))!).push(l); return [...m]; };
-  for (const [c1, rows1] of byMoney(grp(list, (l) => l.c1))) {
-    rwrite(c1, 0, `,${dA},${qs(c1)}`, rows1);
-    for (const [fur, rows2] of byMoney(grp(rows1, (l) => l.fur))) {
-      rwrite(fur, 1, `,${dA},${qs(c1)},${dF},${qs(fur)}`, rows2);
-      for (const [c2, rows3] of byMoney(grp(rows2, (l) => l.c2))) rwrite(c2, 2, `,${dA},${qs(c1)},${dF},${qs(fur)},${dB},${qs(c2)}`, rows3);
+  grp(4, 9, 11, "Order", "FFE7F5EC"); grp(4, 12, 13, "Delivery", "FFDDEBFA"); grp(4, 14, 23, "Sales", "FFFDF1DC"); grp(4, 24, 26, "Stock", "FFE8EEFC");
+  grp(5, 9, 9, "TTL"); grp(5, 10, 11, "FW26"); grp(5, 12, 13, "FW26"); grp(5, 14, 17, "SSN FW26"); grp(5, 18, 20, "Old"); grp(5, 21, 23, "Calendar FW26"); grp(5, 24, 24, "FW26"); grp(5, 25, 25, "Old"); grp(5, 26, 26, "TTL");
+  rcs.forEach((c, i) => { const x = rp.getCell(6, RC0 + i); x.value = c.head; x.font = BOLD; x.alignment = { horizontal: "center", wrapText: true }; x.border = { bottom: { style: "medium" } }; });
+  rp.getRow(6).height = 30;
+  for (let i = 1; i <= 4; i++) rp.getColumn(i).width = 4;
+  rp.getColumn(5).width = 14; rp.getColumn(6).width = 14; rp.getColumn(7).width = 16; rp.getColumn(8).width = 26;
+  rcs.forEach((_, i) => { rp.getColumn(RC0 + i).width = 13; });
+  let rrow = 7, rno = 0;
+  const rwrite = (label: string, lvl: 0 | 1 | 2 | 3, crit: string, rows: Leaf[], parent: number, isLeaf: boolean): number => {
+    const x = rp.getRow(rrow++); const no = ++rno;
+    x.getCell(1).value = parent; x.getCell(2).value = no; x.getCell(3).value = isLeaf ? 1 : 0; x.getCell(4).value = lvl + 1;
+    for (let c = 1; c <= 4; c++) x.getCell(c).font = { size: 8, color: { argb: "FFAAAAAA" } };
+    x.getCell(5 + lvl).value = label;
+    rcs.forEach((c, i) => {
+      const cell = x.getCell(RC0 + i);
+      const sm = (ix: number[]) => ix.map((k) => (crit ? `SUMIFS(${dr(k)}${crit})` : `SUM(${dr(k)})`)).join("+");
+      cell.value = { formula: c.den ? `IFERROR((${sm(c.idx)})/(${sm(c.den)}),0)` : sm(c.idx), result: resR(c, rows) } as ExcelJS.CellFormulaValue; cell.numFmt = c.fmt;
+      cell.alignment = { horizontal: "right" };
+    });
+    x.outlineLevel = lvl === 0 ? 0 : lvl - 1;
+    if (lvl <= 1) { x.font = { bold: true }; x.eachCell((cell, col) => { if (col >= 5) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: lvl === 0 ? "FFDCE3F2" : "FFF1F4F9" } }; }); }
+    else if (lvl === 2) x.font = { bold: true, color: { argb: "FF333333" } };
+    return no;
+  };
+  const byMoney = (items: [string, Leaf[]][]) => items.sort((a, b) => sumI([1], b[1]) - sumI([1], a[1]) || a[0].localeCompare(b[0], "ru"));
+  const grpBy = (arr: Leaf[], pick: (l: Leaf) => string): [string, Leaf[]][] => { const m = new Map<string, Leaf[]>(); for (const l of arr) (m.get(pick(l)) ?? m.set(pick(l), []).get(pick(l))!).push(l); return [...m]; };
+  const total = rwrite("Total", 0, "", list, 0, false);
+  for (const [c1, rows1] of byMoney(grpBy(list, (l) => l.c1))) {
+    const n1 = rwrite(c1, 1, `,${dA},${qs(c1)}`, rows1, total, false);
+    for (const [fur, rows2] of byMoney(grpBy(rows1, (l) => l.fur))) {
+      const n2 = rwrite(fur, 2, `,${dA},${qs(c1)},${dF},${qs(fur)}`, rows2, n1, false);
+      for (const [c2, rows3] of byMoney(grpBy(rows2, (l) => l.c2))) rwrite(c2, 3, `,${dA},${qs(c1)},${dF},${qs(fur)},${dB},${qs(c2)}`, rows3, n2, true);
     }
   }
-  const rtx = rp.getRow(rrow++);
-  rtx.getCell(1).value = "ИТОГО";
-  rcs.forEach((c, i) => {
-    const cell = rtx.getCell(2 + i);
-    const sm = (ix: number[]) => ix.map((k) => `SUM(${dr(k)})`).join("+");
-    cell.value = { formula: c.den ? `IFERROR((${sm(c.idx)})/(${sm(c.den)}),0)` : sm(c.idx), result: resR(c, list) } as ExcelJS.CellFormulaValue; cell.numFmt = c.fmt;
-  });
-  for (let c = 1; c <= 1 + rcs.length; c++) { rtx.getCell(c).font = { bold: true, color: { argb: "FFFFFFFF" } }; rtx.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B2A5C" } }; }
   wb.calcProperties.fullCalcOnLoad = true;
 
   const iso = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Moscow" });

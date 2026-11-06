@@ -318,7 +318,9 @@ export function diffPrices(file: { rows: PriceRow[]; errors: string[]; warnings:
 
 /** Сезонные блоки отчёта (с 02.11.2026): заказано (Conf) / поступило (Deliv), шт. и €; продажи за период сезона — всего, своего сезона (SSN) и прошлых (Old): шт., ₽ с НДС и без. */
 export type SeasonCell = { conf?: number; confEur?: number; deliv?: number; delivEur?: number; soldAll?: number; rubAll?: number; rubExAll?: number; soldSsn?: number; rubSsn?: number; rubExSsn?: number; soldOld?: number; rubOld?: number; rubExOld?: number;
-  /** Скидка ₽ с НДС (Discount RUR) за период сезона: всего / сезонного / прошлых. */ discAll?: number; discSsn?: number; discOld?: number };
+  /** Скидка ₽ с НДС (Discount RUR) за период сезона: всего / сезонного / прошлых. */ discAll?: number; discSsn?: number; discOld?: number;
+  /** Выручка в €: NS EUR (с НДС) и NS EUR excl VAT (без НДС) за период сезона: всего / сезонного / прошлых. */ eurAll?: number; eurSsn?: number; eurOld?: number; eurExAll?: number; eurExSsn?: number; eurExOld?: number;
+  /** Скидка € с НДС (Discount EUR) и себестоимость продаж € (SC EUR): всего / сезонного / прошлых. Маркап продаж = (NS EUR + Discount EUR) ÷ SC EUR. */ discEurAll?: number; discEurSsn?: number; discEurOld?: number; scAll?: number; scSsn?: number; scOld?: number };
 export const REPORT_SEASONS = ["FW26/27", "SS26", "FW25/26"] as const;
 export type SizeRow = { acode: string; color: string; size: string; modelCode: string | null; cls: string; conf: number; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number;
   /** Вид меха (Analog Code), категории KTT Level 02–05. */ fur?: string; l2?: string; l3?: string; l4?: string; l5?: string;
@@ -370,6 +372,10 @@ export function parseSizesWorkbook(wb: ExcelJS.Workbook): { rows: SizeRow[]; tot
       soldSsn: sales("SSN", /^Sales PCS$/), rubSsn: sales("SSN", /^NS RUR$/), rubExSsn: sales("SSN", /^NS RUR excl VAT$/),
       soldOld: sales("Old", /^Sales PCS$/), rubOld: sales("Old", /^NS RUR$/), rubExOld: sales("Old", /^NS RUR excl VAT$/),
       discAll: sales("All", /^(NS )?Discount RUR$/), discSsn: sales("SSN", /^(NS )?Discount RUR$/), discOld: sales("Old", /^(NS )?Discount RUR$/),
+      eurAll: sales("All", /^NS EUR$/), eurSsn: sales("SSN", /^NS EUR$/), eurOld: sales("Old", /^NS EUR$/),
+      discEurAll: sales("All", /^(NS )?Discount EUR$/), discEurSsn: sales("SSN", /^(NS )?Discount EUR$/), discEurOld: sales("Old", /^(NS )?Discount EUR$/),
+      scAll: sales("All", /^SC EUR(_mngr)?$/), scSsn: sales("SSN", /^SC EUR(_mngr)?$/), scOld: sales("Old", /^SC EUR(_mngr)?$/),
+      eurExAll: sales("All", /^NS EUR excl VAT$/), eurExSsn: sales("SSN", /^NS EUR excl VAT$/), eurExOld: sales("Old", /^NS EUR excl VAT$/),
     };
     return [s, c];
   })) as Record<string, Record<keyof SeasonCell, number>>;
@@ -379,7 +385,7 @@ export function parseSizesWorkbook(wb: ExcelJS.Workbook): { rows: SizeRow[]; tot
       const cell: SeasonCell = {};
       for (const [k, i] of Object.entries(cols) as [keyof SeasonCell, number][]) if (i >= 0) cell[k] = num0(v[i]);
       // «Всего» нет (у FW25/26 только SSN) — всего = SSN + Old
-      if (cols.soldAll < 0 && cols.soldSsn >= 0) { cell.soldAll = (cell.soldSsn ?? 0) + (cell.soldOld ?? 0); cell.rubAll = (cell.rubSsn ?? 0) + (cell.rubOld ?? 0); cell.rubExAll = (cell.rubExSsn ?? 0) + (cell.rubExOld ?? 0); cell.discAll = (cell.discSsn ?? 0) + (cell.discOld ?? 0); }
+      if (cols.soldAll < 0 && cols.soldSsn >= 0) { cell.soldAll = (cell.soldSsn ?? 0) + (cell.soldOld ?? 0); cell.rubAll = (cell.rubSsn ?? 0) + (cell.rubOld ?? 0); cell.rubExAll = (cell.rubExSsn ?? 0) + (cell.rubExOld ?? 0); cell.discAll = (cell.discSsn ?? 0) + (cell.discOld ?? 0); cell.eurAll = (cell.eurSsn ?? 0) + (cell.eurOld ?? 0); cell.eurExAll = (cell.eurExSsn ?? 0) + (cell.eurExOld ?? 0); cell.discEurAll = (cell.discEurSsn ?? 0) + (cell.discEurOld ?? 0); cell.scAll = (cell.scSsn ?? 0) + (cell.scOld ?? 0); }
       out[s] = cell;
     }
     return out;

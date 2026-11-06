@@ -7,12 +7,14 @@ import type { SupplyLeaf } from "@/lib/supply-report";
 
 /** Показатели одного сезона по артикулу (всё в штуках и рублях; € — из отчёта заказа/прихода). */
 export type ReportVals = {
-  conf: number; confEur: number; deliv: number; delivEur: number; sold: number; rub: number;
-  /** Цена до скидки × штуки и штуки — для средневзвешенной цены продажи; gross/cost — для маркапа проданного. */
-  priceNum: number; priceDen: number; gross: number; cost: number;
+  conf: number; confEur: number; deliv: number; delivEur: number; sold: number;
+  /** Выручка товара сезона (NS) в четырёх видах: ₽ и € с НДС и без НДС — из отчёта, без пересчёта по курсу. */
+  nsRubIn: number; nsRubEx: number; nsEurIn: number; nsEurEx: number;
+  /** Маркап проданного = (NS EUR + Discount EUR) ÷ SC EUR из отчёта: gross — числитель, cost — знаменатель. */
+  gross: number; cost: number;
   stock: number; sRetail: number; sPriced: number; sRetailBoth: number; sCostBoth: number;
-  /** Продажи товара прошлых сезонов в календаре сезона (шт., ₽ выбранного НДС, цена до скидки × шт., gross/cost для маркапа). */
-  oSold: number; oRub: number; oPriceNum: number; oGross: number; oCost: number;
+  /** Олды — продажи товара прошлых сезонов в календаре сезона: шт. и gross/cost (€) для маркапа. */
+  oSold: number; oGross: number; oCost: number;
   /** Остаток всех сезонов (этот и прошлые): шт., цена по прайсу и себестоимость для средней цены и маркапа. */
   tStock: number; tRetail: number; tPriced: number; tRetailBoth: number; tCostBoth: number;
 };
@@ -21,7 +23,7 @@ export type ReportData = { leaves: ReportLeaf[]; eurRate: number; ex: boolean };
 
 
 type Agg = { models: number } & Omit<ReportVals, never>;
-const zero = (): Agg => ({ models: 0, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, priceNum: 0, priceDen: 0, gross: 0, cost: 0, stock: 0, sRetail: 0, sPriced: 0, sRetailBoth: 0, sCostBoth: 0, oSold: 0, oRub: 0, oPriceNum: 0, oGross: 0, oCost: 0, tStock: 0, tRetail: 0, tPriced: 0, tRetailBoth: 0, tCostBoth: 0 });
+const zero = (): Agg => ({ models: 0, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, nsRubIn: 0, nsRubEx: 0, nsEurIn: 0, nsEurEx: 0, gross: 0, cost: 0, stock: 0, sRetail: 0, sPriced: 0, sRetailBoth: 0, sCostBoth: 0, oSold: 0, oGross: 0, oCost: 0, tStock: 0, tRetail: 0, tPriced: 0, tRetailBoth: 0, tCostBoth: 0 });
 function aggOf(ls: ReportLeaf[], keys: string[]): Agg {
   const a = zero(); const models = new Set<string>();
   for (const l of ls) {
@@ -68,7 +70,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const dlg = useRef<HTMLDialogElement>(null);
   useEffect(() => { const d = dlg.current; if (d && !d.open) d.showModal(); }, []);
   const [tab, setTab] = useState<"sales" | "supply">(tab0);
-  const [cur, setCur] = useState<"EUR" | "RUR">("RUR");
+  const [cur, setCur] = useState<"EUR" | "RUR">("EUR");
   const [depth, setDepth] = useState<1 | 2 | 3>(2);
   const [shut, setShut] = useState<Set<string>>(new Set());
   const keys = KEYS;
@@ -79,12 +81,14 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const tree = useMemo(() => buildTree(leaves, keys), [leaves]); // eslint-disable-line react-hooks/exhaustive-deps
   // Заказ и приход в деньгах — всегда EUR, как в отчёте (рублей в файлах заказа и прихода нет). Продажи и остаток — RUR (тысячами, подпись «000 RUR») или EUR (полными числами).
   const unit = cur === "EUR" ? "EUR" : "000 RUR";
+  // NS (выручка товара сезона) — как в отчёте, без пересчёта по курсу: EUR/RUR и с НДС/без НДС выбираются кнопками.
+  const nsOf = (a: Agg) => (cur === "EUR" ? (vatEx ? a.nsEurEx : a.nsEurIn) : vatEx ? a.nsRubEx : a.nsRubIn);
   const fromRub = (v: number | null) => (v === null ? null : cur === "RUR" ? v : v / rate);
   const money = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? "–" : nf(cur === "RUR" ? v / 1000 : v));
   const eur = (v: number) => (Math.abs(v) < 0.5 ? "–" : nf(v));
   const q = (v: number) => (Math.abs(v) < 0.5 ? "–" : nf(v));
   const x2 = (v: number | null) => (v === null ? "–" : `×${v.toFixed(2).replace(".", ",")}`);
-  const subHeads = ["шт.", "шт.", "EUR", "шт.", "EUR", "шт.", "SO", unit, "Ср. маркап", "С олдами, шт.", "Ср. маркап всех", "шт.", unit, "Ср. маркап", "Всего шт.", unit, "Ср. маркап"];
+  const subHeads = ["шт.", "шт.", "EUR", "шт.", "EUR", "шт.", "SO", `NS ${unit}`, "Ср. маркап", "С олдами, шт.", "Ср. маркап всех", "шт.", unit, "Ср. маркап", "Всего шт.", unit, "Ср. маркап"];
   const groupStarts = [1, 3, 5, 11];
   const grid = { gridTemplateColumns: `minmax(8.5rem,15rem) repeat(${subHeads.length}, minmax(3.6rem,auto))` };
 
@@ -92,7 +96,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
     const so = a.conf > 0 ? `${Math.round((a.sold / a.conf) * 100)} %` : "–";
     const cells = [
       q(a.models), q(a.conf), eur(a.confEur), q(a.deliv), eur(a.delivEur),
-      q(a.sold), so, money(fromRub(a.rub)), x2(a.cost > 0 ? a.gross / a.cost : null), q(a.sold + a.oSold), x2(a.cost + a.oCost > 0 ? (a.gross + a.oGross) / (a.cost + a.oCost) : null),
+      q(a.sold), so, money(nsOf(a)), x2(a.cost > 0 ? a.gross / a.cost : null), q(a.sold + a.oSold), x2(a.cost + a.oCost > 0 ? (a.gross + a.oGross) / (a.cost + a.oCost) : null),
       q(a.stock), money(fromRub(a.sRetail)), x2(a.sCostBoth > 0 ? a.sRetailBoth / a.sCostBoth : null),
       q(a.tStock), money(fromRub(a.tRetail)), x2(a.tCostBoth > 0 ? a.tRetailBoth / a.tCostBoth : null),
     ];
@@ -135,7 +139,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
           <div className="flex gap-2 overflow-x-auto" data-keep-scroll role="group" aria-label="Уровень">
             {([[1, "Кат. 1"], [2, "Мех"], [3, "Кат. 2"]] as const).map(([d, t]) => <button key={d} type="button" aria-pressed={depth === d} onClick={() => { setDepth(d); setShut(new Set()); }} className={chip(depth === d) + " !px-3.5"}>{t}</button>)}
           </div>
-          {tab === "sales" ? <p className="text-xs text-neutral-600" title="Заказ и приход в деньгах — EUR как в отчёте (рублей в файлах заказа и прихода нет); продажи и остаток — RUR тысячами («000 RUR») или EUR по среднему курсу из файла продаж">заказ и приход — EUR · продажи и остаток — {unit}{cur === "EUR" ? ` · курс ${rate ? rate.toFixed(1).replace(".", ",") : "–"} ₽/€` : ""}</p> : null}
+          {tab === "sales" ? <p className="text-xs text-neutral-600" title="Заказ и приход в деньгах — EUR как в отчёте (рублей в файлах заказа и прихода нет); продажи и остаток — RUR тысячами («000 RUR») или EUR по среднему курсу из файла продаж">заказ и приход — EUR · NS — {unit} {vatEx ? "excl VAT" : "incl VAT"} · остаток — {unit}{cur === "EUR" ? ` · курс ${rate ? rate.toFixed(1).replace(".", ",") : "–"} ₽/€` : ""}</p> : null}
         </div>
         {tab === "supply" ? (
           <div className="min-h-0 flex-1 overflow-auto overscroll-contain p-2" data-keep-scroll tabIndex={0} role="region" aria-label="Таблица отчёта по заказу и поставкам">

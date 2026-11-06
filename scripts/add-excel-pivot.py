@@ -32,7 +32,7 @@ n = len(rows)
 
 TXT = [0, 1, 2, 3, 4]  # тип меха, кат. 1, кат. 2, артикул, цвет
 ROWF = [1, 0, 2]  # порядок строк сводной: кат. 1 → мех → кат. 2
-DATAF = [i for i, h in enumerate(heads) if i >= 5 and not str(h).startswith(("Цена до скидки", "Себестоимость"))]
+DATAF = [i for i, h in enumerate(heads) if i >= 5 and not str(h).startswith("MU:")]
 
 def order(col, vals):
     u = sorted(set(vals), key=lambda x: str(x).lower())
