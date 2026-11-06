@@ -165,7 +165,7 @@ function SeasonTable({ seasons, total }: { seasons: CatalogSeason[]; total: Cata
   return (
     <div role="table" aria-label="Показатели по сезонам" className="grid text-sm tabular-nums" style={grid}>
       <div role="row" className="contents">
-        <span role="columnheader" className="py-1 text-[11px] text-neutral-500">тыс. ₽, шт.</span>
+        <span role="columnheader" className="py-1 text-[11px] text-neutral-500">шт.</span>
         {heads.map((h, i) => <span role="columnheader" key={i} style={{ gridColumn: `span ${h.span}` }} className="border-b border-neutral-300 py-1 pl-2 text-right text-xs font-semibold text-neutral-800">{h.label}</span>)}
       </div>
       <div role="row" className="contents">

@@ -279,22 +279,22 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         retailNow: now, markupNow: cost && nowNum ? x2(nowNum / cost) : null,
         facts: [["Цена сейчас", now ?? DASH], ["Себестоимость", cost ? money(cost) : DASH], ["Маркап по цене сейчас", cost && nowNum ? x2(nowNum / cost) : DASH], ["Остаток сейчас", `${n0(n.stock)} шт.`]],
         seasons: seasonsOf.map((s) => {
-          const m = n.m[s], kr = (v: number | null) => (v == null ? DASH : Math.round(v / 1000).toLocaleString("ru-RU")), live = s === "FW26/27";
+          const m = n.m[s], rub1 = (v: number | null) => (v == null ? DASH : Math.round(v).toLocaleString("ru-RU")), kr = (v: number | null) => (v == null ? DASH : Math.round(v / 1000).toLocaleString("ru-RU")), live = s === "FW26/27";
           const common: [string, string][] = [["Заказано, шт.", n0(m.conf)], ["Получено, шт.", n0(m.deliv)], ...(live && m.conf - m.deliv > 0 ? [["В производстве, шт.", n0(m.conf - m.deliv)] as [string, string]] : [])];
           const pairs = [
             { k: "Продано, шт.", ssn: n0(m.ssn), ttl: n0(m.all) },
             { k: "SO, %", ssn: pct(soS(m)), ttl: pct(soA(m)) },
             { k: "Остаток, шт.", ssn: n0(m.stock), ttl: n0(m.stock) },
-            { k: "NS", ssn: kr(m.rubS), ttl: kr(m.rubA) },
-            { k: "Retail Price", ssn: kr(priceS(m)), ttl: kr(priceA(m)) },
+            { k: "NS, тыс. ₽", ssn: kr(m.rubS), ttl: kr(m.rubA) },
+            { k: "Retail Price, ₽", ssn: rub1(priceS(m)), ttl: rub1(priceA(m)) },
             { k: "Маркап", ssn: x2(mkS(m)), ttl: x2(mkA(m)) },
           ];
           return { key: s, label: SEASON_LABEL[s], short: s === "FW26/27" ? "FW26" : s === "SS26" ? "SS26" : "FW25", conf: m.conf, deliv: m.deliv, sold: m.all, stock: m.stock, rubK: m.rubA / 1000, showTtl: !live && pairs.some((p) => p.ssn !== p.ttl), common, pairs };
         }),
         total: (() => {
           if (seasonsOf.length < 2) return null;
-          const t = seasonsOf.reduce((a, s) => plus(a, n.m[s]), zero()), kr = (v: number | null) => (v == null ? DASH : Math.round(v / 1000).toLocaleString("ru-RU"));
-          return { common: [["Заказано, шт.", n0(t.conf)], ["Получено, шт.", n0(t.deliv)]] as [string, string][], pairs: [{ k: "Продано, шт.", v: n0(t.all) }, { k: "SO, %", v: pct(soA(t)) }, { k: "Остаток, шт.", v: n0(t.stock) }, { k: "NS", v: kr(t.rubA) }, { k: "Retail Price", v: kr(priceA(t)) }, { k: "Маркап", v: x2(mkA(t)) }] };
+          const t = seasonsOf.reduce((a, s) => plus(a, n.m[s]), zero()), rub1 = (v: number | null) => (v == null ? DASH : Math.round(v).toLocaleString("ru-RU")), kr = (v: number | null) => (v == null ? DASH : Math.round(v / 1000).toLocaleString("ru-RU"));
+          return { common: [["Заказано, шт.", n0(t.conf)], ["Получено, шт.", n0(t.deliv)]] as [string, string][], pairs: [{ k: "Продано, шт.", v: n0(t.all) }, { k: "SO, %", v: pct(soA(t)) }, { k: "Остаток, шт.", v: n0(t.stock) }, { k: "NS, тыс. ₽", v: kr(t.rubA) }, { k: "Retail Price, ₽", v: rub1(priceA(t)) }, { k: "Маркап", v: x2(mkA(t)) }] };
         })(),
         colors: n.children.map((c) => { const sm = (nd: Node) => { const t = seasonsOf.reduce((a, s) => plus(a, nd.m[s]), zero()); return { conf: t.conf, deliv: t.deliv, sold: t.all, stock: t.stock }; }; return { label: c.label, ...sm(c), sizes: c.children.map((z) => ({ label: z.label, ...sm(z) })).filter((z) => z.conf || z.deliv || z.sold || z.stock) }; }).filter((c) => c.conf || c.deliv || c.sold || c.stock),
       };
