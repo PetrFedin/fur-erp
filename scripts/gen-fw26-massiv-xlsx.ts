@@ -190,6 +190,83 @@ async function main() {
     wb.addWorksheet("Пивот").getCell(1, 1).value = "Сводная таблица Excel по листу «Данные»";
   }
 
+  // ───────── Лист 3: Отчёт (формулы по «Данные»): категория 1 → тип меха → категория 2, упорядочено по деньгам заказа FW26 (€), средневзвешенный MU ─────────
+  const rp = wb.addWorksheet("Отчёт", { views: [{ state: "frozen", xSplit: 1, ySplit: 3 }], properties: { outlineLevelRow: 3 } });
+  rp.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
+  const dl = (i: number) => ws.getColumn(c0 + i).letter;
+  const dr = (i: number) => `Данные!$${dl(i)}$${FIRST}:$${dl(i)}$${LAST}`;
+  const dA = `Данные!$B$${FIRST}:$B$${LAST}`, dF = `Данные!$A$${FIRST}:$A$${LAST}`, dB = `Данные!$C$${FIRST}:$C$${LAST}`;
+  const qs = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  type RC = { head: string; grp: string; idx: number[]; den?: number[]; kind: "sum" | "mu" | "so"; fmt: string };
+  const RG1 = "Заказ FW26", RG2 = "Приход FW26", RG3 = "Продажи и маркап", RG4 = "Остатки";
+  const RFILL: Record<string, string> = { [RG1]: "FFE7F5EC", [RG2]: "FFDDEBFA", [RG3]: "FFFDF1DC", [RG4]: "FFE8EEFC" };
+  const rcs: RC[] = [
+    { grp: RG1, head: "Заказ, €", idx: [1], kind: "sum", fmt: N0 },
+    { grp: RG1, head: "Заказ, шт.", idx: [0], kind: "sum", fmt: N0 },
+    { grp: RG2, head: "Приход, шт.", idx: [3], kind: "sum", fmt: N0 },
+    { grp: RG2, head: "Приход, €", idx: [4], kind: "sum", fmt: N0 },
+    { grp: RG3, head: "Продано FW26, шт.", idx: [6], kind: "sum", fmt: N0 },
+    { grp: RG3, head: "SO FW26, %", idx: [6], den: [0], kind: "so", fmt: "0%;-0%;–" },
+    { grp: RG3, head: "Выручка FW26, ₽ с НДС", idx: [7], kind: "sum", fmt: N0 },
+    { grp: RG3, head: "Ср. MU FW26, ×", idx: [13], den: [14], kind: "mu", fmt: "0.00;-0.00;–" },
+    { grp: RG3, head: "Продано всего с олдами, шт.", idx: [6, 8], kind: "sum", fmt: N0 },
+    { grp: RG3, head: "Выручка с олдами, ₽ с НДС", idx: [7, 9], kind: "sum", fmt: N0 },
+    { grp: RG3, head: "Ср. MU всех продаж, ×", idx: [13, 15], den: [14, 16], kind: "mu", fmt: "0.00;-0.00;–" },
+    { grp: RG4, head: "Остаток FW26, шт.", idx: [10], kind: "sum", fmt: N0 },
+    { grp: RG4, head: "Остаток всего, шт.", idx: [12], kind: "sum", fmt: N0 },
+  ];
+  const sumI = (ix: number[], rows: Leaf[]) => rows.reduce((a, l) => a + ix.reduce((t, k) => t + cols[k].get(l), 0), 0);
+  const resR = (c: RC, rows: Leaf[]) => (c.den ? (sumI(c.den, rows) > 0 ? sumI(c.idx, rows) / sumI(c.den, rows) : 0) : sumI(c.idx, rows));
+  rp.getCell(1, 1).value = "Отчёт FW26: заказ, приход, продажи, средневзвешенный MU и остатки. Категория 1 → тип меха → категория 2, внутри каждого уровня — по убыванию заказа FW26 в €. Формулы по листу «Данные»; кнопки 1–3 слева сворачивают уровни.";
+  rp.getCell(1, 1).font = { bold: true, size: 12 };
+  let rg0 = 0;
+  rcs.forEach((c, i) => {
+    rp.getCell(3, 2 + i).value = c.head;
+    if (i === rcs.length - 1 || rcs[i + 1].grp !== c.grp) {
+      rp.mergeCells(2, 2 + rg0, 2, 2 + i);
+      const g = rp.getCell(2, 2 + rg0); g.value = c.grp; g.font = { bold: true, size: 10 }; g.alignment = { horizontal: "center" };
+      for (let j = rg0; j <= i; j++) rp.getCell(2, 2 + j).fill = { type: "pattern", pattern: "solid", fgColor: { argb: RFILL[c.grp] } };
+      rg0 = i + 1;
+    }
+  });
+  rp.getCell(3, 1).value = "Категория 1 → тип меха → категория 2";
+  for (let c = 1; c <= 1 + rcs.length; c++) {
+    const x = rp.getCell(3, c); x.font = { bold: true, size: 10 }; x.alignment = { wrapText: true, vertical: "middle", horizontal: c === 1 ? "left" : "center" };
+    x.fill = { type: "pattern", pattern: "solid", fgColor: { argb: c === 1 ? "FFEFEFEF" : RFILL[rcs[c - 2].grp] } }; x.border = { bottom: { style: "thin" } };
+  }
+  rp.getRow(3).height = 48; rp.getColumn(1).width = 44; rcs.forEach((_, i) => { rp.getColumn(2 + i).width = 15; });
+  let rrow = 4;
+  const rwrite = (label: string, lvl: 0 | 1 | 2, crit: string, rows: Leaf[]) => {
+    const x = rp.getRow(rrow++);
+    x.getCell(1).value = label; x.getCell(1).alignment = { indent: lvl * 2 };
+    rcs.forEach((c, i) => {
+      const cell = x.getCell(2 + i);
+      const sm = (ix: number[]) => ix.map((k) => `SUMIFS(${dr(k)}${crit})`).join("+");
+      cell.value = { formula: c.den ? `IFERROR((${sm(c.idx)})/(${sm(c.den)}),0)` : sm(c.idx), result: resR(c, rows) } as ExcelJS.CellFormulaValue; cell.numFmt = c.fmt;
+    });
+    x.outlineLevel = lvl;
+    if (lvl === 0) { x.font = { bold: true }; x.eachCell((cell) => { cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F4F9" } }; }); }
+    else if (lvl === 1) x.font = { bold: true, color: { argb: "FF333333" } };
+  };
+  const byMoney = <T,>(items: [string, Leaf[]][]) => items.sort((a, b) => sumI([1], b[1]) - sumI([1], a[1]) || a[0].localeCompare(b[0], "ru"));
+  const grp = (arr: Leaf[], pick: (l: Leaf) => string): [string, Leaf[]][] => { const m = new Map<string, Leaf[]>(); for (const l of arr) (m.get(pick(l)) ?? m.set(pick(l), []).get(pick(l))!).push(l); return [...m]; };
+  for (const [c1, rows1] of byMoney(grp(list, (l) => l.c1))) {
+    rwrite(c1, 0, `,${dA},${qs(c1)}`, rows1);
+    for (const [fur, rows2] of byMoney(grp(rows1, (l) => l.fur))) {
+      rwrite(fur, 1, `,${dA},${qs(c1)},${dF},${qs(fur)}`, rows2);
+      for (const [c2, rows3] of byMoney(grp(rows2, (l) => l.c2))) rwrite(c2, 2, `,${dA},${qs(c1)},${dF},${qs(fur)},${dB},${qs(c2)}`, rows3);
+    }
+  }
+  const rtx = rp.getRow(rrow++);
+  rtx.getCell(1).value = "ИТОГО";
+  rcs.forEach((c, i) => {
+    const cell = rtx.getCell(2 + i);
+    const sm = (ix: number[]) => ix.map((k) => `SUM(${dr(k)})`).join("+");
+    cell.value = { formula: c.den ? `IFERROR((${sm(c.idx)})/(${sm(c.den)}),0)` : sm(c.idx), result: resR(c, list) } as ExcelJS.CellFormulaValue; cell.numFmt = c.fmt;
+  });
+  for (let c = 1; c <= 1 + rcs.length; c++) { rtx.getCell(c).font = { bold: true, color: { argb: "FFFFFFFF" } }; rtx.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B2A5C" } }; }
+  wb.calcProperties.fullCalcOnLoad = true;
+
   const iso = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Moscow" });
   const path = `${dir}/FW26_массив_${iso}.xlsx`;
   writeFileSync(path, Buffer.from(await wb.xlsx.writeBuffer()));
