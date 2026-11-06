@@ -20,7 +20,6 @@ export default async function CatalogPage() {
   const tzAwait = tz.map((r) => ({ fur: r.acode.includes("/") ? r.acode.slice(r.acode.indexOf("/") + 1) : "", cls: r.cls, qty: r.fw26Conf ?? 0, model: r.modelCode ?? "" }));
   return (
     <div className="flex flex-col gap-3 p-3 md:p-4">
-      <h1 className="text-xl font-semibold">Каталог</h1>
       <CatalogClient sizes={data.sizes} photos={data.photos} cat="all" fabricByArt={fabricByArt} prices={input.prices} costs={input.costs} lines={input.lines as never} tzAwait={tzAwait} />
     </div>
   );

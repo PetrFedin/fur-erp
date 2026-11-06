@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CloseX, chip } from "./catalog-ui";
+import { CatalogReport, type ReportData } from "./catalog-report";
 
 /** Каталог «как в магазине»: карточки с фото, под фото — сезоны (заказ · пришло · остаток); тап по подписи открывает детализацию. Данные готовит SeasonReport. */
 export type CatalogPhoto = { id: string; variant: string };
@@ -30,27 +32,44 @@ const n0 = (v: number) => Math.round(v).toLocaleString("ru-RU");
 /** Ячейки без «0»: пусто — тире, чтобы строка читалась быстрее. */
 const cell = (v: number) => (Math.abs(v) < 0.5 ? "–" : n0(v));
 
-const CHIP = "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900";
-const chip = (on: boolean) => CHIP + (on ? " border-neutral-900 bg-neutral-900 text-white" : " border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50");
 
-const COLS = "grid-cols-[2.25rem_repeat(4,minmax(0,1fr))]";
+/** Под названием: Retail Price сейчас; ниже MU (маркап), SO (продано ÷ заказано по сезонам) и тотал NS (выручка по сезонам, тыс. ₽). */
+function CardKpis({ item }: { item: CatalogItem }) {
+  const t = item.seasons.reduce((a, s) => ({ conf: a.conf + s.conf, sold: a.sold + s.sold, rubK: a.rubK + s.rubK }), { conf: 0, sold: 0, rubK: 0 });
+  const so = t.conf > 0 ? `${Math.round((t.sold / t.conf) * 100)} %` : "–";
+  const stat = (cap: string, val: string, title: string) => (
+    <span className="flex min-w-0 flex-col" title={title}><span className="text-[11px] leading-4 text-neutral-500">{cap}</span><b className="truncate text-xs font-semibold">{val}</b></span>
+  );
+  return (
+    <span className="flex flex-col gap-1 tabular-nums">
+      <b className="text-xs">{item.retailNow ?? "–"}</b>
+      <span className="grid grid-cols-[auto_auto_1fr] gap-x-3">
+        {stat("MU", item.markupNow ?? "–", "Маркап по цене сейчас")}
+        {stat("SO", so, "Продано ÷ заказано")}
+        {stat("NS", cell(t.rubK), "Выручка по сезонам, тысяч рублей")}
+      </span>
+    </span>
+  );
+}
+
+const COLS = "grid-cols-[2rem_repeat(4,minmax(0,1fr))]";
 /** Под фото: заголовок и по сезону — строка «сезон · заказ · пришло · продано · остаток» и под ней выручка в тыс. ₽ (kRUR); внизу TTL по всем сезонам. */
 function SeasonLines({ item }: { item: CatalogItem }) {
   const tot = item.seasons.reduce((a, s) => ({ conf: a.conf + s.conf, deliv: a.deliv + s.deliv, sold: a.sold + s.sold, stock: a.stock + s.stock, rubK: a.rubK + s.rubK }), { conf: 0, deliv: 0, sold: 0, stock: 0, rubK: 0 });
-  const H = "text-right text-[11px] leading-4 text-neutral-500";
+  const H = "text-right text-[11px] leading-4 tracking-tighter text-neutral-500";
   const block = (key: string, label: string, v: { conf: number; deliv: number; sold: number; stock: number; rubK: number }, strong = false) => (
     <div key={key} className={"border-t pb-0.5 tabular-nums " + (strong ? "border-neutral-300 font-semibold" : "border-neutral-100")}>
       <div className={`grid ${COLS} items-baseline gap-x-1.5 text-[11px] leading-5`}>
         <span className="truncate text-neutral-700">{label}</span>
         <span className="text-right">{cell(v.conf)}</span><span className="text-right">{cell(v.deliv)}</span><span className="text-right">{cell(v.sold)}</span><span className="text-right font-semibold">{cell(v.stock)}</span>
       </div>
-      <div className="text-right text-[11px] leading-4 text-neutral-600" title="NS — выручка после скидок, тысяч рублей">NS {cell(v.rubK)} kRUR</div>
+      {strong ? null : <div className="text-right text-[11px] leading-4 text-neutral-600" title="NS — выручка после скидок, тысяч рублей">NS {cell(v.rubK)}</div>}
     </div>
   );
   return (
     <div className="mt-auto pt-1" role="group" aria-label="Сезоны: заказано, пришло, продано, остаток; ниже выручка в тысячах рублей">
       <div className={`grid ${COLS} gap-x-1.5`}>
-        <span /><span className={H} title="Заказано, шт.">Зак</span><span className={H} title="Пришло, шт.">Приш</span><span className={H} title="Продано, шт.">Прод</span><span className={H} title="Остаток, шт.">Ост</span>
+        <span /><span className={H} title="Заказано, шт.">Зак</span><span className={H} title="Пришло, шт.">При</span><span className={H} title="Продано, шт.">Про</span><span className={H} title="Остаток, шт.">Ост</span>
       </div>
       {item.seasons.map((s) => block(s.key, s.short, s))}
       {item.seasons.length > 1 ? block("ttl", "TTL", tot, true) : null}
@@ -119,38 +138,43 @@ function Lightbox({ item, start, onClose }: { item: CatalogItem; start: number; 
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-gradient-to-b from-black/70 to-transparent p-2">
         <p className="min-w-0 truncate pl-2 text-sm">{item.title} · {i + 1}/{item.photos.length}</p>
-        <button type="button" onClick={onClose} className="pointer-events-auto inline-flex min-h-11 items-center rounded-full bg-white/15 px-4 text-sm">Закрыть</button>
+        <CloseX onClick={onClose} dark />
       </div>
     </dialog>
   );
 }
 
-/** Одна таблица на все сезоны модели: сезоны — колонки; блоки «Заказ и остаток», «SSN · за сезон» и «TTL · всего» (только если хоть у одного сезона TTL отличается). */
+/** Одна таблица на все сезоны модели: у каждого сезона колонка SSN (за сезон) и рядом TTL (всего) — TTL только если отличается от SSN (у идущего сезона его нет). */
 function SeasonTable({ seasons }: { seasons: CatalogSeason[] }) {
-  const n = seasons.length;
+  const cols = seasons.flatMap((s) => [{ s, kind: "ssn" as const }, ...(s.showTtl ? [{ s, kind: "ttl" as const }] : [])]);
   const commonKeys = [...new Set(seasons.flatMap((s) => s.common.map(([k]) => k)))];
   const pairKeys = [...new Set(seasons.flatMap((s) => s.pairs.map((p) => p.k)))];
-  const anyTtl = seasons.some((s) => s.showTtl);
-  const cols = { gridTemplateColumns: `minmax(0,1fr) repeat(${n}, minmax(3.5rem, auto))` };
-  const val = (v: string | undefined) => v ?? "–";
-  const head = (t: string) => <div role="row" className="contents"><span role="columnheader" className="col-span-full mt-3 border-b border-neutral-300 pb-1 text-xs font-semibold uppercase tracking-wide text-neutral-600">{t}</span></div>;
-  const line = (k: string, vals: (string | undefined)[], key: string) => (
-    <div role="row" key={key} className="contents">
-      <span role="rowheader" className="border-b border-neutral-100 py-1.5 pr-2 text-neutral-600">{k}</span>
-      {vals.map((v, i) => <span role="cell" key={i} className="border-b border-neutral-100 py-1.5 pl-3 text-right">{val(v)}</span>)}
-    </div>
-  );
+  const grid = { gridTemplateColumns: `minmax(0,1fr) repeat(${cols.length}, minmax(2.6rem, auto))` };
+  const common = (k: string, c: (typeof cols)[number]) => (c.kind === "ssn" ? c.s.common.find(([kk]) => kk === k)?.[1] ?? "–" : "");
+  const pair = (k: string, c: (typeof cols)[number]) => { const p = c.s.pairs.find((x) => x.k === k); return p ? (c.kind === "ssn" ? p.ssn : p.ttl) : "–"; };
+  const cellCls = "border-b border-neutral-100 py-1.5 pl-2 text-right text-[13px]";
   return (
-    <div role="table" aria-label="Показатели по сезонам" className="grid text-sm tabular-nums" style={cols}>
+    <div role="table" aria-label="Показатели по сезонам" className="grid text-sm tabular-nums" style={grid}>
       <div role="row" className="contents">
-        <span role="columnheader" className="py-1"><span className="sr-only">Показатель</span></span>
-        {seasons.map((s) => <span role="columnheader" key={s.key} className="py-1 pl-3 text-right text-xs font-semibold text-neutral-800">{s.short}</span>)}
+        <span role="columnheader" className="py-1 text-[11px] text-neutral-500">тыс. ₽, шт.</span>
+        {seasons.map((s) => <span role="columnheader" key={s.key} style={{ gridColumn: `span ${s.showTtl ? 2 : 1}` }} className="border-b border-neutral-300 py-1 pl-2 text-right text-xs font-semibold text-neutral-800">{s.short}</span>)}
       </div>
-      {commonKeys.map((k) => line(k, seasons.map((s) => s.common.find(([kk]) => kk === k)?.[1]), "c" + k))}
-      {head("SSN · за сезон")}
-      {pairKeys.map((k) => line(k, seasons.map((s) => s.pairs.find((p) => p.k === k)?.ssn), "s" + k))}
-      {anyTtl ? head("TTL · всего") : null}
-      {anyTtl ? pairKeys.map((k) => line(k, seasons.map((s) => (s.showTtl ? s.pairs.find((p) => p.k === k)?.ttl : undefined)), "t" + k)) : null}
+      <div role="row" className="contents">
+        <span role="columnheader" />
+        {cols.map((c) => <span role="columnheader" key={c.s.key + c.kind} title={c.kind === "ssn" ? "За сезон" : "Всего"} className="py-0.5 pl-2 text-right text-[11px] font-medium text-neutral-500">{c.kind === "ssn" ? "SSN" : "TTL"}</span>)}
+      </div>
+      {commonKeys.map((k) => (
+        <div role="row" key={"c" + k} className="contents">
+          <span role="rowheader" className="border-b border-neutral-100 py-1.5 pr-2 text-neutral-600">{k}</span>
+          {cols.map((c) => <span role="cell" key={c.s.key + c.kind} className={cellCls}>{common(k, c)}</span>)}
+        </div>
+      ))}
+      {pairKeys.map((k) => (
+        <div role="row" key={"p" + k} className="contents">
+          <span role="rowheader" className="border-b border-neutral-100 py-1.5 pr-2 text-neutral-600">{k}</span>
+          {cols.map((c) => <span role="cell" key={c.s.key + c.kind} className={cellCls}>{pair(k, c)}</span>)}
+        </div>
+      ))}
     </div>
   );
 }
@@ -164,7 +188,7 @@ function Detail({ item, onZoom, onClose }: { item: CatalogItem; onZoom: (i: numb
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between gap-2 border-b border-neutral-200 px-3 py-2">
           <p className="min-w-0 truncate text-sm font-semibold">{item.title}</p>
-          <button type="button" onClick={onClose} className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-neutral-300 px-4 text-sm">Закрыть</button>
+          <CloseX onClick={onClose} />
         </div>
         <div className="flex-1 overflow-y-auto overscroll-contain md:grid md:grid-cols-[22rem_1fr]">
           <div className="md:sticky md:top-0 md:self-start">
@@ -211,7 +235,10 @@ function FiltersDialog({ seasonOptions, picked, onToggleSeason, furs, furPick, o
       <div className="flex max-h-[85dvh] flex-col">
         <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-2">
           <p className="text-base font-semibold">Фильтры</p>
-          <button type="button" onClick={() => { for (const s of seasonOptions) if (!picked.includes(s.key)) onToggleSeason(s.key); onFur("all"); onQ(""); }} className="inline-flex min-h-11 items-center text-sm text-neutral-600 underline">Сбросить</button>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => { for (const s of seasonOptions) if (!picked.includes(s.key)) onToggleSeason(s.key); onFur("all"); onQ(""); }} className="inline-flex min-h-11 items-center text-sm text-neutral-600 underline">Сбросить</button>
+            <CloseX onClick={onClose} />
+          </div>
         </div>
         <div className="flex flex-col gap-4 overflow-y-auto p-4">
           {onVat ? <section aria-label="НДС"><h3 className="mb-2 text-sm font-semibold">НДС</h3>
@@ -238,13 +265,14 @@ function FiltersDialog({ seasonOptions, picked, onToggleSeason, furs, furPick, o
   );
 }
 
-export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, furs, furPick, onFur, q, onQ, vatEx = false, onVat }: {
-  vatEx?: boolean; onVat?: (ex: boolean) => void;
+export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, furs, furPick, onFur, q, onQ, vatEx = false, onVat, report }: {
+  vatEx?: boolean; onVat?: (ex: boolean) => void; report?: ReportData;
   items: CatalogItem[]; seasonOptions: SeasonOption[]; picked: string[]; onToggleSeason: (key: string) => void;
   furs: string[]; furPick: string; onFur: (f: string) => void; q: string; onQ: (v: string) => void;
 }) {
   const [cat, setCat] = useState<"all" | "clothes" | "acc">("all");
   const [filters, setFilters] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const activeFilters = (picked.length < seasonOptions.length ? 1 : 0) + (furPick !== "all" ? 1 : 0) + (q.trim() ? 1 : 0);
   const [open, setOpen] = useState<CatalogItem | null>(null);
   const [zoom, setZoom] = useState<{ item: CatalogItem; i: number } | null>(null);
@@ -254,6 +282,15 @@ export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, fur
   const closeZoom = useCallback(() => setZoom(null), []);
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl font-semibold">Каталог</h1>
+        {report ? (
+          <button type="button" onClick={() => setReportOpen(true)} aria-haspopup="dialog" className={chip(false) + " gap-2"}>
+            <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M4 5h16v14H4zM4 10h16M10 5v14" /></svg>
+            Отчёт
+          </button>
+        ) : null}
+      </div>
       <div className="sticky top-0 z-20 -mx-3 flex items-center gap-2 border-b border-neutral-200 bg-white/95 px-3 py-2 backdrop-blur">
         <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-keep-scroll role="group" aria-label="Категория">
           {([["all", "Все"], ["clothes", "Одежда"], ["acc", "Аксессуары"]] as const).map(([k, t]) => (
@@ -282,7 +319,7 @@ export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, fur
                 <button type="button" onClick={() => setOpen(it)} aria-label={`Подробнее: ${it.title}`} className="flex flex-1 flex-col gap-1 p-2 text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-neutral-900">
                   <span className="truncate text-[11px] text-neutral-500">{it.fur} · {it.category}</span>
                   <span className="line-clamp-2 min-h-10 text-sm font-medium leading-5 [overflow-wrap:anywhere]">{it.title}</span>
-                  <span className="text-xs tabular-nums"><b>{it.retailNow ?? "–"}</b><span className="text-neutral-600"> · {it.markupNow ?? "–"}</span></span>
+                  <CardKpis item={it} />
                   <SeasonLines item={it} />
                 </button>
               </li>
@@ -291,6 +328,7 @@ export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, fur
         </section>
       ))}
 
+      {reportOpen && report ? <CatalogReport data={report} cat={cat} onClose={() => setReportOpen(false)} /> : null}
       {filters ? <FiltersDialog seasonOptions={seasonOptions} picked={picked} onToggleSeason={onToggleSeason} furs={furs} furPick={furPick} onFur={onFur} q={q} onQ={onQ} total={shown.length} onClose={() => setFilters(false)} vatEx={vatEx} onVat={onVat} /> : null}
       {open ? <Detail item={open} onClose={() => setOpen(null)} onZoom={(i) => setZoom({ item: open, i })} /> : null}
       {zoom ? <Lightbox item={zoom.item} start={zoom.i} onClose={closeZoom} /> : null}
