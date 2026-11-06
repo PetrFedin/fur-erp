@@ -9,7 +9,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/prisma";
 import { loadSalesInput } from "@/lib/sales-server";
-import { furRuLabel } from "@/lib/sales-receipts-core";
+import { furRuLabel, furTypeOfFabric } from "@/lib/sales-receipts-core";
 import { leafKeyOf } from "@/lib/fw26-plan";
 
 const S = "FW26/27";
@@ -25,10 +25,12 @@ async function main() {
   const leaves = new Map<string, Leaf>();
   // Приход прошлых сезонов (все, кроме FW26/27) по файлу «поступления и продажи» — как «В выпуске / Заказано 862» в Продажах: артикул+цвет → шт.
   const priorByLeaf = new Map<string, number>();
+  const priorAttr = new Map<string, { fur: string; c1: string; c2: string; article: string; color: string }>();
   for (const l of data.input.lines) {
     if (l.kind !== "RECEIPT" || !l.pcs || l.season === "FW 26/27") continue;
     const kk = leafKeyOf(l.article, l.colorId);
     priorByLeaf.set(kk, (priorByLeaf.get(kk) ?? 0) + l.pcs);
+    if (!priorAttr.has(kk)) priorAttr.set(kk, { fur: furRuLabel(furTypeOfFabric(l.fabric), FUR_RU), c1: (l.level2 || "(без категории)").trim(), c2: (l.level4 || l.level5 || "(без категории)").trim(), article: l.article, color: (l.colorId ?? "").trim() });
   }
   const priorTotal = [...priorByLeaf.values()].reduce((a, x) => a + x, 0);
   const claimed = new Set<string>();
@@ -52,10 +54,12 @@ async function main() {
     leaves.set(k, lf);
   }
   const list = [...leaves.values()].filter((l) => l.conf || l.deliv || l.sold || l.oldSold || l.stockAll || l.prior);
+  // Приход прошлых сезонов по артикулам без строки в отчёте: отдельные строки с типом меха и категориями из самого файла поступлений (чтобы 862 делились на одежду и аксессуары как на экране).
   const priorMatched = list.reduce((a, l) => a + l.prior, 0);
-  if (priorTotal - priorMatched > 0.5) {
-    // Приход прошлых сезонов по артикулам, которых нет среди строк отчёта: отдельная строка, чтобы «Заказ всего» сошёлся с экраном «Продажи».
-    list.push({ fur: "Не указан", c1: "(нет в отчёте)", c2: "(нет в отчёте)", article: "Приход прошлых сезонов без строки отчёта", color: "", conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: priorTotal - priorMatched, gS: 0, cS: 0, gO: 0, cO: 0 });
+  for (const [kk, n] of priorByLeaf) {
+    if (claimed.has(kk) || n <= 0) continue;
+    const at = priorAttr.get(kk)!;
+    list.push({ ...at, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: n, gS: 0, cS: 0, gO: 0, cO: 0 });
   }
   list.sort((a, b) => a.c1.localeCompare(b.c1, "ru") || a.fur.localeCompare(b.fur, "ru") || a.c2.localeCompare(b.c2, "ru") || a.article.localeCompare(b.article) || a.color.localeCompare(b.color));
   const stock26 = (l: Leaf) => Math.max(0, l.deliv - l.sold);
@@ -181,22 +185,10 @@ async function main() {
   for (let c = 1; c <= 1 + pcs.length; c++) { tx.getCell(c).font = { bold: true, color: { argb: "FFFFFFFF" } }; tx.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B2A5C" } }; }
   wb.calcProperties.fullCalcOnLoad = true;
 
-  const info = wb.addWorksheet("Как читать");
-  [
-    "Как читать файл",
-    "• Лист «Пивот» — формулы по «Данные»: категория 1 → тип меха → категория 2 (кнопки 1–3 слева сворачивают уровни). «С олдами» = товар FW26 плюс товар прошлых сезонов.",
-    "• Одна строка = тип меха × категория 1 × категория 2 × артикул × цвет. Фильтры включены, итог внизу считает только видимые строки.",
-    "• «Товар FW26/27» — заказано и пришло по отчёту (шт., €); «в производстве» = заказано − пришло; «продано» — товар FW26, проданный в календаре самого сезона (август 2026 – январь 2027).",
-    "• «Продажи других сезонов в календарном FW26» — товар прошлых сезонов (SS26, FW25 и старше), проданный в календаре FW26.",
-    "• MU — средневзвешенный маркап: цена до скидки ÷ себестоимость изделия из ТЗ (с НДС), только по проданным штукам, у которых есть себестоимость; MU FW26 — по товару FW26, «всего» — товар FW26 плюс олды в календарном FW26. Служебные колонки справа в «Данные» нужны для формул сводной.",
-    "• «Остаток товара FW26» = пришло − продано товара FW26; «остаток всех остальных сезонов» = общий остаток по отчёту − остаток товара FW26; «остаток всего» — их сумма.",
-  ].forEach((t, i) => { const c = info.getCell(i + 1, 1); c.value = t; c.alignment = { wrapText: true, vertical: "top" }; if (i === 0) c.font = { bold: true, size: 13 }; });
-  info.getColumn(1).width = 130;
-
   const iso = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Moscow" });
   const path = `${dir}/FW26_массив_${iso}.xlsx`;
   writeFileSync(path, Buffer.from(await wb.xlsx.writeBuffer()));
   const t = (f: (l: Leaf) => number) => Math.round(list.reduce((a, l) => a + f(l), 0));
-  console.log(path, JSON.stringify({ priorTotal, priorMatched, orderAll: t((l) => l.prior + l.conf), rows: list.length, conf: t((l) => l.conf), deliv: t((l) => l.deliv), sold: t((l) => l.sold), old: t((l) => l.oldSold), st26: t(stock26), stOth: t(stockOth), stAll: t((l) => l.stockAll) }));
+  console.log(path, JSON.stringify({ byCat: Object.fromEntries([...new Set(list.map((l) => l.c1))].map((c) => [c, list.filter((l) => l.c1 === c).reduce((a, l) => a + l.prior + l.conf, 0)])), priorTotal, priorMatched, orderAll: t((l) => l.prior + l.conf), rows: list.length, conf: t((l) => l.conf), deliv: t((l) => l.deliv), sold: t((l) => l.sold), old: t((l) => l.oldSold), st26: t(stock26), stOth: t(stockOth), stAll: t((l) => l.stockAll) }));
 }
 main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
