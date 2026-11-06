@@ -6,7 +6,7 @@ import { furRuLabel } from "@/lib/sales-receipts-core";
 import { baseForecast, FC_MONTHS, leafKeyOf, netMonths, tzPartsByModel, type Overrides } from "@/lib/fw26-plan";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 
-/** Отчёт по заказу и поставкам (как у поставщика MVST): позиция = артикул × цвет; по каждому сезону заказ и приход (шт., €), приход по месяцам, у FW26/27 ещё прогноз поставок на ноябрь/декабрь. */
+/** Отчёт по заказу и поставкам (как в отчёте поставщика): позиция = артикул × цвет; по каждому сезону заказ и приход (шт., €), приход по месяцам, у FW26/27 ещё прогноз поставок на ноябрь/декабрь. */
 export type SupplyVals = { conf: number; confEur: number; deliv: number; delivEur: number };
 export type SupplyLeaf = {
   cls: "clothes" | "acc" | "other"; cat1: string; fur: string; cat2: string;

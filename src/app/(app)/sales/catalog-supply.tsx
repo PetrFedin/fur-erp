@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import type { SupplyLeaf } from "@/lib/supply-report";
 
-/** Отчёт по заказу и поставкам — оформление как в отчёте поставщика (MVST): Total, категория 1, мех, категория 2; Order / Deliv: OPT (позиций), PCS, EUR; затем поставки по месяцам, прогноз — красным курсивом. */
+/** Отчёт по заказу и поставкам — оформление как в отчёте поставщика : Total, категория 1, мех, категория 2; Order / Deliv: OPT (позиций), PCS, EUR; затем поставки по месяцам, прогноз — красным курсивом. */
 type Tot = { opt: number; pcs: number; eur: number };
 type Agg = { order: Tot; deliv: Tot; months: Record<string, number> };
 type Node = { id: string; level: 1 | 2 | 3; label: string; leaves: SupplyLeaf[]; children: Node[] };
