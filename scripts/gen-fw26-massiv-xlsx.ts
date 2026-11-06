@@ -14,7 +14,7 @@ import { furRuLabel } from "@/lib/sales-receipts-core";
 const S = "FW26/27";
 const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Свакара", LYNX: "Рысь" };
 
-type Leaf = { fur: string; c1: string; c2: string; article: string; color: string; conf: number; confEur: number; deliv: number; delivEur: number; sold: number; rub: number; oldSold: number; oldRub: number; stockAll: number };
+type Leaf = { fur: string; c1: string; c2: string; article: string; color: string; conf: number; confEur: number; deliv: number; delivEur: number; sold: number; rub: number; oldSold: number; oldRub: number; stockAll: number; gS: number; cS: number; gO: number; cO: number };
 
 async function main() {
   const dir = process.argv[2] ?? "docs-inventory/reports";
@@ -25,12 +25,16 @@ async function main() {
   for (const r of data.sizes) {
     const fur = furRuLabel(r.fur ?? "Не указан", FUR_RU), c1 = (r.l2 || "(без категории)").trim(), c2 = (r.l4 || r.l5 || "(без категории)").trim(), color = (r.color ?? "").trim();
     const k = [fur, c1, c2, r.acode, color].join("|");
-    const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0 };
+    const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
     lf.stockAll += r.stock ?? 0;
     const c = r.seas?.[S];
     if (c) {
       lf.conf += c.conf ?? 0; lf.confEur += c.confEur ?? 0; lf.deliv += c.deliv ?? 0; lf.delivEur += c.delivEur ?? 0;
       lf.sold += c.soldSsn ?? 0; lf.rub += c.rubSsn ?? 0; lf.oldSold += c.soldOld ?? 0; lf.oldRub += c.rubOld ?? 0;
+      // Для MU: цена до скидки проданного и его себестоимость (как в «Продажи → Сезоны»): только проданные штуки, у которых есть себестоимость.
+      const cost = r.modelCode ? data.input.costs.get(r.modelCode)?.unitIncl ?? 0 : 0, nS = c.soldSsn ?? 0, nO = c.soldOld ?? 0;
+      if (cost > 0 && nS > 0) { lf.gS += (c.rubSsn ?? 0) + (c.discSsn ?? 0); lf.cS += nS * cost; }
+      if (cost > 0 && nO > 0) { lf.gO += (c.rubOld ?? 0) + (c.discOld ?? 0); lf.cO += nO * cost; }
     }
     leaves.set(k, lf);
   }
@@ -41,8 +45,8 @@ async function main() {
 
   const N0 = "#,##0;-#,##0;–";
   const r2 = (v: number) => Math.round(v * 100) / 100;
-  const G1 = "Товар FW26/27", G2 = "Продажи других сезонов в календарном FW26", G3 = "Остатки";
-  const FILL: Record<string, string> = { [G1]: "FFE7F5EC", [G2]: "FFFDF1DC", [G3]: "FFE8EEFC" };
+  const G1 = "Товар FW26/27", G2 = "Продажи других сезонов в календарном FW26", G3 = "Остатки", G4 = "Для MU (служебные)";
+  const FILL: Record<string, string> = { [G1]: "FFE7F5EC", [G2]: "FFFDF1DC", [G3]: "FFE8EEFC", [G4]: "FFEFEFEF" };
   const cols: { g: string; head: string; get: (l: Leaf) => number }[] = [
     { g: G1, head: "Заказано, шт.", get: (l) => l.conf },
     { g: G1, head: "Заказано, €", get: (l) => r2(l.confEur) },
@@ -56,6 +60,10 @@ async function main() {
     { g: G3, head: "Остаток товара FW26, шт.", get: stock26 },
     { g: G3, head: "Остаток всех остальных сезонов, шт.", get: stockOth },
     { g: G3, head: "Остаток всего, шт.", get: (l) => stock26(l) + stockOth(l) },
+    { g: G4, head: "Цена до скидки, FW26 товар, ₽", get: (l) => Math.round(l.gS) },
+    { g: G4, head: "Себестоимость, FW26 товар, ₽", get: (l) => Math.round(l.cS) },
+    { g: G4, head: "Цена до скидки, олды в FW26, ₽", get: (l) => Math.round(l.gO) },
+    { g: G4, head: "Себестоимость, олды в FW26, ₽", get: (l) => Math.round(l.cO) },
   ];
   const labels = ["Тип меха", "Категория 1", "Категория 2", "Артикул", "Цвет"], c0 = labels.length + 1, FIRST = 4, LAST = FIRST + list.length - 1;
 
@@ -100,15 +108,21 @@ async function main() {
   const rng = (i: number) => `Массив!$${colL(i)}$${FIRST}:$${colL(i)}$${LAST}`;
   const A = `Массив!$B$${FIRST}:$B$${LAST}`, F = `Массив!$A$${FIRST}:$A$${LAST}`, B = `Массив!$C$${FIRST}:$C$${LAST}`;
   const q = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const pcs: { head: string; fill: string; idx: number[] }[] = [
+  const pcs: { head: string; fill: string; idx: number[]; den?: number[] }[] = [
     { head: "Заказ FW26, шт.", fill: FILL[G1], idx: [0] },
     { head: "Приход FW26, шт.", fill: FILL[G1], idx: [2] },
     { head: "Продажи FW26, шт.", fill: FILL[G1], idx: [5] },
     { head: "Остаток FW26, шт.", fill: FILL[G3], idx: [9] },
     { head: "Продажи всего в FW26 с олдами, шт.", fill: FILL[G2], idx: [5, 7] },
     { head: "Остаток всего с олдами, шт.", fill: FILL[G3], idx: [11] },
+    { head: "Выручка FW26, ₽ с НДС", fill: FILL[G1], idx: [6] },
+    { head: "Выручка всего в FW26 с олдами, ₽ с НДС", fill: FILL[G2], idx: [6, 8] },
+    { head: "MU FW26 (средневзв.), ×", fill: FILL[G1], idx: [12], den: [13] },
+    { head: "MU всего в FW26 с олдами (средневзв.), ×", fill: FILL[G2], idx: [12, 14], den: [13, 15] },
   ];
-  const resOf = (c: { idx: number[] }, rows: Leaf[]) => rows.reduce((a, l) => a + c.idx.reduce((t, k) => t + cols[k].get(l), 0), 0);
+  const sumIdx = (ix: number[], rows: Leaf[]) => rows.reduce((a, l) => a + ix.reduce((t, k) => t + cols[k].get(l), 0), 0);
+  const resOf = (c: { idx: number[]; den?: number[] }, rows: Leaf[]) => (c.den ? (sumIdx(c.den, rows) > 0 ? sumIdx(c.idx, rows) / sumIdx(c.den, rows) : 0) : sumIdx(c.idx, rows));
+  const fmtOf = (c: { den?: number[] }) => (c.den ? "0.00" : N0);
   pv.getCell(1, 1).value = "Сводная по листу «Массив»: категория 1 → тип меха → категория 2 (формулы). Кнопки 1–3 слева сворачивают уровни. «С олдами» — товар FW26 плюс товар прошлых сезонов.";
   pv.getCell(1, 1).font = { bold: true, size: 12 };
   pv.getCell(2, 1).value = "Категория 1 → тип меха → категория 2";
@@ -124,7 +138,8 @@ async function main() {
     x.getCell(1).value = label; x.getCell(1).alignment = { indent: lvl * 2 };
     pcs.forEach((c, i) => {
       const cell = x.getCell(2 + i);
-      cell.value = { formula: c.idx.map((k) => `SUMIFS(${rng(k)}${crit})`).join("+"), result: resOf(c, rows) } as ExcelJS.CellFormulaValue; cell.numFmt = N0;
+      const sm = (ix: number[]) => ix.map((k) => `SUMIFS(${rng(k)}${crit})`).join("+");
+      cell.value = { formula: c.den ? `IFERROR((${sm(c.idx)})/(${sm(c.den)}),0)` : sm(c.idx), result: resOf(c, rows) } as ExcelJS.CellFormulaValue; cell.numFmt = fmtOf(c);
     });
     x.outlineLevel = lvl;
     if (lvl === 0) { x.font = { bold: true }; x.eachCell((cell) => { cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F4F9" } }; }); }
@@ -141,7 +156,8 @@ async function main() {
   }
   const tx = pv.getRow(prow++);
   tx.getCell(1).value = "ИТОГО";
-  pcs.forEach((c, i) => { const cell = tx.getCell(2 + i); cell.value = { formula: c.idx.map((k) => `SUM(${rng(k)})`).join("+"), result: resOf(c, list) } as ExcelJS.CellFormulaValue; cell.numFmt = N0; });
+  pcs.forEach((c, i) => { const cell = tx.getCell(2 + i); const sm = (ix: number[]) => ix.map((k) => `SUM(${rng(k)})`).join("+");
+    cell.value = { formula: c.den ? `IFERROR((${sm(c.idx)})/(${sm(c.den)}),0)` : sm(c.idx), result: resOf(c, list) } as ExcelJS.CellFormulaValue; cell.numFmt = fmtOf(c); });
   for (let c = 1; c <= 1 + pcs.length; c++) { tx.getCell(c).font = { bold: true, color: { argb: "FFFFFFFF" } }; tx.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B2A5C" } }; }
   wb.calcProperties.fullCalcOnLoad = true;
 
@@ -152,6 +168,7 @@ async function main() {
     "• Одна строка = тип меха × категория 1 × категория 2 × артикул × цвет. Фильтры включены, итог внизу считает только видимые строки.",
     "• «Товар FW26/27» — заказано и пришло по отчёту (шт., €); «в производстве» = заказано − пришло; «продано» — товар FW26, проданный в календаре самого сезона (август 2026 – январь 2027).",
     "• «Продажи других сезонов в календарном FW26» — товар прошлых сезонов (SS26, FW25 и старше), проданный в календаре FW26.",
+    "• MU — средневзвешенный маркап: цена до скидки ÷ себестоимость изделия из ТЗ (с НДС), только по проданным штукам, у которых есть себестоимость; MU FW26 — по товару FW26, «всего» — товар FW26 плюс олды в календарном FW26. Служебные колонки справа в «Массив» нужны для формул сводной.",
     "• «Остаток товара FW26» = пришло − продано товара FW26; «остаток всех остальных сезонов» = общий остаток по отчёту − остаток товара FW26; «остаток всего» — их сумма.",
   ].forEach((t, i) => { const c = info.getCell(i + 1, 1); c.value = t; c.alignment = { wrapText: true, vertical: "top" }; if (i === 0) c.font = { bold: true, size: 13 }; });
   info.getColumn(1).width = 130;
