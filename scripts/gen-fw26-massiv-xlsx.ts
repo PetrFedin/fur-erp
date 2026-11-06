@@ -124,6 +124,8 @@ async function main() {
   cols.forEach((_, i) => { ws.getColumn(c0 + i).width = 15; });
   ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: LAST, column: c0 + cols.length - 1 } };
 
+  // С EXCEL_PIVOT=1 лист «Пивот» не строим формулами: его создаёт настоящая сводная таблица Excel (scripts/add-excel-pivot.applescript).
+  if (!process.env.EXCEL_PIVOT) {
   // ───────── Лист 2: Сводная (формулы по «Данные»): категория 1 → тип меха → категория 2 ─────────
   const pv = wb.addWorksheet("Пивот", { views: [{ state: "frozen", xSplit: 1, ySplit: 2 }], properties: { outlineLevelRow: 3 } });
   pv.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
@@ -184,6 +186,9 @@ async function main() {
     cell.value = { formula: c.den ? `IFERROR((${sm(c.idx)})/(${sm(c.den)}),0)` : sm(c.idx), result: resOf(c, list) } as ExcelJS.CellFormulaValue; cell.numFmt = fmtOf(c); });
   for (let c = 1; c <= 1 + pcs.length; c++) { tx.getCell(c).font = { bold: true, color: { argb: "FFFFFFFF" } }; tx.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B2A5C" } }; }
   wb.calcProperties.fullCalcOnLoad = true;
+  } else {
+    wb.addWorksheet("Пивот").getCell(1, 1).value = "Сводная таблица Excel по листу «Данные»";
+  }
 
   const iso = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Moscow" });
   const path = `${dir}/FW26_массив_${iso}.xlsx`;
