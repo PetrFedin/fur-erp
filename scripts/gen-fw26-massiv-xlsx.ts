@@ -1,5 +1,5 @@
 /**
- * Excel «FW26: массив» (06.11.2026). Лист 1 «Массив» — одна строка = тип меха × кат. 1 × кат. 2 × артикул × цвет:
+ * Excel «FW26: массив» (06.11.2026). Лист 1 «Данные» — одна строка = тип меха × кат. 1 × кат. 2 × артикул × цвет:
  *   • товар FW26/27: заказано и пришло (шт., €), «в производстве» (заказано − пришло), продано в календарном FW26 (шт., ₽ с НДС);
  *   • продажи ДРУГИХ сезонов (товар SS26, FW25 и старше) в календарном FW26 (шт., ₽ с НДС);
  *   • остатки: товара FW26 (пришло − продано) и всех остальных сезонов (общий остаток − остаток FW26), шт.
@@ -87,7 +87,7 @@ async function main() {
   const labels = ["Тип меха", "Категория 1", "Категория 2", "Артикул", "Цвет"], c0 = labels.length + 1, FIRST = 4, LAST = FIRST + list.length - 1;
 
   const wb = new ExcelJS.Workbook(); wb.creator = "МехУчёт";
-  const ws = wb.addWorksheet("Массив", { views: [{ state: "frozen", xSplit: 5, ySplit: 3 }] });
+  const ws = wb.addWorksheet("Данные", { views: [{ state: "frozen", xSplit: 5, ySplit: 3 }] });
   ws.getCell(1, 1).value = `FW26: заказ, приход, продажи и остатки на ${new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" })}`;
   ws.getCell(1, 1).font = { bold: true, size: 13 };
   let gs = 0;
@@ -120,12 +120,12 @@ async function main() {
   cols.forEach((_, i) => { ws.getColumn(c0 + i).width = 15; });
   ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: LAST, column: c0 + cols.length - 1 } };
 
-  // ───────── Лист 2: Сводная (формулы по «Массив»): категория 1 → тип меха → категория 2 ─────────
-  const pv = wb.addWorksheet("Сводная", { views: [{ state: "frozen", xSplit: 1, ySplit: 2 }], properties: { outlineLevelRow: 3 } });
+  // ───────── Лист 2: Сводная (формулы по «Данные»): категория 1 → тип меха → категория 2 ─────────
+  const pv = wb.addWorksheet("Пивот", { views: [{ state: "frozen", xSplit: 1, ySplit: 2 }], properties: { outlineLevelRow: 3 } });
   pv.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
   const colL = (i: number) => ws.getColumn(c0 + i).letter;
-  const rng = (i: number) => `Массив!$${colL(i)}$${FIRST}:$${colL(i)}$${LAST}`;
-  const A = `Массив!$B$${FIRST}:$B$${LAST}`, F = `Массив!$A$${FIRST}:$A$${LAST}`, B = `Массив!$C$${FIRST}:$C$${LAST}`;
+  const rng = (i: number) => `Данные!$${colL(i)}$${FIRST}:$${colL(i)}$${LAST}`;
+  const A = `Данные!$B$${FIRST}:$B$${LAST}`, F = `Данные!$A$${FIRST}:$A$${LAST}`, B = `Данные!$C$${FIRST}:$C$${LAST}`;
   const q = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const pcs: { head: string; fill: string; idx: number[]; den?: number[] }[] = [
     { head: "Заказ FW26, шт.", fill: FILL[G1], idx: [0] },
@@ -143,7 +143,7 @@ async function main() {
   const sumIdx = (ix: number[], rows: Leaf[]) => rows.reduce((a, l) => a + ix.reduce((t, k) => t + cols[k].get(l), 0), 0);
   const resOf = (c: { idx: number[]; den?: number[] }, rows: Leaf[]) => (c.den ? (sumIdx(c.den, rows) > 0 ? sumIdx(c.idx, rows) / sumIdx(c.den, rows) : 0) : sumIdx(c.idx, rows));
   const fmtOf = (c: { den?: number[] }) => (c.den ? "0.00" : N0);
-  pv.getCell(1, 1).value = "Сводная по листу «Массив»: категория 1 → тип меха → категория 2 (формулы). Кнопки 1–3 слева сворачивают уровни. «С олдами» — товар FW26 плюс товар прошлых сезонов.";
+  pv.getCell(1, 1).value = "Сводная по листу «Данные»: категория 1 → тип меха → категория 2 (формулы). Кнопки 1–3 слева сворачивают уровни. «С олдами» — товар FW26 плюс товар прошлых сезонов.";
   pv.getCell(1, 1).font = { bold: true, size: 12 };
   pv.getCell(2, 1).value = "Категория 1 → тип меха → категория 2";
   pcs.forEach((c, i) => { pv.getCell(2, 2 + i).value = c.head; });
@@ -184,11 +184,11 @@ async function main() {
   const info = wb.addWorksheet("Как читать");
   [
     "Как читать файл",
-    "• Лист «Сводная» — формулы по «Массив»: категория 1 → тип меха → категория 2 (кнопки 1–3 слева сворачивают уровни). «С олдами» = товар FW26 плюс товар прошлых сезонов.",
+    "• Лист «Пивот» — формулы по «Данные»: категория 1 → тип меха → категория 2 (кнопки 1–3 слева сворачивают уровни). «С олдами» = товар FW26 плюс товар прошлых сезонов.",
     "• Одна строка = тип меха × категория 1 × категория 2 × артикул × цвет. Фильтры включены, итог внизу считает только видимые строки.",
     "• «Товар FW26/27» — заказано и пришло по отчёту (шт., €); «в производстве» = заказано − пришло; «продано» — товар FW26, проданный в календаре самого сезона (август 2026 – январь 2027).",
     "• «Продажи других сезонов в календарном FW26» — товар прошлых сезонов (SS26, FW25 и старше), проданный в календаре FW26.",
-    "• MU — средневзвешенный маркап: цена до скидки ÷ себестоимость изделия из ТЗ (с НДС), только по проданным штукам, у которых есть себестоимость; MU FW26 — по товару FW26, «всего» — товар FW26 плюс олды в календарном FW26. Служебные колонки справа в «Массив» нужны для формул сводной.",
+    "• MU — средневзвешенный маркап: цена до скидки ÷ себестоимость изделия из ТЗ (с НДС), только по проданным штукам, у которых есть себестоимость; MU FW26 — по товару FW26, «всего» — товар FW26 плюс олды в календарном FW26. Служебные колонки справа в «Данные» нужны для формул сводной.",
     "• «Остаток товара FW26» = пришло − продано товара FW26; «остаток всех остальных сезонов» = общий остаток по отчёту − остаток товара FW26; «остаток всего» — их сумма.",
   ].forEach((t, i) => { const c = info.getCell(i + 1, 1); c.value = t; c.alignment = { wrapText: true, vertical: "top" }; if (i === 0) c.font = { bold: true, size: 13 }; });
   info.getColumn(1).width = 130;

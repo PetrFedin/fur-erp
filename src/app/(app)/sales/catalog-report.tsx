@@ -73,15 +73,14 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const leaves = useMemo(() => data.leaves.filter((l) => cat === "all" || l.cls === cat), [data.leaves, cat]);
   const tree = useMemo(() => buildTree(leaves, keys), [leaves, scope]); // eslint-disable-line react-hooks/exhaustive-deps
   const sym = cur === "EUR" ? "€" : "₽";
-  // Заказ и приход в деньгах — в € по отчёту, продажи и цены — в ₽; нужная валюта получается по курсу файла продаж.
-  const fromEur = (v: number) => (cur === "EUR" ? v : v * rate);
+  // Заказ и приход в деньгах — всегда в € как в отчёте (в файлах заказа и прихода рублей нет); продажи и цены — в ₽ или €, пересчёт по курсу файла продаж.
   const fromRub = (v: number | null) => (v === null ? null : cur === "RUR" ? v : v / rate);
   const k = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? "–" : nf(v / 1000));
   const q = (v: number) => (Math.abs(v) < 0.5 ? "–" : nf(v));
   // Сезоны с прошлыми сезонами (FW26, SS26): продажи и остаток с учётом других сезонов; у FW25 и «Всего» этих столбцов нет.
   const extra = scope === "FW26/27" || scope === "SS26";
   const rubFull = (v: number | null) => { const x = fromRub(v); return x === null || Math.abs(x) < 0.5 ? "–" : `${nf(x)} ${sym}`; };
-  const subHeads = ["шт.", "шт.", `${sym}`, "шт.", `${sym}`, "шт.", "SO", "NS", "Ср. цена", "Ср. маркап", ...(extra ? ["Всего шт. (с др. сезонами)", "Ср. цена полная", "Ср. маркап всех"] : []), "шт.", "Ср. цена", "Ср. маркап", ...(extra ? ["Всего шт.", "Ср. цена", "Ср. маркап"] : [])];
+  const subHeads = ["шт.", "шт.", "€", "шт.", "€", "шт.", "SO", "NS", "Ср. цена", "Ср. маркап", ...(extra ? ["Всего шт. (с др. сезонами)", "Ср. цена полная", "Ср. маркап всех"] : []), "шт.", "Ср. цена", "Ср. маркап", ...(extra ? ["Всего шт.", "Ср. цена", "Ср. маркап"] : [])];
   const nCols = subHeads.length;
   const groupStarts = [1, 3, 5, 10 + (extra ? 3 : 0)];
   const x2 = (v: number | null) => (v === null ? "–" : `×${v.toFixed(2).replace(".", ",")}`);
@@ -89,7 +88,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const row = (label: string, level: 0 | 1 | 2 | 3, a: Agg, node?: Node) => {
     const so = a.conf > 0 ? `${Math.round((a.sold / a.conf) * 100)} %` : "–";
     const cells = [
-      q(a.models), q(a.conf), k(fromEur(a.confEur)), q(a.deliv), k(fromEur(a.delivEur)),
+      q(a.models), q(a.conf), k(a.confEur), q(a.deliv), k(a.delivEur),
       q(a.sold), so, k(fromRub(a.rub)), k(fromRub(a.priceDen > 0 ? a.priceNum / a.priceDen : null)), x2(a.cost > 0 ? a.gross / a.cost : null),
       ...(extra ? [q(a.sold + a.oSold), rubFull(a.priceDen + a.oSold > 0 ? (a.priceNum + a.oPriceNum) / (a.priceDen + a.oSold) : null), x2(a.cost + a.oCost > 0 ? (a.gross + a.oGross) / (a.cost + a.oCost) : null)] : []),
       q(a.stock), k(fromRub(a.sPriced > 0 ? a.sRetail / a.sPriced : null)), x2(a.sCostBoth > 0 ? a.sRetailBoth / a.sCostBoth : null),
@@ -137,7 +136,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
           <div className="flex gap-2 overflow-x-auto" data-keep-scroll role="group" aria-label="Уровень">
             {([[1, "Кат. 1"], [2, "Мех"], [3, "Кат. 2"]] as const).map(([d, t]) => <button key={d} type="button" aria-pressed={depth === d} onClick={() => { setDepth(d); setShut(new Set()); }} className={chip(depth === d) + " !px-3.5"}>{t}</button>)}
           </div>
-          {tab === "sales" ? <p className="text-xs text-neutral-600" title="Заказ и приход в деньгах — в € по отчёту, продажи и цены — в ₽; другая валюта считается по среднему курсу из файла продаж">деньги — тыс. {sym} · курс {rate ? rate.toFixed(1).replace(".", ",") : "–"} ₽/€</p> : null}
+          {tab === "sales" ? <p className="text-xs text-neutral-600" title="Заказ и приход в деньгах — в € как в отчёте (рублей в файлах заказа и прихода нет); продажи и цены — в ₽, в € по среднему курсу из файла продаж">заказ и приход — тыс. € · продажи и цены — тыс. {sym}{cur === "EUR" ? ` · курс ${rate ? rate.toFixed(1).replace(".", ",") : "–"} ₽/€` : ""}</p> : null}
         </div>
         {tab === "supply" ? (
           <div className="min-h-0 flex-1 overflow-auto overscroll-contain p-2" data-keep-scroll tabIndex={0} role="region" aria-label="Таблица отчёта по заказу и поставкам">
@@ -155,7 +154,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
               <div role="columnheader" className={`${th} top-0 border-l border-neutral-300 py-1 text-center`} style={{ gridColumn: `span ${extra ? 6 : 3}` }}>Остаток</div>
             </div>
             <div role="row" className="contents">
-              <div role="columnheader" className={`${th} left-0 top-7 z-20 py-1 text-left font-normal`}>тыс. {sym}, шт.</div>
+              <div role="columnheader" className={`${th} left-0 top-7 z-20 py-1 text-left font-normal`}>тыс., шт.</div>
               {subHeads.map((t, i) => <div role="columnheader" key={i} className={`${th} top-7 py-1 text-right ${groupStarts.includes(i) ? "border-l border-neutral-300" : ""}`}>{t}</div>)}
             </div>
             {flat(tree)}
