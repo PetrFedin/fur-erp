@@ -145,6 +145,17 @@ async function main() {
 
   // 1. Очистка таблиц целиком
   for (const t of WIPE) if (await tableExists(t)) await x(`delete from ${q(t)}`);
+  // Вид меха ТЗ без списаний сырья берётся по тексту описания; описание в демо стирается, поэтому фиксируем вид заранее (иначе «Мех не определён»).
+  {
+    const { furFromText } = await import("../src/lib/product-category");
+    const rows = await prisma.$queryRawUnsafe<{ id: string; d: string | null; c: string | null }[]>(
+      `select o.id, o."materialDescription" d, m.category c from "ProductionOrder" o join "ProductModel" m on m.id = o."productModelId"
+       where (o."furTypeOverride" is null or trim(o."furTypeOverride") = '')
+         and not exists (select 1 from "ProductionMaterialUsage" u join "RawMaterial" r on r.id = u."rawMaterialId" where u."productionOrderId" = o.id and r.unit <> 'M')`);
+    let fixed = 0;
+    for (const r of rows) { const f = furFromText(r.c) ?? furFromText(r.d); if (f) { await x(`update "ProductionOrder" set "furTypeOverride" = $1 where id = $2`, f, r.id); fixed++; } }
+    console.log(`Вид меха зафиксирован у ТЗ без списаний: ${fixed} из ${rows.length}`);
+  }
   await x(`delete from "SystemState" where key like 'owner-decision:%'`);
   // Ключи с названием заказчика (budget-pcs:fw27-mvst) → нейтральные (budget-pcs:fw27): ключи текстовая чистка не трогает, а MVST в демо быть не должно.
   await x(`update "SystemState" set key = regexp_replace(key, '-?mvst', '', 'gi') where key ~* 'mvst'`);
