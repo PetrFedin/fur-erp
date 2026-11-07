@@ -210,13 +210,13 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         { k: "До скидки", v: money(sm.grossRev) },
         { k: "Скидка", v: money(sm.discount), share: sm.grossRev > 0.5 && sm.discount > 0.5 ? sm.discount / sm.grossRev : null, shareFirst: true },
         { k: "Ср. цена, ₽/шт.", v: moneyK(sm.avgPrice) },
-        { k: "Маркап продаж", v: x2(sm.markupSold) },
+        { k: "Наценка продаж", v: x2(sm.markupSold) },
         ...(slice.soAsEnd !== null ? [{ k: "Распродано до конца сезона, %", v: pct(h.soAs, 1) }] : []),
         { k: "Распродано, %", v: pct(h.sellThrough, 1) },
       ];
     }
-    return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, { k: "Маркап остатка", v: x2(m.markupStock) },
-      ...(season === "all" ? [] : [{ k: "Сток тотал", v: qty(h.stockCum) }, { k: "Сток тотал в рознице", v: money(h.stockListCum[v]) }, { k: "Маркап стока тотал", v: x2(h.markupStockCum[v]) }, { k: "Доля сезона", v: h.stockCum > 0 ? pct(h.stock / h.stockCum, 0) : "–" }])];
+    return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, { k: "Наценка остатка", v: x2(m.markupStock) },
+      ...(season === "all" ? [] : [{ k: "Сток тотал", v: qty(h.stockCum) }, { k: "Сток тотал в рознице", v: money(h.stockListCum[v]) }, { k: "Наценка стока тотал", v: x2(h.markupStockCum[v]) }, { k: "Доля сезона", v: h.stockCum > 0 ? pct(h.stock / h.stockCum, 0) : "–" }])];
   };
   const zeroPart = { pcs: 0, rub: { in: 0, ex: 0 } };
   const calOf = (c: SalesCls) => {

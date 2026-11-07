@@ -37,7 +37,7 @@ export const MEASURES: Measure[] = [
   { key: "listPrice", label: "Прайс, ₽/шт.", hint: <p>Цена прайса 19.10.2026, средняя по проданным штукам.</p>, fmt: (m) => money(m.listPrice) },
   { key: "priceToList", label: "К прайсу, %", hint: <p>Выручка с НДС ÷ (штуки × прайс) − 1.</p>, fmt: (m) => spct(m.priceToList) },
   { key: "unitCost", label: "Себестоимость", money: true, hint: <p>Себестоимость единицы из ТЗ (с работой) по проданным единицам, где она есть.</p>, fmt: (m) => money(m.unitCost) },
-  { key: "markupW", label: "Маркап", hint: <p>Средневзвешенный по приходу: Σ(розница × шт.) ÷ Σ(себестоимость с НДС × шт.).</p>, fmt: (m) => x2(m.markupW) },
+  { key: "markupW", label: "Наценка", hint: <p>Средневзвешенный по приходу: Σ(розница × шт.) ÷ Σ(себестоимость с НДС × шт.).</p>, fmt: (m) => x2(m.markupW) },
   { key: "grossProfit", label: "Валовая прибыль", money: true, hint: <p>Выручка − себестоимость проданного по строкам со штуками и себестоимостью.</p>, fmt: (m) => money(m.grossProfit) },
   { key: "grossMarginPct", label: "Маржа, %", hint: <p>Валовая прибыль ÷ выручка тех же строк.</p>, fmt: (m) => pct(m.grossMarginPct === null ? null : m.grossMarginPct / 100, 1) },
   { key: "coverMonths", label: "Покрытие, мес.", totalOnly: true, hint: <p>Остаток ÷ средние продажи в месяц (с первого месяца продаж до последнего месяца данных). Считается только при положительном остатке и продажах.</p>, fmt: (m) => d1(m.coverMonths) },

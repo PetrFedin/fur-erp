@@ -68,7 +68,7 @@ export function MovementView({ card, rows }: { card: Card; rows: MoveRow[] }) {
           {fact("Тип меха", card.fur ?? DASH)}
           {fact("Цена прайса 19.10", card.prices.length === 0 ? DASH : price !== null ? money(price) : `${money(card.prices[0])} – ${money(card.prices[card.prices.length - 1])}`)}
           {fact("Себестоимость (ТЗ)", card.costIncl ? <>{money(card.costIncl)} с НДС{card.costExcl ? <span className="text-neutral-700"> · {money(card.costExcl)} без</span> : null}</> : DASH)}
-          {fact("Маркап", markup === null ? DASH : "×" + markup.toFixed(2).replace(".", ","))}
+          {fact("Наценка", markup === null ? DASH : "×" + markup.toFixed(2).replace(".", ","))}
           {fact("Изделие", card.modelId ? <Link href={`/models/${card.modelId}`} className="inline-flex min-h-11 items-center underline">Карточка изделия {card.modelCode ?? ""}</Link> : DASH)}
           {fact("ТЗ и оплаты", card.tz.length ? <ul className="flex flex-col">{card.tz.map((t) => <li key={t.id} className="flex min-h-11 flex-col justify-center py-0.5"><Link href={`/production/${t.id}`} className="inline-flex min-h-6 items-center self-start underline">ТЗ {t.number}</Link><span className="text-xs text-neutral-700">оплачено {money(t.paid)}</span></li>)}</ul> : DASH)}
         </dl>
