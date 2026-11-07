@@ -17,15 +17,18 @@ const sec = "flex min-w-0 flex-col gap-3 rounded-lg border border-neutral-300 bg
 
 type Common = { ctx: Ctx; env: Env; lines: SLine[]; vatNote: string };
 
-export function SeasonsTab({ ctx, env, lines, vatNote, gran, onGran, ex, opening = 0 }: Common & { gran: Gran; onGran: (g: Gran) => void; ex: boolean; /** Остаток на начало периода (при фильтре периода): без него накопительный остаток «Динамики» стартует с нуля и расходится с плиткой. */ opening?: number }) {
+export function SeasonsTab({ ctx, env, lines, vatNote, gran, onGran, ex, opening = 0, orderedBySeason }: Common & { /** Заказано по отчёту по сезонам (включая не пришедшее FW26); без него — по строкам прихода. */ orderedBySeason?: Record<string, number>; gran: Gran; onGran: (g: Gran) => void; ex: boolean; /** Остаток на начало периода (при фильтре периода): без него накопительный остаток «Динамики» стартует с нуля и расходится с плиткой. */ opening?: number }) {
   const rows = useMemo(() => bucketsOf(ctx, env, lines, "season", opening), [ctx, env, lines, opening]);
   const series = useMemo(() => bucketsOf(ctx, env, lines, gran, opening), [ctx, env, lines, gran, opening]);
   if (!rows.length) return <section className={sec}><p className="text-sm text-neutral-700">Нет данных за выбранный период.</p></section>;
-  const cols: { label: string; get: (m: Ext, stock: number) => number | null; fmt: (v: number | null) => string }[] = [
-    { label: "Приход, шт.", get: (m) => m.received, fmt: (v) => n0(v ?? 0) },
-    { label: "Продано, шт.", get: (m) => m.sold, fmt: (v) => n0(v ?? 0) },
-    { label: "Остаток, шт.", get: (_m, s) => s, fmt: (v) => n0(v ?? 0) },
-    { label: "Распродано, %", get: (m) => m.sellThrough, fmt: (v) => pct(v) },
+  const ordOf = (key: string, m: Ext) => orderedBySeason?.[key] ?? m.ordered;
+  const cols: { label: string; get: (m: Ext, stock: number, key: string) => number | null; fmt: (v: number | null) => string }[] = [
+    { label: "Заказано, шт.", get: (m, _s, k) => ordOf(k, m), fmt: (v) => n0(v ?? 0) },
+    { label: "Получено, шт.", get: (m) => m.received, fmt: (v) => n0(v ?? 0) },
+    { label: "Продано товара сезона, шт.", get: (m) => m.sold, fmt: (v) => n0(v ?? 0) },
+    { label: "Остаток сезона, шт.", get: (m) => m.stock, fmt: (v) => n0(v ?? 0) },
+    { label: "Остаток всего, шт.", get: (_m, s) => s, fmt: (v) => n0(v ?? 0) },
+    { label: "SO STD, %", get: (m, _s, k) => { const o = ordOf(k, m); return o > 0 ? m.sold / o : null; }, fmt: (v) => pct(v) },
     { label: `Выручка, ₽ (${vatNote})`, get: (m) => m.revenue, fmt: (v) => money(v) },
     { label: "Средняя цена, ₽", get: (m) => m.avgPrice, fmt: (v) => money(v) },
     { label: "Скидка при продаже", get: (m) => m.discountGiven, fmt: (v) => pct(v, 1) },
@@ -39,7 +42,7 @@ export function SeasonsTab({ ctx, env, lines, vatNote, gran, onGran, ex, opening
             {rows.map((r) => (
               <tr key={r.key} className="border-b border-neutral-200">
                 <th scope="row" className="px-2 py-1.5 text-left text-sm font-normal whitespace-nowrap">{r.label}</th>
-                {cols.map((c) => <td key={c.label} className={td}>{c.fmt(c.get(r.m, r.stock))}</td>)}
+                {cols.map((c) => <td key={c.label} className={td}>{c.fmt(c.get(r.m, r.stock, r.key))}</td>)}
               </tr>
             ))}
           </tbody>

@@ -8,7 +8,7 @@ import type { DatamartStock } from "@/lib/datamart-stock";
 import { makeCtx, type ReportSizeRow } from "@/lib/margin-tree";
 import { deserializeInput, type MarginInputS } from "@/lib/margin";
 import { CAT_LABEL, articleKey } from "@/lib/sales-receipts-core";
-import { addDays, applyFilters, cat2Of, furOf, bucketsOf, extOf, groupBy, lastMonthOf, NO_FILTERS, openingStock, orderedByReport, sortSeasons, type Cat, type Ext, type Filters, type SLine } from "@/lib/sales-section";
+import { addDays, applyFilters, cat2Of, confByLeaf, furOf, bucketsOf, extOf, groupBy, lastMonthOf, NO_FILTERS, openingStock, orderedByReport, sortSeasons, type Cat, type Ext, type Filters, type SLine } from "@/lib/sales-section";
 import { DEFAULT_UI, TABS, uiQuery, type Tab, type Ui } from "@/lib/sales-url";
 import { DASH, btn, dateRu, money, moneyC, n0, pct, seg, segGroup } from "./sales-fmt";
 import { MiniTable, SalesModal } from "./sales-modal";
@@ -86,7 +86,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
   const ex = ui.vat === "ex";
   const vatNote = ex ? "без НДС" : "с НДС";
   const ctx = useMemo(() => makeCtx(inp, ui.vat), [inp, ui.vat]);
-  const env = useMemo(() => ({ lastMonth: lastMonthOf(all) }), [all]);
+  const env = useMemo(() => ({ lastMonth: lastMonthOf(all), conf: confByLeaf(sizes) }), [all, sizes]);
   const lines = useMemo(() => applyFilters(all, ui.f), [all, ui.f]);
   const opening = useMemo(() => openingStock(all, ui.f), [all, ui.f]);
   const seasons = useMemo(() => sortSeasons(all.map((l) => l.season)), [all]);
@@ -109,19 +109,23 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
   const dmDiff = dmRef === null ? 0 : stockEnd - dmRef;
   const dmDate = dmLast ? dmLast.date.split("-").reverse().join(".") : "";
   
+  // Заказ без фильтров по датам, категории 2, меху и поиску — как в таблице «Сезоны» (включая FW26, что ещё не пришёл); иначе — по строкам набора.
+  const orderFree = !ui.f.from && !ui.f.to && !ui.f.cat2.length && !ui.f.furs.length && !ui.f.q;
+  const orderedHead = orderFree ? orderedByReport(sizes, all, ui.f.cat, ui.f.seasons) : head.ordered;
+  const soStdHead = orderedHead > 0 ? head.sold / orderedHead : null;
   const tiles: TileDef[] = [
     { id: "received", label: "Получено, шт.", value: n0(head.received),
       how: <p>Приход (Delivery): сумма штук строк прихода выгрузки за период. Корректировки прихода с минусом уже вычтены.</p>,
       cols: [{ head: "Получено, шт.", get: (e) => n0(e.received) }, { head: "Первая поставка", get: (e) => dateRu(e.firstReceipt) }] },
-    { id: "sold", label: "Продано, шт.", value: n0(head.sold), sub: `выручка ${moneyC(head.revenue)} · ${vatNote}`,
+    { id: "sold", label: "Продано товара сезона, шт.", value: n0(head.sold), sub: `выручка ${moneyC(head.revenue)} · ${vatNote}`,
       how: <><p>Нетто = валовое {n0(head.gross)} − возвраты {n0(head.returns)}. Деньги — за тот же период ({vatNote}; НДС 20 % до 2026, 22 % с 2026).</p>{head.noPcs > 0 ? <p className="mt-1">{head.noPcs} строк продаж без штук: только скидка, в штуки не входят.</p> : null}</>,
       cols: [{ head: "Нетто, шт.", get: (e) => n0(e.sold) }, { head: "Выручка, ₽", get: (e) => money(e.revenue) }, { head: "Ср. цена, ₽", get: (e) => money(e.avgPrice) }, { head: "Скидка", get: (e) => pct(e.discountGiven, 1) }, { head: "Маржа", get: (e) => (e.grossMarginPct === null ? DASH : pct(e.grossMarginPct / 100, 1)) }] },
     { id: "stock", label: "Остаток, шт.", value: n0(stockEnd), sub: dmRef !== null && isPlain ? `datamart на ${dmDate}: ${n0(dmRef)} · разница ${n0(Math.abs(dmDiff))}` : hasReport && isPlain ? `Отчёт на ${reportDate}: ${n0(reportStock)} · разница ${n0(Math.abs(diff))}` : undefined,
       how: <><p>Расчётный остаток = приход − продано нарастающим итогом на конец периода{opening ? ` (на начало периода: ${n0(opening)} шт.)` : ""}.</p>{dmStock && dmRef !== null && isPlain ? <p className="mt-1">Остаток по витрине datamart (по нашим заказам): {dmStock.snapshots.map((x) => `${x.date.split("-").reverse().join(".")} — ${n0(ui.f.cat === "clothes" ? x.rtw : ui.f.cat === "acc" ? x.acc : x.total)} шт.`).join(", ")}. Расчёт на {dmDate}: {n0(stockEnd)} шт., разница {n0(Math.abs(dmDiff))} шт.</p> : null}{hasReport && isPlain ? <p className="mt-1">В отчёте о товарах (Report) на {reportDate} остаток {n0(reportStock)} шт., расчёт даёт {n0(stockEnd)} шт.: {diff === 0 ? "совпадает" : `разница ${n0(Math.abs(diff))} шт.`}. Причина в выгрузке не видна.</p> : null}</>,
       cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "Остаток", get: (e) => n0(e.stock) }] },
-    { id: "sellThrough", label: "Распродано, %", value: pct(head.sellThrough),
-      how: <p>Распродано = продано ÷ получено, единицы за период. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений. Приход 0 — «—».</p>,
-      cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "Распродано, %", get: (e) => pct(e.sellThrough) }] },
+    { id: "sellThrough", label: "SO STD, %", value: pct(soStdHead),
+      how: <p>SO STD = продано товара сезона ÷ заказано, единицы. Заказано по отчёту: закрытые сезоны — получено, FW 26/27 — заказ отчёта (не меньше полученного). Продажи другого сезона в сезонный товар не входят. При фильтре по датам, категории 2, меху или поиску заказ берётся по тем же строкам прихода.</p>,
+      cols: [{ head: "Заказано", get: (e) => n0(e.ordered) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "SO STD, %", get: (e) => pct(e.soStd) }] },
   ];
   // Цепочка по фактам владельца: заказано (все ТЗ без ремонта) → получено в рознице (приход) → продано → остаток. То, что не получено, считаем «в производстве»
   // (статус по таким изделиям не знаем); получено = отгружено и принято, поэтому отдельной «готовой продукции на складе ателье» в этой цепочке нет.
@@ -233,7 +237,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
             picked={ui.cols} onPicked={(k) => patch({ cols: k })} filtersNote={note} />
         </>
       ) : ui.tab === "seasons" ? (
-        <SeasonsTab ctx={ctx} env={env} lines={lines} vatNote={vatNote} gran={ui.gran} onGran={(g) => patch({ gran: g })} ex={ex} opening={opening} />
+        <SeasonsTab ctx={ctx} env={env} lines={lines} orderedBySeason={orderFree ? Object.fromEntries(sortSeasons(all.map((l) => l.season)).map((x) => [x, orderedByReport(sizes, all, ui.f.cat, [x])])) : undefined} vatNote={vatNote} gran={ui.gran} onGran={(g) => patch({ gran: g })} ex={ex} opening={opening} />
       ) : ui.tab === "stock" ? (
         <StockTab ctx={ctx} env={env} lines={lines} vatNote={vatNote} photos={photos} today={today} />
       ) : ui.tab === "top" ? (

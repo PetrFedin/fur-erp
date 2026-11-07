@@ -22,10 +22,10 @@ type Measure = { key: MKey; label: string; hint: React.ReactNode; money?: boolea
 export const MEASURES: Measure[] = [
   { key: "conf", label: "Заказано, шт.", hint: <p>Подтверждённый заказ по отчёту «заказ и продажи», шт., по меху, категории, артикулу и цвету узла. В столбце сезона — заказ этого сезона (по закрытым сезонам заказано = поступило). Размеры — без заказа.</p>, fmt: () => DASH },
   { key: "received", label: "Получено, шт.", hint: <p>Получено единиц по строкам прихода, корректировки с минусом учтены.</p>, fmt: (m) => n0(m.received) },
-  { key: "sold", label: "Продано, шт.", hint: <p>Проданные единицы нетто, возвраты минус.</p>, fmt: (m) => n0(m.sold) },
+  { key: "sold", label: "Продано товара сезона, шт.", hint: <p>Проданные единицы нетто, возвраты минус. Товар считается по сезону, к которому он относится, а не по дате продажи.</p>, fmt: (m) => n0(m.sold) },
   { key: "returns", label: "Возвраты, шт.", hint: <p>Возвраты: модуль отрицательных штук в строках продаж.</p>, fmt: (m) => n0(m.returns) },
   { key: "stock", label: "Остаток, шт.", hint: <p>Расчётный остаток = получено − продано.</p>, fmt: (m) => n0(m.stock) },
-  { key: "sellThrough", label: "Распродано, %", hint: <p>Продано ÷ получено, единицы. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений.</p>, fmt: (m) => pct(m.sellThrough) },
+  { key: "sellThrough", label: "SO STD, %", hint: <p>Продано товара сезона ÷ заказано, единицы. Заказано по отчёту: закрытые сезоны — получено, FW 26/27 — заказ отчёта (не меньше полученного).</p>, fmt: (m) => pct(m.soStd) },
   { key: "revenue", label: "Выручка", money: true, hint: <p>Розничная выручка после скидки, возвраты минус; с НДС или без — по переключателю.</p>, fmt: (m) => money(m.revenue) },
   { key: "revenueEur", label: "Выручка", money: true, eur: true, hint: <p>Розничная выручка в евро после скидки, возвраты минус; с НДС или без — по переключателю.</p>, fmt: (m) => eur(m.revenueEur) },
   { key: "grossRev", label: "Розница до скидки", money: true, hint: <p>Розница до скидки = Выручка + Скидка.</p>, fmt: (m) => money(m.grossRev) },
@@ -131,8 +131,8 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
   const fabricByArt = useMemo(() => { const m: Record<string, string> = {}; for (const l of lines) if (l.fabric && !m[l.article]) { m[l.article] = l.fabric; m[articleKey(l.article)] = l.fabric; } return m; }, [lines]);
   const rowKey = (r: ReportSizeRow, d: string) => d === "cls" ? r.cls : d === "c2" ? (r.l4 || r.l3 || "Без категории").trim() : d === "fur" ? furKeyOfRow(r, fabricByArt) : d === "article" ? r.acode : d === "color" ? colorOfLine(r.color) : "";
   const seasonKey = (s: string) => ({ "FW25/26": "FW25/26", SS2026: "SS26", "FW26/27": "FW26/27" } as Record<string, string>)[s.replace(/\s+/g, "")] ?? s.replace(/\s+/g, "");
-  const confOf = (n: SNode, gi: number, recv = 0) => {
-    if (!hasConf || n.dim === "size") return DASH;
+  const confNumOf = (n: SNode, gi: number, recv = 0): number => {
+    if (!hasConf || n.dim === "size") return 0;
     const segs = n.id === "total" ? [] : n.id.split(/\/(?=(?:cls|c2|fur|article|color|size):)/).filter(Boolean).map((s) => [s.slice(0, s.indexOf(":")), s.slice(s.indexOf(":") + 1)] as const);
     const rs = confRows.filter((r) => segs.every(([d, k]) => (d === "article" ? articleKey(r.acode) === articleKey(k) : rowKey(r, d) === k)));
     const season = gi > 0 ? seasonKey(groups[gi - 1]?.head ?? "") : null;
@@ -140,17 +140,19 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
     // «Всего» = сумма колонок сезонов (закрытые — по приходу файла, FW26 — заказ отчёта), а не Conf отчёта целиком (876): иначе «Всего» ≠ 292 + 61 + 509.
     if (!season) {
       const tot = groups.reduce((a, g, i) => a + (seasonKey(g.head ?? "") === "FW26/27" ? confOfSeason("FW26/27") : n.cols[i + 1]?.received ?? 0), 0);
-      return tot ? n0(tot) : DASH;
+      return tot;
     }
     const v = season === "FW26/27" ? confOfSeason(season) : 0;
     // Закрытые сезоны (SS26, FW25): заказано = получено по файлу прихода (как в таблице «Сезоны»); FW26 — заказ отчёта.
     const closed = season !== null && season !== "FW26/27";
     const out = closed ? recv : v;
-    return out ? n0(out) : DASH;
+    return out;
   };
+  const confOf = (n: SNode, gi: number, recv = 0) => { if (!hasConf || n.dim === "size") return DASH; const v = confNumOf(n, gi, recv); return v ? n0(v) : DASH; };
   const cell = (ms: Measure, n: SNode, m: Ext, gi: number) => {
     if (ms.totalOnly && gi > 0) return DASH;
     if (ms.key === "conf") return confOf(n, gi, m.received);
+    if (ms.key === "sellThrough" && n.dim !== "size") { const o = confNumOf(n, gi, m.received); return o > 0 && !(m.sold === 0 && m.received === 0 && m.discountSum === 0) ? pct(m.sold / o) : DASH; }
     if (n.dim === "size" && !["received", "sold", "revenue", "avgPrice", "stock", "sellThrough"].includes(ms.key)) return DASH;
     if (m.sold === 0 && m.received === 0 && m.discountSum === 0) return DASH;
     return ms.fmt(m);
@@ -186,6 +188,7 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
     if (!colSort) return 0;
     const m = n.cols[colSort.gi];
     if (colSort.key === "conf") { const t = confOf(n, colSort.gi, m?.received ?? 0).replace(/[\s\u00a0]/g, ""); const v = Number(t); return Number.isFinite(v) ? v : -1; }
+    if (colSort.key === "sellThrough") { const o = n.dim === "size" ? (m?.ordered ?? 0) : confNumOf(n, colSort.gi, m?.received ?? 0); return o > 0 ? (m?.sold ?? 0) / o : -1; }
     const v = (m as unknown as Record<string, unknown> | undefined)?.[colSort.key];
     return typeof v === "number" && Number.isFinite(v) ? v : -1;
   };

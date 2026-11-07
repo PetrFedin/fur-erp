@@ -3,6 +3,7 @@
 // Остаток расчётный: приход − продано нарастающим итогом (корректировки прихода с минусом и возвраты уже в штуках со знаком).
 import { exVatAt, vatPctAt, type FullLine } from "@/lib/margin";
 import { metricsOf, type Ctx, type Metrics, type ReportSizeRow } from "@/lib/margin-tree";
+import { leafKeyOf } from "@/lib/fw26-plan";
 import { articleKey, CAT_LABEL, colorOfLine, furTypeOfFabric, variantOfArticle, type CatClass } from "@/lib/sales-receipts-core";
 
 /** Строка выгрузки с полями для ленты движений: заказ, категории 1/4, источник. */
@@ -57,9 +58,31 @@ export type Ext = Metrics & {
   noPcs: number;
   /** Розница до скидки (Gross) = выручка + Discount в режиме НДС; цена до скидки на штуку. */
   grossRev: number; priceBefore: number | null;
+  /** Заказано по отчёту для этих строк (закрытые сезоны = получено, FW 26/27 = заказ по отчёту, но не меньше получено) и SO STD = продано товара ÷ заказано. */
+  ordered: number; soStd: number | null;
 };
 /** lastMonth — последний месяц данных. */
-export type Env = { lastMonth: string };
+export type Env = { lastMonth: string; /** Заказ по отчёту FW26/27 по артикулу+цвету (leafKeyOf): для SO STD в разделе «Продажи». */ conf?: Map<string, number> };
+
+/** Заказ FW26/27 по артикулу+цвету из отчёта «заказ и продажи». */
+export function confByLeaf(sizes: ReportSizeRow[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of sizes) { const c = r.seas?.["FW26/27"]?.conf ?? 0; if (c > 0) { const k = leafKeyOf(r.acode, r.color); m.set(k, (m.get(k) ?? 0) + c); } }
+  return m;
+}
+/** Заказано для набора строк: закрытые сезоны — получено; FW 26/27 — max(заказ отчёта по артикулу+цвету, получено). */
+function orderedOfLines(lines: SLine[], conf: Map<string, number> | undefined): number {
+  let total = 0;
+  const open = new Map<string, number>();
+  for (const l of lines) {
+    if (l.kind !== "RECEIPT" || !l.pcs) continue;
+    if (l.season === "FW 26/27") { const k = leafKeyOf(l.article, l.colorId); open.set(k, (open.get(k) ?? 0) + l.pcs); }
+    else total += l.pcs;
+  }
+  for (const l of lines) if (l.season === "FW 26/27" && l.kind === "SALE") { const k = leafKeyOf(l.article, l.colorId); if (!open.has(k)) open.set(k, 0); }
+  for (const [k, rec] of open) total += Math.max(conf?.get(k) ?? 0, rec);
+  return total;
+}
 
 const monthIdx = (m: string) => Number(m.slice(0, 4)) * 12 + Number(m.slice(5, 7)) - 1;
 
@@ -81,6 +104,7 @@ export function extOf(ctx: Ctx, lines: SLine[], env: Env): Ext {
   const perMonth = months > 0 && m.sold > 0 ? m.sold / months : 0;
   const rec = lines.filter((l) => l.kind === "RECEIPT" && l.pcs > 0).map((l) => l.iso).sort();
   const lastSale = sales.filter((l) => l.pcs > 0).map((l) => l.iso).sort().pop() ?? null;
+  const ordered = orderedOfLines(lines, env.conf);
   return {
     grossRev: m.revenue + m.discountSum, priceBefore: m.sold > 0 ? (m.revenue + m.discountSum) / m.sold : null,
     ...m, gross, returns, stock,
@@ -90,6 +114,7 @@ export function extOf(ctx: Ctx, lines: SLine[], env: Env): Ext {
     coverMonths: stock > 0 && perMonth > 0 ? stock / perMonth : null,
     firstReceipt: rec[0] ?? null, lastSale,
     noPcs: sales.filter((l) => l.pcs === 0 && l.retailRub === 0).length,
+    ordered, soStd: ordered > 0 ? m.sold / ordered : null,
   };
 }
 
@@ -215,6 +240,9 @@ export function totalSalesNode(ctx: Ctx, env: Env, lines: SLine[], preds: Pred[]
 }
 
 /** Размеры из Report как справочный уровень под цветом: итоги по Report, с датами и сезонами не связаны. */
+/** Заказано по строке отчёта: закрытые сезоны — получено, FW26/27 — заказ. */
+const sizeOrdered = (r: ReportSizeRow): number => Object.entries(r.seas ?? {}).reduce((a, [s, c]) => a + (s === "FW26/27" ? c.conf ?? 0 : c.conf ?? c.deliv ?? 0), 0);
+
 export function sizeNodes(n: SNode, sizes: ReportSizeRow[], cat: Cat, colCount: number, vat: "in" | "ex" = "in"): SNode[] {
   if (n.dim !== "color" || !n.modelCode) return [];
   // Размеры того же АРТИКУЛА и цвета: разные артикулы одной модели (SILVER 4-5 / 6, WILD / FARM) не должны получать чужие размеры.
@@ -224,13 +252,13 @@ export function sizeNodes(n: SNode, sizes: ReportSizeRow[], cat: Cat, colCount: 
     const base = zeroExt();
     // Выручка размера — в режиме НДС таблицы (в Report скидки нет: Gross = выручка).
     const rev = vat === "in" ? r.nsRub : r.nsRubEx;
-    const m: Ext = { ...base, sold: r.sold, gross: r.sold, received: r.deliv, stock: r.stock, revenueEx: r.nsRubEx, revenueIncl: r.nsRub, revenue: rev, grossRev: rev, avgPrice: r.sold > 0 ? rev / r.sold : null, priceBefore: r.sold > 0 ? rev / r.sold : null, sellThrough: r.deliv > 0 ? r.sold / r.deliv : null };
+    const m: Ext = { ...base, sold: r.sold, gross: r.sold, received: r.deliv, stock: r.stock, revenueEx: r.nsRubEx, revenueIncl: r.nsRub, revenue: rev, grossRev: rev, avgPrice: r.sold > 0 ? rev / r.sold : null, priceBefore: r.sold > 0 ? rev / r.sold : null, sellThrough: r.deliv > 0 ? r.sold / r.deliv : null, ordered: sizeOrdered(r), soStd: sizeOrdered(r) > 0 ? r.sold / sizeOrdered(r) : null };
     return { id: `${n.id}/size:${r.size}:${r.acode}`, dim: "size" as const, label: `${r.size}`, modelCode: null, variant: null, article: null, color: null, n: 0, lines: [], cols: [m, ...Array.from({ length: colCount }, () => zeroExt())], children: [] };
   });
 }
 
 export function zeroExt(): Ext {
-  return { sold: 0, received: 0, revenueIncl: 0, revenueEx: 0, revenue: 0, avgPrice: null, discountVsRetail: null, grossProfit: null, grossMarginPct: null, gpOfRetail: null, markupW: null, sellThrough: null, discountGiven: null, salesCost: null, discountSum: 0, revenueEur: 0, discountEurSum: 0, avgPriceEur: null, gross: 0, returns: 0, stock: 0, listPrice: null, priceToList: null, unitCost: null, coverMonths: null, firstReceipt: null, lastSale: null, noPcs: 0, grossRev: 0, priceBefore: null };
+  return { sold: 0, received: 0, revenueIncl: 0, revenueEx: 0, revenue: 0, avgPrice: null, discountVsRetail: null, grossProfit: null, grossMarginPct: null, gpOfRetail: null, markupW: null, sellThrough: null, discountGiven: null, salesCost: null, discountSum: 0, revenueEur: 0, discountEurSum: 0, avgPriceEur: null, gross: 0, returns: 0, stock: 0, listPrice: null, priceToList: null, unitCost: null, coverMonths: null, firstReceipt: null, lastSale: null, noPcs: 0, grossRev: 0, priceBefore: null, ordered: 0, soStd: null };
 }
 
 /** Все узлы дерева подряд (для тестов и CSV): [узел, глубина]. */
@@ -275,16 +303,16 @@ export const vatOf = vatPctAt;
  * открытый FW 26/27 — заказано по отчёту, но не меньше полученного. Та же формула, что на Главной (production-block.tsx) и в таблице сезонов.
  * Категория учитывается; период и прочие фильтры — нет (заказ не привязан к дате прихода).
  */
-export function orderedByReport(sizes: ReportSizeRow[], lines: FullLine[], cat: Cat): number {
+export function orderedByReport(sizes: ReportSizeRow[], lines: FullLine[], cat: Cat, seasons: string[] = []): number {
   const OPEN = "FW 26/27";
   const got = new Map<string, number>();
   for (const l of lines) {
-    if (l.kind !== "RECEIPT" || !l.pcs || (cat !== "all" && l.cls !== cat)) continue;
+    if (l.kind !== "RECEIPT" || !l.pcs || (cat !== "all" && l.cls !== cat) || (seasons.length && !seasons.includes(l.season))) continue;
     got.set(l.season, (got.get(l.season) ?? 0) + l.pcs);
   }
   const conf = sizes.filter((r) => cat === "all" || r.cls === cat).reduce((a, r) => a + (r.seas?.["FW26/27"]?.conf ?? 0), 0);
   let total = 0;
   for (const [season, v] of got) total += season === OPEN ? Math.max(conf, v) : v;
-  if (!got.has(OPEN)) total += conf;
+  if (!got.has(OPEN) && (!seasons.length || seasons.includes(OPEN))) total += conf;
   return total;
 }

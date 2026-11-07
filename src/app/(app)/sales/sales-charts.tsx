@@ -111,7 +111,7 @@ export function SalesCharts({ buckets, gran, onGran, hot, setHot }: { buckets: B
           series={[
             { name: "Получено, шт.", color: NAVY, vals: buckets.map((b) => b.m.received), kind: "bar", axis: "l" },
             { name: "Продано, шт.", color: GET, vals: buckets.map((b) => Math.max(0, b.m.sold)), kind: "bar", axis: "l" },
-            { name: "Остаток, шт.", color: STOCK, vals: buckets.map((b) => b.stock), kind: "line", axis: "r" },
+            { name: "Остаток всего, шт.", color: STOCK, vals: buckets.map((b) => b.stock), kind: "line", axis: "r" },
           ]} />
       )}
     </section>

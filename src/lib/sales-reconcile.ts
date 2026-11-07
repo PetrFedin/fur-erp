@@ -13,16 +13,18 @@ const TO_SALES: Record<string, string> = { "FW25/26": "FW 25/26", SS26: "SS 2026
 const MONEY = ["retailRub", "retailRubExVat", "discountRub", "discountRubExVat", "retailEur", "retailEurExVat", "discountEur", "discountEurExVat"] as const;
 
 type L = { id?: string; kind: string; iso: string; season: string; article: string; colorId: string | null; pcs: number } & Record<(typeof MONEY)[number], number>;
-type R = { acode: string; color: string; seas?: Record<string, { soldSsn?: number }> };
+type R = { acode: string; color: string; seas?: Record<string, { soldSsn?: number; rubSsn?: number }> };
 
 export function reconcileSeasonsWithReport<T extends L>(lines: T[], sizes: R[]): T[] {
   if (!sizes.length) return lines;
   // По отчёту: ключ артикул+цвет → сезон → штуки «своего» товара, проданные в календаре этого сезона.
   const own = new Map<string, Record<string, number>>();
+  const ownRub = new Map<string, Record<string, number>>();
   for (const r of sizes) {
     const k = leafKeyOf(r.acode, r.color);
     const a = own.get(k) ?? {}; own.set(k, a);
-    for (const [s, c] of Object.entries(r.seas ?? {})) a[s] = (a[s] ?? 0) + Math.max(0, c?.soldSsn ?? 0);
+    const b = ownRub.get(k) ?? {}; ownRub.set(k, b);
+    for (const [s, c] of Object.entries(r.seas ?? {})) { a[s] = (a[s] ?? 0) + Math.max(0, c?.soldSsn ?? 0); b[s] = (b[s] ?? 0) + (c?.rubSsn ?? 0); }
   }
   const byKey = new Map<string, T[]>();
   lines.forEach((l) => { if (l.kind !== "SALE" || !(l.pcs > 0)) return; const k = leafKeyOf(l.article, l.colorId); (byKey.get(k) ?? byKey.set(k, []).get(k)!).push(l); });
@@ -35,7 +37,22 @@ export function reconcileSeasonsWithReport<T extends L>(lines: T[], sizes: R[]):
       const have = cal.reduce((a, l) => a + (replace.get(l) ?? [l]).filter((x) => x.season === label).reduce((t, x) => t + x.pcs, 0), 0);
       let need = Math.round((want - have) * 1000) / 1000;
       if (need <= 0.0005) continue;
-      for (const l of [...cal].sort((a, b) => (a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : 0))) {
+      // Какие именно продажи считать товаром сезона: при равных штуках берём ту подборку, чья розница ближе всего к деньгам отчёта (SSN), иначе — самые ранние.
+      const byDate = [...cal].sort((a, b) => (a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : 0));
+      const target = ownRub.get(k)?.[period];
+      const singles = byDate.filter((l) => l.pcs === 1 && !replace.has(l) && l.season !== label);
+      const take = Math.round(need);
+      let order = byDate;
+      if (target !== undefined && have < 0.0005 && Math.abs(need - take) < 0.0005 && take > 0 && singles.length === byDate.length && singles.length > take && singles.length <= 14) {
+        let best: number[] | null = null, bestDiff = Infinity;
+        const pick = (from: number, chosen: number[]) => {
+          if (chosen.length === take) { const diff = Math.abs(chosen.reduce((t, i) => t + singles[i].retailRub, 0) - target); if (diff < bestDiff - 0.5) { bestDiff = diff; best = [...chosen]; } return; }
+          for (let i = from; i < singles.length; i++) { chosen.push(i); pick(i + 1, chosen); chosen.pop(); }
+        };
+        pick(0, []);
+        if (best) { const set = new Set<number>(best); order = [...singles.filter((_, i) => set.has(i)), ...singles.filter((_, i) => !set.has(i))]; }
+      }
+      for (const l of order) {
         if (need <= 0.0005) break;
         const parts = replace.get(l) ?? [l];
         const next: T[] = [];
