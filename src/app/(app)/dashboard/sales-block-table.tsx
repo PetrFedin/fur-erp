@@ -32,7 +32,7 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
       <td className={td}>{moneyK(r.avgPrice[v])}</td>
       <td className={td}>{x2(r.markupSold[v])}</td>
       {soAs ? <td className={td + GB + " !text-center"}>{pct(r.soAs, 1)}</td> : null}
-      <td className={td + (soAs ? "" : GB) + " !text-center"}>{pct(r.sellThrough, 1)}</td>
+      <td className={td + (soAs ? "" : GB) + " !text-center"}>{pct((r.ordered ?? r.received) > 0 ? r.sold / (r.ordered ?? r.received) : null, 1)}</td>
       <td className={td + GB}>{n0(r.stock)}</td>
       <td className={td}>{r.stockList[v] > 0.5 ? money(r.stockList[v]) : DASH}</td>
       <td className={td}>{r.stockList[v] > 0.5 && r.stockListPcs > 0 ? moneyK(r.stockList[v] / r.stockListPcs) : DASH}</td>
@@ -74,7 +74,7 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
             {ordCol ? <TH rowSpan={2} className="px-1" label="Заказано" unit={UNIT.pcs} /> : null}
             <THGroup colSpan={3}>Получено</THGroup>
             <THGroup colSpan={4}>Продажи, {vatNote}</THGroup>
-            {soAs ? <THGroup colSpan={2}>Распродано</THGroup> : <TH rowSpan={2} sep align="center" label="Распродано" unit={UNIT.pct} />}
+            {soAs ? <THGroup colSpan={2}>SO</THGroup> : <TH rowSpan={2} sep align="center" label="SO" unit={UNIT.pct} />}
             <THGroup colSpan={cumCol ? 5 : 4}>{cumCol ? "Сток сезонный" : "Остаток"}</THGroup>
             {cumCol ? <THGroup colSpan={4}>Сток тотал</THGroup> : null}
           </tr>

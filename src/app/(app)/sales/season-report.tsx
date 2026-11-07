@@ -60,7 +60,7 @@ const priceA = (m: M) => (m.allR > 0 ? (m.rubAIn + m.discA) / m.allR : null);
 const mkS = (m: M) => (m.costS > 0 ? m.grossS / m.costS : null);
 const mkA = (m: M) => (m.costA > 0 ? m.grossA / m.costA : null);
 /** Значение столбца для сортировки (пустое → самые маленькие). */
-const numOf = (m: M, key: string): number => ({ arts: m.arts, conf: m.conf, deliv: m.deliv, wait: Math.max(0, m.conf - m.deliv), ssn: m.ssn, soS: soS(m) ?? -1, all: m.all, soA: soA(m) ?? -1, left: m.stock, rubS: m.rubS, rubA: m.rubA, priceS: priceS(m) ?? -1, priceA: priceA(m) ?? -1, mkS: mkS(m) ?? -1, mkA: mkA(m) ?? -1 } as Record<string, number>)[key] ?? 0;
+const numOf = (m: M, key: string): number => ({ arts: m.arts, conf: m.conf, deliv: m.deliv, wait: Math.max(0, m.conf - m.deliv), ssn: m.ssn, soS: soS(m) ?? -1, all: m.all, goods: m.allG, soA: soA(m) ?? -1, left: m.stock, rubS: m.rubS, rubA: m.rubA, priceS: priceS(m) ?? -1, priceA: priceA(m) ?? -1, mkS: mkS(m) ?? -1, mkA: mkA(m) ?? -1 } as Record<string, number>)[key] ?? 0;
 const eur = (v: number) => (Math.abs(v) < 0.5 ? DASH : Math.round(v).toLocaleString("ru-RU") + " €");
 
 type Col = { key: string; label: string; short: string; hint: string; get: (m: M, s: Season) => string; /** Мелкая подпись под значением (проценты). */ sub?: (m: M) => string; strong?: boolean; full?: boolean };
@@ -72,6 +72,7 @@ const COLS: Col[] = [
   { key: "ssn", label: "Продано за сезон, шт.", short: "Прод. за сезон, шт.", hint: "Товара ЭТОГО сезона продано в календаре этого же сезона (FW — август–январь, SS — февраль–июль).", get: (m) => n0(m.ssn), strong: true },
   { key: "soS", label: "SO за сезон, %", short: "SO сезона", hint: "Продано за сезон ÷ заказано: итоговый SO по сезону.", get: (m) => pct(soS(m)) },
   { key: "all", label: "Продано всего, шт.", short: "Прод. всего, шт.", hint: "Весь календарь сезона: товар этого сезона (SSN) + олды, то есть товар прошлых сезонов, проданный в этом календаре.", get: (m) => n0(m.all), strong: true },
+  { key: "goods", label: "Продано товара сезона, шт.", short: "Прод. товара, шт.", hint: "Товар, заказанный на этот сезон, проданный за всё время: в свой календарный сезон (SSN) и позже. Получено − это число = остаток сезона.", get: (m) => n0(m.allG), strong: true },
   { key: "soA", label: "SO сейчас, %", short: "SO сейчас", hint: "Товар этого сезона, проданный за всё время (в свой сезон и позже), ÷ заказано. Олды в календаре сезона в SO не входят.", get: (m) => pct(soA(m)) },
   { key: "left", label: "Остаток сезона, шт.", short: "Остаток сезона, шт.", hint: "Товар, заказанный на этот сезон: поступило − продано за всё время = остаток.", get: (m) => n0(m.stock), strong: true },
   { key: "rubS", label: "Выручка за сезон, ₽", short: "Выручка сезон", hint: "Выручка с продаж товара этого сезона в его календарь: после скидки. С НДС или без — как в шапке.", get: (m) => moneyC(m.rubS), strong: true },
@@ -109,7 +110,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   const seasonsKey = seasons.join(",");
   const full = detail || seasons.length === 1;
   // Кратко: артикулы, заказ, получено, продано, SO, остаток сезона, выручка и маркап выбранной базы; «Все показатели» — все столбцы обеих баз (цена — только там).
-  const compactKeys = ["arts", "conf", "deliv", basis === "season" ? "ssn" : "all", basis === "season" ? "soS" : "soA", "left", basis === "season" ? "rubS" : "rubA", "after", "rubAfter", basis === "season" ? "mkS" : "mkA"];
+  const compactKeys = ["arts", "conf", "deliv", "goods", "soA", "left", ...(basis === "season" ? ["ssn", "soS", "rubS", "after", "rubAfter", "mkS"] : ["all", "after", "rubA", "rubAfter", "mkA"])];
   const cols = TCOLS.filter((c) => (full || compactKeys.includes(c.key)) && (full || !c.full));
 
   const costOf = useMemo(() => new Map(costs), [costs]);
@@ -423,10 +424,10 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   };
   /** Строки итогов: общая часть + показатели выбранной базы (за сезон / всего); «Заказано, €» — только в «Все показатели». */
   const byKey = Object.fromEntries(COLS.map((c) => [c.key, c])) as Record<string, Col>;
-  const BASIS_LABEL: Record<string, string> = { ssn: "Продано, шт.", all: "Продано, шт.", soS: "SO, %", soA: "SO, %", rubS: "Выручка, ₽", rubA: "Выручка, ₽", priceS: "Цена, ₽/шт.", priceA: "Цена, ₽/шт.", mkS: "Маркап", mkA: "Маркап" };
+  const BASIS_LABEL: Record<string, string> = { ssn: "Продано SSN, шт.", all: "Продано в календарном сезоне, шт.", soS: "SO SSN, %", soA: "SO, %", rubS: "Выручка, ₽", rubA: "Выручка, ₽", priceS: "Цена, ₽/шт.", priceA: "Цена, ₽/шт.", mkS: "Маркап", mkA: "Маркап" };
   const bk = (a: string, b: string) => byKey[basis === "season" ? a : b];
   const eurCol: Col = { key: "confEur", label: "Заказано, €", short: "", hint: "Conf EUR отчёта — закупочная стоимость заказа; по SS 2026 и FW 25/26 — поступило в €.", get: (m: M) => eur(m.confEur) };
-  const SUMMARY: Col[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait, bk("ssn", "all"), bk("soS", "soA"), byKey.left, bk("rubS", "rubA"), byKey.after, byKey.rubAfter, bk("priceS", "priceA"), bk("mkS", "mkA")]
+  const SUMMARY: Col[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait, byKey.goods, byKey.soA, byKey.left, ...(basis === "season" ? [byKey.ssn, byKey.soS] : [byKey.all]), bk("rubS", "rubA"), byKey.after, byKey.rubAfter, bk("priceS", "priceA"), bk("mkS", "mkA")]
     .map((c) => (BASIS_LABEL[c.key] ? { ...c, label: BASIS_LABEL[c.key] } : c));
 
   return (

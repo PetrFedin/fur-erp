@@ -211,8 +211,8 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         { k: "Скидка", v: money(sm.discount), share: sm.grossRev > 0.5 && sm.discount > 0.5 ? sm.discount / sm.grossRev : null, shareFirst: true },
         { k: "Ср. цена, ₽/шт.", v: moneyK(sm.avgPrice) },
         { k: "Наценка продаж", v: x2(sm.markupSold) },
-        ...(slice.soAsEnd !== null ? [{ k: "Распродано до конца сезона, %", v: pct(h.soAs, 1) }] : []),
-        { k: "Распродано, %", v: pct(h.sellThrough, 1) },
+        ...(slice.soAsEnd !== null ? [{ k: "SO до конца сезона, %", v: pct(h.soAs, 1) }] : []),
+        { k: "SO, %", v: pct((() => { const o = orderLineOf(c)?.ordered ?? h.received; return o > 0 ? h.sold / o : null; })(), 1) },
       ];
     }
     return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, { k: "Наценка остатка", v: x2(m.markupStock) },
