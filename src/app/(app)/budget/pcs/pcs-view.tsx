@@ -3,6 +3,7 @@
 import { Fragment, useMemo, useRef, useState } from "react";
 import { CAT_LABEL, avgOf, buildPcsView, DEFAULT_PCS_PARAMS, type PcsParams, type MinkSexStock, ST_COLS, ST_FILE_LEN, ST_LEN, stOf, stTop, stYear, sumRoots, type PcsBlock, type PcsNode, type PcsRow } from "@/lib/budget-pcs";
 import { formatDec1, formatInt } from "@/lib/utils";
+import { InfoHint } from "@/components/info-hint";
 import { exportPcsXlsx, savePcsParams, savePcsRows } from "./actions";
 import { computeSupply, pctOr, RES_DEFAULT, supplyKnobs, type SupplyOverrides } from "@/lib/fw27-supply";
 import { Fw27Compare, Fw27Dialog } from "./fw27-panel";
@@ -223,7 +224,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
         ))}
         <button type="button" aria-pressed={rawDetail} onClick={() => setRawDetail((v) => !v)}
           className={"min-h-11 rounded-lg border px-4 text-sm " + (rawDetail ? "border-[var(--ui-accent)] bg-[var(--ui-soft)] font-semibold" : "border-neutral-300 bg-white hover:border-neutral-500")}>Детально</button>
-        <p className="max-w-md text-xs text-neutral-600">Остаток — что останется после того, как сошьём оставшиеся изделия FW26 (на {rawDate.split("-").reverse().join(".")}), с запасом {pp.x} % к их расходу по норме. Невостребованное, % — часть остатка 2026, которая не пойдёт в дело; «останется купленного, %» — запас от закупки: закупить = нужно ÷ (1 − %). Годный остаток делится: «в одежду, %» по виду меха, остальное — в аксессуары; блок берёт только своё, сверх нужного — остаётся на складе. Цена шкуры — средневзвешенная по ТЗ без роста, рост задаётся здесь. Так же считает Excel «Сырьё и бюджет FW27», лист 7.</p>
+        <InfoHint wide label="Как считается остаток">Остаток — что останется после того, как сошьём оставшиеся изделия FW26 (на {rawDate.split("-").reverse().join(".")}), с запасом {pp.x} % к их расходу по норме. Невостребованное, % — часть остатка 2026, которая не пойдёт в дело; «останется купленного, %» — запас от закупки: закупить = нужно ÷ (1 − %). Годный остаток делится: «в одежду, %» по виду меха, остальное — в аксессуары; блок берёт только своё, сверх нужного — остаётся на складе. Цена шкуры — средневзвешенная по ТЗ без роста, рост задаётся здесь. Так же считает Excel «Сырьё и бюджет FW27», лист 7.</InfoHint>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
@@ -287,7 +288,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       </div>
 
       <p className="text-sm font-semibold tabular-nums" data-purchase-total>На закупку сырья: {formatInt(Math.round(supply.total.money))} ₽ <span className="font-normal text-neutral-600">({formatInt(Math.round(supply.total.buy))} шкур, средняя цена {supply.total.buyPriced > 0 ? formatInt(Math.round(supply.total.money / supply.total.buyPriced)) : "–"} ₽ с ростом {pp.u} %, с НДС{supply.total.buy - supply.total.buyPriced > 0.5 ? `; без цены в ТЗ: ${formatInt(Math.round(supply.total.buy - supply.total.buyPriced))} шкур` : ""})</span></p>
-      <p className="text-sm font-semibold tabular-nums" data-remain-total>Останется меха после заказа 2027: {formatInt(Math.round(supply.total.rem26 + supply.total.remBuy))} шкур <span className="font-normal text-neutral-600">(от остатка 2026 — {formatInt(Math.round(supply.total.rem26))}: невостребованное и годное сверх нужного блокам; купленного — {formatInt(Math.round(supply.total.remBuy))})</span></p>
+      <p className="text-sm font-semibold tabular-nums" data-remain-total>Останется меха после заказа 2027: {formatInt(Math.round(supply.total.rem26 + supply.total.remBuy))} шкур <span className="font-normal text-neutral-600">(от остатка 2026 — {formatInt(Math.round(supply.total.rem26))}; купленного — {formatInt(Math.round(supply.total.remBuy))})</span></p>
 
       {supply.sex ? (
         <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white" data-mink-sex>
@@ -310,7 +311,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
               </tr>
             </tbody>
           </table>
-          <p className="px-3 py-2 text-xs text-neutral-600">Short — из самцов, Regular и Long — из самок (так шили по всем прошлым ТЗ); аксессуарам пол не важен, им идут лоты без пола и лишние самцы и самки. Пол лота — признак «Самец» / «Самка»; остаток 2026 делится по полу как склад. По полу нужно купить {cell(supply.sex.buy)} шкур, по блокам выше — {cell((supply.rows.find((x) => x.label === "Норка" && !x.mixed) as { buy?: number } | undefined)?.buy ?? 0)}: закупать большее, самцов и самок — не меньше, чем здесь.</p>
+          <p className="px-3 py-2 text-xs text-neutral-600"><InfoHint wide label="Как делится по полу">Short — из самцов, Regular и Long — из самок (так шили по всем прошлым ТЗ); аксессуарам пол не важен, им идут лоты без пола и лишние самцы и самки. Пол лота — признак «Самец» / «Самка»; остаток 2026 делится по полу как склад. По полу нужно купить {cell(supply.sex.buy)} шкур, по блокам выше — {cell((supply.rows.find((x) => x.label === "Норка" && !x.mixed) as { buy?: number } | undefined)?.buy ?? 0)}: закупать большее, самцов и самок — не меньше, чем здесь.</InfoHint></p>
         </div>
       ) : null}
 
@@ -347,7 +348,7 @@ export function PcsView({ id, name, season, supplier, asOf, rows, params, raw, r
       </div>
       {fw27 ? <Fw27Compare data={fw27} rows={cur} onOpen={(crit, title) => setPhotoSel({ crit, title })} /> : null}
       {fw27 && photoSel ? <Fw27Dialog key={photoSel.title} canEdit={detail && canEdit} cats={[...new Set(cur.filter((r) => r.block === "RTW" && r.fur === photoSel.crit.fur).map((r) => r.cat))]} data={fw27} crit={photoSel.crit} title={photoSel.title} onClose={() => setPhotoSel(null)} /> : null}
-      <p className="text-xs text-neutral-500">AVG — норма шкур на изделие из бюджета 2027 (при правке в «Детально» подменяется вручную). Продажи: NS AS, EUR без НДС; у аксессуаров «Другие бренды» — вся колонка Other из файла. Кнопки «Вместе / Одежда / Аксессуары» и «Скрыть пустые» (строки с нулевым бюджетом; итоги остаются полными) действуют и на Excel.</p>
+      <p className="text-xs text-neutral-500"><InfoHint wide label="Пояснение к таблице">AVG — норма шкур на изделие из бюджета 2027 (при правке в «Детально» подменяется вручную). Продажи: NS AS, EUR без НДС; у аксессуаров «Другие бренды» — вся колонка Other из файла. Кнопки «Вместе / Одежда / Аксессуары» и «Скрыть пустые» (строки с нулевым бюджетом; итоги остаются полными) действуют и на Excel.</InfoHint></p>
     </div>
   );
 }

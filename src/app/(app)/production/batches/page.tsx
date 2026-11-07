@@ -181,6 +181,8 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         c4={c4Mode}
         treeId="orders-tree"
         id="batches"
+        hideProduced
+        hidePerUnit
         title="Партии — итоги"
         headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}
         extra={

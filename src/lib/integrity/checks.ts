@@ -733,7 +733,7 @@ const CHECKS: CheckDef[] = [
   },
   {
     id: "verified-updated-at",
-    title: "Подтверждённая запись не обновлялась после подтверждения (метка updatedAt)",
+    title: "Подтверждённая запись не обновлялась после подтверждения",
     group: "Подтверждение и документы",
     severity: "warn",
     tolerance: "1 минута",
@@ -752,13 +752,13 @@ const CHECKS: CheckDef[] = [
         if (!p.verifiedAt) continue;
         n++;
         const ids = [p.id, ...p.items.map((i) => i.id), ...p.payments.map((x) => x.id), ...(h.lotsByPurchase.get(p.id) ?? []).map((l) => l.id)];
-        if (p.updatedAt.getTime() > p.verifiedAt.getTime() + 60_000 && !later(ids, p.verifiedAt)) v.push({ key: p.id, message: `${h.ref.purchase(p).label} подтверждена ${p.verifiedAt.toISOString().slice(0, 10).split("-").reverse().join(".")}, но запись обновлена позже (updatedAt ${p.updatedAt.toISOString().slice(0, 10)}), а в журнале правок нет`, delta: null, unit: "", entity: h.ref.purchase(p), href: h.href.purchase(p.id) });
+        if (p.updatedAt.getTime() > p.verifiedAt.getTime() + 60_000 && !later(ids, p.verifiedAt)) v.push({ key: p.id, message: `${h.ref.purchase(p).label} подтверждена ${p.verifiedAt.toISOString().slice(0, 10).split("-").reverse().join(".")}, изменена ${p.updatedAt.toISOString().slice(0, 10).split("-").reverse().join(".")} без записи в журнале правок`, delta: null, unit: "", entity: h.ref.purchase(p), href: h.href.purchase(p.id) });
       }
       for (const o of d.orders) {
         if (!o.verifiedAt) continue;
         n++;
         const ids = [o.id, ...(h.usagesByOrder.get(o.id) ?? []).map((u) => u.id), ...o.allocations.map((a) => a.paymentId)];
-        if (o.updatedAt.getTime() > o.verifiedAt.getTime() + 60_000 && !later(ids, o.verifiedAt)) v.push({ key: o.id, message: `${h.ref.order(o).label} подтверждено ${o.verifiedAt.toISOString().slice(0, 10)}, но запись обновлена позже (updatedAt ${o.updatedAt.toISOString().slice(0, 10)}), а в журнале правок нет`, delta: null, unit: "", entity: h.ref.order(o), href: h.href.order(o.id) });
+        if (o.updatedAt.getTime() > o.verifiedAt.getTime() + 60_000 && !later(ids, o.verifiedAt)) v.push({ key: o.id, message: `${h.ref.order(o).label} подтверждено ${o.verifiedAt.toISOString().slice(0, 10).split("-").reverse().join(".")}, изменено ${o.updatedAt.toISOString().slice(0, 10).split("-").reverse().join(".")} без записи в журнале правок`, delta: null, unit: "", entity: h.ref.order(o), href: h.href.order(o.id) });
       }
       return { checked: n, violations: v };
     },

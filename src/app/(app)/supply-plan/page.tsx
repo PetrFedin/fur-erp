@@ -33,9 +33,9 @@ function monthKey(d: Date) {
 
 function EntryReadOnly({ eventDate, notes }: { eventDate: Date | null; notes: string | null }) {
   return (
-    <div className="text-xs text-neutral-600">
+    <div className="flex items-center gap-1 text-xs text-neutral-600">
       {eventDate ? formatDate(eventDate) : ""}
-      {notes ? `${eventDate ? " — " : ""}${notes}` : ""}
+      {notes ? <InfoHint label="Заметка">{notes}</InfoHint> : null}
     </div>
   );
 }

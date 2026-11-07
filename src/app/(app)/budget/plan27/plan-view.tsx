@@ -5,6 +5,7 @@ import type { MinkSexStock, PcsParams, PcsRow } from "@/lib/budget-pcs";
 import { computeSupply, overridesFromParams, type SupplyFurRow } from "@/lib/fw27-supply";
 import { buildPlan, INTAKE_MONTHS, NI, NM, PLAN_MONTHS, planInputFromSupply, planRows, RAW_FURS, TARGET_LOAD_DEFAULT, type PlanState } from "@/lib/fw27-plan";
 import { formatInt } from "@/lib/utils";
+import { InfoHint } from "@/components/info-hint";
 import { savePlanState } from "./actions";
 
 type Data = { pcsId: string; pcsName: string; rows: PcsRow[]; params: PcsParams; raw: { fur: string; stock: number; need: number; total?: number }[]; mix: { RTW: number; Acc: number }; price: Record<string, number>; minkStock: MinkSexStock | null; state: PlanState };
@@ -48,7 +49,6 @@ export function PlanView({ data, canEdit }: { data: Data; canEdit: boolean }) {
 
   const rtwPlan = prows.filter((r) => r.block === "RTW").reduce((a, r) => a + r.pcs, 0), accPlan = prows.filter((r) => r.block === "Acc").reduce((a, r) => a + r.pcs, 0);
   const allOk = RAW_FURS.every((f) => plan.raw[f].ok);
-  const winterRows = RAW_FURS.flatMap((f) => plan.winter[f].map((w) => ({ f, ...w })));
   const shortT = RAW_FURS.map((f) => ({ f, max: Math.max(...plan.shortTarget[f]) })).filter((x) => x.max >= 0.5);
 
   return (
@@ -123,7 +123,7 @@ export function PlanView({ data, canEdit }: { data: Data; canEdit: boolean }) {
             })}
           </tbody>
         </table>
-        <p className="px-3 py-2 text-xs text-neutral-600">По умолчанию — как приходило в 2025–2026 (весенние аукционы — летом) плюс зимняя часть закупки, чтобы шить одежду по целевой загрузке. Свой процент месяца — следующие месяцы этого меха пропорционально уменьшаются, итог 100 %.{winterRows.length ? " Зимой (по умолчанию): " + winterRows.map((w) => `${w.f} ${formatInt(Math.round(w.qty))} шк. к ${INTAKE_MONTHS[w.idx]}`).join(", ") + "." : ""}</p>
+        <p className="px-3 py-2 text-xs text-neutral-600"><InfoHint wide label="Как считается приход">По умолчанию — как приходило в 2025–2026 (весенние аукционы — летом) плюс зимняя часть закупки, чтобы шить одежду по целевой загрузке. Свой процент месяца — следующие месяцы этого меха пропорционально уменьшаются, итог 100 %.</InfoHint></p>
       </section>
 
       {/* 3. Сырьё */}

@@ -36,12 +36,7 @@ export function MetricCell({ col, m, total }: { col: ColKey; m: Metrics; total: 
       return d.furPerSkin ? <Money incl={d.furPerSkin.incl} excl={d.furPerSkin.excl} /> : <Dash />;
     case "hammer":
       return d.hammerPerSkin ? (
-        <div>
-          <Money incl={d.hammerPerSkin.incl} excl={d.hammerPerSkin.excl} />
-          {d.hammerSkinShare != null && d.hammerSkinShare < 0.999 && (
-            <div className="text-[11px] leading-tight text-neutral-500">по {pct0(d.hammerSkinShare)} шкур</div>
-          )}
-        </div>
+        <Money incl={d.hammerPerSkin.incl} excl={d.hammerPerSkin.excl} />
       ) : m.skins > 0 ? (
         <span className="text-[11px] text-neutral-500">нет данных</span>
       ) : (
@@ -60,19 +55,13 @@ export function MetricCell({ col, m, total }: { col: ColKey; m: Metrics; total: 
       return d.workPerUnit == null ? <Dash /> : formatMoney(d.workPerUnit.toFixed(2));
     case "costUnit":
       return d.costPerUnit ? (
-        <div>
-          <Money incl={d.costPerUnit.incl} excl={d.costPerUnit.excl} />
-          <Range lo={m.minCostIncl} hi={m.maxCostIncl} lo2={m.minCostExcl} hi2={m.maxCostExcl} />
-        </div>
+        <Money incl={d.costPerUnit.incl} excl={d.costPerUnit.excl} />
       ) : (
         <Dash />
       );
     case "fullUnit":
       return d.fullPerUnit ? (
-        <div>
-          <Money incl={d.fullPerUnit.incl} excl={d.fullPerUnit.excl} />
-          <Range lo={m.minFullIncl} hi={m.maxFullIncl} lo2={m.minFullExcl} hi2={m.maxFullExcl} />
-        </div>
+        <Money incl={d.fullPerUnit.incl} excl={d.fullPerUnit.excl} />
       ) : (
         <Dash />
       );
@@ -89,15 +78,6 @@ export function MetricCell({ col, m, total }: { col: ColKey; m: Metrics; total: 
         </div>
       );
   }
-}
-
-function Range({ lo, hi, lo2, hi2 }: { lo: number | null; hi: number | null; lo2: number | null; hi2: number | null }) {
-  if (lo == null || hi == null || Math.abs(hi - lo) < 0.005) return null;
-  return (
-    <div className="text-[11px] leading-tight text-neutral-500">
-      от <Money incl={lo} excl={lo2} /> до <Money incl={hi} excl={hi2} />
-    </div>
-  );
 }
 
 /** Заголовок колонки: клик — сортировка (повторный — в обратную сторону), рядом InfoHint с формулой. */
@@ -183,7 +163,6 @@ export function ViewBar({
           <button type="submit" className="mt-2 h-8 rounded-md bg-neutral-900 px-3 text-xs font-medium text-white hover:bg-neutral-700">
             Применить
           </button>
-          <span className="text-[11px] text-neutral-500">Выбор сохраняется в адресе страницы — ссылкой можно поделиться.</span>
         </form>
       </details>
     </div>

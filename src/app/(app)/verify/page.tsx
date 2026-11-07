@@ -181,7 +181,6 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
             ))}
           </ul>
           {dups.length > 20 && <p className="mt-1 text-xs text-neutral-500">Показаны первые 20 из {dups.length}.</p>}
-          <p className="mt-2 text-xs text-neutral-500">Это подсказка: ничего не удаляется и не объединяется само, суммы и долг не меняются.</p>
         </details>
       )}
 

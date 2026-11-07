@@ -53,11 +53,9 @@ export default async function InboxPage({ searchParams }: PageProps<"/inbox">) {
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Входящие" }]} />
       <ControlTabs active="inbox" />
-      <h1 className="text-xl font-semibold">Входящие</h1>
-      <p className="flex items-center gap-1.5 text-sm text-neutral-600">
-        Присланное подрядчиком — в учёт после проверки.
+      <h1 className="flex items-center gap-1.5 text-xl font-semibold">Входящие
         <InfoHint label="Как проверять">Расчёты аукционов и ТЗ попадают в учёт только после вашей проверки: «Принять» создаёт закупку-черновик или ТЗ, «Отклонить» возвращает подрядчику с комментарием.</InfoHint>
-      </p>
+      </h1>
       <div className="flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => (
           <Link

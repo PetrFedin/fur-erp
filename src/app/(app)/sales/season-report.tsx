@@ -71,7 +71,7 @@ const COLS: Col[] = [
   { key: "wait", label: "Ждём, шт.", short: "Ждём, шт.", hint: "Заказано − поступило (только FW26).", get: (m, s) => (s === "FW26/27" ? n0(Math.max(0, m.conf - m.deliv)) : DASH), full: true },
   { key: "ssn", label: "Продано за сезон, шт.", short: "Прод. за сезон, шт.", hint: "Товара ЭТОГО сезона продано в календаре этого же сезона (FW — август–январь, SS — февраль–июль).", get: (m) => n0(m.ssn), strong: true },
   { key: "soS", label: "SO за сезон, %", short: "SO сезона", hint: "Продано за сезон ÷ заказано: итоговый SO по сезону.", get: (m) => pct(soS(m)) },
-  { key: "all", label: "Продано всего, шт.", short: "Прод. всего, шт.", hint: "Весь календарь сезона: товар этого сезона (SSN) + олды, то есть товар прошлых сезонов, проданный в этом календаре. По отчёту: FW25 — 94, SS26 — 13 + 41 = 54, FW26 — 60 + 51 = 111, вместе 259.", get: (m) => n0(m.all), strong: true },
+  { key: "all", label: "Продано всего, шт.", short: "Прод. всего, шт.", hint: "Весь календарь сезона: товар этого сезона (SSN) + олды, то есть товар прошлых сезонов, проданный в этом календаре.", get: (m) => n0(m.all), strong: true },
   { key: "soA", label: "SO сейчас, %", short: "SO сейчас", hint: "Товар этого сезона, проданный за всё время (в свой сезон и позже), ÷ заказано. Олды в календаре сезона в SO не входят.", get: (m) => pct(soA(m)) },
   { key: "left", label: "Остаток сезона, шт.", short: "Остаток сезона, шт.", hint: "Товар, заказанный на этот сезон: поступило − продано за всё время = остаток.", get: (m) => n0(m.stock), strong: true },
   { key: "rubS", label: "Выручка за сезон, ₽", short: "Выручка сезон", hint: "Выручка с продаж товара этого сезона в его календарь: после скидки. С НДС или без — как в шапке.", get: (m) => moneyC(m.rubS), strong: true },
@@ -507,7 +507,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-neutral-50">
                 <tr>
-                  <th rowSpan={2} className="sticky left-0 z-20 bg-neutral-50 px-2 py-2 text-left text-xs font-semibold"><button type="button" onClick={() => clickSort("label", "label")} aria-label="Сортировать по названию" className="inline-flex min-h-11 items-center gap-0.5 text-left hover:underline">{LEVELS.map((l) => LEVEL_LABEL[l]).join(" → ")}<span aria-hidden className="inline-block w-3 text-[11px] text-[color:var(--ui-accent)]">{colSort?.s === "label" ? (colSort.dir === "asc" ? "▲" : "▼") : ""}</span></button></th>
+                  <th rowSpan={2} className="sticky left-0 z-20 bg-neutral-50 px-2 py-2 text-left text-xs font-semibold"><button type="button" onClick={() => clickSort("label", "label")} aria-label="Сортировать по названию" className="inline-flex min-h-11 items-center gap-0.5 text-left hover:underline">Позиция<span aria-hidden className="inline-block w-3 text-[11px] text-[color:var(--ui-accent)]">{colSort?.s === "label" ? (colSort.dir === "asc" ? "▲" : "▼") : ""}</span></button></th>
                   {seasons.map((s) => <th key={s} colSpan={cols.length} className={`border-l border-neutral-300 px-2 py-1 text-center text-xs font-semibold ${SEASON_BG[s]}`}>{SEASON_LABEL[s]}</th>)}
                   <th rowSpan={2} className="border-l border-neutral-300 px-2 py-1 text-right text-[11px] font-semibold"><button type="button" onClick={() => clickSort("stock", "stock")} aria-label="Сортировать по остатку сейчас" title="Остаток по отчёту «заказ и продажи» на дату загрузки. В «Итогах» остаток считается как получено − продано по файлу поступлений: разница в несколько штук — возвраты и корректировки." className="inline-flex min-h-11 items-center gap-0.5 hover:underline">Остаток сейчас, шт.<span aria-hidden className="inline-block w-2.5 text-[10px] text-[color:var(--ui-accent)]">{colSort?.s === "stock" ? (colSort.dir === "asc" ? "▲" : "▼") : ""}</span></button></th>
                 </tr>
@@ -531,14 +531,13 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
                 {seasons.length > 1 ? (() => { const sum = { ...seasons.reduce((a, s) => plus(a, total[s]), zero()), arts: artsDistinct(filtered) }; return sumRow("all", sum, total["FW26/27"], "", true, total); })() : null}
               </tbody>
             </table>
-            <p className="px-2 pb-1.5 text-xs text-neutral-700">Остаток сейчас: <b className="tabular-nums">{n0(stockAll)}</b> шт.</p>
           </div>
           {picked ? (
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-xs text-neutral-700">Карточки: <b>{picked.label}</b> · {shownArticles.length} арт.</span>
               <button type="button" onClick={() => setPickNode(null)} className={btn}>Показать все</button>
             </div>
-          ) : <p className="text-xs text-neutral-700">Нажмите на сезон, мех или категорию в таблице — ниже останутся карточки выбранного.</p>}
+          ) : null}
           {(["clothes", "acc", "other"] as const).map((cl) => {
             const list = shownArticles.filter((n) => (n.rows[0]?.cls ?? "other") === cl);
             if (!list.length) return null;
@@ -568,7 +567,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
                     <table className={"w-full text-sm " + (detail ? "min-w-[900px]" : "min-w-[780px]")}>
                       <thead><tr className="text-neutral-700"><th className="py-1 text-left font-normal">Сезон</th>{cols.filter((c) => c.key !== "arts").map((c) => <th key={c.key} title={c.hint} className="px-1 text-right font-normal whitespace-nowrap">{c.short}</th>)}</tr></thead>
                       <tbody>
-                        {seasons.map((s) => <tr key={s} className={`border-t border-neutral-200 tabular-nums ${SEASON_BG[s]}`}><td className="whitespace-nowrap py-1.5 pl-1 pr-2">{SEASON_LABEL[s]}</td>{cols.filter((c) => c.key !== "arts").map((c) => <td key={c.key} className={"px-1 text-right whitespace-nowrap " + (c.strong ? "font-semibold" : "")}>{c.get(n.m[s], s)}</td>)}</tr>)}
+                        {seasons.filter((s) => n.m[s].conf || n.m[s].deliv || n.m[s].all || n.m[s].allG || n.m[s].stock).map((s) => <tr key={s} className={`border-t border-neutral-200 tabular-nums ${SEASON_BG[s]}`}><td className="whitespace-nowrap py-1.5 pl-1 pr-2">{SEASON_LABEL[s]}</td>{cols.filter((c) => c.key !== "arts").map((c) => <td key={c.key} className={"px-1 text-right whitespace-nowrap " + (c.strong ? "font-semibold" : "")}>{c.get(n.m[s], s)}</td>)}</tr>)}
                         {seasons.length > 1 ? <tr className="border-t-2 border-neutral-400 font-semibold tabular-nums"><td className="py-1.5 pl-1">Итого</td>{cols.filter((c) => c.key !== "arts").map((c) => <td key={c.key} className="px-1 text-right whitespace-nowrap">{c.key === "wait" ? (seasons.includes("FW26/27") ? n0(Math.max(0, n.m["FW26/27"].conf - n.m["FW26/27"].deliv)) : DASH) : c.get(sum, "FW25/26")}</td>)}</tr> : null}
                       </tbody>
                     </table>

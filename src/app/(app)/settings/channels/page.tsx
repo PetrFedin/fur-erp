@@ -2,7 +2,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
-import { telegramAdapter, telegramToken, TELEGRAM_NO_TOKEN } from "@/lib/channels/telegram";
+import { telegramAdapter, telegramToken } from "@/lib/channels/telegram";
 import { whatsappAdapter } from "@/lib/channels/whatsapp";
 import { InfoHint } from "@/components/info-hint";
 import { GroupCodeForm, RevokeButton } from "../../chat/telegram-connect";
@@ -36,7 +36,7 @@ export default async function ChannelsPage() {
           Токен бота: <b>{telegramToken() ? "есть" : "нет"}</b>
           {tg.connected ? <> · бот <b>{tg.botName}</b> отвечает</> : null}
         </p>
-        {!tg.connected && <p className="text-sm text-amber-800">{telegramToken() ? tg.detail : TELEGRAM_NO_TOKEN}</p>}
+        {!tg.connected && telegramToken() ? <p className="text-sm text-amber-800">{tg.detail}</p> : null}
         <p className="flex items-center gap-1.5 text-xs text-neutral-500">Токен и мост<InfoHint label="Про токен">Токен хранится только в .env (TELEGRAM_BOT_TOKEN) и нигде не показывается. Мост запускается командой <code>npm run telegram</code> (см. docs/DEPLOY.md).</InfoHint></p>
         {tg.connected && (
           <>
@@ -62,7 +62,7 @@ export default async function ChannelsPage() {
 
       <section className="max-w-3xl rounded-lg border border-neutral-200 bg-white p-4" aria-label="WhatsApp">
         <h2 className="text-base font-semibold">WhatsApp</h2>
-        <p className="text-sm text-amber-800">{wa.detail}</p>
+        <p className="flex items-center gap-1.5 text-sm text-amber-800">Не подключено<InfoHint label="Что нужно для подключения" wide>{wa.detail}</InfoHint></p>
         
       </section>
     </div>

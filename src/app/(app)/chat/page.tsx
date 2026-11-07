@@ -148,6 +148,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
         <section aria-label="Список чатов" className={cn("flex min-h-0 min-w-0 flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3", rightOpen && "max-lg:hidden")}>
           <h1 className="text-lg font-semibold">Чат</h1>
           {canCreateGroup(v.role) && <Link href="/chat?new=1" className="inline-flex h-10 items-center justify-center rounded-md bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-800 max-md:min-h-11">+ Новый чат</Link>}
+          {rows.length > 0 || filtered ? <>
           <ListFilters q={q} f={f} e={e} topics={Object.fromEntries(topicsAll.map((t) => [t, t]))} />
           <div className="flex flex-wrap gap-1.5">
             {FILTERS.map((x) => (
@@ -155,6 +156,7 @@ export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
                 className={cn("inline-flex items-center rounded-full border px-3 py-1 text-xs max-md:min-h-11", f === x.key ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 hover:bg-neutral-100")}>{x.label}</Link>
             ))}
           </div>
+          </> : null}
           <ul className="-mx-3 flex min-h-0 flex-1 flex-col divide-y divide-neutral-200 overflow-y-auto border-t border-neutral-200">
             {rows.length === 0 && (
               <li className="p-4 text-sm text-neutral-600">

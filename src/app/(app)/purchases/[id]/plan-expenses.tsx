@@ -27,7 +27,6 @@ export function PlanExpenses({ items }: { items: { quantity: unknown; vatRate?: 
           )}
         </tbody>
       </table>
-      <p className="text-xs text-neutral-500">Эти расходы уже входят в стоимость лотов (расчёт позиции) и в итог закупки; отдельной строкой они не добавляются, поэтому двойного учёта нет.</p>
     </div>
   );
 }

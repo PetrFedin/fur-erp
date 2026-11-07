@@ -216,7 +216,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
       ];
     }
     return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, { k: "Наценка остатка", v: x2(m.markupStock) },
-      ...(season === "all" ? [] : [{ k: "Сток тотал", v: qty(h.stockCum) }, { k: "Сток тотал в рознице", v: money(h.stockListCum[v]) }, { k: "Наценка стока тотал", v: x2(h.markupStockCum[v]) }, { k: "Доля сезона", v: h.stockCum > 0 ? pct(h.stock / h.stockCum, 0) : "–" }])];
+    ];
   };
   const zeroPart = { pcs: 0, rub: { in: 0, ex: 0 } };
   const calOf = (c: SalesCls) => {
@@ -304,7 +304,6 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
           <div role="group" aria-label="Продажи по товару сезона или календарному сезону" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
             {([["goods", "Товару сезона"], ["cal", "Календарному сезону"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={salesBy === k} onClick={() => setSalesBy(k)} className={"min-h-9 rounded-md px-3 text-sm " + (salesBy === k ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")}>{t}</button>)}
           </div>
-          <span className="text-xs text-neutral-500">{salesBy === "goods" ? "Распродано = продажи ÷ приход: за весь сезон и на сегодня" : "«свой сезон» — товар этого сезона, «прошлые» — товар прошлых сезонов"}</span>
         </div>
         <div className={"grid grid-cols-1 items-stretch gap-3 print:grid-cols-3 " + (showOrdered ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3")}>
           {(showOrdered ? (["ordered", "received", "sold", "stock"] as const) : (["received", "sold", "stock"] as const)).map(tile)}

@@ -17,9 +17,9 @@ type Left = { byYear: Record<number, { raw: number; prod: number; adv?: number }
 
 /**
  * Раздел «Все»: всё, что оплачено — за сырьё и за производство. Год → вид (сырьё / производство) → оплата → распределение
- * (по закупкам партии или по ТЗ). Плитки сверху — те же, что на Главной (передаются готовыми).
+ * (по закупкам партии или по ТЗ).
  */
-export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: ReactNode; rows: OverviewRow[]; left: Left; controls: Record<string, ReactNode> }) {
+export function PaymentsOverview({ rows, left, controls }: { rows: OverviewRow[]; left: Left; controls: Record<string, ReactNode> }) {
   const years = Array.from(new Set([...rows.map((r) => r.year), ...Object.keys(left.byYear).map(Number)])).sort((a, b) => a - b);
   // Колонка «Услуги» (закупки-услуги по УПД, не мех) — только когда такие оплаты есть.
   const hasSvc = rows.some((r) => Math.abs(r.services) >= 0.005);
@@ -135,8 +135,6 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
 
   return (
     <div className="flex flex-col gap-4">
-      {tiles}
-
       <section aria-labelledby="pay-years" className="space-y-2">
         <div className="flex items-center gap-2">
           <h2 id="pay-years" className="block-title">Оплаты по годам</h2>

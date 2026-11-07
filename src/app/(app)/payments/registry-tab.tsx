@@ -10,9 +10,6 @@ import { defineFilters, filterHref, parseFilters, stateParam, activeCount, type 
 import { PAY_KIND_LABEL } from "@/lib/payment-parties";
 import { PAY_STATUS_LABEL, loadInvoiceLinks, loadPaymentsRegistry, type PayStatus, type RegistryRow } from "@/lib/payments-registry";
 import { isCountedPayment } from "@/lib/verification";
-import { loadDashboard } from "@/lib/dashboard-data";
-import { DASH_FILTERS, type DashFilters } from "@/lib/dashboard-calc";
-import { getCommission4Mode } from "@/lib/commission4-mode";
 import { formatMoney, formatMoneyCompact } from "@/lib/utils";
 import { Segmented } from "@/components/segmented";
 import { ColumnPicker, type PickerColumn } from "@/components/column-picker";
@@ -20,7 +17,6 @@ import { countPayslips, payslipsText } from "@/lib/pay-kinds";
 import type { YearFilter } from "@/lib/year-filter";
 import { yearLabel } from "@/lib/year-filter";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
-import { PayTiles } from "../dashboard/pay-tiles";
 import { PaymentsNav } from "./payments-nav";
 
 const STATUSES = Object.keys(PAY_STATUS_LABEL) as PayStatus[];
@@ -103,7 +99,6 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
   }
   const cpOptions = Array.from(new Set(all.map((r) => r.counterparty))).sort((a, b) => a.localeCompare(b, "ru")).map((c) => ({ value: c, label: c }));
   const invLinks = await loadInvoiceLinks(orgId, rows);
-  const dash = await loadDashboard(orgId, year, { status: [], ...parseFilters(DASH_FILTERS, {}) } as unknown as DashFilters, await getCommission4Mode());
   const sumOf = (k: "raw" | "prod") => rows.filter((r) => r.kind === k).reduce((a, r) => a + r.amount, 0);
   const cnt = (k: "raw" | "prod") => rows.filter((r) => r.kind === k).length;
   const totalSum = rows.reduce((a, r) => a + r.amount, 0);
@@ -127,7 +122,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
         <h1 className="text-xl font-semibold">Оплаты</h1>
         {year !== "all" && <span className="text-sm font-normal text-neutral-600">· {yearLabel(year)}</span>}
         <InfoHint wide label="О странице оплат">
-          <p>Суммы с НДС. Год — по дате оплаты. Плитки сверху — общие итоги, как на Главной; таблица учитывает фильтры.</p>
+          <p>Суммы с НДС. Год — по дате оплаты; таблица учитывает фильтры.</p>
           <p className="mt-1">Одна платёжка (п/п) бывает разнесена на несколько строк: на сырьё и на работу, на несколько партий или ТЗ.</p>
         </InfoHint>
         {canPay && <span className="ml-auto"><PaymentWizardButton label="+ Внести оплату" /></span>}
@@ -150,8 +145,6 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
           ]}
         />
       </div>
-
-      <PayTiles drill d={dash} c4Mode={await getCommission4Mode()} year={year} headerEnd={<Link href="/dashboard" className="text-xs text-blue-700 hover:underline print:hidden">→ Главная</Link>} />
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-600">
         <span><b className="tabular-nums">{payslipsText(rows)}</b>{filtered ? <> из <span className="tabular-nums">{countPayslips(all)}</span></> : null}</span>

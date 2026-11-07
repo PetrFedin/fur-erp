@@ -73,11 +73,11 @@ export function PricesBlock({ models, canEdit }: { models: PriceModel[]; canEdit
                               </details>
                             ) : null}
                           </span>
-                        ) : <span className="text-neutral-700">совпадает</span>}
+                        ) : <span className="text-neutral-500">–</span>}
                       </td>
                       {(() => {
                         const pcs = m.real.reduce((t, r) => t + r.pcs, 0);
-                        if (!pcs) return <td className={td + " text-neutral-500"} colSpan={3}>продаж нет — цену не ставим</td>;
+                        if (!pcs) return <td className={td + " text-neutral-500"} colSpan={3}>–</td>;
                         const avg = m.real.reduce((t, r) => t + r.price * r.pcs, 0) / pcs;
                         const list = m.rows.filter((r) => m.real.some((x) => x.acode === r.acode && x.color === r.color)).map((r) => r.price);
                         const listAvg = list.length ? list.reduce((t, v) => t + v, 0) / list.length : null;
@@ -101,7 +101,7 @@ export function PricesBlock({ models, canEdit }: { models: PriceModel[]; canEdit
                             <td className="px-2 py-1.5 text-left text-xs text-neutral-700" colSpan={2}>размеры: {cr.map((r) => `${r.size} — ${formatMoney(r.price)}`).join("; ")}</td>
                             {(() => {
                               const x = m.real.find((r) => r.acode === a && r.color === c);
-                              if (!x) return <td className={td + " text-xs text-neutral-500"} colSpan={3}>продаж нет</td>;
+                              if (!x) return <td className={td + " text-xs text-neutral-500"} colSpan={3}>–</td>;
                               const lp = cr.reduce((t, r) => t + r.price, 0) / cr.length, d = x.price / lp - 1;
                               return (<>
                                 <td className={td}>{x.pcs}</td>

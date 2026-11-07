@@ -21,9 +21,6 @@ import { SalesBlockView } from "./sales-block";
 import { loadDataAsOf } from "@/lib/data-as-of";
 import { DataAsOf } from "@/components/data-as-of";
 import { SeasonScope } from "./season-scope";
-import { CashflowOverview } from "../cashflow/cashflow-view";
-import { loadCashflowOverview } from "@/lib/cashflow-server";
-import { parsePeriod } from "@/lib/cashflow";
 import { loadSalesBlock } from "./sales-block-data";
 import { loadReportSeasonTotals } from "@/lib/margin-server";
 
@@ -68,9 +65,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   // Сезоны по отчёту «заказ и продажи» (владелец 02.11.2026): «В выпуске» = заказано (FW25 и SS26 закрыты: заказ = поступило), «Произведено» = поступило.
   const reportSeasons = session.user.role === "SUPPLIER" ? null : await loadReportSeasonTotals(organizationId);
   const asOf = session.user.role === "SUPPLIER" ? null : await loadDataAsOf(organizationId);
-  // Предоплата за непринятые заказы — как на странице Cashflow: по всем годам и без фильтров Главной (иначе при годе 2025 или фильтре «Соболь» она обнулялась).
-  const prepaidNames = session.user.role === "SUPPLIER" ? [] : year === "all" && !filtersOn ? d.rawMoneyTotal.unreceived.names : (await loadDashboard(organizationId, "all", parseDashFilters({}), "off")).rawMoneyTotal.unreceived.names;
-  const cashflow = session.user.role === "SUPPLIER" ? null : await loadCashflowOverview(organizationId, prepaidNames);
   const yl = yearLabel(year);
   const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, attr: f.attr, batch: f.batch, catgroup: f.catgroup, kind: f.kind ?? [] };
   const prodNums = (t: typeof d.prod.done) => ({ items: t.items, repairOrders: t.repairOrders, repairQty: t.repairQty, repairCostIncl: t.repairCostIncl, repairCostExcl: t.repairCostExcl, orders: t.orders, qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum, furIncl: t.furIncl, furExcl: t.furExcl, liningIncl: t.liningIncl, liningExcl: t.liningExcl, matIncl: t.furIncl + t.liningIncl, matExcl: t.furExcl + t.liningExcl, c4Incl: t.c4Incl, c4Excl: t.c4Excl });
@@ -141,9 +135,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
 
       {/* ───────── Оплаты, долги, задачи ───────── */}
-      <PayTiles d={d} c4Mode={c4Mode} year={year} headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>} />
+      <PayTiles d={d} c4Mode={c4Mode} year={year} headerEnd={<span className="flex items-center gap-3 print:hidden"><Link href="/payments" className="text-xs text-blue-700 hover:underline">→ Оплаты</Link><Link href="/cashflow" className="text-xs text-blue-700 hover:underline">→ Cashflow</Link></span>} />
 
-      {cashflow ? <CashflowOverview incl={cashflow.incl} ex={cashflow.ex} salesAll={cashflow.salesAll} period={parsePeriod(String(year))} prepaidBy={cashflow.prepaidBy} prepaidList={cashflow.prepaidList} /> : null}
 
 
       {/* ───────── Главное: ключевые цифры одной полосой, каждая плитка ведёт в раздел ───────── */}

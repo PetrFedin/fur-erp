@@ -108,19 +108,18 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
   const dmRef = dmLast ? (ui.f.cat === "all" ? dmLast.total : ui.f.cat === "clothes" ? dmLast.rtw : ui.f.cat === "acc" ? dmLast.acc : null) : null;
   const dmDiff = dmRef === null ? 0 : stockEnd - dmRef;
   const dmDate = dmLast ? dmLast.date.split("-").reverse().join(".") : "";
-  const orders = new Set(lines.map((l) => l.orderNo)).size, arts = new Set(lines.map((l) => l.article)).size;
-
+  
   const tiles: TileDef[] = [
-    { id: "received", label: "Получено, шт.", value: n0(head.received), sub: `${orders} заказов · ${arts} артикулов`,
+    { id: "received", label: "Получено, шт.", value: n0(head.received),
       how: <p>Приход (Delivery): сумма штук строк прихода выгрузки за период. Корректировки прихода с минусом уже вычтены.</p>,
       cols: [{ head: "Получено, шт.", get: (e) => n0(e.received) }, { head: "Первая поставка", get: (e) => dateRu(e.firstReceipt) }] },
     { id: "sold", label: "Продано, шт.", value: n0(head.sold), sub: `выручка ${moneyC(head.revenue)} · ${vatNote}`,
       how: <><p>Нетто = валовое {n0(head.gross)} − возвраты {n0(head.returns)}. Деньги — за тот же период ({vatNote}; НДС 20 % до 2026, 22 % с 2026).</p>{head.noPcs > 0 ? <p className="mt-1">{head.noPcs} строк продаж без штук: только скидка, в штуки не входят.</p> : null}</>,
       cols: [{ head: "Нетто, шт.", get: (e) => n0(e.sold) }, { head: "Выручка, ₽", get: (e) => money(e.revenue) }, { head: "Ср. цена, ₽", get: (e) => money(e.avgPrice) }, { head: "Скидка", get: (e) => pct(e.discountGiven, 1) }, { head: "Маржа", get: (e) => (e.grossMarginPct === null ? DASH : pct(e.grossMarginPct / 100, 1)) }] },
-    { id: "stock", label: "Остаток, шт.", value: n0(stockEnd), sub: dmRef !== null && isPlain ? `datamart на ${dmDate}: ${n0(dmRef)} · разница ${n0(Math.abs(dmDiff))}` : hasReport && isPlain ? `Отчёт на ${reportDate}: ${n0(reportStock)} · разница ${n0(Math.abs(diff))}` : "приход − продано",
+    { id: "stock", label: "Остаток, шт.", value: n0(stockEnd), sub: dmRef !== null && isPlain ? `datamart на ${dmDate}: ${n0(dmRef)} · разница ${n0(Math.abs(dmDiff))}` : hasReport && isPlain ? `Отчёт на ${reportDate}: ${n0(reportStock)} · разница ${n0(Math.abs(diff))}` : undefined,
       how: <><p>Расчётный остаток = приход − продано нарастающим итогом на конец периода{opening ? ` (на начало периода: ${n0(opening)} шт.)` : ""}.</p>{dmStock && dmRef !== null && isPlain ? <p className="mt-1">Остаток по витрине datamart (по нашим заказам): {dmStock.snapshots.map((x) => `${x.date.split("-").reverse().join(".")} — ${n0(ui.f.cat === "clothes" ? x.rtw : ui.f.cat === "acc" ? x.acc : x.total)} шт.`).join(", ")}. Расчёт на {dmDate}: {n0(stockEnd)} шт., разница {n0(Math.abs(dmDiff))} шт.</p> : null}{hasReport && isPlain ? <p className="mt-1">В отчёте о товарах (Report) на {reportDate} остаток {n0(reportStock)} шт., расчёт даёт {n0(stockEnd)} шт.: {diff === 0 ? "совпадает" : `разница ${n0(Math.abs(diff))} шт.`}. Причина в выгрузке не видна.</p> : null}</>,
       cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "Остаток", get: (e) => n0(e.stock) }] },
-    { id: "sellThrough", label: "Распродано, %", value: pct(head.sellThrough), sub: "продано ÷ получено",
+    { id: "sellThrough", label: "Распродано, %", value: pct(head.sellThrough),
       how: <p>Распродано = продано ÷ получено, единицы за период. Без обрезки до 100 %: больше 100 % значит, что продажи включают остатки других поступлений. Приход 0 — «—».</p>,
       cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "Распродано, %", get: (e) => pct(e.sellThrough) }] },
   ];
@@ -131,10 +130,10 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
   const inTz = chain.produced + chain.inWork;
   const inProd = Math.max(0, ordered - head.received);
   type Link_ = { id: string; label: string; value: string; sub?: string; how: React.ReactNode; to: string[][] };
+  const gap = Math.max(0, inTz - head.received), noTz = Math.max(0, inProd - gap);
   const links = ([
-    { id: "produced", label: "Произведено", value: n0(head.received), sub: `в выпуске ${n0(ordered)} · в производстве ${n0(inProd)}${ui.f.cat === "all" ? ` (в ТЗ ${n0(Math.max(0, inTz - head.received))} · ещё без ТЗ ${n0(Math.max(0, inProd - Math.max(0, inTz - head.received)))})` : ""}`, how: <><p>Произведено = получено в рознице по файлу прихода: {n0(head.received)} шт. В выпуске — заказ по отчёту «заказ и продажи»: {n0(ordered)} шт. (закрытые сезоны — по приходу).</p><p className="mt-1">Остальное ({n0(inProd)} шт.) — в производстве: статус по ним неизвестен, в «Произведено» они не входят.{ui.f.cat === "all" ? ` Из них заведено в ТЗ ${n0(Math.max(0, inTz - head.received))} шт., ещё без ТЗ ${n0(Math.max(0, inProd - Math.max(0, inTz - head.received)))} шт. (всего в ТЗ ${n0(inTz)} шт.).` : ""}</p></>, to: [["/production", "Открыть ТЗ"]] },
-    { id: "shipped", label: "Отгружено и получено", value: n0(head.received), sub: "приход в рознице", how: <p>Всё, что получено, отгружено и принято: {n0(head.received)} шт. по файлу прихода (все даты приёмок — в разделе «Отгрузки и календарь»).</p>, to: [["/shipments", "Отгрузки и календарь"]] },
-    { id: "sold", label: "Продано", value: n0(head.sold), sub: `остаток ${n0(stockEnd)}`, how: <p>Продано (нетто возвратов) из полученного. Остаток в рознице = приход {n0(head.received)} − продано {n0(head.sold)}.</p>, to: [["/sales", "Продажи и остатки"]] },
+    { id: "ordered", label: "В выпуске", value: n0(ordered), how: <p>Заказ по отчёту «заказ и продажи»: {n0(ordered)} шт. (закрытые сезоны — по приходу).</p>, to: [["/production", "Открыть ТЗ"]] },
+    { id: "inprod", label: "В производстве", value: n0(inProd), sub: ui.f.cat === "all" ? `в ТЗ ${n0(gap)} · без ТЗ ${n0(noTz)}` : undefined, how: <p>Заказано, но ещё не получено: {n0(inProd)} шт. Статус по ним неизвестен.{ui.f.cat === "all" ? ` Заведено в ТЗ ${n0(gap)} шт., ещё без ТЗ ${n0(noTz)} шт. (всего в ТЗ ${n0(inTz)} шт.).` : ""}</p>, to: [["/production", "Открыть ТЗ"]] },
   ] as Link_[]);
   const openLink = links.find((x) => x.id === link);
   const openDef = tiles.find((t) => t.id === tile);
@@ -186,10 +185,6 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
           <label className="flex items-center gap-1 text-xs text-neutral-700">по
             <input type="date" value={ui.f.to ?? ""} onChange={(e) => setF({ to: e.target.value || null })} className="min-h-11 rounded-md border border-neutral-300 px-2 text-sm" aria-label="Период по дату" />
           </label>
-          <div role="group" aria-label="НДС" className={segGroup}>
-            <button type="button" aria-pressed={!ex} onClick={() => { patch({ vat: "in" }); vatDisp.setMode("incl"); }} className={seg(!ex)}>С НДС</button>
-            <button type="button" aria-pressed={ex} onClick={() => { patch({ vat: "ex" }); vatDisp.setMode("excl"); }} className={seg(ex)}>Без НДС</button>
-          </div>
           <div role="group" aria-label="Категория 1" className={segGroup}>
             {(["all", "clothes", "acc"] as Cat[]).map((k) => <button key={k} type="button" aria-pressed={ui.f.cat === k} onClick={() => setF({ cat: k })} className={seg(ui.f.cat === k)}>{CAT_LABEL[k]}</button>)}
           </div>
@@ -207,10 +202,6 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
 
       {ui.tab === "report" ? (
         <SeasonReport controls={<div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label="НДС" className={segGroup}>
-            <button type="button" aria-pressed={!ex} onClick={() => { patch({ vat: "in" }); vatDisp.setMode("incl"); }} className={seg(!ex)}>С НДС</button>
-            <button type="button" aria-pressed={ex} onClick={() => { patch({ vat: "ex" }); vatDisp.setMode("excl"); }} className={seg(ex)}>Без НДС</button>
-          </div>
           <div role="group" aria-label="Категория 1" className={segGroup}>
             {(["all", "clothes", "acc"] as Cat[]).map((k) => <button key={k} type="button" aria-pressed={ui.f.cat === k} onClick={() => setF({ cat: k })} className={seg(ui.f.cat === k)}>{CAT_LABEL[k]}</button>)}
           </div>
@@ -220,9 +211,9 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
       ) : ui.tab === "overview" ? (
         <>
           <div>
-            <button type="button" aria-expanded={ui.chain} onClick={() => patch({ chain: !ui.chain })} className={btn}>{ui.chain ? "Скрыть цепочку от производства ▴" : "Показать цепочку от производства ▾"}</button>
+            <button type="button" aria-expanded={ui.chain} onClick={() => patch({ chain: !ui.chain })} className={btn}>{ui.chain ? "Скрыть производство ▴" : "Показать производство ▾"}</button>
           </div>
-          {ui.chain && <section aria-label="Цепочка от производства до остатка в рознице" className="flex flex-wrap items-stretch gap-1">
+          {ui.chain && <section aria-label="Производство" className="flex flex-wrap items-stretch gap-1">
             {links.map((x, i) => (
               <div key={x.id} className="flex min-w-0 flex-1 basis-32 items-center gap-1">
                 <button type="button" onClick={() => setLink(x.id)} aria-haspopup="dialog" className="flex min-h-11 min-w-0 flex-1 flex-col items-start rounded-lg border border-neutral-300 bg-white p-2 text-left hover:border-neutral-500">
@@ -250,7 +241,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
       ) : null}
 
       {openLink && (
-        <SalesModal title={openLink.label} subtitle="Произведено → Отгружено и получено → Продано → Остаток" onClose={() => setLink(null)}>
+        <SalesModal title={openLink.label} onClose={() => setLink(null)}>
           <div className="text-sm text-neutral-800">{openLink.how}</div>
           <p className="text-3xl font-semibold tabular-nums">{openLink.value}</p>
           <div className="flex flex-wrap gap-2">{openLink.to.map(([h, t]) => <Link key={h} href={h} className={btn}>{t} →</Link>)}</div>

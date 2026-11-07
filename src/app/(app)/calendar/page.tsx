@@ -189,6 +189,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const inPeriod = (d: string) => (view === "week" ? d >= days[0] && d <= days[6] : d.startsWith(month));
   const byAction = new Map<string, number>();
   for (const e of evs) if (inPeriod(e.date)) byAction.set(e.action, (byAction.get(e.action) ?? 0) + e.quantity);
+  const hasPeriodItems = byAction.size > 0 || [...factsByDay.keys()].some((d) => inPeriod(d));
   const periodTotal = [...byAction.values()].reduce((a, b) => a + b, 0);
   const overdueCount = evs.filter((e) => e.overdue).length;
 
@@ -395,6 +396,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           <span key={a} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${actionDef(a).chip}`}>{a}: {formatQty(q)}</span>
         ))}
       </div>
+      {hasPeriodItems && (
       <details className="text-xs text-neutral-500">
         <summary className="inline-flex min-h-8 cursor-pointer select-none items-center hover:text-neutral-800 max-md:min-h-11">Обозначения</summary>
         <div className="mt-1 flex flex-wrap gap-2">
@@ -404,6 +406,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         <StageLegend only={["plan", "raw", "work", "ready", "shipped"]} />
         </div>
       </details>
+      )}
 
       {/* Сетка (≥ md): месяц и неделя */}
       {mode === "detail" && view !== "list" && (

@@ -8,7 +8,7 @@ type Tot = { opt: number; pcs: number; eur: number };
 type Agg = { order: Tot; deliv: Tot; months: Record<string, number> };
 type Node = { id: string; level: 1 | 2 | 3; label: string; leaves: SupplyLeaf[]; children: Node[] };
 
-const EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const EN = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 const nf = (v: number) => Math.round(v).toLocaleString("ru-RU");
 const cellv = (v: number) => (Math.abs(v) < 0.5 ? "-" : nf(v));
 const RANK: Record<string, number> = { Одежда: 0, Аксессуары: 1 };
@@ -95,19 +95,18 @@ export function SupplyTable({ leaves, keys, depth, shut, onToggle }: { leaves: S
       <div role="table" aria-label="Отчёт по заказу и поставкам" className="grid min-w-[760px] border-2 border-[#111]" style={grid}>
         <div role="row" className="contents">
           <div role="columnheader" className={`${hd} left-0 top-0 z-20 border-b-0`} />
-          <div role="columnheader" className={`${hd} top-0 col-span-3 ${THICK}`}>Order</div>
-          <div role="columnheader" className={`${hd} top-0 col-span-3 ${THICK}`}>Deliv</div>
+          <div role="columnheader" className={`${hd} top-0 col-span-3 ${THICK}`}>Заказано</div>
+          <div role="columnheader" className={`${hd} top-0 col-span-3 ${THICK}`}>Пришло</div>
           {years.map((g) => <div role="columnheader" key={g.y} className={`${hd} top-0 ${THICK}`} style={{ gridColumn: `span ${g.n}` }}>{g.y}</div>)}
         </div>
         <div role="row" className="contents">
           <div role="columnheader" className={`${hd} left-0 top-8 z-20`} />
-          {["OPT", "PCS", "EUR", "OPT", "PCS", "EUR"].map((t, i) => <div role="columnheader" key={i} className={`${hd} top-8 ${i % 3 === 0 ? THICK : ""}`}>{t}</div>)}
-          {months.map((m, i) => <div role="columnheader" key={m} className={`${hd} top-8 ${i === 0 ? THICK : ""} ${fcSet.has(m) ? "italic text-red-600" : ""}`}>{EN[Number(m.slice(5, 7)) - 1]}</div>)}
+          {["Моделей", "шт.", "EUR", "Моделей", "шт.", "EUR"].map((t, i) => <div role="columnheader" key={i} className={`${hd} top-8 ${i % 3 === 0 ? THICK : ""}`}>{t}</div>)}
+          {months.map((m, i) => <div role="columnheader" key={m} title={fcSet.has(m) ? "прогноз поставок" : undefined} className={`${hd} top-8 ${i === 0 ? THICK : ""} ${fcSet.has(m) ? "italic text-red-600" : ""}`}>{EN[Number(m.slice(5, 7)) - 1]}</div>)}
         </div>
-        {row("Total", 0, aggOf(active, keys, months, fcOn))}
+        {row("Итого", 0, aggOf(active, keys, months, fcOn))}
         {flat(tree)}
       </div>
-      {fcSet.size ? <p className="mt-1 text-[13px] italic text-red-600">{[...fcSet].map((m) => EN[Number(m.slice(5, 7)) - 1]).join(", ")} — прогноз поставок</p> : null}
     </div>
   );
 }

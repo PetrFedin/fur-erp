@@ -79,9 +79,8 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
         <div className={TILE_BOX}><TileHead>Сумма, ₽</TileHead><TileValue compact>{formatMoney(val(all).toFixed(2))}</TileValue><TileCaption>{vat === "excl" ? "без НДС" : "с НДС"}</TileCaption></div>
         {vat === "excl" ? <div className={TILE_BOX}><TileHead>С НДС, ₽</TileHead><TileValue compact>{formatMoney(all.incl.toFixed(2))}</TileValue><TileCaption>как в «Оплатах»</TileCaption></div> : null}
         <div className={TILE_BOX}><TileHead>НДС, ₽</TileHead><TileValue compact>{formatMoney((all.incl - all.excl).toFixed(2))}</TileValue><TileCaption><span title="Партия 8 — 20 %, партия 7 — 22 %">20 % · 22 %</span></TileCaption></div>
-        <div className={TILE_BOX}><TileHead>Оплачено, ₽</TileHead><TileValue compact>{formatMoney(paidTotal.toFixed(2))}</TileValue><TileCaption>в счетах за пошив</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>Долг, ₽</TileHead><TileValue compact>–</TileValue><TileCaption>долга нет</TileCaption></div>
-        <div className={TILE_BOX}><TileHead>Платежей / ТЗ</TileHead><TileValue compact>{payments.length} / {orders.length}</TileValue><TileCaption>партий: {batches.length}</TileCaption></div>
+        <div className={TILE_BOX}><TileHead>Оплачено, ₽</TileHead><TileValue compact>{formatMoney(paidTotal.toFixed(2))}</TileValue></div>
+        <div className={TILE_BOX}><TileHead>Платежей / ТЗ</TileHead><TileValue compact>{payments.length} / {orders.length}</TileValue></div>
       </div>
 
       <section aria-labelledby="h-batch" className="space-y-2">
@@ -126,9 +125,9 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
             <tbody>
               {ord.sort(shown).map((o) => (
                 <tr key={o.orderId} className="border-t border-neutral-100">
-                  <td className="px-2 py-1.5 text-left"><Link href={`/production/${o.orderId}`} className="text-blue-700 hover:underline" title={`Внутренний номер заказа ${o.number}`}>{o.label}</Link>{o.pinned ? <span className="ml-1.5 rounded-full bg-neutral-100 px-1.5 text-[11px] text-neutral-500" title="Сумма закреплена за этим ТЗ по документам">по документу</span> : null}</td>
+                  <td className="px-2 py-1.5 text-left"><Link href={`/production/${o.orderId}`} className="text-blue-700 hover:underline" title={`Внутренний номер заказа ${o.number}`}>{o.label}</Link>{o.pinned ? <>{" "}<span className="ml-1.5 rounded-full bg-neutral-100 px-1.5 text-[11px] text-neutral-500" title="Сумма закреплена за этим ТЗ по документам">по документу</span></> : null}</td>
                   <td className={TD}>{o.batch}</td><td className={TD}>{o.payYear}</td>
-                  <td className="truncate px-2 py-1.5 text-left text-xs" title={`${o.article} · ${o.category}`}>{o.article}<span className="text-neutral-500"> · {o.category}</span></td>
+                  <td className="truncate px-2 py-1.5 text-left text-xs" title={o.article.includes(o.category) ? o.article : `${o.article} · ${o.category}`}>{o.article}{o.article.includes(o.category) ? null : <span className="text-neutral-500"> · {o.category}</span>}</td>
                   <td className={TD}>{o.units > 0 ? o.units : <D />}</td>
                   <td className={TD + BL}>{money(val(o))}</td><td className={TD}>{money(o.incl - o.excl)}</td>
                   <td className={TD + " text-neutral-600"}>{all.incl > 0 ? formatPercent((o.incl / all.incl) * 100) : <D />}</td>

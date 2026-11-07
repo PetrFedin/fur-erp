@@ -21,7 +21,6 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatCurrency, formatDate, formatMoney, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint, formatRate, formatNum, formatDec1 } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { purchaseTotalInclVat, purchaseTotalExclVat, expenseInclVat } from "@/lib/purchase-totals";
-import { isServicePurchase } from "@/lib/service-purchase";
 import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
 import { vatPeriodLabel, vatRateForDate } from "@/lib/vat-by-date";
@@ -57,7 +56,6 @@ import { ConfirmSubmitButton } from "./documents-form";
 import { rowVersion, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_EDIT_V } from "@/lib/concurrency";
 import { ExpenseEditButton, PaymentEditButton } from "./edit-buttons";
 import { PlanExpenses } from "./plan-expenses";
-import { planExpenseLines } from "@/lib/plan-expenses";
 import { PaymentDeleteButton } from "./payment-delete-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { ruGradeLabel } from "@/lib/fur-ref";
@@ -280,18 +278,6 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
   const balanceDue = grandTotalRub.sub(paidTotal);
   // Доля закупки в оплатах партии — то же правило, что в списке закупок (purchasePaidShare), чтобы остаток закупки везде был один.
   const shareDue = (() => { const paid = purchase.status === "CANCELLED" ? new Decimal(0) : purchasePaidShare(auctionPay ?? undefined, id, paidTotal); return { paid, rest: grandTotalRub.sub(paid) }; })();
-  // Один счёт/УПД на несколько закупок (split purchase): показываем соседние закупки с тем же счётом или УПД у того же поставщика.
-  const sharedKeys = [
-    ...(purchase.invoiceNumber ? [{ invoiceNumber: purchase.invoiceNumber }] : []),
-    ...(purchase.transferDocument ? [{ transferDocument: purchase.transferDocument }] : []),
-  ];
-  const sharedDocPurchases = sharedKeys.length
-    ? await prisma.purchase.findMany({
-        where: { organizationId: session.user.organizationId, supplierId: purchase.supplierId, id: { not: purchase.id }, status: { not: "CANCELLED" }, OR: sharedKeys },
-        include: { items: true, expenses: true },
-        orderBy: { number: "asc" },
-      })
-    : [];
   const vatRatesText = [...new Set(purchase.items.map((i) => i.vatRate.toString()))].join(" / ");
 
   const boundUpdatePurchase = updatePurchase.bind(null, id);
@@ -581,7 +567,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
           <StatementBlock
             bare
             st={st}
-            source={`выдержка из расчёта Веллмеха «${calcRow.title}»${inv ? `, счёт ${inv}` : ""}`}
+            source=""
             action={<span className="flex flex-wrap items-center gap-3 text-sm"><Link href={`/supplier/auction-calcs/${calcRow.id}`} className="inline-flex min-h-11 items-center text-blue-700 underline md:min-h-0">Открыть расчёт</Link>{editable && <a href="#items" className="inline-flex min-h-11 items-center text-blue-700 underline md:min-h-0">Править расчёт лотов</a>}</span>}
           />
         );
@@ -633,7 +619,6 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
                         ))}
                       </dl>
                     )}
-                    <p className="mt-2 text-xs text-neutral-500">Итоговая цена за единицу в рублях с НДС: <b className="text-neutral-800">{formatMoney(unit!.toFixed(2))}</b> × {formatQty(qty.toString())} = {formatMoney(unit!.mul(qty).toFixed(2))}</p>
                   </div>
                 </details>
               ))}
@@ -684,23 +669,10 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
               purchase.transferDocument ? `УПД ${purchase.transferDocument}` : null,
               isForeignCurrency ? `валюта позиций ${purchase.currency}, курс ${formatRate(Number(purchase.exchangeRate.toString()))}` : null,
               vatRatesText ? `НДС ${vatRatesText} %` : null,
-              `лотов ${purchase.items.length} · шкур ${formatDec1(purchase.items.reduce((a, i) => a + Number(i.quantity), 0).toString())}`,
             ].filter(Boolean).map((t) => (
               <span key={t} className="flex items-center gap-x-1.5"><span aria-hidden>·</span>{t}</span>
             ))}
           </p>
-          {sharedDocPurchases.length > 0 && (
-            <p className="mt-1 text-xs text-neutral-600">
-              Тот же {purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}` : "УПД"} оформлен ещё на:{" "}
-              {sharedDocPurchases.map((o, i) => (
-                <span key={o.id}>
-                  {i > 0 ? "; " : ""}
-                  <Link href={`/purchases/${o.id}`} className="text-blue-700 hover:underline">{o.number}</Link>{" "}
-                  ({formatMoney(purchaseTotalInclVat(o).toString())})
-                </span>
-              ))}
-            </p>
-          )}
           {purchase.notes && (
             <details className="mt-1 max-w-3xl text-xs text-neutral-600">
               <summary className="cursor-pointer text-neutral-500 hover:text-neutral-800">Примечание: {purchase.notes.split("\n")[0].slice(0, 110)}{purchase.notes.length > 110 || purchase.notes.includes("\n") ? "…" : ""}</summary>
@@ -991,14 +963,6 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
             </ResponsiveRows>
           )}
           <PlanExpenses items={purchase.items} />
-          {purchase.expenses.length === 0 && planExpenseLines(purchase.items).lines.length === 0 && <p className="text-sm text-neutral-500">Расходов нет</p>}
-          {!statusEditable && canEditRole && purchase.expenses.length > 0 && (
-            <p className="text-xs text-neutral-500">
-              {isServicePurchase(purchase)
-                ? "Закупка-услуга: УПД без позиций сырья — в лоты не раскладывается, в «Куплено» меха и подкладки не входит (показана отдельной статьёй «Услуги по УПД»)."
-                : "Расходы принятой закупки уже распределены по лотам и здесь не правятся."}
-            </p>
-          )}
         </CardContent>
       </Card>
 

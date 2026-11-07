@@ -56,7 +56,6 @@ export function PcsCards({ items, canEdit }: { items: PcsCard[]; canEdit: boolea
                 ) : null}
               </div>
             </div>
-            <p className="pointer-events-none relative z-10 mt-3 text-xs text-neutral-600">Шкуры на изделие (AVG) и итог (TTL) по типам меха, категориям и длинам.</p>
             <p className="mt-2 text-xs font-medium text-neutral-700">Изменён {dateRu(f.updatedAt)}{f.updatedBy ? ` · ${f.updatedBy}` : ""}</p>
           </li>
         ))}

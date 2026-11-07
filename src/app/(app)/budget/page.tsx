@@ -44,7 +44,6 @@ export default async function BudgetListPage() {
           <li className="relative flex flex-col rounded-lg border border-neutral-200 bg-white p-4 tile-click">
             <Link href="/budget/plan27" className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900" aria-label="Открыть: План производства 2027 по месяцам" />
             <span className="pointer-events-none relative z-10 text-base font-semibold">План производства 2027 по месяцам</span>
-            <p className="pointer-events-none relative z-10 mt-3 text-xs text-neutral-600">Изделия по месяцам, приход и расход сырья, загрузка мощности; всё редактируется и пересчитывается. Закупка — как в Budget PCS FW27.</p>
           </li>
         </ul>
       </section>

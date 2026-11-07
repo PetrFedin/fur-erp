@@ -390,7 +390,6 @@ export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _i
   return (
     <PinSection id="raw-table" title="Динамика по сырью" value={Array.from(open)} onRestore={(v) => setOpen(new Set(v))}
       headerExtra={<>
-            {sel !== "all" ? <span className="text-[11px] text-neutral-500">подкладка по источнику не делится</span> : null}
           <InfoHint label="Как читать таблицу по сырью" wide>
             <p>Строка — вид меха или ткань подкладки. Нажмите на вид — разбивка по аукционам.</p>
             <p className="mt-1"><b>Ср. цена</b> — средневзвешенная: Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м). Все колонки без 4%, поэтому куплено = использовано + остаток.{orderFilters ? " Фильтр по ТЗ сужает только «Использовано»: тогда куплено − использовано ≠ остаток." : ""}</p>

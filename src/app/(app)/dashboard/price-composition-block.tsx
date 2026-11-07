@@ -259,6 +259,9 @@ export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots", 
     { key: `${src}:total`, label: label, body: <Slide lots={lots} fur={null} label={label} totalTitle={label} withVat={withVat} /> },
     ...furs.map((f) => ({ key: `${src}:fur:${f}`, label: f, body: <Slide lots={lots.filter((l) => l.fur === f)} fur={f} label={`${f} · ${label}`} withVat={withVat} /> })),
   ];
+  // Источник без лотов не показываем; «Все» нужен, только когда источников с лотами два (иначе строка дублирует единственный источник).
+  const nonEmpty = SRC_KEYS.filter((k) => k !== "all" && sums[k].lots > 0);
+  const shownKeys = SRC_KEYS.filter((k) => (k === "all" ? nonEmpty.length > 1 : k === src || sums[k].lots > 0));
   const chip = (k: Src) => `${SRC_SHORT[k]} · ${formatMoney(sums[k].v)} · лотов ${sums[k].lots}`;
   const srcInfo = (
     <InfoHint label="О переключателе источника" wide>
@@ -270,8 +273,8 @@ export function PriceCompositionBlock({ lots: allLots, onlyFur, href = "/lots", 
   );
   const sourceSwitch = (
     <div className="flex flex-wrap items-center gap-1.5 max-md:flex-nowrap max-md:items-start">
-      {scope ? <div className="flex min-w-0 flex-wrap gap-1.5 max-md:flex-1" data-testid="pc-source-switch">{SRC_KEYS.map((k) => <span key={k} className={"rounded-md border px-2 py-1 text-[11px] tabular-nums " + (src === k ? "border-orange-300 bg-orange-50 text-orange-900" : "border-neutral-200 text-neutral-600")}>{chip(k)}</span>)}</div> : <div role="group" aria-label="Источник закупки" data-testid="pc-source-switch" className="flex min-w-0 flex-wrap gap-1.5 max-md:flex-1 print:hidden">
-        {SRC_KEYS.map((k) => (
+      {scope ? <div className="flex min-w-0 flex-wrap gap-1.5 max-md:flex-1" data-testid="pc-source-switch">{shownKeys.map((k) => <span key={k} className={"rounded-md border px-2 py-1 text-[11px] tabular-nums " + (src === k ? "border-orange-300 bg-orange-50 text-orange-900" : "border-neutral-200 text-neutral-600")}>{chip(k)}</span>)}</div> : <div role="group" aria-label="Источник закупки" data-testid="pc-source-switch" className="flex min-w-0 flex-wrap gap-1.5 max-md:flex-1 print:hidden">
+        {shownKeys.map((k) => (
           <button key={k} type="button" aria-pressed={src === k} onClick={() => setSrc(k)}
             className={"inline-flex min-h-11 items-center rounded-md border px-3 py-1 text-left text-xs tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 " + (src === k ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>
             {chip(k)}

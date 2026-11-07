@@ -80,7 +80,7 @@ export default async function CommentsPage({ searchParams }: PageProps<"/history
             </InfoHint>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        {total > 0 ? <div className="flex flex-wrap gap-2">
           <a href={`/comments/export?format=md${exportQs ? "&" + exportQs : ""}`} className={buttonVariants({ variant: "outline" })}>
             Скачать .md
           </a>
@@ -88,7 +88,7 @@ export default async function CommentsPage({ searchParams }: PageProps<"/history
             Скачать .csv
           </a>
           <CopyTasksButton query={exportQs} />
-        </div>
+        </div> : null}
       </div>
 
       <FilterBar

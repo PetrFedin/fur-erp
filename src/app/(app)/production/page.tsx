@@ -428,7 +428,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   { label: "Изделий", value: st.units > 0 ? `${formatQty(st.units)} шт.` : "–" },
                 ]}
                 details={[
-                  { label: "Артикулов", value: "1" },
                   { label: "Шкур", value: st.hides > 0 ? formatDec1(st.hides) : undefined },
                   { label: <VatLabel base="Мех" />, value: st.fur.incl.isZero() ? undefined : <Money incl={st.fur.incl} excl={st.fur.excl} /> },
                   { label: "Подкладка, м", value: st.liningQty > 0 ? formatDec1(st.liningQty) : undefined },
@@ -466,7 +465,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   </Link>
                   <a href={`/api/production/${o.id}/word`} className="block px-3 pb-2 text-xs font-normal text-blue-700 hover:underline" title="Финальный Word этого ТЗ">Word</a>
                 </Td>
-                <Td className={num}><Link href={href} className={link}>1</Link></Td>
                 <Td className={`${cell} text-neutral-700`}><Link href={href} className={`${link} whitespace-nowrap`}>{fur}</Link></Td>
                 <Td className={cell}>
                   <div className={`${link} max-w-[16rem]`}>
@@ -485,7 +483,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                     {full.incl.isZero() ? dash : <Money incl={full.incl} excl={full.excl} />}
                   </Link>
                 </Td>
-                <Td className={cell}><Link href={href} className={`${link} whitespace-nowrap`}><TzVatBadge b={vatB} compact hint={false} /></Link></Td>
+                <Td className={cell}><Link href={href} className={`${link} whitespace-nowrap`}>{vatB.kind === "22" ? null : <TzVatBadge b={vatB} compact hint={false} />}</Link></Td>
               </Tr>
             );
     return { card, tr };
@@ -596,34 +594,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Вид списка">
-        <span className="text-neutral-500">Вид:</span>
-        <div className="inline-flex overflow-hidden rounded-lg border border-neutral-300">
-          {(
-            [
-              [false, "Списком"],
-              [true, "По партиям пошива"],
-            ] as const
-          ).map(([g, text]) => {
-            // Вид переключается без потери фильтров.
-            const href = g ? "/production/batches" : filterHref(PROD_FILTERS, "/production", f, { view: "" });
-            return (
-              <Link
-                key={text}
-                href={href}
-                aria-current={grouped === g ? "page" : undefined}
-                className={
-                  "px-3 py-1.5 max-md:inline-flex max-md:min-h-9 max-md:items-center " +
-                  (grouped === g ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-100")
-                }
-              >
-                {text}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
       <div className="flex flex-wrap items-center gap-2 text-xs print:hidden" role="group" aria-label="Группа категорий">
         <span className="text-neutral-500">Группа:</span>
         <div className="inline-flex overflow-hidden rounded-lg border border-neutral-300">
@@ -702,7 +672,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       <Table anchor="table:production" label="Таблица ТЗ" stickyHeader className="min-w-[1040px]">
         <Thead>
           <Tr>
-            <Th colSpan={5} aria-hidden />
+            <Th colSpan={4} aria-hidden />
             <Th colSpan={2} className={GH + BLH}>Производство</Th>
             <Th colSpan={3} className={GH + BLH}>Сырьё</Th>
             <Th colSpan={3} className={GH + BLH}>Итого</Th>
@@ -710,7 +680,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           <Tr>
             <Th {...tth("batch")}>Партия</Th>
             <Th {...tth("tz")}>ТЗ</Th>
-            <Th {...tth("articles")} className="text-right">Артикулов</Th>
             <Th {...tth("fur")}>Мех</Th>
             <Th {...tth("article")}>Артикул</Th>
             <Th {...tth("units")} className={"text-right" + BLH} unit="шт.">Изделий</Th>
@@ -732,7 +701,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           })}
           {orders.length === 0 && (
             <Tr>
-              <Td colSpan={13} className="py-8 text-center text-neutral-500">
+              <Td colSpan={12} className="py-8 text-center text-neutral-500">
                 {hasFilters ? "Ничего не найдено" : emptyForYear(year, "ТЗ", "ТЗ пока нет")}
               </Td>
             </Tr>

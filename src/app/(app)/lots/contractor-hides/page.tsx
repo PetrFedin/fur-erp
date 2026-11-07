@@ -41,7 +41,7 @@ export default async function ContractorHidesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Мех", href: "/lots" }, { label: "Доплата подрядчику: НДС 22 %" }]} />
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Мех", href: "/lots" }, { label: "Доплата подрядчику" }]} />
       <div className="flex flex-wrap items-center gap-2">
         <Link href="/lots" aria-label="Назад в «Сырьё — Мех»" title="Назад в «Сырьё — Мех»" className="inline-flex size-8 items-center justify-center rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">←</Link>
         <h1 className="text-xl font-semibold">Доплата подрядчику: НДС 22 % по сырью заказчика</h1>

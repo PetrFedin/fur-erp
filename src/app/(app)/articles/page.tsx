@@ -382,17 +382,17 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
 
       {markupTotal ? (
         <details open className="rounded-lg border border-neutral-200 bg-white" data-testid="articles-markup">
-          <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium max-md:py-3">Retail Price и наценка: мех → категория 1 → категория 2</summary>
+          <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium max-md:py-3">Розничная цена и наценка по меху и категориям</summary>
           <div className="overflow-x-auto border-t border-neutral-200">
           <table className="w-full min-w-[420px] text-sm">
             <thead>
               <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
                 <Th>Мех / категория</Th>
                 <Th className="text-right" unit="шт.">Артикулов</Th>
-                <Th className="text-right" unit="₽">Ср. Retail Price</Th>
+                <Th className="text-right" unit="₽">Ср. розничная цена</Th>
                 <Th className="text-right">
                   Ср. маркап
-                  <InfoHint label="Как считается средневзвешенное">Взвешено по выпуску (артикулы с ценой): Retail Price = Σ(цена × выпуск) ÷ Σ выпуск, маркап = Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск). Меняете фильтры — таблица пересчитывается.</InfoHint>
+                  <InfoHint label="Как считается средневзвешенное">Взвешено по выпуску (артикулы с ценой): розничная цена = Σ(цена × выпуск) ÷ Σ выпуск, маркап = Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск). Меняете фильтры — таблица пересчитывается.</InfoHint>
                 </Th>
               </tr>
             </thead>
@@ -408,12 +408,12 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                   {g.grps.map((gr) => (
                     <Fragment key={g.fur + gr.grp}>
                       <tr className="border-b border-neutral-100 font-medium">
-                        <td className="px-3 py-1.5 pl-6">{gr.grp}</td>
+                        <td className="px-3 py-1.5 pl-6">{gr.cats.length === 1 ? `${gr.grp} · ${gr.cats[0].cat}` : gr.grp}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">{gr.agg.n}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">{formatMoney(gr.agg.price.toFixed(0))}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">{fmtX(gr.agg.markup)}</td>
                       </tr>
-                      {gr.cats.map((c) => (
+                      {gr.cats.length > 1 && gr.cats.map((c) => (
                         <tr key={g.fur + gr.grp + c.cat} className="border-b border-neutral-100 text-neutral-700">
                           <td className="px-3 py-1 pl-10">{c.cat}</td>
                           <td className="px-3 py-1 text-right tabular-nums">{c.agg.n}</td>
@@ -651,7 +651,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       <OrdersTree
         orders={drill}
         c4={c4Mode}
-        title="Выпуск: группа → категория → мех → артикул → ТЗ → состав"
+        title="Выпуск"
         modes={[
           { id: "group", label: "Группы", dims: ["group", "category", "fur", "article", "order"] },
           { id: "article", label: "Артикулы", dims: ["article", "order"] },

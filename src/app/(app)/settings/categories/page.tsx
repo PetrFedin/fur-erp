@@ -118,7 +118,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
       {queue.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Не сопоставлено ({queue.reduce((s, r) => s + r.ids.length, 0)} моделей)</CardTitle>
+            <CardTitle>Не сопоставлено ({queue.reduce((s, r) => s + r.ids.length, 0)})</CardTitle>
             <CardDescription className="flex items-center gap-1.5">
               Категория пустая или неоднозначная.
               <InfoHint label="Что делает «Привязать»" wide>Текст не менялся. Проверьте предложение и нажмите «Привязать» — модели получат категорию из справочника, прежний текст станет синонимом. Привязка к категории с пометкой «ждёт подтверждения» подтверждает её.</InfoHint>

@@ -186,7 +186,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   })();
 
   /** Под ценой в $: по скольким штукам из скольких посчитана средняя (у остальных нет цены в $ в расчёте лота). */
-  const usdSub = (have: number | null | undefined, of: number) => (of > 0 ? <span className="text-[11px] font-normal text-neutral-500">посчитано по {formatQty(have ?? 0)} из {formatQty(of)} шт.</span> : undefined);
+  const usdSub = (have: number | null | undefined, of: number) => undefined;
   const px = (q: number | null | undefined, of: number) => (q != null && q > 0 ? `по ${formatQty(q)} из ${formatQty(of)} шт.` : "");
   const sumNow = (k: "recvValue" | "remValue" | "usedValue" | "usedValueOther") => (all ? F[k] + L[k] : cur[k]);
   // «Использовано»: сумма без 4% и под ней с 4% — независимо от режима шапки.
@@ -309,7 +309,7 @@ export function RawBlock({ href = "/lots", rows, fur: furIn, lining: liningIn, c
   const extra = (
     <>
       <InfoHint label="Как считаются плитки сырья" wide>
-        <p><b>Цена</b> — средневзвешенная: Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м), как в таблице «Сырьё». Нажмите на плитку — цены по видам.</p>
+        <p><b>Цена</b> — средневзвешенная: Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м), как в таблице «Сырьё».</p>
         <p className="mt-1"><b>Режимы.</b> Цены {vatW}, «Использовано» — {c4W}. 4% начисляется при списании в ТЗ, поэтому «Куплено» и «Остаток» всегда без 4%. «в т.ч. НДС» — по ставке каждого лота (20% или 22%); при «Без НДС» эта сумма в цену не входит.</p>
         <p className="mt-1"><b>Сходится:</b> куплено = использовано (без 4%) + остаток, отдельно для меха и подкладки.</p>
         <p className="mt-1"><b>Цена в долларах</b> — молоток за шкуру из документов лота: доллары, евро по курсу EUR→USD, рубли по курсу USD/RUB или цена $ из расчётного листа. Лоты без таких данных в среднюю $ не входят. У подкладки цены в долларах нет.</p>

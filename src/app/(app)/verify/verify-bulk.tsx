@@ -53,7 +53,6 @@ export function VerifyQueue({ items, readyAll }: { items: Item[]; readyAll: { ke
             </div>
           );
         })}
-        <p className="text-xs text-neutral-500">Подтверждаются только строки без замечаний (сервер проверит заново); отметка «подтвердил» и журнал изменений пишутся как при обычном «Подтвердить».</p>
       </div>
     );
     if (!(await ask(text, { ok: `Подтвердить (${rows.length})`, wide: true }))) return;

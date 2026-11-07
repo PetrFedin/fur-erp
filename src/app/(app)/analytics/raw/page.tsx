@@ -127,8 +127,6 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const exportQs = new URLSearchParams(entries).toString();
 
   // ───── графики ─────
-  const byKind = groupLots(lots, "kind");
-  const byAuction = groupLots(lots, "auction").sort((a, b) => b.agg.recv.comparedTo(a.agg.recv)).slice(0, 12);
   const months = new Map<string, MonthPoint>();
   for (const l of whLots) {
     const m = months.get(l.month) ?? { month: l.month, qty: 0, incl: 0, excl: 0 };
@@ -193,7 +191,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
       <Check key="c7" ok={noGrade.length === 0} warn text={noGrade.length === 0 ? "У всех лотов указан сорт или цвет." : `Лотов без сорта и цвета: ${noGrade.length} из ${data.lots.length}:`}>
             {noGrade.length > 0 && lotList(noGrade)}
           </Check>,
-      <Check key="c8" ok={noSize.length === 0} warn text={noSize.length === 0 ? "У всех лотов меха распознан размер." : `Лотов меха без размера: ${noSize.length} — в группе «Не указан».`} />,
+      <Check key="c8" ok={noSize.length === 0} warn text={noSize.length === 0 ? "У всех лотов меха распознан размер." : `Лотов меха без размера: ${noSize.length}.`} />,
       <Check key="c9" ok={noAuction.length === 0} warn text={noAuction.length === 0 ? "Все лоты привязаны к аукциону." : `Лотов без аукциона: ${noAuction.length}.`} />
   ];
   return (
@@ -401,47 +399,6 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
 
       {/* Графики */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Остаток по видам меха
-              <InfoHint label="Остаток по видам" wide>
-                <p>Длина полосы — сколько куплено; тёмная часть — использовано, зелёная — остаток. Видно, какого меха осталось больше всего.</p>
-                {byKind[0] && <p className="mt-1">Например, «{byKind[0].label}»: куплено {ex(byKind[0].agg.recv)}, использовано {ex(byKind[0].agg.used)}, остаток {ex(byKind[0].agg.rem)} {unit}.</p>}
-              </InfoHint>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Legend />
-            <div className="mt-2 flex flex-col gap-2">
-              {byKind.map((g) => {
-                const max = Math.max(...byKind.map((x) => x.agg.recv.toNumber()), 1);
-                return <StackBar key={g.key} label={g.label} agg={g.agg} max={max} unit={unit} />;
-              })}
-              {byKind.length === 0 && <p className="text-sm text-neutral-500">Нет данных.</p>}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Использование по аукционам
-              <InfoHint label="Использование по аукционам" wide>
-                <p>Для каждого аукциона (до 12 крупнейших по объёму закупки) — доля купленного, уже ушедшая в ТЗ. Длина полосы — объём закупки.</p>
-              </InfoHint>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Legend />
-            <div className="mt-2 flex flex-col gap-2">
-              {byAuction.map((g) => {
-                const max = Math.max(...byAuction.map((x) => x.agg.recv.toNumber()), 1);
-                return <StackBar key={g.key} label={g.label} title={g.title} agg={g.agg} max={max} unit={unit} showPct />;
-              })}
-              {byAuction.length === 0 && <p className="text-sm text-neutral-500">Нет данных.</p>}
-            </div>
-          </CardContent>
-        </Card>
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -515,37 +472,6 @@ function Tile({ title, hint, q, incl, excl, extra, sub, unit, c4, avg }: { unit:
       </div>
       <div className="absolute right-3 top-3">
         <InfoHint label={title} wide align="right">{hint}</InfoHint>
-      </div>
-    </div>
-  );
-}
-
-function Legend() {
-  return (
-    <div className="flex gap-4 text-xs text-neutral-600">
-      <span className="inline-flex items-center gap-1"><i className="inline-block size-2.5 rounded-sm bg-neutral-500" /> использовано</span>
-      <span className="inline-flex items-center gap-1"><i className="inline-block size-2.5 rounded-sm bg-teal-700" /> остаток</span>
-    </div>
-  );
-}
-
-function StackBar({ label, title, agg, max, unit, showPct }: { label: string; title?: string; agg: Agg; max: number; unit: string; showPct?: boolean }) {
-  const recv = agg.recv.toNumber();
-  const used = agg.used.toNumber();
-  const rem = agg.rem.toNumber();
-  const w = (recv / max) * 100;
-  return (
-    <div title={`${title ?? label}: куплено ${formatQty(recv)}, использовано ${formatQty(used)}, остаток ${formatQty(rem)} ${unit}`}>
-      <div className="flex justify-between gap-2 text-xs">
-        <span className="truncate font-medium text-neutral-800">{label}</span>
-        <span className="shrink-0 tabular-nums text-neutral-600">
-          {showPct ? `${pctText(usedPct(agg))} · ` : ""}ост. {formatQty(rem)} {unit}
-        </span>
-      </div>
-      <div className="mt-0.5 flex h-3 gap-0.5" style={{ width: `${Math.max(w, 1)}%` }}>
-        {used > 0 && <div className="rounded-sm bg-neutral-500" style={{ flexGrow: used }} />}
-        {rem > 0 && <div className="rounded-sm bg-teal-700" style={{ flexGrow: rem }} />}
-        {used <= 0 && rem <= 0 && <div className="flex-1 rounded-sm bg-neutral-200" />}
       </div>
     </div>
   );

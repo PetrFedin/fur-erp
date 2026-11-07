@@ -80,7 +80,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const leaves = useMemo(() => data.leaves.filter((l) => cat === "all" || l.cls === cat), [data.leaves, cat]);
   const tree = useMemo(() => buildTree(leaves, keys), [leaves]); // eslint-disable-line react-hooks/exhaustive-deps
   // Заказ и приход в деньгах — всегда EUR, как в отчёте (рублей в файлах заказа и прихода нет). Продажи и остаток — RUR (тысячами, подпись «000 RUR») или EUR (полными числами).
-  const unit = cur === "EUR" ? "EUR" : "000 RUR";
+  const unit = cur === "EUR" ? "EUR" : "тыс. ₽";
   // NS (выручка товара сезона) — как в отчёте, без пересчёта по курсу: EUR/RUR и с НДС/без НДС выбираются кнопками.
   const nsOf = (a: Agg) => (cur === "EUR" ? (vatEx ? a.nsEurEx : a.nsEurIn) : vatEx ? a.nsRubEx : a.nsRubIn);
   const fromRub = (v: number | null) => (v === null ? null : cur === "RUR" ? v : v / rate);
@@ -88,7 +88,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const eur = (v: number) => (Math.abs(v) < 0.5 ? "–" : nf(v));
   const q = (v: number) => (Math.abs(v) < 0.5 ? "–" : nf(v));
   const x2 = (v: number | null) => (v === null ? "–" : `×${v.toFixed(2).replace(".", ",")}`);
-  const subHeads = ["шт.", "шт.", "EUR", "шт.", "EUR", "шт.", "SO", `NS ${unit}`, "Ср. маркап", "С олдами, шт.", "Ср. маркап всех", "шт.", unit, "Ср. маркап", "Всего шт.", unit, "Ср. маркап"];
+  const subHeads = ["шт.", "шт.", "EUR", "шт.", "EUR", "шт.", "SO", `Выручка ${unit}`, "Ср. маркап", "С олдами, шт.", "Ср. маркап всех", "шт.", unit, "Ср. маркап", "Всего шт.", unit, "Ср. маркап"];
   const groupStarts = [1, 3, 5, 11];
   const grid = { gridTemplateColumns: `minmax(8.5rem,15rem) repeat(${subHeads.length}, minmax(4.4rem,auto))` };
 
@@ -139,7 +139,6 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
           <div className="flex gap-2 overflow-x-auto" data-keep-scroll role="group" aria-label="Уровень">
             {([[1, "Кат. 1"], [2, "Мех"], [3, "Кат. 2"]] as const).map(([d, t]) => <button key={d} type="button" aria-pressed={depth === d} onClick={() => { setDepth(d); setShut(new Set()); }} className={chip(depth === d) + " !px-3.5"}>{t}</button>)}
           </div>
-          {tab === "sales" ? <p className="text-xs text-neutral-600" title="Заказ и приход в деньгах — EUR как в отчёте (рублей в файлах заказа и прихода нет); продажи и остаток — RUR тысячами («000 RUR») или EUR по среднему курсу из файла продаж">заказ и приход — EUR · NS — {unit} {vatEx ? "excl VAT" : "incl VAT"} · остаток — {unit}{cur === "EUR" ? ` · курс ${rate ? rate.toFixed(1).replace(".", ",") : "–"} ₽/€` : ""}</p> : null}
         </div>
         {tab === "supply" ? (
           <div className="min-h-0 flex-1 overflow-auto overscroll-contain p-2" data-keep-scroll tabIndex={0} role="region" aria-label="Таблица отчёта по заказу и поставкам">
@@ -160,7 +159,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
               <div role="columnheader" className={`${hd} left-0 top-8 z-20`} />
               {subHeads.map((t, i) => <div role="columnheader" key={i} className={`${hd} top-8 ${groupStarts.includes(i) ? THICK : ""}`}>{i === 0 ? "Моделей" : t}</div>)}
             </div>
-            {row("Total", 0, aggOf(leaves, keys))}
+            {row("Итого", 0, aggOf(leaves, keys))}
             {flat(tree)}
           </div>
         </div>

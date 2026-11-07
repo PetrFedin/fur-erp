@@ -68,7 +68,6 @@ function QuickEdit({ row }: { row: VerifyRow }) {
         {msg.ok && <span className="text-emerald-700">{msg.ok}</span>}
         {msg.error && <span role="alert" className="w-full text-red-600">{msg.error}</span>}
       </form>
-      <p className="mt-1.5 text-neutral-500">После правки подтверждение этой строки и связанных сбрасывается — проверьте и нажмите «Подтвердить» снова.</p>
     </details>
   );
 }

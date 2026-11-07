@@ -75,7 +75,7 @@ function SeasonLines({ item }: { item: CatalogItem }) {
         <span /><span className={H} title="Заказано, шт.">Зак</span><span className={H} title="Пришло, шт.">При</span><span className={H} title="Продано, шт.">Про</span><span className={H} title="Остаток, шт.">Ост</span>
       </div>
       {item.seasons.map((s) => block(s.key, s.short, s))}
-      {item.seasons.length > 1 ? block("ttl", "TTL", tot, true) : null}
+      {item.seasons.length > 1 ? block("ttl", "Итого", tot, true) : null}
     </div>
   );
 }
@@ -151,8 +151,8 @@ function Lightbox({ item, start, onClose }: { item: CatalogItem; start: number; 
 function SeasonTable({ seasons, total }: { seasons: CatalogSeason[]; total: CatalogItem["total"] }) {
   type Col = { id: string; head: string; sub: string; ttl: boolean; s?: CatalogSeason };
   const cols: Col[] = [
-    ...seasons.flatMap((s) => [{ id: s.key + "ssn", head: s.short, sub: "SSN", ttl: false, s } as Col, ...(!total && s.showTtl ? [{ id: s.key + "ttl", head: s.short, sub: "TTL", ttl: true, s } as Col] : [])]),
-    ...(total ? [{ id: "total", head: "Итого", sub: "TTL", ttl: true } as Col] : []),
+    ...seasons.flatMap((s) => [{ id: s.key + "ssn", head: s.short, sub: "сезон", ttl: false, s } as Col, ...(!total && s.showTtl ? [{ id: s.key + "ttl", head: s.short, sub: "всего", ttl: true, s } as Col] : [])]),
+    ...(total ? [{ id: "total", head: "Итого", sub: "", ttl: true } as Col] : []),
   ];
   const commonKeys = [...new Set([...seasons.flatMap((s) => s.common.map(([k]) => k)), ...(total?.common.map(([k]) => k) ?? [])])];
   const pairKeys = [...new Set(seasons.flatMap((s) => s.pairs.map((p) => p.k)))];
@@ -280,9 +280,6 @@ function FiltersDialog({ seasonOptions, picked, onToggleSeason, furs, furPick, o
           </div>
         </div>
         <div className="flex flex-col gap-4 overflow-y-auto p-4">
-          {onVat ? <section aria-label="НДС"><h3 className="mb-2 text-sm font-semibold">НДС</h3>
-            <div className="flex gap-2">{([[false, "С НДС"], [true, "Без НДС"]] as const).map(([ex, t]) => <button key={t} type="button" aria-pressed={vatEx === ex} onClick={() => onVat(ex)} className={chip(vatEx === ex)}>{t}</button>)}</div>
-          </section> : null}
           <section aria-label="Сезоны"><h3 className="mb-2 text-sm font-semibold">Сезоны</h3>
             <div className="flex flex-wrap gap-2">{seasonOptions.map((s) => <button key={s.key} type="button" aria-pressed={picked.includes(s.key)} onClick={() => onToggleSeason(s.key)} className={chip(picked.includes(s.key))}>{s.label}</button>)}</div>
           </section>
@@ -340,11 +337,6 @@ export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, fur
             <button key={k} type="button" aria-pressed={cat === k} onClick={() => setCat(k)} className={chip(cat === k) + " !px-3.5"} aria-label={`${t}: ${counts[k]}`}>{t}</button>
           ))}
         </div>
-        {onVat ? (
-          <div className="flex shrink-0 gap-1" role="group" aria-label="НДС">
-            {([[false, "С НДС"], [true, "Без НДС"]] as const).map(([ex, t]) => <button key={t} type="button" aria-pressed={vatEx === ex} onClick={() => onVat(ex)} className={chip(vatEx === ex) + " !px-3 max-[430px]:hidden"}>{t}</button>)}
-          </div>
-        ) : null}
         <button type="button" onClick={() => setFilters(true)} className={chip(activeFilters > 0) + " gap-1.5 max-[430px]:!px-3"} aria-haspopup="dialog" aria-label="Фильтры">
           <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg>
           <span className="max-[430px]:sr-only">Фильтры</span>{activeFilters > 0 ? <span className="rounded-full bg-white px-1.5 text-xs font-semibold text-neutral-900">{activeFilters}</span> : null}

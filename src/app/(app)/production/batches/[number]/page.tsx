@@ -31,7 +31,7 @@ import { TzVatBadge } from "@/components/tz-vat-badge";
 import { vatBreakdown } from "@/lib/tz-vat";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
-import { BatchDocsPay, BatchDocsUpload } from "../../docs-pay";
+import { BatchDocsPay } from "../../docs-pay";
 import { VerifyBlock } from "../../../verify/verify-block";
 import { BatchEditButton } from "../../[id]/edit-buttons";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
@@ -172,7 +172,12 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
             .filter(Boolean)
             .join(" · ") || "–"}
         </p>
-        {cleanNote(batch.notes) && <p className="mt-1 text-sm text-neutral-600 whitespace-pre-line">{cleanNote(batch.notes)}</p>}
+        {cleanNote(batch.notes) && (
+          <details className="mt-1 text-sm text-neutral-600">
+            <summary className="inline-flex min-h-8 cursor-pointer items-center text-neutral-500 hover:text-neutral-800 max-md:min-h-11">Примечание</summary>
+            <p className="mt-1 whitespace-pre-line">{cleanNote(batch.notes)}</p>
+          </details>
+        )}
         {canEditProduction(session.user.role) && (
           <div className="mt-2 flex flex-wrap items-start gap-2">
             <Link href={`/production/new?batch=${batch.number}`} className="inline-flex h-8 items-center rounded-md bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-800">
@@ -188,6 +193,7 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
               blockedReason={await batchDeleteBlocker(session.user.organizationId, batch.id)}
               action={deleteProductionBatch.bind(null, batch.id)}
               redirectTo="/production/batches"
+              showReason={false}
             />
           </div>
         )}
@@ -207,7 +213,7 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
               <TileHead>Остаток работы</TileHead>
               <TileValue className={t.remaining.greaterThan(1) ? "text-amber-700" : ""}>{t.remaining.abs().lessThan(1) ? "–" : mny(Math.abs(Number(t.remaining)))}</TileValue>
-              <TileCaption>{overpaid ? "оплачено сверх работы" : "работа − оплачено"}</TileCaption>
+              {overpaid ? <TileCaption>оплачено сверх работы</TileCaption> : null}
               <TileList items={[
                 { k: "Работа", v: mny(workN) },
                 { k: "Оплачено", v: mny(paidN), share: workN ? paidN / workN : null },
@@ -370,6 +376,7 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
       <VerifyBlock kind="batch" id={batch.id} title="Подтверждение партии" collapsed />
 
       {/* Список оплат с покрываемыми ТЗ — справка; статус, платёжки и отметка оплаты — в блоке «Документы и оплата» ниже. */}
+      {payments.length > 0 && (
       <details className="rounded-lg border border-neutral-200 bg-white">
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Какие ТЗ покрывает каждая оплата ({payments.length})</summary>
       <Card className="border-0 shadow-none">
@@ -431,8 +438,8 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
         </CardContent>
       </Card>
       </details>
+      )}
 
-      <BatchDocsUpload batchNumber={batch.number} />
       <BatchDocsPay batchNumber={batch.number} />
 
       <SourceDocs

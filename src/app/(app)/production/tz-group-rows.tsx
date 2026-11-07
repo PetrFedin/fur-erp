@@ -9,7 +9,7 @@ import { Td, Tr } from "@/components/ui/table";
  * before — ячейка «Партия», label — содержимое ячейки «ТЗ» (после стрелки), after — остальные ячейки; children — строки-позиции.
  * Строки приходят с сервера готовыми, здесь только состояние «раскрыто».
  */
-export function TzGroupRows({ before, label, after, count, n, href, children, defaultOpen = false }: { before: ReactNode; label: ReactNode; after: ReactNode; count: string; n: number; href: string; children: ReactNode; defaultOpen?: boolean }) {
+export function TzGroupRows({ before, label, after, count, href, children, defaultOpen = false }: { before: ReactNode; label: ReactNode; after: ReactNode; count: string; n: number; href: string; children: ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <>
@@ -22,9 +22,6 @@ export function TzGroupRows({ before, label, after, count, n, href, children, de
             </button>
             <Link href={href} className="py-2 pr-3 hover:underline" title="Открыть ТЗ (позиции — в шапке карточки)">{label}</Link>
           </div>
-        </Td>
-        <Td className="p-0 text-right tabular-nums">
-          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={`${open ? "Свернуть" : "Раскрыть"}: ${count}`} className="block w-full px-3 py-2 text-right hover:underline">{n}</button>
         </Td>
         {after}
       </Tr>

@@ -9,9 +9,9 @@ const SETTINGS_LINKS = [
   { href: "/suppliers", title: "Поставщики", description: "Контакты" },
   { href: "/settings/contractors", title: "Подрядчики", description: "Реквизиты, договоры, доступ" },
   { href: "/clients", title: "Заказчики", description: "Кому шьём и кто платит" },
-  { href: "/settings/colors", title: "Справочник цветов", description: "Названия и синонимы" },
-  { href: "/settings/categories", title: "Справочник категорий", description: "Категории и синонимы" },
-  { href: "/settings/furs", title: "Справочник меха", description: "Названия и синонимы" },
+  { href: "/settings/colors", title: "Справочник цветов", description: "" },
+  { href: "/settings/categories", title: "Справочник категорий", description: "" },
+  { href: "/settings/furs", title: "Справочник меха", description: "" },
   { href: "/settings/fur-attrs", title: "Признаки меха", description: "Признаки лотов" },
   { href: "/settings/auctions", title: "Справочник аукционов", description: "Короткие имена" },
   { href: "/settings/articles-ref", title: "Справочник артикулов", description: "Коды и написания" },
@@ -36,11 +36,7 @@ export default async function SettingsPage() {
       <Breadcrumbs items={[{ label: isSup ? "Справочники" : "Настройки" }]} />
       <div>
         <h1 className="text-xl font-semibold">{isSup ? "Справочники" : "Настройки"}</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          {isSup
-            ? "Только просмотр. Не хватает — напишите в чате."
-            : "Справочники и параметры."}
-        </p>
+        {isSup ? <p className="mt-1 text-sm text-neutral-500">Только просмотр. Не хватает — напишите в чате.</p> : null}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {links.map((item) => (
@@ -48,7 +44,7 @@ export default async function SettingsPage() {
             <Card className="h-full transition-colors hover:border-neutral-400">
               <CardHeader>
                 <CardTitle>{item.title}</CardTitle>
-                <CardDescription>{item.description}</CardDescription>
+                {item.description ? <CardDescription>{item.description}</CardDescription> : null}
               </CardHeader>
               <CardContent className="max-md:p-0 max-md:pb-2" />
             </Card>

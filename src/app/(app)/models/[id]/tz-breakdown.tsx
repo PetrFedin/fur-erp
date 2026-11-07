@@ -35,61 +35,13 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
   const latest = latestId ? t.rows.find((r) => r.id === latestId) : undefined;
   const noFur = t.rows.filter((r) => r.noFur);
 
-  const totalsRows: { label: string; src: string; value: React.ReactNode; strong?: boolean }[] = [
-    { label: "Изделий", src: "по всем ТЗ артикула", value: qty(T.qty, "шт.") },
-    { label: "Шкур меха", src: "списано по лотам", value: qty(T.furQ, "шк.") },
-    ...(furSizes ? [{ label: "Размер шкур", src: "из лотов, откуда списан мех", value: <span className="text-neutral-700">{furSizes}</span> }] : []),
-    { label: "Мех", src: "списания меха и шкуры подрядчика", value: money(T.fur) },
-    ...(showLining ? [
-      { label: "Подкладка, м", src: "списано по лотам", value: qty(T.liningQ, "м") },
-      { label: "Подкладка", src: "списания подкладки", value: money(T.lining) },
-    ] : []),
-    ...(showC4 ? [{ label: "Надбавка 4 %", src: "к меху и подкладке", value: money(T.c4) }] : []),
-    ...(showOther ? [{ label: "Расходы ТЗ и прочее", src: "расходы из карточек ТЗ", value: money(T.other) }] : []),
-    { label: "Работа", src: "цена работы × изделий", value: money(T.work) },
-  ];
-
   const cell = (r: TzTableRow | Omit<TzTableRow, "id" | "noFur">, fmt: (v: number) => React.ReactNode, f: (x: typeof r) => number) => fmt(f(r));
   const perUnitMoney = (v: number) => (Math.abs(v) < 0.5 ? <span className="text-neutral-600">–</span> : formatMoney(Math.round(v)));
   const perUnitQty = (v: number, unit: string) => (v > 0 ? `${formatQty(Math.round(v * 100) / 100)} ${unit}` : <span className="text-neutral-600">–</span>);
 
   return (
     <div className="flex flex-col gap-4">
-      <div className={profile ? "grid items-start gap-4 lg:grid-cols-2" : ""}>
-        {profile}
-      <Card>
-        <CardHeader>
-          <CardTitle as="h2" className="flex items-center gap-1">
-            Показатели по ТЗ всего
-            <InfoHint label="Как читать показатели" wide>
-              <p>Сверху вниз к итогу: сначала всего по артикулу, ниже — те же статьи по каждому ТЗ, в конце итог и среднее на изделие. Итог всегда равен сумме строк.</p>
-              <p className="mt-1">Основная цифра — с 4 % (так мы платим); «с НДС / без НДС» — по переключателю в шапке. Суммы в таблицах — в целых рублях, сумма строк подогнана под итог плиток.</p>
-              <p className="mt-1">Куда уходят: «Ценообразование» (какую цену заводить), «Сырьё» (использование), план закупок мех/подкладка.</p>
-            </InfoHint>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <table className="w-full max-w-xl text-left text-sm">
-            <caption className="sr-only">Всего по артикулу по статьям</caption>
-            <thead className="sr-only"><tr><th scope="col">Статья</th><th scope="col">Всего</th></tr></thead>
-            <tbody>
-              {totalsRows.map((r) => (
-                <tr key={r.label} className="border-b border-neutral-100">
-                  <th scope="row" className="py-1.5 pr-3 text-left font-normal" title={r.src}>
-                    {r.label}
-                  </th>
-                  <td className="py-1.5 text-right align-top font-medium tabular-nums">{r.value}</td>
-                </tr>
-              ))}
-              <tr className="row-total">
-                <th scope="row" className="py-2 pl-1.5 pr-3 text-left"><span>Всего, ₽</span></th>
-                <td className="py-2 pr-1.5 text-right align-top tabular-nums">{money(T.total)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
-      </div>
+      {profile}
 
       <Card id="model-tz" className="scroll-mt-4">
         <CardHeader>
@@ -102,6 +54,7 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
+          {furSizes ? <p className="mb-2 text-sm text-neutral-700">Размер шкур: {furSizes}</p> : null}
           {noFur.length > 0 && (
             <p role="status" className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               В {noFur.length === 1 ? "ТЗ" : "ТЗ"}{" "}

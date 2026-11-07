@@ -85,12 +85,13 @@ export function MovementView({ card, rows }: { card: Card; rows: MoveRow[] }) {
           </section>
           <section aria-label="Все движения" className="flex flex-col gap-2 rounded-lg border border-neutral-300 bg-white p-3">
             <h2 className="text-sm font-semibold">Все движения</h2>
+            <p className="text-xs text-neutral-700">Источник: выгрузка «поступления и продажи», импорт {[...new Set(rows.map((r) => dmy(r.line.importTag.replace(/^.*:/, ""))))].join(", ")}</p>
             <div className="max-h-[70vh] w-full min-w-0 overflow-auto rounded-lg border border-neutral-300" data-keep-scroll tabIndex={0} role="region" aria-label="Лента движений">
               <table suppressHydrationWarning className="table-keep w-full border-collapse">
                 <thead>
                   <tr className="border-b border-neutral-300">
                     <th scope="col" className={th + " sticky top-0 bg-white text-left"}>Дата</th><th scope="col" className={th + " sticky top-0 bg-white text-left"}>Тип</th><th scope="col" className={th + " sticky top-0 bg-white text-left"}>Заказ</th><th scope="col" className={th + " sticky top-0 bg-white text-left"}>Сезон</th><th scope="col" className={th + " sticky top-0 bg-white text-left"}>Цвет</th>
-                    <th scope="col" className={th + " sticky top-0 bg-white"}>Шт.</th><th scope="col" className={th + " sticky top-0 bg-white"}>Цена за шт.</th><th scope="col" className={th + " sticky top-0 bg-white"}>Выручка с НДС</th><th scope="col" className={th + " sticky top-0 bg-white"}>Выручка без НДС</th><th scope="col" className={th + " sticky top-0 bg-white"}>Discount</th><th scope="col" className={th + " sticky top-0 bg-white"}>Остаток</th><th scope="col" className={th + " sticky top-0 bg-white text-left"}>Источник</th>
+                    <th scope="col" className={th + " sticky top-0 bg-white"}>Шт.</th><th scope="col" className={th + " sticky top-0 bg-white"}>Цена за шт.</th><th scope="col" className={th + " sticky top-0 bg-white"}>Выручка с НДС</th><th scope="col" className={th + " sticky top-0 bg-white"}>Выручка без НДС</th><th scope="col" className={th + " sticky top-0 bg-white"}>Discount</th><th scope="col" className={th + " sticky top-0 bg-white"}>Остаток</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -107,7 +108,6 @@ export function MovementView({ card, rows }: { card: Card; rows: MoveRow[] }) {
                         <td className={td}>{l.kind === "SALE" && l.pcs !== 0 ? money(l.retailRub / l.pcs) : DASH}</td>
                         <td className={td}>{money(l.retailRub)}</td><td className={td}>{money(l.retailRubExVat)}</td><td className={td}>{money(l.discountRub)}</td>
                         <td className={td + " font-semibold"}>{n0(r.stock)}</td>
-                        <td className="px-2 py-1.5 text-left text-xs whitespace-nowrap text-neutral-700">выгрузка «поступления и продажи», импорт {dmy(l.importTag.replace(/^.*:/, ""))}</td>
                       </tr>
                     );
                   })}

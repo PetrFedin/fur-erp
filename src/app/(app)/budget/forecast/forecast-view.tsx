@@ -118,7 +118,7 @@ export function ForecastView({ id, name, season, canEdit, initialEdits, initialO
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-semibold">{name}{season && !name.includes(season) ? <span className="ml-2 text-sm font-normal text-neutral-500">{season}</span> : null}</h1>
-          <p className="mt-1 text-xs text-neutral-500">Не произведено {formatInt(totalLeft)} изд.: по ТЗ, отмеченным завершёнными, — {formatInt(tProd)}; в работе и запланировано — {formatInt(tWork)}. Шкур на них {formatInt(tHides)}, из них уже списано со склада по ТЗ {formatInt(Math.max(0, tHides - tStock))}, ещё уйдёт со склада {formatInt(tStock)}.{asOf ? ` Приход — на ${asOf.split("-").reverse().join(".")}.` : ""} Суммы ₽ с НДС, до тысяч; итоги — средневзвешенные.</p>
+          <p className="mt-1 text-xs text-neutral-500">Не произведено {formatInt(totalLeft)} изд.: по ТЗ, отмеченным завершёнными, — {formatInt(tProd)}; в работе и запланировано — {formatInt(tWork)}. Шкур на них {formatInt(tHides)}, из них уже списано со склада по ТЗ {formatInt(Math.max(0, tHides - tStock))}, ещё уйдёт со склада {formatInt(tStock)}.{asOf ? ` Приход — на ${asOf.split("-").reverse().join(".")}.` : ""}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
         {canEdit && detail ? <button type="button" onClick={save} disabled={!dirty} className="min-h-11 rounded-lg bg-neutral-900 px-4 text-sm font-medium text-white disabled:opacity-50">Сохранить</button> : null}

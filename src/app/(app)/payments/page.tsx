@@ -49,7 +49,6 @@ import { rawRounding } from "@/lib/raw-rounding";
 import { YearGroup } from "./year-group";
 import { GoodsTiles, type BatchRow, type OwedOrder } from "./goods-tiles";
 import { PaymentsOverview } from "./payments-overview";
-import { PayTiles } from "../dashboard/pay-tiles";
 import { PaymentsNav } from "./payments-nav";
 import { KindBar } from "./kind-bar";
 import { parseKind } from "@/lib/pay-kinds";
@@ -715,8 +714,6 @@ export default async function PaymentsPage({
         />
         </div>
         {await (async () => {
-          // Плитки — те же, что на Главной (одна и та же функция): Общая стоимость / Оплачено / К оплате. Год — из шапки.
-          const dash = await loadDashboard(orgId, year, { status: [], ...parseFilters(DASH_FILTERS, {}) } as unknown as DashFilters, await getCommission4Mode());
           const lf = await overviewLeft(orgId);
           const yearsLeft = Object.entries(lf.byYear).filter(([y]) => year === "all" || Number(y) === Number(year));
           const left = { byYear: Object.fromEntries(yearsLeft), raw: yearsLeft.reduce((a, [, v]) => a + v.raw, 0), prod: yearsLeft.reduce((a, [, v]) => a + v.prod, 0), advance: yearsLeft.reduce((a, [, v]) => a + v.adv, 0) };
@@ -753,7 +750,7 @@ export default async function PaymentsPage({
               );
             }
           }
-          return <PaymentsOverview tiles={<PayTiles drill d={dash} c4Mode={await getCommission4Mode()} year={year} headerEnd={<Link href="/dashboard" className="text-xs text-blue-700 hover:underline print:hidden">→ Главная</Link>} />} rows={rows} left={left} controls={controls} />;
+          return <PaymentsOverview rows={rows} left={left} controls={controls} />;
         })()}
         </>
       ) : tab === "clients" ? (

@@ -17,13 +17,6 @@ const sec = "flex min-w-0 flex-col gap-3 rounded-lg border border-neutral-300 bg
 
 type Common = { ctx: Ctx; env: Env; lines: SLine[]; vatNote: string };
 
-/** Стрелка тренда к предыдущему сезону: только направление. */
-function Trend({ cur, prev }: { cur: number | null; prev: number | null | undefined }) {
-  if (cur === null || prev === null || prev === undefined || Math.abs(cur - prev) < 1e-9) return null;
-  const up = cur > prev;
-  return <span role="img" aria-label={up ? "выше, чем в прошлом сезоне" : "ниже, чем в прошлом сезоне"} className="ml-1 text-xs text-neutral-600">{up ? "▲" : "▼"}</span>;
-}
-
 export function SeasonsTab({ ctx, env, lines, vatNote, gran, onGran, ex, opening = 0 }: Common & { gran: Gran; onGran: (g: Gran) => void; ex: boolean; /** Остаток на начало периода (при фильтре периода): без него накопительный остаток «Динамики» стартует с нуля и расходится с плиткой. */ opening?: number }) {
   const rows = useMemo(() => bucketsOf(ctx, env, lines, "season", opening), [ctx, env, lines, opening]);
   const series = useMemo(() => bucketsOf(ctx, env, lines, gran, opening), [ctx, env, lines, gran, opening]);
@@ -31,7 +24,7 @@ export function SeasonsTab({ ctx, env, lines, vatNote, gran, onGran, ex, opening
   const cols: { label: string; get: (m: Ext, stock: number) => number | null; fmt: (v: number | null) => string }[] = [
     { label: "Приход, шт.", get: (m) => m.received, fmt: (v) => n0(v ?? 0) },
     { label: "Продано, шт.", get: (m) => m.sold, fmt: (v) => n0(v ?? 0) },
-    { label: "Остаток на конец периода (накопительно), шт.", get: (_m, s) => s, fmt: (v) => n0(v ?? 0) },
+    { label: "Остаток, шт.", get: (_m, s) => s, fmt: (v) => n0(v ?? 0) },
     { label: "Распродано, %", get: (m) => m.sellThrough, fmt: (v) => pct(v) },
     { label: `Выручка, ₽ (${vatNote})`, get: (m) => m.revenue, fmt: (v) => money(v) },
     { label: "Средняя цена, ₽", get: (m) => m.avgPrice, fmt: (v) => money(v) },
@@ -39,15 +32,14 @@ export function SeasonsTab({ ctx, env, lines, vatNote, gran, onGran, ex, opening
   ];
   return (
     <section aria-label="Динамика по сезонам" className={sec}>
-      <h2 className="text-sm font-semibold">Динамика по сезонам</h2>
       <div className={wrap} data-keep-scroll tabIndex={0} role="region" aria-label="Сравнение сезонов">
         <table suppressHydrationWarning className="table-keep w-full border-collapse">
           <thead><tr className="border-b border-neutral-300"><th scope="col" className={th + " text-left"}>Сезон</th>{cols.map((c) => <th key={c.label} scope="col" className={th}>{c.label}</th>)}</tr></thead>
           <tbody>
-            {rows.map((r, i) => (
+            {rows.map((r) => (
               <tr key={r.key} className="border-b border-neutral-200">
                 <th scope="row" className="px-2 py-1.5 text-left text-sm font-normal whitespace-nowrap">{r.label}</th>
-                {cols.map((c) => <td key={c.label} className={td}>{c.fmt(c.get(r.m, r.stock))}<Trend cur={c.get(r.m, r.stock)} prev={i > 0 ? c.get(rows[i - 1].m, rows[i - 1].stock) : undefined} /></td>)}
+                {cols.map((c) => <td key={c.label} className={td}>{c.fmt(c.get(r.m, r.stock))}</td>)}
               </tr>
             ))}
           </tbody>
@@ -102,7 +94,7 @@ export function StockTab({ ctx, env, lines, photos, today }: Common & { photos: 
                 <tr key={g.key} className="border-b border-neutral-200">
                   <td className="w-12 px-1 py-1 text-center"><Thumb g={g} photos={photos} /></td>
                   <th scope="row" className="px-2 py-1.5 text-left text-sm font-normal">{href ? <Link href={href} className="underline decoration-neutral-400 underline-offset-2">{g.label}</Link> : g.label}</th>
-                  <td className={td + " font-semibold"}>{n0(g.m.stock)}</td><td className={td}>{dateRu(g.m.lastSale)}</td><td className={td}>{d === null ? "не продавалось" : d === 0 ? DASH : n0(d)}</td>
+                  <td className={td + " font-semibold"}>{n0(g.m.stock)}</td><td className={td}>{dateRu(g.m.lastSale)}</td><td className={td}>{d === null || d === 0 ? DASH : n0(d)}</td>
                 </tr>
               );
             })}
@@ -151,7 +143,6 @@ function Top({ title, hint, rows, value, sub, extra, total, photos, tone, reserv
                   <span className="w-28 shrink-0 border-l border-neutral-100 pl-3 text-right max-sm:w-auto max-sm:flex-1 max-sm:text-left">
                     {x ? <span className="hidden text-xs text-neutral-500 max-sm:block">{extra.label}</span> : null}
                     <span className="block text-sm tabular-nums text-neutral-700">{x ? x.text : ""}</span>
-                    <span className="block text-xs tabular-nums text-neutral-500">{x ? `№ ${x.place} из 10` : ""}</span>
                   </span>); })() : null}
               </li>
             );
@@ -192,8 +183,8 @@ export function TopTab({ ctx, env, lines, photos }: Common & { photos: PhotoIdx 
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Top tone="top" title="Лидеры" hint={`10 лучших по показателю «${TOP_LABEL[by].toLowerCase()}», % — доля от всех артикулов`} rows={top} value={fmt} sub={subTop} extra={extra} total={total} photos={photos} />
-        <Top tone="out" title="Аутсайдеры" hint="Есть на остатке, а продаж мало или нет совсем" rows={out} value={fmt} sub={subOut} total={0} photos={photos} reserve={!!extra} />
+        <Top tone="top" title="Лидеры" rows={top} value={fmt} sub={subTop} extra={extra} total={total} photos={photos} />
+        <Top tone="out" title="Аутсайдеры" rows={out} value={fmt} sub={subOut} total={0} photos={photos} reserve={!!extra} />
       </div>
     </section>
   );

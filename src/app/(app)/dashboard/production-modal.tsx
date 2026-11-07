@@ -122,7 +122,6 @@ export function ProductionModal({
           <div className="min-w-0">
             <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Стоимость производства</div>
             <h2 id="prod-modal-title" className="mt-0.5 text-lg font-semibold">{title}</h2>
-            <div className="mt-0.5 text-xs text-neutral-600">Окно раскрывает произведённое (получено по приходу). «В выпуске» — заказ, он больше: в него входит ещё не полученное.</div>
             <div className="mt-0.5 text-xs text-neutral-500">
               {vat === "incl" ? "С НДС" : "Без НДС"} · {data?.c4 === "on" ? "с 4%" : "без 4%"} · с работой
               <InfoHint label="Что в столбцах" wide>
@@ -228,7 +227,7 @@ export function ProductionModal({
                 <div className="mt-2 min-h-[20px] text-xs text-neutral-700" aria-live="polite">
                   {shown ? (
                     <><b>{shown.label}</b>: <b className="tabular-nums">{formatMoney(shown.value)}</b>{shown.outside ? "" : <> · {pct(shown.share)} от уровня</>}{shown.qtyText ? <> · {shown.qtyText}</> : null}{shown.work ? <> · работа {formatMoney(shown.work)}</> : null}</>
-                  ) : <span className="text-neutral-500">Наведите — сумма и доля, нажмите — раскрыть.</span>}
+                  ) : null}
                 </div>
               </div>
 
@@ -328,7 +327,7 @@ export function ProductionModal({
 
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-600">
                 {matches != null ? (
-                  <span className={matches ? "text-emerald-700" : "text-red-700"}>{matches ? "✓ Сходится с плиткой" : `Σ столбцов ${formatMoney(level.total)} ≠ плитка ${formatMoney(tileTotal)}`}</span>
+                  <span className={matches ? "text-emerald-700" : "text-red-700"}>{matches ? null : `Σ столбцов ${formatMoney(level.total)} ≠ плитка ${formatMoney(tileTotal)}`}</span>
                 ) : null}
                 {level.links.map((l) => <Link key={l.href} href={l.href} className="text-blue-700 underline-offset-2 hover:underline">{l.label} →</Link>)}
                 {level.kind === "composition" ? <span>Нажмите составляющую — лоты и закупки.</span> : null}

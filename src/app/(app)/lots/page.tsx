@@ -27,8 +27,6 @@ import { loadFurLots } from "@/lib/fur-table-server";
 import { loadDashboard } from "@/lib/dashboard-data";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { RawCards } from "../dashboard/raw-block";
-import { PriceCompositionBlock } from "../dashboard/price-composition-block";
-import { priceComposition } from "@/lib/price-composition-server";
 import { PayTiles } from "../dashboard/pay-tiles";
 import { FurScope, ScopeEmpty, ScopeShow } from "@/components/fur-scope";
 
@@ -377,26 +375,13 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       <FurScope info={scopeInfo} section="raw">
       {tab === "fur" ? (
         <section aria-labelledby="raw-fur" className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h2 id="raw-fur" className="sr-only">{kindTitle}</h2>
-            <span aria-hidden className="text-xs text-neutral-500 xl:hidden">Как читать плитки сырья</span>
-            <InfoHint label="Как читать плитки сырья" wide>
-              <p>Цифры те же, что на Главной: <b>Куплено = Использовано + Остаток</b> (без 4 %). Нажмите на плитку — цены по видам. Справа: Оплачено и К оплате по меху (с НДС).</p>
-            </InfoHint>
-          </div>
+          <h2 id="raw-fur" className="sr-only">{kindTitle}</h2>
           <FurSelectionTotal summaryOnly noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} widgets={<FurSelectionTotal variant="years" lots={furTabLots} kind="fur" globalYear={year} />} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
-          <PriceCompositionBlock lots={(await priceComposition(orgId, dash)).lots} href="/lots" />
           <AuctionCompare lots={furTabLots} />
         </section>
       ) : (
         <section aria-labelledby="raw-lining" className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h2 id="raw-lining" className="sr-only">{kindTitle}</h2>
-            <span aria-hidden className="text-xs text-neutral-500 xl:hidden">Как читать плитки подкладки</span>
-            <InfoHint label="Как читать плитки подкладки" wide>
-              <p>Цифры те же, что на Главной: <b>Куплено = Использовано + Остаток</b> (м и ₽, без 4 %). Справа: Оплачено и К оплате по подкладке (с НДС).</p>
-            </InfoHint>
-          </div>
+          <h2 id="raw-lining" className="sr-only">{kindTitle}</h2>
           {/* Порядок: фильтры → ряд виджетов (плитки + формы подкладки) → таблица — это задаёт FurSelectionTotal. */}
           <FurSelectionTotal
             lots={furTabLots}

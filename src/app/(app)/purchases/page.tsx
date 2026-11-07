@@ -34,7 +34,7 @@ import { VatLine } from "../dashboard/vat-line";
 import { PurchasesList, PurchasesTree, type ExtraRow } from "./purchases-tree";
 import { classifyPurchaseSource } from "@/lib/purchase-source";
 import { FurScope, ScopeEmpty, ScopeShow } from "@/components/fur-scope";
-import { FUR_SRC_KEYS, FUR_SRC_LABEL, type FurSrc } from "@/lib/fur-src";
+import { FUR_SRC_KEYS, type FurSrc } from "@/lib/fur-src";
 import { aggregate, type PurchaseStatus, type TreeBatch, type TreePurchase, type TreeYear } from "./purchases-agg";
 
 function firstLine(v: string | null) {
@@ -391,20 +391,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         </InfoHint>
       </div>
 
-      <WidgetRow id="purchases" title="Закупки — итоги" headerEnd={
-        <>
-          {FUR_SRC_KEYS.map((k) => {
-            const grand = variants[k].grand;
-            return (
-              <ScopeShow key={k} src={k}>
-                <span className="text-xs text-neutral-500" data-testid="purchases-grand">
-                  {k === "all" ? "" : `${FUR_SRC_LABEL[k]}: `}Куплено {formatMoney(grand.bought.toFixed(2))} · оплачено {formatMoney(grand.paid.toFixed(2))} · {grand.rest < -OVERPAY_FROM ? "переплата" : "к оплате"} {formatMoney(Math.abs(grand.rest).toFixed(2))}
-                </span>
-              </ScopeShow>
-            );
-          })}
-        </>
-      }>
+      <WidgetRow id="purchases" title="Закупки — итоги">
         <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[repeat(6,minmax(0,1fr))_10rem]" data-testid="purchases-totals">
           <div className="flex flex-col gap-3 xl:col-span-6">
             {FUR_SRC_KEYS.map((srcK) => (
@@ -454,7 +441,6 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                 </div>
               </div>
             ))}
-            {srcK === "auction" && !sec ? <p className="text-[11px] leading-4 text-neutral-500" data-testid="lining-not-in-mode">Подкладка и шкуры подрядчика — не с аукциона.</p> : null}
             </ScopeShow>
             ))}
           </div>

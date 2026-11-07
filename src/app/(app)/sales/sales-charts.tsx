@@ -84,7 +84,7 @@ function Chart({ buckets, series, hot, setHot, label, fmtL, fmtR }: { buckets: B
       </div>
       <div className="mt-1 flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-800" aria-live="polite">
         {series.map((s) => <button key={s.name} type="button" aria-pressed={hotS === s.name} onMouseEnter={() => setHotS(s.name)} onMouseLeave={() => setHotS(null)} onFocus={() => setHotS(s.name)} onBlur={() => setHotS(null)} onClick={() => setHotS(hotS === s.name ? null : s.name)} className={"inline-flex min-h-11 items-center gap-1 rounded-md px-2 " + (hotS === s.name ? "bg-neutral-100 font-semibold" : "")}><i aria-hidden className="inline-block size-2.5 rounded-sm" style={{ background: s.color }} />{s.name}{hotB && hot !== null ? <b className="tabular-nums"> {s.axis === "l" ? fmtL(s.vals[hot]) : fmtR(s.vals[hot])}</b> : null}</button>)}
-        {hotB ? <span className="ml-auto font-medium">{hotB.label}</span> : <span className="ml-auto text-neutral-600">Наведите на период, чтобы увидеть числа</span>}
+        {hotB ? <span className="ml-auto font-medium">{hotB.label}</span> : null}
       </div>
     </div>
   );
