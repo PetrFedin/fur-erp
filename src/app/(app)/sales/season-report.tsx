@@ -70,10 +70,10 @@ const COLS: Col[] = [
   { key: "deliv", label: "Получено, шт.", short: "Получено, шт.", hint: "Получено в рознице по этому сезону (файл «поступления и продажи»).", get: (m) => n0(m.deliv) },
   { key: "wait", label: "Ждём, шт.", short: "Ждём, шт.", hint: "Заказано − поступило (только FW26).", get: (m, s) => (s === "FW26/27" ? n0(Math.max(0, m.conf - m.deliv)) : DASH), full: true },
   { key: "ssn", label: "Продано за сезон, шт.", short: "Прод. за сезон, шт.", hint: "Товара ЭТОГО сезона продано в календаре этого же сезона (FW — август–январь, SS — февраль–июль).", get: (m) => n0(m.ssn), strong: true },
-  { key: "soS", label: "SO за сезон, %", short: "SO сезона", hint: "Продано за сезон ÷ заказано: итоговый SO по сезону.", get: (m) => pct(soS(m)) },
+  { key: "soS", label: "SO AS, %", short: "SO AS", hint: "Продано за сезон ÷ заказано: итоговый SO по сезону.", get: (m) => pct(soS(m)) },
   { key: "all", label: "Продано всего, шт.", short: "Прод. всего, шт.", hint: "Весь календарь сезона: товар этого сезона (SSN) + олды, то есть товар прошлых сезонов, проданный в этом календаре.", get: (m) => n0(m.all), strong: true },
   { key: "goods", label: "Продано товара сезона, шт.", short: "Прод. товара, шт.", hint: "Товар, заказанный на этот сезон, проданный за всё время: в свой календарный сезон (SSN) и позже. Получено − это число = остаток сезона.", get: (m) => n0(m.allG), strong: true },
-  { key: "soA", label: "SO сейчас, %", short: "SO сейчас", hint: "Товар этого сезона, проданный за всё время (в свой сезон и позже), ÷ заказано. Олды в календаре сезона в SO не входят.", get: (m) => pct(soA(m)) },
+  { key: "soA", label: "SO STD, %", short: "SO STD", hint: "Товар этого сезона, проданный за всё время (в свой сезон и позже), ÷ заказано. Олды в календаре сезона в SO не входят.", get: (m) => pct(soA(m)) },
   { key: "left", label: "Остаток сезона, шт.", short: "Остаток сезона, шт.", hint: "Товар, заказанный на этот сезон: поступило − продано за всё время = остаток.", get: (m) => n0(m.stock), strong: true },
   { key: "rubS", label: "Выручка за сезон, ₽", short: "Выручка сезон", hint: "Выручка с продаж товара этого сезона в его календарь: после скидки. С НДС или без — как в шапке.", get: (m) => moneyC(m.rubS), strong: true },
   { key: "rubA", label: "Выручка всего, ₽", short: "Выручка всего", hint: "Выручка всего календаря сезона: товар сезона + олды. С НДС или без — как в шапке.", get: (m) => moneyC(m.rubA), strong: true },
@@ -424,12 +424,12 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   };
   /** Строки итогов: общая часть + показатели выбранной базы (за сезон / всего); «Заказано, €» — только в «Все показатели». */
   const byKey = Object.fromEntries(COLS.map((c) => [c.key, c])) as Record<string, Col>;
-  const BASIS_LABEL: Record<string, string> = { ssn: "из них сезонный товар, шт.", after: "из них олды, шт.", all: "Продано в календарном сезоне, шт.", soS: "SO SSN, %", soA: "SO, %", rubS: "Выручка, ₽", rubA: "Выручка, ₽", priceS: "Цена, ₽/шт.", priceA: "Цена, ₽/шт.", mkS: "Маркап", mkA: "Маркап" };
+  const BASIS_LABEL: Record<string, string> = { ssn: "из них сезонный товар, шт.", after: "из них олды, шт.", all: "Продано в календарном сезоне, шт.", soS: "SO AS, %", soA: "SO STD, %", rubS: "Выручка, ₽", rubA: "Выручка, ₽", priceS: "Цена, ₽/шт.", priceA: "Цена, ₽/шт.", mkS: "Маркап", mkA: "Маркап" };
   const bk = (a: string, b: string) => byKey[basis === "season" ? a : b];
   const eurCol: Col = { key: "confEur", label: "Заказано, €", short: "", hint: "Conf EUR отчёта — закупочная стоимость заказа; по SS 2026 и FW 25/26 — поступило в €.", get: (m: M) => eur(m.confEur) };
   const stockToday = SEASONS.reduce((a, s) => a + totalAll[s].stock, 0);
   const stockAllCol: Col = { key: "stockAll", label: "Остаток всего, шт.", short: "", hint: "Сколько товара на сегодня во всех сезонах вместе: остаток этого сезона и остатки прошлых сезонов. Показан в последнем сезоне.", get: (_m: M, s: Season) => (s === SEASONS[SEASONS.length - 1] ? n0(stockToday) : DASH), strong: true };
-  const SUMMARY: Col[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait, byKey.goods, byKey.soA, byKey.left, stockAllCol, byKey.all, byKey.ssn, byKey.after, ...(basis === "season" ? [byKey.soS] : []), bk("rubS", "rubA"), byKey.rubAfter, bk("priceS", "priceA"), bk("mkS", "mkA")]
+  const SUMMARY: Col[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait, byKey.goods, byKey.soA, byKey.left, stockAllCol, byKey.all, byKey.ssn, byKey.soS, byKey.after, bk("rubS", "rubA"), byKey.rubAfter, bk("priceS", "priceA"), bk("mkS", "mkA")]
     .map((c) => (BASIS_LABEL[c.key] ? { ...c, label: BASIS_LABEL[c.key] } : c));
 
   return (
