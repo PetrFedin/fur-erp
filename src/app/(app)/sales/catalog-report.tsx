@@ -90,7 +90,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const x2 = (v: number | null) => (v === null ? "–" : `×${v.toFixed(2).replace(".", ",")}`);
   const subHeads = ["шт.", "шт.", "EUR", "шт.", "EUR", "шт.", "SO", `NS ${unit}`, "Ср. маркап", "С олдами, шт.", "Ср. маркап всех", "шт.", unit, "Ср. маркап", "Всего шт.", unit, "Ср. маркап"];
   const groupStarts = [1, 3, 5, 11];
-  const grid = { gridTemplateColumns: `minmax(8.5rem,15rem) repeat(${subHeads.length}, minmax(3.6rem,auto))` };
+  const grid = { gridTemplateColumns: `minmax(8.5rem,15rem) repeat(${subHeads.length}, minmax(4.4rem,auto))` };
 
   const row = (label: string, level: 0 | 1 | 2 | 3, a: Agg, node?: Node) => {
     const so = a.conf > 0 ? `${Math.round((a.sold / a.conf) * 100)} %` : "–";
@@ -112,7 +112,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
             </button>
           ) : <span className="truncate pr-2">{label}</span>}
         </div>
-        {cells.map((c, i) => <div role="cell" key={i} className={`flex min-h-8 items-center justify-end border-b border-[#111] px-1.5 text-right text-[13px] tabular-nums ${tone} ${groupStarts.includes(i) ? THICK : ""}`}>{c}</div>)}
+        {cells.map((c, i) => <div role="cell" key={i} className={`flex min-h-8 items-center justify-end border-b border-[#111] pl-3 pr-2 text-right text-[13px] tabular-nums ${tone} ${groupStarts.includes(i) ? THICK : ""}`}>{c}</div>)}
       </div>
     );
   };
@@ -122,8 +122,8 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
     <dialog ref={dlg} onClose={onClose} className="m-0 h-dvh max-h-none w-screen max-w-none bg-white p-0 text-neutral-900 md:mx-auto md:my-4 md:h-[calc(100dvh-2rem)] md:w-[min(96rem,100vw-2rem)] md:rounded-2xl">
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between gap-2 border-b border-neutral-200 px-3 py-2">
-          <div className="flex gap-2" role="tablist" aria-label="Отчёт">
-            {([["sales", "Продажи"], ["supply", "Поставки"]] as const).map(([k, t]) => <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={chip(tab === k) + " !px-4"}>Отчёт: {t.toLowerCase()} FW26</button>)}
+          <div className="flex min-w-0 gap-2" role="tablist" aria-label="Отчёт">
+            {([["sales", "Продажи"], ["supply", "Поставки"]] as const).map(([k, t]) => <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={chip(tab === k) + " !px-3 md:!px-4"}><span className="hidden md:inline">Отчёт: </span>{t} FW26</button>)}
           </div>
           <CloseX onClick={onClose} />
         </div>
