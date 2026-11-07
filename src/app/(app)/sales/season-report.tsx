@@ -424,10 +424,12 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   };
   /** Строки итогов: общая часть + показатели выбранной базы (за сезон / всего); «Заказано, €» — только в «Все показатели». */
   const byKey = Object.fromEntries(COLS.map((c) => [c.key, c])) as Record<string, Col>;
-  const BASIS_LABEL: Record<string, string> = { ssn: "Продано SSN, шт.", all: "Продано в календарном сезоне, шт.", soS: "SO SSN, %", soA: "SO, %", rubS: "Выручка, ₽", rubA: "Выручка, ₽", priceS: "Цена, ₽/шт.", priceA: "Цена, ₽/шт.", mkS: "Маркап", mkA: "Маркап" };
+  const BASIS_LABEL: Record<string, string> = { ssn: "из них сезонный товар, шт.", after: "из них олды, шт.", all: "Продано в календарном сезоне, шт.", soS: "SO SSN, %", soA: "SO, %", rubS: "Выручка, ₽", rubA: "Выручка, ₽", priceS: "Цена, ₽/шт.", priceA: "Цена, ₽/шт.", mkS: "Маркап", mkA: "Маркап" };
   const bk = (a: string, b: string) => byKey[basis === "season" ? a : b];
   const eurCol: Col = { key: "confEur", label: "Заказано, €", short: "", hint: "Conf EUR отчёта — закупочная стоимость заказа; по SS 2026 и FW 25/26 — поступило в €.", get: (m: M) => eur(m.confEur) };
-  const SUMMARY: Col[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait, byKey.goods, byKey.soA, byKey.left, ...(basis === "season" ? [byKey.ssn, byKey.soS] : [byKey.all]), bk("rubS", "rubA"), byKey.after, byKey.rubAfter, bk("priceS", "priceA"), bk("mkS", "mkA")]
+  const stockToday = SEASONS.reduce((a, s) => a + totalAll[s].stock, 0);
+  const stockAllCol: Col = { key: "stockAll", label: "Остаток всего, шт.", short: "", hint: "Сколько товара на сегодня во всех сезонах вместе: остаток этого сезона и остатки прошлых сезонов. Показан в последнем сезоне.", get: (_m: M, s: Season) => (s === SEASONS[SEASONS.length - 1] ? n0(stockToday) : DASH), strong: true };
+  const SUMMARY: Col[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait, byKey.goods, byKey.soA, byKey.left, stockAllCol, byKey.all, byKey.ssn, byKey.after, ...(basis === "season" ? [byKey.soS] : []), bk("rubS", "rubA"), byKey.rubAfter, bk("priceS", "priceA"), bk("mkS", "mkA")]
     .map((c) => (BASIS_LABEL[c.key] ? { ...c, label: BASIS_LABEL[c.key] } : c));
 
   return (
@@ -458,7 +460,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
               <tr key={c.key} className="border-t border-neutral-200">
                 <td className={"px-3 py-2 " + (c.strong ? "font-semibold" : "")}>{c.label}<span className="ml-1 inline-flex align-middle [&_.info-i]:!h-5 [&_.info-i]:!min-h-0 [&_.info-i]:!w-5 [&_.info-i]:!min-w-0"><InfoHint label={c.label}><p>{c.hint}</p></InfoHint></span></td>
                 {seasons.map((s) => <td key={s} data-season={s} data-metric={c.key} className={`px-3 py-2 text-right tabular-nums ${SEASON_BG[s]} ${c.strong ? "font-semibold" : ""}`}>{c.key === "rubS" || c.key === "rubA" ? money(totalAll[s][c.key]) : c.get(totalAll[s], s)}</td>)}
-                {seasons.length > 1 ? <td className="px-3 py-2 text-right tabular-nums text-neutral-800">{c.key === "wait" ? (seasons.includes("FW26/27") ? n0(Math.max(0, totalAll["FW26/27"].conf - totalAll["FW26/27"].deliv)) : DASH) : c.key === "rubS" || c.key === "rubA" ? money(sumAll[c.key]) : c.get(sumAll, "FW25/26")}</td> : null}
+                {seasons.length > 1 ? <td className="px-3 py-2 text-right tabular-nums text-neutral-800">{c.key === "wait" ? (seasons.includes("FW26/27") ? n0(Math.max(0, totalAll["FW26/27"].conf - totalAll["FW26/27"].deliv)) : DASH) : c.key === "rubS" || c.key === "rubA" ? money(sumAll[c.key]) : c.key === "stockAll" ? n0(stockToday) : c.get(sumAll, "FW25/26")}</td> : null}
               </tr>
             ))}
           </tbody>
