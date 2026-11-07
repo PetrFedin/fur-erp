@@ -59,7 +59,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   // Независимые загрузки идут одной пачкой (раньше — по очереди); результаты и расчёты те же.
   const [materials, auctions, aucOf, pyearOptionsAll, auctionValues, furIdx] = await Promise.all([
     prisma.rawMaterial.findMany({
-      where: { organizationId: orgId },
+      where: { organizationId: orgId, isActive: true },
       select: { id: true, name: true, unit: true, minStockLevel: true },
       orderBy: { name: "asc" },
     }),

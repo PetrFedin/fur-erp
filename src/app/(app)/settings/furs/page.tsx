@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { buildFurIndex } from "@/lib/fur-ref";
+import { HIDDEN_FUR_KINDS } from "@/lib/order-fur";
 import { loadFurUsage } from "@/lib/fur-usage";
 import { SupplierFursRef } from "../supplier-refs";
 import { FursTable, type FurRow } from "./furs-table";
@@ -29,7 +30,7 @@ export default async function FursPage({ searchParams }: PageProps<"/settings/fu
   }
   const refs = await prisma.furRef.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } });
   const usage = await loadFurUsage(orgId, refs, buildFurIndex(refs));
-  const rows: FurRow[] = refs.map((r) => {
+  const rows: FurRow[] = refs.filter((r) => !HIDDEN_FUR_KINDS.has(r.name)).map((r) => {
     const u = usage.byRef.get(r.id);
     return { id: r.id, name: r.name, nameEn: r.nameEn, aliases: r.aliases, note: r.note, lots: u?.lots ?? 0, items: u?.items ?? 0, orders: u?.orders ?? 0, seen: u?.seen ?? [] };
   });

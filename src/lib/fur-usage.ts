@@ -19,7 +19,7 @@ export type FurUsageReport = {
 export async function loadFurUsage(orgId: string, refs: Array<{ id: string; name: string; nameEn: string | null; aliases: string[] }>, index?: FurIndex): Promise<FurUsageReport> {
   const idx = index ?? buildFurIndex(refs);
   const [materials, lotGroups, itemGroups, orders] = await Promise.all([
-    prisma.rawMaterial.findMany({ where: { organizationId: orgId, unit: { not: "M" } }, select: { id: true, name: true } }),
+    prisma.rawMaterial.findMany({ where: { organizationId: orgId, isActive: true, unit: { not: "M" } }, select: { id: true, name: true } }),
     prisma.rawMaterialLot.groupBy({ by: ["rawMaterialId"], where: { organizationId: orgId }, _count: { _all: true } }),
     prisma.purchaseItem.groupBy({ by: ["rawMaterialId"], where: { purchase: { organizationId: orgId } }, _count: { _all: true } }),
     prisma.productionOrder.findMany({

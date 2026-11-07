@@ -242,7 +242,7 @@ async function purchaseIdsByAuctionImpl(orgId: string, values: string[]): Promis
 /** Материалы (id), относящиеся к выбранным видам меха («Лиса» включает «Лиса красная»). */
 export async function furMaterialIdsByKind(orgId: string, kinds: string[]): Promise<string[]> {
   const [mats, idx] = await Promise.all([
-    prisma.rawMaterial.findMany({ where: { organizationId: orgId, unit: { not: "M" } }, select: { id: true, name: true } }),
+    prisma.rawMaterial.findMany({ where: { organizationId: orgId, isActive: true, unit: { not: "M" } }, select: { id: true, name: true } }),
     getFurIndex(orgId),
   ]);
   return mats.filter((m) => kinds.includes(canonicalFur(m.name, idx)?.name ?? m.name)).map((m) => m.id);

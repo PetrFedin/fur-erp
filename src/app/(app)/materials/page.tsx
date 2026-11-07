@@ -48,6 +48,7 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
     prisma.rawMaterial.findMany({
       where: {
         organizationId: orgId,
+        isActive: true,
         // Вид «мех» — единицы не метры (как на странице «Сырьё»), «подкладка» — метры.
         ...(f.type.length === 1 ? { unit: f.type[0] === "lining" ? "M" : { not: "M" } } : {}),
         ...(f.category.length ? { OR: [...(cat.rest.length ? [{ category: { name: { in: cat.rest } } }] : []), ...(cat.none ? [{ categoryId: null }] : [])] } : {}),

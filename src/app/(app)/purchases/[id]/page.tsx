@@ -49,7 +49,7 @@ import { ACCESS, hasRole } from "@/lib/access";
 import { findAuctionIn, auctionKeys } from "@/lib/auction-ref-core";
 import { auctionKey } from "@/lib/auction-key";
 import { getColorOptions } from "@/lib/colors";
-import { loadAuctionSummaries } from "@/lib/auction-payments";
+import { loadAuctionSummaries, purchasePaidShare } from "@/lib/auction-payments";
 import { AuctionDocsPay } from "../../lots/auction-docs-pay";
 import { SourceDocs } from "@/components/source-docs";
 import { loadPurchaseSourceDocs } from "@/lib/source-docs-server";
@@ -278,6 +278,8 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
     ? (await loadAuctionSummaries(prisma, session.user.organizationId, [batchName]))[0] ?? null
     : null;
   const balanceDue = grandTotalRub.sub(paidTotal);
+  // Доля закупки в оплатах партии — то же правило, что в списке закупок (purchasePaidShare), чтобы остаток закупки везде был один.
+  const shareDue = (() => { const paid = purchase.status === "CANCELLED" ? new Decimal(0) : purchasePaidShare(auctionPay ?? undefined, id, paidTotal); return { paid, rest: grandTotalRub.sub(paid) }; })();
   // Один счёт/УПД на несколько закупок (split purchase): показываем соседние закупки с тем же счётом или УПД у того же поставщика.
   const sharedKeys = [
     ...(purchase.invoiceNumber ? [{ invoiceNumber: purchase.invoiceNumber }] : []),
@@ -775,18 +777,18 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
           <>
             <SummaryCard
               label={
-                <Link href={`/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block`} className="inline-block text-blue-600 hover:underline max-md:py-2" title={`Оплаты ведутся по партии «${auctionPay.name}» целиком`}>
+                <Link href={`/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block`} className="inline-block text-blue-600 hover:underline max-md:py-2" title={`Оплаты ведутся по партии «${auctionPay.name}» целиком; на закупку приходится её доля — как в списке закупок`}>
                   Оплачено
                 </Link>
               }
-              value={auctionPay.paid.greaterThan(0.005) ? formatMoney(auctionPay.paid.toString()) : "–"}
-              note={`по партии «${auctionPay.name}» из ${formatMoney(auctionPay.total.toString())}`}
+              value={shareDue.paid.greaterThan(0.005) ? formatMoney(shareDue.paid.toString()) : "–"}
+              note={`по закупке · партия «${auctionPay.name}»: ${formatMoney(auctionPay.paid.toString())} из ${formatMoney(auctionPay.total.toString())}`}
             />
             <SummaryCard
               label="Остаток"
-              value={isRoundingRest(auctionPay.remaining.toNumber(), auctionPay.total.toNumber()) ? "оплачено" : auctionPay.remaining.lessThan(-0.005) ? `Переплата ${formatMoney(auctionPay.remaining.abs().toString())}` : formatMoney(auctionPay.remaining.abs().lessThan(0.005) ? "0" : auctionPay.remaining.toString())}
-              note={isRoundingRest(auctionPay.remaining.toNumber(), auctionPay.total.toNumber()) ? roundingRestHint(auctionPay.remaining.toNumber()) : auctionPay.planned.greaterThan(0) ? `по партии, запланировано ${formatMoney(auctionPay.planned.toString())}` : "по партии"}
-              warn={auctionPay.remaining.greaterThan(0) && !isRoundingRest(auctionPay.remaining.toNumber(), auctionPay.total.toNumber())}
+              value={isRoundingRest(shareDue.rest.toNumber(), grandTotalRub.toNumber()) ? "оплачено" : shareDue.rest.lessThan(-OVERPAY_FROM) ? `Переплата ${formatMoney(shareDue.rest.abs().toString())}` : formatMoney(shareDue.rest.abs().lessThan(0.005) ? "0" : shareDue.rest.toString())}
+              note={isRoundingRest(shareDue.rest.toNumber(), grandTotalRub.toNumber()) ? roundingRestHint(shareDue.rest.toNumber()) : "по закупке"}
+              warn={shareDue.rest.greaterThan(0) && !isRoundingRest(shareDue.rest.toNumber(), grandTotalRub.toNumber())}
             />
           </>
         ) : (
