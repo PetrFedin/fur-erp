@@ -484,12 +484,16 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   const mc = (key: string, label: string, hint: string, num: (m: M) => number | null, strong = false): Col => ({ key, label, short: "", hint, get: (m) => { const v = num(m); return v === null || Math.abs(v) < 0.5 ? DASH : money(v); }, strong });
   const mx = (key: string, label: string, hint: string, v: (m: M) => number | null): Col => ({ key, label, short: "", hint, get: (m) => x2(v(m)) });
   const ctr = "Календарь сезона: товар этого сезона и олды вместе.";
-  const SUMMARY: Col[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait, byKey.goods, { ...byKey.soA, label: "SO STD, %" }, byKey.left, stockAllCol,
+  // Порядок — по развитию данных: заказано → получено → ждём → продано в свой сезон (SSN) → продано товара за всё время и остаток → календарь сезона → олды.
+  const SUMMARY: Col[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait,
+    { ...byKey.ssn, label: "из них сезонный товар, шт." },
+    { ...byKey.soS, label: "SO AS, %" },
+    mc("revSsn", "Выручка сезонного, ₽", "Товар этого сезона в свой календарный сезон. После скидки.", (m) => m.rubS, true), mc("priceSsn", "Цена сезонного, ₽/шт.", "(выручка + скидка) ÷ шт., с НДС.", (m) => priceS(m)), mx("muSsn", "MU сезонного", "Цена до скидки ÷ себестоимость.", mkS),
+    byKey.goods, { ...byKey.soA, label: "SO STD, %" },
+    mc("revGoods", "Выручка товара сезона, ₽", "Выручка с продаж товара этого сезона за всё время: в свой сезон и позже. После скидки; с НДС или без — как в шапке.", (m) => m.rubG, true),
+    byKey.left, stockAllCol,
     { ...byKey.all, label: "Продано в календарном сезоне, шт." },
     mc("revCal", "Выручка, ₽", ctr + " После скидки; с НДС или без — как в шапке.", (m) => m.rubA, true), mc("priceCal", "Цена, ₽/шт.", ctr + " (выручка + скидка) ÷ шт., с НДС.", (m) => priceA(m)), mx("muCal", "MU", ctr + " Цена до скидки ÷ себестоимость.", mkA),
-    { ...byKey.ssn, label: "из них сезонный товар, шт." },
-    mc("revSsn", "Выручка сезонного, ₽", "Товар этого сезона в свой календарный сезон. После скидки.", (m) => m.rubS, true), mc("priceSsn", "Цена сезонного, ₽/шт.", "(выручка + скидка) ÷ шт., с НДС.", (m) => priceS(m)), mx("muSsn", "MU сезонного", "Цена до скидки ÷ себестоимость.", mkS),
-    { ...byKey.soS, label: "SO AS, %" },
     { ...byKey.after, label: "из них олды, шт." },
     mc("revOld", "Выручка олдов, ₽", "Товар прошлых сезонов, проданный в календаре этого сезона. После скидки.", (m) => m.rubA - m.rubS, true), mc("priceOld", "Цена олдов, ₽/шт.", "(выручка + скидка) ÷ шт., с НДС.", (m) => priceO(m)), mx("muOld", "MU олдов", "Цена до скидки ÷ себестоимость.", mkO)]
 
