@@ -322,7 +322,8 @@ export function diffPrices(file: { rows: PriceRow[]; errors: string[]; warnings:
 export type SeasonCell = { conf?: number; confEur?: number; deliv?: number; delivEur?: number; soldAll?: number; rubAll?: number; rubExAll?: number; soldSsn?: number; rubSsn?: number; rubExSsn?: number; soldOld?: number; rubOld?: number; rubExOld?: number;
   /** Скидка ₽ с НДС (Discount RUR) за период сезона: всего / сезонного / прошлых. */ discAll?: number; discSsn?: number; discOld?: number;
   /** Выручка в €: NS EUR (с НДС) и NS EUR excl VAT (без НДС) за период сезона: всего / сезонного / прошлых. */ eurAll?: number; eurSsn?: number; eurOld?: number; eurExAll?: number; eurExSsn?: number; eurExOld?: number;
-  /** Скидка € с НДС (Discount EUR) и себестоимость продаж € (SC EUR): всего / сезонного / прошлых. Маркап продаж = (NS EUR + Discount EUR) ÷ SC EUR. */ discEurAll?: number; discEurSsn?: number; discEurOld?: number; scAll?: number; scSsn?: number; scOld?: number };
+  /** Скидка € с НДС (Discount EUR) и себестоимость продаж € (SC EUR): всего / сезонного / прошлых. Маркап продаж = (NS EUR + Discount EUR) ÷ SC EUR. */ discEurAll?: number; discEurSsn?: number; discEurOld?: number; scAll?: number; scSsn?: number; scOld?: number;
+  /** Скидка € без НДС (Discount EUR excl VAT): всего / сезонного / прошлых — для маркапа в € без НДС: (NS EUR excl VAT + Discount EUR excl VAT) ÷ SC EUR. */ discEurExAll?: number; discEurExSsn?: number; discEurExOld?: number };
 export const REPORT_SEASONS = ["FW26/27", "SS26", "FW25/26"] as const;
 export type SizeRow = { acode: string; color: string; size: string; modelCode: string | null; cls: string; conf: number; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number;
   /** Вид меха (Analog Code), категории KTT Level 02–05. */ fur?: string; l2?: string; l3?: string; l4?: string; l5?: string;
@@ -382,6 +383,7 @@ export function parseSizesWorkbook(wb: ExcelJS.Workbook): { rows: SizeRow[]; tot
       discEurAll: sales("All", /^(NS )?Discount EUR$/), discEurSsn: sales("SSN", /^(NS )?Discount EUR$/), discEurOld: sales("Old", /^(NS )?Discount EUR$/),
       scAll: sales("All", /^SC EUR(_mngr)?$/), scSsn: sales("SSN", /^SC EUR(_mngr)?$/), scOld: sales("Old", /^SC EUR(_mngr)?$/),
       eurExAll: sales("All", /^NS EUR excl VAT$/), eurExSsn: sales("SSN", /^NS EUR excl VAT$/), eurExOld: sales("Old", /^NS EUR excl VAT$/),
+      discEurExAll: sales("All", /^(NS )?Discount EUR excl VAT$/), discEurExSsn: sales("SSN", /^(NS )?Discount EUR excl VAT$/), discEurExOld: sales("Old", /^(NS )?Discount EUR excl VAT$/),
     };
     return [s, c];
   })) as Record<string, Record<keyof SeasonCell, number>>;
