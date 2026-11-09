@@ -16,7 +16,7 @@ import { leafKeyOf } from "@/lib/fw26-plan";
 const S = "FW26/27";
 const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Свакара", LYNX: "Рысь" };
 
-type Leaf = { fur: string; c1: string; c2: string; article: string; color: string; conf: number; confEur: number; deliv: number; delivEur: number; sold: number; rub: number; oldSold: number; oldRub: number; stockAll: number; prior: number; gS: number; cS: number; gO: number; cO: number };
+type Leaf = { fur: string; c1: string; c2: string; article: string; color: string; conf: number; confEur: number; deliv: number; delivEur: number; sold: number; rub: number; oldSold: number; oldRub: number; stockAll: number; prior: number; priorEur: number; gS: number; cS: number; gO: number; cO: number };
 
 async function main() {
   const dir = process.argv[2] ?? "docs-inventory/reports";
@@ -38,29 +38,29 @@ async function main() {
   for (const r of data.sizes) {
     const fur = furRuLabel(r.fur ?? "Не указан", FUR_RU), c1 = (r.l2 || "(без категории)").trim(), c2 = (r.l4 || r.l5 || "(без категории)").trim(), color = (r.color ?? "").trim();
     const k = [fur, c1, c2, r.acode, color].join("|");
-    const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
+    const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: 0, priorEur: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
     lf.stockAll += r.stock ?? 0;
     // Закрытые сезоны: заказано = пришло (правило владельца): приход прошлых сезонов по файлу поступлений (весь, включая старше FW25).
     const lk = leafKeyOf(r.acode, r.color);
     if (!claimed.has(lk)) { claimed.add(lk); lf.prior += priorByLeaf.get(lk) ?? 0; }
+    for (const cs of ["FW25/26", "SS26"] as const) { const cc = r.seas?.[cs]; if (cc) lf.priorEur += cc.confEur ?? cc.delivEur ?? 0; } // закрытые сезоны: заказано = получено (€)
     const c = r.seas?.[S];
     if (c) {
       lf.conf += c.conf ?? 0; lf.confEur += c.confEur ?? 0; lf.deliv += c.deliv ?? 0; lf.delivEur += c.delivEur ?? 0;
       lf.sold += c.soldSsn ?? 0; lf.rub += c.rubSsn ?? 0; lf.oldSold += c.soldOld ?? 0; lf.oldRub += c.rubOld ?? 0;
-      // Для MU: цена до скидки проданного и его себестоимость (как в «Продажи → Сезоны»): только проданные штуки, у которых есть себестоимость.
-      const cost = r.modelCode ? data.input.costs.get(r.modelCode)?.unitIncl ?? 0 : 0, nS = c.soldSsn ?? 0, nO = c.soldOld ?? 0;
-      if (cost > 0 && nS > 0) { lf.gS += (c.rubSsn ?? 0) + (c.discSsn ?? 0); lf.cS += nS * cost; }
-      if (cost > 0 && nO > 0) { lf.gO += (c.rubOld ?? 0) + (c.discOld ?? 0); lf.cO += nO * cost; }
+      // MU по отчёту (как в приложении): (NS EUR + Discount EUR) ÷ SC EUR по проданному; в листе — суммы, отношение считает «Отчёт» (средневзвешенное).
+      lf.gS += (c.eurSsn ?? 0) + (c.discEurSsn ?? 0); lf.cS += c.scSsn ?? 0;
+      lf.gO += (c.eurOld ?? 0) + (c.discEurOld ?? 0); lf.cO += c.scOld ?? 0;
     }
     leaves.set(k, lf);
   }
-  const list = [...leaves.values()].filter((l) => l.conf || l.deliv || l.sold || l.oldSold || l.stockAll || l.prior);
+  const list = [...leaves.values()].filter((l) => l.conf || l.deliv || l.sold || l.oldSold || l.stockAll || l.prior || l.priorEur);
   // Приход прошлых сезонов по артикулам без строки в отчёте: отдельные строки с типом меха и категориями из самого файла поступлений (чтобы 862 делились на одежду и аксессуары как на экране).
   const priorMatched = list.reduce((a, l) => a + l.prior, 0);
   for (const [kk, n] of priorByLeaf) {
     if (claimed.has(kk) || n <= 0) continue;
     const at = priorAttr.get(kk)!;
-    list.push({ ...at, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: n, gS: 0, cS: 0, gO: 0, cO: 0 });
+    list.push({ ...at, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: n, priorEur: 0, gS: 0, cS: 0, gO: 0, cO: 0 });
   }
   list.sort((a, b) => a.c1.localeCompare(b.c1, "ru") || a.fur.localeCompare(b.fur, "ru") || a.c2.localeCompare(b.c2, "ru") || a.article.localeCompare(b.article) || a.color.localeCompare(b.color));
   const stock26 = (l: Leaf) => Math.max(0, l.deliv - l.sold);
@@ -68,8 +68,8 @@ async function main() {
 
   const N0 = "#,##0;-#,##0;–";
   const r2 = (v: number) => Math.round(v * 100) / 100;
-  const G1 = "Товар FW26/27", G2 = "Продажи других сезонов в календарном FW26", G3 = "Остатки", G4 = "Для MU (служебные)";
-  const FILL: Record<string, string> = { [G1]: "FFE7F5EC", [G2]: "FFFDF1DC", [G3]: "FFE8EEFC", [G4]: "FFEFEFEF" };
+  const G1 = "Товар FW26/27", G2 = "Продажи других сезонов в календарном FW26", G3 = "Остатки", G4 = "Для MU (служебные)", G5 = "Заказ всего, €";
+  const FILL: Record<string, string> = { [G1]: "FFE7F5EC", [G2]: "FFFDF1DC", [G3]: "FFE8EEFC", [G4]: "FFEFEFEF", [G5]: "FFE7F5EC" };
   const cols: { g: string; head: string; get: (l: Leaf) => number }[] = [
     { g: G1, head: "Заказано, шт.", get: (l) => l.conf },
     { g: G1, head: "Заказано, €", get: (l) => r2(l.confEur) },
@@ -84,10 +84,11 @@ async function main() {
     { g: G3, head: "Остаток товара FW26, шт.", get: stock26 },
     { g: G3, head: "Остаток всех остальных сезонов, шт.", get: stockOth },
     { g: G3, head: "Остаток всего, шт.", get: (l) => stock26(l) + stockOth(l) },
-    { g: G4, head: "Цена до скидки, FW26 товар, ₽", get: (l) => Math.round(l.gS) },
-    { g: G4, head: "Себестоимость, FW26 товар, ₽", get: (l) => Math.round(l.cS) },
-    { g: G4, head: "Цена до скидки, олды в FW26, ₽", get: (l) => Math.round(l.gO) },
-    { g: G4, head: "Себестоимость, олды в FW26, ₽", get: (l) => Math.round(l.cO) },
+    { g: G4, head: "MU: NS EUR + Discount EUR, FW26 товар", get: (l) => r2(l.gS) },
+    { g: G4, head: "MU: SC EUR, FW26 товар", get: (l) => r2(l.cS) },
+    { g: G4, head: "MU: NS EUR + Discount EUR, олды в FW26", get: (l) => r2(l.gO) },
+    { g: G4, head: "MU: SC EUR, олды в FW26", get: (l) => r2(l.cO) },
+    { g: G5, head: "Заказ всего, € (FW25 + SS26 по приходу + заказ FW26)", get: (l) => r2(l.priorEur + l.confEur) },
   ];
   const labels = ["Тип меха", "Категория 1", "Категория 2", "Артикул", "Цвет"], c0 = labels.length + 1, FIRST = 4, LAST = FIRST + list.length - 1;
 

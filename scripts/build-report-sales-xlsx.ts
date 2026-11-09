@@ -29,7 +29,7 @@ async function main() {
   const L = (n: number) => D.getColumn(n).letter;
   type Row = { fur: string; c1: string; c2: string; v: number[] };
   const rows: Row[] = [];
-  for (let r = FIRST; r <= LAST; r++) rows.push({ fur: String(cv(D.getCell(r, 1).value)), c1: String(cv(D.getCell(r, 2).value)), c2: String(cv(D.getCell(r, 3).value)), v: Array.from({ length: 22 }, (_, i) => Number(cv(D.getCell(r, i + 1).value)) || 0) });
+  for (let r = FIRST; r <= LAST; r++) rows.push({ fur: String(cv(D.getCell(r, 1).value)), c1: String(cv(D.getCell(r, 2).value)), c2: String(cv(D.getCell(r, 3).value)), v: Array.from({ length: 23 }, (_, i) => Number(cv(D.getCell(r, i + 1).value)) || 0) });
   const dr = (c: number) => `Данные!$${L(c)}$${FIRST}:$${L(c)}$${LAST}`;
   const dF = `Данные!$A$${FIRST}:$A$${LAST}`, dA = `Данные!$B$${FIRST}:$B$${LAST}`, dB = `Данные!$C$${FIRST}:$C$${LAST}`;
 
@@ -38,6 +38,8 @@ async function main() {
   const colNum = (a: string) => a.split("").reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
   const tplF = new Map<number, string>();
   for (const c of COLS) { const v = T.getCell(7, c).value as { formula?: string } | string | null; const f = typeof v === "object" && v ? v.formula ?? "" : ""; tplF.set(c, f.replace(/(\$[A-Z]+\$)\d+:(\$[A-Z]+\$)\d+/g, `$1${FIRST}:$2${LAST}`)); }
+  tplF.set(100, `SUM(Данные!$W$${FIRST}:$W$${LAST})`); // новый столбец «Order TTL, EUR» (Данные!W)
+  const mapC = (c: number) => (c >= 10 ? c + 1 : c); // столбцы образца от J вправо сдвигаются на один: новый J = Order TTL EUR
   const termsOf = (s: string) => [...s.matchAll(/SUM\(Данные!\$([A-Z]+)\$\d+:\$[A-Z]+\$\d+\)/g)].map((m) => colNum(m[1]));
   const sumRows = (rs: Row[], cols: number[]) => rs.reduce((a, r) => a + cols.reduce((t, c) => t + r.v[c - 1], 0), 0);
   const calc = (c: number, rs: Row[]) => {
@@ -50,13 +52,21 @@ async function main() {
   // ───── шапка и оформление: строки 1…6, ширины, скрытые столбцы — как в образце ─────
   const copyStyle = (s: ExcelJS.Cell, t: ExcelJS.Cell) => { t.style = JSON.parse(JSON.stringify(s.style)); };
   for (let c = 1; c <= 26; c++) {
-    const sc = T.getColumn(c), tc = R.getColumn(c);
+    const sc = T.getColumn(c), tc = R.getColumn(mapC(c));
     if (sc.width) tc.width = sc.width; tc.hidden = !!sc.hidden;
     if ((c === 16 || c === 19 || c === 22) && (tc.width ?? 0) < 9.5) tc.width = 9.5; // NS в тыс. ₽ с итогом больше 99 999 не влезал (#######)
-    for (let r = 1; r <= 6; r++) { const s = T.getCell(r, c), t = R.getCell(r, c); copyStyle(s, t); const v = cv(s.value); if (v != null) t.value = v as ExcelJS.CellValue; }
+    for (let r = 1; r <= 6; r++) { const s = T.getCell(r, c), t = R.getCell(r, mapC(c)); copyStyle(s, t); const v = cv(s.value); if (v != null) t.value = v as ExcelJS.CellValue; }
   }
-  for (let r = 1; r <= 6; r++) if (T.getRow(r).height) R.getRow(r).height = T.getRow(r).height;
-  for (const m of (T.model as unknown as { merges?: string[] }).merges ?? []) R.mergeCells(m);
+  R.getColumn(10).width = T.getColumn(11).width ?? 9.3;
+  for (let r = 1; r <= 6; r++) { copyStyle(T.getCell(r, 11), R.getCell(r, 10)); if (T.getRow(r).height) R.getRow(r).height = T.getRow(r).height; }
+  R.getCell(6, 10).value = "EUR";
+  const colLetter = (n: number) => R.getColumn(n).letter;
+  for (const m of (T.model as unknown as { merges?: string[] }).merges ?? []) {
+    const [a, b] = m.split(":");
+    const pa = /([A-Z]+)(\d+)/.exec(a)!, pb = /([A-Z]+)(\d+)/.exec(b)!;
+    R.mergeCells(`${colLetter(mapC(colNum(pa[1])))}${pa[2]}:${colLetter(mapC(colNum(pb[1])))}${pb[2]}`);
+  }
+  R.mergeCells("I5:J5"); // TTL над PCS и EUR
   R.getCell(2, 5).value = new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" });
 
   // ───── строки ─────
@@ -64,11 +74,13 @@ async function main() {
   let rn = 0, rrow = 7;
   const write = (label: string, lvl: 0 | 1 | 2 | 3, crit: string, rs: Row[], parent: number): number => {
     const tr = lvlRow[lvl], x = R.getRow(rrow++); const no = ++rn;
-    for (let c = 1; c <= 26; c++) copyStyle(T.getCell(tr, c), x.getCell(c));
+    for (let c = 1; c <= 26; c++) copyStyle(T.getCell(tr, c), x.getCell(mapC(c)));
+    copyStyle(T.getCell(tr, 11), x.getCell(10));
     if (T.getRow(tr).height) x.height = T.getRow(tr).height;
     x.getCell(1).value = parent || null; x.getCell(2).value = no; x.getCell(3).value = lvl === 3 ? 1 : 0; x.getCell(4).value = lvl + 1;
     x.getCell(5 + lvl).value = label;
-    for (const c of COLS) if (tplF.get(c)) x.getCell(c).value = { formula: formulaFor(c, crit), result: calc(c, rs) } as ExcelJS.CellFormulaValue;
+    for (const c of COLS) if (tplF.get(c)) x.getCell(mapC(c)).value = { formula: formulaFor(c, crit), result: calc(c, rs) } as ExcelJS.CellFormulaValue;
+    x.getCell(10).value = { formula: formulaFor(100, crit), result: calc(100, rs) } as ExcelJS.CellFormulaValue;
     x.outlineLevel = T.getRow(tr).outlineLevel || 0;
     return no;
   };
