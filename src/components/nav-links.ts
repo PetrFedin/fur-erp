@@ -7,7 +7,7 @@ export const NAV_LINKS = [
   // «Сырьё» — один раздел с вкладками (<RawTabs>): Закупки · Мех · Подкладка · Сводка по годам. Закупки — первая вкладка.
   { href: "/lots", label: "Сырьё", also: ["/purchases", "/analytics/raw"] },
   // Скрытые модули (/fittings, /plan, /supply-plan) в «also» не держим: недостижимые страницы не должны подсвечивать пункт (HIDDEN_MODULES).
-  { href: "/production", label: "ТЗ", also: [] },
+  { href: "/production", label: "Производство", also: [] },
   { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/repair", "/analytics/products", "/analytics/pricing", "/analytics/margin"] },
   { href: "/shipments", label: "Отгрузки и календарь", also: ["/calendar"] },
   // «Продажи и остатки» — приход, продажи и остатки товара по сезонам, артикулам, заказам и периодам; закрыт для внешнего поставщика.

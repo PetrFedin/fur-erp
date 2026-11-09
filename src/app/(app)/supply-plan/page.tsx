@@ -144,7 +144,7 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "План поставок" }]} />
+      <Breadcrumbs items={[{ label: "Производство", href: "/production" }, { label: "План поставок" }]} />
       <ProductionTabs active="supply" />
       <div>
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">План поставок</h1><YearNote year={year} />

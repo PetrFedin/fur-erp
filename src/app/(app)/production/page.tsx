@@ -12,6 +12,7 @@ import { orderKey, articlesWord, tzCountText, positionsWord } from "@/lib/tz-key
 import { orderLabel, orderHint, posText } from "@/lib/order-label";
 import { loadTzPositions } from "@/lib/order-label-db";
 import { TzGroupRows } from "./tz-group-rows";
+import { DeliveredSwitch } from "./delivered-switch";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
@@ -77,7 +78,7 @@ const PROD_FILTERS = defineFilters({
     sort: { allowed: Object.keys(SORTS) },
   }),
 });
-export const metadata = { title: "ТЗ" };
+export const metadata = { title: "Производство" };
 
 // Надзаголовки блоков колонок и тонкая вертикальная линия слева у первой колонки блока.
 const GH = "border-b border-neutral-200 px-3 py-1 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500";
@@ -465,6 +466,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   </Link>
                   <a href={`/api/production/${o.id}/word`} className="block px-3 pb-2 text-xs font-normal text-blue-700 hover:underline" title="Финальный Word этого ТЗ">Word</a>
                 </Td>
+                <Td className={cell}>
+                  {o.status === "CANCELLED" ? <span className={`${link} text-xs text-neutral-500`}>отменено</span> : <DeliveredSwitch ids={[o.id]} on={o.status === "COMPLETED"} canEdit={canEdit} units={st.units} label={`ТЗ ${labelOf(o)}`} />}
+                </Td>
                 <Td className={`${cell} text-neutral-700`}><Link href={href} className={`${link} whitespace-nowrap`}>{fur}</Link></Td>
                 <Td className={cell}>
                   <div className={`${link} max-w-[16rem]`}>
@@ -553,6 +557,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         label={<>{tzNo}{match ? <span className="ml-2 text-xs font-normal text-neutral-500">({match})</span> : null}</>}
         after={
           <>
+            <Td className={cell}>
+              <DeliveredSwitch ids={g.filter((x) => x.o.status !== "CANCELLED").map((x) => x.o.id)} on={g.filter((x) => x.o.status !== "CANCELLED").every((x) => x.o.status === "COMPLETED")} canEdit={canEdit} units={tot.units} label={`ТЗ ${tzNo}`} />
+            </Td>
             <Td className={`${cell} text-neutral-700`}><span className={`${link} whitespace-nowrap`}>{furs.join(" + ")}</span></Td>
             <Td className={cell}><span className={`${link} max-w-[16rem] truncate text-xs text-neutral-600`}>{models.join(", ")}</span></Td>
             <Td className={`${num} border-l border-neutral-200`}><span className={link}>{tot.units > 0 ? formatQty(tot.units) : dash}</span></Td>
@@ -572,11 +579,11 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   };
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "ТЗ" }]} />
+      <Breadcrumbs items={[{ label: "Производство" }]} />
       <ProductionTabs active="orders" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center">
-          <h1 className="text-xl font-semibold">ТЗ</h1>
+          <h1 className="text-xl font-semibold">Производство</h1>
           {filterModel && (
             <span className="ml-2 text-base font-normal text-neutral-600">— {filterModel.name}</span>
           )}
@@ -672,7 +679,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       <Table anchor="table:production" label="Таблица ТЗ" stickyHeader className="min-w-[1040px]">
         <Thead>
           <Tr>
-            <Th colSpan={4} aria-hidden />
+            <Th colSpan={5} aria-hidden />
             <Th colSpan={2} className={GH + BLH}>Производство</Th>
             <Th colSpan={3} className={GH + BLH}>Сырьё</Th>
             <Th colSpan={3} className={GH + BLH}>Итого</Th>
@@ -680,6 +687,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           <Tr>
             <Th {...tth("batch")}>Партия</Th>
             <Th {...tth("tz")}>ТЗ</Th>
+            <Th>Поставлен</Th>
             <Th {...tth("fur")}>Мех</Th>
             <Th {...tth("article")}>Артикул</Th>
             <Th {...tth("units")} className={"text-right" + BLH} unit="шт.">Изделий</Th>
@@ -701,7 +709,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           })}
           {orders.length === 0 && (
             <Tr>
-              <Td colSpan={12} className="py-8 text-center text-neutral-500">
+              <Td colSpan={13} className="py-8 text-center text-neutral-500">
                 {hasFilters ? "Ничего не найдено" : emptyForYear(year, "ТЗ", "ТЗ пока нет")}
               </Td>
             </Tr>

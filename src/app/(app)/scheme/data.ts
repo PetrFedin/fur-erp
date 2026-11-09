@@ -115,8 +115,8 @@ export const STEPS: Step[] = [
     ],
   },
   {
-    title: "ТЗ",
-    sub: "подрядчик, партия",
+    title: "Производство",
+    sub: "ТЗ, подрядчик, партия",
     entities: [
       { name: "ТЗ", kind: "manual", text: "Артикул, цвет, размер, подрядчик и договор, списания лотов, расходы, документы, выпуск", list: "/production", card: "order" },
       { name: "Партия пошива", kind: "auto", text: "Заводится сама по номеру партии в ТЗ; ТЗ без номера идут «Вне партий»", list: "/production/batches", card: "batch" },

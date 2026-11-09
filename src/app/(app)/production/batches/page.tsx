@@ -138,7 +138,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Партии пошива" }]} />
+      <Breadcrumbs items={[{ label: "Производство", href: "/production" }, { label: "Партии пошива" }]} />
       <ProductionTabs active="batches" />
       {modelSel.length > 0 && (
         <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-700">

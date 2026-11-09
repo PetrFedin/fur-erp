@@ -153,7 +153,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "План заказа" }]} />
+      <Breadcrumbs items={[{ label: "Производство", href: "/production" }, { label: "План заказа" }]} />
       <ProductionTabs active="plan" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">План заказа</h1><InfoHint wide>

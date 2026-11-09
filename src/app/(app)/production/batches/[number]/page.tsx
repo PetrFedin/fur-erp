@@ -151,7 +151,7 @@ export default async function BatchPage({ params, searchParams }: { params: Prom
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Партии пошива", href: "/production/batches" }, { label: `Партия ${batch.number}` }]} />
+      <Breadcrumbs items={[{ label: "Производство", href: "/production" }, { label: "Партии пошива", href: "/production/batches" }, { label: `Партия ${batch.number}` }]} />
       <ProductionTabs active="batches" />
       <IntegrityBanner kind="batch" id={batch.id} />
       <div>

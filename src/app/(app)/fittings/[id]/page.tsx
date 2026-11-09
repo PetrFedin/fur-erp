@@ -40,7 +40,7 @@ export default async function FittingPage({ params }: PageProps<"/fittings/[id]"
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Примерки", href: "/fittings" }, { label: `Примерка от ${formatDate(fitting.fittingDate)}` }]} />
+      <Breadcrumbs items={[{ label: "Производство", href: "/production" }, { label: "Примерки", href: "/fittings" }, { label: `Примерка от ${formatDate(fitting.fittingDate)}` }]} />
       <ProductionTabs active="fittings" />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Примерка от {formatDate(fitting.fittingDate)}</h1>

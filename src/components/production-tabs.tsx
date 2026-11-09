@@ -17,7 +17,7 @@ const HIDDEN_TABS: Record<string, boolean> = {
 
 export type ProductionTab = (typeof TABS)[number]["key"];
 
-/** Вкладки раздела «ТЗ»: сами ТЗ, партии, примерки, план заказа, план поставок. */
+/** Вкладки раздела «Производство»: сами ТЗ, партии, примерки, план заказа, план поставок. */
 export function ProductionTabs({ active }: { active: ProductionTab }) {
-  return <SectionTabs label="Разделы ТЗ" items={TABS.filter((t) => !HIDDEN_TABS[t.key]).map((t) => ({ key: t.key, href: t.href, label: t.label, on: t.key === active }))} />;
+  return <SectionTabs label="Разделы производства" items={TABS.filter((t) => !HIDDEN_TABS[t.key]).map((t) => ({ key: t.key, href: t.href, label: t.label, on: t.key === active }))} />;
 }

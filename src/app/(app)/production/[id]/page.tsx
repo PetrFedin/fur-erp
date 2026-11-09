@@ -385,7 +385,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     <div className="flex flex-col gap-4">
       <Breadcrumbs
         items={[
-          { label: "ТЗ", href: "/production" },
+          { label: "Производство", href: "/production" },
           ...(order.batch ? [{ label: "Партии пошива", href: "/production/batches" }, { label: `Партия ${order.batch.number}`, href: `/production/batches/${order.batch.number}` }] : []),
           { label: tzBase },
         ]}

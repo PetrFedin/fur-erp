@@ -21,7 +21,7 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
   if (!canEditProduction(session.user.role)) {
     return (
       <div className="flex flex-col gap-3">
-        <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Новое ТЗ" }]} />
+        <Breadcrumbs items={[{ label: "Производство", href: "/production" }, { label: "Новое ТЗ" }]} />
         <h1 className="text-xl font-semibold">Новое ТЗ</h1>
         <p className="text-sm text-neutral-600">Недостаточно прав для создания ТЗ. Обратитесь к владельцу, администратору или технологу.</p>
       </div>
@@ -94,7 +94,7 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
 
   return (
     <div className="flex flex-col gap-4">
-    <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Новое ТЗ" }]} />
+    <Breadcrumbs items={[{ label: "Производство", href: "/production" }, { label: "Новое ТЗ" }]} />
     <ProductionCreateForm
       action={createProductionOrder}
       initialBatchId={batchParam ? batches.find((b) => String(b.number) === batchParam.trim())?.id ?? "" : ""}

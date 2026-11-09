@@ -1353,6 +1353,28 @@ export async function completeProductionOrder(
   return {};
 }
 
+/**
+ * Переключатель «Поставлен» в таблице ТЗ: включение = приход готовой продукции по плановому количеству (то же, что «Завершить ТЗ»:
+ * остаток на складе готовой продукции и снимок себестоимости). Выключить завершённое нельзя. Несколько id — позиции одного ТЗ.
+ */
+export async function markOrdersDelivered(orderIds: string[], confirmNoUsages: boolean): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const ids = Array.from(new Set(orderIds)).slice(0, 50);
+  const orders = await prisma.productionOrder.findMany({
+    where: { id: { in: ids }, organizationId: session.user.organizationId, status: { in: ["PLANNED", "IN_PROGRESS"] } },
+    select: { id: true, plannedQuantity: true },
+  });
+  if (orders.length === 0) return { error: "ТЗ уже поставлено или отменено" };
+  for (const o of orders) {
+    const fd = new FormData();
+    fd.set("producedQuantity", o.plannedQuantity.toString());
+    if (confirmNoUsages) fd.set("confirmNoUsages", "1");
+    const r = await completeProductionOrder(o.id, fd);
+    if (r.error) return r;
+  }
+  return {};
+}
+
 // Correcting the produced quantity after completion (e.g. an import typo)
 // changes unitCost too (same total cost, different divisor) and needs its
 // own finished-goods adjustment, since the quantity fed to stock changes,

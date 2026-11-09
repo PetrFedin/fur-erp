@@ -97,7 +97,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Примерки" }]} />
+      <Breadcrumbs items={[{ label: "Производство", href: "/production" }, { label: "Примерки" }]} />
       <ProductionTabs active="fittings" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Примерки</h1>
