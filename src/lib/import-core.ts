@@ -240,7 +240,9 @@ export function withDupKeys<T>(rows: T[], keyOf: (r: T) => string): { key: strin
 
 export function parsePricesWorkbook(wb: ExcelJS.Workbook, models: ModelRef[]): { rows: PriceRow[]; errors: string[]; warnings: string[] } {
   // Лист прайса: «Current Price» (выгрузка до 02.11.2026) или «цены» (выгрузка «заказ и продажи» с 02.11.2026) — шапка та же.
-  const ws = wb.worksheets.find((w) => w.name === "Current Price") ?? wb.worksheets.find((w) => w.name.trim().toLowerCase() === "цены");
+  // С 09.11.2026 цены, остаток и фото — на одном листе (у выгрузки он назван «Лист7»): берём лист, где в шапке есть и ACODE, и Current Price.
+  const hasPriceHead = (w: ExcelJS.Worksheet) => { for (let rn = 1; rn <= Math.min(w.rowCount, 15); rn++) { const c = rowCells(w.getRow(rn)).map((x) => String(x ?? "").trim().toLowerCase()); if (c.includes("acode") && c.includes("current price")) return true; } return false; };
+  const ws = wb.worksheets.find((w) => w.name === "Current Price") ?? wb.worksheets.find((w) => w.name.trim().toLowerCase() === "цены") ?? wb.worksheets.find(hasPriceHead);
   if (!ws) throw new ImportFormatError("В файле нет листа «Current Price» (или «цены»)");
   // Шапка — первая строка со столбцом ACODE (у листа «цены» над ней бывают пустые строки).
   let headRn = 1;
