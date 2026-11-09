@@ -10,6 +10,8 @@ import type { Commission4Mode } from "@/lib/commission4-mode";
 export type SupplyVals = { conf: number; confEur: number; deliv: number; delivEur: number };
 export type SupplyLeaf = {
   cls: "clothes" | "acc" | "other"; cat1: string; fur: string; cat2: string;
+  /** Артикул и цвет позиции (для выгрузки в Excel). */
+  article?: string; color?: string;
   by: Record<string, SupplyVals>;
   /** Сезон → месяц (YYYY-MM) → штук получено. */
   months: Record<string, Record<string, number>>;
@@ -47,7 +49,7 @@ export async function loadSupplyLeaves(orgId: string, c4: Commission4Mode): Prom
   for (const r of data.sizes) {
     if (!r.seas) continue;
     const k = leafKeyOf(r.acode, r.color);
-    const lf = leaves.get(k) ?? { key: k, model: r.modelCode ?? "", cls: (r.cls ?? "other") as SupplyLeaf["cls"], cat1: (r.l2 || "(без категории)").trim(), fur: furRuLabel(r.fur ?? "Не указан", FUR_RU), cat2: (r.l4 || r.l5 || "(без категории)").trim(), by: {}, months: {}, fc: {}, fw26aw: 0 };
+    const lf = leaves.get(k) ?? { key: k, article: r.acode, color: (r.color ?? "").trim(), model: r.modelCode ?? "", cls: (r.cls ?? "other") as SupplyLeaf["cls"], cat1: (r.l2 || "(без категории)").trim(), fur: furRuLabel(r.fur ?? "Не указан", FUR_RU), cat2: (r.l4 || r.l5 || "(без категории)").trim(), by: {}, months: {}, fc: {}, fw26aw: 0 };
     for (const s of SEASONS) {
       const c = r.seas[s]; if (!c) continue;
       const closed = s !== "FW26/27";
