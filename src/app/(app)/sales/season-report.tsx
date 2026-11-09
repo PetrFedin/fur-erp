@@ -382,9 +382,9 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         const m = n.m[k];
         // Продажи товара прошлых сезонов (олды) в календаре этого сезона (в FW25 их не было): шт. и маркап (NS EUR + Discount EUR) ÷ SC EUR; остаток всех сезонов до этого включительно.
         const old = k === "FW25/26" ? { n: 0, g: 0, c: 0, ri: 0, re: 0, ei: 0, ee: 0 } : n.rows.reduce((o, r) => { const c = r.seas?.[k]; return { n: o.n + Math.max(0, c?.soldOld ?? 0), g: o.g + ((c?.rubOld ?? 0) + (c?.discOld ?? 0)) / MU_EUR_RATE, c: o.c + (c?.scOld ?? 0), ri: o.ri + (c?.rubOld ?? 0), re: o.re + (c?.rubExOld ?? 0), ei: o.ei + (c?.eurOld ?? 0), ee: o.ee + (c?.eurExOld ?? 0) }; }, { n: 0, g: 0, c: 0, ri: 0, re: 0, ei: 0, ee: 0 });
-        const totalStock = n.rows.reduce((t, r) => t + Math.max(0, r.stock ?? 0), 0);
+        const totalStock = SES.reduce((t, x) => t + (n.m[x].deliv - n.m[x].allG), 0); // остаток всех сезонов: получено − продано товара
         // FW26/27: получено и остаток товара сезона — по отчёту (как в Excel и «Поставки»), а не по файлу поступлений.
-        const repDeliv = m.deliv, repStock = Math.max(0, m.deliv - m.allG);
+        const repDeliv = m.deliv, repStock = m.deliv - m.allG;
         const tStock = k === "FW26/27" ? totalStock : k === "SS26" ? Math.max(0, totalStock - n.m["FW26/27"].stock) : 0;
         // Остаток: цена сейчас (₽) и MU = цена сейчас в € ÷ себестоимость в € (приход € ÷ шт., иначе заказ € ÷ шт.).
         const pE = price && eurRate ? price / eurRate : 0;
@@ -478,24 +478,24 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   const BASIS_LABEL: Record<string, string> = { ssn: "из них сезонный товар, шт.", after: "из них олды, шт.", all: "Продано в календарном сезоне, шт.", soS: "SO AS, %", soA: "SO STD, %", rubS: "Выручка, ₽", rubA: "Выручка, ₽", priceS: "Цена, ₽/шт.", priceA: "Цена, ₽/шт.", mkS: "Маркап", mkA: "Маркап" };
   const bk = (a: string, b: string) => byKey[basis === "season" ? a : b];
   const eurCol: Col = { key: "confEur", label: "Заказано, €", short: "", hint: "Conf EUR отчёта — закупочная стоимость заказа; по SS 2026 и FW 25/26 — поступило в €.", get: (m: M) => eur(m.confEur) };
-  // Остаток всего на сегодня — по отчёту: все сезоны вместе, включая товар прошлых сезонов (371), а не только сумма остатков трёх сезонов.
-  const stockToday = rows.reduce((a, r) => a + Math.max(0, r.stock ?? 0), 0);
+  // Остаток всего = сумма остатков сезонов (получено − продано товара): 97 + 23 + 226 = 346 = получено 637 − продано 291.
+  const stockToday = SEASONS.reduce((a, s) => a + totalAll[s].stock, 0);
   const stockAllCol: Col = { key: "stockAll", label: "Остаток всего, шт.", short: "", hint: "Сколько товара на сегодня во всех сезонах вместе: остаток этого сезона и остатки прошлых сезонов. Показан в последнем сезоне.", get: (_m: M, s: Season) => (s === SEASONS[SEASONS.length - 1] ? n0(stockToday) : DASH), strong: true };
   const mc = (key: string, label: string, hint: string, num: (m: M) => number | null, strong = false): Col => ({ key, label, short: "", hint, get: (m) => { const v = num(m); return v === null || Math.abs(v) < 0.5 ? DASH : money(v); }, strong });
   const mx = (key: string, label: string, hint: string, v: (m: M) => number | null): Col => ({ key, label, short: "", hint, get: (m) => x2(v(m)) });
   const ctr = "Календарь сезона: товар этого сезона и олды вместе.";
-  // Порядок — по развитию данных: заказано → получено → ждём → продано в свой сезон (SSN) → продано товара за всё время и остаток → календарь сезона → олды.
+  // Порядок — по развитию данных: заказано → получено → ждём → в свой сезон → товар сезона за всё время → олды → календарь сезона → остаток.
   const SUMMARY: Col[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait,
     { ...byKey.ssn, label: "из них сезонный товар, шт." },
     { ...byKey.soS, label: "SO AS, %" },
     mc("revSsn", "Выручка сезонного, ₽", "Товар этого сезона в свой календарный сезон. После скидки.", (m) => m.rubS, true), mc("priceSsn", "Цена сезонного, ₽/шт.", "(выручка + скидка) ÷ шт., с НДС.", (m) => priceS(m)), mx("muSsn", "MU сезонного", "Цена до скидки ÷ себестоимость.", mkS),
     byKey.goods, { ...byKey.soA, label: "SO STD, %" },
     mc("revGoods", "Выручка товара сезона, ₽", "Выручка с продаж товара этого сезона за всё время: в свой сезон и позже. После скидки; с НДС или без — как в шапке.", (m) => m.rubG, true),
-    byKey.left, stockAllCol,
+    { ...byKey.after, label: "из них олды, шт." },
+    mc("revOld", "Выручка олдов, ₽", "Товар прошлых сезонов, проданный в календаре этого сезона. После скидки.", (m) => m.rubA - m.rubS, true), mc("priceOld", "Цена олдов, ₽/шт.", "(выручка + скидка) ÷ шт., с НДС.", (m) => priceO(m)), mx("muOld", "MU олдов", "Цена до скидки ÷ себестоимость.", mkO),
     { ...byKey.all, label: "Продано в календарном сезоне, шт." },
     mc("revCal", "Выручка, ₽", ctr + " После скидки; с НДС или без — как в шапке.", (m) => m.rubA, true), mc("priceCal", "Цена, ₽/шт.", ctr + " (выручка + скидка) ÷ шт., с НДС.", (m) => priceA(m)), mx("muCal", "MU", ctr + " Цена до скидки ÷ себестоимость.", mkA),
-    { ...byKey.after, label: "из них олды, шт." },
-    mc("revOld", "Выручка олдов, ₽", "Товар прошлых сезонов, проданный в календаре этого сезона. После скидки.", (m) => m.rubA - m.rubS, true), mc("priceOld", "Цена олдов, ₽/шт.", "(выручка + скидка) ÷ шт., с НДС.", (m) => priceO(m)), mx("muOld", "MU олдов", "Цена до скидки ÷ себестоимость.", mkO)]
+    byKey.left, stockAllCol]
 
   return (
     <section aria-label="Сезоны: заказ и продажи" className="flex flex-col gap-3">

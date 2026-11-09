@@ -39,7 +39,7 @@ async function main() {
     const fur = furRuLabel(r.fur ?? "Не указан", FUR_RU), c1 = (r.l2 || "(без категории)").trim(), c2 = (r.l4 || r.l5 || "(без категории)").trim(), color = (r.color ?? "").trim();
     const k = [fur, c1, c2, r.acode, color].join("|");
     const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, ttlConf: 0, ttlEur: 0, stkS: 0, stkO: 0, prior: 0, priorEur: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
-    lf.stockAll += r.stock ?? 0; for (const cs of ["FW25/26", "SS26", "FW26/27"] as const) { const cc = r.seas?.[cs]; if (cc) { lf.ttlConf += cs === "FW26/27" ? cc.conf ?? 0 : cc.conf ?? cc.deliv ?? 0; lf.ttlEur += cs === "FW26/27" ? cc.confEur ?? 0 : cc.confEur ?? cc.delivEur ?? 0; } } // заказ всего = FW25/26 + SS26 + FW26/27 (закрытые сезоны: заказано = получено)
+    lf.stockAll += (r.seas?.["FW25/26"]?.deliv ?? 0) + (r.seas?.["SS26"]?.deliv ?? 0) + (r.seas?.["FW26/27"]?.deliv ?? 0) - (r.sold ?? 0); for (const cs of ["FW25/26", "SS26", "FW26/27"] as const) { const cc = r.seas?.[cs]; if (cc) { lf.ttlConf += cs === "FW26/27" ? cc.conf ?? 0 : cc.conf ?? cc.deliv ?? 0; lf.ttlEur += cs === "FW26/27" ? cc.confEur ?? 0 : cc.confEur ?? cc.delivEur ?? 0; } } // заказ всего = FW25/26 + SS26 + FW26/27 (закрытые сезоны: заказано = получено)
     // Закрытые сезоны: заказано = пришло (правило владельца): приход прошлых сезонов по файлу поступлений (весь, включая старше FW25).
     const lk = leafKeyOf(r.acode, r.color);
     if (!claimed.has(lk)) { claimed.add(lk); lf.prior += priorByLeaf.get(lk) ?? 0; }
@@ -59,8 +59,9 @@ async function main() {
   // Приход прошлых сезонов по артикулам без строки в отчёте: отдельные строки с типом меха и категориями из самого файла поступлений (чтобы 862 делились на одежду и аксессуары как на экране).
   const priorMatched = list.reduce((a, l) => a + l.prior, 0);
   list.sort((a, b) => a.c1.localeCompare(b.c1, "ru") || a.fur.localeCompare(b.fur, "ru") || a.c2.localeCompare(b.c2, "ru") || a.article.localeCompare(b.article) || a.color.localeCompare(b.color));
-  const stock26 = (l: Leaf) => Math.max(0, l.deliv - l.sold); // получено − продано товара сезона
-  const stockOth = (l: Leaf) => Math.max(0, l.stockAll - stock26(l));
+  // Остаток = получено − продано (без обрезки по нулю, чтобы суммы сходились: 226 + 120 = 346 = 637 − 291).
+  const stock26 = (l: Leaf) => l.deliv - l.sold;
+  const stockOth = (l: Leaf) => l.stockAll - stock26(l);
 
   const N0 = "#,##0;-#,##0;–";
   const r2 = (v: number) => Math.round(v * 100) / 100;

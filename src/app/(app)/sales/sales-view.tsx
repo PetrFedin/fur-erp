@@ -114,7 +114,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
   const orderedHead = orderFree ? orderedByReport(sizes, all, ui.f.cat, ui.f.seasons) : head.ordered;
   // Получено и остаток без фильтров — по отчёту «заказ и продажи» (товар сезонов: FW 25/26 + SS 2026 + FW 26/27), как в «Сезонах»; с фильтрами — по строкам выгрузки.
   const recvEff = orderFree ? receivedByReport(sizes, ui.f.cat, ui.f.seasons) : head.received;
-  const stockEff = isPlain && hasReport ? reportStock : stockEnd;
+  const stockEff = isPlain && hasReport ? recvEff - head.sold : stockEnd; // остаток = получено − продано (637 − 291 = 346)
   const soStdHead = orderedHead > 0 ? head.sold / orderedHead : null;
   const tiles: TileDef[] = [
     { id: "received", label: "Получено, шт.", value: n0(recvEff),
@@ -240,7 +240,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
             picked={ui.cols} onPicked={(k) => patch({ cols: k })} filtersNote={note} />
         </>
       ) : ui.tab === "seasons" ? (
-        <SeasonsTab ctx={ctx} env={env} lines={lines} orderedBySeason={orderFree ? Object.fromEntries(sortSeasons(all.map((l) => l.season)).map((x) => [x, orderedByReport(sizes, all, ui.f.cat, [x])])) : undefined} receivedBySeason={orderFree ? Object.fromEntries(Object.entries(reportSeasonTotals(sizes, ui.f.cat)).map(([k, v]) => [k, v.received])) : undefined} stockBase={isPlain && hasReport ? reportStock : undefined} vatNote={vatNote} gran={ui.gran} onGran={(g) => patch({ gran: g })} ex={ex} opening={opening} />
+        <SeasonsTab ctx={ctx} env={env} lines={lines} orderedBySeason={orderFree ? Object.fromEntries(sortSeasons(all.map((l) => l.season)).map((x) => [x, orderedByReport(sizes, all, ui.f.cat, [x])])) : undefined} receivedBySeason={orderFree ? Object.fromEntries(Object.entries(reportSeasonTotals(sizes, ui.f.cat)).map(([k, v]) => [k, v.received])) : undefined} stockBase={isPlain && hasReport ? recvEff - head.sold : undefined} vatNote={vatNote} gran={ui.gran} onGran={(g) => patch({ gran: g })} ex={ex} opening={opening} />
       ) : ui.tab === "stock" ? (
         <StockTab ctx={ctx} env={env} lines={lines} vatNote={vatNote} photos={photos} today={today} />
       ) : ui.tab === "top" ? (

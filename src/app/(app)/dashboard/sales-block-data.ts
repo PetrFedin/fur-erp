@@ -282,7 +282,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
     if (!useRepTree) return null;
     const keysOf = (ls: SLine[]) => [...new Set(ls.map((l) => leafKeyOf(l.article, l.colorId)))];
     const rec = (ls: SLine[]) => keysOf(ls).reduce((a, k) => { const v = repByLeaf.get(k); return a + (v ? (season === "all" ? Object.values(v.deliv).reduce((x, y) => x + y, 0) : v.deliv[REP_KEY[season]] ?? 0) : 0); }, 0);
-    return { received: rec, stock: (ls, sold) => (season === "all" ? keysOf(ls).reduce((a, k) => a + (repByLeaf.get(k)?.stock ?? 0), 0) : Math.max(0, rec(ls) - sold)) };
+    return { received: rec, stock: (ls, sold) => rec(ls) - sold };
   };
   const rowEnvOf = (season: string, cat: Cat, cum: Map<string, CumNode> | null, axis: string[] = []): RowEnv => ({ rep: repFor(season), seriesOf: axis.length ? seriesFor(axis) : null, seasonEnd: finishedEnd(season), cum, ctxs, inPeriod, sizes: season === "all" ? sizes : [], cat });
 
@@ -292,7 +292,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
     const hIn = extOf(ctxs.in, lines, env), hEx = extOf(ctxs.ex, lines, env);
     const useRep = sizes.length > 0 && !furNames.length && !f.from && !f.to && !f.cat2.length && !f.furs.length && !f.q;
     const recvH = useRep ? receivedByReport(sizes, f.cat, f.seasons) : hIn.received;
-    const stockH = useRep && !f.seasons.length ? sizes.filter((r) => f.cat === "all" || r.cls === f.cat).reduce((a, r) => a + r.stock, 0) : opening + recvH - hIn.sold;
+    const stockH = useRep ? recvH - hIn.sold : opening + recvH - hIn.sold;
     return {
       soAs: (() => {
         // SO AS: продажи товара сезона до конца сезона ÷ приход этого товара внутри календарного окна сезона (то, что пришло позже конца сезона, в знаменатель не входит).
@@ -364,7 +364,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
   const useRepS = year === "all" && sizes.length > 0 && !furNames.length;
   const repSeason = useRepS ? reportSeasonTotals(sizes, "all") : null;
   const recOfS = (b: (typeof sIn)[number]) => repSeason?.[b.key]?.received ?? b.m.received;
-  let run = useRepS ? sizes.reduce((a, r) => a + r.stock, 0) - sIn.reduce((a, b) => a + recOfS(b) - b.m.sold, 0) : h.opening;
+  let run = useRepS ? 0 : h.opening;
   const seasons: SalesSeason[] = sIn.map((b, i) => {
     run += recOfS(b) - b.m.sold;
     return { key: b.key, received: recOfS(b), sold: b.m.sold, gross: b.m.gross, returns: b.m.returns, stock: run, sellThrough: b.m.sellThrough, revenue: { in: b.m.revenue, ex: sEx[i].m.revenue }, avgPrice: { in: nul(b.m.avgPrice), ex: nul(sEx[i].m.avgPrice) } };
