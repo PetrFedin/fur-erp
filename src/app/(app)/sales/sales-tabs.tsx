@@ -17,17 +17,21 @@ const sec = "flex min-w-0 flex-col gap-3 rounded-lg border border-neutral-300 bg
 
 type Common = { ctx: Ctx; env: Env; lines: SLine[]; vatNote: string };
 
-export function SeasonsTab({ ctx, env, lines, vatNote, gran, onGran, ex, opening = 0, orderedBySeason }: Common & { /** Заказано по отчёту по сезонам (включая не пришедшее FW26); без него — по строкам прихода. */ orderedBySeason?: Record<string, number>; gran: Gran; onGran: (g: Gran) => void; ex: boolean; /** Остаток на начало периода (при фильтре периода): без него накопительный остаток «Динамики» стартует с нуля и расходится с плиткой. */ opening?: number }) {
+export function SeasonsTab({ ctx, env, lines, vatNote, gran, onGran, ex, opening = 0, orderedBySeason, receivedBySeason, stockBase }: Common & { /** Получено по отчёту по сезонам (без фильтров). */ receivedBySeason?: Record<string, number>; /** Остаток всего по отчёту на сегодня: «Остаток всего» последнего сезона. */ stockBase?: number } & { /** Заказано по отчёту по сезонам (включая не пришедшее FW26); без него — по строкам прихода. */ orderedBySeason?: Record<string, number>; gran: Gran; onGran: (g: Gran) => void; ex: boolean; /** Остаток на начало периода (при фильтре периода): без него накопительный остаток «Динамики» стартует с нуля и расходится с плиткой. */ opening?: number }) {
   const rows = useMemo(() => bucketsOf(ctx, env, lines, "season", opening), [ctx, env, lines, opening]);
   const series = useMemo(() => bucketsOf(ctx, env, lines, gran, opening), [ctx, env, lines, gran, opening]);
   if (!rows.length) return <section className={sec}><p className="text-sm text-neutral-700">Нет данных за выбранный период.</p></section>;
   const ordOf = (key: string, m: Ext) => orderedBySeason?.[key] ?? m.ordered;
+  const recOf = (key: string, m: Ext) => receivedBySeason?.[key] ?? m.received;
+  // Остаток всего по отчёту: сумма остатков сезонов (получено − продано товара) + остаток товара прошлых сезонов, чтобы последний сезон дал остаток отчёта.
+  const cum = new Map<string, number>();
+  if (receivedBySeason && stockBase !== undefined) { const seasonStock = rows.reduce((a, r) => a + recOf(r.key, r.m) - r.m.sold, 0); let run = stockBase - seasonStock; for (const r of rows) { run += recOf(r.key, r.m) - r.m.sold; cum.set(r.key, run); } }
   const cols: { label: string; get: (m: Ext, stock: number, key: string) => number | null; fmt: (v: number | null) => string }[] = [
     { label: "Заказано, шт.", get: (m, _s, k) => ordOf(k, m), fmt: (v) => n0(v ?? 0) },
-    { label: "Получено, шт.", get: (m) => m.received, fmt: (v) => n0(v ?? 0) },
+    { label: "Получено, шт.", get: (m, _s, k) => recOf(k, m), fmt: (v) => n0(v ?? 0) },
     { label: "Продано товара сезона, шт.", get: (m) => m.sold, fmt: (v) => n0(v ?? 0) },
-    { label: "Остаток сезона, шт.", get: (m) => m.stock, fmt: (v) => n0(v ?? 0) },
-    { label: "Остаток всего, шт.", get: (_m, s) => s, fmt: (v) => n0(v ?? 0) },
+    { label: "Остаток сезона, шт.", get: (m, _s, k) => recOf(k, m) - m.sold, fmt: (v) => n0(v ?? 0) },
+    { label: "Остаток всего, шт.", get: (_m, s, k) => cum.get(k) ?? s, fmt: (v) => n0(v ?? 0) },
     { label: "SO STD, %", get: (m, _s, k) => { const o = ordOf(k, m); return o > 0 ? m.sold / o : null; }, fmt: (v) => pct(v) },
     { label: `Выручка, ₽ (${vatNote})`, get: (m) => m.revenue, fmt: (v) => money(v) },
     { label: "Средняя цена, ₽", get: (m) => m.avgPrice, fmt: (v) => money(v) },

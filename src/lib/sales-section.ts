@@ -303,16 +303,35 @@ export const vatOf = vatPctAt;
  * открытый FW 26/27 — заказано по отчёту, но не меньше полученного. Та же формула, что на Главной (production-block.tsx) и в таблице сезонов.
  * Категория учитывается; период и прочие фильтры — нет (заказ не привязан к дате прихода).
  */
-export function orderedByReport(sizes: ReportSizeRow[], lines: FullLine[], cat: Cat, seasons: string[] = []): number {
-  const OPEN = "FW 26/27";
-  const got = new Map<string, number>();
-  for (const l of lines) {
-    if (l.kind !== "RECEIPT" || !l.pcs || (cat !== "all" && l.cls !== cat) || (seasons.length && !seasons.includes(l.season))) continue;
-    got.set(l.season, (got.get(l.season) ?? 0) + l.pcs);
+export function orderedByReport(sizes: ReportSizeRow[], _lines: FullLine[], cat: Cat, seasons: string[] = []): number {
+  return seasonTotalsOf(sizes, cat, seasons).ordered;
+}
+/** Получено по отчёту «заказ и продажи»: товар каждого сезона за всё время (FW 25/26 + SS 2026 + FW 26/27); сезоны можно ограничить. */
+export function receivedByReport(sizes: ReportSizeRow[], cat: Cat, seasons: string[] = []): number {
+  return seasonTotalsOf(sizes, cat, seasons).received;
+}
+/** Заказано и получено по каждому сезону (ключи — как в строках продаж: «FW 25/26», «SS 2026», «FW 26/27»). */
+export function reportSeasonTotals(sizes: ReportSizeRow[], cat: Cat): Record<string, { ordered: number; received: number }> {
+  const out: Record<string, { ordered: number; received: number }> = {};
+  for (const [label, key] of Object.entries(SEASON_TO_REPORT)) {
+    const t = seasonTotalsOf(sizes, cat, [label]);
+    out[label] = { ordered: t.ordered, received: t.received };
   }
-  const conf = sizes.filter((r) => cat === "all" || r.cls === cat).reduce((a, r) => a + (r.seas?.["FW26/27"]?.conf ?? 0), 0);
-  let total = 0;
-  for (const [season, v] of got) total += season === OPEN ? Math.max(conf, v) : v;
-  if (!got.has(OPEN) && (!seasons.length || seasons.includes(OPEN))) total += conf;
-  return total;
+  return out;
+}
+const SEASON_TO_REPORT: Record<string, string> = { "FW 25/26": "FW25/26", "SS 2026": "SS26", "FW 26/27": "FW26/27" };
+function seasonTotalsOf(sizes: ReportSizeRow[], cat: Cat, seasons: string[]): { ordered: number; received: number } {
+  let ordered = 0, received = 0;
+  for (const [label, key] of Object.entries(SEASON_TO_REPORT)) {
+    if (seasons.length && !seasons.includes(label)) continue;
+    const open = label === "FW 26/27";
+    for (const r of sizes) {
+      if (cat !== "all" && r.cls !== cat) continue;
+      const c = r.seas?.[key]; if (!c) continue;
+      received += c.deliv ?? 0;
+      // Заказано: закрытые сезоны — получено; FW 26/27 — заказ отчёта (правило владельца: заказ 512, пришло 304).
+      ordered += open ? c.conf ?? 0 : c.conf ?? c.deliv ?? 0;
+    }
+  }
+  return { ordered, received };
 }

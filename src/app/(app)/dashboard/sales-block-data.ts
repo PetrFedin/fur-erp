@@ -5,7 +5,7 @@ import "server-only";
 import { exVatAt, type MarginInput } from "@/lib/margin";
 import { makeCtx, type Ctx, type ReportSizeRow, type VatMode } from "@/lib/margin-tree";
 import { classOfLevel2, furRuLabel, furTypeOfFabric, seasonEndIso, seasonOfDate, seasonStartIso } from "@/lib/sales-receipts-core";
-import { seasonRank, todayMsk, type Cat, type SDim } from "@/lib/sales-section";
+import { receivedByReport, reportSeasonTotals, seasonRank, todayMsk, type Cat, type SDim } from "@/lib/sales-section";
 import { applyFilters, bucketsOf, buildSalesTree, extOf, lastMonthOf, NO_FILTERS, openingStock, sizeNodes, sortSeasons, totalSalesNode, type Ext, type Filters, type SLine, type SNode } from "@/lib/sales-section";
 import { loadSalesInput } from "@/lib/sales-server";
 import type { Commission4Mode } from "@/lib/commission4-mode";
@@ -66,8 +66,13 @@ export function ordersSummary(sizes: ReportSizeRow[], cls: SalesCls, received: {
   const zero = (): OrderMoney => ({ in: 0, ex: 0 });
   const add = (a: OrderMoney, b: OrderMoney): OrderMoney => ({ in: a.in + b.in, ex: a.ex + b.ex });
   const lines = received.map((x): OrderLine => {
-    const open = x.season === ORDERS_OPEN_SEASON, w = open ? awaiting : 0, wr = open ? awaitingRub : zero();
-    return { key: x.season, label: x.season, ordered: x.received + w, delivered: x.received, awaiting: w, orderedRub: add(x.recvList, wr), deliveredRub: x.recvList, awaitingRub: wr };
+    const open = x.season === ORDERS_OPEN_SEASON, wr = open ? awaitingRub : zero();
+    // Штуки — по отчёту «заказ и продажи» (получено по сезону: FW25 269, SS26 64, FW26 304; заказано FW26 = 512); деньги — по строкам прихода.
+    const key = x.season === "FW 25/26" ? "FW25/26" : x.season === "SS 2026" ? "SS26" : x.season === "FW 26/27" ? "FW26/27" : null;
+    const deliv = key ? sum((r) => r.seas?.[key]?.deliv ?? 0) : x.received;
+    const conf = key ? sum((r) => r.seas?.[key]?.conf ?? 0) : x.received;
+    const w = open ? Math.max(0, conf - deliv) : 0;
+    return { key: x.season, label: x.season, ordered: open ? conf : deliv, delivered: deliv, awaiting: w, orderedRub: add(x.recvList, wr), deliveredRub: x.recvList, awaitingRub: wr };
   });
   const tot = (f: (l: OrderLine) => number) => lines.reduce((a, l) => a + f(l), 0);
   const totM = (f: (l: OrderLine) => OrderMoney): OrderMoney => lines.reduce((a, l) => add(a, f(l)), zero());
@@ -258,6 +263,9 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
     const lines = applyFilters(all, f), scope = applyFilters(all, { ...f, from: null });
     const opening = openingStock(all, f);
     const hIn = extOf(ctxs.in, lines, env), hEx = extOf(ctxs.ex, lines, env);
+    const useRep = sizes.length > 0 && !furNames.length && !f.from && !f.to && !f.cat2.length && !f.furs.length && !f.q;
+    const recvH = useRep ? receivedByReport(sizes, f.cat, f.seasons) : hIn.received;
+    const stockH = useRep && !f.seasons.length ? sizes.filter((r) => f.cat === "all" || r.cls === f.cat).reduce((a, r) => a + r.stock, 0) : opening + recvH - hIn.sold;
     return {
       soAs: (() => {
         // SO AS: продажи товара сезона до конца сезона ÷ приход этого товара внутри календарного окна сезона (то, что пришло позже конца сезона, в знаменатель не входит).
@@ -267,7 +275,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
         return inWin > 0 ? lines.filter((l) => l.kind === "SALE" && l.iso <= se).reduce((a, l) => a + l.pcs, 0) / inWin : null;
       })(),
       stockCum: 0, stockListCum: { in: 0, ex: 0 }, markupStockCum: { in: null, ex: null },
-      received: hIn.received, sold: hIn.sold, gross: hIn.gross, returns: hIn.returns, opening, stock: opening + hIn.received - hIn.sold, sellThrough: hIn.sellThrough,
+      received: recvH, sold: hIn.sold, gross: hIn.gross, returns: hIn.returns, opening, stock: stockH, sellThrough: hIn.sellThrough,
       orders: new Set(lines.map((l) => l.orderNo)).size, articles: new Set(lines.map((l) => l.article)).size,
       money: { in: moneyOf(ctxs.in, hIn, lines, scope), ex: moneyOf(ctxs.ex, hEx, lines, scope) },
     };
@@ -326,10 +334,13 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
 
   const season = (v: "in" | "ex") => bucketsOf(ctxs[v], env, lines, "season", 0);
   const sIn = season("in"), sEx = season("ex");
-  let run = h.opening;
+  const useRepS = year === "all" && sizes.length > 0 && !furNames.length;
+  const repSeason = useRepS ? reportSeasonTotals(sizes, "all") : null;
+  const recOfS = (b: (typeof sIn)[number]) => repSeason?.[b.key]?.received ?? b.m.received;
+  let run = useRepS ? sizes.reduce((a, r) => a + r.stock, 0) - sIn.reduce((a, b) => a + recOfS(b) - b.m.sold, 0) : h.opening;
   const seasons: SalesSeason[] = sIn.map((b, i) => {
-    run += b.m.received - b.m.sold;
-    return { key: b.key, received: b.m.received, sold: b.m.sold, gross: b.m.gross, returns: b.m.returns, stock: run, sellThrough: b.m.sellThrough, revenue: { in: b.m.revenue, ex: sEx[i].m.revenue }, avgPrice: { in: nul(b.m.avgPrice), ex: nul(sEx[i].m.avgPrice) } };
+    run += recOfS(b) - b.m.sold;
+    return { key: b.key, received: recOfS(b), sold: b.m.sold, gross: b.m.gross, returns: b.m.returns, stock: run, sellThrough: b.m.sellThrough, revenue: { in: b.m.revenue, ex: sEx[i].m.revenue }, avgPrice: { in: nul(b.m.avgPrice), ex: nul(sEx[i].m.avgPrice) } };
   });
   const hIn = extOf(ctxs.in, lines, env);
   /** Разворот «Заказ и приход» по иерархиям: приход сезона — из деревьев срезов (те же узлы, что в таблице ниже), «ждём» (FW 26/27) — те же деревья на строках Conf − поступило из отчёта. */
