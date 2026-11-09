@@ -54,7 +54,7 @@ async function main() {
   for (let c = 1; c <= 26; c++) {
     const sc = T.getColumn(c), tc = R.getColumn(mapC(c));
     if (sc.width) tc.width = sc.width; tc.hidden = !!sc.hidden;
-    if ((c === 16 || c === 19 || c === 22) && (tc.width ?? 0) < 9.5) tc.width = 9.5; // NS в тыс. ₽ с итогом больше 99 999 не влезал (#######)
+    if ((c === 16 || c === 19 || c === 22) && (tc.width ?? 0) < 11.5) tc.width = 11.5; // NS в тыс. ₽ с итогом больше 99 999 не влезал (#######)
     for (let r = 1; r <= 6; r++) { const s = T.getCell(r, c), t = R.getCell(r, mapC(c)); copyStyle(s, t); const v = cv(s.value); if (v != null) t.value = v as ExcelJS.CellValue; }
   }
   R.getColumn(10).width = T.getColumn(11).width ?? 9.3;
@@ -67,6 +67,9 @@ async function main() {
     R.mergeCells(`${colLetter(mapC(colNum(pa[1])))}${pa[2]}:${colLetter(mapC(colNum(pb[1])))}${pb[2]}`);
   }
   R.mergeCells("I5:J5"); // TTL над PCS и EUR
+  // NS в отчёте — EUR без НДС (NS EUR excl VAT), полными числами: заголовки и формат столбцов NS.
+  R.getCell(3, 5).value = "NS EUR excl VAT";
+  for (const c of [17, 20, 23]) R.getCell(6, c).value = "NS EUR excl VAT";
   R.getCell(2, 5).value = new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" });
 
   // ───── строки ─────
@@ -76,6 +79,7 @@ async function main() {
     const tr = lvlRow[lvl], x = R.getRow(rrow++); const no = ++rn;
     for (let c = 1; c <= 26; c++) copyStyle(T.getCell(tr, c), x.getCell(mapC(c)));
     copyStyle(T.getCell(tr, 11), x.getCell(10));
+    for (const c of [17, 20, 23]) x.getCell(c).numFmt = "#,##0;\\-#,##0;\\–";
     for (let c = 9; c <= 27; c++) x.getCell(c).alignment = { ...(x.getCell(c).alignment ?? {}), horizontal: "right" }; // числа — по правому краю ячейки
     if (T.getRow(tr).height) x.height = T.getRow(tr).height;
     x.getCell(1).value = parent || null; x.getCell(2).value = no; x.getCell(3).value = lvl === 3 ? 1 : 0; x.getCell(4).value = lvl + 1;

@@ -47,7 +47,7 @@ async function main() {
     const c = r.seas?.[S];
     if (c) {
       lf.conf += c.conf ?? 0; lf.confEur += c.confEur ?? 0; lf.deliv += c.deliv ?? 0; lf.delivEur += c.delivEur ?? 0;
-      lf.sold += c.soldSsn ?? 0; lf.rub += c.rubSsn ?? 0; lf.oldSold += c.soldOld ?? 0; lf.oldRub += c.rubOld ?? 0;
+      lf.sold += c.soldSsn ?? 0; lf.rub += c.eurExSsn ?? 0; lf.oldSold += c.soldOld ?? 0; lf.oldRub += c.eurExOld ?? 0; // NS EUR без НДС (excl VAT)
       // MU по отчёту (как в приложении): (NS EUR + Discount EUR) ÷ SC EUR по проданному; в листе — суммы, отношение считает «Отчёт» (средневзвешенное).
       // Правило владельца (09.11.2026): MU = (выручка ₽ + скидка ₽) ÷ (SC EUR × 110); в листе — числитель в ₽ и знаменатель SC EUR × 110 в ₽.
       lf.gS += (c.rubSsn ?? 0) + (c.discSsn ?? 0); lf.cS += (c.scSsn ?? 0) * 110;
@@ -75,9 +75,9 @@ async function main() {
     { g: G1, head: "Пришло, €", get: (l) => r2(l.delivEur) },
     { g: G1, head: "В производстве, шт. (заказано − пришло)", get: (l) => Math.max(0, l.conf - l.deliv) },
     { g: G1, head: "Продано товара FW26 в календарном FW26, шт.", get: (l) => l.sold },
-    { g: G1, head: "Выручка товара FW26, ₽ с НДС", get: (l) => Math.round(l.rub) },
+    { g: G1, head: "NS EUR excl VAT, товар FW26", get: (l) => r2(l.rub) },
     { g: G2, head: "Продано, шт.", get: (l) => l.oldSold },
-    { g: G2, head: "Выручка, ₽ с НДС", get: (l) => Math.round(l.oldRub) },
+    { g: G2, head: "NS EUR excl VAT, олды в FW26", get: (l) => r2(l.oldRub) },
     { g: G3, head: "Остаток товара FW26, шт.", get: stock26 },
     { g: G3, head: "Остаток всех остальных сезонов, шт.", get: stockOth },
     { g: G3, head: "Остаток всего, шт.", get: (l) => stock26(l) + stockOth(l) },
