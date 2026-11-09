@@ -15,6 +15,8 @@ export type ReportVals = {
   stock: number; sRetail: number; sPriced: number; sRetailBoth: number; sCostBoth: number;
   /** Олды — продажи товара прошлых сезонов в календаре сезона: шт. и gross/cost (€) для маркапа. */
   oSold: number; oGross: number; oCost: number;
+  /** Выручка олдов (NS) в четырёх видах — для «Calendar»: SSN + олды. */
+  oRubIn: number; oRubEx: number; oEurIn: number; oEurEx: number;
   /** Остаток всех сезонов (этот и прошлые): шт., цена по прайсу и себестоимость для средней цены и маркапа. */
   tStock: number; tRetail: number; tPriced: number; tRetailBoth: number; tCostBoth: number;
 };
@@ -23,7 +25,7 @@ export type ReportData = { leaves: ReportLeaf[]; eurRate: number; ex: boolean };
 
 
 type Agg = { models: number } & Omit<ReportVals, never>;
-const zero = (): Agg => ({ models: 0, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, nsRubIn: 0, nsRubEx: 0, nsEurIn: 0, nsEurEx: 0, gross: 0, cost: 0, stock: 0, sRetail: 0, sPriced: 0, sRetailBoth: 0, sCostBoth: 0, oSold: 0, oGross: 0, oCost: 0, tStock: 0, tRetail: 0, tPriced: 0, tRetailBoth: 0, tCostBoth: 0 });
+const zero = (): Agg => ({ models: 0, oRubIn: 0, oRubEx: 0, oEurIn: 0, oEurEx: 0, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, nsRubIn: 0, nsRubEx: 0, nsEurIn: 0, nsEurEx: 0, gross: 0, cost: 0, stock: 0, sRetail: 0, sPriced: 0, sRetailBoth: 0, sCostBoth: 0, oSold: 0, oGross: 0, oCost: 0, tStock: 0, tRetail: 0, tPriced: 0, tRetailBoth: 0, tCostBoth: 0 });
 function aggOf(ls: ReportLeaf[], keys: string[]): Agg {
   const a = zero(); const models = new Set<string>();
   for (const l of ls) {
@@ -55,6 +57,8 @@ function buildTree(ls: ReportLeaf[], keys: string[]): Node[] {
 const nf = (v: number) => Math.round(v).toLocaleString("ru-RU");
 
 const KEYS = ["FW26/27"];
+/** Все сезоны отчёта: «Order TTL» = FW26/27 + SS26 + FW25/26 (закрытые сезоны: заказано = получено). */
+const ALL_KEYS = ["FW26/27", "SS26", "FW25/26"];
 // Оформление как в отчёте по поставкам: Total сверху, ярусы цвета, тонкая чёрная сетка.
 const TONE: Record<0 | 1 | 2 | 3, string> = {
   0: "bg-[#23234f] font-bold text-white",
@@ -63,7 +67,9 @@ const TONE: Record<0 | 1 | 2 | 3, string> = {
   3: "bg-white text-neutral-900",
 };
 const THICK = "border-l-2 border-l-[#111]";
-const hd = "sticky z-10 bg-white px-2 py-1 text-center text-[13px] font-bold border-b border-[#111]";
+const hd = "sticky z-10 flex min-h-8 items-center justify-center bg-white px-2 py-1 text-center text-[13px] font-bold border-b border-l border-[#111] border-l-neutral-400";
+/** Линия между блоками второго уровня (FW26 / Calendar / TTL внутри Order и Stock). */
+const MID = "border-l-2 border-l-neutral-600";
 
 /** Отчёт по продажам FW26 поверх каталога: Total → категория 1 → тип меха → категория 2; деньги: EUR — как есть, RUR — тысячами с подписью «000 RUR». */
 export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, onVat }: { data: ReportData; supply: SupplyLeaf[]; tab: "sales" | "supply"; cat: "all" | "clothes" | "acc"; onClose: () => void; vatEx: boolean; onVat?: (ex: boolean) => void }) {
@@ -91,17 +97,22 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const eur = (v: number) => (Math.abs(v) < 0.5 ? "–" : nf(v));
   const q = (v: number) => (Math.abs(v) < 0.5 ? "–" : nf(v));
   const x2 = (v: number | null) => (v === null ? "–" : `×${v.toFixed(2).replace(".", ",")}`);
-  const subHeads = ["шт.", "шт.", "EUR", "шт.", "EUR", "шт.", "SO", `Выручка ${unit}`, "Ср. маркап", "С олдами, шт.", "Ср. маркап всех", "шт.", unit, "Ср. маркап", "Всего шт.", unit, "Ср. маркап"];
-  const groupStarts = [1, 3, 5, 11];
+  // Как в отчёте владельца: Order (TTL, FW26) · Delivery (FW26) · Sales (SSN FW26, Calendar FW26) · Stock (FW26, TTL).
+  const nsHead = cur === "EUR" ? "NS EUR" : "NS 000'RUR";
+  const subHeads = ["PCS", "EUR", "PCS", "EUR", "PCS", "EUR", "PCS", "SO, %", nsHead, "Avg MU", "PCS", nsHead, "Avg MU", "PCS", "PCS"];
+  const groupStarts = [0, 4, 6, 13]; // толстая линия: начало блоков Order / Delivery / Sales / Stock
+  const midStarts = [2, 10, 14]; // линия внутри блока: FW26 после TTL, Calendar, TTL остатка
+  const sepClass = (i: number) => (groupStarts.includes(i) ? THICK : midStarts.includes(i) ? MID : "");
   const grid = { gridTemplateColumns: `minmax(8.5rem,15rem) repeat(${subHeads.length}, minmax(4.4rem,auto))` };
+  const oNsOf = (a: Agg) => (cur === "EUR" ? (vatEx ? a.oEurEx : a.oEurIn) : vatEx ? a.oRubEx : a.oRubIn);
 
-  const row = (label: string, level: 0 | 1 | 2 | 3, a: Agg, node?: Node) => {
+  const row = (label: string, level: 0 | 1 | 2 | 3, a: Agg, t: Agg, node?: Node) => {
     const so = a.conf > 0 ? `${Math.round((a.sold / a.conf) * 100)} %` : "–";
     const cells = [
-      q(a.models), q(a.conf), eur(a.confEur), q(a.deliv), eur(a.delivEur),
-      q(a.sold), so, money(nsOf(a)), x2(a.cost > 0 ? a.gross / a.cost : null), q(a.sold + a.oSold), x2(a.cost + a.oCost > 0 ? (a.gross + a.oGross) / (a.cost + a.oCost) : null),
-      q(a.stock), money(fromRub(a.sRetail)), x2(a.sCostBoth > 0 ? a.sRetailBoth / a.sCostBoth : null),
-      q(a.tStock), money(fromRub(a.tRetail)), x2(a.tCostBoth > 0 ? a.tRetailBoth / a.tCostBoth : null),
+      q(t.conf), eur(t.confEur), q(a.conf), eur(a.confEur), q(a.deliv), eur(a.delivEur),
+      q(a.sold), so, money(nsOf(a)), x2(a.cost > 0 ? a.gross / a.cost : null),
+      q(a.sold + a.oSold), money(nsOf(a) + oNsOf(a)), x2(a.cost + a.oCost > 0 ? (a.gross + a.oGross) / (a.cost + a.oCost) : null),
+      q(a.stock), q(a.tStock),
     ];
     const hasKids = node && node.children.length > 0 && node.level < depth;
     const closed = node ? shut.has(node.id) : false;
@@ -115,18 +126,18 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
             </button>
           ) : <span className="truncate pr-2">{label}</span>}
         </div>
-        {cells.map((c, i) => <div role="cell" key={i} className={`flex min-h-8 items-center justify-end border-b border-[#111] pl-3 pr-2 text-right text-[13px] tabular-nums ${tone} ${groupStarts.includes(i) ? THICK : ""}`}>{c}</div>)}
+        {cells.map((c, i) => <div role="cell" key={i} className={`flex min-h-8 items-center justify-end border-b border-l border-[#111] border-l-neutral-400 pl-3 pr-2 text-right text-[13px] tabular-nums ${tone} ${sepClass(i)}`}>{c}</div>)}
       </div>
     );
   };
-  const flat = (nodes: Node[]): React.ReactNode[] => nodes.flatMap((n) => [row(n.label, n.level, aggOf(n.leaves, keys), n), ...(n.level < depth && !shut.has(n.id) ? flat(n.children) : [])]);
+  const flat = (nodes: Node[]): React.ReactNode[] => nodes.flatMap((n) => [row(n.label, n.level, aggOf(n.leaves, keys), aggOf(n.leaves, ALL_KEYS), n), ...(n.level < depth && !shut.has(n.id) ? flat(n.children) : [])]);
 
   return (
     <dialog ref={dlg} onClose={onClose} className="m-0 h-dvh max-h-none w-screen max-w-none bg-white p-0 text-neutral-900 md:mx-auto md:my-4 md:h-[calc(100dvh-2rem)] md:w-[min(96rem,100vw-2rem)] md:rounded-2xl">
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between gap-2 border-b border-neutral-200 px-3 py-2">
           <div className="flex min-w-0 gap-2" role="tablist" aria-label="Отчёт">
-            {([["sales", "Продажи"], ["supply", "Поставки"]] as const).map(([k, t]) => <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={chip(tab === k) + " !px-3 md:!px-4"}><span className="hidden md:inline">Отчёт: </span>{t} FW26</button>)}
+            {([["sales", "Продажи"], ["supply", "Поставки"]] as const).map(([k, t]) => <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={chip(tab === k) + " !px-3 md:!px-4"}><span className="hidden md:inline">Отчёт:{"\u00a0"}</span>{t}{"\u00a0"}FW26</button>)}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {xl[tab] ? (
@@ -160,17 +171,26 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
           <div role="table" aria-label="Отчёт по продажам FW26: категория 1, тип меха, категория 2" className="grid min-w-[1180px] border-2 border-[#111]" style={grid}>
             <div role="row" className="contents">
               <div role="columnheader" className={`${hd} left-0 top-0 z-20 border-b-0`} />
-              <div role="columnheader" className={`${hd} top-0 border-b-0`} />
-              <div role="columnheader" className={`${hd} top-0 col-span-2 ${THICK}`}>Заказано</div>
-              <div role="columnheader" className={`${hd} top-0 col-span-2 ${THICK}`}>Пришло</div>
-              <div role="columnheader" className={`${hd} top-0 ${THICK}`} style={{ gridColumn: "span 6" }}>Продано</div>
-              <div role="columnheader" className={`${hd} top-0 ${THICK}`} style={{ gridColumn: "span 6" }}>Остаток</div>
+              <div role="columnheader" className={`${hd} top-0 ${THICK}`} style={{ gridColumn: "span 4" }}>Order</div>
+              <div role="columnheader" className={`${hd} top-0 ${THICK}`} style={{ gridColumn: "span 2" }}>Delivery</div>
+              <div role="columnheader" className={`${hd} top-0 ${THICK}`} style={{ gridColumn: "span 7" }}>Sales</div>
+              <div role="columnheader" className={`${hd} top-0 ${THICK}`} style={{ gridColumn: "span 2" }}>Stock</div>
             </div>
             <div role="row" className="contents">
-              <div role="columnheader" className={`${hd} left-0 top-8 z-20`} />
-              {subHeads.map((t, i) => <div role="columnheader" key={i} className={`${hd} top-8 ${groupStarts.includes(i) ? THICK : ""}`}>{i === 0 ? "Моделей" : t}</div>)}
+              <div role="columnheader" className={`${hd} left-0 top-8 z-20 border-b-0`} />
+              <div role="columnheader" className={`${hd} top-8 ${THICK}`} style={{ gridColumn: "span 2" }}>TTL</div>
+              <div role="columnheader" className={`${hd} top-8 ${MID}`} style={{ gridColumn: "span 2" }}>FW26</div>
+              <div role="columnheader" className={`${hd} top-8 ${THICK}`} style={{ gridColumn: "span 2" }}>FW26</div>
+              <div role="columnheader" className={`${hd} top-8 ${THICK}`} style={{ gridColumn: "span 4" }}>SSN FW26</div>
+              <div role="columnheader" className={`${hd} top-8 ${MID}`} style={{ gridColumn: "span 3" }}>Calendar FW26</div>
+              <div role="columnheader" className={`${hd} top-8 ${THICK}`}>FW26</div>
+              <div role="columnheader" className={`${hd} top-8 ${MID}`}>TTL</div>
             </div>
-            {row("Итого", 0, aggOf(leaves, keys))}
+            <div role="row" className="contents">
+              <div role="columnheader" className={`${hd} left-0 top-16 z-20`} />
+              {subHeads.map((t, i) => <div role="columnheader" key={i} className={`${hd} top-16 ${sepClass(i)}`}>{t}</div>)}
+            </div>
+            {row("Итого", 0, aggOf(leaves, keys), aggOf(leaves, ALL_KEYS))}
             {flat(tree)}
           </div>
         </div>

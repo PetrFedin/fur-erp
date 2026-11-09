@@ -337,12 +337,12 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
       for (const k of SES) {
         const m = n.m[k];
         // Продажи товара прошлых сезонов (олды) в календаре этого сезона (в FW25 их не было): шт. и маркап (NS EUR + Discount EUR) ÷ SC EUR; остаток всех сезонов до этого включительно.
-        const old = k === "FW25/26" ? { n: 0, g: 0, c: 0 } : n.rows.reduce((o, r) => { const c = r.seas?.[k]; return { n: o.n + Math.max(0, c?.soldOld ?? 0), g: o.g + ((c?.rubOld ?? 0) + (c?.discOld ?? 0)) / MU_EUR_RATE, c: o.c + (c?.scOld ?? 0) }; }, { n: 0, g: 0, c: 0 });
+        const old = k === "FW25/26" ? { n: 0, g: 0, c: 0, ri: 0, re: 0, ei: 0, ee: 0 } : n.rows.reduce((o, r) => { const c = r.seas?.[k]; return { n: o.n + Math.max(0, c?.soldOld ?? 0), g: o.g + ((c?.rubOld ?? 0) + (c?.discOld ?? 0)) / MU_EUR_RATE, c: o.c + (c?.scOld ?? 0), ri: o.ri + (c?.rubOld ?? 0), re: o.re + (c?.rubExOld ?? 0), ei: o.ei + (c?.eurOld ?? 0), ee: o.ee + (c?.eurExOld ?? 0) }; }, { n: 0, g: 0, c: 0, ri: 0, re: 0, ei: 0, ee: 0 });
         const totalStock = n.rows.reduce((t, r) => t + Math.max(0, r.stock ?? 0), 0);
         const tStock = k === "FW26/27" ? totalStock : k === "SS26" ? Math.max(0, totalStock - n.m["FW26/27"].stock) : 0;
         // Остаток: цена сейчас (₽) и MU = цена сейчас в € ÷ себестоимость в € (приход € ÷ шт., иначе заказ € ÷ шт.).
         const pE = price && eurRate ? price / eurRate : 0;
-        by[k] = { oSold: old.n, oGross: old.g, oCost: old.c,
+        by[k] = { oSold: old.n, oGross: old.g, oCost: old.c, oRubIn: old.ri, oRubEx: old.re, oEurIn: old.ei, oEurEx: old.ee,
           tStock, tRetail: price ? price * tStock : 0, tPriced: price ? tStock : 0, tRetailBoth: pE && cost ? pE * tStock : 0, tCostBoth: pE && cost ? cost * tStock : 0,
           conf: m.conf, confEur: m.confEur, deliv: m.deliv, delivEur: m.delivEur, sold: m.ssn, nsRubIn: m.rubSIn, nsRubEx: m.rubSEx, nsEurIn: m.eurSIn, nsEurEx: m.eurSEx, gross: m.grossS, cost: m.costS, stock: m.stock,
           sRetail: price ? price * m.stock : 0, sPriced: price ? m.stock : 0, sRetailBoth: pE && cost ? pE * m.stock : 0, sCostBoth: pE && cost ? cost * m.stock : 0 };
