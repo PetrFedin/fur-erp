@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CloseX, chip } from "./catalog-ui";
 import { CatalogReport, type ReportData } from "./catalog-report";
 import type { SupplyLeaf } from "@/lib/supply-report";
@@ -12,7 +12,7 @@ export type CatalogSeason = {
   key: string; label: string; short: string;
   conf: number; deliv: number; sold: number; stock: number; rubK: number;
   /** TTL (всего) показываем только если он отличается от SSN (за сезон): у идущего сезона и там, где всё продано внутри сезона, колонки TTL нет. */
-  showTtl: boolean; common: [string, string][]; pairs: { k: string; ssn: string; ttl: string }[];
+  showTtl: boolean; common: [string, string][]; pairs: { k: string; label: string; group: string; ssn: string; ttl: string }[];
 };
 export type CatalogItem = {
   id: string; title: string; fur: string; category: string; cls: "clothes" | "acc" | "other";
@@ -151,7 +151,7 @@ function Lightbox({ item, start, onClose }: { item: CatalogItem; start: number; 
 function SeasonTable({ seasons, total }: { seasons: CatalogSeason[]; total: CatalogItem["total"] }) {
   // «Продано всего» раскрывается: под ним — сколько продано позже по календарным сезонам (по умолчанию свёрнуто).
   const [open, setOpen] = useState(false);
-  const PARENT = "Продано всего, шт.", isKid = (k: string) => k.startsWith("Продано позже");
+  const PARENT = "all", isKid = (k: string) => k.startsWith("later_");
   type Col = { id: string; head: string; sub: string; ttl: boolean; s?: CatalogSeason };
   const cols: Col[] = [
     ...seasons.flatMap((s) => [{ id: s.key + "ssn", head: s.short, sub: "сезон", ttl: false, s } as Col, ...(!total && s.showTtl ? [{ id: s.key + "ttl", head: s.short, sub: "всего", ttl: true, s } as Col] : [])]),
@@ -181,20 +181,24 @@ function SeasonTable({ seasons, total }: { seasons: CatalogSeason[]; total: Cata
           {cols.map((c) => <span role="cell" key={c.id} className={cellCls}>{common(k, c)}</span>)}
         </div>
       ))}
-      {pairKeys.map((k) => {
+      {pairKeys.map((k, idx) => {
         if (isKid(k) && !open) return null;
-        const parent = k === PARENT && pairKeys.some(isKid), kid = isKid(k);
+        const meta = seasons[0].pairs.find((p) => p.k === k)!, prev = idx > 0 ? seasons[0].pairs.find((p) => p.k === pairKeys[idx - 1]) : null;
+        const parent = k === PARENT && pairKeys.some(isKid), kid = isKid(k), newGroup = !prev || prev.group !== meta.group;
         return (
-          <div role="row" key={"p" + k} className="contents">
-            <span role="rowheader" className={`border-b border-neutral-100 pr-2 text-neutral-600 ${kid ? "py-1 pl-5 text-[12px] text-neutral-500" : "py-1.5"}`}>
-              {parent ? (
-                <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="-my-1.5 flex min-h-11 w-full items-center gap-1.5 text-left">
-                  <span aria-hidden className="w-3 text-[10px]">{open ? "▾" : "▸"}</span>{k}
-                </button>
-              ) : k}
-            </span>
-            {cols.map((c) => <span role="cell" key={c.id} className={`${cellCls} ${kid ? "!py-1 text-[12px] text-neutral-500" : ""}`}>{pair(k, c)}</span>)}
-          </div>
+          <Fragment key={"p" + k}>
+            {newGroup ? <div role="row" className="contents"><span role="rowheader" style={{ gridColumn: `1 / span ${cols.length + 1}` }} className="mt-2 border-b border-neutral-300 bg-neutral-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{meta.group}</span></div> : null}
+            <div role="row" className="contents">
+              <span role="rowheader" className={`border-b border-neutral-100 pr-2 text-neutral-600 ${kid ? "py-1 pl-5 text-[12px] text-neutral-500" : "py-1.5"}`}>
+                {parent ? (
+                  <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="-my-1.5 flex min-h-11 w-full items-center gap-1.5 text-left">
+                    <span aria-hidden className="w-3 text-[10px]">{open ? "▾" : "▸"}</span>{meta.label}
+                  </button>
+                ) : meta.label}
+              </span>
+              {cols.map((c) => <span role="cell" key={c.id} className={`${cellCls} ${kid ? "!py-1 text-[12px] text-neutral-500" : ""}`}>{pair(k, c)}</span>)}
+            </div>
+          </Fragment>
         );
       })}
     </div>
