@@ -79,6 +79,18 @@ export async function loadSupplyLeaves(orgId: string, c4: Commission4Mode): Prom
     const base: Record<string, number> = { "2026-11": b.nov, "2026-12": b.dec, "2027-01": 0 };
     for (const m of fcMonths) l.fc[m] = overrides[l.key]?.[m] ?? base[m];
   });
+  // Сумма месяцев (приход + прогноз) по FW26/27 не больше заказа: две позиции получены больше заказанного, из-за этого итог по месяцам выходил на штуки больше заказа (514 при 512).
+  // Лишние штуки снимаем с прогноза ноября (по позициям с наибольшим ноябрьским прогнозом), владелец 10.11.2026.
+  {
+    const NOV = "2026-11";
+    let excess = fw.reduce((a, l) => a + Object.values(l.months["FW26/27"] ?? {}).reduce((x, y) => x + y, 0) + Object.values(l.fc).reduce((x, y) => x + y, 0) - (l.by["FW26/27"]?.conf ?? 0), 0);
+    excess = Math.round(excess);
+    while (excess > 0) {
+      const pick = fw.filter((l) => (l.fc[NOV] ?? 0) > 0).sort((x, y) => (y.fc[NOV] ?? 0) - (x.fc[NOV] ?? 0))[0];
+      if (!pick) break;
+      pick.fc[NOV] -= 1; excess -= 1;
+    }
+  }
   return list
     .filter((l) => Object.values(l.by).some((v) => v.conf || v.deliv))
     .map(({ key: _k, model: _m, fw26aw: _a, ...rest }) => rest);
