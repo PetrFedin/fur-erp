@@ -17,6 +17,8 @@ import { DASH, btn, money, moneyC, n0, pct, seg, segGroup, x2 } from "./sales-fm
 import type { PhotoIdx } from "./sales-tree";
 import { SeasonReceipts, type TzAwait } from "./season-receipts";
 
+/** Курс для маркапа продаж, ₽ за €: выручка в ₽ переводится в € по этому курсу (правило владельца). */
+export const MU_EUR_RATE = 110;
 const SEASONS = ["FW25/26", "SS26", "FW26/27"] as const;
 type Season = (typeof SEASONS)[number];
 const SEASON_LABEL: Record<Season, string> = { "FW26/27": "FW 26/27", SS26: "SS 2026", "FW25/26": "FW 25/26" };
@@ -196,12 +198,12 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         // За сезон: товар сезона, проданный в его календаре (SSN отчёта) — выручка, скидка, себестоимость; он же первая часть «всего».
         m.ssnR += n; m.rubS += ex ? rEx : rIn; m.rubSIn += rIn; m.rubSEx += rEx; m.eurSIn += c.eurSsn ?? 0; m.eurSEx += c.eurExSsn ?? 0; m.discS += dS;
         m.allR += n; m.rubA += ex ? rEx : rIn; m.rubAIn += rIn; m.discA += dS;
-        // Маркап продаж по отчёту: (NS EUR + Discount EUR) ÷ SC EUR — полная розничная цена продажи с учётом скидки к себестоимости продаж в €.
-        { const gE = (c.eurSsn ?? 0) + (c.discEurSsn ?? 0), scE = c.scSsn ?? 0; m.grossS += gE; m.costS += scE; m.grossA += gE; m.costA += scE; }
+        // Маркап продаж (правило владельца 09.11.2026): (выручка ₽ + скидка ₽) ÷ курс 110 ÷ SC EUR — полная розничная цена продажи с учётом скидки к себестоимости продаж в €.
+        { const gE = ((c.rubSsn ?? 0) + (c.discSsn ?? 0)) / MU_EUR_RATE, scE = c.scSsn ?? 0; m.grossS += gE; m.costS += scE; m.grossA += gE; m.costA += scE; }
         // Олды: товар прошлых сезонов, проданный в календаре этого сезона (Old отчёта).
         const nO = Math.max(0, c.soldOld ?? 0), rInO = c.rubOld ?? 0;
         cal[s].n += nO; cal[s].rIn += rInO; cal[s].rEx += c.rubExOld ?? 0; cal[s].d += c.discOld ?? 0;
-        cal[s].g += (c.eurOld ?? 0) + (c.discEurOld ?? 0); cal[s].c += c.scOld ?? 0;
+        cal[s].g += ((c.rubOld ?? 0) + (c.discOld ?? 0)) / MU_EUR_RATE; cal[s].c += c.scOld ?? 0;
       }
     }
     // Штуки (получено, продано за сезон, продано всего) — из файла поступлений и продаж, как в «Обзоре»; на уровне размера делим по поступлению строк отчёта. Нет артикула в файле — берём отчёт.
@@ -335,7 +337,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
       for (const k of SES) {
         const m = n.m[k];
         // Продажи товара прошлых сезонов (олды) в календаре этого сезона (в FW25 их не было): шт. и маркап (NS EUR + Discount EUR) ÷ SC EUR; остаток всех сезонов до этого включительно.
-        const old = k === "FW25/26" ? { n: 0, g: 0, c: 0 } : n.rows.reduce((o, r) => { const c = r.seas?.[k]; return { n: o.n + Math.max(0, c?.soldOld ?? 0), g: o.g + (c?.eurOld ?? 0) + (c?.discEurOld ?? 0), c: o.c + (c?.scOld ?? 0) }; }, { n: 0, g: 0, c: 0 });
+        const old = k === "FW25/26" ? { n: 0, g: 0, c: 0 } : n.rows.reduce((o, r) => { const c = r.seas?.[k]; return { n: o.n + Math.max(0, c?.soldOld ?? 0), g: o.g + ((c?.rubOld ?? 0) + (c?.discOld ?? 0)) / MU_EUR_RATE, c: o.c + (c?.scOld ?? 0) }; }, { n: 0, g: 0, c: 0 });
         const totalStock = n.rows.reduce((t, r) => t + Math.max(0, r.stock ?? 0), 0);
         const tStock = k === "FW26/27" ? totalStock : k === "SS26" ? Math.max(0, totalStock - n.m["FW26/27"].stock) : 0;
         // Остаток: цена сейчас (₽) и MU = цена сейчас в € ÷ себестоимость в € (приход € ÷ шт., иначе заказ € ÷ шт.).

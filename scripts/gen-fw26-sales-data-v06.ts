@@ -49,8 +49,9 @@ async function main() {
       lf.conf += c.conf ?? 0; lf.confEur += c.confEur ?? 0; lf.deliv += c.deliv ?? 0; lf.delivEur += c.delivEur ?? 0;
       lf.sold += c.soldSsn ?? 0; lf.rub += c.rubSsn ?? 0; lf.oldSold += c.soldOld ?? 0; lf.oldRub += c.rubOld ?? 0;
       // MU по отчёту (как в приложении): (NS EUR + Discount EUR) ÷ SC EUR по проданному; в листе — суммы, отношение считает «Отчёт» (средневзвешенное).
-      lf.gS += (c.eurSsn ?? 0) + (c.discEurSsn ?? 0); lf.cS += c.scSsn ?? 0;
-      lf.gO += (c.eurOld ?? 0) + (c.discEurOld ?? 0); lf.cO += c.scOld ?? 0;
+      // Правило владельца (09.11.2026): MU = (выручка ₽ + скидка ₽) ÷ (SC EUR × 110); в листе — числитель в ₽ и знаменатель SC EUR × 110 в ₽.
+      lf.gS += (c.rubSsn ?? 0) + (c.discSsn ?? 0); lf.cS += (c.scSsn ?? 0) * 110;
+      lf.gO += (c.rubOld ?? 0) + (c.discOld ?? 0); lf.cO += (c.scOld ?? 0) * 110;
     }
     leaves.set(k, lf);
   }
@@ -84,10 +85,10 @@ async function main() {
     { g: G3, head: "Остаток товара FW26, шт.", get: stock26 },
     { g: G3, head: "Остаток всех остальных сезонов, шт.", get: stockOth },
     { g: G3, head: "Остаток всего, шт.", get: (l) => stock26(l) + stockOth(l) },
-    { g: G4, head: "MU: NS EUR + Discount EUR, FW26 товар", get: (l) => r2(l.gS) },
-    { g: G4, head: "MU: SC EUR, FW26 товар", get: (l) => r2(l.cS) },
-    { g: G4, head: "MU: NS EUR + Discount EUR, олды в FW26", get: (l) => r2(l.gO) },
-    { g: G4, head: "MU: SC EUR, олды в FW26", get: (l) => r2(l.cO) },
+    { g: G4, head: "MU: NS RUR + Discount RUR, FW26 товар", get: (l) => Math.round(l.gS) },
+    { g: G4, head: "MU: SC EUR × 110, FW26 товар, ₽", get: (l) => Math.round(l.cS) },
+    { g: G4, head: "MU: NS RUR + Discount RUR, олды в FW26", get: (l) => Math.round(l.gO) },
+    { g: G4, head: "MU: SC EUR × 110, олды в FW26, ₽", get: (l) => Math.round(l.cO) },
     { g: G5, head: "Заказ всего, € (FW25 + SS26 по приходу + заказ FW26)", get: (l) => r2(l.priorEur + l.confEur) },
   ];
   const labels = ["Тип меха", "Категория 1", "Категория 2", "Артикул", "Цвет"], c0 = labels.length + 1, FIRST = 4, LAST = FIRST + list.length - 1;
