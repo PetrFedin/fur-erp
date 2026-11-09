@@ -161,6 +161,8 @@ async function main() {
   await x(`update "SystemState" set key = regexp_replace(key, '-?mvst', '', 'gi') where key ~* 'mvst'`);
   // Фото артикулов и ссылки «Товар в магазине» в обезличенную демо не входят (реальные карточки товаров; файлы в демо не копируются).
   await x(`delete from "SystemState" where key like 'article-photos:%' or key like 'article-shop-links:%'`);
+  // Готовые Excel «Отчёт: продажи/поставки» содержат реальные названия и заказчика — в демо не входят (кнопка «Excel» в каталоге там не показывается).
+  await x(`delete from "SystemState" where key like 'report-xlsx:%'`);
   // PLU — внутренние коды заказчика: в демо пусто (свойства артикула «PLU…» убираются, остальные остаются).
   await x(`update "ProductModel" set "attributes" = nullif((select coalesce(jsonb_agg(e), '[]'::jsonb) from jsonb_array_elements(case when jsonb_typeof("attributes") = 'array' then "attributes" else '[]'::jsonb end) e where e->>'name' !~* '^PLU( |$)'), '[]'::jsonb) where "attributes" is not null`);
   // Входящие поставщика: оставляем только ПРИНЯТЫЕ расчёты аукционов и ТЗ (из них созданы закупки и ТЗ заказчика); остальное — черновики и переписка

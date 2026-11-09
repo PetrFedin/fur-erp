@@ -70,6 +70,9 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const dlg = useRef<HTMLDialogElement>(null);
   useEffect(() => { const d = dlg.current; if (d && !d.open) d.showModal(); }, []);
   const [tab, setTab] = useState<"sales" | "supply">(tab0);
+  // Готовые Excel «Отчёт: продажи / поставки» (scripts/gen-two-reports.sh → publish-report-xlsx.ts): кнопка «Excel» есть, только если файл загружен.
+  const [xl, setXl] = useState<Record<string, boolean>>({});
+  useEffect(() => { let on = true; for (const t of ["sales", "supply"] as const) fetch(`/sales/catalog-xlsx?tab=${t}`, { method: "HEAD" }).then((r) => { if (on) setXl((x) => ({ ...x, [t]: r.ok })); }).catch(() => {}); return () => { on = false; }; }, []);
   const [cur, setCur] = useState<"EUR" | "RUR">("EUR");
   const [depth, setDepth] = useState<1 | 2 | 3>(2);
   const [shut, setShut] = useState<Set<string>>(new Set());
@@ -125,7 +128,15 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
           <div className="flex min-w-0 gap-2" role="tablist" aria-label="Отчёт">
             {([["sales", "Продажи"], ["supply", "Поставки"]] as const).map(([k, t]) => <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={chip(tab === k) + " !px-3 md:!px-4"}><span className="hidden md:inline">Отчёт: </span>{t} FW26</button>)}
           </div>
-          <CloseX onClick={onClose} />
+          <div className="flex shrink-0 items-center gap-2">
+            {xl[tab] ? (
+              <a href={`/sales/catalog-xlsx?tab=${tab}`} download className={chip(false) + " gap-1.5 !px-3"} aria-label={`Скачать Excel: отчёт ${tab === "sales" ? "продажи" : "поставки"}`}>
+                <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
+                Excel
+              </a>
+            ) : null}
+            <CloseX onClick={onClose} />
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-neutral-200 px-3 py-2">
           {tab === "sales" && onVat ? (

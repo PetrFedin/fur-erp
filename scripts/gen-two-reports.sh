@@ -14,4 +14,6 @@ $TSX scripts/gen-fw26-sales-data-v06.ts "$TMP"
 $TSX scripts/build-report-sales-xlsx.ts "$TMP/FW26_массив_$D.xlsx" "$OUT/Отчёт_продажи_$D.xlsx"
 python3 scripts/add-excel-pivot.py "$OUT/Отчёт_продажи_$D.xlsx"
 rm -rf "$TMP"
+# Загрузить файлы в базу: кнопка «Excel» в окнах «Отчёт: продажи / поставки» каталога (отключить: PUBLISH=0)
+if [ "${PUBLISH:-1}" = "1" ]; then $TSX scripts/publish-report-xlsx.ts "$OUT/Отчёт_продажи_$D.xlsx" "$OUT/Отчёт_поставки_$D.xlsx"; fi
 echo "Готово: $OUT/Отчёт_поставки_$D.xlsx, $OUT/Отчёт_продажи_$D.xlsx"
