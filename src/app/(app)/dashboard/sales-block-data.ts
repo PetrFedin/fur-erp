@@ -8,6 +8,7 @@ import { classOfLevel2, furRuLabel, furTypeOfFabric, seasonEndIso, seasonOfDate,
 import { receivedByReport, reportSeasonTotals, seasonRank, todayMsk, type Cat, type SDim } from "@/lib/sales-section";
 import { applyFilters, bucketsOf, buildSalesTree, extOf, lastMonthOf, NO_FILTERS, openingStock, sizeNodes, sortSeasons, totalSalesNode, type Ext, type Filters, type SLine, type SNode } from "@/lib/sales-section";
 import { loadSalesInput } from "@/lib/sales-server";
+import { artKey, leafKeyOf } from "@/lib/fw26-plan";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 import type { YearFilter } from "@/lib/year-filter";
 import { memoRequest, jsonKey } from "@/lib/req-memo";
@@ -202,7 +203,7 @@ function sizeRows(n: SNode, depth: number, e: RowEnv): SalesRow[] {
 
 const inPeriod2 = (l: SLine, e: RowEnv) => e.inPeriod(l);
 type CumNode = { stock: number; list: VatPair; listPcs: number; markup: { in: number | null; ex: number | null } };
-type RowEnv = { /** Помесячный ряд узла по его строкам на оси месяцев среза; null — не считать. */ seriesOf: ((lines: SLine[]) => NodeSeries) | null; seasonEnd: string | null; cum: Map<string, CumNode> | null; ctxs: { in: Ctx; ex: Ctx }; inPeriod: (l: SLine) => boolean; /** Размеры из Report (справочно, без привязки к датам и сезонам): только в срезе «все сезоны». */ sizes: ReportSizeRow[]; cat: Cat };
+type RowEnv = { /** Получено и остаток узла по отчёту «заказ и продажи» (по артикулу+цвету строк узла); null — по строкам прихода. */ rep?: { received: (ls: SLine[]) => number; stock: (ls: SLine[], sold: number) => number } | null; /** Помесячный ряд узла по его строкам на оси месяцев среза; null — не считать. */ seriesOf: ((lines: SLine[]) => NodeSeries) | null; seasonEnd: string | null; cum: Map<string, CumNode> | null; ctxs: { in: Ctx; ex: Ctx }; inPeriod: (l: SLine) => boolean; /** Размеры из Report (справочно, без привязки к датам и сезонам): только в срезе «все сезоны». */ sizes: ReportSizeRow[]; cat: Cat };
 function rowOf(n: SNode, depth: number, tIn: SNode, tEx: SNode, e: RowEnv): SalesRow {
   // cols[0] — всё до конца периода (остаток), cols[1] — движения внутри периода.
   const inP = n.cols[1], inE = tEx.cols[1], inI = tIn.cols[1];
@@ -212,7 +213,7 @@ function rowOf(n: SNode, depth: number, tIn: SNode, tEx: SNode, e: RowEnv): Sale
     id: n.id, label, depth,
     recvList: { in: stockMoney(e.ctxs.in, inPer, n.lines).recvList, ex: stockMoney(e.ctxs.ex, inPer, n.lines).recvList },
     series: depth <= 2 && e.seriesOf && n.dim !== "article" && n.dim !== "color" ? e.seriesOf(n.lines) : undefined,
-    received: inP.received, sold: inP.sold, stock: n.cols[0].stock, sellThrough: inP.sellThrough,
+    received: e.rep && n.lines.length ? e.rep.received(n.lines) : inP.received, sold: inP.sold, stock: e.rep && n.lines.length ? e.rep.stock(n.lines, inP.sold) : n.cols[0].stock, sellThrough: inP.sellThrough,
     revenue: { in: inI.revenue, ex: inE.revenue }, avgPrice: { in: nul(inI.avgPrice), ex: nul(inE.avgPrice) },
     stockList: { in: stockMoney(e.ctxs.in, inPer, n.lines).stockList, ex: stockMoney(e.ctxs.ex, inPer, n.lines).stockList },
     stockListPcs: stockMoney(e.ctxs.in, inPer, n.lines).stockListPcs,
@@ -220,7 +221,7 @@ function rowOf(n: SNode, depth: number, tIn: SNode, tEx: SNode, e: RowEnv): Sale
     markupStock: { in: stockMoney(e.ctxs.in, inPer, n.lines).markupStock, ex: stockMoney(e.ctxs.ex, inPer, n.lines).markupStock },
     recvCostPcs: stockMoney(e.ctxs.in, inPer, n.lines).recvCostPcs,
     recvCost: { in: stockMoney(e.ctxs.in, inPer, n.lines).recvCost, ex: stockMoney(e.ctxs.ex, inPer, n.lines).recvCost },
-    soAs: e.seasonEnd && inP.received > 0 ? n.lines.filter((l) => l.kind === "SALE" && l.iso <= e.seasonEnd! && inPeriod2(l, e)).reduce((a, l) => a + l.pcs, 0) / inP.received : null,
+    soAs: e.seasonEnd && (e.rep && n.lines.length ? e.rep.received(n.lines) : inP.received) > 0 ? n.lines.filter((l) => l.kind === "SALE" && l.iso <= e.seasonEnd! && inPeriod2(l, e)).reduce((a, l) => a + l.pcs, 0) / (e.rep && n.lines.length ? e.rep.received(n.lines) : inP.received) : null,
     stockCum: e.cum?.get(n.id)?.stock ?? n.cols[0].stock,
     stockListCum: e.cum?.get(n.id)?.list ?? { in: stockMoney(e.ctxs.in, inPer, n.lines).stockList, ex: stockMoney(e.ctxs.ex, inPer, n.lines).stockList },
     stockListPcsCum: e.cum?.get(n.id)?.listPcs ?? stockMoney(e.ctxs.in, inPer, n.lines).stockListPcs,
@@ -257,7 +258,33 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
     }
     return out;
   };
-  const rowEnvOf = (season: string, cat: Cat, cum: Map<string, CumNode> | null, axis: string[] = []): RowEnv => ({ seriesOf: axis.length ? seriesFor(axis) : null, seasonEnd: finishedEnd(season), cum, ctxs, inPeriod, sizes: season === "all" ? sizes : [], cat });
+  // Получено и остаток узлов — по отчёту: каждая строка отчёта (артикул × цвет × размер) относится к артикулу+цвету строк прихода
+  // (разное написание артикула: «/», «200X30», фабрика в конце), затем узел суммирует свои артикулы+цвета. Нет фильтров по году и меху.
+  const REP_KEY: Record<string, string> = { "FW 25/26": "FW25/26", "SS 2026": "SS26", "FW 26/27": "FW26/27" };
+  const useRepTree = year === "all" && sizes.length > 0 && !furNames.length;
+  const repByLeaf = new Map<string, { deliv: Record<string, number>; stock: number }>();
+  if (useRepTree) {
+    const lineKeys = new Set(all.map((l) => leafKeyOf(l.article, l.colorId)));
+    const lineLeaves = [...lineKeys].map((k) => { const [art, color] = k.split("|"); return { k, art, color }; });
+    for (const r of sizes) {
+      const color = (r.color ?? "").toUpperCase(), art = artKey(r.acode);
+      let k = leafKeyOf(r.acode, r.color);
+      if (!lineKeys.has(k)) {
+        const k2 = `${art.replace(/\d{2,3}X\d{2}/g, "")}|${color}`;
+        if (lineKeys.has(k2)) k = k2; else { const c = lineLeaves.filter((x) => x.color === color && art.startsWith(x.art)); k = c.length === 1 ? c[0].k : k; }
+      }
+      const a = repByLeaf.get(k) ?? repByLeaf.set(k, { deliv: {}, stock: 0 }).get(k)!;
+      for (const [sk, c] of Object.entries(r.seas ?? {})) a.deliv[sk] = (a.deliv[sk] ?? 0) + (c.deliv ?? 0);
+      a.stock += r.stock ?? 0;
+    }
+  }
+  const repFor = (season: string): RowEnv["rep"] => {
+    if (!useRepTree) return null;
+    const keysOf = (ls: SLine[]) => [...new Set(ls.map((l) => leafKeyOf(l.article, l.colorId)))];
+    const rec = (ls: SLine[]) => keysOf(ls).reduce((a, k) => { const v = repByLeaf.get(k); return a + (v ? (season === "all" ? Object.values(v.deliv).reduce((x, y) => x + y, 0) : v.deliv[REP_KEY[season]] ?? 0) : 0); }, 0);
+    return { received: rec, stock: (ls, sold) => (season === "all" ? keysOf(ls).reduce((a, k) => a + (repByLeaf.get(k)?.stock ?? 0), 0) : Math.max(0, rec(ls) - sold)) };
+  };
+  const rowEnvOf = (season: string, cat: Cat, cum: Map<string, CumNode> | null, axis: string[] = []): RowEnv => ({ rep: repFor(season), seriesOf: axis.length ? seriesFor(axis) : null, seasonEnd: finishedEnd(season), cum, ctxs, inPeriod, sizes: season === "all" ? sizes : [], cat });
 
   const headOf = (f: Filters): SalesHead => {
     const lines = applyFilters(all, f), scope = applyFilters(all, { ...f, from: null });
