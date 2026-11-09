@@ -44,13 +44,14 @@ function aggOf(ls: ReportLeaf[], keys: string[]): Agg {
 type Node = { id: string; level: 1 | 2 | 3; label: string; leaves: ReportLeaf[]; children: Node[] };
 const RANK: Record<string, number> = { Одежда: 0, Аксессуары: 1 };
 function buildTree(ls: ReportLeaf[], keys: string[]): Node[] {
-  const weight = (x: ReportLeaf[]) => x.reduce((s, l) => s + keys.reduce((t, k) => t + (l.by[k]?.conf ?? 0), 0), 0);
+  // Порядок как в PDF: по убыванию заказа в € (FW26), при равенстве — по названию.
+  const weight = (x: ReportLeaf[]) => x.reduce((s, l) => s + keys.reduce((t, k) => t + (l.by[k]?.confEur ?? 0), 0), 0);
   const group = (arr: ReportLeaf[], pick: (l: ReportLeaf) => string) => { const m = new Map<string, ReportLeaf[]>(); for (const l of arr) (m.get(pick(l)) ?? m.set(pick(l), []).get(pick(l))!).push(l); return [...m]; };
   return group(ls, (l) => l.cat1).sort((a, b) => (RANK[a[0]] ?? 9) - (RANK[b[0]] ?? 9) || a[0].localeCompare(b[0], "ru")).map(([c1, l1]) => ({
     id: c1, level: 1 as const, label: c1, leaves: l1,
-    children: group(l1, (l) => l.fur).sort((a, b) => weight(b[1]) - weight(a[1])).map(([f, l2]) => ({
+    children: group(l1, (l) => l.fur).sort((a, b) => weight(b[1]) - weight(a[1]) || a[0].localeCompare(b[0], "ru")).map(([f, l2]) => ({
       id: `${c1}/${f}`, level: 2 as const, label: f, leaves: l2,
-      children: group(l2, (l) => l.cat2).sort((a, b) => weight(b[1]) - weight(a[1])).map(([c2, l3]) => ({ id: `${c1}/${f}/${c2}`, level: 3 as const, label: c2, leaves: l3, children: [] })),
+      children: group(l2, (l) => l.cat2).sort((a, b) => weight(b[1]) - weight(a[1]) || a[0].localeCompare(b[0], "ru")).map(([c2, l3]) => ({ id: `${c1}/${f}/${c2}`, level: 3 as const, label: c2, leaves: l3, children: [] })),
     })),
   }));
 }
@@ -90,28 +91,30 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   // Заказ и приход в деньгах — всегда EUR, как в отчёте (рублей в файлах заказа и прихода нет). Продажи и остаток — RUR (тысячами, подпись «000 RUR») или EUR (полными числами).
   const unit = cur === "EUR" ? "EUR" : "тыс. ₽";
   // NS (выручка товара сезона) — как в отчёте, без пересчёта по курсу: EUR/RUR и с НДС/без НДС выбираются кнопками.
-  const nsOf = (a: Agg) => (cur === "EUR" ? (vatEx ? a.nsEurEx : a.nsEurIn) : vatEx ? a.nsRubEx : a.nsRubIn);
+  // Как в PDF владельца: NS 000'EUR excl VAT (тысячи евро без НДС), без переключателей НДС и валюты.
+  const nsOf = (a: Agg) => a.nsEurEx;
+  const nsK = (v: number) => (Math.abs(v) < 500 ? "–" : nf(v / 1000));
   const fromRub = (v: number | null) => (v === null ? null : cur === "RUR" ? v : v / rate);
   const money = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? "–" : nf(cur === "RUR" ? v / 1000 : v));
   const eur = (v: number) => (Math.abs(v) < 0.5 ? "–" : nf(v));
   const q = (v: number) => (Math.abs(v) < 0.5 ? "–" : nf(v));
   const x2 = (v: number | null) => (v === null ? "–" : `×${v.toFixed(2).replace(".", ",")}`);
   // Как в отчёте владельца: Order (TTL, FW26) · Delivery (FW26) · Sales (SSN FW26, Calendar FW26) · Stock (FW26, TTL).
-  const nsHead = cur === "EUR" ? "NS EUR" : "NS 000'RUR";
+  const nsHead = "NS EUR";
   const subHeads = ["PCS", "EUR", "PCS", "EUR", "PCS", "EUR", "PCS", "SO, %", nsHead, "Avg MU", "PCS", nsHead, "Avg MU", "PCS", "PCS"];
   const groupStarts = [0, 4, 6, 13]; // толстая линия: начало блоков Order / Delivery / Sales / Stock
   const midStarts = [2, 10, 14]; // линия внутри блока: FW26 после TTL, Calendar, TTL остатка
   const sepClass = (i: number) => (groupStarts.includes(i) ? THICK : midStarts.includes(i) ? MID : "");
   const grid = { gridTemplateColumns: `minmax(8.5rem,15rem) repeat(${subHeads.length}, minmax(4.4rem,auto))` };
   const ttlOf = (ls: ReportLeaf[]) => ({ conf: ls.reduce((a, l) => a + l.ttlConf, 0), confEur: ls.reduce((a, l) => a + l.ttlConfEur, 0) });
-  const oNsOf = (a: Agg) => (cur === "EUR" ? (vatEx ? a.oEurEx : a.oEurIn) : vatEx ? a.oRubEx : a.oRubIn);
+  const oNsOf = (a: Agg) => a.oEurEx;
 
   const row = (label: string, level: 0 | 1 | 2 | 3, a: Agg, t: { conf: number; confEur: number }, node?: Node) => {
-    const so = a.conf > 0 ? `${Math.round((a.sold / a.conf) * 100)} %` : "–";
+    const so = a.conf > 0 && a.sold > 0 ? `${Math.round((a.sold / a.conf) * 100)}%` : "–"; // нуль — прочерк, как в PDF
     const cells = [
       q(t.conf), eur(t.confEur), q(a.conf), eur(a.confEur), q(a.deliv), eur(a.delivEur),
-      q(a.sold), so, money(nsOf(a)), x2(a.cost > 0 ? a.gross / a.cost : null),
-      q(a.sold + a.oSold), money(nsOf(a) + oNsOf(a)), x2(a.cost + a.oCost > 0 ? (a.gross + a.oGross) / (a.cost + a.oCost) : null),
+      q(a.sold), so, nsK(nsOf(a)), x2(a.cost > 0 ? a.gross / a.cost : null),
+      q(a.sold + a.oSold), nsK(nsOf(a) + oNsOf(a)), x2(a.cost + a.oCost > 0 ? (a.gross + a.oGross) / (a.cost + a.oCost) : null),
       q(a.stock), q(a.tStock),
     ];
     const hasKids = node && node.children.length > 0 && node.level < depth;
@@ -150,17 +153,14 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-neutral-200 px-3 py-2">
-          {tab === "sales" && onVat ? (
-            <div className="flex gap-2" role="group" aria-label="НДС">
-              {([[false, "С НДС"], [true, "Без НДС"]] as const).map(([ex, t]) => <button key={t} type="button" aria-pressed={vatEx === ex} onClick={() => onVat(ex)} className={chip(vatEx === ex) + " !px-3.5"}>{t}</button>)}
-            </div>
-          ) : null}
-          {tab === "sales" ? <div className="flex gap-2" role="group" aria-label="Валюта">
-            {(["EUR", "RUR"] as const).map((c) => <button key={c} type="button" aria-pressed={cur === c} onClick={() => setCur(c)} className={chip(cur === c) + " !px-3.5"}>{c}</button>)}
-          </div> : null}
           <div className="flex gap-2 overflow-x-auto" data-keep-scroll role="group" aria-label="Уровень">
             {([[1, "Кат. 1"], [2, "Мех"], [3, "Кат. 2"]] as const).map(([d, t]) => <button key={d} type="button" aria-pressed={depth === d} onClick={() => { setDepth(d); setShut(new Set()); }} className={chip(depth === d) + " !px-3.5"}>{t}</button>)}
           </div>
+        </div>
+        <div className="border-b border-neutral-200 px-3 py-2">
+          <h2 className="text-lg font-bold leading-tight">{tab === "sales" ? "Отчет по продажам меховых изделий MVST FW26" : "Отчет по заказу и поставкам меховых изделий MVST FW26"}</h2>
+          <p className="text-xs text-neutral-700">{new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" })}</p>
+          {tab === "sales" ? <p className="text-xs text-neutral-700">NS 000&apos;EUR excl VAT</p> : null}
         </div>
         {tab === "supply" ? (
           <div className="min-h-0 flex-1 overflow-auto overscroll-contain p-2" data-keep-scroll tabIndex={0} role="region" aria-label="Таблица отчёта по заказу и поставкам">
@@ -190,7 +190,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
               <div role="columnheader" className={`${hd} left-0 top-16 z-20`} />
               {subHeads.map((t, i) => <div role="columnheader" key={i} className={`${hd} top-16 ${sepClass(i)}`}>{t}</div>)}
             </div>
-            {row("Итого", 0, aggOf(leaves, keys), ttlOf(leaves))}
+            {row("Total", 0, aggOf(leaves, keys), ttlOf(leaves))}
             {flat(tree)}
           </div>
         </div>

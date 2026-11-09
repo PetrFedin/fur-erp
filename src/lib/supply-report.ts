@@ -19,7 +19,7 @@ export type SupplyLeaf = {
   fc: Record<string, number>;
 };
 
-const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Каракульча", LYNX: "Рысь", BEAVER: "Бобр", CHINCHILLA: "Шиншилла" };
+const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Свакара", LYNX: "Рысь", BEAVER: "Бобр", CHINCHILLA: "Шиншилла" };
 const SEASONS = ["FW25/26", "SS26", "FW26/27"] as const;
 const FROM_LINE: Record<string, (typeof SEASONS)[number]> = { "FW 25/26": "FW25/26", "SS 2026": "SS26", "FW 26/27": "FW26/27" };
 
