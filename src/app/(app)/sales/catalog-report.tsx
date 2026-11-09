@@ -158,7 +158,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
           </div>
         </div>
         <div className="border-b border-neutral-200 px-3 py-2">
-          <h2 className="text-lg font-bold leading-tight">{tab === "sales" ? "Отчет по продажам меховых изделий MVST FW26" : "Отчет по заказу и поставкам меховых изделий MVST FW26"}</h2>
+          <h2 className="text-lg font-bold leading-tight">{tab === "sales" ? "Отчет по продажам меховых изделий FW26" : "Отчет по заказу и поставкам меховых изделий FW26"}</h2>
           <p className="text-xs text-neutral-700">{new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" })}</p>
           {tab === "sales" ? <p className="text-xs text-neutral-700">NS 000&apos;EUR excl VAT</p> : null}
         </div>
