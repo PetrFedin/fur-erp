@@ -129,7 +129,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   /** Сортировка по клику на подпись столбца (сезон + показатель) или на первую колонку («label»): порядок строк на каждом уровне дерева. Повторный клик — обратный порядок, третий — снимает. */
   const [colSort, setColSort] = useState<{ s: Season | "label" | "stock"; key: string; dir: "asc" | "desc" } | null>(null);
   const clickSort = (sk: Season | "label" | "stock", key: string) => setColSort((c) => (c && c.s === sk && c.key === key ? (c.dir === "asc" ? { s: sk, key, dir: "desc" } : null) : { s: sk, key, dir: "asc" }));
-  const [basis, setBasis] = useState<"season" | "all">("all");
+  const basis = "all" as "season" | "all"; // переключателя нет: итоги показывают обе базы мини-группами
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [sumOpen, setSumOpen] = useState<Set<string>>(new Set());
   /** Выбранная строка сводки «Итого»: карточки ниже ограничены этим сезоном / мехом / категорией. id пустой — сама строка сезона. */
@@ -323,7 +323,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
 
   if (!rows.length) return <p className="rounded-lg border border-neutral-300 bg-white p-3 text-sm text-neutral-800">Сезонных данных нет: загрузите отчёт «заказ и продажи» (Настройки → Загрузка данных → Прайс и размеры).</p>;
 
-  if (catalog) {
+  const renderCatalog = (embedded: boolean) => {
     const items: CatalogItem[] = articles.map((n) => {
       const ph = n.modelCode ? photos[n.modelCode] : undefined;
       // Фото: сначала цвет этого артикула, потом остальные цвета модели.
@@ -401,8 +401,9 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
       }
       return { cls: (first?.cls ?? "other") as ReportLeaf["cls"], cat1: first?.l2 || "(без категории)", fur: keyOf(first, "fur"), cat2: first?.l4 || first?.l5 || "(без категории)", model: n.modelCode ?? n.label, by, ttlConf: (Object.keys(by) as string[]).reduce((a, k) => a + by[k].conf, 0), ttlConfEur: (Object.keys(by) as string[]).reduce((a, k) => a + by[k].confEur, 0) };
     });
-    return <CatalogCards items={items} seasonOptions={SEASONS.map((x) => ({ key: x, label: SEASON_LABEL[x] }))} picked={pick} onToggleSeason={(k) => toggle(k as Season)} furs={furs} furPick={furPick} onFur={setFurPick} q={q} onQ={setQ} vatEx={ex} onVat={onVat} report={{ leaves: reportLeaves, eurRate, ex }} supply={supply} />;
-  }
+    return <CatalogCards items={items} seasonOptions={SEASONS.map((x) => ({ key: x, label: SEASON_LABEL[x] }))} picked={pick} onToggleSeason={(k) => toggle(k as Season)} furs={furs} furPick={furPick} onFur={setFurPick} q={q} onQ={setQ} vatEx={ex} onVat={onVat} report={{ leaves: reportLeaves, eurRate, ex }} supply={supply} embedded={embedded} />;
+  };
+  if (catalog) return renderCatalog(false);
 
   const thumb = (n: Node, big = false) => {
     const p = n.modelCode ? photos[n.modelCode] : undefined;
@@ -535,10 +536,6 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         {SEASONS.map((s) => <button key={s} type="button" aria-pressed={pick.includes(s)} onClick={() => toggle(s)} className={seg(pick.includes(s))}>{SEASON_LABEL[s]}</button>)}
         <button type="button" aria-pressed={pick.length === SEASONS.length} onClick={() => setPick([...SEASONS])} className={seg(pick.length === SEASONS.length)}>Сравнить все</button>
       </div>
-      <div role="group" aria-label="База показателей: продано, SO, выручка, цена, маркап" className={segGroup + " self-start"}>
-        <button type="button" aria-pressed={basis === "season"} onClick={() => setBasis("season")} title="Товар этого сезона, проданный в календаре этого же сезона" className={seg(basis === "season")}>За сезон</button>
-        <button type="button" aria-pressed={basis === "all"} onClick={() => setBasis("all")} title="Товар этого сезона, проданный за всё время (в свой сезон и позже)" className={seg(basis === "all")}>Всего</button>
-      </div>
 
       {/* Итоги по сезонам */}
       <div className="overflow-x-auto rounded-lg border border-neutral-300 bg-white">
@@ -614,67 +611,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
             </table>
           </div>
         </>
-      ) : (
-        <>
-          {/* Итоги по показанным карточкам */}
-          <div className="overflow-x-auto rounded-lg border border-neutral-400 bg-neutral-50">
-            <table className="w-full min-w-[600px] text-sm">
-              <thead><tr className="text-xs text-neutral-700"><th className="px-2 py-1.5 text-left font-semibold">Итого · {articles.length} артикулов</th>{cols.map((c) => <th key={c.key} title={c.hint} className="px-2 py-1.5 text-right font-semibold whitespace-nowrap">{c.short}</th>)}</tr></thead>
-              <tbody>
-                {seasons.map((s) => sumRow(s, total[s], total[s], SEASON_BG[s], false))}
-                {seasons.length > 1 ? (() => { const sum = { ...seasons.reduce((a, s) => plus(a, total[s]), zero()), arts: artsDistinct(filtered) }; return sumRow("all", sum, total["FW26/27"], "", true, total); })() : null}
-              </tbody>
-            </table>
-          </div>
-          {picked ? (
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-xs text-neutral-700">Карточки: <b>{picked.label}</b> · {shownArticles.length} арт.</span>
-              <button type="button" onClick={() => setPickNode(null)} className={btn}>Показать все</button>
-            </div>
-          ) : null}
-          {(["clothes", "acc", "other"] as const).map((cl) => {
-            const list = shownArticles.filter((n) => (n.rows[0]?.cls ?? "other") === cl);
-            if (!list.length) return null;
-            return (
-          <Fragment key={cl}>
-          <h3 className="mt-1 text-sm font-semibold">{CAT_LABEL[cl]} · {list.length} арт.</h3>
-          <ul className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
-            {list.map((n) => {
-              const cost = costLine(n), now = nowRange(n), sum = seasons.reduce((a, s) => plus(a, n.m[s]), zero());
-              const nowNum = n.rows.map(nowPrice).find((x) => x !== null) ?? null;
-              return (
-                <li key={n.id} className="flex flex-col gap-3 rounded-xl border border-neutral-300 bg-white p-3 xl:flex-row">
-                  <div className="flex items-start gap-3 xl:w-72 xl:shrink-0">
-                    {thumb(n, true)}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold leading-snug" title={n.label}>{n.label}</p>
-                      <p className="text-xs text-neutral-700">{n.sub}</p>
-                      <dl className="mt-1.5 grid max-w-sm grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-xs">
-                        <dt className="text-neutral-700">Цена сейчас</dt><dd className="text-right font-semibold tabular-nums">{now ?? DASH}</dd>
-                        <dt className="text-neutral-700">Себестоимость</dt><dd className="text-right tabular-nums">{cost ? eurU(cost) : DASH}</dd>
-                        <dt className="text-neutral-700">MU</dt><dd className="text-right tabular-nums">{mu(nowNum, cost) ?? DASH}</dd>
-                        <dt className="text-neutral-700">Остаток</dt><dd className="text-right tabular-nums">{n0(n.stock)} шт.</dd>
-                      </dl>
-                    </div>
-                  </div>
-                  <div className="min-w-0 flex-1 overflow-x-auto">
-                    <table className={"w-full text-sm " + (detail ? "min-w-[900px]" : "min-w-[780px]")}>
-                      <thead><tr className="text-neutral-700"><th className="py-1 text-left font-normal">Сезон</th>{cols.filter((c) => c.key !== "arts").map((c) => <th key={c.key} title={c.hint} className="px-1 text-right font-normal whitespace-nowrap">{c.short}</th>)}</tr></thead>
-                      <tbody>
-                        {seasons.filter((s) => n.m[s].conf || n.m[s].deliv || n.m[s].all || n.m[s].allG || n.m[s].stock).map((s) => <tr key={s} className={`border-t border-neutral-200 tabular-nums ${SEASON_BG[s]}`}><td className="whitespace-nowrap py-1.5 pl-1 pr-2">{SEASON_LABEL[s]}</td>{cols.filter((c) => c.key !== "arts").map((c) => <td key={c.key} className={"px-1 text-right whitespace-nowrap " + (c.strong ? "font-semibold" : "")}>{c.get(n.m[s], s)}</td>)}</tr>)}
-                        {seasons.length > 1 ? <tr className="border-t-2 border-neutral-400 font-semibold tabular-nums"><td className="py-1.5 pl-1">Итого</td>{cols.filter((c) => c.key !== "arts").map((c) => <td key={c.key} className="px-1 text-right whitespace-nowrap">{c.key === "wait" ? (seasons.includes("FW26/27") ? n0(Math.max(0, n.m["FW26/27"].conf - n.m["FW26/27"].deliv)) : DASH) : c.get(sum, "FW25/26")}</td>)}</tr> : null}
-                      </tbody>
-                    </table>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          </Fragment>
-            );
-          })}
-        </>
-      )}
+      ) : renderCatalog(true)}
     </section>
   );
 }

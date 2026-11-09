@@ -314,8 +314,8 @@ function FiltersDialog({ seasonOptions, picked, onToggleSeason, furs, furPick, o
   );
 }
 
-export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, furs, furPick, onFur, q, onQ, vatEx = false, onVat, report, supply = [] }: {
-  vatEx?: boolean; onVat?: (ex: boolean) => void; report?: ReportData; supply?: SupplyLeaf[];
+export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, furs, furPick, onFur, q, onQ, vatEx = false, onVat, report, supply = [], embedded = false }: {
+  vatEx?: boolean; onVat?: (ex: boolean) => void; report?: ReportData; supply?: SupplyLeaf[]; /** Внутри «Продаж → Сезоны → Карточки с фото»: без заголовка и кнопок отчётов, карточки те же, что в каталоге. */ embedded?: boolean;
   items: CatalogItem[]; seasonOptions: SeasonOption[]; picked: string[]; onToggleSeason: (key: string) => void;
   furs: string[]; furPick: string; onFur: (f: string) => void; q: string; onQ: (v: string) => void;
 }) {
@@ -331,7 +331,7 @@ export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, fur
   const closeZoom = useCallback(() => setZoom(null), []);
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className={embedded ? "hidden" : "flex items-center justify-between gap-2"}>
         <h1 className="text-xl font-semibold">Каталог</h1>
         {report ? (
           <div className="flex gap-2">
@@ -344,7 +344,7 @@ export function CatalogCards({ items, seasonOptions, picked, onToggleSeason, fur
           </div>
         ) : null}
       </div>
-      <div className="sticky top-0 z-20 -mx-3 flex items-center gap-2 border-b border-neutral-200 bg-white/95 px-3 py-2 backdrop-blur">
+      <div className={embedded ? "hidden" : "sticky top-0 z-20 -mx-3 flex items-center gap-2 border-b border-neutral-200 bg-white/95 px-3 py-2 backdrop-blur"}>
         <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-keep-scroll role="group" aria-label="Категория">
           {([["all", "Все"], ["clothes", "Одежда"], ["acc", "Аксессуары"]] as const).map(([k, t]) => (
             <button key={k} type="button" aria-pressed={cat === k} onClick={() => setCat(k)} className={chip(cat === k) + " !px-3.5"} aria-label={`${t}: ${counts[k]}`}>{t}</button>
