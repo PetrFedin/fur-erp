@@ -327,6 +327,7 @@ export const REPORT_SEASONS = ["FW26/27", "SS26", "FW25/26"] as const;
 export type SizeRow = { acode: string; color: string; size: string; modelCode: string | null; cls: string; conf: number; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number;
   /** Вид меха (Analog Code), категории KTT Level 02–05. */ fur?: string; l2?: string; l3?: string; l4?: string; l5?: string;
   /** Совместимость с прежними полями (apply-report-orders-2026-10-21): FW26 заказано/поступило, SS26 и FW25 поступило. */ fw26Conf?: number; fw26Deliv?: number; ss26Deliv?: number; fw25Deliv?: number;
+  /** Остаток по отчёту (TTL Stock, STD): товар последнего сезона (SSN) и прошлых (Old); stock = SSN + Old. */ stockSsn?: number; stockOld?: number;
   seas?: Record<string, SeasonCell> };
 export type SizeTotal = { conf: number; deliv: number; sold: number; stock: number; nsRub: number; nsRubEx: number; seas?: Record<string, SeasonCell> };
 const SIZE_NUM = ["conf", "deliv", "sold", "stock", "nsRub", "nsRubEx"] as const;
@@ -363,6 +364,7 @@ export function parseSizesWorkbook(wb: ExcelJS.Workbook): { rows: SizeRow[]; tot
   if (iA < 0 || iS < 0 || iC < 0 || iL2 < 0) throw new ImportFormatError("Лист отчёта: нет столбцов ACODE / SizeID / OrderColorID / KTT Level 02");
   const pick = (block: string, kind: string | null, sub: string | null, measure: RegExp) => paths.findIndex((p) => p[0] === block && (kind === null || p[1] === kind) && (sub === null || p[2] === sub) && measure.test(p[3]));
   const base = { conf: pick("TTL Conf", null, null, /^PCS$/), deliv: pick("TTL Delivery", null, null, /^PCS$/), sold: pick("TTL Sales", null, null, /^PCS$/), stock: pick("TTL Stock", "STD", "All", /^PCS$/), nsRub: pick("TTL Sales", null, null, /^NS RUR$/), nsRubEx: pick("TTL Sales", null, null, /^NS RUR excl VAT$/) };
+  const iStkS = pick("TTL Stock", "STD", "SSN", /^PCS$/), iStkO = pick("TTL Stock", "STD", "Old", /^PCS$/);
   const missBase = Object.entries(base).filter(([, i]) => i < 0).map(([k]) => SIZE_LABEL[k as (typeof SIZE_NUM)[number]]);
   if (missBase.length) throw new ImportFormatError(`Лист отчёта: не найдены столбцы ${missBase.join(", ")}`);
   // Сезоны: продажи «всего» — срез All у вида STD/AS; SSN — свой сезон; Old — прошлые сезоны. «SSN incl pre» не берём (равен SSN или включает предзаказ).
@@ -410,6 +412,7 @@ export function parseSizesWorkbook(wb: ExcelJS.Workbook): { rows: SizeRow[]; tot
       // Мех — «Analog Code»; у части строк там повторён артикул (с «/») вместо вида меха — тогда вид из «Fabric» («SABLE WILD SILVER 6» → SABLE).
       fur: (() => { const raw = iF >= 0 ? String(v[iF] ?? "") : ""; if (!raw.includes("/")) return raw || undefined; const f = furTypeOfFabric(s("Fabric")); return f === "Не указан" ? raw : f; })(), l2: s("KTT Level 02"), l3: s("KTT Level 03"), l4: s("KTT Level 04"), l5: s("KTT Level 05"),
       fw26Conf: seas["FW26/27"]?.conf, fw26Deliv: seas["FW26/27"]?.deliv, ss26Deliv: seas["SS26"]?.deliv, fw25Deliv: seas["FW25/26"]?.deliv,
+      stockSsn: iStkS >= 0 ? num0(v[iStkS]) : undefined, stockOld: iStkO >= 0 ? num0(v[iStkO]) : undefined,
       seas: Object.keys(seas).length ? seas : undefined };
     const k = sizeKey(r);
     if (seen.has(k)) warnings.push(`Отчёт, строка ${rn}: повтор ключа ${r.acode} · ${r.color || "–"} · ${r.size || "–"} — сохраняется по порядку строк`);

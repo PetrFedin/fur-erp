@@ -76,6 +76,7 @@ async function main() {
     const tr = lvlRow[lvl], x = R.getRow(rrow++); const no = ++rn;
     for (let c = 1; c <= 26; c++) copyStyle(T.getCell(tr, c), x.getCell(mapC(c)));
     copyStyle(T.getCell(tr, 11), x.getCell(10));
+    for (let c = 9; c <= 27; c++) x.getCell(c).alignment = { ...(x.getCell(c).alignment ?? {}), horizontal: "right" }; // числа — по правому краю ячейки
     if (T.getRow(tr).height) x.height = T.getRow(tr).height;
     x.getCell(1).value = parent || null; x.getCell(2).value = no; x.getCell(3).value = lvl === 3 ? 1 : 0; x.getCell(4).value = lvl + 1;
     x.getCell(5 + lvl).value = label;

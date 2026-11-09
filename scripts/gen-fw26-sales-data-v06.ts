@@ -16,7 +16,7 @@ import { leafKeyOf } from "@/lib/fw26-plan";
 const S = "FW26/27";
 const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Свакара", LYNX: "Рысь" };
 
-type Leaf = { fur: string; c1: string; c2: string; article: string; color: string; conf: number; confEur: number; deliv: number; delivEur: number; sold: number; rub: number; oldSold: number; oldRub: number; stockAll: number; prior: number; priorEur: number; gS: number; cS: number; gO: number; cO: number };
+type Leaf = { fur: string; c1: string; c2: string; article: string; color: string; conf: number; confEur: number; deliv: number; delivEur: number; sold: number; rub: number; oldSold: number; oldRub: number; stockAll: number; stkS: number; stkO: number; prior: number; priorEur: number; gS: number; cS: number; gO: number; cO: number };
 
 async function main() {
   const dir = process.argv[2] ?? "docs-inventory/reports";
@@ -38,8 +38,8 @@ async function main() {
   for (const r of data.sizes) {
     const fur = furRuLabel(r.fur ?? "Не указан", FUR_RU), c1 = (r.l2 || "(без категории)").trim(), c2 = (r.l4 || r.l5 || "(без категории)").trim(), color = (r.color ?? "").trim();
     const k = [fur, c1, c2, r.acode, color].join("|");
-    const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: 0, priorEur: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
-    lf.stockAll += r.stock ?? 0;
+    const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, stkS: 0, stkO: 0, prior: 0, priorEur: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
+    lf.stockAll += r.stock ?? 0; lf.stkS += r.stockSsn ?? 0; lf.stkO += r.stockOld ?? 0; // остаток по отчёту: товар FW26 (SSN) и прошлых сезонов (Old)
     // Закрытые сезоны: заказано = пришло (правило владельца): приход прошлых сезонов по файлу поступлений (весь, включая старше FW25).
     const lk = leafKeyOf(r.acode, r.color);
     if (!claimed.has(lk)) { claimed.add(lk); lf.prior += priorByLeaf.get(lk) ?? 0; }
@@ -61,11 +61,11 @@ async function main() {
   for (const [kk, n] of priorByLeaf) {
     if (claimed.has(kk) || n <= 0) continue;
     const at = priorAttr.get(kk)!;
-    list.push({ ...at, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, prior: n, priorEur: 0, gS: 0, cS: 0, gO: 0, cO: 0 });
+    list.push({ ...at, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, stkS: 0, stkO: 0, prior: n, priorEur: 0, gS: 0, cS: 0, gO: 0, cO: 0 });
   }
   list.sort((a, b) => a.c1.localeCompare(b.c1, "ru") || a.fur.localeCompare(b.fur, "ru") || a.c2.localeCompare(b.c2, "ru") || a.article.localeCompare(b.article) || a.color.localeCompare(b.color));
-  const stock26 = (l: Leaf) => Math.max(0, l.deliv - l.sold);
-  const stockOth = (l: Leaf) => Math.max(0, l.stockAll - stock26(l));
+  const stock26 = (l: Leaf) => l.stkS;
+  const stockOth = (l: Leaf) => l.stkO;
 
   const N0 = "#,##0;-#,##0;–";
   const r2 = (v: number) => Math.round(v * 100) / 100;
