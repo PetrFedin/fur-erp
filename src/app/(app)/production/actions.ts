@@ -1361,7 +1361,7 @@ export async function markOrdersDelivered(orderIds: string[], confirmNoUsages: b
   const session = await requireRole(...EDIT_ROLES);
   const ids = Array.from(new Set(orderIds)).slice(0, 50);
   const orders = await prisma.productionOrder.findMany({
-    where: { id: { in: ids }, organizationId: session.user.organizationId, status: { in: ["PLANNED", "IN_PROGRESS"] } },
+    where: { id: { in: ids }, organizationId: session.user.organizationId, status: { in: ["PLANNED", "IN_PROGRESS"] }, producedQuantity: 0 },
     select: { id: true, plannedQuantity: true },
   });
   if (orders.length === 0) return { error: "ТЗ уже поставлено или отменено" };

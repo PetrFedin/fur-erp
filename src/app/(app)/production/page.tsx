@@ -261,6 +261,18 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     return Number.isNaN(n) ? null : n;
   };
   const tzPos = await loadTzPositions(orgId, rawOrders);
+  // «Поставлен»: ТЗ завершено, либо по документам изделия уже у нас (выпуск по документам или принятая отгрузка) — иначе ожидается.
+  const acceptedQty = new Map<string, number>();
+  for (const x of await prisma.shipmentLine.groupBy({ by: ["productionOrderId"], where: { productionOrderId: { in: rawOrders.map((o) => o.id) }, shipment: { status: "ACCEPTED" } }, _sum: { quantity: true } })) {
+    if (x.productionOrderId) acceptedQty.set(x.productionOrderId, x._sum.quantity ?? 0);
+  }
+  type Deliv = "off" | "partial" | "on";
+  const delivOf = (o: (typeof rawOrders)[number]): Deliv => {
+    if (o.status === "COMPLETED") return "on";
+    const planned = Number(o.plannedQuantity), got = Math.max(Number(o.producedQuantity), acceptedQty.get(o.id) ?? 0);
+    return got <= 0 ? "off" : got >= planned ? "on" : "partial";
+  };
+  const delivNote = (o: (typeof rawOrders)[number]) => (o.status !== "COMPLETED" && delivOf(o) !== "off" ? "По документам изделия уже у нас (принятая отгрузка или выпуск по документам); статус ТЗ в системе ещё «в работе»" : undefined);
   const labelOf = (o: (typeof rawOrders)[number]) => orderLabel({ workOrderNumber: o.workOrderNumber, number: o.number, ...tzPos.get(o.id) });
   const indicators = await loadOrderIndicators(prisma, orgId, { c4Mode, canUpload: false, canMark: false });
   const orders = rawOrders.filter((o) => {
@@ -467,7 +479,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   <a href={`/api/production/${o.id}/word`} className="block px-3 pb-2 text-xs font-normal text-blue-700 hover:underline" title="Финальный Word этого ТЗ">Word</a>
                 </Td>
                 <Td className={cell}>
-                  {o.status === "CANCELLED" ? <span className={`${link} text-xs text-neutral-500`}>отменено</span> : <DeliveredSwitch ids={[o.id]} on={o.status === "COMPLETED"} canEdit={canEdit} units={st.units} label={`ТЗ ${labelOf(o)}`} />}
+                  {o.status === "CANCELLED" ? <span className={`${link} text-xs text-neutral-500`}>отменено</span> : <DeliveredSwitch ids={delivOf(o) === "off" ? [o.id] : []} state={delivOf(o)} note={delivNote(o)} canEdit={canEdit} units={st.units} label={`ТЗ ${labelOf(o)}`} />}
                 </Td>
                 <Td className={`${cell} text-neutral-700`}><Link href={href} className={`${link} whitespace-nowrap`}>{fur}</Link></Td>
                 <Td className={cell}>
@@ -558,7 +570,14 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         after={
           <>
             <Td className={cell}>
-              <DeliveredSwitch ids={g.filter((x) => x.o.status !== "CANCELLED").map((x) => x.o.id)} on={g.filter((x) => x.o.status !== "CANCELLED").every((x) => x.o.status === "COMPLETED")} canEdit={canEdit} units={tot.units} label={`ТЗ ${tzNo}`} />
+              <DeliveredSwitch
+                ids={g.filter((x) => delivOf(x.o) === "off" && x.o.status !== "CANCELLED").map((x) => x.o.id)}
+                state={(() => { const st2 = g.filter((x) => x.o.status !== "CANCELLED").map((x) => delivOf(x.o)); return st2.every((v) => v === "on") ? "on" : st2.every((v) => v === "off") ? "off" : "partial"; })()}
+                note={g.map((x) => delivNote(x.o)).find(Boolean)}
+                canEdit={canEdit}
+                units={g.filter((x) => delivOf(x.o) === "off" && x.o.status !== "CANCELLED").reduce((a, x) => a + Number(x.o.plannedQuantity), 0)}
+                label={`ТЗ ${tzNo}`}
+              />
             </Td>
             <Td className={`${cell} text-neutral-700`}><span className={`${link} whitespace-nowrap`}>{furs.join(" + ")}</span></Td>
             <Td className={cell}><span className={`${link} max-w-[16rem] truncate text-xs text-neutral-600`}>{models.join(", ")}</span></Td>
