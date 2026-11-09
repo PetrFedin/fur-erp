@@ -342,9 +342,10 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
           const pairs = [
             { k: "Продано в свой сезон, шт.", ssn: n0(parts[s].own), ttl: n0(parts[s].own) },
             { k: "SO AS, %", ssn: pct(soS(m)), ttl: pct(soS(m)) },
+            { k: "Продано всего, шт.", ssn: n0(m.allG), ttl: n0(m.allG) },
+            { k: "Продано позже, в сезоне FW25, шт.", ssn: DASH, ttl: DASH },
             { k: "Продано позже, в сезоне SS26, шт.", ssn: n0(parts[s].a), ttl: n0(parts[s].a) },
             { k: "Продано позже, в сезоне FW26, шт.", ssn: n0(parts[s].b), ttl: n0(parts[s].b) },
-            { k: "Продано всего, шт.", ssn: n0(m.allG), ttl: n0(m.allG) },
             { k: "SO STD, %", ssn: pct(soA(m)), ttl: pct(soA(m)) },
             { k: "NS 000'₽ в свой сезон", ssn: kr(m.rubS), ttl: kr(m.rubS) },
             { k: "NS 000'₽ всего", ssn: kr(m.rubG), ttl: kr(m.rubG) },
@@ -356,7 +357,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         total: (() => {
           if (seasonsOf.length < 2) return null;
           const t = seasonsOf.reduce((a, s) => plus(a, n.m[s]), zero()), rub1 = (v: number | null) => (v == null ? DASH : Math.round(v).toLocaleString("ru-RU")), kr = (v: number | null) => (v == null || Math.abs(v) < 500 ? DASH : Math.round(v / 1000).toLocaleString("ru-RU"));
-          return { common: [["Заказано, шт.", n0(t.conf)], ["Получено, шт.", n0(t.deliv)], ...(t.conf - t.deliv > 0 && seasonsOf.includes("FW26/27") ? [["В производстве, шт.", n0(t.conf - t.deliv)] as [string, string]] : [])] as [string, string][], pairs: [{ k: "Продано в свой сезон, шт.", v: n0(seasonsOf.reduce((x, y) => x + parts[y].own, 0)) }, { k: "SO AS, %", v: pct(soS(t)) }, { k: "Продано позже, в сезоне SS26, шт.", v: n0(seasonsOf.reduce((x, y) => x + parts[y].a, 0)) }, { k: "Продано позже, в сезоне FW26, шт.", v: n0(seasonsOf.reduce((x, y) => x + parts[y].b, 0)) }, { k: "Продано всего, шт.", v: n0(t.allG) }, { k: "SO STD, %", v: pct(soA(t)) }, { k: "NS 000'₽ в свой сезон", v: kr(t.rubS) }, { k: "NS 000'₽ всего", v: kr(t.rubG) }, { k: "Остаток сезона, шт.", v: n0(t.stock) }, { k: "MU продаж", v: x2(mkS(t)) }] };
+          return { common: [["Заказано, шт.", n0(t.conf)], ["Получено, шт.", n0(t.deliv)], ...(t.conf - t.deliv > 0 && seasonsOf.includes("FW26/27") ? [["В производстве, шт.", n0(t.conf - t.deliv)] as [string, string]] : [])] as [string, string][], pairs: [{ k: "Продано в свой сезон, шт.", v: n0(seasonsOf.reduce((x, y) => x + parts[y].own, 0)) }, { k: "SO AS, %", v: pct(soS(t)) }, { k: "Продано всего, шт.", v: n0(t.allG) }, { k: "Продано позже, в сезоне FW25, шт.", v: DASH }, { k: "Продано позже, в сезоне SS26, шт.", v: n0(seasonsOf.reduce((x, y) => x + parts[y].a, 0)) }, { k: "Продано позже, в сезоне FW26, шт.", v: n0(seasonsOf.reduce((x, y) => x + parts[y].b, 0)) }, { k: "SO STD, %", v: pct(soA(t)) }, { k: "NS 000'₽ в свой сезон", v: kr(t.rubS) }, { k: "NS 000'₽ всего", v: kr(t.rubG) }, { k: "Остаток сезона, шт.", v: n0(t.stock) }, { k: "MU продаж", v: x2(mkS(t)) }] };
         })(),
         // Цвета и размеры: штуки целые, сумма по размерам = итог цвета (раньше размеры были дробными долями файла продаж и после округления давали 4 вместо 3).
         colors: n.children.map((c) => {
@@ -393,7 +394,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
           conf: m.conf, confEur: m.confEur, deliv: repDeliv, delivEur: m.delivEur, sold: m.ssn, nsRubIn: m.rubSIn, nsRubEx: m.rubSEx, nsEurIn: m.eurSIn, nsEurEx: m.eurSEx, gross: m.grossS, cost: m.costS, stock: repStock,
           sRetail: price ? price * m.stock : 0, sPriced: price ? m.stock : 0, sRetailBoth: pE && cost ? pE * m.stock : 0, sCostBoth: pE && cost ? cost * m.stock : 0 };
       }
-      return { cls: (first?.cls ?? "other") as ReportLeaf["cls"], cat1: first?.l2 || "(без категории)", fur: keyOf(first, "fur"), cat2: first?.l4 || first?.l5 || "(без категории)", model: n.modelCode ?? n.label, by };
+      return { cls: (first?.cls ?? "other") as ReportLeaf["cls"], cat1: first?.l2 || "(без категории)", fur: keyOf(first, "fur"), cat2: first?.l4 || first?.l5 || "(без категории)", model: n.modelCode ?? n.label, by, ttlConf: n.rows.reduce((a, r) => a + (r.conf ?? 0), 0), ttlConfEur: n.rows.reduce((a, r) => a + (r.confEurTtl ?? 0), 0) };
     });
     return <CatalogCards items={items} seasonOptions={SEASONS.map((x) => ({ key: x, label: SEASON_LABEL[x] }))} picked={pick} onToggleSeason={(k) => toggle(k as Season)} furs={furs} furPick={furPick} onFur={setFurPick} q={q} onQ={setQ} vatEx={ex} onVat={onVat} report={{ leaves: reportLeaves, eurRate, ex }} supply={supply} />;
   }

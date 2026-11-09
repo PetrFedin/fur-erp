@@ -149,6 +149,9 @@ function Lightbox({ item, start, onClose }: { item: CatalogItem; start: number; 
 
 /** Таблица сезонов: у каждого сезона колонка SSN (за сезон), справа ОДИН общий TTL по всем сезонам (суммы и средневзвешенные). Если сезон один — SSN и, если отличается, TTL. */
 function SeasonTable({ seasons, total }: { seasons: CatalogSeason[]; total: CatalogItem["total"] }) {
+  // «Продано всего» раскрывается: под ним — сколько продано позже по календарным сезонам (по умолчанию свёрнуто).
+  const [open, setOpen] = useState(false);
+  const PARENT = "Продано всего, шт.", isKid = (k: string) => k.startsWith("Продано позже");
   type Col = { id: string; head: string; sub: string; ttl: boolean; s?: CatalogSeason };
   const cols: Col[] = [
     ...seasons.flatMap((s) => [{ id: s.key + "ssn", head: s.short, sub: "сезон", ttl: false, s } as Col, ...(!total && s.showTtl ? [{ id: s.key + "ttl", head: s.short, sub: "всего", ttl: true, s } as Col] : [])]),
@@ -178,12 +181,22 @@ function SeasonTable({ seasons, total }: { seasons: CatalogSeason[]; total: Cata
           {cols.map((c) => <span role="cell" key={c.id} className={cellCls}>{common(k, c)}</span>)}
         </div>
       ))}
-      {pairKeys.map((k) => (
-        <div role="row" key={"p" + k} className="contents">
-          <span role="rowheader" className="border-b border-neutral-100 py-1.5 pr-2 text-neutral-600">{k}</span>
-          {cols.map((c) => <span role="cell" key={c.id} className={cellCls}>{pair(k, c)}</span>)}
-        </div>
-      ))}
+      {pairKeys.map((k) => {
+        if (isKid(k) && !open) return null;
+        const parent = k === PARENT && pairKeys.some(isKid), kid = isKid(k);
+        return (
+          <div role="row" key={"p" + k} className="contents">
+            <span role="rowheader" className={`border-b border-neutral-100 pr-2 text-neutral-600 ${kid ? "py-1 pl-5 text-[12px] text-neutral-500" : "py-1.5"}`}>
+              {parent ? (
+                <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="-my-1.5 flex min-h-11 w-full items-center gap-1.5 text-left">
+                  <span aria-hidden className="w-3 text-[10px]">{open ? "▾" : "▸"}</span>{k}
+                </button>
+              ) : k}
+            </span>
+            {cols.map((c) => <span role="cell" key={c.id} className={`${cellCls} ${kid ? "!py-1 text-[12px] text-neutral-500" : ""}`}>{pair(k, c)}</span>)}
+          </div>
+        );
+      })}
     </div>
   );
 }

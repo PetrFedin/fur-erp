@@ -20,7 +20,8 @@ export type ReportVals = {
   /** Остаток всех сезонов (этот и прошлые): шт., цена по прайсу и себестоимость для средней цены и маркапа. */
   tStock: number; tRetail: number; tPriced: number; tRetailBoth: number; tCostBoth: number;
 };
-export type ReportLeaf = { cls: "clothes" | "acc" | "other"; cat1: string; fur: string; cat2: string; model: string; by: Record<string, ReportVals> };
+export type ReportLeaf = { cls: "clothes" | "acc" | "other"; cat1: string; fur: string; cat2: string; model: string; by: Record<string, ReportVals>;
+  /** Заказано за все сезоны по отчёту (TTL Conf): шт. и €. */ ttlConf: number; ttlConfEur: number };
 export type ReportData = { leaves: ReportLeaf[]; eurRate: number; ex: boolean };
 
 
@@ -57,8 +58,6 @@ function buildTree(ls: ReportLeaf[], keys: string[]): Node[] {
 const nf = (v: number) => Math.round(v).toLocaleString("ru-RU");
 
 const KEYS = ["FW26/27"];
-/** Все сезоны отчёта: «Order TTL» = FW26/27 + SS26 + FW25/26 (закрытые сезоны: заказано = получено). */
-const ALL_KEYS = ["FW26/27", "SS26", "FW25/26"];
 // Оформление как в отчёте по поставкам: Total сверху, ярусы цвета, тонкая чёрная сетка.
 const TONE: Record<0 | 1 | 2 | 3, string> = {
   0: "bg-[#23234f] font-bold text-white",
@@ -104,9 +103,10 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const midStarts = [2, 10, 14]; // линия внутри блока: FW26 после TTL, Calendar, TTL остатка
   const sepClass = (i: number) => (groupStarts.includes(i) ? THICK : midStarts.includes(i) ? MID : "");
   const grid = { gridTemplateColumns: `minmax(8.5rem,15rem) repeat(${subHeads.length}, minmax(4.4rem,auto))` };
+  const ttlOf = (ls: ReportLeaf[]) => ({ conf: ls.reduce((a, l) => a + l.ttlConf, 0), confEur: ls.reduce((a, l) => a + l.ttlConfEur, 0) });
   const oNsOf = (a: Agg) => (cur === "EUR" ? (vatEx ? a.oEurEx : a.oEurIn) : vatEx ? a.oRubEx : a.oRubIn);
 
-  const row = (label: string, level: 0 | 1 | 2 | 3, a: Agg, t: Agg, node?: Node) => {
+  const row = (label: string, level: 0 | 1 | 2 | 3, a: Agg, t: { conf: number; confEur: number }, node?: Node) => {
     const so = a.conf > 0 ? `${Math.round((a.sold / a.conf) * 100)} %` : "–";
     const cells = [
       q(t.conf), eur(t.confEur), q(a.conf), eur(a.confEur), q(a.deliv), eur(a.delivEur),
@@ -130,7 +130,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
       </div>
     );
   };
-  const flat = (nodes: Node[]): React.ReactNode[] => nodes.flatMap((n) => [row(n.label, n.level, aggOf(n.leaves, keys), aggOf(n.leaves, ALL_KEYS), n), ...(n.level < depth && !shut.has(n.id) ? flat(n.children) : [])]);
+  const flat = (nodes: Node[]): React.ReactNode[] => nodes.flatMap((n) => [row(n.label, n.level, aggOf(n.leaves, keys), ttlOf(n.leaves), n), ...(n.level < depth && !shut.has(n.id) ? flat(n.children) : [])]);
 
   return (
     <dialog ref={dlg} onClose={onClose} className="m-0 h-dvh max-h-none w-screen max-w-none bg-white p-0 text-neutral-900 md:mx-auto md:my-4 md:h-[calc(100dvh-2rem)] md:w-[min(96rem,100vw-2rem)] md:rounded-2xl">
@@ -190,7 +190,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
               <div role="columnheader" className={`${hd} left-0 top-16 z-20`} />
               {subHeads.map((t, i) => <div role="columnheader" key={i} className={`${hd} top-16 ${sepClass(i)}`}>{t}</div>)}
             </div>
-            {row("Итого", 0, aggOf(leaves, keys), aggOf(leaves, ALL_KEYS))}
+            {row("Итого", 0, aggOf(leaves, keys), ttlOf(leaves))}
             {flat(tree)}
           </div>
         </div>
