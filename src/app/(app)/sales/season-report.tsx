@@ -53,8 +53,10 @@ type M = {
   lSS26: number; lFW26: number;
   /** Выручка товара сезона, проданного позже (rubL), и за всё время = в свой сезон + позже (rubG); с НДС или без — как в шапке. */
   rubL: number; rubG: number;
+  /** Позже проданное: выручка с НДС, скидка ₽ и числитель/знаменатель маркапа (€) — для цены и MU «товара сезона за всё время». */
+  rubLIn: number; discL: number; grossL: number; costL: number;
 };
-const MKEYS = ["arts", "conf", "confEur", "deliv", "delivEur", "ssn", "rubS", "rubSIn", "rubSEx", "eurSIn", "eurSEx", "discS", "grossS", "costS", "all", "rubA", "rubAIn", "discA", "grossA", "costA", "stock", "allG", "ssnR", "allR", "lSS26", "lFW26", "rubL", "rubG"] as const;
+const MKEYS = ["arts", "conf", "confEur", "deliv", "delivEur", "ssn", "rubS", "rubSIn", "rubSEx", "eurSIn", "eurSEx", "discS", "grossS", "costS", "all", "rubA", "rubAIn", "discA", "grossA", "costA", "stock", "allG", "ssnR", "allR", "lSS26", "lFW26", "rubL", "rubG", "rubLIn", "discL", "grossL", "costL"] as const;
 const zero = (): M => Object.fromEntries(MKEYS.map((k) => [k, 0])) as M;
 const plus = (a: M, b: M): M => Object.fromEntries(MKEYS.map((k) => [k, a[k] + b[k]])) as M;
 /** SO за сезон: продано за сезон ÷ заказано (итог сезона). SO сейчас: товар сезона, проданный за всё время, ÷ заказано. */
@@ -66,6 +68,9 @@ const priceA = (m: M) => (m.allR > 0 ? (m.rubAIn + m.discA) / m.allR : null);
 /** Олды календаря сезона = весь календарь минус товар сезона. */
 const priceO = (m: M) => (m.allR - m.ssnR > 0 ? (m.rubAIn - m.rubSIn + m.discA - m.discS) / (m.allR - m.ssnR) : null);
 const mkO = (m: M) => (m.costA - m.costS > 0 ? (m.grossA - m.grossS) / (m.costA - m.costS) : null);
+/** Товар сезона за всё время (в свой сезон и позже): цена до скидки и маркап (выручка ₽ + скидка ₽) ÷ курс ÷ SC EUR. */
+const priceG = (m: M) => (m.allG > 0 ? (m.rubSIn + m.rubLIn + m.discS + m.discL) / m.allG : null);
+const mkG = (m: M) => (m.costS + m.costL > 0 ? (m.grossS + m.grossL) / (m.costS + m.costL) : null);
 const mkS = (m: M) => (m.costS > 0 ? m.grossS / m.costS : null);
 const mkA = (m: M) => (m.costA > 0 ? m.grossA / m.costA : null);
 /** Значение столбца для сортировки (пустое → самые маленькие). */
@@ -198,13 +203,13 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   const mOf = (rs: ReportSizeRow[]) => {
     const out = Object.fromEntries(SEASONS.map((s) => [s, zero()])) as Record<Season, M>;
     const artSet = Object.fromEntries(SEASONS.map((x) => [x, new Set<string>()])) as Record<Season, Set<string>>;
-    type OldAgg = { n: number; rubIn: number; rubEx: number; disc: number };
+    type OldAgg = { n: number; rubIn: number; rubEx: number; disc: number; g: number; sc: number };
     const oldBy = new Map<string, Record<Season, OldAgg>>();
     const cal = Object.fromEntries(SEASONS.map((x) => [x, { n: 0, rIn: 0, rEx: 0, d: 0, g: 0, c: 0 }])) as Record<Season, { n: number; rIn: number; rEx: number; d: number; g: number; c: number }>;
     const grp = new Map<string, { n: number; d: Record<Season, number>; rep: Record<Season, { deliv: number; ssn: number; all: number }> }>();
     for (const r of rs) {
       const k = oldKey(r);
-      { const z = (): OldAgg => ({ n: 0, rubIn: 0, rubEx: 0, disc: 0 }); const acc = oldBy.get(k) ?? oldBy.set(k, { "FW26/27": z(), SS26: z(), "FW25/26": z() }).get(k)!; for (const s of SEASONS) { const c = r.seas?.[s]; if (!c) continue; acc[s].n += Math.max(0, c.soldOld ?? 0); acc[s].rubIn += c.rubOld ?? 0; acc[s].rubEx += c.rubExOld ?? 0; acc[s].disc += c.discOld ?? 0; } }
+      { const z = (): OldAgg => ({ n: 0, rubIn: 0, rubEx: 0, disc: 0, g: 0, sc: 0 }); const acc = oldBy.get(k) ?? oldBy.set(k, { "FW26/27": z(), SS26: z(), "FW25/26": z() }).get(k)!; for (const s of SEASONS) { const c = r.seas?.[s]; if (!c) continue; acc[s].n += Math.max(0, c.soldOld ?? 0); acc[s].rubIn += c.rubOld ?? 0; acc[s].rubEx += c.rubExOld ?? 0; acc[s].disc += c.discOld ?? 0; acc[s].g += ((c.rubOld ?? 0) + (c.discOld ?? 0)) / MU_EUR_RATE; acc[s].sc += c.scOld ?? 0; } }
       const g = grp.get(k) ?? grp.set(k, { n: 0, d: { "FW26/27": 0, SS26: 0, "FW25/26": 0 }, rep: Object.fromEntries(SEASONS.map((x) => [x, { deliv: 0, ssn: 0, all: 0 }])) as Record<Season, { deliv: number; ssn: number; all: number }> }).get(k)!;
       g.n++;
       for (const s of SEASONS) {
@@ -248,6 +253,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         o.allR += need * share;
         if (per === "SS26") o.lSS26 += need * share; else if (per === "FW26/27") o.lFW26 += need * share;
         o.rubL += (ex ? R[per].rubEx : R[per].rubIn) * share;
+        o.rubLIn += R[per].rubIn * share; o.discL += R[per].disc * share; o.grossL += R[per].g * share; o.costL += R[per].sc * share;
         o.rubA += (ex ? R[per].rubEx : R[per].rubIn) * share; o.rubAIn += R[per].rubIn * share; o.discA += R[per].disc * share;
         o.grossA += a.grossC * f; o.costA += a.costS * f;
       }
@@ -484,17 +490,35 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   const mc = (key: string, label: string, hint: string, num: (m: M) => number | null, strong = false): Col => ({ key, label, short: "", hint, get: (m) => { const v = num(m); return v === null || Math.abs(v) < 0.5 ? DASH : money(v); }, strong });
   const mx = (key: string, label: string, hint: string, v: (m: M) => number | null): Col => ({ key, label, short: "", hint, get: (m) => x2(v(m)) });
   const ctr = "Календарь сезона: товар этого сезона и олды вместе.";
-  // Порядок — по развитию данных: заказано → получено → ждём → в свой сезон → товар сезона за всё время → олды → календарь сезона → остаток.
-  const SUMMARY: Col[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait,
+  // Итоги по мини-группам, в порядке развития данных: заказ и приход → в свой сезон → товар сезона за всё время → календарь сезона → олды → остаток.
+  const rev = (key: string, hint: string, get: (m: M) => number | null) => mc(key, "Выручка, ₽", hint, get, true);
+  const price = (key: string, hint: string, get: (m: M) => number | null) => mc(key, "Цена, ₽/шт.", hint, get);
+  const muRow = (key: string, hint: string, get: (m: M) => number | null) => mx(key, "MU", hint, get);
+  type SumItem = Col | { group: string };
+  const SUMMARY: SumItem[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait,
+    { group: "Сезонный товар в свой сезон" },
     { ...byKey.ssn, label: "из них сезонный товар, шт." },
     { ...byKey.soS, label: "SO AS, %" },
-    mc("revSsn", "Выручка сезонного, ₽", "Товар этого сезона в свой календарный сезон. После скидки.", (m) => m.rubS, true), mc("priceSsn", "Цена сезонного, ₽/шт.", "(выручка + скидка) ÷ шт., с НДС.", (m) => priceS(m)), mx("muSsn", "MU сезонного", "Цена до скидки ÷ себестоимость.", mkS),
-    byKey.goods, { ...byKey.soA, label: "SO STD, %" },
-    mc("revGoods", "Выручка товара сезона, ₽", "Выручка с продаж товара этого сезона за всё время: в свой сезон и позже. После скидки; с НДС или без — как в шапке.", (m) => m.rubG, true),
-    { ...byKey.after, label: "из них олды, шт." },
-    mc("revOld", "Выручка олдов, ₽", "Товар прошлых сезонов, проданный в календаре этого сезона. После скидки.", (m) => m.rubA - m.rubS, true), mc("priceOld", "Цена олдов, ₽/шт.", "(выручка + скидка) ÷ шт., с НДС.", (m) => priceO(m)), mx("muOld", "MU олдов", "Цена до скидки ÷ себестоимость.", mkO),
+    rev("revSsn", "Товар этого сезона в свой календарный сезон. После скидки.", (m) => m.rubS),
+    price("priceSsn", "(выручка + скидка) ÷ шт., с НДС.", (m) => priceS(m)),
+    muRow("muSsn", "(Выручка ₽ + скидка ₽) ÷ курс 110 ÷ SC EUR.", mkS),
+    { group: "Товар сезона за всё время" },
+    { ...byKey.goods, label: "Продано всего сезонного товара, шт." },
+    { ...byKey.soA, label: "SO STD, %" },
+    rev("revGoods", "Выручка с продаж товара этого сезона за всё время: в свой сезон и позже. После скидки; с НДС или без — как в шапке.", (m) => m.rubG),
+    price("priceGoods", "(выручка + скидка) ÷ шт. товара сезона за всё время, с НДС.", (m) => priceG(m)),
+    muRow("muGoods", "(Выручка ₽ + скидка ₽) ÷ курс 110 ÷ SC EUR по товару сезона за всё время.", mkG),
+    { group: "Календарь сезона" },
     { ...byKey.all, label: "Продано в календарном сезоне, шт." },
-    mc("revCal", "Выручка, ₽", ctr + " После скидки; с НДС или без — как в шапке.", (m) => m.rubA, true), mc("priceCal", "Цена, ₽/шт.", ctr + " (выручка + скидка) ÷ шт., с НДС.", (m) => priceA(m)), mx("muCal", "MU", ctr + " Цена до скидки ÷ себестоимость.", mkA),
+    rev("revCal", ctr + " После скидки; с НДС или без — как в шапке.", (m) => m.rubA),
+    price("priceCal", ctr + " (выручка + скидка) ÷ шт., с НДС.", (m) => priceA(m)),
+    muRow("muCal", ctr + " (Выручка ₽ + скидка ₽) ÷ курс 110 ÷ SC EUR.", mkA),
+    { group: "Олды" },
+    { ...byKey.after, label: "из них олды, шт." },
+    rev("revOld", "Товар прошлых сезонов, проданный в календаре этого сезона. После скидки.", (m) => m.rubA - m.rubS),
+    price("priceOld", "(выручка + скидка) ÷ шт., с НДС.", (m) => priceO(m)),
+    muRow("muOld", "(Выручка ₽ + скидка ₽) ÷ курс 110 ÷ SC EUR.", mkO),
+    { group: "Остаток" },
     byKey.left, stockAllCol]
 
   return (
@@ -521,7 +545,9 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         <table className="w-full min-w-[520px] text-sm">
           <thead className="bg-neutral-50"><tr><th className="px-3 py-2 text-left text-xs font-semibold">Итоги · {CAT_LABEL[cat]}</th>{seasons.map((s) => <th key={s} className={`px-3 py-2 text-right text-xs font-semibold ${SEASON_BG[s]}`}>{SEASON_LABEL[s]}</th>)}{seasons.length > 1 ? <th className="px-3 py-2 text-right text-xs font-semibold">Вместе</th> : null}</tr></thead>
           <tbody>
-            {SUMMARY.map((c) => (
+            {SUMMARY.map((c) => "group" in c ? (
+              <tr key={"g" + c.group} className="border-t border-neutral-300 bg-neutral-100"><th colSpan={seasons.length + (seasons.length > 1 ? 2 : 1)} scope="colgroup" className="px-3 py-1 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{c.group}</th></tr>
+            ) : (
               <tr key={c.key} className="border-t border-neutral-200">
                 <td className={"px-3 py-2 " + (c.strong ? "font-semibold" : "")}>{c.label}<span className="ml-1 inline-flex align-middle [&_.info-i]:!h-5 [&_.info-i]:!min-h-0 [&_.info-i]:!w-5 [&_.info-i]:!min-w-0"><InfoHint label={c.label}><p>{c.hint}</p></InfoHint></span></td>
                 {seasons.map((s) => <td key={s} data-season={s} data-metric={c.key} className={`px-3 py-2 text-right tabular-nums ${SEASON_BG[s]} ${c.strong ? "font-semibold" : ""}`}>{c.key === "rubS" || c.key === "rubA" ? money(totalAll[s][c.key]) : c.get(totalAll[s], s)}</td>)}
