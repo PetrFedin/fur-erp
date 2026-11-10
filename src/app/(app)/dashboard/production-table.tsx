@@ -13,7 +13,7 @@ import { REPAIR_CATEGORY } from "@/lib/dashboard-calc";
 import { NO_GROUP } from "@/lib/category-groups";
 import { furKindsOfOrder } from "@/lib/order-fur";
 import { UNDEFINED_CATEGORY } from "@/lib/product-category";
-import { atomsOf, withVolume, type DrillData, type DrillOrder, type VolumeMode } from "@/lib/dashboard-drill";
+import { atomsOf, scaleProducedToReport, withVolume, type DrillData, type DrillOrder, type VolumeMode } from "@/lib/dashboard-drill";
 import { loadProductionDrill } from "./actions";
 import { useSeasonScope } from "./season-scope";
 import { drillForSeason } from "@/lib/season-orders";
@@ -140,11 +140,11 @@ export function build(orders: DrillOrder[], vat: "incl" | "excl", levels: Lvl[],
 const money = (v: number) => formatMoney(Math.round(v));
 const dash = (v: number | null, f: (n: number) => string) => (v == null || !isFinite(v) ? "–" : f(v));
 
-export function ProductionTable({ search, volume = "ordered" }: { search: Record<string, string[]>; volume?: VolumeMode }) {
+export function ProductionTable({ search, volume = "ordered", groupScale = null }: { search: Record<string, string[]>; volume?: VolumeMode; groupScale?: Record<string, number> | null }) {
   const { mode: vat } = useVatDisplay();
   const [rawData, setData] = useState<DrillData | null>(null);
   const seasonSel = useSeasonScope()?.season ?? "all";
-  const data = useMemo(() => withVolume(drillForSeason(rawData, seasonSel), volume), [rawData, seasonSel, volume]);
+  const data = useMemo(() => { const d = withVolume(drillForSeason(rawData, seasonSel), volume); return volume === "produced" ? scaleProducedToReport(d, groupScale) : d; }, [rawData, seasonSel, volume, groupScale]);
   const [error, setError] = useState(false);
   const [by, setBy] = useState<"cat" | "fur">("cat");
   const [open, setOpen] = useState<Set<string>>(new Set());

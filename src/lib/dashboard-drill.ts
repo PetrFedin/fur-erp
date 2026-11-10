@@ -384,3 +384,10 @@ export function withVolume(data: DrillData | null, mode: VolumeMode): DrillData 
     }).filter((o): o is DrillOrder => o !== null);
   return { ...data, orders };
 }
+
+/** «Получено» по отчёту «заказ и продажи» (владелец 10.11.2026): штуки и деньги «Произведено» умножаются на долю отчёта к приходу по ТЗ в разрезе группы
+ * (Одежда / Аксессуары); средние на изделие не меняются, итог штук равен отчёту (637). Ремонт не трогаем. */
+export function scaleProducedToReport(data: DrillData | null, f: Record<string, number> | null): DrillData | null {
+  if (!data || !f) return data;
+  return { ...data, orders: data.orders.map((o) => { const g = f[o.grp ?? ""]; return g !== undefined && g !== 1 && Number.isFinite(g) && o.cat !== "Ремонт" ? { ...scaled(o, g), qty: o.qty * g } : o; }) };
+}

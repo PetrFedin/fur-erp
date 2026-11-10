@@ -11,7 +11,7 @@ import { formatCompactMoney } from "./compact";
 import { loadProductionDrill } from "./actions";
 import { useSeasonScope } from "./season-scope";
 import { drillForSeason } from "@/lib/season-orders";
-import { withVolume } from "@/lib/dashboard-drill";
+import { scaleProducedToReport, withVolume } from "@/lib/dashboard-drill";
 import { isRepair } from "@/lib/orders-sum";
 import { levelFor, ROOT_MODES, type DrillData, type Item, type PathStep, type RootMode } from "@/lib/dashboard-drill";
 
@@ -37,7 +37,7 @@ function PartCell({ v, whole, hide }: { v: number; whole: number; hide?: boolean
 const pct = (v: number) => formatShare(v);
 
 export function ProductionModal({
-  scope, search, totals, onClose, title, hides, workTotal,
+  scope, search, totals, onClose, title, hides, workTotal, groupScale,
 }: {
   /** Работа по всем ТЗ окна: входит в себестоимость столбцов (кроме группировки «Мех», где её не к чему отнести). */
   workTotal: number;
@@ -49,13 +49,14 @@ export function ProductionModal({
   totals: { costIncl: number; costExcl: number; qty: number; orders: number };
   onClose: () => void;
   title: string;
+  groupScale?: Record<string, number> | null;
 }) {
   const { mode: vat } = useVatDisplay();
   const [rawData, setData] = useState<DrillData | null>(null);
   const seasonSel = useSeasonScope()?.season ?? "all";
   // «Произведено» = получено по приходу, как плитка (иначе столбцы окна не сойдутся с плиткой): доля ТЗ модели qf.
   // Окно раскрывает плитку, а плитка «Произведено» ремонт не включает (ремонт — отдельная страница): иначе Σ столбцов больше плитки на стоимость ремонта.
-  const data = useMemo(() => { const d = withVolume(drillForSeason(rawData, seasonSel), "produced"); return d ? { ...d, orders: d.orders.filter((o) => !isRepair(o)) } : d; }, [rawData, seasonSel]);
+  const data = useMemo(() => { const d = scaleProducedToReport(withVolume(drillForSeason(rawData, seasonSel), "produced"), groupScale ?? null); return d ? { ...d, orders: d.orders.filter((o) => !isRepair(o)) } : d; }, [rawData, seasonSel, groupScale]);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<RootMode>("batch");
   const [path, setPath] = useState<PathStep[]>([]);

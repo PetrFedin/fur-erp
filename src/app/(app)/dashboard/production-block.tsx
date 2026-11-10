@@ -16,7 +16,7 @@ import { GroupCostSlide, GroupProducedSlide, PROD_GROUPS } from "@/components/pr
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
 import { SEG_GROUP, segCls } from "@/components/segmented";
-import { withVolume, type DrillOrder, type VolumeMode } from "@/lib/dashboard-drill";
+import { scaleProducedToReport, withVolume, type DrillOrder, type VolumeMode } from "@/lib/dashboard-drill";
 import { TileCaption, TileValue } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
 import { formatCompactMoney } from "./compact";
@@ -63,10 +63,25 @@ export function ProductionBlock({ scoped = false, reportSeasons, href = "/produc
   const volume: VolumeMode = "produced";
   const grpSync = { index: grpIdx, onChange: setGrpIdx };
   const { data: drill, raw: rawDrill } = useDrill(search);
-  const vdrill = useMemo(() => withVolume(drill, "produced"), [drill]);
+  const season = useSeasonScope()?.season ?? "all";
+  const vdrill0 = useMemo(() => withVolume(drill, "produced"), [drill]);
+  const repScope = useMemo(() => {
+    if (scoped || !reportSeasons || !reportSeasons.length) return null;
+    const sel = season === "all" ? reportSeasons : reportSeasons.filter((x) => x.label === season);
+    return sel.length ? sel : null;
+  }, [scoped, reportSeasons, season]);
+  const grpScale = useMemo(() => {
+    if (!repScope || !vdrill0) return null;
+    const tz: Record<string, number> = {};
+    for (const o of vdrill0.orders) if (!isRepair(o)) tz[o.grp] = (tz[o.grp] ?? 0) + o.qty;
+    const want: Record<string, number> = { "Одежда": repScope.reduce((a, x) => a + x.clothes.deliv, 0), "Аксессуары": repScope.reduce((a, x) => a + x.acc.deliv, 0) };
+    const f: Record<string, number> = {};
+    for (const g of Object.keys(want)) if (tz[g] > 0) f[g] = want[g] / tz[g];
+    return f;
+  }, [repScope, vdrill0]);
+  const vdrill = useMemo(() => scaleProducedToReport(vdrill0, grpScale), [vdrill0, grpScale]);
   const drillOrders = vdrill?.orders ?? [];
   // Сезон из панели «Сезон» Главной: плитки считаются от ТЗ выбранного сезона (доли ТЗ по приходу модели, см. order-seasons.ts); «Все» — готовые числа страницы.
-  const season = useSeasonScope()?.season ?? "all";
   const sn = useMemo(() => {
     if (!vdrill) return null;
     const own = vdrill.orders.filter((o) => !isRepair(o));
@@ -102,15 +117,8 @@ export function ProductionBlock({ scoped = false, reportSeasons, href = "/produc
   // Берём ПОЛНЫЕ ТЗ (до выбора сезона): в разрезе сезона ТЗ уже умножены на доли, и приход считался бы дважды взвешенным (290 / 59 / 228 вместо 292 / 61 / 286).
   const recvAll = useMemo(() => (rawDrill ? producedSeasons(rawDrill.orders) : null), [rawDrill]);
   const recvCls = useMemo(() => (rawDrill ? { clothes: producedSeasons(rawDrill.orders, "Одежда"), acc: producedSeasons(rawDrill.orders, "Аксессуары") } : null), [rawDrill]);
-  const repAll = useMemo(() => {
-    if (scoped || !reportSeasons || !reportSeasons.length) return null;
-    if (!recvAll || !recvCls) return reportSeasons;
-    const g = (l: { label: string; qty: number }[], label: string) => l.find((x) => x.label === label)?.qty ?? 0;
-    return reportSeasons.map((s) => {
-      const closed = s.label !== "FW 26/27", d = g(recvAll, s.label), dc = g(recvCls.clothes, s.label), da = g(recvCls.acc, s.label);
-      return { ...s, deliv: d, conf: closed ? d : Math.max(s.conf, d), clothes: { deliv: dc, conf: closed ? dc : Math.max(s.clothes.conf, dc) }, acc: { deliv: da, conf: closed ? da : Math.max(s.acc.conf, da) } };
-    });
-  }, [scoped, reportSeasons, recvAll, recvCls]);
+  // Получено и заказано — по отчёту «заказ и продажи» (владелец 10.11.2026: 637 / 845); штуки и деньги ТЗ приводятся к нему долей по группам (scaleProducedToReport).
+  const repAll = reportSeasons && reportSeasons.length && !scoped ? reportSeasons : null;
   const repSel = repAll && season !== "all" ? repAll.filter((s) => s.label === season) : null;
   const rep = season === "all" ? repAll : repSel && repSel.length ? repSel : null;
   const ordQty = rep ? rep.reduce((a, s) => a + s.conf, 0) : drill ? ordOwn.reduce((a, o) => a + o.qty, 0) : allP.qty;
@@ -232,11 +240,12 @@ export function ProductionBlock({ scoped = false, reportSeasons, href = "/produc
         <AveragesTile data={vdrill} sync={{ index: Math.max(0, grpIdx - 1), onChange: (i) => setGrpIdx(i + 1) }} />
       </div>
       </WidgetRow>
-      <ProductionTable search={search} volume="produced" />
-      <AveragesTable data={drill} volume="produced" />
+      <ProductionTable search={search} volume="produced" groupScale={grpScale} />
+      <AveragesTable data={drill} volume="produced" groupScale={grpScale} />
       {open ? (
         <ProductionModal
           scope={open}
+          groupScale={grpScale}
           workTotal={active.work}
           search={search}
           totals={{ costIncl: active.costIncl + (open === "all" ? hides.incl : 0), costExcl: active.costExcl + (open === "all" ? hides.excl : 0), qty: active.qty, orders: active.orders }}
