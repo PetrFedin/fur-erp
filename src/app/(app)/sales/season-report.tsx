@@ -294,7 +294,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
       for (const r of rs) { const k = keyOf(r, l); (g.get(k) ?? g.set(k, []).get(k)!).push(r); }
       return [...g].map(([k, list]) => {
         const id = `${path}/${l}:${k}`, first = list[0];
-        const node: Node = { id, level: l, label: k, sub: l === "article" ? `${keyOf(first, "fur")} · ${keyOf(first, "cat1")}` : undefined, modelCode: first.modelCode, variant: variantOfArticle(first.acode), rows: list, m: mOf(list), stock: list.reduce((a, r) => a + r.stock, 0), children: [] };
+        const node: Node = { id, level: l, label: k, sub: l === "article" ? `${keyOf(first, "fur")} · ${keyOf(first, "cat1")}` : undefined, modelCode: first.modelCode, variant: variantOfArticle(first.acode), rows: list, m: mOf(list), stock: list.reduce((a, r) => a + SEASONS.reduce((x, y) => x + (r.seas?.[y]?.deliv ?? 0), 0) - (r.sold ?? 0), 0), children: [] };
         node.children = build(list, depth + 1, id);
         return node;
       }).filter((n) => seasons.some((s) => n.m[s].conf || n.m[s].deliv || n.m[s].all) || n.stock).sort((a, b) => (colSort ? (colSort.dir === "desc" ? -1 : 1) * (colSort.s === "label" ? (l === "size" ? (Number(a.label) || 1e6) - (Number(b.label) || 1e6) : a.label.localeCompare(b.label, "ru", { numeric: true })) : colSort.s === "stock" ? a.stock - b.stock : numOf(a.m[colSort.s], colSort.key) - numOf(b.m[colSort.s], colSort.key)) || a.label.localeCompare(b.label) : l === "size" ? (Number(a.label) || 1e6) - (Number(b.label) || 1e6) : sortVal(b) - sortVal(a) || a.label.localeCompare(b.label)));
@@ -303,7 +303,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   }, [filtered, sort, ex, seasonsKey, costOf, hier, colSort]); // eslint-disable-line react-hooks/exhaustive-deps
   const total = useMemo(() => mOf(filtered), [filtered, ex, costOf]); // eslint-disable-line react-hooks/exhaustive-deps
   const totalAll = useMemo(() => mOf(rows), [rows, ex, costOf]); // eslint-disable-line react-hooks/exhaustive-deps
-  const stockAll = filtered.reduce((a, r) => a + r.stock, 0);
+  const stockAll = filtered.reduce((a, r) => a + SEASONS.reduce((x, y) => x + (r.seas?.[y]?.deliv ?? 0), 0) - (r.sold ?? 0), 0);
   const articles = useMemo(() => { const out: Node[] = []; const walk = (ns: Node[]) => ns.forEach((n) => (n.level === "article" ? out.push(n) : walk(n.children))); walk(tree); return out.sort((a, b) => sortVal(b) - sortVal(a)); }, [tree]); // eslint-disable-line react-hooks/exhaustive-deps
   const picked = useMemo(() => {
     if (!pickNode) return null;
@@ -393,13 +393,13 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         // Цвета и размеры: штуки целые, сумма по размерам = итог цвета (раньше размеры были дробными долями файла продаж и после округления давали 4 вместо 3).
         colors: n.children.map((c) => {
           const sm = (nd: Node) => { const t = seasonsOf.reduce((a, s) => plus(a, nd.m[s]), zero()); return { conf: t.conf, deliv: t.deliv, sold: t.allG, stock: t.stock }; };
-          const cs = sm(c), deliv = Math.round(cs.deliv), sold = Math.min(Math.round(cs.sold), deliv);
+          const cs = sm(c), deliv = Math.round(cs.deliv), sold = Math.round(cs.sold);
           const zs = c.children.map((z) => ({ z, v: sm(z) }));
           const repDelivW = zs.map(({ z }) => Math.max(0, z.rows.reduce((t, r) => t + seasonsOf.reduce((u, s) => u + (r.seas?.[s]?.deliv ?? 0), 0), 0)));
           const confI = zs.map(({ z }) => z.rows.reduce((t, r) => t + seasonsOf.reduce((u, s) => { const x = r.seas?.[s]; return x ? u + (s !== "FW26/27" ? x.conf ?? x.deliv ?? 0 : x.conf ?? 0) : u; }, 0), 0));
           const delivI = apportion(deliv, repDelivW);
-          const soldI = apportion(sold, zs.map((x) => x.v.sold), delivI);
-          const sizes = zs.map((x, i) => ({ label: x.z.label, conf: confI[i], deliv: delivI[i], sold: soldI[i], stock: Math.max(0, delivI[i] - soldI[i]) })).filter((z) => z.conf || z.deliv || z.sold || z.stock);
+          const soldW = zs.map((x) => x.v.sold), soldCap = apportion(sold, soldW, delivI), soldI = soldCap.reduce((a, x) => a + x, 0) < sold ? apportion(sold, soldW) : soldCap; // продано сверх прихода (остаток < 0) не теряем
+          const sizes = zs.map((x, i) => ({ label: x.z.label, conf: confI[i], deliv: delivI[i], sold: soldI[i], stock: delivI[i] - soldI[i] })).filter((z) => z.conf || z.deliv || z.sold || z.stock);
           return { label: c.label, conf: Math.round(cs.conf), deliv, sold, stock: deliv - sold, sizes };
         }).filter((c) => c.conf || c.deliv || c.sold || c.stock),
       };

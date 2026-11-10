@@ -21,6 +21,7 @@ import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { ArticlePriceForm } from "./price-form";
 import { ActiveToggle } from "./active-toggle";
 import { loadRetailPricesState } from "@/lib/import-keys";
+import { loadReportSizes } from "@/lib/margin-server";
 import { normCode } from "@/lib/sales-receipts-core";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick, stateParam } from "@/lib/filters";
@@ -122,6 +123,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     for (const p of rowsP) { const code = normCode(p.acode.split("/")[0] ?? ""); const mm = by.get(code) ?? by.set(code, new Map()).get(code)!; mm.set(p.price, (mm.get(p.price) ?? 0) + 1); }
     for (const [code, mm] of by) listPriceByCode.set(code, [...mm.entries()].sort((x, y) => y[1] - x[1] || y[0] - x[0])[0][0]);
   }
+  // «На складе» — по отчёту «заказ и продажи» (эталон владельца): получено по трём сезонам − продано, по коду модели; нет отчёта — учёт склада.
+  const repSizes = await loadReportSizes(orgId);
+  const repStockByCode = new Map<string, number>();
+  for (const r of repSizes) { const code = normCode((r.modelCode ?? r.acode.split("/")[0] ?? "")); const d = Object.values(r.seas ?? {}).reduce((a, c) => a + (c.deliv ?? 0), 0) - (r.sold ?? 0); repStockByCode.set(code, (repStockByCode.get(code) ?? 0) + d); }
   const stocks = await prisma.finishedGoodsStock.findMany({ where: { organizationId: orgId }, select: { productModelId: true, quantity: true, avgUnitCost: true } });
   const articleOpts = await getFilterOptions(orgId, year, ["category", "model"]);
 
@@ -203,7 +208,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     const doneIncl = sumTotal(sumOrders(done, "incl"));
     const doneExcl = sumTotal(sumOrders(done, "excl"));
     const modelStocks = stocks.filter((st) => st.productModelId === m.id);
-    const stockQty = modelStocks.reduce((a, st) => a + st.quantity.toNumber(), 0);
+    const stockQty = repStockByCode.size ? (repStockByCode.get(normCode(m.name)) ?? 0) : modelStocks.reduce((a, st) => a + st.quantity.toNumber(), 0);
     // Склад оценивается по средней себестоимости завершённых ТЗ; нет ТЗ в выбранном срезе — по учётной цене склада.
     const stockIncl = doneQty > 0 ? (stockQty * doneIncl) / doneQty : modelStocks.reduce((a, st) => a + st.quantity.toNumber() * st.avgUnitCost.toNumber(), 0);
     const stockExcl = doneQty > 0 ? (stockQty * doneExcl) / doneQty : stockIncl;

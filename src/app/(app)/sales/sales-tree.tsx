@@ -131,27 +131,26 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
   const fabricByArt = useMemo(() => { const m: Record<string, string> = {}; for (const l of lines) if (l.fabric && !m[l.article]) { m[l.article] = l.fabric; m[articleKey(l.article)] = l.fabric; } return m; }, [lines]);
   const rowKey = (r: ReportSizeRow, d: string) => d === "cls" ? r.cls : d === "c2" ? (r.l4 || r.l3 || "Без категории").trim() : d === "fur" ? furKeyOfRow(r, fabricByArt) : d === "article" ? r.acode : d === "color" ? colorOfLine(r.color) : "";
   const seasonKey = (s: string) => ({ "FW25/26": "FW25/26", SS2026: "SS26", "FW26/27": "FW26/27" } as Record<string, string>)[s.replace(/\s+/g, "")] ?? s.replace(/\s+/g, "");
-  const confNumOf = (n: SNode, gi: number, recv = 0): number => {
-    if (!hasConf || n.dim === "size") return 0;
+  // Заказано, получено и остаток узла — по отчёту «заказ и продажи» (эталон владельца 10.11.2026: 845 / 637 / 346): строки отчёта узла по пути (/cls:…/fur:…/article:…/color:…).
+  // Закрытые сезоны: заказано = получено; FW 26/27 — заказ отчёта. Продано — по строкам продаж (товар сезона).
+  const repRowsOf = (n: SNode) => {
     const segs = n.id === "total" ? [] : n.id.split(/\/(?=(?:cls|c2|fur|article|color|size):)/).filter(Boolean).map((s) => [s.slice(0, s.indexOf(":")), s.slice(s.indexOf(":") + 1)] as const);
-    const rs = confRows.filter((r) => segs.every(([d, k]) => (d === "article" ? articleKey(r.acode) === articleKey(k) : rowKey(r, d) === k)));
-    const season = gi > 0 ? seasonKey(groups[gi - 1]?.head ?? "") : null;
-    const confOfSeason = (sk: string) => rs.reduce((a, r) => a + (r.seas?.[sk]?.conf ?? 0), 0);
-    // «Всего» = сумма колонок сезонов (закрытые — по приходу файла, FW26 — заказ отчёта), а не Conf отчёта целиком (876): иначе «Всего» ≠ 292 + 61 + 509.
-    if (!season) {
-      const tot = groups.reduce((a, g, i) => a + (seasonKey(g.head ?? "") === "FW26/27" ? confOfSeason("FW26/27") : n.cols[i + 1]?.received ?? 0), 0);
-      return tot;
-    }
-    const v = season === "FW26/27" ? confOfSeason(season) : 0;
-    // Закрытые сезоны (SS26, FW25): заказано = получено по файлу прихода (как в таблице «Сезоны»); FW26 — заказ отчёта.
-    const closed = season !== null && season !== "FW26/27";
-    const out = closed ? recv : v;
-    return out;
+    return confRows.filter((r) => segs.every(([d, k]) => (d === "article" ? articleKey(r.acode) === articleKey(k) : rowKey(r, d) === k)));
+  };
+  const seasonsFor = (gi: number): string[] => (gi > 0 ? [seasonKey(groups[gi - 1]?.head ?? "")] : ["FW25/26", "SS26", "FW26/27"]);
+  const recvRepOf = (n: SNode, gi: number): number => { const rs = repRowsOf(n), ss = seasonsFor(gi); return rs.reduce((a, r) => a + ss.reduce((x, sk) => x + (r.seas?.[sk]?.deliv ?? 0), 0), 0); };
+  const confNumOf = (n: SNode, gi: number, _recv = 0): number => {
+    if (!hasConf || n.dim === "size") return 0;
+    void _recv;
+    const rs = repRowsOf(n), ss = seasonsFor(gi);
+    return rs.reduce((a, r) => a + ss.reduce((x, sk) => { const c = r.seas?.[sk]; return x + (sk === "FW26/27" ? c?.conf ?? 0 : c?.conf ?? c?.deliv ?? 0); }, 0), 0);
   };
   const confOf = (n: SNode, gi: number, recv = 0) => { if (!hasConf || n.dim === "size") return DASH; const v = confNumOf(n, gi, recv); return v ? n0(v) : DASH; };
   const cell = (ms: Measure, n: SNode, m: Ext, gi: number) => {
     if (ms.totalOnly && gi > 0) return DASH;
     if (ms.key === "conf") return confOf(n, gi, m.received);
+    if (hasConf && n.dim !== "size" && ms.key === "received") { const v = recvRepOf(n, gi); return v ? n0(v) : DASH; }
+    if (hasConf && n.dim !== "size" && ms.key === "stock") { const v = recvRepOf(n, gi) - m.sold; return v ? n0(v) : DASH; }
     if (ms.key === "sellThrough" && n.dim !== "size") { const o = confNumOf(n, gi, m.received); return o > 0 && !(m.sold === 0 && m.received === 0 && m.discountSum === 0) ? pct(m.sold / o) : DASH; }
     if (n.dim === "size" && !["received", "sold", "revenue", "avgPrice", "stock", "sellThrough"].includes(ms.key)) return DASH;
     if (m.sold === 0 && m.received === 0 && m.discountSum === 0) return DASH;
