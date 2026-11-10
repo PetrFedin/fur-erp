@@ -172,12 +172,12 @@ function stockMoney(ctx: Ctx, lines: SLine[], scope: SLine[]): Pick<SalesMoney, 
 }
 
 function moneyOf(ctx: Ctx, head: Ext, lines: SLine[], scope: SLine[], repStock?: ReturnType<typeof reportStockMoney> | null): SalesMoney {
-  return { revenue: head.revenue, grossRev: head.grossRev, discount: head.discountSum, avgPrice: head.avgPrice, ...stockMoney(ctx, lines, scope), ...(repStock ? { ...repStock, markupSold: repStock.soldCost > 0 ? head.revenue / repStock.soldCost : null } : {}) };
+  return { revenue: head.revenue, grossRev: head.grossRev, discount: head.discountSum, avgPrice: head.avgPrice, ...stockMoney(ctx, lines, scope), ...(repStock ?? {}) };
 }
 
 /** Весь остаток в деньгах по отчёту «заказ и продажи» (владелец 10.11.2026): по размерам остаток = получено по трём сезонам − продано (сумма 346), цена — прайс размера, закупка — себестоимость изделия из ТЗ.
  * Тот же расчёт, что строки «Остаток всего» на «Продажах». Только для всех сезонов. */
-function reportStockMoney(ctx: Ctx, sizes: ReportSizeRow[], cat: Cat, prices: { acode: string; color: string; size: string; price: number }[]): Pick<SalesMoney, "recvCost" | "recvCostPcs" | "recvList" | "recvListPcs" | "soldCost" | "soldCostPcs" | "stockCost" | "stockCostPcs" | "stockList" | "stockListPcs" | "markupStock"> {
+function reportStockMoney(ctx: Ctx, sizes: ReportSizeRow[], cat: Cat, prices: { acode: string; color: string; size: string; price: number }[]): Pick<SalesMoney, "recvCost" | "recvCostPcs" | "recvList" | "recvListPcs" | "soldCost" | "soldCostPcs" | "stockCost" | "stockCostPcs" | "stockList" | "stockListPcs" | "markupStock" | "markupSold"> {
   const idx = new Map<string, number>();
   for (const p of prices) { const k = `${p.acode}|${p.color}|${p.size}`; if (!idx.has(k)) idx.set(k, p.price); }
   const inc = ctx.vat === "in", today = todayMsk();
@@ -203,7 +203,9 @@ function reportStockMoney(ctx: Ctx, sizes: ReportSizeRow[], cat: Cat, prices: { 
   cost = inc ? eurSt * MU_EUR_RATE : exVatAt(eurSt * MU_EUR_RATE, today);
   sCost = Math.max(0, rCost - cost); bothCost = cost; bothList = list;
   void sCostPcs;
-  return { recvCost: rCost, recvCostPcs: rCostPcs, recvList: rList, recvListPcs: rListPcs, soldCost: sCost, soldCostPcs: rCostPcs, stockCost: cost, stockCostPcs: costPcs, stockList: list, stockListPcs: listPcs, markupStock: bothCost > 0 ? bothList / bothCost : null };
+  let gross = 0, sc = 0;
+  for (const r of cat === "all" ? sizes : sizes.filter((x) => x.cls === cat)) for (const c of Object.values(r.seas ?? {})) { gross += (c.rubAll ?? 0) + (c.discAll ?? 0); sc += c.scAll ?? 0; }
+  return { recvCost: rCost, recvCostPcs: rCostPcs, recvList: rList, recvListPcs: rListPcs, soldCost: sCost, soldCostPcs: rCostPcs, stockCost: cost, stockCostPcs: costPcs, stockList: list, stockListPcs: listPcs, markupStock: bothCost > 0 ? bothList / bothCost : null, markupSold: sc > 0 ? gross / MU_EUR_RATE / sc : null };
 }
 
 /** Период блока в виде фильтров /sales: год → с 1 января по 31 декабря; «все годы» — без периода. */
@@ -235,8 +237,8 @@ function sizeRows(n: SNode, depth: number, e: RowEnv): SalesRow[] {
 const inPeriod2 = (l: SLine, e: RowEnv) => e.inPeriod(l);
 type CumNode = { stock: number; list: VatPair; listPcs: number; markup: { in: number | null; ex: number | null } };
 /** Деньги узла по отчёту «заказ и продажи» (по размерам): получено и остаток × себестоимость изделия и прайс размера. */
-type RepMoney = { recvCost: number; recvCostPcs: number; recvList: number; recvListPcs: number; stockCost: number; stockList: number; stockListPcs: number; bothList: number; bothCost: number };
-const zeroMoney = (): RepMoney => ({ recvCost: 0, recvCostPcs: 0, recvList: 0, recvListPcs: 0, stockCost: 0, stockList: 0, stockListPcs: 0, bothList: 0, bothCost: 0 });
+type RepMoney = { recvCost: number; recvCostPcs: number; recvList: number; recvListPcs: number; stockCost: number; stockList: number; stockListPcs: number; bothList: number; bothCost: number; /** Маркап продаж по правилу владельца: (NS RUR + Discount RUR) и SC EUR отчёта; маркап = gross ÷ 110 ÷ SC EUR. */ soldGross: number; soldSc: number };
+const zeroMoney = (): RepMoney => ({ recvCost: 0, recvCostPcs: 0, recvList: 0, recvListPcs: 0, stockCost: 0, stockList: 0, stockListPcs: 0, bothList: 0, bothCost: 0, soldGross: 0, soldSc: 0 });
 type RowEnv = { /** Получено и остаток узла по отчёту «заказ и продажи» (по артикулу+цвету строк узла); null — по строкам прихода. */ rep?: { received: (ls: SLine[]) => number; stock: (ls: SLine[], sold: number) => number; money: (ls: SLine[], v: "in" | "ex") => RepMoney } | null; /** Помесячный ряд узла по его строкам на оси месяцев среза; null — не считать. */ seriesOf: ((lines: SLine[]) => NodeSeries) | null; seasonEnd: string | null; cum: Map<string, CumNode> | null; ctxs: { in: Ctx; ex: Ctx }; inPeriod: (l: SLine) => boolean; /** Размеры из Report (справочно, без привязки к датам и сезонам): только в срезе «все сезоны». */ sizes: ReportSizeRow[]; cat: Cat };
 function rowOf(n: SNode, depth: number, tIn: SNode, tEx: SNode, e: RowEnv): SalesRow {
   // cols[0] — всё до конца периода (остаток), cols[1] — движения внутри периода.
@@ -252,7 +254,7 @@ function rowOf(n: SNode, depth: number, tIn: SNode, tEx: SNode, e: RowEnv): Sale
     revenue: { in: inI.revenue, ex: inE.revenue }, avgPrice: { in: nul(inI.avgPrice), ex: nul(inE.avgPrice) },
     stockList: rm ? { in: rm.in.stockList, ex: rm.ex.stockList } : { in: stockMoney(e.ctxs.in, inPer, n.lines).stockList, ex: stockMoney(e.ctxs.ex, inPer, n.lines).stockList },
     stockListPcs: rm ? rm.in.stockListPcs : stockMoney(e.ctxs.in, inPer, n.lines).stockListPcs,
-    markupSold: { in: stockMoney(e.ctxs.in, inPer, n.lines).markupSold, ex: stockMoney(e.ctxs.ex, inPer, n.lines).markupSold },
+    markupSold: rm ? { in: rm.in.soldSc > 0 ? rm.in.soldGross / MU_EUR_RATE / rm.in.soldSc : null, ex: rm.ex.soldSc > 0 ? rm.ex.soldGross / MU_EUR_RATE / rm.ex.soldSc : null } : { in: stockMoney(e.ctxs.in, inPer, n.lines).markupSold, ex: stockMoney(e.ctxs.ex, inPer, n.lines).markupSold },
     markupStock: rm ? { in: rm.in.bothCost > 0 ? rm.in.bothList / rm.in.bothCost : null, ex: rm.ex.bothCost > 0 ? rm.ex.bothList / rm.ex.bothCost : null } : { in: stockMoney(e.ctxs.in, inPer, n.lines).markupStock, ex: stockMoney(e.ctxs.ex, inPer, n.lines).markupStock },
     recvCostPcs: rm ? rm.in.recvCostPcs : stockMoney(e.ctxs.in, inPer, n.lines).recvCostPcs,
     recvListPcs: rm ? rm.in.recvListPcs : stockMoney(e.ctxs.in, inPer, n.lines).recvListPcs,
@@ -322,6 +324,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
           if (p !== null) { q.recvList += p * dl; q.recvListPcs += dl; q.stockList += p * st; q.stockListPcs += st; }
           if (p !== null && hasC) { q.bothList += p * st; q.bothCost += c * st; }
         }
+        for (const cc of Object.values(r.seas ?? {})) for (const v of ["in", "ex"] as const) { a.m[v].soldGross += (cc.rubAll ?? 0) + (cc.discAll ?? 0); a.m[v].soldSc += cc.scAll ?? 0; }
       }
       for (const [sk, c] of Object.entries(r.seas ?? {})) a.deliv[sk] = (a.deliv[sk] ?? 0) + (c.deliv ?? 0);
       a.stock += r.stock ?? 0;
