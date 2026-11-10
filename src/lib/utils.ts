@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { isMoneyEur, shownMoney } from "@/lib/money-currency";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -53,6 +54,8 @@ export function formatMarkupPct(value: number | string): string {
   return Number.isFinite(n) ? `${fixMinus(nfTwo.format(n))}${NBSP}%` : "–";
 }
 
+const eurWhole = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "EUR", minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const eurSmall = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "EUR", minimumFractionDigits: 0, maximumFractionDigits: 1 });
 const rubFormatter = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const rubSmall = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", minimumFractionDigits: 0, maximumFractionDigits: 1 });
 /** Устарело: раньше от этой суммы пропадали копейки; теперь копеек нет нигде (кроме |сумма| < 1 ₽). Оставлено для совместимости импортов. */
@@ -62,27 +65,29 @@ export const MONEY_WHOLE_FROM = 1;
 export function formatMoney(value: number | string) {
   let n = Number(value);
   if (!Number.isFinite(n)) return rubFormatter.format(n);
+  if (isMoneyEur()) { n = shownMoney(n); if (Math.abs(n) < 0.05) n = 0; return fixMinus((Math.abs(n) >= 0.95 ? eurWhole : eurSmall).format(n)); }
   if (Math.abs(n) < 0.05) n = 0; // «-0 ₽» не показываем
   if (Math.abs(n) >= 0.95) return fixMinus(rubFormatter.format(n));
   return fixMinus(rubSmall.format(n));
 }
 
+const eurExact = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const rubExact = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 /** Сумма с копейками («1 234,50 ₽»): ТОЛЬКО там, где копейки решают (сверка с накладной/счётом, платёжка). Везде остальное — formatMoney. */
 export function formatMoneyExact(value: number | string): string {
   const n = Number(value);
-  return Number.isFinite(n) ? fixMinus(rubExact.format(n)) : "–";
+  return Number.isFinite(n) ? fixMinus(isMoneyEur() ? eurExact.format(shownMoney(n)) : rubExact.format(n)) : "–";
 }
 
 /** Крупная сумма коротко: «353,9 млн ₽», «12 тыс. ₽» (от 10 тыс.), меньше — обычная formatMoney. Для плиток и подписей графиков; в таблицах — formatMoney. */
 export function formatMoneyCompact(value: number | string, opts?: { unit?: boolean }): string {
-  const n = Number(value);
+  const n = shownMoney(Number(value));
   if (!Number.isFinite(n)) return "–";
-  const unit = opts?.unit === false ? "" : `${NBSP}₽`;
+  const unit = opts?.unit === false ? "" : `${NBSP}${isMoneyEur() ? "€" : "₽"}`;
   const a = Math.abs(n);
   if (a >= 1e6) return fixMinus(`${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: a >= 1e8 ? 0 : 1 }).format(n / 1e6)}${NBSP}млн${unit}`);
   if (a >= 1e4) return fixMinus(`${nfWhole.format(n / 1e3)}${NBSP}тыс.${unit}`);
-  return opts?.unit === false ? fixMinus(nfWhole.format(n)) : formatMoney(n);
+  return opts?.unit === false ? fixMinus(nfWhole.format(n)) : formatMoney(isMoneyEur() ? n * 110 : n);
 }
 
 /** Сумма со знаком для приращений: «+1 234 ₽», «−500 ₽», ноль без знака. */

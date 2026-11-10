@@ -5,17 +5,19 @@
  * Запрещены в заголовках: «руб.», «р.», «RUB», «USD», «долл.», «шт» (без точки), «пог.м», «м.п.», «м.».
  * Колонки без единицы (названия, даты, номера, статусы) — без единицы, по левому краю.
  */
+import { moneySign } from "@/lib/money-currency";
+
 export const UNIT = {
-  rub: "₽",
+  get rub() { return moneySign(); },
   usd: "$",
   pcs: "шт.",
   m: "м",
   pct: "%",
-  rubPerPcs: "₽/шт.",
+  get rubPerPcs() { return `${moneySign()}/шт.`; },
   usdPerPcs: "$/шт.",
-  rubPerM: "₽/м",
+  get rubPerM() { return `${moneySign()}/м`; },
   usdPerM: "$/м",
-  rubPerItem: "₽/изд.",
+  get rubPerItem() { return `${moneySign()}/изд.`; },
   pcsPerItem: "шт./изд.",
   mPerItem: "м/изд.",
 } as const;

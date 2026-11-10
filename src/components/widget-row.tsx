@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
  * Состояние запоминается в браузере отдельно для каждой страницы и ряда (id).
  * Использование: <WidgetRow id="prod" title="Производство">…плитки…</WidgetRow>
  */
-export function WidgetRow({ id, title = "Виджеты", children, className = "", titleClass = "", headerExtra, headerEnd, defaultCollapsed = false, collapseWith }: { /** Блок под рядом, который сворачивается и разворачивается вместе с плитками, но не закрепляется (например, таблица под виджетами). */ collapseWith?: ReactNode; /** Свёрнут, пока пользователь сам не развернул (выбор запоминается в браузере). */ defaultCollapsed?: boolean; id: string; title?: string; children: ReactNode; className?: string; titleClass?: string; headerExtra?: ReactNode; headerEnd?: ReactNode }) {
+export function WidgetRow({ id, title = "Виджеты", children, className = "", titleClass = "", headerExtra, headerEnd, defaultCollapsed = false, collapseWith, stage = false }: { /** Блок под рядом, который сворачивается и разворачивается вместе с плитками, но не закрепляется (например, таблица под виджетами). */ collapseWith?: ReactNode; /** Свёрнут, пока пользователь сам не развернул (выбор запоминается в браузере). */ defaultCollapsed?: boolean; id: string; title?: string; children: ReactNode; className?: string; titleClass?: string; headerExtra?: ReactNode; headerEnd?: ReactNode; /** Заголовок этапа Главной (Расходы, Сырьё, Производство, Продажи и остатки): крупнее и оранжевым. */ stage?: boolean }) {
   const path = usePathname();
   const key = `widgets:${path}:${id}`;
   const [collapsed, setCollapsed] = useState(false);
@@ -44,7 +44,7 @@ export function WidgetRow({ id, title = "Виджеты", children, className = 
     >
       <div className="flex items-start justify-between gap-2 max-sm:flex-wrap print:hidden">
         <button type="button" onClick={toggleCollapsed} aria-expanded={!collapsed} data-touch-ok
-          className={"inline-flex min-w-0 items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-900 " + titleClass}>
+          className={"inline-flex min-w-0 items-center gap-1 " + (stage ? "text-base font-bold text-orange-700 hover:text-orange-800 sm:text-lg " : "text-xs font-medium text-neutral-500 hover:text-neutral-900 ") + titleClass}>
           <span aria-hidden className={"inline-block w-3 transition-transform " + (collapsed ? "" : "rotate-90")}>›</span>
           <span className="text-left max-sm:break-words sm:truncate">{title}</span>
         </button>

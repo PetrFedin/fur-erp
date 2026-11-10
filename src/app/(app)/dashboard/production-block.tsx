@@ -197,7 +197,7 @@ export function ProductionBlock({ scoped = false, reportSeasons, href = "/produc
 
   return (
     <section aria-label="Производство" className="space-y-2">
-      <WidgetRow id="prod" title="Производство"
+      <WidgetRow id="prod" title="Производство" stage
         headerExtra={<ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />}
         headerEnd={<Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">

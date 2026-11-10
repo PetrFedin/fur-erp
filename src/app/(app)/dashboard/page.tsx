@@ -21,6 +21,7 @@ import { SalesBlockView } from "./sales-block";
 import { loadDataAsOf } from "@/lib/data-as-of";
 import { DataAsOf } from "@/components/data-as-of";
 import { SeasonScope } from "./season-scope";
+import { DashCurrency } from "./dash-currency";
 import { loadSalesBlock } from "./sales-block-data";
 import { loadReportSeasonTotals } from "@/lib/margin-server";
 
@@ -83,6 +84,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const prodHref = "/production" + qs([["auction", f.auction], ["fur", f.fur], ["attr", f.attr], ["batch", f.batch], ["catgroup", f.catgroup]]);
 
   return (
+    <DashCurrency>
     <div className="flex flex-col gap-5">
       <style>{PRINT_CSS}</style>
       <IntegrityBanner />
@@ -135,7 +137,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
 
       {/* ───────── Оплаты, долги, задачи ───────── */}
-      <PayTiles d={d} c4Mode={c4Mode} year={year} headerEnd={<span className="flex items-center gap-3 print:hidden"><Link href="/payments" className="text-xs text-blue-700 hover:underline">→ Оплаты</Link><Link href="/cashflow" className="text-xs text-blue-700 hover:underline">→ Cashflow</Link></span>} />
+      <PayTiles d={d} c4Mode={c4Mode} year={year} title="Расходы" headerEnd={<span className="flex items-center gap-3 print:hidden"><Link href="/payments" className="text-xs text-blue-700 hover:underline">→ Оплаты</Link><Link href="/cashflow" className="text-xs text-blue-700 hover:underline">→ Cashflow</Link></span>} />
 
 
 
@@ -162,5 +164,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         {salesBlock ? <SalesBlockView b={salesBlock} /> : null}
       </SeasonWrap>
     </div>
+    </DashCurrency>
   );
 }

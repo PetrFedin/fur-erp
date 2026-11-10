@@ -178,7 +178,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   if (!b.hasData) {
     return (
       <section aria-label="Продажи и остатки" className="space-y-2" data-testid="dash-sales">
-        <WidgetRow id="sales" title="Продажи и остатки" headerEnd={<Link href="/sales" className="text-xs text-blue-700 hover:underline print:hidden">→ Продажи и остатки</Link>}>
+        <WidgetRow id="sales" title="Продажи и остатки" stage headerEnd={<Link href="/sales" className="text-xs text-blue-700 hover:underline print:hidden">→ Продажи и остатки</Link>}>
           <p className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700">Нет данных о продажах: выгрузка поступлений и продаж ещё не загружена.</p>
         </WidgetRow>
       </section>
@@ -291,7 +291,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
           <SeasonSwitch keys={seasonKeys} value={season} onChange={setOwnSeason} />
         </div>
       )}
-      <WidgetRow id="sales" title="Продажи и остатки"
+      <WidgetRow id="sales" title="Продажи и остатки" stage
         headerExtra={
           <InfoHint label="Как считаются продажи и остатки на Главной" wide>
             <p>Год и НДС — из шапки; сезон — переключатель ниже. Фильтры меха, цвета, партии и источника здесь не действуют.</p>

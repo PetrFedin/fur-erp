@@ -2,6 +2,8 @@
 
 import { createContext, useCallback, useContext, useLayoutEffect, useRef, useState } from "react";
 import { seg, segGroup } from "../sales/sales-fmt";
+import { VatToggle } from "@/components/vat-toggle";
+import { useDashCurrency } from "./dash-currency";
 
 // Сезон на Главной: панель «Сезон» начинается с раздела «Производство» и закреплена сверху, пока прокручиваются блоки ниже
 // (Производство, Продажи и остатки). Выбранный сезон общий — блок «Продажи и остатки» берёт его отсюда.
@@ -58,9 +60,22 @@ export function SeasonScope({ keys, children }: { keys: string[]; children: Reac
         <div data-testid="dash-sales-season-bar" className="sticky top-0 z-30 sm:-mx-1 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur print:hidden">
           <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Сезон</span>
           <SeasonSwitch keys={keys} value={season} onChange={setSeason} />
+          <span className="mx-1 hidden h-5 w-px bg-neutral-200 sm:inline-block" aria-hidden />
+          <VatToggle />
+          <CurrencySwitch />
         </div>
         {children}
       </div>
     </SeasonCtx.Provider>
+  );
+}
+
+/** Переключатель ₽ / € для всей Главной (пересчёт по курсу 110). */
+function CurrencySwitch() {
+  const { cur, setCur } = useDashCurrency();
+  return (
+    <div role="group" aria-label="Валюта" title="Суммы на Главной в рублях или в евро. Пересчёт по курсу 110, пока курс не известен по документам закупки меха." className={segGroup}>
+      {([["rub", "₽"], ["eur", "€"]] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={cur === k} onClick={() => setCur(k)} className={seg(cur === k)}>{l}</button>)}
+    </div>
   );
 }
