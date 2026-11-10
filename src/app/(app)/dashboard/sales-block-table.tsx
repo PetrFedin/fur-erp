@@ -26,7 +26,7 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
       {ordCol ? <td className={td + " !px-1"}>{r.ordered != null ? n0(r.ordered) : DASH}</td> : null}
       <td className={td + GB}>{n0(r.received)}</td>
       <td className={td}>{r.recvCost[v] > 0.5 ? money(r.recvCost[v]) : DASH}</td>
-      <td className={td}>{r.recvList[v] > 0.5 && r.recvListPcs > 0 ? moneyK(r.recvList[v] / r.recvListPcs) : DASH}</td>
+      <td className={td}>{r.recvCost[v] > 0.5 && r.recvCostPcs > 0 ? moneyK(r.recvCost[v] / r.recvCostPcs) : DASH}</td>
       <td className={td + GB}>{n0(r.sold)}</td>
       <td className={td}>{money(r.revenue[v])}</td>
       <td className={td}>{moneyK(r.avgPrice[v])}</td>
@@ -81,7 +81,7 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
           <tr className="border-b border-neutral-200">
             <TH sep label="Штуки" unit={UNIT.pcs} />
             <TH label="Себестоимость" unit={UNIT.rub} />
-            <TH label="Ср. цена по прайсу" unit={UNIT.rubPerPcs} />
+            <TH label="Ср. себестоимость" unit={UNIT.rubPerPcs} />
             <TH sep label="Продано" unit={UNIT.pcs} />
             <TH label="Выручка" unit={UNIT.rub} />
             <TH label="Ср. цена продажи" unit={UNIT.rubPerPcs} />
@@ -90,12 +90,12 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
             {soAs ? <TH align="center" label="сегодня" unit={UNIT.pct} /> : null}
             <TH sep label="Штуки" unit={UNIT.pcs} />
             <TH label="В розничных ценах" unit={UNIT.rub} />
-            <TH label="Ср. цена по прайсу" unit={UNIT.rubPerPcs} />
+            <TH label="Ср. цена остатка" unit={UNIT.rubPerPcs} />
             <TH label="Наценка" unit="×" />
             {cumCol ? <TH label="Доля сезона" unit={UNIT.pct} /> : null}
             {cumCol ? <TH sep label="Штуки" unit={UNIT.pcs} /> : null}
             {cumCol ? <TH label="В розничных ценах" unit={UNIT.rub} /> : null}
-            {cumCol ? <TH label="Ср. цена по прайсу" unit={UNIT.rubPerPcs} /> : null}
+            {cumCol ? <TH label="Ср. цена остатка" unit={UNIT.rubPerPcs} /> : null}
             {cumCol ? <TH label="Наценка" unit="×" /> : null}
           </tr>
         </thead>
