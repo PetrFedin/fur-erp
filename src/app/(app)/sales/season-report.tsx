@@ -358,7 +358,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         retailNow: now, markupNow: mu(nowNum, cost),
         facts: [["Цена сейчас", now ?? DASH], ["Себестоимость", cost ? eurU(cost) : DASH], ["MU current", mu(nowNum, cost) ?? DASH]] ,
         seasons: seasonsOf.map((s) => {
-          const m = n.m[s], rub1 = (v: number | null) => (v == null ? DASH : Math.round(v).toLocaleString("ru-RU")), kr = (v: number | null) => (v == null || Math.abs(v) < 500 ? DASH : Math.round(v / 1000).toLocaleString("ru-RU")), live = s === "FW26/27";
+          const m = n.m[s], rub1 = (v: number | null) => (v == null ? DASH : Math.round(v).toLocaleString("ru-RU")), kr = (v: number | null) => (v == null || Math.abs(v) < 0.5 ? DASH : Math.round(v).toLocaleString("ru-RU")), live = s === "FW26/27";
           const common: [string, string][] = [["Заказано, шт.", n0(m.conf)], ["Получено, шт.", n0(m.deliv)], ...(live && m.conf - m.deliv > 0 ? [["В производстве, шт.", n0(m.conf - m.deliv)] as [string, string]] : [])];
           // Одна база для всех строк: товар сезона. «Продано товара сезона» (за всё время) · SO STD · остаток сезона = получено − продано;
           // ниже — то, что продано в его собственном календаре (SSN): шт., NS, цена, MU. Итого = сумма сезонов, без смешения календаря и товара.
@@ -368,7 +368,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
           const pairs = [
             row("own", "Продано, шт.", G1, n0(parts[s].own)),
             row("soas", "SO AS, %", G1, pct(soS(m))),
-            row("nsOwn", "NS 000'₽", G1, kr(m.rubS)),
+            row("nsOwn", "NS ₽", G1, kr(m.rubS)),
             row("priceOwn", "Цена, ₽/шт.", G1, rub1(priceS(m))),
             row("muOwn", "MU", G1, x2(mkS(m))),
             row("all", "Продано, шт.", G2, n0(m.allG)),
@@ -377,7 +377,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
             row("later_ss26", "В сезоне SS26, шт.", G2, s === "FW25/26" ? n0(parts[s].a) : s === "SS26" ? n0(parts[s].own) : DASH),
             row("later_fw26", "В сезоне FW26, шт.", G2, s === "FW26/27" ? n0(parts[s].own) : n0(parts[s].b)),
             row("sostd", "SO STD, %", G2, pct(soA(m))),
-            row("nsAll", "NS 000'₽", G2, kr(m.rubG)),
+            row("nsAll", "NS ₽", G2, kr(m.rubG)),
             row("priceAll", "Цена, ₽/шт.", G2, rub1(priceG(m))),
             row("muAll", "MU", G2, x2(mkG(m))),
             row("stock", "Остаток сезона, шт.", G3, n0(m.stock)),
@@ -387,7 +387,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         }),
         total: (() => {
           if (seasonsOf.length < 2) return null;
-          const t = seasonsOf.reduce((a, s) => plus(a, n.m[s]), zero()), rub1 = (v: number | null) => (v == null ? DASH : Math.round(v).toLocaleString("ru-RU")), kr = (v: number | null) => (v == null || Math.abs(v) < 500 ? DASH : Math.round(v / 1000).toLocaleString("ru-RU"));
+          const t = seasonsOf.reduce((a, s) => plus(a, n.m[s]), zero()), rub1 = (v: number | null) => (v == null ? DASH : Math.round(v).toLocaleString("ru-RU")), kr = (v: number | null) => (v == null || Math.abs(v) < 0.5 ? DASH : Math.round(v).toLocaleString("ru-RU"));
           return { common: [["Заказано, шт.", n0(t.conf)], ["Получено, шт.", n0(t.deliv)], ...(t.conf - t.deliv > 0 && seasonsOf.includes("FW26/27") ? [["В производстве, шт.", n0(t.conf - t.deliv)] as [string, string]] : [])] as [string, string][], pairs: [{ k: "own", v: n0(seasonsOf.reduce((x, y) => x + parts[y].own, 0)) }, { k: "soas", v: pct(soS(t)) }, { k: "nsOwn", v: kr(t.rubS) }, { k: "priceOwn", v: rub1(priceS(t)) }, { k: "muOwn", v: x2(mkS(t)) }, { k: "all", v: n0(t.allG) }, { k: "later_fw25", v: n0(seasonsOf.reduce((x, y) => x + (y === "FW25/26" ? parts[y].own : 0), 0)) }, { k: "later_ss26", v: n0(seasonsOf.reduce((x, y) => x + (y === "FW25/26" ? parts[y].a : y === "SS26" ? parts[y].own : 0), 0)) }, { k: "later_fw26", v: n0(seasonsOf.reduce((x, y) => x + (y === "FW26/27" ? parts[y].own : parts[y].b), 0)) }, { k: "sostd", v: pct(soA(t)) }, { k: "nsAll", v: kr(t.rubG) }, { k: "priceAll", v: rub1(priceG(t)) }, { k: "muAll", v: x2(mkG(t)) }, { k: "stock", v: n0(t.stock) }, { k: "stockPrice", v: t.stock > 0.5 ? (stockPrice ?? DASH) : DASH }] };
         })(),
         // Цвета и размеры: штуки целые, сумма по размерам = итог цвета (раньше размеры были дробными долями файла продаж и после округления давали 4 вместо 3).

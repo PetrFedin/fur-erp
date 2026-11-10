@@ -49,14 +49,14 @@ function CardKpis({ item }: { item: CatalogItem }) {
       <span className="grid grid-cols-[auto_auto_1fr] gap-x-2">
         {stat("MU", item.markupNow ?? "–", "Маркап по цене сейчас")}
         {stat("SO", so, "Продано ÷ заказано")}
-        {stat("NS", cell(t.rubK), "Выручка по сезонам, тысяч рублей", t.rubK >= 0.5 ? "kRUR" : undefined)}
+        {stat("NS ₽", cell(t.rubK * 1000), "Выручка по сезонам, рублей")}
       </span>
     </span>
   );
 }
 
 const COLS = "grid-cols-[2rem_repeat(4,minmax(0,1fr))]";
-/** Под фото: заголовок и по сезону — строка «сезон · заказ · пришло · продано · остаток» и под ней выручка в тыс. ₽ (kRUR); внизу TTL по всем сезонам. */
+/** Под фото: заголовок и по сезону — строка «сезон · заказ · пришло · продано · остаток» и под ней выручка NS в ₽; внизу TTL по всем сезонам. */
 function SeasonLines({ item }: { item: CatalogItem }) {
   const tot = item.seasons.reduce((a, s) => ({ conf: a.conf + s.conf, deliv: a.deliv + s.deliv, sold: a.sold + s.sold, stock: a.stock + s.stock, rubK: a.rubK + s.rubK }), { conf: 0, deliv: 0, sold: 0, stock: 0, rubK: 0 });
   const H = "text-right text-[11px] leading-4 tracking-tighter text-neutral-500";
@@ -66,11 +66,11 @@ function SeasonLines({ item }: { item: CatalogItem }) {
         <span className="truncate text-neutral-700">{label}</span>
         <span className="text-right">{cell(v.conf)}</span><span className="text-right">{cell(v.deliv)}</span><span className="text-right">{cell(v.sold)}</span><span className="text-right font-semibold">{cell(v.stock)}</span>
       </div>
-      {strong ? null : <div className="text-right text-[11px] leading-4 text-neutral-600" title="NS — выручка после скидок, тысяч рублей">NS {cell(v.rubK)}{v.rubK >= 0.5 ? " kRUR" : ""}</div>}
+      {strong ? null : <div className="text-right text-[11px] leading-4 text-neutral-600" title="NS — выручка после скидок, рублей">NS ₽ {cell(v.rubK * 1000)}</div>}
     </div>
   );
   return (
-    <div className="mt-auto pt-1" role="group" aria-label="Сезоны: заказано, пришло, продано, остаток; ниже выручка в тысячах рублей">
+    <div className="mt-auto pt-1" role="group" aria-label="Сезоны: заказано, пришло, продано, остаток; ниже выручка в рублях">
       <div className={`grid ${COLS} gap-x-1.5`}>
         <span /><span className={H} title="Заказано, шт.">Зак</span><span className={H} title="Пришло, шт.">При</span><span className={H} title="Продано, шт.">Про</span><span className={H} title="Остаток, шт.">Ост</span>
       </div>
