@@ -29,7 +29,7 @@ async function main() {
   const L = (n: number) => D.getColumn(n).letter;
   type Row = { fur: string; c1: string; c2: string; v: number[] };
   const rows: Row[] = [];
-  for (let r = FIRST; r <= LAST; r++) rows.push({ fur: String(cv(D.getCell(r, 1).value)), c1: String(cv(D.getCell(r, 2).value)), c2: String(cv(D.getCell(r, 3).value)), v: Array.from({ length: 26 }, (_, i) => Number(cv(D.getCell(r, i + 1).value)) || 0) });
+  for (let r = FIRST; r <= LAST; r++) rows.push({ fur: String(cv(D.getCell(r, 1).value)), c1: String(cv(D.getCell(r, 2).value)), c2: String(cv(D.getCell(r, 3).value)), v: Array.from({ length: 27 }, (_, i) => Number(cv(D.getCell(r, i + 1).value)) || 0) });
   const dr = (c: number) => `Данные!$${L(c)}$${FIRST}:$${L(c)}$${LAST}`;
   const dF = `Данные!$A$${FIRST}:$A$${LAST}`, dA = `Данные!$B$${FIRST}:$B$${LAST}`, dB = `Данные!$C$${FIRST}:$C$${LAST}`;
 
@@ -40,11 +40,12 @@ async function main() {
   for (const c of COLS) { const v = T.getCell(7, c).value as { formula?: string } | string | null; const f = typeof v === "object" && v ? v.formula ?? "" : ""; tplF.set(c, f.replace(/(\$[A-Z]+\$)\d+:(\$[A-Z]+\$)\d+/g, `$1${FIRST}:$2${LAST}`)); }
   tplF.set(100, `SUM(Данные!$W$${FIRST}:$W$${LAST})`); // новый столбец «Order TTL, EUR» (Данные!W)
   tplF.set(101, `SUM(Данные!$X$${FIRST}:$X$${LAST})`); // Delivery TTL, PCS (Данные!X)
-  tplF.set(102, `SUM(Данные!$Y$${FIRST}:$Y$${LAST})`); // Stock EUR FW26 (Данные!Y)
-  tplF.set(103, `SUM(Данные!$Z$${FIRST}:$Z$${LAST})`); // Stock EUR TTL (Данные!Z)
+  tplF.set(104, `SUM(Данные!$Y$${FIRST}:$Y$${LAST})`); // Delivery TTL, EUR (Данные!Y)
+  tplF.set(102, `SUM(Данные!$Z$${FIRST}:$Z$${LAST})`); // Stock EUR FW26 (Данные!Z)
+  tplF.set(103, `SUM(Данные!$AA$${FIRST}:$AA$${LAST})`); // Stock EUR TTL (Данные!AA)
   // столбцы образца от J вправо сдвигаются: новый J = Order TTL EUR; новый M = Delivery TTL PCS (перед Delivery FW26 PCS); после Stock TTL — Stock EUR FW26 (AC) и Stock EUR TTL (AD)
-  const mapC = (c: number) => (c >= 12 ? c + 2 : c >= 10 ? c + 1 : c);
-  const C_DTTL = 13, C_SEUR26 = 29, C_SEURTTL = 30;
+  const mapC = (c: number) => (c >= 12 ? c + 3 : c >= 10 ? c + 1 : c);
+  const C_DTTL = 13, C_DTTLE = 14, C_SEUR26 = 30, C_SEURTTL = 31;
   const termsOf = (s: string) => [...s.matchAll(/SUM\(Данные!\$([A-Z]+)\$\d+:\$[A-Z]+\$\d+\)/g)].map((m) => colNum(m[1]));
   const sumRows = (rs: Row[], cols: number[]) => rs.reduce((a, r) => a + cols.reduce((t, c) => t + r.v[c - 1], 0), 0);
   const calc = (c: number, rs: Row[]) => {
@@ -66,11 +67,12 @@ async function main() {
   for (let r = 1; r <= 6; r++) { copyStyle(T.getCell(r, 11), R.getCell(r, 10)); if (T.getRow(r).height) R.getRow(r).height = T.getRow(r).height; }
   R.getCell(6, 10).value = "EUR";
   // новые столбцы: Delivery TTL PCS (M) и Stock EUR FW26 / TTL (AC, AD): оформление соседних столбцов образца
-  for (const [nc, src, w] of [[C_DTTL, 12, 0], [C_SEUR26, 24, 11], [C_SEURTTL, 26, 11]] as [number, number, number][]) {
+  for (const [nc, src, w] of [[C_DTTL, 12, 0], [C_DTTLE, 13, 11], [C_SEUR26, 24, 11], [C_SEURTTL, 26, 11]] as [number, number, number][]) {
     for (let r = 1; r <= 6; r++) copyStyle(T.getCell(r, src), R.getCell(r, nc));
     R.getColumn(nc).width = Math.max(w, T.getColumn(src).width ?? 9.3);
   }
   R.getCell(4, C_DTTL).value = "Delivery"; R.getCell(5, C_DTTL).value = "TTL"; R.getCell(6, C_DTTL).value = "PCS";
+  R.getCell(4, C_DTTLE).value = "Delivery"; R.getCell(5, C_DTTLE).value = "TTL"; R.getCell(6, C_DTTLE).value = "EUR";
   R.getCell(4, C_SEUR26).value = "Stock"; R.getCell(5, C_SEUR26).value = "FW26"; R.getCell(6, C_SEUR26).value = "EUR";
   R.getCell(4, C_SEURTTL).value = "Stock"; R.getCell(5, C_SEURTTL).value = "TTL"; R.getCell(6, C_SEURTTL).value = "EUR";
   const colLetter = (n: number) => R.getColumn(n).letter;
@@ -92,14 +94,14 @@ async function main() {
     const tr = lvlRow[lvl], x = R.getRow(rrow++); const no = ++rn;
     for (let c = 1; c <= 26; c++) copyStyle(T.getCell(tr, c), x.getCell(mapC(c)));
     copyStyle(T.getCell(tr, 11), x.getCell(10));
-    copyStyle(T.getCell(tr, 12), x.getCell(C_DTTL)); copyStyle(T.getCell(tr, 24), x.getCell(C_SEUR26)); copyStyle(T.getCell(tr, 26), x.getCell(C_SEURTTL));
-    for (let c = 9; c <= 30; c++) x.getCell(c).alignment = { ...(x.getCell(c).alignment ?? {}), horizontal: "right" }; // числа — по правому краю ячейки
+    copyStyle(T.getCell(tr, 12), x.getCell(C_DTTL)); copyStyle(T.getCell(tr, 13), x.getCell(C_DTTLE)); copyStyle(T.getCell(tr, 24), x.getCell(C_SEUR26)); copyStyle(T.getCell(tr, 26), x.getCell(C_SEURTTL));
+    for (let c = 9; c <= 31; c++) x.getCell(c).alignment = { ...(x.getCell(c).alignment ?? {}), horizontal: "right" }; // числа — по правому краю ячейки
     if (T.getRow(tr).height) x.height = T.getRow(tr).height;
     x.getCell(1).value = parent || null; x.getCell(2).value = no; x.getCell(3).value = lvl === 3 ? 1 : 0; x.getCell(4).value = lvl + 1;
     x.getCell(5 + lvl).value = label;
     for (const c of COLS) if (tplF.get(c)) x.getCell(mapC(c)).value = { formula: formulaFor(c, crit), result: calc(c, rs) } as ExcelJS.CellFormulaValue;
     x.getCell(10).value = { formula: formulaFor(100, crit), result: calc(100, rs) } as ExcelJS.CellFormulaValue;
-    for (const [nc, id] of [[C_DTTL, 101], [C_SEUR26, 102], [C_SEURTTL, 103]] as [number, number][]) x.getCell(nc).value = { formula: formulaFor(id, crit), result: calc(id, rs) } as ExcelJS.CellFormulaValue;
+    for (const [nc, id] of [[C_DTTL, 101], [C_DTTLE, 104], [C_SEUR26, 102], [C_SEURTTL, 103]] as [number, number][]) x.getCell(nc).value = { formula: formulaFor(id, crit), result: calc(id, rs) } as ExcelJS.CellFormulaValue;
     x.outlineLevel = T.getRow(tr).outlineLevel || 0;
     return no;
   };
