@@ -269,7 +269,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
       o.rubA = o.rubS + (ex ? c.rEx : c.rIn); o.rubAIn = o.rubSIn + c.rIn; o.discA = o.discS + c.d;
       o.grossA = o.grossS + c.g; o.costA = o.costS + c.c;
     }
-    for (const s of SEASONS) { out[s].arts = artSet[s].size; if (s !== "FW26/27") out[s].conf = out[s].deliv; out[s].stock = Math.max(0, out[s].deliv - out[s].allG); }
+    for (const s of SEASONS) { out[s].arts = artSet[s].size; if (s !== "FW26/27") out[s].conf = out[s].deliv; out[s].stock = out[s].deliv - out[s].allG; }
     return out;
   };
   const filtered = useMemo(() => rows.filter((r) => (furPick === "all" || keyOf(r, "fur") === furPick) && (!q || `${r.acode} ${keyOf(r, "fur")} ${keyOf(r, "cat1")} ${keyOf(r, "cat2")} ${r.color} ${r.size}`.toLowerCase().includes(q.toLowerCase()))), [rows, furPick, q, fabricByArt]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -388,7 +388,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
           const delivI = apportion(deliv, repDelivW);
           const soldI = apportion(sold, zs.map((x) => x.v.sold), delivI);
           const sizes = zs.map((x, i) => ({ label: x.z.label, conf: confI[i], deliv: delivI[i], sold: soldI[i], stock: Math.max(0, delivI[i] - soldI[i]) })).filter((z) => z.conf || z.deliv || z.sold || z.stock);
-          return { label: c.label, conf: Math.round(cs.conf), deliv, sold, stock: Math.max(0, deliv - sold), sizes };
+          return { label: c.label, conf: Math.round(cs.conf), deliv, sold, stock: deliv - sold, sizes };
         }).filter((c) => c.conf || c.deliv || c.sold || c.stock),
       };
     });
