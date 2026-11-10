@@ -84,7 +84,7 @@ async function main() {
   R.mergeCells("I5:J5"); // TTL над PCS и EUR
   // NS в отчёте — EUR без НДС (NS EUR excl VAT), полными числами: заголовки и формат столбцов NS.
   R.getCell(3, 5).value = "NS 000'EUR excl VAT"; // в тысячах €, как в PDF владельца 10.11
-  for (const c of [17, 20, 23]) R.getCell(6, c).value = "NS EUR";
+  for (const c of [16, 19, 22]) R.getCell(6, mapC(c)).value = "NS EUR";
   R.getCell(2, 5).value = new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" });
 
   // ───── строки ─────
@@ -116,6 +116,8 @@ async function main() {
       for (const [c2, r3] of byOrder(grp(r2, (r) => r.c2))) write(c2, 3, `,${dA},${q(c1)},${dF},${q(fur)},${dB},${q(c2)}`, r3, n2);
     }
   }
+  // Евро в тысячах, как в подписи «NS 000'EUR excl VAT»: значения в ячейках полные, формат показывает тысячи.
+  for (let c = 9; c <= 31; c++) { const h = String(R.getCell(6, c).value ?? ""); if (h === "EUR" || h === "NS EUR") for (let r = 7; r < rrow; r++) R.getCell(r, c).numFmt = "#,##0,;-#,##0,;–"; }
   wb.calcProperties.fullCalcOnLoad = true;
   writeFileSync(out, Buffer.from(await wb.xlsx.writeBuffer()));
   console.log(out, JSON.stringify({ rows: rows.length, orderPcsFW26: sumPcs(rows), orderEurFW26: Math.round(sumEur(rows)), reportRows: rrow - 7 }));
