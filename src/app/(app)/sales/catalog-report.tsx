@@ -97,7 +97,6 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const nsK = (v: number) => (Math.abs(v) < 500 ? "–" : nf(v / 1000));
   const fromRub = (v: number | null) => (v === null ? null : cur === "RUR" ? v : v / rate);
   const money = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? "–" : nf(cur === "RUR" ? v / 1000 : v));
-  const eur = (v: number) => (Math.abs(v) < 0.5 ? "–" : nf(v));
   const q = (v: number) => (Math.abs(v) < 0.5 ? "–" : nf(v));
   const x2 = (v: number | null) => (v === null ? "–" : `×${v.toFixed(2).replace(".", ",")}`);
   // Как в отчёте владельца: Order (TTL, FW26) · Delivery (FW26) · Sales (SSN FW26, Calendar FW26) · Stock (FW26, TTL).
@@ -113,10 +112,10 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const row = (label: string, level: 0 | 1 | 2 | 3, a: Agg, t: ReturnType<typeof ttlOf>, node?: Node) => {
     const so = a.conf > 0 && a.sold > 0 ? `${Math.round((a.sold / a.conf) * 100)}%` : "–"; // нуль — прочерк, как в PDF
     const cells = [
-      q(t.conf), eur(t.confEur), q(a.conf), eur(a.confEur), q(t.deliv), eur(t.delivEur), q(a.deliv), eur(a.delivEur),
+      q(t.conf), nsK(t.confEur), q(a.conf), nsK(a.confEur), q(t.deliv), nsK(t.delivEur), q(a.deliv), nsK(a.delivEur),
       q(a.sold), so, nsK(nsOf(a)), x2(a.cost > 0 ? a.gross / a.cost : null),
       q(a.sold + a.oSold), nsK(nsOf(a) + oNsOf(a)), x2(a.cost + a.oCost > 0 ? (a.gross + a.oGross) / (a.cost + a.oCost) : null),
-      q(a.stock), q(a.tStock), eur(t.stockEur), eur(t.stockEurTtl),
+      q(a.stock), q(a.tStock), nsK(t.stockEur), nsK(t.stockEurTtl),
     ];
     const hasKids = node && node.children.length > 0 && node.level < depth;
     const closed = node ? shut.has(node.id) : false;
@@ -161,7 +160,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
         <div className="border-b border-neutral-200 px-3 py-2">
           <h2 className="text-lg font-bold leading-tight">{tab === "sales" ? "Отчет по продажам меховых изделий FW26" : "Отчет по заказу и поставкам меховых изделий FW26"}</h2>
           <p className="text-xs text-neutral-700">{new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" })}</p>
-          {tab === "sales" ? <p className="text-xs text-neutral-700">NS 000&apos;EUR excl VAT</p> : null}
+          <p className="text-xs text-neutral-700">{tab === "sales" ? "000'EUR · NS excl VAT" : "000'EUR"}</p>
         </div>
         {tab === "supply" ? (
           <div className="min-h-0 flex-1 overflow-auto overscroll-contain p-2" data-keep-scroll tabIndex={0} role="region" aria-label="Таблица отчёта по заказу и поставкам">

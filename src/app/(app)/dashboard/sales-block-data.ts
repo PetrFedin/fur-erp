@@ -198,7 +198,12 @@ function reportStockMoney(ctx: Ctx, sizes: ReportSizeRow[], cat: Cat, prices: { 
     if (p !== null) { list += p * st; listPcs += st; }
     if (p !== null && hasC) { bothList += p * st; bothCost += c * st; }
   }
-  return { recvCost: rCost, recvCostPcs: rCostPcs, recvList: rList, recvListPcs: rListPcs, soldCost: sCost, soldCostPcs: sCostPcs, stockCost: cost, stockCostPcs: costPcs, stockList: list, stockListPcs: listPcs, markupStock: bothCost > 0 ? bothList / bothCost : null };
+  // Закупка остатка — как в Excel «Отчёт: продажи» (Stock EUR TTL): по артикулу+цвету, остаток × закупочная цена изделия, € × 110.
+  const eurSt = leafStockEur(cat === "all" ? sizes : sizes.filter((r) => r.cls === cat)).all;
+  cost = inc ? eurSt * MU_EUR_RATE : exVatAt(eurSt * MU_EUR_RATE, today);
+  sCost = Math.max(0, rCost - cost); bothCost = cost; bothList = list;
+  void sCostPcs;
+  return { recvCost: rCost, recvCostPcs: rCostPcs, recvList: rList, recvListPcs: rListPcs, soldCost: sCost, soldCostPcs: rCostPcs, stockCost: cost, stockCostPcs: costPcs, stockList: list, stockListPcs: listPcs, markupStock: bothCost > 0 ? bothList / bothCost : null };
 }
 
 /** Период блока в виде фильтров /sales: год → с 1 января по 31 декабря; «все годы» — без периода. */
@@ -293,7 +298,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
   // (разное написание артикула: «/», «200X30», фабрика в конце), затем узел суммирует свои артикулы+цвета. Нет фильтров по году и меху.
   const REP_KEY: Record<string, string> = { "FW 25/26": "FW25/26", "SS 2026": "SS26", "FW 26/27": "FW26/27" };
   const useRepTree = year === "all" && sizes.length > 0 && !furNames.length;
-  const repByLeaf = new Map<string, { deliv: Record<string, number>; stock: number; m: { in: RepMoney; ex: RepMoney } }>();
+  const repByLeaf = new Map<string, { deliv: Record<string, number>; stock: number; rows: ReportSizeRow[]; m: { in: RepMoney; ex: RepMoney } }>();
   const repPrice = new Map<string, number>();
   for (const pr of input.prices) { const pk = `${pr.acode}|${pr.color}|${pr.size}`; if (!repPrice.has(pk)) repPrice.set(pk, pr.price); }
   if (useRepTree) {
@@ -306,7 +311,8 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
         const k2 = `${art.replace(/\d{2,3}X\d{2}/g, "")}|${color}`;
         if (lineKeys.has(k2)) k = k2; else { const c = lineLeaves.filter((x) => x.color === color && art.startsWith(x.art)); k = c.length === 1 ? c[0].k : k; }
       }
-      const a = repByLeaf.get(k) ?? repByLeaf.set(k, { deliv: {}, stock: 0, m: { in: zeroMoney(), ex: zeroMoney() } }).get(k)!;
+      const a = repByLeaf.get(k) ?? repByLeaf.set(k, { deliv: {}, stock: 0, rows: [], m: { in: zeroMoney(), ex: zeroMoney() } }).get(k)!;
+      a.rows.push(r);
       {
         const dl = Object.values(r.seas ?? {}).reduce((x, c) => x + (c.deliv ?? 0), 0), st = dl - (r.sold ?? 0), p0 = repPrice.get(`${r.acode}|${r.color}|${r.size}`);
         const uu = sizeUnitEur(r).unit;
@@ -325,7 +331,14 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
     if (!useRepTree) return null;
     const keysOf = (ls: SLine[]) => [...new Set(ls.map((l) => leafKeyOf(l.article, l.colorId)))];
     const rec = (ls: SLine[]) => keysOf(ls).reduce((a, k) => { const v = repByLeaf.get(k); return a + (v ? (season === "all" ? Object.values(v.deliv).reduce((x, y) => x + y, 0) : v.deliv[REP_KEY[season]] ?? 0) : 0); }, 0);
-    const money = (ls: SLine[], v: "in" | "ex"): RepMoney => keysOf(ls).reduce((t, k) => { const q = repByLeaf.get(k)?.m[v]; if (q) for (const f of Object.keys(t) as (keyof RepMoney)[]) t[f] += q[f]; return t; }, zeroMoney());
+    const money = (ls: SLine[], v: "in" | "ex"): RepMoney => {
+      const ks = keysOf(ls), t = keysOf(ls).reduce((t, k) => { const q = repByLeaf.get(k)?.m[v]; if (q) for (const f of Object.keys(t) as (keyof RepMoney)[]) t[f] += q[f]; return t; }, zeroMoney());
+      // закупка остатка по листу отчёта (артикул+цвет): остаток × закупочная цена изделия, € × 110
+      const eurSt = ks.reduce((a, k) => a + leafStockEur(repByLeaf.get(k)?.rows ?? []).all, 0);
+      t.stockCost = v === "in" ? eurSt * MU_EUR_RATE : exVatAt(eurSt * MU_EUR_RATE, todayMsk());
+      t.bothCost = t.stockCost; t.bothList = t.stockList;
+      return t;
+    };
     return { received: rec, stock: (ls, sold) => rec(ls) - sold, money };
   };
   const rowEnvOf = (season: string, cat: Cat, cum: Map<string, CumNode> | null, axis: string[] = []): RowEnv => ({ rep: repFor(season), seriesOf: axis.length ? seriesFor(axis) : null, seasonEnd: finishedEnd(season), cum, ctxs, inPeriod, sizes: season === "all" ? sizes : [], cat });
@@ -522,7 +535,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
 }
 
 import { tzAwaitSizes } from "@/lib/tz-await";
-import { sizeUnitEur } from "@/lib/stock-money";
+import { leafStockEur, sizeUnitEur } from "@/lib/stock-money";
 import { MU_EUR_RATE } from "@/lib/mu-rate";
 import { loadReportSizes } from "@/lib/margin-server";
 

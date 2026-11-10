@@ -71,8 +71,8 @@ export function SupplyTable({ leaves, keys, depth, shut, onToggle }: { leaves: S
     const hasKids = node && node.children.length > 0 && node.level < depth;
     const closed = node ? shut.has(node.id) : false;
     const cells: { v: string; cls?: string; italic?: boolean }[] = [
-      { v: cellv(a.order.opt), cls: THICK }, { v: cellv(a.order.pcs) }, { v: cellv(a.order.eur) },
-      { v: cellv(a.deliv.opt), cls: THICK }, { v: cellv(a.deliv.pcs) }, { v: cellv(a.deliv.eur) },
+      { v: cellv(a.order.opt), cls: THICK }, { v: cellv(a.order.pcs) }, { v: cellv(a.order.eur / 1000) },
+      { v: cellv(a.deliv.opt), cls: THICK }, { v: cellv(a.deliv.pcs) }, { v: cellv(a.deliv.eur / 1000) },
       ...months.map((m, i) => ({ v: cellv(a.months[m] ?? 0), cls: i === 0 ? THICK : "", italic: fcSet.has(m) })),
     ];
     return (

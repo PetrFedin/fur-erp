@@ -96,8 +96,8 @@ async function main() {
     { g: G5, head: "Заказ всего, € (FW25/26 + SS26 + FW26/27)", get: (l) => r2(l.ttlEur) },
     { g: G6, head: "Пришло всего, шт. (FW25/26 + SS26 + FW26/27)", get: (l) => l.delivAll },
     { g: G6, head: "Пришло всего, € (FW25/26 + SS26 + FW26/27)", get: (l) => r2(l.delivAllEur) },
-    { g: G6, head: "Stock EUR FW26 (остаток × закупочная цена изделия)", get: (l) => r2(l.stockEurFw) },
-    { g: G6, head: "Stock EUR всего (остаток × закупочная цена изделия)", get: (l) => r2(l.stockEurAll) },
+    { g: G6, head: "Stock EUR FW26 (остаток × закупочная цена изделия)", get: (l) => r2(stock26(l) * unitFw(l)) },
+    { g: G6, head: "Stock EUR всего (остаток × закупочная цена изделия)", get: (l) => r2((stock26(l) + stockOth(l)) * unitAll(l)) },
   ];
   const labels = ["Тип меха", "Категория 1", "Категория 2", "Артикул", "Цвет"], c0 = labels.length + 1, FIRST = 4, LAST = FIRST + list.length - 1;
 
