@@ -104,7 +104,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const nsHead = "NS EUR";
   const subHeads = ["PCS", "EUR", "PCS", "EUR", "PCS", "EUR", "PCS", "EUR", "PCS", "SO, %", nsHead, "Avg MU", "PCS", nsHead, "Avg MU", "PCS", "PCS", "EUR", "EUR"];
   const groupStarts = [0, 4, 8, 15]; // толстая линия: начало блоков Order / Delivery / Sales / Stock
-  const midStarts = [2, 6, 12, 16, 17]; // линия внутри блока: FW26 после TTL, Calendar, TTL остатка
+  const midStarts = [2, 6, 12]; // линия внутри блока: FW26 после TTL, Calendar, TTL остатка
   const sepClass = (i: number) => (groupStarts.includes(i) ? THICK : midStarts.includes(i) ? MID : "");
   const grid = { gridTemplateColumns: `minmax(8.5rem,15rem) repeat(${subHeads.length}, minmax(4.4rem,auto))` };
   const ttlOf = (ls: ReportLeaf[]) => ({ conf: ls.reduce((a, l) => a + l.ttlConf, 0), confEur: ls.reduce((a, l) => a + l.ttlConfEur, 0), deliv: ls.reduce((a, l) => a + l.ttlDeliv, 0), delivEur: ls.reduce((a, l) => a + l.ttlDelivEur, 0), stockEur: ls.reduce((a, l) => a + l.stockEur, 0), stockEurTtl: ls.reduce((a, l) => a + l.stockEurTtl, 0) });
@@ -186,9 +186,9 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
               <div role="columnheader" className={`${hd} top-8 ${THICK}`} style={{ gridColumn: "span 4" }}>SSN FW26</div>
               <div role="columnheader" className={`${hd} top-8 ${MID}`} style={{ gridColumn: "span 3" }}>Calendar FW26</div>
               <div role="columnheader" className={`${hd} top-8 ${THICK}`}>FW26</div>
-              <div role="columnheader" className={`${hd} top-8 ${MID}`}>TTL</div>
-              <div role="columnheader" className={`${hd} top-8 ${MID}`}>FW26</div>
-              <div role="columnheader" className={`${hd} top-8 ${MID}`}>TTL</div>
+              <div role="columnheader" className={`${hd} top-8`}>TTL</div>
+              <div role="columnheader" className={`${hd} top-8`}>FW26</div>
+              <div role="columnheader" className={`${hd} top-8`}>TTL</div>
             </div>
             <div role="row" className="contents">
               <div role="columnheader" className={`${hd} left-0 top-16 z-20`} />
