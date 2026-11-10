@@ -192,7 +192,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
   const itemsOf = (t: Tile, c: SalesCls): TileItem[] => {
     if (t === "ordered") { const l = orderLineOf(c); return l ? [{ k: "Заказано по прайсу", v: money(l.orderedRub[v]) }, { k: "Ждём по прайсу", v: l.awaiting > 0 ? money(l.awaitingRub[v]) : "–" }] : []; }
     const h = slice.head[c], m = h.money[v];
-    if (t === "received") return [{ k: "По себестоимости ТЗ", v: money(m.recvCost) }, { k: "По прайсу", v: money(m.recvList) }];
+    if (t === "received") return [{ k: "По закупке (отчёт)", v: money(m.recvCost) }, { k: "По прайсу", v: money(m.recvList) }];
     if (t === "sold" && salesBy === "cal") {
       const k = calOf(c), share = k.total.pcs !== 0 ? k.ssn.pcs / k.total.pcs : null;
       return [
@@ -205,7 +205,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
     if (t === "sold") {
       const sm = h.money[v], sw = vatNote;
       return [
-        { k: "По себестоимости ТЗ", v: money(sm.soldCost) },
+        { k: "По закупке (отчёт)", v: money(sm.soldCost) },
         { k: `Выручка, ${sw}`, v: money(sm.revenue) },
         { k: "До скидки", v: money(sm.grossRev) },
         { k: "Скидка", v: money(sm.discount), share: sm.grossRev > 0.5 && sm.discount > 0.5 ? sm.discount / sm.grossRev : null, shareFirst: true },
@@ -215,7 +215,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         { k: "SO, %", v: pct((() => { const o = orderLineOf(c)?.ordered ?? h.received; return o > 0 ? h.sold / o : null; })(), 1) },
       ];
     }
-    return [{ k: "По себестоимости ТЗ", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, { k: "Наценка остатка", v: x2(m.markupStock) },
+    return [{ k: "По закупке (отчёт)", v: money(m.stockCost) }, { k: "По прайсу", v: money(m.stockList) }, { k: "Наценка остатка", v: x2(m.markupStock) },
     ];
   };
   const zeroPart = { pcs: 0, rub: { in: 0, ex: 0 } };

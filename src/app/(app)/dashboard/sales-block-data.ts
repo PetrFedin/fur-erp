@@ -186,14 +186,13 @@ function reportStockMoney(ctx: Ctx, sizes: ReportSizeRow[], cat: Cat, prices: { 
     if (cat !== "all" && r.cls !== cat) continue;
     const dl = Object.values(r.seas ?? {}).reduce((a, c) => a + (c.deliv ?? 0), 0), st = dl - (r.sold ?? 0);
     {
-      const k0 = { article: r.acode, colorId: r.color, modelCode: r.modelCode } as SLine, c0 = ctx.hasCost(k0) ? (inc ? ctx.unitIncl(k0) : ctx.unitExcl(k0)) : null;
+      const u0 = sizeUnitEur(r).unit, c0 = u0 === null ? null : inc ? u0 * MU_EUR_RATE : exVatAt(u0 * MU_EUR_RATE, today);
       const q0 = idx.get(`${r.acode}|${r.color}|${r.size}`), pp = q0 === undefined ? null : inc ? q0 : exVatAt(q0, today);
       if (c0 !== null) { rCost += c0 * dl; rCostPcs += dl; sCost += c0 * (r.sold ?? 0); sCostPcs += r.sold ?? 0; }
       if (pp !== null) { rList += pp * dl; rListPcs += dl; }
     }
     if (!st) continue;
-    const key = { article: r.acode, colorId: r.color, modelCode: r.modelCode } as SLine;
-    const hasC = ctx.hasCost(key), c = hasC ? (inc ? ctx.unitIncl(key) : ctx.unitExcl(key)) : 0;
+    const uu = sizeUnitEur(r).unit, hasC = uu !== null, c = uu === null ? 0 : inc ? uu * MU_EUR_RATE : exVatAt(uu * MU_EUR_RATE, today);
     const p0 = idx.get(`${r.acode}|${r.color}|${r.size}`), p = p0 === undefined ? null : inc ? p0 : exVatAt(p0, today);
     if (hasC) { cost += c * st; costPcs += st; }
     if (p !== null) { list += p * st; listPcs += st; }
@@ -310,9 +309,9 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
       const a = repByLeaf.get(k) ?? repByLeaf.set(k, { deliv: {}, stock: 0, m: { in: zeroMoney(), ex: zeroMoney() } }).get(k)!;
       {
         const dl = Object.values(r.seas ?? {}).reduce((x, c) => x + (c.deliv ?? 0), 0), st = dl - (r.sold ?? 0), p0 = repPrice.get(`${r.acode}|${r.color}|${r.size}`);
-        const key = { article: r.acode, colorId: r.color, modelCode: r.modelCode } as SLine;
+        const uu = sizeUnitEur(r).unit;
         for (const v of ["in", "ex"] as const) {
-          const ctx = ctxs[v], q = a.m[v], hasC = ctx.hasCost(key), c = hasC ? (v === "in" ? ctx.unitIncl(key) : ctx.unitExcl(key)) : 0, p = p0 === undefined ? null : v === "in" ? p0 : exVatAt(p0, todayMsk());
+          const q = a.m[v], hasC = uu !== null, c = uu === null ? 0 : v === "in" ? uu * MU_EUR_RATE : exVatAt(uu * MU_EUR_RATE, todayMsk()), p = p0 === undefined ? null : v === "in" ? p0 : exVatAt(p0, todayMsk());
           if (hasC) { q.recvCost += c * dl; q.recvCostPcs += dl; q.stockCost += c * st; }
           if (p !== null) { q.recvList += p * dl; q.recvListPcs += dl; q.stockList += p * st; q.stockListPcs += st; }
           if (p !== null && hasC) { q.bothList += p * st; q.bothCost += c * st; }
@@ -523,6 +522,8 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
 }
 
 import { tzAwaitSizes } from "@/lib/tz-await";
+import { sizeUnitEur } from "@/lib/stock-money";
+import { MU_EUR_RATE } from "@/lib/mu-rate";
 import { loadReportSizes } from "@/lib/margin-server";
 
 async function loadSalesBlockImpl(orgId: string, c4: Commission4Mode, year: YearFilter, furNames: string[] = []): Promise<SalesBlock> {

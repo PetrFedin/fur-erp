@@ -13,12 +13,14 @@ import type { ReportSizeRow } from "@/lib/margin-tree";
 import type { ModelCost, RetailRow } from "@/lib/margin";
 import { articleKey, CAT_LABEL, colorOfLine, furKeyOfReportRow as furKeyOfRow, furRuLabel, seasonOfDate, variantOfArticle } from "@/lib/sales-receipts-core";
 import type { Cat, SLine } from "@/lib/sales-section";
+import { seasonUnitEur, sizeStockEur } from "@/lib/stock-money";
 import { DASH, btn, money, moneyC, n0, pct, seg, segGroup, x2 } from "./sales-fmt";
 import type { PhotoIdx } from "./sales-tree";
 import { SeasonReceipts, type TzAwait } from "./season-receipts";
 
 /** Курс для маркапа продаж, ₽ за €: выручка в ₽ переводится в € по этому курсу (правило владельца). */
-export const MU_EUR_RATE = 110;
+import { MU_EUR_RATE } from "@/lib/mu-rate";
+export { MU_EUR_RATE };
 const SEASONS = ["FW25/26", "SS26", "FW26/27"] as const;
 type Season = (typeof SEASONS)[number];
 const SEASON_LABEL: Record<Season, string> = { "FW26/27": "FW 26/27", SS26: "SS 2026", "FW25/26": "FW 25/26" };
@@ -422,7 +424,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
           conf: m.conf, confEur: m.confEur, deliv: repDeliv, delivEur: m.delivEur, sold: m.ssn, nsRubIn: m.rubSIn, nsRubEx: m.rubSEx, nsEurIn: m.eurSIn, nsEurEx: m.eurSEx, gross: m.grossS, cost: m.costS, stock: repStock,
           sRetail: price ? price * m.stock : 0, sPriced: price ? m.stock : 0, sRetailBoth: pE && cost ? pE * m.stock : 0, sCostBoth: pE && cost ? cost * m.stock : 0 };
       }
-      return { cls: (first?.cls ?? "other") as ReportLeaf["cls"], cat1: first?.l2 || "(без категории)", fur: first?.fur ? furRuLabel(first.fur, FUR_REPORT) : keyOf(first, "fur"), cat2: first?.l4 || first?.l5 || "(без категории)", model: n.modelCode ?? n.label, by, ...(() => { const ks = Object.keys(by) as string[], f = by["FW26/27"], ttlDeliv = ks.reduce((a, k) => a + by[k].deliv, 0), ttlDelivEur = ks.reduce((a, k) => a + by[k].delivEur, 0), tc = ks.reduce((a, k) => a + by[k].conf, 0), te = ks.reduce((a, k) => a + by[k].confEur, 0); const uFw = f && f.deliv > 0 && f.delivEur > 0 ? f.delivEur / f.deliv : f && f.conf > 0 && f.confEur > 0 ? f.confEur / f.conf : 0, uAll = tc > 0 && te > 0 ? te / tc : uFw; return { ttlDeliv, ttlDelivEur, stockEur: (f?.stock ?? 0) * uFw, stockEurTtl: (f?.tStock ?? 0) * uAll }; })(), ttlConf: (Object.keys(by) as string[]).reduce((a, k) => a + by[k].conf, 0), ttlConfEur: (Object.keys(by) as string[]).reduce((a, k) => a + by[k].confEur, 0) };
+      return { cls: (first?.cls ?? "other") as ReportLeaf["cls"], cat1: first?.l2 || "(без категории)", fur: first?.fur ? furRuLabel(first.fur, FUR_REPORT) : keyOf(first, "fur"), cat2: first?.l4 || first?.l5 || "(без категории)", model: n.modelCode ?? n.label, by, ...(() => { const ks = Object.keys(by) as string[], f = by["FW26/27"], ttlDeliv = ks.reduce((a, k) => a + by[k].deliv, 0), ttlDelivEur = ks.reduce((a, k) => a + by[k].delivEur, 0), tc = ks.reduce((a, k) => a + by[k].conf, 0), te = ks.reduce((a, k) => a + by[k].confEur, 0); const uFw = f && f.deliv > 0 && f.delivEur > 0 ? f.delivEur / f.deliv : f && f.conf > 0 && f.confEur > 0 ? f.confEur / f.conf : 0, uAll = tc > 0 && te > 0 ? te / tc : uFw; return { ttlDeliv, ttlDelivEur, stockEur: n.rows.reduce((a, r) => { const c = r.seas?.["FW26/27"], u = seasonUnitEur(r, "FW26/27"); return u ? a + ((c?.deliv ?? 0) - (c?.soldSsn ?? 0)) * u : a; }, 0), stockEurTtl: n.rows.reduce((a, r) => a + sizeStockEur(r).eur, 0) }; })(), ttlConf: (Object.keys(by) as string[]).reduce((a, k) => a + by[k].conf, 0), ttlConfEur: (Object.keys(by) as string[]).reduce((a, k) => a + by[k].confEur, 0) };
     });
     return <CatalogCards items={items} seasonOptions={SEASONS.map((x) => ({ key: x, label: SEASON_LABEL[x] }))} picked={pick} onToggleSeason={(k) => toggle(k as Season)} furs={furs} furPick={furPick} onFur={setFurPick} q={q} onQ={setQ} vatEx={ex} onVat={onVat} report={{ leaves: reportLeaves, eurRate, ex }} supply={supply} embedded={embedded} />;
   };
@@ -517,12 +519,11 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
     // Деньги артикула делятся по сезонам пропорционально остатку сезона в штуках (97 / 23 / 226).
     const costBy: Record<Season, number> = { "FW25/26": 0, "SS26": 0, "FW26/27": 0 }, retailBy: Record<Season, number> = { "FW25/26": 0, "SS26": 0, "FW26/27": 0 };
     for (const n of articles) {
-      const c = costLine(n);
       let M = 0, C = 0;
       for (const r of n.rows) {
         const st = SEASONS.reduce((a, x) => a + (r.seas?.[x]?.deliv ?? 0), 0) - (r.sold ?? 0);
         if (!st) continue;
-        if (c) C += st * c;
+        C += sizeStockEur(r).eur;
         const pr = nowPrice(r); if (pr !== null) M += st * pr;
       }
       const S = SEASONS.reduce((a, x) => a + n.m[x].stock, 0);
