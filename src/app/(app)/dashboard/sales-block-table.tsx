@@ -33,7 +33,7 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
       <td className={td}>{x2(r.markupSold[v])}</td>
       {soAs ? <td className={td + GB + " !text-center"}>{pct(r.soAs, 1)}</td> : null}
       <td className={td + (soAs ? "" : GB) + " !text-center"}>{pct((r.ordered ?? r.received) > 0 ? r.sold / (r.ordered ?? r.received) : null, 1)}</td>
-      <td className={td + GB}>{n0(r.stock)}</td>
+      <td className={td + GB}>{r.stock < 0 ? DASH : n0(r.stock)}</td>
       <td className={td}>{r.stockList[v] > 0.5 ? money(r.stockList[v]) : DASH}</td>
       <td className={td}>{r.stockList[v] > 0.5 && r.stockListPcs > 0 ? moneyK(r.stockList[v] / r.stockListPcs) : DASH}</td>
       <td className={td}>{x2(r.markupStock[v])}</td>

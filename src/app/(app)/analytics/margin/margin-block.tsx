@@ -183,9 +183,30 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
     setOpen(ids);
   };
 
+  // Получено и остаток — по отчёту «заказ и продажи» (эталон владельца 10.11.2026: 637 / 346), а не по строкам прихода (659 / 368):
+  // лист узла — строки отчёта модели (и цвета); выше листьев — сумма детей; колонка сезона — поступило по этому сезону отчёта.
+  const REP_SEASON: Record<string, string> = { "FW25/26": "FW25/26", SS2026: "SS26", "FW26/27": "FW26/27" };
+  const repSeasons = (gi: number): string[] => (gi > 0 ? [REP_SEASON[(groups[gi - 1]?.head ?? "").replace(/\s+/g, "")] ?? ""] : ["FW25/26", "SS26", "FW26/27"]);
+  const recvRep = (n: TreeNode, gi: number): number => {
+    // «Всего» и категория 1 — прямо по строкам отчёта (без суммирования детей: смешанные артикулы встречаются в нескольких ветках и дали бы двойной счёт).
+    if (n.dim === "cls" && n.id !== "total") { const cl = n.label === "Одежда" ? "clothes" : n.label === "Аксессуары" ? "acc" : null; if (cl) return confRows.filter((r) => r.cls === cl).reduce((a, r) => a + repSeasons(gi).reduce((x, sk) => x + (r.seas?.[sk]?.deliv ?? 0), 0), 0); }
+    if (n.children.length && n.id !== "total") return n.children.reduce((a, c) => a + recvRep(c, gi), 0);
+    if (n.id === "total") return confRows.reduce((a, r) => a + repSeasons(gi).reduce((x, sk) => x + (r.seas?.[sk]?.deliv ?? 0), 0), 0);
+    if (!n.modelCode) return 0;
+    const rs = confRows.filter((r) => r.modelCode === n.modelCode && (n.dim !== "color" || colorOfLine(r.color) === n.label));
+    return rs.reduce((a, r) => a + repSeasons(gi).reduce((x, sk) => x + (r.seas?.[sk]?.deliv ?? 0), 0), 0);
+  };
+  const useRep = hasConf && confRows.some((r) => r.seas);
   /** Conf из отчёта: только строка «Всего» и категории (сопоставимо по Level 02 отчёта). */
   const confOf = (n: TreeNode) => (!hasConf ? nodata : n.id === "total" ? String(confRows.reduce((a, r) => a + (r.conf ?? 0), 0)) : n.dim === "cls" && n.id.split("/").length === 2 ? String(confRows.filter((r) => r.cls === (n.label === "Одежда" ? "clothes" : n.label === "Аксессуары" ? "acc" : "other")).reduce((a, r) => a + (r.conf ?? 0), 0)) : nodata);
 
+  const repCell = (n: TreeNode, gi: number, m: { sold: number; received: number }, key: string) => {
+    const rec = recvRep(n, gi);
+    if (m.sold === 0 && rec === 0) return "–";
+    if (key === "received") return n0(rec);
+    if (key === "stock") { const v = rec - m.sold; return v < 0 && !n.children.length ? "–" : n0(v); }
+    return rec > 0 ? Math.round((m.sold / rec) * 100) + " %" : "–";
+  };
   const renderNode = (n: TreeNode, depth: number): React.ReactNode => {
     const isTotal = n.id === "total";
     const isOpen = isTotal || open.includes(n.id);
@@ -210,7 +231,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
               {!isTotal && n.dim === "article" ? <Link href={`/sales/movement?a=${encodeURIComponent(n.label)}`} aria-label={`Продажи и остатки: ${n.label}`} title="Продажи и остатки по артикулу" className="inline-flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded-md text-sm text-neutral-700 hover:text-neutral-900">↗</Link> : null}
             </span>
           </th>
-          {n.cols.map((m, gi) => measures.map((ms) => <td key={gi + ms.key} className={td + (gi === 0 ? " border-r border-neutral-200 font-semibold" : "")}>{ms.key === "conf" ? (gi === 0 ? confOf(n) : nodata) : m.sold === 0 && m.received === 0 ? "–" : ms.fmt(m, cur, vat)}</td>))}
+          {n.cols.map((m, gi) => measures.map((ms) => <td key={gi + ms.key} className={td + (gi === 0 ? " border-r border-neutral-200 font-semibold" : "")}>{ms.key === "conf" ? (gi === 0 ? confOf(n) : nodata) : useRep && (ms.key === "received" || ms.key === "stock" || ms.key === "sellThrough") ? repCell(n, gi, m, ms.key) : m.sold === 0 && m.received === 0 ? "–" : ms.fmt(m, cur, vat)}</td>))}
         </tr>
         {isOpen && (n.children.length ? n.children : sizeKids(n)).map((c) => renderNode(c, depth + 1))}
       </Fragment>
@@ -222,7 +243,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
   return (
     <section aria-label="Маржа и наценка" className="flex min-w-0 scroll-mt-16 flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3">
       <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">Маржа и наценка</h2><Link href="/sales" className="inline-flex min-h-11 items-center text-sm underline">Подробнее: Продажи и остатки →</Link></div>
-      <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-700 print:hidden"><span>Показано: {shown}</span><span>Приход {view.tree.cols[0].received} шт. · продано {view.tree.cols[0].sold} шт.</span><Link href="/sales" className="inline-flex min-h-11 items-center underline">Продажи и остатки</Link><button type="button" onClick={onChange} className="inline-flex min-h-11 items-center rounded-md px-2 underline">Изменить</button></p>
+      <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-700 print:hidden"><span>Показано: {shown}</span><span>Приход {useRep ? recvRep(tree, 0) : view.tree.cols[0].received} шт. · продано {view.tree.cols[0].sold} шт.</span><Link href="/sales" className="inline-flex min-h-11 items-center underline">Продажи и остатки</Link><button type="button" onClick={onChange} className="inline-flex min-h-11 items-center rounded-md px-2 underline">Изменить</button></p>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <Tile label="Средняя наценка" value={x2(data.avgMarkup)} sub={`простой по ${data.avgMarkupN} моделям`} hint={<p>Маркап модели = текущая розница с НДС ÷ себестоимость единицы с работой и НДС (как «Себестоимость» в «Изделиях»). Здесь — простое среднее по моделям, у которых есть и цена, и себестоимость. Наценка в % = (маркап − 1) × 100.</p>} />
         <Tile label="По приходу" value={x2(data.weightedByReceipts)} sub="вес — единицы прихода" hint={<p>Средневзвешенный маркап: Σ(розница × единицы прихода) ÷ Σ(себестоимость × единицы прихода).</p>} />

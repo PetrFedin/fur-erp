@@ -72,6 +72,7 @@ async function main() {
   const unitAll = (l: Leaf) => (l.ttlConf > 0 && l.ttlEur > 0 ? l.ttlEur / l.ttlConf : unitFw(l));
 
   const N0 = "#,##0;-#,##0;–";
+  const NNEG = "#,##0;\"–\";\"–\""; // остаток не бывает отрицательным: продано сверх прихода показываем «–» (значение остаётся для итогов)
   const r2 = (v: number) => Math.round(v * 100) / 100;
   const G1 = "Товар FW26/27", G2 = "Продажи других сезонов в календарном FW26", G3 = "Остатки", G4 = "Для MU (служебные)", G5 = "Заказ всего, €", G6 = "Приход всего и остаток в €";
   const FILL: Record<string, string> = { [G1]: "FFE7F5EC", [G2]: "FFFDF1DC", [G3]: "FFE8EEFC", [G4]: "FFEFEFEF", [G5]: "FFE7F5EC", [G6]: "FFE8EEFC" };
@@ -125,7 +126,7 @@ async function main() {
   list.forEach((l, r) => {
     const x = ws.getRow(FIRST + r);
     [l.fur, l.c1, l.c2, l.article, l.color || "(без цвета)"].forEach((v, i) => { x.getCell(i + 1).value = v; });
-    cols.forEach((c, i) => { const cell = x.getCell(c0 + i); cell.value = c.get(l); cell.numFmt = N0; });
+    cols.forEach((c, i) => { const cell = x.getCell(c0 + i); cell.value = c.get(l); cell.numFmt = /^(Остаток|Stock EUR)/.test(c.head) ? NNEG : N0; });
   });
   const tr = ws.getRow(LAST + 2);
   tr.getCell(1).value = "Итого (по видимым строкам фильтра)";

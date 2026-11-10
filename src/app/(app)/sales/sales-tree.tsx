@@ -87,12 +87,14 @@ function Columns({ measures, keys, onKey, levels, onLevel, onCollapse }: { measu
 }
 
 export type TreeProps = {
+  /** Без фильтров по периоду, сезону, меху, категории 2 и поиску: заказано / получено / остаток берутся из отчёта. */
+  plain?: boolean;
   input: MarginInputS; lines: SLine[]; env: Env; vat: "ex" | "in"; cat: Cat; sizes: ReportSizeRow[]; photos: PhotoIdx;
   struct: Struct; onStruct: (s: Struct) => void;
   picked: MKey[] | null; onPicked: (k: MKey[]) => void; filtersNote: string;
 };
 
-export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, onStruct, picked, onPicked, filtersNote }: TreeProps) {
+export function SalesTree({ plain = true, input, lines, env, vat, cat, sizes, photos, struct, onStruct, picked, onPicked, filtersNote }: TreeProps) {
   const [open, setOpen] = useState<string[]>([]);
   const narrow = useSyncExternalStore(
     (cb) => { const mq = window.matchMedia("(max-width: 639px)"); mq.addEventListener("change", cb); return () => mq.removeEventListener("change", cb); },
@@ -114,7 +116,8 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
 
   const { groups, tree, order } = view;
   const confRows = sizes.filter((r) => cat === "all" || r.cls === cat);
-  const hasConf = confRows.some((r) => (r.conf ?? 0) > 0);
+  // Заказано / получено / остаток по отчёту — только без фильтров по периоду, сезону, меху, категории 2 и поиску (отчёт по ним не делится); с фильтрами — по строкам набора.
+  const hasConf = plain && confRows.some((r) => (r.conf ?? 0) > 0);
   const available = MEASURES.filter((m) => m.key !== "conf" || hasConf);
   const measures = available.filter((m) => keys.includes(m.key));
   const msOf = (gi: number) => measures.filter((ms) => gi === 0 || !ms.totalOnly);
@@ -150,7 +153,8 @@ export function SalesTree({ input, lines, env, vat, cat, sizes, photos, struct, 
     if (ms.totalOnly && gi > 0) return DASH;
     if (ms.key === "conf") return confOf(n, gi, m.received);
     if (hasConf && n.dim !== "size" && ms.key === "received") { const v = recvRepOf(n, gi); return v ? n0(v) : DASH; }
-    if (hasConf && n.dim !== "size" && ms.key === "stock") { const v = recvRepOf(n, gi) - m.sold; return v ? n0(v) : DASH; }
+    if (hasConf && n.dim !== "size" && ms.key === "stock") { const v = recvRepOf(n, gi) - m.sold; return v > 0 ? n0(v) : DASH; } // остаток не бывает отрицательным: продано сверх прихода — «–»
+    if (ms.key === "stock" && m.stock < 0) return DASH;
     if (ms.key === "sellThrough" && n.dim !== "size") { const o = confNumOf(n, gi, m.received); return o > 0 && !(m.sold === 0 && m.received === 0 && m.discountSum === 0) ? pct(m.sold / o) : DASH; }
     if (n.dim === "size" && !["received", "sold", "revenue", "avgPrice", "stock", "sellThrough"].includes(ms.key)) return DASH;
     if (m.sold === 0 && m.received === 0 && m.discountSum === 0) return DASH;

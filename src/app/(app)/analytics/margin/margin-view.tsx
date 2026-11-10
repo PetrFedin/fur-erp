@@ -37,7 +37,8 @@ export function MarginView({ input, sizes, photos, priceModels, canEdit, initial
   }
   const setVat = (v: "ex" | "in") => { setVatState(v); vatDisp.setMode(v === "ex" ? "excl" : "incl"); router.replace(urlOf(cat, tree, cur, v), { scroll: false }); };
   // Счётчики на кнопках — единицы прихода по строкам выгрузки (категория по Level 02, как в Cashflow).
-  const count = (k: Cat) => (input ? input.lines.filter((l) => l.kind === "RECEIPT" && (k === "all" || l.cls === k)).reduce((a, l) => a + l.pcs, 0) : 0);
+  // Счётчики — по отчёту «заказ и продажи» (эталон владельца: 637 = 330 + 307); нет отчёта — по строкам выгрузки.
+  const count = (k: Cat) => (sizes.some((r) => r.seas) ? sizes.filter((r) => k === "all" || r.cls === k).reduce((a, r) => a + Object.values(r.seas ?? {}).reduce((x, c) => x + (c.deliv ?? 0), 0), 0) : input ? input.lines.filter((l) => l.kind === "RECEIPT" && (k === "all" || l.cls === k)).reduce((a, l) => a + l.pcs, 0) : 0);
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">

@@ -1,7 +1,8 @@
 import { requireSession } from "@/lib/session";
 import { loadPaymentsOverview, loadPaymentsLeft } from "@/lib/payments-overview";
 import { payLites } from "@/lib/cashflow-detail";
-import { prepaidItems, buildCashflow, vatShares, aggregateSales, monthsOf, parsePeriod, workByClass, currentMonthMsk } from "@/lib/cashflow";
+import { loadReportSizes } from "@/lib/margin-server";
+import { fitReceipts, prepaidItems, buildCashflow, vatShares, aggregateSales, monthsOf, parsePeriod, workByClass, currentMonthMsk } from "@/lib/cashflow";
 import { loadPurchaseVat, loadServiceParts, loadSalesLines, loadOrderClasses } from "@/lib/cashflow-server";
 import { loadDashboard } from "@/lib/dashboard-data";
 import { parseDashFilters } from "@/lib/dashboard-calc";
@@ -22,7 +23,14 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
   const ex = buildCashflow(rows, "all", vs.share);
   const services = await loadServiceParts(org, rows);
   const months = monthsOf("all");
-  const salesBy = { all: aggregateSales(lines, months), clothes: aggregateSales(lines, months, "clothes"), acc: aggregateSales(lines, months, "acc"), other: aggregateSales(lines, months, "other") };
+  const salesRaw = { clothes: aggregateSales(lines, months, "clothes"), acc: aggregateSales(lines, months, "acc"), other: aggregateSales(lines, months, "other") };
+  // Приход — по отчёту «заказ и продажи» (637), даты — по строкам файла; нет отчёта — как в файле (659).
+  const repSizes = await loadReportSizes(org);
+  const repOf = (cls: string) => repSizes.filter((r) => r.cls === cls).reduce((a, r) => a + Object.values(r.seas ?? {}).reduce((x, c) => x + (c.deliv ?? 0), 0), 0);
+  const useRep = repSizes.some((r) => r.seas);
+  const fitted = useRep ? { clothes: fitReceipts(salesRaw.clothes, repOf("clothes")), acc: fitReceipts(salesRaw.acc, repOf("acc")), other: fitReceipts(salesRaw.other, repOf("other")) } : salesRaw;
+  const allBase = aggregateSales(lines, months);
+  const salesBy = { all: useRep ? { ...allBase, recPcs: allBase.recPcs.map((_, i) => fitted.clothes.recPcs[i] + fitted.acc.recPcs[i] + fitted.other.recPcs[i]) } : allBase, ...fitted };
   const left = await loadPaymentsLeft(org);
   /** Предоплата за заказы, по которым товар ещё не принят (деньги ушли, лотов нет). */
   const dash = await loadDashboard(org, "all", parseDashFilters({}), "off");

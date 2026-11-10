@@ -155,6 +155,20 @@ export type SalesMonthly = {
   discIncl: number[];
 };
 
+/**
+ * Приход по отчёту «заказ и продажи» (эталон владельца: 637, а не 659 по строкам файла): итог по категории равен отчёту, распределение по месяцам — по датам файла
+ * (пропорционально, целыми штуками, метод наибольших остатков). Нет данных или нет прихода в файле — без изменений.
+ */
+export function fitReceipts(s: SalesMonthly, target: number): SalesMonthly {
+  const w = s.recPcs.map((v) => Math.max(0, v)), sw = w.reduce((a, b) => a + b, 0);
+  if (!(sw > 0) || !Number.isFinite(target) || target < 0) return s;
+  const ideal = w.map((v) => (v / sw) * target), out = ideal.map((v) => Math.floor(v));
+  let left = Math.round(target) - out.reduce((a, b) => a + b, 0);
+  const order = ideal.map((v, i) => [v - Math.floor(v), i] as const).sort((a, b) => b[0] - a[0]);
+  for (let k = 0; left > 0 && order.length; k++, left--) out[order[k % order.length][1]]++;
+  return { ...s, recPcs: out };
+}
+
 export function aggregateSales(lines0: SalesAggLine[], months: string[], cls: CatClass | "all" = "all"): SalesMonthly {
   const lines = cls === "all" ? lines0 : lines0.filter((l) => l.cls === cls);
   const idx = new Map(months.map((m, i) => [m, i]));

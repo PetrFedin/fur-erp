@@ -32,6 +32,8 @@ const GET: Record<string, (g: Agg) => number | string | null> = {
   meters: (g) => per(g.meters, qtyOf(g)),
   fur: (g) => per(g.fur, qtyOf(g)),
   lining: (g) => per(g.lining, qtyOf(g)),
+  c4: (g) => per(g.c4, qtyOf(g)),
+  other: (g) => per(g.other, qtyOf(g)),
   work: (g) => per(g.work, qtyOf(g)),
   full: (g) => per(cost(g), qtyOf(g)),
 };
@@ -59,6 +61,8 @@ export function AveragesTable({ data: rawData, volume = "ordered", groupScale = 
         <td className={c}>{n2(per(g.meters, q))}</td>
         <td className={c + BL}>{money(per(g.fur, q))}</td>
         <td className={c}>{money(per(g.lining, q))}</td>
+        <td className={c}>{money(per(g.c4, q))}</td>
+        <td className={c}>{money(per(g.other, q))}</td>
         <td className={c}>{money(per(g.work, q))}</td>
         <td className={c + BL + " font-medium"}>{money(per(cost(g), q))}</td>
       </>
@@ -102,13 +106,13 @@ export function AveragesTable({ data: rawData, volume = "ordered", groupScale = 
       </div>
       {!data ? <p className="py-4 text-sm text-neutral-500">Загрузка…</p> : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left">
+          <table className="w-full min-w-[1000px] text-left">
             <thead>
               <tr>
                 <th />
                 <THGroup colSpan={1} sep={false}>Объём</THGroup>
                 <THGroup colSpan={2}>Расход на изделие</THGroup>
-                <THGroup colSpan={3}>Стоимость на изделие</THGroup>
+                <THGroup colSpan={5}>Стоимость на изделие</THGroup>
                 <THGroup colSpan={1}>Итого</THGroup>
               </tr>
               <tr className="border-b border-neutral-200 text-xs text-neutral-500">
@@ -118,6 +122,8 @@ export function AveragesTable({ data: rawData, volume = "ordered", groupScale = 
                 <TH label="Подкладки" unit="м/изд." {...th("meters")} />
                 <TH label="Мех" unit="₽/изд." sep {...th("fur")} />
                 <TH label="Подкладка" unit="₽/изд." {...th("lining")} />
+                <TH label="4%" unit="₽/изд." {...th("c4")} />
+                <TH label="Расходы ТЗ" unit="₽/изд." {...th("other")} />
                 <TH label="Работа" unit="₽/изд." {...th("work")} />
                 <TH label="Ср. себестоимость" unit="₽/изд." sep {...th("full")} />
               </tr>

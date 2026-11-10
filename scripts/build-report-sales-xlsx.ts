@@ -118,6 +118,9 @@ async function main() {
   }
   // Евро в тысячах, как в подписи «NS 000'EUR excl VAT»: значения в ячейках полные, формат показывает тысячи.
   for (let c = 9; c <= 31; c++) { const h = String(R.getCell(6, c).value ?? ""); if (h === "EUR" || h === "NS EUR") for (let r = 7; r < rrow; r++) R.getCell(r, c).numFmt = "#,##0,;-#,##0,;–"; }
+  // Остаток не бывает отрицательным: отрицательное значение (продано сверх прихода) показываем «–»; значения остаются, чтобы итоги сходились (346).
+  for (const c of [27, 28, 29]) for (let r = 7; r < rrow; r++) R.getCell(r, c).numFmt = '#,##0;"–";"–"';
+  for (const c of [30, 31]) for (let r = 7; r < rrow; r++) R.getCell(r, c).numFmt = '#,##0,;"–";"–"';
   wb.calcProperties.fullCalcOnLoad = true;
   writeFileSync(out, Buffer.from(await wb.xlsx.writeBuffer()));
   console.log(out, JSON.stringify({ rows: rows.length, orderPcsFW26: sumPcs(rows), orderEurFW26: Math.round(sumEur(rows)), reportRows: rrow - 7 }));

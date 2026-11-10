@@ -99,7 +99,7 @@ const COLS: Col[] = [
   { key: "all", label: "Продано всего, шт.", short: "Прод. всего, шт.", hint: "Весь календарь сезона: товар этого сезона (SSN) + олды, то есть товар прошлых сезонов, проданный в этом календаре.", get: (m) => n0(m.all), strong: true },
   { key: "goods", label: "Продано товара сезона, шт.", short: "Прод. товара, шт.", hint: "Товар, заказанный на этот сезон, проданный за всё время: в свой календарный сезон (SSN) и позже. Получено − это число = остаток сезона.", get: (m) => n0(m.allG), strong: true },
   { key: "soA", label: "SO STD, %", short: "SO STD", hint: "Товар этого сезона, проданный за всё время (в свой сезон и позже), ÷ заказано. Олды в календаре сезона в SO не входят.", get: (m) => pct(soA(m)) },
-  { key: "left", label: "Остаток сезона, шт.", short: "Остаток сезона, шт.", hint: "Товар, заказанный на этот сезон: поступило − продано за всё время = остаток.", get: (m) => n0(m.stock), strong: true },
+  { key: "left", label: "Остаток сезона, шт.", short: "Остаток сезона, шт.", hint: "Товар, заказанный на этот сезон: поступило − продано за всё время = остаток.", get: (m) => n0(Math.max(0, m.stock)), strong: true },
   { key: "rubS", label: "Выручка за сезон, ₽", short: "Выручка сезон", hint: "Выручка с продаж товара этого сезона в его календарь: после скидки. С НДС или без — как в шапке.", get: (m) => mnyC(m.rubS), strong: true },
   { key: "rubA", label: "Выручка всего, ₽", short: "Выручка всего", hint: "Выручка всего календаря сезона: товар сезона + олды. С НДС или без — как в шапке.", get: (m) => mnyC(m.rubA), strong: true },
   { key: "after", label: "Продано олдов, шт.", short: "Олды, шт.", hint: "Товар прошлых сезонов, проданный в календаре этого сезона: продано всего − продано за сезон.", get: (m) => n0(Math.max(0, m.all - m.ssn)) },
@@ -455,7 +455,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
             </div>
           </td>
           {rowCells(n.m)}
-          <td className="border-l border-neutral-300 px-2 py-2 text-right tabular-nums">{n0(n.stock)}</td>
+          <td className="border-l border-neutral-300 px-2 py-2 text-right tabular-nums">{n.stock < 0 ? DASH : n0(n.stock)}</td>
         </tr>
         {isOpen ? n.children.map((c) => renderNode(c, depth + 1)) : null}
       </Fragment>

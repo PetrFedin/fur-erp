@@ -116,6 +116,17 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
   const recvEff = orderFree ? receivedByReport(sizes, ui.f.cat, ui.f.seasons) : head.received;
   const stockEff = isPlain && hasReport ? recvEff - head.sold : stockEnd; // остаток = получено − продано (637 − 291 = 346)
   const soStdHead = orderedHead > 0 ? head.sold / orderedHead : null;
+  // Окна плиток: без фильтров получено / заказано / остаток / SO STD — по отчёту «заказ и продажи» (845 / 637 / 346), как сама плитка; продано — по строкам продаж.
+  const winRep = isPlain && hasReport;
+  const SEAS_ALL = ["FW25/26", "SS26", "FW26/27"];
+  const SEAS_KEY = (lbl: string) => ({ "FW25/26": "FW25/26", SS2026: "SS26", "FW26/27": "FW26/27" } as Record<string, string>)[lbl.replace(/\s+/g, "")] ?? "";
+  const winRows = sizes.filter((r) => ui.f.cat === "all" || r.cls === ui.f.cat);
+  const ovl = <T extends { sold: number }>(m: T, rows: typeof sizes, keys: string[]): T => {
+    if (!winRep || !keys.length || keys.some((k) => !k)) return m;
+    const recv = rows.reduce((a, r) => a + keys.reduce((x, sk) => x + (r.seas?.[sk]?.deliv ?? 0), 0), 0);
+    const ord = rows.reduce((a, r) => a + keys.reduce((x, sk) => { const c = r.seas?.[sk]; return x + (sk === "FW26/27" ? c?.conf ?? 0 : c?.conf ?? c?.deliv ?? 0); }, 0), 0);
+    return { ...m, received: recv, stock: recv - m.sold, ordered: ord, soStd: ord > 0 ? m.sold / ord : null };
+  };
   const tiles: TileDef[] = [
     { id: "received", label: "Получено, шт.", value: n0(recvEff),
       how: <p>{orderFree ? "Приход по отчёту «заказ и продажи»: товар каждого сезона за всё время (FW 25/26 + SS 2026 + FW 26/27)." : "Приход (Delivery): сумма штук строк прихода выгрузки за период."} Корректировки прихода с минусом уже вычтены.</p>,
@@ -124,7 +135,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
       how: <><p>Нетто = валовое {n0(head.gross)} − возвраты {n0(head.returns)}. Деньги — за тот же период ({vatNote}; НДС 20 % до 2026, 22 % с 2026).</p>{head.noPcs > 0 ? <p className="mt-1">{head.noPcs} строк продаж без штук: только скидка, в штуки не входят.</p> : null}</>,
       cols: [{ head: "Нетто, шт.", get: (e) => n0(e.sold) }, { head: "Выручка, ₽", get: (e) => money(e.revenue) }, { head: "Ср. цена, ₽", get: (e) => money(e.avgPrice) }, { head: "Скидка", get: (e) => pct(e.discountGiven, 1) }, { head: "Маржа", get: (e) => (e.grossMarginPct === null ? DASH : pct(e.grossMarginPct / 100, 1)) }] },
     { id: "stock", label: "Остаток, шт.", value: n0(stockEff), sub: dmRef !== null && isPlain ? `datamart на ${dmDate}: ${n0(dmRef)} · разница ${n0(Math.abs(dmDiff))}` : undefined,
-      how: <><p>Расчётный остаток = приход − продано нарастающим итогом на конец периода{opening ? ` (на начало периода: ${n0(opening)} шт.)` : ""}.</p>{dmStock && dmRef !== null && isPlain ? <p className="mt-1">Остаток по витрине datamart (по нашим заказам): {dmStock.snapshots.map((x) => `${x.date.split("-").reverse().join(".")} — ${n0(ui.f.cat === "clothes" ? x.rtw : ui.f.cat === "acc" ? x.acc : x.total)} шт.`).join(", ")}. Расчёт на {dmDate}: {n0(stockEnd)} шт., разница {n0(Math.abs(dmDiff))} шт.</p> : null}{hasReport && isPlain ? <p className="mt-1">В отчёте о товарах (Report) на {reportDate} остаток {n0(reportStock)} шт., расчёт даёт {n0(stockEnd)} шт.: {diff === 0 ? "совпадает" : `разница ${n0(Math.abs(diff))} шт.`}. Причина в выгрузке не видна.</p> : null}</>,
+      how: <><p>Расчётный остаток = приход − продано нарастающим итогом на конец периода{opening ? ` (на начало периода: ${n0(opening)} шт.)` : ""}.</p>{dmStock && dmRef !== null && isPlain && !hasReport ? <p className="mt-1">Остаток по витрине datamart (по нашим заказам): {dmStock.snapshots.map((x) => `${x.date.split("-").reverse().join(".")} — ${n0(ui.f.cat === "clothes" ? x.rtw : ui.f.cat === "acc" ? x.acc : x.total)} шт.`).join(", ")}. Расчёт на {dmDate}: {n0(stockEnd)} шт., разница {n0(Math.abs(dmDiff))} шт.</p> : null}{hasReport && isPlain ? <p className="mt-1">Остаток по отчёту «заказ и продажи»: получено {n0(recvEff)} − продано {n0(head.sold)} = {n0(stockEff)} шт.</p> : null}</>,
       cols: [{ head: "Приход", get: (e) => n0(e.received) }, { head: "Продано", get: (e) => n0(e.sold) }, { head: "Остаток", get: (e) => n0(e.stock) }] },
     { id: "sellThrough", label: "SO STD, %", value: pct(soStdHead),
       how: <p>SO STD = продано товара сезона ÷ заказано, единицы. Заказано по отчёту: закрытые сезоны — получено, FW 26/27 — заказ отчёта (не меньше полученного). Продажи другого сезона в сезонный товар не входят. При фильтре по датам, категории 2, меху или поиску заказ берётся по тем же строкам прихода.</p>,
@@ -236,7 +247,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
             {tiles.map((t) => <Tile key={t.id} def={t} onOpen={setTile} />)}
           </section>
           <SalesCharts buckets={buckets} gran={ui.gran} onGran={(g) => { patch({ gran: g }); setHot(null); }} hot={hot} setHot={setHot} />
-          <SalesTree input={input} lines={lines} env={env} vat={ui.vat} cat={ui.f.cat} sizes={sizes} photos={photos} struct={ui.struct} onStruct={(s) => patch({ struct: s })}
+          <SalesTree plain={isPlain} input={input} lines={lines} env={env} vat={ui.vat} cat={ui.f.cat} sizes={sizes} photos={photos} struct={ui.struct} onStruct={(s) => patch({ struct: s })}
             picked={ui.cols} onPicked={(k) => patch({ cols: k })} filtersNote={note} />
         </>
       ) : ui.tab === "seasons" ? (
@@ -259,22 +270,22 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
           <div className="text-sm text-neutral-800">{openDef.how}</div>
           <p className="text-3xl font-semibold tabular-nums">{openDef.value}</p>
           <h3 className="text-sm font-semibold">По сезонам</h3>
-          <MiniTable head={["Сезон", ...openDef.cols.map((c) => c.head)]} rows={bySeason.map((b) => [b.label, ...openDef.cols.map((c) => c.get(b.m))])} total={["Всего", ...openDef.cols.map((c) => c.get(head))]} />
+          <MiniTable head={["Сезон", ...openDef.cols.map((c) => c.head)]} rows={bySeason.map((b) => [b.label, ...openDef.cols.map((c) => c.get(ovl(b.m, winRows, [SEAS_KEY(b.label)])))])} total={["Всего", ...openDef.cols.map((c) => c.get(ovl(head, winRows, SEAS_ALL)))]} />
           {openDef.id === "received" && (
             <>
-              <h3 className="text-sm font-semibold">По заказам</h3>
+              <h3 className="text-sm font-semibold">По заказам · по строкам файла (по датам прихода)</h3>
               <MiniTable head={["Заказ", "Получено, шт."]} rows={byOrder.map((g) => [`№${g.label}`, n0(g.m.received)])} total={["Всего", n0(head.received)]} />
               <p className="text-sm text-neutral-800">Из них отгружено ателье: {n0(chain.shipped)} шт. → принято по приёмке: {n0(chain.accepted)} шт. (отгрузок: {chain.shipments}).</p>
               <div className="flex flex-wrap gap-2"><Link href="/shipments" className={btn}>Отгрузки →</Link><Link href="/production" className={btn}>ТЗ →</Link></div>
             </>
           )}
           <h3 className="text-sm font-semibold">По категориям</h3>
-          <MiniTable head={["Категория 1", ...openDef.cols.map((c) => c.head)]} rows={byCls.map((b) => [b.label, ...openDef.cols.map((c) => c.get(b.m))])} total={["Всего", ...openDef.cols.map((c) => c.get(head))]} />
-          {openDef.id === "stock" && dmRef !== null && isPlain ? (
+          <MiniTable head={["Категория 1", ...openDef.cols.map((c) => c.head)]} rows={byCls.map((b) => [b.label, ...openDef.cols.map((c) => c.get(ovl(b.m, winRows.filter((r) => r.cls === b.key), SEAS_ALL)))])} total={["Всего", ...openDef.cols.map((c) => c.get(ovl(head, winRows, SEAS_ALL)))]} />
+          {openDef.id === "stock" && dmRef !== null && isPlain && !hasReport ? (
             <p className="text-sm text-neutral-800">datamart на {dmDate}: {n0(dmRef)} шт. · расчёт: {n0(stockEnd)} шт. · разница: {dmDiff === 0 ? DASH : n0(Math.abs(dmDiff)) + " шт."}. Снимки: {dmStock!.snapshots.map((x) => `${x.date.split("-").reverse().join(".")} — ${n0(ui.f.cat === "clothes" ? x.rtw : ui.f.cat === "acc" ? x.acc : x.total)}`).join(", ")}.</p>
           ) : null}
           {openDef.id === "stock" && hasReport && isPlain ? (
-            <p className="text-sm text-neutral-800">Отчёт на {reportDate}: {n0(reportStock)} шт. · расчёт: {n0(stockEnd)} шт. · разница: {diff === 0 ? DASH : n0(Math.abs(diff)) + " шт."}. Причина в выгрузке не видна.</p>
+            <p className="text-sm text-neutral-800">Остаток по отчёту «заказ и продажи»: получено {n0(recvEff)} − продано {n0(head.sold)} = {n0(stockEff)} шт.</p>
           ) : null}
           <div className="flex flex-wrap gap-2">
             <button type="button" className={btn} onClick={() => { setTile(null); patch({ tab: "stock" }); }}>Остатки по артикулам</button>
