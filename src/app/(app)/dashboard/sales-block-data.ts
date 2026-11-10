@@ -34,7 +34,7 @@ export type SalesMonth = { key: string; label: string; received: number; sold: n
 export type NodeSeries = { r: number[]; s: number[]; st: number[]; ss: Record<string, number[]> };
 export type SalesRow = {
   id: string; label: string; sub?: string; depth: number; /** Заказано, шт. (пришло + ждём): только в срезе сезона отчёта с «ждём» (FW 26/27). */ ordered?: number; /** Приход / продано / остаток по месяцам узла на оси месяцев среза (график при наведении на строку; верхние три уровня). */ series?: NodeSeries; received: number; sold: number; stock: number; sellThrough: number | null; /** Приход в розничных ценах прайса 19.10 (штуки без цены в сумму не входят). */ recvList: VatPair;
-  revenue: VatPair; avgPrice: { in: number | null; ex: number | null }; /** Остаток в розничных ценах прайса 19.10 (строки без цены в сумму не входят). */ stockList: VatPair; /** Штуки остатка, покрытые розничной ценой (для средневзвешенной цены остатка). */ stockListPcs: number; /** Полученное в деньгах: себестоимость ТЗ (что мы заплатили за полученные штуки; штуки без себестоимости в сумму не входят). */ recvCost: VatPair; /** Штуки прихода, у которых есть себестоимость (для средневзвешенной цены прихода). */ recvCostPcs: number; /** Маркап продаж и остатка (×), по режимам НДС. */ markupSold: { in: number | null; ex: number | null }; markupStock: { in: number | null; ex: number | null }; /** Весь остаток на сегодня по всем сезонам (в срезе «все сезоны» равен stock); у сезона доля = stock ÷ stockCum. */ stockCum: number; /** Весь остаток в розничных ценах и штуки, покрытые ценой (для средневзвешенной цены всего остатка). */ stockListCum: VatPair; stockListPcsCum: number; markupStockCum: { in: number | null; ex: number | null }; /** SO AS: проданное до конца сезона ÷ получено (только у закончившихся сезонов). SO STD — sellThrough на сегодня. */ soAs: number | null; children: SalesRow[];
+  revenue: VatPair; avgPrice: { in: number | null; ex: number | null }; /** Остаток в розничных ценах прайса 19.10 (строки без цены в сумму не входят). */ stockList: VatPair; /** Штуки остатка, покрытые розничной ценой (для средневзвешенной цены остатка). */ stockListPcs: number; /** Полученное в деньгах: себестоимость ТЗ (что мы заплатили за полученные штуки; штуки без себестоимости в сумму не входят). */ recvCost: VatPair; /** Штуки прихода, у которых есть себестоимость (для средневзвешенной цены прихода). */ recvCostPcs: number; /** Штуки, покрытые прайсом (для средней цены по прайсу). */ recvListPcs: number; /** Маркап продаж и остатка (×), по режимам НДС. */ markupSold: { in: number | null; ex: number | null }; markupStock: { in: number | null; ex: number | null }; /** Весь остаток на сегодня по всем сезонам (в срезе «все сезоны» равен stock); у сезона доля = stock ÷ stockCum. */ stockCum: number; /** Весь остаток в розничных ценах и штуки, покрытые ценой (для средневзвешенной цены всего остатка). */ stockListCum: VatPair; stockListPcsCum: number; markupStockCum: { in: number | null; ex: number | null }; /** SO AS: проданное до конца сезона ÷ получено (только у закончившихся сезонов). SO STD — sellThrough на сегодня. */ soAs: number | null; children: SalesRow[];
 };
 export type SalesCls = "all" | "clothes" | "acc";
 export const SALES_CLS: SalesCls[] = ["all", "clothes", "acc"];
@@ -223,7 +223,7 @@ function sizeRows(n: SNode, depth: number, e: RowEnv): SalesRow[] {
     return {
       id: z.id, label: z.label, depth: depth + 1, recvList: { in: 0, ex: 0 }, received: m.received, sold: m.sold, stock: m.stock, sellThrough: m.sellThrough,
       revenue: { in: m.revenueIncl, ex: m.revenueEx }, avgPrice: { in: nul(m.avgPrice), ex: nul(m.sold > 0 ? m.revenueEx / m.sold : null) },
-      stockList: { in: 0, ex: 0 }, stockListPcs: 0, recvCost: { in: 0, ex: 0 }, recvCostPcs: 0, markupSold: { in: null, ex: null }, markupStock: { in: null, ex: null }, stockCum: m.stock, stockListCum: { in: 0, ex: 0 }, stockListPcsCum: 0, markupStockCum: { in: null, ex: null }, soAs: null, children: [],
+      stockList: { in: 0, ex: 0 }, stockListPcs: 0, recvCost: { in: 0, ex: 0 }, recvCostPcs: 0, recvListPcs: 0, markupSold: { in: null, ex: null }, markupStock: { in: null, ex: null }, stockCum: m.stock, stockListCum: { in: 0, ex: 0 }, stockListPcsCum: 0, markupStockCum: { in: null, ex: null }, soAs: null, children: [],
     };
   });
 }
@@ -231,8 +231,8 @@ function sizeRows(n: SNode, depth: number, e: RowEnv): SalesRow[] {
 const inPeriod2 = (l: SLine, e: RowEnv) => e.inPeriod(l);
 type CumNode = { stock: number; list: VatPair; listPcs: number; markup: { in: number | null; ex: number | null } };
 /** Деньги узла по отчёту «заказ и продажи» (по размерам): получено и остаток × себестоимость изделия и прайс размера. */
-type RepMoney = { recvCost: number; recvCostPcs: number; recvList: number; stockCost: number; stockList: number; stockListPcs: number; bothList: number; bothCost: number };
-const zeroMoney = (): RepMoney => ({ recvCost: 0, recvCostPcs: 0, recvList: 0, stockCost: 0, stockList: 0, stockListPcs: 0, bothList: 0, bothCost: 0 });
+type RepMoney = { recvCost: number; recvCostPcs: number; recvList: number; recvListPcs: number; stockCost: number; stockList: number; stockListPcs: number; bothList: number; bothCost: number };
+const zeroMoney = (): RepMoney => ({ recvCost: 0, recvCostPcs: 0, recvList: 0, recvListPcs: 0, stockCost: 0, stockList: 0, stockListPcs: 0, bothList: 0, bothCost: 0 });
 type RowEnv = { /** Получено и остаток узла по отчёту «заказ и продажи» (по артикулу+цвету строк узла); null — по строкам прихода. */ rep?: { received: (ls: SLine[]) => number; stock: (ls: SLine[], sold: number) => number; money: (ls: SLine[], v: "in" | "ex") => RepMoney } | null; /** Помесячный ряд узла по его строкам на оси месяцев среза; null — не считать. */ seriesOf: ((lines: SLine[]) => NodeSeries) | null; seasonEnd: string | null; cum: Map<string, CumNode> | null; ctxs: { in: Ctx; ex: Ctx }; inPeriod: (l: SLine) => boolean; /** Размеры из Report (справочно, без привязки к датам и сезонам): только в срезе «все сезоны». */ sizes: ReportSizeRow[]; cat: Cat };
 function rowOf(n: SNode, depth: number, tIn: SNode, tEx: SNode, e: RowEnv): SalesRow {
   // cols[0] — всё до конца периода (остаток), cols[1] — движения внутри периода.
@@ -251,6 +251,7 @@ function rowOf(n: SNode, depth: number, tIn: SNode, tEx: SNode, e: RowEnv): Sale
     markupSold: { in: stockMoney(e.ctxs.in, inPer, n.lines).markupSold, ex: stockMoney(e.ctxs.ex, inPer, n.lines).markupSold },
     markupStock: rm ? { in: rm.in.bothCost > 0 ? rm.in.bothList / rm.in.bothCost : null, ex: rm.ex.bothCost > 0 ? rm.ex.bothList / rm.ex.bothCost : null } : { in: stockMoney(e.ctxs.in, inPer, n.lines).markupStock, ex: stockMoney(e.ctxs.ex, inPer, n.lines).markupStock },
     recvCostPcs: rm ? rm.in.recvCostPcs : stockMoney(e.ctxs.in, inPer, n.lines).recvCostPcs,
+    recvListPcs: rm ? rm.in.recvListPcs : stockMoney(e.ctxs.in, inPer, n.lines).recvListPcs,
     recvCost: rm ? { in: rm.in.recvCost, ex: rm.ex.recvCost } : { in: stockMoney(e.ctxs.in, inPer, n.lines).recvCost, ex: stockMoney(e.ctxs.ex, inPer, n.lines).recvCost },
     soAs: e.seasonEnd && (e.rep && n.lines.length ? e.rep.received(n.lines) : inP.received) > 0 ? n.lines.filter((l) => l.kind === "SALE" && l.iso <= e.seasonEnd! && inPeriod2(l, e)).reduce((a, l) => a + l.pcs, 0) / (e.rep && n.lines.length ? e.rep.received(n.lines) : inP.received) : null,
     stockCum: e.cum?.get(n.id)?.stock ?? n.cols[0].stock,
@@ -313,7 +314,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
         for (const v of ["in", "ex"] as const) {
           const ctx = ctxs[v], q = a.m[v], hasC = ctx.hasCost(key), c = hasC ? (v === "in" ? ctx.unitIncl(key) : ctx.unitExcl(key)) : 0, p = p0 === undefined ? null : v === "in" ? p0 : exVatAt(p0, todayMsk());
           if (hasC) { q.recvCost += c * dl; q.recvCostPcs += dl; q.stockCost += c * st; }
-          if (p !== null) { q.recvList += p * dl; q.stockList += p * st; q.stockListPcs += st; }
+          if (p !== null) { q.recvList += p * dl; q.recvListPcs += dl; q.stockList += p * st; q.stockListPcs += st; }
           if (p !== null && hasC) { q.bothList += p * st; q.bothCost += c * st; }
         }
       }
@@ -460,7 +461,7 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
   /** Сезон отчёта с «ждём» (FW 26/27): у строк таблицы — «Заказано, шт.» (пришло + ждём); узлы, где пока ничего не пришло, добавляются строками с нулями. */
   const blankRow = (id: string, label: string, depth: number): SalesRow => ({
     id, label, depth, recvList: { in: 0, ex: 0 }, received: 0, sold: 0, stock: 0, sellThrough: null, revenue: { in: 0, ex: 0 }, avgPrice: { in: null, ex: null },
-    stockList: { in: 0, ex: 0 }, stockListPcs: 0, recvCost: { in: 0, ex: 0 }, recvCostPcs: 0, markupSold: { in: null, ex: null }, markupStock: { in: null, ex: null },
+    stockList: { in: 0, ex: 0 }, stockListPcs: 0, recvCost: { in: 0, ex: 0 }, recvCostPcs: 0, recvListPcs: 0, markupSold: { in: null, ex: null }, markupStock: { in: null, ex: null },
     stockCum: 0, stockListCum: { in: 0, ex: 0 }, stockListPcsCum: 0, markupStockCum: { in: null, ex: null }, soAs: null, children: [],
   });
   const attachOrdered = (rows: SalesRow[], tree: OrderNode[], depth: number, idp: string) => {
