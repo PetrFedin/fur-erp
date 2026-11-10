@@ -81,21 +81,21 @@ export function SalesTable({ view, v, vatNote, testId, cumCol = false, soAs = fa
           <tr className="border-b border-neutral-200">
             <TH sep label="Штуки" unit={UNIT.pcs} />
             <TH label="Себестоимость" unit={UNIT.rub} />
-            <TH label="Ср. цена" unit={UNIT.rubPerPcs} />
+            <TH label="Ср. себестоимость" unit={UNIT.rubPerPcs} />
             <TH sep label="Продано" unit={UNIT.pcs} />
             <TH label="Выручка" unit={UNIT.rub} />
-            <TH label="Ср. цена" unit={UNIT.rubPerPcs} />
+            <TH label="Ср. цена продажи" unit={UNIT.rubPerPcs} />
             <TH label="Наценка" unit="×" />
             {soAs ? <TH sep align="center" label="за сезон" unit={UNIT.pct} /> : null}
             {soAs ? <TH align="center" label="сегодня" unit={UNIT.pct} /> : null}
             <TH sep label="Штуки" unit={UNIT.pcs} />
             <TH label="В розничных ценах" unit={UNIT.rub} />
-            <TH label="Ср. цена" unit={UNIT.rubPerPcs} />
+            <TH label="Ср. цена по прайсу" unit={UNIT.rubPerPcs} />
             <TH label="Наценка" unit="×" />
             {cumCol ? <TH label="Доля сезона" unit={UNIT.pct} /> : null}
             {cumCol ? <TH sep label="Штуки" unit={UNIT.pcs} /> : null}
             {cumCol ? <TH label="В розничных ценах" unit={UNIT.rub} /> : null}
-            {cumCol ? <TH label="Ср. цена" unit={UNIT.rubPerPcs} /> : null}
+            {cumCol ? <TH label="Ср. цена по прайсу" unit={UNIT.rubPerPcs} /> : null}
             {cumCol ? <TH label="Наценка" unit="×" /> : null}
           </tr>
         </thead>
