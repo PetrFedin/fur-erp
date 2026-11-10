@@ -21,7 +21,8 @@ export type ReportVals = {
   tStock: number; tRetail: number; tPriced: number; tRetailBoth: number; tCostBoth: number;
 };
 export type ReportLeaf = { cls: "clothes" | "acc" | "other"; cat1: string; fur: string; cat2: string; model: string; by: Record<string, ReportVals>;
-  /** Заказано за все сезоны по отчёту (TTL Conf): шт. и €. */ ttlConf: number; ttlConfEur: number };
+  /** Заказано за все сезоны по отчёту (TTL Conf): шт. и €. */ ttlConf: number; ttlConfEur: number;
+  /** Получено за все сезоны: шт. и €; остаток в € по закупочной цене изделия (FW26 и всего). */ ttlDeliv: number; ttlDelivEur: number; stockEur: number; stockEurTtl: number };
 export type ReportData = { leaves: ReportLeaf[]; eurRate: number; ex: boolean };
 
 
@@ -101,21 +102,21 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
   const x2 = (v: number | null) => (v === null ? "–" : `×${v.toFixed(2).replace(".", ",")}`);
   // Как в отчёте владельца: Order (TTL, FW26) · Delivery (FW26) · Sales (SSN FW26, Calendar FW26) · Stock (FW26, TTL).
   const nsHead = "NS EUR";
-  const subHeads = ["PCS", "EUR", "PCS", "EUR", "PCS", "EUR", "PCS", "SO, %", nsHead, "Avg MU", "PCS", nsHead, "Avg MU", "PCS", "PCS"];
-  const groupStarts = [0, 4, 6, 13]; // толстая линия: начало блоков Order / Delivery / Sales / Stock
-  const midStarts = [2, 10, 14]; // линия внутри блока: FW26 после TTL, Calendar, TTL остатка
+  const subHeads = ["PCS", "EUR", "PCS", "EUR", "PCS", "EUR", "PCS", "EUR", "PCS", "SO, %", nsHead, "Avg MU", "PCS", nsHead, "Avg MU", "PCS", "PCS", "EUR", "EUR"];
+  const groupStarts = [0, 4, 8, 15]; // толстая линия: начало блоков Order / Delivery / Sales / Stock
+  const midStarts = [2, 6, 12, 16, 17]; // линия внутри блока: FW26 после TTL, Calendar, TTL остатка
   const sepClass = (i: number) => (groupStarts.includes(i) ? THICK : midStarts.includes(i) ? MID : "");
   const grid = { gridTemplateColumns: `minmax(8.5rem,15rem) repeat(${subHeads.length}, minmax(4.4rem,auto))` };
-  const ttlOf = (ls: ReportLeaf[]) => ({ conf: ls.reduce((a, l) => a + l.ttlConf, 0), confEur: ls.reduce((a, l) => a + l.ttlConfEur, 0) });
+  const ttlOf = (ls: ReportLeaf[]) => ({ conf: ls.reduce((a, l) => a + l.ttlConf, 0), confEur: ls.reduce((a, l) => a + l.ttlConfEur, 0), deliv: ls.reduce((a, l) => a + l.ttlDeliv, 0), delivEur: ls.reduce((a, l) => a + l.ttlDelivEur, 0), stockEur: ls.reduce((a, l) => a + l.stockEur, 0), stockEurTtl: ls.reduce((a, l) => a + l.stockEurTtl, 0) });
   const oNsOf = (a: Agg) => a.oEurEx;
 
-  const row = (label: string, level: 0 | 1 | 2 | 3, a: Agg, t: { conf: number; confEur: number }, node?: Node) => {
+  const row = (label: string, level: 0 | 1 | 2 | 3, a: Agg, t: ReturnType<typeof ttlOf>, node?: Node) => {
     const so = a.conf > 0 && a.sold > 0 ? `${Math.round((a.sold / a.conf) * 100)}%` : "–"; // нуль — прочерк, как в PDF
     const cells = [
-      q(t.conf), eur(t.confEur), q(a.conf), eur(a.confEur), q(a.deliv), eur(a.delivEur),
+      q(t.conf), eur(t.confEur), q(a.conf), eur(a.confEur), q(t.deliv), eur(t.delivEur), q(a.deliv), eur(a.delivEur),
       q(a.sold), so, nsK(nsOf(a)), x2(a.cost > 0 ? a.gross / a.cost : null),
       q(a.sold + a.oSold), nsK(nsOf(a) + oNsOf(a)), x2(a.cost + a.oCost > 0 ? (a.gross + a.oGross) / (a.cost + a.oCost) : null),
-      q(a.stock), q(a.tStock),
+      q(a.stock), q(a.tStock), eur(t.stockEur), eur(t.stockEurTtl),
     ];
     const hasKids = node && node.children.length > 0 && node.level < depth;
     const closed = node ? shut.has(node.id) : false;
@@ -168,22 +169,25 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
           </div>
         ) : (
         <div className="min-h-0 flex-1 overflow-auto overscroll-contain p-2" data-keep-scroll tabIndex={0} role="region" aria-label="Таблица отчёта">
-          <div role="table" aria-label="Отчёт по продажам FW26: категория 1, тип меха, категория 2" className="grid min-w-[1180px] border-2 border-[#111]" style={grid}>
+          <div role="table" aria-label="Отчёт по продажам FW26: категория 1, тип меха, категория 2" className="grid min-w-[1500px] border-2 border-[#111]" style={grid}>
             <div role="row" className="contents">
               <div role="columnheader" className={`${hd} left-0 top-0 z-20 border-b-0`} />
               <div role="columnheader" className={`${hd} top-0 ${THICK}`} style={{ gridColumn: "span 4" }}>Order</div>
-              <div role="columnheader" className={`${hd} top-0 ${THICK}`} style={{ gridColumn: "span 2" }}>Delivery</div>
+              <div role="columnheader" className={`${hd} top-0 ${THICK}`} style={{ gridColumn: "span 4" }}>Delivery</div>
               <div role="columnheader" className={`${hd} top-0 ${THICK}`} style={{ gridColumn: "span 7" }}>Sales</div>
-              <div role="columnheader" className={`${hd} top-0 ${THICK}`} style={{ gridColumn: "span 2" }}>Stock</div>
+              <div role="columnheader" className={`${hd} top-0 ${THICK}`} style={{ gridColumn: "span 4" }}>Stock</div>
             </div>
             <div role="row" className="contents">
               <div role="columnheader" className={`${hd} left-0 top-8 z-20 border-b-0`} />
               <div role="columnheader" className={`${hd} top-8 ${THICK}`} style={{ gridColumn: "span 2" }}>TTL</div>
               <div role="columnheader" className={`${hd} top-8 ${MID}`} style={{ gridColumn: "span 2" }}>FW26</div>
-              <div role="columnheader" className={`${hd} top-8 ${THICK}`} style={{ gridColumn: "span 2" }}>FW26</div>
+              <div role="columnheader" className={`${hd} top-8 ${THICK}`} style={{ gridColumn: "span 2" }}>TTL</div>
+              <div role="columnheader" className={`${hd} top-8 ${MID}`} style={{ gridColumn: "span 2" }}>FW26</div>
               <div role="columnheader" className={`${hd} top-8 ${THICK}`} style={{ gridColumn: "span 4" }}>SSN FW26</div>
               <div role="columnheader" className={`${hd} top-8 ${MID}`} style={{ gridColumn: "span 3" }}>Calendar FW26</div>
               <div role="columnheader" className={`${hd} top-8 ${THICK}`}>FW26</div>
+              <div role="columnheader" className={`${hd} top-8 ${MID}`}>TTL</div>
+              <div role="columnheader" className={`${hd} top-8 ${MID}`}>FW26</div>
               <div role="columnheader" className={`${hd} top-8 ${MID}`}>TTL</div>
             </div>
             <div role="row" className="contents">
