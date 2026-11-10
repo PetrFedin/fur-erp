@@ -22,6 +22,7 @@ import { loadDataAsOf } from "@/lib/data-as-of";
 import { DataAsOf } from "@/components/data-as-of";
 import { SeasonScope } from "./season-scope";
 import { DashCurrency } from "./dash-currency";
+import { AssetsBlock } from "./assets-block";
 import { loadSalesBlock } from "./sales-block-data";
 import { loadReportSeasonTotals } from "@/lib/margin-server";
 
@@ -135,6 +136,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           }
         />
       </div>
+
+      {/* ───────── Активы: мех в наличии, изделия на стоке, всего ───────── */}
+      {salesBlock ? <AssetsBlock furQty={d.raw.fur.incl.remQty} fur={{ incl: d.raw.fur.incl.remValue, excl: d.raw.fur.excl.remValue }} goodsQty={salesBlock.stock} goods={{ incl: salesBlock.money.in.stockCost, excl: salesBlock.money.ex.stockCost }} goodsRetail={{ incl: salesBlock.money.in.stockList, excl: salesBlock.money.ex.stockList }} /> : null}
 
       {/* ───────── Оплаты, долги, задачи ───────── */}
       <PayTiles d={d} c4Mode={c4Mode} year={year} title="Расходы" headerEnd={<span className="flex items-center gap-3 print:hidden"><Link href="/payments" className="text-xs text-blue-700 hover:underline">→ Оплаты</Link><Link href="/cashflow" className="text-xs text-blue-700 hover:underline">→ Cashflow</Link></span>} />
