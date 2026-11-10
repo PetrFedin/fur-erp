@@ -339,7 +339,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
       const partsOf = (m: M) => { const total = Math.round(m.allG), own = Math.min(Math.round(m.ssn), total), [a, b] = apportion(total - own, [m.lSS26, m.lFW26]); return { own, a, b }; };
       const parts = Object.fromEntries(seasonsOf.map((x) => [x, partsOf(n.m[x])])) as Record<Season, { own: number; a: number; b: number }>;
       // Цена остатка сейчас, ₽/шт.: средневзвешенная текущая цена по остатку размеров (цена прайса × остаток размера ÷ остаток).
-      const stockPrice = (() => { const v: number[] = []; for (const r of n.rows) { const pr = nowPrice(r); if (pr !== null && (r.stock ?? 0) > 0) v.push(pr); } if (!v.length) return null; const lo = Math.min(...v), hi = Math.max(...v); return lo === hi ? rub1(lo) : `${moneyC(lo)}–${moneyC(hi)}`; })();
+      const stockPrice = (() => { const v: number[] = []; for (const r of n.rows) { const pr = nowPrice(r); if (pr !== null && (r.stock ?? 0) > 0) v.push(pr); } if (!v.length) return null; const lo = Math.min(...v), hi = Math.max(...v); return lo === hi ? money(lo) : `${moneyC(lo)}–${moneyC(hi)}`; })();
       return {
         id: n.id, title: n.label, fur: keyOf(first, "fur"), category: keyOf(first, "cat2"), cls: (first?.cls ?? "other") as CatalogItem["cls"],
         modelId: ph?.modelId ?? null, photos: [...own, ...rest].map((x) => ({ id: x.id, variant: x.variant })),
