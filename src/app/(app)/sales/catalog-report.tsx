@@ -68,7 +68,7 @@ const TONE: Record<0 | 1 | 2 | 3, string> = {
   3: "bg-white text-neutral-900",
 };
 const THICK = "border-l-2 border-l-[#111]";
-const hd = "sticky z-10 flex min-h-8 items-center justify-center bg-white px-2 py-1 text-center text-[13px] font-bold border-b border-l border-[#111] border-l-neutral-400";
+const hd = "sticky z-10 flex min-h-8 items-center justify-center bg-white px-2 py-1 text-center text-[13px] font-bold border-b border-l border-[#111]";
 /** Линия между блоками второго уровня (FW26 / Calendar / TTL внутри Order и Stock). */
 const MID = "border-l-2 border-l-neutral-600";
 
@@ -130,7 +130,7 @@ export function CatalogReport({ data, supply, tab: tab0, cat, onClose, vatEx, on
             </button>
           ) : <span className="truncate pr-2">{label}</span>}
         </div>
-        {cells.map((c, i) => <div role="cell" key={i} className={`flex min-h-8 items-center justify-end border-b border-l border-[#111] border-l-neutral-400 pl-3 pr-2 text-right text-[13px] tabular-nums ${tone} ${sepClass(i)}`}>{c}</div>)}
+        {cells.map((c, i) => <div role="cell" key={i} className={`flex min-h-8 items-center justify-end border-b border-l border-[#111] pl-3 pr-2 text-right text-[13px] tabular-nums ${tone} ${sepClass(i)}`}>{c}</div>)}
       </div>
     );
   };

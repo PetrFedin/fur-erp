@@ -78,6 +78,13 @@ const mkA = (m: M) => (m.costA > 0 ? m.grossA / m.costA : null);
 /** Значение столбца для сортировки (пустое → самые маленькие). */
 const numOf = (m: M, key: string): number => ({ arts: m.arts, conf: m.conf, deliv: m.deliv, wait: Math.max(0, m.conf - m.deliv), ssn: m.ssn, soS: soS(m) ?? -1, all: m.all, goods: m.allG, soA: soA(m) ?? -1, left: m.stock, rubS: m.rubS, rubA: m.rubA, priceS: priceS(m) ?? -1, priceA: priceA(m) ?? -1, mkS: mkS(m) ?? -1, mkA: mkA(m) ?? -1 } as Record<string, number>)[key] ?? 0;
 const eur = (v: number) => (Math.abs(v) < 0.5 ? DASH : Math.round(v).toLocaleString("ru-RU") + " €");
+// Валюта таблицы итогов: всё в ₽ или всё в € (пересчёт по курсу MU_EUR_RATE = 110, пока курс не известен по документам закупки меха). Выставляется в начале отрисовки.
+let CUR_EUR = false;
+const mnyC = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? DASH : CUR_EUR ? eur(v / MU_EUR_RATE) : moneyC(v));
+const mny = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? DASH : CUR_EUR ? eur(v / MU_EUR_RATE) : money(v));
+/** Евро из отчёта: в режиме «₽» пересчитываются по курсу 110. */
+const mnyE = (v: number) => (Math.abs(v) < 0.5 ? DASH : CUR_EUR ? eur(v) : money(v * MU_EUR_RATE));
+const curLabel = (l: string) => (CUR_EUR ? l.replace("₽", "€") : l.replace("€", "₽"));
 
 type Col = { key: string; label: string; short: string; hint: string; get: (m: M, s: Season) => string; /** Мелкая подпись под значением (проценты). */ sub?: (m: M) => string; strong?: boolean; full?: boolean };
 const COLS: Col[] = [
@@ -91,12 +98,12 @@ const COLS: Col[] = [
   { key: "goods", label: "Продано товара сезона, шт.", short: "Прод. товара, шт.", hint: "Товар, заказанный на этот сезон, проданный за всё время: в свой календарный сезон (SSN) и позже. Получено − это число = остаток сезона.", get: (m) => n0(m.allG), strong: true },
   { key: "soA", label: "SO STD, %", short: "SO STD", hint: "Товар этого сезона, проданный за всё время (в свой сезон и позже), ÷ заказано. Олды в календаре сезона в SO не входят.", get: (m) => pct(soA(m)) },
   { key: "left", label: "Остаток сезона, шт.", short: "Остаток сезона, шт.", hint: "Товар, заказанный на этот сезон: поступило − продано за всё время = остаток.", get: (m) => n0(m.stock), strong: true },
-  { key: "rubS", label: "Выручка за сезон, ₽", short: "Выручка сезон", hint: "Выручка с продаж товара этого сезона в его календарь: после скидки. С НДС или без — как в шапке.", get: (m) => moneyC(m.rubS), strong: true },
-  { key: "rubA", label: "Выручка всего, ₽", short: "Выручка всего", hint: "Выручка всего календаря сезона: товар сезона + олды. С НДС или без — как в шапке.", get: (m) => moneyC(m.rubA), strong: true },
+  { key: "rubS", label: "Выручка за сезон, ₽", short: "Выручка сезон", hint: "Выручка с продаж товара этого сезона в его календарь: после скидки. С НДС или без — как в шапке.", get: (m) => mnyC(m.rubS), strong: true },
+  { key: "rubA", label: "Выручка всего, ₽", short: "Выручка всего", hint: "Выручка всего календаря сезона: товар сезона + олды. С НДС или без — как в шапке.", get: (m) => mnyC(m.rubA), strong: true },
   { key: "after", label: "Продано олдов, шт.", short: "Олды, шт.", hint: "Товар прошлых сезонов, проданный в календаре этого сезона: продано всего − продано за сезон.", get: (m) => n0(Math.max(0, m.all - m.ssn)) },
-  { key: "rubAfter", label: "Выручка олдов, ₽", short: "Выручка олдов", hint: "Выручка с продаж олдов в календаре этого сезона: выручка всего − выручка за сезон. С НДС или без — как в шапке.", get: (m) => moneyC(Math.max(0, m.rubA - m.rubS)), strong: true },
-  { key: "priceS", label: "Цена за сезон, ₽/шт.", short: "Цена сезон", hint: "Средневзвешенная: (выручка + скидка) ÷ продано за сезон, с НДС — по какой цене продавали до скидки.", get: (m) => moneyC(priceS(m)), full: true },
-  { key: "priceA", label: "Цена всего, ₽/шт.", short: "Цена всего", hint: "Средневзвешенная: (выручка + скидка) ÷ продано всего (с олдами), с НДС.", get: (m) => moneyC(priceA(m)), full: true },
+  { key: "rubAfter", label: "Выручка олдов, ₽", short: "Выручка олдов", hint: "Выручка с продаж олдов в календаре этого сезона: выручка всего − выручка за сезон. С НДС или без — как в шапке.", get: (m) => mnyC(Math.max(0, m.rubA - m.rubS)), strong: true },
+  { key: "priceS", label: "Цена за сезон, ₽/шт.", short: "Цена сезон", hint: "Средневзвешенная: (выручка + скидка) ÷ продано за сезон, с НДС — по какой цене продавали до скидки.", get: (m) => mnyC(priceS(m)), full: true },
+  { key: "priceA", label: "Цена всего, ₽/шт.", short: "Цена всего", hint: "Средневзвешенная: (выручка + скидка) ÷ продано всего (с олдами), с НДС.", get: (m) => mnyC(priceA(m)), full: true },
   { key: "mkS", label: "Маркап за сезон", short: "Маркап сезон", hint: "Средневзвешенный: цена до скидки ÷ себестоимость изделия из ТЗ (с НДС), по проданным за сезон штукам, у которых есть себестоимость.", get: (m) => x2(mkS(m)) },
   { key: "mkA", label: "Маркап всего", short: "Маркап всего", hint: "Средневзвешенный по всем проданным в календаре сезона штукам (товар сезона и олды), у которых есть себестоимость.", get: (m) => x2(mkA(m)) },
 ];
@@ -127,8 +134,9 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   const [view, setView] = useState<"tree" | "cards" | "receipts">("tree");
   const [hier, setHier] = useState<"fur" | "cat">("fur");
   const [detail, setDetail] = useState(false);
-  // Деньги остатка: как в документах (закупка в €, розница в ₽) / всё в ₽ / всё в €; пересчёт всегда по курсу 110, пока курс не известен по документам закупки меха.
-  const [cur, setCur] = useState<"doc" | "rub" | "eur">("doc");
+  // Вся таблица итогов — либо в ₽, либо в €; пересчёт всегда по курсу 110, пока курс не известен по документам закупки меха.
+  const [cur, setCur] = useState<"rub" | "eur">("rub");
+  CUR_EUR = cur === "eur";
   /** Показатели «продано / SO / выручка / цена / маркап»: за сезон (в календаре этого же сезона) или всего (за всё время). Общий для итогов, таблицы и карточек. */
   /** Сортировка по клику на подпись столбца (сезон + показатель) или на первую колонку («label»): порядок строк на каждом уровне дерева. Повторный клик — обратный порядок, третий — снимает. */
   const [colSort, setColSort] = useState<{ s: Season | "label" | "stock"; key: string; dir: "asc" | "desc" } | null>(null);
@@ -499,7 +507,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   const byKey = Object.fromEntries(COLS.map((c) => [c.key, c])) as Record<string, Col>;
   const BASIS_LABEL: Record<string, string> = { ssn: "из них сезонный товар, шт.", after: "из них олды, шт.", all: "Продано в календарном сезоне, шт.", soS: "SO AS, %", soA: "SO STD, %", rubS: "Выручка, ₽", rubA: "Выручка, ₽", priceS: "Цена, ₽/шт.", priceA: "Цена, ₽/шт.", mkS: "Маркап", mkA: "Маркап" };
   const bk = (a: string, b: string) => byKey[basis === "season" ? a : b];
-  const eurCol: Col = { key: "confEur", label: "Заказано, €", short: "", hint: "Conf EUR отчёта — закупочная стоимость заказа; по SS 2026 и FW 25/26 — поступило в €.", get: (m: M) => eur(m.confEur) };
+  const eurCol: Col = { key: "confEur", label: "Заказано, €", short: "", hint: "Conf EUR отчёта — закупочная стоимость заказа; по SS 2026 и FW 25/26 — поступило в €.", get: (m: M) => mnyE(m.confEur) };
   // Остаток всего = сумма остатков сезонов (получено − продано товара): 97 + 23 + 226 = 346 = получено 637 − продано 291.
   const stockToday = SEASONS.reduce((a, s) => a + totalAll[s].stock, 0);
   const stockAllCol: Col = { key: "stockAll", label: "Остаток всего, шт.", short: "", hint: "Сколько товара на сегодня во всех сезонах вместе: остаток этого сезона и остатки прошлых сезонов. Показан в последнем сезоне.", get: (_m: M, s: Season) => (s === SEASONS[SEASONS.length - 1] ? n0(stockToday) : DASH), strong: true };
@@ -526,15 +534,15 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
     return { costBy, retailBy, cost: SEASONS.reduce((a, x) => a + costBy[x], 0), retail: SEASONS.reduce((a, x) => a + retailBy[x], 0) };
   })();
   // Закупка — в €, розница — в ₽; переключатель приводит всё к одной валюте по курсу MU_EUR_RATE (110).
-  const fmtCost = (eur: number) => (cur === "rub" ? money(eur * MU_EUR_RATE) : eurU(eur));
-  const fmtRetail = (rub: number) => (cur === "eur" ? eurU(rub / MU_EUR_RATE) : money(rub));
+  const fmtCost = (e: number) => mnyE(e);
+  const fmtRetail = (r: number) => mny(r);
   const rateNote = " Курс пересчёта ₽ ↔ € всегда 110, пока курс не известен по документам закупки меха.";
   const lastS = SEASONS[SEASONS.length - 1];
   const stockCostCol: Col = { key: "stockCost", label: "Остаток всего, по закупке", short: "", hint: "Остаток по размерам × себестоимость изделия в € (приход € ÷ приход шт.), сумма по всем сезонам." + rateNote, get: (_m: M, x: Season) => (x === lastS ? fmtCost(stockMoney.cost) : DASH) };
   const stockRetailCol: Col = { key: "stockRetail", label: "Остаток всего, по рознице", short: "", hint: "Остаток по размерам × текущая розничная цена размера из прайса, сумма по всем сезонам." + rateNote, get: (_m: M, x: Season) => (x === lastS ? fmtRetail(stockMoney.retail) : DASH) };
   const stockCostSCol: Col = { key: "stockCostS", label: "Остаток сезона, по закупке", short: "", hint: "Остаток товара сезона в штуках × себестоимость изделия в €." + rateNote, get: (_m: M, x: Season) => fmtCost(stockMoney.costBy[x]) };
   const stockRetailSCol: Col = { key: "stockRetailS", label: "Остаток сезона, по рознице", short: "", hint: "Остаток товара сезона в штуках × текущая розничная цена из прайса." + rateNote, get: (_m: M, x: Season) => fmtRetail(stockMoney.retailBy[x]) };
-  const mc = (key: string, label: string, hint: string, num: (m: M) => number | null, strong = false): Col => ({ key, label, short: "", hint, get: (m) => { const v = num(m); return v === null || Math.abs(v) < 0.5 ? DASH : money(v); }, strong });
+  const mc = (key: string, label: string, hint: string, num: (m: M) => number | null, strong = false): Col => ({ key, label, short: "", hint, get: (m) => { const v = num(m); return v === null || Math.abs(v) < 0.5 ? DASH : mny(v); }, strong });
   const mx = (key: string, label: string, hint: string, v: (m: M) => number | null): Col => ({ key, label, short: "", hint, get: (m) => x2(v(m)) });
   const ctr = "Календарь сезона: товар этого сезона и олды вместе.";
   // Итоги по мини-группам, в порядке развития данных: заказ и приход → в свой сезон → товар сезона за всё время → календарь сезона → олды → остаток.
@@ -583,8 +591,8 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
         <button type="button" aria-pressed={pick.length === SEASONS.length} onClick={() => setPick([...SEASONS])} className={seg(pick.length === SEASONS.length)}>Сравнить все</button>
       </div>
 
-      <div role="group" aria-label="Валюта денег остатка" className={segGroup + " self-start"}>
-        {([["doc", "Закупка € · розница ₽"], ["rub", "Всё в ₽"], ["eur", "Всё в €"]] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={cur === k} onClick={() => setCur(k)} className={seg(cur === k)}>{l}</button>)}
+      <div role="group" aria-label="Валюта таблицы" className={segGroup + " self-start"}>
+        {([["rub", "₽"], ["eur", "€"]] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={cur === k} onClick={() => setCur(k)} className={seg(cur === k)}>{l}</button>)}
       </div>
 
       {/* Итоги по сезонам */}
@@ -596,9 +604,9 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
               <tr key={"g" + c.group} className="border-t border-neutral-300 bg-neutral-100"><th colSpan={seasons.length + (seasons.length > 1 ? 2 : 1)} scope="colgroup" className="px-3 py-1 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{c.group}</th></tr>
             ) : (
               <tr key={c.key} className="border-t border-neutral-200">
-                <td className={"px-3 py-2 " + (c.strong ? "font-semibold" : "")}>{c.label}<span className="ml-1 inline-flex align-middle [&_.info-i]:!h-5 [&_.info-i]:!min-h-0 [&_.info-i]:!w-5 [&_.info-i]:!min-w-0"><InfoHint label={c.label}><p>{c.hint}</p></InfoHint></span></td>
-                {seasons.map((s) => <td key={s} data-season={s} data-metric={c.key} className={`px-3 py-2 text-right tabular-nums ${SEASON_BG[s]} ${c.strong ? "font-semibold" : ""}`}>{c.key === "rubS" || c.key === "rubA" ? money(totalAll[s][c.key]) : c.get(totalAll[s], s)}</td>)}
-                {seasons.length > 1 ? <td className="px-3 py-2 text-right tabular-nums text-neutral-800">{c.key === "wait" ? (seasons.includes("FW26/27") ? n0(Math.max(0, totalAll["FW26/27"].conf - totalAll["FW26/27"].deliv)) : DASH) : c.key === "rubS" || c.key === "rubA" ? money(sumAll[c.key]) : c.key === "stockAll" ? n0(stockToday) : c.key === "stockCost" ? fmtCost(stockMoney.cost) : c.key === "stockRetail" ? fmtRetail(stockMoney.retail) : c.key === "stockCostS" ? fmtCost(stockMoney.cost) : c.key === "stockRetailS" ? fmtRetail(stockMoney.retail) : c.get(sumAll, "FW25/26")}</td> : null}
+                <td className={"px-3 py-2 " + (c.strong ? "font-semibold" : "")}>{curLabel(c.label)}<span className="ml-1 inline-flex align-middle [&_.info-i]:!h-5 [&_.info-i]:!min-h-0 [&_.info-i]:!w-5 [&_.info-i]:!min-w-0"><InfoHint label={c.label}><p>{c.hint}</p></InfoHint></span></td>
+                {seasons.map((s) => <td key={s} data-season={s} data-metric={c.key} className={`px-3 py-2 text-right tabular-nums ${SEASON_BG[s]} ${c.strong ? "font-semibold" : ""}`}>{c.key === "rubS" || c.key === "rubA" ? mny(totalAll[s][c.key]) : c.get(totalAll[s], s)}</td>)}
+                {seasons.length > 1 ? <td className="px-3 py-2 text-right tabular-nums text-neutral-800">{c.key === "wait" ? (seasons.includes("FW26/27") ? n0(Math.max(0, totalAll["FW26/27"].conf - totalAll["FW26/27"].deliv)) : DASH) : c.key === "rubS" || c.key === "rubA" ? mny(sumAll[c.key]) : c.key === "stockAll" ? n0(stockToday) : c.key === "stockCost" ? fmtCost(stockMoney.cost) : c.key === "stockRetail" ? fmtRetail(stockMoney.retail) : c.key === "stockCostS" ? fmtCost(stockMoney.cost) : c.key === "stockRetailS" ? fmtRetail(stockMoney.retail) : c.get(sumAll, "FW25/26")}</td> : null}
               </tr>
             ))}
           </tbody>
