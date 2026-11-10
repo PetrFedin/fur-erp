@@ -224,7 +224,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
   );
   if (bare) return tiles;
   return (
-    <WidgetRow stage={!only && title === "Расходы"} defaultCollapsed={defaultCollapsed} headerEnd={headerEnd} id={id + (only ? "-" + only : "")} title={only === "fur" ? "Оплаты — мех" : only === "lining" ? "Оплаты — подкладка" : title}>
+    <WidgetRow stage={!only && title === "Расходы"} defaultCollapsed={defaultCollapsed} headerEnd={headerEnd} id={id + (only ? "-" + only : "")} title={only === "fur" ? "Расходы — мех" : only === "lining" ? "Расходы — подкладка" : title}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">{tiles}</div>
     </WidgetRow>
   );

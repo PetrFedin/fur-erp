@@ -83,7 +83,8 @@ async function main() {
   }
   R.mergeCells("I5:J5"); // TTL над PCS и EUR
   // NS в отчёте — EUR без НДС (NS EUR excl VAT), полными числами: заголовки и формат столбцов NS.
-  R.getCell(3, 5).value = "NS 000'EUR excl VAT"; // в тысячах €, как в PDF владельца 10.11
+  R.getCell(3, 5).value = "000'EUR · NS excl VAT"; // евро в тысячах (Order, Delivery, Stock, NS), как в окне отчёта
+  R.getCell(1, 5).value = "Отчет по продажам меховых изделий FW26";
   for (const c of [16, 19, 22]) R.getCell(6, mapC(c)).value = "NS EUR";
   R.getCell(2, 5).value = new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" });
 
@@ -121,6 +122,11 @@ async function main() {
   // Остаток не бывает отрицательным: отрицательное значение (продано сверх прихода) показываем «–»; значения остаются, чтобы итоги сходились (346).
   for (const c of [27, 28, 29]) for (let r = 7; r < rrow; r++) R.getCell(r, c).numFmt = '#,##0;"–";"–"';
   for (const c of [30, 31]) for (let r = 7; r < rrow; r++) R.getCell(r, c).numFmt = '#,##0,;"–";"–"';
+  // Шапка: одна подпись «Delivery» над M:P, одна «Stock» над AA:AE, одно «TTL» над M:N (столбцы M, N, AD, AE добавлены позже шаблона).
+  for (const m of ["O4:P4", "AA4:AC4"]) { try { R.unMergeCells(m); } catch { /* не объединена */ } }
+  R.getCell("N4").value = null; R.getCell("AD4").value = null; R.getCell("AE4").value = null; R.getCell("N5").value = null;
+  R.mergeCells("M4:P4"); R.mergeCells("AA4:AE4"); R.mergeCells("M5:N5");
+  R.views = [{ state: "frozen", xSplit: 8, ySplit: 6 }]; // закрепить названия и шапку
   wb.calcProperties.fullCalcOnLoad = true;
   writeFileSync(out, Buffer.from(await wb.xlsx.writeBuffer()));
   console.log(out, JSON.stringify({ rows: rows.length, orderPcsFW26: sumPcs(rows), orderEurFW26: Math.round(sumEur(rows)), reportRows: rrow - 7 }));

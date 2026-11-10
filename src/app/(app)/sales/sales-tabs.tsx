@@ -34,7 +34,7 @@ export function SeasonsTab({ ctx, env, lines, vatNote, gran, onGran, ex, opening
     { label: "Остаток всего, шт.", get: (_m, s, k) => cum.get(k) ?? s, fmt: (v) => n0(v ?? 0) },
     { label: "SO STD, %", get: (m, _s, k) => { const o = ordOf(k, m); return o > 0 ? m.sold / o : null; }, fmt: (v) => pct(v) },
     { label: `Выручка, ₽ (${vatNote})`, get: (m) => m.revenue, fmt: (v) => money(v) },
-    { label: "Средняя цена, ₽", get: (m) => m.avgPrice, fmt: (v) => money(v) },
+    { label: "Средняя цена продажи, ₽", get: (m) => m.avgPrice, fmt: (v) => money(v) },
     { label: "Скидка при продаже", get: (m) => m.discountGiven, fmt: (v) => pct(v, 1) },
   ];
   return (
@@ -101,7 +101,7 @@ export function StockTab({ ctx, env, lines, photos, today }: Common & { photos: 
                 <tr key={g.key} className="border-b border-neutral-200">
                   <td className="w-12 px-1 py-1 text-center"><Thumb g={g} photos={photos} /></td>
                   <th scope="row" className="px-2 py-1.5 text-left text-sm font-normal">{href ? <Link href={href} className="underline decoration-neutral-400 underline-offset-2">{g.label}</Link> : g.label}</th>
-                  <td className={td + " font-semibold"}>{n0(g.m.stock)}</td><td className={td}>{dateRu(g.m.lastSale)}</td><td className={td}>{d === null || d === 0 ? DASH : n0(d)}</td>
+                  <td className={td + " font-semibold"}>{n0(g.m.stock)}</td><td className={td}>{g.m.lastSale ? dateRu(g.m.lastSale) : "не продавалось"}</td><td className={td}>{d === null ? "не продавалось" : d === 0 ? "сегодня" : n0(d)}</td>
                 </tr>
               );
             })}
@@ -132,7 +132,7 @@ function Top({ title, hint, rows, value, sub, extra, total, photos, tone, reserv
         <ol className="flex flex-col divide-y divide-neutral-100">
           {rows.map((g, i) => {
             const val = value(g), href = movementHref(g.article, null, g.modelCode);
-            const share = total > 0 && val.v > 0 ? `${((val.v / total) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "";
+            const share = total > 0 && val.v > 0 ? `${((val.v / total) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} %` : "";
             return (
               <li key={g.key} className="flex min-h-[4.25rem] flex-wrap items-center gap-x-3 gap-y-1 py-1 sm:h-[4.25rem] sm:flex-nowrap sm:py-0">
                 <span className={"inline-flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums " + (tone === "top" && i < 3 ? "bg-[var(--ui-accent)] text-white" : "bg-neutral-100 text-neutral-600")}>{i + 1}</span>
@@ -179,8 +179,9 @@ export function TopTab({ ctx, env, lines, photos }: Common & { photos: PhotoIdx 
   const otherTop = other ? topOf(other) : [];
   const extra = other ? { label: other === "profit" ? "Прибыль · место в топ-10" : "Выручка · место в топ-10", of: (x: Group) => { const i = otherTop.findIndex((o) => o.key === x.key); return i < 0 ? null : { text: money(f[other](x)), place: i + 1 }; } } : undefined;
   const fmt = (x: Group) => (by === "sold" ? { v: f[by](x), text: n0(f[by](x)) + " шт." } : { v: f[by](x), text: f[by](x) === 0 ? DASH : money(f[by](x)) });
-  const subTop = (x: Group) => `продано ${n0(x.m.sold)} шт. · остаток ${n0(x.m.stock)} шт.`;
-  const subOut = (x: Group) => `остаток ${n0(x.m.stock)} шт. · ${x.m.sold > 0 ? `продано ${n0(x.m.sold)} шт.` : "продаж нет"}`;
+  const stk = (v: number) => (v > 0 ? `остаток ${n0(v)} шт.` : "остатка нет");
+  const subTop = (x: Group) => `продано ${n0(x.m.sold)} шт. · ${stk(x.m.stock)}`;
+  const subOut = (x: Group) => `${stk(x.m.stock)} · ${x.m.sold > 0 ? `продано ${n0(x.m.sold)} шт.` : "продаж нет"}`;
   return (
     <section aria-label="Топ и аутсайдеры" className={sec}>
       <div className="flex flex-wrap items-center justify-between gap-2">

@@ -150,7 +150,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
   if (!view || !input) {
     return (
       <section aria-label="Маржа и наценка" className="rounded-lg border border-neutral-300 bg-white p-3">
-        <h2 className="text-sm font-semibold">Маржа и наценка</h2>
+        <h2 className="text-sm font-semibold">Маржа по артикулам</h2>
         <p className="mt-1 text-sm text-neutral-700">Нет данных о продажах: выгрузка поступлений и продаж ещё не загружена.</p>
       </section>
     );
@@ -242,7 +242,7 @@ export function MarginBlock({ input, cat, shown, onChange, sizes, photos, tree: 
   const heads = ["Всего", ...groups.map((g) => g.head)];
   return (
     <section aria-label="Маржа и наценка" className="flex min-w-0 scroll-mt-16 flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">Маржа и наценка</h2><Link href="/sales" className="inline-flex min-h-11 items-center text-sm underline">Подробнее: Продажи и остатки →</Link></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">Маржа по артикулам</h2><Link href="/sales" className="inline-flex min-h-11 items-center text-sm underline">Подробнее: Продажи и остатки →</Link></div>
       <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-700 print:hidden"><span>Показано: {shown}</span><span>Приход {useRep ? recvRep(tree, 0) : view.tree.cols[0].received} шт. · продано {view.tree.cols[0].sold} шт.</span><Link href="/sales" className="inline-flex min-h-11 items-center underline">Продажи и остатки</Link><button type="button" onClick={onChange} className="inline-flex min-h-11 items-center rounded-md px-2 underline">Изменить</button></p>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <Tile label="Средняя наценка" value={x2(data.avgMarkup)} sub={`простой по ${data.avgMarkupN} моделям`} hint={<p>Маркап модели = текущая розница с НДС ÷ себестоимость единицы с работой и НДС (как «Себестоимость» в «Изделиях»). Здесь — простое среднее по моделям, у которых есть и цена, и себестоимость. Наценка в % = (маркап − 1) × 100.</p>} />

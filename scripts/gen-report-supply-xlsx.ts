@@ -91,9 +91,10 @@ async function main() {
   ];
   const nC = rc.length, X0 = 2; // данные с колонки B
   const thin = { style: "thin" as const, color: { argb: BR } }, thick = { style: "medium" as const, color: { argb: "FF000000" } };
-  rp.getCell(1, 1).value = "Отчет по заказу и поставкам меховых изделий MVST FW26"; rp.getCell(1, 1).font = { bold: true, size: 14 };
-  const d = new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" }).replace(/\./g, "-");
+  rp.getCell(1, 1).value = "Отчет по заказу и поставкам меховых изделий FW26"; rp.getCell(1, 1).font = { bold: true, size: 14 };
+  const d = new Date().toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" }).replace(/\./g, ".");
   rp.getCell(2, 1).value = d; rp.getCell(2, 1).font = { size: 10 };
+  rp.getCell(3, 1).value = "000'EUR"; rp.getCell(3, 1).font = { size: 10 }; // евро в тысячах, как в окне «Отчёт: поставки»
   const hdr = (r: number, c: number, text: string, extra?: Partial<ExcelJS.Style>) => { const x = rp.getCell(r, c); x.value = text; x.font = { bold: true, size: 10, ...(extra?.font ?? {}) }; x.alignment = { horizontal: "center", vertical: "middle" }; x.border = { top: thin, bottom: thin, left: thin, right: thin }; };
   rp.mergeCells(4, X0, 4, X0 + 2); hdr(4, X0, "Order");
   rp.mergeCells(4, X0 + 3, 4, X0 + 5); hdr(4, X0 + 3, "Deliv");
@@ -113,7 +114,7 @@ async function main() {
     rc.forEach((c, i) => {
       const cell = x.getCell(X0 + i);
       const f = c.keys.map((k) => (crit ? `SUMIFS(${rng(k)}${crit})` : `SUM(${rng(k)})`)).join("+");
-      cell.value = { formula: f, result: sumK(rs, c.keys) } as ExcelJS.CellFormulaValue; cell.numFmt = N0; cell.alignment = { horizontal: "right" };
+      cell.value = { formula: f, result: sumK(rs, c.keys) } as ExcelJS.CellFormulaValue; cell.numFmt = i % 3 === 2 && i < 6 ? '#,##0,;\\-#,##0,;"-"' : N0; cell.alignment = { horizontal: "right" };
     });
     for (let c = 1; c < X0 + nC; c++) {
       const cell = x.getCell(c);

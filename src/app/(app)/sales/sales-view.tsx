@@ -24,7 +24,11 @@ type Col = { head: string; get: (e: Ext) => string };
 type TileDef = { id: string; label: string; value: string; sub?: string; how: React.ReactNode; cols: Col[]; extra?: React.ReactNode };
 
 /** Мультивыбор в выпадающей панели: пусто = все; закрывается по Esc и клику снаружи. */
-function MultiPick({ label, options, value, onChange }: { label: string; options: string[]; value: string[]; onChange: (v: string[]) => void }) {
+// Виды меха в выгрузке — английские ключи (SABLE, MINK…); на экране показываем по-русски, фильтруем по ключу.
+const FUR_RU_LABEL: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Свакара", LYNX: "Рысь", BEAVER: "Бобр" };
+const showOpt = (o: string) => o.split(/\s*\+\s*/).map((p) => FUR_RU_LABEL[p.trim().toUpperCase()] ?? p).join(" + ");
+function MultiPick({ label, options, value, onChange, localize = false }: { label: string; options: string[]; value: string[]; onChange: (v: string[]) => void; localize?: boolean }) {
+  const show = (o: string) => (localize ? showOpt(o) : o);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -36,10 +40,10 @@ function MultiPick({ label, options, value, onChange }: { label: string; options
   }, [open]);
   return (
     <div ref={ref} className="relative">
-      <button type="button" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((v) => !v)} className={btn}>{label}: {value.length ? value.length === 1 ? value[0] : `${value.length} выбрано` : "все"} ▾</button>
+      <button type="button" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((v) => !v)} className={btn}>{label}: {value.length ? value.length === 1 ? show(value[0]) : `${value.length} выбрано` : "все"} ▾</button>
       {open && (
         <div role="group" aria-label={label} className="absolute left-0 z-30 mt-1 flex max-h-[60vh] w-64 max-w-[85vw] flex-col overflow-y-auto rounded-lg border border-neutral-300 bg-white p-2 shadow-lg">
-          {options.map((o) => <label key={o} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm"><input type="checkbox" className="size-5" checked={value.includes(o)} onChange={() => onChange(value.includes(o) ? value.filter((x) => x !== o) : [...value, o])} />{o}</label>)}
+          {options.map((o) => <label key={o} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm"><input type="checkbox" className="size-5" checked={value.includes(o)} onChange={() => onChange(value.includes(o) ? value.filter((x) => x !== o) : [...value, o])} />{show(o)}</label>)}
           {value.length > 0 && <button type="button" onClick={() => onChange([])} className={btn}>Все</button>}
         </div>
       )}
@@ -207,7 +211,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
             {(["all", "clothes", "acc"] as Cat[]).map((k) => <button key={k} type="button" aria-pressed={ui.f.cat === k} onClick={() => setF({ cat: k })} className={seg(ui.f.cat === k)}>{CAT_LABEL[k]}</button>)}
           </div>
           <MultiPick label="Категория 2" options={cat2s} value={ui.f.cat2} onChange={(v) => setF({ cat2: v })} />
-          <MultiPick label="Мех" options={furs} value={ui.f.furs} onChange={(v) => setF({ furs: v })} />
+          <MultiPick localize label="Мех" options={furs} value={ui.f.furs} onChange={(v) => setF({ furs: v })} />
           <MultiPick label="Сезон" options={seasons} value={ui.f.seasons} onChange={(v) => setF({ seasons: v })} />
           <input type="search" value={ui.f.q} onChange={(e) => setF({ q: e.target.value })} placeholder="Артикул, модель, цвет, заказ" aria-label="Поиск по артикулу, модели, цвету, заказу" className="min-h-11 w-56 max-w-full rounded-md border border-neutral-300 px-3 text-sm" />
           <button type="button" disabled={!filtered} onClick={() => setUi((u) => ({ ...u, f: NO_FILTERS, vat: DEFAULT_UI.vat }))} className={btn + " disabled:opacity-50"}>Сбросить</button>

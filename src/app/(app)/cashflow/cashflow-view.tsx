@@ -842,7 +842,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
             label: `Средняя цена продажи · ${c === "all" ? "Всего" : CAT_LABEL[c]}`,
             value: g && g.pcs > 0 ? formatMoney(g.rev / g.pcs) : "–",
             sub: g && g.pcs > 0 ? `${pcs(g.pcs)} шт. продано` : "нет продаж",
-            rows: [["Выручка", g ? money(g.rev) : "–"], ["Выручка в среднем в месяц", g ? money(g.rev / Math.max(1, m.keep.filter((i) => (exVat ? salesBy[c].revEx[i] : salesBy[c].revIncl[i]) > 0.5).length)) : "–"]] as [string, string][],
+            rows: [["Выручка", g ? money(g.rev) : "–"], ["Выручка в среднем в месяц (по месяцам с продажами)", g ? money(g.rev / Math.max(1, m.keep.filter((i) => (exVat ? salesBy[c].revEx[i] : salesBy[c].revIncl[i]) > 0.5).length)) : "–"]] as [string, string][],
             hint: <p>Выручка ({vatNote}) ÷ проданные единицы (возвраты минус) за выбранный период и категорию; режим НДС — как в панели (в окне его можно переключить только для окна).</p>,
           }; })} />
         ) : <Tile label="Средняя цена продажи" value="–" sub="нет данных о продажах" />}

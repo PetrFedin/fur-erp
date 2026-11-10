@@ -13,7 +13,7 @@ type Pair = { incl: number; excl: number };
  * Мех — остаток сырья (куплено минус использовано, как в блоке «Сырьё»); изделия — остаток по отчёту «заказ и продажи» (346 шт.), оценка по закупке.
  * Сумма активов = мех + изделия по закупке (розница изделий — справочно, в сумму не входит). Незавершённое производство пока не учитывается.
  */
-export function AssetsBlock({ furQty, fur, goodsQty, goods, goodsRetail }: { furQty: number; fur: Pair; goodsQty: number; goods: Pair; goodsRetail: Pair }) {
+export function AssetsBlock({ furQty, furOrdered = 0, fur, goodsQty, goods, goodsRetail }: { furQty: number; /** Из них заказано и ещё не получено, шкур. */ furOrdered?: number; fur: Pair; goodsQty: number; goods: Pair; goodsRetail: Pair }) {
   const { mode } = useVatDisplay();
   const v = (p: Pair) => (mode === "excl" ? p.excl : p.incl);
   const total = v(fur) + v(goods);
@@ -24,7 +24,7 @@ export function AssetsBlock({ furQty, fur, goodsQty, goods, goodsRetail }: { fur
         <div className={TILE_BOX}>
           <TileHead>Мех в наличии<InfoHint label="Мех в наличии"><p>Шкуры, купленные и ещё не пошедшие в производство: куплено минус использовано по ТЗ. Сумма — по цене закупки, как в блоке «Сырьё» (режим «с 4%» и НДС — по переключателям).</p></InfoHint></TileHead>
           <TileValue>{formatQty(furQty)} шт.</TileValue>
-          <TileCaption>шкур на складе</TileCaption>
+          <TileCaption>{furOrdered > 0 ? `в т.ч. заказано, не получено ${formatQty(furOrdered)} шт.` : "шкур в наличии"}</TileCaption>
           <TileList items={[{ k: "Сумма", v: formatMoney(v(fur)), share: share(v(fur)) }]} />
         </div>
         <div className={TILE_BOX}>

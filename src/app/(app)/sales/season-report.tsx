@@ -369,7 +369,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
             row("own", "Продано, шт.", G1, n0(parts[s].own)),
             row("soas", "SO AS, %", G1, pct(soS(m))),
             row("nsOwn", "NS ₽", G1, kr(m.rubS)),
-            row("priceOwn", "Цена, ₽/шт.", G1, rub1(priceS(m))),
+            row("priceOwn", "Цена до скидки, ₽/шт.", G1, rub1(priceS(m))),
             row("muOwn", "MU", G1, x2(mkS(m))),
             row("all", "Продано, шт.", G2, n0(m.allG)),
             // Где продано всё количество: по календарным сезонам продажи (в свой сезон и позже); сумма трёх строк = «Продано».
@@ -378,10 +378,10 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
             row("later_fw26", "В сезоне FW26, шт.", G2, s === "FW26/27" ? n0(parts[s].own) : n0(parts[s].b)),
             row("sostd", "SO STD, %", G2, pct(soA(m))),
             row("nsAll", "NS ₽", G2, kr(m.rubG)),
-            row("priceAll", "Цена, ₽/шт.", G2, rub1(priceG(m))),
+            row("priceAll", "Цена до скидки, ₽/шт.", G2, rub1(priceG(m))),
             row("muAll", "MU", G2, x2(mkG(m))),
             row("stock", "Остаток сезона, шт.", G3, n0(Math.max(0, m.stock))),
-            row("stockPrice", "Цена, ₽/шт.", G3, m.stock > 0.5 ? (stockPrice ?? DASH) : DASH),
+            row("stockPrice", "Цена остатка, ₽/шт.", G3, m.stock > 0.5 ? (stockPrice ?? DASH) : DASH),
           ];
           return { key: s, label: SEASON_LABEL[s], short: s === "FW26/27" ? "FW26" : s === "SS26" ? "SS26" : "FW25", conf: m.conf, deliv: m.deliv, sold: m.allG, stock: Math.max(0, m.stock), rubK: m.rubA / 1000, showTtl: !live && pairs.some((p) => p.ssn !== p.ttl), common, pairs };
         }),
@@ -548,7 +548,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   const ctr = "Календарь сезона: товар этого сезона и олды вместе.";
   // Итоги по мини-группам, в порядке развития данных: заказ и приход → в свой сезон → товар сезона за всё время → календарь сезона → олды → остаток.
   const rev = (key: string, hint: string, get: (m: M) => number | null) => mc(key, "Выручка, ₽", hint, get, true);
-  const price = (key: string, hint: string, get: (m: M) => number | null) => mc(key, "Цена, ₽/шт.", hint, get);
+  const price = (key: string, hint: string, get: (m: M) => number | null) => mc(key, "Цена до скидки, ₽/шт.", hint, get);
   const muRow = (key: string, hint: string, get: (m: M) => number | null) => mx(key, "MU", hint, get);
   type SumItem = Col | { group: string };
   const SUMMARY: SumItem[] = [byKey.arts, byKey.conf, ...(detail ? [eurCol] : []), byKey.deliv, byKey.wait,

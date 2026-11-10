@@ -25,7 +25,8 @@ export function SeasonSwitch({ keys, value, onChange }: { keys: string[]; value:
 
 /** Обёртка: закреплённая панель сезона + блоки, которые за ней следуют. */
 export function SeasonScope({ keys, children }: { keys: string[]; children: React.ReactNode }) {
-  const [season, setSeasonState] = useState("all");
+  const keep = useDashCurrency();
+  const [season, setSeasonState] = useState(keep.season);
   const wrap = useRef<HTMLDivElement>(null);
   const anchor = useRef<{ el: Element; top: number } | null>(null);
 
@@ -40,7 +41,8 @@ export function SeasonScope({ keys, children }: { keys: string[]; children: Reac
       if (el) anchor.current = { el, top: el.getBoundingClientRect().top };
     }
     setSeasonState(k);
-  }, []);
+    keep.setSeason(k);
+  }, [keep]);
   useLayoutEffect(() => {
     const keep = () => {
       const a = anchor.current;
