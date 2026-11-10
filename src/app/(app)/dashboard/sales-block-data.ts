@@ -171,20 +171,26 @@ function stockMoney(ctx: Ctx, lines: SLine[], scope: SLine[]): Pick<SalesMoney, 
   return { recvCost, recvCostPcs, recvList, recvListPcs, stockCost, stockCostPcs, stockList, stockListPcs, soldCost: sCost, soldCostPcs: sPcs, markupSold: sCost > 0 ? sRev / sCost : null, markupStock: bothCost > 0 ? bothList / bothCost : null };
 }
 
-function moneyOf(ctx: Ctx, head: Ext, lines: SLine[], scope: SLine[], repStock?: Pick<SalesMoney, "stockCost" | "stockCostPcs" | "stockList" | "stockListPcs" | "markupStock"> | null): SalesMoney {
-  return { revenue: head.revenue, grossRev: head.grossRev, discount: head.discountSum, avgPrice: head.avgPrice, ...stockMoney(ctx, lines, scope), ...(repStock ?? {}) };
+function moneyOf(ctx: Ctx, head: Ext, lines: SLine[], scope: SLine[], repStock?: ReturnType<typeof reportStockMoney> | null): SalesMoney {
+  return { revenue: head.revenue, grossRev: head.grossRev, discount: head.discountSum, avgPrice: head.avgPrice, ...stockMoney(ctx, lines, scope), ...(repStock ? { ...repStock, markupSold: repStock.soldCost > 0 ? head.revenue / repStock.soldCost : null } : {}) };
 }
 
 /** Весь остаток в деньгах по отчёту «заказ и продажи» (владелец 10.11.2026): по размерам остаток = получено по трём сезонам − продано (сумма 346), цена — прайс размера, закупка — себестоимость изделия из ТЗ.
  * Тот же расчёт, что строки «Остаток всего» на «Продажах». Только для всех сезонов. */
-function reportStockMoney(ctx: Ctx, sizes: ReportSizeRow[], cat: Cat, prices: { acode: string; color: string; size: string; price: number }[]): Pick<SalesMoney, "stockCost" | "stockCostPcs" | "stockList" | "stockListPcs" | "markupStock"> {
+function reportStockMoney(ctx: Ctx, sizes: ReportSizeRow[], cat: Cat, prices: { acode: string; color: string; size: string; price: number }[]): Pick<SalesMoney, "recvCost" | "recvCostPcs" | "recvList" | "recvListPcs" | "soldCost" | "soldCostPcs" | "stockCost" | "stockCostPcs" | "stockList" | "stockListPcs" | "markupStock"> {
   const idx = new Map<string, number>();
   for (const p of prices) { const k = `${p.acode}|${p.color}|${p.size}`; if (!idx.has(k)) idx.set(k, p.price); }
   const inc = ctx.vat === "in", today = todayMsk();
-  let cost = 0, costPcs = 0, list = 0, listPcs = 0, bothList = 0, bothCost = 0;
+  let cost = 0, costPcs = 0, list = 0, listPcs = 0, bothList = 0, bothCost = 0, rCost = 0, rCostPcs = 0, rList = 0, rListPcs = 0, sCost = 0, sCostPcs = 0;
   for (const r of sizes) {
     if (cat !== "all" && r.cls !== cat) continue;
-    const st = Object.values(r.seas ?? {}).reduce((a, c) => a + (c.deliv ?? 0), 0) - (r.sold ?? 0);
+    const dl = Object.values(r.seas ?? {}).reduce((a, c) => a + (c.deliv ?? 0), 0), st = dl - (r.sold ?? 0);
+    {
+      const k0 = { article: r.acode, colorId: r.color, modelCode: r.modelCode } as SLine, c0 = ctx.hasCost(k0) ? (inc ? ctx.unitIncl(k0) : ctx.unitExcl(k0)) : null;
+      const q0 = idx.get(`${r.acode}|${r.color}|${r.size}`), pp = q0 === undefined ? null : inc ? q0 : exVatAt(q0, today);
+      if (c0 !== null) { rCost += c0 * dl; rCostPcs += dl; sCost += c0 * (r.sold ?? 0); sCostPcs += r.sold ?? 0; }
+      if (pp !== null) { rList += pp * dl; rListPcs += dl; }
+    }
     if (!st) continue;
     const key = { article: r.acode, colorId: r.color, modelCode: r.modelCode } as SLine;
     const hasC = ctx.hasCost(key), c = hasC ? (inc ? ctx.unitIncl(key) : ctx.unitExcl(key)) : 0;
@@ -193,7 +199,7 @@ function reportStockMoney(ctx: Ctx, sizes: ReportSizeRow[], cat: Cat, prices: { 
     if (p !== null) { list += p * st; listPcs += st; }
     if (p !== null && hasC) { bothList += p * st; bothCost += c * st; }
   }
-  return { stockCost: cost, stockCostPcs: costPcs, stockList: list, stockListPcs: listPcs, markupStock: bothCost > 0 ? bothList / bothCost : null };
+  return { recvCost: rCost, recvCostPcs: rCostPcs, recvList: rList, recvListPcs: rListPcs, soldCost: sCost, soldCostPcs: sCostPcs, stockCost: cost, stockCostPcs: costPcs, stockList: list, stockListPcs: listPcs, markupStock: bothCost > 0 ? bothList / bothCost : null };
 }
 
 /** Период блока в виде фильтров /sales: год → с 1 января по 31 декабря; «все годы» — без периода. */
