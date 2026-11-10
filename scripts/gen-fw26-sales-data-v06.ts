@@ -16,7 +16,7 @@ import { leafKeyOf } from "@/lib/fw26-plan";
 const S = "FW26/27";
 const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Свакара", LYNX: "Рысь" };
 
-type Leaf = { fur: string; c1: string; c2: string; article: string; color: string; conf: number; confEur: number; deliv: number; delivEur: number; sold: number; rub: number; oldSold: number; oldRub: number; stockAll: number; ttlConf: number; ttlEur: number; stkS: number; stkO: number; prior: number; priorEur: number; gS: number; cS: number; gO: number; cO: number };
+type Leaf = { fur: string; c1: string; c2: string; article: string; color: string; conf: number; confEur: number; deliv: number; delivEur: number; sold: number; rub: number; oldSold: number; oldRub: number; stockAll: number; delivAll: number; ttlConf: number; ttlEur: number; stkS: number; stkO: number; prior: number; priorEur: number; gS: number; cS: number; gO: number; cO: number };
 
 async function main() {
   const dir = process.argv[2] ?? "docs-inventory/reports";
@@ -38,7 +38,8 @@ async function main() {
   for (const r of data.sizes) {
     const fur = furRuLabel(r.fur ?? "Не указан", FUR_RU), c1 = (r.l2 || "(без категории)").trim(), c2 = (r.l4 || r.l5 || "(без категории)").trim(), color = (r.color ?? "").trim();
     const k = [fur, c1, c2, r.acode, color].join("|");
-    const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, ttlConf: 0, ttlEur: 0, stkS: 0, stkO: 0, prior: 0, priorEur: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
+    const lf = leaves.get(k) ?? { fur, c1, c2, article: r.acode, color, conf: 0, confEur: 0, deliv: 0, delivEur: 0, sold: 0, rub: 0, oldSold: 0, oldRub: 0, stockAll: 0, delivAll: 0, ttlConf: 0, ttlEur: 0, stkS: 0, stkO: 0, prior: 0, priorEur: 0, gS: 0, cS: 0, gO: 0, cO: 0 };
+    lf.delivAll += (r.seas?.["FW25/26"]?.deliv ?? 0) + (r.seas?.["SS26"]?.deliv ?? 0) + (r.seas?.["FW26/27"]?.deliv ?? 0);
     lf.stockAll += (r.seas?.["FW25/26"]?.deliv ?? 0) + (r.seas?.["SS26"]?.deliv ?? 0) + (r.seas?.["FW26/27"]?.deliv ?? 0) - (r.sold ?? 0); for (const cs of ["FW25/26", "SS26", "FW26/27"] as const) { const cc = r.seas?.[cs]; if (cc) { lf.ttlConf += cs === "FW26/27" ? cc.conf ?? 0 : cc.conf ?? cc.deliv ?? 0; lf.ttlEur += cs === "FW26/27" ? cc.confEur ?? 0 : cc.confEur ?? cc.delivEur ?? 0; } } // заказ всего = FW25/26 + SS26 + FW26/27 (закрытые сезоны: заказано = получено)
     // Закрытые сезоны: заказано = пришло (правило владельца): приход прошлых сезонов по файлу поступлений (весь, включая старше FW25).
     const lk = leafKeyOf(r.acode, r.color);
@@ -63,11 +64,14 @@ async function main() {
   // Остаток = получено − продано (без обрезки по нулю, чтобы суммы сходились: 226 + 120 = 346 = 637 − 291).
   const stock26 = (l: Leaf) => l.deliv - l.sold;
   const stockOth = (l: Leaf) => l.stockAll - stock26(l);
+  // Закупочная цена изделия, €: приход € ÷ приход шт. (нет прихода — заказ € ÷ заказ шт.); для «всего» — заказ всего € ÷ заказ всего шт.
+  const unitFw = (l: Leaf) => (l.deliv > 0 && l.delivEur > 0 ? l.delivEur / l.deliv : l.conf > 0 && l.confEur > 0 ? l.confEur / l.conf : 0);
+  const unitAll = (l: Leaf) => (l.ttlConf > 0 && l.ttlEur > 0 ? l.ttlEur / l.ttlConf : unitFw(l));
 
   const N0 = "#,##0;-#,##0;–";
   const r2 = (v: number) => Math.round(v * 100) / 100;
-  const G1 = "Товар FW26/27", G2 = "Продажи других сезонов в календарном FW26", G3 = "Остатки", G4 = "Для MU (служебные)", G5 = "Заказ всего, €";
-  const FILL: Record<string, string> = { [G1]: "FFE7F5EC", [G2]: "FFFDF1DC", [G3]: "FFE8EEFC", [G4]: "FFEFEFEF", [G5]: "FFE7F5EC" };
+  const G1 = "Товар FW26/27", G2 = "Продажи других сезонов в календарном FW26", G3 = "Остатки", G4 = "Для MU (служебные)", G5 = "Заказ всего, €", G6 = "Приход всего и остаток в €";
+  const FILL: Record<string, string> = { [G1]: "FFE7F5EC", [G2]: "FFFDF1DC", [G3]: "FFE8EEFC", [G4]: "FFEFEFEF", [G5]: "FFE7F5EC", [G6]: "FFE8EEFC" };
   const cols: { g: string; head: string; get: (l: Leaf) => number }[] = [
     { g: G1, head: "Заказано, шт.", get: (l) => l.conf },
     { g: G1, head: "Заказано, €", get: (l) => r2(l.confEur) },
@@ -87,6 +91,9 @@ async function main() {
     { g: G4, head: "MU: NS RUR + Discount RUR, олды в FW26", get: (l) => Math.round(l.gO) },
     { g: G4, head: "MU: SC EUR × 110, олды в FW26, ₽", get: (l) => Math.round(l.cO) },
     { g: G5, head: "Заказ всего, € (FW25/26 + SS26 + FW26/27)", get: (l) => r2(l.ttlEur) },
+    { g: G6, head: "Пришло всего, шт. (FW25/26 + SS26 + FW26/27)", get: (l) => l.delivAll },
+    { g: G6, head: "Stock EUR FW26 (остаток × закупочная цена изделия)", get: (l) => r2(stock26(l) * unitFw(l)) },
+    { g: G6, head: "Stock EUR всего (остаток × закупочная цена изделия)", get: (l) => r2((stock26(l) + stockOth(l)) * unitAll(l)) },
   ];
   const labels = ["Тип меха", "Категория 1", "Категория 2", "Артикул", "Цвет"], c0 = labels.length + 1, FIRST = 4, LAST = FIRST + list.length - 1;
 

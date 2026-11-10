@@ -501,6 +501,24 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   // Остаток всего = сумма остатков сезонов (получено − продано товара): 97 + 23 + 226 = 346 = получено 637 − продано 291.
   const stockToday = SEASONS.reduce((a, s) => a + totalAll[s].stock, 0);
   const stockAllCol: Col = { key: "stockAll", label: "Остаток всего, шт.", short: "", hint: "Сколько товара на сегодня во всех сезонах вместе: остаток этого сезона и остатки прошлых сезонов. Показан в последнем сезоне.", get: (_m: M, s: Season) => (s === SEASONS[SEASONS.length - 1] ? n0(stockToday) : DASH), strong: true };
+  // Весь сток в деньгах: остаток каждого артикула × закупочная цена (€, себестоимость изделия) и × розничная цена сейчас (₽, средневзвешенная по остатку размеров).
+  const stockMoney = (() => {
+    // По размерам: остаток = получено по трём сезонам − продано (как лист «Данные» Excel; сумма 346); цена — прайс размера, закупка — себестоимость изделия артикула.
+    let cost = 0, retail = 0;
+    for (const n of articles) {
+      const c = costLine(n);
+      for (const r of n.rows) {
+        const st = SEASONS.reduce((a, x) => a + (r.seas?.[x]?.deliv ?? 0), 0) - (r.sold ?? 0);
+        if (!st) continue;
+        if (c) cost += st * c;
+        const pr = nowPrice(r); if (pr !== null) retail += st * pr;
+      }
+    }
+    return { cost, retail };
+  })();
+  const lastS = SEASONS[SEASONS.length - 1];
+  const stockCostCol: Col = { key: "stockCost", label: "Остаток всего, по закупке, €", short: "", hint: "Остаток каждого артикула × себестоимость изделия в € (приход € ÷ приход шт.), сумма по всем сезонам.", get: (_m: M, s: Season) => (s === lastS ? eurU(stockMoney.cost) : DASH) };
+  const stockRetailCol: Col = { key: "stockRetail", label: "Остаток всего, по рознице, ₽", short: "", hint: "Остаток каждого артикула × текущая розничная цена из прайса (средневзвешенная по остатку размеров), сумма по всем сезонам.", get: (_m: M, s: Season) => (s === lastS ? money(stockMoney.retail) : DASH) };
   const mc = (key: string, label: string, hint: string, num: (m: M) => number | null, strong = false): Col => ({ key, label, short: "", hint, get: (m) => { const v = num(m); return v === null || Math.abs(v) < 0.5 ? DASH : money(v); }, strong });
   const mx = (key: string, label: string, hint: string, v: (m: M) => number | null): Col => ({ key, label, short: "", hint, get: (m) => x2(v(m)) });
   const ctr = "Календарь сезона: товар этого сезона и олды вместе.";
@@ -533,7 +551,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
     price("priceOld", "(выручка + скидка) ÷ шт., с НДС.", (m) => priceO(m)),
     muRow("muOld", "(Выручка ₽ + скидка ₽) ÷ курс 110 ÷ SC EUR.", mkO),
     { group: "Остаток" },
-    byKey.left, stockAllCol]
+    byKey.left, stockAllCol, stockCostCol, stockRetailCol]
 
   return (
     <section aria-label="Сезоны: заказ и продажи" className="flex flex-col gap-3">
@@ -561,7 +579,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
               <tr key={c.key} className="border-t border-neutral-200">
                 <td className={"px-3 py-2 " + (c.strong ? "font-semibold" : "")}>{c.label}<span className="ml-1 inline-flex align-middle [&_.info-i]:!h-5 [&_.info-i]:!min-h-0 [&_.info-i]:!w-5 [&_.info-i]:!min-w-0"><InfoHint label={c.label}><p>{c.hint}</p></InfoHint></span></td>
                 {seasons.map((s) => <td key={s} data-season={s} data-metric={c.key} className={`px-3 py-2 text-right tabular-nums ${SEASON_BG[s]} ${c.strong ? "font-semibold" : ""}`}>{c.key === "rubS" || c.key === "rubA" ? money(totalAll[s][c.key]) : c.get(totalAll[s], s)}</td>)}
-                {seasons.length > 1 ? <td className="px-3 py-2 text-right tabular-nums text-neutral-800">{c.key === "wait" ? (seasons.includes("FW26/27") ? n0(Math.max(0, totalAll["FW26/27"].conf - totalAll["FW26/27"].deliv)) : DASH) : c.key === "rubS" || c.key === "rubA" ? money(sumAll[c.key]) : c.key === "stockAll" ? n0(stockToday) : c.get(sumAll, "FW25/26")}</td> : null}
+                {seasons.length > 1 ? <td className="px-3 py-2 text-right tabular-nums text-neutral-800">{c.key === "wait" ? (seasons.includes("FW26/27") ? n0(Math.max(0, totalAll["FW26/27"].conf - totalAll["FW26/27"].deliv)) : DASH) : c.key === "rubS" || c.key === "rubA" ? money(sumAll[c.key]) : c.key === "stockAll" ? n0(stockToday) : c.key === "stockCost" ? eurU(stockMoney.cost) : c.key === "stockRetail" ? money(stockMoney.retail) : c.get(sumAll, "FW25/26")}</td> : null}
               </tr>
             ))}
           </tbody>
