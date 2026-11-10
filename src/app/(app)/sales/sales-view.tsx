@@ -250,7 +250,7 @@ export function SalesView({ input, sizes, photos, today, initial, chain, dmStock
           <section aria-label="Ключевые показатели" className="grid grid-cols-2 items-stretch gap-2 md:grid-cols-4">
             {tiles.map((t) => <Tile key={t.id} def={t} onOpen={setTile} />)}
           </section>
-          <SalesCharts buckets={buckets} gran={ui.gran} onGran={(g) => { patch({ gran: g }); setHot(null); }} hot={hot} setHot={setHot} />
+          <SalesCharts reportNote={winRep ? `Ряд по датам из строк файла: приход ${n0(head.received)} шт., остаток ${n0(stockEnd)} шт. По отчёту «заказ и продажи»: получено ${n0(recvEff)} шт., остаток ${n0(stockEff)} шт. (в отчёте нет дат, разница ${n0(Math.abs(head.received - recvEff))} шт.).` : undefined} buckets={buckets} gran={ui.gran} onGran={(g) => { patch({ gran: g }); setHot(null); }} hot={hot} setHot={setHot} />
           <SalesTree plain={isPlain} input={input} lines={lines} env={env} vat={ui.vat} cat={ui.f.cat} sizes={sizes} photos={photos} struct={ui.struct} onStruct={(s) => patch({ struct: s })}
             picked={ui.cols} onPicked={(k) => patch({ cols: k })} filtersNote={note} />
         </>

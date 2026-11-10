@@ -22,6 +22,7 @@ import { CreateShipmentButton } from "./create-shipment";
 import { ShipmentsFeed } from "./shipments-feed";
 import { ShipmentsTabs } from "./tabs";
 import { loadShipmentsFeed } from "@/lib/shipments-feed";
+import { loadReportSizes } from "@/lib/margin-server";
 
 export const metadata = { title: "Отгрузки и календарь" };
 
@@ -155,6 +156,9 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   ) : null;
 
   const feed = isSupplier ? [] : await loadShipmentsFeed(orgId);
+  // Получено по отчёту «заказ и продажи» (637): рядом с приходом по датам файла (659).
+  const repSizes = isSupplier ? [] : await loadReportSizes(orgId);
+  const reportReceived = repSizes.some((r) => r.seas) ? repSizes.reduce((a, r) => a + Object.values(r.seas ?? {}).reduce((x, c) => x + (c.deliv ?? 0), 0), 0) : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -173,7 +177,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
       </div>
 
       <ShipmentsTabs active="feed" />
-      {feed.length ? <ShipmentsFeed rows={feed} /> : null}
+      {feed.length ? <ShipmentsFeed rows={feed} reportReceived={reportReceived} /> : null}
 
     </div>
   );

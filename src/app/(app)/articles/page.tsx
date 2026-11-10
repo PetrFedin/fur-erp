@@ -98,7 +98,8 @@ const ARTICLE_COLUMNS: PickerColumn[] = [
   { key: "unit", label: "Себестоимость за ед.", on: true },
   { key: "vat", label: "НДС" },
   { key: "price", label: "Розничная цена", on: true },
-  { key: "markup", label: "Наценка", on: true },
+  { key: "markup", label: "Наценка к ТЗ", on: true },
+  { key: "mu110", label: "MU (110)", on: true },
   { key: "orders", label: "ТЗ", on: true },
 ];
 
@@ -127,6 +128,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const repSizes = await loadReportSizes(orgId);
   const repStockByCode = new Map<string, number>();
   for (const r of repSizes) { const code = normCode((r.modelCode ?? r.acode.split("/")[0] ?? "")); const d = Object.values(r.seas ?? {}).reduce((a, c) => a + (c.deliv ?? 0), 0) - (r.sold ?? 0); repStockByCode.set(code, (repStockByCode.get(code) ?? 0) + d); }
+  // Закупочная цена изделия по отчёту (поступило € ÷ шт., нет прихода — заказ € ÷ шт.) по коду модели: для MU по правилу 110 (цена ÷ 110 ÷ закупка в €), как в «Продажах».
+  const repCostByCode = new Map<string, { dE: number; dP: number; cE: number; cP: number }>();
+  for (const r of repSizes) { const code = normCode((r.modelCode ?? r.acode.split("/")[0] ?? "")); const a = repCostByCode.get(code) ?? { dE: 0, dP: 0, cE: 0, cP: 0 }; for (const c of Object.values(r.seas ?? {})) { a.dE += c.delivEur ?? 0; a.dP += c.deliv ?? 0; a.cE += c.confEur ?? 0; a.cP += c.conf ?? 0; } repCostByCode.set(code, a); }
   const stocks = await prisma.finishedGoodsStock.findMany({ where: { organizationId: orgId }, select: { productModelId: true, quantity: true, avgUnitCost: true } });
   const articleOpts = await getFilterOptions(orgId, year, ["category", "model"]);
 
@@ -242,6 +246,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       listOnly: !m.sellingPrice && listPrice != null,
       retailStock: price ? price * stockQty : null,
       markup: price && unitIncl && unitIncl > 0 ? price / unitIncl : null,
+      mu110: (() => { const a = repCostByCode.get(normCode(m.name)); const c = a ? (a.dP > 0 && a.dE > 0 ? a.dE / a.dP : a.cP > 0 && a.cE > 0 ? a.cE / a.cP : null) : null; return price && c ? Number(price) / 110 / c : null; })(),
       primaryFur: met.primaryFur ?? furTypes.get(m.id)?.fur ?? null,
       met,
       colors,
@@ -270,12 +275,12 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     return wa - wb || compareModelNames(a.name, b.name);
   });
   // Сортировка по клику на заголовок (?sort=…&dir=…) поверх порядка по умолчанию (есть склад или ТЗ — выше, затем по названию).
-  const aSort = readSort(sp, ["name", "photos", "plu", "category", "fur", "color", "sizes", "lining", "qty", "stock", "furQty", "furSum", "liningQty", "liningSum", "work", "total", "unit", "price", "markup", "orders"]);
+  const aSort = readSort(sp, ["name", "photos", "plu", "category", "fur", "color", "sizes", "lining", "qty", "stock", "furQty", "furSum", "liningQty", "liningSum", "work", "total", "unit", "price", "markup", "mu110", "orders"]);
   const rows = sortRows(rows1, aSort, {
     name: (r) => r.name, photos: (r) => photoSummary.get(r.id)?.length ?? 0, plu: (r) => r.plus.map((x) => x.plu).join(", ") || null, category: (r) => r.model.category?.trim() || null, fur: (r) => r.primaryFur, color: (r) => r.colors[0] ?? null, sizes: (r) => r.sizes || null, lining: (r) => r.lining || null,
     qty: (r) => r.qty, stock: (r) => r.stockQty, furQty: (r) => r.met.fur.qty, furSum: (r) => r.met.fur.on.incl, liningQty: (r) => r.met.lining.qty, liningSum: (r) => r.met.lining.on.incl,
     work: (r) => r.met.work, total: (r) => (r.costIncl > 0 ? r.met.total.on.incl : null), unit: (r) => r.met.unit?.on.incl ?? null,
-    price: (r) => r.sellingPrice ?? null, markup: (r) => r.markup ?? null, orders: (r) => r.orderCount,
+    price: (r) => r.sellingPrice ?? null, markup: (r) => r.markup ?? null, mu110: (r) => r.mu110 ?? null, orders: (r) => r.orderCount,
   });
   const ath = (k: string) => thSort("/articles", sp, k, aSort);
   const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((a, r) => a + pick(r), 0);
@@ -496,7 +501,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <InfoHint label="НДС">Ставки НДС в строках списания шкур и подкладки (из лотов или заданные в ТЗ). Все суммы в таблице показываются «с НДС» или «без НДС» по переключателю в шапке.</InfoHint>
             </Th>
             <Th data-col="price" {...ath("price")} className="text-right" unit="₽" after={<InfoHint label="Розничная цена">Розничная цена артикула с НДС. Правится прямо здесь: Enter или переход в другое поле сохраняет, рядом появляется «Сохранено». Применяется к ТЗ в плане и в работе.</InfoHint>}>Цена с НДС</Th>
-            <Th data-col="markup" {...ath("markup")} className="text-right" after={<InfoHint label="Как считается наценка">Розничная цена ÷ полная себестоимость за ед. (с работой, с НДС, с 4 %) — по всем ТЗ артикула (завершённым и в работе). В «Аналитика → Цены» база другая: себестоимость сырья без работы, только завершённые ТЗ. Пример: цена 10 000 ₽ при себестоимости 4 000 ₽ — ×2,50.</InfoHint>}>Наценка</Th>
+            <Th data-col="markup" {...ath("markup")} className="text-right" after={<InfoHint label="Как считается наценка к ТЗ">Розничная цена ÷ полная себестоимость за ед. (с работой, с НДС, с 4 %) — по всем ТЗ артикула (завершённым и в работе). В «Аналитика → Цены» база другая: себестоимость сырья без работы, только завершённые ТЗ. Пример: цена 10 000 ₽ при себестоимости 4 000 ₽ — ×2,50.</InfoHint>}>Наценка к ТЗ</Th>
+            <Th data-col="mu110" {...ath("mu110")} className="text-right" after={<InfoHint label="MU по правилу 110">Цена ÷ 110 ÷ закупочная цена изделия в € (поступило € ÷ шт. по отчёту «заказ и продажи»). Та же наценка, что в «Продажах» и в окне «Отчёт: продажи». Пример: цена 1 100 000 ₽ при закупке 2 000 € — ×5,00.</InfoHint>}>MU (110)</Th>
             <Th data-col="orders" {...ath("orders")} className="text-right">ТЗ</Th>
           </Tr>
         </Thead>
@@ -566,6 +572,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 <ArticlePriceForm modelId={r.id} sellingPrice={r.ownPrice} fallback={r.listOnly && r.sellingPrice ? String(r.sellingPrice) : ""} canEdit={canCreate} />
               </Td>
               <Td data-col="markup" className="text-right tabular-nums">{r.markup ? fmtX(r.markup) : "–"}</Td>
+              <Td data-col="mu110" className="text-right tabular-nums">{r.mu110 ? fmtX(r.mu110) : "–"}</Td>
               <Td data-col="orders" className="text-right tabular-nums">
                 {r.orderCount > 0 ? (
                   <Link href={`/production?model=${r.id}`} className="text-blue-700 hover:underline" title="ТЗ этого артикула">
@@ -591,12 +598,12 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <Td data-col="work" className="text-right tabular-nums"><Money incl={sum((r) => r.met.work).toFixed(2)} excl={sum((r) => r.met.work).toFixed(2)} /></Td>
               <Td data-col="total" className="text-right"><CostTwo on={totalQty > 0 || totalCostIncl > 0 ? sumPair((r) => r.met.total.on) : null} off={sumPair((r) => r.met.total.off)} /></Td>
               <Td data-col="unit" className="text-right">{totalQty > 0 ? <CostTwo on={{ incl: totalCostIncl / totalQty, excl: totalCostExcl / totalQty }} off={{ incl: sumPair((r) => r.met.total.off).incl / totalQty, excl: sumPair((r) => r.met.total.off).excl / totalQty }} /> : "–"}</Td>
-              <Td data-col="vat" /><Td data-col="price" /><Td data-col="markup" /><Td data-col="orders" />
+              <Td data-col="vat" /><Td data-col="price" /><Td data-col="markup" /><Td data-col="mu110" /><Td data-col="orders" />
             </Tr>
           )}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={22} className="py-8 text-center text-neutral-500">
+              <Td colSpan={23} className="py-8 text-center text-neutral-500">
                 {q || modelFilterOn || tzActive ? "Ничего не найдено" : year !== "all" ? emptyForYear(year, "ТЗ по артикулам", "") : emptyCount > 0 ? "Нет артикулов с ТЗ и остатком" : "Артикулов пока нет"}
               </Td>
             </Tr>
@@ -615,7 +622,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               { label: "Заведено в ТЗ, шт.", value: r.qty > 0 ? formatQty(r.qty) : "–", strong: true },
               { label: "Полная себестоимость итого", value: <CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /> },
               { label: "За ед.", value: <CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /> },
-              { label: "Наценка", value: r.markup ? fmtX(r.markup) : "–" },
+              { label: "Наценка к ТЗ", value: r.markup ? fmtX(r.markup) : "–" },
+              { label: "MU (110)", value: r.mu110 ? fmtX(r.mu110) : "–" },
               { label: "Вкл / выкл", value: <ActiveToggle modelId={r.id} active={r.isActive} canEdit={canCreate} /> },
               { label: "ТЗ", value: r.orderCount > 0 ? <Link href={`/production?model=${r.id}`} className="underline">{r.orderCount}</Link> : "–" },
             ]}

@@ -482,7 +482,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     { key: "cost", label: "Себестоимость сырья за ед.", href: thHref("cost") },
     ...cols.map((c) => ({ key: c, label: colLabel(c, c4), href: thHref(c) })),
     { key: "price", label: "Цена", href: thHref("price") },
-    { key: "markup", label: "Наценка", href: thHref("markup") },
+    { key: "markup", label: "Наценка к сырью", href: thHref("markup") },
     { key: "rec", label: "Рекомендуемая цена", href: thHref("rec") },
   ];
 

@@ -19,7 +19,7 @@ const SEL = "min-h-11 rounded-lg border border-neutral-300 bg-white px-2 text-sm
 /** «1 артикул», «2 артикула», «5 артикулов». */
 const pluralArticles = (n: number) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? "артикул" : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? "артикула" : "артикулов"}`;
 
-export function ShipmentsFeed({ rows }: { rows: FeedRow[] }) {
+export function ShipmentsFeed({ rows, reportReceived = null }: { rows: FeedRow[]; /** Получено по отчёту «заказ и продажи» (даты в отчёте не указаны), шт. */ reportReceived?: number | null }) {
   const { mode } = useVatDisplay();
   const [unit, setUnit] = useState<"pcs" | "rub">("pcs");
   const [fur, setFur] = useState("");
@@ -76,7 +76,7 @@ export function ShipmentsFeed({ rows }: { rows: FeedRow[] }) {
     <section aria-label="Приёмки по датам" className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3" data-testid="shipments-feed">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-base font-semibold">Приёмки по датам</h2>
-        <span className="text-xs text-neutral-600">Получено в рознице {n0(totalQty)} шт. · {money(totalSum)} по себестоимости ТЗ, {mode === "incl" ? "с НДС" : "без НДС"}</span>
+        <span className="text-xs text-neutral-600">Получено в рознице по датам приходов {n0(totalQty)} шт.{reportReceived !== null && !monthSel ? ` (по отчёту «заказ и продажи» — ${n0(reportReceived)} шт., в отчёте нет дат)` : ""} · {money(totalSum)} по себестоимости ТЗ, {mode === "incl" ? "с НДС" : "без НДС"}</span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <div role="group" aria-label="Единицы" className={segGroup}>
             <button type="button" aria-pressed={unit === "pcs"} className={seg(unit === "pcs")} onClick={() => setUnit("pcs")}>Штуки</button>

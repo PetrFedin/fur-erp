@@ -99,21 +99,22 @@ function GranSwitch({ gran, onGran }: { gran: Gran; onGran: (g: Gran) => void })
 }
 
 /** Главный график «Приход · Продажи · Остаток»: единственное место этого ряда на странице. */
-export function SalesCharts({ buckets, gran, onGran, hot, setHot }: { buckets: Bucket[]; gran: Gran; onGran: (g: Gran) => void; hot: number | null; setHot: (i: number | null) => void }) {
+export function SalesCharts({ buckets, gran, onGran, hot, setHot, reportNote }: { /** Без фильтров: итоги по отчёту «заказ и продажи» для сверки с рядом по датам файла. */ reportNote?: string; buckets: Bucket[]; gran: Gran; onGran: (g: Gran) => void; hot: number | null; setHot: (i: number | null) => void }) {
   return (
     <section aria-label="Приход, продажи и остаток по периодам" data-metric="chart-flow" className="flex min-w-0 flex-col gap-3 rounded-lg border border-neutral-300 bg-white p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">Приход · Продажи · Остаток</h2>
+        <h2 className="text-sm font-semibold">Приход · Продажи · Остаток <span className="text-xs font-normal text-neutral-600">по датам строк файла</span></h2>
         <GranSwitch gran={gran} onGran={onGran} />
       </div>
       {buckets.length === 0 ? <p className="text-sm text-neutral-700">Нет движений за выбранный период.</p> : (
         <Chart buckets={buckets} hot={hot} setHot={setHot} label="Приход и продажи столбцами, остаток нарастающим итогом линией" fmtL={(v) => n0(Math.round(v))} fmtR={(v) => n0(Math.round(v))}
           series={[
-            { name: "Получено, шт.", color: NAVY, vals: buckets.map((b) => b.m.received), kind: "bar", axis: "l" },
+            { name: "Получено по датам файла, шт.", color: NAVY, vals: buckets.map((b) => b.m.received), kind: "bar", axis: "l" },
             { name: "Продано, шт.", color: GET, vals: buckets.map((b) => Math.max(0, b.m.sold)), kind: "bar", axis: "l" },
             { name: "Остаток всего, шт.", color: STOCK, vals: buckets.map((b) => b.stock), kind: "line", axis: "r" },
           ]} />
       )}
+      {reportNote ? <p className="text-xs text-neutral-700">{reportNote}</p> : null}
     </section>
   );
 }
