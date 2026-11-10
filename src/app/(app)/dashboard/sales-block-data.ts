@@ -230,29 +230,33 @@ function sizeRows(n: SNode, depth: number, e: RowEnv): SalesRow[] {
 
 const inPeriod2 = (l: SLine, e: RowEnv) => e.inPeriod(l);
 type CumNode = { stock: number; list: VatPair; listPcs: number; markup: { in: number | null; ex: number | null } };
-type RowEnv = { /** Получено и остаток узла по отчёту «заказ и продажи» (по артикулу+цвету строк узла); null — по строкам прихода. */ rep?: { received: (ls: SLine[]) => number; stock: (ls: SLine[], sold: number) => number } | null; /** Помесячный ряд узла по его строкам на оси месяцев среза; null — не считать. */ seriesOf: ((lines: SLine[]) => NodeSeries) | null; seasonEnd: string | null; cum: Map<string, CumNode> | null; ctxs: { in: Ctx; ex: Ctx }; inPeriod: (l: SLine) => boolean; /** Размеры из Report (справочно, без привязки к датам и сезонам): только в срезе «все сезоны». */ sizes: ReportSizeRow[]; cat: Cat };
+/** Деньги узла по отчёту «заказ и продажи» (по размерам): получено и остаток × себестоимость изделия и прайс размера. */
+type RepMoney = { recvCost: number; recvCostPcs: number; recvList: number; stockCost: number; stockList: number; stockListPcs: number; bothList: number; bothCost: number };
+const zeroMoney = (): RepMoney => ({ recvCost: 0, recvCostPcs: 0, recvList: 0, stockCost: 0, stockList: 0, stockListPcs: 0, bothList: 0, bothCost: 0 });
+type RowEnv = { /** Получено и остаток узла по отчёту «заказ и продажи» (по артикулу+цвету строк узла); null — по строкам прихода. */ rep?: { received: (ls: SLine[]) => number; stock: (ls: SLine[], sold: number) => number; money: (ls: SLine[], v: "in" | "ex") => RepMoney } | null; /** Помесячный ряд узла по его строкам на оси месяцев среза; null — не считать. */ seriesOf: ((lines: SLine[]) => NodeSeries) | null; seasonEnd: string | null; cum: Map<string, CumNode> | null; ctxs: { in: Ctx; ex: Ctx }; inPeriod: (l: SLine) => boolean; /** Размеры из Report (справочно, без привязки к датам и сезонам): только в срезе «все сезоны». */ sizes: ReportSizeRow[]; cat: Cat };
 function rowOf(n: SNode, depth: number, tIn: SNode, tEx: SNode, e: RowEnv): SalesRow {
   // cols[0] — всё до конца периода (остаток), cols[1] — движения внутри периода.
   const inP = n.cols[1], inE = tEx.cols[1], inI = tIn.cols[1];
   const label = n.dim === "fur" ? furRu(n.label) : n.label;
   const inPer = n.lines.filter(e.inPeriod);
+  const rm = e.rep && n.lines.length ? { in: e.rep.money(n.lines, "in"), ex: e.rep.money(n.lines, "ex") } : null;
   return {
     id: n.id, label, depth,
-    recvList: { in: stockMoney(e.ctxs.in, inPer, n.lines).recvList, ex: stockMoney(e.ctxs.ex, inPer, n.lines).recvList },
+    recvList: rm ? { in: rm.in.recvList, ex: rm.ex.recvList } : { in: stockMoney(e.ctxs.in, inPer, n.lines).recvList, ex: stockMoney(e.ctxs.ex, inPer, n.lines).recvList },
     series: depth <= 2 && e.seriesOf && n.dim !== "article" && n.dim !== "color" ? e.seriesOf(n.lines) : undefined,
     received: e.rep && n.lines.length ? e.rep.received(n.lines) : inP.received, sold: inP.sold, stock: e.rep && n.lines.length ? e.rep.stock(n.lines, inP.sold) : n.cols[0].stock, sellThrough: inP.sellThrough,
     revenue: { in: inI.revenue, ex: inE.revenue }, avgPrice: { in: nul(inI.avgPrice), ex: nul(inE.avgPrice) },
-    stockList: { in: stockMoney(e.ctxs.in, inPer, n.lines).stockList, ex: stockMoney(e.ctxs.ex, inPer, n.lines).stockList },
-    stockListPcs: stockMoney(e.ctxs.in, inPer, n.lines).stockListPcs,
+    stockList: rm ? { in: rm.in.stockList, ex: rm.ex.stockList } : { in: stockMoney(e.ctxs.in, inPer, n.lines).stockList, ex: stockMoney(e.ctxs.ex, inPer, n.lines).stockList },
+    stockListPcs: rm ? rm.in.stockListPcs : stockMoney(e.ctxs.in, inPer, n.lines).stockListPcs,
     markupSold: { in: stockMoney(e.ctxs.in, inPer, n.lines).markupSold, ex: stockMoney(e.ctxs.ex, inPer, n.lines).markupSold },
-    markupStock: { in: stockMoney(e.ctxs.in, inPer, n.lines).markupStock, ex: stockMoney(e.ctxs.ex, inPer, n.lines).markupStock },
-    recvCostPcs: stockMoney(e.ctxs.in, inPer, n.lines).recvCostPcs,
-    recvCost: { in: stockMoney(e.ctxs.in, inPer, n.lines).recvCost, ex: stockMoney(e.ctxs.ex, inPer, n.lines).recvCost },
+    markupStock: rm ? { in: rm.in.bothCost > 0 ? rm.in.bothList / rm.in.bothCost : null, ex: rm.ex.bothCost > 0 ? rm.ex.bothList / rm.ex.bothCost : null } : { in: stockMoney(e.ctxs.in, inPer, n.lines).markupStock, ex: stockMoney(e.ctxs.ex, inPer, n.lines).markupStock },
+    recvCostPcs: rm ? rm.in.recvCostPcs : stockMoney(e.ctxs.in, inPer, n.lines).recvCostPcs,
+    recvCost: rm ? { in: rm.in.recvCost, ex: rm.ex.recvCost } : { in: stockMoney(e.ctxs.in, inPer, n.lines).recvCost, ex: stockMoney(e.ctxs.ex, inPer, n.lines).recvCost },
     soAs: e.seasonEnd && (e.rep && n.lines.length ? e.rep.received(n.lines) : inP.received) > 0 ? n.lines.filter((l) => l.kind === "SALE" && l.iso <= e.seasonEnd! && inPeriod2(l, e)).reduce((a, l) => a + l.pcs, 0) / (e.rep && n.lines.length ? e.rep.received(n.lines) : inP.received) : null,
     stockCum: e.cum?.get(n.id)?.stock ?? n.cols[0].stock,
-    stockListCum: e.cum?.get(n.id)?.list ?? { in: stockMoney(e.ctxs.in, inPer, n.lines).stockList, ex: stockMoney(e.ctxs.ex, inPer, n.lines).stockList },
-    stockListPcsCum: e.cum?.get(n.id)?.listPcs ?? stockMoney(e.ctxs.in, inPer, n.lines).stockListPcs,
-    markupStockCum: e.cum?.get(n.id)?.markup ?? { in: stockMoney(e.ctxs.in, inPer, n.lines).markupStock, ex: stockMoney(e.ctxs.ex, inPer, n.lines).markupStock },
+    stockListCum: rm ? { in: rm.in.stockList, ex: rm.ex.stockList } : e.cum?.get(n.id)?.list ?? { in: stockMoney(e.ctxs.in, inPer, n.lines).stockList, ex: stockMoney(e.ctxs.ex, inPer, n.lines).stockList },
+    stockListPcsCum: rm ? rm.in.stockListPcs : e.cum?.get(n.id)?.listPcs ?? stockMoney(e.ctxs.in, inPer, n.lines).stockListPcs,
+    markupStockCum: rm ? { in: rm.in.bothCost > 0 ? rm.in.bothList / rm.in.bothCost : null, ex: rm.ex.bothCost > 0 ? rm.ex.bothList / rm.ex.bothCost : null } : e.cum?.get(n.id)?.markup ?? { in: stockMoney(e.ctxs.in, inPer, n.lines).markupStock, ex: stockMoney(e.ctxs.ex, inPer, n.lines).markupStock },
     children: n.children.map((c, i) => rowOf(c, depth + 1, tIn.children[i], tEx.children[i], e)).concat(sizeRows(n, depth, e)),
   };
 }
@@ -289,7 +293,9 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
   // (разное написание артикула: «/», «200X30», фабрика в конце), затем узел суммирует свои артикулы+цвета. Нет фильтров по году и меху.
   const REP_KEY: Record<string, string> = { "FW 25/26": "FW25/26", "SS 2026": "SS26", "FW 26/27": "FW26/27" };
   const useRepTree = year === "all" && sizes.length > 0 && !furNames.length;
-  const repByLeaf = new Map<string, { deliv: Record<string, number>; stock: number }>();
+  const repByLeaf = new Map<string, { deliv: Record<string, number>; stock: number; m: { in: RepMoney; ex: RepMoney } }>();
+  const repPrice = new Map<string, number>();
+  for (const pr of input.prices) { const pk = `${pr.acode}|${pr.color}|${pr.size}`; if (!repPrice.has(pk)) repPrice.set(pk, pr.price); }
   if (useRepTree) {
     const lineKeys = new Set(all.map((l) => leafKeyOf(l.article, l.colorId)));
     const lineLeaves = [...lineKeys].map((k) => { const [art, color] = k.split("|"); return { k, art, color }; });
@@ -300,7 +306,17 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
         const k2 = `${art.replace(/\d{2,3}X\d{2}/g, "")}|${color}`;
         if (lineKeys.has(k2)) k = k2; else { const c = lineLeaves.filter((x) => x.color === color && art.startsWith(x.art)); k = c.length === 1 ? c[0].k : k; }
       }
-      const a = repByLeaf.get(k) ?? repByLeaf.set(k, { deliv: {}, stock: 0 }).get(k)!;
+      const a = repByLeaf.get(k) ?? repByLeaf.set(k, { deliv: {}, stock: 0, m: { in: zeroMoney(), ex: zeroMoney() } }).get(k)!;
+      {
+        const dl = Object.values(r.seas ?? {}).reduce((x, c) => x + (c.deliv ?? 0), 0), st = dl - (r.sold ?? 0), p0 = repPrice.get(`${r.acode}|${r.color}|${r.size}`);
+        const key = { article: r.acode, colorId: r.color, modelCode: r.modelCode } as SLine;
+        for (const v of ["in", "ex"] as const) {
+          const ctx = ctxs[v], q = a.m[v], hasC = ctx.hasCost(key), c = hasC ? (v === "in" ? ctx.unitIncl(key) : ctx.unitExcl(key)) : 0, p = p0 === undefined ? null : v === "in" ? p0 : exVatAt(p0, todayMsk());
+          if (hasC) { q.recvCost += c * dl; q.recvCostPcs += dl; q.stockCost += c * st; }
+          if (p !== null) { q.recvList += p * dl; q.stockList += p * st; q.stockListPcs += st; }
+          if (p !== null && hasC) { q.bothList += p * st; q.bothCost += c * st; }
+        }
+      }
       for (const [sk, c] of Object.entries(r.seas ?? {})) a.deliv[sk] = (a.deliv[sk] ?? 0) + (c.deliv ?? 0);
       a.stock += r.stock ?? 0;
     }
@@ -309,7 +325,8 @@ export function buildSalesBlock(input: MarginInput, year: YearFilter, sizes: Rep
     if (!useRepTree) return null;
     const keysOf = (ls: SLine[]) => [...new Set(ls.map((l) => leafKeyOf(l.article, l.colorId)))];
     const rec = (ls: SLine[]) => keysOf(ls).reduce((a, k) => { const v = repByLeaf.get(k); return a + (v ? (season === "all" ? Object.values(v.deliv).reduce((x, y) => x + y, 0) : v.deliv[REP_KEY[season]] ?? 0) : 0); }, 0);
-    return { received: rec, stock: (ls, sold) => rec(ls) - sold };
+    const money = (ls: SLine[], v: "in" | "ex"): RepMoney => keysOf(ls).reduce((t, k) => { const q = repByLeaf.get(k)?.m[v]; if (q) for (const f of Object.keys(t) as (keyof RepMoney)[]) t[f] += q[f]; return t; }, zeroMoney());
+    return { received: rec, stock: (ls, sold) => rec(ls) - sold, money };
   };
   const rowEnvOf = (season: string, cat: Cat, cum: Map<string, CumNode> | null, axis: string[] = []): RowEnv => ({ rep: repFor(season), seriesOf: axis.length ? seriesFor(axis) : null, seasonEnd: finishedEnd(season), cum, ctxs, inPeriod, sizes: season === "all" ? sizes : [], cat });
 
