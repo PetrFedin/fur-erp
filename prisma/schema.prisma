@@ -2371,6 +2371,8 @@ model DmCostParty {
   unitCostRub    Decimal @db.Decimal(18, 2)
   workRub        Decimal @db.Decimal(18, 2)
   estimated      Boolean @default(true)
+  /// Точность сопоставления партии с изделием: size (модель · цвет · размер), color (модель · цвет), model (только модель).
+  matchLevel     String  @default("model")
 
   @@index([organizationId, orderNumber])
   @@index([skuId])

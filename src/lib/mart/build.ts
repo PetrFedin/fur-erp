@@ -2,7 +2,7 @@ import "server-only";
 import type { PrismaClient } from "@prisma/client";
 import { loadReportSizes } from "@/lib/margin-server";
 import { loadRetailPricesState } from "@/lib/import-keys";
-import { normCode } from "@/lib/sales-receipts-core";
+import { normCode, colorOfLine } from "@/lib/sales-receipts-core";
 import { loadOrderRows } from "@/lib/analytics-orders";
 
 /**
@@ -18,6 +18,20 @@ const n = (v: unknown) => Number(v ?? 0) || 0;
 /** Эталон владельца (10.11.2026): отчёт «заказ и продажи». */
 export const MART_EXPECTED = { ordered: 845, received: 637, sold: 291, stock: 346, stockRetailRub: 689_484_200 } as const;
 
+// ───── Сопоставление партий (ТЗ) с изделиями отчёта: модель · цвет · размер ─────
+/** Цвет в сравнимом виде: заглавные, «Ё» → «Е», без лишних пробелов. */
+const ck = (s: string | null | undefined) => (s ?? "").toUpperCase().replace(/Ё/g, "Е").replace(/\s+/g, " ").trim();
+/** Названия цветов отчёта, которых нет в справочнике цветов: к какому цвету справочника относятся. */
+const EXTRA_COLOR_ALIASES: Record<string, string> = { TORTOR: "Тортора", VIOLET: "Виолет", BORDEAUX: "Бордовый", ORANGE: "Оранжевый" };
+/** Размеры ТЗ: «42, 44, 44, 46», «42,44», «единый размер» → ["42","44","44","46"], ["NS"]. */
+function parseTzSizes(raw: string | null | undefined): string[] {
+  const t = (raw ?? "").trim();
+  if (!t) return [];
+  if (/един/i.test(t)) return ["NS"];
+  return t.split(/[,;\s]+/).map((x) => x.trim()).filter((x) => /^(\d{1,2}|NS)$/i.test(x)).map((x) => x.toUpperCase());
+}
+type Level = "size" | "color" | "model";
+
 export type MartSummary = { skus: number; parties: number; movements: number; checks: { key: string; label: string; expected: number | null; actual: number | null; status: string; note: string | null }[] };
 
 export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSummary> {
@@ -26,16 +40,54 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   const price = new Map<string, number>();
   for (const p of priceRows) { const k = `${p.acode}|${p.color}|${p.size}`; if (!price.has(k)) price.set(k, p.price); }
 
-  // Партии (ТЗ): закупка единицы с работой, 4 % и расходами; по модели. Цвета и размеры ТЗ пока не сопоставлены с изделием отчёта (estimated).
+  // Партии (ТЗ): закупка единицы с работой, 4 % и расходами; цвета и размеры ТЗ сопоставляются с изделиями отчёта (модель · цвет · размер).
   const orderRows = (await loadOrderRows(orgId, "all", "on")).filter((o) => o.group === "done" && o.qty > 0);
-  const partiesByModel = new Map<string, { id: string; number: string; qty: number; unit: number; work: number }[]>();
-  for (const o of orderRows) {
-    const code = normCode(o.modelName ?? "");
-    const arr = partiesByModel.get(code) ?? [];
-    arr.push({ id: o.id, number: o.number, qty: o.qty, unit: (o.costIncl + o.work) / o.qty, work: o.work / o.qty });
-    partiesByModel.set(code, arr);
+  const colorRefs = await db.colorRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true } });
+  const refByAlias = new Map<string, string>();
+  for (const c of colorRefs) { refByAlias.set(ck(c.name), c.id); for (const a of c.aliases) refByAlias.set(ck(a), c.id); }
+  for (const [alias, name] of Object.entries(EXTRA_COLOR_ALIASES)) { const id = colorRefs.find((c) => c.name === name)?.id; if (id && !refByAlias.has(alias)) refByAlias.set(alias, id); }
+  const refOfReportColor = (raw: string) => refByAlias.get(ck(colorOfLine(raw))) ?? null;
+  const tzRaw = await db.productionOrder.findMany({ where: { organizationId: orgId, id: { in: orderRows.map((o) => o.id) } }, select: { id: true, size: true, colorRefId: true, colors: { select: { colorRefId: true, quantity: true, sizes: true } } } });
+  const tzById = new Map(tzRaw.map((t) => [t.id, t]));
+  /** Единицы партии по (цвет справочника, размер): сколько штук какого цвета и размера. */
+  const tzUnits = (id: string, qty: number): { color: string | null; size: string | null; units: number }[] => {
+    const t = tzById.get(id);
+    const rows = t?.colors.length ? t.colors.map((c) => ({ color: c.colorRefId as string | null, q: c.quantity ?? 0, sizes: parseTzSizes(c.sizes) })) : [{ color: t?.colorRefId ?? null, q: qty, sizes: parseTzSizes(t?.size) }];
+    const totalQ = rows.reduce((a, r) => a + r.q, 0) || 1;
+    const out: { color: string | null; size: string | null; units: number }[] = [];
+    for (const r of rows) {
+      const q = (r.q / totalQ) * qty;
+      if (!r.sizes.length) { out.push({ color: r.color, size: null, units: q }); continue; }
+      for (const sz of new Set(r.sizes)) out.push({ color: r.color, size: sz, units: (q * r.sizes.filter((x) => x === sz).length) / r.sizes.length });
+    }
+    return out;
+  };
+  const tzParties = orderRows.map((o) => ({ id: o.id, number: o.number, model: normCode(o.modelName ?? ""), qty: o.qty, unit: (o.costIncl + o.work) / o.qty, work: o.work / o.qty, units: tzUnits(o.id, o.qty) }));
+  const partiesByModel = new Map<string, typeof tzParties>();
+  for (const p of tzParties) { const a = partiesByModel.get(p.model) ?? []; a.push(p); partiesByModel.set(p.model, a); }
+
+  // Изделия модели (для сопоставления): ключ — модель; внутри индекс по цвету справочника и размеру
+  type SkuInfo = { idx: number; color: string | null; colorRaw: string; size: string; deliv: number };
+  const skusByModel = new Map<string, SkuInfo[]>();
+  sizes.forEach((r, idx) => { const m = normCode(r.modelCode ?? r.acode.split("/")[0] ?? ""); const a = skusByModel.get(m) ?? []; a.push({ idx, color: refOfReportColor(r.color), colorRaw: ck(colorOfLine(r.color)), size: String(r.size).toUpperCase(), deliv: SEASONS.reduce((x, se) => x + n(r.seas?.[se]?.deliv), 0) }); skusByModel.set(m, a); });
+  /** Партии, отнесённые к изделию отчёта: idx → [{партия, штук, точность}] */
+  const assigned = new Map<number, { p: (typeof tzParties)[number]; q: number; level: Level }[]>();
+  const spread = (list: SkuInfo[], units: number, p: (typeof tzParties)[number], level: Level) => {
+    const w = list.reduce((a, x) => a + (x.deliv > 0 ? x.deliv : 0), 0);
+    for (const x of list) { const share = w > 0 ? (x.deliv > 0 ? x.deliv : 0) / w : 1 / list.length; if (share <= 0) continue; const arr = assigned.get(x.idx) ?? []; arr.push({ p, q: units * share, level }); assigned.set(x.idx, arr); }
+  };
+  for (const p of tzParties) {
+    const list = skusByModel.get(p.model) ?? [];
+    if (!list.length) continue;
+    for (const u of p.units) {
+      const byColor = u.color ? list.filter((x) => x.color === u.color) : [];
+      const exact = u.size ? byColor.filter((x) => x.size === u.size) : [];
+      if (exact.length) spread(exact, u.units, p, "size");
+      else if (byColor.length) spread(byColor, u.units, p, "color");
+      else spread(list, u.units, p, "model");
+    }
   }
-  const avgOf = (ps: { qty: number; unit: number }[]) => { const q = ps.reduce((a, p) => a + p.qty, 0); return q > 0 ? ps.reduce((a, p) => a + p.qty * p.unit, 0) / q : null; };
+  const avgOf = (ps: { q: number; p: { unit: number } }[]) => { const q = ps.reduce((a, x) => a + x.q, 0); return q > 0 ? ps.reduce((a, x) => a + x.q * x.p.unit, 0) / q : null; };
 
   const lines = await db.salesReceiptLine.findMany({ where: { organizationId: orgId, modelCode: { not: null } }, select: { modelCode: true, article: true, colorId: true, kind: true, date: true, season: true, pcs: true, retailRub: true } });
 
@@ -50,7 +102,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     await tx.dmMovement.deleteMany({ where: { organizationId: orgId } });
     await tx.dmCheck.deleteMany({ where: { organizationId: orgId } });
 
-    for (const r of sizes) {
+    for (const [skuIdx, r] of sizes.entries()) {
       const modelCode = normCode(r.modelCode ?? r.acode.split("/")[0] ?? "");
       const seas = r.seas ?? {};
       const deliv = SEASONS.reduce((a, s) => a + n(seas[s]?.deliv), 0);
@@ -59,8 +111,10 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
       const sold = n(r.sold), stock = deliv - sold;
       const delivEur = SEASONS.reduce((a, s) => a + n(seas[s]?.delivEur), 0);
       const p = price.get(`${r.acode}|${r.color}|${r.size}`) ?? null;
-      const parties = partiesByModel.get(modelCode) ?? [];
+      const parties = assigned.get(skuIdx) ?? [];
       const unitAvg = avgOf(parties);
+      const lvlQ: Record<Level, number> = { size: 0, color: 0, model: 0 }; for (const x of parties) lvlQ[x.level] += x.q;
+      const topLevel: Level = lvlQ.size >= lvlQ.color && lvlQ.size >= lvlQ.model ? "size" : lvlQ.color >= lvlQ.model ? "color" : "model";
       const unitRep = deliv > 0 && delivEur > 0 ? (delivEur / deliv) * RETAIL_RATE : null;
       const flags: string[] = [];
       if (stock < 0) flags.push("продано сверх прихода отчёта");
@@ -71,11 +125,11 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
       const sku = await tx.dmSku.create({ data: {
         organizationId: orgId, modelCode, acode: r.acode, color: r.color, size: r.size, cls: r.cls, fur: r.fur ?? null, cat1: r.l2 ?? null, cat2: r.l4 || r.l5 || null, builtAt: now,
         seasons: { create: SEASONS.filter((s) => seas[s]).map((s) => { const c = seas[s]!; return { season: s, conf: confOf(s), deliv: n(c.deliv), confEur: s === "FW26/27" ? n(c.confEur) : n(c.confEur ?? c.delivEur), delivEur: n(c.delivEur), soldAll: n(c.soldAll), soldSsn: n(c.soldSsn), soldOld: n(c.soldOld), rubAll: n(c.rubAll), discAll: n(c.discAll), scAll: n(c.scAll) }; }) },
-        stock: { create: { deliv, sold, stock, retailPrice: p, stockRetailRub: p ? stock * p : 0, unitCostAvgRub: unitAvg, unitCostReportRub: unitRep, stockCostAvgRub: unitAvg ? Math.max(0, stock) * unitAvg : null, stockCostReportRub: unitRep ? Math.max(0, stock) * unitRep : null, costSource: parties.length ? "ТЗ (средневзвешенно по модели)" : unitRep ? "отчёт (SC EUR × 110)" : null, flags } },
+        stock: { create: { deliv, sold, stock, retailPrice: p, stockRetailRub: p ? stock * p : 0, unitCostAvgRub: unitAvg, unitCostReportRub: unitRep, stockCostAvgRub: unitAvg ? Math.max(0, stock) * unitAvg : null, stockCostReportRub: unitRep ? Math.max(0, stock) * unitRep : null, costSource: parties.length ? `ТЗ, средневзвешенно (сопоставлено по: ${topLevel === "size" ? "модели, цвету и размеру" : topLevel === "color" ? "модели и цвету" : "модели"})` : unitRep ? "отчёт (SC EUR × 110)" : null, flags } },
       }, select: { id: true } });
       skuCount++;
       if (parties.length) {
-        await tx.dmCostParty.createMany({ data: parties.map((x) => ({ organizationId: orgId, skuId: sku.id, orderId: x.id, orderNumber: x.number, qty: x.qty, unitCostRub: x.unit, workRub: x.work, estimated: true })) });
+        await tx.dmCostParty.createMany({ data: parties.map((x) => ({ organizationId: orgId, skuId: sku.id, orderId: x.p.id, orderNumber: x.p.number, qty: x.q, unitCostRub: x.p.unit, workRub: x.p.work, estimated: x.level !== "size", matchLevel: x.level })) });
         partyCount += parties.length;
       }
       sumConf += conf; sumDeliv += deliv; sumSold += sold; sumStock += stock; sumRetail += p ? stock * p : 0;
@@ -92,6 +146,9 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     }
   }, { timeout: 300_000, maxWait: 20_000 });
 
+  const mq = { size: 0, color: 0, model: 0 }; for (const arr of assigned.values()) for (const x of arr) mq[x.level] += x.q;
+  const mqSum = mq.size + mq.color + mq.model || 1;
+  const matchShare = { size: mq.size / mqSum, color: mq.color / mqSum, model: mq.model / mqSum };
   const fileReceipts = lines.filter((l) => l.kind === "RECEIPT").reduce((a, l) => a + (l.pcs ?? 0), 0);
   const eq = (a: number, b: number) => Math.abs(a - b) < 0.5;
   const checks: MartSummary["checks"] = [
@@ -103,7 +160,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     { key: "fileVsReport", label: "Приход по строкам файла и по отчёту, шт.", expected: sumDeliv, actual: fileReceipts, status: eq(fileReceipts, sumDeliv) ? "ok" : "info", note: eq(fileReceipts, sumDeliv) ? null : `в файле на ${fileReceipts - sumDeliv} шт. больше: даты есть только в файле, штуки берём из отчёта` },
     { key: "oversold", label: "Размеры с продажей сверх прихода", expected: 0, actual: oversold, status: oversold === 0 ? "ok" : "info", note: oversold ? `${oversoldUnits} шт. проданы из товара до FW25 или не попали в отчёт; на экранах остаток «–»` : null },
     { key: "noTz", label: "Остаток без ТЗ для закупки, шт.", expected: 0, actual: noTzUnits, status: noTz === 0 ? "ok" : "warn", note: noTz ? `${noTz} размеров: закупку берём из отчёта (SC EUR × 110)` : null },
-    { key: "costAvgVsReport", label: "Закупка остатка: ТЗ (средневзв.) против отчёта, ₽", expected: sumCostRep, actual: sumCostAvg, status: sumCostRep > 0 && Math.abs(sumCostAvg - sumCostRep) <= sumCostRep * 0.05 ? "ok" : "warn", note: sumCostRep > 0 ? `разница ${(((sumCostAvg - sumCostRep) / sumCostRep) * 100).toFixed(1)} %; цвета и размеры ТЗ пока не сопоставлены с изделиями (оценка по модели)` : null },
+    { key: "costAvgVsReport", label: "Закупка остатка: ТЗ (средневзв.) против отчёта, ₽", expected: sumCostRep, actual: sumCostAvg, status: sumCostRep > 0 && Math.abs(sumCostAvg - sumCostRep) <= sumCostRep * 0.05 ? "ok" : "warn", note: sumCostRep > 0 ? `разница ${(((sumCostAvg - sumCostRep) / sumCostRep) * 100).toFixed(1)} %; партии сопоставлены по размеру ${Math.round(matchShare.size * 100)} %, по цвету ${Math.round(matchShare.color * 100)} %, по модели ${Math.round(matchShare.model * 100)} % штук` : null },
   ];
   await db.dmCheck.createMany({ data: checks.map((c) => ({ organizationId: orgId, key: c.key, label: c.label, expected: c.expected, actual: c.actual, status: c.status, note: c.note, builtAt: now })) });
   return { skus: skuCount, parties: partyCount, movements: lines.length, checks };
