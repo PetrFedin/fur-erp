@@ -221,7 +221,8 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     { key: "lotQtyBalance", label: "Лоты: получено − израсходовано ≠ остаток", expected: 0, actual: chain.lotQtyMismatch, status: chain.lotQtyMismatch === 0 ? "ok" : "warn", note: chain.lotQtyMismatch ? "остаток лота не равен получено минус расход в ТЗ" : null },
     { key: "payOverAlloc", label: "Платежи за работу, распределённые больше суммы", expected: 0, actual: chain.overAllocated, status: chain.overAllocated === 0 ? "ok" : "warn", note: null },
     { key: "purchaseVsLots", label: "Закупки (₽, получены): стоимость лотов не равна позициям с НДС", expected: 0, actual: purchMis?.n ?? 0, status: (purchMis?.n ?? 0) === 0 ? "ok" : "warn", note: purchMis?.n ? `${purchMis.n} закупок: позиции с НДС + расходы ≠ стоимость лотов (разница ${Math.round(Number(purchMis.delta ?? 0)).toLocaleString("ru-RU")} ₽)` : null },
-    { key: "usageVsMaterial", label: "Расход лотов в ТЗ и материальная часть ТЗ, ₽", expected: chain.useVsOrderMaterial.orders, actual: chain.useVsOrderMaterial.used, status: "info", note: "расход лотов по строкам против поля materialCost в ТЗ" },
+    { key: "usageVsMaterial", label: "Завершённые ТЗ: расход лотов и снимок «материалы», ₽", expected: chain.useVsOrderMaterial.orders, actual: chain.useVsOrderMaterial.used, status: Math.abs(chain.useVsOrderMaterial.orders - chain.useVsOrderMaterial.used) <= 1 ? "ok" : "warn", note: null },
+    { key: "wipMaterial", label: "ТЗ в работе: сырьё уже списано, ₽", expected: null, actual: chain.useVsOrderMaterial.wip, status: "info", note: `${chain.useVsOrderMaterial.wipOrders} ТЗ в работе: снимок «материалы» в них заполняется при завершении, в массиве расход взят по строкам списания` },
   );
   checks.push(
     { key: "keyDup", label: "Повторы единого ключа изделия", expected: 0, actual: dupKeys?.n ?? 0, status: (dupKeys?.n ?? 0) === 0 ? "ok" : "fail", note: null },

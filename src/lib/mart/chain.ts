@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 const n = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
 const ck = (s: string | null | undefined) => (s ?? "").toUpperCase().replace(/Ё/g, "Е").replace(/\s+/g, " ").trim();
 
-export type ChainCounts = { purchases: number; lots: number; lotUses: number; payments: number; allocations: number; expenses: number; lotQtyMismatch: number; lotsNoPurchase: number; overAllocated: number; useVsOrderMaterial: { used: number; orders: number } };
+export type ChainCounts = { purchases: number; lots: number; lotUses: number; payments: number; allocations: number; expenses: number; lotQtyMismatch: number; lotsNoPurchase: number; overAllocated: number; useVsOrderMaterial: { used: number; orders: number; wip: number; wipOrders: number } };
 
 /** Сквозная цепочка сырья и денег: закупка → лот → расход в ТЗ, платежи (поставщику и за работу) и их распределение, расходы ТЗ. */
 export async function buildChainTables(
@@ -54,6 +54,8 @@ export async function buildChainTables(
   await chunk(allocs, (c) => tx.dmPaymentAlloc.createMany({ data: c }));
   await chunk(expenses, (c) => tx.dmOrderExpense.createMany({ data: c.map((e) => ({ organizationId: orgId, orderId: e.productionOrderId, orderNumber: e.productionOrder.number, category: ck(e.category.name) ? e.category.name : "", amount: n(e.amount), date: e.date, description: e.description })) }));
 
-  const orders = await tx.productionOrder.findMany({ where: { organizationId: orgId }, select: { materialCost: true } });
-  return { purchases: purchases.length, lots: lots.length, lotUses: usages.length, payments: payments.length + prodPayments.length, allocations: allocs.length, expenses: expenses.length, lotQtyMismatch: qtyMismatch, lotsNoPurchase: noPurchase, overAllocated: overAlloc, useVsOrderMaterial: { used: usages.reduce((a, u) => a + n(u.totalCost), 0), orders: orders.reduce((a, o) => a + n(o.materialCost), 0) } };
+  const orders = await tx.productionOrder.findMany({ where: { organizationId: orgId }, select: { id: true, status: true, materialCost: true } });
+  const done = new Set(orders.filter((o) => o.status === "COMPLETED").map((o) => o.id));
+  const wip = new Set(orders.filter((o) => o.status !== "COMPLETED").map((o) => o.id));
+  return { purchases: purchases.length, lots: lots.length, lotUses: usages.length, payments: payments.length + prodPayments.length, allocations: allocs.length, expenses: expenses.length, lotQtyMismatch: qtyMismatch, lotsNoPurchase: noPurchase, overAllocated: overAlloc, useVsOrderMaterial: { used: usages.filter((u) => done.has(u.productionOrderId)).reduce((a, u) => a + n(u.totalCost), 0), orders: orders.filter((o) => o.status === "COMPLETED").reduce((a, o) => a + n(o.materialCost), 0), wip: usages.filter((u) => wip.has(u.productionOrderId)).reduce((a, u) => a + n(u.totalCost), 0), wipOrders: new Set(usages.filter((u) => wip.has(u.productionOrderId)).map((u) => u.productionOrderId)).size } };
 }
