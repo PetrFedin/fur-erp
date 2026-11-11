@@ -2461,3 +2461,89 @@ model DmLoad {
 
   @@index([organizationId, source])
 }
+
+/// Строки бюджета/плана штук сезона (из присланного бюджета): блок, категория, мех, длина, штуки, st — суммы и штуки по ступеням.
+model DmPlanLine {
+  id             String   @id @default(cuid())
+  organizationId String
+  scenario       String
+  season         String?
+  supplier       String?
+  asOf           String?
+  block          String
+  cat            String
+  fur            String
+  len            String
+  pcs            Int
+  avg            Decimal? @db.Decimal(18, 2)
+  avgText        String?
+  st             Json
+  builtAt        DateTime @default(now())
+
+  @@index([organizationId, scenario])
+}
+
+/// Параметры плана (проценты, резервы, миксы) по сценарию.
+model DmPlanParam {
+  id             String @id @default(cuid())
+  organizationId String
+  scenario       String
+  key            String
+  value          Json
+
+  @@unique([organizationId, scenario, key])
+}
+
+/// Позиции презентации сезона (раскладки по страницам): что и сколько штук предложено.
+model DmPresentationItem {
+  id             String  @id @default(cuid())
+  organizationId String
+  source         String
+  asOf           String?
+  page           Int
+  kind           String
+  cat            String
+  fur            String
+  len            String
+  title          String
+  itemId         String
+  pcs            Int?
+  file           String?
+  caption        String?
+
+  @@index([organizationId, source])
+}
+
+/// Строки зачётных ИТ/ЗИ по отгрузке (магазин, артикул, цвет, размер, сумма): связь с изделием по модели и цвету.
+model DmShipmentLine {
+  id             String   @id @default(cuid())
+  organizationId String
+  shipmentId     String
+  supply         String?
+  sheet          String?
+  rowNo          Int?
+  article        String
+  modelCode      String
+  colorKey       String
+  size           String
+  boutique       String?
+  sum            Decimal  @db.Decimal(18, 2)
+  vat            Decimal  @db.Decimal(18, 2)
+
+  @@index([organizationId, shipmentId])
+  @@index([organizationId, colorKey])
+}
+
+/// Решения владельца (SystemState owner-decision:*), как данные массива.
+model DmDecision {
+  id             String   @id @default(cuid())
+  organizationId String
+  key            String
+  label          String?
+  choice         String?
+  note           String?
+  at             DateTime?
+  byName         String?
+
+  @@unique([organizationId, key])
+}

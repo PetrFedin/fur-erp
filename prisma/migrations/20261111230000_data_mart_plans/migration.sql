@@ -1,0 +1,11 @@
+CREATE TABLE "DmPlanLine" ("id" TEXT NOT NULL, "organizationId" TEXT NOT NULL, "scenario" TEXT NOT NULL, "season" TEXT, "supplier" TEXT, "asOf" TEXT, "block" TEXT NOT NULL, "cat" TEXT NOT NULL, "fur" TEXT NOT NULL, "len" TEXT NOT NULL, "pcs" INTEGER NOT NULL, "avg" DECIMAL(18,2), "avgText" TEXT, "st" JSONB NOT NULL, "builtAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "DmPlanLine_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "DmPlanLine_organizationId_scenario_idx" ON "DmPlanLine"("organizationId", "scenario");
+CREATE TABLE "DmPlanParam" ("id" TEXT NOT NULL, "organizationId" TEXT NOT NULL, "scenario" TEXT NOT NULL, "key" TEXT NOT NULL, "value" JSONB NOT NULL, CONSTRAINT "DmPlanParam_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "DmPlanParam_organizationId_scenario_key_key" ON "DmPlanParam"("organizationId", "scenario", "key");
+CREATE TABLE "DmPresentationItem" ("id" TEXT NOT NULL, "organizationId" TEXT NOT NULL, "source" TEXT NOT NULL, "asOf" TEXT, "page" INTEGER NOT NULL, "kind" TEXT NOT NULL, "cat" TEXT NOT NULL, "fur" TEXT NOT NULL, "len" TEXT NOT NULL, "title" TEXT NOT NULL, "itemId" TEXT NOT NULL, "pcs" INTEGER, "file" TEXT, "caption" TEXT, CONSTRAINT "DmPresentationItem_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "DmPresentationItem_organizationId_source_idx" ON "DmPresentationItem"("organizationId", "source");
+CREATE TABLE "DmShipmentLine" ("id" TEXT NOT NULL, "organizationId" TEXT NOT NULL, "shipmentId" TEXT NOT NULL, "supply" TEXT, "sheet" TEXT, "rowNo" INTEGER, "article" TEXT NOT NULL, "modelCode" TEXT NOT NULL, "colorKey" TEXT NOT NULL, "size" TEXT NOT NULL, "boutique" TEXT, "sum" DECIMAL(18,2) NOT NULL, "vat" DECIMAL(18,2) NOT NULL, CONSTRAINT "DmShipmentLine_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "DmShipmentLine_organizationId_shipmentId_idx" ON "DmShipmentLine"("organizationId", "shipmentId");
+CREATE INDEX "DmShipmentLine_organizationId_colorKey_idx" ON "DmShipmentLine"("organizationId", "colorKey");
+CREATE TABLE "DmDecision" ("id" TEXT NOT NULL, "organizationId" TEXT NOT NULL, "key" TEXT NOT NULL, "label" TEXT, "choice" TEXT, "note" TEXT, "at" TIMESTAMP(3), "byName" TEXT, CONSTRAINT "DmDecision_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "DmDecision_organizationId_key_key" ON "DmDecision"("organizationId", "key");

@@ -1,6 +1,7 @@
 import "server-only";
 import type { PrismaClient } from "@prisma/client";
 import { loadReportSizes } from "@/lib/margin-server";
+import { buildPlanTables } from "@/lib/mart/plans";
 import { loadRetailPricesState, loadReportSizesState } from "@/lib/import-keys";
 import { normCode, colorOfLine } from "@/lib/sales-receipts-core";
 import { loadOrderRows } from "@/lib/analytics-orders";
@@ -171,12 +172,17 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     // Синонимы цветов: весь справочник + всё, что встретилось в источниках
     for (const c of colorRefs) { canonOf(c.name); for (const al of c.aliases) canonOf(al); }
     if (aliasRows.size) await tx.dmColorAlias.createMany({ data: [...aliasRows.values()].map((x) => ({ organizationId: orgId, ...x })) });
+    const plan = await buildPlanTables(tx, orgId, { normCode, canonOf });
     // Журнал загрузок: какие версии источников разложены в массив
     const sizesState = await loadReportSizesState(orgId);
     await tx.dmLoad.createMany({ data: [
       { organizationId: orgId, source: "report-sizes", sourceKey: sizesState?.key ?? "sales-report-sizes", asOf: ((sizesState?.value as { asOf?: string } | undefined)?.asOf) ?? null, rows: sizes.length, note: "отчёт «заказ и продажи» по модель · цвет · размер · сезон" },
       { organizationId: orgId, source: "retail-prices", sourceKey: priceState?.key ?? "retail-prices", asOf: priceAsOf, rows: priceRows.length, note: "розничный прайс по размерам" },
       { organizationId: orgId, source: "receipt-lines", sourceKey: "SalesReceiptLine", asOf: null, rows: lines.length, note: "приходы и продажи по датам" },
+      { organizationId: orgId, source: "plan-budget", sourceKey: "budget-pcs:*", asOf: null, rows: plan.planLines, note: `бюджет штук; параметров ${plan.planParams}` },
+      { organizationId: orgId, source: "presentation", sourceKey: "SystemState: FW27 presentation", asOf: null, rows: plan.presentationItems, note: "позиции презентации сезона" },
+      { organizationId: orgId, source: "shipment-zi", sourceKey: "shipment-zi:*", asOf: null, rows: plan.shipmentLines, note: "строки зачётов по отгрузке" },
+      { organizationId: orgId, source: "owner-decisions", sourceKey: "owner-decision:*", asOf: null, rows: plan.decisions, note: "решения владельца" },
       { organizationId: orgId, source: "tz-parties", sourceKey: "ProductionOrder", asOf: null, rows: tzParties.length, note: "партии себестоимости по ТЗ" },
     ] });
   }, { timeout: 300_000, maxWait: 20_000 });
@@ -200,9 +206,13 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   const [orphanPrices] = await db.$queryRaw<{ n: number }[]>`SELECT count(*)::int n FROM "DmRetailPrice" WHERE "organizationId" = ${orgId} AND "skuKey" NOT IN (SELECT "skuKey" FROM "DmSku" WHERE "organizationId" = ${orgId})`;
   const [orphanMov] = await db.$queryRaw<{ n: number }[]>`SELECT count(*)::int n FROM "DmMovement" WHERE "organizationId" = ${orgId} AND "colorKey" NOT IN (SELECT "modelCode" || '|' || "colorCanon" FROM "DmSku" WHERE "organizationId" = ${orgId})`;
   const [dupKeys] = await db.$queryRaw<{ n: number }[]>`SELECT count(*)::int n FROM (SELECT "skuKey" FROM "DmSku" WHERE "organizationId" = ${orgId} GROUP BY 1 HAVING count(*) > 1) d`;
+  const [shipOrphan] = await db.$queryRaw<{ n: number; total: number }[]>`SELECT count(*) FILTER (WHERE "colorKey" NOT IN (SELECT "modelCode" || '|' || "colorCanon" FROM "DmSku" WHERE "organizationId" = ${orgId}))::int n, count(*)::int total FROM "DmShipmentLine" WHERE "organizationId" = ${orgId}`;
+  const [planSum] = await db.$queryRaw<{ pcs: number | null }[]>`SELECT sum(pcs)::int pcs FROM "DmPlanLine" WHERE "organizationId" = ${orgId}`;
   checks.push(
     { key: "keyDup", label: "Повторы единого ключа изделия", expected: 0, actual: dupKeys?.n ?? 0, status: (dupKeys?.n ?? 0) === 0 ? "ok" : "fail", note: null },
     { key: "priceOrphans", label: "Цены прайса без изделия в отчёте", expected: 0, actual: orphanPrices?.n ?? 0, status: (orphanPrices?.n ?? 0) === 0 ? "ok" : "warn", note: orphanPrices?.n ? "цена есть, а изделия (артикул · цвет · размер) в отчёте нет" : null },
+    { key: "shipmentOrphans", label: "Строки зачётов отгрузки без изделия в отчёте", expected: 0, actual: shipOrphan?.n ?? 0, status: (shipOrphan?.n ?? 0) === 0 ? "ok" : "info", note: shipOrphan?.n ? `${shipOrphan.n} из ${shipOrphan.total}: модель и цвет зачёта не совпали с изделиями отчёта (другой сезон, мех или написание цвета)` : null },
+    { key: "planPcs", label: "Бюджет штук, всего", expected: null, actual: planSum?.pcs ?? 0, status: "info", note: "сумма строк плана из присланного бюджета" },
     { key: "movementOrphans", label: "Движения файла без изделия в отчёте", expected: 0, actual: orphanMov?.n ?? 0, status: (orphanMov?.n ?? 0) === 0 ? "ok" : "warn", note: null },
   );
   await db.dmCheck.createMany({ data: checks.map((c) => ({ organizationId: orgId, key: c.key, label: c.label, expected: c.expected, actual: c.actual, status: c.status, note: c.note, builtAt: now })) });
