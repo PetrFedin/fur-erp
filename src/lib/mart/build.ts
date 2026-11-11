@@ -112,20 +112,22 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
       const delivEur = SEASONS.reduce((a, s) => a + n(seas[s]?.delivEur), 0);
       const p = price.get(`${r.acode}|${r.color}|${r.size}`) ?? null;
       const parties = assigned.get(skuIdx) ?? [];
-      const unitAvg = avgOf(parties);
+      const modelParties = partiesByModel.get(modelCode) ?? [];
+      const unitModel = !parties.length && modelParties.length ? avgOf(modelParties.map((x) => ({ q: x.qty, p: x }))) : null;
+      const unitAvg = avgOf(parties) ?? unitModel;
       const lvlQ: Record<Level, number> = { size: 0, color: 0, model: 0 }; for (const x of parties) lvlQ[x.level] += x.q;
       const topLevel: Level = lvlQ.size >= lvlQ.color && lvlQ.size >= lvlQ.model ? "size" : lvlQ.color >= lvlQ.model ? "color" : "model";
       const unitRep = deliv > 0 && delivEur > 0 ? (delivEur / deliv) * RETAIL_RATE : null;
       const flags: string[] = [];
       if (stock < 0) flags.push("продано сверх прихода отчёта");
-      if (!parties.length) flags.push("нет ТЗ для закупки");
-      if (unitAvg && unitRep && Math.abs(unitAvg - unitRep) > unitRep * 0.05) flags.push("закупка по ТЗ и по отчёту расходится > 5 %");
+      if (!parties.length) flags.push(unitModel ? "своей партии ТЗ нет: средняя по модели" : "нет ТЗ для закупки");
+      if (unitAvg && unitRep && Math.abs(unitAvg - unitRep) > unitRep * 0.05) flags.push("закупка по ТЗ и по отчёту расходится > 5 % (справочно)");
       if (stock > 0 && p === null) flags.push("нет цены в прайсе");
 
       const sku = await tx.dmSku.create({ data: {
         organizationId: orgId, modelCode, acode: r.acode, color: r.color, size: r.size, cls: r.cls, fur: r.fur ?? null, cat1: r.l2 ?? null, cat2: r.l4 || r.l5 || null, builtAt: now,
         seasons: { create: SEASONS.filter((s) => seas[s]).map((s) => { const c = seas[s]!; return { season: s, conf: confOf(s), deliv: n(c.deliv), confEur: s === "FW26/27" ? n(c.confEur) : n(c.confEur ?? c.delivEur), delivEur: n(c.delivEur), soldAll: n(c.soldAll), soldSsn: n(c.soldSsn), soldOld: n(c.soldOld), rubAll: n(c.rubAll), discAll: n(c.discAll), scAll: n(c.scAll) }; }) },
-        stock: { create: { deliv, sold, stock, retailPrice: p, stockRetailRub: p ? stock * p : 0, unitCostAvgRub: unitAvg, unitCostReportRub: unitRep, stockCostAvgRub: unitAvg ? Math.max(0, stock) * unitAvg : null, stockCostReportRub: unitRep ? Math.max(0, stock) * unitRep : null, costSource: parties.length ? `ТЗ, средневзвешенно (сопоставлено по: ${topLevel === "size" ? "модели, цвету и размеру" : topLevel === "color" ? "модели и цвету" : "модели"})` : unitRep ? "отчёт (SC EUR × 110)" : null, flags } },
+        stock: { create: { deliv, sold, stock, retailPrice: p, stockRetailRub: p ? stock * p : 0, unitCostAvgRub: unitAvg, unitCostReportRub: unitRep, stockCostAvgRub: unitAvg ? Math.max(0, stock) * unitAvg : null, stockCostReportRub: unitRep ? Math.max(0, stock) * unitRep : null, costSource: parties.length ? `ТЗ, средневзвешенно (сопоставлено по: ${topLevel === "size" ? "модели, цвету и размеру" : topLevel === "color" ? "модели и цвету" : "модели"})`   : unitModel ? "ТЗ, средняя по модели (своей партии нет)" : null, flags } },
       }, select: { id: true } });
       skuCount++;
       if (parties.length) {
@@ -159,8 +161,8 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     { key: "stockRetail", label: "Остаток по прайсу по размерам, ₽", expected: MART_EXPECTED.stockRetailRub, actual: sumRetail, status: eq(sumRetail, MART_EXPECTED.stockRetailRub) ? "ok" : "fail", note: null },
     { key: "fileVsReport", label: "Приход по строкам файла и по отчёту, шт.", expected: sumDeliv, actual: fileReceipts, status: eq(fileReceipts, sumDeliv) ? "ok" : "info", note: eq(fileReceipts, sumDeliv) ? null : `в файле на ${fileReceipts - sumDeliv} шт. больше: даты есть только в файле, штуки берём из отчёта` },
     { key: "oversold", label: "Размеры с продажей сверх прихода", expected: 0, actual: oversold, status: oversold === 0 ? "ok" : "info", note: oversold ? `${oversoldUnits} шт. проданы из товара до FW25 или не попали в отчёт; на экранах остаток «–»` : null },
-    { key: "noTz", label: "Остаток без ТЗ для закупки, шт.", expected: 0, actual: noTzUnits, status: noTz === 0 ? "ok" : "warn", note: noTz ? `${noTz} размеров: закупку берём из отчёта (SC EUR × 110)` : null },
-    { key: "costAvgVsReport", label: "Закупка остатка: ТЗ (средневзв.) против отчёта, ₽", expected: sumCostRep, actual: sumCostAvg, status: sumCostRep > 0 && Math.abs(sumCostAvg - sumCostRep) <= sumCostRep * 0.05 ? "ok" : "warn", note: sumCostRep > 0 ? `разница ${(((sumCostAvg - sumCostRep) / sumCostRep) * 100).toFixed(1)} %; партии сопоставлены по размеру ${Math.round(matchShare.size * 100)} %, по цвету ${Math.round(matchShare.color * 100)} %, по модели ${Math.round(matchShare.model * 100)} % штук` : null },
+    { key: "noTz", label: "Остаток без ТЗ для закупки, шт.", expected: 0, actual: noTzUnits, status: noTz === 0 ? "ok" : "warn", note: noTz ? `${noTz} размеров: своей партии ТЗ нет, берём среднюю ТЗ по модели (если ТЗ модели нет совсем, закупка не считается)` : null },
+    { key: "costAvgVsReport", label: "Закупка остатка по ТЗ (эталон) и по отчёту (справка), ₽", expected: sumCostRep, actual: sumCostAvg, status: "info", note: sumCostRep > 0 ? `разница ${(((sumCostAvg - sumCostRep) / sumCostRep) * 100).toFixed(1)} %; партии сопоставлены по размеру ${Math.round(matchShare.size * 100)} %, по цвету ${Math.round(matchShare.color * 100)} %, по модели ${Math.round(matchShare.model * 100)} % штук` : null },
   ];
   await db.dmCheck.createMany({ data: checks.map((c) => ({ organizationId: orgId, key: c.key, label: c.label, expected: c.expected, actual: c.actual, status: c.status, note: c.note, builtAt: now })) });
   return { skus: skuCount, parties: partyCount, movements: lines.length, checks };
