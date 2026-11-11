@@ -157,6 +157,10 @@ async function main() {
     console.log(`Вид меха зафиксирован у ТЗ без списаний: ${fixed} из ${rows.length}`);
   }
   await x(`delete from "SystemState" where key like 'owner-decision:%'`);
+  // Единый массив данных (Dm*) содержит названия контрагентов и решения владельца: в демо не нужен, очищается целиком (на демо пересобирается при необходимости).
+  for (const t of ["DmSkuSeason", "DmStock", "DmCostParty", "DmSku", "DmMovement", "DmCheck", "DmColorAlias", "DmRetailPrice", "DmLoad", "DmPlanLine", "DmPlanParam", "DmPresentationItem", "DmShipmentLine", "DmDecision", "DmPurchase", "DmLot", "DmLotUse", "DmPayment", "DmPaymentAlloc", "DmOrderExpense"]) {
+    if (await tableExists(t)) await x(`delete from "${t}"`);
+  }
   // Ключи с названием заказчика (budget-pcs:fw27-mvst) → нейтральные (budget-pcs:fw27): ключи текстовая чистка не трогает, а MVST в демо быть не должно.
   await x(`update "SystemState" set key = regexp_replace(key, '-?mvst', '', 'gi') where key ~* 'mvst'`);
   // Фото артикулов и ссылки «Товар в магазине» в обезличенную демо не входят (реальные карточки товаров; файлы в демо не копируются).
