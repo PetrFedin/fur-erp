@@ -1,7 +1,7 @@
 import "server-only";
 import type { PrismaClient } from "@prisma/client";
 import { loadReportSizes } from "@/lib/margin-server";
-import { loadRetailPricesState } from "@/lib/import-keys";
+import { loadRetailPricesState, loadReportSizesState } from "@/lib/import-keys";
 import { normCode, colorOfLine } from "@/lib/sales-receipts-core";
 import { loadOrderRows } from "@/lib/analytics-orders";
 
@@ -47,6 +47,17 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   for (const c of colorRefs) { refByAlias.set(ck(c.name), c.id); for (const a of c.aliases) refByAlias.set(ck(a), c.id); }
   for (const [alias, name] of Object.entries(EXTRA_COLOR_ALIASES)) { const id = colorRefs.find((c) => c.name === name)?.id; if (id && !refByAlias.has(alias)) refByAlias.set(alias, id); }
   const refOfReportColor = (raw: string) => refByAlias.get(ck(colorOfLine(raw))) ?? null;
+  const refName = new Map(colorRefs.map((c) => [c.id, c.name]));
+  const aliasRows = new Map<string, { alias: string; colorCanon: string; colorRefId: string | null; origin: string }>();
+  /** Канонический цвет: по справочнику, иначе само написание (в верхнем регистре); все синонимы попадают в DmColorAlias. */
+  const canonOf = (raw: string | null | undefined): { canon: string; refId: string | null } => {
+    const key = ck(colorOfLine(raw ?? ""));
+    const refId = refByAlias.get(key) ?? null;
+    const canon = refId ? ck(refName.get(refId)) : key;
+    if (key && !aliasRows.has(key)) aliasRows.set(key, { alias: key, colorCanon: canon, colorRefId: refId, origin: refId ? (EXTRA_COLOR_ALIASES[key] ? "extra" : "ref") : "auto" });
+    return { canon, refId };
+  };
+  const skuKeyOf = (acode: string, canon: string, size: string) => `${ck(acode)}|${canon}|${String(size).toUpperCase()}`;
   const tzRaw = await db.productionOrder.findMany({ where: { organizationId: orgId, id: { in: orderRows.map((o) => o.id) } }, select: { id: true, size: true, colorRefId: true, colors: { select: { colorRefId: true, quantity: true, sizes: true } } } });
   const tzById = new Map(tzRaw.map((t) => [t.id, t]));
   /** Единицы партии по (цвет справочника, размер): сколько штук какого цвета и размера. */
@@ -101,6 +112,9 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     await tx.dmSku.deleteMany({ where: { organizationId: orgId } }); // каскадом: сезоны и остатки
     await tx.dmMovement.deleteMany({ where: { organizationId: orgId } });
     await tx.dmCheck.deleteMany({ where: { organizationId: orgId } });
+    await tx.dmRetailPrice.deleteMany({ where: { organizationId: orgId } });
+    await tx.dmColorAlias.deleteMany({ where: { organizationId: orgId } });
+    await tx.dmLoad.deleteMany({ where: { organizationId: orgId } });
 
     for (const [skuIdx, r] of sizes.entries()) {
       const modelCode = normCode(r.modelCode ?? r.acode.split("/")[0] ?? "");
@@ -125,7 +139,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
       if (stock > 0 && p === null) flags.push("нет цены в прайсе");
 
       const sku = await tx.dmSku.create({ data: {
-        organizationId: orgId, modelCode, acode: r.acode, color: r.color, size: r.size, cls: r.cls, fur: r.fur ?? null, cat1: r.l2 ?? null, cat2: r.l4 || r.l5 || null, builtAt: now,
+        organizationId: orgId, modelCode, acode: r.acode, color: r.color, size: r.size, skuKey: skuKeyOf(r.acode, canonOf(r.color).canon, r.size), colorRefId: canonOf(r.color).refId, colorCanon: canonOf(r.color).canon, cls: r.cls, fur: r.fur ?? null, cat1: r.l2 ?? null, cat2: r.l4 || r.l5 || null, builtAt: now,
         seasons: { create: SEASONS.filter((s) => seas[s]).map((s) => { const c = seas[s]!; return { season: s, conf: confOf(s), deliv: n(c.deliv), confEur: s === "FW26/27" ? n(c.confEur) : n(c.confEur ?? c.delivEur), delivEur: n(c.delivEur), soldAll: n(c.soldAll), soldSsn: n(c.soldSsn), soldOld: n(c.soldOld), rubAll: n(c.rubAll), discAll: n(c.discAll), scAll: n(c.scAll) }; }) },
         stock: { create: { deliv, sold, stock, retailPrice: p, stockRetailRub: p ? stock * p : 0, unitCostAvgRub: unitAvg, unitCostReportRub: unitRep, stockCostAvgRub: unitAvg ? Math.max(0, stock) * unitAvg : null, stockCostReportRub: unitRep ? Math.max(0, stock) * unitRep : null, costSource: parties.length ? `ТЗ, средневзвешенно (сопоставлено по: ${topLevel === "size" ? "модели, цвету и размеру" : topLevel === "color" ? "модели и цвету" : "модели"})`   : unitModel ? "ТЗ, средняя по модели (своей партии нет)" : null, flags } },
       }, select: { id: true } });
@@ -143,9 +157,28 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
 
     if (lines.length) {
       for (let i = 0; i < lines.length; i += 2000) {
-        await tx.dmMovement.createMany({ data: lines.slice(i, i + 2000).map((l) => ({ organizationId: orgId, modelCode: normCode(l.modelCode ?? ""), acode: l.article, color: l.colorId ?? "", kind: l.kind, date: l.date, season: l.season, pcs: l.pcs ?? 0, retailRub: n(l.retailRub) })) });
+        await tx.dmMovement.createMany({ data: lines.slice(i, i + 2000).map((l) => ({ organizationId: orgId, modelCode: normCode(l.modelCode ?? ""), acode: l.article, color: l.colorId ?? "", colorKey: `${normCode(l.modelCode ?? "")}|${canonOf(l.colorId).canon}`, kind: l.kind, date: l.date, season: l.season, pcs: l.pcs ?? 0, retailRub: n(l.retailRub) })) });
       }
     }
+
+    // Розничные цены из присланного прайса: по единому ключу изделия
+    const priceState = await loadRetailPricesState(orgId);
+    const priceAsOf = ((priceState?.value as { asOf?: string } | undefined)?.asOf) ?? null;
+    if (priceRows.length) {
+      const data = priceRows.map((x) => ({ organizationId: orgId, skuKey: skuKeyOf(x.acode, canonOf(x.color).canon, x.size), acode: x.acode, color: x.color, size: String(x.size), price: x.price, asOf: priceAsOf, source: priceState?.key ?? "retail-prices" }));
+      for (let i = 0; i < data.length; i += 2000) await tx.dmRetailPrice.createMany({ data: data.slice(i, i + 2000) });
+    }
+    // Синонимы цветов: весь справочник + всё, что встретилось в источниках
+    for (const c of colorRefs) { canonOf(c.name); for (const al of c.aliases) canonOf(al); }
+    if (aliasRows.size) await tx.dmColorAlias.createMany({ data: [...aliasRows.values()].map((x) => ({ organizationId: orgId, ...x })) });
+    // Журнал загрузок: какие версии источников разложены в массив
+    const sizesState = await loadReportSizesState(orgId);
+    await tx.dmLoad.createMany({ data: [
+      { organizationId: orgId, source: "report-sizes", sourceKey: sizesState?.key ?? "sales-report-sizes", asOf: ((sizesState?.value as { asOf?: string } | undefined)?.asOf) ?? null, rows: sizes.length, note: "отчёт «заказ и продажи» по модель · цвет · размер · сезон" },
+      { organizationId: orgId, source: "retail-prices", sourceKey: priceState?.key ?? "retail-prices", asOf: priceAsOf, rows: priceRows.length, note: "розничный прайс по размерам" },
+      { organizationId: orgId, source: "receipt-lines", sourceKey: "SalesReceiptLine", asOf: null, rows: lines.length, note: "приходы и продажи по датам" },
+      { organizationId: orgId, source: "tz-parties", sourceKey: "ProductionOrder", asOf: null, rows: tzParties.length, note: "партии себестоимости по ТЗ" },
+    ] });
   }, { timeout: 300_000, maxWait: 20_000 });
 
   const mq = { size: 0, color: 0, model: 0 }; for (const arr of assigned.values()) for (const x of arr) mq[x.level] += x.q;
@@ -164,6 +197,14 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     { key: "noTz", label: "Остаток без ТЗ для закупки, шт.", expected: 0, actual: noTzUnits, status: noTz === 0 ? "ok" : "warn", note: noTz ? `${noTz} размеров: своей партии ТЗ нет, берём среднюю ТЗ по модели (если ТЗ модели нет совсем, закупка не считается)` : null },
     { key: "costAvgVsReport", label: "Закупка остатка по ТЗ (эталон) и по отчёту (справка), ₽", expected: sumCostRep, actual: sumCostAvg, status: "info", note: sumCostRep > 0 ? `разница ${(((sumCostAvg - sumCostRep) / sumCostRep) * 100).toFixed(1)} %; партии сопоставлены по размеру ${Math.round(matchShare.size * 100)} %, по цвету ${Math.round(matchShare.color * 100)} %, по модели ${Math.round(matchShare.model * 100)} % штук` : null },
   ];
+  const [orphanPrices] = await db.$queryRaw<{ n: number }[]>`SELECT count(*)::int n FROM "DmRetailPrice" WHERE "organizationId" = ${orgId} AND "skuKey" NOT IN (SELECT "skuKey" FROM "DmSku" WHERE "organizationId" = ${orgId})`;
+  const [orphanMov] = await db.$queryRaw<{ n: number }[]>`SELECT count(*)::int n FROM "DmMovement" WHERE "organizationId" = ${orgId} AND "colorKey" NOT IN (SELECT "modelCode" || '|' || "colorCanon" FROM "DmSku" WHERE "organizationId" = ${orgId})`;
+  const [dupKeys] = await db.$queryRaw<{ n: number }[]>`SELECT count(*)::int n FROM (SELECT "skuKey" FROM "DmSku" WHERE "organizationId" = ${orgId} GROUP BY 1 HAVING count(*) > 1) d`;
+  checks.push(
+    { key: "keyDup", label: "Повторы единого ключа изделия", expected: 0, actual: dupKeys?.n ?? 0, status: (dupKeys?.n ?? 0) === 0 ? "ok" : "fail", note: null },
+    { key: "priceOrphans", label: "Цены прайса без изделия в отчёте", expected: 0, actual: orphanPrices?.n ?? 0, status: (orphanPrices?.n ?? 0) === 0 ? "ok" : "warn", note: orphanPrices?.n ? "цена есть, а изделия (артикул · цвет · размер) в отчёте нет" : null },
+    { key: "movementOrphans", label: "Движения файла без изделия в отчёте", expected: 0, actual: orphanMov?.n ?? 0, status: (orphanMov?.n ?? 0) === 0 ? "ok" : "warn", note: null },
+  );
   await db.dmCheck.createMany({ data: checks.map((c) => ({ organizationId: orgId, key: c.key, label: c.label, expected: c.expected, actual: c.actual, status: c.status, note: c.note, builtAt: now })) });
   return { skus: skuCount, parties: partyCount, movements: lines.length, checks };
 }

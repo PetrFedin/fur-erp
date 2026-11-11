@@ -2312,6 +2312,11 @@ model DmSku {
   fur            String?
   cat1           String?
   cat2           String?
+  /// Единый ключ изделия: АРТИКУЛ|ЦВЕТ (канонический, по справочнику цветов)|РАЗМЕР. Все таблицы массива связываются по нему.
+  skuKey         String        @default("")
+  /// Цвет по справочнику (ColorRef), если распознан; colorCanon — каноническое название цвета.
+  colorRefId     String?
+  colorCanon     String        @default("")
   builtAt        DateTime      @default(now())
   seasons        DmSkuSeason[]
   stock          DmStock?
@@ -2319,6 +2324,7 @@ model DmSku {
 
   @@unique([organizationId, acode, color, size])
   @@index([organizationId, modelCode])
+  @@index([organizationId, skuKey])
 }
 
 model DmSkuSeason {
@@ -2390,6 +2396,8 @@ model DmMovement {
   season         String
   pcs            Int
   retailRub      Decimal  @db.Decimal(18, 4)
+  /// МОДЕЛЬ|ЦВЕТ канонический (в файле нет ни размера, ни полного артикула): связь с изделиями по модели и цвету.
+  colorKey       String   @default("")
 
   @@index([organizationId, modelCode])
   @@index([organizationId, date])
@@ -2408,4 +2416,48 @@ model DmCheck {
   builtAt        DateTime @default(now())
 
   @@index([organizationId, key])
+}
+
+/// Синонимы цветов: любое написание из источников → один канонический цвет.
+model DmColorAlias {
+  id             String   @id @default(cuid())
+  organizationId String
+  alias          String
+  colorCanon     String
+  colorRefId     String?
+  /// ref — из справочника цветов, extra — добавлено вручную, auto — не найдено в справочнике, взято как есть.
+  origin         String
+  builtAt        DateTime @default(now())
+
+  @@unique([organizationId, alias])
+}
+
+/// Розничная цена изделия из присланного прайса (с датой действия и источником).
+model DmRetailPrice {
+  id             String   @id @default(cuid())
+  organizationId String
+  skuKey         String
+  acode          String
+  color          String
+  size           String
+  price          Decimal  @db.Decimal(18, 2)
+  asOf           String?
+  source         String
+  builtAt        DateTime @default(now())
+
+  @@index([organizationId, skuKey])
+}
+
+/// Журнал загрузок: какой источник (версия ключа в SystemState) разложен в массив, когда и сколько строк.
+model DmLoad {
+  id             String   @id @default(cuid())
+  organizationId String
+  source         String
+  sourceKey      String
+  asOf           String?
+  rows           Int
+  note           String?
+  loadedAt       DateTime @default(now())
+
+  @@index([organizationId, source])
 }
