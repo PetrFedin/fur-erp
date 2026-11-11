@@ -2547,3 +2547,137 @@ model DmDecision {
 
   @@unique([organizationId, key])
 }
+
+/// Закупка сырья (поставщик → документ → оплаты → лоты): плоская копия с суммами для сверки.
+model DmPurchase {
+  id             String    @id @default(cuid())
+  organizationId String
+  purchaseId     String
+  number         String
+  supplierId     String
+  supplier       String
+  isContractor   Boolean   @default(false)
+  status         String
+  currency       String
+  rate           Decimal   @db.Decimal(18, 6)
+  orderDate      DateTime  @db.Date
+  receivedDate   DateTime? @db.Date
+  invoiceNumber  String?
+  invoiceDate    DateTime? @db.Date
+  transferDoc    String?
+  auction        String?
+  itemsSum       Decimal   @db.Decimal(18, 2)
+  /// Позиции с НДС (по ставке каждой позиции): сравнивается со стоимостью лотов.
+  itemsGross     Decimal   @default(0) @db.Decimal(18, 2)
+  expensesSum    Decimal   @db.Decimal(18, 2)
+  lotsCostSum    Decimal   @db.Decimal(18, 2)
+  paidSum        Decimal   @db.Decimal(18, 2)
+  lotsCount      Int
+  builtAt        DateTime  @default(now())
+
+  @@unique([organizationId, purchaseId])
+  @@index([organizationId, supplierId])
+}
+
+/// Лот сырья: центральное звено — закупка → лот → расход в ТЗ.
+model DmLot {
+  id             String    @id @default(cuid())
+  organizationId String
+  lotId          String
+  lotNumber      String?
+  purchaseId     String?
+  material       String
+  category       String?
+  colorCanon     String?
+  grade          String?
+  sizeGrade      String?
+  warehouse      String
+  receivedDate   DateTime  @db.Date
+  qtyReceived    Decimal   @db.Decimal(18, 3)
+  qtyRemaining   Decimal   @db.Decimal(18, 3)
+  qtyUsed        Decimal   @db.Decimal(18, 3)
+  unitCost       Decimal   @db.Decimal(18, 4)
+  totalCost      Decimal   @db.Decimal(18, 2)
+  vatRate        Decimal   @db.Decimal(8, 4)
+  materialExcl   Decimal   @db.Decimal(18, 2)
+  expenseExcl    Decimal   @db.Decimal(18, 2)
+  usedCost       Decimal   @db.Decimal(18, 2)
+  ordersCount    Int
+  builtAt        DateTime  @default(now())
+
+  @@unique([organizationId, lotId])
+  @@index([organizationId, purchaseId])
+}
+
+/// Расход лота в ТЗ (лот → ТЗ → изделие по ТЗ).
+model DmLotUse {
+  id             String   @id @default(cuid())
+  organizationId String
+  usageId        String
+  lotId          String
+  orderId        String
+  orderNumber    String
+  model          String?
+  qty            Decimal  @db.Decimal(18, 3)
+  unitCost       Decimal  @db.Decimal(18, 4)
+  totalCost      Decimal  @db.Decimal(18, 2)
+  date           DateTime @db.Date
+  commission4    Boolean
+
+  @@unique([organizationId, usageId])
+  @@index([organizationId, lotId])
+  @@index([organizationId, orderId])
+}
+
+/// Платёж: поставщику за сырьё (purchase) или за работу ТЗ (production), с документом и ссылкой на закупку.
+model DmPayment {
+  id             String   @id @default(cuid())
+  organizationId String
+  paymentId      String
+  flow           String
+  counterparty   String
+  purchaseId     String?
+  amount         Decimal  @db.Decimal(18, 2)
+  currency       String
+  kind           String?
+  method         String
+  status         String
+  paidAt         DateTime @db.Date
+  docRef         String?
+  invoiceNo      String?
+  ppNo           String?
+  confirmed      Boolean
+  allocated      Decimal  @db.Decimal(18, 2)
+  builtAt        DateTime @default(now())
+
+  @@unique([organizationId, flow, paymentId])
+  @@index([organizationId, purchaseId])
+}
+
+/// Распределение платежа за работу по ТЗ.
+model DmPaymentAlloc {
+  id             String  @id @default(cuid())
+  organizationId String
+  paymentId      String
+  orderId        String
+  orderNumber    String
+  amount         Decimal @db.Decimal(18, 2)
+  source         String
+
+  @@index([organizationId, paymentId])
+  @@index([organizationId, orderId])
+}
+
+/// Расходы ТЗ по категориям (работа, 4 %, прочее).
+model DmOrderExpense {
+  id             String   @id @default(cuid())
+  organizationId String
+  orderId        String
+  orderNumber    String
+  category       String
+  amount         Decimal  @db.Decimal(18, 2)
+  date           DateTime @db.Date
+  description    String?
+
+  @@index([organizationId, orderId])
+}

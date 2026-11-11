@@ -2,6 +2,7 @@ import "server-only";
 import type { PrismaClient } from "@prisma/client";
 import { loadReportSizes } from "@/lib/margin-server";
 import { buildPlanTables } from "@/lib/mart/plans";
+import { buildChainTables, type ChainCounts } from "@/lib/mart/chain";
 import { loadRetailPricesState, loadReportSizesState } from "@/lib/import-keys";
 import { normCode, colorOfLine } from "@/lib/sales-receipts-core";
 import { loadOrderRows } from "@/lib/analytics-orders";
@@ -108,6 +109,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   const flagsOf: Record<string, string[]> = {};
   let sumConf = 0, sumDeliv = 0, sumSold = 0, sumStock = 0, sumRetail = 0, sumCostAvg = 0, sumCostRep = 0, oversold = 0, oversoldUnits = 0, noTz = 0, noTzUnits = 0;
 
+  const chainRef: { v: ChainCounts | null } = { v: null };
   await db.$transaction(async (tx) => {
     await tx.dmCostParty.deleteMany({ where: { organizationId: orgId } });
     await tx.dmSku.deleteMany({ where: { organizationId: orgId } }); // каскадом: сезоны и остатки
@@ -173,6 +175,8 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     for (const c of colorRefs) { canonOf(c.name); for (const al of c.aliases) canonOf(al); }
     if (aliasRows.size) await tx.dmColorAlias.createMany({ data: [...aliasRows.values()].map((x) => ({ organizationId: orgId, ...x })) });
     const plan = await buildPlanTables(tx, orgId, { normCode, canonOf });
+    chainRef.v = await buildChainTables(tx, orgId, canonOf);
+    const chain = chainRef.v;
     // Журнал загрузок: какие версии источников разложены в массив
     const sizesState = await loadReportSizesState(orgId);
     await tx.dmLoad.createMany({ data: [
@@ -183,6 +187,8 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
       { organizationId: orgId, source: "presentation", sourceKey: "SystemState: FW27 presentation", asOf: null, rows: plan.presentationItems, note: "позиции презентации сезона" },
       { organizationId: orgId, source: "shipment-zi", sourceKey: "shipment-zi:*", asOf: null, rows: plan.shipmentLines, note: "строки зачётов по отгрузке" },
       { organizationId: orgId, source: "owner-decisions", sourceKey: "owner-decision:*", asOf: null, rows: plan.decisions, note: "решения владельца" },
+      { organizationId: orgId, source: "raw-chain", sourceKey: "Purchase/RawMaterialLot/ProductionMaterialUsage", asOf: null, rows: chain ? chain.lots : 0, note: chain ? `закупок ${chain.purchases}, лотов ${chain.lots}, расходов лота в ТЗ ${chain.lotUses}` : null },
+      { organizationId: orgId, source: "payments", sourceKey: "Payment/ProductionPayment/PaymentAllocation", asOf: null, rows: chain ? chain.payments : 0, note: chain ? `распределений ${chain.allocations}, расходов ТЗ ${chain.expenses}` : null },
       { organizationId: orgId, source: "tz-parties", sourceKey: "ProductionOrder", asOf: null, rows: tzParties.length, note: "партии себестоимости по ТЗ" },
     ] });
   }, { timeout: 300_000, maxWait: 20_000 });
@@ -208,6 +214,15 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   const [dupKeys] = await db.$queryRaw<{ n: number }[]>`SELECT count(*)::int n FROM (SELECT "skuKey" FROM "DmSku" WHERE "organizationId" = ${orgId} GROUP BY 1 HAVING count(*) > 1) d`;
   const [shipOrphan] = await db.$queryRaw<{ n: number; total: number }[]>`SELECT count(*) FILTER (WHERE "colorKey" NOT IN (SELECT "modelCode" || '|' || "colorCanon" FROM "DmSku" WHERE "organizationId" = ${orgId}))::int n, count(*)::int total FROM "DmShipmentLine" WHERE "organizationId" = ${orgId}`;
   const [planSum] = await db.$queryRaw<{ pcs: number | null }[]>`SELECT sum(pcs)::int pcs FROM "DmPlanLine" WHERE "organizationId" = ${orgId}`;
+  const [purchMis] = await db.$queryRaw<{ n: number; delta: string | null }[]>`SELECT count(*)::int n, sum("lotsCostSum" - "itemsGross" - "expensesSum")::text delta FROM "DmPurchase" WHERE "organizationId" = ${orgId} AND currency = 'RUB' AND status = 'RECEIVED' AND abs("lotsCostSum" - "itemsGross" - "expensesSum") > 1`;
+  const chain = chainRef.v;
+  if (chain) checks.push(
+    { key: "lotNoPurchase", label: "Лоты без закупки", expected: 0, actual: chain.lotsNoPurchase, status: chain.lotsNoPurchase === 0 ? "ok" : "warn", note: chain.lotsNoPurchase ? "лот не привязан к закупке: нет документа и оплаты" : null },
+    { key: "lotQtyBalance", label: "Лоты: получено − израсходовано ≠ остаток", expected: 0, actual: chain.lotQtyMismatch, status: chain.lotQtyMismatch === 0 ? "ok" : "warn", note: chain.lotQtyMismatch ? "остаток лота не равен получено минус расход в ТЗ" : null },
+    { key: "payOverAlloc", label: "Платежи за работу, распределённые больше суммы", expected: 0, actual: chain.overAllocated, status: chain.overAllocated === 0 ? "ok" : "warn", note: null },
+    { key: "purchaseVsLots", label: "Закупки (₽, получены): стоимость лотов не равна позициям с НДС", expected: 0, actual: purchMis?.n ?? 0, status: (purchMis?.n ?? 0) === 0 ? "ok" : "warn", note: purchMis?.n ? `${purchMis.n} закупок: позиции с НДС + расходы ≠ стоимость лотов (разница ${Math.round(Number(purchMis.delta ?? 0)).toLocaleString("ru-RU")} ₽)` : null },
+    { key: "usageVsMaterial", label: "Расход лотов в ТЗ и материальная часть ТЗ, ₽", expected: chain.useVsOrderMaterial.orders, actual: chain.useVsOrderMaterial.used, status: "info", note: "расход лотов по строкам против поля materialCost в ТЗ" },
+  );
   checks.push(
     { key: "keyDup", label: "Повторы единого ключа изделия", expected: 0, actual: dupKeys?.n ?? 0, status: (dupKeys?.n ?? 0) === 0 ? "ok" : "fail", note: null },
     { key: "priceOrphans", label: "Цены прайса без изделия в отчёте", expected: 0, actual: orphanPrices?.n ?? 0, status: (orphanPrices?.n ?? 0) === 0 ? "ok" : "warn", note: orphanPrices?.n ? "цена есть, а изделия (артикул · цвет · размер) в отчёте нет" : null },
