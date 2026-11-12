@@ -18,7 +18,8 @@ const SEASONS = ["FW25/26", "SS26", "FW26/27"] as const;
 const n = (v: unknown) => Number(v ?? 0) || 0;
 
 /** Эталон владельца (10.11.2026): отчёт «заказ и продажи». */
-export const MART_EXPECTED = { ordered: 845, received: 637, sold: 291, stock: 346, stockRetailRub: 689_484_200 } as const;
+/** Эталоны: приход — по файлу «поступления и продажи» (решение владельца 12.11; сезонные блоки отчёта давали 845 / 637 / 346). */
+export const MART_EXPECTED = { ordered: 868, received: 659, sold: 291, stock: 368, stockRetailRub: 682_649_600 } as const;
 
 // ───── Сопоставление партий (ТЗ) с изделиями отчёта: модель · цвет · размер ─────
 /** Цвет в сравнимом виде: заглавные, «Ё» → «Е», без лишних пробелов. */
@@ -83,6 +84,43 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   for (const p of tzParties) { const a = partiesByModel.get(p.model) ?? []; a.push(p); partiesByModel.set(p.model, a); }
 
   // Изделия модели (для сопоставления): ключ — модель; внутри индекс по цвету справочника и размеру
+  // Количества прихода берём из файла «поступления и продажи» (решение владельца 12.11, пока так): по (модель · цвет · сезон) приход файла
+  // становится итогом, расхождение с сезонными блоками отчёта раскладывается по размерам (размеры могут меняться: пришло именно то, что пришло).
+  //  + : веса — размеры, где итог TTL отчёта больше сезонов; затем размеры с неполученным заказом; затем уже полученные; иначе поровну;
+  //  − : снимаем с размеров, где остаток больше (приход − продано), чтобы не уходить в минус.
+  const FILE_SEASON: Record<string, string> = { "FW 25/26": "FW25/26", "SS 2026": "SS26", "FW 26/27": "FW26/27" };
+  const receiptFile = await db.salesReceiptLine.findMany({ where: { organizationId: orgId, kind: "RECEIPT", modelCode: { not: null } }, select: { modelCode: true, colorId: true, season: true, pcs: true } });
+  const fileTarget = new Map<string, number>();
+  for (const l of receiptFile) { const ssn = FILE_SEASON[l.season] ?? l.season; const k = `${normCode(l.modelCode ?? "")}|${canonOf(l.colorId).canon}|${ssn}`; fileTarget.set(k, (fileTarget.get(k) ?? 0) + (l.pcs ?? 0)); }
+  const grp = new Map<string, number[]>();
+  sizes.forEach((r, idx) => { const k = `${normCode(r.modelCode ?? r.acode.split("/")[0] ?? "")}|${canonOf(r.color).canon}`; (grp.get(k) ?? grp.set(k, []).get(k)!).push(idx); });
+  const cellOf = (idx: number, ssn: string) => { const r = sizes[idx]; r.seas = r.seas ?? {}; return (r.seas[ssn] = r.seas[ssn] ?? ({ conf: 0, deliv: 0 } as NonNullable<typeof r.seas>[string])) as Record<string, number>; };
+  const delivAll = (idx: number) => SEASONS.reduce((a, ssn) => a + n(sizes[idx].seas?.[ssn]?.deliv), 0);
+  let receiptAdded = 0, receiptRemoved = 0;
+  for (const [gk, idxs] of grp) for (const ssn of SEASONS) {
+    const target = fileTarget.get(`${gk}|${ssn}`) ?? 0;
+    const cur = idxs.reduce((a, i) => a + n(sizes[i].seas?.[ssn]?.deliv), 0);
+    let d = Math.round(target - cur);
+    if (d > 0) {
+      const ttlOf = (i: number) => Math.max(n((sizes[i] as unknown as { ttl?: { deliv?: number } }).ttl?.deliv) - delivAll(i), 0);
+      let w = idxs.map((i) => ttlOf(i));
+      if (!w.some((x) => x > 0)) w = idxs.map((i) => Math.max(n(sizes[i].seas?.[ssn]?.conf) - n(sizes[i].seas?.[ssn]?.deliv), 0));
+      if (!w.some((x) => x > 0)) w = idxs.map((i) => n(sizes[i].seas?.[ssn]?.deliv));
+      if (!w.some((x) => x > 0)) w = idxs.map(() => 1);
+      const tot = w.reduce((a, x) => a + x, 0);
+      const raw = w.map((x) => (x / tot) * d); const base = raw.map(Math.floor); let rest = d - base.reduce((a, x) => a + x, 0);
+      const order = raw.map((x, j) => ({ j, f: x - Math.floor(x) })).sort((a, b) => b.f - a.f);
+      for (const o of order) { if (rest <= 0) break; base[o.j]++; rest--; }
+      idxs.forEach((i, j) => { if (!base[j]) return; const c = cellOf(i, ssn); c.deliv = n(c.deliv) + base[j]; c.conf = Math.max(n(c.conf), n(c.deliv)); receiptAdded += base[j]; });
+    } else if (d < 0) {
+      while (d < 0) {
+        let best = -1, bestStock = -Infinity;
+        for (const i of idxs) { const dv = n(sizes[i].seas?.[ssn]?.deliv); if (dv < 1) continue; const st = delivAll(i) - n(sizes[i].sold); if (st > bestStock) { bestStock = st; best = i; } }
+        if (best < 0) break;
+        cellOf(best, ssn).deliv -= 1; d++; receiptRemoved++;
+      }
+    }
+  }
   type SkuInfo = { idx: number; color: string | null; colorRaw: string; size: string; deliv: number };
   const skusByModel = new Map<string, SkuInfo[]>();
   sizes.forEach((r, idx) => { const m = normCode(r.modelCode ?? r.acode.split("/")[0] ?? ""); const a = skusByModel.get(m) ?? []; a.push({ idx, color: refOfReportColor(r.color), colorRaw: ck(colorOfLine(r.color)), size: String(r.size).toUpperCase(), deliv: SEASONS.reduce((x, se) => x + n(r.seas?.[se]?.deliv), 0) }); skusByModel.set(m, a); });
