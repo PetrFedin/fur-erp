@@ -57,6 +57,7 @@ async function main() {
   const ws = wb.addWorksheet("Молоток $ по аукционам", { views: [{ state: "frozen", xSplit: 1, ySplit: 4 }] });
   // Итог слева от годов: кнопка раскрытия годов стоит у столбца «Итого»
   ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
+  ws.properties.outlineLevelCol = 1; ws.properties.outlineLevelRow = 1;
   const per = 1 + years.length; // столбцов на блок: «Итого» + годы
   const blocks = [...auctions.map((a) => a.label), "По всем аукционам с $-ценой"];
   const lastCol = 1 + blocks.length * per + 1;
