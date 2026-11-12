@@ -11,17 +11,16 @@ import { useClientSort } from "@/lib/use-client-sort";
 import { buildTzTable, type TzTableRow } from "@/lib/article-tz-table";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 
-export type TzMeta = { label: string; href: string; wordHref: string };
+export type TzMeta = { label: string; href: string; wordHref: string; color?: string };
 
 const TD = "whitespace-nowrap px-2 py-2 text-right tabular-nums";
 const money = (v: number) => (Math.abs(v) < 0.5 ? <span className="text-neutral-600">–</span> : formatMoney(Math.round(v)));
-const qty = (v: number, unit: string) => (v > 0 ? `${formatDec1(v)} ${unit}` : <span className="text-neutral-600">–</span>);
 
 /**
  * Показатели артикула сверху вниз к итогу: 1) всего по артикулу по статьям, 2) таблица по ТЗ (статьи столбцами в одном порядке),
  * 3) итог и среднее на изделие внизу таблицы. Все цифры — из одних и тех же ТЗ, что плитки сверху; итог строго равен сумме строк.
  */
-export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: { orders: DrillOrder[]; meta: Record<string, TzMeta>; latestId: string | null; c4: "on" | "off"; profile?: React.ReactNode; furSizes?: string }) {
+export function TzBreakdown({ orders, meta, c4, profile, furSizes }: { orders: DrillOrder[]; meta: Record<string, TzMeta>; c4: "on" | "off"; profile?: React.ReactNode; furSizes?: string }) {
   const { mode: vat } = useVatDisplay();
   const t = useMemo(() => buildTzTable(orders, vat), [orders, vat]);
   const T = t.total;
@@ -32,10 +31,8 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
   const showC4 = c4 === "on" && t.total.c4 !== 0;
   const showLining = T.liningQ > 0 || T.lining !== 0;
   const showOther = t.total.other !== 0 || t.rows.some((r) => r.other !== 0);
-  const latest = latestId ? t.rows.find((r) => r.id === latestId) : undefined;
   const noFur = t.rows.filter((r) => r.noFur);
 
-  const cell = (r: TzTableRow | Omit<TzTableRow, "id" | "noFur">, fmt: (v: number) => React.ReactNode, f: (x: typeof r) => number) => fmt(f(r));
   const perUnitMoney = (v: number) => (Math.abs(v) < 0.5 ? <span className="text-neutral-600">–</span> : formatMoney(Math.round(v)));
   const perUnitQty = (v: number, unit: string) => (v > 0 ? `${formatQty(Math.round(v * 100) / 100)} ${unit}` : <span className="text-neutral-600">–</span>);
 
@@ -86,6 +83,7 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
                       <th scope="row" className="sm:sticky sm:left-0 sm:z-10 bg-white px-2 py-2 text-left font-normal">
                         <Link href={m?.href ?? "#"} className="inline-flex min-h-11 items-center font-medium text-blue-700 hover:underline sm:min-h-0">{m?.label ?? r.id}</Link>
                         <a href={m?.wordHref ?? "#"} className="ml-2 inline-flex min-h-11 items-center text-xs text-blue-700 hover:underline sm:min-h-0" title="Финальный Word этого ТЗ">Word</a>
+                        {m?.color ? <span className="ml-2 text-xs text-neutral-700" data-testid="tz-color">{m.color}</span> : null}
                         {r.noFur && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900">нет меха</span>}
                       </th>
                       <td className={TD}>{formatQty(r.qty)}</td>
@@ -126,23 +124,6 @@ export function TzBreakdown({ orders, meta, latestId, c4, profile, furSizes }: {
                     {showOther && <td className={TD}>{perUnitMoney(t.perUnit.other)}</td>}
                     <td className={TD}>{perUnitMoney(t.perUnit.work)}</td>
                     <td className={TD + " border-l border-neutral-200 font-medium"}>{perUnitMoney(t.perUnit.total)}</td>
-                  </tr>
-                )}
-                {latest && t.rows.length > 1 && latest.qty > 0 && (
-                  <tr data-testid="tz-latest">
-                    <th scope="row" className="sm:sticky sm:left-0 sm:z-10 bg-white px-2 py-2 text-left font-normal">
-                      Последнее ТЗ на изделие
-                      <span className="block text-[11px] text-neutral-500">{meta[latest.id]?.label}</span>
-                    </th>
-                    <td className={TD}>1</td>
-                    <td className={TD}>{cell(latest, (v) => perUnitQty(v, "шк."), (x) => x.furQ / latest.qty)}</td>
-                    <td className={TD}>{cell(latest, perUnitMoney, (x) => x.fur / latest.qty)}</td>
-                    {showLining && <td className={TD}>{cell(latest, (v) => perUnitQty(v, "м"), (x) => x.liningQ / latest.qty)}</td>}
-                    {showLining && <td className={TD}>{cell(latest, perUnitMoney, (x) => x.lining / latest.qty)}</td>}
-                    {showC4 && <td className={TD}>{cell(latest, perUnitMoney, (x) => x.c4 / latest.qty)}</td>}
-                    {showOther && <td className={TD}>{cell(latest, perUnitMoney, (x) => x.other / latest.qty)}</td>}
-                    <td className={TD}>{cell(latest, perUnitMoney, (x) => x.work / latest.qty)}</td>
-                    <td className={TD + " border-l border-neutral-200 font-medium"}>{cell(latest, perUnitMoney, (x) => x.total / latest.qty)}</td>
                   </tr>
                 )}
               </tfoot>

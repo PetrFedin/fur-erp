@@ -153,8 +153,7 @@ export default async function EditModelPage({ params, searchParams }: PageProps<
 
   // Таблица по ТЗ: подписи, ссылки на карточку и на финальный Word; «последнее ТЗ» — самое новое неотменённое с изделиями.
   const ownDrill = drill.filter((o) => !isRepair(o));
-  const tzMeta: Record<string, TzMeta> = Object.fromEntries(orders.map((o) => [o.id, { label: tzOf(o), href: `/production/${o.id}`, wordHref: `/api/production/${o.id}/word` }]));
-  const latestId = orders.find((o) => o.status !== "CANCELLED" && ownDrill.some((d) => d.id === o.id && d.qty > 0))?.id ?? null;
+  const tzMeta: Record<string, TzMeta> = Object.fromEntries(orders.map((o) => [o.id, { label: tzOf(o), href: `/production/${o.id}`, wordHref: `/api/production/${o.id}/word`, color: (orderRows.find((r) => r.id === o.id)?.colors ?? []).join(", ") }]));
 
   // Шкуры по размерам: размер берётся из лота, из которого списан мех (sizeGrade лота, а если не записан — разбор сорта).
   const furLots = new Map<string, number>();
@@ -323,7 +322,7 @@ export default async function EditModelPage({ params, searchParams }: PageProps<
           </Card>
         </div>
       ) : (
-        <TzBreakdown orders={slimForTiles(drill)} meta={tzMeta} latestId={latestId} c4={c4} profile={hasTzProfile(model.name) ? <TzProfile code={model.name} /> : null} furSizes={sizeRows.map((r) => (sizeRows.length > 1 ? `${r.size}: ${formatQty(r.q)}` : r.size)).join("; ")} />
+        <TzBreakdown orders={slimForTiles(drill)} meta={tzMeta} c4={c4} profile={hasTzProfile(model.name) ? <TzProfile code={model.name} /> : null} furSizes={sizeRows.map((r) => (sizeRows.length > 1 ? `${r.size}: ${formatQty(r.q)}` : r.size)).join("; ")} />
       )}
 
       <CollapsibleBlock title="Состав ТЗ по лотам и закупкам" summary={`${drill.length} ТЗ`} autoOpen={false}>
