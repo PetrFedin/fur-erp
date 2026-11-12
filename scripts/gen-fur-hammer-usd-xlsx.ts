@@ -47,7 +47,10 @@ async function main() {
     const t = types.get(l.item) ?? types.set(l.item, { cells: new Map(), attrs: new Map() }).get(l.item)!;
     const k = aucKey(l);
     add(t.cells, k, l.usdQty, l.usdSubtotal);
-    const attrs = l.attrs.length ? l.attrs : ["Без признака"];
+    // «Седина» без номера не показываем: у лотов с сединой номер всегда есть («Седина 3»), а общая «Седина» его только дублирует;
+    // если номера нет вообще — «Без признака».
+    const own = l.attrs.filter((x) => x !== "Седина");
+    const attrs = own.length ? own : ["Без признака"];
     for (const a of attrs) {
       const at = t.attrs.get(a) ?? t.attrs.set(a, { cells: new Map(), years: new Map() }).get(a)!;
       add(at.cells, k, l.usdQty, l.usdSubtotal);
