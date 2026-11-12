@@ -29,10 +29,15 @@ async function main() {
   console.log(`лотов меха всего ${all.length}, с ценой $ на аукционах ${lots.length}`);
 
   // Аукционы — столбцы: по дате (год и название), только те, где есть цена в $
-  const aucKey = (l: { auctionLabel?: string; auction: string }) => l.auctionLabel || l.auction;
+  // Столбец — аукцион целиком, без дат: все СП вместе, все РП, все SAGA и т. д. (первое слово названия: «СП 03.25» → «СП»)
+  const aucKey = (l: { auctionLabel?: string; auction: string }) => {
+    const w = (l.auctionLabel || l.auction).trim().split(/\s+/)[0].replace(/[.,;:]+$/, "");
+    return /^спец/i.test(w) ? "СП" : w;
+  };
   const aucSet = new Map<string, { label: string; year: number; first: string }>();
   for (const l of lots) { const k = aucKey(l); const cur = aucSet.get(k); if (!cur) aucSet.set(k, { label: k, year: l.year, first: l.auction }); else cur.year = Math.min(cur.year, l.year); }
-  const auctions = [...aucSet.values()].sort((a, b) => a.year - b.year || a.label.localeCompare(b.label, "ru"));
+  const qtyBy = new Map<string, number>(); for (const l of lots) qtyBy.set(aucKey(l), (qtyBy.get(aucKey(l)) ?? 0) + l.usdQty);
+  const auctions = [...aucSet.values()].sort((a, b) => (qtyBy.get(b.label) ?? 0) - (qtyBy.get(a.label) ?? 0));
 
   type Cell = { q: number; s: number };
   const add = (m: Map<string, Cell>, k: string, q: number, s: number) => { const c = m.get(k) ?? { q: 0, s: 0 }; c.q += q; c.s += s; m.set(k, c); };
@@ -54,7 +59,7 @@ async function main() {
   const nC = auctions.length;
   ws.getCell(1, 1).value = "Средневзвешенная цена молотка в долларах за шкуру (Σ $ ÷ Σ шт., только лоты с ценой в USD, только аукционы)";
   ws.getCell(1, 1).font = { bold: true, size: 12 };
-  ws.getCell(2, 1).value = "Тип меха → год → признак меха; у шкуры с несколькими признаками она учтена в каждом признаке (в годе и типе — один раз)";
+  ws.getCell(2, 1).value = "Столбцы — аукционы целиком (все СП, все РП, все SAGA… вместе, без дат). Тип меха → год → признак меха; у шкуры с несколькими признаками она учтена в каждом признаке (в годе и типе — один раз)";
   ws.getCell(2, 1).font = { italic: true, color: { argb: "FF666666" } };
   const head = ["Тип меха / год / признак", ...auctions.map((a) => a.label), "Средневзвешенная по всем аукционам с $-ценой", "Шкур, шт."];
   head.forEach((h, i) => { const c = ws.getCell(3, i + 1); c.value = h; c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = fill(NAVY); c.alignment = { wrapText: true, vertical: "middle", horizontal: i === 0 ? "left" : "center" }; c.border = { top: { style: "thin", color: { argb: BR } }, bottom: { style: "thin", color: { argb: BR } }, left: { style: "thin", color: { argb: BR } }, right: { style: "thin", color: { argb: BR } } }; });
