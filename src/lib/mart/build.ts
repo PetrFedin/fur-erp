@@ -46,8 +46,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   const allOrders = (await loadOrderRows(orgId, "all", "on")).filter((o) => o.qty > 0);
   // Основа — завершённые ТЗ. ТЗ в работе (себестоимость расчётная по списанному сырью, работе и 4 %) берутся только для моделей без завершённых ТЗ:
   // товар ещё не привезён, но уже учтён в отчёте (M030 по ТЗ 198, M054 по ТЗ 195); без списанного сырья (себестоимость 0) такое ТЗ не берётся.
-  const doneModels = new Set(allOrders.filter((o) => o.group === "done").map((o) => normCode(o.modelName ?? "")));
-  const orderRows = allOrders.filter((o) => o.group === "done" || (o.costIncl > 0 && !doneModels.has(normCode(o.modelName ?? ""))));
+  const orderRows = allOrders.filter((o) => o.group === "done" || o.costIncl > 0);
   const colorRefs = await db.colorRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true } });
   const refByAlias = new Map<string, string>();
   for (const c of colorRefs) { refByAlias.set(ck(c.name), c.id); for (const a of c.aliases) refByAlias.set(ck(a), c.id); }
@@ -89,19 +88,33 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   sizes.forEach((r, idx) => { const m = normCode(r.modelCode ?? r.acode.split("/")[0] ?? ""); const a = skusByModel.get(m) ?? []; a.push({ idx, color: refOfReportColor(r.color), colorRaw: ck(colorOfLine(r.color)), size: String(r.size).toUpperCase(), deliv: SEASONS.reduce((x, se) => x + n(r.seas?.[se]?.deliv), 0) }); skusByModel.set(m, a); });
   /** Партии, отнесённые к изделию отчёта: idx → [{партия, штук, точность}] */
   const assigned = new Map<number, { p: (typeof tzParties)[number]; q: number; level: Level }[]>();
-  const spread = (list: SkuInfo[], units: number, p: (typeof tzParties)[number], level: Level) => {
-    const w = list.reduce((a, x) => a + (x.deliv > 0 ? x.deliv : 0), 0);
-    for (const x of list) { const share = w > 0 ? (x.deliv > 0 ? x.deliv : 0) / w : 1 / list.length; if (share <= 0) continue; const arr = assigned.get(x.idx) ?? []; arr.push({ p, q: units * share, level }); assigned.set(x.idx, arr); }
+  // Размеры в ТЗ условные: что реально пришло, берётся из отчёта (приход). Каждая партия заполняет только полученные штуки:
+  // 1) тот же цвет и размер, 2) тот же цвет, другой размер, 3) любая полученная штука модели с незакрытым остатком.
+  // Если пришло меньше, чем в ТЗ, лишние единицы ТЗ остаются без изделия. ТЗ в работе подхватывают приход сверх завершённых.
+  const cap = new Map<number, number>();
+  for (const list of skusByModel.values()) for (const x of list) cap.set(x.idx, Math.max(x.deliv, 0));
+  const fillFrom = (cands: SkuInfo[], units: number, p: (typeof tzParties)[number], level: Level) => {
+    let left = units;
+    for (let guard = 0; guard < 4 && left > 1e-9; guard++) {
+      const tot = cands.reduce((a, x) => a + (cap.get(x.idx) ?? 0), 0);
+      if (tot <= 1e-9) break;
+      const take = Math.min(left, tot);
+      for (const x of cands) {
+        const c = cap.get(x.idx) ?? 0; if (c <= 1e-9) continue;
+        const q = (c / tot) * take; cap.set(x.idx, c - q);
+        const arr = assigned.get(x.idx) ?? []; arr.push({ p, q, level }); assigned.set(x.idx, arr);
+      }
+      left -= take;
+    }
+    return left;
   };
-  for (const p of tzParties) {
-    const list = skusByModel.get(p.model) ?? [];
-    if (!list.length) continue;
-    for (const u of p.units) {
-      const byColor = u.color ? list.filter((x) => x.color === u.color) : [];
-      const exact = u.size ? byColor.filter((x) => x.size === u.size) : [];
-      if (exact.length) spread(exact, u.units, p, "size");
-      else if (byColor.length) spread(byColor, u.units, p, "color");
-      else spread(list, u.units, p, "model");
+  for (const wip of [false, true]) {
+    for (const [model, list] of skusByModel) {
+      const items = (partiesByModel.get(model) ?? []).filter((p) => p.wip === wip).flatMap((p) => p.units.map((u) => ({ p, u, left: u.units })));
+      if (!items.length) continue;
+      for (const it of items) { const c = it.u.color ? list.filter((x) => x.color === it.u.color) : list; it.left = fillFrom(it.u.size ? c.filter((x) => x.size === it.u.size) : [], it.left, it.p, "size"); }
+      for (const it of items) { if (it.left <= 1e-9) continue; const c = it.u.color ? list.filter((x) => x.color === it.u.color) : list; it.left = fillFrom(c, it.left, it.p, "color"); }
+      for (const it of items) { if (it.left <= 1e-9) continue; it.left = fillFrom(list, it.left, it.p, "model"); }
     }
   }
   const avgOf = (ps: { q: number; p: { unit: number } }[]) => { const q = ps.reduce((a, x) => a + x.q, 0); return q > 0 ? ps.reduce((a, x) => a + x.q * x.p.unit, 0) / q : null; };
@@ -134,7 +147,8 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
       const p = price.get(`${r.acode}|${r.color}|${r.size}`) ?? null;
       const parties = assigned.get(skuIdx) ?? [];
       const modelParties = partiesByModel.get(modelCode) ?? [];
-      const unitModel = !parties.length && modelParties.length ? avgOf(modelParties.map((x) => ({ q: x.qty, p: x }))) : null;
+      const doneParties = modelParties.filter((x) => !x.wip);
+      const unitModel = !parties.length && modelParties.length ? avgOf((doneParties.length ? doneParties : modelParties).map((x) => ({ q: x.qty, p: x }))) : null;
       const unitAvg = avgOf(parties) ?? unitModel;
       const lvlQ: Record<Level, number> = { size: 0, color: 0, model: 0 }; for (const x of parties) lvlQ[x.level] += x.q;
       const topLevel: Level = lvlQ.size >= lvlQ.color && lvlQ.size >= lvlQ.model ? "size" : lvlQ.color >= lvlQ.model ? "color" : "model";
@@ -147,7 +161,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
       const sku = await tx.dmSku.create({ data: {
         organizationId: orgId, modelCode, acode: r.acode, color: r.color, size: r.size, skuKey: skuKeyOf(r.acode, canonOf(r.color).canon, r.size), colorRefId: canonOf(r.color).refId, colorCanon: canonOf(r.color).canon, cls: r.cls, fur: r.fur ?? null, cat1: r.l2 ?? null, cat2: r.l4 || r.l5 || null, builtAt: now,
         seasons: { create: SEASONS.filter((s) => seas[s]).map((s) => { const c = seas[s]!; return { season: s, conf: confOf(s), deliv: n(c.deliv), confEur: s === "FW26/27" ? n(c.confEur) : n(c.confEur ?? c.delivEur), delivEur: n(c.delivEur), soldAll: n(c.soldAll), soldSsn: n(c.soldSsn), soldOld: n(c.soldOld), rubAll: n(c.rubAll), discAll: n(c.discAll), scAll: n(c.scAll) }; }) },
-        stock: { create: { deliv, sold, stock, retailPrice: p, stockRetailRub: p ? stock * p : 0, unitCostAvgRub: unitAvg, unitCostReportEur: unitRepEur, stockCostAvgRub: unitAvg ? Math.max(0, stock) * unitAvg : null, stockCostReportEur: unitRepEur ? Math.max(0, stock) * unitRepEur : null, costSource: parties.length && parties.every((x) => x.p.wip) ? "ТЗ в работе: расчётная себестоимость (товар ещё не привезён)" : parties.length ? `ТЗ, средневзвешенно (сопоставлено по: ${topLevel === "size" ? "модели, цвету и размеру" : topLevel === "color" ? "модели и цвету" : "модели"})`   : unitModel ? "ТЗ, средняя по модели (своей партии нет)" : null, flags } },
+        stock: { create: { deliv, sold, stock, retailPrice: p, stockRetailRub: p ? stock * p : 0, unitCostAvgRub: unitAvg, unitCostReportEur: unitRepEur, stockCostAvgRub: unitAvg ? Math.max(0, stock) * unitAvg : null, stockCostReportEur: unitRepEur ? Math.max(0, stock) * unitRepEur : null, costSource: parties.length && parties.every((x) => x.p.wip) ? "ТЗ в работе: расчётная себестоимость (ТЗ ещё не завершено)" : parties.length ? `ТЗ, средневзвешенно (сопоставлено по: ${topLevel === "size" ? "модели, цвету и размеру" : topLevel === "color" ? "модели и цвету" : "модели"})`   : unitModel ? "ТЗ, средняя по модели (своей партии нет)" : null, flags } },
       }, select: { id: true } });
       skuCount++;
       if (parties.length) {
