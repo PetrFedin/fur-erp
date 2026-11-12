@@ -219,10 +219,6 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   const [stockNoCost] = await db.$queryRaw<{ n: number; pcs: number | null }[]>`SELECT count(*)::int n, sum(greatest(t."stock", 0))::int pcs FROM "DmStock" t JOIN "DmSku" k ON k."id" = t."skuId" WHERE k."organizationId" = ${orgId} AND t."stock" > 0 AND t."unitCostAvgRub" IS NULL`;
   // В работе: заказано − получено. Приход решает, а не статус ТЗ (приехало — есть; не приехало — в работе, в том числе без ТЗ).
   const inWork = Math.max(sumConf - sumDeliv, 0);
-  const tzQtyAll = allOrders.reduce((a, o) => a + o.qty, 0);
-  let assignedQty = 0; for (const arr of assigned.values()) for (const x of arr) assignedQty += x.q;
-  const inWorkTz = Math.max(tzQtyAll - assignedQty, 0);
-  const inWorkNoTz = inWork - inWorkTz;
   const checks: MartSummary["checks"] = [
     { key: "ordered", label: "Заказано, шт. (отчёт)", expected: MART_EXPECTED.ordered, actual: sumConf, status: eq(sumConf, MART_EXPECTED.ordered) ? "ok" : "fail", note: null },
     { key: "received", label: "Получено, шт. (отчёт)", expected: MART_EXPECTED.received, actual: sumDeliv, status: eq(sumDeliv, MART_EXPECTED.received) ? "ok" : "fail", note: null },
@@ -234,9 +230,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     { key: "noTz", label: "Остаток без ТЗ для закупки, шт.", expected: 0, actual: noTzUnits, status: noTz === 0 ? "ok" : "warn", note: noTz ? `${noTz} размеров: своей партии ТЗ нет, берём среднюю ТЗ по модели (если ТЗ модели нет совсем, закупка не считается)` : null },
     { key: "noCostSold", label: "Проданные изделия без закупочной: маркапа нет, в средневзвешенном не участвуют, шт.", expected: 0, actual: soldNoCost?.pcs ?? 0, status: (soldNoCost?.pcs ?? 0) === 0 ? "ok" : "warn", note: soldNoCost?.n ? `${soldNoCost.n} строк сезонов: ${soldNoCost.models ?? ""}` : null },
     { key: "noCostStock", label: "Остаток без закупочной: маркапа нет, в средневзвешенном не участвует, шт.", expected: 0, actual: stockNoCost?.pcs ?? 0, status: (stockNoCost?.pcs ?? 0) === 0 ? "ok" : "warn", note: stockNoCost?.n ? `${stockNoCost.n} размеров` : null },
-    { key: "inWork", label: "В работе (заказано − получено), шт.", expected: null, actual: inWork, status: "info", note: "приход решает: приехало — есть, не приехало — в работе, даже если ТЗ нет" },
-    { key: "inWorkTz", label: "из них под ТЗ (единицы ТЗ, не сопоставленные с приходом), шт.", expected: null, actual: Math.round(inWorkTz), status: "info", note: null },
-    { key: "inWorkNoTz", label: "из них ещё без ТЗ, шт.", expected: null, actual: Math.round(inWorkNoTz), status: "info", note: inWorkNoTz < 0 ? "ТЗ больше, чем заказано без прихода: часть ТЗ относится к товару вне отчёта или размеры не сходятся" : null },
+    { key: "inWork", label: "В работе (заказано − получено), шт.", expected: null, actual: inWork, status: "info", note: "приход решает: приехало — есть, не приехало — в работе, в том числе без ТЗ; не дробится" },
     { key: "stockCostTz", label: "Закупка остатка по ТЗ, ₽", expected: null, actual: sumCostAvg, status: "info", note: `партии сопоставлены по размеру ${Math.round(matchShare.size * 100)} %, по цвету ${Math.round(matchShare.color * 100)} %, по модели ${Math.round(matchShare.model * 100)} % штук` },
     { key: "stockCostReportEur", label: "Закупка остатка по отчёту, € (справка, в рубли не переводится)", expected: null, actual: sumCostRep, status: "info", note: "курс 110 нужен только для маркапа от розничных цен" },
   ];
