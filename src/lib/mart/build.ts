@@ -43,7 +43,11 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   for (const p of priceRows) { const k = `${p.acode}|${p.color}|${p.size}`; if (!price.has(k)) price.set(k, p.price); }
 
   // Партии (ТЗ): закупка единицы с работой, 4 % и расходами; цвета и размеры ТЗ сопоставляются с изделиями отчёта (модель · цвет · размер).
-  const orderRows = (await loadOrderRows(orgId, "all", "on")).filter((o) => o.group === "done" && o.qty > 0);
+  const allOrders = (await loadOrderRows(orgId, "all", "on")).filter((o) => o.qty > 0);
+  // Основа — завершённые ТЗ. ТЗ в работе (себестоимость расчётная по списанному сырью, работе и 4 %) берутся только для моделей без завершённых ТЗ:
+  // товар ещё не привезён, но уже учтён в отчёте (M030 по ТЗ 198, M054 по ТЗ 195); без списанного сырья (себестоимость 0) такое ТЗ не берётся.
+  const doneModels = new Set(allOrders.filter((o) => o.group === "done").map((o) => normCode(o.modelName ?? "")));
+  const orderRows = allOrders.filter((o) => o.group === "done" || (o.costIncl > 0 && !doneModels.has(normCode(o.modelName ?? ""))));
   const colorRefs = await db.colorRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true } });
   const refByAlias = new Map<string, string>();
   for (const c of colorRefs) { refByAlias.set(ck(c.name), c.id); for (const a of c.aliases) refByAlias.set(ck(a), c.id); }
@@ -75,7 +79,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     }
     return out;
   };
-  const tzParties = orderRows.map((o) => ({ id: o.id, number: o.number, model: normCode(o.modelName ?? ""), qty: o.qty, unit: (o.costIncl + o.work) / o.qty, work: o.work / o.qty, units: tzUnits(o.id, o.qty) }));
+  const tzParties = orderRows.map((o) => ({ wip: o.group !== "done", id: o.id, number: o.number, model: normCode(o.modelName ?? ""), qty: o.qty, unit: (o.costIncl + o.work) / o.qty, work: o.work / o.qty, units: tzUnits(o.id, o.qty) }));
   const partiesByModel = new Map<string, typeof tzParties>();
   for (const p of tzParties) { const a = partiesByModel.get(p.model) ?? []; a.push(p); partiesByModel.set(p.model, a); }
 
@@ -143,7 +147,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
       const sku = await tx.dmSku.create({ data: {
         organizationId: orgId, modelCode, acode: r.acode, color: r.color, size: r.size, skuKey: skuKeyOf(r.acode, canonOf(r.color).canon, r.size), colorRefId: canonOf(r.color).refId, colorCanon: canonOf(r.color).canon, cls: r.cls, fur: r.fur ?? null, cat1: r.l2 ?? null, cat2: r.l4 || r.l5 || null, builtAt: now,
         seasons: { create: SEASONS.filter((s) => seas[s]).map((s) => { const c = seas[s]!; return { season: s, conf: confOf(s), deliv: n(c.deliv), confEur: s === "FW26/27" ? n(c.confEur) : n(c.confEur ?? c.delivEur), delivEur: n(c.delivEur), soldAll: n(c.soldAll), soldSsn: n(c.soldSsn), soldOld: n(c.soldOld), rubAll: n(c.rubAll), discAll: n(c.discAll), scAll: n(c.scAll) }; }) },
-        stock: { create: { deliv, sold, stock, retailPrice: p, stockRetailRub: p ? stock * p : 0, unitCostAvgRub: unitAvg, unitCostReportEur: unitRepEur, stockCostAvgRub: unitAvg ? Math.max(0, stock) * unitAvg : null, stockCostReportEur: unitRepEur ? Math.max(0, stock) * unitRepEur : null, costSource: parties.length ? `ТЗ, средневзвешенно (сопоставлено по: ${topLevel === "size" ? "модели, цвету и размеру" : topLevel === "color" ? "модели и цвету" : "модели"})`   : unitModel ? "ТЗ, средняя по модели (своей партии нет)" : null, flags } },
+        stock: { create: { deliv, sold, stock, retailPrice: p, stockRetailRub: p ? stock * p : 0, unitCostAvgRub: unitAvg, unitCostReportEur: unitRepEur, stockCostAvgRub: unitAvg ? Math.max(0, stock) * unitAvg : null, stockCostReportEur: unitRepEur ? Math.max(0, stock) * unitRepEur : null, costSource: parties.length && parties.every((x) => x.p.wip) ? "ТЗ в работе: расчётная себестоимость (товар ещё не привезён)" : parties.length ? `ТЗ, средневзвешенно (сопоставлено по: ${topLevel === "size" ? "модели, цвету и размеру" : topLevel === "color" ? "модели и цвету" : "модели"})`   : unitModel ? "ТЗ, средняя по модели (своей партии нет)" : null, flags } },
       }, select: { id: true } });
       skuCount++;
       if (parties.length) {
