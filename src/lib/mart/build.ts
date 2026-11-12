@@ -45,8 +45,8 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   // Партии (ТЗ): закупка единицы с работой, 4 % и расходами; цвета и размеры ТЗ сопоставляются с изделиями отчёта (модель · цвет · размер).
   const allOrders = (await loadOrderRows(orgId, "all", "on")).filter((o) => o.qty > 0);
   // Основа — завершённые ТЗ. ТЗ в работе (себестоимость расчётная по списанному сырью, работе и 4 %) берутся только для моделей без завершённых ТЗ:
-  // товар ещё не привезён, но уже учтён в отчёте (M030 по ТЗ 198, M054 по ТЗ 195); без списанного сырья (себестоимость 0) такое ТЗ не берётся.
-  const orderRows = allOrders.filter((o) => o.group === "done" || o.costIncl > 0);
+  // товар ещё не привезён, но уже учтён в отчёте (M030 по ТЗ 198, M054 по ТЗ 195); ТЗ без списанного меха (MH-07: мех из остатков) берётся с той себестоимостью, что в карточке артикула (одна работа).
+  const orderRows = allOrders.filter((o) => o.group === "done" || o.costIncl + o.work > 0);
   const colorRefs = await db.colorRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true } });
   const refByAlias = new Map<string, string>();
   for (const c of colorRefs) { refByAlias.set(ck(c.name), c.id); for (const a of c.aliases) refByAlias.set(ck(a), c.id); }
