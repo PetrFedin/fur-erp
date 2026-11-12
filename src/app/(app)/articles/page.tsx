@@ -391,7 +391,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       </div>
 
       {markupTotal ? (
-        <details open className="rounded-lg border border-neutral-200 bg-white" data-testid="articles-markup">
+        <details className="rounded-lg border border-neutral-200 bg-white" data-testid="articles-markup">
           <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium max-md:py-3">Розничная цена и наценка по меху и категориям</summary>
           <div className="overflow-x-auto border-t border-neutral-200">
           <table className="w-full min-w-[420px] text-sm">
