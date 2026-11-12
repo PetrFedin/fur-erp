@@ -38,7 +38,7 @@ const f2 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 2 }
     const dr = dbMap.get(k); if (!dr) continue;
     let rowDiff = false;
     for (const s of SEASONS) for (const fld of FIELDS) {
-      const a = num(dr.seas?.[s]?.[fld]), b = num(fr.seas?.[s]?.[fld]);
+      const a = num((dr.seas?.[s] as Record<string, unknown> | undefined)?.[fld]), b = num((fr.seas?.[s] as Record<string, unknown> | undefined)?.[fld]);
       if (Math.abs(a - b) > 0.5) { rowDiff = true; diffByField[`${s}.${fld}`] = (diffByField[`${s}.${fld}`] ?? 0) + 1; if (examples.length < 25) examples.push(`${k} ${s}.${fld}: база ${f2(a)} / файл ${f2(b)}`); }
     }
     if (Math.abs(num(dr.sold) - num(fr.sold)) > 0.5) { rowDiff = true; diffByField["sold"] = (diffByField["sold"] ?? 0) + 1; if (examples.length < 25) examples.push(`${k} sold: база ${num(dr.sold)} / файл ${num(fr.sold)}`); }

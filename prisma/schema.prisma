@@ -2359,8 +2359,11 @@ model DmStock {
   /// Закупка единицы, ₽: средневзвешенная по ТЗ модели (с работой, 4 %, расходами) и контрольная по отчёту (поступило € ÷ шт. × курс 110).
   unitCostAvgRub     Decimal? @db.Decimal(18, 2)
   unitCostReportRub  Decimal? @db.Decimal(18, 2)
+  /// Закупка единицы по отчёту, € (поступило € ÷ шт.): справочно, в рубли не пересчитывается (курс 110 только для маркапа от розницы).
+  unitCostReportEur  Decimal? @db.Decimal(18, 4)
   stockCostAvgRub    Decimal? @db.Decimal(18, 2)
   stockCostReportRub Decimal? @db.Decimal(18, 2)
+  stockCostReportEur Decimal? @db.Decimal(18, 2)
   costSource         String?
   flags              String[]
 }
