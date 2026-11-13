@@ -13,7 +13,7 @@ const BR = "FFBFBFBF", NAVY = "FF2B2A5A", LAV = "FFD9D7EC", PALE = "FFF1F0F8";
 const USD = '"$"#,##0.0;\\-"$"#,##0.0;"–"';
 const N0 = '#,##0;\\-#,##0;"–"';
 
-type Lot = { item: string; year: number; auction: string; attrs: string[]; usdQty: number; usdSubtotal: number; usdPrice: number | null; recv: number };
+type Lot = { item: string; color: string; year: number; auction: string; attrs: string[]; usdQty: number; usdSubtotal: number; usdPrice: number | null; recv: number };
 
 async function main() {
   const out = process.argv[2];
@@ -42,15 +42,20 @@ async function main() {
   type Cell = { q: number; s: number };
   const add = (m: Map<string, Cell>, k: string, q: number, s: number) => { const c = m.get(k) ?? { q: 0, s: 0 }; c.q += q; c.s += s; m.set(k, c); };
   const years = [...new Set(lots.map((l) => l.year))].sort((a, b) => a - b);
-  // Дерево: тип меха → признак; ключ ячейки «аукцион|год»
-  const types = new Map<string, { cells: Map<string, Cell>; attrs: Map<string, Map<string, Cell>> }>();
+  // Дерево: тип меха → цвет меха (как записан в лотах аукциона) → признак; ключ ячейки «аукцион|год»
+  const NO_COLOR = "Цвет не указан";
+  type Node = { cells: Map<string, Cell>; attrs: Map<string, Map<string, Cell>> };
+  const types = new Map<string, { cells: Map<string, Cell>; colors: Map<string, Node> }>();
   for (const l of lots) {
-    const t = types.get(l.item) ?? types.set(l.item, { cells: new Map(), attrs: new Map() }).get(l.item)!;
+    const t = types.get(l.item) ?? types.set(l.item, { cells: new Map(), colors: new Map() }).get(l.item)!;
     const k = `${aucKey(l)}|${l.year}`;
+    const colorName = !l.color || l.color === "Не указан" ? NO_COLOR : l.color;
+    const cn = t.colors.get(colorName) ?? t.colors.set(colorName, { cells: new Map(), attrs: new Map() }).get(colorName)!;
     add(t.cells, k, l.usdQty, l.usdSubtotal);
+    add(cn.cells, k, l.usdQty, l.usdSubtotal);
     // «Седина» без номера не показываем: у лотов с сединой номер всегда есть («Седина 3»), общая «Седина» его только дублирует; нет номера — «Без признака».
     const own = l.attrs.filter((x) => x !== "Седина");
-    for (const a of own.length ? own : ["Без признака"]) add(t.attrs.get(a) ?? t.attrs.set(a, new Map()).get(a)!, k, l.usdQty, l.usdSubtotal);
+    for (const a of own.length ? own : ["Без признака"]) add(cn.attrs.get(a) ?? cn.attrs.set(a, new Map()).get(a)!, k, l.usdQty, l.usdSubtotal);
   }
 
   const wb = new ExcelJS.Workbook();
@@ -64,10 +69,10 @@ async function main() {
   const border = { top: { style: "thin", color: { argb: BR } }, bottom: { style: "thin", color: { argb: BR } }, left: { style: "thin", color: { argb: BR } }, right: { style: "thin", color: { argb: BR } } } as const;
   ws.getCell(1, 1).value = "Средневзвешенная цена молотка в долларах за шкуру (Σ $ ÷ Σ шт., только лоты с ценой в USD, только аукционы)";
   ws.getCell(1, 1).font = { bold: true, size: 12 };
-  ws.getCell(2, 1).value = "Столбцы — аукционы целиком (все СП, все РП, все SAGA… вместе); у каждого слева итог за все годы, справа годы (свёрнуты, раскрываются плюсом над столбцами). Тип меха → признак меха; у шкуры с несколькими признаками она учтена в каждом признаке (в типе — один раз)";
+  ws.getCell(2, 1).value = "Столбцы — аукционы целиком (все СП, все РП, все SAGA… вместе); у каждого слева итог за все годы, справа годы (свёрнуты, раскрываются плюсом над столбцами). Тип меха → цвет меха (как записан в лотах аукциона; «Цвет не указан» — где в документах цвета нет) → признак меха; у шкуры с несколькими признаками она учтена в каждом признаке (в типе — один раз)";
   ws.getCell(2, 1).font = { italic: true, color: { argb: "FF666666" } };
   const hdr = (r: number, c: number, v: string) => { const cell = ws.getCell(r, c); cell.value = v; cell.font = { bold: true, color: { argb: "FFFFFFFF" } }; cell.fill = fill(NAVY); cell.alignment = { wrapText: true, vertical: "middle", horizontal: c === 1 ? "left" : "center" }; cell.border = border; };
-  hdr(3, 1, "Тип меха / признак"); hdr(4, 1, "");
+  hdr(3, 1, "Тип меха / цвет / признак"); hdr(4, 1, "");
   blocks.forEach((b, bi) => {
     const c0 = 2 + bi * per;
     for (let j = 0; j < per; j++) { hdr(3, c0 + j, j === 0 ? b : ""); hdr(4, c0 + j, j === 0 ? "Итого" : String(years[j - 1])); }
@@ -85,10 +90,10 @@ async function main() {
     for (const [k, c] of cells) { const [a, y] = k.split("|"); if ((auc === null || a === auc) && (year === null || Number(y) === year)) { q += c.q; s += c.s; } }
     return { q, s };
   };
-  const writeRow = (label: string, level: number, cells: Map<string, Cell>, style: "type" | "attr") => {
+  const writeRow = (label: string, level: number, cells: Map<string, Cell>, style: "type" | "attr" | "sub") => {
     const row = ws.getRow(r++);
     row.outlineLevel = level;
-    row.getCell(1).value = (style === "attr" ? "   " : "") + label;
+    row.getCell(1).value = (style === "attr" ? "   " : style === "sub" ? "      " : "") + label;
     blocks.forEach((_, bi) => {
       const auc = bi < auctions.length ? auctions[bi].label : null;
       const c0 = 2 + bi * per;
@@ -101,16 +106,19 @@ async function main() {
     });
     const tot = valueOf(cells, null, null);
     const q = row.getCell(lastCol); q.value = tot.q; q.numFmt = N0; q.alignment = { horizontal: "right" };
-    for (let c = 1; c <= lastCol; c++) { const cell = row.getCell(c); if (style === "type") { cell.fill = fill(LAV); cell.font = { ...(cell.font ?? {}), bold: true, size: 12 }; } cell.border = { bottom: { style: "hair", color: { argb: BR } } }; }
+    for (let c = 1; c <= lastCol; c++) { const cell = row.getCell(c); if (style === "type") { cell.fill = fill(LAV); cell.font = { ...(cell.font ?? {}), bold: true, size: 12 }; } else if (style === "attr") { cell.fill = fill(PALE); cell.font = { ...(cell.font ?? {}), bold: true }; } cell.border = { bottom: { style: "hair", color: { argb: BR } } }; }
   };
 
   const grand = new Map<string, Cell>();
   const qtyOf = (m: Map<string, Cell>) => [...m.values()].reduce((a, c) => a + c.q, 0);
+  const lastKey = (a: string) => (a === "Без признака" || a === NO_COLOR ? 1 : 0);
   for (const [name, t] of [...types.entries()].sort((a, b) => qtyOf(b[1].cells) - qtyOf(a[1].cells))) {
     writeRow(name, 0, t.cells, "type");
     for (const [k, c] of t.cells) add(grand, k, c.q, c.s);
-    const order = [...t.attrs.entries()].sort((a, b) => (a[0] === "Без признака" ? 1 : b[0] === "Без признака" ? -1 : a[0].localeCompare(b[0], "ru")));
-    for (const [attr, m] of order) writeRow(attr, 1, m, "attr");
+    for (const [color, cn] of [...t.colors.entries()].sort((a, b) => lastKey(a[0]) - lastKey(b[0]) || qtyOf(b[1].cells) - qtyOf(a[1].cells))) {
+      writeRow(color, 1, cn.cells, "attr");
+      for (const [attr, m] of [...cn.attrs.entries()].sort((a, b) => lastKey(a[0]) - lastKey(b[0]) || a[0].localeCompare(b[0], "ru"))) writeRow(attr, 2, m, "sub");
+    }
   }
   r++;
   writeRow("ИТОГО по всем типам меха", 0, grand, "type");
