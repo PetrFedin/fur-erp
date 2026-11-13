@@ -128,8 +128,7 @@ async function main() {
     ws.getRow(r - 1).eachCell((c) => { c.fill = fill(NAVY); c.font = { bold: true, color: { argb: "FFFFFFFF" } }; });
   };
 
-  makeSheet("Тип-цвет-признак", "Тип меха / цвет / признак", buildTree(colorOf, attrsOf), "Тип меха → цвет меха (как записан в лотах аукциона; «Цвет не указан» — где в документах цвета нет) → признак меха");
-  makeSheet("Тип-признак-цвет", "Тип меха / признак / цвет", buildTree(attrsOf, colorOf), "Тип меха → признак меха → цвет меха (как записан в лотах аукциона; «Цвет не указан» — где в документах цвета нет)");
+  makeSheet("Молоток $ по аукционам", "Тип меха / признак / цвет", buildTree(attrsOf, colorOf), "Тип меха → признак меха → цвет меха (как записан в лотах аукциона; «Цвет не указан» — где в документах цвета нет)");
   await wb.xlsx.writeFile(out);
   console.log(`готово: ${out}; аукционов ${auctions.length}, годы ${years.join(", ")}`);
   await prisma.$disconnect();
