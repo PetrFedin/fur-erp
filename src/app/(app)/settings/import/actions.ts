@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { revalidateAll } from "@/lib/revalidate-all";
 import { MAX_IMPORT_BYTES, type ImportKind } from "@/lib/import-core";
+import { refreshMartInBackground } from "@/lib/mart/refresh";
 import { ImportFormatError, applyImport, buildPreview, rollbackImport, type ApplyResult, type ImportPreview } from "@/lib/import-server";
 
 export type PreviewRes = { error?: string; preview?: ImportPreview };
@@ -48,7 +49,7 @@ export async function applyImportAction(fd: FormData): Promise<ApplyRes> {
   try {
     const { kind, name, buf, removeMissing, sha } = await readForm(fd);
     const result = await applyImport(prisma, orgId, { id: session.user.id, name: session.user.name ?? null }, kind, name, buf, { removeMissing, expectSha: sha || undefined });
-    if (result.journalId) refresh(orgId);
+    if (result.journalId) { refresh(orgId); refreshMartInBackground(orgId); }
     return { result };
   } catch (e) {
     return fail(e);
@@ -61,6 +62,7 @@ export async function rollbackImportAction(journalId: string): Promise<RollbackR
   try {
     const lines = await rollbackImport(prisma, orgId, { id: session.user.id, name: session.user.name ?? null }, String(journalId));
     refresh(orgId);
+    refreshMartInBackground(orgId);
     return { lines };
   } catch (e) {
     return fail(e);
