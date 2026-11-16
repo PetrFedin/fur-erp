@@ -27,5 +27,7 @@ jobs:
       - run: npx prisma generate
       - name: Lint production admission
         run: npx eslint src/lib/production-admission.ts src/app/api/health/route.ts src/app/api/ready/route.ts
+      - name: Verify synthetic budget fixture consistency
+        run: node scripts/test-demo-budget-fixtures.mjs
       - name: Production build
         run: npm run build
