@@ -26,9 +26,9 @@ async function main() {
 
   // 1. Отчёт: оригинал цвета → цвет справочника
   const rep = await q(`SELECT k.color, k."colorCanon" AS canon, (k."colorRefId" IS NULL) AS noref, string_agg(DISTINCT k."modelCode", ', ') AS models, sum(t.deliv)::int AS deliv, sum(greatest(t.stock,0))::int AS stock FROM "DmSku" k JOIN "DmStock" t ON t."skuId"=k.id GROUP BY 1,2,3 ORDER BY noref DESC, 1`);
-  const SUGGEST: Record<string, { map: string; extra: string; note: string }> = {
-    MAHOGANY: { map: "", extra: "Красное дерево (Mahogany)", note: "Нет в справочнике: предлагаю завести «Красное дерево» (подтвердите или выберите близкий цвет)" },
-    SILVER: { map: "", extra: "Серебристый (Silver)", note: "Нет в справочнике: предлагаю завести «Серебристый» (подтвердите или выберите близкий цвет)" },
+  const SUGGEST: Record<string, { map: string; note: string }> = {
+    MAHOGANY: { map: "Красное дерево", note: "Нет в справочнике: предлагаю завести цвет «Красное дерево» (или выберите близкий цвет из списка)" },
+    SILVER: { map: "Серебристый", note: "Нет в справочнике: предлагаю завести цвет «Серебристый» (или выберите близкий цвет из списка)" },
   };
 
   // 2. Зачёты отгрузки: модель × цвет (как записан в файле) → цвет отчёта той же модели
@@ -53,13 +53,13 @@ async function main() {
   }
   const ZS: Record<string, { map: string; note: string }> = {
     "MH06|СЕРЫЙ": { map: "Ирис", note: "В справочнике у «Ирис» есть синоним «Серый (ирис)»" },
-    "MH06|КРЕМОВЫЙ": { map: "", note: "НЕТ ОЧЕВИДНОЙ ПАРЫ: у MH06 в отчёте Ирис, Лаванда, Чёрный. Выберите цвет или оставьте пустым" },
+    "MH06|КРЕМОВЫЙ": { map: "Кремовый", note: "Цвет «Кремовый» есть в справочнике, но у MH06 в отчёте его нет (там Ирис, Лаванда, Чёрный): подтвердите или выберите другой" },
     "MH07|КОРИЧНЕВЫЙ": { map: "Натуральный", note: "Соболь: в отчёте цвет «Натуральный»" },
     "MCF01|КОРИЧНЕВЫЙ": { map: "Натуральный", note: "Соболь: в отчёте цвет «Натуральный»" },
     "MMF01|КОРИЧНЕВЫЙ": { map: "Натуральный", note: "Соболь: в отчёте цвет «Натуральный»" },
     "M028|КОРИЧНЕВЫЙ": { map: "Натуральный", note: "Соболь: в отчёте цвет «Натуральный»" },
     "M038|ЧЕРНЫЙ, КОРИЧНЕВЫЙ": { map: "Натуральный", note: "Два цвета в одной строке; в отчёте у M038 «Натуральный»" },
-    "M055|КОРИЧНЕВЫЙ": { map: "", note: "В отчёте у M055 цвет MAHOGANY (нет в справочнике): сопоставить с новым «Красное дерево»" },
+    "M055|КОРИЧНЕВЫЙ": { map: "Красное дерево", note: "В отчёте у M055 цвет MAHOGANY: сопоставлено с новым цветом «Красное дерево»" },
     "M002|БЕЖЕВЫЙ": { map: "Тортора", note: "В отчёте у M002 цвет «Тортора»" },
     "M023|БЕЖЕВЫЙ": { map: "Тортора", note: "В отчёте у M023 цвет «Тортора»" },
   };
@@ -70,7 +70,8 @@ async function main() {
     c.value = h; c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = fill(NAVY);
     c.alignment = { wrapText: true, vertical: "middle" }; c.border = { bottom: { style: "thin", color: { argb: BR } } };
   });
-  const listRange = `'Справочник цветов'!$A$2:$A$${refs.length + 1}`;
+  const NEW_COLORS = [["Красное дерево", "MAHOGANY, махагон (предложение: новый цвет)"], ["Серебристый", "SILVER (предложение: новый цвет)"]];
+  const listRange = `'Справочник цветов'!$A$2:$A$${refs.length + NEW_COLORS.length + 1}`;
   const addValidation = (ws: ExcelJS.Worksheet, col: string, from: number, to: number) => {
     for (let r = from; r <= to; r++) ws.getCell(`${col}${r}`).dataValidation = { type: "list", allowBlank: true, formulae: [listRange], showErrorMessage: false };
   };
@@ -78,25 +79,25 @@ async function main() {
   const w1 = wb.addWorksheet("Отчёт - цвета", { views: [{ state: "frozen", ySplit: 3 }] });
   w1.getCell(1, 1).value = "Цвета из отчёта «заказ и продажи»: оригинал остаётся, столбец «Сопоставление» — цвет справочника";
   w1.getCell(1, 1).font = { bold: true, size: 12 };
-  w1.getCell(2, 1).value = "Жёлтым — нужно ваше решение; зелёным — совпало со справочником автоматически. В «Сопоставлении» можно выбрать из списка или вписать своё; в «Дополнительное название» — доп. название цвета.";
-  head(w1, 3, ["Оригинал (как в отчёте)", "Сопоставление (цвет справочника)", "Дополнительное название", "Модели", "Получено, шт.", "Остаток, шт.", "Комментарий"]);
+  w1.getCell(2, 1).value = "Жёлтым — нужно ваше решение; зелёным — совпало со справочником автоматически. В «Сопоставлении» выберите цвет из списка или впишите своё русское название.";
+  head(w1, 3, ["Оригинал (как в отчёте)", "Сопоставление (цвет справочника)", "Модели", "Получено, шт.", "Остаток, шт.", "Комментарий"]);
   rep.forEach((r, i) => {
     const row = w1.getRow(4 + i);
     const s = SUGGEST[ck(String(r.color))];
     const noref = Boolean(r.noref);
     const mapped = noref ? (s?.map ?? "") : (nameByCanon.get(String(r.canon)) ?? String(r.canon));
-    const vals: ExcelJS.CellValue[] = [String(r.color), mapped, noref ? (s?.extra ?? "") : "", String(r.models), Number(r.deliv), Number(r.stock), noref ? (s?.note ?? "Нет в справочнике цветов: нужно сопоставить") : "Совпало со справочником"];
+    const vals: ExcelJS.CellValue[] = [String(r.color), mapped, String(r.models), Number(r.deliv), Number(r.stock), noref ? (s?.note ?? "Нет в справочнике цветов: нужно сопоставить") : "Совпало со справочником"];
     vals.forEach((v, c) => { row.getCell(c + 1).value = v; });
-    for (let c = 1; c <= 7; c++) row.getCell(c).fill = fill(noref ? YEL : GREEN);
+    for (let c = 1; c <= 6; c++) row.getCell(c).fill = fill(noref ? YEL : GREEN);
   });
-  [26, 32, 30, 28, 14, 14, 70].forEach((w, i) => { w1.getColumn(i + 1).width = w; });
+  [26, 34, 28, 14, 14, 70].forEach((w, i) => { w1.getColumn(i + 1).width = w; });
   addValidation(w1, "B", 4, 3 + rep.length);
 
   const w2 = wb.addWorksheet("Зачёты отгрузки - цвета", { views: [{ state: "frozen", ySplit: 3 }] });
   w2.getCell(1, 1).value = "Цвета из зачётов отгрузки (ИТ/ЗИ): оригинал остаётся, рядом — подобранный близкий цвет";
   w2.getCell(1, 1).font = { bold: true, size: 12 };
-  w2.getCell(2, 1).value = "Жёлтым — предложение (нужно подтвердить); розовым — пары нет, нужен ваш выбор; зелёным — цвет уже совпадает с отчётом. Цвета этой модели в отчёте указаны в столбце «Цвета модели в отчёте».";
-  head(w2, 3, ["Модель", "Оригинал (как в зачёте)", "Сопоставление (цвет справочника)", "Дополнительное название", "Цвета модели в отчёте", "Строк", "Сумма, ₽", "Комментарий"]);
+  w2.getCell(2, 1).value = "Жёлтым — моё предложение (подтвердите или выберите другой цвет); зелёным — цвет уже совпадает с отчётом. Цвета этой модели в отчёте указаны в столбце «Цвета модели в отчёте».";
+  head(w2, 3, ["Модель", "Оригинал (как в зачёте)", "Сопоставление (цвет справочника)", "Цвета модели в отчёте", "Строк", "Сумма, ₽", "Комментарий"]);
   const zrows = [...grp.values()].sort((a, b) => b.n - a.n);
   zrows.forEach((g, i) => {
     const row = w2.getRow(4 + i);
@@ -105,17 +106,22 @@ async function main() {
     const have = colorsOfModel.get(g.model) ?? [];
     const inRep = have.includes(ck(g.color));
     const mapped = inRep ? (nameByCanon.get(ck(g.color)) ?? g.color) : (sug?.map ?? "");
-    const vals: ExcelJS.CellValue[] = [g.model, g.color, mapped, "", have.map((c) => nameByCanon.get(c) ?? c).join(", "), g.n, Math.round(g.sum), inRep ? "Совпадает с цветом модели в отчёте" : (sug?.note ?? "Нет пары в отчёте: нужно сопоставить")];
+    const vals: ExcelJS.CellValue[] = [g.model, g.color, mapped, have.map((c) => nameByCanon.get(c) ?? c).join(", "), g.n, Math.round(g.sum), inRep ? "Совпадает с цветом модели в отчёте" : (sug?.note ?? "Нет пары в отчёте: нужно сопоставить")];
     vals.forEach((v, c) => { row.getCell(c + 1).value = v; });
     const color = inRep ? GREEN : sug?.map ? YEL : PINK;
-    for (let c = 1; c <= 8; c++) row.getCell(c).fill = fill(color);
+    for (let c = 1; c <= 7; c++) row.getCell(c).fill = fill(color);
   });
-  [10, 24, 32, 30, 36, 8, 14, 70].forEach((w, i) => { w2.getColumn(i + 1).width = w; });
+  [10, 24, 34, 36, 8, 14, 70].forEach((w, i) => { w2.getColumn(i + 1).width = w; });
   addValidation(w2, "C", 4, 3 + zrows.length);
 
   const w3 = wb.addWorksheet("Справочник цветов");
   head(w3, 1, ["Цвет справочника", "Синонимы"]);
   refs.forEach((r, i) => { w3.getCell(i + 2, 1).value = r.name; w3.getCell(i + 2, 2).value = r.aliases.join(", "); });
+  NEW_COLORS.forEach(([n, a], i) => {
+    const r = refs.length + 2 + i;
+    w3.getCell(r, 1).value = n; w3.getCell(r, 2).value = a;
+    w3.getCell(r, 1).fill = fill(YEL); w3.getCell(r, 2).fill = fill(YEL);
+  });
   w3.getColumn(1).width = 28; w3.getColumn(2).width = 80;
 
   await wb.xlsx.writeFile(out);
