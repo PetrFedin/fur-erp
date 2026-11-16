@@ -537,19 +537,6 @@ function CarouselTile({ pages, onOpen, label = "Чистый поток и на�
   );
 }
 
-type VatChoice = "global" | "in" | "ex";
-/** «С НДС | Без НДС» внутри плитки: по умолчанию = общая панель, локально переопределяется (один компонент для «Выручка» и «Средней цены»). */
-function VatSeg({ choice, setChoice, globalEx }: { choice: VatChoice; setChoice: (c: VatChoice) => void; globalEx: boolean }) {
-  const ex = choice === "global" ? globalEx : choice === "ex";
-  const seg = (on: boolean) => segCls(on, "sm");
-  return (
-    <div role="group" aria-label="НДС плитки" className={SEG_GROUP}>
-      <button type="button" aria-pressed={!ex} onClick={() => setChoice("in")} className={seg(!ex)}>С НДС</button>
-      <button type="button" aria-pressed={ex} onClick={() => setChoice("ex")} className={seg(ex)}>Без НДС</button>
-    </div>
-  );
-}
-
 function Tile({ label, value, sub, hint, tone, mini, spark, extra, after, controls, expandId, onToggle }: { /** Свои элементы управления внутри плитки (например «С НДС | Без НДС»). */ controls?: React.ReactNode; /** Второй блок под мини-строками: подпись, значение, мини-строки (деньги после количеств). */ after?: { label: string; value: string; mini?: [string, string][] }; label: string; value: string; sub?: string; hint?: React.ReactNode; tone?: "bad" | "good"; /** Две мини-строки «Одежда … / Аксессуары …» со своими значениями. */ mini?: [string, string][]; spark?: number[]; extra?: string; expandId?: string; /** устарело, не используется */ openId?: string | null; onToggle?: (id: string) => void }) {
   const clickable = !!expandId && !!onToggle;
   return (
@@ -583,18 +570,18 @@ function Tile({ label, value, sub, hint, tone, mini, spark, extra, after, contro
 
 export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesBy, workBy: workByIncl, workByEx, pays, saleLines, left, nowMonth, initialGroup, vat, services, initialPeriod, initialDetail, initialCat }: Props) {
   const [period, setPeriod] = useState<CashflowPeriod>(initialPeriod);
-  const [exVat, setExVat] = useState(false);
+  // НДС — один, общий (шапка): отдельных переключателей на странице нет
+  const { mode: vatMode } = useVatDisplay();
+  const exVat = vatMode === "excl";
   const workBy = exVat ? workByEx : workByIncl;
   const [cat, setCat] = useState<Cat>(initialCat ?? "all");
   const [gTable, setGTable] = useState(false);
   const [detail, setDetail] = useState(initialDetail ?? true);
   const [fOpen, setFOpen] = useState(false);
   const [gActive, setGActive] = useState<number | null>(null);
-  /** НДС внутри окна «Выручка» / «Средняя цена»: действует только в окне, при закрытии возврат к общей панели. */
-  const [modalEx, setModalEx] = useState<boolean | null>(null);
   const [openMonths, setOpenMonths] = useState<string[]>([]);
   const [openTile, setOpenTile] = useState<string | null>(null);
-  const toggleTile = (id: string) => { setModalEx(null); setOpenTile(id); };
+  const toggleTile = (id: string) => { setOpenTile(id); };
   const [open, setOpen] = useState<string[]>([]);
   const [group, setGroupState] = useState<"period" | "category">(initialGroup ?? "period");
   const [catOpen, setCatOpen] = useState<string[]>([]);
@@ -667,8 +654,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
     const by = { all: { work: pick(workAllSeries), units: pick(salesBy.all.recPcs) }, clothes: { work: pick(workBy.clothes), units: pick(salesBy.clothes.recPcs) }, acc: { work: pick(workBy.acc), units: pick(salesBy.acc.recPcs) } };
     return { months: idx.map((i) => cf.months[i]), by, st: { all: workWindowStats(by.all.work, by.all.units, [], "all"), clothes: workWindowStats(by.clothes.work, by.clothes.units, [], "all"), acc: workWindowStats(by.acc.work, by.acc.units, [], "all") } };
   }, [incl, ex, exVat, nowMonth, period, salesBy, workBy]);
-  const modalExEff = modalEx ?? exVat;
-  const modalChoice: VatChoice = modalEx === null ? "global" : modalEx ? "ex" : "in";
+  const modalExEff = exVat;
   const recvSum = (c: "all" | "clothes" | "acc", ex: boolean) => m.keep.reduce((t, i) => t + (ex ? salesBy[c].revEx[i] : salesBy[c].revIncl[i]), 0);
   const catPages = ["all", "clothes", "acc"] as const;
   const pageOf = { all: 0, clothes: 1, acc: 2 } as const;
@@ -803,10 +789,6 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
           <nav aria-label="Период" className={SEG_GROUP}>
             {([["all", "Все"], ...cashflowYears().map((y) => [String(y), String(y)])] as [CashflowPeriod, string][]).map(([k, t]) => <button key={k} type="button" aria-pressed={period === k} onClick={() => { setPeriod(k); clearHot(); }} className={seg(period === k)}>{t}</button>)}
           </nav>
-          <div role="group" aria-label="НДС" className={SEG_GROUP}>
-            <button type="button" aria-pressed={!exVat} onClick={() => setExVat(false)} className={seg(!exVat)}>С НДС</button>
-            <button type="button" aria-pressed={exVat} onClick={() => setExVat(true)} className={seg(exVat)}>Без НДС</button>
-          </div>
         </div>
       </div>
 
@@ -849,9 +831,9 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
       </section>
 
       {openTile && (
-        <TileModal title={{ spend: "Оплачено", recv: "Выручка", flow: "Денежный поток по месяцам", workMonth: "Работа в месяц", workUnit: "Работа на единицу", price: "Средняя цена продажи" }[openTile] ?? ""} subtitle={openTile === "recv" || openTile === "price" ? shownText.replace(/с НДС|без НДС/, modalExEff ? "без НДС" : "с НДС") : shownText} onClose={() => { setOpenTile(null); setModalEx(null); }}>
+        <TileModal title={{ spend: "Оплачено", recv: "Выручка", flow: "Денежный поток по месяцам", workMonth: "Работа в месяц", workUnit: "Работа на единицу", price: "Средняя цена продажи" }[openTile] ?? ""} subtitle={openTile === "recv" || openTile === "price" ? shownText.replace(/с НДС|без НДС/, modalExEff ? "без НДС" : "с НДС") : shownText} onClose={() => { setOpenTile(null); }}>
           {openTile === "spend" && <SpendDetail pays={pays} months={months} exVat={exVat} d={d} total={h.spent} />}
-          {openTile === "recv" && <RecvDetail lines={saleLines} months={months} exVat={modalExEff} cat={catArg} total={recvSum(cat, modalExEff)} controls={<VatSeg choice={modalChoice} setChoice={(c) => setModalEx(c === "ex")} globalEx={exVat} />} />}
+          {openTile === "recv" && <RecvDetail lines={saleLines} months={months} exVat={modalExEff} cat={catArg} total={recvSum(cat, modalExEff)} />}
           {openTile === "flow" && (
             <div className="flex flex-col gap-3">
               <p className="text-xs text-neutral-800">
@@ -863,7 +845,7 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
           )}
           {openTile === "workMonth" && <WorkMonthWindow months={wm.months} by={wm.by} initialCat={winCat} />}
           {openTile === "workUnit" && <WorkUnitWindow months={wm.months} by={wm.by} initialCat={winCat} />}
-          {openTile === "price" && <PriceDetail lines={saleLines} months={months} exVat={modalExEff} cat={winCat} controls={<VatSeg choice={modalChoice} setChoice={(c) => setModalEx(c === "ex")} globalEx={exVat} />} />}
+          {openTile === "price" && <PriceDetail lines={saleLines} months={months} exVat={modalExEff} cat={winCat} />}
         </TileModal>
       )}
 

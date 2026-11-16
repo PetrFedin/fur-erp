@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { VatToggle } from "@/components/vat-toggle";
 import { Commission4Toggle } from "@/components/commission4-toggle";
 import { YearToggle } from "@/components/year-toggle";
+import { modesForPath } from "@/lib/page-modes";
 
 const QUERY = "(max-width: 1279px)";
 
@@ -29,8 +30,9 @@ function useNarrow() {
  */
 export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
   const narrow = useNarrow();
-  // В «Продажах» отчёт привязан к сезонам: «Год» и «4 % к сырью» там ничего не меняют, поэтому в разделе их не показываем.
-  const salesPage = (usePathname() ?? "").startsWith("/sales");
+  // Какие режимы имеют смысл на странице — см. src/lib/page-modes.ts; в кабинете поставщика режимы не показываем (ничего не меняют)
+  const pathModes = modesForPath(usePathname());
+  const modes = yearOnly ? { year: false, vat: false, c4: false } : pathModes;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -50,23 +52,27 @@ export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
     };
   }, [open]);
 
+  if (!modes.year && !modes.vat && !modes.c4) return null;
+
   if (!narrow) {
     // До гидратации narrow всегда false: на телефоне ряд переключателей не показываем (иначе шапка на миг вылезает за экран).
     return (
       <div className="hidden xl:contents">
-        {!salesPage && (
+        {modes.year && (
 <div className="flex items-center gap-1.5">
           <span className="hidden text-xs text-neutral-500 xl:inline">Год:</span>
           <YearToggle supplier={yearOnly} />
         </div>
 )}
-        {!yearOnly && (
+        {(modes.vat || modes.c4) && (
           <>
+            {modes.vat && (
             <div className="flex items-center gap-1.5">
               <span className="hidden text-xs text-neutral-500 xl:inline">Цены:</span>
               <VatToggle />
             </div>
-            {!salesPage && (
+            )}
+            {modes.c4 && (
 <div className="flex items-center gap-1.5">
               <span className="hidden text-xs text-neutral-500 xl:inline">4 % к сырью:</span>
               <Commission4Toggle />
@@ -101,19 +107,21 @@ export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
             <span className="text-sm font-semibold text-neutral-900">Режимы показа</span>
             <button type="button" onClick={() => setOpen(false)} aria-label="Закрыть" className="inline-flex size-11 items-center justify-center rounded-md text-lg text-neutral-600 hover:bg-neutral-100">✕</button>
           </div>
-          {!salesPage && (
+          {modes.year && (
 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
             <span className="text-sm text-neutral-700">Год</span>
             <YearToggle supplier={yearOnly} />
           </div>
 )}
-          {!yearOnly && (
+          {(modes.vat || modes.c4) && (
             <>
+              {modes.vat && (
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                 <span className="text-sm text-neutral-700">Цены</span>
                 <VatToggle />
               </div>
-              {!salesPage && (
+              )}
+              {modes.c4 && (
 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                 <span className="text-sm text-neutral-700">4 % к сырью</span>
                 <Commission4Toggle />
