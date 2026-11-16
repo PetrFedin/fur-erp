@@ -75,7 +75,7 @@ async function main() {
     for (let r = from; r <= to; r++) ws.getCell(`${col}${r}`).dataValidation = { type: "list", allowBlank: true, formulae: [listRange], showErrorMessage: false };
   };
 
-  const w1 = wb.addWorksheet("Отчёт: цвета", { views: [{ state: "frozen", ySplit: 3 }] });
+  const w1 = wb.addWorksheet("Отчёт - цвета", { views: [{ state: "frozen", ySplit: 3 }] });
   w1.getCell(1, 1).value = "Цвета из отчёта «заказ и продажи»: оригинал остаётся, столбец «Сопоставление» — цвет справочника";
   w1.getCell(1, 1).font = { bold: true, size: 12 };
   w1.getCell(2, 1).value = "Жёлтым — нужно ваше решение; зелёным — совпало со справочником автоматически. В «Сопоставлении» можно выбрать из списка или вписать своё; в «Дополнительное название» — доп. название цвета.";
@@ -92,7 +92,7 @@ async function main() {
   [26, 32, 30, 28, 14, 14, 70].forEach((w, i) => { w1.getColumn(i + 1).width = w; });
   addValidation(w1, "B", 4, 3 + rep.length);
 
-  const w2 = wb.addWorksheet("Зачёты отгрузки: цвета", { views: [{ state: "frozen", ySplit: 3 }] });
+  const w2 = wb.addWorksheet("Зачёты отгрузки - цвета", { views: [{ state: "frozen", ySplit: 3 }] });
   w2.getCell(1, 1).value = "Цвета из зачётов отгрузки (ИТ/ЗИ): оригинал остаётся, рядом — подобранный близкий цвет";
   w2.getCell(1, 1).font = { bold: true, size: 12 };
   w2.getCell(2, 1).value = "Жёлтым — предложение (нужно подтвердить); розовым — пары нет, нужен ваш выбор; зелёным — цвет уже совпадает с отчётом. Цвета этой модели в отчёте указаны в столбце «Цвета модели в отчёте».";
