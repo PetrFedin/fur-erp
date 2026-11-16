@@ -87,7 +87,27 @@ export async function loadModelPhotos(orgId: string): Promise<Record<string, { m
 
 /** Итоги сезонов отчёта «заказ и продажи» (Главная, «Производство»): заказано и поступило, всего и по одежде / аксессуарам. Закрытые сезоны (SS26, FW25): заказано = поступило. */
 export type ReportSeasonTotal = { label: string; conf: number; deliv: number; clothes: { conf: number; deliv: number }; acc: { conf: number; deliv: number } };
+/** Итоги сезонов — из единой витрины данных, если она свежая; иначе прежний расчёт из отчёта (см. docs/data-mart/MIGRATION-STATUS.md). */
 async function loadReportSeasonTotalsImpl(orgId: string): Promise<ReportSeasonTotal[] | null> {
+  const { martFreshForReport, martSeasonTotals } = await import("@/lib/mart/read");
+  const state = await martFreshForReport(orgId);
+  if (state === "fresh") {
+    const fromMart = await martSeasonTotals(orgId);
+    if (fromMart) {
+      if (process.env.MART_SHADOW === "1") {
+        const legacy = await loadReportSeasonTotalsLegacy(orgId);
+        if (JSON.stringify(legacy) !== JSON.stringify(fromMart)) console.warn("[mart] итоги сезонов: витрина и отчёт расходятся", { legacy, fromMart });
+      }
+      return fromMart;
+    }
+  } else if (state === "stale") {
+    const { refreshMartInBackground } = await import("@/lib/mart/refresh");
+    refreshMartInBackground(orgId);
+  }
+  return loadReportSeasonTotalsLegacy(orgId);
+}
+
+export async function loadReportSeasonTotalsLegacy(orgId: string): Promise<ReportSeasonTotal[] | null> {
   const rows = await loadReportSizes(orgId);
   if (!rows.some((r) => r.seas)) return null;
   const LABEL: Record<string, string> = { "FW25/26": "FW 25/26", SS26: "SS 2026", "FW26/27": "FW 26/27" };
