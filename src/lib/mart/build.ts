@@ -18,8 +18,12 @@ const SEASONS = ["FW25/26", "SS26", "FW26/27"] as const;
 const n = (v: unknown) => Number(v ?? 0) || 0;
 
 /** Эталон владельца (10.11.2026): отчёт «заказ и продажи». */
-/** Эталоны: приход — по файлу «поступления и продажи» (решение владельца 12.11; сезонные блоки отчёта давали 845 / 637 / 346). */
-export const MART_EXPECTED = { ordered: 868, received: 659, sold: 291, stock: 368, stockRetailRub: 682_649_600 } as const;
+/**
+ * Эталоны по сезонным блокам отчёта «заказ и продажи» (решение владельца 16.11: пока 845 / 637 / 346, как в отчётах).
+ * Приход по файлу «поступления и продажи» (868 / 659 / 368) — режим MART_RECEIPTS_FROM_FILE=1; по умолчанию выключен, расхождение в проверке «fileVsReport».
+ */
+const RECEIPTS_FROM_FILE = process.env.MART_RECEIPTS_FROM_FILE === "1";
+export const MART_EXPECTED = { ordered: 845, received: 637, sold: 291, stock: 346, stockRetailRub: 689_484_200 } as const;
 
 // ───── Сопоставление партий (ТЗ) с изделиями отчёта: модель · цвет · размер ─────
 /** Цвет в сравнимом виде: заглавные, «Ё» → «Е», без лишних пробелов. */
@@ -97,7 +101,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   const cellOf = (idx: number, ssn: string) => { const r = sizes[idx]; r.seas = r.seas ?? {}; return (r.seas[ssn] = r.seas[ssn] ?? ({ conf: 0, deliv: 0 } as NonNullable<typeof r.seas>[string])) as Record<string, number>; };
   const delivAll = (idx: number) => SEASONS.reduce((a, ssn) => a + n(sizes[idx].seas?.[ssn]?.deliv), 0);
   let receiptAdded = 0, receiptRemoved = 0;
-  for (const [gk, idxs] of grp) for (const ssn of SEASONS) {
+  if (RECEIPTS_FROM_FILE) for (const [gk, idxs] of grp) for (const ssn of SEASONS) {
     const target = fileTarget.get(`${gk}|${ssn}`) ?? 0;
     const cur = idxs.reduce((a, i) => a + n(sizes[i].seas?.[ssn]?.deliv), 0);
     let d = Math.round(target - cur);
