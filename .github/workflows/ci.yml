@@ -27,5 +27,7 @@ jobs:
       - run: npx prisma generate
       - name: Lint production admission
         run: npx eslint src/lib/production-admission.ts src/app/api/health/route.ts src/app/api/ready/route.ts
+      - name: Tests (Vitest; базу поднимает Testcontainers, Docker есть на ubuntu-latest)
+        run: npm test
       - name: Production build
         run: npm run build
