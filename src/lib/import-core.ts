@@ -1,5 +1,5 @@
 // «Загрузка данных»: разбор xlsx и сравнение с базой. Чистые функции без БД (БД — в import-server.ts).
-// Формат файлов — как в scripts/import-receipts-sales-2026-10-19.ts, apply-retail-prices-2026-10-19.ts, apply-report-sizes-2026-10-19.ts.
+// Формат файлов — как в scripts/archive/import-receipts-sales-2026-10-19.ts, apply-retail-prices-2026-10-19.ts, apply-report-sizes-2026-10-19.ts.
 import ExcelJS from "exceljs";
 import { createHash } from "node:crypto";
 import { classOfLevel2, furTypeOfFabric, modelCodeOfArticle, normCode, parseSheetRow, type ParsedLine } from "@/lib/sales-receipts-core";

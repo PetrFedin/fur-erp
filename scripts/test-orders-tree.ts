@@ -1,6 +1,6 @@
 // «Заказ и приход»: разворот сезонов на тип меха / категории (деревья в SalesBlock.orderSummary). Живую БД только читаем.
 // Размерные строки с категориями (l2–l5) берутся из листа Report файла «отчет по товарам фото и цены.xlsx» (как их вносит
-// scripts/apply-report-orders-2026-10-21.ts). Без файла — проверки пропускаются.
+// scripts/archive/apply-report-orders-2026-10-21.ts). Без файла — проверки пропускаются.
 //   node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/test-orders-tree.ts
 import "./stubs/server-only-shim";
 import { existsSync } from "node:fs";

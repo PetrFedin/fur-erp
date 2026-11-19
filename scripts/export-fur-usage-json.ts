@@ -1,5 +1,5 @@
 // Расход меха по ТЗ: каждое списание шкур (соболь, норка, каракульча, лиса, рысь) — лот (вид меха, пол норки, аукцион, год), ТЗ, артикул, партия, шкур, ₽. Только чтение.
-// Пол норки — признак лота «Самец» / «Самка» (scripts/apply-mink-sex-attrs-2026-11-02.ts).
+// Пол норки — признак лота «Самец» / «Самка» (scripts/archive/apply-mink-sex-attrs-2026-11-02.ts).
 //   node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/export-fur-usage-json.ts <out.json>
 import "./stubs/server-only-shim";
 import { writeFileSync } from "node:fs";

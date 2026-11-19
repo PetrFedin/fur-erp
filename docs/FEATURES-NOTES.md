@@ -1327,9 +1327,9 @@ vs себестоимость в базе» — это разная оценка
 - **Ключ файла**: `DriveDocument.driveFileId` — внутренний ключ («doc-…» у документов, перенесённых при очистке, «local-…» у загруженных
   через интерфейс); одинаковый ключ у нескольких строк = один файл, привязанный к нескольким записям. Поля `viewUrl` и `drivePath`
   устарели и не заполняются (в журнал изменений не попадают, `src/lib/audit-core.ts`).
-- **Очистка БД от внешних ссылок и «MVST»** (16.10.2026): `scripts/scrub-drive-and-mvst-2026-10-16.ts` (пробный прогон по умолчанию,
+- **Очистка БД от внешних ссылок и «MVST»** (16.10.2026): `scripts/archive/scrub-drive-and-mvst-2026-10-16.ts` (пробный прогон по умолчанию,
   `--apply [--live]`, `--rollback --apply`; журнал отката `docs-inventory/scrub-drive-and-mvst-2026-10-16.journal.json` и дубль
-  `~/Backups/fur-erp/drive-links-removed-2026-10-16.json`) и `scripts/scrub-data-json-2026-10-16.ts` (файлы `src/data/*.json`).
+  `~/Backups/fur-erp/drive-links-removed-2026-10-16.json`) и `scripts/archive/scrub-data-json-2026-10-16.ts` (файлы `src/data/*.json`).
   Старые импорт-скрипты, работавшие со ссылками внешнего диска (`link-*`, `apply-drive-*` и др.), отключены защитой
   `scripts/lib/drive-links-disabled.ts`: они сохранены как образец, но не запускаются.
 - **Оплаты** — платим посреднику ООО «Веллмех»; аукцион — группа закупок для разнесения оплат; авансы без привязки

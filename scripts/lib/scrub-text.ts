@@ -3,7 +3,7 @@
  *   А. «MVST» → «THE FUR» (регистр: MVST → THE FUR, mvst → the fur, Mvst → The Fur);
  *   Б. ссылки и упоминания Диска убираем; «в Drive нет» → «не прикреплён/нет»;
  *   В. фразы про внешние реестры/файлы («единый реестр «…MVST…», лист …, строка N») вырезаем целиком.
- * Общая логика для scripts/scrub-drive-and-mvst-2026-10-16.ts (БД) и scripts/scrub-data-json-2026-10-16.ts (src/data/*.json).
+ * Общая логика для scripts/archive/scrub-drive-and-mvst-2026-10-16.ts (БД) и scripts/archive/scrub-data-json-2026-10-16.ts (src/data/*.json).
  */
 import { createHash } from "node:crypto";
 
