@@ -27,7 +27,8 @@ npm run dev -- -p 3200            # http://localhost:3200
   ```bash
   docker exec fur-erp-db-1 psql -U fur_erp -d postgres -c "create database fur_erp_demo"
   gzip -dc deploy/demo/demo.sql.gz | grep -vE '^\\(un)?restrict ' | docker exec -i fur-erp-db-1 psql -U fur_erp -d fur_erp_demo -q
-  # в .env: DATABASE_URL=.../fur_erp_demo; затем:
+  # в .env: DATABASE_URL=.../fur_erp_demo (дамп старее последних миграций, поэтому после загрузки):
+  npx prisma migrate deploy
   node --env-file=.env node_modules/.bin/tsx scripts/set-user-password.ts <email> <пароль не короче 8 знаков>
   ```
 - *Боевой режим* (`next start`, Docker): нужен `NEXTAUTH_SECRET` не короче 32 символов (`openssl rand -base64 32`); регистрация и демо-вход там выключены по умолчанию.
