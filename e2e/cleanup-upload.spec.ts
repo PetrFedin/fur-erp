@@ -175,7 +175,7 @@ async function uploadCycle(page: Page, name: string, url: string, errors: string
   // замена файла: на первом документе (pdf → ok2.pdf)
   const t0 = titles[0];
   const [, oldPath] = dbById(idByTitle[t0]);
-  let li0 = page.locator("li").filter({ has: page.locator("span.font-medium", { hasText: t0 }) }).first();
+  const li0 = page.locator("li").filter({ has: page.locator("span.font-medium", { hasText: t0 }) }).first();
   await pickFile(li0, F("ok2.pdf"));
   await expect(async () => {
     const [, np] = dbById(idByTitle[t0]);

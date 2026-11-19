@@ -311,7 +311,7 @@ async function main() {
     if (!denied(r)) { supLeak++; console.log("   поставщику открыто:", p, r.status); }
   }
   ok(supLeak === 0, `поставщику закрыты ${deny.length} внутренних разделов`);
-  let all200: string[] = [];
+  const all200: string[] = [];
   for (const p of pages) {
     if (open.includes(p)) continue;
     const r = await req(p, { cookie: S2 });

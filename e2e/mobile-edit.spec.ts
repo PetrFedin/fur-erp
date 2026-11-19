@@ -387,7 +387,7 @@ const ROLES = ["owner", "admin", "purchaser", "technologist", "warehouse", "acco
 const EMAIL: Record<string, string> = { owner: "anna@qa-test.ru" };
 const PURCH_EDIT = ["owner", "admin", "purchaser"];
 const PROD_EDIT = ["owner", "admin", "technologist"];
-let actionIds: Record<string, string> = {};
+const actionIds: Record<string, string> = {};
 function loadActionIds() {
   const m = JSON.parse(execSync("cat /Users/petr/Documents/claude/fur-erp/.next/server/server-reference-manifest.json").toString()).node as Record<string, { exportedName: string }>;
   for (const [id, v] of Object.entries(m)) actionIds[v.exportedName] = id;

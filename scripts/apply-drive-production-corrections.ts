@@ -345,7 +345,7 @@ async function plan() {
   }
 
   // =========================================================== клиент
-  let client = await prisma.client.findFirst({ where: { organizationId: orgId, name: { equals: CLIENT_NAME, mode: "insensitive" } } });
+  const client = await prisma.client.findFirst({ where: { organizationId: orgId, name: { equals: CLIENT_NAME, mode: "insensitive" } } });
   let clientIdVal: string;
   if (!client) {
     clientIdVal = newId();
