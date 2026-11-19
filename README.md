@@ -32,7 +32,7 @@ npm run dev -- -p 3200            # http://localhost:3200
   ```
 - *Боевой режим* (`next start`, Docker): нужен `NEXTAUTH_SECRET` не короче 32 символов (`openssl rand -base64 32`); регистрация и демо-вход там выключены по умолчанию.
 
-Типы для `tsc` создаются Next.js при первом `npm run dev` или `npx next build`.
+Для проверки типов в чистой копии сначала `npx next typegen` (иначе `tsc` не знает `PageProps`), затем `npx tsc --noEmit`.
 
 ## Карта документов
 
