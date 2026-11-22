@@ -9,8 +9,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
-import { YearsTable, RawTable } from "../dashboard/dynamics-tables";
-import { orderFiltersOn, parseDashFilters } from "@/lib/dashboard-calc";
+import { parseDashFilters } from "@/lib/dashboard-calc";
 import { AuctionView, loadAuctions } from "./auction-view";
 import { getYearFilter } from "@/lib/year-filter";
 import { canonicalFur } from "@/lib/fur-ref";
@@ -36,7 +35,7 @@ export const metadata = { title: "Сырьё" };
 // Фильтры внутри таблицы «Мех / Подкладка» (вид меха, цвет, размер, партия, остаток) хранятся там же в адресе (fur, color, size, batch, rest…).
 const LOT_FILTERS = defineFilters({
   ...pick(["auction", "q", "material", "pyear", "attr", "tab", "view", "vatmode"], {
-    tab: { allowed: ["fur", "lining", "summary"] },
+    tab: { allowed: ["fur", "lining", "summary"] }, // «summary» — старая ссылка «Сводка по годам»: ведёт на мех
     view: { allowed: ["invoices", "lots"] },
     vatmode: { aliases: ["vat"] },
     q: { label: "Поиск" },
@@ -48,8 +47,9 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   const sp = await searchParams;
   const year = await getYearFilter();
   const f = parseFilters(LOT_FILTERS, sp);
-  const tab: "fur" | "lining" | "summary" = f.tab === "lining" ? "lining" : f.tab === "summary" ? "summary" : "fur";
-  const q = tab === "summary" ? "" : f.q;
+  const tab: "fur" | "lining" = f.tab === "lining" ? "lining" : "fur";
+  if (f.tab === "summary") redirect("/lots");
+  const q = f.q;
   // Вид режима «Аукцион»: по счетам (по умолчанию) или плоским списком лотов; сохраняется при фильтрах.
   const auctionView: "invoices" | "lots" = f.view === "lots" ? "lots" : "invoices";
   const orgId = session.user.organizationId;
@@ -100,96 +100,24 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   const scopeInfo = { year: year === "all" ? "все годы" : `${year} год`, filters: null };
 
   // Фильтры не теряются при смене вкладки: общие значения переносятся (у каждой вкладки свой набор).
-  const tabLink = (t: "fur" | "lining" | "summary", label: string) => {
+  const tabLink = (t: "fur" | "lining", label: string) => {
     const carry =
       t === "fur"
         ? { auction: f.auction, q: f.q, material: f.material, pyear: f.pyear, attr: f.attr, view: f.view, vatmode: "" }
-        : t === "lining"
-          ? { auction: [], q: f.q, material: [], pyear: [], attr: [], view: "", vatmode: "" }
-          : { auction: f.auction, q: "", material: f.material, pyear: f.pyear, attr: f.attr, view: "", vatmode: f.vatmode };
+        : { auction: [], q: f.q, material: [], pyear: [], attr: [], view: "", vatmode: "" };
     return (
       <Link
         href={filterHref(LOT_FILTERS, "/lots", { ...carry, tab: t === "fur" ? "" : t }, {})}
         aria-current={tab === t ? "page" : undefined}
-        title={t === "summary" ? "Те же таблицы, что на Главной (динамика по годам и по сырью)" : undefined}
         className={
           "inline-flex items-center rounded-md px-3 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 max-md:min-h-10 " +
-          (tab === t ? "bg-neutral-900 text-white" : t === "summary" ? "ml-auto text-xs text-neutral-500 hover:bg-neutral-100" : "text-neutral-700 hover:bg-neutral-100")
+          (tab === t ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")
         }
       >
         {label}
       </Link>
     );
   };
-
-  if (tab === "summary") {
-    return (
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Сводка по годам" }]} />
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            {/* «i» и метка года — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Сырьё О сводке». */}
-            <div className="flex flex-wrap items-center">
-              <h1 className="text-xl font-semibold">Сырьё</h1>
-              <YearNote year={year} />
-              <span className="ml-2 inline-flex">
-                <InfoHint label="О сводке" wide>
-                  <p>Сводка закупок по годам, аукционам и типам сырья. Год выбирается в шапке (Все / 2025 / 2026) и действует на всех страницах; год закупки — по дате заказа.</p>
-                </InfoHint>
-              </span>
-            </div>
-          </div>
-        </div>
-        <div role="navigation" aria-label="Разделы сырья" className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2">
-          <RawTab href="/purchases" active={false}>
-            Закупки
-          </RawTab>
-          {tabLink("fur", "Мех")}
-          {tabLink("lining", "Подкладка")}
-          {tabLink("summary", "Сводка по годам")}
-        </div>
-        <FurScope info={scopeInfo} section="raw">
-        {await (async () => {
-          // «Сводка по годам» — те же таблицы и подписи, что на Главной: динамика по годам и по сырью (год → мех / подкладка, вид → партия).
-          const sf = parseDashFilters(sp);
-          const c4 = await getCommission4Mode();
-          const d = await loadDashboard(orgId, year, sf, c4);
-          const info = { year: year === "all" ? "все годы" : `${year} год`, filters: null };
-          return (
-            <>
-              <div className="print:hidden">
-                <FilterBar
-                  title="Фильтры сводки"
-                  oneRow
-                  hideChips
-                  controls={[
-                    { type: "multi", name: "auction", label: "Аукцион / закупка", aliases: ["auc"], options: d.options.auction, allLabel: "Все партии" },
-                    { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: d.options.fur },
-                    { type: "multi", name: "color", label: "Цвет", options: d.options.color, allLabel: "Все цвета" },
-                    ...(d.options.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: d.options.attr, allLabel: "Все признаки" }] : []),
-                  ]}
-                />
-              </div>
-              <p className="rounded-md bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
-                Сводка по годам — на Главной:{" "}
-                <Link href="/dashboard#years-table" className="text-blue-700 underline">Динамика по годам</Link>
-                {" · "}
-                <Link href="/dashboard#raw-table" className="text-blue-700 underline">Динамика по сырью</Link>
-              </p>
-              <details className="group">
-                <summary className="cursor-pointer text-sm text-neutral-600 hover:text-neutral-900">Показать таблицы здесь</summary>
-                <div className="mt-3 flex flex-col gap-4">
-                  <YearsTable rows={d.years} bySrc={d.yearsFurBySrc} c4={c4} info={info} />
-                  <RawTable auctionSrc={d.auctionSrc} rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4} info={info} orderFilters={orderFiltersOn(sf)} />
-                </div>
-              </details>
-            </>
-          );
-        })()}
-        </FurScope>
-      </div>
-    );
-  }
 
   const furOptions = materials.filter((m) => m.unit !== "M").map((m) => ({ value: m.id, label: m.name }));
   // Основа — выпадающий список «Партия закупки» с мультивыбором (быстрых чипов партий нет). Годы закупки в режиме таблицы
@@ -242,11 +170,10 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         </div>
         <div role="navigation" aria-label="Разделы сырья" className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2">
           <RawTab href="/purchases" active={false}>
-            Закупки
+            Все
           </RawTab>
           {tabLink("fur", "Мех")}
           {tabLink("lining", "Подкладка")}
-          {tabLink("summary", "Сводка по годам")}
         </div>
         <FurScope info={scopeInfo} section="raw">
         <ScopeShow src="all">{filtersBlock}</ScopeShow>
@@ -365,11 +292,10 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
 
       <div role="navigation" aria-label="Разделы сырья" className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2">
         <RawTab href="/purchases" active={false}>
-            Закупки
+            Все
           </RawTab>
           {tabLink("fur", "Мех")}
         {tabLink("lining", "Подкладка")}
-        {tabLink("summary", "Сводка по годам")}
       </div>
 
       <FurScope info={scopeInfo} section="raw">

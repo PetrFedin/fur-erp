@@ -3,7 +3,7 @@
  *  year — фильтр «Год»; vat — «Цены: с НДС / без НДС»; c4 — «4 % к сырью».
  * Правила идут по префиксу пути; первое совпадение выигрывает. Не перечисленные страницы получают все три (прежнее поведение).
  */
-export type PageModes = { year: boolean; vat: boolean; c4: boolean };
+export type PageModes = { year: boolean; vat: boolean; c4: boolean; /** Источник закупки (Все / На аукционах / У поставщика) — только в разделе «Сырьё». */ src?: boolean };
 
 const ALL: PageModes = { year: true, vat: true, c4: true };
 const NONE: PageModes = { year: false, vat: false, c4: false };
@@ -13,8 +13,8 @@ const RULES: [prefix: string, modes: PageModes][] = [
   ["/budget", NONE], ["/chat", NONE], ["/settings", NONE], ["/clients", NONE], ["/suppliers", NONE], ["/warehouses", NONE],
   ["/materials", NONE], ["/users", NONE], ["/expense-categories", NONE], ["/scheme", NONE], ["/comments", NONE], ["/supplier", NONE],
   // Сырьё: закупка — без 4 % (закупка, не себестоимость); лоты — все три
-  ["/purchases", { year: true, vat: true, c4: false }],
-  ["/lots", ALL],
+  ["/purchases", { year: true, vat: true, c4: false, src: true }],
+  ["/lots", { ...ALL, src: true }],
   // Продажи: отчёт привязан к сезонам, «Год» не нужен; НДС и 4 % действуют (маркап к себестоимости)
   ["/sales", { year: false, vat: true, c4: true }],
   ["/catalog", { year: false, vat: true, c4: true }],

@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { FUR_SRC_KEYS, FUR_SRC_LABEL, type FurSrc } from "@/components/fur-source-nav";
 import { InfoHint } from "@/components/info-hint";
+import { FUR_SRC_EVENT } from "@/components/fur-src-mode";
 
 /**
  * Область действия переключателя «Вся закупка / На аукционах / У поставщика» на Главной: он меняет ТОЛЬКО блоки внутри
@@ -26,6 +27,10 @@ export function FurScope({ info, section = "home", children }: { /** Год и �
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if ((FUR_SRC_KEYS as string[]).includes(q ?? "") && q !== "all") setSrcState(q as FurSrc);
     } catch { /* адрес недоступен — остаётся «Вся закупка» */ }
+    // Переключатель в шапке (раздел «Сырьё») сообщает выбор событием.
+    const on = (e: Event) => setSrcState((e as CustomEvent<FurSrc>).detail);
+    window.addEventListener(FUR_SRC_EVENT, on);
+    return () => window.removeEventListener(FUR_SRC_EVENT, on);
   }, []);
   const setSrc = useCallback((s: FurSrc) => {
     setSrcState(s);
@@ -39,14 +44,17 @@ export function FurScope({ info, section = "home", children }: { /** Год и �
     <FurScopeCtx.Provider value={{ src, setSrc }}>
       <div data-testid="fur-scope" className="flex flex-col gap-5">
         {/* Плашка прилипает к верху, пока на экране блоки области; на телефоне — две строки, кнопки ≥44px. */}
-        <div data-testid="fur-scope-bar" className="lg:sticky lg:top-0 z-30 md:-mx-1 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-neutral-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur print:hidden">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{section === "raw" ? "Источник закупки" : "Источник меха"}</span>
-          <div role="group" aria-label={section === "raw" ? "Источник закупки для всего раздела «Сырьё»" : "Источник закупки меха для блоков сырья"} data-testid="fur-source-switch" className="inline-flex overflow-hidden rounded-md border border-neutral-300 text-xs">
+        {/* В разделе «Сырьё» источник переключается в сквозной панели шапки; плашка остаётся только с активными фильтрами. */}
+        {section === "raw" && !info.filters ? null : <div data-testid="fur-scope-bar" className="lg:sticky lg:top-0 z-30 md:-mx-1 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-neutral-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur print:hidden">
+          {section === "raw" ? null : <>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Источник меха</span>
+          <div role="group" aria-label="Источник закупки меха для блоков сырья" data-testid="fur-source-switch" className="inline-flex overflow-hidden rounded-md border border-neutral-300 text-xs">
             {FUR_SRC_KEYS.map((k) => (
               <button key={k} type="button" aria-pressed={src === k} onClick={() => setSrc(k)}
                 className={"min-h-[44px] whitespace-nowrap px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 " + (src === k ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-50")}>{FUR_SRC_LABEL[k]}</button>
             ))}
           </div>
+          </>}
           <span className="min-w-0 text-xs text-neutral-600" data-testid="fur-scope-now">
             <span className="sr-only" aria-live="polite">Выбрано: {FUR_SRC_LABEL[src]}. </span>
             {/* Год уже написан в заголовке страницы: здесь только фильтры, если они включены. */}
@@ -56,7 +64,7 @@ export function FurScope({ info, section = "home", children }: { /** Год и �
             <p>{section === "raw" ? "Источник действует на все данные раздела: плитки, закупки, лоты, годы и суммы. Подкладка закупается у поставщика." : "Источник действует на сырьё, динамику и состав стоимости меха. Производство и оплаты не меняются."}</p>
             <p className="mt-1">Любая закупка — либо на аукционе, либо у поставщика: «На аукционах» + «У поставщика» = «Вся закупка».</p>
           </InfoHint>
-        </div>
+        </div>}
         {children}
       </div>
     </FurScopeCtx.Provider>
