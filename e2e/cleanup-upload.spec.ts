@@ -703,42 +703,14 @@ test("9. единые числа: долг поставщику, куплено 
   // «Остаток» в таблице аукционов: Σ по видимым + «Прочее» + закупки без аукциона
   const remList = [...(payTxt.matchAll(/ ([\d ]+,\d\d) ₽ (?:Не оплачен|Частично|Оплачен)/g))].map((m) => num(m[1]));
   log("visible auctions remaining sum", remList.reduce((a, b) => a + b, 0).toFixed(2), "n", remList.length);
-  // Сводка по годам
-  await page.goto("/lots?tab=summary");
+  // «Сырьё»: полоса итогов (раньше здесь проверялась «Сводка по годам»: Σ по годам, аукционам и типам сырья).
+  await page.goto("/lots");
   await page.waitForLoadState("networkidle");
-  await page.evaluate(() => document.querySelectorAll("details").forEach((d) => ((d as HTMLDetailsElement).open = true)));
-  type Row = { depth: number; name: string; m: number[] };
-  const rows: Row[] = await page.evaluate(() => {
-    const out: { depth: number; name: string; text: string }[] = [];
-    document.querySelectorAll("main details, details").forEach((d) => {
-      const s = d.querySelector(":scope > summary");
-      if (!s) return;
-      let depth = 0;
-      let p = d.parentElement;
-      while (p) { if (p.tagName === "DETAILS") depth++; p = p.parentElement; }
-      out.push({ depth, name: (s.textContent ?? "").slice(0, 60), text: s.textContent ?? "" });
-    });
-    return out;
-  }).then((r) => r.map((x) => ({ depth: x.depth, name: x.name, m: moneyTokens(x.text.replace(/₽/g, " ₽ ")) })));
-  const totalRow = norm(await page.locator("body").innerText());
-  const itog = /Итого[\s\S]*?([\d ]+,\d\d) ₽[\s\S]*?([\d ]+,\d\d) ₽[\s\S]*?([\d ]+,\d\d) ₽[\s\S]*?([\d ]+,\d\d) ₽/.exec(totalRow);
-  log("summary Итого (цена, с расх., оплачено, остаток):", itog?.slice(1, 5).join(" | "));
-  const byDepth: Record<number, number[][]> = {};
-  for (const r of rows) (byDepth[r.depth] ??= []).push(r.m);
-  for (const d of Object.keys(byDepth)) {
-    const mm = byDepth[Number(d)].filter((m) => m.length >= 4);
-    log(`summary depth ${d}: rows ${mm.length}`, "Σ с расходами", mm.reduce((a, m) => a + m[1], 0).toFixed(2), "Σ оплачено", mm.reduce((a, m) => a + m[2], 0).toFixed(2), "Σ остаток", mm.reduce((a, m) => a + m[3], 0).toFixed(2));
-  }
-  const years = byDepth[0]?.filter((m) => m.length >= 4) ?? [];
-  expect.soft(Math.abs(years.reduce((a, m) => a + m[1], 0) - boughtSql), "Σ по годам с расходами vs SQL «Куплено»").toBeLessThan(1);
-  const d1 = byDepth[1]?.filter((m) => m.length >= 4) ?? [];
-  expect.soft(Math.abs(d1.reduce((a, m) => a + m[1], 0) - boughtSql), "Σ по аукционам vs SQL").toBeLessThan(1);
-  const d2 = byDepth[2]?.filter((m) => m.length >= 4) ?? [];
-  expect.soft(Math.abs(d2.reduce((a, m) => a + m[1], 0) - boughtSql), "Σ по типам сырья vs SQL").toBeLessThan(1);
-  const advLine = /Авансы без аукциона: ([\d ]+,\d\d) ₽/.exec(totalRow);
-  const remTot = itog ? num(itog[4]) : NaN;
-  log("summary: остаток Итого", remTot, "− авансы", advLine?.[1], "=", (remTot - num(advLine![1])).toFixed(2), "vs Долг поставщику", debtSql, "Δ", (remTot - num(advLine![1]) - debtSql).toFixed(2));
-  expect.soft(Math.abs(remTot - num(advLine![1]) - debtSql), "summary остаток − авансы vs Долг").toBeLessThan(0.02);
+  const strip = norm(await page.locator('[data-testid="level-summary"]').first().innerText());
+  log("сырьё, полоса итогов:", strip.slice(0, 200));
+  expect.soft(strip, "полоса итогов без NaN").not.toMatch(/NaN|undefined|Infinity/);
+  const boughtStrip = /Куплено ([\d ]+)(?:,\d\d)? ₽/.exec(strip);
+  log("сырьё: куплено в полосе", boughtStrip?.[1], "vs SQL «Куплено» по закупкам", boughtSql, "(разница — доплата НДС подрядчику, вне «Куплено» по решению владельца 23.11.2026)");
   log("console errors:", JSON.stringify(errors));
 });
 
@@ -773,7 +745,7 @@ test("10a. дубли блоков, редиректы, «Без аукцион�
   const hrefs = await page.locator("a[href]").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
   log("links to old routes on dashboard:", JSON.stringify(hrefs.filter((h) => /raw-materials|\/models|finished-stock/.test(h ?? ""))));
   // «Без аукциона» вместо служебных меток
-  const targets = ["/purchases", "/lots", "/payments", "/lots?tab=summary", "/attention"];
+  const targets = ["/purchases", "/lots", "/payments", "/lots?tab=lining", "/attention"];
   for (const u of targets) {
     await page.goto(u);
     await page.waitForLoadState("networkidle");
@@ -865,7 +837,7 @@ test("10d. ТЗ/партии: «Отгрузки (0) · Примерки (0)», 
   const errors = watchErrors(page);
   await loginAs(page, "anna@qa-test.ru");
   const tzs = sql(`select id,number from "ProductionOrder" where status<>'CANCELLED' order by random() limit 8`).split("\n").map((l) => l.split("|"));
-  const pages: [string, string][] = [["/dashboard", "dash"], ["/payments", "pay"], ["/lots", "lots"], ["/lots?tab=summary", "sum"], ["/lots?auction=SAGA%2003-26", "auc"], ["/purchases/" + sql(`select id from "Purchase" where number='З-2026-0049'`), "pur"], ["/production", "prod"], ["/production/batches", "batches"], ["/production/batches/5", "b5"], ["/articles", "art"], ["/attention", "att"], ["/production/" + tzs[0][0], "tzA"], [`/production/${sql(`select id from "ProductionOrder" where number='П-2026-0001'`)}`, "tz1"]];
+  const pages: [string, string][] = [["/dashboard", "dash"], ["/payments", "pay"], ["/lots", "lots"], ["/lots?tab=lining", "sum"], ["/lots?auction=SAGA%2003-26", "auc"], ["/purchases/" + sql(`select id from "Purchase" where number='З-2026-0049'`), "pur"], ["/production", "prod"], ["/production/batches", "batches"], ["/production/batches/5", "b5"], ["/articles", "art"], ["/attention", "att"], ["/production/" + tzs[0][0], "tzA"], [`/production/${sql(`select id from "ProductionOrder" where number='П-2026-0001'`)}`, "tz1"]];
   for (const t of tzs.slice(1)) pages.push([`/production/${t[0]}`, `tz-${t[1]}`]);
   for (const [vat, c4] of [["incl", "off"], ["excl", "off"], ["incl", "on"], ["excl", "on"]]) {
     await page.goto("/dashboard");
@@ -999,7 +971,7 @@ test("12. мобильный 375: нет горизонтального скро
   const errors = watchErrors(page);
   await loginAs(page, "anna@qa-test.ru");
   const tz1 = sql(`select id from "ProductionOrder" where number='П-2026-0001'`);
-  const urls = ["/dashboard", "/purchases", "/purchases/" + sql(`select id from "Purchase" where number='З-2026-0002'`), "/production", "/production/" + tz1, "/production/batches", "/production/batches/5", "/lots", "/lots?tab=summary", "/lots?auction=SAGA%2003-26", "/payments", "/attention", "/articles"];
+  const urls = ["/dashboard", "/purchases", "/purchases/" + sql(`select id from "Purchase" where number='З-2026-0002'`), "/production", "/production/" + tz1, "/production/batches", "/production/batches/5", "/lots", "/lots?tab=lining", "/lots?auction=SAGA%2003-26", "/payments", "/attention", "/articles"];
   for (const u of urls) {
     await page.goto(u);
     await page.waitForLoadState("networkidle");

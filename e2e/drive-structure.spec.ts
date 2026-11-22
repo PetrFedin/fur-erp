@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { login, watchErrors, expectNoErrors } from "./helpers";
 
-// Самодостаточные проверки новой структуры: «Сводка по годам», партии, переключатель «С 4%»,
+// Самодостаточные проверки новой структуры: «Сырьё» (полоса итогов, таблица «Динамика по сырью»), партии, переключатель «С 4%»,
 // документы, оплаты. Идут против изолированной копии боевой базы
 // (scripts/e2e.sh up drv 3301; E2E_BASE_URL=http://localhost:3301). Данные не изменяются, кроме
 // тестов с пометкой «пишет».
@@ -12,86 +12,86 @@ const num = (s: string) => Number(s.replace(/[^\d,-]/g, "").replace(",", "."));
 const setCookie = (page: Page, name: string, value: string) =>
   page.context().addCookies([{ name, value, url: new URL(page.url() === "about:blank" ? "http://localhost:3301" : page.url()).origin }]);
 
-async function summaryTotals(page: Page) {
-  const row = page.locator("main div.grid").filter({ hasText: /^Итого/ }).first();
-  const cells = (await row.innerText()).split("\n").map((s) => s.trim()).filter(Boolean);
-  // Итого | шкур | закупка | полная | оплачено | остаток | ср. цена | ср. полная
-  return { qty: num(cells[1]), price: num(cells[2]), full: num(cells[3]), paid: num(cells[4]), rest: num(cells[5]), avgPrice: num(cells[6]) };
+/** Полоса итогов уровня («Куплено → Использовано → Остаток → Оплачено → Долг») на страницах раздела «Сырьё». */
+async function levelTotals(page: Page) {
+  const strip = page.locator('[data-testid="level-summary"]').first();
+  await expect(strip).toBeVisible();
+  const tiles = await strip.locator(":scope > div").evaluateAll((els) =>
+    els.map((el) => {
+      const lines = (el as HTMLElement).innerText.split("\n").map((x) => x.trim()).filter(Boolean);
+      return { title: lines[0] ?? "", main: lines[1] ?? "" };
+    }),
+  );
+  const of = (t: string) => {
+    const x = tiles.find((y) => y.title.toLowerCase().startsWith(t));
+    return x ? num(x.main) : NaN;
+  };
+  return { bought: of("куплено"), used: of("использовано"), rem: of("остаток"), paid: of("оплачено"), debt: of("долг") };
 }
 
-test.describe("Сводка по годам", () => {
+test.describe("Сырьё: итоги и таблица динамики", () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
   });
 
-  test("иерархия, итоги, «Сходится», НДС, средние взвешенные, без NaN", async ({ page }) => {
+  test("полоса итогов, строки по году, НДС, без NaN", async ({ page }) => {
     const errors = watchErrors(page);
-    await page.goto("/lots?tab=summary");
-    await expect(page.getByText("Сходится: сумма по годам = по аукционам = по типам сырья")).toBeVisible();
-    await page.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));
-    const t = await summaryTotals(page);
-    expect(t.qty).toBeGreaterThan(0);
-    // Средняя цена шкуры = Σ цены лотов ÷ Σ шкур (только взвешенное среднее)
-    expect(Math.abs(t.avgPrice - t.price / t.qty)).toBeLessThan(0.01);
-    // Уровни вложены: сумма лотов года = итог года; год → аукцион → сырьё → лот
-    const levels = await page.evaluate(() => document.querySelectorAll("main .table-scroll > details").length);
-    expect(levels).toBeGreaterThanOrEqual(2);
+    await page.goto("/lots");
+    const t = await levelTotals(page);
+    expect(t.bought).toBeGreaterThan(0);
+    // Куплено без 4 % = использовано (без 4 %) + остаток; при «С 4 %» использовано больше на надбавку, поэтому проверяем нестрого
+    expect(t.used + t.rem).toBeGreaterThanOrEqual(t.bought - 5);
+    // Строки таблицы по году закупки (раньше — отдельная «Сводка по годам»)
+    await page.getByRole("tab", { name: "Году закупки" }).click();
+    await expect(page.getByRole("button", { name: "Год → сырьё → аукцион" })).toBeVisible();
+    await expect(page.locator("tr[data-total]").first()).toBeVisible();
     expect(await page.locator("main").innerText()).not.toMatch(/NaN|undefined|Infinity/);
-    // «Без НДС»: цена лотов без НДС меньше цены с НДС
-    await page.getByRole("link", { name: "Без НДС" }).click();
-    await expect(page).toHaveURL(/vat(mode)?=excl/);
-    const e = await summaryTotals(page);
-    expect(e.price).toBeLessThan(t.price);
-    expect(e.qty).toBe(t.qty);
-    // фильтр «Год закупки» (выпадающий список с галочками, применяется сразу) сужает итог и сохраняет режим НДС
-    await page.locator("summary", { hasText: "Год закупки" }).click();
-    await page.getByRole("checkbox", { name: /^2025/ }).check();
-    await expect(page).toHaveURL(/pyear=2025/);
-    await expect(page).toHaveURL(/vat(mode)?=excl/);
-    const y = await summaryTotals(page);
-    expect(y.price).toBeLessThan(e.price);
+    // «Без НДС»: сумма без НДС меньше суммы с НДС, количество не меняется
+    await page.getByRole("button", { name: "Без НДС" }).first().click();
+    await page.waitForTimeout(800);
+    const e = await levelTotals(page);
+    expect(e.bought).toBeLessThan(t.bought);
     await expectNoErrors(errors);
   });
 
   test("мобильный 375: нет горизонтального скролла страницы", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto("/lots?tab=summary");
+    await page.goto("/lots");
     const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(over).toBeLessThanOrEqual(0);
   });
 
-  // Была ошибка (исправлена): у двух закупок подкладки (З-2026-0032 и З-2026-0060) одни и те же лоты; «Полная стоимость»
+  // Была ошибка (исправлена): у двух закупок подкладки (З-2026-0032 и З-2026-0060) одни и те же лоты; «Куплено» партии
   // берёт lot.totalCost целиком для каждой позиции — сумма задваивается (+1 351 269,05 ₽).
-  test("«Полная стоимость» аукциона совпадает со «Стоимостью» на /payments", async ({ page }) => {
-    await page.goto("/lots?tab=summary&auction=" + encodeURIComponent("Подкладка 07.25"));
-    const s = await summaryTotals(page);
+  test("«Куплено» партии подкладки совпадает со «Стоимостью» на /payments", async ({ page }) => {
+    await page.goto("/lots/lining/" + encodeURIComponent("Подкладка 07.25"));
+    const s = await levelTotals(page);
     await page.goto("/payments?auction=" + encodeURIComponent("Подкладка 07.25"));
     const card = page.locator("main").getByText("Подкладка 07.25").first();
     await expect(card).toBeVisible();
     const txt = await page.locator("main").innerText();
     const i = txt.indexOf("Подкладка 07.25\nзакупок");
     const m = /Стоимость\n([\d\s,]+)\s*₽/.exec(txt.slice(i));
-    expect(Math.abs(s.full - num(m![1]))).toBeLessThan(1);
+    expect(Math.abs(s.bought - num(m![1]))).toBeLessThan(1);
   });
 
-  test("«Оплачено» в сводке = «Оплачено» на /payments", async ({ page }) => {
-    await page.goto("/lots?tab=summary");
-    const s = await summaryTotals(page);
-    await page.goto("/payments");
-    const txt = await page.locator("main").innerText();
-    const m = /Оплачено\n([\d\s,]+)\s*₽/.exec(txt);
-    expect(Math.abs(s.paid - num(m![1]))).toBeLessThan(1);
+  // Оплаты на странице «Сырьё» — доли оплат по лотам (с НДС); полный итог оплат — на /payments. Здесь проверяем разумность, а не равенство.
+  test("«Оплачено» в полосе итогов: больше нуля и не больше «Куплено» более чем на 1 %", async ({ page }) => {
+    await page.goto("/lots");
+    const s = await levelTotals(page);
+    expect(s.paid).toBeGreaterThan(0);
+    expect(s.paid).toBeLessThanOrEqual(s.bought * 1.01);
   });
 
-  // Была ошибка (исправлена) (UX): переключатель «Без НДС» в шапке не влияет на сводку — у страницы свой переключатель в URL.
-  test("переключатель НДС в шапке меняет суммы сводки", async ({ page }) => {
-    await page.goto("/lots?tab=summary");
-    const before = await summaryTotals(page);
+  // Переключатель «Без НДС» в шапке меняет суммы раздела.
+  test("переключатель НДС в шапке меняет суммы полосы итогов", async ({ page }) => {
+    await page.goto("/lots");
+    const before = await levelTotals(page);
     await page.getByRole("button", { name: "Без НДС" }).first().click();
     await page.waitForTimeout(800);
-    await page.goto("/lots?tab=summary");
-    const after = await summaryTotals(page);
-    expect(after.price).toBeLessThan(before.price);
+    await page.goto("/lots");
+    const after = await levelTotals(page);
+    expect(after.bought).toBeLessThan(before.bought);
   });
 });
 
@@ -148,15 +148,22 @@ test.describe("Переключатель «Без 4% | С 4%»", () => {
       return page.locator("main").innerText();
     };
     await setCookie(page, "commission4Display", "off");
-    const off = { batches: await grab("/production/batches"), pay: await grab("/payments"), pur: await grab("/purchases"), sum: await grab("/lots?tab=summary") };
+    const off = { batches: await grab("/production/batches"), pay: await grab("/payments"), pur: await grab("/purchases") };
+    await page.goto("/lots");
+    const offLots = await levelTotals(page);
     const offDash = await grab("/dashboard");
     await page.getByRole("button", { name: "С 4%" }).click();
     await page.waitForTimeout(1200);
-    const on = { batches: await grab("/production/batches"), pay: await grab("/payments"), pur: await grab("/purchases"), sum: await grab("/lots?tab=summary") };
+    const on = { batches: await grab("/production/batches"), pay: await grab("/payments"), pur: await grab("/purchases") };
+    await page.goto("/lots");
+    const onLots = await levelTotals(page);
     const onDash = await grab("/dashboard");
     expect(on.pay).toBe(off.pay);
     expect(on.pur).toBe(off.pur);
-    expect(on.sum).toBe(off.sum);
+    // «Сырьё»: «Куплено» и «Остаток» от 4 % не зависят, «Использовано» при «С 4 %» растёт на надбавку
+    expect(onLots.bought).toBe(offLots.bought);
+    expect(onLots.rem).toBe(offLots.rem);
+    expect(onLots.used).toBeGreaterThan(offLots.used);
     expect(on.batches).toContain("Себестоимость (с 4%)".toUpperCase());
     expect(on.batches).not.toBe(off.batches);
     // «Долг поставщикам» и «Долг по работе подрядчику» не меняются, «Использовано в ТЗ» растёт

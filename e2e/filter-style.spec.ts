@@ -71,8 +71,8 @@ test('multi-select filter applies at once, shows chips, resets all and keeps oth
 
   // /lots: вкладка и фильтры не теряются; быстрых чипов партий нет — только фильтр «Партия закупки»
   await page.goto('http://localhost:3000/lots?q=15016');
-  await page.getByRole('link',{name:'Сводка по годам'}).click();
-  await expect(page).toHaveURL(/tab=summary/);
+  await page.getByRole('link',{name:'Подкладка'}).first().click();
+  await expect(page).toHaveURL(/tab=lining/);
   expect(await page.locator('a[href^="/lots?auction="]').count()).toBe(0);
 });
 
