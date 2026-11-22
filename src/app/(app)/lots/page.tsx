@@ -262,7 +262,6 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             </InfoHint>
             </span>
           </div>
-          <Link href="/analytics/raw" className="mt-1 inline-block text-sm text-neutral-600 underline hover:text-neutral-900">Аналитика сырья →</Link>
         </div>
         {/* Кнопки зависят от вкладки: «Подкладка» — одна «Купить подкладку» (вся закупка партии в одной форме); «Мех» — новая партия закупки и материал. */}
         <div className="flex flex-wrap gap-2 max-md:w-full">
@@ -293,13 +292,17 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           </RawTab>
           {tabLink("fur", "Мех")}
         {tabLink("lining", "Подкладка")}
+        {/* «Аналитика сырья» — тот же раздел: группировки, график по месяцам, CSV. Отдельной ссылки под заголовком больше нет. */}
+        <RawTab href="/analytics/raw" active={false} muted>
+          Аналитика
+        </RawTab>
       </div>
 
       <FurScope info={scopeInfo} section="raw">
       {tab === "fur" ? (
         <section aria-labelledby="raw-fur" className="space-y-3">
           <h2 id="raw-fur" className="sr-only">{kindTitle}</h2>
-          <FurSelectionTotal summaryOnly noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} widgets={<FurSelectionTotal variant="years" lots={furTabLots} kind="fur" globalYear={year} />} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
+          <FurSelectionTotal summaryOnly noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
           <AuctionCompare lots={furTabLots} />
         </section>
       ) : (

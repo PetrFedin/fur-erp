@@ -15,8 +15,7 @@ import { cleanNote } from "@/lib/note-tags";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { InfoHint } from "@/components/info-hint";
 import { FurOrdersTable } from "@/components/fur-orders-table";
-import { RawCards } from "../../../dashboard/raw-block";
-import { FilteredPayTiles } from "../../../dashboard/filtered-pay-tiles";
+import { LevelSummaryFromFigures } from "@/components/level-tiles";
 import { LiningFabrics } from "./view";
 import { FurScope, SupplierOnly } from "@/components/fur-scope";
 import { SourceDocs } from "@/components/source-docs";
@@ -89,8 +88,9 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
       <FurScope info={{ year: "все годы", filters: name }} section="raw">
       <SupplierOnly what={`Партия подкладки «${name}»`}>
       <div data-raw-tiles>
-        <RawCards view="lining" rows={rawRowsFromLots(lots)} fur={pair} lining={pair} c4={c4} headerEnd={headerEnd} vatRates={{ recv: vatBy("recv"), used: vatBy("used"), rem: vatBy("rem") }}
-          pay={pay ? <FilteredPayTiles figs={pair.incl} paid={pay.paid.toNumber()} due={Math.max(0, pay.total.toNumber() - pay.paid.toNumber())} c4={c4} /> : <p className="self-center px-2 text-xs text-neutral-500">Оплаты по партии — в <Link href="/payments" className="text-blue-700 hover:underline">«Оплатах»</Link></p>} />
+        {/* Единая полоса итогов уровня: куплено → использовано → остаток → оплачено → долг (метры, ₽, ₽/м). Оплаты ведутся по партии целиком. */}
+        <LevelSummaryFromFigures incl={pair.incl} excl={pair.excl} paid={pay ? pay.paid.toNumber() : 0} due={pay ? Math.max(0, pay.total.toNumber() - pay.paid.toNumber()) : 0} c4={c4} unit="м" label={`Итоги: подкладка ${name}`} />
+        {pay ? null : <p className="mt-1 px-1 text-xs text-neutral-500">Оплаты по партии — в <Link href="/payments" className="text-blue-700 hover:underline">«Оплатах»</Link></p>}
       </div>
 
       <section aria-labelledby="lb-pass" className="rounded-lg border border-neutral-200 bg-white p-3">
@@ -103,10 +103,9 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
             <dd>{purchases.map((p, i) => <span key={p.id}>{i > 0 ? ", " : ""}<Link href={`/purchases/${p.id}`} className="text-blue-700 hover:underline">{p.number}<span aria-hidden className="ml-0.5 text-[11px] text-neutral-600">↗</span></Link></span>)}</dd>
           </div>
           <div><dt className="text-xs text-neutral-500">Счёт / УПД</dt><dd>{[...new Set(purchases.map((p) => p.invoiceNumber).filter(Boolean))].join(", ") || "–"}</dd></div>
-          <div><dt className="text-xs text-neutral-500">Сумма, ₽ с НДС</dt><dd className="tabular-nums">{formatMoney(sumAll.toFixed(2))}</dd></div>
           <div>
-            <dt className="text-xs text-neutral-500">Оплачено / долг, ₽</dt>
-            <dd className="tabular-nums">{paid != null && pay ? <>{formatMoney(paid.toFixed(2))} · <span className={pay.total.toNumber() - paid > 0.5 ? "text-amber-700" : undefined}>{pay.total.toNumber() - paid < -0.5 ? `переплата ${formatMoney((paid - pay.total.toNumber()).toFixed(2))}` : formatMoney(Math.max(0, pay.total.toNumber() - paid).toFixed(2))}</span> <Link href={`/payments?auction=${encodeURIComponent(name)}#auction-block`} className="ml-1 text-xs text-blue-700 hover:underline">оплаты ›</Link></> : <Link href="/payments" className="text-blue-700 hover:underline">Оплаты ведутся по партии целиком →</Link>}</dd>
+            <dt className="text-xs text-neutral-500">Оплаты</dt>
+            <dd>{pay ? <Link href={`/payments?auction=${encodeURIComponent(name)}#auction-block`} className="text-blue-700 hover:underline">по партии ›</Link> : <Link href="/payments" className="text-blue-700 hover:underline">Оплаты ведутся по партии целиком →</Link>}</dd>
           </div>
           {cleanNote(firstPurchase?.notes) ? <div className="sm:col-span-2"><dt className="text-xs text-neutral-500">Примечание</dt><dd><details className="text-sm"><summary className="cursor-pointer text-neutral-700 hover:text-neutral-900">{(cleanNote(firstPurchase?.notes) ?? "").slice(0, 110)}{(cleanNote(firstPurchase?.notes) ?? "").length > 110 ? "…" : ""}</summary><p className="mt-1 whitespace-pre-line text-neutral-600">{cleanNote(firstPurchase?.notes)}</p></details></dd></div> : null}
         </dl>

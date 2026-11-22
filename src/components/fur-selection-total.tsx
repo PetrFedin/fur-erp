@@ -732,11 +732,19 @@ export function FurSelectionTotal({
         <>
         <div role="tablist" aria-label="Строки по" className="flex flex-wrap items-center gap-1.5">
           <span>Строки по:</span>
-          {((lockItem ? [["auction", "Аукциону"], ["year", "Году закупки"], ["lots", "Списком лотов"]] : [["item", kind === "lining" ? "Ткани" : "Виду меха"], ...(kind === "fur" ? [] : [["year", "Году закупки"] as const]), ["lots", "Списком лотов"]] as const) as ReadonlyArray<readonly ["item" | "year" | "auction" | "lots", string]>).map(([id, label]) => (
+          {((lockItem ? [["auction", "Аукциону"], ["year", "Году закупки"], ["lots", "Списком лотов"]] : [["item", kind === "lining" ? "Ткани" : "Виду меха"], ["year", "Году закупки"] as const, ["lots", "Списком лотов"]] as const) as ReadonlyArray<readonly ["item" | "year" | "auction" | "lots", string]>).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={group === id} onClick={() => { setGroup(id); setExpanded(new Set()); }}
               className={"rounded-lg border px-3 py-1.5 text-xs " + (group === id ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</button>
           ))}
         </div>
+        {/* «Год закупки» (мех): порядок уровней под годом — вид → аукцион или аукцион → вид (раньше это была отдельная таблица «Динамика по годам»). */}
+        {group === "year" && !lockItem && kind === "fur" ? (
+          <div role="group" aria-label="Порядок уровней" className={SEG_GROUP}>
+            {([["item", "Год → сырьё → аукцион"], ["auction", "Год → аукцион → сырьё"]] as const).map(([k, t]) => (
+              <button key={k} type="button" aria-pressed={yearOrder === k} onClick={() => { setYearOrder(k); setExpanded(new Set([...(yearRows[0] ? [`g/year:${yearRows[0].key}`] : [])])); }} className={segCls(yearOrder === k)}>{t}</button>
+            ))}
+          </div>
+        ) : null}
         </>
         )}
         {group === "lots" && (

@@ -27,6 +27,9 @@ export function PurchasesTabs() {
       <RawTab href="/lots?tab=lining" active={false}>
         Подкладка
       </RawTab>
+      <RawTab href="/analytics/raw" active={false} muted>
+        Аналитика
+      </RawTab>
     </div>
   );
 }
