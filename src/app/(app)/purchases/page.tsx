@@ -36,6 +36,7 @@ import { classifyPurchaseSource } from "@/lib/purchase-source";
 import { FurScope, ScopeEmpty, ScopeShow } from "@/components/fur-scope";
 import { FUR_SRC_KEYS, type FurSrc } from "@/lib/fur-src";
 import { aggregate, type PurchaseStatus, type TreeBatch, type TreePurchase, type TreeYear } from "./purchases-agg";
+import { furLotsOrLive, dashboardCached } from "@/lib/mart/snapshots";
 
 function firstLine(v: string | null) {
   return (v ?? "").split(/\r?\n/)[0].trim();
@@ -114,8 +115,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       include: { supplier: true, auction: true, items: { include: { rawMaterial: true } }, expenses: { include: { category: true } }, payments: true },
       orderBy: { number: "desc" },
     }),
-    loadFurLots(prisma, orgId, { kind: "fur", year: "all", furIdx }),
-    loadFurLots(prisma, orgId, { kind: "lining", year: "all", furIdx }),
+    furLotsOrLive(orgId, "fur", "all", furIdx),
+    furLotsOrLive(orgId, "lining", "all", furIdx),
     getFilterOptions(orgId, year, ["auction", "pyear", "fur", "color", "attr"]),
     prisma.rawMaterialLot.findMany({ where: { organizationId: orgId, sizeGrade: { not: null } }, select: { sizeGrade: true } }),
   ]);

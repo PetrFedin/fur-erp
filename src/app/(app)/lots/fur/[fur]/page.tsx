@@ -27,6 +27,7 @@ import { LevelSummaryFromFigures } from "@/components/level-tiles";
 import { FilteredPayTiles } from "../../../dashboard/filtered-pay-tiles";
 import { PriceCompositionBlock } from "../../../dashboard/price-composition-block";
 import { priceComposition } from "@/lib/price-composition-server";
+import { furLotsOrLive, dashboardCached } from "@/lib/mart/snapshots";
 
 export async function generateMetadata({ params }: { params: Promise<{ fur: string }> }) {
   const { fur } = await params;
@@ -49,9 +50,9 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
   const furIdx = await getFurIndex(orgId);
 
   const [lots, c4, dash] = await Promise.all([
-    loadFurLots(prisma, orgId, { kind: "fur", year, furIdx }),
+    furLotsOrLive(orgId, "fur", year, furIdx),
     getCommission4Mode(),
-    getCommission4Mode().then((c) => loadDashboard(orgId, year, parseDashFilters({}), c)),
+    getCommission4Mode().then((c) => dashboardCached(orgId, year, c)),
   ]);
   const own = [
     ...lots.filter((l) => l.item === name).map((l) => ({ ...l, paid: dash.lotMoney[l.id]?.paid ?? 0, due: dash.lotMoney[l.id]?.due ?? 0 })),

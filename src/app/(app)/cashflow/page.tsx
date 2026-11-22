@@ -10,6 +10,7 @@ import { parseDashFilters } from "@/lib/dashboard-calc";
 import { CashflowView } from "./cashflow-view";
 import { loadDataAsOf } from "@/lib/data-as-of";
 import { DataAsOf } from "@/components/data-as-of";
+import { furLotsOrLive, dashboardCached } from "@/lib/mart/snapshots";
 
 export const metadata = { title: "Cashflow" };
 
@@ -32,7 +33,7 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
   const allBase = aggregateSales(lines, months);
   const salesBy = { all: useRep ? { ...allBase, recPcs: allBase.recPcs.map((_, i) => fitted.clothes.recPcs[i] + fitted.acc.recPcs[i] + fitted.other.recPcs[i]) } : allBase, ...fitted };
   /** Предоплата за заказы, по которым товар ещё не принят (деньги ушли, лотов нет). */
-  const dash = await loadDashboard(org, "all", parseDashFilters({}), "off");
+  const dash = await dashboardCached(org, "all", "off");
   const prepaidNames = new Set(dash.rawMoneyTotal.unreceived.names);
   const prepaidBy: Record<string, number> = {};
   for (const r of rows) if (r.kind === "raw" && prepaidNames.has(r.label)) prepaidBy[r.iso.slice(0, 7)] = (prepaidBy[r.iso.slice(0, 7)] ?? 0) + r.amount;

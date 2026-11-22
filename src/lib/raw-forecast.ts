@@ -9,6 +9,7 @@ import type { ReportSizeRow } from "@/lib/margin-tree";
 import { loadReportSizes } from "@/lib/margin-server";
 import { tzAwaitSizes } from "@/lib/tz-await";
 import { loadOrderRows, receivedByModel } from "@/lib/analytics-orders";
+import { furLotsOrLive, dashboardCached } from "@/lib/mart/snapshots";
 
 /**
  * Прогноз сырья и затрат на изделия заказа FW26, которые ещё не получены: по отчёту «заказ и продажи» FW26/27 заказано (Conf) − поступило (Deliv) по артикулу
@@ -59,7 +60,7 @@ const withSyn = (cats: string[]) => [...new Set(cats.flatMap((c) => [c, ...(SYN[
 export async function loadRawForecast(orgId: string): Promise<RawForecast> {
   const [sizes, sizeRows, stats, dash, models, lvl, orders, orderRows, recv] = await Promise.all([
     loadReportSizesState(orgId), loadReportSizes(orgId), loadBudgetStats(orgId),
-    loadDashboard(orgId, "all", parseDashFilters({}), "off"),
+    dashboardCached(orgId, "all", "off"),
     prisma.productModel.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, sku: true, salesCode: true, aliases: true, category: true } }),
     prisma.salesReceiptLine.findMany({ select: { article: true, modelCode: true, level4: true } }),
     prisma.productionOrder.findMany({ where: { organizationId: orgId, clientWorkPricePerUnit: { not: null } }, select: { plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true, productModelId: true } }),

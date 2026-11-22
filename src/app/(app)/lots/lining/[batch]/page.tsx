@@ -20,6 +20,7 @@ import { LiningFabrics } from "./view";
 import { FurScope, SupplierOnly } from "@/components/fur-scope";
 import { SourceDocs } from "@/components/source-docs";
 import { loadPurchasesSourceDocs } from "@/lib/source-docs-server";
+import { furLotsOrLive, dashboardCached } from "@/lib/mart/snapshots";
 
 export async function generateMetadata({ params }: { params: Promise<{ batch: string }> }) {
   const { batch } = await params;
@@ -39,7 +40,7 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
   const name = decodeURIComponent(raw);
   const orgId = session.user.organizationId;
   const [furIdx, c4] = await Promise.all([getFurIndex(orgId), getCommission4Mode()]);
-  const all = await loadFurLots(prisma, orgId, { kind: "lining", year: "all", furIdx });
+  const all = await furLotsOrLive(orgId, "lining", "all", furIdx);
   const lots = all.filter((l) => l.auction === name);
   if (lots.length === 0) notFound();
 

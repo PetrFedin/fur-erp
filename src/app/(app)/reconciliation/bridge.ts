@@ -12,6 +12,7 @@ import { parseDashFilters } from "@/lib/dashboard-calc";
 import type { Live } from "./live";
 import { loadRegistry } from "@/lib/reconciliation-registry";
 import { calcInvoice, groupInvoices, totalsOf, type Registry } from "./model";
+import { furLotsOrLive, dashboardCached } from "@/lib/mart/snapshots";
 
 export type BridgeRow = { label: string; value: number; note?: string };
 export type ReconBridge = {
@@ -32,7 +33,7 @@ export async function loadReconBridge(orgId: string, live: Live, rgIn?: Registry
   const rg = rgIn ?? (await loadRegistry(orgId));
   const ALL_GROUPS = rg.groups;
   const ALL_INVOICES = rg.invoices;
-  const [ov, left, inp, dash] = await Promise.all([loadPaymentsOverview(orgId), loadPaymentsLeft(orgId), loadDebtInputs(prisma, orgId), loadDashboard(orgId, "all", parseDashFilters({}), "off")]);
+  const [ov, left, inp, dash] = await Promise.all([loadPaymentsOverview(orgId), loadPaymentsLeft(orgId), loadDebtInputs(prisma, orgId), dashboardCached(orgId, "all", "off")]);
   const sum = (k: "fur" | "lining" | "work" | "hides") => ov.reduce((a, r) => a + r[k], 0);
   // Закупки-услуги (УПД без позиций сырья) — отдельная статья «Услуги по УПД»: ни в «Куплено», ни в сырьё Главной не входят.
   const servicesCost = inp.allPurchases.filter((p) => isServicePurchase(p)).reduce((a, p) => a + purchaseTotalInclVat(p).toNumber(), 0);

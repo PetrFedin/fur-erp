@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { loadFurLots } from "@/lib/fur-table-server";
 import type { MinkSexStock } from "@/lib/budget-pcs";
 import SEX from "./data/mink-lot-sex.json";
+import { furLotsOrLive, dashboardCached } from "@/lib/mart/snapshots";
 
 const sexOf = (lot: string): "M" | "F" | null => {
   const v = (SEX as Record<string, unknown>)[lot];
@@ -12,7 +13,7 @@ const sexOf = (lot: string): "M" | "F" | null => {
 
 /** total — остаток норки на складе так, как его считает расчёт закупки; всё, что не размечено M/F, идёт в U. */
 export async function loadMinkSexStock(orgId: string, total: number): Promise<MinkSexStock> {
-  const lots = await loadFurLots(prisma, orgId, { kind: "fur", year: "all" });
+  const lots = await furLotsOrLive(orgId, "fur", "all");
   let M = 0, F = 0;
   for (const l of lots) {
     if (l.item !== "Норка" || l.purchaseStatus === "DRAFT" || l.purchaseStatus === "CANCELLED" || !(l.rem > 0)) continue;

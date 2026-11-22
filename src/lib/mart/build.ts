@@ -4,7 +4,8 @@ import { loadReportSizes } from "@/lib/margin-server";
 import { buildPlanTables } from "@/lib/mart/plans";
 import { buildChainTables, type ChainCounts } from "@/lib/mart/chain";
 import { loadDashboard } from "@/lib/dashboard-data";
-import { buildSnapshots } from "@/lib/mart/snapshots";
+import { buildSnapshots, readSnapshot } from "@/lib/mart/snapshots";
+import type { DashboardData } from "@/lib/dashboard-data";
 import { parseDashFilters } from "@/lib/dashboard-calc";
 import { loadRetailPricesState, loadReportSizesState } from "@/lib/import-keys";
 import { normCode, colorOfLine } from "@/lib/sales-receipts-core";
@@ -313,5 +314,21 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   await db.dmCheck.createMany({ data: checks.map((c) => ({ organizationId: orgId, key: c.key, label: c.label, expected: c.expected, actual: c.actual, status: c.status, note: c.note, builtAt: now })) });
   // Готовые расчёты экранов («Главная», «Сырьё») — снимки по годам и режиму 4 %; ошибка здесь не ломает сборку: экраны посчитают вживую.
   try { await buildSnapshots(orgId); } catch (e) { console.error("[mart] снимки экранов не собраны:", e); }
+  // Сырьё в витрине сходится само с собой и с Главной: куплено = использовано (без 4 %) + остаток; лоты + мост = «Куплено» меха и подкладки на Главной.
+  try {
+    const [bal] = await db.$queryRaw<{ bought: string | null; usedRem: string | null; bad: number }[]>`SELECT sum("totalCost")::text bought, sum("usedCost" + "remCost")::text "usedRem", count(*) FILTER (WHERE abs("totalCost" - "usedCost" - "remCost") > 50)::int bad FROM "DmLot" WHERE "organizationId" = ${orgId}`;
+    const [br] = await db.$queryRaw<{ total: string | null }[]>`SELECT sum("totalCost")::text total FROM "DmLotBridge" WHERE "organizationId" = ${orgId}`;
+    const dash = await readSnapshot<DashboardData>(orgId, "dash:all:off");
+    const now2 = new Date();
+    const rows: { key: string; label: string; expected: number | null; actual: number | null; status: string; note: string | null }[] = [
+      { key: "rawBalance", label: "Сырьё в витрине: куплено = использовано (без 4 %) + остаток, ₽", expected: Number(bal?.bought ?? 0), actual: Number(bal?.usedRem ?? 0), status: Math.abs(Number(bal?.bought ?? 0) - Number(bal?.usedRem ?? 0)) <= 5 && (bal?.bad ?? 0) === 0 ? "ok" : "warn", note: (bal?.bad ?? 0) ? `${bal?.bad} лотов расходятся больше чем на 50 ₽` : null },
+    ];
+    if (dash) {
+      const homeBought = dash.raw.fur.incl.recvValue + dash.raw.lining.incl.recvValue;
+      const martBought = Number(bal?.bought ?? 0) + Number(br?.total ?? 0);
+      rows.push({ key: "rawVsHome", label: "Сырьё: лоты + мост в витрине = «Куплено» (мех + подкладка) на Главной, ₽", expected: Math.round(homeBought), actual: Math.round(martBought), status: Math.abs(homeBought - martBought) <= 2 ? "ok" : "warn", note: null });
+    }
+    await db.dmCheck.createMany({ data: rows.map((c) => ({ organizationId: orgId, key: c.key, label: c.label, expected: c.expected, actual: c.actual, status: c.status, note: c.note, builtAt: now2 })) });
+  } catch (e) { console.error("[mart] сверки сырья не записаны:", e); }
   return { skus: skuCount, parties: partyCount, movements: lines.length, checks };
 }

@@ -108,3 +108,8 @@ export async function furLotsCached(orgId: string, kind: "fur" | "lining", year:
 export async function furKindsCached<T>(orgId: string): Promise<T | null> {
   return readSnapshot<T>(orgId, "furkinds");
 }
+
+/** Лоты меха или подкладки: снимок из витрины, а если он устарел — расчёт вживую (те же цифры, что раньше). */
+export async function furLotsOrLive(orgId: string, kind: "fur" | "lining", year: YearFilter, furIdx?: Awaited<ReturnType<typeof getFurIndex>>): Promise<FurLot[]> {
+  return (await furLotsCached(orgId, kind, year)) ?? loadFurLots(prisma, orgId, { kind, year, furIdx } as never);
+}

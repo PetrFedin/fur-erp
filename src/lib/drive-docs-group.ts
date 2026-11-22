@@ -39,9 +39,11 @@ export function copiesLabel(n: number): string {
   return `×${n} копии`;
 }
 
-/** Заголовок «Документы (N)» после схлопывания: «(12)» или «(12, из 51 записей)». */
+/** Заголовок «Документы (N)» после схлопывания: «12 файлов» или «12 файлов · 51 привязка» (один файл мог быть привязан к нескольким закупкам и лотам). */
 export function countLabel(groups: number, records: number): string {
-  return groups === records ? `${records}` : `${groups}, из ${records} записей`;
+  const plural = (n: number, one: string, few: string, many: string) => (n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many);
+  const files = `${groups} ${plural(groups, "файл", "файла", "файлов")}`;
+  return groups === records ? files : `${files} · ${records} ${plural(records, "привязка", "привязки", "привязок")}`;
 }
 
 /**

@@ -6,6 +6,7 @@ import { orderLabel } from "@/lib/order-label";
 import { listForecasts } from "@/lib/forecast-store";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import { loadFurLots } from "@/lib/fur-table-server";
+import { furLotsOrLive, dashboardCached } from "@/lib/mart/snapshots";
 
 /** Сырьё по типам меха: сколько шкур на складе и сколько уйдёт на допроизводство заказанного (остаток заказа FW26 по прогнозу). Имена типов — как в Budget PCS. */
 /** Доля норки в изделиях «Норка + Соболь» по фактическому расходу шкур в ТЗ: одежда и аксессуары отдельно (остальное — соболь). */
@@ -15,7 +16,7 @@ const NAME: Record<string, string> = { "Свакара": "Каракульча" 
 const num = (s: string | undefined, d: number | null) => { const v = parseFloat(String(s ?? "").replace(",", ".").replace(/\s/g, "")); return Number.isFinite(v) ? v : d; };
 
 export async function loadRawBalance(orgId: string): Promise<{ rows: RawBalance; forecast: string | null; mix: MixShare; price: Record<string, number> }> {
-  const [raw, docs, orders, lots] = await Promise.all([loadRawForecast(orgId), listForecasts(orgId), loadOrderRows(orgId, "all", "off"), loadFurLots(prisma, orgId, { kind: "fur", year: "all" })]);
+  const [raw, docs, orders, lots] = await Promise.all([loadRawForecast(orgId), listForecasts(orgId), loadOrderRows(orgId, "all", "off"), furLotsOrLive(orgId, "fur", "all")]);
   // Средневзвешенная цена шкуры по типу меха (₽ с НДС, без роста): Σ ₽ списанных в ТЗ шкур ÷ Σ шкур — по лотам («потрачено»), как в Excel (лист 8 = лист 1).
   // Нет списаний (рысь) — средняя цена закупки по лотам. Цены бюджета FW27 не берём: в них уже заложен рост (+10 %), иначе рост считался бы дважды.
   const acc = new Map<string, [number, number, number, number]>();
@@ -29,9 +30,7 @@ export async function loadRawBalance(orgId: string): Promise<{ rows: RawBalance;
   const price: Record<string, number> = {};
   for (const [f, [usedRub, used, recvRub, recv]] of acc) { if (used > 0) price[f] = usedRub / used; else if (recv > 0) price[f] = recvRub / recv; }
   // Меха без лотов на складе (рысь: только «Заказано, не получено» на Главной) — средняя цена заказанного, как на листе лотов Excel.
-  const { loadDashboard } = await import("@/lib/dashboard-data");
-  const { parseDashFilters } = await import("@/lib/dashboard-calc");
-  for (const s of (await loadDashboard(orgId, "all", parseDashFilters({}), "off")).syntheticLots) {
+  for (const s of (await dashboardCached(orgId, "all", "off")).syntheticLots) {
     const f = NAME[s.item] ?? s.item;
     if (price[f] || s.id.startsWith("hides:") || !(s.recv > 0)) continue;
     const a = acc.get(`synth:${f}`) ?? [0, 0, 0, 0]; a[2] += s.recvIncl; a[3] += s.recv; acc.set(`synth:${f}`, a);
