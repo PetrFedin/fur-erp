@@ -18,7 +18,7 @@ export function PageModes({ info, c4 }: { info: ModeInfo; c4: "on" | "off" }) {
   const { mode } = useVatDisplay();
   return (
     <span className="ml-2 inline-flex max-w-full flex-nowrap items-center gap-x-1.5 text-sm font-normal text-neutral-500 max-sm:ml-0 max-sm:basis-full" data-testid="mode-line">
-      <span className="shrink-0">· {info.year} · {mode === "incl" ? "с НДС" : "без НДС"} · {c4 === "on" ? "с 4%" : "без 4%"}</span>
+      <span className="shrink-0">· {info.year} · {mode === "incl" ? "с НДС" : "без НДС"}{c4 === "on" ? " · с 4%" : ""}</span>
       {info.filters ? <b className="min-w-0 truncate font-medium text-amber-700" title={info.filters}>· фильтры: {info.filters}</b> : null}
     </span>
   );

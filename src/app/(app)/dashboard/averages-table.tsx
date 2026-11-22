@@ -7,6 +7,7 @@ import { HierSwitch } from "@/components/hier-switch";
 import { TH, THGroup } from "@/components/table-head";
 import { TotalLabel } from "@/components/total-label";
 import { useVatDisplay } from "@/lib/vat-display";
+import { useCommission4Display } from "@/lib/commission4-display";
 import { useClientSort } from "@/lib/use-client-sort";
 import { formatMoney, formatQty, formatDec1 } from "@/lib/utils";
 import { REPAIR_CATEGORY } from "@/lib/dashboard-calc";
@@ -42,6 +43,7 @@ const GET: Record<string, (g: Agg) => number | string | null> = {
 export function AveragesTable({ data: rawData, volume = "ordered", groupScale = null }: { data: DrillData | null; volume?: VolumeMode; groupScale?: Record<string, number> | null }) {
   const data = useMemo(() => (volume === "produced" ? scaleProducedToReport(withVolume(rawData, volume), groupScale) : withVolume(rawData, volume)), [rawData, volume, groupScale]);
   const { mode: vat } = useVatDisplay();
+  const show4 = useCommission4Display().mode === "on";
   const [tab, setTab] = useState("cat");
   const [open, setOpen] = useState<Set<string>>(new Set());
   const { th, sort } = useClientSort<Agg>(GET);
@@ -61,7 +63,7 @@ export function AveragesTable({ data: rawData, volume = "ordered", groupScale = 
         <td className={c}>{n2(per(g.meters, q))}</td>
         <td className={c + BL}>{money(per(g.fur, q))}</td>
         <td className={c}>{money(per(g.lining, q))}</td>
-        <td className={c}>{money(per(g.c4, q))}</td>
+        {show4 ? <td className={c}>{money(per(g.c4, q))}</td> : null}
         <td className={c}>{money(per(g.other, q))}</td>
         <td className={c}>{money(per(g.work, q))}</td>
         <td className={c + BL + " font-medium"}>{money(per(cost(g), q))}</td>
@@ -112,7 +114,7 @@ export function AveragesTable({ data: rawData, volume = "ordered", groupScale = 
                 <th />
                 <THGroup colSpan={1} sep={false}>Объём</THGroup>
                 <THGroup colSpan={2}>Расход на изделие</THGroup>
-                <THGroup colSpan={5}>Стоимость на изделие</THGroup>
+                <THGroup colSpan={show4 ? 5 : 4}>Стоимость на изделие</THGroup>
                 <THGroup colSpan={1}>Итого</THGroup>
               </tr>
               <tr className="border-b border-neutral-200 text-xs text-neutral-500">
@@ -122,7 +124,7 @@ export function AveragesTable({ data: rawData, volume = "ordered", groupScale = 
                 <TH label="Подкладки" unit="м/изд." {...th("meters")} />
                 <TH label="Мех" unit="₽/изд." sep {...th("fur")} />
                 <TH label="Подкладка" unit="₽/изд." {...th("lining")} />
-                <TH label="4%" unit="₽/изд." {...th("c4")} />
+                {show4 ? <TH label="4%" unit="₽/изд." {...th("c4")} /> : null}
                 <TH label="Расходы ТЗ" unit="₽/изд." {...th("other")} />
                 <TH label="Работа" unit="₽/изд." {...th("work")} />
                 <TH label="Ср. себестоимость" unit="₽/изд." sep {...th("full")} />

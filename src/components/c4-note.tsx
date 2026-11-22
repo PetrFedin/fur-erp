@@ -8,6 +8,8 @@ import { Money } from "./money";
 
 /** Метка режима рядом с итогом: «с 4%» / «без 4%». */
 export function Mode4Badge({ mode, className = "" }: { mode: Commission4Mode; className?: string }) {
+  // «Без 4 %» — обычный вид: метку показываем только когда 4 % включены.
+  if (mode !== "on") return null;
   return (
     <span
       className={`ml-1 rounded-full border px-1.5 py-0.5 align-middle text-[11px] font-medium ${

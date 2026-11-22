@@ -159,7 +159,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const exCalc = exampleModel ? calcOf(exampleModel) : null;
 
   const baseLabel = p.base === "full" ? "полная себестоимость (с работой)" : "себестоимость сырья (без работы)";
-  const basis = `наценка ${target != null ? formatMarkupPct(target) : "–"}, база — ${baseLabel}, ${c4Mode === "on" ? "с 4%" : "без 4%"}`;
+  const basis = `наценка ${target != null ? formatMarkupPct(target) : "–"}, база — ${baseLabel}${c4Mode === "on" ? ", с 4%" : ""}`;
   const qs = pricingParams(p).toString();
   const here = (over: Partial<PricingParams> = {}) => {
     const s = pricingParams(p, over).toString();

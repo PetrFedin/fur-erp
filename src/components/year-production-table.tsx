@@ -1,7 +1,10 @@
+"use client";
+
 import { Fragment } from "react";
 import { isRepair, sumOrders, sumTotal, type Sum } from "@/lib/orders-sum";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 import { formatMoney, formatQty } from "@/lib/utils";
+import { useCommission4Display } from "@/lib/commission4-display";
 
 // Очень простая таблица: сколько изделий получено за год и во что обошлось производство.
 // Строки — мех → категория 1 → категория 2, столбцы — статьи расходов; расходы ТЗ входят в мех. Числа — по всем ТЗ (как «Заведено в ТЗ»), не по приходу (с НДС, до тысяч).
@@ -18,6 +21,8 @@ function group(os: DrillOrder[], by: (o: DrillOrder) => string): Node[] {
 }
 
 export function YearProductionTable({ orders, year }: { orders: DrillOrder[]; year: number }) {
+  const show4 = useCommission4Display().mode === "on";
+  const total = (x: Sum) => sumTotal(x) - (show4 ? 0 : x.c4);
   const own = orders.filter((o) => o.y === year && !isRepair(o));
   if (own.length === 0) return null;
   const furs = group(own, (o) => o.fur);
@@ -34,9 +39,9 @@ export function YearProductionTable({ orders, year }: { orders: DrillOrder[]; ye
           <td className={td}>{formatQty(s.qty)}</td>
           <td className={td}>{K(s.fur + s.other)}</td>
           <td className={td}>{K(s.lining)}</td>
-          <td className={td}>{K(s.c4)}</td>
+          {show4 ? <td className={td}>{K(s.c4)}</td> : null}
           <td className={td}>{K(s.work)}</td>
-          <td className={td + " font-medium"}>{K(sumTotal(s))}</td>
+          <td className={td + " font-medium"}>{K(total(s))}</td>
         </tr>
         {n.kids.map((k) => row(k, depth + 1))}
       </Fragment>
@@ -48,7 +53,7 @@ export function YearProductionTable({ orders, year }: { orders: DrillOrder[]; ye
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold [&::-webkit-details-marker]:hidden">
         <span aria-hidden className="inline-block text-neutral-500 transition-transform group-open:rotate-90">▸</span>
         <h2 className="text-sm font-semibold">Заведено в ТЗ в {year} и расходы на производство, ₽ с НДС</h2>
-        <span className="ml-auto text-xs font-normal tabular-nums text-neutral-600">{formatQty(tot.qty)} шт. · {K(sumTotal(tot))}</span>
+        <span className="ml-auto text-xs font-normal tabular-nums text-neutral-600">{formatQty(tot.qty)} шт. · {K(total(tot))}</span>
       </summary>
       <div className="mt-2 overflow-x-auto rounded-lg border border-neutral-200" data-keep-scroll tabIndex={0}>
         <table className="table-keep w-full min-w-[760px] text-sm">
@@ -58,7 +63,7 @@ export function YearProductionTable({ orders, year }: { orders: DrillOrder[]; ye
               <th scope="col" className="px-2 py-2 text-right font-semibold">Изделий, шт.</th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">Мех (с расходами ТЗ)</th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">Подкладка</th>
-              <th scope="col" className="px-2 py-2 text-right font-semibold">Надбавка 4 %</th>
+              {show4 ? <th scope="col" className="px-2 py-2 text-right font-semibold">Надбавка 4 %</th> : null}
               <th scope="col" className="px-2 py-2 text-right font-semibold">Работа</th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">Всего</th>
             </tr>
@@ -70,9 +75,9 @@ export function YearProductionTable({ orders, year }: { orders: DrillOrder[]; ye
               <td className={td}>{formatQty(tot.qty)}</td>
               <td className={td}>{K(tot.fur + tot.other)}</td>
               <td className={td}>{K(tot.lining)}</td>
-              <td className={td}>{K(tot.c4)}</td>
+              {show4 ? <td className={td}>{K(tot.c4)}</td> : null}
               <td className={td}>{K(tot.work)}</td>
-              <td className={td}>{K(sumTotal(tot))}</td>
+              <td className={td}>{K(total(tot))}</td>
             </tr>
           </tbody>
         </table>

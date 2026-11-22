@@ -111,7 +111,7 @@ export function LotSheetTable({
                   </td>
                   <td className="px-1.5 py-1.5">
                     {canEdit ? (
-                      <select aria-label={`Категория: ${r.label}`} className={FIELD} value={d.cat} onChange={(e) => patch(r, "cat", e.target.value)}>
+                      <select aria-label={`Категория: ${r.label}`} title="Категория статьи: нажмите, чтобы изменить" className={"w-full cursor-pointer appearance-none rounded border border-transparent bg-transparent px-1.5 py-0.5 text-xs hover:border-neutral-400 focus:border-neutral-700 focus:outline-none " + (d.cat ? "text-neutral-800" : "text-neutral-400")} value={d.cat} onChange={(e) => patch(r, "cat", e.target.value)}>
                         <option value="">не назначена</option>
                         {COMP_CATS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
                       </select>

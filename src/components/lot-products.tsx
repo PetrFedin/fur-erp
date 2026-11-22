@@ -5,6 +5,7 @@ import { TH as Head } from "@/components/table-head";
 import { useState } from "react";
 import { Money } from "@/components/money";
 import { TotalLabel } from "@/components/total-label";
+import { useCommission4Display } from "@/lib/commission4-display";
 import { formatPercent, formatQty, formatDec1 } from "@/lib/utils";
 
 export type ProdOrder = {
@@ -38,7 +39,10 @@ const dash = (v: number, f: (n: number) => string = (n) => formatDec1(String(n))
 const sum = (a: string[]) => a.reduce((s, x) => s + Number(x), 0);
 
 /** «В каких изделиях участвует»: Артикул › ТЗ с долей лота и суммами. Данные приходят с сервера на каждый заход. */
-export function LotProducts({ models, recv, unit }: { models: ProdModel[]; recv: number; unit: string }) {
+export function LotProducts({ models: modelsIn, recv, unit }: { models: ProdModel[]; recv: number; unit: string }) {
+  // Одна сумма по режиму шапки: «С 4 %» — с надбавкой, «Без 4 %» — без неё (столбцов с 4 % при выключенном режиме нет).
+  const on4 = useCommission4Display().mode === "on";
+  const models = on4 ? modelsIn.map((m) => ({ ...m, orders: m.orders.map((o) => ({ ...o, incl: o.incl4, excl: o.excl4 })) })) : modelsIn;
   const [grp, setGrp] = useState<(typeof GROUPS)[number]>("Все");
   const shown = models.filter((m) => grp === "Все" || m.group === grp);
   const all = shown.flatMap((m) => m.orders);
@@ -70,8 +74,7 @@ export function LotProducts({ models, recv, unit }: { models: ProdModel[]; recv:
                 <th className={TH + " w-[9%]"}>Дата</th>
                 <th className={TH + " w-[9%]"}>{unit === "м" ? "Метров" : "Шкур"}, {unit}</th>
                 <th className={TH + " w-[8%]"}>Доля лота</th>
-                <Head label="Сумма без 4%" unit="₽" align="right" className="w-[13%]" />
-                <Head label="Сумма с 4%" unit="₽" align="right" className="w-[13%]" />
+                <Head label={on4 ? "Сумма с 4 %" : "Сумма"} unit="₽" align="right" className="w-[16%]" />
                 <th className={TH + " w-[9%]"}>Ср. цена, ₽/{unit}</th>
                 <th className={TH + " w-[9%]"}>На изделие, {unit}</th>
               </tr>
@@ -81,7 +84,6 @@ export function LotProducts({ models, recv, unit }: { models: ProdModel[]; recv:
                 const q = m.orders.reduce((s, o) => s + o.qty, 0);
                 const pr = m.orders.reduce((s, o) => s + o.produced, 0);
                 const i = sum(m.orders.map((o) => o.incl)), e = sum(m.orders.map((o) => o.excl));
-                const i4 = sum(m.orders.map((o) => o.incl4)), e4 = sum(m.orders.map((o) => o.excl4));
                 return [
                   <tr key={m.modelId} className="border-b border-neutral-100 bg-neutral-50/70 text-[13px] font-semibold">
                     <td className="px-1.5 py-1.5">
@@ -92,7 +94,6 @@ export function LotProducts({ models, recv, unit }: { models: ProdModel[]; recv:
                     <td className={TD}>{dash(q)}</td>
                     <td className={TD}>{share(q)}</td>
                     <td className={TD}><Money incl={t(i)} excl={t(e)} /></td>
-                    <td className={TD}><Money incl={t(i4)} excl={t(e4)} /></td>
                     <td className={TD}>{avg(i, q) ? <Money incl={avg(i, q)!} excl={avg(e, q)!} /> : "–"}</td>
                     <td className={TD}>{pr > 0 ? formatDec1((q / pr).toFixed(2)) : "–"}</td>
                   </tr>,
@@ -104,7 +105,6 @@ export function LotProducts({ models, recv, unit }: { models: ProdModel[]; recv:
                       <td className={TD}>{dash(o.qty)}</td>
                       <td className={TD}>{share(o.qty)}</td>
                       <td className={TD}><Money incl={o.incl} excl={o.excl} /></td>
-                      <td className={TD}><Money incl={o.incl4} excl={o.excl4} /></td>
                       <td className={TD}>{o.qty > 0 ? <Money incl={t(Number(o.incl) / o.qty)} excl={t(Number(o.excl) / o.qty)} /> : "–"}</td>
                       <td className={TD}>{o.produced > 0 ? formatDec1((o.qty / o.produced).toFixed(2)) : "–"}</td>
                     </tr>
@@ -117,7 +117,6 @@ export function LotProducts({ models, recv, unit }: { models: ProdModel[]; recv:
                 <td className={TD}>{dash(tot.qty)}</td>
                 <td className={TD}>{share(tot.qty)}</td>
                 <td className={TD}><Money incl={t(tot.incl)} excl={t(tot.excl)} /></td>
-                <td className={TD}><Money incl={t(tot.incl4)} excl={t(tot.excl4)} /></td>
                 <td className={TD}>{avg(tot.incl, tot.qty) ? <Money incl={avg(tot.incl, tot.qty)!} excl={avg(tot.excl, tot.qty)!} /> : "–"}</td>
                 <td className={TD}>{tot.produced > 0 ? formatDec1((tot.qty / tot.produced).toFixed(2)) : "–"}</td>
               </tr>

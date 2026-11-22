@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { cn, formatMoney, formatPercent, formatQty, formatNum, formatDec1 } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
+import { useCommission4Display } from "@/lib/commission4-display";
 import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "@/app/(app)/dashboard/tile";
@@ -45,6 +46,7 @@ type SortKey = "number" | "year" | "qty" | "sum" | "avg" | "per" | "article" | "
  */
 export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: FurLot[]; kind: FurKind; orderInfo: Record<string, OrderInfo>; initialGrp?: string }) {
   const { mode: vat } = useVatDisplay();
+  const show4 = useCommission4Display().mode === "on";
   const unit = kind === "lining" ? "м" : "шт.";
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [all, setAll] = useState(false);
@@ -150,7 +152,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
         </InfoHint>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="tz-tiles">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5" data-testid="tz-tiles">
         <div className={TILE_BOX}><TileHead>ТЗ</TileHead><TileValue compact>{shown.length}</TileValue><TileCaption>{rows.length !== shown.length ? `из ${rows.length}` : "уникальных"}</TileCaption></div>
         <div className={TILE_BOX}><TileHead>{kind === "lining" ? "Метров всего" : "Шкур всего"}</TileHead><TileValue compact>{formatQty(T.qty)}</TileValue><TileCaption>{unit}</TileCaption></div>
         <div className={TILE_BOX}><TileHead>{kind === "lining" ? "Метров на изделие" : "Шкур на изделие"}</TileHead><TileValue compact>{T.units > 0 ? formatQty(Math.round((T.qty / T.units) * 100) / 100) : "–"}</TileValue><TileCaption>в среднем</TileCaption></div>

@@ -4,6 +4,7 @@ import { TH, THGroup } from "@/components/table-head";
 import { TotalLabel } from "@/components/total-label";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
+import { useCommission4Display } from "@/lib/commission4-display";
 import { formatMoney, formatQty, formatDec1 } from "@/lib/utils";
 import { REPAIR_CATEGORY } from "@/lib/dashboard-calc";
 import type { DrillData, DrillOrder } from "@/lib/dashboard-drill";
@@ -168,6 +169,7 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const show4 = useCommission4Display().mode === "on";
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   // Тонкие вертикальные линии между блоками колонок: «Изделие» | «Мех и подкладка» | «Работа и надбавка».
   const BL = " border-l border-neutral-200";
@@ -184,7 +186,7 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
         <td className={c}>{nz(a.meters)}</td>
         <td className={c}>{m(a.meterPrice)}</td>
         <td className={c + BL}>{m(a.work)}</td>
-        <td className={c}>{m(a.c4)}</td>
+        {show4 ? <td className={c}>{m(a.c4)}</td> : null}
       </>
     );
   };
@@ -242,7 +244,7 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
                   <th />
                   <THGroup colSpan={2} sep={false}>Изделие</THGroup>
                   <THGroup colSpan={5}>Мех и подкладка</THGroup>
-                  <THGroup colSpan={2}>Работа и надбавка</THGroup>
+                  <THGroup colSpan={show4 ? 2 : 1}>{show4 ? "Работа и надбавка" : "Работа"}</THGroup>
                 </tr>
                 <tr className="border-b border-neutral-200 text-xs text-neutral-500">
                   <TH align="left" label="Строка" {...cs.th("name")} className="px-0 pr-2" />
@@ -254,7 +256,7 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
                   <TH label="Подкладки на изделие" unit="м/изд." {...cs.th("meters")} />
                   <TH label="Ср. цена подкладки" unit="₽/м" {...cs.th("mp")} />
                   <TH label="Работа на изделие" unit="₽/изд." sep {...cs.th("work")} />
-                  <TH label="4% на изделие" unit="₽/изд." {...cs.th("c4")} />
+                  {show4 ? <TH label="4% на изделие" unit="₽/изд." {...cs.th("c4")} /> : null}
                 </tr>
               </thead>
               <tbody>

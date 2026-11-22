@@ -6,6 +6,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "
 import { formatMoney, formatPercent, formatQty, cn, formatNum, formatDec1 } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { PinSection } from "@/components/pin-section";
+import { useCommission4Display } from "@/lib/commission4-display";
 import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
 import { LocalFilterBar, type BarControl } from "@/components/filters/filter-bar";
@@ -121,6 +122,7 @@ export function FurSelectionTotal({
   // Как в таблицах Главной: «Использовано» всегда без 4% (4% — отдельно, в виджетах и себестоимости).
   const c4 = "off" as "on" | "off";
   const { mode: vat } = useVatDisplay();
+  const show4 = useCommission4Display().mode === "on";
   const mode = useMemo(() => ({ vat, c4 }), [vat, c4]);
 
   const [filters, setFilters] = useState<FurFilters>(() => parseFilters(initialQuery, kind));
@@ -511,7 +513,7 @@ export function FurSelectionTotal({
             {showQty && <Num first small muted>{g.key === "used" ? Q(u.qty) : <span className="text-neutral-500">–</span>}</Num>}
             {showMoney && (
               <Num first={!showQty} small muted>
-                {g.key === "used" ? <><div>{R(sumU)}</div>{extra > 0.005 ? <div className="text-[11px] text-neutral-500">4 %: {R(extra)}</div> : null}</> : <span className="text-neutral-500">–</span>}
+                {g.key === "used" ? <><div>{R(sumU)}</div>{show4 && extra > 0.005 ? <div className="text-[11px] text-neutral-500">4 %: {R(extra)}</div> : null}</> : <span className="text-neutral-500">–</span>}
               </Num>
             )}
             <Num small muted>{g.key === "used" && u.qty > 0 ? A(sumU / u.qty) : <span className="text-neutral-500">–</span>}</Num>

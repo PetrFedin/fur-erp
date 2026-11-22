@@ -284,7 +284,8 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   const [dupKeys] = await db.$queryRaw<{ n: number }[]>`SELECT count(*)::int n FROM (SELECT "skuKey" FROM "DmSku" WHERE "organizationId" = ${orgId} GROUP BY 1 HAVING count(*) > 1) d`;
   const [shipOrphan] = await db.$queryRaw<{ n: number; total: number }[]>`SELECT count(*) FILTER (WHERE "colorKey" NOT IN (SELECT "modelCode" || '|' || "colorCanon" FROM "DmSku" WHERE "organizationId" = ${orgId}))::int n, count(*)::int total FROM "DmShipmentLine" WHERE "organizationId" = ${orgId}`;
   const [planSum] = await db.$queryRaw<{ pcs: number | null }[]>`SELECT sum(pcs)::int pcs FROM "DmPlanLine" WHERE "organizationId" = ${orgId}`;
-  const [purchMis] = await db.$queryRaw<{ n: number; delta: string | null }[]>`SELECT count(*)::int n, sum("lotsCostSum" - "itemsGross" - "expensesSum")::text delta FROM "DmPurchase" WHERE "organizationId" = ${orgId} AND currency = 'RUB' AND status = 'RECEIVED' AND abs("lotsCostSum" - "itemsGross" - "expensesSum") > 1`;
+  const [purchMis] = await db.$queryRaw<{ n: number; delta: string | null }[]>`SELECT count(*)::int n, sum("lotsCostSum" - "itemsGross" - "expensesSum")::text delta FROM "DmPurchase" WHERE "organizationId" = ${orgId} AND currency = 'RUB' AND status = 'RECEIVED' AND ("lotsCount" > 0 OR "itemsGross" > 0) AND abs("lotsCostSum" - "itemsGross" - "expensesSum") > 1`;
+  // Закупки-услуги (УПД без позиций сырья и без лотов) в сверку не входят: лотов у них быть не должно. Валютные закупки сверяются отдельно (расчёт лота в рублях по курсу, с расходами), здесь только рублёвые.
   const chain = chainRef.v;
   if (chain) checks.push(
     { key: "lotNoPurchase", label: "Лоты без закупки", expected: 0, actual: chain.lotsNoPurchase, status: chain.lotsNoPurchase === 0 ? "ok" : "warn", note: chain.lotsNoPurchase ? "лот не привязан к закупке: нет документа и оплаты" : null },

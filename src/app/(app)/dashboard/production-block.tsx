@@ -206,7 +206,7 @@ export function ProductionBlock({ scoped = false, reportSeasons, href = "/produc
         <TileCarousel sync={grpSync} clickable hoverBlocks title={`${COST_FULL_LABEL} произведённого`} hintLabel="Что такое полная себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
             <p>Факт по ТЗ, на которые разложен приход: мех + подкладка{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Без работы — «Себестоимость сырья»: <b>{money(cost(fact))}</b>.</p>
-            <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "–"}</b>. Режимы: {vatW}, {c4W}.</p>
+            <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "–"}</b>. Режимы: {vatW}{c4 === "on" ? `, ${c4W}` : ""}.</p>
             <p className="mt-1">Считается по полученному, ремонт не входит; «Одежда» и «Аксессуары» — только изделия группы.</p>
           </>}
           slides={[

@@ -35,6 +35,7 @@ import { LotPassport, type PassportField, type PassportSection } from "@/compone
 import { LotSheetTable } from "@/components/lot-sheet-table";
 import { LotProducts, type ProdModel } from "@/components/lot-products";
 import { CollapsibleBlock } from "@/components/collapsible-block";
+import { Segmented } from "@/components/segmented";
 import { PlanLotCard } from "./plan-lot-card";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -48,9 +49,11 @@ const q2 = (d: Decimal) => d.toFixed(2);
 const H2 = "text-base font-semibold";
 const BLOCK = "flex flex-col gap-2 border-t border-neutral-200 pt-4";
 
-export default async function LotCardPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LotCardPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const session = await requireSession();
   const { id } = await params;
+  const spRaw = (await searchParams).tab;
+  const tabNow: "price" | "use" | "docs" = spRaw === "use" ? "use" : spRaw === "docs" ? "docs" : "price";
   const orgId = session.user.organizationId;
   const c4 = await getCommission4Mode();
   const card = await loadLotUsage(id, orgId);
@@ -301,8 +304,9 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
             <TileHead>Использовано</TileHead>
             <TileValue>{qty(l.used)}</TileValue>
             <TileList items={[
-              { k: "Сумма без 4 %", v: <Money incl={q2(l.usedIncl)} excl={q2(l.usedExcl)} />, share: usedPctV != null ? usedPctV / 100 : null },
-              { k: "с 4 %", v: <Money incl={q2(l.usedIncl.add(l.usedExtraIncl))} excl={q2(l.usedExcl.add(l.usedExtraExcl))} />, sub: true },
+              c4 === "on"
+                ? { k: "Сумма с 4 %", v: <Money incl={q2(l.usedIncl.add(l.usedExtraIncl))} excl={q2(l.usedExcl.add(l.usedExtraExcl))} />, share: usedPctV != null ? usedPctV / 100 : null }
+                : { k: "Сумма", v: <Money incl={q2(l.usedIncl)} excl={q2(l.usedExcl)} />, share: usedPctV != null ? usedPctV / 100 : null },
               { k: `Цена за ${unitWord}`, v: <Money incl={q2(usedUnitIncl)} excl={q2(usedUnitExcl)} /> },
             ]} />
             <VatLine v={{ [vatKey]: l.usedIncl.sub(l.usedExcl).toNumber() }} minRem={1} />
@@ -346,18 +350,18 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
           attrIds={row.attrs.map((a) => a.attrId)}
         />
       </div>
-      <CollapsibleBlock title="Остальные поля лота" summary="правка по месту">
-        <LotPassport
-          lotId={id}
-          sections={restSections}
-          canEdit={canEdit}
-          canAddColor={hasRole(session.user.role, ACCESS.colors)}
-          colorOptions={colorOptions}
-          attrOptions={attrRefs}
-          attrIds={row.attrs.map((a) => a.attrId)}
-        />
-      </CollapsibleBlock>
+      {/* Три вкладки: цена и расходы · где использован · остальные поля и документы. Сверху всегда видно главное: итоги и паспорт. */}
+      <Segmented
+        label="Разделы карточки лота"
+        items={[
+          { key: "price", label: "Цена и расходы", on: tabNow === "price", href: `/analytics/raw/lot/${id}` },
+          { key: "use", label: `Где использован${orders.length ? ` · ${orders.length} ТЗ` : ""}`, on: tabNow === "use", href: `/analytics/raw/lot/${id}?tab=use` },
+          { key: "docs", label: `Поля и документы${lotDocs.length ? ` · ${lotDocs.length}` : ""}`, on: tabNow === "docs", href: `/analytics/raw/lot/${id}?tab=docs` },
+        ]}
+      />
 
+      {tabNow === "price" ? (
+        <>
       {/* 3. Из чего состоит цена */}
       {showPrice && (
         <div className={BLOCK}>
@@ -392,6 +396,10 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
+        </>
+      ) : null}
+      {tabNow === "use" ? (
+        <>
       {/* 4. Изделия */}
       <div className={BLOCK}>
         <h2 className={H2 + " flex items-center gap-2"}>
@@ -415,13 +423,31 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         <LotUsageViz unit={unit} recv={l.recv.toNumber()} startDate={formatDate(l.date)} segs={usageSegs} totalCost={<Money incl={q2(recvIncl)} excl={q2(recvExcl)} />} />
       </div>
 
+        </>
+      ) : null}
+      {tabNow === "docs" ? (
+        <>
+      <CollapsibleBlock title="Остальные поля лота" summary="правка по месту" autoOpen>
+        <LotPassport
+          lotId={id}
+          sections={restSections}
+          canEdit={canEdit}
+          canAddColor={hasRole(session.user.role, ACCESS.colors)}
+          colorOptions={colorOptions}
+          attrOptions={attrRefs}
+          attrIds={row.attrs.map((a) => a.attrId)}
+        />
+      </CollapsibleBlock>
+
       {/* Документы лота — свёрнуты */}
-      <CollapsibleBlock title="Документы" summary={`${lotDocs.length} шт.`}>
+      <CollapsibleBlock title="Документы" summary={`${lotDocs.length} шт.`} autoOpen>
         <div className="mb-2 flex items-center gap-2 text-xs text-neutral-500">О документах <InfoHint label="Документы лота" wide>
             <p>УПД, счёт и спецификацию пока не нужно заполнять — просто прикрепите файлы: перетащите на слот или нажмите «Загрузить файл» (PDF, XLSX, DOCX, JPEG, PNG до 25 МБ). Номера и суммы не требуются. Документы лота видны и в закупке-основании.</p>
           </InfoHint></div>
         <LotDocuments lotId={id} docs={lotDocs} inherited={inheritedDocs} canEdit={canEdit} />
       </CollapsibleBlock>
+        </>
+      ) : null}
     </div>
   );
 }
