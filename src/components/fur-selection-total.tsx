@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatMoney, formatPercent, formatQty, cn, formatNum, formatDec1 } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
+import { PinSection } from "@/components/pin-section";
 import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
 import { LocalFilterBar, type BarControl } from "@/components/filters/filter-bar";
@@ -764,17 +765,16 @@ export function FurSelectionTotal({
       ) : null}
       {variant === "main" ? widgets : null}
 
+      <PinSection id={variant === "years" ? "lots-years" : kind === "lining" ? "lots-lining-table" : "lots-raw-table"} title={variant === "years" ? "Динамика по годам" : kind === "lining" ? "Динамика по тканям" : "Динамика по сырью"} value={Array.from(expanded)} onRestore={(v) => setExpanded(new Set(v))}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-neutral-500">
         {variant === "years" ? (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-neutral-800">
-            <h3 className="text-sm font-semibold">Динамика по годам</h3>
             <div role="group" aria-label="Порядок уровней" className={SEG_GROUP}>
               {([["item", "Год → сырьё → аукцион"], ["auction", "Год → аукцион → сырьё"]] as const).map(([k, t]) => <button key={k} type="button" aria-pressed={yearOrder === k} onClick={() => { setYearOrder(k); setExpanded(new Set([...(yearRows[0] ? [`g/year:${yearRows[0].key}`] : [])])); }} className={segCls(yearOrder === k)}>{t}</button>)}
             </div>
           </div>
         ) : (
         <>
-        <h3 className="basis-full text-sm font-semibold text-neutral-800">{kind === "lining" ? "Динамика по тканям" : "Динамика по сырью"}</h3>
         <div role="tablist" aria-label="Строки по" className="flex flex-wrap items-center gap-1.5">
           <span>Строки по:</span>
           {((lockItem ? [["auction", "Аукциону"], ["year", "Году закупки"], ["lots", "Списком лотов"]] : [["item", kind === "lining" ? "Ткани" : "Виду меха"], ...(kind === "fur" ? [] : [["year", "Году закупки"] as const]), ["lots", "Списком лотов"]] as const) as ReadonlyArray<readonly ["item" | "year" | "auction" | "lots", string]>).map(([id, label]) => (
@@ -854,6 +854,7 @@ export function FurSelectionTotal({
         </table>
       </div>
 
+      </PinSection>
       {raw?.after}
       {lockItem ? <FurOrdersTable lots={table.filteredLots} kind={kind} orderInfo={orderInfo ?? {}} initialGrp={firstOf(initialQuery.grp)} /> : null}
     </div>

@@ -49,7 +49,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
       ...(detail || only ? [
         { k: "остаток на складе", v: dash(furSplit.stock), sub: !only },
         { k: "использовано", v: dash(furSplit.used), sub: !only },
-        { k: "4%", v: dash(furC4), sub: !only },
+        ...(c4Mode === "on" ? [{ k: "4%", v: dash(furC4), sub: !only }] : []),
       ] : []),
     ] : []),
     ...(inLin ? [
@@ -57,7 +57,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
       ...(detail || only ? [
         { k: "остаток на складе", v: dash(linSplit.stock), sub: !only },
         { k: "использовано", v: dash(linSplit.used), sub: !only },
-        { k: "4%", v: dash(linC4), sub: !only },
+        ...(c4Mode === "on" ? [{ k: "4%", v: dash(linC4), sub: !only }] : []),
       ] : []),
     ] : []),
     ...(inServ && Math.abs(serv) >= 0.5 ? [{ k: SERVICES_LABEL, v: money(serv), share: part(serv, whole), tone: warn && serv > 0 ? "text-amber-700" : undefined }] : []),

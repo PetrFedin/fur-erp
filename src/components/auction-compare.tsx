@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { InfoHint } from "@/components/info-hint";
+import { PinSection } from "@/components/pin-section";
+import { MultiFilter } from "@/components/multi-filter";
 import { SEG_GROUP, segCls } from "@/components/segmented";
 import { classifyLotSource } from "@/lib/purchase-source";
 import { useVatDisplay } from "@/lib/vat-display";
@@ -36,8 +38,18 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
     return [...q].sort((a, b) => b[1] - a[1]).slice(0, FUR_ORDER_LIMIT).map(([k]) => k);
   }, [real]);
   const [fur, setFur] = useState<string>("");
-  const cur = fur === ALL ? "" : fur && furs.includes(fur) ? fur : furs[0] ?? "";
+  // По умолчанию включён Соболь (если он есть среди видов), «Все виды» стоит последней кнопкой.
+  const cur = fur === ALL ? "" : fur && furs.includes(fur) ? fur : furs.find((f) => /^соболь/i.test(f)) ?? furs[0] ?? "";
 
+  // Фильтр по странам аукционов (одна или несколько); пусто = все. «У поставщика» — Россия.
+  const [countries, setCountries] = useState<string[]>([]);
+  const countryOfLot = (l: FurLot) => (classifyLotSource(l) === "supplier" ? "Россия" : countryOf(l.auctionLabel || l.auction) ?? "Другая страна");
+  const countryOptions = useMemo(() => {
+    const q = new Map<string, number>();
+    for (const l of real) { if (cur && l.item !== cur) continue; const c = countryOfLot(l); q.set(c, (q.get(c) ?? 0) + 1); }
+    return [...q].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, label: value, count }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [real, cur]);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (k: string) => setOpen((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
@@ -53,6 +65,7 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
     const tot = mk("tot", "", false, 0);
     for (const l of real) {
       if (cur && l.item !== cur) continue;
+      if (countries.length && !countries.includes(countryOfLot(l))) continue;
       const supplier = classifyLotSource(l) === "supplier";
       const full = supplier ? "У поставщика" : l.auctionLabel || l.auction;
       const yk = String(l.year || 0), yl = l.year ? yk : "Без года";
@@ -73,7 +86,8 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
     const byHouse = prune([...A.values()], false), byYear = prune([...B.values()], true);
     const keys: string[] = []; const walk = (ns: Node[]) => ns.forEach((n) => { if (n.children.length) keys.push(n.key); walk(n.children); }); walk(byHouse); walk(byYear);
     return { byHouse, byYear, all: { qty: tot.qty, avg: tot.qty > 0 ? tot.value / tot.qty : 0, usdQty: tot.usdQty, usd: tot.usdQty > 0 ? tot.usdSum / tot.usdQty : 0 }, keys };
-  }, [real, cur, ex]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [real, cur, ex, countries]);
   const flatA: Node[] = [], flatB: Node[] = [];
   const emit = (out: Node[], ns: Node[]) => ns.forEach((n) => { out.push(n); if (open.has(n.key)) emit(out, n.children); });
   emit(flatA, byHouse); emit(flatB, byYear);
@@ -107,24 +121,28 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
               );
             };
 
+  const iconBtn = "inline-flex size-9 items-center justify-center rounded-lg border border-neutral-300 bg-white text-neutral-700 hover:border-neutral-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-900";
+  const allOpen = keys.length > 0 && open.size >= keys.length;
   return (
-    <section aria-label="Сравнение закупок по аукционам" className="rounded-lg border border-neutral-300 bg-white p-3" data-testid="auction-compare">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-1 text-sm font-semibold">Сравнение закупок по аукционам
+    <div data-testid="auction-compare">
+    <PinSection id="auction-compare" title="Сравнение закупок по аукционам" value={Array.from(open)} onRestore={(v) => setOpen(new Set(v))}
+      headerExtra={
           <InfoHint label="Как читать сравнение" wide>
             <p><b>Итого, ₽/шт.</b> — всё, что заплатили за купленные шкуры ({ex ? "без НДС" : "с НДС"}), ÷ штуки. <b>Ср. цена, $</b> — по штукам, у которых цена в $ есть в расчёте лота (сколько из скольких — под ценой).</p>
             <p className="mt-1">Зелёный — дешевле среднего по этому меху на 5 % и больше, красный — дороже на 5 % и больше. Строки отсортированы от дешёвых к дорогим.</p>
           </InfoHint>
-        </h2>
-        <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <button type="button" onClick={() => setOpen(open.size ? new Set() : new Set(keys))} className="min-h-11 rounded-lg border border-neutral-300 bg-white px-3 text-xs hover:border-neutral-500">{open.size ? "Свернуть всё" : "Развернуть всё"}</button>
+      }>
+      <div className="mb-2 flex flex-wrap items-center gap-2 print:hidden">
+        <button type="button" onClick={() => setOpen(allOpen ? new Set() : new Set(keys))} aria-label={allOpen ? "Свернуть все строки" : "Развернуть все строки"} title={allOpen ? "Свернуть все строки" : "Развернуть все строки"} className={iconBtn}>
+          <svg aria-hidden viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{allOpen ? <path d="M4 5.5 8 2l4 3.5M4 10.5 8 14l4-3.5" /> : <path d="M4 3.5 8 7l4-3.5M4 12.5 8 9l4 3.5" />}</svg>
+        </button>
+        <MultiFilter label="Страна аукциона" options={countryOptions} selected={countries} onChange={setCountries} allLabel="Все страны" />
         <div role="group" aria-label="Вид меха" className={SEG_GROUP}>
-          <button type="button" aria-pressed={fur === ALL} onClick={() => setFur(ALL)} className={segCls(fur === ALL)}>Все виды</button>
           {furs.map((f) => <button key={f} type="button" aria-pressed={cur === f && fur !== ALL} onClick={() => setFur(f)} className={segCls(cur === f && fur !== ALL)}>{f}</button>)}
-        </div>
+          <button type="button" aria-pressed={fur === ALL} onClick={() => setFur(ALL)} className={segCls(fur === ALL)}>Все виды</button>
         </div>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-neutral-200" data-keep-scroll tabIndex={0}>
+      <div className="table-scroll scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white" data-keep-scroll tabIndex={0}>
         <table className="table-keep w-full min-w-[860px] text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600">
@@ -154,6 +172,7 @@ export function AuctionCompare({ lots }: { lots: FurLot[] }) {
         <li className="inline-flex items-center gap-1.5"><i aria-hidden className="inline-block size-2.5 rounded-sm" style={{ background: "#d93a0e" }} />Аукцион</li>
         <li className="inline-flex items-center gap-1.5"><i aria-hidden className="inline-block size-2.5 rounded-sm" style={{ background: "#4f6bb5" }} />У поставщика</li>
       </ul>
-    </section>
+    </PinSection>
+    </div>
   );
 }

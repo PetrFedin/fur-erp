@@ -61,7 +61,6 @@ export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
       <div className="hidden xl:contents">
         {modes.src && (
           <div className="flex items-center gap-1.5">
-            <span className="hidden text-xs text-neutral-500 xl:inline">Закупка:</span>
             <FurSrcMode />
           </div>
         )}
@@ -81,7 +80,6 @@ export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
             )}
             {modes.c4 && (
 <div className="flex items-center gap-1.5">
-              <span className="hidden text-xs text-neutral-500 xl:inline">4 % к сырью:</span>
               <Commission4Toggle />
             </div>
 )}

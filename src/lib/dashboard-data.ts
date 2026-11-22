@@ -734,9 +734,12 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
   const addHidesFig = (f: FlowFigures, v: number): FlowFigures => ({ ...f, recvValue: f.recvValue + v, recvAvg: f.recvQty > 0 ? Math.round(((f.recvValue + v) / f.recvQty) * 100) / 100 : null, usedValue: f.usedValue + v, usedValueOther: f.usedValueOther + v, usedAvg: f.usedQty > 0 ? Math.round(((f.usedValue + v) / f.usedQty) * 100) / 100 : null });
   const bumpedFur = { incl: bumpFigures(furPair.incl, orderedBought.qty, orderedBought.incl), excl: bumpFigures(furPair.excl, orderedBought.qty, orderedBought.excl) };
   const furPairAll = { incl: addHidesFig(bumpedFur.incl, hidesTotal.incl), excl: addHidesFig(bumpedFur.excl, hidesTotal.excl) };
+  // Поставщик строк «заказано» и «шкуры подрядчика» — из закупок партии (раньше подпись поставщика у них пропадала: у лотов-заглушек её нет).
+  const supplierOfAuction = (name: string) => debtInputs.allPurchases.find((p) => p.status !== "CANCELLED" && auctionName(p.auctionSession) === name)?.supplier?.name ?? null;
+  const contractorSupplier = () => debtInputs.allPurchases.find((p) => (p as { isContractorRaw?: boolean }).isContractorRaw)?.supplier?.name ?? null;
   const synth = (id: string, item: string, auction: string, year0: number, o: { qty: number; incl: number; excl: number }, used: { incl: number; excl: number } | null, money: { paid: number; due: number }, plan?: { q: number; s: number }, positions?: number): FurLot => ({
     id, kind: "fur", item, materialName: item, color: NOT_SET, size: NOT_SET, sizes: [], attrs: [], auction, auctionLabel: labeler(auction).label || auction, year: year0,
-    lotNumber: used ? "шкуры подрядчика" : "заказано, не получено", grade: "", purchaseId: null, purchaseNumber: null, supplier: null,
+    lotNumber: used ? "шкуры подрядчика" : "заказано, не получено", grade: "", purchaseId: null, purchaseNumber: null, supplier: used ? contractorSupplier() : supplierOfAuction(auction),
     recv: o.qty, used: 0, rem: o.qty, recvIncl: o.incl, recvExcl: o.excl,
     usedIncl: used?.incl ?? 0, usedExcl: used?.excl ?? 0, usedExtraIncl: 0, usedExtraExcl: 0,
     remIncl: used ? 0 : o.incl, remExcl: used ? 0 : o.excl,
