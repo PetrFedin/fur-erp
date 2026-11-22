@@ -119,10 +119,10 @@ export function FurSelectionTotal({
   const liningOff = kind === "lining" && scope?.src === "auction";
   const lots = useMemo(() => (scopeSrc === "all" ? lotsAll : lotsAll.filter((l) => inSrc(scopeSrc, l))), [lotsAll, scopeSrc]);
   const unit = kind === "lining" ? "м" : "шт.";
-  // Как в таблицах Главной: «Использовано» всегда без 4% (4% — отдельно, в виджетах и себестоимости).
-  const c4 = "off" as "on" | "off";
+  // «Использовано» следует переключателю шапки: «С 4 %» — с надбавкой (где она начисляется), «Без 4 %» — без неё.
   const { mode: vat } = useVatDisplay();
-  const show4 = useCommission4Display().mode === "on";
+  const c4 = useCommission4Display().mode;
+  const show4 = c4 === "on";
   const mode = useMemo(() => ({ vat, c4 }), [vat, c4]);
 
   const [filters, setFilters] = useState<FurFilters>(() => parseFilters(initialQuery, kind));

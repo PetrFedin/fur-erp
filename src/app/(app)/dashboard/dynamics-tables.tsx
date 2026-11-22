@@ -19,6 +19,12 @@ import { shortMaterialName } from "@/lib/material-name";
 import type { Cells, CellsPair, RawTableRow, VatTriple, YearRow } from "@/lib/dashboard-data";
 import type { ModeInfo } from "./mode-line";
 
+/** Режим «С 4 %»: «Использовано» берём с надбавкой (uo / uoa); «Без 4 %» — как есть. Куплено и остаток от 4 % не зависят. */
+const c4Cells = (c: Cells): Cells => ({ ...c, uv: c.uo, ua: c.uoa });
+const c4Pair = (p: CellsPair): CellsPair => ({ incl: c4Cells(p.incl), excl: c4Cells(p.excl) });
+const c4Year = (r: YearRow): YearRow => ({ ...r, fur: c4Pair(r.fur), lining: c4Pair(r.lining) });
+const c4Raw = (r: RawTableRow): RawTableRow => ({ ...r, cells: c4Pair(r.cells), auctions: r.auctions.map((a) => ({ ...a, cells: c4Pair(a.cells) })), years: r.years.map((y) => ({ ...y, cells: c4Pair(y.cells) })) });
+
 const rub = (v: number) => formatMoney(v.toFixed(2));
 const rub0 = (v: number) => formatMoney(Math.round(v));
 
@@ -68,8 +74,10 @@ const sumCellsP = (list: Cells[]): Cells => {
   return { ...t, ra: null, ua: null, ma: null, uoa: null };
 };
 
-export function YearsTable({ rows: rowsAll, bySrc, c4, info }: { rows: YearRow[]; /** Мех по годам для источников «На аукционах» / «У поставщика». */ bySrc?: Record<"auction" | "supplier", { key: string; fur: CellsPair }[]>; c4: "on" | "off"; info: ModeInfo }) {
+export function YearsTable({ rows: rowsIn, bySrc: bySrcIn, c4, info }: { rows: YearRow[]; /** Мех по годам для источников «На аукционах» / «У поставщика». */ bySrc?: Record<"auction" | "supplier", { key: string; fur: CellsPair }[]>; c4: "on" | "off"; info: ModeInfo }) {
   void info;
+  const rowsAll = useMemo(() => (c4 === "on" ? rowsIn.map(c4Year) : rowsIn), [rowsIn, c4]);
+  const bySrc = useMemo(() => (c4 === "on" && bySrcIn ? ({ auction: bySrcIn.auction.map((x) => ({ ...x, fur: c4Pair(x.fur) })), supplier: bySrcIn.supplier.map((x) => ({ ...x, fur: c4Pair(x.fur) })) }) : bySrcIn), [bySrcIn, c4]);
   const scope = useFurScope();
   const sel = scope?.src ?? "all";
   // Источник меха: мех по годам берётся из выбранного источника, подкладка, оплаты и долг по источнику не делятся («—»).
@@ -248,8 +256,10 @@ const addCells = (list: Cells[]): Cells => {
   return { ...s, ra: r(s.rv, s.rq), ua: r(s.uv, s.uq), ma: r(s.mv, s.mq), uoa: r(s.uo, s.uq) };
 };
 
-export function RawTable({ auctionSrc, rows: rowsAll, total, money, c4, info: _info, orderFilters, vatRates }: { /** Источник строки аукциона (для переключателя «На аукционах / У поставщика»). */ auctionSrc?: Record<string, "auction" | "supplier">; vatRates?: { fur: VatTriple; lining: VatTriple }; rows: RawTableRow[]; total: CellsPair; money: { paid: number; due: number; unreceived: { paid: number; due: number; names: string[]; byFur: { label: string; names: string[]; paid: number; due: number }[] } }; c4: "on" | "off"; info: ModeInfo; orderFilters: boolean}) {
+export function RawTable({ auctionSrc, rows: rowsIn, total: totalIn, money, c4, info: _info, orderFilters, vatRates }: { /** Источник строки аукциона (для переключателя «На аукционах / У поставщика»). */ auctionSrc?: Record<string, "auction" | "supplier">; vatRates?: { fur: VatTriple; lining: VatTriple }; rows: RawTableRow[]; total: CellsPair; money: { paid: number; due: number; unreceived: { paid: number; due: number; names: string[]; byFur: { label: string; names: string[]; paid: number; due: number }[] } }; c4: "on" | "off"; info: ModeInfo; orderFilters: boolean}) {
   const { mode: vat } = useVatDisplay();
+  const rowsAll = useMemo(() => (c4 === "on" ? rowsIn.map(c4Raw) : rowsIn), [rowsIn, c4]);
+  const total = useMemo(() => (c4 === "on" ? c4Pair(totalIn) : totalIn), [totalIn, c4]);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const avg = false; // колонки цен убраны: цены — в окне по клику на «Цена» в блоке «Сырьё»
   const scope = useFurScope();
