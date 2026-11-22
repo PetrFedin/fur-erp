@@ -1,4 +1,9 @@
 import type { Prisma } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
+import { lotUnitCostExclVat } from "@/lib/purchase-totals";
+import { usageExclVat } from "@/lib/commission4";
+import { COMMISSION_RATE } from "@/lib/commission4-const";
+import { auctionName } from "@/lib/auction-names";
 
 const n = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
 const ck = (s: string | null | undefined) => (s ?? "").toUpperCase().replace(/Ё/g, "Е").replace(/\s+/g, " ").trim();
@@ -19,7 +24,7 @@ export async function buildChainTables(
   });
   const lots = await tx.rawMaterialLot.findMany({
     where: { organizationId: orgId },
-    select: { id: true, lotNumber: true, purchaseId: true, grade: true, sizeGrade: true, color: true, receivedDate: true, quantityReceived: true, quantityRemaining: true, unitCost: true, totalCost: true, vatRate: true, materialCostExclVat: true, expenseCostExclVat: true, rawMaterial: { select: { name: true, category: { select: { name: true } } } }, warehouse: { select: { name: true } }, usages: { select: { quantity: true, totalCost: true, productionOrderId: true } } },
+    select: { id: true, lotNumber: true, purchaseId: true, grade: true, sizeGrade: true, color: true, receivedDate: true, quantityReceived: true, quantityRemaining: true, unitCost: true, totalCost: true, vatRate: true, materialCostExclVat: true, expenseCostExclVat: true, rawMaterial: { select: { name: true, unit: true, category: { select: { name: true } } } }, purchase: { select: { auctionSession: true, orderDate: true } }, warehouse: { select: { name: true } }, usages: { select: { quantity: true, totalCost: true, productionOrderId: true, commission4: true, vatRate: true } } },
   });
   const usages = await tx.productionMaterialUsage.findMany({
     where: { lot: { organizationId: orgId } },
@@ -41,7 +46,17 @@ export async function buildChainTables(
     const used = l.usages.reduce((a, u) => a + n(u.quantity), 0);
     if (Math.abs(n(l.quantityReceived) - used - n(l.quantityRemaining)) > 0.001) qtyMismatch++;
     if (!l.purchaseId) noPurchase++;
-    return { organizationId: orgId, lotId: l.id, lotNumber: l.lotNumber, purchaseId: l.purchaseId, material: l.rawMaterial.name, category: l.rawMaterial.category?.name ?? null, colorCanon: l.color ? canonOf(l.color).canon : null, grade: l.grade, sizeGrade: l.sizeGrade, warehouse: l.warehouse.name, receivedDate: l.receivedDate, qtyReceived: n(l.quantityReceived), qtyRemaining: n(l.quantityRemaining), qtyUsed: used, unitCost: n(l.unitCost), totalCost: n(l.totalCost), vatRate: n(l.vatRate), materialExcl: n(l.materialCostExclVat), expenseExcl: n(l.expenseCostExclVat), usedCost: l.usages.reduce((a, u) => a + n(u.totalCost), 0), ordersCount: new Set(l.usages.map((u) => u.productionOrderId)).size };
+    // Все варианты показа считаем здесь один раз (те же формулы, что в аналитике сырья): без НДС и надбавка 4 % по строкам списания.
+    const unitExcl = lotUnitCostExclVat(l);
+    const kRate = new Decimal(COMMISSION_RATE);
+    let usedExcl = new Decimal(0), extraIncl = new Decimal(0), extraExcl = new Decimal(0);
+    for (const u of l.usages) {
+      const ex = usageExclVat(u, unitExcl);
+      usedExcl = usedExcl.add(ex);
+      if (u.commission4) { extraIncl = extraIncl.add(new Decimal(u.totalCost).mul(kRate)); extraExcl = extraExcl.add(ex.mul(kRate)); }
+    }
+    const dt = l.purchase?.orderDate ?? l.receivedDate;
+    return { unit: l.rawMaterial.unit === "M" ? "M" : "PCS", auction: auctionName(l.purchase?.auctionSession), purchaseYear: dt.getUTCFullYear(), purchaseMonth: `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}`, unitCostExcl: unitExcl.toNumber(), totalCostExcl: unitExcl.mul(l.quantityReceived).toNumber(), usedCostExcl: usedExcl.toNumber(), usedExtraIncl: extraIncl.toNumber(), usedExtraExcl: extraExcl.toNumber(), organizationId: orgId, lotId: l.id, lotNumber: l.lotNumber, purchaseId: l.purchaseId, material: l.rawMaterial.name, category: l.rawMaterial.category?.name ?? null, colorCanon: l.color ? canonOf(l.color).canon : null, grade: l.grade, sizeGrade: l.sizeGrade, warehouse: l.warehouse.name, receivedDate: l.receivedDate, qtyReceived: n(l.quantityReceived), qtyRemaining: n(l.quantityRemaining), qtyUsed: used, unitCost: n(l.unitCost), totalCost: n(l.totalCost), vatRate: n(l.vatRate), materialExcl: n(l.materialCostExclVat), expenseExcl: n(l.expenseCostExclVat), usedCost: l.usages.reduce((a, u) => a + n(u.totalCost), 0), ordersCount: new Set(l.usages.map((u) => u.productionOrderId)).size };
   }) }));
 
   await chunk(usages, (c) => tx.dmLotUse.createMany({ data: c.map((u) => ({ organizationId: orgId, usageId: u.id, lotId: u.lotId, orderId: u.productionOrderId, orderNumber: u.productionOrder.number, model: u.productionOrder.productModel?.sku ?? u.productionOrder.productModel?.name ?? null, qty: n(u.quantity), unitCost: n(u.unitCost), totalCost: n(u.totalCost), date: u.date, commission4: u.commission4 })) }));

@@ -2607,6 +2607,16 @@ model DmLot {
   usedCost       Decimal   @db.Decimal(18, 2)
   ordersCount    Int
   builtAt        DateTime  @default(now())
+  /// Все варианты показа готовыми: с НДС (totalCost, usedCost) и без НДС; без 4 % и с 4 % (надбавка по строкам списания, где она начисляется).
+  unit           String    @default("")
+  auction        String?
+  purchaseYear   Int       @default(0)
+  purchaseMonth  String    @default("")
+  unitCostExcl   Decimal   @default(0) @db.Decimal(18, 4)
+  totalCostExcl  Decimal   @default(0) @db.Decimal(18, 2)
+  usedCostExcl   Decimal   @default(0) @db.Decimal(18, 2)
+  usedExtraIncl  Decimal   @default(0) @db.Decimal(18, 2)
+  usedExtraExcl  Decimal   @default(0) @db.Decimal(18, 2)
 
   @@unique([organizationId, lotId])
   @@index([organizationId, purchaseId])
