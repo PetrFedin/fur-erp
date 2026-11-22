@@ -1,10 +1,10 @@
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
-import { loadPaymentsOverview, loadPaymentsLeft } from "@/lib/payments-overview";
+import { loadPaymentsOverview } from "@/lib/payments-overview";
 import { payLites } from "@/lib/cashflow-detail";
 import { loadReportSizes } from "@/lib/margin-server";
 import { fitReceipts, prepaidItems, buildCashflow, vatShares, aggregateSales, monthsOf, parsePeriod, workByClass, currentMonthMsk } from "@/lib/cashflow";
-import { loadPurchaseVat, loadServiceParts, loadSalesLines, loadOrderClasses } from "@/lib/cashflow-server";
+import { loadPurchaseVat, loadSalesLines, loadOrderClasses } from "@/lib/cashflow-server";
 import { loadDashboard } from "@/lib/dashboard-data";
 import { parseDashFilters } from "@/lib/dashboard-calc";
 import { CashflowView } from "./cashflow-view";
@@ -22,7 +22,6 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
   const vs = vatShares(rows, purchaseVat);
   const incl = buildCashflow(rows, "all");
   const ex = buildCashflow(rows, "all", vs.share);
-  const services = await loadServiceParts(org, rows);
   const months = monthsOf("all");
   const salesRaw = { clothes: aggregateSales(lines, months, "clothes"), acc: aggregateSales(lines, months, "acc"), other: aggregateSales(lines, months, "other") };
   // Приход — по отчёту «заказ и продажи» (637), даты — по строкам файла; нет отчёта — как в файле (659).
@@ -32,7 +31,6 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
   const fitted = useRep ? { clothes: fitReceipts(salesRaw.clothes, repOf("clothes")), acc: fitReceipts(salesRaw.acc, repOf("acc")), other: fitReceipts(salesRaw.other, repOf("other")) } : salesRaw;
   const allBase = aggregateSales(lines, months);
   const salesBy = { all: useRep ? { ...allBase, recPcs: allBase.recPcs.map((_, i) => fitted.clothes.recPcs[i] + fitted.acc.recPcs[i] + fitted.other.recPcs[i]) } : allBase, ...fitted };
-  const left = await loadPaymentsLeft(org);
   /** Предоплата за заказы, по которым товар ещё не принят (деньги ушли, лотов нет). */
   const dash = await loadDashboard(org, "all", parseDashFilters({}), "off");
   const prepaidNames = new Set(dash.rawMoneyTotal.unreceived.names);
@@ -44,6 +42,6 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
   const workEx = workByClass(rows, orderCls, months, vs.share);
   const asOf = await loadDataAsOf(org);
   return (
-    <><DataAsOf asOf={asOf} /><CashflowView prepaidList={prepaidItems(rows, prepaidNames)} prepaid={prepaid} prepaidBy={prepaidBy} incl={incl} ex={ex} salesBy={salesBy} vat={{ vat: vs.vat, unknown: vs.unknown, total: incl.total + incl.outside }} services={services} initialPeriod={parsePeriod(sp.p)} workBy={work} workByEx={workEx} pays={payLites(rows, vs.share, orderCls)} saleLines={lines.filter((l) => l.kind === "SALE")} initialGroup={sp.group === "category" ? "category" : "period"} nowMonth={currentMonthMsk()} left={{ raw: left.raw, prod: left.prod, advance: left.advance }} /></>
+    <><DataAsOf asOf={asOf} /><CashflowView prepaidList={prepaidItems(rows, prepaidNames)} prepaid={prepaid} prepaidBy={prepaidBy} incl={incl} ex={ex} salesBy={salesBy} vat={{ vat: vs.vat, unknown: vs.unknown, total: incl.total + incl.outside }} initialPeriod={parsePeriod(sp.p)} workBy={work} workByEx={workEx} pays={payLites(rows, vs.share, orderCls)} saleLines={lines.filter((l) => l.kind === "SALE")} initialGroup={sp.group === "category" ? "category" : "period"} nowMonth={currentMonthMsk()} /></>
   );
 }

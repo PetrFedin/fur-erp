@@ -43,6 +43,8 @@ export async function duplicatePcs(id: string): Promise<Res<{ id: string }>> {
 }
 export async function removePcs(id: string): Promise<Res> {
   const session = await requireRole(...EDIT);
+  // На стартовом документе FW27 построены «План производства 2027» и нормы шкур: его не удаляем (можно сделать копию и править её).
+  if (id === "fw27-mvst") return { ok: false, error: "Стартовый документ FW27 удалять нельзя: на нём построен план производства 2027. Сделайте копию и правьте её." };
   await deletePcs(session.user.organizationId, id);
   revalidateAll();
   return { ok: true };

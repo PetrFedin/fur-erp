@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { InfoHint } from "@/components/info-hint";
 import { TILE_BOX, TileHead } from "./tile";
-import { GET, NAVY, REV, STOCK, moneyC, n0 } from "../sales/sales-fmt";
+import { GET, NAVY, STOCK, n0 } from "../sales/sales-fmt";
 import { seasonRank } from "@/lib/sales-section";
 
 // Графики блока «Продажи и остатки» на Главной: столбцы и линия на двух шкалах, как в разделе /sales, но в оформлении плиток Главной.
@@ -136,29 +136,6 @@ export function FlowChart({ points, note, labelSold = false }: { points: FlowPoi
               { name: "Получено, шт.", color: NAVY, vals: points.map((p) => p.received), kind: "bar", axis: "l", fmt: pcs },
               { name: "Продано, шт.", color: GET, vals: points.map((p) => Math.max(0, p.sold)), kind: "bar", axis: "l", fmt: pcs, parts: soldParts(points) },
               { name: "Остаток, шт.", color: STOCK, vals: points.map((p) => p.stock), kind: "line", axis: "r", fmt: pcs },
-            ]} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** «Продано по сезонам»: столбцы — штуки (нетто), линия — выручка в выбранном режиме НДС (правая шкала). */
-export function SeasonChart({ points, vatNote }: { points: SeasonPoint[]; vatNote: string }) {
-  return (
-    <div className={TILE_BOX} data-hover-block="sales-seasons">
-      <TileHead>Продано по сезонам</TileHead>
-      <div className="absolute right-3 top-3">
-        <InfoHint label="Как читать график продаж по сезонам" align="right">
-          <p>Сезон — по заказу в выгрузке продаж (FW 25/26, SS 2026, FW 26/27). Столбцы — продано, штуки нетто; линия — выручка, ₽ ({vatNote}), правая шкала. Режим НДС переключается в шапке сайта.</p>
-        </InfoHint>
-      </div>
-      {points.length === 0 ? <p className="mt-2 text-sm text-neutral-600">Нет продаж за выбранный период.</p> : (
-        <div className="mt-2">
-          <Chart testId="dash-sales-chart-seasons" pts={points.map((p) => ({ key: p.key, label: p.key }))} label={`Продано штук по сезонам столбцами, выручка ${vatNote} линией`}
-            series={[
-              { name: "Продано, шт.", color: GET, vals: points.map((p) => Math.max(0, p.sold)), kind: "bar", axis: "l", fmt: pcs },
-              { name: `Выручка, ₽ (${vatNote})`, color: REV, vals: points.map((p) => Math.max(0, p.revenue)), kind: "line", axis: "r", fmt: (v) => moneyC(v) },
             ]} />
         </div>
       )}

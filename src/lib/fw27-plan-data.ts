@@ -20,7 +20,8 @@ export async function putPlanState(orgId: string, s: PlanState): Promise<void> {
 }
 
 export async function loadPlanData(orgId: string) {
-  const doc = (await getPcs(orgId, "fw27-mvst")) ?? (await listPcs(orgId))[0];
+  // Нет ни одного документа Budget PCS (все удалены): пустой план вместо падения страницы.
+  const doc = (await getPcs(orgId, "fw27-mvst")) ?? (await listPcs(orgId))[0] ?? { id: "", name: "Нет документа Budget PCS", rows: [], params: undefined };
   const [avg, bal, state] = await Promise.all([loadBudgetAvg(orgId), loadRawBalance(orgId), getPlanState(orgId)]);
   const minkStock = await loadMinkSexStock(orgId, bal.rows.find((r) => r.fur === "Норка")?.stock ?? 0);
   return { pcsId: doc.id, pcsName: doc.name, rows: withBudgetAvg(doc.rows, avg), params: doc.params ?? { leftoverPct: 70, lynxPct: 85, newPct: 70 }, raw: bal.rows, mix: bal.mix, price: bal.price, minkStock, state };

@@ -118,6 +118,10 @@ export async function renameBudget(id: string, name: string, season: string): Pr
   const session = await requireRole(...EDIT);
   const nm = s(name, 80);
   if (!nm) return { ok: false, error: "Введите название" };
+  // Норма шкур для «Плана производства 2027» ищется по имени «FW27», а утверждённую версию не переименовываем (аудит 22.11.2026).
+  const cur = await prisma.budgetScenario.findFirst({ where: { id: s(id, 40), organizationId: session.user.organizationId }, select: { name: true, status: true } });
+  if (cur?.name === "FW27" && nm !== "FW27") return { ok: false, error: "Бюджет «FW27» переименовывать нельзя: на нём построены нормы шкур для плана 2027. Сделайте копию." };
+  if (cur?.status === "APPROVED" && nm !== cur.name) return { ok: false, error: "Утверждённый бюджет не переименовывается: сначала верните статус «Черновик»." };
   const r = await prisma.budgetScenario.updateMany({ where: { id: s(id, 40), organizationId: session.user.organizationId }, data: { name: nm, season: s(season, 20) || "FW27", updatedBy: session.user.name ?? null } });
   revalidateAll(session.user.organizationId);
   return r.count ? { ok: true } : { ok: false, error: "Бюджет не найден" };
@@ -133,6 +137,9 @@ export async function setBudgetStatus(id: string, status: "DRAFT" | "APPROVED"):
 
 export async function deleteBudget(id: string): Promise<Res> {
   const session = await requireRole(...EDIT);
+  const cur = await prisma.budgetScenario.findFirst({ where: { id: s(id, 40), organizationId: session.user.organizationId }, select: { name: true, status: true } });
+  if (cur?.name === "FW27") return { ok: false, error: "Бюджет «FW27» удалять нельзя: на нём построены нормы шкур для плана 2027." };
+  if (cur?.status === "APPROVED") return { ok: false, error: "Утверждённый бюджет не удаляется: сначала верните статус «Черновик»." };
   const r = await prisma.budgetScenario.deleteMany({ where: { id: s(id, 40), organizationId: session.user.organizationId } });
   revalidateAll(session.user.organizationId);
   return r.count ? { ok: true } : { ok: false, error: "Бюджет не найден" };

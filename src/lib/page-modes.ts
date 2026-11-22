@@ -18,9 +18,10 @@ const RULES: [prefix: string, modes: PageModes][] = [
   // Продажи: отчёт привязан к сезонам, «Год» не нужен; НДС и 4 % действуют (маркап к себестоимости)
   ["/sales", { year: false, vat: true, c4: true }],
   ["/catalog", { year: false, vat: true, c4: true }],
-  // Отгрузки и календарь: год и НДС
-  ["/shipments", { year: true, vat: true, c4: false }],
-  ["/calendar", { year: true, vat: true, c4: false }],
+  // Отгрузки и календарь: суммы строятся с учётом «4 % к сырью» (shipments-feed.ts, calendar-pipeline.ts) — режим показываем, а не прячем (аудит 22.11.2026).
+  // НДС в календаре не действует: переключателя там нет.
+  ["/shipments", { year: true, vat: true, c4: true }],
+  ["/calendar", { year: true, vat: false, c4: true }],
   // Оплаты: суммы платёжек всегда как оплачено (с НДС), 4 % не нужен
   ["/payments", { year: true, vat: false, c4: false }],
   // Cashflow: свой период; НДС — один, общий

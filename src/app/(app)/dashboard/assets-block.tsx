@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
 import { useVatDisplay } from "@/lib/vat-display";
@@ -19,7 +20,17 @@ export function AssetsBlock({ furQty, furOrdered = 0, fur, goodsQty, goods, good
   const total = v(fur) + v(goods);
   const share = (x: number) => (total > 0 ? x / total : null);
   return (
-    <WidgetRow stage id="assets" title="Активы">
+    <WidgetRow
+      stage
+      id="assets"
+      title="Активы"
+      headerEnd={
+        <span className="flex items-center gap-3 print:hidden">
+          <Link href="/lots" className="inline-flex min-h-11 items-center text-xs text-blue-700 hover:underline">→ Сырьё</Link>
+          <Link href="/sales" className="inline-flex min-h-11 items-center text-xs text-blue-700 hover:underline">→ Продажи и остатки</Link>
+        </span>
+      }
+    >
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
         <div className={TILE_BOX}>
           <TileHead>Мех в наличии<InfoHint label="Мех в наличии"><p>Шкуры, купленные и ещё не пошедшие в производство: куплено минус использовано по ТЗ. Сумма — по цене закупки, как в блоке «Сырьё» (режим «с 4%» и НДС — по переключателям).</p></InfoHint></TileHead>

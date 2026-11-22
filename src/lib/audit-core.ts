@@ -24,6 +24,13 @@ export const AUDITED_MODELS: Record<string, Op[]> = {
   ProductionOrderColor: ALL,
   ProductModel: ALL,
   ColorRef: ALL,
+  // Справочники и бюджеты (аудит 22.11.2026: правки не попадали в журнал). ChannelLink не включаем: в нём токены мессенджеров.
+  BudgetScenario: ALL,
+  CategoryRef: ALL,
+  ExpenseCategory: ALL,
+  RawMaterial: ALL,
+  Warehouse: ALL,
+  SupplierContract: ALL,
   FurAttrRef: ALL,
   Auction: ALL,
   FurRef: ALL,
@@ -213,6 +220,12 @@ export const MODEL_TITLES: Record<string, string> = {
   ProductionOrderColor: "Цвет ТЗ",
   ProductModel: "Модель / артикул",
   ColorRef: "Цвет",
+  BudgetScenario: "Бюджет",
+  CategoryRef: "Категория изделий",
+  ExpenseCategory: "Статья расходов",
+  RawMaterial: "Материал",
+  Warehouse: "Склад",
+  SupplierContract: "Договор поставщика",
   FurAttrRef: "Признак меха",
   Auction: "Аукцион",
   FurRef: "Мех",
@@ -259,6 +272,12 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
     case "ProductModel": return `Модель ${s("name") ?? ""}${s("sku") ? " (" + s("sku") + ")" : ""}`.trim();
     case "Auction": return `Аукцион ${s("name") ?? ""}`.trim();
     case "ColorRef": return `Цвет ${s("name") ?? ""}`.trim();
+    case "BudgetScenario": return `Бюджет ${s("name") ?? ""}${s("season") ? " · " + s("season") : ""}`.trim();
+    case "CategoryRef": return `Категория ${s("name") ?? ""}`.trim();
+    case "ExpenseCategory": return `Статья расходов ${s("name") ?? ""}`.trim();
+    case "RawMaterial": return `Материал ${s("name") ?? ""}`.trim();
+    case "Warehouse": return `Склад ${s("name") ?? ""}`.trim();
+    case "SupplierContract": return `Договор ${s("number") ?? s("title") ?? s("name") ?? ""}`.trim();
     case "FurAttrRef": return `Признак меха ${s("name") ?? ""}`.trim();
     case "FurRef": return `Мех ${s("name") ?? ""}`.trim();
     case "Season": return `Сезон ${s("code") ?? ""}`.trim();

@@ -19,9 +19,8 @@ import { PAY_TYPE_LABEL, spendByType, workKindsByMonth, type PayType, flowPoints
 import type { SalesAggLine } from "@/lib/sales-receipts-core";
 import { cumWorkPerUnit, goodsHeadline, headline, seriesOf, type WorkByClass, sliceData, sliceSales, stockSeries, visibleMonths, type CashflowData, type CashflowPeriod, type SalesMonthly, type PrepaidItem } from "@/lib/cashflow";
 
-type ServicePart = { number: string; what: string; invoice: string | null; date: string; paid: number };
 type Cat = "all" | "clothes" | "acc";
-type Props = { prepaid: number; prepaidBy: Record<string, number>; prepaidList: PrepaidItem[]; incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; workByEx: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; left: { raw: number; prod: number; advance: number }; nowMonth: string; initialGroup?: "period" | "category"; vat: { vat: number; unknown: number; total: number }; services: ServicePart[]; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
+type Props = { prepaid: number; prepaidBy: Record<string, number>; prepaidList: PrepaidItem[]; incl: CashflowData; ex: CashflowData; salesBy: Record<CatClass | "all", SalesMonthly>; workBy: WorkByClass; workByEx: WorkByClass; pays: PayLite[]; saleLines: SalesAggLine[]; nowMonth: string; initialGroup?: "period" | "category"; vat: { vat: number; unknown: number; total: number }; initialPeriod: CashflowPeriod; /** Для проверок вёрстки. */ initialCat?: Cat; /** Для проверок вёрстки: таблица открыта сразу. */ initialDetail?: boolean };
 
 const SPEND = "#d93a0e", GET = "#1f7a4d", NAVY = "#1b2a5c", STOCK = "#8a6d1d";
 // Цвета статей трат: различимы между собой и без цвета (подписи в легенде, таблица рядом — текстовая альтернатива).
@@ -568,7 +567,7 @@ function Tile({ label, value, sub, hint, tone, mini, spark, extra, after, contro
 }
 
 
-export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesBy, workBy: workByIncl, workByEx, pays, saleLines, left, nowMonth, initialGroup, vat, services, initialPeriod, initialDetail, initialCat }: Props) {
+export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesBy, workBy: workByIncl, workByEx, pays, saleLines, nowMonth, initialGroup, vat, initialPeriod, initialDetail, initialCat }: Props) {
   const [period, setPeriod] = useState<CashflowPeriod>(initialPeriod);
   // НДС — один, общий (шапка): отдельных переключателей на странице нет
   const { mode: vatMode } = useVatDisplay();
@@ -638,7 +637,6 @@ export function CashflowView({ prepaid, prepaidBy, prepaidList, incl, ex, salesB
   const stockBy = useMemo(() => ({ clothes: stockSeries(salesBy.clothes).stock, acc: stockSeries(salesBy.acc).stock, other: stockSeries(salesBy.other).stock }), [salesBy]);
   /** Месяц по категориям: выручка выбранного режима НДС, единицы прихода и продажи, остаток, работа подрядчика по ТЗ; траты по категориям не делятся. */
   const clsMonth = (c: "clothes" | "acc" | "other", gi: number) => ({ rev: (exVat ? salesBy[c].revEx : salesBy[c].revIncl)[gi], rec: salesBy[c].recPcs[gi], sale: salesBy[c].salePcs[gi], stock: stockBy[c][gi], work: workBy[c][gi] });
-  const due = payDue(left.raw + left.prod, left.advance);
   /** Виды платежей на плитке «Оплачено»: аванс / доплата / окончательный расчёт / прочее; Σ = главное число. */
   const spendKinds = useMemo(() => (Object.keys(PAY_TYPE_LABEL) as PayType[]).filter((t) => Math.abs(spendByType(pays, months, exVat).find((r) => r.type === t)?.total ?? 0) > 0.5).map((t) => ({ type: t, short: t === "ADVANCE" ? "Авансы" : t === "PARTIAL" ? "Доплаты" : t === "FINAL" ? "Окончательный расчёт" : "Прочее / без вида", total: spendByType(pays, months, exVat).find((r) => r.type === t)?.total ?? 0 })), [pays, months, exVat]);
   // Части сходятся с итогом «Оплачено» до рубля, а доли — ровно в 100 % (наибольшие остатки), как в плитках Главной.

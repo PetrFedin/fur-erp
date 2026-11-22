@@ -34,7 +34,7 @@
 
 | Каталог / файл | Что хранится | В git |
 |---|---|---|
-| `src/` | приложение (Next.js App Router): `app/(app)/…` страницы, `components/`, `lib/` (бизнес-логика), `data/` (реестр сверки `reconciliation.json` и снимки). Меню — `components/nav-links.ts` (8 пунктов), вкладки «Контроль» — `components/control-tabs.tsx` (счётчики — `lib/control-counts.ts`), центр задач — `lib/task-center.ts` | да |
+| `src/` | приложение (Next.js App Router): `app/(app)/…` страницы, `components/`, `lib/` (бизнес-логика), `data/` (реестр сверки `reconciliation.json` и снимки). Меню — `components/nav-links.ts` (12 пунктов у владельца, 9 у подрядчика), вкладки «Контроль» — `components/control-tabs.tsx` (счётчики — `lib/control-counts.ts`), центр задач — `lib/task-center.ts` | да |
 | `prisma/` | `schema.prisma` и `migrations/` (только вперёд; проверка — `scripts/check-migration-safety.sh`) | да |
 | `scripts/` | постоянные инструменты: `backup.sh`, `rebuild-demo.sh`, `mart-refresh.ts`, `mart-verify.ts`, `mart-vs-legacy.ts`, `gen-*` (Excel-отчёты), `test-*` (проверки), `set-user-password.ts`, `seed-*` (справочники), `bootstrap-org.ts`; подпапки `lib/`, `stubs/`, `hub/` (реестр на рабочем столе) | да |
 | `scripts/archive/` | 117 разовых скриптов с датой в имени (`apply-*`, `fix-*`, `import-*`, `link-*`, `reparse-*`, `tz-*`): уже применённые операции над данными, история и средство отката; каждый пишет журнал в `docs-inventory/corrections-journal-*.json`; описание — `scripts/archive/README.md` | да |

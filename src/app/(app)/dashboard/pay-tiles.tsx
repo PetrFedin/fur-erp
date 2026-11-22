@@ -1,4 +1,5 @@
-import { formatMoney } from "@/lib/utils";
+import Link from "next/link";
+import { cn, formatMoney } from "@/lib/utils";
 import { ROUND_MIN } from "@/lib/raw-rounding";
 import { alignColumn, roundRub } from "@/lib/money-round";
 import { DUE_LABEL, dueHint, payNumbers } from "@/lib/pay-display";
@@ -202,7 +203,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
             <div className="font-medium text-neutral-700">Ближайшие сроки счетов</div>
             {d.invoiceDeadlines.map((x) => {
               const late = isPastRu(x.date);
-              return <div key={x.auction + x.date} className={late ? "text-red-700" : undefined}>{x.date} · {x.auction} · <b className="tabular-nums">{formatMoney(x.amount.toFixed(0))}</b>{late ? " · просрочен" : ""}</div>;
+              return <Link key={x.auction + x.date} href="/payments" title="Открыть «Оплаты»: долг и счета поставщикам" className={cn("block min-h-8 py-1 hover:underline", late ? "text-red-700" : undefined)}>{x.date} · {x.auction} · <b className="tabular-nums">{formatMoney(x.amount.toFixed(0))}</b>{late ? " · просрочен" : ""}</Link>;
             })}
           </div>
         ) : null}
