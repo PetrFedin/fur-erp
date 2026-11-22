@@ -124,6 +124,8 @@ export async function mergeColors(formData: FormData) {
     await tx.productionOrder.updateMany({ where: { organizationId: orgId, colorRefId: fromId }, data: { colorRefId: intoId, color: into.name } });
     await tx.rawMaterialLot.updateMany({ where: { organizationId: orgId, colorRefId: fromId }, data: { colorRefId: intoId, color: into.name } });
     await tx.purchaseItem.updateMany({ where: { purchase: { organizationId: orgId }, colorRefId: fromId }, data: { colorRefId: intoId, color: into.name } });
+    // Цвета составных ТЗ: связь без каскада; без переноса удаление цвета упало бы на внешнем ключе.
+    await tx.productionOrderColor.updateMany({ where: { order: { organizationId: orgId }, colorRefId: fromId }, data: { colorRefId: intoId } });
     await tx.colorRef.update({ where: { id: intoId }, data: { aliases: merged } });
     await tx.colorRef.delete({ where: { id: fromId } });
   });
@@ -137,10 +139,10 @@ export async function deleteColor(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const ref = await prisma.colorRef.findFirst({
     where: { id, organizationId: orgId },
-    include: { _count: { select: { orders: true, lots: true, purchaseItems: true } } },
+    include: { _count: { select: { orders: true, lots: true, purchaseItems: true, orderColors: true } } },
   });
   if (!ref) back("Цвет не найден");
-  const n = ref._count.orders + ref._count.lots + ref._count.purchaseItems;
+  const n = ref._count.orders + ref._count.lots + ref._count.purchaseItems + ref._count.orderColors;
   if (n > 0) back(`«${ref.name}» используется (${n} строк) — удалить нельзя. Объедините с другим цветом.`);
   await prisma.colorRef.delete({ where: { id } });
   touch(session.user.organizationId);

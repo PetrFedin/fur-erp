@@ -38,6 +38,8 @@ export const ACCESS = {
   // «Загрузка данных» (/settings/import): загрузка продаж, прайса и размеров из xlsx, откат по журналу.
   dataImport: ["OWNER", "ADMIN"],
   taskDecisions: ["OWNER", "ADMIN"],
+  // «Контроль → Данные» (/data-check): проверки единой витрины, пересборка и утверждение эталона (решение владельца 22.11.2026).
+  dataCheck: ["OWNER", "ADMIN"],
 } as const satisfies Record<string, readonly UserRole[]>;
 
 export function hasRole(role: string | undefined | null, allowed: readonly string[]): boolean {

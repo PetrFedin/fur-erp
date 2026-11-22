@@ -6,6 +6,7 @@ import { buildChainTables, type ChainCounts } from "@/lib/mart/chain";
 import { loadRetailPricesState, loadReportSizesState } from "@/lib/import-keys";
 import { normCode, colorOfLine } from "@/lib/sales-receipts-core";
 import { loadOrderRows } from "@/lib/analytics-orders";
+import { MART_EXPECTED, loadMartExpected } from "@/lib/mart/expected";
 
 /**
  * Единая витрина данных (read model). Пересборка целиком по организации одной транзакцией.
@@ -23,7 +24,8 @@ const n = (v: unknown) => Number(v ?? 0) || 0;
  * Приход по файлу «поступления и продажи» (868 / 659 / 368) — режим MART_RECEIPTS_FROM_FILE=1; по умолчанию выключен, расхождение в проверке «fileVsReport».
  */
 const RECEIPTS_FROM_FILE = process.env.MART_RECEIPTS_FROM_FILE === "1";
-export const MART_EXPECTED = { ordered: 845, received: 637, sold: 291, stock: 346, stockRetailRub: 689_484_200 } as const;
+// Эталон — данные с датой утверждения (решение владельца 22.11.2026); значения по умолчанию и загрузка — в mart/expected.ts.
+export { MART_EXPECTED };
 
 // ───── Сопоставление партий (ТЗ) с изделиями отчёта: модель · цвет · размер ─────
 /** Цвет в сравнимом виде: заглавные, «Ё» → «Е», без лишних пробелов. */
@@ -261,12 +263,13 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   const [stockNoCost] = await db.$queryRaw<{ n: number; pcs: number | null }[]>`SELECT count(*)::int n, sum(greatest(t."stock", 0))::int pcs FROM "DmStock" t JOIN "DmSku" k ON k."id" = t."skuId" WHERE k."organizationId" = ${orgId} AND t."stock" > 0 AND t."unitCostAvgRub" IS NULL`;
   // В работе: заказано − получено. Приход решает, а не статус ТЗ (приехало — есть; не приехало — в работе, в том числе без ТЗ).
   const inWork = Math.max(sumConf - sumDeliv, 0);
+  const EXP = (await loadMartExpected(db, orgId)).values;
   const checks: MartSummary["checks"] = [
-    { key: "ordered", label: "Заказано, шт. (отчёт)", expected: MART_EXPECTED.ordered, actual: sumConf, status: eq(sumConf, MART_EXPECTED.ordered) ? "ok" : "fail", note: null },
-    { key: "received", label: "Получено, шт. (отчёт)", expected: MART_EXPECTED.received, actual: sumDeliv, status: eq(sumDeliv, MART_EXPECTED.received) ? "ok" : "fail", note: null },
-    { key: "sold", label: "Продано товара сезона, шт.", expected: MART_EXPECTED.sold, actual: sumSold, status: eq(sumSold, MART_EXPECTED.sold) ? "ok" : "fail", note: null },
-    { key: "stock", label: "Остаток, шт. (получено − продано)", expected: MART_EXPECTED.stock, actual: sumStock, status: eq(sumStock, MART_EXPECTED.stock) ? "ok" : "fail", note: null },
-    { key: "stockRetail", label: "Остаток по прайсу по размерам, ₽", expected: MART_EXPECTED.stockRetailRub, actual: sumRetail, status: eq(sumRetail, MART_EXPECTED.stockRetailRub) ? "ok" : "fail", note: null },
+    { key: "ordered", label: "Заказано, шт. (отчёт)", expected: EXP.ordered, actual: sumConf, status: eq(sumConf, EXP.ordered) ? "ok" : "fail", note: null },
+    { key: "received", label: "Получено, шт. (отчёт)", expected: EXP.received, actual: sumDeliv, status: eq(sumDeliv, EXP.received) ? "ok" : "fail", note: null },
+    { key: "sold", label: "Продано товара сезона, шт.", expected: EXP.sold, actual: sumSold, status: eq(sumSold, EXP.sold) ? "ok" : "fail", note: null },
+    { key: "stock", label: "Остаток, шт. (получено − продано)", expected: EXP.stock, actual: sumStock, status: eq(sumStock, EXP.stock) ? "ok" : "fail", note: null },
+    { key: "stockRetail", label: "Остаток по прайсу по размерам, ₽", expected: EXP.stockRetailRub, actual: sumRetail, status: eq(sumRetail, EXP.stockRetailRub) ? "ok" : "fail", note: null },
     { key: "fileVsReport", label: "Приход по строкам файла и по отчёту, шт.", expected: sumDeliv, actual: fileReceipts, status: eq(fileReceipts, sumDeliv) ? "ok" : "info", note: eq(fileReceipts, sumDeliv) ? null : `в файле на ${fileReceipts - sumDeliv} шт. больше: даты есть только в файле, штуки берём из отчёта` },
     { key: "oversold", label: "Размеры с продажей сверх прихода", expected: 0, actual: oversold, status: oversold === 0 ? "ok" : "info", note: oversold ? `${oversoldUnits} шт. проданы из товара до FW25 или не попали в отчёт; на экранах остаток «–»` : null },
     { key: "noTz", label: "Остаток без ТЗ для закупки, шт.", expected: 0, actual: noTzUnits, status: noTz === 0 ? "ok" : "warn", note: noTz ? `${noTz} размеров: своей партии ТЗ нет, берём среднюю ТЗ по модели (если ТЗ модели нет совсем, закупка не считается)` : null },

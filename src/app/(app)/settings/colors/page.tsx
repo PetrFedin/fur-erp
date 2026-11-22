@@ -44,7 +44,7 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
     prisma.colorRef.findMany({
       where: { organizationId: orgId },
       orderBy: { name: "asc" },
-      include: { _count: { select: { orders: true, lots: true, purchaseItems: true } } },
+      include: { _count: { select: { orders: true, lots: true, purchaseItems: true, orderColors: true } } },
     }),
     prisma.productionOrder.findMany({ where: { organizationId: orgId, colorRefId: null, color: { not: null } }, select: { id: true, number: true, color: true } }),
     prisma.purchaseItem.findMany({ where: { purchase: { organizationId: orgId }, colorRefId: null, color: { not: null } }, select: { color: true, purchase: { select: { id: true, number: true } } } }),
@@ -240,7 +240,7 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
         </Thead>
         <Tbody>
           {shownRefs.map((r) => {
-            const used = r._count.orders + r._count.lots + r._count.purchaseItems;
+            const used = r._count.orders + r._count.lots + r._count.purchaseItems + r._count.orderColors;
             const proposed = isProposed(r.note);
             const note = (r.note ?? "").replace(new RegExp(`^${PROPOSED_MARK}\\.?\\s*`), "");
             return (

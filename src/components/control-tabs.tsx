@@ -13,6 +13,7 @@ const TABS = [
   { key: "verify", href: "/verify", label: "Подтвердить", hint: "Подтверждение оплат, закупок, ТЗ и партий" },
   { key: "documents", href: "/documents", label: "Документы", hint: "Каких документов не хватает; расхождения и документы для поиска" },
   { key: "reconciliation", href: "/reconciliation", label: "Сверка", hint: "Что сходится на 100 %, что нет; проверка данных: остатки, стоимости, оплаты, долг" },
+  { key: "data", href: "/data-check", label: "Данные", hint: "Проверки единой витрины данных: что сходится с эталоном, что без пары" },
   { key: "history", href: "/history", label: "История", hint: "Кто, когда и что изменил" },
   { key: "inbox", href: "/inbox", label: "Входящие", hint: "Расчёты и ТЗ, присланные поставщиком: проверить и принять" },
 ] as const;
@@ -35,9 +36,9 @@ function count(key: ControlTab, c: ControlCounts | null, integrity: { n: number;
   return null;
 }
 
-function Bar({ active, counts, integrity = null, showInbox = false, showHistory = false }: { active: ControlTab; counts: ControlCounts | null; integrity?: { n: number; red: boolean } | null; showInbox?: boolean; showHistory?: boolean }) {
-  // Вкладки, куда роль не пускает, не показываем (журнал читают владелец, администратор, бухгалтер).
-  const tabs = TABS.filter((t) => (t.key !== "inbox" || showInbox || active === "inbox") && (t.key !== "history" || showHistory || active === "history"));
+function Bar({ active, counts, integrity = null, showInbox = false, showHistory = false, showData = false }: { active: ControlTab; counts: ControlCounts | null; integrity?: { n: number; red: boolean } | null; showInbox?: boolean; showHistory?: boolean; showData?: boolean }) {
+  // Вкладки, куда роль не пускает, не показываем (журнал читают владелец, администратор, бухгалтер; «Данные» — владелец и администратор).
+  const tabs = TABS.filter((t) => (t.key !== "inbox" || showInbox || active === "inbox") && (t.key !== "history" || showHistory || active === "history") && (t.key !== "data" || showData || active === "data"));
   return (
     <nav aria-label="Контроль" className={TABS_NAV}>
       {tabs.map((t) => {
@@ -70,7 +71,7 @@ async function Loaded({ active }: { active: ControlTab }) {
   const counts = await loadControlCounts(session.user.organizationId, year).catch(() => null);
   const rep = await getIntegrityReport(session.user.organizationId);
   const integrity = rep ? { n: rep.failingErrors + rep.failingWarns, red: rep.failingErrors > 0 } : null;
-  return <Bar active={active} counts={counts} integrity={integrity} showInbox={hasRole(session.user.role, ACCESS.inbox)} showHistory={hasRole(session.user.role, ACCESS.history)} />;
+  return <Bar active={active} counts={counts} integrity={integrity} showInbox={hasRole(session.user.role, ACCESS.inbox)} showHistory={hasRole(session.user.role, ACCESS.history)} showData={hasRole(session.user.role, ACCESS.dataCheck)} />;
 }
 
 /**
