@@ -60,13 +60,17 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const f = parseDashFilters(sp);
   const filtersOn = lotFiltersOn(f) || orderFiltersOn(f);
 
-  const d = await loadDashboard(organizationId, year, f, c4Mode);
-  const pc = await priceComposition(organizationId, d);
+  // Четыре загрузчика независимы друг от друга: запускаем вместе (раньше шли последовательно — Главная открывалась заметно дольше).
   // Продажи и остатки: внешний поставщик сюда не попадает (requireSession перенаправляет его в /supplier), данные не грузим для него и подавно.
-  const salesBlock = session.user.role === "SUPPLIER" ? null : await loadSalesBlock(organizationId, c4Mode, year, f.fur);
   // Сезоны по отчёту «заказ и продажи» (владелец 02.11.2026): «В выпуске» = заказано (FW25 и SS26 закрыты: заказ = поступило), «Произведено» = поступило.
-  const reportSeasons = session.user.role === "SUPPLIER" ? null : await loadReportSeasonTotals(organizationId);
-  const asOf = session.user.role === "SUPPLIER" ? null : await loadDataAsOf(organizationId);
+  const notSupplier = session.user.role !== "SUPPLIER";
+  const [d, salesBlock, reportSeasons, asOf] = await Promise.all([
+    loadDashboard(organizationId, year, f, c4Mode),
+    notSupplier ? loadSalesBlock(organizationId, c4Mode, year, f.fur) : null,
+    notSupplier ? loadReportSeasonTotals(organizationId) : null,
+    notSupplier ? loadDataAsOf(organizationId) : null,
+  ]);
+  const pc = await priceComposition(organizationId, d);
   const yl = yearLabel(year);
   const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, attr: f.attr, batch: f.batch, catgroup: f.catgroup, kind: f.kind ?? [] };
   const prodNums = (t: typeof d.prod.done) => ({ items: t.items, repairOrders: t.repairOrders, repairQty: t.repairQty, repairCostIncl: t.repairCostIncl, repairCostExcl: t.repairCostExcl, orders: t.orders, qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum, furIncl: t.furIncl, furExcl: t.furExcl, liningIncl: t.liningIncl, liningExcl: t.liningExcl, matIncl: t.furIncl + t.liningIncl, matExcl: t.furExcl + t.liningExcl, c4Incl: t.c4Incl, c4Excl: t.c4Excl });
