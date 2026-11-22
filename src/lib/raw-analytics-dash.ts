@@ -6,6 +6,7 @@ import { parseDashFilters } from "@/lib/dashboard-calc";
 import type { FurLot } from "@/lib/fur-table";
 import type { YearFilter } from "@/lib/year-filter";
 import type { Commission4Mode } from "@/lib/commission4-mode";
+import { loadRawFromMart } from "@/lib/mart/raw-lots";
 
 /**
  * «Всё сырьё считается как на Главной»: лоты склада + две строки моста, которые уже посчитала Главная
@@ -32,6 +33,12 @@ function toRawLot(s: FurLot): RawLot {
 }
 
 export type RawWithDashboard = { data: RawData; dash: DashboardData; /** Лоты склада + строки моста («Заказано, не получено», «Шкуры подрядчика»): всё сырьё как на Главной. */ all: RawLot[] };
+
+/** Из витрины: те же лоты и мост Главной, но без обращения к лотам, движениям и ТЗ — режимы НДС и 4 % потом просто выбирают столбцы. */
+export async function loadRawFromMartOrNull(organizationId: string, year: YearFilter): Promise<{ data: RawData; all: RawLot[] } | null> {
+  if (process.env.RAW_FROM_MART === "0") return null;
+  return loadRawFromMart(organizationId, year);
+}
 
 export async function loadRawWithDashboard(organizationId: string, year: YearFilter, c4: Commission4Mode): Promise<RawWithDashboard> {
   const [data, dash] = await Promise.all([loadRawData(organizationId, year), loadDashboard(organizationId, year, parseDashFilters({}), c4)]);

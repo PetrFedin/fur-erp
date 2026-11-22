@@ -3,7 +3,11 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { usageExclVat } from "@/lib/commission4";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
-import { auctionName } from "@/lib/auction-names";
+import { auctionName, isServiceAuction, shortAuctionName, NO_AUCTION_LABEL } from "@/lib/auction-names";
+import { canonicalFur } from "@/lib/fur-ref";
+import { getFurIndex } from "@/lib/fur-ref-server";
+import { relabelOrders } from "@/lib/order-label-db";
+import type { FurLot } from "@/lib/fur-table";
 
 const n = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
 const ck = (s: string | null | undefined) => (s ?? "").toUpperCase().replace(/Ё/g, "Е").replace(/\s+/g, " ").trim();
@@ -15,8 +19,11 @@ export async function buildChainTables(
   tx: Prisma.TransactionClient,
   orgId: string,
   canonOf: (raw: string | null | undefined) => { canon: string },
+  /** Строки моста Главной (заказано без лотов, шкуры подрядчика) — loadDashboard(...).syntheticLots; хранятся отдельно от лотов. */
+  bridge: FurLot[] = [],
 ): Promise<ChainCounts> {
-  for (const t of ["dmPurchase", "dmLot", "dmLotUse", "dmPayment", "dmPaymentAlloc", "dmOrderExpense"] as const) await (tx[t] as unknown as { deleteMany: (a: unknown) => Promise<unknown> }).deleteMany({ where: { organizationId: orgId } });
+  const furIdx = await getFurIndex(orgId);
+  for (const t of ["dmPurchase", "dmLot", "dmLotUse", "dmLotBridge", "dmPayment", "dmPaymentAlloc", "dmOrderExpense"] as const) await (tx[t] as unknown as { deleteMany: (a: unknown) => Promise<unknown> }).deleteMany({ where: { organizationId: orgId } });
 
   const purchases = await tx.purchase.findMany({
     where: { organizationId: orgId },
@@ -24,11 +31,11 @@ export async function buildChainTables(
   });
   const lots = await tx.rawMaterialLot.findMany({
     where: { organizationId: orgId },
-    select: { id: true, lotNumber: true, purchaseId: true, grade: true, sizeGrade: true, color: true, receivedDate: true, quantityReceived: true, quantityRemaining: true, unitCost: true, totalCost: true, vatRate: true, materialCostExclVat: true, expenseCostExclVat: true, rawMaterial: { select: { name: true, unit: true, category: { select: { name: true } } } }, purchase: { select: { auctionSession: true, orderDate: true } }, warehouse: { select: { name: true } }, usages: { select: { quantity: true, totalCost: true, productionOrderId: true, commission4: true, vatRate: true } } },
+    select: { id: true, lotNumber: true, purchaseId: true, grade: true, sizeGrade: true, color: true, receivedDate: true, quantityReceived: true, quantityRemaining: true, unitCost: true, totalCost: true, vatRate: true, materialCostExclVat: true, expenseCostExclVat: true, rawMaterial: { select: { name: true, unit: true, category: { select: { name: true } } } }, purchase: { select: { number: true, auctionSession: true, orderDate: true } }, colorRef: { select: { name: true } }, attrs: { select: { attr: { select: { name: true } } } }, purchaseItems: { select: { quantity: true } }, stockMovements: { select: { type: true, quantity: true } }, warehouse: { select: { name: true } }, usages: { select: { quantity: true, totalCost: true, productionOrderId: true, commission4: true, vatRate: true } } },
   });
   const usages = await tx.productionMaterialUsage.findMany({
     where: { lot: { organizationId: orgId } },
-    select: { id: true, lotId: true, productionOrderId: true, quantity: true, unitCost: true, totalCost: true, date: true, commission4: true, productionOrder: { select: { number: true, productModel: { select: { sku: true, name: true } } } } },
+    select: { id: true, lotId: true, productionOrderId: true, quantity: true, unitCost: true, totalCost: true, date: true, commission4: true, productionOrder: { select: { number: true, workOrderNumber: true, productModelId: true, productModel: { select: { sku: true, name: true } } } } },
   });
   const payments = await tx.payment.findMany({ where: { organizationId: orgId }, select: { id: true, supplier: { select: { name: true } }, purchaseId: true, amount: true, currency: true, kind: true, method: true, status: true, paidAt: true, docRef: true, invoiceNo: true, ppNo: true, confirmed: true } });
   const prodPayments = await tx.productionPayment.findMany({ where: { organizationId: orgId }, select: { id: true, client: { select: { name: true } }, contractor: { select: { name: true } }, amount: true, paymentType: true, method: true, status: true, paidAt: true, docRef: true, invoiceNo: true, ppNo: true, confirmed: true, allocations: { select: { productionOrderId: true, amount: true, source: true, productionOrder: { select: { number: true } } } } } });
@@ -56,10 +63,21 @@ export async function buildChainTables(
       if (u.commission4) { extraIncl = extraIncl.add(new Decimal(u.totalCost).mul(kRate)); extraExcl = extraExcl.add(ex.mul(kRate)); }
     }
     const dt = l.purchase?.orderDate ?? l.receivedDate;
-    return { unit: l.rawMaterial.unit === "M" ? "M" : "PCS", auction: auctionName(l.purchase?.auctionSession), purchaseYear: dt.getUTCFullYear(), purchaseMonth: `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}`, unitCostExcl: unitExcl.toNumber(), totalCostExcl: unitExcl.mul(l.quantityReceived).toNumber(), usedCostExcl: usedExcl.toNumber(), usedExtraIncl: extraIncl.toNumber(), usedExtraExcl: extraExcl.toNumber(), organizationId: orgId, lotId: l.id, lotNumber: l.lotNumber, purchaseId: l.purchaseId, material: l.rawMaterial.name, category: l.rawMaterial.category?.name ?? null, colorCanon: l.color ? canonOf(l.color).canon : null, grade: l.grade, sizeGrade: l.sizeGrade, warehouse: l.warehouse.name, receivedDate: l.receivedDate, qtyReceived: n(l.quantityReceived), qtyRemaining: n(l.quantityRemaining), qtyUsed: used, unitCost: n(l.unitCost), totalCost: n(l.totalCost), vatRate: n(l.vatRate), materialExcl: n(l.materialCostExclVat), expenseExcl: n(l.expenseCostExclVat), usedCost: l.usages.reduce((a, u) => a + n(u.totalCost), 0), ordersCount: new Set(l.usages.map((u) => u.productionOrderId)).size };
+    let jIn = 0, jProd = 0, jOther = 0;
+    for (const m of l.stockMovements) { if (m.type === "PURCHASE_IN" || m.type === "ADJUSTMENT_IN" || m.type === "TRANSFER_IN") jIn += n(m.quantity); else if (m.type === "PRODUCTION_OUT") jProd += n(m.quantity); else jOther += n(m.quantity); }
+    const aName = auctionName(l.purchase?.auctionSession);
+    const isM = l.rawMaterial.unit === "M";
+    return { kindName: isM ? "Подкладка" : (canonicalFur(l.rawMaterial.name, furIdx)?.name ?? l.rawMaterial.name), auctionLabel: !aName || isServiceAuction(aName) ? NO_AUCTION_LABEL : shortAuctionName(aName), colorName: l.colorRef?.name ?? l.color ?? null, attrs: l.attrs.map((a) => a.attr.name).join("|"), itemsQty: l.purchaseItems.reduce((a, i) => a + n(i.quantity), 0), jIn, jProdOut: jProd, jOtherOut: jOther, remCost: n(l.quantityRemaining) * n(l.unitCost), remCostExcl: n(l.quantityRemaining) * unitExcl.toNumber(), purchaseNumber: l.purchase?.number ?? null, unit: l.rawMaterial.unit === "M" ? "M" : "PCS", auction: auctionName(l.purchase?.auctionSession), purchaseYear: dt.getUTCFullYear(), purchaseMonth: `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}`, unitCostExcl: unitExcl.toNumber(), totalCostExcl: unitExcl.mul(l.quantityReceived).toNumber(), usedCostExcl: usedExcl.toNumber(), usedExtraIncl: extraIncl.toNumber(), usedExtraExcl: extraExcl.toNumber(), organizationId: orgId, lotId: l.id, lotNumber: l.lotNumber, purchaseId: l.purchaseId, material: l.rawMaterial.name, category: l.rawMaterial.category?.name ?? null, colorCanon: l.color ? canonOf(l.color).canon : null, grade: l.grade, sizeGrade: l.sizeGrade, warehouse: l.warehouse.name, receivedDate: l.receivedDate, qtyReceived: n(l.quantityReceived), qtyRemaining: n(l.quantityRemaining), qtyUsed: used, unitCost: n(l.unitCost), totalCost: n(l.totalCost), vatRate: n(l.vatRate), materialExcl: n(l.materialCostExclVat), expenseExcl: n(l.expenseCostExclVat), usedCost: l.usages.reduce((a, u) => a + n(u.totalCost), 0), ordersCount: new Set(l.usages.map((u) => u.productionOrderId)).size };
   }) }));
 
-  await chunk(usages, (c) => tx.dmLotUse.createMany({ data: c.map((u) => ({ organizationId: orgId, usageId: u.id, lotId: u.lotId, orderId: u.productionOrderId, orderNumber: u.productionOrder.number, model: u.productionOrder.productModel?.sku ?? u.productionOrder.productModel?.name ?? null, qty: n(u.quantity), unitCost: n(u.unitCost), totalCost: n(u.totalCost), date: u.date, commission4: u.commission4 })) }));
+  await chunk(usages, (c) => tx.dmLotUse.createMany({ data: c.map((u) => ({ organizationId: orgId, usageId: u.id, lotId: u.lotId, orderId: u.productionOrderId, orderNumber: u.productionOrder.number, model: u.productionOrder.productModel?.sku ?? u.productionOrder.productModel?.name ?? null, qty: n(u.quantity), unitCost: n(u.unitCost), totalCost: n(u.totalCost), date: u.date, commission4: u.commission4, orderWo: u.productionOrder.workOrderNumber, modelId: u.productionOrder.productModelId ?? "" })) }));
+  // Единая подпись ТЗ («ТЗ 182 · поз. 1/3») считается один раз при сборке и хранится в витрине.
+  {
+    const refs = Array.from(new Map(usages.map((u) => [u.productionOrderId, { label: "", orderId: u.productionOrderId, number: u.productionOrder.number, wo: u.productionOrder.workOrderNumber }])).values());
+    await relabelOrders(orgId, refs, (r) => ({ orderId: r.orderId, number: r.number, wo: r.wo }));
+    for (const r of refs) await tx.dmLotUse.updateMany({ where: { organizationId: orgId, orderId: r.orderId }, data: { orderLabel: r.label } });
+  }
+  await chunk(bridge, (c) => tx.dmLotBridge.createMany({ data: c.map((b) => ({ organizationId: orgId, key: b.id, kind: b.id.startsWith("hides:") ? "hides" : "ordered", furKind: b.item, auction: b.auction, auctionLabel: b.auctionLabel, year: b.year, qtyReceived: b.recv, qtyRemaining: b.rem, totalCost: b.recvIncl, totalCostExcl: b.recvExcl, usedCost: b.usedIncl, usedCostExcl: b.usedExcl, remCost: b.remIncl, remCostExcl: b.remExcl })) }));
 
   const allocByPayment = (id: string) => prodPayments.find((p) => p.id === id)?.allocations.reduce((a, x) => a + n(x.amount), 0) ?? 0;
   await chunk(payments, (c) => tx.dmPayment.createMany({ data: c.map((p) => ({ organizationId: orgId, paymentId: p.id, flow: "purchase", counterparty: p.supplier.name, purchaseId: p.purchaseId, amount: n(p.amount), currency: p.currency, kind: p.kind, method: p.method, status: p.status, paidAt: p.paidAt, docRef: p.docRef, invoiceNo: p.invoiceNo, ppNo: p.ppNo, confirmed: p.confirmed, allocated: 0 })) }));

@@ -2617,9 +2617,44 @@ model DmLot {
   usedCostExcl   Decimal   @default(0) @db.Decimal(18, 2)
   usedExtraIncl  Decimal   @default(0) @db.Decimal(18, 2)
   usedExtraExcl  Decimal   @default(0) @db.Decimal(18, 2)
+  /// Для аналитики сырья без обращения к лотам: канонический вид меха, подпись аукциона, цвет, признаки (через «|»), журнал склада.
+  kindName       String    @default("")
+  auctionLabel   String    @default("")
+  colorName      String?
+  attrs          String    @default("")
+  itemsQty       Decimal   @default(0) @db.Decimal(18, 3)
+  jIn            Decimal   @default(0) @db.Decimal(18, 3)
+  jProdOut       Decimal   @default(0) @db.Decimal(18, 3)
+  jOtherOut      Decimal   @default(0) @db.Decimal(18, 3)
+  remCost        Decimal   @default(0) @db.Decimal(18, 2)
+  remCostExcl    Decimal   @default(0) @db.Decimal(18, 2)
+  purchaseNumber String?
 
   @@unique([organizationId, lotId])
   @@index([organizationId, purchaseId])
+}
+
+/// Строки «моста до Главной» для сырья: «Заказано, не получено» и «Шкуры подрядчика» (лотов склада у них нет). Сумма с лотами = всё сырьё Главной.
+model DmLotBridge {
+  id             String   @id @default(cuid())
+  organizationId String
+  key            String
+  kind           String
+  furKind        String
+  auction        String
+  auctionLabel   String
+  year           Int
+  qtyReceived    Decimal  @db.Decimal(18, 3)
+  qtyRemaining   Decimal  @db.Decimal(18, 3)
+  totalCost      Decimal  @db.Decimal(18, 2)
+  totalCostExcl  Decimal  @db.Decimal(18, 2)
+  usedCost       Decimal  @db.Decimal(18, 2)
+  usedCostExcl   Decimal  @db.Decimal(18, 2)
+  remCost        Decimal  @db.Decimal(18, 2)
+  remCostExcl    Decimal  @db.Decimal(18, 2)
+  builtAt        DateTime @default(now())
+
+  @@unique([organizationId, key])
 }
 
 /// Расход лота в ТЗ (лот → ТЗ → изделие по ТЗ).
@@ -2636,6 +2671,9 @@ model DmLotUse {
   totalCost      Decimal  @db.Decimal(18, 2)
   date           DateTime @db.Date
   commission4    Boolean
+  orderLabel     String   @default("")
+  orderWo        String?
+  modelId        String   @default("")
 
   @@unique([organizationId, usageId])
   @@index([organizationId, lotId])

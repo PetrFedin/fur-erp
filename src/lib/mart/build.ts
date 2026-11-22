@@ -3,6 +3,8 @@ import type { PrismaClient } from "@prisma/client";
 import { loadReportSizes } from "@/lib/margin-server";
 import { buildPlanTables } from "@/lib/mart/plans";
 import { buildChainTables, type ChainCounts } from "@/lib/mart/chain";
+import { loadDashboard } from "@/lib/dashboard-data";
+import { parseDashFilters } from "@/lib/dashboard-calc";
 import { loadRetailPricesState, loadReportSizesState } from "@/lib/import-keys";
 import { normCode, colorOfLine } from "@/lib/sales-receipts-core";
 import { loadOrderRows } from "@/lib/analytics-orders";
@@ -44,6 +46,8 @@ type Level = "size" | "color" | "model";
 export type MartSummary = { skus: number; parties: number; movements: number; checks: { key: string; label: string; expected: number | null; actual: number | null; status: string; note: string | null }[] };
 
 export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSummary> {
+  // Строки моста Главной (заказано без лотов, шкуры подрядчика) считаются тем же расчётом, что Главная, и кладутся в витрину.
+  const bridgeRows = (await loadDashboard(orgId, "all", parseDashFilters({}), "off")).syntheticLots;
   const sizes = await loadReportSizes(orgId);
   const priceRows = ((await loadRetailPricesState(orgId))?.value as { rows?: { acode: string; color: string; size: string; price: number }[] } | undefined)?.rows ?? [];
   const price = new Map<string, number>();
@@ -236,7 +240,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     for (const c of colorRefs) { canonOf(c.name); for (const al of c.aliases) canonOf(al); }
     if (aliasRows.size) await tx.dmColorAlias.createMany({ data: [...aliasRows.values()].map((x) => ({ organizationId: orgId, ...x })) });
     const plan = await buildPlanTables(tx, orgId, { normCode, canonOf });
-    chainRef.v = await buildChainTables(tx, orgId, canonOf);
+    chainRef.v = await buildChainTables(tx, orgId, canonOf, bridgeRows);
     const chain = chainRef.v;
     // Журнал загрузок: какие версии источников разложены в массив
     const sizesState = await loadReportSizesState(orgId);

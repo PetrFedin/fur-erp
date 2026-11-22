@@ -30,7 +30,7 @@ import { figures } from "@/lib/fur-table";
 import { flowOfRawLots } from "@/lib/fur-table-server";
 import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 import { TotalLabel } from "@/components/total-label";
-import { loadRawWithDashboard } from "@/lib/raw-analytics-dash";
+import { loadRawWithDashboard, loadRawFromMartOrNull } from "@/lib/raw-analytics-dash";
 
 export const metadata = { title: "Аналитика сырья" };
 
@@ -47,7 +47,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const { f, by } = parseFilters(sp);
   // Всё сырьё считается как на Главной: лоты склада + «Заказано, не получено» + «Шкуры подрядчика» (те же строки, что считает loadDashboard).
   const [{ data, all: allRaw }, usage] = await Promise.all([
-    loadRawWithDashboard(session.user.organizationId, year, c4),
+    loadRawFromMartOrNull(session.user.organizationId, year).then((m) => m ?? loadRawWithDashboard(session.user.organizationId, year, c4)),
     isUsageBy(by) ? loadUsageRows(session.user.organizationId, year) : Promise.resolve([] as Awaited<ReturnType<typeof loadUsageRows>>),
   ]);
   const unit = f.scope === "lining" ? "м" : "шт.";
