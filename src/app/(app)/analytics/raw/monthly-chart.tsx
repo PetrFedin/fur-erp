@@ -1,80 +1,41 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
+import { Chart, type Pt, type Series } from "../../dashboard/sales-block-charts";
+import { SEG_GROUP, segCls } from "@/components/segmented";
 
 export type MonthPoint = { month: string; qty: number; incl: number; excl: number };
 
 const MONTHS = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
-const label = (m: string) => `${MONTHS[Number(m.slice(5)) - 1]} ${m.slice(2, 4)}`;
+/** «янв 2026»: год виден и в подписи оси, и в подсказке при наведении. */
+const label = (m: string) => `${MONTHS[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;
 
-/** Динамика закупок по месяцам: переключатель «шт / ₽» (одна ось, два отдельных графика, не двойная ось). Цвет — один, величина — высота. */
-/** Телефон (<768px): график рисуется в ширину экрана (viewBox ≈ 340), чтобы подписи не уменьшались масштабом. */
-const NARROW_Q = "(max-width: 767px)";
-function useNarrow() {
-  return useSyncExternalStore(
-    (cb) => { const m = window.matchMedia(NARROW_Q); m.addEventListener("change", cb); return () => m.removeEventListener("change", cb); },
-    () => window.matchMedia(NARROW_Q).matches,
-    () => false,
-  );
-}
-
+/**
+ * Динамика закупок по месяцам: тот же график, что в «Продажах и остатках» (подсказка с цифрами при наведении или касании,
+ * подписи месяцев с годом), переключатель «шт / ₽».
+ */
 export function MonthlyChart({ points, unit }: { points: MonthPoint[]; unit: string }) {
   const { mode } = useVatDisplay();
   const [metric, setMetric] = useState<"qty" | "rub">("qty");
-  const [hover, setHover] = useState<number | null>(null);
-  const val = (p: MonthPoint) => (metric === "qty" ? p.qty : mode === "excl" ? p.excl : p.incl);
-  const fmt = (v: number) => (metric === "qty" ? `${formatQty(v)} ${unit}` : formatMoney(v));
-  const max = Math.max(1, ...points.map(val));
-  const narrow = useNarrow();
-  const W = narrow ? 340 : 640, H = 170, padB = 22, padT = 16;
-  const slot = W / Math.max(points.length, 1);
-  const bw = Math.min(28, slot * 0.6);
-  const h = hover != null ? points[hover] : null;
-
   if (points.length === 0) return <p className="text-sm text-neutral-500">Нет закупок.</p>;
+  const pts: Pt[] = points.map((p) => ({ key: p.month, label: label(p.month) }));
+  const series: Series[] = [
+    metric === "qty"
+      ? { name: `Куплено, ${unit}`, color: "#d93a0e", vals: points.map((p) => p.qty), kind: "bar", axis: "l", fmt: (v) => `${formatQty(v)}` }
+      : { name: mode === "excl" ? "Куплено, ₽ без НДС" : "Куплено, ₽ с НДС", color: "#d93a0e", vals: points.map((p) => (mode === "excl" ? p.excl : p.incl)), kind: "bar", axis: "l", fmt: (v) => formatMoney(Math.round(v)) },
+  ];
   return (
-    <div>
-      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-        <div className="inline-flex rounded-md border border-neutral-300 p-0.5">
-          {(["qty", "rub"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMetric(m)}
-              className={"rounded px-2 py-1 " + (metric === m ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")}
-            >
-              {m === "qty" ? unit : mode === "excl" ? "₽ без НДС" : "₽ с НДС"}
-            </button>
-          ))}
-        </div>
-        <span className="text-neutral-500">{h ? `${label(h.month)}: ${fmt(val(h))}` : `Максимум за месяц: ${fmt(max)}`}</span>
+    <div className="flex flex-col gap-2">
+      <div role="group" aria-label="Что показывать" className={SEG_GROUP + " self-start"}>
+        {(["qty", "rub"] as const).map((m) => (
+          <button key={m} type="button" aria-pressed={metric === m} onClick={() => setMetric(m)} className={segCls(metric === m, "sm")}>
+            {m === "qty" ? unit : mode === "excl" ? "₽ без НДС" : "₽ с НДС"}
+          </button>
+        ))}
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Закупки по месяцам">
-        <line x1="0" x2={W} y1={H - padB} y2={H - padB} stroke="#d4d4d4" />
-        {points.map((p, i) => {
-          const v = val(p);
-          const bh = Math.max(v > 0 ? 2 : 0, (v / max) * (H - padB - padT));
-          const x = i * slot + (slot - bw) / 2;
-          const r = Math.min(4, bh);
-          return (
-            <g key={p.month} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onClick={() => setHover(i)}>
-              <rect x={i * slot} y={0} width={slot} height={H - padB} fill="transparent" />
-              <path
-                d={`M${x},${H - padB} v${-(bh - r)} q0,${-r} ${r},${-r} h${bw - 2 * r} q${r},0 ${r},${r} v${bh - r} z`}
-                fill={hover === i ? "#115e59" : "#0f766e"}
-              />
-              {hover === i && v > 0 ? <text x={Math.min(Math.max(i * slot + slot / 2, 40), W - 40)} y={Math.max(11, H - padB - bh - 5)} textAnchor="middle" fontSize={11} fontWeight={700} fill="#171717" stroke="#fff" strokeWidth={3} paintOrder="stroke">{fmt(v)}</text> : null}
-              {(narrow ? i % Math.max(1, Math.ceil(44 / slot)) === 0 : points.length <= 18 || i % 2 === 0) ? (
-                <text x={Math.min(Math.max(i * slot + slot / 2, 22), W - 22)} y={H - 6} textAnchor="middle" fontSize={11} fill="#737373">
-                  {label(p.month)}
-                </text>
-              ) : null}
-            </g>
-          );
-        })}
-      </svg>
+      <Chart pts={pts} series={series} label="Закупки по месяцам" testId="monthly-chart" />
     </div>
   );
 }

@@ -13,11 +13,11 @@ import { InfoHint } from "@/components/info-hint";
 import { YearNote } from "@/components/year-note";
 import { Mode4Badge } from "@/components/c4-note";
 import { formatMoney, formatQty } from "@/lib/utils";
-import { isServiceAuction, NO_AUCTION_LABEL } from "@/lib/auction-names";
+import { NO_AUCTION_LABEL } from "@/lib/auction-names";
 import { auctionLabeler } from "@/lib/filter-options";
 import {
   GROUPS, NO_AUCTION_KEY, SYNTHETIC_LABEL, aggOf, applyFilters, avgPrice, groupLots, groupUsage, isUsageBy, loadUsageRows, lotIssues, parseFilters, pctText, usedPct,
-  type Agg, type Group, type GroupBy, type LotGroupBy, type RawFilters, type RawLot, type UsageGroup,
+  type Agg, type Group, type GroupBy, type LotGroupBy, type RawFilters, type UsageGroup,
 } from "@/lib/raw-analytics";
 import { prisma } from "@/lib/prisma";
 import { LazyDetails } from "../../lots/lazy-details";
@@ -26,7 +26,6 @@ import { LOT_COLS } from "./lot-rows";
 import { USAGE_COLS, perUnit } from "./usage-rows";
 import { CostCell } from "./cost-cell";
 import { MonthlyChart, type MonthPoint } from "./monthly-chart";
-import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { figures } from "@/lib/fur-table";
 import { flowOfRawLots } from "@/lib/fur-table-server";
 import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
@@ -61,8 +60,8 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const total = aggOf(lots);
   // Средневзвешенные цены (как основные цифры плиток — без 4%) — общий расчёт с таблицей «Мех / Подкладка» (src/lib/fur-table.ts): Σ ₽ ÷ Σ шт. (м).
   const flow = flowOfRawLots(lots);
-  const fIncl = figures(flow, { vat: "incl", c4: "off" });
-  const fExcl = figures(flow, { vat: "excl", c4: "off" });
+  const fIncl = figures(flow, { vat: "incl", c4 });
+  const fExcl = figures(flow, { vat: "excl", c4 });
   const groups = isUsageBy(by) ? [] : groupLots(lots, by as LotGroupBy);
   const usageGroups: UsageGroup[] = isUsageBy(by)
     ? (() => {
@@ -74,7 +73,6 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const otherQty = lots.reduce((s, l) => s.add(l.otherOut), new Decimal(0));
   const otherIncl = lots.reduce((s, l) => s.add(l.otherOut.mul(l.unitIncl)), new Decimal(0));
   const otherExcl = lots.reduce((s, l) => s.add(l.otherOut.mul(l.unitExcl)), new Decimal(0));
-  const k4 = new Decimal(1).add(COMMISSION_RATE);
 
   const aucOf = await auctionLabeler(session.user.organizationId);
   const auctionOpts = Array.from(new Map(scoped.map((l) => [l.auction, l.auctionLabel])).entries()).sort((a, b) =>
@@ -138,62 +136,12 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const monthPoints = Array.from(months.values()).sort((a, b) => a.month.localeCompare(b.month));
   const byYear = groupLots(lots, "year");
 
-  // ───── качество данных (по всем лотам выбранного года, без фильтров таблицы) ─────
-  const all = aggOf(data.lots);
-  const noGrade = data.lots.filter((l) => l.gradeEmpty);
-  const noSize = data.lots.filter((l) => l.unit !== "M" && l.size === "Не указан");
-  const noAuction = data.lots.filter((l) => l.auction === NO_AUCTION_KEY || isServiceAuction(l.auction));
-  const otherOutLots = data.lots.filter((l) => !l.otherOut.isZero());
-  const gapLots = data.lots.filter((l) => !l.movementGap.isZero());
+  // Сверка лотов (кнопка вверху): число лотов с замечаниями.
   const reconLots = data.lots.filter((l) => lotIssues(l).length > 0);
-  const purchasedDiff = all.recv.sub(data.purchasedByItems);
-  const usageDiff = all.used.sub(data.usageTotal);
-  const issues =
-    noGrade.length + otherOutLots.length + gapLots.length + data.movementsWithoutLot.count + data.receivedItemsWithoutLot +
-    (purchasedDiff.isZero() ? 0 : 1) + (usageDiff.isZero() ? 0 : 1);
-
-  const lotLink = (l: RawLot) => (
-    <Link href={`/analytics/raw/lot/${l.id}`} className="underline hover:text-neutral-900">
-      {l.lotNumber}
-    </Link>
-  );
-  const lotList = (arr: RawLot[], extra?: (l: RawLot) => string) => {
-    const noNum = arr.filter((l) => l.lotNumber === "Без номера");
-    const list = arr.filter((l) => l.lotNumber !== "Без номера");
-    return (
-      <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-        {list.slice(0, 40).map((l) => (
-          <li key={l.id}>
-            {lotLink(l)}
-            {extra ? <span className="text-neutral-500"> ({extra(l)})</span> : null}
-          </li>
-        ))}
-        {list.length > 40 && <li className="text-neutral-500">…и ещё {list.length - 40}</li>}
-        {noNum.length > 0 && <li>Без номера — {noNum.length} {noNum.length % 10 === 1 && noNum.length % 100 !== 11 ? "лот" : noNum.length % 10 >= 2 && noNum.length % 10 <= 4 && (noNum.length % 100 < 12 || noNum.length % 100 > 14) ? "лота" : "лотов"}</li>}
-      </ul>
-    );
-  };
 
   const pctAll = usedPct(total);
   const ex = (l: Decimal) => formatQty(l.toString());
 
-  const checkEls = [
-      <Check key="c1" ok={purchasedDiff.isZero()} text={`Куплено по лотам = количество в принятых закупках: ${ex(all.recv)} и ${ex(data.purchasedByItems)}${purchasedDiff.isZero() ? "" : ` (разница ${ex(purchasedDiff)})`}. Мех и подкладка вместе.`} />,
-      <Check key="c2" ok={usageDiff.isZero()} text={`Использовано по лотам = Σ списаний в ТЗ: ${ex(all.used)} и ${ex(data.usageTotal)}${usageDiff.isZero() ? "" : ` (разница ${ex(usageDiff)})`}.`} />,
-      <Check key="c3" ok={otherOutLots.length === 0} text={otherOutLots.length === 0 ? "Остаток лота = получено − списано в ТЗ: у всех лотов." : `У ${otherOutLots.length} лотов остаток ≠ получено − списано в ТЗ (ушло не через ТЗ):`}>
-            {otherOutLots.length > 0 && lotList(otherOutLots, (l) => `${ex(l.otherOut)}`)}
-          </Check>,
-      <Check key="c4" ok={gapLots.length === 0} text={gapLots.length === 0 ? "Остаток по журналу = Σ лотов: журнал движений сходится с остатком у всех лотов." : `У ${gapLots.length} лотов остаток расходится с журналом движений:`}>
-            {gapLots.length > 0 && lotList(gapLots, (l) => `журнал − остаток = ${ex(l.movementGap)}`)}
-          </Check>,
-      <Check key="c5" ok={data.movementsWithoutLot.count === 0} text={data.movementsWithoutLot.count === 0 ? "Списаний и приходов без лота нет." : `Движений без лота: ${data.movementsWithoutLot.count} (на ${ex(data.movementsWithoutLot.qty)}).`} />,
-      <Check key="c6" ok={data.receivedItemsWithoutLot === 0} text={data.receivedItemsWithoutLot === 0 ? "У каждой позиции принятой закупки есть лот." : `Позиций принятых закупок без лота: ${data.receivedItemsWithoutLot}.`} />,
-      <Check key="c7" ok={noGrade.length === 0} warn text={noGrade.length === 0 ? "У всех лотов указан сорт или цвет." : `Лотов без сорта и цвета: ${noGrade.length} из ${data.lots.length}:`}>
-            {noGrade.length > 0 && lotList(noGrade)}
-          </Check>,
-      <Check key="c8" ok={noSize.length === 0} warn text={noSize.length === 0 ? "У всех лотов меха распознан размер." : `Лотов меха без размера: ${noSize.length}.`} />,
-      <Check key="c9" ok={noAuction.length === 0} warn text={noAuction.length === 0 ? "Все лоты привязаны к аукциону." : `Лотов без аукциона: ${noAuction.length}.`} />
-  ];
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[fromPurchases ? { label: "Закупки", href: "/purchases" } : { label: "Сырьё", href: "/lots" }, { label: "Аналитика" }]} />
@@ -384,12 +332,12 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
               </div>
               {groups.length === 0 && <p className="py-6 text-center text-sm text-neutral-500">{year === "all" ? "Нет лотов по выбранным фильтрам" : `За ${year} год лотов по выбранным фильтрам нет`}</p>}
               {groups.map((g) => (
-                <GroupRow key={g.key} g={g} by={by} f={f} unit={unit} c4={c4} />
+                <GroupRow key={g.key} g={g} by={by} f={f} unit={unit} />
               ))}
               {groups.length > 0 && (
                 <div className={`row-total grid grid-cols-2 gap-2 px-3 py-2 text-sm ${LOT_COLS}`}>
                   <span className="col-span-2 md:col-span-4 lg:col-span-1"><TotalLabel extra={`${whLots.length} лотов`} /></span>
-                  <Cells a={total} unit={unit} c4={c4} />
+                  <Cells a={total} unit={unit} />
                 </div>
               )}
             </>
@@ -426,25 +374,6 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
         </Card>
       </div>
 
-      {/* Качество данных */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Качество данных
-            <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + (issues === 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800")}>
-              {issues === 0 ? "всё сходится" : `замечаний: ${issues}`}
-            </span>
-            <InfoHint label="О контроле" wide>
-              <p>Проверки по всем лотам выбранного года (мех и подкладка вместе, без фильтров таблицы): сходятся ли «куплено» с закупками, «использовано» со списаниями, остаток с журналом движений.</p>
-              {checkEls.filter((c) => c.props.ok).map((c) => <p key={c.key} className="mt-1 text-emerald-800">✓ {c.props.text}</p>)}
-            </InfoHint>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
-          {checkEls.filter((c) => !c.props.ok)}
-          {checkEls.every((c) => c.props.ok) ? <p className="text-neutral-600">Все проверки в порядке.</p> : null}
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -456,13 +385,9 @@ function Tile({ title, hint, q, incl, excl, extra, sub, unit, c4, avg }: { unit:
         <TileHead>{title}</TileHead>
         <TileValue>{qty(q, unit)}</TileValue>
         <div className="text-sm tabular-nums text-neutral-700">
-          <Money incl={q2(incl)} excl={q2(excl)} />
+          {/* «С 4 %» — сумма с надбавкой, «Без 4 %» — без неё; второй суммы нет. */}
+          {extra && c4 === "on" ? <Money incl={q2(incl.add(extra.incl))} excl={q2(excl.add(extra.excl))} /> : <Money incl={q2(incl)} excl={q2(excl)} />}
         </div>
-        {extra && c4 === "on" && (
-          <div className="text-xs text-neutral-500">
-            с 4 %: <Money incl={q2(incl.add(extra.incl))} excl={q2(excl.add(extra.excl))} />
-          </div>
-        )}
         {avg && avg.incl != null && (
           <div className="text-xs text-neutral-500" title={`Средневзвешенная цена ${avg.what} = Σ ₽ ÷ Σ ${unit}`}>
             ср. цена: <Money incl={q2(new Decimal(avg.incl))} excl={avg.excl != null ? q2(new Decimal(avg.excl)) : null} />/{unit}
@@ -477,21 +402,7 @@ function Tile({ title, hint, q, incl, excl, extra, sub, unit, c4, avg }: { unit:
   );
 }
 
-function Check({ ok, warn, text, children }: { ok: boolean; warn?: boolean; text: string; children?: React.ReactNode }) {
-  return (
-    <div className="flex gap-2">
-      <span className={"mt-0.5 shrink-0 text-xs font-bold " + (ok ? "text-emerald-700" : warn ? "text-amber-700" : "text-red-600")} aria-label={ok ? "в порядке" : "замечание"}>
-        {ok ? "✓" : warn ? "!" : "✗"}
-      </span>
-      <div>
-        <span className={ok ? "text-neutral-700" : "text-neutral-900"}>{text}</span>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function Cells({ a, unit, c4 }: { a: Agg; unit: string; c4: "on" | "off" }) {
+function Cells({ a, unit }: { a: Agg; unit: string }) {
   const p = avgPrice(a);
   const lab = "block text-xs font-normal text-neutral-500 lg:hidden";
   return (
@@ -515,7 +426,7 @@ function Cells({ a, unit, c4 }: { a: Agg; unit: string; c4: "on" | "off" }) {
   );
 }
 
-function GroupRow({ g, by, f, unit, c4 }: { g: Group; by: GroupBy; f: RawFilters; unit: string; c4: "on" | "off" }) {
+function GroupRow({ g, by, f, unit }: { g: Group; by: GroupBy; f: RawFilters; unit: string }) {
   return (
     <LazyDetails
       className="group border-b border-neutral-100"
@@ -530,7 +441,7 @@ function GroupRow({ g, by, f, unit, c4 }: { g: Group; by: GroupBy; f: RawFilters
             {g.label}
             {g.label === SYNTHETIC_LABEL.ordered || g.label === SYNTHETIC_LABEL.hides ? null : <span className="ml-1 text-xs font-normal text-neutral-500">· {g.agg.lots} лот.</span>}
           </span>
-          <Cells a={g.agg} unit={unit} c4={c4} />
+          <Cells a={g.agg} unit={unit} />
         </summary>
       }
     />
