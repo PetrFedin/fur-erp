@@ -40,6 +40,11 @@ export const ACCESS = {
   taskDecisions: ["OWNER", "ADMIN"],
   // «Контроль → Данные» (/data-check): проверки единой витрины, пересборка и утверждение эталона (решение владельца 22.11.2026).
   dataCheck: ["OWNER", "ADMIN"],
+  // Деньги компании (решение владельца 22.11.2026): Главная (активы, расходы, продажи), Cashflow, Сверка. Закупщик и технолог видят свои разделы
+  // (закупки и оплаты по закупкам; ТЗ и себестоимость), кладовщик и наблюдатель — без денег.
+  dashboard: ["OWNER", "ADMIN", "ACCOUNTANT"],
+  cashflow: ["OWNER", "ADMIN", "ACCOUNTANT"],
+  reconciliation: ["OWNER", "ADMIN", "ACCOUNTANT"],
 } as const satisfies Record<string, readonly UserRole[]>;
 
 export function hasRole(role: string | undefined | null, allowed: readonly string[]): boolean {

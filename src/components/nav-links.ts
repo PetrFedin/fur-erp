@@ -1,5 +1,7 @@
 // Основное меню (12 пунктов: «Cashflow» сразу под «Главной» — решение владельца 20.10.2026, отдельным пунктом; «Настройки» после «Отгрузок» и «Чата», «Контроль» внизу). `also` — вложенные и переехавшие разделы: на них
 // подсвечивается тот же пункт, чтобы человек не терял, "где он".
+import { ACCESS } from "@/lib/access";
+
 export const NAV_LINKS = [
   { href: "/dashboard", label: "Главная", also: ["/scheme"] },
   // «Cashflow» — траты и полученные деньги по месяцам, единицы товара, средние. Закрыт для внешнего поставщика (его меню — SUPPLIER_NAV).
@@ -43,8 +45,10 @@ const SUPPLIER_NAV: readonly NavItem[] = [
 export function navLinksFor(role: string | null | undefined, opts: { suppliesRaw?: boolean } = {}): readonly NavItem[] {
   // Подрядчик, не поставляющий сырьё, не видит пустых «Аукционов» и «Сырья».
   if (role === "SUPPLIER") return opts.suppliesRaw === false ? SUPPLIER_NAV.filter((l) => l.href !== "/supplier/auction-calcs" && l.href !== "/supplier/raw") : SUPPLIER_NAV;
-  // «Чат» — только ролям с доступом (кладовщику и наблюдателю не показываем).
-  return CHAT_ROLES.includes(role ?? "") ? NAV_LINKS : NAV_LINKS.filter((l) => l.href !== "/chat");
+  // «Чат» — только ролям с доступом (кладовщику и наблюдателю не показываем); «Cashflow» — только ролям с доступом к деньгам компании.
+  const chat = CHAT_ROLES.includes(role ?? "");
+  const money = ACCESS.cashflow.some((r) => r === role);
+  return NAV_LINKS.filter((l) => (l.href !== "/chat" || chat) && (l.href !== "/cashflow" || money));
 }
 
 const CHAT_ROLES: readonly string[] = ["OWNER", "ADMIN", "TECHNOLOGIST", "PURCHASER", "ACCOUNTANT"];

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { IntegrityBanner } from "@/components/integrity-banner";
 import { requireSession } from "@/lib/session";
+import { ACCESS, hasRole } from "@/lib/access";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { InfoHint } from "@/components/info-hint";
 import { getYearFilter, yearLabel } from "@/lib/year-filter";
@@ -52,6 +53,30 @@ const PRINT_CSS = `
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   const session = await requireSession();
+  // Главная — деньги компании (активы, расходы, продажи): владелец, администратор, бухгалтер (решение 22.11.2026).
+  // Остальным — короткое пояснение и ссылки на их разделы (редирект был бы петлёй: «нет прав» ведёт на эту же страницу).
+  if (!hasRole(session.user.role, ACCESS.dashboard)) {
+    const links = [
+      { href: "/lots", label: "Сырьё" },
+      { href: "/production", label: "Производство" },
+      { href: "/articles", label: "Изделия" },
+      { href: "/shipments", label: "Отгрузки и календарь" },
+      ...(hasRole(session.user.role, ACCESS.supplierPayments) ? [{ href: "/payments", label: "Оплаты" }] : []),
+    ];
+    return (
+      <div className="flex flex-col gap-3">
+        <h1 className="text-xl font-semibold">Главная</h1>
+        <p className="rounded-md bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
+          Сводка по деньгам компании доступна владельцу, администратору и бухгалтеру. Откройте свой раздел:
+        </p>
+        <nav aria-label="Ваши разделы" className="flex flex-wrap gap-2">
+          {links.map((l) => (
+            <Link key={l.href} href={l.href} className="inline-flex min-h-11 items-center rounded-md border border-neutral-300 bg-white px-4 text-sm hover:bg-neutral-50">{l.label}</Link>
+          ))}
+        </nav>
+      </div>
+    );
+  }
   const c4Mode = await getCommission4Mode();
   const sp = await searchParams;
   const forbidden = sp.error === "forbidden";

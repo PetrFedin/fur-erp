@@ -1,4 +1,5 @@
-import { requireSession } from "@/lib/session";
+import { requireRole } from "@/lib/session";
+import { ACCESS } from "@/lib/access";
 import { loadPaymentsOverview, loadPaymentsLeft } from "@/lib/payments-overview";
 import { payLites } from "@/lib/cashflow-detail";
 import { loadReportSizes } from "@/lib/margin-server";
@@ -13,8 +14,8 @@ import { DataAsOf } from "@/components/data-as-of";
 export const metadata = { title: "Cashflow" };
 
 export default async function CashflowPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  // requireSession без allowSupplier: внешнего поставщика (SUPPLIER) сюда не пускаем — ни траты, ни розницу, ни продажи он не видит.
-  const session = await requireSession();
+  // Деньги компании: владелец, администратор, бухгалтер (решение 22.11.2026); внешнего поставщика (SUPPLIER) requireRole сюда не пускает.
+  const session = await requireRole(...ACCESS.cashflow);
   const sp = await searchParams;
   const org = session.user.organizationId;
   const [rows, purchaseVat, lines] = await Promise.all([loadPaymentsOverview(org), loadPurchaseVat(org), loadSalesLines(org)]);

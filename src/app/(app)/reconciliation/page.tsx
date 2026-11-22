@@ -2,7 +2,8 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { ControlTabs } from "@/components/control-tabs";
-import { requireSession } from "@/lib/session";
+import { requireRole } from "@/lib/session";
+import { ACCESS } from "@/lib/access";
 import { Card } from "@/components/ui/card";
 import { TILE_BOX } from "@/app/(app)/dashboard/tile";
 import { InfoHint } from "@/components/info-hint";
@@ -219,7 +220,7 @@ async function BridgeSection({ organizationId, live, reg }: { organizationId: st
 }
 
 export default async function ReconciliationPage() {
-  const session = await requireSession(); // чтение — всем ролям
+  const session = await requireRole(...ACCESS.reconciliation); // платежи и банковские данные: владелец, администратор, бухгалтер (решение 22.11.2026)
   const year = await getYearFilter();
   const orgId = session.user.organizationId;
   const reg = await loadRegistry(orgId);
