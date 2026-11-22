@@ -23,6 +23,7 @@ import { orderLabel } from "@/lib/order-label";
 import { loadTzPositions } from "@/lib/order-label-db";
 import { RawCards } from "../../../dashboard/raw-block";
 import { FurScope, SupplierOnly } from "@/components/fur-scope";
+import { LevelSummaryFromFigures } from "@/components/level-tiles";
 import { FilteredPayTiles } from "../../../dashboard/filtered-pay-tiles";
 import { PriceCompositionBlock } from "../../../dashboard/price-composition-block";
 import { priceComposition } from "@/lib/price-composition-server";
@@ -121,7 +122,8 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
   const headerEnd = <Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё — мех</Link>;
   const tiles = (
     <div key="raw-tiles" data-raw-tiles>
-      <RawCards view="fur" rows={rawRowsFromLots(own)} fur={pair} lining={dash.raw.lining} c4={c4} headerEnd={headerEnd} pay={<FilteredPayTiles figs={pair.incl} paid={paid} due={due} c4={c4} />} />
+      {/* Единая полоса итогов уровня (как на аукционе, счёте, лоте): куплено → использовано → остаток → оплачено → долг. */}
+      <LevelSummaryFromFigures incl={pair.incl} excl={pair.excl} paid={paid} due={due} c4={c4} label={`Итоги: ${name}`} />
     </div>
   );
 

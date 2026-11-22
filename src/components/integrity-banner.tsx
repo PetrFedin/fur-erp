@@ -36,10 +36,14 @@ async function Body({ kind, id }: { kind?: string; id?: string }) {
           </ul>
         </div>
       )}
+      {/* Известные расхождения — одной свёрнутой строкой: длинное объяснение раскрывается по клику и не давит на заголовок. */}
       {k.map((x, i) => (
-        <div key={i} className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs text-neutral-600">
-          <span className="font-medium">Известно:</span> {x.v.reason}
-        </div>
+        <details key={i} className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs text-neutral-600">
+          <summary className="cursor-pointer truncate">
+            <span className="font-medium">Известно:</span> {x.v.reason.length > 90 ? `${x.v.reason.slice(0, 90)}…` : x.v.reason}
+          </summary>
+          <p className="mt-1 whitespace-pre-line">{x.v.reason}</p>
+        </details>
       ))}
     </div>
   );

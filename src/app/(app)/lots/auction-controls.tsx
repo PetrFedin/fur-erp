@@ -21,24 +21,24 @@ const field = "ui-field h-8 rounded-md border border-neutral-300 bg-white px-2 t
 
 /** «Свернуть / развернуть все закупки» — переключает все <details data-auction-purchase> на странице. */
 export function ToggleAllPurchases() {
+  const [allOpen, setAllOpen] = useState(false);
+  const label = allOpen ? "Свернуть все закупки" : "Развернуть все закупки";
   return (
-    <span className="flex gap-3 text-sm">
-      {[
-        ["Развернуть все закупки", true],
-        ["Свернуть все закупки", false],
-      ].map(([label, open]) => (
-        <button
-          key={String(label)}
-          type="button"
-          className="text-blue-600 hover:underline"
-          onClick={() =>
-            document.querySelectorAll<HTMLDetailsElement>("details[data-auction-purchase]").forEach((d) => (d.open = Boolean(open)))
-          }
-        >
-          {label as string}
-        </button>
-      ))}
-    </span>
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={() => {
+        const next = !allOpen;
+        document.querySelectorAll<HTMLDetailsElement>("details[data-auction-purchase]").forEach((d) => (d.open = next));
+        setAllOpen(next);
+      }}
+      className="inline-flex size-9 items-center justify-center rounded-lg border border-neutral-300 bg-white text-neutral-700 hover:border-neutral-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-900"
+    >
+      <svg aria-hidden viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        {allOpen ? <path d="M4 5.5 8 2l4 3.5M4 10.5 8 14l4-3.5" /> : <path d="M4 3.5 8 7l4-3.5M4 12.5 8 9l4 3.5" />}
+      </svg>
+    </button>
   );
 }
 

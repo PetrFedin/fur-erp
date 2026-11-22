@@ -37,6 +37,11 @@ import { InfoHint } from "@/components/info-hint";
 import { AuctionDocsPay } from "./auction-docs-pay";
 import { AuctionVerify } from "../verify/verify-block";
 import { classifyPurchaseSource } from "@/lib/purchase-source";
+import { LevelSummary, type LevelTile } from "@/components/level-summary";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { COMMISSION_RATE } from "@/lib/commission4-const";
+import { usageExclVat } from "@/lib/commission4";
+import { lotUsdListed } from "@/lib/lot-hammer";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
@@ -278,6 +283,62 @@ export async function AuctionView({
   const priceExcl = counted.reduce((s, b) => s.add(b.pPriceExcl), zero());
   const fullIncl = counted.reduce((s, b) => s.add(b.pFullIncl), zero());
   const fullExcl = counted.reduce((s, b) => s.add(b.pFullExcl), zero());
+  // Единая полоса итогов уровня: куплено → использовано → остаток → оплачено → долг (режимы НДС и 4 % — как в шапке).
+  const c4 = await getCommission4Mode();
+  const k4 = new Decimal(COMMISSION_RATE);
+  let usedQty = zero(), usedIncl = zero(), usedExcl = zero(), extraIncl = zero(), extraExcl = zero(), remQty = zero(), remIncl = zero(), remExcl = zero();
+  let usdSum = 0, usdQty = 0;
+  const seenLots = new Set<string>();
+  for (const b of counted) {
+    for (const l of b.lines) {
+      const q = Number(l.i.quantity.toString());
+      const usd = lotUsdListed(l.breakdown, []);
+      if (usd != null && q > 0) { usdSum += usd * q; usdQty += q; }
+      const lot = l.i.lot;
+      if (!lot || seenLots.has(lot.id)) continue;
+      seenLots.add(lot.id);
+      for (const u of lot.usages) {
+        usedQty = usedQty.add(u.quantity); usedIncl = usedIncl.add(u.totalCost);
+        const ex = usageExclVat(u, l.unitExcl);
+        usedExcl = usedExcl.add(ex);
+        if (u.commission4) { extraIncl = extraIncl.add(u.totalCost.mul(k4)); extraExcl = extraExcl.add(ex.mul(k4)); }
+      }
+      remQty = remQty.add(lot.quantityRemaining);
+      remIncl = remIncl.add(lot.quantityRemaining.mul(lot.unitCost));
+      remExcl = remExcl.add(lot.quantityRemaining.mul(l.unitExcl));
+    }
+  }
+  const perMoney = (vi: Decimal, ve: Decimal, q: Decimal) => (q.greaterThan(0) ? <Money incl={vi.div(q)} excl={ve.div(q)} /> : "–");
+  const pct = (part: Decimal, whole: Decimal) => (whole.greaterThan(0) ? ` · ${Math.round((Number(part) / Number(whole)) * 100)} %` : "");
+  const on4 = c4 === "on";
+  const usedShownIncl = on4 ? usedIncl.add(extraIncl) : usedIncl;
+  const usedShownExcl = on4 ? usedExcl.add(extraExcl) : usedExcl;
+  const payLink = paySummaries.length === 1 ? `/payments?auction=${encodeURIComponent(paySummaries[0].name)}#auction-block` : "/payments";
+  const sumTiles: LevelTile[] = [
+    { key: "bought", title: "Куплено", main: <Money incl={fullIncl} excl={fullExcl} />, lines: [
+      { k: "Шкур", v: `${formatDec1(totalQty.toString())} · закупок ${counted.length} · лотов ${totalLots}` },
+      { k: "₽/шт.", v: perMoney(fullIncl, fullExcl, totalQty) },
+      ...(usdQty > 0 ? [{ k: "$/шт.", v: `$${Math.round(usdSum / usdQty).toLocaleString("ru-RU")}` }] : []),
+    ] },
+    { key: "used", title: "Использовано", main: <Money incl={usedShownIncl} excl={usedShownExcl} />, lines: [
+      { k: "Шкур", v: `${formatDec1(usedQty.toString())}${pct(usedQty, totalQty)}` },
+      { k: "₽/шт.", v: perMoney(usedShownIncl, usedShownExcl, usedQty) },
+      ...(on4 && extraIncl.greaterThan(0) ? [{ k: "в т.ч. 4 %", v: <Money incl={extraIncl} excl={extraExcl} /> }] : []),
+    ] },
+    { key: "rem", title: "Остаток", main: <Money incl={remIncl} excl={remExcl} />, lines: [
+      { k: "Шкур", v: `${formatDec1(remQty.toString())}${pct(remQty, totalQty)}` },
+      { k: "₽/шт.", v: perMoney(remIncl, remExcl, remQty) },
+    ] },
+    ...(paySummaries.length > 0 ? [
+      { key: "paid", title: "Оплачено", main: <span>{formatMoney(payPaid.toString())}</span>, lines: [
+        { k: "по счетам", v: formatMoney(payTotal.toString()) },
+        { k: "", v: <Link href={payLink} className="text-blue-600 hover:underline">Оплаты →</Link> },
+      ] } satisfies LevelTile,
+      { key: "debt", title: payRemaining.lessThan(-OVERPAY_FROM) ? "Переплата" : "Долг", tone: payRemaining.greaterThan(0.005) && !payDust ? ("warn" as const) : undefined,
+        main: payDust ? <span title={`округление (${formatMoney(payRemaining.abs().toFixed(2))})`}>0 ₽</span> : <span>{formatMoney(payRemaining.lessThan(-OVERPAY_FROM) ? payRemaining.abs().toFixed(2) : payRemaining.toFixed(2))}</span>,
+        lines: hasUnlinkedAdvances ? [{ k: "", v: <Link href="/payments" className="text-blue-600 hover:underline">Авансы без привязки →</Link> }] : [] } satisfies LevelTile,
+    ] : []),
+  ];
   // Свои столбцы организации и плоские данные лотов для клиентских таблиц (фильтры, выбор, «Итого»).
   const customFields = await prisma.customField.findMany({
     where: { organizationId, entity: CUSTOM_FIELD_ENTITY },
@@ -357,62 +418,7 @@ export async function AuctionView({
           {names.length > 1 && (
             <p className="text-xs text-neutral-500">Под запрос подходят аукционы: {names.map((n) => shortAuctionName(n, 60)).join(", ")}.</p>
           )}
-          <dl className="grid grid-cols-2 gap-3 text-sm lg:grid-cols-4">
-            <div>
-              <dt className="text-xs text-neutral-500">Шкур</dt>
-              <dd className="text-lg font-semibold">{formatDec1(totalQty.toString())}</dd>
-              <dd className="text-xs text-neutral-500">закупок {counted.length} · лотов {totalLots}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-neutral-500">
-                По счетам
-              </dt>
-              <dd className="text-lg font-semibold">
-                <Money incl={priceIncl} excl={priceExcl} />
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-neutral-500">
-                С расходами
-              </dt>
-              <dd className="text-lg font-semibold">
-                <Money incl={fullIncl} excl={fullExcl} />
-              </dd>
-              <dd className="text-xs text-neutral-500">
-                расходы{" "}
-                {fullIncl.sub(priceIncl).abs().lessThan(1) && fullExcl.sub(priceExcl).abs().lessThan(1) ? (
-                  "–"
-                ) : (
-                  <Money incl={fullIncl.sub(priceIncl)} excl={fullExcl.sub(priceExcl)} />
-                )}
-              </dd>
-            </div>
-            {paySummaries.length > 0 && (
-              <div>
-                <dt className="text-xs text-neutral-500">{payRemaining.lessThan(-OVERPAY_FROM) ? "Переплата" : "Долг"}</dt>
-                <dd className={"text-lg font-semibold " + (payRemaining.greaterThan(0.005) && !payDust ? "text-amber-700" : "")}>
-                  {payDust ? <span title={`округление (${formatMoney(payRemaining.abs().toFixed(2))})`} className="cursor-help">оплачено</span> : formatMoney(payRemaining.lessThan(-OVERPAY_FROM) ? payRemaining.neg().toString() : payRemaining.toString())}
-                </dd>
-                <dd className="text-xs text-neutral-500">
-                  {payPaid.greaterThan(0.005) ? (payDust ? formatMoney(payPaid.toString()) : `оплачено ${formatMoney(payPaid.toString())}`) : "оплат нет"} ·{" "}
-                  <Link
-                    href={paySummaries.length === 1 ? `/payments?auction=${encodeURIComponent(paySummaries[0].name)}#auction-block` : "/payments"}
-                    className="inline-block text-blue-600 hover:underline max-md:py-2"
-                  >
-                    Оплаты →
-                  </Link>
-                </dd>
-                {hasUnlinkedAdvances && (
-                  <dd className="text-xs text-neutral-500">
-                    Авансы без привязки: в{" "}
-                    <Link href="/payments" className="text-blue-600 hover:underline">
-                      «Оплатах»
-                    </Link>
-                  </dd>
-                )}
-              </div>
-            )}
-          </dl>
+          <LevelSummary tiles={sumTiles} label="Итоги аукциона" />
           {filtering && (
             <p className="text-xs text-amber-700">Поиск включён: итоги — по найденным лотам, без расходов закупок.</p>
           )}
@@ -468,6 +474,8 @@ export async function AuctionView({
         const groups = GROUPS.filter((g) => [...sums.values()].some((x) => x.group === g.key)).map((g) => ({ ...g, rows: [...sums.values()].filter((x) => x.group === g.key && Math.abs(x.sum) >= 0.5) })).filter((g) => g.rows.length > 0);
         if (groups.length === 0) return null;
         const grand = Number(fullIncl.toString());
+        // Статьи расчёта есть не у всех лотов: если они покрывают меньше половины суммы, строка «Прочее 97 %» ничего не объясняет — таблицу не показываем (состав по цене и НДС — ниже).
+        if (covered < grand * 0.5) return null;
         const rest = grand - covered;
         const per = (v: number) => (Number(totalQty.toString()) > 0 ? formatMoney(Math.round(v / Number(totalQty.toString())).toString()) : "–");
         const share = (v: number) => (grand > 0 ? `${((v / grand) * 100).toFixed(1).replace(".", ",")}%` : "–");
