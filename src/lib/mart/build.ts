@@ -4,6 +4,7 @@ import { loadReportSizes } from "@/lib/margin-server";
 import { buildPlanTables } from "@/lib/mart/plans";
 import { buildChainTables, type ChainCounts } from "@/lib/mart/chain";
 import { loadDashboard } from "@/lib/dashboard-data";
+import { buildSnapshots } from "@/lib/mart/snapshots";
 import { parseDashFilters } from "@/lib/dashboard-calc";
 import { loadRetailPricesState, loadReportSizesState } from "@/lib/import-keys";
 import { normCode, colorOfLine } from "@/lib/sales-receipts-core";
@@ -310,5 +311,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     { key: "movementOrphans", label: "Движения файла без изделия в отчёте", expected: 0, actual: orphanMov?.n ?? 0, status: (orphanMov?.n ?? 0) === 0 ? "ok" : "warn", note: null },
   );
   await db.dmCheck.createMany({ data: checks.map((c) => ({ organizationId: orgId, key: c.key, label: c.label, expected: c.expected, actual: c.actual, status: c.status, note: c.note, builtAt: now })) });
+  // Готовые расчёты экранов («Главная», «Сырьё») — снимки по годам и режиму 4 %; ошибка здесь не ломает сборку: экраны посчитают вживую.
+  try { await buildSnapshots(orgId); } catch (e) { console.error("[mart] снимки экранов не собраны:", e); }
   return { skus: skuCount, parties: partyCount, movements: lines.length, checks };
 }

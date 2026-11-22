@@ -23,7 +23,7 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, filterHref, parseFilters, pick } from "@/lib/filters";
 import { auctionLabeler, getFilterOptions } from "@/lib/filter-options";
 import { loadFurLots } from "@/lib/fur-table-server";
-import { loadDashboard } from "@/lib/dashboard-data";
+import { dashboardCached, furLotsCached, furKindsCached } from "@/lib/mart/snapshots";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { RawCards } from "../dashboard/raw-block";
 import { PayTiles } from "../dashboard/pay-tiles";
@@ -211,16 +211,13 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   // Таблицы «Мех» и «Подкладка»: строки-лоты, расчёт — src/lib/fur-table.ts (тот же, что на Сводке и в аналитике сырья).
   // Плитки и таблица «Мех» сходятся с Главной: считаются той же функцией (с общим годом и без фильтров панели); к лотам добавлены
   // заказанное, но не полученное (FH 06.26, СП 09.26) и шкуры подрядчика. Три независимых загрузки идут вместе.
-  const c4AndDash = getCommission4Mode().then(async (c4) => ({ c4, dash: await loadDashboard(orgId, year, parseDashFilters({}), c4) }));
+  // Готовые расчёты из витрины (снимки по году и режиму 4 %); устарели или есть фильтр материала — считаем вживую, как раньше.
+  const c4AndDash = getCommission4Mode().then(async (c4) => ({ c4, dash: await dashboardCached(orgId, year, c4) }));
+  const lotKind = tab === "lining" ? "lining" : "fur";
   const [tableLots, { c4: c4Mode, dash }, furKinds] = await Promise.all([
-    loadFurLots(prisma, orgId, {
-      kind: tab === "lining" ? "lining" : "fur",
-      year,
-      furIdx,
-      extraWhere: tab === "lining" ? undefined : searchWhere,
-    }),
+    (f.material.length ? Promise.resolve(null) : furLotsCached(orgId, lotKind, year)).then((snap) => snap ?? loadFurLots(prisma, orgId, { kind: lotKind, year, furIdx, extraWhere: tab === "lining" ? undefined : searchWhere })),
     c4AndDash,
-    loadFurKinds(orgId),
+    furKindsCached<Awaited<ReturnType<typeof loadFurKinds>>>(orgId).then((snap) => snap ?? loadFurKinds(orgId)),
   ]);
   // Деньги по лотам (доля аукциона по стоимости лота) — для фильтра «Оплата» и плиток оплат при фильтрах таблицы.
   const withMoney = (l: (typeof tableLots)[number]) => ({ ...l, paid: dash.lotMoney[l.id]?.paid ?? 0, due: dash.lotMoney[l.id]?.due ?? 0 });

@@ -2732,3 +2732,15 @@ model DmOrderExpense {
 
   @@index([organizationId, orderId])
 }
+
+/// Готовые расчёты экранов («снимки»): Главная/«Сырьё» по годам и режиму 4 % (НДС в них уже лежит в обоих вариантах). Пересобираются вместе с витриной.
+model DmSnapshot {
+  id             String   @id @default(cuid())
+  organizationId String
+  key            String
+  payload        Json
+  builtAt        DateTime
+  buildMs        Int      @default(0)
+
+  @@unique([organizationId, key])
+}

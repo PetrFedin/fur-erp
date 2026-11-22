@@ -7,6 +7,7 @@ import { InfoHint } from "@/components/info-hint";
 import { getYearFilter, yearLabel } from "@/lib/year-filter";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { loadDashboard } from "@/lib/dashboard-data";
+import { dashboardCached } from "@/lib/mart/snapshots";
 import { CATEGORY_GROUPS, noGroupLabelFor } from "@/lib/category-groups";
 import { KIND_LABELS, lotFiltersOn, orderFiltersOn, parseDashFilters, type DashFilters } from "@/lib/dashboard-calc";
 import { RawBlock } from "./raw-block";
@@ -90,7 +91,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   // Сезоны по отчёту «заказ и продажи» (владелец 02.11.2026): «В выпуске» = заказано (FW25 и SS26 закрыты: заказ = поступило), «Произведено» = поступило.
   const notSupplier = session.user.role !== "SUPPLIER";
   const [d, salesBlock, reportSeasons, asOf] = await Promise.all([
-    loadDashboard(organizationId, year, f, c4Mode),
+    // Без фильтров панели — готовый снимок из витрины (по году и режиму 4 %); с фильтрами или если снимок устарел — расчёт вживую.
+    JSON.stringify(f) === JSON.stringify(parseDashFilters({})) ? dashboardCached(organizationId, year, c4Mode) : loadDashboard(organizationId, year, f, c4Mode),
     notSupplier ? loadSalesBlock(organizationId, c4Mode, year, f.fur) : null,
     notSupplier ? loadReportSeasonTotals(organizationId) : null,
     notSupplier ? loadDataAsOf(organizationId) : null,

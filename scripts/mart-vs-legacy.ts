@@ -42,6 +42,39 @@ import "./stubs/server-only-shim";
     await cmp("2026", "2026");
   }
 
+  // Снимки экранов: то, что читают «Главная» и «Сырьё», равно живому расчёту (по годам и режиму 4 %).
+  {
+    const { readSnapshot } = await import("../src/lib/mart/snapshots");
+    const { loadDashboard } = await import("../src/lib/dashboard-data");
+    const { parseDashFilters } = await import("../src/lib/dashboard-calc");
+    const { loadFurLots } = await import("../src/lib/fur-table-server");
+    const { getFurIndex } = await import("../src/lib/fur-ref-server");
+    // JSONB хранит числа с 15 значащими цифрами и ключи в своём порядке: сравниваем без учёта порядка и с допуском 1e-9 на хвост дробей.
+    const same = (a: unknown, b: unknown): boolean => {
+      if (typeof a === "number" && typeof b === "number") return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+      if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => same(x, b[i]));
+      if (a && b && typeof a === "object" && typeof b === "object") {
+        const ka = Object.keys(a), kb = Object.keys(b);
+        return ka.length === kb.length && ka.every((k) => k in (b as object) && same((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+      }
+      return a === b;
+    };
+    const norm = (x: unknown) => JSON.parse(JSON.stringify(x));
+    const idx = await getFurIndex(org);
+    for (const y of ["all", "2025", "2026"] as const) {
+      for (const c4 of ["on", "off"] as const) {
+        const snap = await readSnapshot(org, `dash:${y}:${c4}`);
+        const live = await loadDashboard(org, y, parseDashFilters({}), c4);
+        check(`Снимок Главной ${y} · 4 % ${c4}`, snap !== null && same(norm(snap), norm(live)), snap === null ? "снимка нет или он устарел" : "");
+      }
+      for (const kind of ["fur", "lining"] as const) {
+        const snap = await readSnapshot(org, `furlots:${kind}:${y}`);
+        const live = await loadFurLots(prisma, org, { kind, year: y, furIdx: idx } as never);
+        check(`Снимок лотов ${kind} ${y}`, snap !== null && same(norm(snap), norm(live)), snap === null ? "снимка нет или он устарел" : "");
+      }
+    }
+  }
+
   console.log(bad ? `\nРасхождений: ${bad}` : "\nПереведённые блоки совпадают с прежним расчётом");
   await prisma.$disconnect();
   process.exit(bad ? 2 : 0);
