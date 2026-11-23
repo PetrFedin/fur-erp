@@ -12,8 +12,8 @@ const RULES: [prefix: string, modes: PageModes][] = [
   // Без режимов: данные не зависят ни от года, ни от НДС, ни от 4 %
   ["/budget", NONE], ["/chat", NONE], ["/settings", NONE], ["/clients", NONE], ["/suppliers", NONE], ["/warehouses", NONE],
   ["/materials", NONE], ["/users", NONE], ["/expense-categories", NONE], ["/scheme", NONE], ["/comments", NONE], ["/supplier", NONE],
-  // Сырьё: закупка — без 4 % (закупка, не себестоимость); лоты — все три
-  ["/purchases", { year: true, vat: true, c4: false, src: true }],
+  // Сырьё: на «Все» 4 % действует на «Использовано» общего блока; лоты — все три
+  ["/purchases", { year: true, vat: true, c4: true, src: true }],
   ["/lots", { ...ALL, src: true }],
   // Продажи: отчёт привязан к сезонам, «Год» не нужен; НДС и 4 % действуют (маркап к себестоимости)
   ["/sales", { year: false, vat: true, c4: true }],

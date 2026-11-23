@@ -37,12 +37,15 @@ import { FurScope, ScopeEmpty, ScopeShow } from "@/components/fur-scope";
 import { FUR_SRC_KEYS, type FurSrc } from "@/lib/fur-src";
 import { aggregate, type PurchaseStatus, type TreeBatch, type TreePurchase, type TreeYear } from "./purchases-agg";
 import { furLotsOrLive, dashboardCached, purchaseViewCached } from "@/lib/mart/snapshots";
+import { loadLevelTotals } from "@/lib/mart/level-totals";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { usedByMode } from "@/lib/commission4-pick";
 
 function firstLine(v: string | null) {
   return (v ?? "").split(/\r?\n/)[0].trim();
 }
 
-export const metadata = { title: "Закупки" };
+export const metadata = { title: "Сырьё — все закупки" };
 
 const PURCHASE_FILTERS = defineFilters({
   ...pick(["auction", "fur", "color", "size", "attr", "rest", "usage", "pyear", "q", "from", "to", "view", "sort", "dir"], {
@@ -126,6 +129,15 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const sizeOptions = [...new Set(sizeRows.flatMap((r) => (r.sizeGrade ?? "").split(/[\s,]+/).map((x) => x.trim()).filter(Boolean)))]
     .sort((a, b) => a.localeCompare(b, "ru", { numeric: true }))
     .map((v) => ({ value: v, label: v }));
+  // «Использовано» и «Остаток» меха и подкладки вместе — из витрины (те же числа, что в полосах «Сырья»); режим «4 %» действует только на «Использовано».
+  const c4 = await getCommission4Mode();
+  const [topFur, topLin] = await Promise.all([loadLevelTotals(orgId, { top: true, unit: "PCS" }), loadLevelTotals(orgId, { top: true, unit: "M" })]);
+  const usedRem = topFur && topLin && !filtersOn && !sec ? (() => {
+    const uI = usedByMode(c4, topFur.incl.used + topLin.incl.used, topFur.incl.extra + topLin.incl.extra);
+    const uX = usedByMode(c4, topFur.excl.used + topLin.excl.used, topFur.excl.extra + topLin.excl.extra);
+    return { uI, uX, remI: topFur.incl.rem + topLin.incl.rem, remX: topFur.excl.rem + topLin.excl.rem,
+      usedQty: `${formatQtyTrim(topFur.qty.used)} шт. · ${formatQtyTrim(topLin.qty.used)} м`, remQty: `${formatQtyTrim(topFur.qty.rem)} шт. · ${formatQtyTrim(topLin.qty.rem)} м` };
+  })() : null;
   const viewById = new Map(view.rows.map((r) => [r.p.id, r] as const));
   const all: TreePurchase[] = idRows.map((r) => viewById.get(r.id)?.p).filter((p): p is TreePurchase => !!p);
   const auctionPays = new Map(view.auctionPays.map((a) => [a.name, a] as const));
@@ -292,10 +304,10 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Закупки" }]} />
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Все" }]} />
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center">
-          <h1 className="text-xl font-semibold">Закупки</h1>
+          <h1 className="text-xl font-semibold">Сырьё</h1>
           <YearNote year={year} />
           <span className="ml-2 inline-flex">
           <InfoHint label="О странице «Закупки»" wide>
@@ -344,7 +356,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             ) : variants[srcK].blocks.map((b) => (
               <div key={b.key} className="flex flex-col gap-1.5" data-testid={`purchases-totals-${b.key}`}>
                 {b.title ? <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{b.title}</div> : null}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 print:grid-cols-3">
+                <div className={"grid grid-cols-1 gap-3 sm:grid-cols-3 print:grid-cols-3" + (b.key === "total" && usedRem ? " xl:grid-cols-5" : "")}>
                   <div className={TILE_BOX}>
                     <TileHead><VatLabel base="Куплено" /></TileHead>
                     <div className="absolute right-3 top-3">
@@ -366,6 +378,21 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                     }]} />}
                     <VatLine v={b.vat} className="mt-1" />
                   </div>
+                  {b.key === "total" && usedRem ? (
+                    <>
+                      <div className={TILE_BOX}>
+                        <TileHead>Использовано</TileHead>
+                        <TileValue><Money incl={usedRem.uI.value.toFixed(2)} excl={usedRem.uX.value.toFixed(2)} /></TileValue>
+                        <TileCaption>{usedRem.usedQty}</TileCaption>
+                        {usedRem.uI.extra > 0 ? <TileList items={[{ k: "из них надбавка 4 %", v: <Money incl={usedRem.uI.extra.toFixed(2)} excl={usedRem.uX.extra.toFixed(2)} /> }]} /> : null}
+                      </div>
+                      <div className={TILE_BOX}>
+                        <TileHead>Остаток</TileHead>
+                        <TileValue><Money incl={usedRem.remI.toFixed(2)} excl={usedRem.remX.toFixed(2)} /></TileValue>
+                        <TileCaption>{usedRem.remQty}</TileCaption>
+                      </div>
+                    </>
+                  ) : null}
                   <div className={TILE_BOX}>
                     <TileHead>Оплачено</TileHead>
                     <TileValue><Money incl={b.paid.toFixed(2)} excl={b.paidEx.toFixed(2)} /></TileValue>
