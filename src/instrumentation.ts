@@ -1,5 +1,10 @@
 // Выполняется один раз при старте сервера. В боевом режиме не даём запуститься с пустым/простым секретом входа.
 export async function register() {
+  // Воркер очереди пересборки витрины — в любом режиме (разработка и боевой), кроме сборки и сред без Node.
+  if (process.env.NEXT_RUNTIME === "nodejs" && process.env.NEXT_PHASE !== "phase-production-build") {
+    const { startMartWorker } = await import("@/lib/mart/queue");
+    startMartWorker();
+  }
   if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NODE_ENV !== "production") return;
   if (process.env.NEXT_PHASE === "phase-production-build") return;
   const { productionEnvProblems } = await import("@/lib/security-env");

@@ -2766,3 +2766,23 @@ model DmAuction {
 
   @@unique([organizationId, name])
 }
+
+/// Очередь пересборки витрины (src/lib/mart/queue.ts): одна строка на организацию.
+/// status: pending (ждёт runAt) | running (идёт, до lockedUntil) | done | failed (после исчерпания попыток).
+model DmRefreshJob {
+  id             String    @id @default(cuid())
+  organizationId String
+  status         String    @default("pending")
+  runAt          DateTime
+  /// Во время сборки пришла новая запись — после окончания собрать ещё раз.
+  again          Boolean   @default(false)
+  attempts       Int       @default(0)
+  lastError      String?
+  lockedUntil    DateTime?
+  requestedAt    DateTime  @default(now())
+  lastStartedAt  DateTime?
+  lastFinishedAt DateTime?
+
+  @@unique([organizationId])
+  @@index([status, runAt])
+}
