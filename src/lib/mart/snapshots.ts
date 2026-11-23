@@ -70,6 +70,11 @@ async function snapshotYears(orgId: string): Promise<YearFilter[]> {
 }
 
 export async function buildSnapshots(orgId: string): Promise<{ keys: number; ms: number }> {
+  const { whileBuildingMart } = await import("@/lib/mart/cached");
+  return whileBuildingMart(() => buildSnapshotsImpl(orgId));
+}
+
+async function buildSnapshotsImpl(orgId: string): Promise<{ keys: number; ms: number }> {
   const t0 = Date.now();
   let keys = 0;
   const years = await snapshotYears(orgId);
@@ -83,6 +88,12 @@ export async function buildSnapshots(orgId: string): Promise<{ keys: number; ms:
       const started = Date.now();
       await save(orgId, `furlots:${kind}:${y}`, await loadFurLots(prisma, orgId, { kind, year: y, furIdx } as never), started); keys++;
     }
+  }
+  {
+    const { loadPaymentsOverviewLive, loadPaymentsLeftLive, paymentsLeftToStored } = await import("@/lib/payments-overview");
+    const sp = Date.now();
+    await save(orgId, "pay:overview", await loadPaymentsOverviewLive(orgId), sp); keys++;
+    await save(orgId, "pay:left", paymentsLeftToStored(await loadPaymentsLeftLive(orgId)), Date.now()); keys++;
   }
   const startedP = Date.now();
   const { computePurchaseView } = await import("@/lib/mart/purchase-view");

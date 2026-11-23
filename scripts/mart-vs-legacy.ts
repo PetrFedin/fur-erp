@@ -73,6 +73,13 @@ process.env.MART_SNAPSHOT_MAX_AGE_MS ??= String(24 * 3600 * 1000);
       }
     }
     {
+      const { loadPaymentsOverviewLive, loadPaymentsLeftLive, paymentsLeftToStored } = await import("../src/lib/payments-overview");
+      const so = await readSnapshot(org, "pay:overview");
+      check("Снимок оплат (pay:overview)", so !== null && same(norm(so), norm(await loadPaymentsOverviewLive(org))), so === null ? "снимка нет или он устарел" : "");
+      const sl = await readSnapshot(org, "pay:left");
+      check("Снимок «осталось оплатить» (pay:left)", sl !== null && same(norm(sl), norm(paymentsLeftToStored(await loadPaymentsLeftLive(org)))), sl === null ? "снимка нет или он устарел" : "");
+    }
+    {
       const { computePurchaseView } = await import("../src/lib/mart/purchase-view");
       const snap = await readSnapshot(org, "purchases:tree");
       const live = await computePurchaseView(org);

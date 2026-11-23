@@ -289,6 +289,21 @@ async function loadPaymentsLeftImpl(orgId: string): Promise<{ byYear: Map<number
   return { byYear, raw: debt.debt.toNumber(), prod: sumBy("prod"), advance: sumBy("adv"), overpaid: debt.overpaid.map((o) => ({ name: o.name, amount: o.amount.toNumber() })) };
 }
 
-export const loadPaymentsOverview = memoRequest("paymentsOverview", loadPaymentsOverviewImpl, (orgId) => orgId);
+// Оба расчёта собираются при сборке витрины (снимки pay:overview и pay:left); экраны читают их оттуда, устарела — считают вживую.
+export const loadPaymentsOverviewLive = loadPaymentsOverviewImpl;
+export const loadPaymentsLeftLive = loadPaymentsLeftImpl;
+type PaymentsLeft = Awaited<ReturnType<typeof loadPaymentsLeftImpl>>;
+/** Map в JSON не хранится: кладём годы списком пар и собираем Map обратно при чтении. */
+type PaymentsLeftStored = Omit<PaymentsLeft, "byYear"> & { byYear: [number, { raw: number; prod: number; adv: number }][] };
+export const paymentsLeftToStored = (v: PaymentsLeft): PaymentsLeftStored => ({ ...v, byYear: Array.from(v.byYear.entries()) });
 
-export const loadPaymentsLeft = memoRequest("paymentsLeft", loadPaymentsLeftImpl, (orgId) => orgId);
+export const loadPaymentsOverview = memoRequest("paymentsOverview", async (orgId: string) => {
+  const { martCached } = await import("@/lib/mart/cached");
+  return martCached(orgId, "pay:overview", () => loadPaymentsOverviewImpl(orgId));
+}, (orgId) => orgId);
+
+export const loadPaymentsLeft = memoRequest("paymentsLeft", async (orgId: string): Promise<PaymentsLeft> => {
+  const { martCached } = await import("@/lib/mart/cached");
+  const stored = await martCached<PaymentsLeftStored>(orgId, "pay:left", async () => paymentsLeftToStored(await loadPaymentsLeftImpl(orgId)));
+  return { ...stored, byYear: new Map(stored.byYear) };
+}, (orgId) => orgId);
