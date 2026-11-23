@@ -494,8 +494,8 @@ export function BatchWizard({
         <div className="flex flex-wrap items-center justify-between gap-2 pb-20 max-sm:flex-col-reverse max-sm:items-stretch sm:pb-16">
           <Button type="button" variant="outline" disabled={step === 1 || pending} onClick={() => setStep(step - 1)}>← Назад</Button>
           <div className="flex flex-col items-end gap-1 max-sm:items-stretch max-sm:[&>button]:w-full max-sm:[&>span]:text-left">
-            {step === 1 && headerProblems.length > 0 && <span className="text-xs text-neutral-500">{headerProblems[0]}</span>}
-            {step === 2 && !canNext2 && <span className="text-xs text-neutral-500">{liveRows.length === 0 ? "Добавьте хотя бы один лот" : `Исправьте ошибки в таблице: ${validation.errorCount}`}</span>}
+            {step === 1 && headerProblems.length > 0 && <span className="text-sm text-amber-800">{headerProblems[0]}</span>}
+            {step === 2 && !canNext2 && <span className="text-sm text-amber-800">{liveRows.length === 0 ? "Добавьте хотя бы один лот" : `Исправьте ошибки в таблице: ${validation.errorCount}`}</span>}
             {step === 1 && <Button type="button" disabled={headerProblems.length > 0} onClick={() => setStep(2)}>Далее: лоты →</Button>}
             {step === 2 && <Button type="button" disabled={!canNext2} onClick={() => setStep(3)}>Далее: проверка →</Button>}
             {step === 3 && (

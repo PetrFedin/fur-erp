@@ -196,9 +196,9 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     const roundFurS = sec === "lining" ? 0 : roundOf("fur", src), roundLinS = sec === "fur" ? 0 : roundOf("lining", src);
     const grand = mkBlock("all", null, rowsSelS, hidesS, roundFurS, roundLinS);
     const blocks0 = sec
-      ? [mkBlock(sec, sec === "fur" ? "Мех" : "Подкладка", rowsSelS, hidesS, roundFurS, roundLinS)]
+      ? [mkBlock(sec, sec === "fur" ? "Мех" : "Подкладка", rowsSelS, 0, roundFurS, roundLinS)]
       : [
-          mkBlock("fur", "Мех", rowsS.map((p) => partOf(p, "fur")).filter((p): p is TreePurchase => p != null), hidesAllS, roundFurS, 0),
+          mkBlock("fur", "Мех", rowsS.map((p) => partOf(p, "fur")).filter((p): p is TreePurchase => p != null), 0, roundFurS, 0),
           ...(src === "auction" ? [] : [mkBlock("lining", "Подкладка", rowsS.map((p) => partOf(p, "lining")).filter((p): p is TreePurchase => p != null), 0, 0, roundLinS)]),
         ];
     // Переплата по подкладке зачитывается в долг по меху (как на Главной и в Оплатах): «Долг по сырью» везде одно число.
@@ -206,10 +206,16 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     const ovLin = liningB0 && furB0 && liningB0.rest < -OVERPAY_FROM ? -liningB0.rest : 0;
     // Общий блок «Мех и подкладка»: куплено, оплачено и долг (или переплата) по всему сырью, без услуг по УПД. Σ блоков меха и подкладки.
     const totalB = !sec && furB0 && liningB0
-      ? mkBlock("total", "Мех и подкладка — всего", rowsS.filter((p) => !isServiceRow(p)), hidesAllS, roundFurS, roundLinS)
+      ? mkBlock("total", "Мех и подкладка — всего", rowsS.filter((p) => !isServiceRow(p)), 0, roundFurS, roundLinS)
       : null;
     const blocks1 = ovLin > 0 ? blocks0.map((x) => (x === furB0 ? { ...x, paid: x.paid + ovLin, rest: x.rest - ovLin } : x === liningB0 ? { ...x, paid: x.paid - ovLin, rest: 0 } : x)) : blocks0;
-    const blocks = totalB ? [totalB, ...blocks1] : blocks1;
+    // «Без НДС»: оплата и долг пересчитываются в той же доле, что «Куплено» блока; у общего блока — сумма меха и подкладки, чтобы цифры складывались.
+    const share = (x: { bought: number; boughtExcl: number }) => (x.bought > 0 ? x.boughtExcl / x.bought : 1);
+    const blocks1e = blocks1.map((x) => ({ ...x, paidEx: x.paid * share(x), restEx: x.rest * share(x) }));
+    const parts = blocks1e.filter((x) => x.kind === "fur" || x.kind === "lining");
+    const blocks = totalB
+      ? [{ ...totalB, paidEx: parts.reduce((a, x) => a + x.paidEx, 0), restEx: parts.reduce((a, x) => a + x.restEx, 0) }, ...blocks1e]
+      : blocks1e;
     const hidesRow: ExtraRow[] = hidesS > 0.5 ? [{
       key: "hides", label: "Шкуры подрядчика", sub: "оплачены в составе счетов за пошив", href: "/lots/contractor-hides", sum: hidesS, paid: hidesS,
       note: <>Шкуры подрядчика (партии 7 и 8): оплачены в составе счетов за пошив, закупки на них нет, в ТЗ не списаны. Это сырьё поставщика (Веллмех), поэтому в режиме «На аукционах» строки нет. Есть на Главной в «Сырьё — мех» (использовано). Страница ↗ — детализация.</>,
@@ -223,7 +229,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       furExtras: [...hidesRow, ...roundRow("round-fur", roundFurS)], liningExtras: roundRow("round-lin", roundLinS), treeExtras: [...hidesRow, ...roundRow("round", roundFurS + roundLinS)],
       liningOverpay: ovLin,
     }];
-  })) as Record<FurSrc, { rows: TreePurchase[]; rowsSel: TreePurchase[]; grand: ReturnType<typeof mkBlock>; blocks: ReturnType<typeof mkBlock>[]; hidesS: number; furExtras: ExtraRow[]; liningExtras: ExtraRow[]; treeExtras: ExtraRow[]; liningOverpay: number }>;
+  })) as Record<FurSrc, { rows: TreePurchase[]; rowsSel: TreePurchase[]; grand: ReturnType<typeof mkBlock>; blocks: (ReturnType<typeof mkBlock> & { paidEx: number; restEx: number })[]; hidesS: number; furExtras: ExtraRow[]; liningExtras: ExtraRow[]; treeExtras: ExtraRow[]; liningOverpay: number }>;
   const rowsSel = variants.all.rowsSel;
   const live = rowsSel.filter((p) => p.status !== "CANCELLED");
   const treeExtrasBy = Object.fromEntries(FUR_SRC_KEYS.map((k) => [k, variants[k].treeExtras])) as Record<FurSrc, ExtraRow[]>;
@@ -328,18 +334,6 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <div role="group" aria-label="Набор закупок" className="inline-flex overflow-hidden rounded-lg border border-neutral-300 text-xs">
-          {([["", "Все"], ["fur", "Мех"], ["lining", "Подкладка"]] as const).map(([v, label]) => (
-            <Link key={v} aria-current={sec === v ? "true" : undefined} href={filterHref(PURCHASE_FILTERS_ALL, "/purchases", f, { sec: v, limit: "" })}
-              className={"inline-flex min-h-10 items-center px-3 md:min-h-8 " + (sec === v ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</Link>
-          ))}
-        </div>
-        <InfoHint label="Как разделены мех и подкладка" wide>
-          <p>«Мех» — шкуры (шт.), «Подкладка» — метры. Итоги и таблицы считаются по выбранному набору. Закупка из меха и подкладки попадает в оба набора своей частью: сумма, оплата и долг — по доле стоимости позиций.</p>
-        </InfoHint>
-      </div>
-
       <WidgetRow id="purchases" title="Закупки — итоги">
         <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[repeat(6,minmax(0,1fr))_10rem]" data-testid="purchases-totals">
           <div className="flex flex-col gap-3 xl:col-span-6">
@@ -355,7 +349,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                     <TileHead><VatLabel base="Куплено" /></TileHead>
                     <div className="absolute right-3 top-3">
                       <InfoHint label="О «Куплено»" align="right">
-                        <p>Позиции плюс расходы закупок выборки, без отменённых. Без фильтров добавлены шкуры подрядчика{b.h > 0.5 ? ` (${formatMoney(b.h.toFixed(2))})` : ""}, оплаченные в составе пошива, — итог равен «Общей стоимости» сырья на Главной и в Оплатах.</p>
+                        <p>Позиции плюс расходы закупок выборки, без отменённых; то же число, что в верхней полосе «Сырья». Шкуры подрядчика (оплачены в составе пошива) в «Куплено» не входят: они показаны отдельной строкой ниже.</p>
                         <p className="mt-1">Цена ср. = куплено ÷ {b.kind === "lining" ? "метры" : "штуки"} закупок; шкуры подрядчика без количества в расчёт не входят.</p>
                         {b.t.ordered > 0 ? <p className="mt-1">Позиций заказано, но не получено: {b.t.ordered}.</p> : null}
                         <p className="mt-1">{LOTS_RULE}</p>
@@ -374,7 +368,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                   </div>
                   <div className={TILE_BOX}>
                     <TileHead>Оплачено</TileHead>
-                    <TileValue>{formatMoney(b.paid.toFixed(2))}</TileValue>
+                    <TileValue><Money incl={b.paid.toFixed(2)} excl={b.paidEx.toFixed(2)} /></TileValue>
                     <TileCaption>{b.bought > 0 ? `${formatPercent((b.paid / b.bought) * 100)} от куплено` : "–"}</TileCaption>
                   </div>
                   <div className={TILE_BOX}>
@@ -384,7 +378,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                         <p>Куплено − Оплачено.{b.kind === "fur" && variants[srcK].liningOverpay > 0.5 ? ` В оплачено по меху зачтена переплата по подкладке ${formatMoney(variants[srcK].liningOverpay.toFixed(2))}, поэтому число то же, что на Главной.` : ""}</p>
                       </InfoHint>
                     </div>
-                    <TileValue className={b.rest > PAY_EPS.toNumber() ? "text-amber-700" : ""}>{formatMoney(Math.abs(b.rest).toFixed(2))}</TileValue>
+                    <TileValue className={b.rest > PAY_EPS.toNumber() ? "text-amber-700" : ""}><Money incl={Math.abs(b.rest).toFixed(2)} excl={Math.abs(b.restEx).toFixed(2)} /></TileValue>
                     <TileCaption>{b.bought > 0 ? `${formatPercent((b.rest / b.bought) * 100)} от куплено` : "–"}</TileCaption>
                   </div>
                 </div>
@@ -412,7 +406,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         <span>Вид:</span>
         {([["tree", "По годам и партиям"], ["list", "Списком"]] as const).map(([id, label]) => (
           <Link key={id} role="tab" aria-selected={(tree ? "tree" : "list") === id} href={filterHref(PURCHASE_FILTERS_ALL, "/purchases", f, { view: id === "tree" ? "" : "list", limit: "" })}
-            className={"rounded-lg border px-3 py-1.5 text-xs " + ((tree ? "tree" : "list") === id ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</Link>
+            className={"inline-flex min-h-11 items-center rounded-lg border px-3 py-1.5 text-xs md:min-h-8 " + ((tree ? "tree" : "list") === id ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</Link>
         ))}
       </div>
 

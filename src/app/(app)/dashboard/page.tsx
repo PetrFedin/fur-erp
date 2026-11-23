@@ -14,6 +14,7 @@ import { RawBlock } from "./raw-block";
 import { PayTiles } from "./pay-tiles";
 import { ProductionBlock } from "./production-block";
 import { YearsTable, RawTable } from "./dynamics-tables";
+import { DynamicsSwitch } from "./dynamics-switch";
 import { PrintButton } from "./print-button";
 import { PriceCompositionBlock } from "./price-composition-block";
 import { priceComposition } from "@/lib/price-composition-server";
@@ -182,9 +183,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       <FurScope info={info}>
         <RawBlock href={rawHref} rows={d.rawTable} fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} vat={d.vat} furSrc={d.rawFurBySource} />
 
-        <YearsTable rows={d.years} bySrc={d.yearsFurBySrc} c4={c4Mode} info={info} />
-
-        <RawTable auctionSrc={d.auctionSrc} rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4Mode} info={info} orderFilters={orderFiltersOn(f)} vatRates={d.vat} />
+        <DynamicsSwitch
+          years={<YearsTable rows={d.years} bySrc={d.yearsFurBySrc} c4={c4Mode} info={info} />}
+          raw={<RawTable auctionSrc={d.auctionSrc} rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4Mode} info={info} orderFilters={orderFiltersOn(f)} vatRates={d.vat} />}
+        />
 
         {/* ───────── Из чего складывается стоимость меха (сразу под «Динамикой по сырью») ───────── */}
         <PriceCompositionBlock lots={pc.lots} href={rawHref} collapsed />

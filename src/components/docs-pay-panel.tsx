@@ -314,11 +314,35 @@ export function DocsPayPanel({ panel, compact = false, verify, canVerify, paymen
         )}
       </div>
 
-      <ul className="flex flex-col gap-2">
-        {panel.items.map((it) => (
-          <ItemRow key={it.key} it={it} canUpload={panel.canUpload} />
-        ))}
-      </ul>
+      {/* Чего не хватает — строками с кнопками; что уже есть — одной свёрнутой строкой (раскрыть и открыть файлы). */}
+      {(() => {
+        const done = panel.items.filter((it) => it.ok && it.mentions.length === 0 && it.need !== "na");
+        const rest = panel.items.filter((it) => !done.includes(it));
+        return (
+          <ul className="flex flex-col gap-2">
+            {rest.map((it) => (
+              <ItemRow key={it.key} it={it} canUpload={panel.canUpload} />
+            ))}
+            {done.length > 0 && (
+              <li className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm" data-testid="docs-done">
+                <details>
+                  <summary className="cursor-pointer list-none">
+                    <span className="mr-2 font-bold text-emerald-700" aria-hidden>✓</span>
+                    <span className="font-medium">Есть:</span>{" "}
+                    <span className="text-neutral-700">{done.map((it) => `${it.label}${it.docs.length > 1 ? ` (${it.docs.length})` : ""}`).join(" · ")}</span>
+                    <span className="ml-2 text-xs text-neutral-500">файлы ›</span>
+                  </summary>
+                  <ul className="mt-2 flex flex-col gap-2">
+                    {done.map((it) => (
+                      <ItemRow key={it.key} it={it} canUpload={panel.canUpload} />
+                    ))}
+                  </ul>
+                </details>
+              </li>
+            )}
+          </ul>
+        );
+      })()}
 
       <div className="flex flex-col gap-2">
         <h4 className="text-sm font-semibold text-neutral-800">

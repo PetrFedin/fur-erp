@@ -22,7 +22,7 @@ export function Breadcrumbs({ items: rawItems, className }: { items: Crumb[]; cl
               {last || !c.href ? (
                 <span aria-current={last ? "page" : undefined} className={last ? "font-semibold text-neutral-800" : undefined}>{c.label}</span>
               ) : (
-                <Link href={c.href} className="rounded-sm hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-900">{c.label}</Link>
+                <Link href={c.href} className="relative rounded-sm after:absolute after:-inset-y-3.5 after:inset-x-0 after:content-[''] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-900">{c.label}</Link>
               )}
             </li>
           );

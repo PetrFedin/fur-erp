@@ -12,7 +12,6 @@ import { WidgetRow } from "@/components/widget-row";
 import { SERVICES_LABEL } from "@/lib/service-purchase";
 import { TERMS } from "@/lib/terms";
 import { TILE_BOX, TileHead, TileValue, TileCaption, TileList, type TileItem } from "./tile";
-import { BridgeHint } from "./mode-line";
 import { formatCompactMoney } from "./compact";
 
 /** Срок «дд.мм.гггг» уже прошёл (конец дня). */
@@ -170,13 +169,12 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
       <div key="left" className={TILE_BOX} data-testid="debt-bridge">
         <TileHead wide={!only}>{inWork ? DUE_LABEL : "К оплате всего"}</TileHead>
         <div className={"absolute right-3 top-3 flex items-center gap-1" + (only ? " hidden" : "")}>
-          <BridgeHint label="Как сходится долг поставщику">
+          <SupplierDebtHint debt={debt} year={year} align="right" lead={<>
             {inWork ? <p><b>{DUE_LABEL}</b> = долг до зачёта аванса {money(leftAll)} − аванс подрядчику {money(due.adv)}, не меньше нуля. {dueHint(money(leftAll), money(L.work))}</p> : null}
             <p>К оплате всего (до зачёта аванса) = за мех и подкладку {money(L.fur + L.lining)}{inServ ? ` + за услуги по УПД ${money(L.services)}` : ""} + за работу подрядчику {money(L.work)}. Всегда с НДС.</p>
             <p className="mt-1">Долг по работе — остаток работы по заведённым ТЗ (не меньше нуля; договор №1605: аванс 70%, доплата 30% после сдачи). Неразнесённый аванс подрядчику вычитается в главном числе (брутто в расчётах не меняется).</p>
             <p className="mt-1">Долг поставщику: закупки {mln(debt.total.toNumber())} (мех получен {mln(d.bridge.purchases.received)} + ещё не получен {mln(d.bridge.purchases.draft)}) − оплачено {mln(d.supplierCashPaid)} = {mln(debt.debt.toNumber())}.{d.supplierOverpaid >= 1 ? <> В «оплачено» входят переплаты, зачтённые в долг: {money(d.supplierOverpaid)} (оплата аукциона или закупки сверх её стоимости).</> : null} Его части (по УПД, счёт не оплачен, ожидаемое) в сумме дают этот долг.</p>
-          </BridgeHint>
-          <SupplierDebtHint debt={debt} year={year} align="right" />
+          </>} />
         </div>
         <TileValue compact={bare} className={(inWork ? due.net : leftAll) > 0 ? "text-amber-700" : ""}>{money(inWork ? due.net : leftAll)}</TileValue>
         {!only ? <TileCaption>{inWork ? "Долг по сырью и остаток работы за вычетом аванса подрядчику" : "Осталось оплатить за сырьё и услуги"}</TileCaption> : null}

@@ -382,7 +382,7 @@ export default async function LotCardPage({ params, searchParams }: { params: Pr
               <LotPriceComposition cats={chartExcl} unallocated={chartUnalloc} vat={chartVat} qty={l.recv.toNumber()} unitName={lining ? "метр" : "шкуру"} ariaLabel={`Состав цены лота ${l.lotNumber ?? ""}`} />
             </div>
           ) : sheetRows.length > 0 ? (
-            <p className="rounded-lg border border-neutral-200 bg-white p-3 text-sm text-neutral-500">Категории строкам расчёта не назначены — вся цена лота не распределена. Назначьте категории в таблице ниже, и появится график.</p>
+            <p className="px-1 text-xs text-neutral-500">График состава появится, когда в таблице ниже назначены категории строк.</p>
           ) : null}
           {sheetRows.length > 0 ? (
             <LotSheetTable

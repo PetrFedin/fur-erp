@@ -412,7 +412,7 @@ export function FurSelectionTotal({
           )}
           {showMoney && (
             g.key === "used" ? (
-              <Num first={!showQty} strong={o.strong} small={o.small} title={`${c4 === "on" ? "без 4 %" : "с 4 %"}: ${formatMoney(f.usedValueOther)}`}>
+              <Num first={!showQty} strong={o.strong} small={o.small} title={c4 === "on" ? `без 4 %: ${formatMoney(f.usedValueOther)}` : undefined}>
                 <div>{R(f.usedValue)}</div>
                 
               </Num>

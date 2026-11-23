@@ -13,6 +13,7 @@ const pctOf =(part: number, whole: number) => (whole > 0 ? ` · ${Math.round((pa
  */
 export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "шт.", label }: { incl: FlowFigures; excl: FlowFigures; paid?: number | null; due?: number | null; c4: "on" | "off"; unit?: string; label?: string }) {
   const on4 = c4 === "on";
+  const vatShare = incl.recvValue > 0 ? excl.recvValue / incl.recvValue : 1;
   const extra = Math.abs(incl.usedValue - incl.usedValueOther);
   const extraX = Math.abs(excl.usedValue - excl.usedValueOther);
   const per = (a: number, b: number, q: number) => (q > 0 ? <Money incl={(a / q).toFixed(2)} excl={(b / q).toFixed(2)} /> : "–");
@@ -36,8 +37,9 @@ export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "ш�
       { k: rubPer, v: per(incl.remValue, excl.remValue, incl.remQty) },
       ...(usdR ? [{ k: "$/шт.", v: usdR }] : []),
     ] },
-    ...(paid != null ? [{ key: "paid", title: "Оплачено", hint: PAY_HINT, main: <span>{formatMoney(Math.round(paid))}</span>, lines: [{ k: "по лотам", v: "с НДС" }] } satisfies LevelTile] : []),
-    ...(due != null ? [{ key: "debt", title: due < -1 ? "Переплата" : "Долг", hint: PAY_HINT, tone: due > 0.5 ? ("warn" as const) : undefined, main: <span>{Math.abs(due) < 1 ? "0 ₽" : formatMoney(Math.round(Math.abs(due)))}</span>, lines: [] } satisfies LevelTile] : []),
+    // «Без НДС»: оплата и долг пересчитываются в той же доле, что «Куплено» (без НДС / с НДС), чтобы «куплено − оплачено = долг» сходилось в обоих режимах.
+    ...(paid != null ? [{ key: "paid", title: "Оплачено", main: <Money incl={paid.toFixed(2)} excl={(paid * vatShare).toFixed(2)} />, lines: [] } satisfies LevelTile] : []),
+    ...(due != null ? [{ key: "debt", title: due < -1 ? "Переплата" : "Долг", hint: PAY_HINT, tone: due > 0.5 ? ("warn" as const) : undefined, main: Math.abs(due) < 1 ? <span>0 ₽</span> : <Money incl={Math.abs(due).toFixed(2)} excl={(Math.abs(due) * vatShare).toFixed(2)} />, lines: [] } satisfies LevelTile] : []),
   ];
   return <LevelSummary tiles={tiles} label={label ?? "Итоги"} />;
 }
@@ -46,7 +48,7 @@ export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "ш�
  * Полоса итогов уровня из витрины (LevelTotals): те же пять чисел, что везде. Режимы НДС и 4 % выбирают столбец;
  * оплаты и долг — из DmAuction и DmPurchase. payHref — ссылка «Оплаты →» (аукцион, закупка).
  */
-const PAY_HINT = <p>Оплата и долг считаются по платёжкам и счетам: это деньги, которые реально ушли и которые ещё надо отдать, всегда с НДС. Переключатель «С НДС / Без НДС» меняет только стоимость шкур (куплено, использовано, остаток), поэтому эти два числа от него не меняются.</p>;
+const PAY_HINT = <p>Оплата и долг считаются по платёжкам и счетам (с НДС). В режиме «Без НДС» они пересчитываются в той же доле, что «Куплено», чтобы «куплено − оплачено = долг» сходилось и без НДС.</p>;
 
 export function LevelSummaryFromTotals({ t, c4, unit = "шт.", payHref, label }: { t: LevelTotals; c4: "on" | "off"; unit?: string; payHref?: string; label?: string }) {
   const q = unit === "м" ? "Метров" : "Шкур";
@@ -61,7 +63,6 @@ export function LevelSummaryFromTotals({ t, c4, unit = "шт.", payHref, label }
       { k: q, v: `${formatQtyTrim(String(t.qty.recv))} · лотов ${t.lots}` },
       { k: rubPer, v: per(t.incl.recv, t.excl.recv, t.qty.recv) },
       ...(t.usdAvg != null && unit !== "м" ? [{ k: "$/шт.", v: `$${Math.round(t.usdAvg).toLocaleString("ru-RU")}` }] : []),
-      ...(t.ordered ? [{ k: "из них заказано", v: `${formatQtyTrim(String(t.ordered.qty))} шт.` }] : []),
     ] },
     { key: "used", title: "Использовано", hint: ui.extra >= 0.5 ? <p>В режиме «С 4 %» к использованному добавляется надбавка 4 % (она начисляется при списании в ТЗ и в «Куплено» не входит). Поэтому «Использовано + Остаток» больше «Куплено» ровно на эту надбавку; в режиме «Без 4 %» всё сходится.</p> : undefined, main: <Money incl={usedI.toFixed(2)} excl={usedX.toFixed(2)} />, lines: [
       { k: q, v: `${formatQtyTrim(String(t.qty.used))}${pctOf(t.qty.used, t.qty.recv)}` },
@@ -75,11 +76,11 @@ export function LevelSummaryFromTotals({ t, c4, unit = "шт.", payHref, label }
   ];
   if (t.pay) {
     const r = t.pay.remaining;
-    tiles.push({ key: "paid", title: "Оплачено", hint: PAY_HINT, main: <span>{formatMoney(Math.round(t.pay.paid))}</span>, lines: [
-      { k: "по счетам", v: formatMoney(Math.round(t.pay.total)) },
+    const share = t.incl.recv > 0 ? t.excl.recv / t.incl.recv : 1; // «Без НДС»: оплата и долг в той же доле, что «Куплено»
+    tiles.push({ key: "paid", title: "Оплачено", main: <Money incl={t.pay.paid.toFixed(2)} excl={(t.pay.paid * share).toFixed(2)} />, lines: [
       ...(payHref ? [{ k: "", v: <a href={payHref} className="text-blue-600 hover:underline">Оплаты →</a> }] : []),
     ] });
-    tiles.push({ key: "debt", title: r < -1 ? "Переплата" : "Долг", hint: PAY_HINT, tone: r > 1 ? ("warn" as const) : undefined, main: <span>{Math.abs(r) < 1 ? "0 ₽" : formatMoney(Math.round(Math.abs(r)))}</span>, lines: [] });
+    tiles.push({ key: "debt", title: r < -1 ? "Переплата" : "Долг", hint: PAY_HINT, tone: r > 1 ? ("warn" as const) : undefined, main: Math.abs(r) < 1 ? <span>0 ₽</span> : <Money incl={Math.abs(r).toFixed(2)} excl={(Math.abs(r) * share).toFixed(2)} />, lines: [] });
   }
   return <LevelSummary tiles={tiles} label={label ?? "Итоги"} />;
 }
