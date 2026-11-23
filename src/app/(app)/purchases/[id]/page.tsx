@@ -675,7 +675,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
     <div className="flex flex-col gap-4">
       <OpenOnHash />
       <IntegrityBanner kind="purchase" id={purchase.id} />
-      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Закупки", href: "/purchases" }, { label: purchase.number }]} />
+      <Breadcrumbs items={batchName ? [{ label: "Сырьё", href: "/lots" }, { label: batchName, href: `/lots?auction=${encodeURIComponent(batchName)}` }, { label: purchase.number }] : [{ label: "Сырьё", href: "/lots" }, { label: "Закупки", href: "/purchases" }, { label: purchase.number }]} />
       <div className="flex flex-col items-start justify-between gap-3 md:flex-row">
         <div className="min-w-0 max-md:w-full">
           {/* «i» — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Закупка З-… О закупке». */}

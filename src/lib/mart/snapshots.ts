@@ -16,7 +16,8 @@ import type { FurLot } from "@/lib/fur-table";
  * иначе экран считает по-старому вживую — число всегда верное, быстрым оно становится после следующей фоновой пересборки.
  */
 const VERSION_KEY = "data-version";
-const SNAPSHOT_MAX_AGE_MS = 10 * 60 * 1000;
+// MART_SNAPSHOT_MAX_AGE_MS — только для сценариев сверки (scripts/mart-vs-legacy.ts), чтобы снимок не «старел» посреди проверки.
+const SNAPSHOT_MAX_AGE_MS = Number(process.env.MART_SNAPSHOT_MAX_AGE_MS) || 10 * 60 * 1000;
 
 export async function markDataChanged(orgId: string): Promise<void> {
   const value = Date.now();

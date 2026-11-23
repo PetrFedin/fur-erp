@@ -4,6 +4,7 @@
  * Код возврата 2 — есть расхождение (переведённый блок надо вернуть на старый расчёт).
  */
 import "./stubs/server-only-shim";
+process.env.MART_SNAPSHOT_MAX_AGE_MS ??= String(24 * 3600 * 1000);
 
 (async () => {
   const { prisma } = await import("../src/lib/prisma");

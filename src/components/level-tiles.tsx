@@ -61,6 +61,7 @@ export function LevelSummaryFromTotals({ t, c4, unit = "шт.", payHref, label }
       { k: q, v: `${formatDec1(String(t.qty.recv))} · лотов ${t.lots}` },
       { k: rubPer, v: per(t.incl.recv, t.excl.recv, t.qty.recv) },
       ...(t.usdAvg != null && unit !== "м" ? [{ k: "$/шт.", v: `$${Math.round(t.usdAvg).toLocaleString("ru-RU")}` }] : []),
+      ...(t.ordered ? [{ k: "в т.ч. заказано, не получено", v: `${formatDec1(String(t.ordered.qty))} шт.` }] : []),
     ] },
     { key: "used", title: "Использовано", hint: ui.extra > 0 ? <p>В режиме «С 4 %» к использованному добавляется надбавка 4 % (она начисляется при списании в ТЗ и в «Куплено» не входит). Поэтому «Использовано + Остаток» больше «Куплено» ровно на эту надбавку; в режиме «Без 4 %» всё сходится.</p> : undefined, main: <Money incl={usedI.toFixed(2)} excl={usedX.toFixed(2)} />, lines: [
       { k: q, v: `${formatDec1(String(t.qty.used))}${pctOf(t.qty.used, t.qty.recv)}` },

@@ -177,6 +177,9 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           </RawTab>
           {tabLink("fur", "Мех")}
           {tabLink("lining", "Подкладка")}
+          <RawTab href="/analytics/raw" active={false} muted>
+            Аналитика
+          </RawTab>
         </div>
         <FurScope info={scopeInfo} section="raw">
         <ScopeShow src="all">{filtersBlock}</ScopeShow>

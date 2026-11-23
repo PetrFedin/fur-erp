@@ -88,7 +88,7 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
         </InfoHint>
       </div>
 
-      <FurScope info={{ year: "все годы", filters: name }} section="raw">
+      <FurScope info={{ year: "все годы", filters: null }} section="raw">
       <SupplierOnly what={`Партия подкладки «${name}»`}>
       <div data-raw-tiles>
         {/* Единая полоса итогов уровня: куплено → использовано → остаток → оплачено → долг (метры, ₽, ₽/м). Оплаты ведутся по партии целиком. */}

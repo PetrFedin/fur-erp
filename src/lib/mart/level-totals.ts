@@ -18,6 +18,8 @@ export type LevelTotals = {
   usdAvg: number | null;
   /** Оплаты (с НДС): итог по документам, оплачено, остаток (отрицательный — переплата). null — для уровня оплат нет (лот). */
   pay: { total: number; paid: number; remaining: number } | null;
+  /** Верхний уровень меха: «заказано, не получено» (лотов нет) — входит в куплено и остаток. */
+  ordered?: { qty: number } | null;
 };
 /** top — весь мех или вся подкладка (без среза): к лотам добавляются строки «заказано, не получено» моста (DmLotBridge). */
 export type LevelScope = { auctions?: string[]; purchaseId?: string; lotId?: string; unit?: "M" | "PCS"; top?: boolean };
@@ -91,5 +93,6 @@ export async function loadLevelTotals(orgId: string, scope: LevelScope): Promise
     excl: { recv: num(r.rx) + bq.rx, used: num(r.ux), rem: num(r.mx) + bq.mx, extra: num(r.ex) },
     usdAvg: num(r.usd_qty) > 0 ? num(r.usd_sum) / num(r.usd_qty) : null,
     pay,
+    ordered: bridge && bridge.rq > 0 ? { qty: bridge.rq } : null,
   };
 }

@@ -488,7 +488,11 @@ export async function AuctionView({
         const rowCls = "border-b border-neutral-100";
         const tdn = "py-1 pl-3 text-right tabular-nums whitespace-nowrap";
         return (
-          <Card>
+          <details className="group rounded-lg border border-neutral-200 bg-white">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium hover:bg-neutral-50">
+              Расшифровка по статьям расчёта лотов <span className="ml-2 text-xs font-normal text-neutral-500 group-open:hidden">развернуть ›</span>
+            </summary>
+          <Card className="border-0 shadow-none">
             <CardHeader>
               <CardTitle>
                 Состав стоимости по статьям расчёта
@@ -528,6 +532,7 @@ export async function AuctionView({
               </div>
             </CardContent>
           </Card>
+          </details>
         );
       })()}
 
