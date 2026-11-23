@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomBytes } from "node:crypto";
 import * as React from "react";
 import { invalidateRequestMemo } from "@/lib/req-memo";
+import { tenantGuardExtension } from "@/lib/tenant-guard";
 import { AUDITED_MODELS, DELETE_CHILDREN, deleteSnapshot, diffRows, labelFor, snapshot } from "@/lib/audit-core";
 
 /**
@@ -322,7 +323,8 @@ function wrapTransaction<C extends object>(client: C): C {
 
 function makeClient(base: PrismaClient, fixedActor?: AuditActor) {
   const extended = base.$extends(buildExtension({ base: base as unknown as Db, fixedActor }));
-  return wrapTransaction(extended);
+  const guard = tenantGuardExtension(); // null при TENANT_GUARD=off (по умолчанию)
+  return wrapTransaction(guard ? (extended.$extends(guard) as unknown as typeof extended) : extended);
 }
 
 const globalForPrisma = globalThis as unknown as {
