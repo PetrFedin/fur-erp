@@ -7,15 +7,36 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const ROOTS = ["src/app/(app)/lots", "src/app/(app)/purchases", "src/app/(app)/analytics/raw", "src/components/level-tiles.tsx", "src/components/level-summary.tsx", "src/components/fur-selection-total.tsx", "src/lib/mart"];
-const RX = /OVERPAY_FROM|PAY_EPS|overpayTarget\(|overpayLabel|< -0\.5|< -1\b/g;
+const ROOTS = ["src/app/(app)/lots", "src/app/(app)/purchases", "src/app/(app)/analytics/raw", "src/components/level-tiles.tsx", "src/components/level-summary.tsx", "src/components/fur-selection-total.tsx", "src/lib/mart", "src/lib/dashboard-data.ts", "src/lib/payments-overview.ts", "src/app/(app)/payments", "src/app/(app)/dashboard"];
+// Сравнение суммы с «0,5 ₽» руками — нельзя: isZero / isPositive / isNegative из домена. Остальное — пороги и перенос переплат.
+const RX = /OVERPAY_FROM|PAY_EPS|overpayTarget\(|overpayLabel|< -0\.5|< -1\b|[<>]=? *0\.5\b/g;
+// Прежние места (на 23.11.2026): числа не растут; их перенос на isZero/isPositive/isNegative и debtState — по мере правки файлов.
 const ALLOWED: Record<string, number> = {
-  "src/app/(app)/lots/auction-view.tsx": 3,
+  "src/app/(app)/dashboard/pay-tiles.tsx": 1,
+  "src/app/(app)/dashboard/raw-block.tsx": 1,
+  "src/app/(app)/dashboard/sales-block-table.tsx": 6,
+  "src/app/(app)/lots/auction-view.tsx": 4,
+  "src/app/(app)/lots/contractor-hides/hides-view.tsx": 1,
+  "src/app/(app)/lots/lining/[batch]/view.tsx": 1,
   "src/app/(app)/lots/summary-view.tsx": 2,
-  "src/app/(app)/purchases/actions.ts": 4,
-  "src/app/(app)/purchases/purchases-tree.tsx": 3,
+  "src/app/(app)/payments/actions.ts": 8,
+  "src/app/(app)/payments/card-actions.ts": 3,
+  "src/app/(app)/payments/client-date-detail.tsx": 2,
+  "src/app/(app)/payments/client-payments-table.tsx": 1,
+  "src/app/(app)/payments/page.tsx": 16,
+  "src/app/(app)/payments/pay-actions.ts": 5,
+  "src/app/(app)/payments/payment-lines.tsx": 1,
+  "src/app/(app)/payments/payments-overview.tsx": 2,
+  "src/app/(app)/payments/wizard-actions.ts": 3,
   "src/app/(app)/purchases/[id]/page.tsx": 3,
-  "src/lib/mart/level-totals.ts": 1, // overpayTarget(...) подаётся в transferOverpay из домена
+  "src/app/(app)/purchases/actions.ts": 4,
+  "src/app/(app)/purchases/page.tsx": 4,
+  "src/app/(app)/purchases/purchases-tree.tsx": 8,
+  "src/components/fur-selection-total.tsx": 2,
+  "src/components/level-tiles.tsx": 3,
+  "src/lib/dashboard-data.ts": 1,
+  "src/lib/mart/build.ts": 1,
+  "src/lib/mart/level-totals.ts": 1,
 };
 
 function walk(p: string, out: string[] = []): string[] {

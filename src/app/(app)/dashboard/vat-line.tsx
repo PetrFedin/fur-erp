@@ -1,12 +1,13 @@
 "use client";
 
+import { isZero } from "@/domain/money";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney } from "@/lib/utils";
 import type { VatByRate } from "@/lib/dashboard-data";
 
 /** Ставки в виде [ставка, ₽] по возрастанию, без нулевых. */
 export const vatEntries = (v: VatByRate | undefined): [string, number][] =>
-  Object.entries(v ?? {}).filter(([, x]) => Math.abs(x) >= 0.5).sort((a, b) => Number(a[0]) - Number(b[0]));
+  Object.entries(v ?? {}).filter(([, x]) => !isZero(x)).sort((a, b) => Number(a[0]) - Number(b[0]));
 
 const rub0 = (v: number) => formatMoney(Math.round(v));
 const rub2 = (v: number) => formatMoney(v.toFixed(2));

@@ -1,5 +1,6 @@
 "use client";
 
+import { isZero } from "@/domain/money";
 import { Fragment, createContext, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
@@ -197,7 +198,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   const on4 = withExtra(c4);
   const usedShown = on4 ? usedWith4 : usedNo4;
   // Надбавку показываем, только если она не ноль: пустая строка «в т.ч. 4 %: 0 ₽» — шум.
-  const has4 = on4 && Math.abs(usedWith4 - usedNo4) >= 0.5;
+  const has4 = on4 && !isZero(usedWith4 - usedNo4);
   const note4 = has4 ? `в т.ч. 4 %: ${rub(usedWith4 - usedNo4)}` : undefined;
   const usedQtyNow = all ? 0 : cur.usedQty;
 

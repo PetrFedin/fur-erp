@@ -1,5 +1,6 @@
 "use client";
 
+import { isPositive } from "@/domain/money";
 import Link from "next/link";
 import { TH as Head, THGroup } from "@/components/table-head";
 import { Fragment, useState, type ReactNode } from "react";
@@ -33,7 +34,7 @@ export function PaymentsOverview({ rows, left, controls }: { rows: OverviewRow[]
   const arrow = (isOpen: boolean, onClick: () => void, label: string) => (
     <button type="button" onClick={onClick} aria-expanded={isOpen} aria-label={`Раскрыть: ${label}`}><Chevron open={isOpen} /></button>
   );
-  const debtTd = (v: number, cls = "") => <td className={TD + cls + (v > 0.5 && !isRoundingRest(v) ? " text-amber-700" : "")}>{isRoundingRest(v) ? <span title={roundingRestHint(v)} className="cursor-help">–</span> : v < -OVERPAY_FROM ? formatDebt(v) : m(v)}</td>;
+  const debtTd = (v: number, cls = "") => <td className={TD + cls + (isPositive(v) && !isRoundingRest(v) ? " text-amber-700" : "")}>{isRoundingRest(v) ? <span title={roundingRestHint(v)} className="cursor-help">–</span> : v < -OVERPAY_FROM ? formatDebt(v) : m(v)}</td>;
   const figures = (r: { fur: number; lining: number; services?: number; work: number; paid: number; debt: number | null }, cls = "") => (
     <>
       <td className={TD + " border-l border-neutral-200" + cls}>{m(r.fur)}</td>
@@ -55,7 +56,7 @@ export function PaymentsOverview({ rows, left, controls }: { rows: OverviewRow[]
     const kinds = [
       { kind: "raw" as const, label: "За сырьё", list: raw, debt: l.raw },
       { kind: "prod" as const, label: "За работу", list: prod, debt: l.prod },
-    ].filter((k) => k.list.length > 0 || k.debt > 0.5);
+    ].filter((k) => k.list.length > 0 || isPositive(k.debt));
     return (
       <Fragment key={y}>
         <tr className={rowTone(0) + " font-semibold"}>

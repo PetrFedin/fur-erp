@@ -1,5 +1,6 @@
 "use client";
 
+import { isZero, isPositive } from "@/domain/money";
 import { TotalLabel } from "@/components/total-label";
 import { TH, THGroup } from "@/components/table-head";
 import { UNIT } from "@/lib/units";
@@ -241,8 +242,8 @@ function MoneyTds({ paid, due, bold, note }: { paid: number; due: number; bold?:
   const cls = td + (bold ? " font-semibold" : "");
   return (
     <>
-      <td className={cls + " border-l border-neutral-100"}>{Math.abs(paid) < 0.5 ? <span className="text-neutral-500">–</span> : rub0(paid)}</td>
-      <td className={cls + (due > 0.5 && !isDebtDust(due) ? " text-amber-700" : "")}>{Math.abs(due) < 0.5 ? <span className="text-neutral-500">–</span> : isDebtDust(due) ? <span className="text-neutral-600" title="Остаток в пределах округления: в итог входит">{rub0(due)}</span> : <span title={note && Math.abs(due - 1357.06) < 0.5 ? note : undefined} className={note && Math.abs(due - 1357.06) < 0.5 ? "cursor-help underline decoration-dotted" : undefined}>{rub0(due)}</span>}</td>
+      <td className={cls + " border-l border-neutral-100"}>{isZero(paid) ? <span className="text-neutral-500">–</span> : rub0(paid)}</td>
+      <td className={cls + (isPositive(due) && !isDebtDust(due) ? " text-amber-700" : "")}>{isZero(due) ? <span className="text-neutral-500">–</span> : isDebtDust(due) ? <span className="text-neutral-600" title="Остаток в пределах округления: в итог входит">{rub0(due)}</span> : <span title={note && isZero(due - 1357.06) ? note : undefined} className={note && isZero(due - 1357.06) ? "cursor-help underline decoration-dotted" : undefined}>{rub0(due)}</span>}</td>
     </>
   );
 }
@@ -438,7 +439,7 @@ export function RawTable({ auctionSrc, rows: rowsIn, total: totalIn, money, c4, 
               const ex = AL.extras; // [по видам не полученного меха…, прочие закупки без лотов, прочее] — целые рубли
               const nB = u.byFur.length;
               const otherPaid = ex[nB]?.p ?? 0, otherDue = ex[nB]?.d ?? 0, restPaid = ex[nB + 1]?.p ?? 0, restDue = ex[nB + 1]?.d ?? 0;
-              const show = (x: number, y: number) => Math.abs(x) >= 0.5 || Math.abs(y) >= 0.5;
+              const show = (x: number, y: number) => !isZero(x) || !isZero(y);
               return (
                 <>
                   {u.byFur.map((g, gi) => (

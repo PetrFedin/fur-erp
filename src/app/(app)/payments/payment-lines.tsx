@@ -1,3 +1,4 @@
+import { isZero, isPositive } from "@/domain/money";
 import { Clamp } from "@/components/clamp";
 import Link from "next/link";
 import { TH as Head } from "@/components/table-head";
@@ -119,8 +120,8 @@ export function PurchaseLinesTable({ lines, withPaid }: { lines: PurchaseLine[];
                 <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatMoney(l.total)}</td>
                 {withPaid ? <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatMoney(l.paid)}</td> : null}
                 {withPaid ? (
-                  <td className={"whitespace-nowrap px-2 py-2 text-right font-medium tabular-nums " + (due > 0.5 ? "text-amber-700" : due < -0.5 ? "text-emerald-700" : "")}>
-                    {Math.abs(due) <= 0.5 ? "–" : formatMoney(String(due))}
+                  <td className={"whitespace-nowrap px-2 py-2 text-right font-medium tabular-nums " + (isPositive(due) ? "text-amber-700" : due < -0.5 ? "text-emerald-700" : "")}>
+                    {isZero(due) ? "–" : formatMoney(String(due))}
                   </td>
                 ) : null}
               </tr>

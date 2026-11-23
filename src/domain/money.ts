@@ -7,6 +7,13 @@
 /** Ниже этой суммы (₽) разница — округление, а не долг и не переплата. */
 export const RUB_EPS = 0.5;
 
+/** Сумма равна нулю с допуском на округление. */
+export const isZero = (x: number): boolean => Math.abs(x) <= RUB_EPS;
+/** Сумма заметно больше нуля (остаток, долг). */
+export const isPositive = (x: number): boolean => x > RUB_EPS;
+/** Сумма заметно меньше нуля (переплата). */
+export const isNegative = (x: number): boolean => x < -RUB_EPS;
+
 /** Сумма в двух вариантах показа. */
 export type VatPair = { incl: number; excl: number };
 

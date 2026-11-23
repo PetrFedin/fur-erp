@@ -1,5 +1,6 @@
 "use client";
 
+import { isPositive } from "@/domain/money";
 import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
@@ -208,7 +209,7 @@ export function SalesBlockView({ b }: { b: SalesBlock }) {
         { k: "По закупке (отчёт)", v: money(sm.soldCost) },
         { k: `Выручка, ${sw}`, v: money(sm.revenue) },
         { k: "До скидки", v: money(sm.grossRev) },
-        { k: "Скидка", v: money(sm.discount), share: sm.grossRev > 0.5 && sm.discount > 0.5 ? sm.discount / sm.grossRev : null, shareFirst: true },
+        { k: "Скидка", v: money(sm.discount), share: isPositive(sm.grossRev) && isPositive(sm.discount) ? sm.discount / sm.grossRev : null, shareFirst: true },
         { k: "Ср. цена, ₽/шт.", v: moneyK(sm.avgPrice) },
         { k: "Наценка продаж", v: x2(sm.markupSold) },
         ...(slice.soAsEnd !== null ? [{ k: "SO до конца сезона, %", v: pct(h.soAs, 1) }] : []),

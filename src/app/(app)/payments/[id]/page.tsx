@@ -1,3 +1,4 @@
+import { isPositive, isZero } from "@/domain/money";
 import Link from "next/link";
 import { ChatLink } from "@/components/chat-link";
 import { notFound } from "next/navigation";
@@ -150,7 +151,7 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
     { ok: r.fileOk, label: "Платёжка прикреплена", detail: r.fileOk ? files.filter((f) => f.ok).map((f) => f.name).join(", ") : files.length > 0 ? "запись о документе есть, но файл не прикреплён" : "платёжка или п/п не приложены" },
     { ok: !!registryFact, label: "Сумма и дата сошлись", detail: registryFact ?? "сверка с документами эту оплату по сумме и дате не подтверждает" },
     { ok: linked, label: "Привязка", detail: linked ? ov.links.map((l) => l.label).join(", ") : parsed.kind === "raw" ? "не привязана к закупке или аукциону" : "не привязана к ТЗ" },
-    { ok: r.unallocated <= 0.5, label: "Разнесена на 100 %", detail: r.unallocated <= 0.5 ? `разнесено ${money(allocated)} из ${money(r.amount)}` : `не разнесено ${money(r.unallocated)} из ${money(r.amount)}` },
+    { ok: isZero(r.unallocated), label: "Разнесена на 100 %", detail: isZero(r.unallocated) ? `разнесено ${money(allocated)} из ${money(r.amount)}` : `не разнесено ${money(r.unallocated)} из ${money(r.amount)}` },
   ];
   const hasNotes = ov.parts.some((x) => !!x.note);
   const model = parsed.kind === "raw" ? "Payment" : "ProductionPayment";
@@ -245,8 +246,8 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
               <tr className="row-total">
                 <td className="py-1.5 pr-2"><TotalLabel /></td>
                 <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{money(partsTotal)}</td>
-                <td className={"px-2 py-1.5 " + (r.unallocated > 0.5 ? "text-amber-700" : "text-neutral-600")}>
-                  {r.unallocated > 0.5 ? `не разнесено ${money(r.unallocated)}` : "разнесено полностью"}
+                <td className={"px-2 py-1.5 " + (isPositive(r.unallocated) ? "text-amber-700" : "text-neutral-600")}>
+                  {isPositive(r.unallocated) ? `не разнесено ${money(r.unallocated)}` : "разнесено полностью"}
                   {parsed.kind === "prod" && r.unallocated > 1 ? <Link href="/payments?tab=clients#unallocated" className="ml-2 text-blue-700 hover:underline print:hidden">Разнести остаток →</Link> : null}
                 </td>
               </tr>

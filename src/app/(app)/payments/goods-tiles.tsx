@@ -1,5 +1,6 @@
 "use client";
 
+import { isZero, isPositive } from "@/domain/money";
 import Link from "next/link";
 import { TH as Head, THGroup } from "@/components/table-head";
 import { uniqueLabelCount } from "@/lib/tz-key";
@@ -37,7 +38,7 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
   const years = Array.from(new Set(rows.map((r) => r.year))).sort((a, b) => (a ?? 9999) - (b ?? 9999));
   const work = rows.reduce((s, r) => s + r.work, 0);
   const paid = rows.reduce((s, r) => s + r.paid, 0) + advances;
-  const rest = (w: number, p: number) => (Math.abs(w - p) <= 0.5 ? <span className="text-neutral-500">–</span> : w > p ? <span className="font-medium text-amber-700">{rub(w - p)}</span> : <span className="font-medium text-emerald-700">Переплата {rub(p - w)}</span>);
+  const rest = (w: number, p: number) => (isZero(w - p) ? <span className="text-neutral-500">–</span> : w > p ? <span className="font-medium text-amber-700">{rub(w - p)}</span> : <span className="font-medium text-emerald-700">Переплата {rub(p - w)}</span>);
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[520px] table-fixed text-sm">
@@ -74,7 +75,7 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
               </Fragment>
             );
           })}
-          {advances > 0.5 ? (
+          {isPositive(advances) ? (
             <tr className="border-b border-neutral-100">
               <td className="py-1.5 pr-2">Авансы без привязки к ТЗ</td>
               <td className="border-l border-neutral-200 px-2 py-1.5 text-right text-neutral-500">–</td>
@@ -119,7 +120,7 @@ function Tile({ label, value, onOpen, valueClass, hint, items, note }: { label: 
 export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint }: Props) {
   // «К оплате» — остаток работы по заведённым ТЗ (не меньше нуля); неразнесённый аванс — отдельной строкой, из долга не вычитается.
   const left = Math.max(balance + unallocated, 0);
-  const advItem = unallocated > 0.5 ? [{
+  const advItem = isPositive(unallocated) ? [{
     k: <span className="inline-flex items-center gap-1">Аванс подрядчику<InfoHint label="Что такое аванс подрядчику" align="right"><p>Оплачено сверх работы по заведённым ТЗ; погасится работой по будущим ТЗ.</p><p className="mt-1">Из остатка работы не вычитается; входит в «Оплачено».</p></InfoHint></span>,
     v: rub(unallocated),
   }] : undefined;
@@ -134,8 +135,8 @@ export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint
       <WidgetRow id="goods" title="Итоги" headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-goods-tiles>
         <Tile label="Общая стоимость" value={rub(total)} onOpen={() => setOpen("bars")} />
-        <Tile label="Оплачено" value={rub(paid)} onOpen={() => setOpen("bars")} note={total > 0.5 ? `${formatPercent((paid / total) * 100)}` : undefined} />
-        <Tile label={TERMS.workRest} value={rub(left)} onOpen={() => setOpen("debt")} valueClass={left > 0.5 ? "text-amber-700" : ""} hint={hint} items={advItem} note={total > 0.5 ? `${formatPercent((left / total) * 100)}` : undefined} />
+        <Tile label="Оплачено" value={rub(paid)} onOpen={() => setOpen("bars")} note={isPositive(total) ? `${formatPercent((paid / total) * 100)}` : undefined} />
+        <Tile label={TERMS.workRest} value={rub(left)} onOpen={() => setOpen("debt")} valueClass={isPositive(left) ? "text-amber-700" : ""} hint={hint} items={advItem} note={isPositive(total) ? `${formatPercent((left / total) * 100)}` : undefined} />
       </div>
       </WidgetRow>
       {open && (
@@ -218,7 +219,7 @@ function OwedTable({ owed, advances }: { owed: OwedOrder[]; advances: number }) 
       </div>
       <dl className="grid max-w-md gap-1 text-sm">
         <div className="flex justify-between gap-4 border-t border-neutral-200 pt-1 font-semibold"><dt>Остаток работы ({uniqueLabelCount(owed)} ТЗ)</dt><dd className="tabular-nums text-amber-700">{rub(total)}</dd></div>
-        {advances > 0.5 ? <div className="flex justify-between gap-4"><dt className="text-neutral-600">Аванс подрядчику, не вычтен</dt><dd className="tabular-nums">{rub(advances)}</dd></div> : null}
+        {isPositive(advances) ? <div className="flex justify-between gap-4"><dt className="text-neutral-600">Аванс подрядчику, не вычтен</dt><dd className="tabular-nums">{rub(advances)}</dd></div> : null}
       </dl>
     </div>
   );

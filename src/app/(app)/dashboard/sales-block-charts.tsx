@@ -1,5 +1,6 @@
 "use client";
 
+import { isZero, isPositive } from "@/domain/money";
 import { useEffect, useRef, useState } from "react";
 import { InfoHint } from "@/components/info-hint";
 import { TILE_BOX, TileHead } from "./tile";
@@ -73,7 +74,7 @@ export function Chart({ pts, series, label, testId, valueLabels = [], selectedKe
                         if (pv <= 0) return null;
                         const y1 = yL(acc + pv), y0 = yL(acc);
                         acc += pv;
-                        return <g key={pt.name}><rect x={x(i) - (bars.length * bw) / 2 + si * bw} y={y1} width={bw - 1} height={Math.max(0, y0 - y1)} fill={pt.color} opacity={dim(`${s.partLabel ?? "Продано"}, ${pt.name}`)}><title>{`${p.label}: ${(s.partLabel ?? "Продано").toLowerCase()}, ${pt.name} ${s.fmt(pv)}`}</title></rect>{hotS === `${s.partLabel ?? "Продано"}, ${pt.name}` ? <text x={x(i) - (bars.length * bw) / 2 + si * bw + (bw - 1) / 2} y={Math.max(PT + 10, Math.min(H - PB - 3, (y0 + y1) / 2 + 4))} textAnchor="middle" fontSize="11" fontWeight="700" fill="#171717" stroke="#fff" strokeWidth="3" paintOrder="stroke">{pv < 0.5 ? "–" : s.fmt(pv)}</text> : null}</g>;
+                        return <g key={pt.name}><rect x={x(i) - (bars.length * bw) / 2 + si * bw} y={y1} width={bw - 1} height={Math.max(0, y0 - y1)} fill={pt.color} opacity={dim(`${s.partLabel ?? "Продано"}, ${pt.name}`)}><title>{`${p.label}: ${(s.partLabel ?? "Продано").toLowerCase()}, ${pt.name} ${s.fmt(pv)}`}</title></rect>{hotS === `${s.partLabel ?? "Продано"}, ${pt.name}` ? <text x={x(i) - (bars.length * bw) / 2 + si * bw + (bw - 1) / 2} y={Math.max(PT + 10, Math.min(H - PB - 3, (y0 + y1) / 2 + 4))} textAnchor="middle" fontSize="11" fontWeight="700" fill="#171717" stroke="#fff" strokeWidth="3" paintOrder="stroke">{!isPositive(pv) ? "–" : s.fmt(pv)}</text> : null}</g>;
                       })}
                     </g>
                   );
@@ -90,7 +91,7 @@ export function Chart({ pts, series, label, testId, valueLabels = [], selectedKe
               <g key={s.name}>
                 <polyline points={s.vals.map((v, i) => `${x(i)},${f(v)}`).join(" ")} fill="none" stroke={s.color} strokeWidth={hotS === s.name ? 3.5 : 2} opacity={dim(s.name)} />
                 {s.vals.map((v, i) => <circle key={i} cx={x(i)} cy={f(v)} r={hot === i || hotS === s.name ? 4 : 3} fill={s.color} opacity={dim(s.name)}><title>{`${pts[i].label}: ${s.name} ${s.fmt(v)}`}</title></circle>)}
-                {(valueLabels.includes(s.name) || hotS === s.name) ? s.vals.map((v, i) => (true ? <text key={"vl" + i} x={x(i)} y={f(v) - 8} textAnchor="middle" fontSize="11" fontWeight="600" fill={s.color} stroke="#fff" strokeWidth="3" paintOrder="stroke" opacity={dim(s.name)}>{Math.abs(v) < 0.5 ? "–" : s.fmt(v)}</text> : null)) : null}
+                {(valueLabels.includes(s.name) || hotS === s.name) ? s.vals.map((v, i) => (true ? <text key={"vl" + i} x={x(i)} y={f(v) - 8} textAnchor="middle" fontSize="11" fontWeight="600" fill={s.color} stroke="#fff" strokeWidth="3" paintOrder="stroke" opacity={dim(s.name)}>{isZero(v) ? "–" : s.fmt(v)}</text> : null)) : null}
               </g>
             );
           })}

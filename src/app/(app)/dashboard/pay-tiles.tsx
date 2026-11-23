@@ -1,3 +1,4 @@
+import { isZero, isPositive } from "@/domain/money";
 import Link from "next/link";
 import { cn, formatMoney } from "@/lib/utils";
 import { ROUND_MIN } from "@/lib/raw-rounding";
@@ -29,12 +30,12 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
   const mln = (v: number) => formatCompactMoney(v);
   const prodPaid = d.paidByItem.work;
   const money = (v: number) => formatMoney(roundRub(v));
-  const dash = (v: number) => (Math.abs(v) < 0.5 ? "–" : money(v));
+  const dash = (v: number) => (isZero(v) ? "–" : money(v));
   // Деньги — целые рубли, сходящиеся на экране (src/lib/money-round.ts): мех + подкладка выровнены вместе с плитками «Куплено / Использовано / Остаток»,
   // оплачено и к оплате делятся по статьям так, чтобы Σ статей == показанному итогу.
   const N = payNumbers(d, c4Mode, only);
   const { furD, linD, inFur, inLin, inWork, inServ, adv, P, L, T, paidAll, leftAll, due, roundAll, totalAll, furPaidD, linPaidD, furLeftD, linLeftD } = N;
-  const part = (v: number, whole: number) => (whole > 0.5 ? v / whole : null);
+  const part = (v: number, whole: number) => (isPositive(whole) ? v / whole : null);
   const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, serv: number, work: number, warn?: boolean, workLabel = "Работа подрядчику", bought = false, detail = false): TileItem[] => [
     ...(inFur ? [
       ...(only ? [] : [{ k: "Мех", v: money(fur), share: part(fur, whole), tone: warn && fur > 0 ? "text-amber-700" : undefined }]),
@@ -59,21 +60,21 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
         ...(c4Mode === "on" ? [{ k: "4%", v: dash(linC4), sub: !only }] : []),
       ] : []),
     ] : []),
-    ...(inServ && Math.abs(serv) >= 0.5 ? [{ k: SERVICES_LABEL, v: money(serv), share: part(serv, whole), tone: warn && serv > 0 ? "text-amber-700" : undefined }] : []),
+    ...(inServ && !isZero(serv) ? [{ k: SERVICES_LABEL, v: money(serv), share: part(serv, whole), tone: warn && serv > 0 ? "text-amber-700" : undefined }] : []),
     ...(inWork ? [{ k: workLabel, v: money(work), share: part(work, whole), tone: warn && work > 0 ? "text-amber-700" : undefined }] : []),
   ];
 
   // Оплачено по типам платежа: аванс, доплата, окончательный расчёт и прочее (только те, что есть); сумма и число платежей.
   // Показываем, когда Σ типов = «Оплачено всего» (без фильтров); при фильтрах «Оплачено» пересчитано по статьям, разбивки по типам для него нет.
   const TYPE_LABEL = { ADVANCE: "Аванс", PARTIAL: "Доплата", FINAL: "Окончательный платёж", OTHER: "Прочие платежи" } as const;
-  const typeRows = (only === "lining" ? d.paidByTypeLining : only ? d.paidByTypeFur : d.paidByType).filter((t) => t.count > 0 || Math.abs(t.amount) >= 0.5);
+  const typeRows = (only === "lining" ? d.paidByTypeLining : only ? d.paidByTypeFur : d.paidByType).filter((t) => t.count > 0 || !isZero(t.amount));
   const typeSum = typeRows.reduce((a, t) => a + t.amount, 0);
   const typesOk = only ? typeRows.length > 0 : inWork && typeRows.length > 0 && Math.abs(typeSum - paidAll) < 1;
   const typeAl = only ? { values: typeRows.map((t) => Math.round(t.amount)) } : alignColumn(typeRows.map((t) => t.amount), paidAll); // типы платежа складываются в показанное «Оплачено всего»
   // Проценты типов платежа — целые и в сумме ровно 100 (метод наибольших остатков), без «101 %».
   const typePct = (() => {
     const base = only ? typeAl.values.reduce((x, v) => x + v, 0) : paidAll;
-    const raw = typeAl.values.map((v) => (base > 0.5 ? (v / base) * 100 : 0));
+    const raw = typeAl.values.map((v) => (isPositive(base) ? (v / base) * 100 : 0));
     const fl = raw.map((x) => Math.floor(x));
     let left = Math.round(raw.reduce((a, x) => a + x, 0)) - fl.reduce((a, x) => a + x, 0);
     raw.map((x, i) => [x - Math.floor(x), i] as const).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left > 0) { fl[i] += 1; left -= 1; } });
@@ -87,7 +88,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
   // Долг по сырью: «за поставленное» (мех получен, УПД и счета) отдельно от «по заказам» (мех не получен: выставленный счёт и ожидаемое). Σ = долг по сырью в плитке.
   const rawLeft = L.fur + L.lining + L.services;
   const splitAl = alignColumn([debt.receivedNet.toNumber(), debt.invoiced.toNumber() + debt.expected.toNumber()], rawLeft).values;
-  const split: [number, number] | null = rawLeft >= 0.5 && Math.abs(debt.receivedNet.toNumber() + debt.invoiced.toNumber() + debt.expected.toNumber() - rawLeft) < 2 ? [splitAl[0], splitAl[1]] : null;
+  const split: [number, number] | null = isPositive(rawLeft) && Math.abs(debt.receivedNet.toNumber() + debt.invoiced.toNumber() + debt.expected.toNumber() - rawLeft) < 2 ? [splitAl[0], splitAl[1]] : null;
 
   const tiles = (
     <>
@@ -118,7 +119,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
                 { k: "на складе", sub: true, cells: [dash(linD.stock)] },
                 { k: "использовано", sub: true, cells: [dash(linD.used)] },
               ] : []),
-              ...(inServ && Math.abs(T.services) >= 0.5 ? [{ k: SERVICES_LABEL, strong: true, cells: [money(T.services)] }] : []),
+              ...(inServ && !isZero(T.services) ? [{ k: SERVICES_LABEL, strong: true, cells: [money(T.services)] }] : []),
               ...(inWork ? [{ k: "Работа подрядчику", strong: true, cells: [money(T.work)] }] : []),
               ...(Math.abs(roundAll) >= ROUND_MIN ? [{ k: "Округление", cells: [money(roundAll)] }] : []),
               { k: "Всего", strong: true, cells: [money(totalAll)] },
@@ -156,7 +157,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
                 { k: "оплачено поставщику (вкл подрядчиков)", sub: true, cells: [dash(d.paidFurBySource.supplier)] },
               ] : []),
               ...(inLin ? [{ k: "Подкладка", strong: true, cells: [money(P.lining)] }] : []),
-              ...(inServ && Math.abs(P.services) >= 0.5 ? [{ k: SERVICES_LABEL, strong: true, cells: [money(P.services)] }] : []),
+              ...(inServ && !isZero(P.services) ? [{ k: SERVICES_LABEL, strong: true, cells: [money(P.services)] }] : []),
               ...(inWork ? [{ k: "Работа подрядчику", strong: true, cells: [money(P.work)] }] : []),
               ...(inWork && d.clientDebtInfo.unallocated >= 1 ? [{ k: "в т. ч. аванс подрядчику, не отнесён к партиям", sub: true, cells: [money(d.clientDebtInfo.unallocated)] }] : []),
               { k: "Всего оплачено", strong: true, cells: [money(paidAll)] },
@@ -210,7 +211,7 @@ export function PayTiles({ drill = false, d, c4Mode, year, only, id = "pay", tit
             <DetailTable head={["Статья", "Сумма"]} rows={[
               ...(inFur ? [{ k: "Мех", cells: [money(L.fur)] }] : []),
               ...(inLin ? [{ k: "Подкладка", cells: [dash(L.lining)] }] : []),
-              ...(inServ && Math.abs(L.services) >= 0.5 ? [{ k: SERVICES_LABEL, cells: [money(L.services)] }] : []),
+              ...(inServ && !isZero(L.services) ? [{ k: SERVICES_LABEL, cells: [money(L.services)] }] : []),
               ...(inWork ? [{ k: TERMS.workRest, cells: [money(L.work)] }] : []),
               { k: "Всего до зачёта аванса", strong: true, cells: [money(leftAll)] },
               ...(inWork && adv >= 1 ? [{ k: "аванс подрядчику (зачёт)", sub: true, cells: [`−${money(adv)}`] }, { k: DUE_LABEL, strong: true, cells: [money(due.net)] }] : []),

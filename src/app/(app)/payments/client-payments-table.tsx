@@ -1,3 +1,4 @@
+import { isZero, isPositive } from "@/domain/money";
 import { Clamp } from "@/components/clamp";
 import { SourceDocs } from "@/components/source-docs";
 import type { SourceDocsData } from "@/lib/source-docs";
@@ -55,7 +56,7 @@ const money = (n: number) => formatMoney(n.toFixed(2));
 function Rest({ work, paid }: { work: number | null | undefined; paid: number | null | undefined }) {
   if (work == null || work <= 0) return <span className="text-neutral-600">–</span>;
   const diff = work - (paid ?? 0);
-  if (Math.abs(diff) <= 0.5) return <span className="text-neutral-500">–</span>;
+  if (isZero(diff)) return <span className="text-neutral-500">–</span>;
   return diff > 0 ? <span className="font-medium text-amber-700">{money(diff)}</span> : <span className="font-medium text-emerald-700">Переплата {money(-diff)}</span>;
 }
 
@@ -64,7 +65,7 @@ export function SplitLine({ amount, allocated, hidesNote, movedTo }: { amount: n
   const diff = amount - allocated;
   let tail: ReactNode;
   if (amount === 0) tail = <span className="text-neutral-600">нулевая оплата{movedTo ? `: сумма вынесена в оплату закупки ${movedTo}` : ""}</span>;
-  else if (Math.abs(diff) <= 0.5) tail = <span className="text-emerald-700">расхождений нет</span>;
+  else if (isZero(diff)) tail = <span className="text-emerald-700">расхождений нет</span>;
   else if (Math.abs(diff) < 1) tail = <span className="text-neutral-600">округление {money(diff)}</span>;
   else if (diff > 0 && hidesNote) tail = <span className="text-neutral-700">{money(diff)} — сверх работы ТЗ: шкуры подрядчика (не работа, к ТЗ не относится)</span>;
   else tail = <span className="font-medium text-amber-700">не разнесено {money(diff)}</span>;
@@ -120,7 +121,7 @@ export function Goods({ goods }: { goods: PaidGood[] }) {
             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{qtyText(total)}</td>
             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{money(work)}</td>
             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{money(paidTotal)}</td>
-            <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums " + (left > 0.5 ? "text-amber-700" : left < -0.5 ? "text-emerald-700" : "")}>{Math.abs(left) <= 0.5 ? "–" : left > 0 ? money(left) : `+${money(-left)}`}</td>
+            <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums " + (isPositive(left) ? "text-amber-700" : left < -0.5 ? "text-emerald-700" : "")}>{isZero(left) ? "–" : left > 0 ? money(left) : `+${money(-left)}`}</td>
           </tr>
         </tfoot>
       </table>
@@ -178,9 +179,9 @@ export function ClientPaymentsTable({ rows, rest }: { rows: ClientPayRow[]; rest
                   const left = due - paid;
                   return (
                     <>
-                      <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-600">–</span>}</td>
+                      <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{isPositive(due) ? money(due) : <span className="text-neutral-600">–</span>}</td>
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{money(paid)}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{Math.abs(left) <= 0.5 ? <span className="text-neutral-600">–</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700">Переплата {money(-left)}</span>}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{isZero(left) ? <span className="text-neutral-600">–</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700">Переплата {money(-left)}</span>}</td>
                       <td colSpan={2} className="border-l border-neutral-200" />
                     </>
                   );
@@ -201,10 +202,10 @@ export function ClientPaymentsTable({ rows, rest }: { rows: ClientPayRow[]; rest
                         const left = due - paid;
                         return (
                           <>
-                            <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-600">–</span>}</td>
+                            <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{isPositive(due) ? money(due) : <span className="text-neutral-600">–</span>}</td>
                             <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{money(paid)}</td>
                             <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                              {Math.abs(left) <= 0.5 ? <span className="text-neutral-600">–</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700" title="оплачено больше, чем к оплате по этой дате (аванс вперёд)">Переплата {money(-left)}</span>}
+                              {isZero(left) ? <span className="text-neutral-600">–</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700" title="оплачено больше, чем к оплате по этой дате (аванс вперёд)">Переплата {money(-left)}</span>}
                             </td>
                           </>
                         );

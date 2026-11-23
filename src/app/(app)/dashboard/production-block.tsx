@@ -1,5 +1,6 @@
 "use client";
 
+import { isZero } from "@/domain/money";
 import { useMemo, useState } from "react";
 import { useSeasonScope } from "./season-scope";
 import { isRepair, sumOrders } from "@/lib/orders-sum";
@@ -149,7 +150,7 @@ export function ProductionBlock({ scoped = false, reportSeasons, href = "/produc
   // Шкуры подрядчика входят в мех (оплачены в составе пошива), поэтому и в себестоимость.
   const costAll = cost(fact) + (vat === "incl" ? hides.incl : hides.excl);
   const otherRaw = costAll - D.fur - D.lining - (c4 === "on" ? D.c4 : 0);
-  const other = Math.abs(otherRaw) < 0.5 ? 0 : otherRaw;
+  const other = isZero(otherRaw) ? 0 : otherRaw;
   const total = costAll + fact.work;
   const parts = [
     // Расходы ТЗ и прочее отдельной строкой не показываем: это поправки к стоимости сырья по документам ТЗ (НДС 22 % вместо 20 % в лотах) и доп. материалы — входят в мех.
@@ -220,7 +221,7 @@ export function ProductionBlock({ scoped = false, reportSeasons, href = "/produc
                     <div key={p.k} className="flex items-baseline justify-between gap-3">
                       <dt className="text-neutral-600">{p.k}</dt>
                       <dd className="text-right font-medium tabular-nums">
-                        {Math.abs(p.v) < 0.5 ? "\u00a0" : (
+                        {isZero(p.v) ? "\u00a0" : (
                           <>
                             <span className="mr-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{total ? formatShare(p.v / total) : "–"}</span>
                             {money(p.v)}
@@ -265,7 +266,7 @@ function ProdBridgeHint({ done, c4, vat, bridge, vatCost }: { vatCost: VatByRate
   const g = (n: ProdNums) => ({ cost: vat === "incl" ? n.costIncl : n.costExcl, mat: vat === "incl" ? n.matIncl : n.matExcl, c4: vat === "incl" ? n.c4Incl : n.c4Excl });
   const D = g(done);
   const rawOther = D.cost - D.mat - D.c4;
-  const other = Math.abs(rawOther) < 0.5 ? 0 : rawOther;
+  const other = isZero(rawOther) ? 0 : rawOther;
   const vatAmount = done.costIncl - done.costExcl;
   return (
     <BridgeHint label="Как сходятся цифры производства" warn={!bridge.comparable}>

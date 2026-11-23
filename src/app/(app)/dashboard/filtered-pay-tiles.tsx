@@ -1,3 +1,4 @@
+import { isZero, isPositive } from "@/domain/money";
 import { formatMoney } from "@/lib/utils";
 import { alignFlowMoney, lrAllocate, roundRub } from "@/lib/money-round";
 import { isDebtDust } from "@/lib/raw-rounding";
@@ -12,7 +13,7 @@ import { TILE_BOX, TileHead, TileValue, TileList, type TileItem } from "./tile";
  */
 export function FilteredPayTiles({ figs, paid, due, c4 }: { figs: FlowFigures; paid: number; due: number; c4: "on" | "off" }) {
   const money = (v: number) => formatMoney(roundRub(v));
-  const dash = (v: number) => (Math.abs(v) < 0.5 ? "–" : money(v));
+  const dash = (v: number) => (isZero(v) ? "–" : money(v));
   // Целые рубли, сходящиеся на экране (src/lib/money-round.ts): оплачено + к оплате = общая стоимость, остаток + использовано = их части.
   const fa = alignFlowMoney(figs, c4 === "on");
   const D = { stock: fa.remValue, used: c4 === "on" ? fa.usedValueOther : fa.usedValue, c4: Math.abs(fa.usedValue - fa.usedValueOther) };
@@ -56,7 +57,7 @@ export function FilteredPayTiles({ figs, paid, due, c4 }: { figs: FlowFigures; p
           </>
         ) : (
           <>
-            <TileValue compact className={due > 0.5 ? "text-amber-700" : ""}>{money(dueR)}</TileValue>
+            <TileValue compact className={isPositive(due) ? "text-amber-700" : ""}>{money(dueR)}</TileValue>
             <TileList stack items={list(split(due, dueR), 0)} />
           </>
         )}

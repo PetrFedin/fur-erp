@@ -1,3 +1,4 @@
+import { isZero, isPositive } from "@/domain/money";
 import { countPayslips } from "@/lib/pay-kinds";
 import "server-only";
 // Загрузка данных Сводки (/dashboard): всё, что нужно блокам, одним набором параллельных запросов.
@@ -275,7 +276,7 @@ const DEADLINE_RE = /срок\s+(\d{2})\.(\d{2})\.(\d{4})/i;
  * внутри платежа — пропорционально разнесённой работе). ТЗ без списаний делят свою долю между остальными. Ключ: «fur|Вид» или «lining».
  */
 export async function surchargeSplit(orgId: string, rows: Awaited<ReturnType<typeof loadPaymentsOverview>>, year: YearFilter, c4: Commission4Mode): Promise<Map<string, number>> {
-  const pays = rows.filter((r) => r.hides > 0.5 && (year === "all" || r.year === Number(year)));
+  const pays = rows.filter((r) => isPositive(r.hides) && (year === "all" || r.year === Number(year)));
   const out = new Map<string, number>();
   if (pays.length === 0) return out;
   const orders = await loadDrillOrders(orgId, "all", { auction: [], fur: [], color: [], attr: [], batch: [], status: [], vat: [], catgroup: [] }, c4, "all");
@@ -399,7 +400,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
       aucMoney.delete(name);
       continue;
     }
-    if ((aucTotalValue.get(name) ?? 0) > 0 || (Math.abs(m.paid) < 0.5 && Math.abs(m.due) < 0.5)) continue;
+    if ((aucTotalValue.get(name) ?? 0) > 0 || (isZero(m.paid) && isZero(m.due))) continue;
     unreceived.paid += m.paid; unreceived.due += m.due;
     if (!/^З-\d{4}-\d+$/.test(name)) unreceived.names.push(name);
     // Состав заказа (ещё без лотов): делим деньги по видам меха пропорционально стоимости позиций.
@@ -462,7 +463,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
   // Подкладка: лоты разных поставок записаны вперемешку (поставка 05.26 частично лежит в лотах 07.25), поэтому оплату и долг
   // делим по доле стоимости между ВСЕМИ лотами подкладки, а не внутри «своего» аукциона — иначе у отдельной ткани «оплачено» выходит больше «куплено».
   // В пул идут аукционы подкладки, по которым в выбранном году есть оплаты или долг (лоты — все лоты этих аукционов).
-  const liningAucs = new Set(allLots.filter((l) => l.kind === "lining" && (Math.abs(aucMoney.get(l.auction)?.paid ?? 0) >= 0.5 || Math.abs(aucMoney.get(l.auction)?.due ?? 0) >= 0.5)).map((l) => l.auction));
+  const liningAucs = new Set(allLots.filter((l) => l.kind === "lining" && (!isZero(aucMoney.get(l.auction)?.paid ?? 0) || !isZero(aucMoney.get(l.auction)?.due ?? 0))).map((l) => l.auction));
   const liningPool = { paid: 0, due: 0, value: allLots.filter((l) => l.kind === "lining" && liningAucs.has(l.auction)).reduce((a, l) => a + l.recvIncl, 0) };
   for (const au of liningAucs) {
     const tot = aucTotalValue.get(au) ?? 0;
@@ -673,7 +674,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
       if (g) { g.paid += paid; g.due += due; }
     };
     // Остаток оплат — шкуры подрядчика (свакара, фондю), оплаченные в составе счетов за пошив: относим к свакаре. (hidesApply всегда false — ветка не работает.)
-    if (Math.abs(restPaid) >= 0.5) {
+    if (!isZero(restPaid)) {
       const r = rowOf("Свакара");
       if (r) {
         r.paid += restPaid; r.cells = withHides(r.cells, hidesTotal);
@@ -685,7 +686,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
       const lin = rawTable.filter((x) => x.kind === "lining").sort((a, b) => b.cells.incl.rv - a.cells.incl.rv)[0];
       for (const [key, amt] of surcharge) {
         const r = key === "lining" ? lin : rowOf(key.slice(4));
-        if (!r || amt < 0.5) continue;
+        if (!r || !isPositive(amt)) continue;
         r.paid += amt;
         r.auctions.push({ key: "hides", label: "Доплата подрядчику: НДС по сырью", cells: cellsPair([], c4k), paid: amt, due: 0 });
       }
@@ -693,7 +694,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
     for (const p of purchasesYear) {
       if (p.auctionSession && auctionName(p.auctionSession)) continue;
       const due = purchaseTotalInclVat(p).sub(p.payments.filter((x) => x.status === "COMPLETED").reduce((a, x) => a.add(x.amount), new Decimal(0))).toNumber();
-      if (due < 0.5) continue;
+      if (!isPositive(due)) continue;
       const ls = lotsYear.filter((l) => l.kind === "fur" && l.purchaseId === p.id);
       // База долевого деления — ВСЕ лоты закупки (как в lotMoney ниже): иначе при фильтре по виду меха на выбранный вид ложится весь долг многовидовой закупки.
       const tot = allLots.filter((l) => l.kind === "fur" && l.purchaseId === p.id).reduce((a, l) => a + l.recvIncl, 0);
@@ -753,7 +754,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
   const syntheticLots: FurLot[] = [
     ...unreceived.byFur.map((g) => synth(`ordered:${g.label}`, g.label, g.names[0] ?? "Заказано", 2026, g.ordered, null, { paid: g.paid, due: g.due }, g.usd, g.positions)),
     // Шкуры подрядчика — по году оплаты (год лота = год оплаты): фильтр «Год закупки» таблицы «Сырьё» делит их так же, как Главная.
-    ...(hidesTotal.incl > 0.5 ? Array.from(hidesYear).filter(([, v]) => v.incl > 0).sort((a, b) => a[0] - b[0]).map(([y, v]) => synth(`hides:${y}`, "Свакара", "Шкуры подрядчика", y, { qty: 0, incl: v.incl, excl: v.excl }, { incl: v.incl, excl: v.excl }, { paid: v.incl, due: 0 })) : []),
+    ...(isPositive(hidesTotal.incl) ? Array.from(hidesYear).filter(([, v]) => v.incl > 0).sort((a, b) => a[0] - b[0]).map(([y, v]) => synth(`hides:${y}`, "Свакара", "Шкуры подрядчика", y, { qty: 0, incl: v.incl, excl: v.excl }, { incl: v.incl, excl: v.excl }, { paid: v.incl, due: 0 })) : []),
   ];
 
   // Деньги по лотам (для плиток «Оплачено / К оплате» таблицы «Сырьё» при фильтрах): доля аукциона по стоимости лота; закупки без аукциона — по своим оплатам и долгу.
@@ -767,7 +768,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
   for (const p of purchasesYear) {
     if (p.auctionSession && auctionName(p.auctionSession)) continue;
     const dueP = purchaseTotalInclVat(p).sub(p.payments.filter((x) => x.status === "COMPLETED").reduce((a, x) => a.add(x.amount), new Decimal(0))).toNumber();
-    if (dueP < 0.5) continue;
+    if (!isPositive(dueP)) continue;
     const ls = allLots.filter((l) => l.kind === "fur" && l.purchaseId === p.id);
     const tot = ls.reduce((a, l) => a + l.recvIncl, 0);
     if (tot > 0) for (const l of ls) lotMoney[l.id].due += dueP * (l.recvIncl / tot);

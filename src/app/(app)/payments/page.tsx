@@ -1,3 +1,4 @@
+import { isZero, isPositive } from "@/domain/money";
 import { storedFileExists } from "@/lib/stored-file-check";
 import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { orderLabel, positionsOf } from "@/lib/order-label";
@@ -526,7 +527,7 @@ export default async function PaymentsPage({
     const sums = await prisma.paymentAllocation.groupBy({ by: ["productionOrderId"], where: { organizationId: orgId, productionPayment: { status: "COMPLETED" } }, _sum: { amount: true } });
     for (const x of sums) allocTotals.set(x.productionOrderId, x._sum.amount?.toNumber() ?? 0);
   }
-  const owedWorkTotal = Array.from(orderInfo.values()).filter((o) => o.clientName && o.work - (allocTotals.get(o.id) ?? 0) > 0.5 && (year === "all" || o.year === Number(year))).reduce((a, o) => a + (o.work - (allocTotals.get(o.id) ?? 0)), 0);
+  const owedWorkTotal = Array.from(orderInfo.values()).filter((o) => o.clientName && isPositive(o.work - (allocTotals.get(o.id) ?? 0)) && (year === "all" || o.year === Number(year))).reduce((a, o) => a + (o.work - (allocTotals.get(o.id) ?? 0)), 0);
   const advancesTotal = clientPayments.filter((p) => p.allocations.length === 0 && /сч[её]т/i.test(p.docRef ?? "") && !p.amount.isZero()).reduce((a, p) => a + p.amount.toNumber(), 0);
   // Счета на оплату с прикреплённым файлом: у оплаты нет файлов напрямую, но счёт, названный в основании («Счёт №65»), прикреплён к системе — показываем ссылку на файл.
   const invoiceDocs = clientsTab
@@ -610,7 +611,7 @@ export default async function PaymentsPage({
   }));
   // ТЗ с неоплаченной работой (в том числе совсем без оплат) — расшифровка остатка в виджете.
   const owedOrders: OwedOrder[] = Array.from(orderInfo.values())
-      .filter((o) => o.clientName && o.work - (allocTotals.get(o.id) ?? 0) > 0.5 && (year === "all" || o.year === Number(year)))
+      .filter((o) => o.clientName && isPositive(o.work - (allocTotals.get(o.id) ?? 0)) && (year === "all" || o.year === Number(year)))
     .map((o) => ({ id: o.id, label: orderLabel({ workOrderNumber: o.workOrderNumber, number: o.number, ...tzPos.get(o.id) }), article: o.modelName, fur: o.fur, batch: o.batchNumber, year: o.year, qty: o.qty, work: o.work, paid: allocTotals.get(o.id) ?? 0 }));
   // «За работу»: общие виджеты — работа, оплачено, долг по работе подрядчику и разбивка по партиям.
   let goodsTotals: { work: number; hides: number; surcharge: number; total: number; paid: number; balance: number; unallocated: number; rows: BatchRow[] } | null = null;
@@ -791,7 +792,7 @@ export default async function PaymentsPage({
                     const tPaid = clientRows.reduce((a, r) => a + r.paid, 0);
                     const cost = Math.round((goodsTotals.total - tCost) * 100) / 100;
                     const debt = Math.round((goodsTotals.balance - (tCost - tPaid)) * 100) / 100;
-                    return cost > 0.5 ? { cost, debt, headCost: goodsTotals.total, headPaid: goodsTotals.paid, headDebt: goodsTotals.balance } : undefined;
+                    return isPositive(cost) ? { cost, debt, headCost: goodsTotals.total, headPaid: goodsTotals.paid, headDebt: goodsTotals.balance } : undefined;
                   })()}
                 />
           </>
@@ -829,7 +830,7 @@ export default async function PaymentsPage({
                   rows: (() => {
                     const rows = auctions.filter((a) => a.paid.abs().greaterThan(PAY_EPS)).map((a) => ({ name: shortAuctionName(a.name), year: auctionPeriod(a.name)?.year ?? null, month: auctionPeriod(a.name)?.month, value: Number(a.paid.toString()) }));
                     const rest = rawPaidAll - rows.reduce((acc, r) => acc + r.value, 0);
-                    return rest > 0.5 ? [...rows, { name: "Закупки без аукциона", year: null, value: rest }] : rows;
+                    return isPositive(rest) ? [...rows, { name: "Закупки без аукциона", year: null, value: rest }] : rows;
                   })(),
                 }}
                 debt={{
@@ -852,7 +853,7 @@ export default async function PaymentsPage({
                   </InfoHint>
                 }
                 debtHint={<SupplierDebtHint debt={debt} year={year} align="right" />}
-                debtSplit={rawPay && rawPay.leftAll >= 0.5 && Math.abs(Number(debt.debt.toString()) - rawPay.leftAll) < 2 ? (() => { const al = alignColumn([Number(debt.receivedNet.toString()), Number(debt.invoiced.add(debt.expected).toString())], rawPay.leftAll).values; return { delivered: al[0], ordered: al[1] }; })() : undefined}
+                debtSplit={rawPay && isPositive(rawPay.leftAll) && Math.abs(Number(debt.debt.toString()) - rawPay.leftAll) < 2 ? (() => { const al = alignColumn([Number(debt.receivedNet.toString()), Number(debt.invoiced.add(debt.expected).toString())], rawPay.leftAll).values; return { delivered: al[0], ordered: al[1] }; })() : undefined}
                 debtWarn={debt.debt.greaterThan(PAY_EPS)}
                 deadlines={
                   deadlines.length > 0 ? (

@@ -1,5 +1,6 @@
 "use client";
 
+import { isZero, isPositive } from "@/domain/money";
 import { ROUND_MIN } from "@/lib/raw-rounding";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -33,12 +34,12 @@ const rub = (v: number) => formatMoney(Math.abs(v - Math.round(v)) < 0.005 ? Mat
 
 /** Мех и подкладка с долей от суммы плитки. */
 function stat(_value: number, whole: number, fur: number, lining: number, warn = false, services = 0): TileItem[] {
-  const part = (v: number) => (whole > 0.5 ? v / whole : null);
+  const part = (v: number) => (isPositive(whole) ? v / whole : null);
   return [
     { k: "Мех", v: rub(fur), share: part(fur), tone: warn && fur > 0 ? "text-amber-700" : undefined },
     { k: "Подкладка", v: rub(lining), share: part(lining), tone: warn && lining > 0 ? "text-amber-700" : undefined },
     // Закупки-услуги (УПД без позиций сырья) — отдельной строкой, не в меху; только когда они есть.
-    ...(Math.abs(services) >= 0.5 ? [{ k: "Услуги по УПД", v: rub(services), share: part(services), tone: warn && services > 0 ? "text-amber-700" : undefined }] : []),
+    ...(!isZero(services) ? [{ k: "Услуги по УПД", v: rub(services), share: part(services), tone: warn && services > 0 ? "text-amber-700" : undefined }] : []),
   ];
 }
 
@@ -135,9 +136,9 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
             </div>
             {open === "paid" ? (
               <>
-                {paid.unlinked > 0.5 ? <p className="mb-3 text-xs text-neutral-500">Авансы без привязки к партии: {rub(paid.unlinked)}</p> : null}
+                {isPositive(paid.unlinked) ? <p className="mb-3 text-xs text-neutral-500">Авансы без привязки к партии: {rub(paid.unlinked)}</p> : null}
                 <Bars rows={paid.rows} tone="paid" />
-                {hidesMemo && hidesMemo > 0.5 ? null : null}
+                {hidesMemo && isPositive(hidesMemo) ? null : null}
               </>
             ) : (
               <>

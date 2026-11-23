@@ -1,5 +1,5 @@
 // Домен денег: чистые функции (без базы). node --env-file=.env node_modules/.bin/tsx scripts/test-domain-money.ts
-import { RUB_EPS, debtState, debtStateOfRest, payPair, sumPairs, transferOverpay, usedByMode, vatShare, withExtra } from "../src/domain/money";
+import { RUB_EPS, isNegative, isPositive, isZero, debtState, debtStateOfRest, payPair, sumPairs, transferOverpay, usedByMode, vatShare, withExtra } from "../src/domain/money";
 
 let fails = 0, checks = 0;
 const ok = (what: string, cond: boolean, extra = "") => { checks++; if (!cond) { fails++; console.log(`  ✗ ${what} ${extra}`); } };
@@ -11,6 +11,9 @@ ok("переплата", debtState(100, 160).kind === "overpay" && debtState(100
 ok("округление ниже допуска — ничего", debtState(100, 99.7).kind === "none" && debtState(100, 100.3).kind === "none");
 ok("граница допуска", debtState(100, 100 - RUB_EPS - 0.01).kind === "debt");
 ok("debtStateOfRest", debtStateOfRest(-55594.51).kind === "overpay" && debtStateOfRest(7440208).kind === "debt");
+
+// пороги
+ok("isZero/isPositive/isNegative", isZero(0.4) && isZero(-0.5) && !isZero(0.6) && isPositive(0.6) && !isPositive(0.5) && isNegative(-0.6) && !isNegative(-0.5));
 
 // «без НДС»: куплено − оплачено = долг сходится в обоих режимах
 {

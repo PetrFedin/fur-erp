@@ -1,3 +1,4 @@
+import { isPositive } from "@/domain/money";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { FilterBar } from "@/components/filters/filter-bar";
@@ -240,7 +241,7 @@ function Card({ r, invHref }: { r: RegistryRow; invHref?: string }) {
       details={[
         { label: "Счёт", value: invHref && r.invoice ? <Link href={invHref} className="text-blue-700">{r.invoice}</Link> : r.invoice },
         { label: "П/п", value: r.pp },
-        { label: "К чему отнесено", value: r.targets.length === 0 ? <span className="text-amber-700">Не отнесено</span> : <div className="flex flex-col gap-0.5">{r.targets.map((t) => <Link key={t.href + t.label} href={t.href} className="text-blue-700">{t.label}</Link>)}{r.unallocated > 0.5 ? <span className="text-xs text-amber-700">не разнесено {money(r.unallocated)}</span> : null}</div> },
+        { label: "К чему отнесено", value: r.targets.length === 0 ? <span className="text-amber-700">Не отнесено</span> : <div className="flex flex-col gap-0.5">{r.targets.map((t) => <Link key={t.href + t.label} href={t.href} className="text-blue-700">{t.label}</Link>)}{isPositive(r.unallocated) ? <span className="text-xs text-amber-700">не разнесено {money(r.unallocated)}</span> : null}</div> },
       ]}
     />
   );
@@ -252,7 +253,7 @@ const DASH = <span className="text-neutral-600">–</span>;
 function Row({ r, invHref }: { r: RegistryRow; invHref?: string }) {
   const href = `/payments/${r.code}?from=${encodeURIComponent("/payments")}`;
   const tgt = r.targets.map((t, i) => <span key={t.href + t.label}>{i > 0 ? ", " : ""}<Link href={t.href} className="text-blue-700 hover:underline">{t.label}</Link></span>);
-  const rest = r.unallocated > 0.5 ? <span className="text-amber-700"> · не разнесено {money(r.unallocated)}</span> : null;
+  const rest = isPositive(r.unallocated) ? <span className="text-amber-700"> · не разнесено {money(r.unallocated)}</span> : null;
   return (
     <tr className="border-b border-neutral-100">
       <td data-col="pp" className={CELL}><Clamp className="max-w-[9rem]"><Link href={href} className="text-blue-700 hover:underline" title="Открыть карточку оплаты">{r.pp || "–"} ›</Link></Clamp></td>
@@ -263,7 +264,7 @@ function Row({ r, invHref }: { r: RegistryRow; invHref?: string }) {
       <td data-col="what" className={CELL + " whitespace-nowrap"}>{r.what}</td>
       <td data-col="target" className={CELL}>
         {r.targets.length === 0 ? <span className="text-amber-700">Не отнесено</span> : (
-          <Clamp className="max-w-[22rem]" full={<div className="flex flex-col gap-1">{r.targets.map((t) => <Link key={t.href + t.label} href={t.href} className="text-blue-700 hover:underline">{t.label}</Link>)}{r.unallocated > 0.5 ? <span className="text-amber-700">не разнесено {money(r.unallocated)}</span> : null}</div>}>{tgt}{rest}</Clamp>
+          <Clamp className="max-w-[22rem]" full={<div className="flex flex-col gap-1">{r.targets.map((t) => <Link key={t.href + t.label} href={t.href} className="text-blue-700 hover:underline">{t.label}</Link>)}{isPositive(r.unallocated) ? <span className="text-amber-700">не разнесено {money(r.unallocated)}</span> : null}</div>}>{tgt}{rest}</Clamp>
         )}
       </td>
       <td data-col="sum" className={CELL + " whitespace-nowrap text-right tabular-nums"}>{money(r.amount)}</td>

@@ -1,3 +1,4 @@
+import { isZero, isPositive } from "@/domain/money";
 import { formatPercent, formatMoney } from "@/lib/utils";
 import { memoRequest } from "@/lib/req-memo";
 import "server-only";
@@ -189,7 +190,7 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
     }
     const posWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? "позиция" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "позиции" : "позиций");
     const parts: OverviewPart[] = Array.from(byTz, ([key, v]) => ({ label: v.n > 1 ? `ТЗ ${key} (${v.n} ${posWord(v.n)})` : `ТЗ ${key}`, href: v.href, amount: Math.round(v.amount * 100) / 100 }));
-    if (Math.abs(rest) > 0.5) parts.push({ label: hides > 0 ? "Доплата подрядчику: НДС 22 % по сырью заказчика" : "Аванс без привязки к ТЗ", amount: rest });
+    if (!isZero(rest)) parts.push({ label: hides > 0 ? "Доплата подрядчику: НДС 22 % по сырью заказчика" : "Аванс без привязки к ТЗ", amount: rest });
     const orderIds = new Map<string, string>();
     for (const x of p.allocations) orderIds.set(x.productionOrder.id, x.productionOrder.workOrderNumber?.trim() || x.productionOrder.number);
     for (const x of p.orders) if (!orderIds.has(x.productionOrder.id)) orderIds.set(x.productionOrder.id, x.productionOrder.workOrderNumber?.trim() || x.productionOrder.number);
@@ -214,12 +215,12 @@ async function loadPaymentsOverviewImpl(orgId: string): Promise<OverviewRow[]> {
       ["Подтверждение", p.confirmedAt ? `подтверждена ${ruDate(p.confirmedAt)}` : "ждёт платёжку / проверки"],
       ["Прикреплено документов", String(p._count.driveDocuments)],
       ["Распределено", `${money(alloc)} из ${money(amount)}`],
-      ["Остаток по платежу", Math.abs(rest) > 0.5 ? money(rest) : "–"],
+      ["Остаток по платежу", !isZero(rest) ? money(rest) : "–"],
       ["Внесена", ruDate(p.createdAt)],
     ];
     out.push({
       fields: prodFields.filter(([, v]) => v !== ""),
-      unallocated: Math.abs(rest) > 0.5 ? rest : 0,
+      unallocated: !isZero(rest) ? rest : 0,
       links: (() => {
         const seen = new Set<string>();
         const ls: { label: string; href: string }[] = [];
@@ -278,7 +279,7 @@ async function loadPaymentsLeftImpl(orgId: string): Promise<{ byYear: Map<number
   for (const o of orders) {
     if (!o.clientName) continue;
     const left = o.work - (al.get(o.id) ?? 0);
-    if (left > 0.5) add(o.year ?? 2026, "prod", left);
+    if (isPositive(left)) add(o.year ?? 2026, "prod", left);
   }
   // Неразнесённые авансы подрядчику — отдельной строкой («Аванс подрядчику»), а не минусом в долге: «К оплате» по работе = остаток работы по ТЗ, не меньше нуля.
   for (const p of cd.payments) {
