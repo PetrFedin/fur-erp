@@ -22,6 +22,8 @@ import type { ModeInfo } from "./mode-line";
 /** Режим «С 4 %»: «Использовано» берём с надбавкой (uo / uoa); «Без 4 %» — как есть. Куплено и остаток от 4 % не зависят. */
 const c4Cells = (c: Cells): Cells => ({ ...c, uv: c.uo, ua: c.uoa });
 const c4Pair = (p: CellsPair): CellsPair => ({ incl: c4Cells(p.incl), excl: c4Cells(p.excl) });
+const ZERO_CELLS: Cells = { rq: 0, rv: 0, ra: null, uq: 0, uv: 0, ua: null, mq: 0, mv: 0, ma: null, uo: 0, uoa: null };
+const ZERO_PAIR = { incl: ZERO_CELLS, excl: ZERO_CELLS } as YearRow["lining"];
 const c4Year = (r: YearRow): YearRow => ({ ...r, fur: c4Pair(r.fur), lining: c4Pair(r.lining) });
 const c4Raw = (r: RawTableRow): RawTableRow => ({ ...r, cells: c4Pair(r.cells), auctions: r.auctions.map((a) => ({ ...a, cells: c4Pair(a.cells) })), years: r.years.map((y) => ({ ...y, cells: c4Pair(y.cells) })) });
 
@@ -80,14 +82,16 @@ export function YearsTable({ rows: rowsIn, bySrc: bySrcIn, c4, info }: { rows: Y
   const bySrc = useMemo(() => (c4 === "on" && bySrcIn ? ({ auction: bySrcIn.auction.map((x) => ({ ...x, fur: c4Pair(x.fur) })), supplier: bySrcIn.supplier.map((x) => ({ ...x, fur: c4Pair(x.fur) })) }) : bySrcIn), [bySrcIn, c4]);
   const scope = useFurScope();
   const sel = scope?.src ?? "all";
-  // Источник меха: мех по годам берётся из выбранного источника, подкладка, оплаты и долг по источнику не делятся («—»).
+  // Источник меха: мех по годам берётся из выбранного источника, оплаты и долг по источнику не делятся; подкладка — только у поставщика («—»).
   const rowsRaw = useMemo(() => {
     if (sel === "all" || !bySrc) return rowsAll;
     const per = new Map(bySrc[sel].map((x) => [x.key, x.fur]));
     const yr = rowsAll.filter((r) => r.key !== "all").map((r) => {
       const fur = per.get(r.key) ?? r.fur;
-      const lin = r.money.lining;
-      return { ...r, fur: r.key === "none" ? r.fur : fur, paid: lin.paid, debt: lin.debt, money: { fur: { paid: 0, debt: 0 }, lining: lin } };
+      // Подкладка закупается только у поставщика (как на «Закупках»): в срезе «На аукционах» её нет, в «У поставщика» она целиком.
+      const noLin = sel === "auction";
+      const lin = noLin ? { paid: 0, debt: 0 } : r.money.lining;
+      return { ...r, fur: r.key === "none" ? r.fur : fur, lining: noLin ? ZERO_PAIR : r.lining, paid: lin.paid, debt: lin.debt, money: { fur: { paid: 0, debt: 0 }, lining: lin } };
     });
     const allRow = rowsAll.find((r) => r.key === "all")!;
     const tot: YearRow = { ...allRow, fur: { incl: sumCellsP(yr.map((r) => r.fur.incl)), excl: sumCellsP(yr.map((r) => r.fur.excl)) }, paid: yr.reduce((a, r) => a + r.paid, 0), debt: yr.reduce((a, r) => a + r.debt, 0), money: { fur: { paid: 0, debt: 0 }, lining: { paid: yr.reduce((a, r) => a + r.money.lining.paid, 0), debt: yr.reduce((a, r) => a + r.money.lining.debt, 0) } } };
