@@ -6,7 +6,7 @@ import { appendFileSync } from "node:fs";
  * данных между организациями. Расширение клиента проверяет каждый запрос и, смотря по режиму TENANT_GUARD:
  *   off (по умолчанию) — ничего не делает;
  *   log   — пишет нарушения в TENANT_GUARD_LOG (одна JSON-строка на нарушение: модель, операция, место вызова);
- *   error — бросает ошибку (для тестов и CI, когда накопленные нарушения исправлены).
+ *   error — бросает ошибку на запросах без организации и без ключа записи (для сервера e2e в CI); запросы «по ключу» (id, …Id) только пишутся.
  * Запрос считается ограниченным организацией, если `organizationId` встречается в `where` на любой глубине (в том числе через связь:
  * { lot: { organizationId } }) или в `data` при создании. Одиночные операции по уникальному id (findUnique / update / delete) помечаются
  * отдельным видом «by-id»: id глобален, но проверка организации после чтения остаётся на вызывающем коде.
@@ -24,6 +24,14 @@ const hasOrg = (x: unknown, depth = 0): boolean => {
   return Object.values(o).some((v) => hasOrg(v, depth + 1));
 };
 
+// Условие с ключом записи (id или внешний ключ …Id) — запись уже найдена в рамках организации выше по коду; это «по ключу», не утечка.
+const hasKey = (x: unknown, depth = 0): boolean => {
+  if (!x || typeof x !== "object" || depth > 8) return false;
+  if (Array.isArray(x)) return x.some((v) => hasKey(v, depth + 1));
+  const o = x as Record<string, unknown>;
+  return Object.keys(o).some((k) => k === "id" || /Id$/.test(k)) || Object.values(o).some((v) => hasKey(v, depth + 1));
+};
+
 const SCOPED_READS = new Set(["findMany", "findFirst", "findFirstOrThrow", "count", "aggregate", "groupBy", "updateMany", "deleteMany"]);
 const BY_ID = new Set(["findUnique", "findUniqueOrThrow", "update", "delete", "upsert"]);
 const CREATES = new Set(["create", "createMany", "createManyAndReturn"]);
@@ -34,9 +42,11 @@ function callSite(): string {
   return hit.trim().replace(/^at /, "").slice(0, 200);
 }
 
-function report(model: string, operation: string, kind: string) {
-  const line = { model, operation, kind, at: callSite() };
-  if (MODE === "error" && kind !== "by-id") throw new Error(`[tenant-guard] ${model}.${operation} без organizationId (${line.at})`);
+function report(model: string, operation: string, kind: string, shape: unknown) {
+  // Стек в расширении Prisma теряет вызывающий код (асинхронные границы), поэтому для поиска места пишем форму условия.
+  let w = ""; try { w = JSON.stringify(shape)?.slice(0, 200) ?? ""; } catch { /* циклическая структура */ }
+  const line = { model, operation, kind, where: w, at: callSite() };
+  if (MODE === "error" && kind !== "by-id" && kind !== "by-key") throw new Error(`[tenant-guard] ${model}.${operation} без organizationId (${line.at})`);
   if (LOG) { try { appendFileSync(LOG, JSON.stringify(line) + "\n"); } catch { /* журнал недоступен — не мешаем работе */ } }
 }
 
@@ -49,9 +59,9 @@ export function tenantGuardExtension() {
         async $allOperations({ model, operation, args, query }) {
           if (tenantModels.has(model)) {
             const a = args as { where?: unknown; data?: unknown } | undefined;
-            if (SCOPED_READS.has(operation) && !hasOrg(a?.where)) report(model, operation, "unscoped");
-            else if (BY_ID.has(operation) && !hasOrg(a?.where)) report(model, operation, "by-id");
-            else if (CREATES.has(operation) && !hasOrg(a?.data)) report(model, operation, "create-no-org");
+            if (SCOPED_READS.has(operation) && !hasOrg(a?.where)) report(model, operation, hasKey(a?.where) ? "by-key" : "unscoped", a?.where);
+            else if (BY_ID.has(operation) && !hasOrg(a?.where)) report(model, operation, "by-id", a?.where);
+            else if (CREATES.has(operation) && !hasOrg(a?.data)) report(model, operation, "create-no-org", a?.data);
           }
           return query(args);
         },
