@@ -6,6 +6,8 @@ import { vatPeriodLabel, vatRateForDate } from "@/lib/vat-by-date";
 import { WidgetRow } from "@/components/widget-row";
 import { requireSession } from "@/lib/session";
 import { getCommission4Mode } from "@/lib/commission4-mode";
+import { LevelSummaryFromTotals } from "@/components/level-tiles";
+import { loadLevelTotals } from "@/lib/mart/level-totals";
 import { InfoHint } from "@/components/info-hint";
 import { Money } from "@/components/money";
 import { Mode4Badge } from "@/components/c4-note";
@@ -92,6 +94,7 @@ export default async function LotCardPage({ params, searchParams }: { params: Pr
 
   const lining = l.unit === "M";
   const unit = lining ? "м" : "шт.";
+  const martLot = await loadLevelTotals(orgId, { lotId: id });
   const unitWord = lining ? "м" : "шт.";
   const qty = (d: Decimal) => `${formatDec1(d.toString())} ${unit}`;
   const vatRate = Number(p.vatRate);
@@ -290,6 +293,8 @@ export default async function LotCardPage({ params, searchParams }: { params: Pr
 
       {/* 1. Виджеты */}
       <WidgetRow id="lot" title="Лот" headerEnd={l.purchaseId ? <Link href={`/purchases/${l.purchaseId}`} className="text-xs text-blue-700 hover:underline print:hidden">→ Закупка</Link> : undefined}>
+        {/* Числа лота — из витрины (DmLot): тот же источник, что у аукциона, закупки и «Сырья»; витрина устарела — прежний расчёт ниже. */}
+        {martLot ? <LevelSummaryFromTotals t={martLot} c4={c4} unit={lining ? "м" : "шт."} label="Итоги лота" /> : (
         <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
           <div className={TILE_BOX}>
             <TileHead>Куплено</TileHead>
@@ -330,6 +335,7 @@ export default async function LotCardPage({ params, searchParams }: { params: Pr
             )}
           </div>
         </div>
+        )}
       </WidgetRow>
 
       {/* 2. Паспорт: ключевые поля сверху, остальные ниже (свёрнуты) */}

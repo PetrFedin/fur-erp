@@ -336,6 +336,15 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     const [payRow] = await db.$queryRaw<{ total: string | null }[]>`SELECT sum(dp."payTotal")::text total FROM "DmPurchase" dp WHERE dp."organizationId" = ${orgId} AND dp.status <> 'CANCELLED' AND (EXISTS (SELECT 1 FROM "DmLot" l WHERE l."organizationId" = ${orgId} AND l."purchaseId" = dp."purchaseId" AND l."unit" = 'PCS') OR (dp.status = 'DRAFT' AND btrim(split_part(dp."auction", E'\n', 1)) IN (SELECT "auction" FROM "DmLotBridge" WHERE "organizationId" = ${orgId} AND kind = 'ordered')))`;
     const [furBought] = await db.$queryRaw<{ total: string | null }[]>`SELECT (SELECT sum("totalCost") FROM "DmLot" WHERE "organizationId" = ${orgId} AND "unit" = 'PCS')::numeric + (SELECT coalesce(sum("totalCost"), 0) FROM "DmLotBridge" WHERE "organizationId" = ${orgId} AND kind = 'ordered') AS total`;
     rows.push({ key: "rawPayVsBought", label: "Сырьё (мех): итог закупок в оплатах = «Куплено» (лоты + заказано), ₽", expected: Math.round(Number(furBought?.total ?? 0)), actual: Math.round(Number(payRow?.total ?? 0)), status: Math.abs(Number(furBought?.total ?? 0) - Number(payRow?.total ?? 0)) <= 5 ? "ok" : "warn", note: null });
+    // Оплаты Главной за сырьё (мех + подкладка + услуги) = оплаты поставщикам в витрине + доплата подрядчику: она идёт платежом по производству и вне «Куплено» сырья.
+    // Разница показывается явно (справка), а не прячется: её видно на странице закупок в плитке «Куплено».
+    if (dash) {
+      const [pay] = await db.$queryRaw<{ paid: string | null }[]>`SELECT sum("paidShare")::text paid FROM "DmPurchase" WHERE "organizationId" = ${orgId} AND status <> 'CANCELLED'`;
+      const homePaid = dash.paidByItem.fur + dash.paidByItem.lining + dash.paidByItem.services;
+      const martPaid = Number(pay?.paid ?? 0);
+      const diff = homePaid - martPaid;
+      rows.push({ key: "rawPaidVsHome", label: "Оплаты сырья: на Главной минус поставщикам в витрине (доплата подрядчику), ₽", expected: null, actual: Math.round(diff), status: diff >= -5 && diff <= 1_000_000 ? "info" : "warn", note: `на Главной ${Math.round(homePaid).toLocaleString("ru-RU")} ₽, в витрине ${Math.round(martPaid).toLocaleString("ru-RU")} ₽; разница — доплата подрядчику по платежам производства` });
+    }
     await db.dmCheck.createMany({ data: rows.map((c) => ({ organizationId: orgId, key: c.key, label: c.label, expected: c.expected, actual: c.actual, status: c.status, note: c.note, builtAt: now2 })) });
   } catch (e) { console.error("[mart] сверки сырья не записаны:", e); }
   return { skus: skuCount, parties: partyCount, movements: lines.length, checks };
