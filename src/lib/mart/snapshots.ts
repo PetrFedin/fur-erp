@@ -22,7 +22,8 @@ const SNAPSHOT_MAX_AGE_MS = Number(process.env.MART_SNAPSHOT_MAX_AGE_MS) || 12 *
 export async function markDataChanged(orgId: string): Promise<void> {
   const value = Date.now();
   try {
-    await prisma.systemState.upsert({ where: { organizationId_key: { organizationId: orgId, key: VERSION_KEY } }, update: { value }, create: { organizationId: orgId, key: VERSION_KEY, value } });
+    // Сырым SQL, мимо журнала изменений: служебная отметка не должна попадать в «Журнал» на каждую запись данных.
+    await prisma.$executeRaw`INSERT INTO "SystemState" ("id", "organizationId", "key", "value", "createdAt", "updatedAt") VALUES (${crypto.randomUUID()}, ${orgId}, ${VERSION_KEY}, to_jsonb(${value}::bigint), now(), now()) ON CONFLICT ("organizationId", "key") DO UPDATE SET "value" = EXCLUDED."value", "updatedAt" = now()`;
   } catch { /* метка не записалась — снимки всё равно живут не дольше SNAPSHOT_MAX_AGE_MS */ }
 }
 

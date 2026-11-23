@@ -26,7 +26,7 @@ const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenue
   ok("SUPPLIER не видит пункт меню «Продажи и остатки»", !navLinksFor("SUPPLIER").some((l) => l.href === "/sales"));
   ok("внутренние роли видят пункт меню", ["OWNER", "ADMIN", "TECHNOLOGIST", "PURCHASER", "ACCOUNTANT", "WAREHOUSE"].every((r) => navLinksFor(r).some((l) => l.href === "/sales")));
   const nav = navLinksFor("OWNER").map((l) => l.href);
-  ok("пункт идёт сразу после «Изделий»", nav[nav.indexOf("/articles") + 1] === "/sales");
+  ok("пункт идёт после «Изделий» (между ними «Отгрузки и календарь» — порядок владельца 16.11)", nav.indexOf("/sales") > nav.indexOf("/articles") && nav.indexOf("/sales") - nav.indexOf("/articles") <= 2);
   for (const f of ["src/app/(app)/sales/page.tsx", "src/app/(app)/sales/movement/page.tsx"]) {
     const src = readFileSync(f, "utf8").replace(/\/\/.*$/gm, "");
     ok(`${f}: requireSession без allowSupplier`, /requireSession\(\)/.test(src) && !/allowSupplier/.test(src));
@@ -38,8 +38,8 @@ const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenue
   const srcOf = (f: string) => readFileSync(`src/app/(app)/sales/${f}`, "utf8");
   const metrics = ["sales-view.tsx", "sales-charts.tsx", "sales-tree.tsx", "sales-tabs.tsx"].flatMap((f) => [...srcOf(f).matchAll(/data-metric=(?:\{def\.id\}|"([\w-]+)")/g)].map((m) => m[1] ?? "tile"));
   ok("дубли: каждое data-metric в одном месте", metrics.filter((m) => m !== "tile").length === new Set(metrics.filter((m) => m !== "tile")).size);
-  ok("дубли: плитки только received/sold/stock/sellThrough", [...srcOf("sales-view.tsx").matchAll(/\{ id: "(\w+)", label:/g)].map((m) => m[1]).filter((id) => !["produced", "fg", "shipped"].includes(id)).join() === "received,sold,stock,sellThrough");
-  ok("дубли: корневая строка дерева не выводится (итог только в плитках)", !/renderNode\(tree, 0\)/.test(srcOf("sales-tree.tsx")));
+  ok("дубли: плитки только received/sold/stock/sellThrough", [...srcOf("sales-view.tsx").matchAll(/\{ id: "(\w+)", label:/g)].map((m) => m[1]).filter((id) => !["produced", "fg", "shipped"].includes(id)).join() === "received,sold,stock,sellThrough,ordered,inprod");
+  ok("дерево: строка «Всего» выводится (00d96167)", /renderNode\(tree, 0\)/.test(srcOf("sales-tree.tsx")));
   ok("дубли: нет вкладки «Заказы» и таблицы по периодам", !/key: "orders"/.test(readFileSync("src/lib/sales-url.ts", "utf8")) && !/Таблица по периодам/.test(srcOf("sales-charts.tsx")));
   ok("нет мер «по карточке»", !/К карточке|Цена по карточке/.test(srcOf("sales-tree.tsx") + srcOf("sales-view.tsx")));
   ok("страница ленты движений существует", existsSync("src/app/(app)/sales/movement/page.tsx"));
@@ -61,21 +61,30 @@ const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenue
     process.exit(fails ? 1 : 0);
   }
   const env = { lastMonth: lastMonthOf(all) };
+  // Эталонные числа (617/232/385…) относятся к выгрузке 02.11.2026. Владелец загрузил новую (приход 659): контрольные итоги проверяем только
+  // для известной выгрузки, а связи между числами (Σ сезонов = всё, остаток = приход − продано) — по текущим данным.
+  const tAll = extOf(makeCtx(data.input, "in"), all, env);
+  const KNOWN = tAll.received === 617;
+  if (!KNOWN) console.log(`  (выгрузка изменилась: получено ${tAll.received}, продано ${tAll.sold}; контрольные итоги выгрузки 02.11 пропущены)`);
+  const RECV = tAll.received, SOLD = tAll.sold, STOCK = tAll.stock, REV = tAll.revenueIncl;
   for (const vat of ["in", "ex"] as const) {
     const ctx = makeCtx(data.input, vat);
     const t = extOf(ctx, all, env);
     // 1. Контрольные итоги выгрузки.
-    eq("Σ приход = 617", t.received, 617);
-    eq("Σ продано нетто = 232", t.sold, 232);
-    eq("валовое = 240", t.gross, 240);
-    eq("возвраты = 8", t.returns, 8);
-    eq("остаток = 617 − 232 = 385", t.stock, 385);
-    eq("выручка с НДС = 353 888 049", t.revenueIncl, 353888049, 0.5);
-    eq("выручка без НДС = 292 019 953,45", t.revenueEx, 292019953.45, 0.01);
+    if (KNOWN) {
+      eq("Σ приход = 617", t.received, 617);
+      eq("Σ продано нетто = 232", t.sold, 232);
+      eq("валовое = 240", t.gross, 240);
+      eq("возвраты = 8", t.returns, 8);
+      eq("остаток = 617 − 232 = 385", t.stock, 385);
+      eq("выручка с НДС = 353 888 049", t.revenueIncl, 353888049, 0.5);
+      eq("выручка без НДС = 292 019 953,45", t.revenueEx, 292019953.45, 0.01);
+    }
+    eq("остаток = приход − продано нетто", t.stock, t.received - t.sold);
     eq("режим НДС: выручка выбранного режима", t.revenue, vat === "in" ? t.revenueIncl : t.revenueEx, 0.01);
     eq("нетто = валовое − возвраты", t.sold, t.gross - t.returns);
     eq("Gross = Выручка + Скидка", t.grossRev, t.revenue + t.discountSum, 0.01);
-    ok("18 строк продаж без штук (заказ 155627)", t.noPcs === 18);
+    if (KNOWN) ok("18 строк продаж без штук (заказ 155627)", t.noPcs === 18);
 
     // 2. Итог узла = сумма детей для каждой структуры и каждого уровня (все столбцы: Тотал, сезоны, месяцы).
     const seasons = sortSeasons(all.map((l) => l.season));
@@ -112,10 +121,10 @@ const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenue
     // 4. График = таблица: все гранулярности дают одни итоги, остаток нарастающий заканчивается итоговым остатком.
     for (const g of ["month", "season"] as Gran[]) {
       const b = bucketsOf(ctx, env, all, g, 0);
-      eq(`${g}: Σ приход`, sum(b.map((x) => x.m.received)), 617);
-      eq(`${g}: Σ продано`, sum(b.map((x) => x.m.sold)), 232);
+      eq(`${g}: Σ приход`, sum(b.map((x) => x.m.received)), RECV);
+      eq(`${g}: Σ продано`, sum(b.map((x) => x.m.sold)), SOLD);
       eq(`${g}: Σ выручка`, sum(b.map((x) => x.m.revenue)), t.revenue, 0.01);
-      eq(`${g}: последний остаток = 385`, b[b.length - 1].stock, 385);
+      eq(`${g}: последний остаток = остаток всего`, b[b.length - 1].stock, STOCK);
       let run = 0;
       b.forEach((x, i) => { run += x.m.received - x.m.sold; if (x.stock !== run) eq(`${g}: остаток нарастающий в корзине ${i}`, x.stock, run); });
       ok(`${g}: корзины по порядку`, g === "season" || b.every((x, i) => i === 0 || b[i - 1].key < x.key));
@@ -125,21 +134,21 @@ const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenue
   // 5. Фильтры пересчитывают.
   const ctx = makeCtx(data.input, "in");
   const T = (f: Partial<Filters>) => extOf(ctx, applyFilters(all, { ...NO_FILTERS, ...f }), env);
-  eq("категории: одежда + аксессуары + прочее = всё (приход)", T({ cat: "clothes" }).received + T({ cat: "acc" }).received + all.filter((l) => l.cls === "other" && l.kind === "RECEIPT").reduce((a, l) => a + l.pcs, 0), 617);
-  eq("категории: одежда + аксессуары + прочее = всё (продано)", T({ cat: "clothes" }).sold + T({ cat: "acc" }).sold + all.filter((l) => l.cls === "other" && l.kind === "SALE").reduce((a, l) => a + l.pcs, 0), 232);
+  eq("категории: одежда + аксессуары + прочее = всё (приход)", T({ cat: "clothes" }).received + T({ cat: "acc" }).received + all.filter((l) => l.cls === "other" && l.kind === "RECEIPT").reduce((a, l) => a + l.pcs, 0), RECV);
+  eq("категории: одежда + аксессуары + прочее = всё (продано)", T({ cat: "clothes" }).sold + T({ cat: "acc" }).sold + all.filter((l) => l.cls === "other" && l.kind === "SALE").reduce((a, l) => a + l.pcs, 0), SOLD);
   const seasons = sortSeasons(all.map((l) => l.season));
-  eq("сезоны: Σ сезонов = всё (продано)", sum(seasons.map((s) => T({ seasons: [s] }).sold)), 232);
-  eq("сезоны: Σ сезонов = всё (приход)", sum(seasons.map((s) => T({ seasons: [s] }).received)), 617);
-  eq("период: 2025 + 2026 = всё (продано)", T({ from: "2025-01-01", to: "2025-12-31" }).sold + T({ from: "2026-01-01", to: "2026-12-31" }).sold, 232);
-  eq("период: 2025 + 2026 = всё (выручка)", T({ from: "2025-01-01", to: "2025-12-31" }).revenueIncl + T({ from: "2026-01-01", to: "2026-12-31" }).revenueIncl, 353888049, 0.5);
+  eq("сезоны: Σ сезонов = всё (продано)", sum(seasons.map((s) => T({ seasons: [s] }).sold)), SOLD);
+  eq("сезоны: Σ сезонов = всё (приход)", sum(seasons.map((s) => T({ seasons: [s] }).received)), RECV);
+  eq("период: 2025 + 2026 = всё (продано)", T({ from: "2025-01-01", to: "2025-12-31" }).sold + T({ from: "2026-01-01", to: "2026-12-31" }).sold, SOLD);
+  eq("период: 2025 + 2026 = всё (выручка)", T({ from: "2025-01-01", to: "2025-12-31" }).revenueIncl + T({ from: "2026-01-01", to: "2026-12-31" }).revenueIncl, REV, 0.5);
   const a0 = all.find((l) => l.kind === "SALE" && l.pcs > 0)!;
   const q = T({ q: a0.article.toLowerCase() });
-  ok("поиск по артикулу сужает выборку", q.sold > 0 && q.sold < 232);
+  ok("поиск по артикулу сужает выборку", q.sold > 0 && q.sold < SOLD);
   eq("фильтр меха сужает", T({ furs: ["__нет__"] }).received, 0);
   eq("поиск по заказу: заказ 155627 — только скидка без штук", T({ q: "155627" }).sold, 0);
-  eq("остаток на начало периода + движение = остаток на конец", openingStock(all, { ...NO_FILTERS, from: "2026-01-01" }) + T({ from: "2026-01-01" }).stock, 385);
+  eq("остаток на начало периода + движение = остаток на конец", openingStock(all, { ...NO_FILTERS, from: "2026-01-01" }) + T({ from: "2026-01-01" }).stock, STOCK);
   const bOpen = bucketsOf(ctx, env, applyFilters(all, { ...NO_FILTERS, from: "2026-01-01" }), "month", openingStock(all, { ...NO_FILTERS, from: "2026-01-01" }));
-  eq("график с периодом: последний остаток = 385", bOpen[bOpen.length - 1].stock, 385);
+  eq("график с периодом: последний остаток = остаток всего", bOpen[bOpen.length - 1].stock, STOCK);
   ok("НДС: выручка без НДС меньше выручки с НДС", extOf(makeCtx(data.input, "ex"), all, env).revenue < extOf(ctx, all, env).revenue);
 
   // 6. Лента движений: остаток по артикулу = приход − продано; число строк = число строк выгрузки.
@@ -152,9 +161,11 @@ const SUMKEYS: (keyof Ext)[] = ["received", "sold", "gross", "returns", "revenue
   // 7. Report: расчётный остаток против Report на 19.10.
   if (data.sizes.length) {
     const rep = sum(data.sizes.map((r) => r.stock));
-    eq("Report: остаток 379", rep, 379);
-    eq("Report: размеры дают тот же остаток", sum(sizeAgg(data.sizes).map((s) => s.stock)), 379);
-    eq("разница расчёта и Report = 6", 385 - rep, 6);
+    if (KNOWN) {
+      eq("Report: остаток 379", rep, 379);
+      eq("разница расчёта и Report = 6", 385 - rep, 6);
+    }
+    eq("Report: размеры дают тот же остаток", sum(sizeAgg(data.sizes).map((s) => s.stock)), rep);
   } else console.log("  (размеры Report не загружены — сравнение пропущено)");
 
   console.log(`Проверок: ${checks}, ошибок: ${fails}`);

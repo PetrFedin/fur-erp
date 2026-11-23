@@ -1,7 +1,7 @@
 // Нет внешних ссылок на Google Диск и «MVST» (решения владельца от 16.10.2026). Только чтение.
 //   node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/test-no-external-refs.ts
 // Проверяет: (1) правила очистки текстов (scripts/lib/scrub-text.ts); (2) в src/data/*.json и calc-presets.json нет Диска/MVST;
-// (3) в БД (DATABASE_URL) viewUrl/drivePath пусты, driveFileId — внутренний ключ (doc-… / local-…), а в текстовых полях нет
+// (3) в БД (DATABASE_URL; таблицы витрины Dm* — только при NOREFS_DM=1: так её проверяет rebuild-demo.sh, у живой базы они производные и очищаются при обезличивании) viewUrl/drivePath пусты, driveFileId — внутренний ключ (doc-… / local-…), а в текстовых полях нет
 // ссылок Google и «MVST» (журнал изменений AuditLog.changes — исторический, не проверяется); (4) в исходниках интерфейса
 // (src/**/*.tsx) нет «Диск/Google/MVST» в видимых строках; (5) статус документа — «прикреплён / не прикреплён».
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -69,6 +69,7 @@ async function main() {
       join information_schema.tables tb on tb.table_name = c.table_name and tb.table_schema = 'public' and tb.table_type = 'BASE TABLE'
       where c.table_schema = 'public' and c.data_type in ('text','character varying','jsonb','json')
         and c.table_name not in ('AuditLog','_prisma_migrations','SystemState','User')
+        ${process.env.NOREFS_DM === "1" ? "" : "and c.table_name not like 'Dm%'"}
         and c.column_name not in ('id','storagePath','driveFileId')`); // storagePath — внутренний путь хранения («drive-docs/…»)
     const dirty: string[] = [];
     for (const r of rows) {

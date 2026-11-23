@@ -37,7 +37,7 @@ async function main() {
   (globalThis as { __TEST_SESSION?: unknown }).__TEST_SESSION = { user: { id: "u-test", role: "OWNER", organizationId: org.id, name: "Тест" } };
 
   const state = async (orderId: string, lotIds: string[]) => {
-    const o = await raw.productionOrder.findUniqueOrThrow({ where: { id: orderId }, include: { materialUsages: true, expenses: true } });
+    const o = await raw.productionOrder.findUniqueOrThrow({ where: { id: orderId }, include: { materialUsages: { orderBy: { id: "asc" } }, expenses: { orderBy: { id: "asc" } } } }); // порядок строк фиксируем: иначе отпечаток «до/после» плавает
     const lots = await raw.rawMaterialLot.findMany({ where: { id: { in: lotIds } }, orderBy: { id: "asc" } });
     const st = o.status === "COMPLETED" ? await raw.finishedGoodsStock.findUnique({ where: { warehouseId_productModelId: { warehouseId: o.finishedWarehouseId, productModelId: o.productModelId } } }) : null;
     return {

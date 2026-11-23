@@ -9,6 +9,8 @@ cd "$(dirname "$0")/.."
 C="${DB_CONTAINER:-fur-erp-db-1}"; U="${DB_USER:-fur_erp}"; PORT="${DB_HOST_PORT:-5436}"; TMO="${TEST_TIMEOUT:-300}"
 FILTER="${1:-}"
 NEEDS_SERVER="test-security test-demo-sanitize"
+# Нужны внешние файлы или отчёты, которых нет в репозитории и на каждой машине (Загрузки владельца, расчёты СП 09-26, отчёт «заказ и продажи»): не считаются падением.
+NEEDS_DATA="test-import-screen test-supplier-calc test-orders-summary test-orders-tree"
 TPL="fur_erp_runall_tpl_$$"; CUR="fur_erp_runall_cur_$$"
 psqlc() { docker exec -i "$C" psql -U "$U" -d postgres -v ON_ERROR_STOP=1 -q "$@"; }
 cleanup() { psqlc -c "DROP DATABASE IF EXISTS $TPL" >/dev/null 2>&1; }
@@ -22,6 +24,7 @@ for f in scripts/test-*.ts; do
   n=$(basename "$f" .ts)
   [[ -n "$FILTER" && "$n" != *"$FILTER"* ]] && continue
   if [[ " $NEEDS_SERVER " == *" $n "* ]]; then RES+=("$n|нужен сервер|-"); continue; fi
+  if [[ " $NEEDS_DATA " == *" $n "* ]]; then RES+=("$n|нужны файлы/отчёты|-"); continue; fi
   # имя копии должно содержать слово, которое проверяет защита самого теста
   case "$n" in
     test-audit-log) sfx=audit_test;; test-comments) sfx=comments_test;;

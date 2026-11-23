@@ -62,7 +62,7 @@ SC=""; [ "$DEMO_MONEY_SCALE" != "1" ] && SC="$DEMO_MONEY_SCALE"
 RECON_TOL_SCALE="$SC" run_ts "$CHK" scripts/test-reconciliation.ts | tail -3 || fail "test-reconciliation"
 SYNC_TOL_SCALE="$SC" run_ts "$CHK" scripts/test-supplier-sync.ts | tail -3 || fail "test-supplier-sync"
 run_ts "$CHK" scripts/test-demo-sanitize.ts | tail -3 || fail "test-demo-sanitize"
-run_ts "$CHK" scripts/test-no-external-refs.ts | tail -3 || fail "test-no-external-refs"
+NOREFS_DM=1 run_ts "$CHK" scripts/test-no-external-refs.ts | tail -3 || fail "test-no-external-refs"
 # (г) нет реальных названий, ИНН, имён, MVST, Drive/Google; в шапке «THE FUR» без «Демо»
 {
   pg "$SRC" -Atc "select name from \"Supplier\" union select name from \"Client\" union select inn from \"Supplier\" where inn is not null union select inn from \"Client\" where inn is not null union select name from \"User\" union select email from \"User\"" | awk 'length($0)>=5'
