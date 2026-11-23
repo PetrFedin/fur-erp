@@ -345,6 +345,23 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
       const diff = homePaid - martPaid;
       rows.push({ key: "rawPaidVsHome", label: "Оплаты сырья: на Главной минус поставщикам в витрине (доплата подрядчику), ₽", expected: null, actual: Math.round(diff), status: diff >= -5 && diff <= 1_000_000 ? "info" : "warn", note: `на Главной ${Math.round(homePaid).toLocaleString("ru-RU")} ₽, в витрине ${Math.round(martPaid).toLocaleString("ru-RU")} ₽; разница — доплата подрядчику по платежам производства` });
     }
+    // Закупки сырья против документов (реестр сверки: УПД, счета, расчёты): итог базы должен совпасть с документом; копейки и десятки рублей — округление лотов.
+    try {
+      const { loadRegistryWith } = await import("@/lib/reconciliation-registry");
+      const { loadLive } = await import("@/app/(app)/reconciliation/live");
+      const reg = await loadRegistryWith(db as never, orgId);
+      const live = await loadLive(orgId, reg);
+      const bad: string[] = [];
+      let groups = 0;
+      for (const g of reg.groups.filter((x) => x.section === "purchase")) {
+        groups++;
+        const doc = g.doc?.costRub ?? null, dbc = live?.group.get(g.id)?.cost ?? null;
+        const label = (g.dbLink.purchases ?? []).join(", ");
+        if (doc == null) bad.push(`${label}: в документах нет итога`);
+        else if (dbc != null && Math.abs(dbc - doc) > 100) bad.push(`${label}: база ${Math.round(dbc).toLocaleString("ru-RU")} ₽, документ ${Math.round(doc).toLocaleString("ru-RU")} ₽`);
+      }
+      rows.push({ key: "rawVsDocs", label: "Сырьё: группы закупок, где итог базы не совпал с документом (УПД, счёт, расчёт), шт.", expected: 0, actual: bad.length, status: bad.length === 0 ? "ok" : "warn", note: bad.length === 0 ? `все ${groups} групп совпали с документами (допуск 100 ₽ на округление лотов)` : bad.join("; ") });
+    } catch (e) { console.error("[mart] сверка сырья с документами не записана:", e); }
     await db.dmCheck.createMany({ data: rows.map((c) => ({ organizationId: orgId, key: c.key, label: c.label, expected: c.expected, actual: c.actual, status: c.status, note: c.note, builtAt: now2 })) });
   } catch (e) { console.error("[mart] сверки сырья не записаны:", e); }
   return { skus: skuCount, parties: partyCount, movements: lines.length, checks };
