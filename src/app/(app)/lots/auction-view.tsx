@@ -628,15 +628,22 @@ export async function AuctionView({
       </LotsProvider>
 
       {/* Карточка: развёрнуты только цифры, остальное — по клику */}
-      <CollapsibleBlock title="Подтверждение закупок аукциона" summary="проверка по документам">
+      <CollapsibleBlock title="Подтверждение закупок аукциона" summary="что мешает подтвердить: документы, оплата, суммы">
+        <p className="mb-2 text-xs text-neutral-500">«Сверка» — сравнение закупки с документами: сумма в базе должна равняться УПД или счёту, должна быть платёжка на каждую оплату. Закупка подтверждается, когда замечаний нет; иначе можно подтвердить с замечанием текстом.</p>
         <AuctionVerify organizationId={organizationId} names={names} />
       </CollapsibleBlock>
 
       {/* Один блок вместо двух: платёжные документы партии и файлы закупок лежат вместе. */}
       <CollapsibleBlock title="Документы и платёжки аукциона" summary={countLabel(docGroupTotal, docRecords)}>
         <div className="flex flex-col gap-3">
+          <p className="text-xs text-neutral-500">Сверху: какие документы нужны, что оплачено и что осталось. Ниже: сами файлы, их можно открыть, скачать или поправить.</p>
           <AuctionDocsPay organizationId={organizationId} names={names} />
           {fileGroups.length > 0 ? (
+            <details className="group rounded-lg border border-neutral-200">
+              <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium hover:bg-neutral-50">
+                Все файлы аукциона ({fileGroups.length}) <span className="ml-2 text-xs font-normal text-neutral-500 group-open:hidden">развернуть ›</span>
+              </summary>
+              <div className="border-t border-neutral-100 p-2">
             <Table className="max-md:block">
               <Thead className="max-md:hidden">
                 <Tr>
@@ -721,6 +728,8 @@ export async function AuctionView({
                 })}
               </Tbody>
             </Table>
+              </div>
+            </details>
           ) : (
             <p className="text-sm text-neutral-500">Документов у аукциона пока нет</p>
           )}

@@ -225,6 +225,7 @@ const groupOfPurchase = (reg: Registry, number: string): Group | null => {
 };
 const batchGroup = (reg: Registry, n: number): Group | null => reg.groups.find((g) => g.section === "production" && g.dbLink.batch === n) ?? null;
 
+const GENERIC_RECON = "сверка с документами: итог не сошёлся — причины перечислены выше или документов ещё нет";
 const STATUS_BLOCKER: Record<string, string> = {
   docs: "сверка с документами: по документам сходится, но в базе копейки сверх допуска или оплата не привязана",
   unpaid: "сверка с документами: оплату нечем подтвердить (нет платёжки или п/п)",
@@ -391,7 +392,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         const roundingOnly = costDiff != null && Math.abs(costDiff) <= ROUND_TOL_RUB;
         const failed = (g.checks ?? []).filter((c) => !c.ok && !(roundingOnly && /УПД|расч[её]т/i.test(c.label)));
         for (const c of failed) blockers.push({ text: `не сошлось: ${c.label}`, href: gHref });
-        if (g.status !== "ok" && failed.length === 0 && !(roundingOnly && g.status === "docs")) blockers.push({ text: STATUS_BLOCKER[g.status] ?? "сверка с документами: не сходится на 100%", href: gHref });
+        if (g.status !== "ok" && failed.length === 0 && !(roundingOnly && g.status === "docs")) blockers.push({ text: STATUS_BLOCKER[g.status] ?? GENERIC_RECON, href: gHref });
         if (docCost == null) blockers.push({ text: "в документах нет итоговой суммы (УПД/счёта) — сравнить не с чем", href: gHref });
         else if (costDiff != null) {
           if (Math.abs(costDiff) > ROUND_TOL_RUB) blockers.push({ text: `сумма в базе ≠ УПД на ${fmtRub(Math.abs(costDiff))} (в базе ${fmtRub(gd!.cost!)}, по документам ${fmtRub(docCost)})`, href });
@@ -409,9 +410,11 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         if (pay.state !== "PAID") blockers.push({ text: `оплата: ${pay.label}`, href: panel.panel.href ?? href });
         if (panel.panel.proofMissing > 0) blockers.push({ text: `оплат без платёжки: ${panel.panel.proofMissing}`, href: panel.panel.href ?? href });
       }
+      // общая «не сходится на 100%» — следствие конкретных замечаний (нет УПД, оплата не полная): отдельной строкой не показываем
+      const concrete = blockers.some((b) => b.text !== GENERIC_RECON);
       // убрать дубли текста
       const seen = new Set<string>();
-      const uniq = blockers.filter((b) => (seen.has(b.text) ? false : (seen.add(b.text), true)));
+      const uniq = blockers.filter((b) => !(concrete && b.text === GENERIC_RECON)).filter((b) => (seen.has(b.text) ? false : (seen.add(b.text), true)));
       const total = purchaseTotalInclVat(p);
       const st = stampOf(p.verifiedAt, p.verifiedBy, userId, names);
       const aName = auctionName(p.auctionSession);

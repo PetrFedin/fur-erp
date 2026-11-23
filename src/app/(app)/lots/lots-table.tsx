@@ -42,7 +42,7 @@ function Stat({ k, tip, children }: { k: string; tip: string; children: ReactNod
       <abbr title={tip} className="mr-1 cursor-help text-[11px] font-semibold uppercase text-neutral-500 no-underline">
         {k}
       </abbr>
-      <span className="font-medium">{children}</span>
+      <span className="text-[13px] font-medium">{children}</span>
     </div>
   );
 }
@@ -85,7 +85,7 @@ function TotalsFooter({
   const tail = fields.length + (hasEditCol ? 1 : 0) + 1; // свои столбцы + правка + «+»
   const lead = (hasCheckCol ? 1 : 0) + (invoiceCol ? 1 : 0) + 8;
   return (
-    <tfoot className="align-top text-sm">
+    <tfoot className="align-top text-[13px] [&_td]:px-2">
       <tr data-totals-row className="row-total">
         {hasCheckCol && <Td />}
         <Td className="min-w-40">
@@ -127,7 +127,7 @@ function TotalsFooter({
                 {rateFmt(t.rateAvg)}
               </Stat>
               {t.rateMin != null && t.rateMax != null && t.rateMin !== t.rateMax && (
-                <div className="whitespace-nowrap text-xs text-neutral-500" title={TIP.rate}>
+                <div className="whitespace-nowrap text-[11px] text-neutral-500" title={TIP.rate}>
                   мин–макс {rateFmt(t.rateMin)}–{rateFmt(t.rateMax)}
                 </div>
               )}

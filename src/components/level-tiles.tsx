@@ -36,8 +36,8 @@ export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "ш�
       { k: rubPer, v: per(incl.remValue, excl.remValue, incl.remQty) },
       ...(usdR ? [{ k: "$/шт.", v: usdR }] : []),
     ] },
-    ...(paid != null ? [{ key: "paid", title: "Оплачено", main: <span>{formatMoney(Math.round(paid))}</span>, lines: [{ k: "по лотам", v: "с НДС" }] } satisfies LevelTile] : []),
-    ...(due != null ? [{ key: "debt", title: "Долг", tone: due > 0.5 ? ("warn" as const) : undefined, main: <span>{due > 0.5 ? formatMoney(Math.round(due)) : "0 ₽"}</span>, lines: [] } satisfies LevelTile] : []),
+    ...(paid != null ? [{ key: "paid", title: "Оплачено", hint: PAY_HINT, main: <span>{formatMoney(Math.round(paid))}</span>, lines: [{ k: "по лотам", v: "с НДС" }] } satisfies LevelTile] : []),
+    ...(due != null ? [{ key: "debt", title: "Долг", hint: PAY_HINT, tone: due > 0.5 ? ("warn" as const) : undefined, main: <span>{due > 0.5 ? formatMoney(Math.round(due)) : "0 ₽"}</span>, lines: [] } satisfies LevelTile] : []),
   ];
   return <LevelSummary tiles={tiles} label={label ?? "Итоги"} />;
 }
@@ -46,6 +46,8 @@ export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "ш�
  * Полоса итогов уровня из витрины (LevelTotals): те же пять чисел, что везде. Режимы НДС и 4 % выбирают столбец;
  * оплаты и долг — из DmAuction и DmPurchase. payHref — ссылка «Оплаты →» (аукцион, закупка).
  */
+const PAY_HINT = <p>Оплата и долг считаются по платёжкам и счетам: это деньги, которые реально ушли и которые ещё надо отдать, всегда с НДС. Переключатель «С НДС / Без НДС» меняет только стоимость шкур (куплено, использовано, остаток), поэтому эти два числа от него не меняются.</p>;
+
 export function LevelSummaryFromTotals({ t, c4, unit = "шт.", payHref, label }: { t: LevelTotals; c4: "on" | "off"; unit?: string; payHref?: string; label?: string }) {
   const q = unit === "м" ? "Метров" : "Шкур";
   const rubPer = unit === "м" ? "₽/м" : "₽/шт.";
@@ -72,11 +74,11 @@ export function LevelSummaryFromTotals({ t, c4, unit = "шт.", payHref, label }
   ];
   if (t.pay) {
     const r = t.pay.remaining;
-    tiles.push({ key: "paid", title: "Оплачено", main: <span>{formatMoney(Math.round(t.pay.paid))}</span>, lines: [
+    tiles.push({ key: "paid", title: "Оплачено", hint: PAY_HINT, main: <span>{formatMoney(Math.round(t.pay.paid))}</span>, lines: [
       { k: "по счетам", v: formatMoney(Math.round(t.pay.total)) },
       ...(payHref ? [{ k: "", v: <a href={payHref} className="text-blue-600 hover:underline">Оплаты →</a> }] : []),
     ] });
-    tiles.push({ key: "debt", title: r < -1 ? "Переплата" : "Долг", tone: r > 1 ? ("warn" as const) : undefined, main: <span>{Math.abs(r) < 1 ? "0 ₽" : formatMoney(Math.round(Math.abs(r)))}</span>, lines: [] });
+    tiles.push({ key: "debt", title: r < -1 ? "Переплата" : "Долг", hint: PAY_HINT, tone: r > 1 ? ("warn" as const) : undefined, main: <span>{Math.abs(r) < 1 ? "0 ₽" : formatMoney(Math.round(Math.abs(r)))}</span>, lines: [] });
   }
   return <LevelSummary tiles={tiles} label={label ?? "Итоги"} />;
 }

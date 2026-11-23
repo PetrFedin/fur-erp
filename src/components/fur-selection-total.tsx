@@ -774,7 +774,7 @@ export function FurSelectionTotal({
 
       {/* Шапка (обе строки) остаётся на месте при прокрутке: таблица листается внутри рамки, до 75 % высоты экрана. */}
       <div className="scroll-hint max-h-[75vh] overflow-auto rounded-xl border border-neutral-200 [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-20">
-        <table className={cn("w-full table-fixed text-sm tabular-nums", widthClass)}>
+        <table className={cn("w-full table-fixed text-[13px] tabular-nums", widthClass)}>
           <colgroup>
             {/* Первая колонка фиксированная, числовые — равные доли всей оставшейся ширины рамки (без пустого места справа). */}
             <col className="w-[230px] md:w-[250px]" />
@@ -799,7 +799,7 @@ export function FurSelectionTotal({
                 {GROUPS.flatMap((g) => Array.from({ length: colsOf(g.key) }, (_, i) => {
                   const info = noLotsInfo?.[k];
                   const first = i === 0;
-                  const base = cn("whitespace-nowrap px-2 py-2 text-right tabular-nums", first && "border-l border-neutral-100");
+                  const base = cn("whitespace-nowrap px-1.5 py-2 text-right text-[13px] tabular-nums", first && "border-l border-neutral-100");
                   if (g.key === "used" && info && info.units > 0) {
                     if (i === 0) return <td key={`${g.key}${i}`} className={base}>{info.units} изд.<div className="text-[11px] text-neutral-500">{info.orders} ТЗ</div></td>;
                     if (i === 1) return <td key={`${g.key}${i}`} className={base}>{info.work > 0 ? formatMoney(info.work) : "–"}<div className="text-[11px] text-neutral-500">по ТЗ</div></td>;
