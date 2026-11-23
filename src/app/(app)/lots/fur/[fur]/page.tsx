@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { getYearFilter } from "@/lib/year-filter";
 import { getFurIndex } from "@/lib/fur-ref-server";

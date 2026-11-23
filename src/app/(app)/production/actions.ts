@@ -1865,7 +1865,7 @@ async function editSnapshot(tx: Prisma.TransactionClient, orderId: string, lotId
   const qty = orderUnitsDec(o);
   const total = fullFinishedCost(o, qty).total;
   const lots = await tx.rawMaterialLot.findMany({
-    where: { id: { in: lotIds } },
+    where: { id: { in: lotIds }, organizationId: o.organizationId },
     select: { id: true, lotNumber: true, quantityRemaining: true, rawMaterial: { select: { name: true, unit: true } } },
   });
   const stock =

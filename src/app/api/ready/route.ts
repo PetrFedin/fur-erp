@@ -1,5 +1,6 @@
 import { getProductionAdmission } from "@/lib/production-admission";
 import { getFreshSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,11 @@ export async function GET(request: Request) {
       return Response.json({ error: "authentication_required" }, { status: 401, headers });
     }
     if (session.user.role !== "OWNER" && session.user.role !== "ADMIN") {
+      return Response.json({ error: "forbidden" }, { status: 403, headers });
+    }
+    // Подробности — сквозные счётчики всей базы и реестр сверки первой организации: их видит только владелец или администратор ЭТОЙ (первой) организации.
+    const first = await prisma.organization.findFirst({ select: { id: true }, orderBy: { createdAt: "asc" } });
+    if (!first || first.id !== session.user.organizationId) {
       return Response.json({ error: "forbidden" }, { status: 403, headers });
     }
     return Response.json(result, { status: result.production_ready ? 200 : 503, headers });

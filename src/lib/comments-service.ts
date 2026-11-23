@@ -147,7 +147,7 @@ export async function updateComment(db: Db, actor: CommentActor, id: string, pat
   if (!text) return fail("Напишите текст комментария.");
   if (text.length > MAX_TEXT) return fail(`Комментарий длиннее ${MAX_TEXT} знаков — сократите.`);
   await db.comment.update({
-    where: { id },
+    where: { id, organizationId: actor.organizationId },
     data: { text, kind: parseEnum<CKind>(patch.kind, COMMENT_KINDS, c.kind), priority: parseEnum<CPriority>(patch.priority, COMMENT_PRIORITIES, c.priority) },
   });
   invalidate(actor.organizationId);

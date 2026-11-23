@@ -145,10 +145,10 @@ export async function createTzBatch(formData: FormData): Promise<ImportResult> {
 
         const beforeOrders = await tx.productionOrder.count({ where: { organizationId: orgId } });
         const lotIds = [...new Set(analysis.flatMap((a) => a.lots.map((l) => l.lotId)))];
-        const lotsBefore = await tx.rawMaterialLot.findMany({ where: { id: { in: lotIds } }, select: { id: true, lotNumber: true, quantityRemaining: true, rawMaterial: { select: { name: true } } } });
+        const lotsBefore = await tx.rawMaterialLot.findMany({ where: { id: { in: lotIds }, organizationId: orgId }, select: { id: true, lotNumber: true, quantityRemaining: true, rawMaterial: { select: { name: true } } } });
         const batchIds = [...new Set(analysis.map((a) => a.batchId).filter((x): x is string => !!x))];
         const loadBatch = async (id: string) => {
-          const b = await tx.productionBatch.findFirstOrThrow({ where: { id }, select: { number: true } });
+          const b = await tx.productionBatch.findFirstOrThrow({ where: { id, organizationId: orgId }, select: { number: true } });
           const os = await tx.productionOrder.findMany({ where: { batchId: id, organizationId: orgId }, include: batchOrderInclude });
           return { number: b.number, t: batchTotals(os) };
         };

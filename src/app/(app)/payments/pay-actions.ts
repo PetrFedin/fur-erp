@@ -331,7 +331,7 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
           total = t.work;
           paidBefore = t.paid;
           remBefore = t.remaining;
-          title = spec.batchId ? `Партия ${(await tx.productionBatch.findFirst({ where: { id: spec.batchId }, select: { number: true } }))?.number ?? ""}` : `ТЗ: ${orders.map((o) => o.workOrderNumber || o.number).join(", ")}`;
+          title = spec.batchId ? `Партия ${(await tx.productionBatch.findFirst({ where: { id: spec.batchId, organizationId: orgId }, select: { number: true } }))?.number ?? ""}` : `ТЗ: ${orders.map((o) => o.workOrderNumber || o.number).join(", ")}`;
           touched = { orderIds: orders.map((o) => o.id), batchIds: [...new Set(orders.map((o) => o.batchId).filter((x): x is string => !!x))] };
           if (mode === "rest") {
             if (!remBefore.greaterThan(PAY_EPS)) return { error: "Остатка к оплате нет" };

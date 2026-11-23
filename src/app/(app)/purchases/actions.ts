@@ -53,8 +53,8 @@ const COSTPLAN_PRICE_LOCK =
 const COSTPLAN_PURCHASE_LOCK =
   "В закупке есть позиции с расчётом из расчётного листа — валюту менять нельзя, а курс меняется формой «Курс закупки» в блоке «Расчёт себестоимости по лотам» (она пересчитывает расчёт всех лотов).";
 
-async function hasCostPlanItems(purchaseId: string) {
-  const n = await prisma.purchaseItem.count({ where: { purchaseId, costPlan: { not: Prisma.DbNull } } });
+async function hasCostPlanItems(purchaseId: string, organizationId: string) {
+  const n = await prisma.purchaseItem.count({ where: { purchaseId, purchase: { organizationId }, costPlan: { not: Prisma.DbNull } } });
   return n > 0;
 }
 
@@ -235,11 +235,13 @@ export async function updatePurchaseExchangeRate(purchaseId: string, formData: F
   const rate = zNum("Курс", { positive: true, max: 1_000_000 }).safeParse(formData.get("exchangeRate"));
   if (!rate.success) return { error: rate.error.issues[0]?.message ?? "Некорректный курс" };
 
-  if (await hasCostPlanItems(purchaseId)) return { error: COSTPLAN_PURCHASE_LOCK };
-  await prisma.purchase.updateMany({
+  if (await hasCostPlanItems(purchaseId, session.user.organizationId)) return { error: COSTPLAN_PURCHASE_LOCK };
+  const upd = await prisma.purchase.updateMany({
     where: { id: purchaseId, organizationId: session.user.organizationId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
     data: { exchangeRate: rate.data as number },
   });
+  // Закупка не найдена в организации или уже принята: ничего не менялось — подтверждение не сбрасываем.
+  if (upd.count === 0) return {};
   await resetByPurchase(purchaseId);
   revalidateAll();
   return {};
@@ -454,7 +456,7 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
   if (badRef) return { error: badRef };
 
   const currencyChanged = parsed.data.currency !== purchase.currency;
-  if (currencyChanged && (await hasCostPlanItems(purchaseId))) return { error: COSTPLAN_PURCHASE_LOCK };
+  if (currencyChanged && (await hasCostPlanItems(purchaseId, session.user.organizationId))) return { error: COSTPLAN_PURCHASE_LOCK };
 
   // Blank optional fields must clear rather than be left untouched — same
   // "read straight off formData" reasoning as updatePurchaseItem's `cosmetic`.
@@ -582,7 +584,7 @@ export async function setPurchaseStatus(
   status: "DRAFT" | "ORDERED" | "IN_TRANSIT" | "CANCELLED"
 ) {
   const session = await requireRole(...EDIT_ROLES);
-  await prisma.purchase.updateMany({
+  const upd = await prisma.purchase.updateMany({
     where: {
       id: purchaseId,
       organizationId: session.user.organizationId,
@@ -590,6 +592,7 @@ export async function setPurchaseStatus(
     },
     data: { status },
   });
+  if (upd.count === 0) return; // чужая или уже принятая закупка: ничего не менялось — подтверждение не сбрасываем
   await resetByPurchase(purchaseId);
   revalidateAll();
 }
