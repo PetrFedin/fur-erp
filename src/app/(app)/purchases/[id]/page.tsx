@@ -21,6 +21,8 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatCurrency, formatDate, formatMoney, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint, formatRate, formatNum, formatDec1 } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { getCommission4Mode } from "@/lib/commission4-mode";
+import { LevelSummaryFromTotals } from "@/components/level-tiles";
+import { loadLevelTotals } from "@/lib/mart/level-totals";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { usageExclVat } from "@/lib/commission4";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
@@ -637,6 +639,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
 
   // Использовано и остаток склада по лотам закупки (те же правила, что в итогах аукциона): режимы НДС и 4 % — как в шапке.
   const c4Mode = await getCommission4Mode();
+  const martLvl = purchase.items.some((i) => i.lotId) ? await loadLevelTotals(session.user.organizationId, { purchaseId: id }) : null;
   const lotIdsOfPurchase = Array.from(new Set(purchase.items.map((i) => i.lotId).filter((x): x is string => !!x)));
   const lotRows = lotIdsOfPurchase.length
     ? await prisma.rawMaterialLot.findMany({
@@ -773,6 +776,8 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
       )}
 
       <WidgetRow id="purchase" title="Закупка — итоги" headerEnd={<Link href={auctionPay ? `/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block` : "/payments"} className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>}>
+      {/* Числа — из витрины (DmLot, DmPurchase): единый источник для всех уровней; витрина устарела — прежний расчёт ниже. */}
+      {martLvl ? <LevelSummaryFromTotals t={martLvl} c4={c4Mode} payHref={auctionPay ? `/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block` : "/payments"} label="Итоги закупки" /> : (
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <SummaryCard
           label={<VatLabel base="Куплено, ₽" />}
@@ -815,6 +820,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
           </>
         )}
       </div>
+      )}
       </WidgetRow>
 
 

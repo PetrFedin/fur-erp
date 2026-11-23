@@ -113,3 +113,11 @@ export async function furKindsCached<T>(orgId: string): Promise<T | null> {
 export async function furLotsOrLive(orgId: string, kind: "fur" | "lining", year: YearFilter, furIdx?: Awaited<ReturnType<typeof getFurIndex>>): Promise<FurLot[]> {
   return (await furLotsCached(orgId, kind, year)) ?? loadFurLots(prisma, orgId, { kind, year, furIdx } as never);
 }
+
+/** Витрина свежа, если после её сборки не было записей (метка data-version ставится в revalidateAll). Иначе экраны считают вживую. */
+export async function isMartFresh(orgId: string): Promise<boolean> {
+  if (process.env.SNAPSHOTS === "0") return false;
+  const [agg, ver] = await Promise.all([prisma.dmLot.aggregate({ where: { organizationId: orgId }, _max: { builtAt: true } }), dataVersion(orgId)]);
+  const t = agg._max.builtAt?.getTime();
+  return t != null && t >= ver;
+}

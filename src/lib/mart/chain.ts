@@ -8,6 +8,9 @@ import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { relabelOrders } from "@/lib/order-label-db";
 import type { FurLot } from "@/lib/fur-table";
+import { purchasePaidShare, type AuctionPay } from "@/lib/auction-payments";
+import { purchaseTotalInclVat } from "@/lib/purchase-totals";
+import { lotUsdListed } from "@/lib/lot-hammer";
 
 const n = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
 const ck = (s: string | null | undefined) => (s ?? "").toUpperCase().replace(/Ё/g, "Е").replace(/\s+/g, " ").trim();
@@ -21,17 +24,19 @@ export async function buildChainTables(
   canonOf: (raw: string | null | undefined) => { canon: string },
   /** Строки моста Главной (заказано без лотов, шкуры подрядчика) — loadDashboard(...).syntheticLots; хранятся отдельно от лотов. */
   bridge: FurLot[] = [],
+  /** Оплаты по аукционам (loadAuctionSummaries): кладутся в витрину готовыми. */
+  auctionPays: AuctionPay[] = [],
 ): Promise<ChainCounts> {
   const furIdx = await getFurIndex(orgId);
-  for (const t of ["dmPurchase", "dmLot", "dmLotUse", "dmLotBridge", "dmPayment", "dmPaymentAlloc", "dmOrderExpense"] as const) await (tx[t] as unknown as { deleteMany: (a: unknown) => Promise<unknown> }).deleteMany({ where: { organizationId: orgId } });
+  for (const t of ["dmPurchase", "dmLot", "dmLotUse", "dmLotBridge", "dmAuction", "dmPayment", "dmPaymentAlloc", "dmOrderExpense"] as const) await (tx[t] as unknown as { deleteMany: (a: unknown) => Promise<unknown> }).deleteMany({ where: { organizationId: orgId } });
 
   const purchases = await tx.purchase.findMany({
     where: { organizationId: orgId },
-    select: { id: true, number: true, supplierId: true, supplier: { select: { name: true } }, isContractorRaw: true, status: true, currency: true, exchangeRate: true, orderDate: true, receivedDate: true, invoiceNumber: true, invoiceDate: true, transferDocument: true, auctionSession: true, items: { select: { subtotal: true, vatRate: true } }, expenses: { select: { amount: true } }, payments: { select: { amount: true, status: true } } },
+    select: { id: true, number: true, supplierId: true, supplier: { select: { name: true } }, isContractorRaw: true, status: true, currency: true, exchangeRate: true, orderDate: true, receivedDate: true, invoiceNumber: true, invoiceDate: true, transferDocument: true, auctionSession: true, items: { select: { subtotal: true, vatRate: true, quantity: true, costPlan: true } }, expenses: { select: { amount: true, vatRate: true } }, payments: { select: { amount: true, status: true } } },
   });
   const lots = await tx.rawMaterialLot.findMany({
     where: { organizationId: orgId },
-    select: { id: true, lotNumber: true, purchaseId: true, grade: true, sizeGrade: true, color: true, receivedDate: true, quantityReceived: true, quantityRemaining: true, unitCost: true, totalCost: true, vatRate: true, materialCostExclVat: true, expenseCostExclVat: true, rawMaterial: { select: { name: true, unit: true, category: { select: { name: true } } } }, purchase: { select: { number: true, auctionSession: true, orderDate: true } }, colorRef: { select: { name: true } }, attrs: { select: { attr: { select: { name: true } } } }, purchaseItems: { select: { quantity: true } }, stockMovements: { select: { type: true, quantity: true } }, warehouse: { select: { name: true } }, usages: { select: { quantity: true, totalCost: true, productionOrderId: true, commission4: true, vatRate: true } } },
+    select: { id: true, lotNumber: true, purchaseId: true, grade: true, sizeGrade: true, color: true, receivedDate: true, quantityReceived: true, quantityRemaining: true, unitCost: true, totalCost: true, vatRate: true, materialCostExclVat: true, expenseCostExclVat: true, rawMaterial: { select: { name: true, unit: true, category: { select: { name: true } } } }, purchase: { select: { number: true, auctionSession: true, orderDate: true } }, colorRef: { select: { name: true } }, attrs: { select: { attr: { select: { name: true } } } }, purchaseItems: { select: { quantity: true, costPlan: true } }, costBreakdown: true, stockMovements: { select: { type: true, quantity: true } }, warehouse: { select: { name: true } }, usages: { select: { quantity: true, totalCost: true, productionOrderId: true, commission4: true, vatRate: true } } },
   });
   const usages = await tx.productionMaterialUsage.findMany({
     where: { lot: { organizationId: orgId } },
@@ -46,7 +51,18 @@ export async function buildChainTables(
 
   const chunk = async <T>(rows: T[], fn: (c: T[]) => Promise<unknown>) => { for (let i = 0; i < rows.length; i += 1000) await fn(rows.slice(i, i + 1000)); };
 
-  await chunk(purchases, (c) => tx.dmPurchase.createMany({ data: c.map((p) => ({ organizationId: orgId, purchaseId: p.id, number: p.number, supplierId: p.supplierId, supplier: p.supplier.name, isContractor: !!p.isContractorRaw, status: p.status, currency: p.currency, rate: n(p.exchangeRate), orderDate: p.orderDate, receivedDate: p.receivedDate, invoiceNumber: p.invoiceNumber, invoiceDate: p.invoiceDate, transferDoc: p.transferDocument, auction: p.auctionSession, itemsSum: p.items.reduce((a, x) => a + n(x.subtotal), 0), itemsGross: p.items.reduce((a, x) => { const r = n(x.vatRate); return a + n(x.subtotal) * (1 + (r > 1 ? r / 100 : r)); }, 0), expensesSum: p.expenses.reduce((a, x) => a + n(x.amount), 0), lotsCostSum: lotsByPurchase.get(p.id)?.cost ?? 0, paidSum: p.payments.filter((x) => x.status === "COMPLETED").reduce((a, x) => a + n(x.amount), 0), lotsCount: lotsByPurchase.get(p.id)?.n ?? 0 })) }));
+  // Единая формула «оплачено по закупке»: собственные оплаты + доля оплат аукциона по стоимости; итог закупки — как в «Оплатах».
+  const payByName = new Map(auctionPays.map((a) => [a.name, a]));
+  const payOf = (p: (typeof purchases)[number]) => {
+    const own = p.payments.filter((x) => x.status === "COMPLETED").reduce((a, x) => a.add(x.amount), new Decimal(0));
+    const name = auctionName(p.auctionSession);
+    const a = name ? payByName.get(name) : undefined;
+    const total = purchaseTotalInclVat({ exchangeRate: p.exchangeRate, items: p.items, expenses: p.expenses });
+    const paid = a ? purchasePaidShare(a, p.id, own) : own;
+    return { payTotal: total.toNumber(), paidShare: paid.toNumber() };
+  };
+  await tx.dmAuction.createMany({ data: auctionPays.map((a) => ({ organizationId: orgId, name: a.name, purchases: a.purchases, total: a.total.toNumber(), paid: a.paid.toNumber(), remaining: a.remaining.toNumber(), status: a.status })) });
+  await chunk(purchases, (c) => tx.dmPurchase.createMany({ data: c.map((p) => ({ organizationId: orgId, purchaseId: p.id, number: p.number, supplierId: p.supplierId, supplier: p.supplier.name, isContractor: !!p.isContractorRaw, status: p.status, currency: p.currency, rate: n(p.exchangeRate), orderDate: p.orderDate, receivedDate: p.receivedDate, invoiceNumber: p.invoiceNumber, invoiceDate: p.invoiceDate, transferDoc: p.transferDocument, auction: p.auctionSession, itemsSum: p.items.reduce((a, x) => a + n(x.subtotal), 0), itemsGross: p.items.reduce((a, x) => { const r = n(x.vatRate); return a + n(x.subtotal) * (1 + (r > 1 ? r / 100 : r)); }, 0), expensesSum: p.expenses.reduce((a, x) => a + n(x.amount), 0), lotsCostSum: lotsByPurchase.get(p.id)?.cost ?? 0, ...payOf(p), paidSum: p.payments.filter((x) => x.status === "COMPLETED").reduce((a, x) => a + n(x.amount), 0), lotsCount: lotsByPurchase.get(p.id)?.n ?? 0 })) }));
 
   let qtyMismatch = 0, noPurchase = 0;
   await chunk(lots, (c) => tx.dmLot.createMany({ data: c.map((l) => {
@@ -67,7 +83,7 @@ export async function buildChainTables(
     for (const m of l.stockMovements) { if (m.type === "PURCHASE_IN" || m.type === "ADJUSTMENT_IN" || m.type === "TRANSFER_IN") jIn += n(m.quantity); else if (m.type === "PRODUCTION_OUT") jProd += n(m.quantity); else jOther += n(m.quantity); }
     const aName = auctionName(l.purchase?.auctionSession);
     const isM = l.rawMaterial.unit === "M";
-    return { kindName: isM ? "Подкладка" : (canonicalFur(l.rawMaterial.name, furIdx)?.name ?? l.rawMaterial.name), auctionLabel: !aName || isServiceAuction(aName) ? NO_AUCTION_LABEL : shortAuctionName(aName), colorName: l.colorRef?.name ?? l.color ?? null, attrs: l.attrs.map((a) => a.attr.name).join("|"), itemsQty: l.purchaseItems.reduce((a, i) => a + n(i.quantity), 0), jIn, jProdOut: jProd, jOtherOut: jOther, remCost: n(l.quantityRemaining) * n(l.unitCost), remCostExcl: n(l.quantityRemaining) * unitExcl.toNumber(), purchaseNumber: l.purchase?.number ?? null, unit: l.rawMaterial.unit === "M" ? "M" : "PCS", auction: auctionName(l.purchase?.auctionSession), purchaseYear: dt.getUTCFullYear(), purchaseMonth: `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}`, unitCostExcl: unitExcl.toNumber(), totalCostExcl: unitExcl.mul(l.quantityReceived).toNumber(), usedCostExcl: usedExcl.toNumber(), usedExtraIncl: extraIncl.toNumber(), usedExtraExcl: extraExcl.toNumber(), organizationId: orgId, lotId: l.id, lotNumber: l.lotNumber, purchaseId: l.purchaseId, material: l.rawMaterial.name, category: l.rawMaterial.category?.name ?? null, colorCanon: l.color ? canonOf(l.color).canon : null, grade: l.grade, sizeGrade: l.sizeGrade, warehouse: l.warehouse.name, receivedDate: l.receivedDate, qtyReceived: n(l.quantityReceived), qtyRemaining: n(l.quantityRemaining), qtyUsed: used, unitCost: n(l.unitCost), totalCost: n(l.totalCost), vatRate: n(l.vatRate), materialExcl: n(l.materialCostExclVat), expenseExcl: n(l.expenseCostExclVat), usedCost: l.usages.reduce((a, u) => a + n(u.totalCost), 0), ordersCount: new Set(l.usages.map((u) => u.productionOrderId)).size };
+    return { usdUnit: isM ? null : lotUsdListed(l.costBreakdown, l.purchaseItems.map((i) => i.costPlan)), kindName: isM ? "Подкладка" : (canonicalFur(l.rawMaterial.name, furIdx)?.name ?? l.rawMaterial.name), auctionLabel: !aName || isServiceAuction(aName) ? NO_AUCTION_LABEL : shortAuctionName(aName), colorName: l.colorRef?.name ?? l.color ?? null, attrs: l.attrs.map((a) => a.attr.name).join("|"), itemsQty: l.purchaseItems.reduce((a, i) => a + n(i.quantity), 0), jIn, jProdOut: jProd, jOtherOut: jOther, remCost: n(l.quantityRemaining) * n(l.unitCost), remCostExcl: n(l.quantityRemaining) * unitExcl.toNumber(), purchaseNumber: l.purchase?.number ?? null, unit: l.rawMaterial.unit === "M" ? "M" : "PCS", auction: auctionName(l.purchase?.auctionSession), purchaseYear: dt.getUTCFullYear(), purchaseMonth: `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}`, unitCostExcl: unitExcl.toNumber(), totalCostExcl: unitExcl.mul(l.quantityReceived).toNumber(), usedCostExcl: usedExcl.toNumber(), usedExtraIncl: extraIncl.toNumber(), usedExtraExcl: extraExcl.toNumber(), organizationId: orgId, lotId: l.id, lotNumber: l.lotNumber, purchaseId: l.purchaseId, material: l.rawMaterial.name, category: l.rawMaterial.category?.name ?? null, colorCanon: l.color ? canonOf(l.color).canon : null, grade: l.grade, sizeGrade: l.sizeGrade, warehouse: l.warehouse.name, receivedDate: l.receivedDate, qtyReceived: n(l.quantityReceived), qtyRemaining: n(l.quantityRemaining), qtyUsed: used, unitCost: n(l.unitCost), totalCost: n(l.totalCost), vatRate: n(l.vatRate), materialExcl: n(l.materialCostExclVat), expenseExcl: n(l.expenseCostExclVat), usedCost: l.usages.reduce((a, u) => a + n(u.totalCost), 0), ordersCount: new Set(l.usages.map((u) => u.productionOrderId)).size };
   }) }));
 
   await chunk(usages, (c) => tx.dmLotUse.createMany({ data: c.map((u) => ({ organizationId: orgId, usageId: u.id, lotId: u.lotId, orderId: u.productionOrderId, orderNumber: u.productionOrder.number, model: u.productionOrder.productModel?.sku ?? u.productionOrder.productModel?.name ?? null, qty: n(u.quantity), unitCost: n(u.unitCost), totalCost: n(u.totalCost), date: u.date, commission4: u.commission4, orderWo: u.productionOrder.workOrderNumber, modelId: u.productionOrder.productModelId ?? "" })) }));

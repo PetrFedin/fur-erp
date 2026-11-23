@@ -6,7 +6,8 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "
 import { formatMoney, formatPercent, formatQty, cn, formatNum, formatDec1 } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { PinSection } from "@/components/pin-section";
-import { LevelSummaryFromFigures } from "@/components/level-tiles";
+import { LevelSummaryFromFigures, LevelSummaryFromTotals } from "@/components/level-tiles";
+import type { LevelTotals } from "@/lib/mart/level-totals";
 import { useCommission4Display } from "@/lib/commission4-display";
 import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
@@ -85,7 +86,10 @@ export function FurSelectionTotal({
   orderInfo,
   noLotsKinds,
   noLotsInfo,
+  martTotals,
 }: {
+  /** Итоги верхнего уровня из витрины (весь мех или вся подкладка): без фильтров, источника и года полоса итогов читает их, а не считается по лотам. */
+  martTotals?: LevelTotals | null;
   /** По виду без лотов: изделия, ТЗ и работа из ТЗ (как на Главной) — показываются в «Использовано» с подписью «по ТЗ», в итоги не входят. */
   noLotsInfo?: Record<string, { units: number; orders: number; work: number }>;
   /** Виды меха без лотов (сырьё подрядчика, «Бобр»): пункт фильтра «лотов нет» и строка «—» в таблице; в суммы не входят. */
@@ -705,6 +709,8 @@ export function FurSelectionTotal({
             const ls = kind === "fur" ? tableAllSrc.filteredLots.filter((l) => inSrc(src, l)) : tableAllSrc.filteredLots;
             const base = isFiltered ? null : kind === "fur" ? (src === "all" ? raw.fur : alignedPair(src, "")) : raw.lining;
             const t = tilesOf(ls, "", base);
+            // Без фильтров и среза по источнику числа — из витрины (одним источником с остальными уровнями); иначе по отфильтрованным лотам.
+            if (martTotals && !isFiltered && (kind !== "fur" || src === "all")) return <LevelSummaryFromTotals t={martTotals} c4={raw.c4} unit={kind === "lining" ? "м" : "шт."} label={kind === "lining" ? "Итоги: подкладка" : "Итоги: мех"} />;
             return <LevelSummaryFromFigures incl={t.pair.incl} excl={t.pair.excl} paid={t.paid} due={t.due} c4={raw.c4} unit={kind === "lining" ? "м" : "шт."} label={kind === "lining" ? "Итоги: подкладка" : "Итоги: мех"} />;
           })()}
           {isFiltered ? (

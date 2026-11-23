@@ -2519,7 +2519,7 @@ model DmPresentationItem {
 
 /// Строки зачётных ИТ/ЗИ по отгрузке (магазин, артикул, цвет, размер, сумма): связь с изделием по модели и цвету.
 model DmShipmentLine {
-  id             String   @id @default(cuid())
+  id             String  @id @default(cuid())
   organizationId String
   shipmentId     String
   supply         String?
@@ -2530,8 +2530,8 @@ model DmShipmentLine {
   colorKey       String
   size           String
   boutique       String?
-  sum            Decimal  @db.Decimal(18, 2)
-  vat            Decimal  @db.Decimal(18, 2)
+  sum            Decimal @db.Decimal(18, 2)
+  vat            Decimal @db.Decimal(18, 2)
 
   @@index([organizationId, shipmentId])
   @@index([organizationId, colorKey])
@@ -2539,7 +2539,7 @@ model DmShipmentLine {
 
 /// Решения владельца (SystemState owner-decision:*), как данные массива.
 model DmDecision {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   key            String
   label          String?
@@ -2577,6 +2577,9 @@ model DmPurchase {
   paidSum        Decimal   @db.Decimal(18, 2)
   lotsCount      Int
   builtAt        DateTime  @default(now())
+  /// Итог закупки с НДС и доля оплат (собственные + доля оплат аукциона) — единая формула «оплачено по закупке».
+  payTotal       Decimal   @default(0) @db.Decimal(18, 2)
+  paidShare      Decimal   @default(0) @db.Decimal(18, 2)
 
   @@unique([organizationId, purchaseId])
   @@index([organizationId, supplierId])
@@ -2584,7 +2587,7 @@ model DmPurchase {
 
 /// Лот сырья: центральное звено — закупка → лот → расход в ТЗ.
 model DmLot {
-  id             String    @id @default(cuid())
+  id             String   @id @default(cuid())
   organizationId String
   lotId          String
   lotNumber      String?
@@ -2595,40 +2598,42 @@ model DmLot {
   grade          String?
   sizeGrade      String?
   warehouse      String
-  receivedDate   DateTime  @db.Date
-  qtyReceived    Decimal   @db.Decimal(18, 3)
-  qtyRemaining   Decimal   @db.Decimal(18, 3)
-  qtyUsed        Decimal   @db.Decimal(18, 3)
-  unitCost       Decimal   @db.Decimal(18, 4)
-  totalCost      Decimal   @db.Decimal(18, 2)
-  vatRate        Decimal   @db.Decimal(8, 4)
-  materialExcl   Decimal   @db.Decimal(18, 2)
-  expenseExcl    Decimal   @db.Decimal(18, 2)
-  usedCost       Decimal   @db.Decimal(18, 2)
+  receivedDate   DateTime @db.Date
+  qtyReceived    Decimal  @db.Decimal(18, 3)
+  qtyRemaining   Decimal  @db.Decimal(18, 3)
+  qtyUsed        Decimal  @db.Decimal(18, 3)
+  unitCost       Decimal  @db.Decimal(18, 4)
+  totalCost      Decimal  @db.Decimal(18, 2)
+  vatRate        Decimal  @db.Decimal(8, 4)
+  materialExcl   Decimal  @db.Decimal(18, 2)
+  expenseExcl    Decimal  @db.Decimal(18, 2)
+  usedCost       Decimal  @db.Decimal(18, 2)
   ordersCount    Int
-  builtAt        DateTime  @default(now())
+  builtAt        DateTime @default(now())
   /// Все варианты показа готовыми: с НДС (totalCost, usedCost) и без НДС; без 4 % и с 4 % (надбавка по строкам списания, где она начисляется).
-  unit           String    @default("")
+  unit           String   @default("")
   auction        String?
-  purchaseYear   Int       @default(0)
-  purchaseMonth  String    @default("")
-  unitCostExcl   Decimal   @default(0) @db.Decimal(18, 4)
-  totalCostExcl  Decimal   @default(0) @db.Decimal(18, 2)
-  usedCostExcl   Decimal   @default(0) @db.Decimal(18, 2)
-  usedExtraIncl  Decimal   @default(0) @db.Decimal(18, 2)
-  usedExtraExcl  Decimal   @default(0) @db.Decimal(18, 2)
+  purchaseYear   Int      @default(0)
+  purchaseMonth  String   @default("")
+  unitCostExcl   Decimal  @default(0) @db.Decimal(18, 4)
+  totalCostExcl  Decimal  @default(0) @db.Decimal(18, 2)
+  usedCostExcl   Decimal  @default(0) @db.Decimal(18, 2)
+  usedExtraIncl  Decimal  @default(0) @db.Decimal(18, 2)
+  usedExtraExcl  Decimal  @default(0) @db.Decimal(18, 2)
   /// Для аналитики сырья без обращения к лотам: канонический вид меха, подпись аукциона, цвет, признаки (через «|»), журнал склада.
-  kindName       String    @default("")
-  auctionLabel   String    @default("")
+  kindName       String   @default("")
+  auctionLabel   String   @default("")
   colorName      String?
-  attrs          String    @default("")
-  itemsQty       Decimal   @default(0) @db.Decimal(18, 3)
-  jIn            Decimal   @default(0) @db.Decimal(18, 3)
-  jProdOut       Decimal   @default(0) @db.Decimal(18, 3)
-  jOtherOut      Decimal   @default(0) @db.Decimal(18, 3)
-  remCost        Decimal   @default(0) @db.Decimal(18, 2)
-  remCostExcl    Decimal   @default(0) @db.Decimal(18, 2)
+  attrs          String   @default("")
+  itemsQty       Decimal  @default(0) @db.Decimal(18, 3)
+  jIn            Decimal  @default(0) @db.Decimal(18, 3)
+  jProdOut       Decimal  @default(0) @db.Decimal(18, 3)
+  jOtherOut      Decimal  @default(0) @db.Decimal(18, 3)
+  remCost        Decimal  @default(0) @db.Decimal(18, 2)
+  remCostExcl    Decimal  @default(0) @db.Decimal(18, 2)
   purchaseNumber String?
+  /// Цена шкуры в долларах (молоток из расчётного листа лота), если она там есть.
+  usdUnit        Decimal? @db.Decimal(18, 4)
 
   @@unique([organizationId, lotId])
   @@index([organizationId, purchaseId])
@@ -2743,4 +2748,19 @@ model DmSnapshot {
   buildMs        Int      @default(0)
 
   @@unique([organizationId, key])
+}
+
+/// Оплаты и долг по аукциону (партии) — те же числа, что в «Оплатах», готовыми: все экраны сырья читают их отсюда.
+model DmAuction {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  purchases      Int
+  total          Decimal  @db.Decimal(18, 2)
+  paid           Decimal  @db.Decimal(18, 2)
+  remaining      Decimal  @db.Decimal(18, 2)
+  status         String
+  builtAt        DateTime @default(now())
+
+  @@unique([organizationId, name])
 }

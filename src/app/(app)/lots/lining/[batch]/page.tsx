@@ -15,7 +15,8 @@ import { cleanNote } from "@/lib/note-tags";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { InfoHint } from "@/components/info-hint";
 import { FurOrdersTable } from "@/components/fur-orders-table";
-import { LevelSummaryFromFigures } from "@/components/level-tiles";
+import { LevelSummaryFromFigures, LevelSummaryFromTotals } from "@/components/level-tiles";
+import { loadLevelTotals } from "@/lib/mart/level-totals";
 import { LiningFabrics } from "./view";
 import { FurScope, SupplierOnly } from "@/components/fur-scope";
 import { SourceDocs } from "@/components/source-docs";
@@ -56,6 +57,7 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
     orders.filter((o) => usedIds.has(o.id)).map((o) => [o.id, { number: o.number, article: o.modelLabel || o.modelName, category: o.category, batch: o.batchText ?? "Вне партий", year: o.year, status: o.status, units: o.qty, group: o.categoryGroup }]),
   );
 
+  const martTotals = await loadLevelTotals(orgId, { auctions: [name], unit: "M" });
   const fl = flowOf(lots);
   const pair = { incl: figures(fl, { vat: "incl", c4 }), excl: figures(fl, { vat: "excl", c4 }) };
   const vatBy = (k: "recv" | "used" | "rem") => {
@@ -90,7 +92,10 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
       <SupplierOnly what={`Партия подкладки «${name}»`}>
       <div data-raw-tiles>
         {/* Единая полоса итогов уровня: куплено → использовано → остаток → оплачено → долг (метры, ₽, ₽/м). Оплаты ведутся по партии целиком. */}
-        <LevelSummaryFromFigures incl={pair.incl} excl={pair.excl} paid={pay ? pay.paid.toNumber() : 0} due={pay ? Math.max(0, pay.total.toNumber() - pay.paid.toNumber()) : 0} c4={c4} unit="м" label={`Итоги: подкладка ${name}`} />
+        {/* Числа — из витрины (DmLot, DmAuction); витрина устарела — прежний расчёт по лотам. */}
+        {martTotals
+          ? <LevelSummaryFromTotals t={martTotals} c4={c4} unit="м" payHref={`/payments?auction=${encodeURIComponent(name)}#auction-block`} label={`Итоги: подкладка ${name}`} />
+          : <LevelSummaryFromFigures incl={pair.incl} excl={pair.excl} paid={pay ? pay.paid.toNumber() : 0} due={pay ? Math.max(0, pay.total.toNumber() - pay.paid.toNumber()) : 0} c4={c4} unit="м" label={`Итоги: подкладка ${name}`} />}
         {pay ? null : <p className="mt-1 px-1 text-xs text-neutral-500">Оплаты по партии — в <Link href="/payments" className="text-blue-700 hover:underline">«Оплатах»</Link></p>}
       </div>
 

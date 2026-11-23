@@ -25,6 +25,7 @@ import { auctionLabeler, getFilterOptions } from "@/lib/filter-options";
 import { loadFurLots } from "@/lib/fur-table-server";
 import { dashboardCached, furLotsCached, furKindsCached } from "@/lib/mart/snapshots";
 import { loadMonthPoints } from "@/lib/mart/lot-sums";
+import { loadLevelTotals } from "@/lib/mart/level-totals";
 import { MonthsSection } from "./months-section";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { RawCards } from "../dashboard/raw-block";
@@ -216,6 +217,8 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   // Готовые расчёты из витрины (снимки по году и режиму 4 %); устарели или есть фильтр материала — считаем вживую, как раньше.
   const c4AndDash = getCommission4Mode().then(async (c4) => ({ c4, dash: await dashboardCached(orgId, year, c4) }));
   const lotKind = tab === "lining" ? "lining" : "fur";
+  // Итоги верхнего уровня из витрины — только когда нет среза: год «Все», нет фильтра материала.
+  const martTop = year === "all" && !f.material.length ? await loadLevelTotals(orgId, { top: true, unit: tab === "lining" ? "M" : "PCS" }) : null;
   // Закупки по месяцам — из витрины (раньше этот график был на странице аналитики).
   const monthPoints = await loadMonthPoints(prisma, orgId, tab === "lining" ? "M" : "PCS", year === "all" ? undefined : Number(year));
   const [tableLots, { c4: c4Mode, dash }, furKinds] = await Promise.all([
@@ -306,7 +309,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       {tab === "fur" ? (
         <section aria-labelledby="raw-fur" className="space-y-3">
           <h2 id="raw-fur" className="sr-only">{kindTitle}</h2>
-          <FurSelectionTotal summaryOnly noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
+          <FurSelectionTotal martTotals={martTop} summaryOnly noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
           <MonthsSection points={monthPoints} unit="шт." />
           <AuctionCompare lots={furTabLots} />
         </section>
@@ -315,6 +318,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           <h2 id="raw-lining" className="sr-only">{kindTitle}</h2>
           {/* Порядок: фильтры → ряд виджетов (плитки + формы подкладки) → таблица — это задаёт FurSelectionTotal. */}
           <FurSelectionTotal
+            martTotals={martTop}
             lots={furTabLots}
             kind="lining"
             globalYear={year}

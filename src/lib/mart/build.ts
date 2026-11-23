@@ -5,6 +5,7 @@ import { buildPlanTables } from "@/lib/mart/plans";
 import { buildChainTables, type ChainCounts } from "@/lib/mart/chain";
 import { loadDashboard } from "@/lib/dashboard-data";
 import { buildSnapshots, readSnapshot } from "@/lib/mart/snapshots";
+import { loadAuctionSummaries } from "@/lib/auction-payments";
 import type { DashboardData } from "@/lib/dashboard-data";
 import { parseDashFilters } from "@/lib/dashboard-calc";
 import { loadRetailPricesState, loadReportSizesState } from "@/lib/import-keys";
@@ -50,6 +51,7 @@ export type MartSummary = { skus: number; parties: number; movements: number; ch
 export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSummary> {
   // Строки моста Главной (заказано без лотов, шкуры подрядчика) считаются тем же расчётом, что Главная, и кладутся в витрину.
   const bridgeRows = (await loadDashboard(orgId, "all", parseDashFilters({}), "off")).syntheticLots;
+  const auctionPays = await loadAuctionSummaries(db, orgId);
   const sizes = await loadReportSizes(orgId);
   const priceRows = ((await loadRetailPricesState(orgId))?.value as { rows?: { acode: string; color: string; size: string; price: number }[] } | undefined)?.rows ?? [];
   const price = new Map<string, number>();
@@ -242,7 +244,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     for (const c of colorRefs) { canonOf(c.name); for (const al of c.aliases) canonOf(al); }
     if (aliasRows.size) await tx.dmColorAlias.createMany({ data: [...aliasRows.values()].map((x) => ({ organizationId: orgId, ...x })) });
     const plan = await buildPlanTables(tx, orgId, { normCode, canonOf });
-    chainRef.v = await buildChainTables(tx, orgId, canonOf, bridgeRows);
+    chainRef.v = await buildChainTables(tx, orgId, canonOf, bridgeRows, auctionPays);
     const chain = chainRef.v;
     // Журнал загрузок: какие версии источников разложены в массив
     const sizesState = await loadReportSizesState(orgId);
@@ -330,6 +332,10 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
       const martBought = Number(bal?.bought ?? 0) + Number(br?.total ?? 0);
       rows.push({ key: "rawVsHome", label: "Сырьё: лоты + мост в витрине = «Куплено» (мех + подкладка) на Главной, ₽", expected: Math.round(homeBought), actual: Math.round(martBought), status: Math.abs(homeBought - martBought) <= 2 ? "ok" : "warn", note: null });
     }
+    // Оплаты в витрине: итог закупок меха (лоты + черновики «заказано») равен «Куплено» меха — тогда «Куплено − Оплачено = Долг» сходится на любом уровне.
+    const [payRow] = await db.$queryRaw<{ total: string | null }[]>`SELECT sum(dp."payTotal")::text total FROM "DmPurchase" dp WHERE dp."organizationId" = ${orgId} AND dp.status <> 'CANCELLED' AND (EXISTS (SELECT 1 FROM "DmLot" l WHERE l."organizationId" = ${orgId} AND l."purchaseId" = dp."purchaseId" AND l."unit" = 'PCS') OR (dp.status = 'DRAFT' AND btrim(split_part(dp."auction", E'\n', 1)) IN (SELECT "auction" FROM "DmLotBridge" WHERE "organizationId" = ${orgId} AND kind = 'ordered')))`;
+    const [furBought] = await db.$queryRaw<{ total: string | null }[]>`SELECT (SELECT sum("totalCost") FROM "DmLot" WHERE "organizationId" = ${orgId} AND "unit" = 'PCS')::numeric + (SELECT coalesce(sum("totalCost"), 0) FROM "DmLotBridge" WHERE "organizationId" = ${orgId} AND kind = 'ordered') AS total`;
+    rows.push({ key: "rawPayVsBought", label: "Сырьё (мех): итог закупок в оплатах = «Куплено» (лоты + заказано), ₽", expected: Math.round(Number(furBought?.total ?? 0)), actual: Math.round(Number(payRow?.total ?? 0)), status: Math.abs(Number(furBought?.total ?? 0) - Number(payRow?.total ?? 0)) <= 5 ? "ok" : "warn", note: null });
     await db.dmCheck.createMany({ data: rows.map((c) => ({ organizationId: orgId, key: c.key, label: c.label, expected: c.expected, actual: c.actual, status: c.status, note: c.note, builtAt: now2 })) });
   } catch (e) { console.error("[mart] сверки сырья не записаны:", e); }
   return { skus: skuCount, parties: partyCount, movements: lines.length, checks };

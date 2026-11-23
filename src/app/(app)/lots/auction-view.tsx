@@ -38,6 +38,8 @@ import { AuctionDocsPay } from "./auction-docs-pay";
 import { AuctionVerify } from "../verify/verify-block";
 import { classifyPurchaseSource } from "@/lib/purchase-source";
 import { LevelSummary, type LevelTile } from "@/components/level-summary";
+import { LevelSummaryFromTotals } from "@/components/level-tiles";
+import { loadLevelTotals } from "@/lib/mart/level-totals";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { usageExclVat } from "@/lib/commission4";
@@ -314,6 +316,7 @@ export async function AuctionView({
   const usedShownIncl = on4 ? usedIncl.add(extraIncl) : usedIncl;
   const usedShownExcl = on4 ? usedExcl.add(extraExcl) : usedExcl;
   const payLink = paySummaries.length === 1 ? `/payments?auction=${encodeURIComponent(paySummaries[0].name)}#auction-block` : "/payments";
+  const martTotals = !filtering && year === "all" && pyear.length === 0 ? await loadLevelTotals(organizationId, { auctions: names, unit: "PCS" }) : null;
   const sumTiles: LevelTile[] = [
     { key: "bought", title: "Куплено", main: <Money incl={fullIncl} excl={fullExcl} />, lines: [
       { k: "Шкур", v: `${formatDec1(totalQty.toString())} · закупок ${counted.length} · лотов ${totalLots}` },
@@ -418,7 +421,8 @@ export async function AuctionView({
           {names.length > 1 && (
             <p className="text-xs text-neutral-500">Под запрос подходят аукционы: {names.map((n) => shortAuctionName(n, 60)).join(", ")}.</p>
           )}
-          <LevelSummary tiles={sumTiles} label="Итоги аукциона" />
+          {/* Числа — из витрины (DmLot, DmAuction): единый источник; витрина устарела, есть фильтры или год — считаем вживую, как раньше. */}
+          {martTotals ? <LevelSummaryFromTotals t={martTotals} c4={c4} payHref={payLink} label="Итоги аукциона" /> : <LevelSummary tiles={sumTiles} label="Итоги аукциона" />}
           {filtering && (
             <p className="text-xs text-amber-700">Поиск включён: итоги — по найденным лотам, без расходов закупок.</p>
           )}
