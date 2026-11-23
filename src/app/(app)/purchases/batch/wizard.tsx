@@ -158,19 +158,21 @@ export function BatchWizard({
     }),
     [header.currency, header.vatDefault, header.auctionId, header.newAuction, refs, rate, pct],
   );
-  const validation = useMemo(() => validateRows(rows, ctx, decisions), [rows, ctx, decisions]);
+  // Полностью пустые строки (ничего не введено) игнорируем: лишняя «+ Строка» не блокирует «Далее» и не попадает в закупку.
+  const liveRows = useMemo(() => rows.filter((r) => [r.lot, r.material, r.color, r.grade, r.qty, r.price].some((x) => String(x ?? "").trim() !== "")), [rows]);
+  const validation = useMemo(() => validateRows(liveRows, ctx, decisions), [liveRows, ctx, decisions]);
 
   // ----- серверный предпросмотр (суммы, сверка документов)
   const payload = useMemo<Omit<BatchPayload, "key" | "ackMismatch">>(
     () => ({
       header,
-      rows,
+      rows: liveRows,
       decisions,
       pct,
       expenses: Object.fromEntries(Object.entries(expenses).filter(([k, v]) => typeof v === "string" && v.trim() !== "" && k !== "applied")) as Record<string, string>,
       docs: docs.map((d, i) => ({ idx: i, name: d.name, kind: d.kind, number: d.number, date: d.date, amount: d.amount })),
     }),
-    [header, rows, decisions, pct, expenses, docs],
+    [header, liveRows, decisions, pct, expenses, docs],
   );
   const seq = useRef(0);
   useEffect(() => {
@@ -291,7 +293,7 @@ export function BatchWizard({
     setKey(newKey());
   }
 
-  const canNext2 = rows.length > 0 && validation.errorCount === 0;
+  const canNext2 = liveRows.length > 0 && validation.errorCount === 0;
   const blocked = (preview?.blocking.length ?? 1) > 0 || (preview?.mismatchDocs ?? 0) > 0 && !ack;
 
   return (
@@ -478,7 +480,7 @@ export function BatchWizard({
           )}
 
           {step === 3 && (
-            <ReviewStep preview={preview} previewErr={previewErr} header={header} refs={refs} ack={ack} setAck={setAck} debtNow={debtNow} rows={rows} pct={pct} rate={rate} vatDefault={ctx.vatDefault} serviceVatPct={serviceVatPctFor(header.orderDate, header.serviceVat)} />
+            <ReviewStep preview={preview} previewErr={previewErr} header={header} refs={refs} ack={ack} setAck={setAck} debtNow={debtNow} rows={liveRows} pct={pct} rate={rate} vatDefault={ctx.vatDefault} serviceVatPct={serviceVatPctFor(header.orderDate, header.serviceVat)} />
           )}
 
           {step === 4 && result && <ResultStep result={result} onRestart={restart} />}
@@ -493,7 +495,7 @@ export function BatchWizard({
           <Button type="button" variant="outline" disabled={step === 1 || pending} onClick={() => setStep(step - 1)}>← Назад</Button>
           <div className="flex flex-col items-end gap-1 max-sm:items-stretch max-sm:[&>button]:w-full max-sm:[&>span]:text-left">
             {step === 1 && headerProblems.length > 0 && <span className="text-xs text-neutral-500">{headerProblems[0]}</span>}
-            {step === 2 && !canNext2 && <span className="text-xs text-neutral-500">{rows.length === 0 ? "Добавьте хотя бы один лот" : `Исправьте ошибки в таблице: ${validation.errorCount}`}</span>}
+            {step === 2 && !canNext2 && <span className="text-xs text-neutral-500">{liveRows.length === 0 ? "Добавьте хотя бы один лот" : `Исправьте ошибки в таблице: ${validation.errorCount}`}</span>}
             {step === 1 && <Button type="button" disabled={headerProblems.length > 0} onClick={() => setStep(2)}>Далее: лоты →</Button>}
             {step === 2 && <Button type="button" disabled={!canNext2} onClick={() => setStep(3)}>Далее: проверка →</Button>}
             {step === 3 && (

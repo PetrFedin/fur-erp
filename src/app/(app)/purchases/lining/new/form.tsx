@@ -33,7 +33,7 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
   const [notes, setNotes] = useState("");
   const [priceIncl, setPriceIncl] = useState(mode === "incl");
   const [seq, setSeq] = useState(1);
-  const blank = (key: number): Line => ({ key, materialId: materials.find((m) => m.lots <= 1)?.id ?? "__new", newNumber: "", meters: "", price: "", vat: "", vatTouched: false });
+  const blank = (key: number): Line => ({ key, materialId: "", newNumber: "", meters: "", price: "", vat: "", vatTouched: false });
   const [lines, setLines] = useState<Line[]>([blank(0)]);
 
   const autoBatch = useMemo(() => {
@@ -59,7 +59,9 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
     const fd = new FormData();
     fd.set("date", date); fd.set("supplierId", supplierId); fd.set("batchName", batchShown); fd.set("invoiceNumber", invoice); fd.set("invoiceDate", invoiceDate); fd.set("notes", notes);
     fd.set("priceMode", priceIncl ? "incl" : "excl");
-    fd.set("lines", JSON.stringify(lines.map((l) => ({ materialId: l.materialId, newNumber: l.newNumber, meters: l.meters, price: l.price, vat: l.vatTouched ? l.vat : "" }))));
+    // Полностью пустые строки (ни метров, ни цены) просто пропускаем, чтобы лишняя строка не блокировала сохранение.
+    const filled = lines.filter((l) => l.meters.trim() !== "" || l.price.trim() !== "");
+    fd.set("lines", JSON.stringify((filled.length > 0 ? filled : lines).map((l) => ({ materialId: l.materialId, newNumber: l.newNumber, meters: l.meters, price: l.price, vat: l.vatTouched ? l.vat : "" }))));
     setState({});
     startTransition(async () => {
       const res = await createLiningBatchPurchase({}, fd);
@@ -96,7 +98,7 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
             <p className="mt-1 text-[11px] text-neutral-500">Новый поставщик — в справочнике</p>
           </div>
           <div>
-            <Label htmlFor="lb-batch">Аукцион / закупка</Label>
+            <Label htmlFor="lb-batch">Название партии</Label>
             <Input id="lb-batch" value={batchShown} onChange={(e) => { setBatchTouched(true); setBatchName(e.target.value); }} placeholder="Подкладка 05.26" />
             <p className="mt-1 text-[11px] text-neutral-500">По умолчанию «Подкладка ММ.ГГ»</p>
           </div>
@@ -128,6 +130,7 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
                 <div className="col-span-2 sm:col-span-4 lg:col-span-1">
                   <Label htmlFor={`lb-mat-${l.key}`}>Ткань</Label>
                   <Select id={`lb-mat-${l.key}`} value={l.materialId} onChange={(e) => setLine(l.key, { materialId: e.target.value })}>
+                    <option value="" disabled>Выберите ткань…</option>
                     {materials.map((m) => <option key={m.id} value={m.id} disabled={m.lots > 1}>{short(m.name)}{m.lots > 1 ? ` — ${m.lots} лота, докупить нельзя` : ""}</option>)}
                     <option value="__new">+ Новая ткань…</option>
                   </Select>
