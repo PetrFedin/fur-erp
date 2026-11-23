@@ -2,6 +2,7 @@ import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { NO_AUCTION_KEY, SYNTHETIC_LABEL, categoryOf, type RawData, type RawLot, type UsageRef } from "@/lib/raw-analytics";
+import { isMartFresh } from "@/lib/mart/snapshots";
 import { lotSizes } from "@/lib/lot-size";
 import { yearRange } from "@/lib/year-filter";
 import type { YearFilter } from "@/lib/year-filter";
@@ -14,6 +15,8 @@ import type { YearFilter } from "@/lib/year-filter";
 const d = (v: unknown) => new Decimal(v === null || v === undefined ? 0 : String(v));
 
 export async function loadRawFromMart(orgId: string, year: YearFilter): Promise<{ data: RawData; all: RawLot[] } | null> {
+  // После записи витрина устарела до фоновой пересборки: тогда страница считает вживую, и «по лотам» не расходится с расходом по ТЗ.
+  if (!(await isMartFresh(orgId))) return null;
   const r = yearRange(year);
   const y = r ? r.gte.getUTCFullYear() : null;
   const [lots, uses, bridge] = await Promise.all([

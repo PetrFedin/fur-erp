@@ -1,3 +1,4 @@
+import { overpayTarget } from "@/lib/overpay-notes";
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -59,6 +60,21 @@ export async function loadLevelTotals(orgId: string, scope: LevelScope): Promise
         ${unit === "PCS" ? Prisma.sql`OR (dp.status = 'DRAFT' AND btrim(split_part(dp."auction", E'\n', 1)) IN (SELECT "auction" FROM "DmLotBridge" WHERE "organizationId" = ${orgId} AND kind = 'ordered'))` : Prisma.empty}
       )`;
     pay = { total: num(p?.total), paid: num(p?.paid), remaining: num(p?.remaining) };
+    // Переплата аукциона, зачтённая по документам в счёте другого аукциона (подкладка 05.26 → AME 05.26): на верхнем уровне оплата
+    // переносится туда, как на Главной. Внутри самого аукциона переплата остаётся видна.
+    const over = await prisma.dmAuction.findMany({ where: { organizationId: orgId, remaining: { lt: -0.5 } }, select: { name: true, remaining: true } });
+    if (over.length) {
+      const rows = await prisma.$queryRaw<{ auction: string | null }[]>`SELECT DISTINCT "auction" FROM "DmLot" WHERE "organizationId" = ${orgId} AND "unit" = ${unit}`;
+      const mine = new Set(rows.map((x) => x.auction).filter((x): x is string => !!x));
+      for (const o of over) {
+        const to = overpayTarget(o.name);
+        if (!to) continue;
+        const a = -num(o.remaining);
+        const fromHere = mine.has(o.name), toHere = mine.has(to);
+        if (fromHere && !toHere) pay = { total: pay.total, paid: pay.paid - a, remaining: pay.remaining + a };
+        else if (!fromHere && toHere) pay = { total: pay.total, paid: pay.paid + a, remaining: pay.remaining - a };
+      }
+    }
   }
   if (scope.purchaseId) {
     const p = await prisma.dmPurchase.findFirst({ where: { organizationId: orgId, purchaseId: scope.purchaseId }, select: { payTotal: true, paidShare: true } });

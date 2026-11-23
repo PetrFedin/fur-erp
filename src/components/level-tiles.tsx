@@ -29,7 +29,7 @@ export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "ш�
       { k: unit === "м" ? "Метров" : "Шкур", v: `${formatDec1(String(incl.usedQty))}${pctOf(incl.usedQty, incl.recvQty)}` },
       { k: rubPer, v: per(incl.usedValue, excl.usedValue, incl.usedQty) },
       ...(usdU ? [{ k: "$/шт.", v: usdU }] : []),
-      ...(on4 && extra > 0.5 ? [{ k: "в т.ч. 4 %", v: <Money incl={extra.toFixed(2)} excl={extraX.toFixed(2)} /> }] : []),
+      ...(on4 && extra > 0.5 ? [{ k: "из них надбавка 4 %", v: <Money incl={extra.toFixed(2)} excl={extraX.toFixed(2)} /> }] : []),
     ] },
     { key: "rem", title: "Остаток", main: <Money incl={incl.remValue.toFixed(2)} excl={excl.remValue.toFixed(2)} />, lines: [
       { k: unit === "м" ? "Метров" : "Шкур", v: `${formatDec1(String(incl.remQty))}${pctOf(incl.remQty, incl.recvQty)}` },
@@ -62,10 +62,10 @@ export function LevelSummaryFromTotals({ t, c4, unit = "шт.", payHref, label }
       { k: rubPer, v: per(t.incl.recv, t.excl.recv, t.qty.recv) },
       ...(t.usdAvg != null && unit !== "м" ? [{ k: "$/шт.", v: `$${Math.round(t.usdAvg).toLocaleString("ru-RU")}` }] : []),
     ] },
-    { key: "used", title: "Использовано", main: <Money incl={usedI.toFixed(2)} excl={usedX.toFixed(2)} />, lines: [
+    { key: "used", title: "Использовано", hint: ui.extra > 0 ? <p>В режиме «С 4 %» к использованному добавляется надбавка 4 % (она начисляется при списании в ТЗ и в «Куплено» не входит). Поэтому «Использовано + Остаток» больше «Куплено» ровно на эту надбавку; в режиме «Без 4 %» всё сходится.</p> : undefined, main: <Money incl={usedI.toFixed(2)} excl={usedX.toFixed(2)} />, lines: [
       { k: q, v: `${formatDec1(String(t.qty.used))}${pctOf(t.qty.used, t.qty.recv)}` },
       { k: rubPer, v: per(usedI, usedX, t.qty.used) },
-      ...(ui.extra > 0 ? [{ k: "в т.ч. 4 %", v: <Money incl={ui.extra.toFixed(2)} excl={ux.extra.toFixed(2)} /> }] : []),
+      ...(ui.extra > 0 ? [{ k: "из них надбавка 4 %", v: <Money incl={ui.extra.toFixed(2)} excl={ux.extra.toFixed(2)} /> }] : []),
     ] },
     { key: "rem", title: "Остаток", main: <Money incl={t.incl.rem.toFixed(2)} excl={t.excl.rem.toFixed(2)} />, lines: [
       { k: q, v: `${formatDec1(String(t.qty.rem))}${pctOf(t.qty.rem, t.qty.recv)}` },
