@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { formatMoney, formatPercent, formatQty, cn, formatNum, formatDec1 } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty, cn, formatNum, formatQtyTrim } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { PinSection } from "@/components/pin-section";
 import { LevelSummaryFromFigures, LevelSummaryFromTotals } from "@/components/level-tiles";
@@ -60,7 +60,7 @@ const firstOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] :
 /** Карточка /analytics/raw/lot/<id> есть только у настоящих лотов: строки «заказано, не получено» (ordered:…) и «шкуры подрядчика» (hides) — заглушки без лота в БД (404). */
 const hasLotCard = (l: FurLot) => !l.id.startsWith("ordered:") && !l.id.startsWith("hides");
 
-const Q = (n: number | null) => (n == null || Math.abs(n) < 0.005 ? "–" : formatDec1(n));
+const Q = (n: number | null) => (n == null || Math.abs(n) < 0.005 ? "–" : formatQtyTrim(n));
 const R = (n: number | null) => (n == null || Math.abs(n) < 0.5 ? "–" : formatMoney(n));
 /** Средневзвешенная цена, ₽ за шт. (м): Σ ₽ ÷ Σ шт. — та же функция figures(), что даёт «Цена, ₽/шт.» в плитках. */
 // Сначала до копеек (как avg в плитках: dashboard-data округляет цену до 2 знаков), затем формат — цифры совпадают с плитками.

@@ -1,6 +1,6 @@
 import { Money } from "@/components/money";
 import { LevelSummary, type LevelTile } from "@/components/level-summary";
-import { formatMoney, formatDec1 } from "@/lib/utils";
+import { formatMoney, formatQtyTrim } from "@/lib/utils";
 import type { FlowFigures } from "@/lib/fur-table";
 import type { LevelTotals } from "@/lib/mart/level-totals";
 import { usedByMode } from "@/lib/commission4-pick";
@@ -21,18 +21,18 @@ export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "ш�
   const rubPer = unit === "м" ? "₽/м" : "₽/шт.";
   const tiles: LevelTile[] = [
     { key: "bought", title: "Куплено", main: <Money incl={incl.recvValue.toFixed(2)} excl={excl.recvValue.toFixed(2)} />, lines: [
-      { k: unit === "м" ? "Метров" : "Шкур", v: formatDec1(String(incl.recvQty)) },
+      { k: unit === "м" ? "Метров" : "Шкур", v: formatQtyTrim(String(incl.recvQty)) },
       { k: rubPer, v: per(incl.recvValue, excl.recvValue, incl.recvQty) },
       ...(usdB ? [{ k: "$/шт.", v: usdB }] : []),
     ] },
     { key: "used", title: "Использовано", main: <Money incl={incl.usedValue.toFixed(2)} excl={excl.usedValue.toFixed(2)} />, lines: [
-      { k: unit === "м" ? "Метров" : "Шкур", v: `${formatDec1(String(incl.usedQty))}${pctOf(incl.usedQty, incl.recvQty)}` },
+      { k: unit === "м" ? "Метров" : "Шкур", v: `${formatQtyTrim(String(incl.usedQty))}${pctOf(incl.usedQty, incl.recvQty)}` },
       { k: rubPer, v: per(incl.usedValue, excl.usedValue, incl.usedQty) },
       ...(usdU ? [{ k: "$/шт.", v: usdU }] : []),
       ...(on4 && extra > 0.5 ? [{ k: "из них надбавка 4 %", v: <Money incl={extra.toFixed(2)} excl={extraX.toFixed(2)} /> }] : []),
     ] },
     { key: "rem", title: "Остаток", main: <Money incl={incl.remValue.toFixed(2)} excl={excl.remValue.toFixed(2)} />, lines: [
-      { k: unit === "м" ? "Метров" : "Шкур", v: `${formatDec1(String(incl.remQty))}${pctOf(incl.remQty, incl.recvQty)}` },
+      { k: unit === "м" ? "Метров" : "Шкур", v: `${formatQtyTrim(String(incl.remQty))}${pctOf(incl.remQty, incl.recvQty)}` },
       { k: rubPer, v: per(incl.remValue, excl.remValue, incl.remQty) },
       ...(usdR ? [{ k: "$/шт.", v: usdR }] : []),
     ] },
@@ -58,18 +58,18 @@ export function LevelSummaryFromTotals({ t, c4, unit = "шт.", payHref, label }
   const usedX = ux.value;
   const tiles: LevelTile[] = [
     { key: "bought", title: "Куплено", main: <Money incl={t.incl.recv.toFixed(2)} excl={t.excl.recv.toFixed(2)} />, lines: [
-      { k: q, v: `${formatDec1(String(t.qty.recv))} · лотов ${t.lots}` },
+      { k: q, v: `${formatQtyTrim(String(t.qty.recv))} · лотов ${t.lots}` },
       { k: rubPer, v: per(t.incl.recv, t.excl.recv, t.qty.recv) },
       ...(t.usdAvg != null && unit !== "м" ? [{ k: "$/шт.", v: `$${Math.round(t.usdAvg).toLocaleString("ru-RU")}` }] : []),
-      ...(t.ordered ? [{ k: "в т.ч. заказано, не получено", v: `${formatDec1(String(t.ordered.qty))} шт.` }] : []),
+      ...(t.ordered ? [{ k: "из них заказано", v: `${formatQtyTrim(String(t.ordered.qty))} шт.` }] : []),
     ] },
     { key: "used", title: "Использовано", hint: ui.extra >= 0.5 ? <p>В режиме «С 4 %» к использованному добавляется надбавка 4 % (она начисляется при списании в ТЗ и в «Куплено» не входит). Поэтому «Использовано + Остаток» больше «Куплено» ровно на эту надбавку; в режиме «Без 4 %» всё сходится.</p> : undefined, main: <Money incl={usedI.toFixed(2)} excl={usedX.toFixed(2)} />, lines: [
-      { k: q, v: `${formatDec1(String(t.qty.used))}${pctOf(t.qty.used, t.qty.recv)}` },
+      { k: q, v: `${formatQtyTrim(String(t.qty.used))}${pctOf(t.qty.used, t.qty.recv)}` },
       { k: rubPer, v: per(usedI, usedX, t.qty.used) },
       ...(ui.extra >= 0.5 ? [{ k: "из них надбавка 4 %", v: <Money incl={ui.extra.toFixed(2)} excl={ux.extra.toFixed(2)} /> }] : []),
     ] },
     { key: "rem", title: "Остаток", main: <Money incl={t.incl.rem.toFixed(2)} excl={t.excl.rem.toFixed(2)} />, lines: [
-      { k: q, v: `${formatDec1(String(t.qty.rem))}${pctOf(t.qty.rem, t.qty.recv)}` },
+      { k: q, v: `${formatQtyTrim(String(t.qty.rem))}${pctOf(t.qty.rem, t.qty.recv)}` },
       { k: rubPer, v: per(t.incl.rem, t.excl.rem, t.qty.rem) },
     ] },
   ];

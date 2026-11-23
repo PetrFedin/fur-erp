@@ -124,6 +124,12 @@ export function formatDec1(value: number | string | null | undefined): string {
   return n == null || !Number.isFinite(n) ? "–" : new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
 }
 
+/** Количество шкур/метров: целое без «,0», дробное с одним знаком (10 004 · 1 866,5). */
+export function formatQtyTrim(value: number | string | null | undefined): string {
+  const n = typeof value === "string" ? Number(value) : value;
+  return n == null || !Number.isFinite(n) ? "–" : new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 1 }).format(n);
+}
+
 /** Целое число (шкуры в шт.): без запятой и знака после неё. */
 export function formatInt(value: number | string | null | undefined): string {
   const n = typeof value === "string" ? Number(value) : value;

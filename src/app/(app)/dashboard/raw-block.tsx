@@ -3,7 +3,7 @@
 import { Fragment, createContext, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney, formatPercent, formatQty, formatShare, formatNum, formatDec1, formatInt } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty, formatShare, formatNum, formatQtyTrim, formatInt } from "@/lib/utils";
 import { alignColumn, alignFlowMoney, alignRows, type Trio } from "@/lib/money-round";
 import { alignRaw } from "@/lib/raw-display";
 import { TotalLabel } from "@/components/total-label";
@@ -163,7 +163,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   const L = alignFlowMoney(lining[vat], c4 === "on");
   const unit = view === "lining" ? "м" : "шт.";
   // Шкуры — целые числа; подкладка в метрах — с одним знаком.
-  const qtyF = (v: number | null | undefined) => (view === "lining" ? formatDec1(v) : formatInt(v));
+  const qtyF = (v: number | null | undefined) => (view === "lining" ? formatQtyTrim(v) : formatInt(v));
   const cur = view === "lining" ? L : F;
   const all = false as boolean; // «Всё» убрано: мех и подкладка — отдельными рядами плиток
   const usdTile = view === "fur";

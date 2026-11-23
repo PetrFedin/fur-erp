@@ -6,7 +6,7 @@ import { relabelOrders } from "@/lib/order-label-db";
 import { escapeLike } from "@/lib/input";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionName as auctionNameLib, loadAuctionSummaries } from "@/lib/auction-payments";
-import { formatMoney, isRoundingRest, OVERPAY_FROM, formatRate, formatDec1 } from "@/lib/utils";
+import { formatMoney, isRoundingRest, OVERPAY_FROM, formatRate, formatQtyTrim } from "@/lib/utils";
 import { isDebtDust } from "@/lib/raw-rounding";
 import Link from "next/link";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -326,17 +326,17 @@ export async function AuctionView({
   const martTotals = !filtering && year === "all" && pyear.length === 0 ? await loadLevelTotals(organizationId, { auctions: names, unit: "PCS" }) : null;
   const sumTiles: LevelTile[] = [
     { key: "bought", title: "Куплено", main: <Money incl={fullIncl} excl={fullExcl} />, lines: [
-      { k: "Шкур", v: `${formatDec1(totalQty.toString())} · закупок ${counted.length} · ${lotsText(totalLots - orderedPositions, orderedPositions)}` },
+      { k: "Шкур", v: `${formatQtyTrim(totalQty.toString())} · закупок ${counted.length} · ${lotsText(totalLots - orderedPositions, orderedPositions)}` },
       { k: "₽/шт.", v: perMoney(fullIncl, fullExcl, totalQty) },
       ...(usdQty > 0 ? [{ k: "$/шт.", v: `$${Math.round(usdSum / usdQty).toLocaleString("ru-RU")}` }] : []),
     ] },
     { key: "used", title: "Использовано", main: <Money incl={usedShownIncl} excl={usedShownExcl} />, lines: [
-      { k: "Шкур", v: `${formatDec1(usedQty.toString())}${pct(usedQty, totalQty)}` },
+      { k: "Шкур", v: `${formatQtyTrim(usedQty.toString())}${pct(usedQty, totalQty)}` },
       { k: "₽/шт.", v: perMoney(usedShownIncl, usedShownExcl, usedQty) },
       ...(on4 && extraIncl.greaterThanOrEqualTo(0.5) ? [{ k: "из них надбавка 4 %", v: <Money incl={extraIncl} excl={extraExcl} /> }] : []),
     ] },
     { key: "rem", title: "Остаток", main: <Money incl={remIncl} excl={remExcl} />, lines: [
-      { k: "Шкур", v: `${formatDec1(remQty.toString())}${pct(remQty, totalQty)}` },
+      { k: "Шкур", v: `${formatQtyTrim(remQty.toString())}${pct(remQty, totalQty)}` },
       { k: "₽/шт.", v: perMoney(remIncl, remExcl, remQty) },
     ] },
     ...(paySummaries.length > 0 ? [
@@ -564,7 +564,7 @@ export async function AuctionView({
                 {p.number} · {formatDate(p.orderDate)}
               </span>
               <span className="text-xs text-neutral-500">
-                {lines.length} лот. · {formatDec1(qty.toString())} шт.
+                {lines.length} лот. · {formatQtyTrim(qty.toString())} шт.
               </span>
               {rawInfo.get(p.id) && (
                 <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs ${rawInfo.get(p.id)!.overdue ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"}`} title={`Где сырьё: ${rawInfo.get(p.id)!.line}`}>{rawInfo.get(p.id)!.chip}</span>

@@ -35,7 +35,7 @@ export function AssetsBlock({ furQty, furOrdered = 0, fur, goodsQty, goods, good
         <div className={TILE_BOX}>
           <TileHead>Мех в наличии<InfoHint label="Мех в наличии"><p>Шкуры, купленные и ещё не пошедшие в производство: куплено минус использовано по ТЗ. Сумма — по цене закупки, как в блоке «Сырьё» (режим «с 4%» и НДС — по переключателям).</p></InfoHint></TileHead>
           <TileValue>{formatQty(furQty)} шт.</TileValue>
-          <TileCaption>{furOrdered > 0 ? `в т.ч. заказано, не получено ${formatQty(furOrdered)} шт.` : "шкур в наличии"}</TileCaption>
+          <TileCaption>{furOrdered > 0 ? `из них заказано ${formatQty(furOrdered)} шт.` : "шкур в наличии"}</TileCaption>
           <TileList items={[{ k: "Сумма", v: formatMoney(v(fur)), share: share(v(fur)) }]} />
         </div>
         <div className={TILE_BOX}>
