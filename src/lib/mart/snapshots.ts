@@ -12,12 +12,12 @@ import type { FurLot } from "@/lib/fur-table";
 /**
  * Снимки готовых расчётов экранов в витрине: «Главная» и «Сырьё» читают их вместо пересчёта на каждый заход.
  * Ключи: dash:<год>:<on|off> (режим 4 %), furlots:<fur|lining>:<год>, furkinds. НДС в числах лежит в обоих вариантах, поэтому в ключе его нет.
- * Снимок годен, пока после его сборки не было записей (метка data-version, ставится в revalidateAll) и ему меньше SNAPSHOT_MAX_AGE_MS;
+ * Снимок годен, пока после его сборки не было записей (метка data-version, ставится в revalidateAll) и ему меньше SNAPSHOT_MAX_AGE_MS (12 часов — страховка на случай, если метка не записалась; записи вне приложения — после них mart:refresh);
  * иначе экран считает по-старому вживую — число всегда верное, быстрым оно становится после следующей фоновой пересборки.
  */
 const VERSION_KEY = "data-version";
 // MART_SNAPSHOT_MAX_AGE_MS — только для сценариев сверки (scripts/mart-vs-legacy.ts), чтобы снимок не «старел» посреди проверки.
-const SNAPSHOT_MAX_AGE_MS = Number(process.env.MART_SNAPSHOT_MAX_AGE_MS) || 10 * 60 * 1000;
+const SNAPSHOT_MAX_AGE_MS = Number(process.env.MART_SNAPSHOT_MAX_AGE_MS) || 12 * 3600 * 1000;
 
 export async function markDataChanged(orgId: string): Promise<void> {
   const value = Date.now();
