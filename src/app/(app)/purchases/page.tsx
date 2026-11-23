@@ -1,3 +1,4 @@
+import { BOUGHT_RULE, purchaseCategory } from "@/domain/purchased";
 import { debtStateOfRest, payPair, vatShare } from "@/domain/money";
 import { ROUND_MIN } from "@/lib/raw-rounding";
 import { WidgetRow } from "@/components/widget-row";
@@ -135,7 +136,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const lotFilter = { ...emptyFilters(), color: f.color, size: f.size, attr: f.attr, rest: f.rest, usage: f.usage };
   const lotFilterOn = f.color.length + f.size.length + f.attr.length + f.rest.length + f.usage.length > 0;
   // Закупки-услуги Веллмеха (УПД без позиций сырья: гребни, брелки, образцы, доп. услуги по спецификации) к сырью не относятся: в «Сырье» их нет, они в «Оплатах».
-  const isServiceRow = (p: TreePurchase) => p.status !== "CANCELLED" && p.items.length === 0 && p.expenses.length > 0;
+  const isServiceRow = (p: TreePurchase) => purchaseCategory(p) === "service";
   const servicesOutside = all.filter(isServiceRow);
   const rows = all.filter((p) => {
     if (isServiceRow(p)) return false;
@@ -349,7 +350,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                     <TileHead><VatLabel base="Куплено" /></TileHead>
                     <div className="absolute right-3 top-3">
                       <InfoHint label="О «Куплено»" align="right">
-                        <p>Позиции плюс расходы закупок выборки, без отменённых; то же число, что в верхней полосе «Сырья». Шкуры подрядчика (оплачены в составе пошива) в «Куплено» не входят: они показаны отдельной строкой ниже.</p>
+                        <p>{BOUGHT_RULE} То же число, что в верхней полосе «Сырья»; шкуры подрядчика показаны отдельной строкой ниже.</p>
                         <p className="mt-1">Цена ср. = куплено ÷ {b.kind === "lining" ? "метры" : "штуки"} закупок; шкуры подрядчика без количества в расчёт не входят.</p>
                         {b.t.ordered > 0 ? <p className="mt-1">Позиций заказано, но не получено: {b.t.ordered}.</p> : null}
                         <p className="mt-1">{LOTS_RULE}</p>

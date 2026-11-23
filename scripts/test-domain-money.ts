@@ -1,4 +1,5 @@
 // Домен денег: чистые функции (без базы). node --env-file=.env node_modules/.bin/tsx scripts/test-domain-money.ts
+import { purchasedTotals, purchaseCategory, countsAsBought } from "../src/domain/purchased";
 import { RUB_EPS, isNegative, isPositive, isZero, debtState, debtStateOfRest, payPair, sumPairs, transferOverpay, usedByMode, vatShare, withExtra } from "../src/domain/money";
 
 let fails = 0, checks = 0;
@@ -47,6 +48,25 @@ ok("withExtra", withExtra("on") && !withExtra("off"));
   ok("источник и получатель в одном виде — без изменений", both.paid === 120 && both.remaining === -20);
   ok("без получателя — без изменений", transferOverpay({ total: 1, paid: 2, remaining: -1 }, [{ name: "A", amount: 1, to: null }], new Set(["A"])).paid === 2);
 }
+
+// «Куплено»: лоты + заказанное; шкуры подрядчика и услуги вне
+{
+  const t = purchasedTotals({
+    receivedLots: { incl: 462958120.53, excl: 382767255 },
+    orderedNotReceived: { incl: 119326553.98, excl: 97808650.8 },
+    contractorHides: { incl: 229150, excl: 187827.87 },
+    services: { incl: 599772.1, excl: 499810.08 },
+  });
+  near("куплено = лоты + заказанное", t.bought.incl, 582284674.51, 0.01);
+  near("общая стоимость = куплено + шкуры подрядчика", t.rawTotalCost.incl, 582284674.51 + 229150, 0.01);
+  near("услуги отдельной статьёй", t.services.incl, 599772.1, 0.01);
+  near("к оплате поставщику = общая стоимость + услуги", t.payableToSupplier.incl, 582284674.51 + 229150 + 599772.1, 0.01);
+}
+ok("категория: отменена", purchaseCategory({ status: "CANCELLED", items: [1], expenses: [] }) === "cancelled" && !countsAsBought("cancelled"));
+ok("категория: услуга (нет позиций, есть расходы)", purchaseCategory({ status: "RECEIVED", items: [], expenses: [1] }) === "service" && !countsAsBought("service"));
+ok("категория: принята", purchaseCategory({ status: "RECEIVED", items: [1], expenses: [] }) === "received" && countsAsBought("received"));
+ok("категория: заказана, не принята — в «Куплено»", purchaseCategory({ status: "DRAFT", items: [1], expenses: [] }) === "ordered" && countsAsBought("ordered"));
+ok("пустая закупка без расходов — не услуга", purchaseCategory({ status: "DRAFT", items: [], expenses: [] }) === "ordered");
 
 console.log(fails ? `\nПровалов: ${fails} из ${checks}` : `\nВсё в порядке (${checks} проверок)`);
 process.exit(fails ? 1 : 0);

@@ -1,3 +1,4 @@
+import { countsAsBought } from "@/domain/purchased";
 import { isZero, isPositive } from "@/domain/money";
 import { countPayslips } from "@/lib/pay-kinds";
 import "server-only";
@@ -56,7 +57,8 @@ const withHides = (p: CellsPair, v: { incl: number; excl: number } | undefined):
 };
 // Решение владельца 21.10.2026 (отменяет исключение от 20.10): заказанное, но не принятое (черновики FH 06.26, СП 09.26) снова входит в «Куплено» и «Остаток»
 // (использовано 0), чтобы «Куплено» по меху сходилось с «общей стоимостью меха» из оплат (оплачено + долг). Поле ordered хранит эту сумму отдельно.
-const BOUGHT_ORDERED = { has: (_fur: string) => true };
+// Правило одно на всё приложение — src/domain/purchased.ts: заказанное, но не принятое, входит в «Куплено».
+const BOUGHT_ORDERED = { has: (_fur: string) => countsAsBought("ordered") };
 const withOrdered = (p: CellsPair, o?: Ordered): CellsPair => (o && (o.qty > 0 || o.incl > 0) ? { incl: bumpCells(p.incl, o.qty, o.incl), excl: bumpCells(p.excl, o.qty, o.excl) } : p);
 const bumpFigures = (f: FlowFigures, q: number, v: number): FlowFigures => {
   const recvQty = f.recvQty + q, recvValue = f.recvValue + v, remQty = f.remQty + q, remValue = f.remValue + v;
