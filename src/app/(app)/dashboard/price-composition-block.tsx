@@ -12,7 +12,7 @@ import { formatMoney, formatPercent, formatQty, formatDec1 } from "@/lib/utils";
 import { useFurScope } from "@/components/fur-scope";
 import { InfoHint } from "@/components/info-hint";
 import { useClientSort } from "@/lib/use-client-sort";
-import { lotCounts, lotCountsText, LOTS_RULE } from "@/lib/cost-labels";
+import { lotCounts, lotCountsText, lotsText, LOTS_RULE } from "@/lib/cost-labels";
 import { alignColumn, lrAllocate, roundRub } from "@/lib/money-round";
 
 const NCAT = COMP_CATS.length;
@@ -167,7 +167,7 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
           <h3 className="truncate text-base font-semibold leading-tight">{fur ?? totalTitle}</h3>
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-neutral-500 tabular-nums">
             <span className="font-semibold text-neutral-900">{formatMoney(total)}</span>
-            <span title={lotsLine(lots)}>{a.qty > 0 ? `${formatDec1(a.qty)} шт.` : "без количества"} · лотов {lotCounts(lots).lots}</span>
+            <span title={lotsLine(lots)}>{a.qty > 0 ? `${formatDec1(a.qty)} шт.` : "без количества"} · {lotsText(lotCounts(lots).lots, lotCounts(lots).positions)}</span>
           </div>
         </div>
         {fur && !hideLink ? <Link href={href} className="shrink-0 text-xs text-blue-700 hover:underline print:hidden">→ {fur}</Link> : null}
@@ -177,7 +177,7 @@ function Slide({ lots, fur, label, withVat, hideLink = false, totalTitle = "Вс
         stacked totalLabel={withVat ? "Всего, с НДС" : "Всего, без НДС"}
         ariaLabel={`Из чего складывается стоимость меха: ${label}${withVat ? ", с НДС" : ", без НДС"}`}
         onSelect={sel} selectTitle="Показать лоты с этой составляющей"
-        countLabel={(k) => (k === "vat" ? null : counts[k] ? `${counts[k]} лот.` : null)}
+        countLabel={(k) => (k === "vat" ? null : counts[k] ? `${counts[k]} ${lotCounts(lots).lots === 0 && lotCounts(lots).positions > 0 ? "поз." : "лот."}` : null)}
       />
       {openSlice ? (
         <Modal title={`${openSlice.label} · ${label}`} onClose={() => setOpen(null)} returnTo={opener}>

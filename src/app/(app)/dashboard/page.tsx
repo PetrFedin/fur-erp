@@ -169,7 +169,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
 
       {/* ───────── Активы: мех в наличии, изделия на стоке, всего ───────── */}
-      {salesBlock ? <AssetsBlock furQty={d.raw.fur.incl.remQty} furOrdered={Math.round(d.rawTable.filter((r) => r.kind === "fur").reduce((a, r) => a + (r.ordered?.qty ?? 0), 0))} fur={{ incl: d.raw.fur.incl.remValue, excl: d.raw.fur.excl.remValue }} goodsQty={salesBlock.stock} goods={{ incl: salesBlock.money.in.stockCost, excl: salesBlock.money.ex.stockCost }} goodsRetail={{ incl: salesBlock.money.in.stockList, excl: salesBlock.money.ex.stockList }} /> : null}
+      {salesBlock ? <AssetsBlock furQty={d.raw.fur.incl.remQty} furOrdered={Math.round(d.orderedBought.qty + d.rawTable.filter((r) => r.kind === "fur").reduce((a, r) => a + (r.ordered?.qty ?? 0), 0))} fur={{ incl: d.raw.fur.incl.remValue, excl: d.raw.fur.excl.remValue }} goodsQty={salesBlock.stock} goods={{ incl: salesBlock.money.in.stockCost, excl: salesBlock.money.ex.stockCost }} goodsRetail={{ incl: salesBlock.money.in.stockList, excl: salesBlock.money.ex.stockList }} /> : null}
 
       {/* ───────── Оплаты, долги, задачи ───────── */}
       <PayTiles d={d} c4Mode={c4Mode} year={year} title="Расходы" headerEnd={<span className="flex items-center gap-3 print:hidden"><RubOnlyNote /><Link href="/payments" className="text-xs text-blue-700 hover:underline">→ Оплаты</Link><Link href="/cashflow" className="text-xs text-blue-700 hover:underline">→ Cashflow</Link></span>} />

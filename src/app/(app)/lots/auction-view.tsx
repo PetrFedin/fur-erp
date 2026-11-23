@@ -1,3 +1,4 @@
+import { lotsText } from "@/lib/cost-labels";
 import { Fragment } from "react";
 import { GROUPS, classifyLabel, labelUnit, type GroupKey } from "@/lib/cost-breakdown-groups";
 import { loadRawInfo } from "@/lib/raw-stage-server";
@@ -282,6 +283,8 @@ export async function AuctionView({
   const counted = blocks.filter((b) => b.counted);
   const totalQty = counted.reduce((s, b) => s.add(b.qty), zero());
   const totalLots = counted.reduce((s, b) => s + b.lines.length, 0);
+  // «Лот» — полученная партия; строка заказа без лота — «позиция» (единое правило LOTS_RULE).
+  const orderedPositions = counted.reduce((s, b) => s + b.lines.filter((l) => !l.i.lot).length, 0);
   const priceIncl = counted.reduce((s, b) => s.add(b.pPriceIncl), zero());
   const priceExcl = counted.reduce((s, b) => s.add(b.pPriceExcl), zero());
   const fullIncl = counted.reduce((s, b) => s.add(b.pFullIncl), zero());
@@ -298,7 +301,9 @@ export async function AuctionView({
       const usd = lotUsdListed(l.breakdown, []);
       if (usd != null && q > 0) { usdSum += usd * q; usdQty += q; }
       const lot = l.i.lot;
-      if (!lot || seenLots.has(lot.id)) continue;
+      // Заказано, но не получено (лота ещё нет): входит в «Куплено», значит и в остаток целиком (как на Главной и в верхней полосе).
+      if (!lot) { remQty = remQty.add(l.i.quantity); remIncl = remIncl.add(l.totalIncl); remExcl = remExcl.add(l.totalExcl); continue; }
+      if (seenLots.has(lot.id)) continue;
       seenLots.add(lot.id);
       for (const u of lot.usages) {
         usedQty = usedQty.add(u.quantity); usedIncl = usedIncl.add(u.totalCost);
@@ -321,7 +326,7 @@ export async function AuctionView({
   const martTotals = !filtering && year === "all" && pyear.length === 0 ? await loadLevelTotals(organizationId, { auctions: names, unit: "PCS" }) : null;
   const sumTiles: LevelTile[] = [
     { key: "bought", title: "Куплено", main: <Money incl={fullIncl} excl={fullExcl} />, lines: [
-      { k: "Шкур", v: `${formatDec1(totalQty.toString())} · закупок ${counted.length} · лотов ${totalLots}` },
+      { k: "Шкур", v: `${formatDec1(totalQty.toString())} · закупок ${counted.length} · ${lotsText(totalLots - orderedPositions, orderedPositions)}` },
       { k: "₽/шт.", v: perMoney(fullIncl, fullExcl, totalQty) },
       ...(usdQty > 0 ? [{ k: "$/шт.", v: `$${Math.round(usdSum / usdQty).toLocaleString("ru-RU")}` }] : []),
     ] },
@@ -736,7 +741,7 @@ export async function AuctionView({
               </div>
             </details>
           ) : (
-            <p className="text-sm text-neutral-500">Документов у аукциона пока нет</p>
+            driveOnly.length === 0 ? <p className="text-sm text-neutral-500">Документов у аукциона пока нет</p> : null
           )}
           <div className="border-t border-neutral-100 pt-3">
             <DriveDocuments

@@ -825,7 +825,11 @@ export function FurSelectionTotal({
 
       </PinSection>
       {raw?.after}
-      {lockItem ? <FurOrdersTable lots={table.filteredLots} kind={kind} orderInfo={orderInfo ?? {}} initialGrp={firstOf(initialQuery.grp)} /> : null}
+      {lockItem
+        ? table.filteredLots.some((l) => (l.usages?.length ?? 0) > 0)
+          ? <FurOrdersTable lots={table.filteredLots} kind={kind} orderInfo={orderInfo ?? {}} initialGrp={firstOf(initialQuery.grp)} />
+          : <p className="rounded-lg border border-dashed border-neutral-300 px-3 py-3 text-sm text-neutral-500">Использование по ТЗ: пока не использовано{table.filteredLots.every((l) => l.id.startsWith("ordered:")) ? " (мех заказан и ещё не получен)" : ""}.</p>
+        : null}
     </div>
   );
 }
