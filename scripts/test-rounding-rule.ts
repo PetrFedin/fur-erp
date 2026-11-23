@@ -182,8 +182,9 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
         eq(`${t} ${k}: остаток + использовано = «Куплено» (одно число с плитками)`, D.stock + D.used, k === "fur" ? A.fur.incl.recvValue : A.lining.incl.recvValue);
         // С фильтром по году «Оплачено» считается по ГОДУ ОПЛАТЫ (решение владельца 2026-10-20), «Куплено» и долг — по году закупки: платежи за закупки другого года (З-2026-0012/-0013/-0066) сдвигают
         // «оплачено + к оплате» относительно «Куплено» ровно на эти суммы. Для «Все годы» тождество строгое.
+        // Рысь (заказано, но уже в «Куплено» по решению владельца) — orderedBought: второй раз её добавлять нельзя.
         // «Общая стоимость» = «Куплено» (принятое) + «Заказано, не принято» (отдельная строка «Предоплачено, ждём поставку»).
-        const ordK = k === "fur" ? Math.round(d.ordered.incl + HIDES_EXTRA) : 0; // + доплата подрядчику (НДС 22 % по сырью заказчика): в оплатах меха, вне «Куплено»
+        const ordK = k === "fur" ? Math.round((d.ordered.incl - d.orderedBought.incl) + HIDES_EXTRA) : 0; // + доплата подрядчику (НДС 22 % по сырью заказчика): в оплатах меха, вне «Куплено»
         const recvK = (k === "fur" ? A.fur.incl.recvValue : A.lining.incl.recvValue) + ordK;
         if (sl.year === "all" || Math.abs(N.T[k] - recvK) <= 1) eq(`${t} ${k}: «Общая стоимость» = плитка «Куплено» (если сходится с документами)`, N.T[k], recvK, 1);
         else console.log(`  (${t} ${k}: «Общая стоимость» ${N.T[k]} ≠ «Куплено» ${recvK}: платежи года за закупки другого года, год оплаты — по дате)`);
@@ -195,7 +196,7 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
         if (Math.abs(sum(typed.map((x) => x.amount)) - N.paidAll) < 1) eq(`${t}: Σ типов платежа = «Оплачено всего»`, sum(alignColumn(typed.map((x) => x.amount), N.paidAll).values), N.paidAll);
       }
       // «Общая стоимость мех+подкладка» плиток оплат = «Всего» таблиц (один итог на экране)
-      if (!only && sl.year === "all") eq(`${t}: мех + подкладка в «Общей стоимости» = «Всего» таблиц`, N.T.fur + N.T.lining, yAll.fur.incl.rv + yAll.lining.incl.rv + Math.round(d.ordered.incl + HIDES_EXTRA), 1);
+      if (!only && sl.year === "all") eq(`${t}: мех + подкладка в «Общей стоимости» = «Всего» таблиц`, N.T.fur + N.T.lining, yAll.fur.incl.rv + yAll.lining.incl.rv + Math.round((d.ordered.incl - d.orderedBought.incl) + HIDES_EXTRA), 1);
     }
   }
 
@@ -254,7 +255,7 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
         const sl = alignSlices(sliceList(cats, { nobd, vat, withVat }), total);
         eq(`${tag} «${s.name}»: Σ составляющих = итог`, sum(sl.map((x) => x.value)), total);
         sl.forEach((x) => { if (x.sub) eq(`${tag} «${s.name}» «${x.label}»: Σ подстрок = сектор`, sum(x.sub.map((y) => y.value)), x.value); });
-        if (s.name === "вся закупка" && withVat) eq(`${tag} итог состава «Вся закупка» = «Куплено» меха + заказано, не принято`, total, A_recv(d) + Math.round(d.ordered.incl), 1);
+        if (s.name === "вся закупка" && withVat) eq(`${tag} итог состава «Вся закупка» = «Куплено» меха + заказано, не принято`, total, A_recv(d) + Math.round((d.ordered.incl - d.orderedBought.incl)), 1);
       }
     }
     // Источники: все = аукцион + поставщик
@@ -283,7 +284,7 @@ function rnd(seed: number) { let s = seed; return () => { s = (s * 1664525 + 101
     eq("[сверка] сырьё + работа = Главная", sh.main.raw + sh.main.work, sh.main.total);
     eq("[сверка] Главная = round(точной суммы)", sh.main.total, roundRub(b.main.total));
     const d = await loadDashboard(org, "all", parseDashFilters({}), "on");
-    const EXTRA_RAW = Math.round(d.ordered.incl + OV.reduce((a, r) => a + r.hides, 0));
+    const EXTRA_RAW = Math.round((d.ordered.incl - d.orderedBought.incl) + OV.reduce((a, r) => a + r.hides, 0));
     const top = alignKindsTop(flowCell(d.raw.fur.incl, true), flowCell(d.raw.lining.incl, true));
     eq("[сверка] сырьё Главной в Сверке = мех + подкладка плиток («Куплено») + заказано, не принято + доплата подрядчику", sh.main.raw, top.fur.r + top.lin.r + EXTRA_RAW, 1);
     eq("[сверка] «Мех+подкладка» одно число с таблицами Главной (+ заказано, не принято + доплата подрядчику)", sh.main.raw, top.all.r + EXTRA_RAW, 1);
