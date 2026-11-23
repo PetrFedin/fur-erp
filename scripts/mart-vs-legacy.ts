@@ -76,6 +76,27 @@ process.env.MART_SNAPSHOT_MAX_AGE_MS ??= String(24 * 3600 * 1000);
     }
   }
 
+  // Список закупок («Сырьё → Все», /purchases) считает итог и оплату вживую теми же формулами, что витрина: сверяем каждую закупку с DmPurchase.
+  {
+    const { purchaseTotalInclVat } = await import("../src/lib/purchase-totals");
+    const { loadAuctionSummaries, auctionName, purchasePaidShare } = await import("../src/lib/auction-payments");
+    const { Decimal } = await import("@prisma/client/runtime/library");
+    const ps = await prisma.purchase.findMany({ where: { organizationId: org, status: { not: "CANCELLED" } }, include: { items: true, expenses: true, payments: true } });
+    const names = [...new Set(ps.map((p) => auctionName(p.auctionSession)).filter((n): n is string => !!n))];
+    const pays = new Map((names.length ? await loadAuctionSummaries(prisma, org, names) : []).map((a) => [a.name, a]));
+    const dm = new Map((await prisma.dmPurchase.findMany({ where: { organizationId: org }, select: { purchaseId: true, payTotal: true, paidShare: true } })).map((r) => [r.purchaseId, r]));
+    let wrong = 0, missing = 0;
+    for (const p of ps) {
+      const row = dm.get(p.id);
+      if (!row) { missing++; continue; }
+      const own = p.payments.filter((x) => x.status === "COMPLETED").reduce((a, x) => a.add(x.amount), new Decimal(0));
+      const total = purchaseTotalInclVat(p).toNumber();
+      const paid = purchasePaidShare(pays.get(auctionName(p.auctionSession) ?? ""), p.id, own).toNumber();
+      if (Math.abs(total - Number(row.payTotal)) > 0.01 || Math.abs(paid - Number(row.paidShare)) > 0.01) wrong++;
+    }
+    check("Список закупок: итог и оплата каждой закупки = витрине (DmPurchase)", wrong === 0 && missing === 0, `закупок ${ps.length}, расходится ${wrong}, нет в витрине ${missing}`);
+  }
+
   console.log(bad ? `\nРасхождений: ${bad}` : "\nПереведённые блоки совпадают с прежним расчётом");
   await prisma.$disconnect();
   process.exit(bad ? 2 : 0);

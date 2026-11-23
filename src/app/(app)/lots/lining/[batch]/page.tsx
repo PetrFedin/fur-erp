@@ -95,7 +95,7 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
         {/* Числа — из витрины (DmLot, DmAuction); витрина устарела — прежний расчёт по лотам. */}
         {martTotals
           ? <LevelSummaryFromTotals t={martTotals} c4={c4} unit="м" payHref={`/payments?auction=${encodeURIComponent(name)}#auction-block`} label={`Итоги: подкладка ${name}`} />
-          : <LevelSummaryFromFigures incl={pair.incl} excl={pair.excl} paid={pay ? pay.paid.toNumber() : 0} due={pay ? Math.max(0, pay.total.toNumber() - pay.paid.toNumber()) : 0} c4={c4} unit="м" label={`Итоги: подкладка ${name}`} />}
+          : <LevelSummaryFromFigures incl={pair.incl} excl={pair.excl} paid={pay ? pay.paid.toNumber() : 0} due={pay ? pay.total.toNumber() - pay.paid.toNumber() : 0} c4={c4} unit="м" label={`Итоги: подкладка ${name}`} />}
         {pay ? null : <p className="mt-1 px-1 text-xs text-neutral-500">Оплаты по партии — в <Link href="/payments" className="text-blue-700 hover:underline">«Оплатах»</Link></p>}
       </div>
 

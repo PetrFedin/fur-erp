@@ -232,7 +232,7 @@ export default async function LotCardPage({ params, searchParams }: { params: Pr
     {
       title: "Цена",
       fields: [
-        { label: `Цена за ${unitWord}, ₽ (с НДС)`, node: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} />, editor: mEd("unitIncl", q2(l.unitIncl), `Цена за ${unitWord} с НДС`, "₽"), note: poolNote ?? <span className="text-[11px] text-neutral-500">без НДС {formatMoney(q2(l.unitExcl))} · сумма лота {formatMoney(q2(recvIncl))}; правка пересчитывает сумму, списания и состав цены</span> },
+        { label: `Цена за ${unitWord}, ₽`, node: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} />, editor: mEd("unitIncl", q2(l.unitIncl), `Цена за ${unitWord} с НДС`, "₽"), note: poolNote ?? <span className="text-[11px] text-neutral-500">без НДС {formatMoney(q2(l.unitExcl))} · сумма лота {formatMoney(q2(recvIncl))}; правка пересчитывает сумму, списания и состав цены</span> },
         { label: "НДС, %", node: `${formatQty(p.vatRate.toString())} %`, editor: mEd("vatRate", p.vatRate.toString(), "Ставка НДС лота", "%"), note: <>по дате документа {vatDefault} % ({vatPeriodLabel(byDate)}){vatRate !== vatDefault ? " — не совпадает" : ""} <InfoHint label="Ставка НДС в ТЗ" wide><p>В ТЗ берётся эта ставка лота; ставка строки списания может быть изменена в ТЗ. При смене ставки можно сохранить сумму с НДС (меняется выделение НДС) или цену без НДС (меняется сумма с НДС).</p></InfoHint></> },
         { label: "Сумма НДС, ₽", node: formatMoney(q2(vatTotalLot)), note: "считается из суммы лота и ставки" },
         ...(lining && row.rawMaterial.defaultVatRate != null ? [{ label: "Ставка по умолчанию материала", node: `${formatQty(row.rawMaterial.defaultVatRate.toString())} %`, note: <Link href={`/materials/${row.rawMaterial.id}`} className="text-blue-700 hover:underline">правится в карточке материала →</Link> }] : []),
@@ -249,7 +249,7 @@ export default async function LotCardPage({ params, searchParams }: { params: Pr
   // Ключевые поля — наверху, всегда на виду; остальное («справочные») — ниже, свёрнуто. Те же поля, та же правка по месту, без дублей.
   const KEY_LABELS = [
     lining ? "Ткань" : "Вид меха", lining ? "Цвет / описание" : "Цвет", lining ? "Описание" : "Сорт / описание",
-    "Получено", `Цена за ${unitWord}, ₽ (с НДС)`, "НДС, %", "Закупка №", "Аукцион / закупка",
+    "Получено", `Цена за ${unitWord}, ₽`, "НДС, %", "Закупка №", "Аукцион / закупка",
   ];
   const allFields = sections.flatMap((sec) => sec.fields);
   const keySection: PassportSection = {

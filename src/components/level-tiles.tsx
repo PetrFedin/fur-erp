@@ -37,7 +37,7 @@ export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "ш�
       ...(usdR ? [{ k: "$/шт.", v: usdR }] : []),
     ] },
     ...(paid != null ? [{ key: "paid", title: "Оплачено", hint: PAY_HINT, main: <span>{formatMoney(Math.round(paid))}</span>, lines: [{ k: "по лотам", v: "с НДС" }] } satisfies LevelTile] : []),
-    ...(due != null ? [{ key: "debt", title: "Долг", hint: PAY_HINT, tone: due > 0.5 ? ("warn" as const) : undefined, main: <span>{due > 0.5 ? formatMoney(Math.round(due)) : "0 ₽"}</span>, lines: [] } satisfies LevelTile] : []),
+    ...(due != null ? [{ key: "debt", title: due < -1 ? "Переплата" : "Долг", hint: PAY_HINT, tone: due > 0.5 ? ("warn" as const) : undefined, main: <span>{Math.abs(due) < 1 ? "0 ₽" : formatMoney(Math.round(Math.abs(due)))}</span>, lines: [] } satisfies LevelTile] : []),
   ];
   return <LevelSummary tiles={tiles} label={label ?? "Итоги"} />;
 }

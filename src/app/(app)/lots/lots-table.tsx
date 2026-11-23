@@ -754,8 +754,9 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
             </span>
             <span className="w-14 text-right text-xs font-normal text-neutral-500">{formatPercent(100)}</span>
           </li>
-          <li className={Math.abs(sum - total) < (roundingHidden ? 10 : 1) ? "sr-only" : "text-xs text-amber-700"}>
-            Сумма частей {formatMoney(sum)} {Math.abs(sum - total) < (roundingHidden ? 10 : 1) ? "= итогу" : "≠ итогу"}.
+          {/* Допуск: округление цены за шкуру у каждого лота (в режиме «без НДС» набегает до ~1/100 000 суммы), это не ошибка. */}
+          <li className={Math.abs(sum - total) < Math.max(roundingHidden ? 10 : 1, Math.abs(total) * 1e-5) ? "sr-only" : "text-xs text-amber-700"}>
+            Сумма частей {formatMoney(sum)} {Math.abs(sum - total) < Math.max(roundingHidden ? 10 : 1, Math.abs(total) * 1e-5) ? "= итогу" : "≠ итогу"}.
             {b.skippedUnallocated && " Расходы закупки не входят: выбрана часть лотов."}
           </li>
         </ul>

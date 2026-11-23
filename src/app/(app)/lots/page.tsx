@@ -23,7 +23,7 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, filterHref, parseFilters, pick } from "@/lib/filters";
 import { auctionLabeler, getFilterOptions } from "@/lib/filter-options";
 import { loadFurLots } from "@/lib/fur-table-server";
-import { dashboardCached, furLotsCached, furKindsCached } from "@/lib/mart/snapshots";
+import { dashboardCached, furLotsCached, furKindsCached, isMartFresh } from "@/lib/mart/snapshots";
 import { loadMonthPoints } from "@/lib/mart/lot-sums";
 import { loadLevelTotals } from "@/lib/mart/level-totals";
 import { MonthsSection } from "./months-section";
@@ -223,7 +223,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   // Итоги верхнего уровня из витрины — только когда нет среза: год «Все», нет фильтра материала.
   const martTop = year === "all" && !f.material.length ? await loadLevelTotals(orgId, { top: true, unit: tab === "lining" ? "M" : "PCS" }) : null;
   // Закупки по месяцам — из витрины (раньше этот график был на странице аналитики).
-  const monthPoints = await loadMonthPoints(prisma, orgId, tab === "lining" ? "M" : "PCS", year === "all" ? undefined : Number(year));
+  const monthPoints = !(await isMartFresh(orgId)) ? [] : await loadMonthPoints(prisma, orgId, tab === "lining" ? "M" : "PCS", year === "all" ? undefined : Number(year));
   const [tableLots, { c4: c4Mode, dash }, furKinds] = await Promise.all([
     (f.material.length ? Promise.resolve(null) : furLotsCached(orgId, lotKind, year)).then((snap) => snap ?? loadFurLots(prisma, orgId, { kind: lotKind, year, furIdx, extraWhere: tab === "lining" ? undefined : searchWhere })),
     c4AndDash,
