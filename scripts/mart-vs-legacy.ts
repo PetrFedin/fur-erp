@@ -62,6 +62,16 @@ process.env.MART_SNAPSHOT_MAX_AGE_MS ??= String(24 * 3600 * 1000);
     };
     const norm = (x: unknown) => JSON.parse(JSON.stringify(x));
     const idx = await getFurIndex(org);
+    // Строки лотов: из DmLot.furLot (то, что читают экраны) = живой расчёт по лотам, движениям и ТЗ.
+    for (const y of ["all", "2025", "2026"] as const) {
+      for (const kind of ["fur", "lining"] as const) {
+        const fromMart = await loadFurLots(prisma, org, { kind, year: y, furIdx: idx } as never);
+        const live = await loadFurLots(prisma, org, { kind, year: y, furIdx: idx, live: true } as never);
+        // Порядок при равной дате и номере лота не важен (таблицы сортируют сами; в витрине дата без времени): сравниваем по id лота.
+        const byId = (a: { id: string }[]) => [...a].sort((p, q) => (p.id < q.id ? -1 : 1));
+        check(`Лоты из витрины ${kind} ${y} (${live.length})`, same(norm(byId(fromMart)), norm(byId(live))));
+      }
+    }
     {
       const { computePurchaseView } = await import("../src/lib/mart/purchase-view");
       const snap = await readSnapshot(org, "purchases:tree");

@@ -17,6 +17,7 @@ import { lotSizes } from "./lot-size";
 import type { YearFilter } from "./year-filter";
 import { NO_AUCTION, NOT_SET, flowOf, type Flow, type FurKind, type FurLot } from "./fur-table";
 import type { RawLot } from "./raw-analytics";
+import { martIsFresh } from "./mart/fresh";
 
 /** «Красная» из названия материала («Лиса красная») — это цвет: пока colorRefId не проставлен скриптом color-red-fox.ts, показываем его так. */
 export function colorFromMaterialName(name: string): string | null {
@@ -45,7 +46,7 @@ const LOT_SELECT = {
   usages: {
     where: { productionOrder: { status: { not: "CANCELLED" as const } } },
     select: { quantity: true, totalCost: true, commission4: true, vatRate: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true } } },
-    orderBy: { date: "asc" as const },
+    orderBy: [{ date: "asc" as const }, { id: "asc" as const }],
   },
 } satisfies Prisma.RawMaterialLotSelect;
 
@@ -154,20 +155,54 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
  * Все лоты меха или подкладки организации за год (по дате закупки, общий фильтр года).
  * extraWhere — дополнительное условие (например, поиск по № лота на странице «Сырьё»).
  */
+/** Все лоты склада (мех и подкладка, все годы) готовыми строками — для сборки витрины (DmLot.furLot). */
+export async function buildAllFurLots(db: PrismaClient, organizationId: string, furIdx?: FurIndex): Promise<FurLot[]> {
+  return loadFurLotsLive(db, organizationId, { kind: "fur", year: "all", furIdx }, { both: true });
+}
+
+/** Строки лотов из витрины (DmLot.furLot): тот же результат, что loadFurLotsLive, но без обращения к лотам, движениям и ТЗ. */
+async function loadFurLotsFromMart(db: PrismaClient, organizationId: string, opts: { kind: FurKind; year: YearFilter }): Promise<FurLot[] | null> {
+  const y = opts.year === "all" ? null : Number(opts.year);
+  const unitIsM = opts.kind === "lining";
+  const rows = await db.$queryRaw<{ f: unknown }[]>`
+    SELECT "furLot" AS f FROM "DmLot"
+    WHERE "organizationId" = ${organizationId} AND "furLot" IS NOT NULL
+      AND ("unit" = 'M') = ${unitIsM}
+      AND (${y}::int IS NULL OR ("purchaseYear" = ${y}::int AND "purchaseId" IS NOT NULL))
+    ORDER BY "receivedDate" ASC, "lotNumber" ASC, "lotId" ASC`;
+  const total = await db.$queryRaw<{ n: bigint }[]>`SELECT count(*) n FROM "DmLot" WHERE "organizationId" = ${organizationId} AND "furLot" IS NULL`;
+  if (Number(total[0]?.n ?? 0) > 0) return null; // витрина собрана до появления строки лота — считаем вживую
+  return rows.map((r) => r.f as FurLot);
+}
+
 async function loadFurLotsImpl(
   db: PrismaClient,
   organizationId: string,
+  opts: { kind: FurKind; year: YearFilter; furIdx?: FurIndex; extraWhere?: Prisma.RawMaterialLotWhereInput; live?: boolean },
+): Promise<FurLot[]> {
+  // Витрина свежа и нет особого условия поиска — берём готовые строки из неё (источник один: DmLot).
+  if (!opts.extraWhere && !opts.live && (await martIsFresh(db, organizationId))) {
+    const fromMart = await loadFurLotsFromMart(db, organizationId, opts);
+    if (fromMart) return fromMart;
+  }
+  return loadFurLotsLive(db, organizationId, opts);
+}
+
+async function loadFurLotsLive(
+  db: PrismaClient,
+  organizationId: string,
   opts: { kind: FurKind; year: YearFilter; furIdx?: FurIndex; extraWhere?: Prisma.RawMaterialLotWhereInput },
+  mode: { both?: boolean } = {},
 ): Promise<FurLot[]> {
   const rows = await db.rawMaterialLot.findMany({
     where: {
       organizationId,
       ...lotYear(opts.year),
-      rawMaterial: { unit: opts.kind === "lining" ? "M" : { not: "M" } },
+      ...(mode.both ? {} : { rawMaterial: { unit: opts.kind === "lining" ? "M" : { not: "M" } } }),
       ...(opts.extraWhere ?? {}),
     },
     select: LOT_SELECT,
-    orderBy: [{ receivedDate: "asc" }, { lotNumber: "asc" }],
+    orderBy: [{ receivedDate: "asc" }, { lotNumber: "asc" }, { id: "asc" }],
   });
   const lots = rows.map((r) => furLotFromRecord(r, opts.furIdx));
   await relabelOrders(organizationId, lots.flatMap((l) => l.usages), (u) => u, db);
@@ -207,4 +242,4 @@ export function flowOfRawLots(lots: RawLot[]): Flow {
   );
 }
 
-export const loadFurLots = memoRequest("furLots", loadFurLotsImpl, (db, orgId, opts) => `${objId(db)}|${orgId}|${opts.kind}|${opts.year}|${objId(opts.furIdx)}|${opts.extraWhere ? jsonKey(opts.extraWhere) : ""}`);
+export const loadFurLots = memoRequest("furLots", loadFurLotsImpl, (db, orgId, opts) => `${objId(db)}|${orgId}|${opts.kind}|${opts.year}|${objId(opts.furIdx)}|${opts.extraWhere ? jsonKey(opts.extraWhere) : ""}|${opts.live ? "live" : ""}`);

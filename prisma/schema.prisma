@@ -2634,6 +2634,8 @@ model DmLot {
   purchaseNumber String?
   /// Цена шкуры в долларах (молоток из расчётного листа лота), если она там есть.
   usdUnit        Decimal? @db.Decimal(18, 4)
+  /// Готовая строка лота для таблиц «Мех / Подкладка» и Главной (FurLot): считается при сборке витрины, экраны читают её отсюда.
+  furLot         Json?
 
   @@unique([organizationId, lotId])
   @@index([organizationId, purchaseId])
