@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
 import { LOTS_RULE } from "@/lib/cost-labels";
-import { formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM, formatDec1 } from "@/lib/utils";
+import { formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM, formatQtyTrim } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, expenseInclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
@@ -261,7 +261,12 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     // Переплата по подкладке зачитывается в долг по меху (как на Главной и в Оплатах): «Долг по сырью» везде одно число.
     const liningB0 = blocks0.find((x) => x.kind === "lining"), furB0 = blocks0.find((x) => x.kind === "fur");
     const ovLin = liningB0 && furB0 && liningB0.rest < -OVERPAY_FROM ? -liningB0.rest : 0;
-    const blocks = ovLin > 0 ? blocks0.map((x) => (x === furB0 ? { ...x, paid: x.paid + ovLin, rest: x.rest - ovLin } : x === liningB0 ? { ...x, paid: x.paid - ovLin, rest: 0 } : x)) : blocks0;
+    // Общий блок «Мех и подкладка»: куплено, оплачено и долг (или переплата) по всему сырью, без услуг по УПД. Σ блоков меха и подкладки.
+    const totalB = !sec && furB0 && liningB0
+      ? mkBlock("total", "Мех и подкладка — всего", rowsS.filter((p) => !isServiceRow(p)), hidesAllS, roundFurS, roundLinS)
+      : null;
+    const blocks1 = ovLin > 0 ? blocks0.map((x) => (x === furB0 ? { ...x, paid: x.paid + ovLin, rest: x.rest - ovLin } : x === liningB0 ? { ...x, paid: x.paid - ovLin, rest: 0 } : x)) : blocks0;
+    const blocks = totalB ? [totalB, ...blocks1] : blocks1;
     const hidesRow: ExtraRow[] = hidesS > 0.5 ? [{
       key: "hides", label: "Шкуры подрядчика", sub: "оплачены в составе счетов за пошив", href: "/lots/contractor-hides", sum: hidesS, paid: hidesS,
       note: <>Шкуры подрядчика (партии 7 и 8): оплачены в составе счетов за пошив, закупки на них нет, в ТЗ не списаны. Это сырьё поставщика (Веллмех), поэтому в режиме «На аукционах» строки нет. Есть на Главной в «Сырьё — мех» (использовано). Страница ↗ — детализация.</>,
@@ -415,8 +420,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                       </InfoHint>
                     </div>
                     <TileValue><Money incl={b.bought.toFixed(2)} excl={b.boughtExcl.toFixed(2)} /></TileValue>
-                    <TileCaption>{b.key === "services" ? `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · УПД без позиций сырья, лотов нет` : `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · лотов ${b.t.lots - b.t.ordered} · ${formatDec1(b.kind === "lining" ? b.t.lining : b.t.fur)} ${b.kind === "lining" ? "м" : "шт."}${b.h > 0.5 ? ` · в т.ч. доплата подрядчику ${formatMoney(Math.round(b.h))} ₽ (в «Сырье» не входит)` : ""}`}</TileCaption>
-                    {b.key === "services" ? null : <TileList items={[{
+                    <TileCaption>{b.key === "total" ? `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · ${formatQtyTrim(b.t.fur)} шт. меха · ${formatQtyTrim(b.t.lining)} м подкладки` : b.key === "services" ? `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · УПД без позиций сырья, лотов нет` : `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · лотов ${b.t.lots - b.t.ordered} · ${formatQtyTrim(b.kind === "lining" ? b.t.lining : b.t.fur)} ${b.kind === "lining" ? "м" : "шт."}${b.h > 0.5 ? ` · в т.ч. доплата подрядчику ${formatMoney(Math.round(b.h))} (в «Сырье» не входит)` : ""}`}</TileCaption>
+                    {b.key === "services" || b.key === "total" ? null : <TileList items={[{
                       k: `Цена, ₽/${b.kind === "lining" ? "м" : "шт."} (ср.)`,
                       v: (b.kind === "lining" ? b.t.lining : b.t.fur) > 0
                         ? <Money incl={(b.t.total / (b.kind === "lining" ? b.t.lining : b.t.fur)).toFixed(2)} excl={(b.t.totalExcl / (b.kind === "lining" ? b.t.lining : b.t.fur)).toFixed(2)} />
