@@ -1,4 +1,5 @@
 import { overpayTarget } from "@/lib/overpay-notes";
+import { transferOverpay } from "@/domain/money";
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -68,14 +69,7 @@ export async function loadLevelTotals(orgId: string, scope: LevelScope): Promise
     if (over.length) {
       const rows = await prisma.$queryRaw<{ auction: string | null }[]>`SELECT DISTINCT "auction" FROM "DmLot" WHERE "organizationId" = ${orgId} AND "unit" = ${unit}`;
       const mine = new Set(rows.map((x) => x.auction).filter((x): x is string => !!x));
-      for (const o of over) {
-        const to = overpayTarget(o.name);
-        if (!to) continue;
-        const a = -num(o.remaining);
-        const fromHere = mine.has(o.name), toHere = mine.has(to);
-        if (fromHere && !toHere) pay = { total: pay.total, paid: pay.paid - a, remaining: pay.remaining + a };
-        else if (!fromHere && toHere) pay = { total: pay.total, paid: pay.paid + a, remaining: pay.remaining - a };
-      }
+      pay = transferOverpay(pay, over.map((o) => ({ name: o.name, amount: -num(o.remaining), to: overpayTarget(o.name) })), mine);
     }
   }
   if (scope.purchaseId) {

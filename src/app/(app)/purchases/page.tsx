@@ -1,14 +1,12 @@
-import { loadRawInfo } from "@/lib/raw-stage-server";
+import { debtStateOfRest, payPair, vatShare } from "@/domain/money";
 import { ROUND_MIN } from "@/lib/raw-rounding";
-import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { WidgetRow } from "@/components/widget-row";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
 import { LOTS_RULE } from "@/lib/cost-labels";
-import { formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM, formatQtyTrim } from "@/lib/utils";
-import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, expenseInclVat } from "@/lib/purchase-totals";
+import { formatMoney, formatPercent, formatQtyTrim } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { Money } from "@/components/money";
@@ -16,7 +14,6 @@ import { VatLabel } from "@/components/vat-label";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { activeCount, defineFilters, filterHref, parseFilters, pick, stateParam, toWhere, dateRange } from "@/lib/filters";
 import { furMaterialIdsByKind, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
-import { loadAuctionSummaries, auctionName, purchasePaidShare, PAY_EPS } from "@/lib/auction-payments";
 import { escapeLike } from "@/lib/input";
 import { getYearFilter } from "@/lib/year-filter";
 import { purchaseYear } from "@/lib/year-scope";
@@ -26,24 +23,18 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PurchasesTabs } from "@/components/raw-tabs";
 import { loadPaymentsOverview } from "@/lib/payments-overview";
 import { loadFurKinds } from "@/lib/fur-kinds-server";
-import { loadFurLots } from "@/lib/fur-table-server";
 import { getFurIndex } from "@/lib/fur-ref-server";
-import { NOT_SET, emptyFilters, filterLots, type FurLot } from "@/lib/fur-table";
+import { emptyFilters, filterLots, type FurLot } from "@/lib/fur-table";
 import { TILE_BOX, TileHead, TileValue, TileCaption, TileList } from "../dashboard/tile";
 import { VatLine } from "../dashboard/vat-line";
 import { PurchasesList, PurchasesTree, type ExtraRow } from "./purchases-tree";
-import { classifyPurchaseSource } from "@/lib/purchase-source";
 import { FurScope, ScopeEmpty, ScopeShow } from "@/components/fur-scope";
 import { FUR_SRC_KEYS, type FurSrc } from "@/lib/fur-src";
-import { aggregate, type PurchaseStatus, type TreeBatch, type TreePurchase, type TreeYear } from "./purchases-agg";
-import { furLotsOrLive, dashboardCached, purchaseViewCached } from "@/lib/mart/snapshots";
+import { aggregate, type TreeBatch, type TreePurchase, type TreeYear } from "./purchases-agg";
+import { furLotsOrLive, purchaseViewCached } from "@/lib/mart/snapshots";
 import { loadLevelTotals } from "@/lib/mart/level-totals";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { usedByMode } from "@/lib/commission4-pick";
-
-function firstLine(v: string | null) {
-  return (v ?? "").split(/\r?\n/)[0].trim();
-}
 
 export const metadata = { title: "Сырьё — все закупки" };
 
@@ -66,8 +57,6 @@ const USAGE_OPTIONS = [
   { value: "used", label: "Использована в ТЗ" },
   { value: "unused", label: "Не использована" },
 ];
-
-const num = (d: Decimal) => d.toNumber();
 
 export default async function PurchasesPage({ searchParams }: PageProps<"/purchases">) {
   const session = await requireSession();
@@ -196,7 +185,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     // НДС позиций по ставкам (как «в т.ч. НДС» на Главной): позиции живых закупок набора; расходы, шкуры подрядчика и округление не входят.
     const vat: Record<string, number> = {};
     for (const p of rs) if (p.status !== "CANCELLED") for (const i of p.items) { const v = itemVat.get(i.id); if (v) vat[v[0]] = (vat[v[0]] ?? 0) + v[1]; }
-    return { key, title, t, h, vat, bought, boughtExcl: t.totalExcl + h + rf + rl, paid: t.paid + h, rest: Math.abs(t.rest) <= 0.5 ? 0 : t.rest, kind: key === "lining" ? ("lining" as const) : key === "fur" ? ("fur" as const) : null };
+    return { key, title, t, h, vat, bought, boughtExcl: t.totalExcl + h + rf + rl, paid: t.paid + h, rest: debtStateOfRest(t.rest).kind === "none" ? 0 : t.rest, kind: key === "lining" ? ("lining" as const) : key === "fur" ? ("fur" as const) : null };
   };
   // Итоги, дерево-приложения и строки «Шкуры подрядчика» / «Округление» — отдельно для каждого источника (Σ «На аукционах» + «У поставщика» = «Вся закупка»).
   // Шкуры подрядчика — сырьё поставщика (Веллмех), на аукционах их нет. Подкладка закупается у поставщика: при «На аукционах» её блока нет.
@@ -215,15 +204,14 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         ];
     // Переплата по подкладке зачитывается в долг по меху (как на Главной и в Оплатах): «Долг по сырью» везде одно число.
     const liningB0 = blocks0.find((x) => x.kind === "lining"), furB0 = blocks0.find((x) => x.kind === "fur");
-    const ovLin = liningB0 && furB0 && liningB0.rest < -OVERPAY_FROM ? -liningB0.rest : 0;
+    const ovLin = liningB0 && furB0 && debtStateOfRest(liningB0.rest).kind === "overpay" ? -liningB0.rest : 0;
     // Общий блок «Мех и подкладка»: куплено, оплачено и долг (или переплата) по всему сырью, без услуг по УПД. Σ блоков меха и подкладки.
     const totalB = !sec && furB0 && liningB0
       ? mkBlock("total", "Мех и подкладка — всего", rowsS.filter((p) => !isServiceRow(p)), 0, roundFurS, roundLinS)
       : null;
     const blocks1 = ovLin > 0 ? blocks0.map((x) => (x === furB0 ? { ...x, paid: x.paid + ovLin, rest: x.rest - ovLin } : x === liningB0 ? { ...x, paid: x.paid - ovLin, rest: 0 } : x)) : blocks0;
     // «Без НДС»: оплата и долг пересчитываются в той же доле, что «Куплено» блока; у общего блока — сумма меха и подкладки, чтобы цифры складывались.
-    const share = (x: { bought: number; boughtExcl: number }) => (x.bought > 0 ? x.boughtExcl / x.bought : 1);
-    const blocks1e = blocks1.map((x) => ({ ...x, paidEx: x.paid * share(x), restEx: x.rest * share(x) }));
+    const blocks1e = blocks1.map((x) => ({ ...x, paidEx: payPair(x.paid, vatShare(x.bought, x.boughtExcl)).excl, restEx: payPair(x.rest, vatShare(x.bought, x.boughtExcl)).excl }));
     const parts = blocks1e.filter((x) => x.kind === "fur" || x.kind === "lining");
     const blocks = totalB
       ? [{ ...totalB, paidEx: parts.reduce((a, x) => a + x.paidEx, 0), restEx: parts.reduce((a, x) => a + x.restEx, 0) }, ...blocks1e]
@@ -399,13 +387,13 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                     <TileCaption>{b.bought > 0 ? `${formatPercent((b.paid / b.bought) * 100)} от куплено` : "–"}</TileCaption>
                   </div>
                   <div className={TILE_BOX}>
-                    <TileHead>{b.rest < -OVERPAY_FROM ? "Переплата" : "Долг по сырью"}</TileHead>
+                    <TileHead>{debtStateOfRest(b.rest).kind === "overpay" ? "Переплата" : "Долг по сырью"}</TileHead>
                     <div className="absolute right-3 top-3">
                       <InfoHint label="О долге по сырью" align="right">
                         <p>Куплено − Оплачено.{b.kind === "fur" && variants[srcK].liningOverpay > 0.5 ? ` В оплачено по меху зачтена переплата по подкладке ${formatMoney(variants[srcK].liningOverpay.toFixed(2))}, поэтому число то же, что на Главной.` : ""}</p>
                       </InfoHint>
                     </div>
-                    <TileValue className={b.rest > PAY_EPS.toNumber() ? "text-amber-700" : ""}><Money incl={Math.abs(b.rest).toFixed(2)} excl={Math.abs(b.restEx).toFixed(2)} /></TileValue>
+                    <TileValue className={debtStateOfRest(b.rest).kind === "debt" ? "text-amber-700" : ""}><Money incl={Math.abs(b.rest).toFixed(2)} excl={Math.abs(b.restEx).toFixed(2)} /></TileValue>
                     <TileCaption>{b.bought > 0 ? `${formatPercent((b.rest / b.bought) * 100)} от куплено` : "–"}</TileCaption>
                   </div>
                 </div>

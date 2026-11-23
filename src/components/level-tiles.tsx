@@ -1,3 +1,4 @@
+import { debtStateOfRest, payPair, vatShare, type DebtState } from "@/domain/money";
 import { Money } from "@/components/money";
 import { LevelSummary, type LevelTile } from "@/components/level-summary";
 import { formatMoney, formatQtyTrim } from "@/lib/utils";
@@ -13,7 +14,7 @@ const pctOf =(part: number, whole: number) => (whole > 0 ? ` · ${Math.round((pa
  */
 export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "шт.", label }: { incl: FlowFigures; excl: FlowFigures; paid?: number | null; due?: number | null; c4: "on" | "off"; unit?: string; label?: string }) {
   const on4 = c4 === "on";
-  const vatShare = incl.recvValue > 0 ? excl.recvValue / incl.recvValue : 1;
+  const share = vatShare(incl.recvValue, excl.recvValue);
   const extra = Math.abs(incl.usedValue - incl.usedValueOther);
   const extraX = Math.abs(excl.usedValue - excl.usedValueOther);
   const per = (a: number, b: number, q: number) => (q > 0 ? <Money incl={(a / q).toFixed(2)} excl={(b / q).toFixed(2)} /> : "–");
@@ -38,8 +39,8 @@ export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "ш�
       ...(usdR ? [{ k: "$/шт.", v: usdR }] : []),
     ] },
     // «Без НДС»: оплата и долг пересчитываются в той же доле, что «Куплено» (без НДС / с НДС), чтобы «куплено − оплачено = долг» сходилось в обоих режимах.
-    ...(paid != null ? [{ key: "paid", title: "Оплачено", main: <Money incl={paid.toFixed(2)} excl={(paid * vatShare).toFixed(2)} />, lines: [] } satisfies LevelTile] : []),
-    ...(due != null ? [{ key: "debt", title: due < -1 ? "Переплата" : "Долг", hint: PAY_HINT, tone: due > 0.5 ? ("warn" as const) : undefined, main: Math.abs(due) < 1 ? <span>0 ₽</span> : <Money incl={Math.abs(due).toFixed(2)} excl={(Math.abs(due) * vatShare).toFixed(2)} />, lines: [] } satisfies LevelTile] : []),
+    ...(paid != null ? [{ key: "paid", title: "Оплачено", main: <MoneyPair p={payPair(paid, share)} />, lines: [] } satisfies LevelTile] : []),
+    ...(due != null ? [debtTile(debtStateOfRest(due), share)] : []),
   ];
   return <LevelSummary tiles={tiles} label={label ?? "Итоги"} />;
 }
@@ -48,6 +49,11 @@ export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "ш�
  * Полоса итогов уровня из витрины (LevelTotals): те же пять чисел, что везде. Режимы НДС и 4 % выбирают столбец;
  * оплаты и долг — из DmAuction и DmPurchase. payHref — ссылка «Оплаты →» (аукцион, закупка).
  */
+const MoneyPair = ({ p }: { p: { incl: number; excl: number } }) => <Money incl={p.incl.toFixed(2)} excl={p.excl.toFixed(2)} />;
+/** Плитка «Долг» / «Переплата» по состоянию из домена денег (допуск на округление и пересчёт «без НДС» — там же). */
+function debtTile(d: DebtState, share: number): LevelTile {
+  return { key: "debt", title: d.kind === "overpay" ? "Переплата" : "Долг", hint: PAY_HINT, tone: d.kind === "debt" ? "warn" : undefined, main: d.kind === "none" ? <span>0 ₽</span> : <MoneyPair p={payPair(d.amount, share)} />, lines: [] };
+}
 const PAY_HINT = <p>Оплата и долг считаются по платёжкам и счетам (с НДС). В режиме «Без НДС» они пересчитываются в той же доле, что «Куплено», чтобы «куплено − оплачено = долг» сходилось и без НДС.</p>;
 
 export function LevelSummaryFromTotals({ t, c4, unit = "шт.", payHref, label }: { t: LevelTotals; c4: "on" | "off"; unit?: string; payHref?: string; label?: string }) {
@@ -76,11 +82,11 @@ export function LevelSummaryFromTotals({ t, c4, unit = "шт.", payHref, label }
   ];
   if (t.pay) {
     const r = t.pay.remaining;
-    const share = t.incl.recv > 0 ? t.excl.recv / t.incl.recv : 1; // «Без НДС»: оплата и долг в той же доле, что «Куплено»
-    tiles.push({ key: "paid", title: "Оплачено", main: <Money incl={t.pay.paid.toFixed(2)} excl={(t.pay.paid * share).toFixed(2)} />, lines: [
+    const share = vatShare(t.incl.recv, t.excl.recv); // «Без НДС»: оплата и долг в той же доле, что «Куплено»
+    tiles.push({ key: "paid", title: "Оплачено", main: <MoneyPair p={payPair(t.pay.paid, share)} />, lines: [
       ...(payHref ? [{ k: "", v: <a href={payHref} className="text-blue-600 hover:underline">Оплаты →</a> }] : []),
     ] });
-    tiles.push({ key: "debt", title: r < -1 ? "Переплата" : "Долг", hint: PAY_HINT, tone: r > 1 ? ("warn" as const) : undefined, main: Math.abs(r) < 1 ? <span>0 ₽</span> : <Money incl={Math.abs(r).toFixed(2)} excl={(Math.abs(r) * share).toFixed(2)} />, lines: [] });
+    tiles.push(debtTile(debtStateOfRest(r), share));
   }
   return <LevelSummary tiles={tiles} label={label ?? "Итоги"} />;
 }
