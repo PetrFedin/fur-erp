@@ -333,7 +333,7 @@ export async function AuctionView({
     { key: "used", title: "Использовано", main: <Money incl={usedShownIncl} excl={usedShownExcl} />, lines: [
       { k: "Шкур", v: `${formatDec1(usedQty.toString())}${pct(usedQty, totalQty)}` },
       { k: "₽/шт.", v: perMoney(usedShownIncl, usedShownExcl, usedQty) },
-      ...(on4 && extraIncl.greaterThan(0) ? [{ k: "из них надбавка 4 %", v: <Money incl={extraIncl} excl={extraExcl} /> }] : []),
+      ...(on4 && extraIncl.greaterThanOrEqualTo(0.5) ? [{ k: "из них надбавка 4 %", v: <Money incl={extraIncl} excl={extraExcl} /> }] : []),
     ] },
     { key: "rem", title: "Остаток", main: <Money incl={remIncl} excl={remExcl} />, lines: [
       { k: "Шкур", v: `${formatDec1(remQty.toString())}${pct(remQty, totalQty)}` },

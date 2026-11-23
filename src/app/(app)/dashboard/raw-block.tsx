@@ -196,12 +196,14 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   // Режим шапки решает, какую сумму показывать: «С 4 %» — с надбавкой, «Без 4 %» — без неё и без любых упоминаний 4 %.
   const on4 = withExtra(c4);
   const usedShown = on4 ? usedWith4 : usedNo4;
-  const note4 = on4 ? `в т.ч. 4 %: ${rub(usedWith4 - usedNo4)}` : undefined;
+  // Надбавку показываем, только если она не ноль: пустая строка «в т.ч. 4 %: 0 ₽» — шум.
+  const has4 = on4 && Math.abs(usedWith4 - usedNo4) >= 0.5;
+  const note4 = has4 ? `в т.ч. 4 %: ${rub(usedWith4 - usedNo4)}` : undefined;
   const usedQtyNow = all ? 0 : cur.usedQty;
 
   const priceUnit = unit === "м" ? "м" : "шт.";
   // Невидимая строка высотой с «с 4%» в «Использовано»: цены во всех трёх плитках стоят на одном уровне.
-  const ghost = on4 ? <span aria-hidden className="invisible">{`в т.ч. 4 %: ${rub(usedWith4 - usedNo4)}`}</span> : undefined;
+  const ghost = has4 ? <span aria-hidden className="invisible">{`в т.ч. 4 %: ${rub(usedWith4 - usedNo4)}`}</span> : undefined;
   // Доля от купленного: сколько ушло в ТЗ и сколько лежит на складе.
   const share = (part: number, whole: number) => (whole > 0 ? formatShare(part / whole) : null);
   const lab = (base: string, part: number, whole: number) => (compact && whole > 0 ? `${base} · ${share(part, whole)}` : base);
@@ -227,7 +229,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
             <>
               <Duo>
                 <Row k={compact ? "Количество" : <>Количество<span aria-hidden className="invisible"> (доля от купленного)</span></>} v={`${qtyF(cur.recvQty)} ${unit}`} strong />
-                <Row k="Сумма" v={rub(cur.recvValue)} strong sub={compact ? <SubLines n={on4 ? 1 : 0} /> : ghost} />
+                <Row k="Сумма" v={rub(cur.recvValue)} strong sub={compact ? <SubLines n={has4 ? 1 : 0} /> : ghost} />
               </Duo>
               <Duo>
                 <Row k={`Цена, ₽/${priceUnit}`} v={cur.recvAvg != null ? rub(cur.recvAvg) : "–"} />
@@ -253,7 +255,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
             <>
               <Duo>
                 <Row k={compact ? lab("Количество", cur.usedQty, cur.recvQty) : "Количество (доля от купленного)"} v={withShare(cur.usedQty, cur.recvQty, `${qtyF(cur.usedQty)} ${unit}`)} strong />
-                <Row k={lab(on4 ? "Сумма с 4 %" : "Сумма", usedShown, cur.recvValue)} v={withShare(usedShown, cur.recvValue, rub(usedShown))} strong sub={compact ? <SubLines n={on4 ? 1 : 0} lines={note4 ? [note4] : []} /> : note4} />
+                <Row k={lab(on4 ? "Сумма с 4 %" : "Сумма", usedShown, cur.recvValue)} v={withShare(usedShown, cur.recvValue, rub(usedShown))} strong sub={compact ? <SubLines n={has4 ? 1 : 0} lines={note4 ? [note4] : []} /> : note4} />
               </Duo>
               <Duo>
                 <Row k={`Цена, ₽/${priceUnit}`} v={usedQtyNow > 0 ? rub(usedShown / usedQtyNow) : "–"} />
@@ -276,7 +278,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
             <>
               <Duo>
                 <Row k={compact ? lab("Количество", cur.remQty, cur.recvQty) : "Количество (доля от купленного)"} v={withShare(cur.remQty, cur.recvQty, `${qtyF(cur.remQty)} ${unit}`)} strong />
-                <Row k={lab("Сумма", cur.remValue, cur.recvValue)} v={withShare(cur.remValue, cur.recvValue, rub(cur.remValue))} strong sub={compact ? <SubLines n={on4 ? 1 : 0} /> : ghost} />
+                <Row k={lab("Сумма", cur.remValue, cur.recvValue)} v={withShare(cur.remValue, cur.recvValue, rub(cur.remValue))} strong sub={compact ? <SubLines n={has4 ? 1 : 0} /> : ghost} />
               </Duo>
               <Duo>
                 <Row k={`Цена, ₽/${priceUnit}`} v={cur.remAvg != null ? rub(cur.remAvg) : "–"} />
