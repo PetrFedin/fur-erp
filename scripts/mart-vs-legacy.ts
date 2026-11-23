@@ -62,6 +62,12 @@ process.env.MART_SNAPSHOT_MAX_AGE_MS ??= String(24 * 3600 * 1000);
     };
     const norm = (x: unknown) => JSON.parse(JSON.stringify(x));
     const idx = await getFurIndex(org);
+    {
+      const { computePurchaseView } = await import("../src/lib/mart/purchase-view");
+      const snap = await readSnapshot(org, "purchases:tree");
+      const live = await computePurchaseView(org);
+      check("Снимок закупок (purchases:tree)", snap !== null && same(norm(snap), norm(live)), snap === null ? "снимка нет или он устарел" : "");
+    }
     for (const y of ["all", "2025", "2026"] as const) {
       for (const c4 of ["on", "off"] as const) {
         const snap = await readSnapshot(org, `dash:${y}:${c4}`);

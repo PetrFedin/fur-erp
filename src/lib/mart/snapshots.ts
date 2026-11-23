@@ -84,6 +84,9 @@ export async function buildSnapshots(orgId: string): Promise<{ keys: number; ms:
       await save(orgId, `furlots:${kind}:${y}`, await loadFurLots(prisma, orgId, { kind, year: y, furIdx } as never), started); keys++;
     }
   }
+  const startedP = Date.now();
+  const { computePurchaseView } = await import("@/lib/mart/purchase-view");
+  await save(orgId, "purchases:tree", await computePurchaseView(orgId), startedP); keys++;
   const started = Date.now();
   await save(orgId, "furkinds", await loadFurKinds(orgId), started); keys++;
   return { keys, ms: Date.now() - t0 };
@@ -121,4 +124,12 @@ export async function isMartFresh(orgId: string): Promise<boolean> {
   const [agg, ver] = await Promise.all([prisma.dmLot.aggregate({ where: { organizationId: orgId }, _max: { builtAt: true } }), dataVersion(orgId)]);
   const t = agg._max.builtAt?.getTime();
   return t != null && t >= ver;
+}
+
+/** Строки раздела «Закупки» из витрины; устарела — тот же расчёт вживую. */
+export async function purchaseViewCached(orgId: string): Promise<import("@/lib/mart/purchase-view").PurchaseViewData> {
+  const snap = await readSnapshot<import("@/lib/mart/purchase-view").PurchaseViewData>(orgId, "purchases:tree");
+  if (snap) return snap;
+  const { computePurchaseView } = await import("@/lib/mart/purchase-view");
+  return computePurchaseView(orgId);
 }

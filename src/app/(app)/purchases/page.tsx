@@ -36,7 +36,7 @@ import { classifyPurchaseSource } from "@/lib/purchase-source";
 import { FurScope, ScopeEmpty, ScopeShow } from "@/components/fur-scope";
 import { FUR_SRC_KEYS, type FurSrc } from "@/lib/fur-src";
 import { aggregate, type PurchaseStatus, type TreeBatch, type TreePurchase, type TreeYear } from "./purchases-agg";
-import { furLotsOrLive, dashboardCached } from "@/lib/mart/snapshots";
+import { furLotsOrLive, dashboardCached, purchaseViewCached } from "@/lib/mart/snapshots";
 
 function firstLine(v: string | null) {
   return (v ?? "").split(/\r?\n/)[0].trim();
@@ -109,84 +109,26 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const furIdx = await getFurIndex(orgId);
   const furKindsP = loadFurKinds(orgId);
   const hidesP = !filtersOn ? loadPaymentsOverview(orgId) : null;
-  const [found, furLots, liningLots, opts, sizeRows] = await Promise.all([
-    prisma.purchase.findMany({
-      where,
-      include: { supplier: true, auction: true, items: { include: { rawMaterial: true } }, expenses: { include: { category: true } }, payments: true },
-      orderBy: { number: "desc" },
-    }),
+  // Фильтры панели (год, аукцион, вид, дата, поиск) выбирают, КАКИЕ закупки показывать (только id); цифры строк — из витрины («purchases:tree»).
+  const [idRows, furLots, liningLots, opts, sizeRows, view] = await Promise.all([
+    prisma.purchase.findMany({ where, select: { id: true }, orderBy: { number: "desc" } }),
     furLotsOrLive(orgId, "fur", "all", furIdx),
     furLotsOrLive(orgId, "lining", "all", furIdx),
     getFilterOptions(orgId, year, ["auction", "pyear", "fur", "color", "attr"]),
     prisma.rawMaterialLot.findMany({ where: { organizationId: orgId, sizeGrade: { not: null } }, select: { sizeGrade: true } }),
+    purchaseViewCached(orgId),
   ]);
   const furKinds = await furKindsP;
-  const rawInfo = await loadRawInfo(orgId, found.map((p) => p.id));
   const lotsOf = new Map<string, FurLot[]>();
-  const lotById = new Map<string, FurLot>();
   for (const l of [...furLots, ...liningLots]) {
-    lotById.set(l.id, l);
     if (l.purchaseId) lotsOf.set(l.purchaseId, [...(lotsOf.get(l.purchaseId) ?? []), l]);
   }
   const sizeOptions = [...new Set(sizeRows.flatMap((r) => (r.sizeGrade ?? "").split(/[\s,]+/).map((x) => x.trim()).filter(Boolean)))]
     .sort((a, b) => a.localeCompare(b, "ru", { numeric: true }))
     .map((v) => ({ value: v, label: v }));
-
-  // Оплаты по закупкам с аукционом ведутся по аукциону целиком — «оплачено» берём оттуда.
-  const auctionNames = [...new Set(found.map((p) => auctionName(p.auctionSession)).filter((n): n is string => !!n))];
-  const auctionPays = new Map((auctionNames.length ? await loadAuctionSummaries(prisma, orgId, auctionNames) : []).map((a) => [a.name, a]));
-
-  // УПД из поля закупки; если поле пустое, но УПД приложен как документ — номер и дата берутся из него (данные документа, не расчёт).
-  const updFromDocs = new Map<string, string>();
-  const noUpd = found.filter((p) => !p.transferDocument?.trim()).map((p) => p.id);
-  if (noUpd.length > 0) {
-    for (const d of await prisma.driveDocument.findMany({ where: { organizationId: orgId, docType: "UPD", purchaseId: { in: noUpd }, docNumber: { not: null } }, select: { purchaseId: true, docNumber: true, docDate: true }, orderBy: { docDate: "asc" } })) {
-      if (d.purchaseId && !updFromDocs.has(d.purchaseId)) updFromDocs.set(d.purchaseId, `№ ${d.docNumber}${d.docDate ? ` от ${formatDate(d.docDate)}` : ""}`);
-    }
-  }
-  // Строки закупок: один расчёт для дерева, списка и плиток (одинаковые итоги).
-  const all: TreePurchase[] = found.map((p) => {
-    const total = purchaseTotalInclVat(p);
-    const own = p.payments.filter((x) => x.status === "COMPLETED");
-    const ownSum = own.reduce((a, x) => a.add(x.amount), new Decimal(0));
-    const cancelled = p.status === "CANCELLED";
-    const an = auctionName(p.auctionSession);
-    const ap = auctionPays.get(an ?? "");
-    const paidShare = cancelled ? new Decimal(0) : purchasePaidShare(ap, p.id, ownSum);
-    const ls = lotsOf.get(p.id) ?? [];
-    const status: PurchaseStatus = cancelled ? "CANCELLED" : p.status === "RECEIVED" ? "RECEIVED" : "DRAFT";
-    const items = p.items.map((i) => {
-      const lot = i.lotId ? lotById.get(i.lotId) : undefined;
-      const q = num(i.quantity);
-      const sum = num(itemTotalInclVat(i, p.exchangeRate));
-      const unit = i.rawMaterial.unit === "M" ? ("м" as const) : ("шт." as const);
-      return {
-        id: i.id, lotId: i.lotId, material: i.rawMaterial.name, unit, qty: q, lot: i.lotNumber,
-        color: lot && lot.color !== NOT_SET ? lot.color : null, size: lot && lot.size !== NOT_SET ? lot.size : null, grade: lot?.grade || null,
-        sum, priceRub: q > 0 ? sum / q : null, priceUsd: lot?.usdPrice ?? null,
-        recv: lot ? lot.recv : null, used: lot?.used ?? 0, rem: lot?.rem ?? 0,
-        usages: (lot?.usages ?? []).map((u) => ({ orderId: u.orderId, number: u.label, qty: u.qty, sum: u.incl })),
-      };
-    });
-    const unitIsM = (i: (typeof items)[number]) => i.unit === "м";
-    return {
-      id: p.id, number: p.number, date: formatDate(p.orderDate), year: p.orderDate.getUTCFullYear(),
-      src: p.isContractorRaw ? ("supplier" as const) : classifyPurchaseSource(p.auction),
-      batchKey: an ?? "none", batchLabel: an ? shortAuctionName(firstLine(p.auctionSession)) : "Без аукциона", auction: an,
-      supplier: p.supplier.name, invoice: p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : null, upd: p.transferDocument?.trim() || updFromDocs.get(p.id) || null, status,
-      total: num(total), totalExcl: num(purchaseTotalExclVat(p)), paid: num(paidShare), rest: cancelled ? 0 : num(total.sub(paidShare)),
-      paidBatch: num(paidShare.sub(own.length > 0 ? ownSum : 0)),
-      lots: p.items.length, fur: items.filter((i) => !unitIsM(i)).reduce((a, i) => a + i.qty, 0), lining: items.filter(unitIsM).reduce((a, i) => a + i.qty, 0),
-      usedValue: ls.reduce((a, l) => a + l.usedIncl, 0), recvValue: ls.reduce((a, l) => a + l.recvIncl, 0), hasLots: ls.length > 0,
-      // Остаток: по лотам; у принятой закупки без лотов нет; у заказанной, но не полученной (лотов ещё нет) — всё заказанное количество, как «Остаток» на Главной.
-      remFur: ls.length > 0 ? ls.filter((l) => l.kind === "fur").reduce((a, l) => a + l.rem, 0) : status === "DRAFT" ? items.filter((i) => !unitIsM(i)).reduce((a, i) => a + i.qty, 0) : 0,
-      remLining: ls.length > 0 ? ls.filter((l) => l.kind === "lining").reduce((a, l) => a + l.rem, 0) : status === "DRAFT" ? items.filter(unitIsM).reduce((a, i) => a + i.qty, 0) : 0,
-      items,
-      raw: rawInfo.get(p.id) ?? null,
-      expenses: p.expenses.map((e) => ({ id: e.id, label: e.category.name + (e.description ? ` · ${e.description}` : ""), sum: num(expenseInclVat(e)) })),
-      pays: own.map((x) => ({ id: x.id, date: formatDate(x.paidAt), amount: num(x.amount), doc: x.docRef?.trim() || null })),
-    };
-  });
+  const viewById = new Map(view.rows.map((r) => [r.p.id, r] as const));
+  const all: TreePurchase[] = idRows.map((r) => viewById.get(r.id)?.p).filter((p): p is TreePurchase => !!p);
+  const auctionPays = new Map(view.auctionPays.map((a) => [a.name, a] as const));
 
   // Фильтры по лотам и оплате — в памяти: закупка подходит, если ЕЁ лот подходит под все выбранные признаки лота (цвет, размер, признак меха, остаток, использование).
   const lotFilter = { ...emptyFilters(), color: f.color, size: f.size, attr: f.attr, rest: f.rest, usage: f.usage };
@@ -235,7 +177,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   };
   // Блоки верхних итогов: «Все» — Всего, Мех, Подкладка; «Мех» / «Подкладка» — только свой блок. Те же формулы, что для набора.
   const itemVat = new Map<string, [string, number]>();
-  for (const p of found) for (const i of p.items) { const r = i.vatRate.toNumber(); if (r > 0) itemVat.set(i.id, [String(r), num(itemTotalInclVat(i, p.exchangeRate)) * r / (100 + r)]); }
+  for (const r of idRows) for (const [id, v] of Object.entries(viewById.get(r.id)?.itemVat ?? {})) itemVat.set(id, v);
   const mkBlock = (key: string, title: string | null, rs: TreePurchase[], h: number, rf: number, rl: number) => {
     const t = aggregate(rs);
     const bought = t.total + h + rf + rl;
