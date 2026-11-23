@@ -158,7 +158,7 @@ async function main() {
   }
   await x(`delete from "SystemState" where key like 'owner-decision:%'`);
   // Единый массив данных (Dm*) содержит названия контрагентов и решения владельца: в демо не нужен, очищается целиком (на демо пересобирается при необходимости).
-  for (const t of ["DmSkuSeason", "DmStock", "DmCostParty", "DmSku", "DmMovement", "DmCheck", "DmColorAlias", "DmRetailPrice", "DmLoad", "DmPlanLine", "DmPlanParam", "DmPresentationItem", "DmShipmentLine", "DmDecision", "DmPurchase", "DmLot", "DmLotUse", "DmPayment", "DmPaymentAlloc", "DmOrderExpense"]) {
+  for (const t of ["DmSkuSeason", "DmStock", "DmCostParty", "DmSku", "DmMovement", "DmCheck", "DmColorAlias", "DmRetailPrice", "DmLoad", "DmPlanLine", "DmPlanParam", "DmPresentationItem", "DmShipmentLine", "DmDecision", "DmPurchase", "DmLot", "DmLotUse", "DmPayment", "DmPaymentAlloc", "DmOrderExpense", "DmLotBridge", "DmAuction", "DmSnapshot"]) {
     if (await tableExists(t)) await x(`delete from "${t}"`);
   }
   // Ключи с названием заказчика (budget-pcs:fw27-mvst) → нейтральные (budget-pcs:fw27): ключи текстовая чистка не трогает, а MVST в демо быть не должно.
