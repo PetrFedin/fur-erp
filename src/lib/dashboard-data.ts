@@ -848,7 +848,7 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
     orderedBought,
     syntheticLots,
     lotMoney,
-    rawMoneyTotal: { paid: paidOut.fur + paidOut.lining, due: leftOut.raw, unreceived: unreceivedOut },
+    rawMoneyTotal: { paid: paidOut.fur + paidOut.lining, due: leftOut.fur + leftOut.lining, unreceived: unreceivedOut },
     raw: { fur: furPairAll, lining: liningPair, lots: lotsYear.length },
     rawSources: (() => {
       const pairOf = (src: "auction" | "supplier") => figuresPair(flowOf(furLots.filter((l) => classifyLotSource(l) === src)), c4k);

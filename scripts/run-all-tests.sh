@@ -34,7 +34,8 @@ for f in scripts/test-*.ts; do
   psqlc -c "CREATE DATABASE $CUR TEMPLATE $TPL" >/dev/null || { RES+=("$n|упал (нет копии)|-"); FAILS=$((FAILS+1)); continue; }
   URL="postgresql://$U:${DB_PASSWORD:-$U}@localhost:$PORT/$CUR"
   start=$(date +%s)
-  env DATABASE_URL="$URL" SCRATCH_URL="$URL" ALLOC_TEST_URL="$URL" AUDIT_TEST_URL="$URL" BATCH_TEST_URL="$URL" \
+  # SNAPSHOTS=0: тесты пишут в базу напрямую (мимо revalidateAll), поэтому читают живой расчёт, а не снимки и готовые строки витрины.
+  env SNAPSHOTS=0 DATABASE_URL="$URL" SCRATCH_URL="$URL" ALLOC_TEST_URL="$URL" AUDIT_TEST_URL="$URL" BATCH_TEST_URL="$URL" \
       COMMENTS_TEST_URL="$URL" EDIT_TEST_URL="$URL" SHIPMENT_TEST_URL="$URL" TASK_TEST_URL="$URL" WIZ_TEST_URL="$URL" \
       perl -e 'alarm shift; exec @ARGV' "$TMO" node --conditions=react-server --env-file=.env node_modules/.bin/tsx "$f" >"/tmp/${n}.$$.log" 2>&1
   code=$?
