@@ -31,6 +31,7 @@ import { flowOfRawLots } from "@/lib/fur-table-server";
 import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 import { TotalLabel } from "@/components/total-label";
 import { loadRawWithDashboard, loadRawFromMartOrNull } from "@/lib/raw-analytics-dash";
+import { LevelSummaryFromFigures } from "@/components/level-tiles";
 
 export const metadata = { title: "Аналитика сырья" };
 
@@ -207,80 +208,13 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
         />
       </div>
 
-      {/* Итоги */}
-      <WidgetRow id="raw" title="Итоги" headerEnd={<Link href={fromPurchases ? "/purchases" : "/lots"} className="text-xs text-blue-700 hover:underline print:hidden">{fromPurchases ? "→ Закупки" : "→ Сырьё"}</Link>}>
-      <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-5">
-        <Tile unit={unit} c4={c4}
-          title="Куплено"
-          avg={{ incl: fIncl.recvAvg, excl: fExcl.recvAvg, what: "закупки" }}
-          q={total.recv}
-          incl={total.recvIncl}
-          excl={total.recvExcl}
-          hint={
-            <>
-              <p>Те же цифры, что «Куплено» на Главной: лоты склада + заказано, но ещё не получено (лотов пока нет) + шкуры подрядчика (только в рублях). Стоимость лота = кол-во × цена лота за единицу.</p>
-              <p className="mt-1">Сейчас: {qty(total.recv, unit)} — {whLots.length} лотов склада{bridgeText}. В таблице ниже эти позиции отдельными строками «Заказано, не получено» и «Шкуры подрядчика». Сверка с закупками в статусе «Принята» — в блоке «Качество данных».</p>
-            </>
-          }
-        />
-        <Tile unit={unit} c4={c4}
-          title="Использовано"
-          avg={{ incl: fIncl.usedAvg, excl: fExcl.usedAvg, what: "использованного" }}
-          q={total.used}
-          incl={total.usedIncl}
-          excl={total.usedExcl}
-          extra={{ incl: total.usedExtraIncl, excl: total.usedExtraExcl }}
-          hint={
-            <>
-              <p>Те же цифры, что «Использовано» на Главной: списания сырья в ТЗ по лотам (стоимость — по цене лота на момент списания) + шкуры подрядчика (оплачены в составе пошива, в ТЗ не списаны).</p>
-              <p className="mt-1">Сейчас: {qty(total.used, unit)} = {pctText(pctAll)} от купленного.</p>
-              <p className="mt-1">4 % начисляется только на списания, где оно применяется (флаг строки), — строка «с 4 %».</p>
-            </>
-          }
-        />
-        <Tile unit={unit} c4={c4}
-          title="Списано иначе"
-          q={otherQty}
-          incl={otherIncl}
-          excl={otherExcl}
-          hint={
-            <>
-              <p>Получено − остаток − использовано в ТЗ. Это ручные корректировки остатка, потери и пр. — то, что ушло с лота не через ТЗ.</p>
-              <p className="mt-1">Сейчас: {ex(total.recv)} − {ex(total.rem)} − {ex(total.used)} = <b>{ex(otherQty)}</b> {unit}. Должно быть 0, пока остаток меняется только ТЗ.</p>
-            </>
-          }
-          sub={!otherQty.isZero() ? <div className="text-xs text-amber-700">есть расхождение — см. качество данных</div> : null}
-        />
-        <Tile unit={unit} c4={c4}
-          title="Остаток"
-          avg={{ incl: fIncl.remAvg, excl: fExcl.remAvg, what: "остатка" }}
-          q={total.rem}
-          incl={total.remIncl}
-          excl={total.remExcl}
-          hint={
-            <>
-              <p>Те же цифры, что «Остаток» на Главной: остатки лотов склада + заказано, но не получено. Стоимость лота = остаток × цена лота за единицу — так же считает карточка «Итого стоимость остатков» на странице «Сырьё».</p>
-              <p className="mt-1">Сейчас: {qty(total.rem, unit)} × средняя цена {avgPrice(total) ? rub(avgPrice(total)!.incl) : "–"} ≈ {rub(total.remIncl)} (средняя цена остатка может отличаться от средней закупки — остаток лежит в других лотах).</p>
-            </>
-          }
-        />
-        <div className="relative col-span-2 lg:col-span-1">
-          <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-            <TileHead>% использовано</TileHead>
-            <TileValue>{pctText(pctAll)}</TileValue>
-            <div className="mt-2 flex h-2 overflow-hidden rounded bg-neutral-100" role="img" aria-label={`Использовано ${pctText(pctAll)}`}>
-              <div className="bg-neutral-500" style={{ width: `${Math.min(100, pctAll ?? 0)}%` }} />
-            </div>
-          </div>
-          <div className="absolute right-3 top-3">
-            <InfoHint label="% использовано" align="right">
-              <p>Использовано ÷ куплено × 100.</p>
-              <p className="mt-1">Сейчас: {ex(total.used)} ÷ {ex(total.recv)} = {pctText(pctAll)}.</p>
-            </InfoHint>
-          </div>
-        </div>
-      </div>
-      </WidgetRow>
+      {/* Итоги — та же полоса, что на всех страницах «Сырья» (оплаты и долг здесь не нужны: это разрез по лотам). */}
+      <LevelSummaryFromFigures incl={fIncl} excl={fExcl} c4={c4} unit={unit === "м" ? "м" : "шт."} label="Итоги" />
+      {!otherQty.isZero() ? (
+        <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Списано иначе: {ex(otherQty)} {unit} (получено − остаток − использовано в ТЗ). Должно быть 0 — смотрите <Link href="/analytics/raw/recon" className="underline">«Сверку лотов»</Link>.
+        </p>
+      ) : null}
 
       {/* Сводная таблица */}
       <Card>
@@ -345,59 +279,6 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
         </CardContent>
       </Card>
 
-      {/* Графики */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Динамика закупок по месяцам
-              <InfoHint label="Динамика закупок" wide>
-                <p>Сколько принято в сырьё в каждом месяце (по дате заказа закупки): в {unit} или в ₽ (с учётом режима НДС из шапки). Переключатель — над графиком.</p>
-                {byYear.length > 0 && (
-                  <p className="mt-1">По годам: {byYear.map((y) => `${y.label} — ${ex(y.agg.recv)} ${unit} на ${rub(y.agg.recvIncl)}`).join("; ")}.</p>
-                )}
-              </InfoHint>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <MonthlyChart points={monthPoints} unit={unit} />
-            {byYear.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-                {byYear.map((y) => (
-                  <span key={y.key}>
-                    <b>{y.label}:</b> {qty(y.agg.recv, unit)}, <Money incl={q2(y.agg.recvIncl)} excl={q2(y.agg.recvExcl)} />
-                  </span>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-    </div>
-  );
-}
-
-function Tile({ title, hint, q, incl, excl, extra, sub, unit, c4, avg }: { unit: string; c4: "on" | "off"; title: string; hint: React.ReactNode; q: Decimal; incl: Decimal; excl: Decimal; extra?: { incl: Decimal; excl: Decimal } | null; sub?: React.ReactNode; avg?: { incl: number | null; excl: number | null; what: string } }) {
-  return (
-    <div className="relative">
-      <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-        <TileHead>{title}</TileHead>
-        <TileValue>{qty(q, unit)}</TileValue>
-        <div className="text-sm tabular-nums text-neutral-700">
-          {/* «С 4 %» — сумма с надбавкой, «Без 4 %» — без неё; второй суммы нет. */}
-          {extra && c4 === "on" ? <Money incl={q2(incl.add(extra.incl))} excl={q2(excl.add(extra.excl))} /> : <Money incl={q2(incl)} excl={q2(excl)} />}
-        </div>
-        {avg && avg.incl != null && (
-          <div className="text-xs text-neutral-500" title={`Средневзвешенная цена ${avg.what} = Σ ₽ ÷ Σ ${unit}`}>
-            ср. цена: <Money incl={q2(new Decimal(avg.incl))} excl={avg.excl != null ? q2(new Decimal(avg.excl)) : null} />/{unit}
-          </div>
-        )}
-        {sub}
-      </div>
-      <div className="absolute right-3 top-3">
-        <InfoHint label={title} wide align="right">{hint}</InfoHint>
-      </div>
     </div>
   );
 }

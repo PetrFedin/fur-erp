@@ -24,6 +24,8 @@ import { defineFilters, filterHref, parseFilters, pick } from "@/lib/filters";
 import { auctionLabeler, getFilterOptions } from "@/lib/filter-options";
 import { loadFurLots } from "@/lib/fur-table-server";
 import { dashboardCached, furLotsCached, furKindsCached } from "@/lib/mart/snapshots";
+import { loadMonthPoints } from "@/lib/mart/lot-sums";
+import { MonthsSection } from "./months-section";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { RawCards } from "../dashboard/raw-block";
 import { PayTiles } from "../dashboard/pay-tiles";
@@ -214,6 +216,8 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   // Готовые расчёты из витрины (снимки по году и режиму 4 %); устарели или есть фильтр материала — считаем вживую, как раньше.
   const c4AndDash = getCommission4Mode().then(async (c4) => ({ c4, dash: await dashboardCached(orgId, year, c4) }));
   const lotKind = tab === "lining" ? "lining" : "fur";
+  // Закупки по месяцам — из витрины (раньше этот график был на странице аналитики).
+  const monthPoints = await loadMonthPoints(prisma, orgId, tab === "lining" ? "M" : "PCS", year === "all" ? undefined : Number(year));
   const [tableLots, { c4: c4Mode, dash }, furKinds] = await Promise.all([
     (f.material.length ? Promise.resolve(null) : furLotsCached(orgId, lotKind, year)).then((snap) => snap ?? loadFurLots(prisma, orgId, { kind: lotKind, year, furIdx, extraWhere: tab === "lining" ? undefined : searchWhere })),
     c4AndDash,
@@ -303,6 +307,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         <section aria-labelledby="raw-fur" className="space-y-3">
           <h2 id="raw-fur" className="sr-only">{kindTitle}</h2>
           <FurSelectionTotal summaryOnly noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
+          <MonthsSection points={monthPoints} unit="шт." />
           <AuctionCompare lots={furTabLots} />
         </section>
       ) : (
@@ -318,6 +323,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles,
             }}
           />
+          <MonthsSection points={monthPoints} unit="м" />
         </section>
       )}
       </FurScope>

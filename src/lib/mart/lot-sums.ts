@@ -25,3 +25,15 @@ export async function loadLotSums(db: Pick<PrismaClient, "$queryRawUnsafe">, org
   );
   return rows.map((r) => ({ key: r.key, lots: r.lots, recvQty: Number(r.rq), usedQty: Number(r.uq), remQty: Number(r.mq), recv: Number(r.r), used: Number(r.u), rem: Number(r.m) }));
 }
+
+export type MonthPoint = { month: string; qty: number; incl: number; excl: number };
+
+/** Закупки по месяцам (по дате закупки лота) из витрины: количество и сумма с НДС и без — для графика «Динамика закупок по месяцам». */
+export async function loadMonthPoints(db: Pick<PrismaClient, "$queryRawUnsafe">, orgId: string, unit: "M" | "PCS", year?: number): Promise<MonthPoint[]> {
+  const [incl, excl] = await Promise.all([
+    loadLotSums(db, orgId, "month", { vat: "incl", c4: "off" }, { unit, year }),
+    loadLotSums(db, orgId, "month", { vat: "excl", c4: "off" }, { unit, year }),
+  ]);
+  const ex = new Map(excl.map((r) => [r.key, r.recv]));
+  return incl.filter((r) => r.key).map((r) => ({ month: r.key, qty: r.recvQty, incl: r.recv, excl: ex.get(r.key) ?? r.recv })).sort((a, b) => a.month.localeCompare(b.month));
+}

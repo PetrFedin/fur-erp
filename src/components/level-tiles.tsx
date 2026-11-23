@@ -9,7 +9,7 @@ const pctOf = (part: number, whole: number) => (whole > 0 ? ` · ${Math.round((p
  * Полоса итогов уровня из готовых цифр потока лотов (FlowFigures с обоими вариантами НДС): вид меха, год, любой срез лотов.
  * Режим «4 %» уже учтён в usedValue (figures считаются с режимом); «в т.ч. 4 %» показываем только когда режим включён.
  */
-export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "шт.", label }: { incl: FlowFigures; excl: FlowFigures; paid: number; due: number; c4: "on" | "off"; unit?: string; label?: string }) {
+export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "шт.", label }: { incl: FlowFigures; excl: FlowFigures; paid?: number | null; due?: number | null; c4: "on" | "off"; unit?: string; label?: string }) {
   const on4 = c4 === "on";
   const extra = Math.abs(incl.usedValue - incl.usedValueOther);
   const extraX = Math.abs(excl.usedValue - excl.usedValueOther);
@@ -34,8 +34,8 @@ export function LevelSummaryFromFigures({ incl, excl, paid, due, c4, unit = "ш�
       { k: rubPer, v: per(incl.remValue, excl.remValue, incl.remQty) },
       ...(usdR ? [{ k: "$/шт.", v: usdR }] : []),
     ] },
-    { key: "paid", title: "Оплачено", main: <span>{formatMoney(Math.round(paid))}</span>, lines: [{ k: "по лотам", v: "с НДС" }] },
-    { key: "debt", title: "Долг", tone: due > 0.5 ? "warn" : undefined, main: <span>{due > 0.5 ? formatMoney(Math.round(due)) : "0 ₽"}</span>, lines: [] },
+    ...(paid != null ? [{ key: "paid", title: "Оплачено", main: <span>{formatMoney(Math.round(paid))}</span>, lines: [{ k: "по лотам", v: "с НДС" }] } satisfies LevelTile] : []),
+    ...(due != null ? [{ key: "debt", title: "Долг", tone: due > 0.5 ? ("warn" as const) : undefined, main: <span>{due > 0.5 ? formatMoney(Math.round(due)) : "0 ₽"}</span>, lines: [] } satisfies LevelTile] : []),
   ];
   return <LevelSummary tiles={tiles} label={label ?? "Итоги"} />;
 }
