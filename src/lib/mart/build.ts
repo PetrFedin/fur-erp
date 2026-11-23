@@ -329,12 +329,21 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     ];
     if (dash) {
       const homeBought = dash.raw.fur.incl.recvValue + dash.raw.lining.incl.recvValue;
-      const martBought = Number(bal?.bought ?? 0) + Number(br?.total ?? 0);
+      const martBought = Number(bal?.bought ?? 0) + Number(br?.total ?? 0); // лоты + мост; то же даёт purchasedTotals (проверка rawBoughtDomain ниже)
       rows.push({ key: "rawVsHome", label: "Сырьё: лоты + мост в витрине = «Куплено» (мех + подкладка) на Главной, ₽", expected: Math.round(homeBought), actual: Math.round(martBought), status: Math.abs(homeBought - martBought) <= 2 ? "ok" : "warn", note: null });
     }
     // Оплаты в витрине: итог закупок меха (лоты + черновики «заказано») равен «Куплено» меха — тогда «Куплено − Оплачено = Долг» сходится на любом уровне.
     const [payRow] = await db.$queryRaw<{ total: string | null }[]>`SELECT sum(dp."payTotal")::text total FROM "DmPurchase" dp WHERE dp."organizationId" = ${orgId} AND dp.status <> 'CANCELLED' AND (EXISTS (SELECT 1 FROM "DmLot" l WHERE l."organizationId" = ${orgId} AND l."purchaseId" = dp."purchaseId" AND l."unit" = 'PCS') OR (dp.status = 'DRAFT' AND btrim(split_part(dp."auction", E'\n', 1)) IN (SELECT "auction" FROM "DmLotBridge" WHERE "organizationId" = ${orgId} AND kind = 'ordered')))`;
     const [furBought] = await db.$queryRaw<{ total: string | null }[]>`SELECT (SELECT sum("totalCost") FROM "DmLot" WHERE "organizationId" = ${orgId} AND "unit" = 'PCS')::numeric + (SELECT coalesce(sum("totalCost"), 0) FROM "DmLotBridge" WHERE "organizationId" = ${orgId} AND kind = 'ordered') AS total`;
+    // «Куплено» по единому определению (домен): мех + подкладка из витрины = «Куплено» на Главной; общая стоимость в оплатах = Куплено + доплата подрядчику.
+    if (dash) {
+      const { loadPurchasedTotals } = await import("@/lib/mart/purchased");
+      const dom = await loadPurchasedTotals(db, orgId);
+      const homeBoughtDom = dash.raw.fur.incl.recvValue + dash.raw.lining.incl.recvValue;
+      rows.push({ key: "rawBoughtDomain", label: "Куплено по определению домена (лоты + заказанное) = «Куплено» на Главной, ₽", expected: Math.round(homeBoughtDom), actual: Math.round(dom.bought.incl), status: Math.abs(homeBoughtDom - dom.bought.incl) <= 2 ? "ok" : "warn", note: `услуги по УПД вне «Куплено»: ${Math.round(dom.services.incl).toLocaleString("ru-RU")} ₽; доплата подрядчику вне «Куплено»: ${Math.round(dom.rawTotalCost.incl - dom.bought.incl).toLocaleString("ru-RU")} ₽` });
+      const payRaw = dash.paidByItem.fur + dash.paidByItem.lining + dash.left.fur + dash.left.lining;
+      rows.push({ key: "rawTotalVsPayments", label: "Общая стоимость сырья в оплатах (оплачено + долг) = Куплено + доплата подрядчику по домену, ₽", expected: Math.round(dom.rawTotalCost.incl), actual: Math.round(payRaw), status: Math.abs(dom.rawTotalCost.incl - payRaw) <= 5 ? "ok" : "warn", note: null });
+    }
     rows.push({ key: "rawPayVsBought", label: "Сырьё (мех): итог закупок в оплатах = «Куплено» (лоты + заказано), ₽", expected: Math.round(Number(furBought?.total ?? 0)), actual: Math.round(Number(payRow?.total ?? 0)), status: Math.abs(Number(furBought?.total ?? 0) - Number(payRow?.total ?? 0)) <= 5 ? "ok" : "warn", note: null });
     // Оплаты Главной за сырьё (мех + подкладка + услуги) = оплаты поставщикам в витрине + доплата подрядчику: она идёт платежом по производству и вне «Куплено» сырья.
     // Разница показывается явно (справка), а не прячется: её видно на странице закупок в плитке «Куплено».

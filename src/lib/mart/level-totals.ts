@@ -1,5 +1,6 @@
 import { overpayTarget } from "@/lib/overpay-notes";
 import { transferOverpay } from "@/domain/money";
+import { purchasedTotals } from "@/domain/purchased";
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -80,11 +81,14 @@ export async function loadLevelTotals(orgId: string, scope: LevelScope): Promise
     if (a.length) pay = { total: a.reduce((s, x) => s + num(x.total), 0), paid: a.reduce((s, x) => s + num(x.paid), 0), remaining: a.reduce((s, x) => s + num(x.remaining), 0) };
   }
   const bq = bridge ?? { rq: 0, mq: 0, ri: 0, rx: 0, mi: 0, mx: 0 };
+  // «Куплено» уровня — по единому определению (src/domain/purchased.ts): полученные лоты + заказанное, не принятое.
+  const zero = { incl: 0, excl: 0 };
+  const bought = purchasedTotals({ receivedLots: { incl: num(r.ri), excl: num(r.rx) }, orderedNotReceived: { incl: bq.ri, excl: bq.rx }, contractorHides: zero, services: zero }).bought;
   return {
     lots: num(r.lots),
     qty: { recv: num(r.rq) + bq.rq, used: num(r.uq), rem: num(r.mq) + bq.mq },
-    incl: { recv: num(r.ri) + bq.ri, used: num(r.ui), rem: num(r.mi) + bq.mi, extra: num(r.ei) },
-    excl: { recv: num(r.rx) + bq.rx, used: num(r.ux), rem: num(r.mx) + bq.mx, extra: num(r.ex) },
+    incl: { recv: bought.incl, used: num(r.ui), rem: num(r.mi) + bq.mi, extra: num(r.ei) },
+    excl: { recv: bought.excl, used: num(r.ux), rem: num(r.mx) + bq.mx, extra: num(r.ex) },
     usdAvg: num(r.usd_qty) > 0 ? num(r.usd_sum) / num(r.usd_qty) : null,
     pay,
     ordered: bridge && bridge.rq > 0 ? { qty: bridge.rq } : null,
