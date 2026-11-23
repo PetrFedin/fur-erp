@@ -809,7 +809,7 @@ export function AuctionTotalsPanel() {
         <TotalsFooter view={view} fields={fields} hasEditCol={false} hasCheckCol />
       </Table>
       </div>
-      <CostPartsBlock scope={ALL_SCOPE} title="Состав стоимости аукциона" />
+      <CostPartsBlock scope={ALL_SCOPE} title="Состав стоимости: цена шкур и НДС" />
     </section>
   );
 }

@@ -23,6 +23,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { LevelSummaryFromTotals } from "@/components/level-tiles";
 import { loadLevelTotals } from "@/lib/mart/level-totals";
+import { withExtra } from "@/lib/commission4-pick";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { usageExclVat } from "@/lib/commission4";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
@@ -666,7 +667,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
     }
     return r;
   })();
-  const on4Purchase = c4Mode === "on";
+  const on4Purchase = withExtra(c4Mode);
   const pctOf = (part: Decimal, whole: Decimal) => (whole.greaterThan(0) ? ` · ${Math.round((Number(part) / Number(whole)) * 100)} %` : "");
 
   return (

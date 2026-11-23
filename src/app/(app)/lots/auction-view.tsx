@@ -40,6 +40,7 @@ import { classifyPurchaseSource } from "@/lib/purchase-source";
 import { LevelSummary, type LevelTile } from "@/components/level-summary";
 import { LevelSummaryFromTotals } from "@/components/level-tiles";
 import { loadLevelTotals } from "@/lib/mart/level-totals";
+import { withExtra } from "@/lib/commission4-pick";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { usageExclVat } from "@/lib/commission4";
@@ -312,7 +313,8 @@ export async function AuctionView({
   }
   const perMoney = (vi: Decimal, ve: Decimal, q: Decimal) => (q.greaterThan(0) ? <Money incl={vi.div(q)} excl={ve.div(q)} /> : "–");
   const pct = (part: Decimal, whole: Decimal) => (whole.greaterThan(0) ? ` · ${Math.round((Number(part) / Number(whole)) * 100)} %` : "");
-  const on4 = c4 === "on";
+  // Единое правило режима «4 %» (commission4-pick): одна сумма «Использовано» по режиму шапки.
+  const on4 = withExtra(c4);
   const usedShownIncl = on4 ? usedIncl.add(extraIncl) : usedIncl;
   const usedShownExcl = on4 ? usedExcl.add(extraExcl) : usedExcl;
   const payLink = paySummaries.length === 1 ? `/payments?auction=${encodeURIComponent(paySummaries[0].name)}#auction-block` : "/payments";
@@ -489,7 +491,7 @@ export async function AuctionView({
           <Card>
             <CardHeader>
               <CardTitle>
-                Состав стоимости аукциона
+                Состав стоимости по статьям расчёта
                 <InfoHint label="Как считается" wide>
                   <p>Сумма по всем лотам аукциона с НДС. Для каждого лота берётся его расчёт: цена лота в валюте × курс, сборы аукциона и НДС на них, НДС на товар, выделка, транспорт, брокер, комиссии. Значение на шкуру умножается на количество и складывается по лотам.</p>
                   <p className="mt-1">Итог совпадает с «С расходами» выше. Если в расчёте лота нет разбивки, его сумма попадает в «Прочее и округление».</p>
@@ -630,12 +632,10 @@ export async function AuctionView({
         <AuctionVerify organizationId={organizationId} names={names} />
       </CollapsibleBlock>
 
-      <CollapsibleBlock title="Документы и оплата" summary="документы и платёжки">
-        <AuctionDocsPay organizationId={organizationId} names={names} />
-      </CollapsibleBlock>
-
-      <CollapsibleBlock title="Документы аукциона" summary={countLabel(docGroupTotal, docRecords)}>
+      {/* Один блок вместо двух: платёжные документы партии и файлы закупок лежат вместе. */}
+      <CollapsibleBlock title="Документы и платёжки аукциона" summary={countLabel(docGroupTotal, docRecords)}>
         <div className="flex flex-col gap-3">
+          <AuctionDocsPay organizationId={organizationId} names={names} />
           {fileGroups.length > 0 ? (
             <Table className="max-md:block">
               <Thead className="max-md:hidden">

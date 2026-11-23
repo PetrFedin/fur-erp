@@ -415,7 +415,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                       </InfoHint>
                     </div>
                     <TileValue><Money incl={b.bought.toFixed(2)} excl={b.boughtExcl.toFixed(2)} /></TileValue>
-                    <TileCaption>{b.key === "services" ? `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · УПД без позиций сырья, лотов нет` : `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · лотов ${b.t.lots - b.t.ordered} · ${formatDec1(b.kind === "lining" ? b.t.lining : b.t.fur)} ${b.kind === "lining" ? "м" : "шт."}`}</TileCaption>
+                    <TileCaption>{b.key === "services" ? `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · УПД без позиций сырья, лотов нет` : `${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · лотов ${b.t.lots - b.t.ordered} · ${formatDec1(b.kind === "lining" ? b.t.lining : b.t.fur)} ${b.kind === "lining" ? "м" : "шт."}${b.h > 0.5 ? ` · в т.ч. доплата подрядчику ${formatMoney(Math.round(b.h))} ₽ (в «Сырье» не входит)` : ""}`}</TileCaption>
                     {b.key === "services" ? null : <TileList items={[{
                       k: `Цена, ₽/${b.kind === "lining" ? "м" : "шт."} (ср.)`,
                       v: (b.kind === "lining" ? b.t.lining : b.t.fur) > 0

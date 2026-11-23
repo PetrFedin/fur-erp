@@ -20,6 +20,7 @@ import { BridgeHint, type ModeInfo } from "./mode-line";
 import { useSlideWindow, useActiveSlideHeight } from "@/components/slide-window";
 import { useClientSort } from "@/lib/use-client-sort";
 import { useFurScope } from "@/components/fur-scope";
+import { withExtra } from "@/lib/commission4-pick";
 import { ALL_TYPES_LABEL, FUR_SRC_KEYS, FUR_SRC_LABEL, SegmentSwitch, TypeDots, useSrcTypeNav, type FurSrc } from "@/components/fur-source-nav";
 
 type Pair = { incl: FlowFigures; excl: FlowFigures };
@@ -193,7 +194,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   const usedNo4 = c4 === "on" ? sumNow("usedValueOther") : sumNow("usedValue");
   const usedWith4 = c4 === "on" ? sumNow("usedValue") : sumNow("usedValueOther");
   // Режим шапки решает, какую сумму показывать: «С 4 %» — с надбавкой, «Без 4 %» — без неё и без любых упоминаний 4 %.
-  const on4 = c4 === "on";
+  const on4 = withExtra(c4);
   const usedShown = on4 ? usedWith4 : usedNo4;
   const note4 = on4 ? `в т.ч. 4 %: ${rub(usedWith4 - usedNo4)}` : undefined;
   const usedQtyNow = all ? 0 : cur.usedQty;
