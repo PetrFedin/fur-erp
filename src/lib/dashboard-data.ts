@@ -532,7 +532,10 @@ async function loadDashboardImpl(orgId: string, year: YearFilter, f: DashFilters
         const rowsY = ovAll.filter((r) => r.year === Number(key));
         const debtY = ovLeftAll.byYear.get(Number(key))?.raw ?? 0;
         const dl = debtLiningByYear.get(Number(key)) ?? 0;
-        return { fur: { paid: rowsY.reduce((a, r) => a + r.fur, 0), debt: debtY - dl }, lining: { paid: rowsY.reduce((a, r) => a + r.lining, 0), debt: dl } };
+        // Закупки-услуги (УПД без позиций сырья) — не мех: их неоплаченная часть идёт отдельной статьёй, как в «Расходах».
+        const svc = debtInputs.allPurchases.filter((p) => isServicePurchase(p) && inYear(p.orderDate, key as YearFilter))
+          .reduce((a, p) => a + Math.max(purchaseTotalInclVat(p).sub(p.payments.filter((x) => x.status === "COMPLETED").reduce((s2, x) => s2.add(x.amount), new Decimal(0))).toNumber(), 0), 0);
+        return { fur: { paid: rowsY.reduce((a, r) => a + r.fur, 0), debt: debtY - dl - svc }, lining: { paid: rowsY.reduce((a, r) => a + r.lining, 0), debt: dl } };
       })(),
     };
   };

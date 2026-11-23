@@ -191,7 +191,11 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   // Фильтры по лотам и оплате — в памяти: закупка подходит, если ЕЁ лот подходит под все выбранные признаки лота (цвет, размер, признак меха, остаток, использование).
   const lotFilter = { ...emptyFilters(), color: f.color, size: f.size, attr: f.attr, rest: f.rest, usage: f.usage };
   const lotFilterOn = f.color.length + f.size.length + f.attr.length + f.rest.length + f.usage.length > 0;
+  // Закупки-услуги Веллмеха (УПД без позиций сырья: гребни, брелки, образцы, доп. услуги по спецификации) к сырью не относятся: в «Сырье» их нет, они в «Оплатах».
+  const isServiceRow = (p: TreePurchase) => p.status !== "CANCELLED" && p.items.length === 0 && p.expenses.length > 0;
+  const servicesOutside = all.filter(isServiceRow);
   const rows = all.filter((p) => {
+    if (isServiceRow(p)) return false;
     if (lotFilterOn && filterLots(lotsOf.get(p.id) ?? [], lotFilter).length === 0) return false;
     return true;
   });
@@ -230,7 +234,6 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     return Math.abs(d) < 0.005 ? 0 : d;
   };
   // Блоки верхних итогов: «Все» — Всего, Мех, Подкладка; «Мех» / «Подкладка» — только свой блок. Те же формулы, что для набора.
-  const isServiceRow = (p: TreePurchase) => p.status !== "CANCELLED" && p.items.length === 0 && p.expenses.length > 0;
   const itemVat = new Map<string, [string, number]>();
   for (const p of found) for (const i of p.items) { const r = i.vatRate.toNumber(); if (r > 0) itemVat.set(i.id, [String(r), num(itemTotalInclVat(i, p.exchangeRate)) * r / (100 + r)]); }
   const mkBlock = (key: string, title: string | null, rs: TreePurchase[], h: number, rf: number, rl: number) => {
@@ -255,8 +258,6 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       : [
           mkBlock("fur", "Мех", rowsS.map((p) => partOf(p, "fur")).filter((p): p is TreePurchase => p != null), hidesAllS, roundFurS, 0),
           ...(src === "auction" ? [] : [mkBlock("lining", "Подкладка", rowsS.map((p) => partOf(p, "lining")).filter((p): p is TreePurchase => p != null), 0, 0, roundLinS)]),
-          // Закупки-услуги (УПД без позиций сырья): отдельный блок, чтобы «Всего» = мех + подкладка + услуги; в меху и подкладке их нет.
-          ...(rowsS.some(isServiceRow) ? [mkBlock("services", "Услуги по УПД", rowsS.filter(isServiceRow), 0, 0, 0)] : []),
         ];
     // Переплата по подкладке зачитывается в долг по меху (как на Главной и в Оплатах): «Долг по сырью» везде одно число.
     const liningB0 = blocks0.find((x) => x.kind === "lining"), furB0 = blocks0.find((x) => x.kind === "fur");
@@ -459,6 +460,11 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           </div>
         </div>
       </WidgetRow>
+      {servicesOutside.length > 0 && !filtersOn ? (
+        <p className="px-1 text-xs text-neutral-500" data-testid="purchases-services-note">
+          Услуги и мелочи по УПД Веллмеха ({servicesOutside.length} {servicesOutside.length === 1 ? "закупка" : "закупок"}: гребни, брелки, образцы, доп. услуги): {formatMoney(Math.round(servicesOutside.reduce((a, p) => a + p.total, 0)))}, долг {formatMoney(Math.round(servicesOutside.reduce((a, p) => a + p.rest, 0)))}. К сырью не относятся, поэтому здесь не считаются, смотрите в <Link href="/payments" className="text-blue-700 hover:underline">«Оплатах»</Link>.
+        </p>
+      ) : null}
 
       <div role="tablist" aria-label="Вид таблицы закупок" className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
         <span>Вид:</span>
