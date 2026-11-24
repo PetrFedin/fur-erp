@@ -98,4 +98,22 @@ export function startMartWorker(): void {
   const t = setInterval(tick, POLL_MS);
   t.unref?.();
   setTimeout(tick, 5_000).unref?.(); // сразу после старта подбираем задачи, оставшиеся от прошлого процесса
+  setTimeout(() => { void enqueueStaleOnStart().catch((e) => console.error("[mart] проверка свежести при старте:", e)); }, 3_000).unref?.();
+}
+
+/**
+ * После выкладки (новый код, новая схема, свежезагруженная база) витрина у организации может быть устаревшей: экраны тогда считают вживую.
+ * При старте ставим пересборку (без задержки) каждой организации, у которой витрина есть, но не свежа. Свежую не трогаем.
+ */
+export async function enqueueStaleOnStart(): Promise<number> {
+  const { martIsFresh } = await import("@/lib/mart/fresh");
+  const orgs = await db.$queryRaw<{ id: string }[]>`SELECT "id" FROM "Organization"`;
+  let n = 0;
+  for (const o of orgs) {
+    if (await martIsFresh(prisma, o.id)) continue;
+    await enqueueMartRefresh(o.id, 0);
+    n++;
+  }
+  if (n) console.log(`[mart] при старте поставлена пересборка витрины: организаций ${n}`);
+  return n;
 }

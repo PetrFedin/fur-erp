@@ -1,6 +1,7 @@
 // Очередь пересборки витрины (src/lib/mart/queue.ts) на копии базы (имя содержит «scratch»): склейка правок, again, восстановление после падения,
 // повтор при ошибке, отсутствие двойного захвата. Сама сборка подменяется заглушкой.
 process.env.MART_AUTO_REFRESH = "1";
+delete process.env.SNAPSHOTS; // проверка свежести настоящая, не «всегда устарела»
 import "./stubs/server-only-shim";
 
 if (!/scratch/.test(process.env.DATABASE_URL ?? "")) { console.error("Отказ: DATABASE_URL не похож на копию (нет «scratch»)"); process.exit(2); }
@@ -58,6 +59,18 @@ const ok = (what: string, cond: boolean, extra = "") => { checks++; console.log(
   // 6. восстановление после падения сервера: running с истёкшей блокировкой
   await prisma.dmRefreshJob.update({ where: { organizationId: org }, data: { status: "running", lockedUntil: new Date(Date.now() - 1000), attempts: 0 } });
   ok("зависшая задача возвращается в работу", (await claimDueJob()) === org);
+
+  // 7. после выкладки: устаревшей витрине ставится пересборка без задержки, свежей — нет
+  const { enqueueStaleOnStart } = await import("../src/lib/mart/queue");
+  await prisma.dmRefreshJob.deleteMany({ where: { organizationId: org } });
+  await prisma.$executeRaw`UPDATE "SystemState" SET value = to_jsonb(${Date.now() + 3_600_000}::bigint) WHERE "organizationId" = ${org} AND key = 'data-version'`;
+  const stale = await enqueueStaleOnStart();
+  const sj = await prisma.dmRefreshJob.findUnique({ where: { organizationId: org } });
+  ok("устаревшая витрина: при старте поставлена пересборка", stale >= 1 && sj?.status === "pending" && sj.runAt.getTime() <= Date.now() + 1000);
+  await prisma.dmRefreshJob.deleteMany({ where: { organizationId: org } });
+  await prisma.$executeRaw`UPDATE "SystemState" SET value = to_jsonb(0::bigint) WHERE "organizationId" = ${org} AND key = 'data-version'`;
+  const fresh = await enqueueStaleOnStart();
+  ok("свежая витрина: при старте ничего не ставится", fresh === 0 && (await prisma.dmRefreshJob.count({ where: { organizationId: org } })) === 0);
 
   await prisma.dmRefreshJob.deleteMany({ where: { organizationId: org } });
   console.log(fails ? `\nПровалов: ${fails} из ${checks}` : `\nВсё в порядке (${checks} проверок)`);
