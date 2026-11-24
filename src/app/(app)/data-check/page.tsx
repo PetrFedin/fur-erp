@@ -65,12 +65,20 @@ export default async function DataCheckPage({ searchParams }: PageProps<"/data-c
   const orgId = session.user.organizationId;
   const sp = await searchParams;
   const msg = typeof sp.msg === "string" ? MSG[sp.msg] : undefined;
-  const [state, expected, checkRows, loads] = await Promise.all([
+  const [state, expected, checkRows, loads, job] = await Promise.all([
     martFreshForReport(orgId),
     loadMartExpected(prisma, orgId),
     prisma.dmCheck.findMany({ where: { organizationId: orgId }, orderBy: { builtAt: "desc" } }),
     prisma.dmLoad.findMany({ where: { organizationId: orgId }, orderBy: { loadedAt: "desc" } }),
+    prisma.dmRefreshJob.findUnique({ where: { organizationId: orgId } }),
   ]);
+  // Очередь пересборки (src/lib/mart/queue.ts): когда ждать, идёт ли сейчас, не упала ли.
+  const queueText = !job ? "задач нет"
+    : job.status === "running" ? "идёт пересборка"
+    : job.status === "pending" ? `ждёт запуска: ${fmtAt(job.runAt)}${job.attempts > 0 ? ` · повтор ${job.attempts} из 5` : ""}`
+    : job.status === "failed" ? "остановлена после 5 неудачных попыток"
+    : `выполнена ${fmtAt(job.lastFinishedAt)}`;
+  const queueBad = job?.status === "failed" || (job?.attempts ?? 0) > 0;
   const builtAt = checkRows[0]?.builtAt ?? null;
   const checks = checkRows.filter((r) => builtAt && r.builtAt.getTime() === builtAt.getTime()).sort((a, b) => (STATUS[a.status]?.order ?? 9) - (STATUS[b.status]?.order ?? 9));
   const counts = { fail: 0, warn: 0, info: 0, ok: 0 } as Record<string, number>;
@@ -99,6 +107,7 @@ export default async function DataCheckPage({ searchParams }: PageProps<"/data-c
         <div className="flex flex-wrap gap-x-6 gap-y-1">
           <span>Собрана: <b>{fmtAt(builtAt)}</b> (мск)</span>
           <span>Состояние: <b>{stateText}</b></span>
+          <span>Очередь: <b className={queueBad ? "text-amber-700" : undefined}>{queueText}</b>{job?.lastError && queueBad ? <span className="text-amber-700"> — {job.lastError}</span> : null}</span>
           <span>Эталон: <b>{expected.fromData ? `утверждён ${expected.approvedAt ? fmtAt(new Date(expected.approvedAt)) : ""}${expected.approvedBy ? `, ${expected.approvedBy}` : ""}` : "по умолчанию (сезонные блоки отчёта)"}</b></span>
         </div>
         <div className="mt-2 flex flex-wrap gap-2 text-xs">
