@@ -24,11 +24,14 @@ async function orgHasMart(orgId: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-/** Поставить пересборку: через delayMs после последней записи (0 — как можно скорее). Витрины нет (демо, чистая база) — ничего не ставится. */
-export async function enqueueMartRefresh(orgId: string, delayMs: number = DELAY_MS): Promise<void> {
-  if (process.env.MART_AUTO_REFRESH === "0") return;
+/**
+ * Поставить пересборку: через delayMs после последней записи (0 — как можно скорее). Витрины нет (чистая база) — ничего не ставится,
+ * кроме force (старт после выкладки: демо-база приходит без витрины, её собираем из уже обезличенных данных). true — задача поставлена.
+ */
+export async function enqueueMartRefresh(orgId: string, delayMs: number = DELAY_MS, force = false): Promise<boolean> {
+  if (process.env.MART_AUTO_REFRESH === "0") return false;
   try {
-    if (!(await orgHasMart(orgId))) return;
+    if (!force && !(await orgHasMart(orgId))) return false;
     const runAt = new Date(Date.now() + delayMs);
     await db.$executeRaw`
       INSERT INTO "DmRefreshJob" ("id", "organizationId", "status", "runAt", "again", "attempts", "requestedAt")
@@ -39,8 +42,10 @@ export async function enqueueMartRefresh(orgId: string, delayMs: number = DELAY_
         "runAt" = ${runAt},
         "attempts" = CASE WHEN "DmRefreshJob"."status" = 'running' THEN "DmRefreshJob"."attempts" ELSE 0 END,
         "requestedAt" = now()`;
+    return true;
   } catch (e) {
     console.error("[mart] не удалось поставить пересборку в очередь:", e); // постановка не должна ломать сохранение данных
+    return false;
   }
 }
 
@@ -103,7 +108,8 @@ export function startMartWorker(): void {
 
 /**
  * После выкладки (новый код, новая схема, свежезагруженная база) витрина у организации может быть устаревшей: экраны тогда считают вживую.
- * При старте ставим пересборку (без задержки) каждой организации, у которой витрина есть, но не свежа. Свежую не трогаем.
+ * При старте ставим пересборку (без задержки) каждой организации, у которой витрина устарела или её нет, но есть лоты (демо-база
+ * приходит без витрины). Свежую витрину и пустые организации не трогаем.
  */
 export async function enqueueStaleOnStart(): Promise<number> {
   const { martIsFresh } = await import("@/lib/mart/fresh");
@@ -111,8 +117,9 @@ export async function enqueueStaleOnStart(): Promise<number> {
   let n = 0;
   for (const o of orgs) {
     if (await martIsFresh(prisma, o.id)) continue;
-    await enqueueMartRefresh(o.id, 0);
-    n++;
+    const hasLots = (await db.$queryRaw<{ one: number }[]>`SELECT 1 AS one FROM "RawMaterialLot" WHERE "organizationId" = ${o.id} LIMIT 1`).length > 0;
+    if (!hasLots) continue;
+    if (await enqueueMartRefresh(o.id, 0, true)) n++;
   }
   if (n) console.log(`[mart] при старте поставлена пересборка витрины: организаций ${n}`);
   return n;

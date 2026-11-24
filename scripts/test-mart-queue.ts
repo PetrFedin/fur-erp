@@ -72,6 +72,13 @@ const ok = (what: string, cond: boolean, extra = "") => { checks++; console.log(
   const fresh = await enqueueStaleOnStart();
   ok("свежая витрина: при старте ничего не ставится", fresh === 0 && (await prisma.dmRefreshJob.count({ where: { organizationId: org } })) === 0);
 
+  // 8. витрины нет вовсе (демо-база после выкладки), лоты есть — при старте пересборка ставится
+  await prisma.$executeRaw`DELETE FROM "DmLot" WHERE "organizationId" = ${org}`;
+  await prisma.$executeRaw`DELETE FROM "DmSku" WHERE "organizationId" = ${org}`;
+  const none = await enqueueStaleOnStart();
+  ok("витрины нет: при старте поставлена пересборка", none >= 1 && (await prisma.dmRefreshJob.findUnique({ where: { organizationId: org } }))?.status === "pending");
+  ok("обычная правка без витрины задачу не ставит", (await prisma.dmRefreshJob.deleteMany({ where: { organizationId: org } })) && (await enqueueMartRefresh(org, 0)) === false);
+
   await prisma.dmRefreshJob.deleteMany({ where: { organizationId: org } });
   console.log(fails ? `\nПровалов: ${fails} из ${checks}` : `\nВсё в порядке (${checks} проверок)`);
   await prisma.$disconnect();
