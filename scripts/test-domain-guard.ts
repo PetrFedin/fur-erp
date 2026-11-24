@@ -28,8 +28,8 @@ const ALLOWED: Record<string, number> = {
   "src/app/(app)/payments/payment-lines.tsx": 1,
   "src/app/(app)/payments/payments-overview.tsx": 2,
   "src/app/(app)/payments/wizard-actions.ts": 3,
-  "src/app/(app)/purchases/[id]/page.tsx": 3,
-  "src/app/(app)/purchases/actions.ts": 4,
+  "src/app/(app)/purchases/[id]/fallback-tiles.tsx": 3, // вынесено из page.tsx
+  "src/app/(app)/purchases/_actions/payments.ts": 4, // вынесено из actions.ts
   "src/app/(app)/purchases/page.tsx": 4,
   "src/app/(app)/purchases/purchases-tree.tsx": 8,
   "src/components/fur-selection-total.tsx": 2,

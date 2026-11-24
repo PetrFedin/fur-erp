@@ -57,6 +57,7 @@ const LEGACY = new Set<string>([
   "src/app/(app)/production/new/page.tsx",
   "src/app/(app)/production/page.tsx",
   "src/app/(app)/purchases/[id]/page.tsx",
+  "src/app/(app)/purchases/[id]/fallback-tiles.tsx", // вынесено из page.tsx (запасные плитки, пока витрина устарела)
   "src/app/(app)/purchases/batch/page.tsx",
   "src/app/(app)/purchases/lining/new/page.tsx",
   "src/app/(app)/purchases/new/page.tsx",
@@ -111,7 +112,7 @@ function walk(p: string, out: string[] = []): string[] {
   return out;
 }
 
-const isActionOrRoute = (f: string, s: string) => /actions?\.tsx?$|-actions\.tsx?$|route\.ts$/.test(f) || /^["']use server["']/.test(s.trimStart());
+const isActionOrRoute = (f: string, s: string) => /actions?\.tsx?$|-actions\.tsx?$|route\.ts$|\/_actions\//.test(f) || /^["']use server["']/.test(s.trimStart());
 let bad = 0, still = 0;
 for (const f of [...walk("src/app"), ...walk("src/components")].filter((x) => /\.(ts|tsx)$/.test(x))) {
   const s = readFileSync(f, "utf8");

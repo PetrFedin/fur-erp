@@ -16,7 +16,8 @@ const ALLOWED: Record<string, number> = {
   "src/app/(app)/purchases/lining/new/page.tsx": 1, // список тканей для формы
   "src/app/(app)/purchases/page.tsx": 1, // размеры лотов для фильтра
   "src/app/(app)/purchases/new/page.tsx": 1, // лоты для формы
-  "src/app/(app)/purchases/[id]/page.tsx": 3, // карточка закупки: лоты, списания, остатки
+  "src/app/(app)/purchases/[id]/page.tsx": 2, // карточка закупки: лоты, списания
+  "src/app/(app)/purchases/[id]/fallback-tiles.tsx": 1, // вынесено из page.tsx: остатки лотов, пока витрина устарела
   "src/app/(app)/analytics/raw/lot/[id]/plan-lot-card.tsx": 1,
   "src/app/(app)/analytics/raw/lot/[id]/page.tsx": 3, // карточка лота
 };
@@ -25,7 +26,7 @@ function walk(dir: string, out: string[] = []): string[] {
   for (const n of readdirSync(dir)) {
     const p = join(dir, n);
     if (statSync(p).isDirectory()) walk(p, out);
-    else if (/\.(ts|tsx)$/.test(n) && !/(^|\/)(actions|[a-z-]+-actions)\.ts$/.test(n)) out.push(p);
+    else if (/\.(ts|tsx)$/.test(n) && !/(^|\/)(actions|[a-z-]+-actions)\.ts$/.test(n) && !/\/_actions\//.test(p)) out.push(p); // _actions/ — действия, разнесённые по сценариям
   }
   return out;
 }

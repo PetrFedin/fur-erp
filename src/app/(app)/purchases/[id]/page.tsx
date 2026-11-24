@@ -1,57 +1,44 @@
-import { RawStagesBlock, RawNow } from "@/components/raw-stages";
 import { auctionSummariesView } from "@/lib/mart/auctions";
 import { SortTh } from "@/components/sort-th";
 import { readSort, sortRows } from "@/lib/table-sort";
-import { StatementBlock } from "@/components/auction-statement";
-import { buildStatement } from "@/lib/auction-statement";
-import { calcAll, ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
+import { ensureRowIds, type CalcPayload } from "@/lib/supplier-calc";
 import { ChatLink } from "@/components/chat-link";
-import { TotalLabel } from "@/components/total-label";
 
 import { WidgetRow } from "@/components/widget-row";
 import { IntegrityBanner } from "@/components/integrity-banner";
 import Link from "next/link";
-import { cleanNote } from "@/lib/note-tags";
+
 import { InfoHint } from "@/components/info-hint";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile";
+
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatCurrency, formatDate, formatMoney, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint, formatRate, formatNum, formatDec1 } from "@/lib/utils";
+import { formatDate, formatMoney, formatRate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { LevelSummaryFromTotals } from "@/components/level-tiles";
 import { loadLevelTotals } from "@/lib/mart/level-totals";
-import { withExtra } from "@/lib/commission4-pick";
-import { lotUnitCostExclVat } from "@/lib/purchase-totals";
-import { usageExclVat } from "@/lib/commission4";
-import { COMMISSION_RATE } from "@/lib/commission4-const";
+
 import { purchaseTotalInclVat, purchaseTotalExclVat, expenseInclVat } from "@/lib/purchase-totals";
-import { Money } from "@/components/money";
-import { VatLabel } from "@/components/vat-label";
-import { vatPeriodLabel, vatRateForDate } from "@/lib/vat-by-date";
-import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
+
+import { ResponsiveRows } from "@/components/responsive-rows";
 import { CreateDialog } from "@/components/create-dialog";
 import { PurchaseItemForm } from "./item-form";
 import { BulkItemForm } from "./bulk-item-form";
-import { PurchaseExpenseForm } from "./expense-form";
+
 import { PaymentFormButton } from "@/components/payment-form";
 import { PurchaseActions } from "./purchase-actions";
 import { purchaseCancelBlocker } from "@/lib/purchase-cancel";
 import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
-import { ItemRowShared, PurchaseItemRow } from "./item-row";
+import { ItemRowShared } from "./item-row";
 import { OpenOnHash } from "./open-on-hash";
-import { PurchaseDocumentsList, buildDocGroups } from "./documents-block";
-import { toDriveView } from "@/lib/drive-docs-server";
+
 import { getFurIndex } from "@/lib/fur-ref-server";
-import { canonicalFur } from "@/lib/fur-ref";
-import { countLabel } from "@/lib/drive-docs-group";
-import { CostPlanItemEditor, CostPlanRateForm } from "./cost-plan-editor";
-import { deriveCostPlanInputs } from "@/lib/cost-plan";
-import { CUSTOM_FIELD_ENTITY, formatExtra, readExtra } from "@/lib/custom-fields";
+
+import { CUSTOM_FIELD_ENTITY } from "@/lib/custom-fields";
 import { ACCESS, hasRole } from "@/lib/access";
 import { findAuctionIn, auctionKeys } from "@/lib/auction-ref-core";
 import { auctionKey } from "@/lib/auction-key";
@@ -60,32 +47,22 @@ import { purchasePaidShare } from "@/lib/auction-payments";
 import { AuctionDocsPay } from "../../lots/auction-docs-pay";
 import { SourceDocs } from "@/components/source-docs";
 import { loadPurchaseSourceDocs } from "@/lib/source-docs-server";
-import { ConfirmSubmitButton } from "./documents-form";
-import { rowVersion, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_EDIT_V } from "@/lib/concurrency";
-import { ExpenseEditButton, PaymentEditButton } from "./edit-buttons";
-import { PlanExpenses } from "./plan-expenses";
+
+import { rowVersion, PURCHASE_V, PAYMENT_EDIT_V } from "@/lib/concurrency";
+import { PaymentEditButton } from "./edit-buttons";
+
 import { PaymentDeleteButton } from "./payment-delete-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { ruGradeLabel } from "@/lib/fur-ref";
-import { removePurchaseItem, removePurchaseExpense, removePurchasePayment, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
-const METHOD_LABELS: Record<string, string> = {
-  BANK_TRANSFER: "Банк. перевод",
-  CASH: "Наличные",
-  CARD: "Карта",
-  OTHER: "Другое",
-};
+import { removePurchasePayment, updatePurchase, type OrderRef } from "../actions";
+
+import { renderPurchaseItemRow, type ItemRowCtx } from "./item-row-render";
+import { CostCompositionCard } from "./cost-composition";
+import { PurchaseExpensesCard } from "./expenses-card";
+import { PurchaseFallbackTiles } from "./fallback-tiles";
 
 /** Cap for the always-expanded item list; bigger purchases start collapsed. */
 const EXPANDED_ITEMS_LIMIT = 25;
-
-const UNIT_LABELS: Record<string, string> = {
-  PIECE: "шт.",
-  KG: "кг",
-  M2: "м²",
-  M: "м",
-  SET: "компл.",
-};
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -128,45 +105,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
   // Документы партии (спецификация, расчётный лист, счёт на аванс) лежат на
   // аукционе целиком: показываем их на каждой закупке с тем же auctionSession.
   const batchName = purchase.auctionSession?.split(/\r?\n/)[0].trim() || null;
-  const batchDocs = batchName
-    ? await prisma.purchaseDocument.findMany({
-        where: { organizationId: session.user.organizationId, purchaseId: null, batch: batchName },
-        orderBy: { createdAt: "asc" },
-      })
-    : [];
   const planItems = purchase.items.filter((i) => i.costPlan != null);
-  // Где сырьё — этапы, которые вносит Веллмех (у нас только чтение).
-  const rawStages = await prisma.supplierRawStage.findMany({
-    where: { organizationId: session.user.organizationId, purchaseId: purchase.id },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, stage: true, status: true, place: true, lotNumber: true, qty: true, note: true, plannedStart: true, plannedEnd: true, factStart: true, factEnd: true, updatedAt: true },
-  });
-
-  // Документы Google Drive: закупки, её лотов и оплат.
-  const driveLotIds = purchase.items.map((i) => i.lotId).filter((x): x is string => !!x);
-  const driveRows = await prisma.driveDocument.findMany({
-    where: {
-      organizationId: session.user.organizationId,
-      OR: [
-        { purchaseId: purchase.id },
-        ...(driveLotIds.length ? [{ lotId: { in: driveLotIds } }] : []),
-        ...(purchase.payments.length ? [{ paymentId: { in: purchase.payments.map((p) => p.id) } }] : []),
-      ],
-    },
-    include: { lot: { select: { lotNumber: true } } },
-    orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
-  });
-  const driveDocs = driveRows.map((d) =>
-    toDriveView(d, d.lotId ? `лот ${d.lot?.lotNumber ?? "без номера"}` : d.paymentId ? "оплата" : null, session.user.role),
-  );
-
-  const docFiles = [
-    ...purchase.documents.map((d) => ({ ...d, batch: false })),
-    ...batchDocs.map((d) => ({ ...d, batch: true })),
-  ];
-  const docDrives = driveRows.map((d, i) => ({ view: driveDocs[i], fileId: d.driveFileId, createdAt: d.createdAt }));
-  const docRecords = docFiles.length + docDrives.length;
-  const docGroupCount = buildDocGroups(docFiles, docDrives).length;
 
   const statusEditable = purchase.status !== "RECEIVED" && purchase.status !== "CANCELLED";
   // Роль из сессии: формы и кнопки правок видят только OWNER/ADMIN/PURCHASER (сервер всё равно отказывает остальным).
@@ -247,18 +186,6 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
         defaults={{ amount: p.amount.toString(), paidAt: p.paidAt.toISOString().slice(0, 10), method: p.method, status: p.status === "PENDING" ? "PENDING" : "COMPLETED", docRef: p.docRef ?? "", notes: p.notes ?? "" }}
       />
     ) : null;
-  const expenseEdit = (e: (typeof purchase.expenses)[number]) =>
-    editable ? (
-      <ExpenseEditButton
-        purchaseId={id}
-        expenseId={e.id}
-        version={rowVersion(e, PURCHASE_EXPENSE_V)}
-        categories={expenseCategories.map((c) => ({ id: c.id, name: c.name }))}
-        defaults={{ categoryId: e.categoryId, amount: e.amount.toString(), vatRate: e.vatRate.toString(), description: e.description ?? "" }}
-      />
-    ) : null;
-
-  const grossUp = (base: Decimal, vatRate: Decimal) => base.add(base.mul(vatRate).div(100));
 
   const isForeignCurrency = purchase.currency !== "RUB";
   const itemsTotal = purchase.items.reduce((s, i) => s.add(i.subtotal), new Decimal(0));
@@ -289,9 +216,6 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
   const vatRatesText = [...new Set(purchase.items.map((i) => i.vatRate.toString()))].join(" / ");
 
   const boundUpdatePurchase = updatePurchase.bind(null, id);
-  const boundRemoveItem = removePurchaseItem.bind(null, id);
-  const boundUpdateItem = updatePurchaseItem.bind(null, id);
-  const boundRemoveExpense = removePurchaseExpense.bind(null, id);
   // Item rows can be edited even after receipt (cosmetic fields always; qty/
   // price/VAT only while the resulting lot hasn't been consumed yet) — see
   // updatePurchaseItem. Only a cancelled purchase locks items down entirely.
@@ -329,347 +253,12 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
     ordersByLot.set(u.lotId, list);
   }
 
-
-  const itemRow = (item: (typeof purchase.items)[number], variant: "row" | "card") => {
-                  const furKind = canonicalFur(item.rawMaterial.name, furIdx)?.name ?? null;
-                  const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
-                  const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
-                  const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
-                  // Позиция с расчётом из расчётного листа: цена/кол-во/НДС не правятся никогда.
-                  const itemPlan = item.costPlan != null;
-                  const canEditFinancials = canEditRole && !itemPlan && (editable || (!!item.lot && !consumed));
-                  const orders = item.lot ? ordersByLot.get(item.lot.id) : undefined;
-                  const planInfo = itemPlan
-                    ? (() => {
-                        const plan = item.costPlan as unknown as {
-                          manualEditedAt?: string;
-                          unitCostInclVat: string;
-                          materialExclVat: string;
-                          expenseExclVat: string;
-                          costBreakdown: never;
-                        };
-                        return {
-                          plan,
-                          excl: new Decimal(plan.materialExclVat).add(plan.expenseExclVat),
-                          total: new Decimal(plan.unitCostInclVat).mul(item.quantity),
-                        };
-                      })()
-                    : null;
-                  const lotName = item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера";
-                  const unitNode = planInfo ? (
-                    <Money key="unit" incl={planInfo.plan.unitCostInclVat} excl={planInfo.excl.toString()} />
-                  ) : null;
-                  const totalNode = planInfo ? (
-                    <Money key="total" incl={planInfo.total.toString()} excl={planInfo.excl.mul(item.quantity).toString()} />
-                  ) : (
-                    <Money key="total" incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
-                  );
-                  const card = {
-                    title: item.rawMaterial.name,
-                    subtitle: [item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера", [ruGradeLabel(item.grade), item.color].filter(Boolean).join(" / ")].filter(Boolean).join(" · "),
-                    fields: [
-                      { label: "Кол-во", value: `${formatQty(item.quantity.toString())} ${UNIT_LABELS[item.rawMaterial.unit]}` },
-                      { label: hasPlan ? `Цена лота, ${currencySym}` : "Цена без НДС", value: formatCurrency(item.unitPrice.toString(), purchase.currency) },
-                      { label: "НДС", value: `${item.vatRate.toString()} % · ${vatPeriodLabel(purchase.orderDate)}` },
-                      ...(hasPlan ? [{ label: <VatLabel key="unit-label" base="Себестоимость ед." />, value: unitNode ?? "–" }] : []),
-                      { label: <VatLabel key="total-label" base={hasPlan ? "Всего, ₽" : `Сумма${isForeignCurrency ? ", RUB" : ""}`} />, value: totalNode, strong: true },
-                    ],
-                    details: customFields.map((f) => ({ label: f.name, value: formatExtra(f.type, readExtra(item.extra)[f.id]) || "–" })),
-                    // То же, что в ячейках десктопной строки: пометка о ручной правке, «Править расчёт».
-                    extra: planInfo ? (
-                      <div key="extra" className="flex flex-col items-start gap-1.5">
-                        {planInfo.plan.manualEditedAt && !Number.isNaN(Date.parse(planInfo.plan.manualEditedAt)) && (
-                          <div className="text-xs text-amber-700">
-                            изменён вручную {formatDate(new Date(planInfo.plan.manualEditedAt))}
-                          </div>
-                        )}
-                        {canEditPlan && (
-                          <CostPlanItemEditor
-                            purchaseId={id}
-                            currencySymbol={currencySym}
-                            item={{
-                              id: item.id,
-                              lotNumber: item.lotNumber,
-                              ...deriveCostPlanInputs(item.costPlan, {
-                                quantity: Number(item.quantity.toString()),
-                                price: Number(item.unitPrice.toString()),
-                                rate: Number(purchase.exchangeRate.toString()),
-                                vat: Number(item.vatRate.toString()),
-                              }),
-                            }}
-                          />
-                        )}
-                      </div>
-                    ) : undefined,
-                  };
-                  return (
-                    <PurchaseItemRow
-                      key={item.id}
-                      variant={variant}
-                      card={variant === "card" ? card : undefined}
-                      colSpan={itemColSpan}
-                      removeAction={
-                        editable
-                          ? async () => {
-                              "use server";
-                              await boundRemoveItem(item.id);
-                            }
-                          : undefined
-                      }
-                      updateAction={itemsMutable ? boundUpdateItem.bind(null, item.id) : undefined}
-                      canEditFinancials={canEditFinancials}
-                      lockedNote={
-                        itemPlan
-                          ? "Цена и количество взяты из расчётного листа — меняйте их кнопкой «Править расчёт» в строке позиции. Здесь доступны только лот, сорт и цвет."
-                          : item.lot && consumed
-                          ? orders && orders.length > 0
-                            ? `${lotName} уже списан в ТЗ (${orders
-                                .map((o) => `${o.number}: ${formatQty(o.quantity)} ${UNIT_LABELS[item.rawMaterial.unit]}`)
-                                .join(", ")}). Сначала удалите там списание. Доступны только лот, сорт и цвет:`
-                            : `${lotName} уже частично израсходован (${formatDec1(item.lot.quantityReceived.sub(item.lot.quantityRemaining).toString())} ${UNIT_LABELS[item.rawMaterial.unit]}) — доступны только лот, сорт и цвет`
-                          : undefined
-                      }
-                      lockedOrders={orders}
-                      canEditMaterial={editable}
-                      defaults={{
-                        rawMaterialId: item.rawMaterialId,
-                        rawMaterialName: item.rawMaterial.name,
-                        quantity: item.quantity.toString(),
-                        unitPrice: item.unitPrice.toString(),
-                        vatRate: item.vatRate.toString(),
-                        lotNumber: item.lotNumber ?? "",
-                        grade: item.grade ?? "",
-                        color: item.color ?? "",
-                        colorRefId: item.colorRefId ?? "",
-                        lotId: item.lotId ?? undefined,
-                        version: rowVersion(item, PURCHASE_ITEM_V),
-                      }}
-                    >
-                      <Td>{furKind ? <Link href={`/lots/fur/${encodeURIComponent(furKind)}`} className="text-blue-700 hover:underline" title="Вид меха: все лоты и аукционы">{item.rawMaterial.name}</Link> : item.rawMaterial.name}</Td>
-                      <Td>{item.lotId && item.lotNumber ? <Link href={`/analytics/raw/lot/${item.lotId}`} className="text-blue-700 hover:underline" title="Карточка лота: куплено, использовано, остаток, ТЗ">{item.lotNumber}</Link> : (item.lotNumber ?? "–")}</Td>
-                      {showGradeColor && <Td>{[ruGradeLabel(item.grade), item.color].filter(Boolean).join(" / ") || "–"}</Td>}
-                      <Td>
-                        {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
-                      </Td>
-                      <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
-                      <Td>
-                        {item.vatRate.toString()} %
-                        <span className={`block text-[11px] ${Number(item.vatRate) === vatRateForDate(purchase.orderDate) ? "text-neutral-600" : "text-amber-700"}`} title={Number(item.vatRate) === vatRateForDate(purchase.orderDate) ? undefined : `По дате закупки ${formatDate(purchase.orderDate)} должна быть ${vatRateForDate(purchase.orderDate)} %`}>{vatPeriodLabel(purchase.orderDate)}</span>
-                      </Td>
-                      {planInfo ? (
-                        <>
-                          <Td className="whitespace-nowrap">
-                            <Money incl={planInfo.plan.unitCostInclVat} excl={planInfo.excl.toString()} />
-                            {planInfo.plan.manualEditedAt && !Number.isNaN(Date.parse(planInfo.plan.manualEditedAt)) && (
-                              <div className="text-xs font-normal text-amber-700">
-                                изменён вручную {formatDate(new Date(planInfo.plan.manualEditedAt))}
-                              </div>
-                            )}
-                          </Td>
-                          <Td className="whitespace-nowrap">
-                            <Money incl={planInfo.total.toString()} excl={planInfo.excl.mul(item.quantity).toString()} />
-                            {canEditPlan && (
-                              <div className="mt-1">
-                                <CostPlanItemEditor
-                                  purchaseId={id}
-                                  currencySymbol={currencySym}
-                                  item={{
-                                    id: item.id,
-                                    lotNumber: item.lotNumber,
-                                    ...deriveCostPlanInputs(item.costPlan, {
-                                      quantity: Number(item.quantity.toString()),
-                                      price: Number(item.unitPrice.toString()),
-                                      rate: Number(purchase.exchangeRate.toString()),
-                                      vat: Number(item.vatRate.toString()),
-                                    }),
-                                  }}
-                                />
-                              </div>
-                            )}
-                          </Td>
-                        </>
-                      ) : hasPlan ? (
-                        <>
-                          <Td className="text-neutral-500">–</Td>
-                          <Td className="whitespace-nowrap">
-                            <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
-                          </Td>
-                        </>
-                      ) : (
-                        <Td>
-                          <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
-                          {isForeignCurrency && (
-                            <span className="ml-1 text-xs text-neutral-500">
-                              ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
-                            </span>
-                          )}
-                        </Td>
-                      )}
-                      {customFields.map((f) => (
-                        <Td key={f.id}>{formatExtra(f.type, readExtra(item.extra)[f.id]) || "–"}</Td>
-                      ))}
-                    </PurchaseItemRow>
-                  );
-  };
-
-  // «Как считается» — расчёт себестоимости внутри блока «Из чего сложилась цена единицы» (свёрнуто).
-  const calcHow = planItems.length > 0 ? (
-    <details className="rounded-md border border-neutral-200">
-      <summary className="cursor-pointer px-2 py-1.5 text-sm text-neutral-700">Как считается <span className="text-xs text-neutral-500">· {planItems.length} поз. · справочно</span></summary>
-      <div className="border-t border-neutral-100 p-2">
-          <div className="flex flex-col gap-2">
-            <InfoHint label="О расчёте себестоимости" wide>
-                Себестоимость единицы в таблице позиций — предварительный расчёт из расчётного листа. При приёме на склад она
-                переходит в лот, а расходы закупки (блок «Расходы») добавляются сверху пропорционально стоимости лотов. 4 % сюда не входит: оно добавляется только при списании в ТЗ.
-              </InfoHint>
-            
-            <div className="flex items-center gap-1 text-xs text-neutral-600">
-              {statusEditable ? "Править: «Править расчёт» в строке позиции" : "Расчёт закрыт для правок"}
-              <InfoHint wide label="Кто и как правит расчёт">
-                <p>
-              {statusEditable ? (
-                canEditRole ? (
-                  <>Цена, количество и расходы лота правятся кнопкой «Править расчёт» в строке позиции.</>
-                ) : (
-                  <>Расчёт могут менять только владелец, администратор и закупщик.</>
-                )
-              ) : (
-                <>
-                  Закупка уже {purchase.status === "RECEIVED" ? "принята на склад" : "закрыта"} — расчёт менять нельзя;
-                  обратитесь к администратору.
-                  {batchName && canEditRole && (
-                    <>
-                      {" "}
-                      Документы можно заменить или переименовать в режиме «Аукцион»:{" "}
-                      <Link href={`/lots?auction=${encodeURIComponent(batchName)}`} className="underline">
-                        открыть аукцион {batchName}
-                      </Link>
-                      .
-                    </>
-                  )}
-                </>
-              )}
-                </p>
-              </InfoHint>
-            </div>
-            {canEditPlan && (
-              <CostPlanRateForm
-                key={purchase.exchangeRate.toString()}
-                purchaseId={id}
-                currency={purchase.currency}
-                exchangeRate={purchase.exchangeRate.toString()}
-                orderDate={purchase.orderDate.toISOString().slice(0, 10)}
-              />
-            )}
-          </div>
-      </div>
-    </details>
-  ) : null;
-
-  const statementEl = (() => {
-        if (!calcPayload || !calcRow) return null;
-        const inv = (purchase.invoiceNumber ?? "").trim();
-        const st = buildStatement(calcPayload, calcAll(calcPayload), inv ? (r) => (r.invoice ?? "").trim() === inv : undefined);
-        if (st.lots.length === 0) return null;
-        return (
-          <StatementBlock
-            bare
-            st={st}
-            source=""
-            action={<span className="flex flex-wrap items-center gap-3 text-sm"><Link href={`/supplier/auction-calcs/${calcRow.id}`} className="inline-flex min-h-11 items-center text-blue-700 underline md:min-h-0">Открыть расчёт</Link>{editable && <a href="#items" className="inline-flex min-h-11 items-center text-blue-700 underline md:min-h-0">Править расчёт лотов</a>}</span>}
-          />
-        );
-      })();
-  const perLotEl = (() => {
-        // Как образовалась цена единицы: расчётный лист лота (цена, курс, сборы, выделка, перевозка, комиссия, НДС) и итог в рублях.
-        type BItem = { label: string; value: number };
-        const breakdownOf = (item: (typeof purchase.items)[number]): BItem[] => {
-          const raw = (item.lot?.costBreakdown ?? (item.costPlan as { costBreakdown?: unknown } | null)?.costBreakdown) as { items?: BItem[] } | null | undefined;
-          return Array.isArray(raw?.items) ? raw!.items! : [];
-        };
-        const rows = purchase.items
-          .map((item) => {
-            const plan = item.costPlan as { unitCostInclVat?: string } | null;
-            const unit = item.lot ? item.lot.unitCost : plan?.unitCostInclVat != null ? new Decimal(plan.unitCostInclVat) : null;
-            return { item, unit, qty: item.lot ? item.lot.quantityReceived : item.quantity, items: breakdownOf(item) };
-          })
-          .filter((r) => r.unit != null);
-        if (rows.length === 0) return calcHow;
-        const num = (v: number) => formatNum(v, 1);
-        const totalAll = rows.reduce((a, r) => a.add(r.unit!.mul(r.qty)), new Decimal(0));
-        return (
-          <div className="flex flex-col gap-1">
-              <h3 className="text-sm font-semibold">По лотам: из чего сложилась цена единицы</h3>
-              <div className="hidden grid-cols-[1fr_6rem_9rem_9rem] gap-2 px-2 pb-1 text-xs text-neutral-500 sm:grid">
-                <span>Лот</span><span className="text-right">Кол-во</span><span className="text-right">Цена за ед., ₽ с НДС</span><span className="text-right">Всего, ₽</span>
-              </div>
-              {rows.map(({ item, unit, qty, items }) => (
-                <details key={item.id} id={`item-${item.id}`} className="scroll-mt-4 rounded-md border border-neutral-200">
-                  <summary className="grid cursor-pointer grid-cols-2 gap-x-2 gap-y-0.5 px-2 py-1.5 text-sm sm:grid-cols-[1fr_6rem_9rem_9rem]">
-                    <span className="col-span-2 sm:col-span-1">
-                      <span className="font-medium">{item.rawMaterial.name}</span>{" "}
-                      <span className="ml-1 text-xs text-neutral-500">{item.lotNumber ? `лот ${item.lotNumber}` : "лот без номера"}</span>
-                    </span>
-                    <span className="text-right tabular-nums">{formatQty(qty.toString())} {UNIT_LABELS[item.rawMaterial.unit] ?? ""}</span>
-                    <span className="text-right font-medium tabular-nums">{formatMoney(unit!.toFixed(2))}</span>
-                    <span className="col-span-2 text-right tabular-nums sm:col-span-1">{formatMoney(unit!.mul(qty).toFixed(2))}</span>
-                  </summary>
-                  <div className="border-t border-neutral-100 px-2 py-2 text-sm">
-                    {items.length === 0 ? (
-                      <p className="text-neutral-500">Расчётного листа по лоту нет: цена внесена как есть — {formatMoney(item.unitPrice.toFixed(2))} за ед. без НДС, НДС {item.vatRate.toString()} %.</p>
-                    ) : (
-                      <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-0.5 sm:max-w-xl">
-                        {items.map((b, i) => (
-                          <div key={i} className="contents">
-                            <dt className="text-neutral-600">{b.label}</dt>
-                            <dd className="text-right tabular-nums">{num(b.value)}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    )}
-                  </div>
-                </details>
-              ))}
-              <div className="row-total mt-1 flex justify-between px-2 py-2 text-sm">
-                <span><TotalLabel extra="по лотам" /></span>
-                <span className="tabular-nums">{formatMoney(totalAll.toFixed(2))}</span>
-              </div>
-              {calcHow}
-          </div>
-        );
-      })();
+  const itemCtx: ItemRowCtx = { id, purchase, furIdx, canEditRole, editable, canEditPlan, itemsMutable, hasPlan, showGradeColor, isForeignCurrency, currencySym, itemColSpan, customFields, ordersByLot };
+  const itemRow = (item: (typeof purchase.items)[number], variant: "row" | "card") => renderPurchaseItemRow(itemCtx, item, variant);
 
   // Использовано и остаток склада по лотам закупки (те же правила, что в итогах аукциона): режимы НДС и 4 % — как в шапке.
   const c4Mode = await getCommission4Mode();
   const martLvl = purchase.items.some((i) => i.lotId) ? await loadLevelTotals(session.user.organizationId, { purchaseId: id }) : null;
-  const lotIdsOfPurchase = Array.from(new Set(purchase.items.map((i) => i.lotId).filter((x): x is string => !!x)));
-  const lotRows = lotIdsOfPurchase.length
-    ? await prisma.rawMaterialLot.findMany({
-        where: { organizationId: session.user.organizationId, id: { in: lotIdsOfPurchase } },
-        select: { quantityReceived: true, quantityRemaining: true, unitCost: true, vatRate: true, materialCostExclVat: true, expenseCostExclVat: true, usages: { select: { quantity: true, totalCost: true, commission4: true, vatRate: true } } },
-      })
-    : [];
-  const lvl = (() => {
-    const z = () => new Decimal(0);
-    const k4 = new Decimal(COMMISSION_RATE);
-    const r = { usedQty: z(), usedIncl: z(), usedExcl: z(), extraIncl: z(), extraExcl: z(), remQty: z(), remIncl: z(), remExcl: z(), recvQty: z() };
-    for (const l of lotRows) {
-      const unitExcl = lotUnitCostExclVat(l);
-      r.recvQty = r.recvQty.add(l.quantityReceived);
-      for (const u of l.usages) {
-        r.usedQty = r.usedQty.add(u.quantity); r.usedIncl = r.usedIncl.add(u.totalCost);
-        const ex = usageExclVat(u, unitExcl);
-        r.usedExcl = r.usedExcl.add(ex);
-        if (u.commission4) { r.extraIncl = r.extraIncl.add(u.totalCost.mul(k4)); r.extraExcl = r.extraExcl.add(ex.mul(k4)); }
-      }
-      r.remQty = r.remQty.add(l.quantityRemaining);
-      r.remIncl = r.remIncl.add(l.quantityRemaining.mul(l.unitCost));
-      r.remExcl = r.remExcl.add(l.quantityRemaining.mul(unitExcl));
-    }
-    return r;
-  })();
-  const on4Purchase = withExtra(c4Mode);
-  const pctOf = (part: Decimal, whole: Decimal) => (whole.greaterThan(0) ? ` · ${Math.round((Number(part) / Number(whole)) * 100)} %` : "");
 
   return (
     <ItemRowShared value={{ colorOptions, canAddColor, materials: allMaterials, currency: purchase.currency }}>
@@ -780,51 +369,9 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
       <WidgetRow id="purchase" title="Закупка — итоги" headerEnd={<Link href={auctionPay ? `/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block` : "/payments"} className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>}>
       {/* Числа — из витрины (DmLot, DmPurchase): единый источник для всех уровней; витрина устарела — прежний расчёт ниже. */}
       {martLvl ? <LevelSummaryFromTotals t={martLvl} c4={c4Mode} payHref={auctionPay ? `/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block` : "/payments"} label="Итоги закупки" /> : (
-      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <SummaryCard
-          label={<VatLabel base="Куплено, ₽" />}
-          value={<Money incl={grandTotalRub} excl={itemsTotalExclVatRub.add(expensesTotalExclVat)} />}
-          note={`сырьё ${formatMoney(goodsExclVatRub.toString())}${extraExclVat.isZero() ? "" : ` · расходы без НДС ${formatMoney(extraExclVat.toString())}`} · НДС ${formatMoney(vatTotal.toString())}${isForeignCurrency ? ` · позиции ${formatCurrency(itemsTotal.toString(), purchase.currency)}` : ""}`}
-          emphasis
-        />
-        <SummaryCard
-          label="Использовано"
-          value={lotRows.length ? <Money incl={on4Purchase ? lvl.usedIncl.add(lvl.extraIncl) : lvl.usedIncl} excl={on4Purchase ? lvl.usedExcl.add(lvl.extraExcl) : lvl.usedExcl} /> : "–"}
-          note={lotRows.length ? `${formatDec1(lvl.usedQty.toString())} из ${formatDec1(lvl.recvQty.toString())}${pctOf(lvl.usedQty, lvl.recvQty)}${on4Purchase && lvl.extraIncl.greaterThan(0) ? " · с 4 %" : ""}` : "лотов ещё нет"}
-        />
-        <SummaryCard
-          label="Остаток на складе"
-          value={lotRows.length ? <Money incl={lvl.remIncl} excl={lvl.remExcl} /> : "–"}
-          note={lotRows.length ? `${formatDec1(lvl.remQty.toString())}${pctOf(lvl.remQty, lvl.recvQty)}` : "лотов ещё нет"}
-        />
-        {auctionPay ? (
-          <>
-            <SummaryCard
-              label={
-                <Link href={`/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block`} className="inline-block text-blue-600 hover:underline max-md:py-2" title={`Оплаты ведутся по партии «${auctionPay.name}» целиком; на закупку приходится её доля — как в списке закупок`}>
-                  Оплачено
-                </Link>
-              }
-              value={shareDue.paid.greaterThan(0.005) ? formatMoney(shareDue.paid.toString()) : "–"}
-              note={`по закупке · партия «${auctionPay.name}»: ${formatMoney(auctionPay.paid.toString())} из ${formatMoney(auctionPay.total.toString())}`}
-            />
-            <SummaryCard
-              label="Долг"
-              value={isRoundingRest(shareDue.rest.toNumber(), grandTotalRub.toNumber()) ? "оплачено" : shareDue.rest.lessThan(-OVERPAY_FROM) ? `Переплата ${formatMoney(shareDue.rest.abs().toString())}` : formatMoney(shareDue.rest.abs().lessThan(0.005) ? "0" : shareDue.rest.toString())}
-              note={isRoundingRest(shareDue.rest.toNumber(), grandTotalRub.toNumber()) ? roundingRestHint(shareDue.rest.toNumber()) : "по закупке"}
-              warn={shareDue.rest.greaterThan(0) && !isRoundingRest(shareDue.rest.toNumber(), grandTotalRub.toNumber())}
-            />
-          </>
-        ) : (
-          <>
-            <SummaryCard label="Оплачено" note="по закупке" value={formatMoney(grandTotalRub.sub(balanceDue).toString())} />
-            <SummaryCard label="Долг" note={isRoundingRest(balanceDue.toNumber(), grandTotalRub.toNumber()) ? roundingRestHint(balanceDue.toNumber()) : "по закупке"} value={isRoundingRest(balanceDue.toNumber(), grandTotalRub.toNumber()) ? "оплачено" : balanceDue.lessThan(-OVERPAY_FROM) ? `Переплата ${formatMoney(balanceDue.abs().toString())}` : formatMoney(balanceDue.toString())} warn={balanceDue.greaterThan(0) && !isRoundingRest(balanceDue.toNumber(), grandTotalRub.toNumber())} />
-          </>
-        )}
-      </div>
+      <PurchaseFallbackTiles organizationId={session.user.organizationId} lotIds={Array.from(new Set(purchase.items.map((i) => i.lotId).filter((x): x is string => !!x)))} c4Mode={c4Mode} currency={purchase.currency} isForeignCurrency={isForeignCurrency} grandTotalRub={grandTotalRub} itemsTotalExclVatRub={itemsTotalExclVatRub} expensesTotalExclVat={expensesTotalExclVat} goodsExclVatRub={goodsExclVatRub} extraExclVat={extraExclVat} vatTotal={vatTotal} itemsTotal={itemsTotal} auctionPay={auctionPay} shareDue={shareDue} balanceDue={balanceDue} />
       )}
       </WidgetRow>
-
 
       <Card id="items" className="scroll-mt-4">
         <CardHeader>
@@ -906,119 +453,9 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
         </CardContent>
       </Card>
 
+      <CostCompositionCard id={id} purchase={purchase} calcRow={calcRow} calcPayload={calcPayload} statusEditable={statusEditable} canEditRole={canEditRole} canEditPlan={canEditPlan} editable={editable} batchName={batchName} />
 
-
-      {(statementEl || perLotEl) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Состав стоимости</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {statementEl}
-            {perLotEl}
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Расходы</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {editable && (
-            <div>
-              <CreateDialog label="+ Расход" title="Новый расход по закупке" variant="outline">
-                <PurchaseExpenseForm purchaseId={id} categories={expenseCategories} />
-              </CreateDialog>
-            </div>
-          )}
-          {purchase.expenses.length > 0 && (
-            <ResponsiveRows
-              table={
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th>Статья</Th>
-                  <Th>Описание</Th>
-                  <Th>Без НДС, ₽</Th>
-                  <Th>НДС</Th>
-                  <Th>Сумма, ₽</Th>
-                  {editable && <Th></Th>}
-                </Tr>
-              </Thead>
-              <Tbody>
-                {purchase.expenses.map((e) => (
-                  <Tr key={e.id}>
-                    <Td>{e.category.name}</Td>
-                    <Td>{e.description ?? "–"}</Td>
-                    <Td>{formatMoney(e.amount.toString())}</Td>
-                    <Td>{e.vatRate.toString()} %</Td>
-                    <Td>
-                      <Money incl={expenseInclVat(e)} excl={e.amount} />
-                    </Td>
-                    {editable && (
-                      <Td>
-                        <div className="flex items-center gap-1">
-                          {expenseEdit(e)}
-                          <form
-                            action={async () => {
-                              "use server";
-                              await boundRemoveExpense(e.id);
-                            }}
-                          >
-                            <ConfirmSubmitButton message="Удалить расход закупки? Себестоимость закупки пересчитается." />
-                          </form>
-                        </div>
-                      </Td>
-                    )}
-                  </Tr>
-                ))}
-                {purchase.expenses.length > 1 && (
-                  <Tr className="row-total">
-                    <Td colSpan={2}><TotalLabel unit="₽" /></Td>
-                    <Td>{formatMoney(expensesTotalExclVat.toString())}</Td>
-                    <Td />
-                    <Td><Money incl={expensesTotalInclVat} excl={expensesTotalExclVat} /></Td>
-                    {editable && <Td />}
-                  </Tr>
-                )}
-              </Tbody>
-            </Table>
-              }
-            >
-              {purchase.expenses.map((e) => (
-                <RowCard
-                  key={e.id}
-                  title={e.category.name}
-                  subtitle={e.description}
-                  fields={[
-                    { label: "Сумма (без НДС)", value: formatMoney(e.amount.toString()) },
-                    { label: "НДС", value: `${e.vatRate.toString()} %` },
-                    { label: <VatLabel base="Сумма" />, value: <Money incl={expenseInclVat(e)} excl={e.amount} />, strong: true },
-                  ]}
-                  extra={
-                    editable && (
-                      <div className="flex items-center gap-2">
-                        {expenseEdit(e)}
-                        <form
-                          action={async () => {
-                            "use server";
-                            await boundRemoveExpense(e.id);
-                          }}
-                        >
-                          <ConfirmSubmitButton message="Удалить расход закупки? Себестоимость закупки пересчитается." variant="outline" className="max-md:h-10" />
-                        </form>
-                      </div>
-                    )
-                  }
-                />
-              ))}
-            </ResponsiveRows>
-          )}
-          <PlanExpenses items={purchase.items} />
-        </CardContent>
-      </Card>
-
+      <PurchaseExpensesCard id={id} purchase={purchase} editable={editable} expenseCategories={expenseCategories} expensesTotalExclVat={expensesTotalExclVat} expensesTotalInclVat={expensesTotalInclVat} />
 
       <details className="rounded-lg border border-neutral-200 bg-white">
         <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-800">Документы</summary>
@@ -1055,24 +492,3 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-  emphasis,
-  warn,
-  note,
-}: {
-  label: React.ReactNode;
-  value: React.ReactNode;
-  emphasis?: boolean;
-  warn?: boolean;
-  note?: string;
-}) {
-  return (
-    <div className={TILE_BOX}>
-      <TileHead>{label}</TileHead>
-      <TileValue className={"text-xl " + (warn ? "text-amber-700" : emphasis ? "text-neutral-900" : "text-neutral-700")}>{value}</TileValue>
-      {note ? <TileCaption>{note}</TileCaption> : null}
-    </div>
-  );
-}
