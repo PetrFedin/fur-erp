@@ -1,4 +1,5 @@
 import { RawStagesBlock, RawNow } from "@/components/raw-stages";
+import { auctionSummariesView } from "@/lib/mart/auctions";
 import { SortTh } from "@/components/sort-th";
 import { readSort, sortRows } from "@/lib/table-sort";
 import { StatementBlock } from "@/components/auction-statement";
@@ -55,7 +56,7 @@ import { ACCESS, hasRole } from "@/lib/access";
 import { findAuctionIn, auctionKeys } from "@/lib/auction-ref-core";
 import { auctionKey } from "@/lib/auction-key";
 import { getColorOptions } from "@/lib/colors";
-import { loadAuctionSummaries, purchasePaidShare } from "@/lib/auction-payments";
+import { purchasePaidShare } from "@/lib/auction-payments";
 import { AuctionDocsPay } from "../../lots/auction-docs-pay";
 import { SourceDocs } from "@/components/source-docs";
 import { loadPurchaseSourceDocs } from "@/lib/source-docs-server";
@@ -280,7 +281,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
   // В «Оплачено» — только факт (запланированные оплаты не в счёт).
   const paidTotal = purchase.payments.filter((p) => p.status === "COMPLETED").reduce((s, p) => s.add(p.amount), new Decimal(0));
   const auctionPay = batchName
-    ? (await loadAuctionSummaries(prisma, session.user.organizationId, [batchName]))[0] ?? null
+    ? (await auctionSummariesView(session.user.organizationId, [batchName]))[0] ?? null
     : null;
   const balanceDue = grandTotalRub.sub(paidTotal);
   // Доля закупки в оплатах партии — то же правило, что в списке закупок (purchasePaidShare), чтобы остаток закупки везде был один.

@@ -1,10 +1,12 @@
 import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
+import { auctionSummariesView } from "@/lib/mart/auctions";
 import { memoRequest, objId } from "@/lib/req-memo";
 import { loadSupplierArticleIds } from "@/lib/supplier-articles";
 import { batchNameText } from "@/lib/batch-name";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { auctionName, loadAuctionSummaries, PAY_EPS, STATUS_EPS } from "@/lib/auction-payments";
 import { isServiceAuction } from "@/lib/auction-names";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
@@ -331,7 +333,7 @@ async function computeAttentionImpl(db: PrismaClient, organizationId: string, ye
       },
       orderBy: { paidAt: "asc" },
     }),
-    loadAuctionSummaries(db, organizationId),
+    (db === prisma ? auctionSummariesView(organizationId) : loadAuctionSummaries(db, organizationId)),
   ]);
 
   const pHref = (id: string) => `/purchases/${id}`;

@@ -1,11 +1,12 @@
 import { lotsText } from "@/lib/cost-labels";
+import { auctionSummariesView } from "@/lib/mart/auctions";
 import { Fragment } from "react";
 import { GROUPS, classifyLabel, labelUnit, type GroupKey } from "@/lib/cost-breakdown-groups";
 import { loadRawInfo } from "@/lib/raw-stage-server";
 import { relabelOrders } from "@/lib/order-label-db";
 import { escapeLike } from "@/lib/input";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
-import { auctionName as auctionNameLib, loadAuctionSummaries } from "@/lib/auction-payments";
+import { auctionName as auctionNameLib } from "@/lib/auction-payments";
 import { formatMoney, isRoundingRest, OVERPAY_FROM, formatRate, formatQtyTrim } from "@/lib/utils";
 import { isDebtDust } from "@/lib/raw-rounding";
 import Link from "next/link";
@@ -218,7 +219,7 @@ export async function AuctionView({
       where: { organizationId, purchaseId: null, batch: { in: names } },
       orderBy: { createdAt: "asc" },
     }),
-    loadAuctionSummaries(prisma, organizationId, names),
+    auctionSummariesView(organizationId, names),
   ]);
   const payTotal = paySummaries.reduce((s, a) => s.add(a.total), new Decimal(0));
   const payPaid = paySummaries.reduce((s, a) => s.add(a.paid), new Decimal(0));

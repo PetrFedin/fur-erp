@@ -1,11 +1,12 @@
 import "server-only";
+import { auctionSummariesView } from "@/lib/mart/auctions";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
 
 import { expenseInclVat, lotUnitCostExclVat, purchaseTotalExclVat, purchaseTotalInclVat } from "@/lib/purchase-totals";
-import { auctionName, loadAuctionSummaries, purchasePaidShare } from "@/lib/auction-payments";
+import { auctionName, purchasePaidShare } from "@/lib/auction-payments";
 
 /**
  * Сводка закупок: Год (по orderDate закупки) → Аукцион → Тип сырья (RawMaterial) → лоты.
@@ -131,7 +132,7 @@ export async function loadSummary(organizationId: string): Promise<SummaryData> 
       },
       orderBy: [{ orderDate: "asc" }, { number: "asc" }],
     }),
-    loadAuctionSummaries(prisma, organizationId),
+    auctionSummariesView(organizationId),
   ]);
   const furIdx = await getFurIndex(organizationId);
   const byName = new Map(summaries.map((s) => [s.name, s]));

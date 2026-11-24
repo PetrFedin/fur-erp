@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { auctionSummariesView } from "@/lib/mart/auctions";
 import { ChatLink } from "@/components/chat-link";
 import { notFound } from "next/navigation";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -26,7 +27,7 @@ import { COMP_CATS, emptyCats } from "@/lib/price-composition";
 import { lotHammerListed, lotUsdListed } from "@/lib/lot-hammer";
 import { shortMaterialName } from "@/lib/material-name";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
-import { auctionName, loadAuctionSummaries, purchasePaidShare } from "@/lib/auction-payments";
+import { auctionName, purchasePaidShare } from "@/lib/auction-payments";
 import { DRIVE_DOC_TYPE_LABELS } from "@/lib/drive-docs";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 import { rawSheetItems, sheetRowsOf } from "@/lib/lot-sheet";
@@ -128,7 +129,7 @@ export default async function LotCardPage({ params, searchParams }: { params: Pr
   const auctionHref = l.auction === NO_AUCTION_KEY ? undefined : l.auction.startsWith("Шкуры подрядчика") ? "/lots/contractor-hides" : lining ? `/lots/lining/${encodeURIComponent(l.auction)}` : `/lots?auction=${encodeURIComponent(l.auction)}`;
   // Оплаты закупки с аукционом ведутся по партии целиком — берём долю оплаты партии, как «Закупки» и «Сводка закупок».
   const puAuction = pu ? auctionName(pu.auctionSession) : null;
-  const puAuctionPay = puAuction ? (await loadAuctionSummaries(prisma, orgId, [puAuction]))[0] : undefined;
+  const puAuctionPay = puAuction ? (await auctionSummariesView(orgId, [puAuction]))[0] : undefined;
   const paid = pu ? purchasePaidShare(puAuctionPay, pu.id, pu.payments.filter((x) => x.status === "COMPLETED").reduce((s, x) => s.add(x.amount), new Decimal(0))) : null;
   const purTotal = pu ? purchaseTotalInclVat({ exchangeRate: pu.exchangeRate, items: pu.items, expenses: pu.expenses }) : null;
   const docMap = new Map<string, { href: string | null; text: string }>();

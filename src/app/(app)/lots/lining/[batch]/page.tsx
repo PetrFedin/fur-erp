@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { auctionSummariesView } from "@/lib/mart/auctions";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -6,7 +7,7 @@ import { getFurIndex } from "@/lib/fur-ref-server";
 import { loadFurLots } from "@/lib/fur-table-server";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { loadOrderRows } from "@/lib/analytics-orders";
-import { loadAuctionSummaries, auctionName } from "@/lib/auction-payments";
+import { auctionName } from "@/lib/auction-payments";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { figures, flowOf } from "@/lib/fur-table";
 import { rawRowsFromLots } from "@/lib/raw-rows";
@@ -48,7 +49,7 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
   const purchaseIds = [...new Set(lots.map((l) => l.purchaseId).filter((x): x is string => !!x))];
   const [purchases, pays, orders] = await Promise.all([
     prisma.purchase.findMany({ where: { organizationId: orgId, id: { in: purchaseIds } }, include: { supplier: true, items: true, expenses: true }, orderBy: { number: "asc" } }),
-    loadAuctionSummaries(prisma, orgId, [name]),
+    auctionSummariesView(orgId, [name]),
     loadOrderRows(orgId, "all", c4),
   ]);
   const pay = pays.find((p) => p.name === name) ?? pays[0];

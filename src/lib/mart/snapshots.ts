@@ -11,7 +11,7 @@ import type { FurLot } from "@/lib/fur-table";
 
 /**
  * Снимки готовых расчётов экранов в витрине: «Главная» и «Сырьё» читают их вместо пересчёта на каждый заход.
- * Ключи: dash:<год>:<on|off> (режим 4 %), furlots:<fur|lining>:<год>, furkinds. НДС в числах лежит в обоих вариантах, поэтому в ключе его нет.
+ * Ключи: dash:<год>:<on|off> (режим 4 %), furlots:<fur|lining>:<год>, furkinds, pay:overview, pay:left, pay:auctions (сводка по аукционам), purchases:tree. НДС в числах лежит в обоих вариантах, поэтому в ключе его нет.
  * Снимок годен, пока после его сборки не было записей (метка data-version, ставится в revalidateAll) и ему меньше SNAPSHOT_MAX_AGE_MS (12 часов — страховка на случай, если метка не записалась; записи вне приложения — после них mart:refresh);
  * иначе экран считает по-старому вживую — число всегда верное, быстрым оно становится после следующей фоновой пересборки.
  */
@@ -91,6 +91,8 @@ async function buildSnapshotsImpl(orgId: string): Promise<{ keys: number; ms: nu
     const { loadPaymentsOverviewLive, loadPaymentsLeftLive, paymentsLeftToStored } = await import("@/lib/payments-overview");
     await put("pay:overview", () => loadPaymentsOverviewLive(orgId));
     await put("pay:left", async () => paymentsLeftToStored(await loadPaymentsLeftLive(orgId)));
+    const { loadAuctionSummaries } = await import("@/lib/auction-payments");
+    await put("pay:auctions", () => loadAuctionSummaries(prisma, orgId));
     const { computePurchaseView } = await import("@/lib/mart/purchase-view");
     await put("purchases:tree", () => computePurchaseView(orgId));
     await put("furkinds", () => loadFurKinds(orgId));

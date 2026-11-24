@@ -1,4 +1,5 @@
 import { isZero, isPositive } from "@/domain/money";
+import { auctionSummariesView } from "@/lib/mart/auctions";
 import { storedFileExists } from "@/lib/stored-file-check";
 import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { orderLabel, positionsOf } from "@/lib/order-label";
@@ -22,7 +23,7 @@ import { formatDate, formatMoney, formatPercent } from "@/lib/utils";
 import { ACCESS, hasRole } from "@/lib/access";
 import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { resolveAuctionValues } from "@/lib/auction-ref";
-import { auctionName, loadAuctionSummaries, CLOSING_NOTE, PAY_EPS, type AuctionPay } from "@/lib/auction-payments";
+import { auctionName, CLOSING_NOTE, PAY_EPS, type AuctionPay } from "@/lib/auction-payments";
 import { rowVersion, PAYMENT_V } from "@/lib/concurrency";
 import { PaymentRowControls } from "./auction-payment-form";
 import { AdvanceRowControls, AllocateAdvanceControls, type AllocTarget } from "./advance-forms";
@@ -54,8 +55,7 @@ import { PaymentsNav } from "./payments-nav";
 import { KindBar } from "./kind-bar";
 import { parseKind } from "@/lib/pay-kinds";
 import { PaymentsRegistry } from "./registry-tab";
-import { loadDashboard } from "@/lib/dashboard-data";
-import { DASH_FILTERS, type DashFilters } from "@/lib/dashboard-calc";
+import { dashboardCached } from "@/lib/mart/snapshots";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { OVERPAY_NOTE } from "@/lib/overpay-notes";
 import { loadPaymentsOverview, loadPaymentsLeft } from "@/lib/payments-overview";
@@ -197,7 +197,7 @@ export default async function PaymentsPage({
           orderBy: { paidAt: "desc" },
         })
       : Promise.resolve([]),
-    tab !== "clients" ? loadAuctionSummaries(prisma, orgId) : Promise.resolve([] as AuctionPay[]),
+    tab !== "clients" ? auctionSummariesView(orgId) : Promise.resolve([] as AuctionPay[]),
     tab === "suppliers"
       ? prisma.purchase.findMany({
           where: { organizationId: orgId, auctionSession: { not: null } },
@@ -339,7 +339,7 @@ export default async function PaymentsPage({
   const ovRows = tab === "suppliers" ? (await loadPaymentsOverview(orgId)).filter((r) => year === "all" || r.year === Number(year)) : [];
   const rawPaidAll = ovRows.reduce((a, r) => a + r.fur + r.lining + r.services, 0);
   // Мех / подкладка в плитках — те же числа, что на Главной (одна функция).
-  const supDash = tab === "suppliers" ? await loadDashboard(orgId, year, { status: [], ...parseFilters(DASH_FILTERS, {}) } as unknown as DashFilters, await getCommission4Mode()) : null;
+  const supDash = tab === "suppliers" ? await dashboardCached(orgId, year, await getCommission4Mode()) : null;
   // Целые рубли, сходящиеся на экране (те же числа, что в плитках оплат на Главной): мех + подкладка без работы.
   const rawPay = supDash ? payNumbers(supDash, await getCommission4Mode(), "raw") : null;
   // Итоги лет в таблице партий = «Динамика по годам» на Главной (один и тот же год — одно и то же число на экране).
