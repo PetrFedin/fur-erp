@@ -7,23 +7,7 @@ import { prisma } from "../src/lib/prisma";
 if (!/scratch/.test(process.env.DATABASE_URL ?? "")) { console.error("Отказ: DATABASE_URL не похож на копию (нет «scratch»)"); process.exit(2); }
 let fails = 0, checks = 0;
 const ok = (what: string, cond: boolean, extra = "") => { checks++; console.log(`${cond ? "OK  " : "FAIL"} ${what}${extra ? " " + extra : ""}`); if (!cond) fails++; };
-/** Сравнение по значению: Decimal и даты — строкой, ключи объектов по алфавиту (jsonb в базе переставляет ключи). */
-const canon = (v: unknown): unknown => {
-  if (v instanceof Date) return v.toISOString();
-  if (v instanceof Map) return canon(Array.from(v.entries()));
-  if (v && typeof v === "object" && typeof (v as { toFixed?: unknown }).toFixed === "function" && !Array.isArray(v)) return String(v);
-  if (Array.isArray(v)) return v.map(canon);
-  if (v && typeof v === "object") return Object.fromEntries(Object.keys(v).filter((k) => (v as Record<string, unknown>)[k] !== undefined).sort().map((k) => [k, canon((v as Record<string, unknown>)[k])]));
-  return v;
-};
-/** Первое различие (числа — с допуском 0,01: дроби на границе округления); null — равны. */
-const diff = (a: unknown, b: unknown, path = ""): string | null => {
-  if (typeof a === "number" && typeof b === "number") return Math.abs(a - b) <= 0.01 ? null : `${path}: ${a} ≠ ${b}`;
-  if (Array.isArray(a) && Array.isArray(b)) { if (a.length !== b.length) return `${path}: длина ${a.length} ≠ ${b.length}`; for (let i = 0; i < a.length; i++) { const d = diff(a[i], b[i], `${path}[${i}]`); if (d) return d; } return null; }
-  if (a && b && typeof a === "object" && typeof b === "object") { const ka = Object.keys(a), kb = Object.keys(b); if (ka.join() !== kb.join()) return `${path}: поля ${ka.join()} ≠ ${kb.join()}`; for (const k of ka) { const d = diff((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k], `${path}.${k}`); if (d) return d; } return null; }
-  return a === b ? null : `${path}: ${JSON.stringify(a)} ≠ ${JSON.stringify(b)}`;
-};
-const same = (a: unknown, b: unknown) => diff(canon(a), canon(b));
+import { same } from "./lib/deep-same";
 
 (async () => {
   const { buildMart } = await import("../src/lib/mart/build");

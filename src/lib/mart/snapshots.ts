@@ -11,7 +11,7 @@ import type { FurLot } from "@/lib/fur-table";
 
 /**
  * Снимки готовых расчётов экранов в витрине: «Главная» и «Сырьё» читают их вместо пересчёта на каждый заход.
- * Ключи: dash:<год>:<on|off> (режим 4 %), furlots:<fur|lining>:<год>, furkinds, pay:overview, pay:left, pay:auctions (сводка по аукционам), purchases:tree. НДС в числах лежит в обоих вариантах, поэтому в ключе его нет.
+ * Ключи: dash:<год>:<on|off> (режим 4 %), furlots:<fur|lining>:<год>, furkinds, pay:overview, pay:left, pay:auctions (сводка по аукционам), purchases:tree, drill:all:<on|off> (ТЗ для «ТЗ», «Партий», «Изделий», «Ремонта»; по отдельному году — вживую). НДС в числах лежит в обоих вариантах, поэтому в ключе его нет.
  * Снимок годен, пока после его сборки не было записей (метка data-version, ставится в revalidateAll) и ему меньше SNAPSHOT_MAX_AGE_MS (12 часов — страховка на случай, если метка не записалась; записи вне приложения — после них mart:refresh);
  * иначе экран считает по-старому вживую — число всегда верное, быстрым оно становится после следующей фоновой пересборки.
  */
@@ -87,6 +87,8 @@ async function buildSnapshotsImpl(orgId: string): Promise<{ keys: number; ms: nu
     for (const y of years) {
       for (const c4 of ["on", "off"] as const) await put(`dash:${y}:${c4}`, () => loadDashboard(orgId, y, parseDashFilters({}), c4));
       for (const kind of ["fur", "lining"] as const) await put(`furlots:${kind}:${y}`, () => loadFurLots(prisma, orgId, { kind, year: y, furIdx } as never));
+      // Список ТЗ — только «все годы» (его открывают по умолчанию; отдельный год считается вживую: по году строки ТЗ грузятся заново, +3 с к сборке).
+      if (y === "all") { const { loadOrdersDrillAll } = await import("@/lib/orders-drill"); for (const c4 of ["on", "off"] as const) await put(`drill:all:${c4}`, () => loadOrdersDrillAll(orgId, "all", c4)); }
     }
     const { loadPaymentsOverviewLive, loadPaymentsLeftLive, paymentsLeftToStored } = await import("@/lib/payments-overview");
     await put("pay:overview", () => loadPaymentsOverviewLive(orgId));
@@ -98,6 +100,8 @@ async function buildSnapshotsImpl(orgId: string): Promise<{ keys: number; ms: nu
     await put("furkinds", () => loadFurKinds(orgId));
   });
   for (const o of out) await save(orgId, o.key, o.payload, o.started, o.ms);
+  // Снимки, которых эта сборка не делает (ключ больше не собирается, год ушёл), удаляются: иначе их читали бы как свежие.
+  await prisma.dmSnapshot.deleteMany({ where: { organizationId: orgId, key: { notIn: out.map((o) => o.key) } } });
   return { keys: out.length, ms: Date.now() - t0 };
 }
 

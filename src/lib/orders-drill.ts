@@ -14,8 +14,15 @@ const EMPTY: DashFilters = { auction: [], fur: [], color: [], attr: [], batch: [
  * `hides: false` — не относить шкуры подрядчика (когда фильтр страницы их исключает: аукцион, цвет, признак, НДС, вид меха кроме Свакары).
  */
 export async function loadOrdersDrill(orgId: string, year: YearFilter, c4: Commission4Mode, opts: { ids?: Set<string> | null; hides?: boolean } = {}): Promise<DrillOrder[]> {
-  const all = await loadDrillOrders(orgId, year, EMPTY, c4, "all");
+  // Полный список без фильтров панели — снимок витрины drill:<год>:<4 %> (устарел — тот же расчёт вживую); отбор страницы — ниже.
+  const { martCached } = await import("@/lib/mart/cached");
+  const all = await martCached(orgId, `drill:${year}:${c4}`, () => loadOrdersDrillAll(orgId, year, c4));
   const list = opts.ids ? all.filter((o) => opts.ids!.has(o.id)) : all;
   if (opts.hides === false) for (const o of list) { o.hI = 0; o.hE = 0; }
   return list;
+}
+
+/** Полный список ТЗ за год без фильтров панели (то, что кладётся в снимок витрины). */
+export function loadOrdersDrillAll(orgId: string, year: YearFilter, c4: Commission4Mode): Promise<DrillOrder[]> {
+  return loadDrillOrders(orgId, year, EMPTY, c4, "all");
 }
