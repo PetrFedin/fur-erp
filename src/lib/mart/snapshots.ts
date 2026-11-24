@@ -57,10 +57,9 @@ function decode(v: unknown): unknown {
   return v;
 }
 
-async function save(orgId: string, key: string, payload: unknown, started: number): Promise<void> {
+async function save(orgId: string, key: string, payload: unknown, started: number, buildMs: number): Promise<void> {
   const body = encode(payload) as object;
   const builtAt = new Date(started);
-  const buildMs = Date.now() - started;
   await prisma.dmSnapshot.upsert({ where: { organizationId_key: { organizationId: orgId, key } }, update: { payload: body, builtAt, buildMs }, create: { organizationId: orgId, key, payload: body, builtAt, buildMs } });
 }
 
@@ -77,31 +76,27 @@ export async function buildSnapshots(orgId: string): Promise<{ keys: number; ms:
 
 async function buildSnapshotsImpl(orgId: string): Promise<{ keys: number; ms: number }> {
   const t0 = Date.now();
-  let keys = 0;
-  const years = await snapshotYears(orgId);
-  const furIdx = await getFurIndex(orgId);
-  for (const y of years) {
-    for (const c4 of ["on", "off"] as const) {
-      const started = Date.now();
-      await save(orgId, `dash:${y}:${c4}`, await loadDashboard(orgId, y, parseDashFilters({}), c4), started); keys++;
+  // Сначала все расчёты (в общей памяти загрузок: лоты, ТЗ, оплаты грузятся один раз на все годы и режимы), потом запись.
+  // Запись в БД сбрасывает память загрузок, поэтому снимки пишутся после расчётов, а не между ними.
+  const { withMemoScope } = await import("@/lib/req-memo");
+  const out: { key: string; payload: unknown; started: number; ms: number }[] = [];
+  const put = async (key: string, compute: () => Promise<unknown>) => { const started = Date.now(); const payload = await compute(); out.push({ key, payload, started, ms: Date.now() - started }); };
+  await withMemoScope(async () => {
+    const years = await snapshotYears(orgId);
+    const furIdx = await getFurIndex(orgId);
+    for (const y of years) {
+      for (const c4 of ["on", "off"] as const) await put(`dash:${y}:${c4}`, () => loadDashboard(orgId, y, parseDashFilters({}), c4));
+      for (const kind of ["fur", "lining"] as const) await put(`furlots:${kind}:${y}`, () => loadFurLots(prisma, orgId, { kind, year: y, furIdx } as never));
     }
-    for (const kind of ["fur", "lining"] as const) {
-      const started = Date.now();
-      await save(orgId, `furlots:${kind}:${y}`, await loadFurLots(prisma, orgId, { kind, year: y, furIdx } as never), started); keys++;
-    }
-  }
-  {
     const { loadPaymentsOverviewLive, loadPaymentsLeftLive, paymentsLeftToStored } = await import("@/lib/payments-overview");
-    const sp = Date.now();
-    await save(orgId, "pay:overview", await loadPaymentsOverviewLive(orgId), sp); keys++;
-    await save(orgId, "pay:left", paymentsLeftToStored(await loadPaymentsLeftLive(orgId)), Date.now()); keys++;
-  }
-  const startedP = Date.now();
-  const { computePurchaseView } = await import("@/lib/mart/purchase-view");
-  await save(orgId, "purchases:tree", await computePurchaseView(orgId), startedP); keys++;
-  const started = Date.now();
-  await save(orgId, "furkinds", await loadFurKinds(orgId), started); keys++;
-  return { keys, ms: Date.now() - t0 };
+    await put("pay:overview", () => loadPaymentsOverviewLive(orgId));
+    await put("pay:left", async () => paymentsLeftToStored(await loadPaymentsLeftLive(orgId)));
+    const { computePurchaseView } = await import("@/lib/mart/purchase-view");
+    await put("purchases:tree", () => computePurchaseView(orgId));
+    await put("furkinds", () => loadFurKinds(orgId));
+  });
+  for (const o of out) await save(orgId, o.key, o.payload, o.started, o.ms);
+  return { keys: out.length, ms: Date.now() - t0 };
 }
 
 export async function readSnapshot<T>(orgId: string, key: string): Promise<T | null> {

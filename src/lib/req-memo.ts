@@ -1,4 +1,5 @@
 import * as React from "react";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 /**
  * Дедупликация тяжёлых загрузок В РАМКАХ ОДНОГО ЗАПРОСА (React cache): страница, плитки и вложенные расчёты просят одни и те же
@@ -9,7 +10,16 @@ import * as React from "react";
  */
 const reactCache: <T extends (...a: never[]) => unknown>(f: T) => T = (React as unknown as { cache?: <T>(f: T) => T }).cache ?? ((f) => f);
 
-const requestStore = reactCache(() => ({ map: new Map<string, unknown>() }));
+const reactStore = reactCache(() => ({ map: new Map<string, unknown>() }));
+// Память вне веб-запроса: сборка витрины считает Главную по каждому году и режиму 4 % подряд и без неё грузит одни и те же лоты, ТЗ и оплаты заново.
+// withMemoScope(fn) даёт такую же память на время fn; запись в БД (invalidateRequestMemo) её тоже сбрасывает.
+const scopeStore = new AsyncLocalStorage<{ map: Map<string, unknown> }>();
+const requestStore = () => scopeStore.getStore() ?? reactStore();
+
+/** Выполнить fn с памятью загрузок, как в одном веб-запросе (для фоновых расчётов: сборка снимков витрины). Результаты общие — не менять на месте. */
+export function withMemoScope<T>(fn: () => Promise<T>): Promise<T> {
+  return scopeStore.run({ map: new Map<string, unknown>() }, fn);
+}
 
 // ───────── Общий кэш между запросами (демо-стенд) ─────────
 // Включается переменной PAGE_CACHE_SECONDS (секунды жизни записи); по умолчанию — 90 с на демо-стенде (задан GATE_USER), иначе выключен.

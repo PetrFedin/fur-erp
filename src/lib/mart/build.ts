@@ -1,5 +1,6 @@
 import "server-only";
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient, Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { loadReportSizes } from "@/lib/margin-server";
 import { buildPlanTables } from "@/lib/mart/plans";
 import { buildChainTables, type ChainCounts } from "@/lib/mart/chain";
@@ -49,16 +50,24 @@ type Level = "size" | "color" | "model";
 export type MartSummary = { skus: number; parties: number; movements: number; checks: { key: string; label: string; expected: number | null; actual: number | null; status: string; note: string | null }[] };
 
 export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSummary> {
+  // Время этапов сборки: MART_PROFILE=1 печатает разбивку (поиск медленного места).
+  const prof = process.env.MART_PROFILE === "1";
+  let tLap = Date.now();
+  const lap = (stage: string) => { if (!prof) return; const t = Date.now(); console.log(`[mart] ${stage}: ${t - tLap} мс`); tLap = t; };
   // Строки моста Главной (заказано без лотов, шкуры подрядчика) считаются тем же расчётом, что Главная, и кладутся в витрину.
   const bridgeRows = (await loadDashboard(orgId, "all", parseDashFilters({}), "off")).syntheticLots;
+  lap("Главная (мост)");
   const auctionPays = await loadAuctionSummaries(db, orgId);
+  lap("оплаты аукционов");
   const sizes = await loadReportSizes(orgId);
+  lap("отчёт по размерам");
   const priceRows = ((await loadRetailPricesState(orgId))?.value as { rows?: { acode: string; color: string; size: string; price: number }[] } | undefined)?.rows ?? [];
   const price = new Map<string, number>();
   for (const p of priceRows) { const k = `${p.acode}|${p.color}|${p.size}`; if (!price.has(k)) price.set(k, p.price); }
 
   // Партии (ТЗ): закупка единицы с работой, 4 % и расходами; цвета и размеры ТЗ сопоставляются с изделиями отчёта (модель · цвет · размер).
   const allOrders = (await loadOrderRows(orgId, "all", "on")).filter((o) => o.qty > 0);
+  lap("строки ТЗ");
   // Основа — завершённые ТЗ. ТЗ в работе (себестоимость расчётная по списанному сырью, работе и 4 %) берутся только для моделей без завершённых ТЗ:
   // товар ещё не привезён, но уже учтён в отчёте (M030 по ТЗ 198, M054 по ТЗ 195); ТЗ без списанного меха (MH-07: мех из остатков) берётся с той себестоимостью, что в карточке артикула (одна работа).
   const orderRows = allOrders.filter((o) => o.group === "done" || o.costIncl + o.work > 0);
@@ -179,6 +188,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   let sumConf = 0, sumDeliv = 0, sumSold = 0, sumStock = 0, sumRetail = 0, sumCostAvg = 0, sumCostRep = 0, oversold = 0, oversoldUnits = 0, noTz = 0, noTzUnits = 0;
 
   const chainRef: { v: ChainCounts | null } = { v: null };
+  lap("подготовка в памяти");
   await db.$transaction(async (tx) => {
     await tx.dmCostParty.deleteMany({ where: { organizationId: orgId } });
     await tx.dmSku.deleteMany({ where: { organizationId: orgId } }); // каскадом: сезоны и остатки
@@ -188,6 +198,7 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     await tx.dmColorAlias.deleteMany({ where: { organizationId: orgId } });
     await tx.dmLoad.deleteMany({ where: { organizationId: orgId } });
 
+    const skuRows: Prisma.DmSkuCreateManyInput[] = [], seasonRows: Prisma.DmSkuSeasonCreateManyInput[] = [], stockRows: Prisma.DmStockCreateManyInput[] = [], partyRows: Prisma.DmCostPartyCreateManyInput[] = [];
     for (const [skuIdx, r] of sizes.entries()) {
       const modelCode = normCode(r.modelCode ?? r.acode.split("/")[0] ?? "");
       const seas = r.seas ?? {};
@@ -210,14 +221,16 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
       if (!parties.length) flags.push(unitModel ? "своей партии ТЗ нет: средняя по модели" : "нет ТЗ для закупки");
       if (stock > 0 && p === null) flags.push("нет цены в прайсе");
 
-      const sku = await tx.dmSku.create({ data: {
-        organizationId: orgId, modelCode, acode: r.acode, color: r.color, size: r.size, skuKey: skuKeyOf(r.acode, canonOf(r.color).canon, r.size), colorRefId: canonOf(r.color).refId, colorCanon: canonOf(r.color).canon, cls: r.cls, fur: r.fur ?? null, cat1: r.l2 ?? null, cat2: r.l4 || r.l5 || null, builtAt: now,
-        seasons: { create: SEASONS.filter((s) => seas[s]).map((s) => { const c = seas[s]!; return { season: s, conf: confOf(s), deliv: n(c.deliv), confEur: s === "FW26/27" ? n(c.confEur) : n(c.confEur ?? c.delivEur), delivEur: n(c.delivEur), soldAll: n(c.soldAll), soldSsn: n(c.soldSsn), soldOld: n(c.soldOld), rubAll: n(c.rubAll), discAll: n(c.discAll), scAll: n(c.scAll) }; }) },
-        stock: { create: { deliv, sold, stock, retailPrice: p, stockRetailRub: p ? stock * p : 0, unitCostAvgRub: unitAvg, unitCostReportEur: unitRepEur, stockCostAvgRub: unitAvg ? Math.max(0, stock) * unitAvg : null, stockCostReportEur: unitRepEur ? Math.max(0, stock) * unitRepEur : null, costSource: parties.length && parties.every((x) => x.p.wip) ? "ТЗ в работе: расчётная себестоимость (ТЗ ещё не завершено)" : parties.length ? `ТЗ, средневзвешенно (сопоставлено по: ${topLevel === "size" ? "модели, цвету и размеру" : topLevel === "color" ? "модели и цвету" : "модели"})`   : unitModel ? "ТЗ, средняя по модели (своей партии нет)" : null, flags } },
-      }, select: { id: true } });
+      const skuId = randomUUID();
+      const sku = { id: skuId };
+      skuRows.push({
+        id: skuId, organizationId: orgId, modelCode, acode: r.acode, color: r.color, size: r.size, skuKey: skuKeyOf(r.acode, canonOf(r.color).canon, r.size), colorRefId: canonOf(r.color).refId, colorCanon: canonOf(r.color).canon, cls: r.cls, fur: r.fur ?? null, cat1: r.l2 ?? null, cat2: r.l4 || r.l5 || null, builtAt: now,
+      });
+      for (const s of SEASONS.filter((x) => seas[x])) { const c = seas[s]!; seasonRows.push({ skuId, season: s, conf: confOf(s), deliv: n(c.deliv), confEur: s === "FW26/27" ? n(c.confEur) : n(c.confEur ?? c.delivEur), delivEur: n(c.delivEur), soldAll: n(c.soldAll), soldSsn: n(c.soldSsn), soldOld: n(c.soldOld), rubAll: n(c.rubAll), discAll: n(c.discAll), scAll: n(c.scAll) }); }
+      stockRows.push({ skuId, deliv, sold, stock, retailPrice: p, stockRetailRub: p ? stock * p : 0, unitCostAvgRub: unitAvg, unitCostReportEur: unitRepEur, stockCostAvgRub: unitAvg ? Math.max(0, stock) * unitAvg : null, stockCostReportEur: unitRepEur ? Math.max(0, stock) * unitRepEur : null, costSource: parties.length && parties.every((x) => x.p.wip) ? "ТЗ в работе: расчётная себестоимость (ТЗ ещё не завершено)" : parties.length ? `ТЗ, средневзвешенно (сопоставлено по: ${topLevel === "size" ? "модели, цвету и размеру" : topLevel === "color" ? "модели и цвету" : "модели"})`   : unitModel ? "ТЗ, средняя по модели (своей партии нет)" : null, flags });
       skuCount++;
       if (parties.length) {
-        await tx.dmCostParty.createMany({ data: parties.map((x) => ({ organizationId: orgId, skuId: sku.id, orderId: x.p.id, orderNumber: x.p.number, qty: x.q, unitCostRub: x.p.unit, workRub: x.p.work, estimated: x.level !== "size", matchLevel: x.level })) });
+        partyRows.push(...parties.map((x) => ({ organizationId: orgId, skuId: sku.id, orderId: x.p.id, orderNumber: x.p.number, qty: x.q, unitCostRub: x.p.unit, workRub: x.p.work, estimated: x.level !== "size", matchLevel: x.level })));
         partyCount += parties.length;
       }
       sumConf += conf; sumDeliv += deliv; sumSold += sold; sumStock += stock; sumRetail += p ? stock * p : 0;
@@ -226,6 +239,11 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
       if (!parties.length && stock > 0) { noTz++; noTzUnits += stock; }
       flagsOf[sku.id] = flags;
     }
+    // Пакетная запись (раньше — по изделию, 3–4 обращения к базе на каждое): сначала изделия, затем сезоны, остатки и партии.
+    for (let i = 0; i < skuRows.length; i += 1000) await tx.dmSku.createMany({ data: skuRows.slice(i, i + 1000) });
+    for (let i = 0; i < seasonRows.length; i += 1000) await tx.dmSkuSeason.createMany({ data: seasonRows.slice(i, i + 1000) });
+    for (let i = 0; i < stockRows.length; i += 1000) await tx.dmStock.createMany({ data: stockRows.slice(i, i + 1000) });
+    for (let i = 0; i < partyRows.length; i += 1000) await tx.dmCostParty.createMany({ data: partyRows.slice(i, i + 1000) });
 
     if (lines.length) {
       for (let i = 0; i < lines.length; i += 2000) {
@@ -244,7 +262,9 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     for (const c of colorRefs) { canonOf(c.name); for (const al of c.aliases) canonOf(al); }
     if (aliasRows.size) await tx.dmColorAlias.createMany({ data: [...aliasRows.values()].map((x) => ({ organizationId: orgId, ...x })) });
     const plan = await buildPlanTables(tx, orgId, { normCode, canonOf });
+    lap("запись изделий, движений, цен");
     chainRef.v = await buildChainTables(tx, orgId, canonOf, bridgeRows, auctionPays);
+    lap("цепочка сырья (лоты, закупки, оплаты)");
     const chain = chainRef.v;
     // Журнал загрузок: какие версии источников разложены в массив
     const sizesState = await loadReportSizesState(orgId);
@@ -317,7 +337,9 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
   );
   await db.dmCheck.createMany({ data: checks.map((c) => ({ organizationId: orgId, key: c.key, label: c.label, expected: c.expected, actual: c.actual, status: c.status, note: c.note, builtAt: now })) });
   // Готовые расчёты экранов («Главная», «Сырьё») — снимки по годам и режиму 4 %; ошибка здесь не ломает сборку: экраны посчитают вживую.
+  lap("проверки витрины");
   try { await buildSnapshots(orgId); } catch (e) { console.error("[mart] снимки экранов не собраны:", e); }
+  lap("снимки экранов");
   // Сырьё в витрине сходится само с собой и с Главной: куплено = использовано (без 4 %) + остаток; лоты + мост = «Куплено» меха и подкладки на Главной.
   try {
     const [bal] = await db.$queryRaw<{ bought: string | null; usedRem: string | null; bad: number }[]>`SELECT sum("totalCost")::text bought, sum("usedCost" + "remCost")::text "usedRem", count(*) FILTER (WHERE abs("totalCost" - "usedCost" - "remCost") > 50)::int bad FROM "DmLot" WHERE "organizationId" = ${orgId}`;
@@ -373,5 +395,6 @@ export async function buildMart(db: PrismaClient, orgId: string): Promise<MartSu
     } catch (e) { console.error("[mart] сверка сырья с документами не записана:", e); }
     await db.dmCheck.createMany({ data: rows.map((c) => ({ organizationId: orgId, key: c.key, label: c.label, expected: c.expected, actual: c.actual, status: c.status, note: c.note, builtAt: now2 })) });
   } catch (e) { console.error("[mart] сверки сырья не записаны:", e); }
+  lap("сверки сырья и документов");
   return { skus: skuCount, parties: partyCount, movements: lines.length, checks };
 }
