@@ -227,7 +227,8 @@ const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
     }
   }
   // Товарные метрики (приход, продано, остаток, SO) живут только в «Продажи и остатки»: в Cashflow вместо них ссылка на /sales.
-  const cfSrc = readFileSync(join(process.cwd(), "src/app/(app)/cashflow/cashflow-view.tsx"), "utf8");
+  const { readModuleSource } = await import("./lib/module-source");
+  const cfSrc = readModuleSource("src/app/(app)/cashflow/cashflow-view.tsx"); // файл и его части в _cashflow-view/
   ok("Cashflow: нет товарных плиток Приход / Продано / Остаток / SO", !/label="(Приход, шт\.|Продано, шт\.|Остаток, шт\.|SO, %)"/.test(cfSrc) && !cfSrc.includes("Приход, продажи и остаток, шт."));
   ok("Cashflow: ссылка «→ Продажи» на /sales есть (решение владельца 23.11.2026: оставить, чтобы не было тупика)", cfSrc.includes('href="/sales"'));
 

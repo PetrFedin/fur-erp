@@ -13,7 +13,7 @@ const RX = /OVERPAY_FROM|PAY_EPS|overpayTarget\(|overpayLabel|< -0\.5|< -1\b|[<>
 // Прежние места (на 23.11.2026): числа не растут; их перенос на isZero/isPositive/isNegative и debtState — по мере правки файлов.
 const ALLOWED: Record<string, number> = {
   "src/app/(app)/dashboard/pay-tiles.tsx": 1,
-  "src/app/(app)/dashboard/raw-block.tsx": 1,
+  "src/app/(app)/dashboard/_raw-block/raw-cards.tsx": 1, // вынесено из raw-block.tsx
   "src/app/(app)/dashboard/sales-block-table.tsx": 6,
   "src/app/(app)/lots/auction-view.tsx": 4,
   "src/app/(app)/lots/contractor-hides/hides-view.tsx": 1,

@@ -27,6 +27,7 @@ eq("строки накладной у совпавшей", r.byLine.get("a")?.i
 eq("мусор", parseZi({ version: 2 }), null);
 // ── раскладка по площадкам (матрица) ──
 import { readFileSync } from "node:fs";
+import { readModuleSource } from "./lib/module-source";
 import { allocFromZi, fmtDelta, lineDiff, sumDiff, validateAlloc, ziBySite, type AllocInput } from "../src/lib/shipment-alloc";
 const ctx = { L1: { quantity: 5, accepted: 3, label: "M026 · р. 42" }, L2: { quantity: 1, accepted: 0, label: "M018 · р. 44" } };
 const SITES = ["Барвиха", "ЦУМ"];
@@ -67,7 +68,7 @@ eq("раскладка: роли без SUPPLIER", /const ROLES = \["OWNER", "AD
 eq("все действия раскладки через ctxOf/requireRole", (act.match(/export async function/g) ?? []).length === (act.match(/await ctxOf\(/g) ?? []).length, true);
 const pg = readFileSync("src/app/(app)/shipments/[id]/page.tsx", "utf8");
 eq("матрица строится только для нашей стороны", /if \(ziRaw && !isSupplier && ZI_STAFF_ROLES\.includes\(session\.user\.role\)\) \{\s+const mm/.test(pg), true);
-const shipAct = readFileSync("src/app/(app)/shipments/actions.ts", "utf8");
+const shipAct = readModuleSource("src/app/(app)/shipments/actions.ts"); // действия разнесены по _actions/
 eq("открыть заново: только OWNER/ADMIN", /export async function cancelAcceptance[\s\S]{0,200}requireRole\("OWNER", "ADMIN"\)/.test(shipAct), true);
 console.log(fail ? `УПАЛО: ${fail}` : "Накладные ЗИ: все проверки прошли");
 process.exit(fail ? 1 : 0);
