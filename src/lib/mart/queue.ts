@@ -109,14 +109,20 @@ export function startMartWorker(): void {
 /**
  * После выкладки (новый код, новая схема, свежезагруженная база) витрина у организации может быть устаревшей: экраны тогда считают вживую.
  * При старте ставим пересборку (без задержки) каждой организации, у которой витрина устарела или её нет, но есть лоты (демо-база
- * приходит без витрины). Свежую витрину и пустые организации не трогаем.
+ * приходит без витрины) или в ней не хватает снимка из SNAPSHOT_REQUIRED_KEYS (новый код читает ключ, который прежний не собирал).
+ * Свежую полную витрину и пустые организации не трогаем.
  */
 export async function enqueueStaleOnStart(): Promise<number> {
-  const { martIsFresh } = await import("@/lib/mart/fresh");
+  const { martIsFresh, missingSnapshotKeys } = await import("@/lib/mart/fresh");
   const orgs = await db.$queryRaw<{ id: string }[]>`SELECT "id" FROM "Organization"`;
   let n = 0;
   for (const o of orgs) {
-    if (await martIsFresh(prisma, o.id)) continue;
+    // Свежая по данным витрина без какого-то снимка (его читает новый код, а прежний не собирал) — тоже пересобираем.
+    if (await martIsFresh(prisma, o.id)) {
+      const missing = await missingSnapshotKeys(prisma, o.id);
+      if (!missing.length) continue;
+      console.log(`[mart] при старте: витрина свежая, но нет снимков ${missing.join(", ")}`);
+    }
     const hasLots = (await db.$queryRaw<{ one: number }[]>`SELECT 1 AS one FROM "RawMaterialLot" WHERE "organizationId" = ${o.id} LIMIT 1`).length > 0;
     if (!hasLots) continue;
     if (await enqueueMartRefresh(o.id, 0, true)) n++;

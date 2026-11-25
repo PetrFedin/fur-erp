@@ -13,3 +13,19 @@ export async function martIsFresh(db: Pick<PrismaClient, "$queryRaw">, orgId: st
   const v = typeof rows[0]?.v === "number" ? rows[0].v : Number(rows[0]?.v ?? 0) || 0;
   return t != null && t >= v;
 }
+
+/**
+ * Снимки экранов, которые собирает каждая сборка витрины (не зависят от набора лет). Если новый код читает снимок, которого прежний
+ * не собирал, витрина «свежая» по данным, но неполная: при старте ставим пересборку. Список сверяется со сборкой в test-mart-drill-view.
+ */
+export const SNAPSHOT_REQUIRED_KEYS = [
+  "dash:all:on", "dash:all:off", "furlots:fur:all", "furlots:lining:all", "drill:all:on", "drill:all:off",
+  "pay:overview", "pay:left", "pay:auctions", "purchases:tree", "furkinds",
+] as const;
+
+/** Ключи из SNAPSHOT_REQUIRED_KEYS, которых нет в DmSnapshot организации (пусто — набор полный). */
+export async function missingSnapshotKeys(db: Pick<PrismaClient, "$queryRaw">, orgId: string): Promise<string[]> {
+  const rows = await db.$queryRaw<{ key: string }[]>`SELECT "key" FROM "DmSnapshot" WHERE "organizationId" = ${orgId}`;
+  const have = new Set(rows.map((r) => r.key));
+  return SNAPSHOT_REQUIRED_KEYS.filter((k) => !have.has(k));
+}

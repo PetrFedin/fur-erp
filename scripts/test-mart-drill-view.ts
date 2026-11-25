@@ -15,8 +15,11 @@ const ok = (what: string, cond: boolean, extra = "") => { checks++; console.log(
   const { loadOrdersDrill, loadOrdersDrillAll } = await import("../src/lib/orders-drill");
   const org = (await prisma.organization.findFirstOrThrow({ orderBy: { createdAt: "asc" } })).id;
   await buildMart(prisma, org); // всегда: в копии может лежать витрина прежнего кода
+  const { missingSnapshotKeys } = await import("../src/lib/mart/fresh");
+  const missing = await missingSnapshotKeys(prisma, org);
+  ok("сборка делает все обязательные снимки (SNAPSHOT_REQUIRED_KEYS)", missing.length === 0, missing.join(", "));
   const years = ["all", "2025", "2026"] as const;
-  let bad: string[] = [];
+  const bad: string[] = [];
   for (const y of years) for (const c4 of ["on", "off"] as const) {
     if (y === "all" && (await readSnapshot(org, `drill:${y}:${c4}`)) === null) { bad.push(`${y}/${c4}: нет снимка`); continue; }
     const d = same(await loadOrdersDrillAll(org, y, c4), await loadOrdersDrill(org, y, c4));

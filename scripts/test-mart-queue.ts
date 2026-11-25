@@ -69,8 +69,22 @@ const ok = (what: string, cond: boolean, extra = "") => { checks++; console.log(
   ok("устаревшая витрина: при старте поставлена пересборка", stale >= 1 && sj?.status === "pending" && sj.runAt.getTime() <= Date.now() + 1000);
   await prisma.dmRefreshJob.deleteMany({ where: { organizationId: org } });
   await prisma.$executeRaw`UPDATE "SystemState" SET value = to_jsonb(0::bigint) WHERE "organizationId" = ${org} AND key = 'data-version'`;
+  // Полный набор снимков: недостающие (копия могла быть собрана прежним кодом) — пустышки, после теста удаляются.
+  const { SNAPSHOT_REQUIRED_KEYS, missingSnapshotKeys } = await import("../src/lib/mart/fresh");
+  const added = await missingSnapshotKeys(prisma, org);
+  for (const key of added) await prisma.dmSnapshot.create({ data: { organizationId: org, key, payload: {}, builtAt: new Date() } });
   const fresh = await enqueueStaleOnStart();
-  ok("свежая витрина: при старте ничего не ставится", fresh === 0 && (await prisma.dmRefreshJob.count({ where: { organizationId: org } })) === 0);
+  ok("свежая полная витрина: при старте ничего не ставится", fresh === 0 && (await prisma.dmRefreshJob.count({ where: { organizationId: org } })) === 0);
+  // 7б. свежая, но без снимка, который читает новый код (выкладка 25.11: pay:auctions, drill:all) — пересборка ставится
+  const gone = await prisma.dmSnapshot.findUniqueOrThrow({ where: { organizationId_key: { organizationId: org, key: "pay:auctions" } } });
+  await prisma.dmSnapshot.delete({ where: { id: gone.id } });
+  ok("недостающий снимок виден", (await missingSnapshotKeys(prisma, org)).join() === "pay:auctions");
+  const incomplete = await enqueueStaleOnStart();
+  ok("свежая витрина без снимка: при старте поставлена пересборка", incomplete >= 1 && (await prisma.dmRefreshJob.findUnique({ where: { organizationId: org } }))?.status === "pending");
+  await prisma.dmSnapshot.create({ data: gone as never });
+  await prisma.dmRefreshJob.deleteMany({ where: { organizationId: org } });
+  await prisma.dmSnapshot.deleteMany({ where: { organizationId: org, key: { in: added } } });
+  ok("в списке обязательных снимков нет повторов", new Set(SNAPSHOT_REQUIRED_KEYS).size === SNAPSHOT_REQUIRED_KEYS.length);
 
   // 8. витрины нет вовсе (демо-база после выкладки), лоты есть — при старте пересборка ставится
   await prisma.$executeRaw`DELETE FROM "DmLot" WHERE "organizationId" = ${org}`;
