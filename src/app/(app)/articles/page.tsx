@@ -1,7 +1,6 @@
 import { readSort, sortRows, thSort } from "@/lib/table-sort";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { uniqueOrderCount } from "@/lib/tz-key";
-import { Fragment } from "react";
 import { loadArticleFurTypes } from "@/lib/article-fur-type";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -17,14 +16,13 @@ import { InfoHint } from "@/components/info-hint";
 import { formatMoney } from "@/lib/utils";
 import { parseSupplierDescription } from "@/lib/supplier-article";
 import { compareModelNames } from "@/lib/model-code";
-import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
+import { ResponsiveRows } from "@/components/responsive-rows";
 import { ArticlePriceForm } from "./price-form";
 import { ActiveToggle } from "./active-toggle";
 import { loadRetailPricesState } from "@/lib/import-keys";
 import { loadReportSizes } from "@/lib/margin-server";
 import { normCode } from "@/lib/sales-receipts-core";
-import { FilterBar } from "@/components/filters/filter-bar";
-import { defineFilters, parseFilters, pick, stateParam } from "@/lib/filters";
+import { parseFilters } from "@/lib/filters";
 import { articleModelWhere, hasLiningText, isTzFilterActive, matchedOrderIds, tzOptions } from "@/lib/article-filters";
 import { getFilterOptions } from "@/lib/filter-options";
 import { loadOrderRows } from "@/lib/analytics-orders";
@@ -41,9 +39,8 @@ import type { DrillOrder } from "@/lib/dashboard-drill";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { articleMetrics } from "@/lib/article-metrics";
 import { CostTwo } from "@/components/cost-two";
-import { CATEGORY_GROUPS, NO_GROUP, groupOf } from "@/lib/category-groups";
+import { NO_GROUP, groupOf } from "@/lib/category-groups";
 import { TotalLabel } from "@/components/total-label";
-import { LENGTH_OPTIONS } from "@/lib/length-class";
 import { loadAllArticleParams, modelIdsWithParams, paramFilterOptions } from "@/lib/article-params";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
 import { deleteArticlePhoto, deleteAllArticlePhotos } from "../models/photo-actions";
@@ -55,53 +52,13 @@ import { pluByVariant } from "@/lib/article-shop-core";
 import { SupplierArticles } from "./supplier-view";
 import { loadSupplierArticleIds } from "@/lib/supplier-articles";
 import { Segmented } from "@/components/segmented";
-import { ColumnPicker, type PickerColumn } from "@/components/column-picker";
+import { ColumnPicker } from "@/components/column-picker";
+import { ARTICLE_FILTERS, ARTICLE_COLUMNS } from "./_page/config";
+import { markupByFur, MarkupByFurTable } from "./_page/markup-by-fur";
+import { ArticlesFilterBar } from "./_page/filters";
+import { ArticleCards } from "./_page/article-cards";
 
 export const metadata = { title: "Изделия" };
-
-// Фильтры «Изделий». Уровень модели: поиск, категория, цена. Уровень ТЗ (остальные): модель остаётся в списке, если у неё есть ТЗ,
-// подходящее под ВСЕ выбранные условия; её ср. взвеш. себестоимость и число ТЗ считаются только по таким ТЗ.
-// «Год ТЗ» (tzyear) — дополнительный фильтр внутри общего года из шапки (cookie), общий год не заменяет.
-const ARTICLE_FILTERS = defineFilters({
-  ...pick(["q", "category", "catgroup", "model", "len", "fur", "color", "size", "season", "batch"], { q: { label: "Поиск" }, fur: { label: "Вид (тип) меха" }, batch: { label: "Партия" }, size: { label: "Размер изделия" }, model: { label: "Артикул" } }),
-  lining: { kind: "multi", label: "Подкладка", allowed: ["yes", "no"] },
-  tzyear: { kind: "multi", label: "Год ТЗ", pattern: /^\d{4}$/ },
-  tz: { kind: "multi", label: "ТЗ", maxLen: 60 },
-  price: { kind: "multi", label: "Цена", allowed: ["yes", "no"] },
-  active: { kind: "multi", label: "Вкл / выкл", allowed: ["on", "off"] },
-  param: { kind: "multi", label: "Параметры", maxLen: 90 },
-  empty: stateParam("Состав списка", { allowed: ["1"] }),
-  src: stateParam("Источник", { allowed: ["supplier"] }),
-  grp: stateParam("Одежда / аксессуары", { allowed: ["clothes", "acc"] }),
-});
-
-/** Колонки таблицы «Изделия»: на виду главные (артикул, фото, категория, мех, выпуск, себестоимость, цена, наценка, ТЗ), остальные — в «Колонки ▾». */
-const ARTICLE_COLUMNS: PickerColumn[] = [
-  { key: "name", label: "Артикул", fixed: true },
-  { key: "active", label: "Вкл / выкл", on: true },
-  { key: "photos", label: "Фото", on: true },
-  { key: "plu", label: "PLU" },
-  { key: "shop", label: "Ссылка на магазин" },
-  { key: "category", label: "Категория / группа", on: true },
-  { key: "fur", label: "Тип меха", on: true },
-  { key: "color", label: "Цвет" },
-  { key: "sizes", label: "Размеры" },
-  { key: "lining", label: "Состав подкладки" },
-  { key: "qty", label: "Заведено в ТЗ", on: true },
-  { key: "stock", label: "На складе, шт.", on: true },
-  { key: "furQty", label: "Шкур, шт." },
-  { key: "furSum", label: "Шкуры, сумма" },
-  { key: "liningQty", label: "Подкладка, м" },
-  { key: "liningSum", label: "Подкладка, сумма" },
-  { key: "work", label: "Работа" },
-  { key: "total", label: "Полная себестоимость", on: true },
-  { key: "unit", label: "Себестоимость за ед.", on: true },
-  { key: "vat", label: "НДС" },
-  { key: "price", label: "Розничная цена", on: true },
-  { key: "markup", label: "Наценка к ТЗ", on: true },
-  { key: "mu110", label: "MU (110)", on: true },
-  { key: "orders", label: "ТЗ", on: true },
-];
 
 export default async function ArticlesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
@@ -293,38 +250,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const sumPair = (pick: (r: (typeof rows)[number]) => { incl: number; excl: number }) => rows.reduce((a, r) => ({ incl: a.incl + pick(r).incl, excl: a.excl + pick(r).excl }), { incl: 0, excl: 0 });
   const perItem = (q: number, n: number) => formatQty(Math.round((q / n) * 100) / 100);
 
-  // Таблица «мех × категория»: число артикулов, средняя розничная цена и средняя наценка (артикулы с ценой и себестоимостью).
-  type Agg = { n: number; price: number; markup: number };
-  // Средневзвешенные по выпуску: цена = Σ(цена × выпуск) ÷ Σ выпуск; маркап = Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск).
-  const aggOf = (list: typeof rows): Agg | null => {
-    const priced = list.filter((r) => r.markup && r.sellingPrice && r.unitIncl && r.qty > 0);
-    if (priced.length === 0) return null;
-    const sumW = priced.reduce((a, r) => a + r.qty, 0);
-    const retail = priced.reduce((a, r) => a + r.sellingPrice! * r.qty, 0);
-    const cost = priced.reduce((a, r) => a + r.unitIncl! * r.qty, 0);
-    return { n: priced.length, price: retail / sumW, markup: cost > 0 ? retail / cost : 0 };
-  };
-  const catOf = (r: (typeof rows)[number]) => r.model.category?.trim() || "Без категории";
-  // Мех → категория 1 (Одежда / Аксессуары) → категория 2 (категория артикула); пересчитывается по тем же фильтрам, что и список.
-  const furGroups = Array.from(new Set(rows.filter((r) => r.markup && r.primaryFur).map((r) => r.primaryFur!)))
-    .map((fur) => {
-      const inFur = rows.filter((r) => r.primaryFur === fur);
-      const grps = Array.from(new Set(inFur.filter((r) => r.markup).map((r) => r.group)))
-        .map((grp) => {
-          const inGrp = inFur.filter((r) => r.group === grp);
-          const cats = Array.from(new Set(inGrp.filter((r) => r.markup).map(catOf)))
-            .map((cat) => ({ cat, agg: aggOf(inGrp.filter((r) => catOf(r) === cat))! }))
-            .filter((c) => c.agg)
-            .sort((x, y) => y.agg.markup - x.agg.markup);
-          return { grp, agg: aggOf(inGrp)!, cats };
-        })
-        .filter((g) => g.agg)
-        .sort((x, y) => y.agg.markup - x.agg.markup);
-      return { fur, total: aggOf(inFur)!, grps };
-    })
-    .filter((g) => g.total)
-    .sort((x, y) => y.total.markup - x.total.markup);
-  const markupTotal = aggOf(rows);
+  const { furGroups, markupTotal } = markupByFur(rows);
   const fmtX = (v: number) => formatMarkup(v);
 
   // Плитки и дерево «артикул → ТЗ → состав» — из тех же ТЗ, что на Главной, по артикулам и ТЗ списка.
@@ -365,86 +291,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       </div>
 
       <div className="print:hidden">
-      <FilterBar
-        oneRow
-        hideChips
-        title="Фильтры изделий"
-        controls={[
-          { type: "text", name: "q", label: "Поиск", aliases: ["article"], placeholder: "код, название, код продаж, PLU" },
-          { type: "multi", name: "model", label: "Артикул", options: articleOpts.model },
-          { type: "multi", name: "len", label: "Длина", more: true, options: LENGTH_OPTIONS, allLabel: "Любая" },
-          { type: "multi", name: "catgroup", label: "Группа", more: true, options: [...CATEGORY_GROUPS, NO_GROUP].map((g) => ({ value: g === NO_GROUP ? "none" : g, label: g })) },
-          { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: articleOpts.category, noneLabel: "Без категории" },
-          { type: "multi", name: "fur", label: "Тип меха", aliases: ["kind"], options: tzOpts.fur, hint: "по ТЗ изделия" },
-          { type: "multi", name: "color", label: "Цвет", more: true, options: tzOpts.color },
-          { type: "multi", name: "tz", label: "ТЗ", more: true, options: tzOpts.tz },
-          { type: "multi", name: "tzyear", more: true, label: year === "all" ? "Год" : `Год (внутри ${year})`, options: tzOpts.tzyear, hint: "год ТЗ; дополнительно к общему году в шапке" },
-          { type: "multi", name: "batch", label: "Партия пошива", options: tzOpts.batch, noneLabel: "Вне партий" },
-          { type: "multi", name: "lining", label: "Подкладка", more: true, options: [{ value: "yes", label: "Да — есть подкладка" }, { value: "no", label: "Нет подкладки" }], hint: "по ТЗ: подкладка указана или списана" },
-          { type: "multi", name: "size", label: "Размер изделия", options: tzOpts.size, more: true },
-          { type: "multi", name: "season", label: "Сезон", options: tzOpts.season, noneLabel: "Без сезона", more: true },
-          ...(paramOpts.length ? [{ type: "multi" as const, name: "param", label: "Параметры", more: true, options: paramOpts, hint: "свои параметры артикула из карточки" }] : []),
-          { type: "multi", name: "active", label: "Вкл / выкл", options: [{ value: "on", label: "Вкл" }, { value: "off", label: "Выкл" }], allLabel: "Все" },
-          { type: "multi", name: "price", label: "Цена", more: true, options: [{ value: "yes", label: "Есть цена" }, { value: "no", label: "Нет цены" }] },
-        ]}
-      />
+      <ArticlesFilterBar articleOpts={articleOpts} tzOpts={tzOpts} year={year} paramOpts={paramOpts} />
       </div>
 
       {markupTotal ? (
-        <details className="rounded-lg border border-neutral-200 bg-white" data-testid="articles-markup">
-          <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium max-md:py-3">Розничная цена и наценка по меху и категориям</summary>
-          <div className="overflow-x-auto border-t border-neutral-200">
-          <table className="w-full min-w-[420px] text-sm">
-            <thead>
-              <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
-                <Th>Мех / категория</Th>
-                <Th className="text-right" unit="шт.">Артикулов</Th>
-                <Th className="text-right" unit="₽">Ср. розничная цена</Th>
-                <Th className="text-right">
-                  Ср. маркап
-                  <InfoHint label="Как считается средневзвешенное">Взвешено по выпуску (артикулы с ценой): розничная цена = Σ(цена × выпуск) ÷ Σ выпуск, маркап = Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск). Меняете фильтры — таблица пересчитывается.</InfoHint>
-                </Th>
-              </tr>
-            </thead>
-            <tbody>
-              {furGroups.map((g) => (
-                <Fragment key={g.fur}>
-                  <tr className="border-b border-neutral-100 bg-neutral-50 font-semibold">
-                    <td className="px-3 py-1.5">{g.fur}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{g.total.n}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{formatMoney(g.total.price.toFixed(0))}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums">{fmtX(g.total.markup)}</td>
-                  </tr>
-                  {g.grps.map((gr) => (
-                    <Fragment key={g.fur + gr.grp}>
-                      <tr className="border-b border-neutral-100 font-medium">
-                        <td className="px-3 py-1.5 pl-6">{gr.cats.length === 1 ? `${gr.grp} · ${gr.cats[0].cat}` : gr.grp}</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums">{gr.agg.n}</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums">{formatMoney(gr.agg.price.toFixed(0))}</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums">{fmtX(gr.agg.markup)}</td>
-                      </tr>
-                      {gr.cats.length > 1 && gr.cats.map((c) => (
-                        <tr key={g.fur + gr.grp + c.cat} className="border-b border-neutral-100 text-neutral-700">
-                          <td className="px-3 py-1 pl-10">{c.cat}</td>
-                          <td className="px-3 py-1 text-right tabular-nums">{c.agg.n}</td>
-                          <td className="px-3 py-1 text-right tabular-nums">{formatMoney(c.agg.price.toFixed(0))}</td>
-                          <td className="px-3 py-1 text-right tabular-nums">{fmtX(c.agg.markup)}</td>
-                        </tr>
-                      ))}
-                    </Fragment>
-                  ))}
-                </Fragment>
-              ))}
-              <tr className="row-total">
-                <td className="px-3 py-1.5"><TotalLabel unit="₽" avg /></td>
-                <td className="px-3 py-1.5 text-right tabular-nums">{markupTotal.n}</td>
-                <td className="px-3 py-1.5 text-right tabular-nums">{formatMoney(markupTotal.price.toFixed(0))}</td>
-                <td className="px-3 py-1.5 text-right tabular-nums">{fmtX(markupTotal.markup)}</td>
-              </tr>
-            </tbody>
-          </table>
-          </div>
-        </details>
+        <MarkupByFurTable furGroups={furGroups} markupTotal={markupTotal} />
       ) : null}
 
       <ProdTiles
@@ -611,49 +462,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         </Tbody>
       </Table>
       }>
-        {rows.map((r) => (
-          <RowCard
-            key={r.id}
-            className={r.isActive ? "" : "opacity-60"}
-            title={<ArticleName model={r.model} compact />}
-            subtitle={[r.model.category?.trim(), r.group !== NO_GROUP ? r.group : null, r.primaryFur, r.colors.slice(0, 2).join(", ") || null].filter(Boolean).join(" · ") || undefined}
-            href={`/models/${r.id}`}
-            fields={[
-              { label: "Заведено в ТЗ, шт.", value: r.qty > 0 ? formatQty(r.qty) : "–", strong: true },
-              { label: "Полная себестоимость итого", value: <CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /> },
-              { label: "За ед.", value: <CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /> },
-              { label: "Наценка к ТЗ", value: r.markup ? fmtX(r.markup) : "–" },
-              { label: "MU (110)", value: r.mu110 ? fmtX(r.mu110) : "–" },
-              { label: "Вкл / выкл", value: <ActiveToggle modelId={r.id} active={r.isActive} canEdit={canCreate} /> },
-              { label: "ТЗ", value: r.orderCount > 0 ? <Link href={`/production?model=${r.id}`} className="underline">{r.orderCount}</Link> : "–" },
-            ]}
-            details={[
-              ...(() => {
-                const ph = photoSummary.get(r.id);
-                const ex = ph ? galleryExtras(ph, shopLinksAll.get(r.id) ?? [], colorRefs) : null;
-                const links = shopLinksAll.get(r.id) ?? [];
-                return [
-                  ...(ph && ex ? [{ label: "Фото", value: <PhotoGalleryButton modelId={r.id} photos={ph} groups={ex.groups} shops={ex.shops} title={r.name} compact {...(canCreate ? { onDelete: deleteArticlePhoto, onDeleteAll: deleteAllArticlePhotos } : {})} /> }] : []),
-                  ...(r.plus.length ? [{ label: "PLU", value: r.plus.map((x) => x.plu + (r.plus.length > 1 && x.label ? ` · ${x.label}` : "")).join(", ") }] : []),
-                  ...(links[0] ? [{ label: "Товар в магазине", value: <a href={links[0].url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-blue-700 underline">Открыть ↗</a> }] : []),
-                  ...(canCreate ? [{ label: "Магазин и фото", value: <ArticleShopEditor modelId={r.id} title={r.name} /> }] : []),
-                ];
-              })(),
-              { label: "Шкур, шт.", value: r.met.fur.qty > 0 ? `${formatDec1(Math.round(r.met.fur.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.fur.qty, r.qty)}/изд.)` : ""}` : "–" },
-              { label: "Шкуры, сумма", value: <CostTwo on={r.met.fur.on} off={r.met.fur.off} /> },
-              { label: "Подкладка, м", value: r.met.lining.qty > 0 ? `${formatDec1(Math.round(r.met.lining.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.lining.qty, r.qty)}/изд.)` : ""}` : "–" },
-              { label: "Подкладка, сумма", value: <CostTwo on={r.met.lining.on} off={r.met.lining.off} /> },
-              { label: "Работа", value: r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "–" },
-              { label: "НДС в списаниях", value: r.met.vatRates.length ? r.met.vatRates.map((v) => `${v} %`).join(", ") : "–" },
-            ]}
-            extra={
-              <div>
-                <div className="mb-1 text-xs text-neutral-500">Розничная цена, с НДС</div>
-                <ArticlePriceForm mobile modelId={r.id} sellingPrice={r.ownPrice} fallback={r.listOnly && r.sellingPrice ? String(r.sellingPrice) : ""} canEdit={canCreate} />
-              </div>
-            }
-          />
-        ))}
+        <ArticleCards rows={rows} photoSummary={photoSummary} shopLinksAll={shopLinksAll} colorRefs={colorRefs} canCreate={canCreate} perItem={perItem} fmtX={fmtX} />
         {rows.length === 0 && (
           <p className="py-8 text-center text-neutral-500">
             {q || modelFilterOn || tzActive ? "Ничего не найдено" : year !== "all" ? emptyForYear(year, "ТЗ по артикулам", "") : emptyCount > 0 ? "Нет артикулов с ТЗ и остатком" : "Артикулов пока нет"}

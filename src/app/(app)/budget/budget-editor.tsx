@@ -1,64 +1,30 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { formatPercent, formatNum, formatDec1, formatMoney, formatMoneySigned } from "@/lib/utils";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { formatPercent, formatMoney, formatMoneySigned } from "@/lib/utils";
 import { useConfirm } from "@/components/confirm-dialog";
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
-import { TileCarousel } from "@/components/tile-carousel";
 import { TotalLabel } from "@/components/total-label";
-import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../dashboard/tile";
-import {
-  addAgg, autoCalc, collapseUnknownLengths, blankNode, childrenMap, computeTree, defaultLines, effLocked, effUp, grandTotal, isAccessoryCat, normKey, perUnit, reapplyParams, srcInfo,
-  type Agg, type BudgetNode, type BudgetParams, type BudgetStat, type EffUp,
-} from "@/lib/budget-calc";
+import { addAgg, autoCalc, collapseUnknownLengths, blankNode, childrenMap, computeTree, effLocked, grandTotal, isAccessoryCat, normKey, reapplyParams, type BudgetNode, type BudgetParams, type BudgetStat } from "@/lib/budget-calc";
 import { exportBudgetXlsx, parseBudgetFile, refreshBudgetStats, renameBudget, saveBudget, type ImportRow } from "./actions";
 import { AddDialog, type AddKind, type ArticleOpt } from "./add-dialog";
-import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, NumInput, SEG_BOX, money, qty, segBtn, share } from "./ui";
+import { BTN, BTN_PRIMARY, Modal, NumInput, SEG_BOX, segBtn } from "./ui";
+import { CatCard } from "./_budget-editor/cat-card";
+import { EditCardDialog } from "./_budget-editor/edit-card-dialog";
+import { ImportPreviewModal, StatModal, UpAllModal, UpNodeModal } from "./_budget-editor/modals";
+import { buildImportedNodes, scopeNodes } from "./_budget-editor/nodes-logic";
+import { ZERO, type NumKey, type UpKey } from "./_budget-editor/parts";
+import { makeRowKit } from "./_budget-editor/row-kit";
+import { DetailHead, SummaryHead, TotalRowDetail, UnitHead } from "./_budget-editor/table-heads";
+import { TotalTiles } from "./_budget-editor/total-tiles";
+import { makeTreeRows } from "./_budget-editor/tree-rows";
 
 type Props = {
   id: string; name: string; season: string; status: "DRAFT" | "APPROVED"; initialComment: string; initialParams: BudgetParams; initialNodes: BudgetNode[];
   initialStats: BudgetStat[]; furNames: string[]; catNames: string[]; catGroups: Record<string, string>; articles: ArticleOpt[]; canEdit: boolean; savedAt: string; savedBy: string | null; createdAt: string;
 };
-
-/** Мелкая подпись под суммой: средняя цена шкуры / метра подкладки / работы на изделие. */
-function Avg({ sum, per, unit, d = 0 }: { sum: number; per: number; unit: string; d?: number }) {
-  if (!(per > 0) || !(sum > 0)) return null;
-  const v = sum / per;
-  return <div className="sub-cap mt-0.5 whitespace-normal text-[11px] font-normal leading-tight text-neutral-600">ср. {unit.startsWith("₽") ? formatNum(Math.round(v / 1000) * 1000, 0) : formatNum(v, d > 0 ? 10 : 1)} {unit}</div>;
-}
-
-
-const ZERO: Agg = { pcs: 0, hides: 0, mex: 0, meters: 0, lining: 0, work: 0, c4: 0, total: 0, nowTotal: 0, nowPcs: 0, cmpTotal: 0 };
-type NumKey = "pcs" | "hides" | "hidePrice" | "meters" | "meterPrice" | "work";
-type UpKey = "upFur" | "upLining" | "upWork";
-const KIND_LABEL = { fur: "тип сырья", cat: "категория", len: "длина", art: "артикул" } as const;
-const ICON_BTN = "btn-accent inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-neutral-200 bg-white px-1.5 text-sm text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-40 md:h-8 md:min-w-8";
-const DOT = { ok: "bg-emerald-500", warn: "bg-amber-500", bad: "bg-red-500", manual: "bg-neutral-400" } as const;
-
-/** Короткая подпись колонки + единица второй строкой + «i»-подсказка (title). Вертикально по центру. */
-function Th({ children, tip, unit, className = "" }: { children: ReactNode; tip: string; unit?: string; className?: string }) {
-  return (
-    <th scope="col" className={"h-10 whitespace-nowrap px-1 py-1 text-right align-middle text-[11px] font-medium leading-tight print:text-[8.5px] 2xl:px-2 2xl:text-xs text-neutral-500 " + className}>
-      <span className="inline-flex flex-col items-end">
-        <span className="inline-flex items-center gap-0.5">
-          {children}
-          <span title={tip} aria-label={tip} className="inline-flex h-3 w-3 cursor-help items-center justify-center rounded-full border border-neutral-300 text-[11px] font-normal leading-none text-neutral-600">i</span>
-        </span>
-        {unit ? <span className="max-w-[72px] whitespace-normal text-[11px] font-normal opacity-80">{unit}</span> : null}
-      </span>
-    </th>
-  );
-}
-
-const sepL = "border-l border-neutral-200";
-/** В таблицах нулевые значения — «—». */
-const mz = (v: number | null | undefined) => (v ? money(v) : "–");
-/** В сводной таблице без «₽»: единица стоит в заголовке колонки (так таблица вмещается в ширину). */
-const mt = (v: number | null | undefined) => (v ? money(v).replace(" ₽", "") : "–");
-const qz = (v: number | null | undefined, d = 0) => (v ? qty(v, d) : "–");
 
 export function BudgetEditor(p: Props) {
   const router = useRouter();
@@ -167,20 +133,7 @@ export function BudgetEditor(p: Props) {
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const kids = useMemo(() => childrenMap(nodes), [nodes]);
   // Показ «Все / Одежда / Аксессуары»: только фильтр отображения, сохраняемые узлы не меняются.
-  const vNodes = useMemo(() => {
-    if (scope === "all") return nodes;
-    const keep = new Set<string>();
-    const catKept = (c: BudgetNode) => isAccessoryCat(c, p.catGroups) === (scope === "acc");
-    const byIdAll = new Map(nodes.map((n) => [n.id, n]));
-    for (const n of nodes) {
-      if (n.kind === "fur") continue;
-      let c: BudgetNode | undefined = n;
-      for (let i = 0; i < 6 && c && c.kind !== "cat"; i++) c = c.parentId ? byIdAll.get(c.parentId) : undefined;
-      if (c && c.kind === "cat" && catKept(c)) keep.add(n.id);
-    }
-    for (const n of nodes) if (keep.has(n.id) && n.parentId) { let q = byIdAll.get(n.parentId); for (let i = 0; i < 6 && q; i++) { keep.add(q.id); q = q.parentId ? byIdAll.get(q.parentId) : undefined; } }
-    return nodes.filter((n) => keep.has(n.id));
-  }, [nodes, scope, p.catGroups]);
+  const vNodes = useMemo(() => scopeNodes(nodes, scope, p.catGroups), [nodes, scope, p.catGroups]);
   const vKids = useMemo(() => childrenMap(vNodes), [vNodes]);
   const fullCalc = useMemo(() => computeTree(nodes, params), [nodes, params]);
   const fullTotal = useMemo(() => grandTotal(nodes, params), [nodes, params]);
@@ -291,34 +244,7 @@ export function BudgetEditor(p: Props) {
 
   const applyImport = () => {
     if (!preview) return;
-    let ns = [...nodes];
-    const touched = new Set<string>();
-    const lynxDef = defaultLines().filter((l) => l.fur === "Рысь");
-    for (const r of preview.rows) {
-      let fur = ns.find((n) => n.kind === "fur" && normKey(n.name) === normKey(r.fur));
-      if (!fur) { fur = blankNode("fur", null, r.fur); ns.push(fur); }
-      const isLynx = normKey(r.fur) === "рысь";
-      let cat = ns.find((n) => n.kind === "cat" && n.parentId === fur!.id && normKey(n.name) === normKey(r.cat));
-      if (!cat) { cat = blankNode("cat", fur.id, r.cat); ns.push(cat); }
-      const given = [r.hides, r.hidePrice, r.meters, r.meterPrice, r.work].some((v) => v != null);
-      const patchN: Partial<BudgetNode> = { pcs: r.pcs };
-      if (r.statFur) patchN.statFur = r.statFur;
-      if (r.statCat) patchN.statCat = r.statCat;
-      if (given) Object.assign(patchN, { hides: r.hides ?? 0, hidePrice: r.hidePrice ?? 0, meters: r.meters ?? 0, meterPrice: r.meterPrice ?? 0, work: r.work ?? 0, locked: true, src: "manual" });
-      else if (isLynx) {
-        const d = lynxDef.find((l) => normKey(l.cat) === normKey(r.cat));
-        if (d) Object.assign(patchN, { hides: d.hides, hidePrice: d.hidePrice, meters: d.meters, meterPrice: d.meterPrice, work: d.work, base: d.base, sample: 0, locked: true, src: "manual" });
-      } else Object.assign(patchN, { locked: false });
-      const id = cat.id;
-      ns = ns.map((n) => (n.id === id ? { ...n, ...patchN } : n));
-      touched.add(id);
-    }
-    // Значения по данным системы — только для загруженных строк без своих цифр; остальные строки бюджета не трогаем.
-    const calcd = autoCalc(ns, stats, params);
-    ns = ns.map((n, i) => (touched.has(n.id) && !n.locked ? calcd[i] : n));
-    // После загрузки все строки типа «Рысь» фиксируются замком.
-    const lynxIds = new Set(ns.filter((n) => n.kind === "fur" && normKey(n.name) === "рысь").map((n) => n.id));
-    ns = ns.map((n) => (lynxIds.has(n.id) || (n.parentId && lynxIds.has(n.parentId)) ? { ...n, locked: true, src: n.kind === "fur" ? n.src : n.src === "none" ? "manual" : n.src } : n));
+    const ns = buildImportedNodes(nodes, preview.rows, stats, params);
     setNodes(ns);
     setMsg(`Загружено из файла «${preview.fileName}»: ${preview.rows.length} строк.${preview.rows.some((r) => normKey(r.fur) === "рысь") ? " Строки «Рысь» зафиксированы замком." : ""}`);
     setPreview(null);
@@ -360,349 +286,17 @@ export function BudgetEditor(p: Props) {
     for (const c of nodes) if (c.kind === "cat") { const a = fullCalc.get(c.id); if (a) { const k = isAccessoryCat(c, p.catGroups) ? "acc" : "cloth"; r[k] = addAgg(r[k], a); } }
     return r;
   }, [nodes, fullCalc, p.catGroups]);
-  const perKind = (f: (a: Agg) => number | null, fmt: (v: number | null) => string = money): { k: string; v: string }[] =>
-    ([["Одежда, 1 изд.", kindAgg.cloth], ["Аксессуары, 1 изд.", kindAgg.acc]] as const).filter(([, a]) => a.pcs > 0).map(([k, a]) => ({ k, v: fmt(f(a)) }));
-  const leafOf = (n: BudgetNode) => n.kind !== "fur" && (kids.get(n.id) ?? []).length === 0;
 
-  /** Индикатор качества данных: цветная точка с подсказкой; у категории-листа по клику выбирается источник статистики. */
-  const dot = (n: BudgetNode) => {
-    if (!leafOf(n)) return null;
-    const si = srcInfo(n);
-    const d = <span className={`inline-block h-2 w-2 rounded-full ${DOT[si.tone]}`} />;
-    return n.kind === "cat" && canEdit && !effLocked(n, byId)
-      ? <button type="button" onClick={() => setStatFor(n.id)} title={`${si.label}. Нажмите, чтобы выбрать источник данных`} aria-label={`Качество данных: ${si.label}`} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full hover:bg-neutral-100 md:h-5 md:w-5">{d}</button>
-      : <span title={si.label} aria-label={`Качество данных: ${si.label}`} className="inline-flex h-5 w-5 shrink-0 items-center justify-center">{d}</span>;
-  };
-
-  /** Маленький зелёный процент надбавки рядом с ценой: у унаследованной обычный, у заданной на этой строке подчёркнутый и жирнее. */
-  const upTag = (n: BudgetNode, k: UpKey) => {
-    if (!leafOf(n) || !n.base || effLocked(n, byId)) return <span className="w-9 shrink-0" />;
-    const e: EffUp = effUp(n, byId, params);
-    const v = k === "upFur" ? e.fur : k === "upLining" ? e.lining : e.work;
-    const own = k === "upFur" ? e.ownFur : k === "upLining" ? e.ownLining : e.ownWork;
-    if (!v) return <span className="w-9 shrink-0" />;
-    return <span title={own ? "Надбавка задана на этой строке" : "Надбавка унаследована от уровня выше"} className={"w-11 shrink-0 text-right text-[11px] leading-none text-emerald-600 " + (own ? "font-bold underline" : "")}>{formatPercent(v, { sign: true })}</span>;
-  };
-
-  const hasOwnUp = (n: BudgetNode) => [n.upFur, n.upLining, n.upWork].some((v) => typeof v === "number");
-
-  const actions = (n: BudgetNode, hasKids: boolean) => (
-    <div className="flex items-center justify-end gap-1 print:hidden">
-      {canEdit ? (
-        <>
-          <button type="button" className={ICON_BTN + (n.locked ? " border-[var(--ui-accent)] bg-[var(--ui-soft)] text-[var(--ui-accent-text)]" : "")} onClick={() => toggleLock(n.id)} aria-pressed={n.locked} aria-label={n.locked ? "Замок закрыт" : "Замок открыт"}
-            title={n.locked ? "Замок закрыт: значения ручные, автоматический расчёт не трогает. Нажмите, чтобы вернуть автоматический расчёт" : "Замок открыт: считается автоматически. Ручная правка значения закроет замок"}>{n.locked ? "🔒" : <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5 text-neutral-600" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><rect x="3" y="7" width="10" height="7" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>}</button>
-          <button type="button" className={ICON_BTN} disabled={busy} onClick={() => runAuto(n.id)} aria-label="Автоматический расчёт для блока" title="Автоматический расчёт только для этого блока">↻</button>
-          <button type="button" className={ICON_BTN + (hasOwnUp(n) ? " border-[var(--ui-accent)] bg-[var(--ui-soft)] text-[var(--ui-accent-text)]" : "")} onClick={() => setUpFor(n.id)} aria-label="Надбавки для этой строки" title="Надбавки для этой строки и всего, что внутри">%</button>
-          {n.kind !== "art" ? <button type="button" className={ICON_BTN} onClick={() => setAdding({ kind: n.kind === "fur" ? "cat" : "art", parentId: n.id })} aria-label={"Добавить: " + addInfo(n).label} title={"Добавить: " + addInfo(n).label}>＋</button> : null}
-          <button type="button" className={ICON_BTN + " hover:text-red-700"} onClick={() => (hasKids || n.pcs > 0 ? setRemoving(n.id) : removeNode(n.id))} aria-label={`Удалить: ${n.name}`} title="Удалить">×</button>
-        </>
-      ) : n.locked ? <span title="Замок: ручные значения" aria-label="Замок закрыт">🔒</span> : null}
-    </div>
-  );
-
-  /** Замок показывается только там, где он закрыт (значения ручные, автоматический расчёт строку и всё внутри не трогает). Открыть — кнопка в «Детально»; закрыть — значок замка в колонке «Действия». */
-  const lockBtn = (n: BudgetNode, interactive = true) => {
-    if (!n.locked) return null;
-    return interactive && canEdit ? (
-      <button type="button" onClick={() => toggleLock(n.id)} aria-pressed aria-label="Замок закрыт" data-touch-ok
-        title="Замок закрыт: значения ручные, автоматический расчёт не трогает (в том числе всё внутри). Нажмите, чтобы открыть и вернуть автоматический расчёт"
-        className="btn-accent inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border border-[var(--ui-accent)] bg-[var(--ui-soft)] text-[11px]">🔒</button>
-    ) : <span title="Замок: ручные значения, автоматический расчёт не трогает" aria-label="Замок закрыт" className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-[11px]">🔒</span>;
-  };
-
-  const chevron = (n: BudgetNode, hasKids: boolean, open: boolean, size = "h-7 w-6") =>
-    n.kind !== "art" && hasKids ? (
-      <button type="button" onClick={() => toggle(n.id)} aria-expanded={open} aria-label={`${open ? "Свернуть" : "Развернуть"}: ${n.name}`} className={`inline-flex ${size} shrink-0 items-center justify-center text-neutral-500 hover:text-neutral-900`}>
-        <span aria-hidden className={"inline-block transition-transform " + (open ? "rotate-90" : "")}>›</span>
-      </button>
-    ) : <span className="w-6 shrink-0" />;
+  // ---- Мелкие элементы строки и строки таблиц (вынесены в _budget-editor/row-kit.tsx и tree-rows.tsx)
+  const kit = makeRowKit({ canEdit, busy, byId, kids, params, toggle, toggleLock, runAuto, setUpFor, setAdding, setRemoving, removeNode, setStatFor, patch, editNum, addInfo });
+  const { sumRow, summaryRows, unitRows, tableRows, cards } = makeTreeRows({ vKids, calc, collapsed, total, setUnitFor, canEdit, patch, kit });
 
   // ---- Плитки (как на Главной: TILE_BOX + Tile*, у всех по три строки — строки соседних плиток на одной горизонтали)
-  const tile = (key: string, head: string, value: string, caption: string, items: { k: string; v: string }[]) => (
-    <div key={key} className={TILE_BOX + " shadow-sm print:shadow-none"}>
-      <TileHead>{head}</TileHead><TileValue>{value}</TileValue><TileCaption>{caption}</TileCaption>
-      <TileList items={items} />
-    </div>
-  );
-  // Плитка «Мех»: первым слайдом «Тотал», далее каждый тип меха.
-  const furSlides = [
-    { id: "mex", name: "Все виды меха", a: fullTotal },
-    ...furs.map((f) => ({ id: f.id, name: f.name, a: fullCalc.get(f.id) ?? ZERO })),
-  ].map((sl) => {
-    const isMex = sl.id === "mex";
-    const items = [
-      { k: "Цена шкуры, ср.", v: money(sl.a.hides ? sl.a.mex / sl.a.hides : null) },
-            { k: "Доля", v: share(isMex ? sl.a.mex : sl.a.total, fullTotal.total) },
-    ];
-    return {
-      key: sl.id, label: sl.name,
-      body: <><TileValue>{money(isMex ? sl.a.mex : sl.a.total)}</TileValue><TileCaption>{isMex ? `${formatDec1(sl.a.hides)} шкур` : `${qty(sl.a.pcs, 0)} изд. · ${qty(sl.a.hides, 0)} шкур`}</TileCaption><TileList items={items} /></>,
-    };
-  });
-  const furTile = (
-    <TileCarousel key="fur" title="Мех" hintLabel="Что показывает плитка «Мех»" hint={<p>Первый слайд — стоимость всего меха, далее каждый тип сырья: сколько изделий и шкур, средняя цена шкуры и доля в бюджете.</p>}
-      slides={furSlides} slidesLabel="слайды: все виды меха и по типам" dotsLabel="Тип меха" />
-  );
-
-  const totalTiles = (
-    <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 print:grid-cols-5">
-      {tile("t", "Прогноз бюджета", money(fullTotal.total), `${qty(fullTotal.pcs, 0)} изд.`, perKind(perUnit))}
-      {furTile}
-      {tile("l", "Подкладка", money(fullTotal.lining), `${formatDec1(fullTotal.meters)} м`, [{ k: "Цена за м, ср.", v: money(fullTotal.meters ? fullTotal.lining / fullTotal.meters : null) }, ...perKind((a) => (a.pcs ? a.meters / a.pcs : null), (v) => `${qty(v, 1)} м`), { k: "Доля", v: share(fullTotal.lining, fullTotal.total) }])}
-      {tile("w", "Работа", money(fullTotal.work), "пошив", [...perKind((a) => (a.pcs ? a.work / a.pcs : null)), { k: "Доля", v: share(fullTotal.work, fullTotal.total) }])}
-      {tile("c", `Надбавка ${formatPercent(params.c4)}`, money(fullTotal.c4), "на мех и подкладку", [...perKind((a) => (a.pcs ? a.c4 / a.pcs : null)), { k: "Доля", v: share(fullTotal.c4, fullTotal.total) }])}
-    </div>
-  );
-  // ---- Сводка (для руководства): без полей ввода
-  const sumCell = "whitespace-nowrap px-1.5 py-2 text-right text-xs tabular-nums print:px-0.5 print:text-[11px] 2xl:px-3 2xl:text-[13px]";
-  const sumRow = (key: string, label: ReactNode, a: Agg, o: { bg: string; bold?: boolean }) => {
-    const sh = total.total > 0 ? a.total / total.total : 0;
-    return (
-      <tr key={key} className={`${o.bg} ${o.bold ? "font-semibold" : ""} [&>td]:border-b [&>td]:border-neutral-100 print:break-inside-avoid`}>
-        <td className={`sticky left-0 z-10 min-w-[120px] max-w-[320px] border-r border-neutral-200 px-1.5 py-2 text-sm bg-inherit print:static`}>{label}</td>
-        <td className={sumCell}>{qz(a.pcs)}</td>
-        <td className={sumCell + " text-neutral-600"}>{qz(a.hides)}<Avg sum={a.hides} per={a.pcs} unit="шк./изд." d={1} /></td>
-        <td className={sumCell + " " + sepL}>{mt(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шт." /></td>
-        <td className={sumCell}>{mt(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
-        <td className={sumCell}>{mt(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
-        <td className={sumCell + " text-neutral-500"}>{mt(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
-        <td className={sumCell + " text-sm font-semibold " + sepL}>
-          {mt(a.total)}
-          <div className="mt-1 flex items-center justify-end gap-1.5 text-[11px] font-normal text-neutral-500">
-            <span className="h-1 w-8 overflow-hidden 2xl:w-16 rounded-full bg-neutral-200"><span className="block h-1 rounded-full bg-neutral-700" style={{ width: `${Math.min(100, sh * 100)}%` }} /></span>
-            <span className="w-8 text-right">{share(a.total, total.total)}</span>
-          </div>
-        </td>
-        <td className={sumCell}>{mt(perUnit(a))}</td>
-      </tr>
-    );
-  };
-  const summaryRows = (parentId: string | null, depth: number): ReactNode[] =>
-    (vKids.get(parentId) ?? []).flatMap((n) => {
-      const a = calc.get(n.id) ?? ZERO;
-      const ch = vKids.get(n.id) ?? [];
-      const open = !collapsed.has(n.id);
-      const bg = n.kind === "fur" ? "bg-neutral-100" : ch.length ? "bg-neutral-50" : "bg-white";
-      const label = (
-        <div className="flex items-center gap-1" style={{ paddingLeft: depth * 14 }}>
-          {chevron(n, ch.length > 0, open, "h-7 w-5")}
-          {lockBtn(n, false)}
-          <span className={n.kind === "fur" ? "text-sm" : ""}>{n.name || "Без названия"}</span>
-          {n.kind === "art" ? <Badge tone={n.modelId ? "info" : "manual"}>{n.modelId ? "арт." : "план"}</Badge> : null}
-          
-        </div>
-      );
-      return [sumRow(n.id, label, a, { bg, bold: n.kind === "fur" || ch.length > 0 }), ...(open ? summaryRows(n.id, depth + 1) : [])];
-    });
-  // ---- На 1 изделие: сколько обходится одно изделие по статьям (с надбавками), по каждому типу сырья, категории и длине
-  const unitRows = (parentId: string | null, depth: number): ReactNode[] =>
-    (vKids.get(parentId) ?? []).flatMap((n) => {
-      const a = calc.get(n.id) ?? ZERO;
-      const ch = vKids.get(n.id) ?? [];
-      const open = !collapsed.has(n.id);
-      const u = (v: number) => (a.pcs > 0 ? v / a.pcs : null);
-      const hidesPer = u(a.hides), mexPer = u(a.mex), liningPer = u(a.lining), workPer = u(a.work), c4Per = u(a.c4), totalPer = u(a.total);
-      const hidePrice = a.hides > 0 ? a.mex / a.hides : null, metersPer = u(a.meters), meterPrice = a.meters > 0 ? a.lining / a.meters : null;
-      const nowPer = a.nowPcs > 0 ? a.nowTotal / a.nowPcs : null;
-      const bg = n.kind === "fur" ? "bg-neutral-100" : ch.length ? "bg-neutral-50" : "bg-white";
-      const c = "whitespace-nowrap px-1.5 py-2 text-right text-xs tabular-nums 2xl:text-[13px]";
-      const row = (
-        <tr key={"u" + n.id} className={`${bg} ${n.kind === "fur" || ch.length ? "font-semibold" : ""} [&>td]:border-b [&>td]:border-neutral-100`}>
-          <td className="sticky left-0 z-10 min-w-[180px] border-r border-neutral-200 bg-inherit px-2 py-2 text-sm">
-            <div className="flex items-center gap-1" style={{ paddingLeft: depth * 14 }}>
-              {chevron(n, ch.length > 0, open, "h-7 w-5")}
-              {n.kind === "cat" ? <button type="button" onClick={() => setUnitFor(n.id)} className="text-left font-medium text-blue-800 underline decoration-dotted underline-offset-2 hover:text-blue-900" aria-haspopup="dialog">{n.name || "Без названия"}</button> : <span>{n.name || "Без названия"}</span>}
-              {n.kind !== "fur" && !ch.length ? dot(n) : null}
-            </div>
-          </td>
-          <td className={c}>{qz(a.pcs)}</td>
-          <td className={c + " " + sepL}>{hidesPer ? formatDec1(hidesPer) : "–"}</td>
-          <td className={c}>{mz(hidePrice)}</td>
-          <td className={c + " text-neutral-700"}>{mz(mexPer)}</td>
-          <td className={c + " " + sepL}>{metersPer ? formatDec1(metersPer) : "–"}</td>
-          <td className={c}>{mz(meterPrice)}</td>
-          <td className={c + " text-neutral-700"}>{mz(liningPer)}</td>
-          <td className={c + " " + sepL}>{mz(workPer)}</td>
-          <td className={c + " text-neutral-500"}>{mz(c4Per)}</td>
-          <td className={c + " " + sepL + " font-semibold text-neutral-900"}>{mz(totalPer)}</td>
-          <td className={c + " text-neutral-500"}>{mz(nowPer)}</td>
-        </tr>
-      );
-      return [row, ...(open ? unitRows(n.id, depth + 1) : [])];
-    });
-  // Окно категории: колонки длин (если есть) и «В среднем», статьи расходов на 1 изделие в строках.
-  const catCard = (cat: BudgetNode): ReactNode => {
-    const fur = cat.parentId ? byId.get(cat.parentId) : undefined;
-    const lens = (vKids.get(cat.id) ?? []).filter((x) => x.kind === "len");
-    const own = calc.get(cat.id) ?? ZERO;
-    const cols = lens.length >= 2 ? [...lens.map((l) => ({ key: l.id, label: l.name, a: calc.get(l.id) ?? ZERO })), { key: cat.id, label: "В среднем", a: own }] : [{ key: cat.id, label: "На 1 изделие", a: own }];
-    const k = 1 + params.c4 / 100;
-    const per = (v: number, a: Agg) => (a.pcs > 0 ? v / a.pcs : 0);
-    const rows: { label: string; v: (a: Agg) => string; bold?: boolean }[] = [
-      { label: "Бюджет, шт.", v: (a) => qz(a.pcs) },
-      { label: "Шкур на изделие", v: (a) => (a.pcs > 0 && a.hides > 0 ? formatDec1(a.hides / a.pcs) : "–") },
-      { label: "Ср. цена шкуры", v: (a) => mz(a.hides > 0 ? a.mex / a.hides : null) },
-      { label: `Мех + ${formatPercent(params.c4)}`, v: (a) => mz(per(a.mex * k, a) || null) },
-      { label: "Подкладка, м", v: (a) => (a.pcs > 0 && a.meters > 0 ? formatDec1(a.meters / a.pcs) : "–") },
-      { label: "Цена за метр", v: (a) => mz(a.meters > 0 ? a.lining / a.meters : null) },
-      { label: `Подкладка + ${formatPercent(params.c4)}`, v: (a) => mz(per(a.lining * k, a) || null) },
-      { label: "Работа", v: (a) => mz(per(a.work, a) || null) },
-      { label: `в т.ч. надбавка ${formatPercent(params.c4)}`, v: (a) => mz(per(a.c4, a) || null) },
-      { label: "СЕБЕСТОИМОСТЬ", v: (a) => mz(per(a.total, a) || null), bold: true },
-      { label: "Сейчас по системе", v: (a) => mz(a.nowPcs > 0 ? a.nowTotal / a.nowPcs : null) },
-    ];
-    return (
-      <div className="overflow-x-auto">
-        <p className="mb-2 text-xs text-neutral-500">{fur?.name} · {cat.name}: расходы на 1 изделие, ₽ с НДС, до тысяч. Надбавки: {formatPercent(params.upFur)} к шкурам, {formatPercent(params.upLining)} к подкладке, {formatPercent(params.upWork)} к работе, {formatPercent(params.c4)} на мех и подкладку. «Сейчас по системе» — те же статьи без надбавок бюджета.</p>
-        <table className="w-full min-w-[560px] border-separate border-spacing-0 text-sm">
-          <thead><tr className="text-xs text-neutral-500"><th className="w-[34%] px-3 py-1.5 text-left font-medium" />{cols.map((c) => <th key={c.key} className={"px-3 py-1.5 text-right font-semibold " + (c.label === "В среднем" ? "border-l border-neutral-200 text-neutral-900" : "")}>{c.label}</th>)}</tr></thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.label} className={r.bold ? "bg-neutral-50 font-semibold" : ""}>
-                <td className="border-t border-neutral-100 px-3 py-1.5 text-left">{r.label}</td>
-                {cols.map((c) => <td key={c.key} className={"whitespace-nowrap border-t border-neutral-100 px-3 py-1.5 text-right tabular-nums " + (c.label === "В среднем" ? "border-l border-neutral-200" : "")}>{r.v(c.a)}</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-  // ---- Детально: таблица с полями (планшет и компьютер)
-  const numCell = (n: BudgetNode, k: NumKey, label: string, w: string, tag?: UpKey, below?: ReactNode) => (
-    <td className={"px-1.5 py-1 " + w}>
-      <div className="flex items-center gap-1">{tag ? upTag(n, tag) : null}<NumInput value={n[k]} ariaLabel={`${label}: ${n.name}`} disabled={!canEdit} onChange={(v) => editNum(n.id, k, v)} className={n.est ? "italic" : ""} /></div>
-      {below}
-    </td>
-  );
-  const avg = (a: Agg) => ({
-    hides: a.pcs > 0 ? a.hides / a.pcs : null, hidePrice: a.hides > 0 ? a.mex / a.hides : null,
-    meters: a.pcs > 0 ? a.meters / a.pcs : null, meterPrice: a.meters > 0 ? a.lining / a.meters : null, work: a.pcs > 0 ? a.work / a.pcs : null,
-  });
-
-  const nameCell = (n: BudgetNode, depth: number, hasKids: boolean, open: boolean) => (
-    <td className={`sticky left-0 z-10 min-w-[200px] max-w-[320px] border-r border-neutral-200 px-2 py-1.5 align-middle lg:min-w-[270px] bg-inherit`}>
-      <div className="flex items-center gap-1" style={{ paddingLeft: depth * 18 }}>
-        {chevron(n, hasKids, open)}
-        {lockBtn(n)}
-        {canEdit ? (
-          <input value={n.name} onChange={(e) => patch(n.id, { name: e.target.value })} aria-label={`Название (${KIND_LABEL[n.kind]})`}
-            className={"min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 py-0.5 hover:border-neutral-300 focus-visible:border-neutral-900 focus-visible:bg-white focus-visible:outline-none " + (n.kind === "fur" ? "text-sm font-semibold" : n.kind === "cat" ? "text-sm font-medium" : "text-sm")} />
-        ) : <span className={"min-w-0 flex-1 truncate px-1 " + (n.kind === "fur" ? "text-sm font-semibold" : "text-sm")}>{n.name}</span>}
-        {n.kind === "art" ? <Badge tone={n.modelId ? "info" : "manual"} title={n.modelId ? "Артикул из каталога системы" : "Плановый артикул: есть только в бюджете"}>{n.modelId ? "арт." : "план"}</Badge> : null}
-        
-        {dot(n)}
-        {canEdit && n.kind !== "art" ? (
-          <button type="button" onClick={() => setAdding({ kind: n.kind === "fur" ? "cat" : "art", parentId: n.id })} data-touch-ok
-            title={n.kind === "fur" ? "Добавить категорию в этот тип сырья" : n.kind === "len" ? "Добавить артикул в эту длину: из списка системы или новый плановый" : "Добавить в эту категорию: " + (addInfo(n).lenMode ? "длину (Short/Regular/Long) или артикул" : "артикул из списка системы или новый плановый")}
-            className="shrink-0 whitespace-nowrap rounded px-1 text-[11px] text-blue-700 hover:underline">+ {addInfo(n).label}</button>
-        ) : null}
-      </div>
-    </td>
-  );
-
-  const tableRows = (parentId: string | null, depth: number): ReactNode[] =>
-    (vKids.get(parentId) ?? []).flatMap((n) => {
-      const a = calc.get(n.id) ?? ZERO;
-      const ch = vKids.get(n.id) ?? [];
-      const hasKids = ch.length > 0;
-      const leaf = n.kind !== "fur" && !hasKids;
-      const open = !collapsed.has(n.id);
-      const bg = n.kind === "fur" ? "bg-neutral-100" : hasKids ? "bg-neutral-50" : "bg-white";
-      const av = avg(a);
-      const g = (v: number | null, d = 1) => <td className="px-2 text-right text-xs tabular-nums text-neutral-500">{qz(v, d)}</td>;
-      const gm = (v: number | null) => <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{v == null ? "–" : money(v)}</td>;
-      const row = (
-        <tr key={n.id} className={`${bg} ${n.kind === "fur" ? "font-semibold" : ""} [&>td]:border-b [&>td]:border-neutral-100`}>
-          {nameCell(n, depth, hasKids, open)}
-          {leaf ? numCell(n, "pcs", "Бюджет, шт.", "w-[84px] min-w-[84px] " + sepL, undefined, ) : <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qz(a.pcs)}</td>}
-          {leaf ? numCell(n, "hides", "Шкур на изделие", "w-[80px] min-w-[80px]") : g(av.hides)}
-          <td className="px-2 text-right text-xs tabular-nums text-neutral-600">{qz(a.hides)}<Avg sum={a.hides} per={a.pcs} unit="шк./изд." d={1} /></td>
-          {leaf ? numCell(n, "hidePrice", "Цена шкуры", "w-[150px] min-w-[150px] " + sepL, "upFur") : <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500 ${sepL}`}>{av.hidePrice == null ? "–" : money(av.hidePrice)}</td>}
-          {leaf ? numCell(n, "meters", "Подкладка, м на изделие", "w-[84px] min-w-[84px]") : g(av.meters)}
-          {leaf ? numCell(n, "meterPrice", "Цена подкладки за м", "w-[132px] min-w-[132px]", "upLining") : gm(av.meterPrice)}
-          {leaf ? numCell(n, "work", "Работа на изделие", "w-[150px] min-w-[150px]", "upWork") : gm(av.work)}
-          <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600 ${sepL}`}>{mz(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шт." /></td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{mz(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{mz(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{mz(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
-          <td className="whitespace-nowrap px-2 text-right text-sm font-semibold tabular-nums">{mz(a.total)}</td>
-          <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{mz(perUnit(a))}</td>
-          <td className="border-l border-neutral-200 bg-inherit px-1.5 py-1 lg:sticky lg:right-0 lg:z-10">{actions(n, hasKids)}</td>
-        </tr>
-      );
-      return [row, ...(open ? tableRows(n.id, depth + 1) : [])];
-    });
-
-  const totalRowDetail = (
-    <tr key="total" className="row-total">
-      <td className="sticky left-0 z-10 border-r border-neutral-200 px-3 py-2 text-sm"><><TotalLabel />{scopeName ? <span className="font-normal"> · {scopeName}</span> : null}</></td>
-      <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qty(total.pcs, 0)}</td>
-      <td />
-      <td className="px-2 text-right text-xs tabular-nums text-neutral-700">{formatDec1(total.hides)}<Avg sum={total.hides} per={total.pcs} unit="шк./изд." d={1} /></td>
-      <td className={sepL} colSpan={4} />
-      <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700 ${sepL}`}>{money(total.mex)}<Avg sum={total.mex} per={total.hides} unit="₽/шт." /></td>
-      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.lining)}<Avg sum={total.lining} per={total.meters} unit="₽/м" /></td>
-      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.work)}<Avg sum={total.work} per={total.pcs} unit="₽/изд." /></td>
-      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}<Avg sum={total.c4} per={total.pcs} unit="₽/изд." /></td>
-      <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(total.total)}</td>
-      <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums text-neutral-600">–</td>
-      <td className="border-l border-neutral-200 lg:sticky lg:right-0 lg:z-10" />
-    </tr>
-  );
-
-  // ---- Карточки (телефон, режим «Детально»)
-  const cardField = (n: BudgetNode, k: NumKey, label: string, tag?: UpKey) => (
-    <label className="flex flex-col gap-1 text-[11px] text-neutral-500"><span className="flex items-center justify-between gap-1">{label}{tag ? upTag(n, tag) : null}</span><NumInput value={n[k]} ariaLabel={`${label}: ${n.name}`} disabled={!canEdit} onChange={(v) => editNum(n.id, k, v)} className={"!py-2 !text-base" + (n.est ? " italic" : "")} /></label>
-  );
-  const cards = (parentId: string | null, depth: number): ReactNode[] =>
-    (vKids.get(parentId) ?? []).map((n) => {
-      const a = calc.get(n.id) ?? ZERO;
-      const ch = vKids.get(n.id) ?? [];
-      const hasKids = ch.length > 0;
-      const leaf = n.kind !== "fur" && !hasKids;
-      const open = !collapsed.has(n.id);
-      return (
-        <div key={n.id} className={depth > 0 ? "ml-3 border-l-2 border-neutral-200 pl-2" : ""}>
-          <div className={"rounded-lg border p-3 " + (n.kind === "fur" ? "border-neutral-300 bg-neutral-100" : "border-neutral-200 bg-white")}>
-            <div className="flex items-center gap-1">
-              {chevron(n, hasKids, open, "h-10 w-8 text-lg")}
-              {canEdit ? <input value={n.name} onChange={(e) => patch(n.id, { name: e.target.value })} aria-label={`Название (${KIND_LABEL[n.kind]})`} className="min-h-10 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-sm font-semibold focus-visible:border-neutral-900 focus-visible:bg-white focus-visible:outline-none" />
-                : <span className="min-w-0 flex-1 px-1 text-sm font-semibold">{n.name}</span>}
-              {n.kind === "art" ? <Badge tone={n.modelId ? "info" : "manual"}>{n.modelId ? "арт." : "план"}</Badge> : null}
-              
-              {dot(n)}
-            </div>
-            <div className="mt-2 flex items-baseline justify-between gap-2">
-              <span className="text-xl font-semibold tabular-nums">{money(a.total)}</span>
-              <span className="text-xs text-neutral-500 tabular-nums">{qty(a.pcs, 0)} изд.{total.pcs > 0 && a.pcs > 0 ? ` (${formatPercent((a.pcs / total.pcs) * 100)} заказа)` : ""} · на 1 изд. {money(perUnit(a))}</span>
-            </div>
-            {leaf ? (
-              <>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {cardField(n, "pcs", "Бюджет, шт.")}{cardField(n, "hides", "Шкур на изделие")}
-                  {cardField(n, "hidePrice", "Цена шкуры, ₽", "upFur")}{cardField(n, "meters", "Подкладка, м/изд.")}
-                  {cardField(n, "meterPrice", "Цена за м, ₽", "upLining")}{cardField(n, "work", "Работа/изд., ₽", "upWork")}
-                </div>
-                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  {[["Всего шкур", formatDec1(a.hides)], ["Мех", money(a.mex)], ["Подкладка", money(a.lining)], ["Работа", money(a.work)], ["Надбавка", money(a.c4)], ["На 1 изделие", money(perUnit(a))]].map(([k, v]) => (
-                    <div key={k} className="flex justify-between gap-2"><dt className="text-neutral-500">{k}</dt><dd className="tabular-nums text-neutral-800">{v}</dd></div>
-                  ))}
-                </dl>
-              </>
-            ) : null}
-            <div className="mt-3 flex flex-wrap items-center justify-end gap-1.5">{actions(n, hasKids)}</div>
-          </div>
-          {open && hasKids ? <div className="mt-2 flex flex-col gap-2">{cards(n.id, depth + 1)}</div> : null}
-        </div>
-      );
-    });
+  const totalTiles = <TotalTiles fullTotal={fullTotal} fullCalc={fullCalc} furs={furs} kindAgg={kindAgg} params={params} />;
 
   const savedTime = new Date(updatedAtState ?? p.savedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" });
   const saveText = !canEdit ? (status === "APPROVED" ? "Утверждён: только просмотр" : "Только просмотр")
     : saveState === "saving" ? "Сохраняю…" : saveState === "error" ? `Не удалось сохранить${saveError ? `: ${saveError}` : ""}` : dirty ? "Есть несохранённые изменения" : `Сохранено ${savedTime}`;
-  const grp = `${sepL} border-b border-neutral-200 px-2 py-0 align-middle text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500`;
   const upNode = upFor ? byId.get(upFor) : null;
 
   return (
@@ -804,24 +398,7 @@ export function BudgetEditor(p: Props) {
         <>
           <div className={(view === "summary" ? "" : view === "unit" ? "hidden " : "hidden print:block ") + "max-h-[78vh] overflow-auto rounded-lg border border-neutral-200 bg-white print:max-h-none print:overflow-visible print:border-0"}>
             <table data-sub={subOn ? "on" : "off"} className="w-full min-w-[980px] xl:min-w-0 border-separate border-spacing-0 text-left print:min-w-0 print:w-full print:text-[11px]">
-              <thead className="sticky top-0 z-20 bg-white print:static">
-                <tr className="h-7">
-                  <th rowSpan={2} scope="col" className="sticky left-0 z-30 min-w-[120px] border-b border-r border-neutral-200 bg-white px-2 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500 print:static">Тип сырья · категория</th>
-                  <th colSpan={2} className="border-b border-neutral-200 px-2 py-0 align-middle text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Количество</th>
-                  <th colSpan={4} className={grp}>Затраты</th>
-                  <th colSpan={2} className={grp}>Прогноз</th>
-                </tr>
-                <tr className="[&>th]:border-b [&>th]:border-neutral-200">
-                  <Th tip="Бюджет изделий, шт." unit="шт.">Изделий</Th>
-                  <Th tip="Всего шкур на эти изделия" unit="шт.">Шкур</Th>
-                  <Th tip="Мех = шкуры × цена шкуры" className={sepL} unit="₽">Мех</Th>
-                  <Th tip="Подкладка = метры × цена за метр" unit="₽">Подкладка</Th>
-                  <Th tip="Работа = изделия × работа на изделие" unit="₽">Работа</Th>
-                  <Th tip="Надбавка на мех и подкладку" unit="₽">4 %</Th>
-                  <Th tip="Мех + подкладка + работа + 4 %; под цифрой доля в общем итоге" className={sepL} unit="₽">Всего</Th>
-                  <Th tip="Всего, ₽ ÷ изделий" unit="₽/шт.">На 1 изд.</Th>
-                </tr>
-              </thead>
+              <SummaryHead />
               <tbody>
                 {sumRow("total", <><TotalLabel />{scopeName ? <span className="font-normal"> · {scopeName}</span> : null}</>, total, { bg: "row-total", bold: true })}
                 {summaryRows(null, 0)}
@@ -837,54 +414,16 @@ export function BudgetEditor(p: Props) {
             </div>
             <div className="max-h-[78vh] overflow-auto rounded-lg border border-neutral-200 bg-white">
               <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left">
-                <thead className="sticky top-0 z-20 bg-white">
-                  <tr className="h-7">
-                    <th rowSpan={2} scope="col" className="sticky left-0 z-30 min-w-[180px] border-b border-r border-neutral-200 bg-white px-2 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Тип сырья · категория · длина</th>
-                    <th rowSpan={2} scope="col" className="border-b border-neutral-200 px-2 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Бюджет, шт.</th>
-                    <th colSpan={3} className={"border-b px-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500 " + sepL}>Мех</th>
-                    <th colSpan={3} className={"border-b px-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500 " + sepL}>Подкладка</th>
-                    <th colSpan={2} className={"border-b px-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500 " + sepL}>Работа и надбавка</th>
-                    <th colSpan={2} className={"border-b px-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500 " + sepL}>Себестоимость</th>
-                  </tr>
-                  <tr className="h-9 border-b border-neutral-200 text-[11px] font-medium text-neutral-500 [&>th]:border-b [&>th]:border-neutral-200 [&>th]:px-1.5 [&>th]:text-right [&>th]:font-medium">
-                    <th className={sepL}>шкур, шт.</th><th>цена шкуры</th><th>сумма</th>
-                    <th className={sepL}>метров</th><th>цена за м</th><th>сумма</th>
-                    <th className={sepL}>работа</th><th>+{formatPercent(params.c4)}</th>
-                    <th className={sepL}>на 1 изд.</th><th>сейчас</th>
-                  </tr>
-                </thead>
+                <UnitHead params={params} />
                 <tbody>{unitRows(null, 0)}</tbody>
               </table>
             </div>
           </div>
           <div className={(view === "detail" ? "hidden md:block " : "hidden ") + "max-h-[78vh] overflow-auto rounded-lg border border-neutral-200 bg-white print:hidden"}>
             <table data-sub={subOn ? "on" : "off"} className="w-max min-w-full border-separate border-spacing-0 text-left">
-              <thead className="sticky top-0 z-20 bg-white">
-                <tr className="h-7">
-                  <th rowSpan={2} scope="col" className="sticky left-0 z-30 min-w-[200px] border-b border-r border-neutral-200 bg-white px-3 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500 lg:min-w-[270px]">Тип сырья · категория · артикул</th>
-                  <th colSpan={3} className={grp}>Количество</th>
-                  <th colSpan={4} className={grp}>Цены на 1 изделие</th>
-                  <th colSpan={6} className={grp}>Прогноз</th>
-                  <th rowSpan={2} scope="col" className="min-w-[190px] border-b border-l border-neutral-200 bg-white px-2 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-500 lg:sticky lg:right-0 lg:z-30">Действия</th>
-                </tr>
-                <tr className="[&>th]:border-b [&>th]:border-neutral-200">
-                  <Th tip="Сколько изделий заложено в бюджет" className={sepL} unit="шт.">Бюджет</Th>
-                  <Th tip="Сколько шкур уходит на одно изделие" unit="шт./изд.">Шкур на изделие</Th>
-                  <Th tip="Бюджет изделий × шкур на изделие" unit="шт.">Всего шкур</Th>
-                  <Th tip="Цена одной шкуры, ₽. Зелёный процент слева — применённая надбавка; жирный и подчёркнутый — задана на этой строке. Ручная правка закрывает замок" className={sepL} unit="₽/шт.">Цена шкуры</Th>
-                  <Th tip="Подкладка, метров на одно изделие" unit="м/изд.">Подкладка на изделие</Th>
-                  <Th tip="Цена подкладки за метр, ₽" unit="₽/м">Цена подкладки</Th>
-                  <Th tip="Стоимость работы на одно изделие, ₽" unit="₽/шт.">Работа на изделие</Th>
-                  <Th tip="Мех = всего шкур × цена шкуры" className={sepL} unit="₽">Мех</Th>
-                  <Th tip="Подкладка = бюджет × м на изделие × цена за метр" unit="₽">Подкладка</Th>
-                  <Th tip="Работа = бюджет × работа на изделие" unit="₽">Работа</Th>
-                  <Th tip="Надбавка на мех и подкладку (по умолчанию 4 %)" unit="₽">4 %</Th>
-                  <Th tip="Мех + подкладка + работа + 4 %" unit="₽">Всего</Th>
-                  <Th tip="Всего, ₽ ÷ бюджет изделий" unit="₽/шт.">На 1 изд.</Th>
-                </tr>
-              </thead>
+              <DetailHead />
               <tbody>
-                {totalRowDetail}
+                <TotalRowDetail total={total} scopeName={scopeName} />
                 {tableRows(null, 0)}
               </tbody>
             </table>
@@ -904,110 +443,16 @@ export function BudgetEditor(p: Props) {
           context={adding.kind === "art" && adding.parentId ? `Артикул добавится в «${pathLabel(adding.parentId)}». Выберите из списка системы или создайте новый плановый.` : undefined}
           onClose={() => setAdding(null)} onPick={(v) => addNode(adding.kind, adding.parentId, v)} />
       ) : null}
-      {statFor && byId.get(statFor) ? (
-        <Modal title={`Данные системы: ${byId.get(statFor)?.name}`} onClose={() => setStatFor(null)}>
-          <p className="mb-2 text-xs text-neutral-500">{srcInfo(byId.get(statFor)!).label}. Выберите, по какой статистике «мех × категория» считать эту категорию. «По названию» — мех блока и название категории.</p>
-          <select aria-label="Статистика системы" className={FIELD} value={`${byId.get(statFor)?.statFur ?? ""}|${byId.get(statFor)?.statCat ?? ""}`} onChange={(e) => { setStat(statFor, e.target.value); setStatFor(null); }}>
-            <option value="|">По названию</option>
-            {byId.get(statFor)?.statFur && !pairOptions.some((x) => x.key === `${byId.get(statFor)?.statFur}|${byId.get(statFor)?.statCat}`) ? <option value={`${byId.get(statFor)?.statFur}|${byId.get(statFor)?.statCat}`}>{byId.get(statFor)?.statFur} · {byId.get(statFor)?.statCat}</option> : null}
-            {pairOptions.map((x) => <option key={x.key} value={x.key}>{x.fur} · {x.cat} ({x.qty} изд.)</option>)}
-          </select>
-        </Modal>
-      ) : null}
+      {statFor && byId.get(statFor) ? <StatModal statFor={statFor} byId={byId} pairOptions={pairOptions} setStat={setStat} setStatFor={setStatFor} /> : null}
       {unitFor && byId.get(unitFor) ? (
         <Modal title={`${byId.get(byId.get(unitFor)!.parentId ?? "")?.name ?? ""} · ${byId.get(unitFor)!.name}: на 1 изделие`} onClose={() => setUnitFor(null)} xl>
-          {catCard(byId.get(unitFor)!)}
+          <CatCard cat={byId.get(unitFor)!} byId={byId} vKids={vKids} calc={calc} params={params} />
           <div className="mt-4 flex justify-end border-t border-neutral-200 pt-3"><button type="button" className={BTN_PRIMARY} onClick={() => setUnitFor(null)}>Закрыть</button></div>
         </Modal>
       ) : null}
-      {upAll ? (
-        <Modal title="Надбавки по типам меха и категориям" onClose={() => setUpAll(false)} wide>
-          <div className="mb-3 text-xs text-neutral-500">Пустое поле — с уровня выше. Общие надбавки версии: {formatPercent(params.upFur)} / {formatPercent(params.upLining)} / {formatPercent(params.upWork)}.<InfoHint label="Как работают надбавки" wide><p>Пустое поле — берётся с уровня выше (в подсказке поля то, что действует сейчас). 0 — без надбавки. Строки с замком не пересчитываются.</p></InfoHint></div>
-          <div className="max-h-[60vh] overflow-y-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-white"><tr className="border-b border-neutral-200 text-left text-xs text-neutral-500"><th className="py-1 font-medium">Тип меха · категория</th><th className="w-20 px-1 text-right font-medium">Шкура, %</th><th className="w-20 px-1 text-right font-medium">Подкладка, %</th><th className="w-20 px-1 text-right font-medium">Работа, %</th></tr></thead>
-              <tbody>
-                {(() => {
-                  // Порядок: тип меха → все его категории → длины категории (Short / Regular / Long).
-                  const rows: BudgetNode[] = [];
-                  for (const fur of kids.get(null) ?? []) {
-                    rows.push(fur);
-                    for (const cat of (kids.get(fur.id) ?? []).filter((x) => x.kind === "cat")) {
-                      rows.push(cat);
-                      for (const len of (kids.get(cat.id) ?? []).filter((x) => x.kind === "len")) rows.push(len);
-                    }
-                  }
-                  return rows;
-                })().map((n) => {
-                  const par = n.parentId ? byId.get(n.parentId) : undefined;
-                  const inh = par ? effUp(par, byId, params) : null;
-                  return (
-                    <tr key={n.id} className={"border-t border-neutral-100 " + (n.kind === "fur" ? "bg-neutral-50 font-semibold" : "")}>
-                      <td className={"py-1 pr-2 " + (n.kind === "cat" ? "pl-4 font-normal" : n.kind === "len" ? "pl-8 font-normal text-neutral-600" : "")}>{n.name}{n.locked ? <span className="ml-1 text-[11px]" title="Замок: не пересчитывается">🔒</span> : null}</td>
-                      {(["upFur", "upLining", "upWork"] as const).map((k) => {
-                        const cur = inh ? (k === "upFur" ? inh.fur : k === "upLining" ? inh.lining : inh.work) : params[k];
-                        return (
-                          <td key={k} className="px-1 py-0.5">
-                            <input type="text" inputMode="decimal" defaultValue={typeof n[k] === "number" ? String(n[k]).replace(".", ",") : ""} placeholder={String(cur).replace(".", ",")} aria-label={`${n.name}: ${k === "upFur" ? "шкура" : k === "upLining" ? "подкладка" : "работа"}, %`}
-                              onChange={(e) => { const t = e.target.value.trim().replace(",", "."); const x = Number(t); setUp(n.id, k, t === "" || !Number.isFinite(x) ? null : x); }}
-                              className="ui-field w-full rounded-md border border-neutral-300 bg-white px-2 py-1 text-right text-sm tabular-nums focus-visible:outline-none" />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-4 flex justify-end border-t border-neutral-200 pt-3"><button type="button" className={BTN_PRIMARY} onClick={() => setUpAll(false)}>Готово</button></div>
-        </Modal>
-      ) : null}
-      {upNode ? (
-        <Modal title={`Надбавки: ${upNode.name}`} onClose={() => setUpFor(null)}>
-          <div className="mb-3 text-xs text-neutral-500">Для этой строки и всего, что внутри. Пустое поле — с уровня выше.<InfoHint label="Как работают надбавки" wide><p>Пустое поле — берётся с уровня выше (в подсказке поля то, что действует сейчас). 0 — без надбавки.</p></InfoHint></div>
-          <div className="grid grid-cols-3 gap-3">
-            {([["upFur", "Шкура, %"], ["upLining", "Подкладка, %"], ["upWork", "Работа, %"]] as const).map(([k, label]) => {
-              const parent = upNode.parentId ? byId.get(upNode.parentId) : undefined;
-              const inh = parent ? effUp(parent, byId, params) : null;
-              const cur = inh ? (k === "upFur" ? inh.fur : k === "upLining" ? inh.lining : inh.work) : params[k];
-              return (
-                <label key={k} className="flex flex-col gap-1 text-xs text-neutral-500">{label}
-                  <input type="text" inputMode="decimal" defaultValue={typeof upNode[k] === "number" ? String(upNode[k]).replace(".", ",") : ""} placeholder={String(cur).replace(".", ",")} aria-label={label}
-                    onChange={(e) => { const t = e.target.value.trim().replace(",", "."); const x = Number(t); setUp(upNode.id, k, t === "" || !Number.isFinite(x) ? null : x); }}
-                    className={FIELD + " text-right"} />
-                </label>
-              );
-            })}
-          </div>
-          <div className="mt-4 flex justify-end border-t border-neutral-200 pt-3"><button type="button" className={BTN_PRIMARY} onClick={() => setUpFor(null)}>Готово</button></div>
-        </Modal>
-      ) : null}
-      {preview ? (
-        <Modal title="Загрузка из файла" onClose={() => setPreview(null)} wide>
-          <p className="text-sm text-neutral-800">Файл «{preview.fileName}»{preview.sheet ? `, лист «${preview.sheet}»` : ""}: будет добавлено или обновлено <b>{preview.rows.length}</b> строк.</p>
-          <p className="mt-1 text-xs text-neutral-500">
-            {importStats ? `Новых типов сырья: ${importStats.newFurs}. Уже есть в бюджете (значения обновятся): ${importStats.exist}.` : ""}
-            {importStats?.lynx ? ` Строки «Рысь» (${importStats.lynx}) после загрузки закроются замком.` : ""} Остальные строки бюджета не меняются; цены без значений в файле заполнятся по данным системы.
-          </p>
-          {preview.warnings.length ? <ul className="mt-2 list-disc pl-5 text-xs text-amber-700">{preview.warnings.slice(0, 5).map((w) => <li key={w}>{w}</li>)}</ul> : null}
-          <div className="mt-3 max-h-[40vh] overflow-auto rounded-md border border-neutral-200">
-            <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-white text-neutral-500 [&>tr]:border-b [&>tr]:border-neutral-200"><tr><th className="px-2 py-1 text-left font-medium">Тип сырья</th><th className="px-2 py-1 text-left font-medium">Категория</th><th className="px-2 py-1 text-right font-medium">Бюджет, шт.</th><th className="px-2 py-1 text-left font-medium">Значения</th></tr></thead>
-              <tbody>
-                {preview.rows.map((r, i) => (
-                  <tr key={i} className="border-t border-neutral-100"><td className="px-2 py-1">{r.fur}</td><td className="px-2 py-1">{r.cat}</td><td className="px-2 py-1 text-right tabular-nums">{r.pcs}</td>
-                    <td className="px-2 py-1 text-neutral-500">{[r.hides, r.hidePrice, r.meters, r.meterPrice, r.work].some((v) => v != null) ? "из файла" : normKey(r.fur) === "рысь" ? "ручные (рысь)" : "по данным системы"}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-4 flex justify-end border-t border-neutral-200 pt-3 gap-2">
-            <button type="button" className={BTN} onClick={() => setPreview(null)}>Отмена</button>
-            <button type="button" className={BTN_PRIMARY} onClick={applyImport}>Добавить {preview.rows.length} строк</button>
-          </div>
-        </Modal>
-      ) : null}
+      {upAll ? <UpAllModal kids={kids} byId={byId} params={params} setUp={setUp} setUpAll={setUpAll} /> : null}
+      {upNode ? <UpNodeModal upNode={upNode} byId={byId} params={params} setUp={setUp} setUpFor={setUpFor} /> : null}
+      {preview ? <ImportPreviewModal preview={preview} importStats={importStats} setPreview={setPreview} applyImport={applyImport} /> : null}
       {reverting ? (
         <Modal title="Отменить изменения?" onClose={() => setReverting(false)}>
           <p className="text-sm text-neutral-700">Все правки после последнего сохранения ({savedTime}) пропадут, бюджет вернётся к сохранённой версии.</p>
@@ -1027,25 +472,5 @@ export function BudgetEditor(p: Props) {
         </Modal>
       ) : null}
     </div>
-  );
-}
-
-function EditCardDialog({ name, season, onClose, onSave }: { name: string; season: string; onClose: () => void; onSave: (name: string, season: string) => Promise<string | null> }) {
-  const [n, setN] = useState(name);
-  const [se, setSe] = useState(season);
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  return (
-    <Modal title="Карточка бюджета" onClose={onClose}>
-      <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">Название<input autoFocus value={n} onChange={(e) => setN(e.target.value)} className={FIELD} maxLength={80} /></label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">Сезон<input value={se} onChange={(e) => setSe(e.target.value)} className={FIELD} maxLength={20} /></label>
-        {err ? <p role="alert" className="text-xs text-red-700">{err}</p> : null}
-        <div className="flex justify-end gap-2">
-          <button type="button" className={BTN} onClick={onClose}>Отмена</button>
-          <button type="button" className={BTN_PRIMARY} disabled={busy || !n.trim()} onClick={async () => { setBusy(true); setErr(await onSave(n, se)); setBusy(false); }}>Сохранить</button>
-        </div>
-      </div>
-    </Modal>
   );
 }

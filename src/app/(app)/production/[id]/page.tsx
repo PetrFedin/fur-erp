@@ -14,28 +14,22 @@ import { formatMoney, formatQty, formatDate, formatDec1 } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
 import { canEditProduction } from "@/lib/production-access";
-import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { getCommission4Mode } from "@/lib/commission4-mode";
-import { c4Suffix, effectiveUsageVat, lineWith4, sumUsagesWith4, usageInput } from "@/lib/commission4";
+import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
 import { InfoHint } from "@/components/info-hint";
 import { vatBreakdown } from "@/lib/tz-vat";
 import { UsageForm, type MaterialOption } from "./usage-form";
 import { BulkUsageForm } from "./bulk-usage-form";
 import { defaultCommission4 } from "@/lib/commission4-const";
 import { ProductionExpenseForm } from "./expense-form";
-import { ORDER_COLORS_INCLUDE, formatOrderColors, orderColors } from "@/lib/order-colors";
+import { formatOrderColors, orderColors } from "@/lib/order-colors";
 import { batchLabel } from "@/lib/batch-label";
-import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
-import { UsageRow } from "./usage-row";
-import { lotOptionLabel } from "./lot-label";
 import { CollapsibleRows } from "./collapsible-rows";
-import { ExpenseRow } from "./expense-row";
 import { WorkRow } from "./work-row";
 import { OrderNav } from "./order-nav";
 import { uniqueOrderCount } from "@/lib/tz-key";
 import { ParamsTable, type ParamsData, type ParamsOptions } from "./params-table";
 import { OrderTiles } from "./order-tiles";
-import { OrderColorsEditButton } from "./edit-buttons";
 import { AddMenu } from "./add-menu";
 import { ACCESS, hasRole } from "@/lib/access";
 import { compareModelNames } from "@/lib/model-code";
@@ -44,11 +38,13 @@ import { getColorOptions } from "@/lib/colors";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { articleLabel } from "@/lib/article-label";
 import { EditGuard } from "./edit-guard";
-import { removeMaterialUsage, removeProductionExpense, updateMaterialUsage, updateProductionExpense, updateUsageVat } from "../actions";
 import { TotalLabel } from "@/components/total-label";
 import { canonicalFur } from "@/lib/fur-ref";
-
-const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
+import { ORDER_CARD_INCLUDE } from "./_page/include";
+import { SectionRow, EmptyRow, TotalRow } from "./_page/calc-rows";
+import { usageRowsOf, expenseRowsOf } from "./_page/usage-rows";
+import { OrderMoreMenu } from "./_page/more-menu";
+import { BomBlock } from "./_page/bom-block";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -66,21 +62,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
   const order = await prisma.productionOrder.findFirst({
     where: { id, organizationId: orgId },
-    include: {
-      productModel: { include: { materials: { include: { rawMaterial: true } }, categoryRef: true } },
-      rawWarehouse: true,
-      // finishedWarehouse не показываем: склад один, его выбор из интерфейса убран (колонка в БД остаётся).
-      client: true,
-      batch: { select: { id: true, number: true } },
-      season: { select: { id: true, code: true } },
-      ...ORDER_COLORS_INCLUDE,
-      attrs: { select: { attr: { select: { name: true } } } },
-      materialUsages: {
-        include: { rawMaterial: true, lot: { include: { attrs: { select: { attr: { select: { name: true } } } }, purchase: { select: { id: true, number: true } } } } },
-        orderBy: { date: "asc" },
-      },
-      expenses: { include: { category: true }, orderBy: { date: "asc" } },
-    },
+    include: ORDER_CARD_INCLUDE,
   });
   if (!order) notFound();
   // Нет списаний с 4% (напр. ТЗ из партии 6) — подпись «(с 4%)» не ставим.
@@ -240,71 +222,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const hidesIncl = drill?.hI ?? 0;
   const hidesExcl = drill?.hE ?? 0;
 
-  const boundRemoveUsage = removeMaterialUsage.bind(null, id);
-  const boundRemoveExpense = removeProductionExpense.bind(null, id);
-  const boundUpdateUsage = updateMaterialUsage.bind(null, id);
-  const boundUpdateUsageVat = updateUsageVat.bind(null, id);
-  const boundUpdateExpense = updateProductionExpense.bind(null, id);
   const modelLocked = order.materialUsages.length > 0 || order.producedQuantity.greaterThan(0);
 
-  const usageRows = (list: typeof order.materialUsages, isLining: boolean) =>
-    list.map((u) => {
-      const line = lineWith4(usageInput(u), c4Mode);
-      const qty = u.quantity;
-      return (
-        <UsageRow
-          key={u.id}
-          usage={{
-            id: u.id,
-            lotLabel: lotOptionLabel({ lotNumber: u.lot.lotNumber, grade: u.lot.grade, color: u.lot.color, rawMaterialName: u.rawMaterial.name, quantityRemaining: u.lot.quantityRemaining.toString(), unitCost: u.lot.unitCost.toString(), vatRate: u.lot.vatRate.toString() }),
-            rawMaterialName: u.rawMaterial.name,
-            lotId: u.lotId,
-            lotNumber: u.lot.lotNumber,
-            purchaseId: u.lot.purchase?.id ?? null,
-            purchaseNumber: u.lot.purchase?.number ?? null,
-            quantity: qty.toString(),
-            unit: u.rawMaterial.unit,
-            unitIncl: qty.isZero() ? "0" : line.incl.div(qty).toString(),
-            unitExcl: qty.isZero() ? "0" : line.excl.div(qty).toString(),
-            lotCostExclVat: lineWith4({ incl: u.lot.materialCostExclVat, excl: u.lot.materialCostExclVat, commission4: u.commission4 }, c4Mode).excl.toString(),
-            c4Mode,
-            commission4: u.commission4,
-            lotVatRate: u.lot.vatRate.toString(),
-            vatRate: String(effectiveUsageVat(u)),
-            vatOwn: u.vatRate != null,
-            totalCost: line.incl.toString(),
-            totalCostExclVat: line.excl.toString(),
-            costBreakdown: u.lot.costBreakdown,
-            lotUnitCostExcl: lotUnitCostExclVat(u.lot).toString(),
-            lotUnitCostIncl: u.lot.unitCost.toString(),
-          }}
-          orderId={id}
-          lining={isLining}
-          readOnly={!canEdit}
-          updateAction={boundUpdateUsage.bind(null, u.id)}
-          vatAction={boundUpdateUsageVat.bind(null, u.id)}
-          removeAction={async () => {
-            "use server";
-            await boundRemoveUsage(u.id);
-          }}
-        />
-      );
-    });
+  const usageRows = (list: typeof order.materialUsages, isLining: boolean) => usageRowsOf(list, isLining, { id, c4Mode, canEdit });
 
-  const expenseRows = order.expenses.map((e) => (
-    <ExpenseRow
-      key={e.id}
-      orderId={id}
-      expense={{ id: e.id, categoryId: e.categoryId, categoryName: e.category.name, amount: e.amount.toString(), description: e.description }}
-      categories={expenseCategories}
-      readOnly={!canEdit}
-      updateAction={boundUpdateExpense.bind(null, e.id)}
-      removeAction={async () => {
-        "use server";
-        await boundRemoveExpense(e.id);
-      }}
-    />
-  ));
+  const expenseRows = expenseRowsOf(order.expenses, expenseCategories, { id, canEdit });
 
   const furCost = furSum.incl;
   const sumQty = (us: typeof furUsages) => us.reduce((a, u) => a.add(u.quantity), new Decimal(0));
@@ -405,43 +327,22 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50 max-md:inline-flex max-md:min-h-11 max-md:items-center" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">
             Печать / PDF
           </Link>
-          <details className="relative">
-            <summary className="cursor-pointer list-none rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50 max-md:inline-flex max-md:min-h-11 max-md:min-w-11 max-md:items-center max-md:justify-center" title="Ещё: документы, оплаты, история, Word, цвета, отмена ТЗ" aria-label="Ещё: документы, оплаты, история, Word, цвета, отмена ТЗ">⋯</summary>
-            <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col gap-2 rounded-md border border-neutral-200 bg-white p-2 shadow">
-              <a href="#drive" className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Перейти к блоку «Документы-основания» внизу этой страницы">Документы-основания ↓</a>
-              <Link href={`/documents?q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Документы ТЗ: приложение, акты, счета — в разделе «Документы»">Документы</Link>
-              {order.client && <Link href={payLink} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title={order.batch ? `Оплаты за работу по партии ${order.batch.number}` : "Оплаты за работу, разнесение по ТЗ"}>Оплаты за работу</Link>}
-              <Link href={`/verify?tab=orders&q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Подтверждение ТЗ в разделе «Контроль → Подтвердить»">Подтверждение</Link>
-              <Link href={`/history?model=ProductionOrder&q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="История изменений и комментарии — в разделе «Контроль»">История</Link>
-              <a href={`/api/production/${id}/docx`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ, собранная системой из данных ТЗ (не присланный Word)">
-                Печатная форма .docx
-              </a>
-              {open && canEdit && (
-                <div className="border-t border-neutral-100 pt-2">
-                  <CompleteOrderForm
-                    orderId={id}
-                    tzLabel={orderLabel({ workOrderNumber: order.workOrderNumber, number: order.number })}
-                    hasUsages={order.materialUsages.length > 0}
-                    plannedQuantity={order.plannedQuantity.toString()}
-                    costs={{ material: furOn.incl.add(liningOn.incl).sub(furOn.extraIncl).sub(liningOn.extraIncl).toFixed(2), extra4: furOn.extraIncl.add(liningOn.extraIncl).toFixed(2), expenses: expenseCost.toFixed(2), workPerUnit: order.clientWorkPricePerUnit?.toString() ?? "" }}
-                  />
-                </div>
-              )}
-              {open && canEdit && (
-                <div className="border-t border-neutral-100 pt-2">
-                  <CancelOrderButton orderId={id} blockedReason={cancelBlockedReason} />
-                </div>
-              )}
-              {canEdit && (
-                <OrderColorsEditButton
-                  key={order.colors.map((c) => `${c.colorRefId}:${c.quantity ?? ""}:${c.sizes ?? ""}`).join("|")}
-                  orderId={id}
-                  colors={colorOptions.map((c) => ({ id: c.id, name: c.name }))}
-                  rows={order.colors.map((c) => ({ colorRefId: c.colorRefId, quantity: c.quantity != null ? String(c.quantity) : "", sizes: c.sizes ?? "" }))}
-                />
-              )}
-            </div>
-          </details>
+          <OrderMoreMenu
+            id={id}
+            tzSearch={tzSearch}
+            payLink={payLink}
+            open={open}
+            canEdit={canEdit}
+            hasClient={!!order.client}
+            batchNumber={order.batch ? order.batch.number : null}
+            tzLabel={orderLabel({ workOrderNumber: order.workOrderNumber, number: order.number })}
+            hasUsages={order.materialUsages.length > 0}
+            plannedQuantity={order.plannedQuantity.toString()}
+            costs={{ material: furOn.incl.add(liningOn.incl).sub(furOn.extraIncl).sub(liningOn.extraIncl).toFixed(2), extra4: furOn.extraIncl.add(liningOn.extraIncl).toFixed(2), expenses: expenseCost.toFixed(2), workPerUnit: order.clientWorkPricePerUnit?.toString() ?? "" }}
+            cancelBlockedReason={cancelBlockedReason}
+            colorOptions={colorOptions}
+            colors={order.colors}
+          />
         </div>
         <div className="mt-2">
           <OrderNav
@@ -490,29 +391,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             bulk={<BulkUsageForm orderId={id} defaultCommission4={defaultCommission4(order.batch?.number)} />}
             bom={
               order.productModel.materials.length > 0 ? (
-                <div className="flex flex-col gap-3">
-                  <Table>
-                    <Thead>
-                      <Tr>
-                        <Th>Материал</Th>
-                        <Th>На 1 изделие</Th>
-                        <Th>На план ({formatQty(order.plannedQuantity.toString())} шт.)</Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {order.productModel.materials.map((line) => (
-                        <Tr key={line.id}>
-                          <Td>{line.rawMaterial.name}</Td>
-                          <Td>{formatQty(line.quantityPerUnit.toString())} {UNIT_LABELS[line.rawMaterial.unit]}</Td>
-                          <Td>{formatQty(line.quantityPerUnit.mul(order.plannedQuantity).toString())} {UNIT_LABELS[line.rawMaterial.unit]}</Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </Table>
-                  <div>
-                    <ApplyBomButton orderId={id} />
-                  </div>
-                </div>
+                <BomBlock orderId={id} plannedQuantity={order.plannedQuantity} materials={order.productModel.materials} />
               ) : undefined
             }
           />
@@ -575,7 +454,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           </Tbody>
         </Table>
 
-
         {cancelled && <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — в Главную и сводки не входит; правки сохраняются, но на итоги не влияют.</p>}
       </section>
 
@@ -597,38 +475,5 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       </div>
     </div>
     </EditGuard>
-  );
-}
-
-function SectionRow({ children }: { children: React.ReactNode }) {
-  return (
-    <Tr className="bg-neutral-50/80">
-      <Td colSpan={8} className="py-1 text-xs font-medium uppercase tracking-wide text-neutral-500">
-        {children}
-      </Td>
-    </Tr>
-  );
-}
-
-function EmptyRow({ children }: { children: React.ReactNode }) {
-  return (
-    <Tr>
-      <Td colSpan={8} className="py-2 text-center text-neutral-500">
-        {children}
-      </Td>
-    </Tr>
-  );
-}
-
-function TotalRow({ label, value, extra, strong }: { label: React.ReactNode; value: React.ReactNode; extra?: React.ReactNode; strong?: boolean }) {
-  return (
-    <Tr className="row-total" data-strong={strong ? "1" : undefined}>
-      <Td colSpan={6} className="text-right max-xl:text-left">
-        {label}
-        {extra ? <span className="ml-1 tabular-nums">{extra}</span> : null}
-      </Td>
-      <Td className="whitespace-nowrap text-right tabular-nums">{value}</Td>
-      <Td />
-    </Tr>
   );
 }

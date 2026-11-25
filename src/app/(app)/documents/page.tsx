@@ -10,45 +10,28 @@ import { requireSession } from "@/lib/session";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
-import {
-  SECTION_ORDER,
-  SECTION_TITLES,
-  computeDocCoverage,
-  summarize,
-  filterCovRows,
-  parseCovFilters,
-  type CovFilters,
-  type CovRow,
-  type SectionKey,
-  type SectionStat,
-} from "@/lib/doc-coverage";
-import {
-  DOC_LINK_LABELS,
-  DOC_PAGE_SIZE,
-  filterDocList,
-  groupDocList,
-  type DocGroup,
-  loadDocList,
-  parseDocListFilters,
-} from "@/lib/drive-doc-list";
+import { SECTION_ORDER, SECTION_TITLES, computeDocCoverage, summarize, filterCovRows, parseCovFilters } from "@/lib/doc-coverage";
+import { DOC_LINK_LABELS, DOC_PAGE_SIZE, filterDocList, groupDocList, loadDocList, parseDocListFilters } from "@/lib/drive-doc-list";
 import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS } from "@/lib/drive-docs";
-import { registryCoverage, type RegStat } from "@/lib/registry-coverage";
-import { formatDate, formatMoney, formatPercent } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { RELIABILITY_NOTE } from "@/lib/reliability-note";
 import { InfoHint } from "@/components/info-hint";
 import { getYearFilter } from "@/lib/year-filter";
-import { cn } from "@/lib/utils";
+
 import { TodoSummary } from "./todo-summary";
 import { AnalysisSection } from "./analysis-section";
 import { BulkUpload } from "./bulk-upload";
 import { ACCESS, hasRole } from "@/lib/access";
-import { TILE_BOX, TileHead } from "@/app/(app)/dashboard/tile";
+
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, filterHref, parseFilters, pick, stateParam } from "@/lib/filters";
-import { LazyDetails } from "../lots/lazy-details";
-import { loadDocGroup } from "./group-actions";
-import { loadCovVer, type VerMap } from "./ver-status";
-import { GroupCards, GroupTableRows, MatrixRow, MobileCard, RegGroupCell, sectionLayout, sortGroupRows } from "./matrix-rows";
+
+import { loadCovVer } from "./ver-status";
+
+import { GroupLinks } from "./_page/group-links";
+import { Legend, SummaryTile } from "./_page/summary-tiles";
+import { SectionMatrix } from "./_page/section-matrix";
+import { RegistryBlock } from "./_page/registry-block";
 
 export const metadata = { title: "Документы" };
 
@@ -65,10 +48,6 @@ const DOC_FILTERS = defineFilters({
   page: stateParam("Страница", { aliases: ["dpage"], pattern: /^\d{1,6}$/ }),
 });
 const MULTI_KEYS = new Set(["section", "auction", "gaps", "ver", "dtype", "dlink"]);
-
-const pctTone = (p: number | null) =>
-  p === null ? "text-neutral-500" : p >= 90 ? "text-emerald-700" : p >= 60 ? "text-amber-700" : "text-red-600";
-const barTone = (p: number | null) => (p === null ? "bg-neutral-300" : p >= 90 ? "bg-emerald-500" : p >= 60 ? "bg-amber-400" : "bg-red-500");
 
 export default async function DocumentsPage({ searchParams }: PageProps<"/documents">) {
   const session = await requireSession(); // чтение — всем ролям
@@ -328,282 +307,5 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
         </div>
       </section>
     </div>
-  );
-}
-
-function GroupLinks({ d, mobile }: { d: DocGroup; mobile?: boolean }) {
-  if (d.links.length === 0) return <span className={mobile ? "text-xs text-amber-700" : "text-amber-700"}>не привязан</span>;
-  const cls = mobile ? "inline-block py-1 text-xs underline" : "text-neutral-700 underline hover:text-neutral-900";
-  const list = (
-    <span className="flex flex-wrap gap-x-3 gap-y-0.5">
-      {d.links.map((l, i) => (
-        <Link key={i} href={l.href} className={cls}>
-          {l.label}
-        </Link>
-      ))}
-    </span>
-  );
-  if (d.count === 1 && d.links.length <= 3) return list;
-  return (
-    <details>
-      <summary className={cn("cursor-pointer text-neutral-700", mobile && "py-1 text-xs")}>
-        {d.links.length} {plural(d.links.length, "привязка", "привязки", "привязок")}
-        {d.unlinked > 0 ? <span className="ml-1 text-amber-700">· без привязки: {d.unlinked}</span> : null}
-      </summary>
-      <div className="mt-1">{list}</div>
-    </details>
-  );
-}
-
-const plural = (n: number, one: string, few: string, many: string) => {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many;
-};
-
-function SummaryTile({ title, stat, href, strong }: { title: string; stat: SectionStat; href: string; strong?: boolean }) {
-  return (
-    <Link
-      href={href}
-      title="Показать записи этого раздела с пробелами"
-      className={cn(TILE_BOX, "shadow-sm tile-click print:shadow-none", strong && "border-neutral-400")}
-    >
-      <TileHead>{title}</TileHead>
-      <div className={cn("mt-1 text-2xl font-semibold leading-9 tabular-nums", pctTone(stat.percent))}>{stat.percent === null ? "–" : formatPercent(stat.percent)}</div>
-      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-neutral-100">
-        <div className={cn("h-full rounded-full", barTone(stat.percent))} style={{ width: `${stat.percent ?? 0}%` }} />
-      </div>
-      <div className="mt-1 text-xs text-neutral-500">
-        привязано {stat.have} из {stat.required}
-      </div>
-      <div className={cn("text-xs", stat.rowsWithGaps > 0 ? "text-red-600" : "text-emerald-700")}>
-        {stat.rowsWithGaps > 0 ? `не прикреплено: ${stat.rowsWithGaps} из ${stat.rows}` : `без пробелов · ${stat.rows}`}
-      </div>
-    </Link>
-  );
-}
-
-function Legend({ totalGaps }: { totalGaps: number }) {
-  return (
-    <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
-      <span>Всего, записей с пробелами: <b>{totalGaps}</b></span>
-      <InfoHint wide label="Условные обозначения таблиц">
-        <ul className="space-y-1">
-          <li><b className="text-emerald-700">✓ 2</b> — документ есть (сколько штук).</li>
-          <li><b className="text-red-600">нет</b> — нужен по правилам, но не приложен.</li>
-          <li><b>необяз.</b> — желателен, в пробелы не входит.</li>
-          <li><b>не треб.</b> — по правилам не нужен.</li>
-          <li>Колонка «Реестр»: <b className="text-emerald-700">✓ лист, строка</b> — запись найдена в едином реестре; <b className="text-red-700">нет в реестре</b>; серое — позже даты реестра; бледно-серое — в реестре не ведётся.</li>
-        </ul>
-      </InfoHint>
-    </p>
-  );
-}
-
-// ------------------------------------------------------------------ матрица
-
-type Group = { key: string; title: string; sort: number; rows: CovRow[] };
-
-function SectionMatrix({ section, rows, f, ver, verFilter }: { section: SectionKey; rows: CovRow[]; f: CovFilters; ver: VerMap; verFilter: boolean }) {
-  const { cols, withReg, template } = sectionLayout(rows);
-
-  const groupMap = new Map<string, Group>();
-  for (const r of rows) {
-    const g = groupMap.get(r.groupKey) ?? { key: r.groupKey, title: r.groupTitle, sort: r.groupSort, rows: [] };
-    g.rows.push(r);
-    groupMap.set(r.groupKey, g);
-  }
-  const groups = [...groupMap.values()];
-  const gapsOf = (g: Group) => g.rows.reduce((s, r) => s + r.gaps.length, 0);
-  if (f.sort === "gaps") groups.sort((a, b) => gapsOf(b) - gapsOf(a));
-  else if (section === "purchases") groups.sort((a, b) => b.sort - a.sort || a.title.localeCompare(b.title, "ru"));
-  else if (section === "tz") groups.sort((a, b) => b.sort - a.sort);
-  for (const g of groups) g.rows = sortGroupRows(section, g.rows, f);
-  const grouped = groups.length > 1 || (groups.length === 1 && (section === "purchases" || section === "tz"));
-  const openAll = !!f.gaps || !!f.q || verFilter || groups.length === 1;
-
-  const header = (
-    <div className="grid items-end gap-1 border-b border-neutral-200 bg-neutral-50 px-3 py-2 text-[11px] font-medium leading-tight text-neutral-500" style={{ gridTemplateColumns: template }}>
-      <span>Запись</span>
-      {cols.map((c) => (
-        <span key={c.key} className="text-center" title={c.attach}>
-          {c.label}
-        </span>
-      ))}
-      {withReg ? <span className="text-center" title="Есть ли запись в едином реестре (xlsx): лист и строка. Сверка от даты, указанной в блоке «Покрытие реестром»">Реестр</span> : null}
-    </div>
-  );
-
-  const table = (
-    <Card className="overflow-hidden">
-      {header}
-      {grouped
-        ? groups.map((g) => (
-            <LazyDetails
-              key={g.key}
-              defaultOpen={openAll}
-              load={openAll ? undefined : loadDocGroup.bind(null, section, g.key, "table", f.auction, f.gaps ? "1" : "", f.q, f.sort)}
-              className="group border-b border-neutral-100 last:border-b-0"
-              summary={<summary className="grid cursor-pointer list-none items-center gap-1 bg-white px-3 py-2 hover:bg-neutral-50" style={{ gridTemplateColumns: template }}>
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="text-neutral-500 transition-transform group-open:rotate-90" aria-hidden>›</span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium" title={g.title}>{g.title}</span>
-                    <span className="block text-xs text-neutral-500">
-                      {g.rows.length} зап. ·{" "}
-                      <span className={gapsOf(g) > 0 ? "text-red-600" : "text-emerald-700"}>{gapsOf(g) > 0 ? `не прикреплено: ${gapsOf(g)}` : "без пробелов"}</span>
-                    </span>
-                  </span>
-                </span>
-                {cols.map((c) => {
-                  const need = g.rows.filter((r) => r.cells[c.key].need === "required");
-                  const ok = need.filter((r) => r.cells[c.key].ok).length;
-                  return (
-                    <span key={c.key} className={cn("text-center text-xs tabular-nums", need.length === 0 ? "text-neutral-500" : ok === need.length ? "text-emerald-700" : ok === 0 ? "text-red-600" : "text-amber-700")}>
-                      {need.length === 0 ? "" : `${ok}/${need.length}`}
-                    </span>
-                  );
-                })}
-                {withReg ? <RegGroupCell rows={g.rows} /> : null}
-              </summary>}
-            >
-              {openAll ? <GroupTableRows rows={g.rows} cols={cols.map((c) => c.key)} template={template} withReg={withReg} ver={ver} /> : null}
-            </LazyDetails>
-          ))
-        : (
-          <div className="divide-y divide-neutral-100">
-            {groups.flatMap((g) => g.rows).map((r) => (
-              <MatrixRow key={r.id} r={r} cols={cols.map((c) => c.key)} template={template} withReg={withReg} ver={ver} />
-            ))}
-          </div>
-        )}
-    </Card>
-  );
-
-  const cards = grouped ? (
-    groups.map((g) => (
-      <LazyDetails
-        key={g.key}
-        defaultOpen={openAll}
-        load={openAll ? undefined : loadDocGroup.bind(null, section, g.key, "cards", f.auction, f.gaps ? "1" : "", f.q, f.sort)}
-        className="rounded-lg border border-neutral-200 bg-white"
-        summary={
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-sm">
-            <span className="min-w-0 break-words font-medium">{g.title}</span>
-            <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-medium", gapsOf(g) > 0 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700")}>
-              {gapsOf(g) > 0 ? gapsOf(g) : "✓"}
-            </span>
-          </summary>
-        }
-      >
-        {openAll ? <GroupCards rows={g.rows} ver={ver} /> : null}
-      </LazyDetails>
-    ))
-  ) : (
-    groups.flatMap((g) => g.rows).map((r) => <MobileCard key={r.id} r={r} ver={ver} />)
-  );
-
-  return (
-    <section className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-baseline gap-x-3">
-        <h2 className="block-title">{SECTION_TITLES[section]}</h2>
-        {/* Процент — только в плитках сверху; здесь число пробелов. */}
-        {(() => {
-          const n = rows.filter((r) => r.gaps.length > 0).length;
-          return n > 0 ? (
-            <span className="text-sm font-medium tabular-nums text-red-600">
-              {n} {plural(n, "пробел", "пробела", "пробелов")}
-            </span>
-          ) : (
-            <span className="text-sm text-emerald-700">без пробелов</span>
-          );
-        })()}
-      </div>
-      <ResponsiveRows table={table}>{cards}</ResponsiveRows>
-    </section>
-  );
-}
-
-// ------------------------------------------------------------------ реестр
-
-const fmtPct = (p: number) => formatPercent(p);
-const regDate = (iso: string) => formatDate(new Date(iso));
-
-function RegStatTile({ s }: { s: RegStat }) {
-  return (
-    <div className={TILE_BOX + " shadow-sm print:shadow-none"} title={s.what}>
-      <TileHead>{s.label}</TileHead>
-      <div className={cn("mt-1 text-2xl font-semibold leading-9 tabular-nums", pctTone(s.percent))}>{fmtPct(s.percent)}</div>
-      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-neutral-100">
-        <div className={cn("h-full rounded-full", barTone(s.percent))} style={{ width: `${s.percent}%` }} />
-      </div>
-      <div className="mt-1 text-xs text-neutral-500">{s.have}</div>
-    </div>
-  );
-}
-
-function RegistryBlock() {
-  const r = registryCoverage;
-  return (
-    <details aria-label="Покрытие реестром" className="group rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-      <summary className="flex cursor-pointer list-none flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="flex items-center gap-2 block-title">
-          Покрытие реестром
-          <InfoHint wide label="Что такое покрытие реестром и как обновить сверку">
-            <div className="space-y-2">
-              <p>Сколько записей единого реестра (xlsx) нашлось в базе: лоты, остатки, закупки, ТЗ, оплаты. Сверка от {regDate(r.checkedAt)} (реестр — от {regDate(r.registryDate)}).</p>
-              <p><b>Как обновить сверку.</b> Сверка делается вне приложения: реестр из таблицы сравнивается с базой. После новой сверки попросите разработчика обновить данные этой страницы.</p>
-              <p>Обновление не меняет данные в базе.</p>
-            </div>
-          </InfoHint>
-        </h2>
-        <span className="text-xs text-neutral-500">сверка от {regDate(r.checkedAt)} · в реестре, но не в базе: {r.registryOnly.length} · <span className="text-blue-700">показать ›</span></span>
-      </summary>
-      <div className="mt-3 flex flex-col gap-3">
-      <div className="grid grid-cols-2 max-sm:grid-cols-2! gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        {r.coverage.map((s) => (
-          <RegStatTile key={s.key} s={s} />
-        ))}
-      </div>
-      <h3 className="text-sm font-medium">Обратное покрытие: что из базы подтверждено реестром</h3>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        {r.backCoverage.map((s) => (
-          <RegStatTile key={s.key} s={s} />
-        ))}
-      </div>
-
-      <h3 className="text-sm font-medium">Есть в реестре, но нет в базе ({r.registryOnly.length})</h3>
-      <ul className="flex flex-col gap-2">
-        {r.registryOnly.map((it, i) => (
-          <li key={i} className="rounded-md border border-amber-200 bg-amber-50 p-2 text-sm">
-            <div className="break-words font-medium text-neutral-900">{it.title}</div>
-            <div className="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-neutral-600">
-              {it.qty !== null ? <span>{it.qty} шт</span> : null}
-              {it.amount !== null ? <span className="tabular-nums">{formatMoney(String(it.amount))}</span> : null}
-              <span>
-                лист «{it.sheet}», {it.rows.includes("–") || it.rows.includes(",") ? "строки" : "строка"} {it.rows}
-              </span>
-              {it.note ? <span className="text-amber-700">{it.note}</span> : null}
-              {it.kind === "purchase" ? (
-                <Link href="/purchases/batch" className="underline hover:text-neutral-900">
-                  Как добавить
-                </Link>
-              ) : (
-                <Link href="/purchases?q=%D0%97-2026-0058" className="underline hover:text-neutral-900">
-                  Открыть закупку
-                </Link>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-      <p className="flex items-center gap-2 text-xs text-neutral-500">
-        Как добавить недостающие записи
-        <InfoHint wide label="Как добавить запись из реестра">
-          «Как добавить»: откройте «Закупки → Новая закупка», внесите поставщика, лоты и сумму по строкам реестра;  Если закупка не ваша — отметьте строки отчёта у владельца как «не наша».
-        </InfoHint>
-      </p>
-      </div>
-    </details>
   );
 }

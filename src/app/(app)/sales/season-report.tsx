@@ -11,75 +11,21 @@ import type { SupplyLeaf } from "@/lib/supply-report";
 import { PhotoGalleryButton } from "@/components/photo-gallery";
 import type { ReportSizeRow } from "@/lib/margin-tree";
 import type { ModelCost, RetailRow } from "@/lib/margin";
-import { articleKey, CAT_LABEL, colorOfLine, furKeyOfReportRow as furKeyOfRow, furRuLabel, seasonOfDate, variantOfArticle } from "@/lib/sales-receipts-core";
+import { articleKey, CAT_LABEL, colorOfLine, furKeyOfReportRow as furKeyOfRow, seasonOfDate, variantOfArticle } from "@/lib/sales-receipts-core";
 import type { Cat, SLine } from "@/lib/sales-section";
 import { leafStockEur } from "@/lib/stock-money";
 import { DASH, btn, money, moneyC, n0, pct, seg, segGroup, x2 } from "./sales-fmt";
 import type { PhotoIdx } from "./sales-tree";
 import { SeasonReceipts, type TzAwait } from "./season-receipts";
+import { eur, furRu, HIER, LEVEL_LABEL, mkA, mkG, mkO, mkS, numOf, plus, priceA, priceG, priceO, priceS, SALES_TO_REPORT, SEASON_BG, SEASON_LABEL, SEASONS, soA, soS, zero, type Agg, type Col, type LAgg, type Level, type M, type Node, type Season } from "./_season-report/metrics";
+import { seasonMetrics } from "./_season-report/season-metrics";
+import { catalogItems, reportLeavesOf } from "./_season-report/catalog-data";
 
 /** Курс для маркапа продаж, ₽ за €: выручка в ₽ переводится в € по этому курсу (правило владельца). */
 import { MU_EUR_RATE } from "@/lib/mu-rate";
 export { MU_EUR_RATE };
-const SEASONS = ["FW25/26", "SS26", "FW26/27"] as const;
-type Season = (typeof SEASONS)[number];
-const SEASON_LABEL: Record<Season, string> = { "FW26/27": "FW 26/27", SS26: "SS 2026", "FW25/26": "FW 25/26" };
-/** Сезон строки файла → ключ отчёта. */
-const SALES_TO_REPORT: Record<string, Season> = { "FW 25/26": "FW25/26", "SS 2026": "SS26", "FW 26/27": "FW26/27" };
-const SEASON_BG: Record<Season, string> = { "FW26/27": "bg-sky-50/60", SS26: "bg-amber-50/60", "FW25/26": "bg-emerald-50/50" };
-type Level = "fur" | "cat1" | "cat2" | "article" | "color" | "size";
-/** Два порядка разворота (04.11.2026, владелец): мех → кат.1 → кат.2 или кат.1 → кат.2 → мех; дальше артикул → цвет → размер. */
-const HIER = { fur: ["fur", "cat1", "cat2", "article", "color", "size"] as Level[], cat: ["cat1", "fur", "cat2", "article", "color", "size"] as Level[] };
-const LEVEL_LABEL: Record<Level, string> = { fur: "Мех", cat1: "Категория 1", cat2: "Категория 2", article: "Артикул", color: "Цвет", size: "Размер" };
-
-const FUR_RU: Record<string, string> = { SABLE: "Соболь", MINK: "Норка", FOX: "Лиса", SWAKARA: "Каракульча", LYNX: "Рысь", BEAVER: "Бобр", CHINCHILLA: "Шиншилла" };
-const furRu = (k: string) => furRuLabel(k, FUR_RU);
-/** В отчётах «Продажи / Поставки» (как в PDF владельца): «Свакара», «Соболь+Норка» отдельной группой. */
-const FUR_REPORT: Record<string, string> = { ...FUR_RU, SWAKARA: "Свакара" };
 export { furKeyOfReportRow as furKeyOfRow } from "@/lib/sales-receipts-core";
 
-/** Показатели сезона. По SS26 и FW25 заказ закрыт: заказано = поступило (правило владельца 21.10.2026). */
-type M = {
-  /** Артикулов сезона: разные артикулы, у которых есть заказ, приход или продажи. */
-  arts: number;
-  conf: number; confEur: number; deliv: number; delivEur: number;
-  /** За сезон: товар этого сезона, проданный в календаре этого же сезона. */
-  ssn: number; rubS: number; rubSIn: number; rubSEx: number; eurSIn: number; eurSEx: number; discS: number; grossS: number; costS: number;
-  /** Всего в календаре сезона: товар сезона (SSN) + олды — товар прошлых сезонов, проданный в этом календаре. По отчёту: FW25 94, SS26 13 + 41 = 54, FW26 60 + 51 = 111. */
-  all: number; rubA: number; rubAIn: number; discA: number; grossA: number; costA: number;
-  /** Остаток товара сезона = поступило − продано товара сезона за всё время (allG). */
-  stock: number;
-  /** Товар сезона, проданный за всё время (в свой сезон и позже) — для SO сейчас и остатка. */
-  allG: number;
-  /** Штуки отчёта (для весов цены и маркапа: выручка и скидка тоже из отчёта). */
-  ssnR: number; allR: number;
-  /** Товар этого сезона, проданный позже: в календаре SS26 и в календаре FW26 (всего allG = в свой сезон + эти две части). */
-  lSS26: number; lFW26: number;
-  /** Выручка товара сезона, проданного позже (rubL), и за всё время = в свой сезон + позже (rubG); с НДС или без — как в шапке. */
-  rubL: number; rubG: number;
-  /** Позже проданное: выручка с НДС, скидка ₽ и числитель/знаменатель маркапа (€) — для цены и MU «товара сезона за всё время». */
-  rubLIn: number; discL: number; grossL: number; costL: number;
-};
-const MKEYS = ["arts", "conf", "confEur", "deliv", "delivEur", "ssn", "rubS", "rubSIn", "rubSEx", "eurSIn", "eurSEx", "discS", "grossS", "costS", "all", "rubA", "rubAIn", "discA", "grossA", "costA", "stock", "allG", "ssnR", "allR", "lSS26", "lFW26", "rubL", "rubG", "rubLIn", "discL", "grossL", "costL"] as const;
-const zero = (): M => Object.fromEntries(MKEYS.map((k) => [k, 0])) as M;
-const plus = (a: M, b: M): M => Object.fromEntries(MKEYS.map((k) => [k, a[k] + b[k]])) as M;
-/** SO за сезон: продано за сезон ÷ заказано (итог сезона). SO сейчас: товар сезона, проданный за всё время, ÷ заказано. */
-const soS = (m: M) => (m.conf > 0 ? m.ssn / m.conf : null);
-const soA = (m: M) => (m.conf > 0 ? m.allG / m.conf : null);
-/** Средневзвешенная цена продажи до скидки = (выручка + скидка) ÷ шт.; маркап = то же ÷ себестоимость проданного. */
-const priceS = (m: M) => (m.ssnR > 0 ? (m.rubSIn + m.discS) / m.ssnR : null);
-const priceA = (m: M) => (m.allR > 0 ? (m.rubAIn + m.discA) / m.allR : null);
-/** Олды календаря сезона = весь календарь минус товар сезона. */
-const priceO = (m: M) => (m.allR - m.ssnR > 0 ? (m.rubAIn - m.rubSIn + m.discA - m.discS) / (m.allR - m.ssnR) : null);
-const mkO = (m: M) => (m.costA - m.costS > 0 ? (m.grossA - m.grossS) / (m.costA - m.costS) : null);
-/** Товар сезона за всё время (в свой сезон и позже): цена до скидки и маркап (выручка ₽ + скидка ₽) ÷ курс ÷ SC EUR. */
-const priceG = (m: M) => (m.allG > 0 ? (m.rubSIn + m.rubLIn + m.discS + m.discL) / m.allG : null);
-const mkG = (m: M) => (m.costS + m.costL > 0 ? (m.grossS + m.grossL) / (m.costS + m.costL) : null);
-const mkS = (m: M) => (m.costS > 0 ? m.grossS / m.costS : null);
-const mkA = (m: M) => (m.costA > 0 ? m.grossA / m.costA : null);
-/** Значение столбца для сортировки (пустое → самые маленькие). */
-const numOf = (m: M, key: string): number => ({ arts: m.arts, conf: m.conf, deliv: m.deliv, wait: Math.max(0, m.conf - m.deliv), ssn: m.ssn, soS: soS(m) ?? -1, all: m.all, goods: m.allG, soA: soA(m) ?? -1, left: m.stock, rubS: m.rubS, rubA: m.rubA, priceS: priceS(m) ?? -1, priceA: priceA(m) ?? -1, mkS: mkS(m) ?? -1, mkA: mkA(m) ?? -1 } as Record<string, number>)[key] ?? 0;
-const eur = (v: number) => (Math.abs(v) < 0.5 ? DASH : Math.round(v).toLocaleString("ru-RU") + " €");
 // Валюта таблицы итогов: всё в ₽ или всё в € (пересчёт по курсу MU_EUR_RATE = 110, пока курс не известен по документам закупки меха). Выставляется в начале отрисовки.
 let CUR_EUR = false;
 const mnyC = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? DASH : CUR_EUR ? eur(v / MU_EUR_RATE) : moneyC(v));
@@ -88,7 +34,6 @@ const mny = (v: number | null) => (v === null || Math.abs(v) < 0.5 ? DASH : CUR_
 const mnyE = (v: number) => (Math.abs(v) < 0.5 ? DASH : CUR_EUR ? eur(v) : money(v * MU_EUR_RATE));
 const curLabel = (l: string) => (CUR_EUR ? l.replace("₽", "€") : l.replace("€", "₽"));
 
-type Col = { key: string; label: string; short: string; hint: string; get: (m: M, s: Season) => string; /** Мелкая подпись под значением (проценты). */ sub?: (m: M) => string; strong?: boolean; full?: boolean };
 const COLS: Col[] = [
   { key: "arts", label: "Заказано, артикулов", short: "Заказ, арт.", hint: "Сколько разных артикулов в сезоне: есть заказ, приход или продажи. «Вместе» — каждый артикул один раз, включая те, что есть только на остатке.", get: (m) => n0(m.arts) },
   { key: "conf", label: "Заказано, шт.", short: "Заказ, шт.", hint: "Подтверждённый заказ по отчёту. По закрытым сезонам заказано = поступило.", get: (m) => n0(m.conf) },
@@ -110,26 +55,7 @@ const COLS: Col[] = [
   { key: "mkA", label: "Маркап всего", short: "Маркап всего", hint: "Средневзвешенный по всем проданным в календаре сезона штукам (товар сезона и олды), у которых есть себестоимость.", get: (m) => x2(mkA(m)) },
 ];
 const TCOLS = COLS;
-/** Разложить целое `total` по долям `weights` целыми числами (метод наибольшего остатка), не больше `caps[i]`; сумма = total, если хватает ёмкости. */
-function apportion(total: number, weights: number[], caps?: number[]): number[] {
-  const n = weights.length, out = new Array<number>(n).fill(0);
-  if (!n || total <= 0) return out;
-  const cap = (i: number) => (caps ? Math.max(0, caps[i]) : Infinity);
-  const sw = weights.reduce((a, w) => a + Math.max(0, w), 0);
-  const ideal = weights.map((w) => (sw > 0 ? (Math.max(0, w) / sw) * total : total / n));
-  for (let i = 0; i < n; i++) out[i] = Math.min(Math.floor(ideal[i]), cap(i));
-  let left = total - out.reduce((a, x) => a + x, 0);
-  while (left > 0) {
-    let best = -1, bestR = -1;
-    for (let i = 0; i < n; i++) if (out[i] < cap(i)) { const r = ideal[i] - out[i]; if (r > bestR) { bestR = r; best = i; } }
-    if (best < 0) break;
-    out[best]++; left--;
-  }
-  return out;
-}
 const cellNode = (c: Col, m: M, s: Season) => { const sub = c.sub?.(m); return <>{c.get(m, s)}{sub ? <span className="block text-[11px] font-normal leading-tight text-neutral-600">{sub}</span> : null}</>; };
-
-type Node = { id: string; level: Level; label: string; sub?: string; modelCode: string | null; variant: string | null; rows: ReportSizeRow[]; m: Record<Season, M>; stock: number; children: Node[] };
 
 export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fabricByArt, prices, costs, lines, tzAwait, catalog = false, onVat, supply }: { /** Данные отчёта по заказу и поставкам (каталог). */ supply?: SupplyLeaf[]; /** Переключатель НДС каталога (кнопки в панели). */ onVat?: (ex: boolean) => void; /** Каталог «как в магазине» (раздел «Телефон»): вместо таблицы и фильтров отчёта — карточки с фото. */ catalog?: boolean; /** НДС и «Одежда / Аксессуары»: живут в разделе, показываются ниже основных переключателей. */ controls?: React.ReactNode; sizes: ReportSizeRow[]; photos: PhotoIdx; cat: Cat; ex: boolean; reportDate?: string; fabricByArt: Record<string, string>; prices: RetailRow[]; costs: [string, ModelCost][]; lines: SLine[]; tzAwait: TzAwait[] }) {
   const [pick, setPick] = useState<Season[]>([...SEASONS]);
@@ -169,7 +95,6 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   const furs = useMemo(() => [...new Set(rows.map((r) => keyOf(r, "fur")))].sort(), [rows, fabricByArt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Продажи товара сезона позже его календаря (из строк файла): артикул+цвет → период продажи → сезон товара → показатели. Период = сезон даты, сезон товара = сезон партии строки. */
-  type Agg = { pcs: number; rubIn: number; rubEx: number; disc: number; grossC: number; costS: number };
   const crossIdx = useMemo(() => {
     const m = new Map<string, Map<Season, Map<Season, Agg>>>();
     for (const l of lines) {
@@ -186,7 +111,6 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
     return m;
   }, [lines, costOf]);
   /** Приход и продажи товара по сезонам из файла «поступления и продажи» (как в «Обзоре»): артикул+цвет → сезон партии → получено / продано за сезон / продано всего. */
-  type LAgg = Record<Season, { deliv: number; ssn: number; all: number }>;
   const lineIdx = useMemo(() => {
     const m = new Map<string, LAgg>();
     for (const l of lines) {
@@ -215,76 +139,7 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
     for (const r of sizes) { const k = oldKey(r); const a = m.get(k) ?? m.set(k, { n: 0, d: { "FW26/27": 0, SS26: 0, "FW25/26": 0 } }).get(k)!; a.n++; for (const s of SEASONS) a.d[s] += Math.max(0, r.seas?.[s]?.deliv ?? 0); }
     return m;
   }, [sizes, lineIdx]); // eslint-disable-line react-hooks/exhaustive-deps
-  const mOf = (rs: ReportSizeRow[]) => {
-    const out = Object.fromEntries(SEASONS.map((s) => [s, zero()])) as Record<Season, M>;
-    const artSet = Object.fromEntries(SEASONS.map((x) => [x, new Set<string>()])) as Record<Season, Set<string>>;
-    type OldAgg = { n: number; rubIn: number; rubEx: number; disc: number; g: number; sc: number };
-    const oldBy = new Map<string, Record<Season, OldAgg>>();
-    const cal = Object.fromEntries(SEASONS.map((x) => [x, { n: 0, rIn: 0, rEx: 0, d: 0, g: 0, c: 0 }])) as Record<Season, { n: number; rIn: number; rEx: number; d: number; g: number; c: number }>;
-    const grp = new Map<string, { n: number; d: Record<Season, number>; rep: Record<Season, { deliv: number; ssn: number; all: number }> }>();
-    for (const r of rs) {
-      const k = oldKey(r);
-      { const z = (): OldAgg => ({ n: 0, rubIn: 0, rubEx: 0, disc: 0, g: 0, sc: 0 }); const acc = oldBy.get(k) ?? oldBy.set(k, { "FW26/27": z(), SS26: z(), "FW25/26": z() }).get(k)!; for (const s of SEASONS) { const c = r.seas?.[s]; if (!c) continue; acc[s].n += Math.max(0, c.soldOld ?? 0); acc[s].rubIn += c.rubOld ?? 0; acc[s].rubEx += c.rubExOld ?? 0; acc[s].disc += c.discOld ?? 0; acc[s].g += ((c.rubOld ?? 0) + (c.discOld ?? 0)) / MU_EUR_RATE; acc[s].sc += c.scOld ?? 0; } }
-      const g = grp.get(k) ?? grp.set(k, { n: 0, d: { "FW26/27": 0, SS26: 0, "FW25/26": 0 }, rep: Object.fromEntries(SEASONS.map((x) => [x, { deliv: 0, ssn: 0, all: 0 }])) as Record<Season, { deliv: number; ssn: number; all: number }> }).get(k)!;
-      g.n++;
-      for (const s of SEASONS) {
-        const c = r.seas?.[s]; if (!c) continue;
-        const m = out[s], closed = s !== "FW26/27";
-        m.conf += closed ? c.conf ?? c.deliv ?? 0 : c.conf ?? 0;
-        m.confEur += closed ? c.confEur ?? c.delivEur ?? 0 : c.confEur ?? 0;
-        m.delivEur += c.delivEur ?? 0;
-        if ((closed ? c.conf ?? c.deliv ?? 0 : c.conf ?? 0) > 0 || (c.deliv ?? 0) > 0 || (c.soldSsn ?? 0) > 0) artSet[s].add(r.acode);
-        const n = c.soldSsn ?? 0, rIn = c.rubSsn ?? 0, rEx = c.rubExSsn ?? 0, dS = c.discSsn ?? 0;
-        g.d[s] += Math.max(0, c.deliv ?? 0); g.rep[s].deliv += c.deliv ?? 0; g.rep[s].ssn += n; g.rep[s].all += n;
-        // За сезон: товар сезона, проданный в его календаре (SSN отчёта) — выручка, скидка, себестоимость; он же первая часть «всего».
-        m.ssnR += n; m.rubS += ex ? rEx : rIn; m.rubSIn += rIn; m.rubSEx += rEx; m.eurSIn += c.eurSsn ?? 0; m.eurSEx += c.eurExSsn ?? 0; m.discS += dS;
-        m.allR += n; m.rubA += ex ? rEx : rIn; m.rubAIn += rIn; m.discA += dS;
-        // Маркап продаж (правило владельца 09.11.2026): (выручка ₽ + скидка ₽) ÷ курс 110 ÷ SC EUR — полная розничная цена продажи с учётом скидки к себестоимости продаж в €.
-        { const gE = ((c.rubSsn ?? 0) + (c.discSsn ?? 0)) / MU_EUR_RATE, scE = c.scSsn ?? 0; m.grossS += gE; m.costS += scE; m.grossA += gE; m.costA += scE; }
-        // Олды: товар прошлых сезонов, проданный в календаре этого сезона (Old отчёта).
-        const nO = Math.max(0, c.soldOld ?? 0), rInO = c.rubOld ?? 0;
-        cal[s].n += nO; cal[s].rIn += rInO; cal[s].rEx += c.rubExOld ?? 0; cal[s].d += c.discOld ?? 0;
-        cal[s].g += ((c.rubOld ?? 0) + (c.discOld ?? 0)) / MU_EUR_RATE; cal[s].c += c.scOld ?? 0;
-      }
-    }
-    // Штуки (получено, продано за сезон, продано всего) — из файла поступлений и продаж, как в «Обзоре»; на уровне размера делим по поступлению строк отчёта. Нет артикула в файле — берём отчёт.
-    for (const [k, g] of grp) {
-      const L = lineIdx.get(k), W = keyW.get(k);
-      for (const s of SEASONS) {
-        // Получено — по отчёту (товар сезона за всё время: FW25 269 + SS26 64 + FW26 304); строки файла поступлений дают только даты и остаток по месяцам.
-        void L; void W;
-        out[s].deliv += g.rep[s].deliv; out[s].ssn += g.rep[s].ssn; out[s].all += g.rep[s].all;
-      }
-    }
-    // Вторая часть «всего»: товар сезона, проданный позже как «не сезон». Штуки и деньги периода берём из отчёта (итог сходится с отчётом до рубля),
-    // строки продаж только делят их по сезонам товара (по долям штук). Маркап считаем по строкам продаж.
-    for (const [k, R] of oldBy) for (const per of SEASONS) {
-      const need = R[per].n; if (need <= 0) continue;
-      const O = crossIdx.get(k)?.get(per); if (!O) continue;
-      const tot = [...O.values()].reduce((x, y) => x + y.pcs, 0); if (tot <= 0) continue;
-      const f = tot <= need ? 1 : need / tot;
-      for (const [g, a] of O) {
-        const share = a.pcs / tot, o = out[g];
-        o.allR += need * share;
-        if (per === "SS26") o.lSS26 += need * share; else if (per === "FW26/27") o.lFW26 += need * share;
-        o.rubL += (ex ? R[per].rubEx : R[per].rubIn) * share;
-        o.rubLIn += R[per].rubIn * share; o.discL += R[per].disc * share; o.grossL += R[per].g * share; o.costL += R[per].sc * share;
-        o.rubA += (ex ? R[per].rubEx : R[per].rubIn) * share; o.rubAIn += R[per].rubIn * share; o.discA += R[per].disc * share;
-        o.grossA += a.grossC * f; o.costA += a.costS * f;
-      }
-    }
-    // «За сезон» — товар сезона в его календаре (SSN отчёта); «Всего» — весь календарь сезона: SSN + олды (Old). Штуки и деньги — из отчёта, как у владельца:
-    // FW25 94, SS26 13 + 41 = 54, FW26 60 + 51 = 111, вместе 259. Товар сезона, проданный за всё время (в свой сезон и позже), нужен для SO сейчас и остатка (allG).
-    for (const s of SEASONS) {
-      const o = out[s], c = cal[s];
-      o.allG = o.allR; o.ssn = o.ssnR; o.rubG = o.rubS + o.rubL;
-      o.all = o.ssnR + c.n; o.allR = o.all;
-      o.rubA = o.rubS + (ex ? c.rEx : c.rIn); o.rubAIn = o.rubSIn + c.rIn; o.discA = o.discS + c.d;
-      o.grossA = o.grossS + c.g; o.costA = o.costS + c.c;
-    }
-    for (const s of SEASONS) { out[s].arts = artSet[s].size; if (s !== "FW26/27") out[s].conf = out[s].deliv; out[s].stock = out[s].deliv - out[s].allG; }
-    return out;
-  };
+  const mOf = (rs: ReportSizeRow[]) => seasonMetrics(rs, { ex, oldKey, lineIdx, keyW, crossIdx });
   const filtered = useMemo(() => rows.filter((r) => (furPick === "all" || keyOf(r, "fur") === furPick) && (!q || `${r.acode} ${keyOf(r, "fur")} ${keyOf(r, "cat1")} ${keyOf(r, "cat2")} ${r.color} ${r.size}`.toLowerCase().includes(q.toLowerCase()))), [rows, furPick, q, fabricByArt]); // eslint-disable-line react-hooks/exhaustive-deps
   const sortVal = (n: Node) => seasons.reduce((a, s) => a + (sort === "rub" ? n.m[s].rubA : sort === "all" ? n.m[s].all : sort === "conf" ? n.m[s].conf : sort === "so" ? soA(n.m[s]) ?? 0 : sort === "markup" ? mkA(n.m[s]) ?? 0 : n.m[s].ssn), 0);
   const tree = useMemo(() => {
@@ -339,94 +194,9 @@ export function SeasonReport({ controls, sizes, photos, cat, ex, reportDate, fab
   if (!rows.length) return <p className="rounded-lg border border-neutral-300 bg-white p-3 text-sm text-neutral-800">Сезонных данных нет: загрузите отчёт «заказ и продажи» (Настройки → Загрузка данных → Прайс и размеры).</p>;
 
   const renderCatalog = (embedded: boolean) => {
-    const items: CatalogItem[] = articles.map((n) => {
-      const ph = n.modelCode ? photos[n.modelCode] : undefined;
-      // Фото: сначала цвет этого артикула, потом остальные цвета модели.
-      const own = ph ? ph.photos.filter((x) => x.variant.trim().toUpperCase() === (n.variant ?? "").trim().toUpperCase()) : [];
-      const rest = ph ? ph.photos.filter((x) => !own.includes(x)) : [];
-      // MU current — от максимальной текущей цены прайса: цена ÷ 110 ÷ себестоимость в € (правило владельца).
-      const cost = costLine(n), now = nowRange(n), nowNum = (() => { const v = n.rows.map(nowPrice).filter((x): x is number => x !== null); return v.length ? Math.max(...v) : null; })();
-      const first = n.rows[0];
-      const seasonsOf = seasons.filter((s) => n.m[s].conf || n.m[s].deliv || n.m[s].ssn || n.m[s].allG || n.m[s].stock);
-      // Продано товара сезона = в свой сезон + позже (в календаре SS26 и в календаре FW26); целые штуки, сумма сходится с «Продано товара сезона».
-      const partsOf = (m: M) => { const total = Math.round(m.allG), own = Math.min(Math.round(m.ssn), total), [a, b] = apportion(total - own, [m.lSS26, m.lFW26]); return { own, a, b }; };
-      const parts = Object.fromEntries(seasonsOf.map((x) => [x, partsOf(n.m[x])])) as Record<Season, { own: number; a: number; b: number }>;
-      // Цена остатка сейчас, ₽/шт.: средневзвешенная текущая цена по остатку размеров (цена прайса × остаток размера ÷ остаток).
-      const stockPrice = (() => { const v: number[] = []; for (const r of n.rows) { const pr = nowPrice(r); if (pr !== null && (r.stock ?? 0) > 0) v.push(pr); } if (!v.length) return null; const lo = Math.min(...v), hi = Math.max(...v); return lo === hi ? money(lo) : `${moneyC(lo)}–${moneyC(hi)}`; })();
-      return {
-        id: n.id, title: n.label, fur: keyOf(first, "fur"), category: keyOf(first, "cat2"), cls: (first?.cls ?? "other") as CatalogItem["cls"],
-        modelId: ph?.modelId ?? null, photos: [...own, ...rest].map((x) => ({ id: x.id, variant: x.variant })),
-        retailNow: now, markupNow: mu(nowNum, cost),
-        facts: [["Цена сейчас", now ?? DASH], ["Себестоимость", cost ? eurU(cost) : DASH], ["MU current", mu(nowNum, cost) ?? DASH]] ,
-        seasons: seasonsOf.map((s) => {
-          const m = n.m[s], rub1 = (v: number | null) => (v == null ? DASH : Math.round(v).toLocaleString("ru-RU")), kr = (v: number | null) => (v == null || Math.abs(v) < 0.5 ? DASH : Math.round(v).toLocaleString("ru-RU")), live = s === "FW26/27";
-          const common: [string, string][] = [["Заказано, шт.", n0(m.conf)], ["Получено, шт.", n0(m.deliv)], ...(live && m.conf - m.deliv > 0 ? [["В производстве, шт.", n0(m.conf - m.deliv)] as [string, string]] : [])];
-          // Одна база для всех строк: товар сезона. «Продано товара сезона» (за всё время) · SO STD · остаток сезона = получено − продано;
-          // ниже — то, что продано в его собственном календаре (SSN): шт., NS, цена, MU. Итого = сумма сезонов, без смешения календаря и товара.
-          // Те же мини-группы, что в «Заказ, поступление и продажи по сезонам»: в свой сезон → товар сезона за всё время → остаток.
-          const G1 = "Сезонный товар в свой сезон", G2 = "Товар сезона за всё время", G3 = "Остаток";
-          const row = (k: string, label: string, g: string, v: string) => ({ k, label, group: g, ssn: v, ttl: v });
-          const pairs = [
-            row("own", "Продано, шт.", G1, n0(parts[s].own)),
-            row("soas", "SO AS, %", G1, pct(soS(m))),
-            row("nsOwn", "NS ₽", G1, kr(m.rubS)),
-            row("priceOwn", "Цена до скидки, ₽/шт.", G1, rub1(priceS(m))),
-            row("muOwn", "MU", G1, x2(mkS(m))),
-            row("all", "Продано, шт.", G2, n0(m.allG)),
-            // Где продано всё количество: по календарным сезонам продажи (в свой сезон и позже); сумма трёх строк = «Продано».
-            row("later_fw25", "В сезоне FW25, шт.", G2, s === "FW25/26" ? n0(parts[s].own) : DASH),
-            row("later_ss26", "В сезоне SS26, шт.", G2, s === "FW25/26" ? n0(parts[s].a) : s === "SS26" ? n0(parts[s].own) : DASH),
-            row("later_fw26", "В сезоне FW26, шт.", G2, s === "FW26/27" ? n0(parts[s].own) : n0(parts[s].b)),
-            row("sostd", "SO STD, %", G2, pct(soA(m))),
-            row("nsAll", "NS ₽", G2, kr(m.rubG)),
-            row("priceAll", "Цена до скидки, ₽/шт.", G2, rub1(priceG(m))),
-            row("muAll", "MU", G2, x2(mkG(m))),
-            row("stock", "Остаток сезона, шт.", G3, n0(Math.max(0, m.stock))),
-            row("stockPrice", "Цена остатка, ₽/шт.", G3, m.stock > 0.5 ? (stockPrice ?? DASH) : DASH),
-          ];
-          return { key: s, label: SEASON_LABEL[s], short: s === "FW26/27" ? "FW26" : s === "SS26" ? "SS26" : "FW25", conf: m.conf, deliv: m.deliv, sold: m.allG, stock: Math.max(0, m.stock), rubK: m.rubA / 1000, showTtl: !live && pairs.some((p) => p.ssn !== p.ttl), common, pairs };
-        }),
-        total: (() => {
-          if (seasonsOf.length < 2) return null;
-          const t = seasonsOf.reduce((a, s) => plus(a, n.m[s]), zero()), rub1 = (v: number | null) => (v == null ? DASH : Math.round(v).toLocaleString("ru-RU")), kr = (v: number | null) => (v == null || Math.abs(v) < 0.5 ? DASH : Math.round(v).toLocaleString("ru-RU"));
-          return { common: [["Заказано, шт.", n0(t.conf)], ["Получено, шт.", n0(t.deliv)], ...(t.conf - t.deliv > 0 && seasonsOf.includes("FW26/27") ? [["В производстве, шт.", n0(t.conf - t.deliv)] as [string, string]] : [])] as [string, string][], pairs: [{ k: "own", v: n0(seasonsOf.reduce((x, y) => x + parts[y].own, 0)) }, { k: "soas", v: pct(soS(t)) }, { k: "nsOwn", v: kr(t.rubS) }, { k: "priceOwn", v: rub1(priceS(t)) }, { k: "muOwn", v: x2(mkS(t)) }, { k: "all", v: n0(t.allG) }, { k: "later_fw25", v: n0(seasonsOf.reduce((x, y) => x + (y === "FW25/26" ? parts[y].own : 0), 0)) }, { k: "later_ss26", v: n0(seasonsOf.reduce((x, y) => x + (y === "FW25/26" ? parts[y].a : y === "SS26" ? parts[y].own : 0), 0)) }, { k: "later_fw26", v: n0(seasonsOf.reduce((x, y) => x + (y === "FW26/27" ? parts[y].own : parts[y].b), 0)) }, { k: "sostd", v: pct(soA(t)) }, { k: "nsAll", v: kr(t.rubG) }, { k: "priceAll", v: rub1(priceG(t)) }, { k: "muAll", v: x2(mkG(t)) }, { k: "stock", v: n0(Math.max(0, t.stock)) }, { k: "stockPrice", v: t.stock > 0.5 ? (stockPrice ?? DASH) : DASH }] };
-        })(),
-        // Цвета и размеры: штуки целые, сумма по размерам = итог цвета (раньше размеры были дробными долями файла продаж и после округления давали 4 вместо 3).
-        colors: n.children.map((c) => {
-          const sm = (nd: Node) => { const t = seasonsOf.reduce((a, s) => plus(a, nd.m[s]), zero()); return { conf: t.conf, deliv: t.deliv, sold: t.allG, stock: t.stock }; };
-          const cs = sm(c), deliv = Math.round(cs.deliv), sold = Math.round(cs.sold);
-          const zs = c.children.map((z) => ({ z, v: sm(z) }));
-          const repDelivW = zs.map(({ z }) => Math.max(0, z.rows.reduce((t, r) => t + seasonsOf.reduce((u, s) => u + (r.seas?.[s]?.deliv ?? 0), 0), 0)));
-          const confI = zs.map(({ z }) => z.rows.reduce((t, r) => t + seasonsOf.reduce((u, s) => { const x = r.seas?.[s]; return x ? u + (s !== "FW26/27" ? x.conf ?? x.deliv ?? 0 : x.conf ?? 0) : u; }, 0), 0));
-          const delivI = apportion(deliv, repDelivW);
-          const soldW = zs.map((x) => x.v.sold), soldCap = apportion(sold, soldW, delivI), soldI = soldCap.reduce((a, x) => a + x, 0) < sold ? apportion(sold, soldW) : soldCap; // продано сверх прихода (остаток < 0) не теряем
-          const sizes = zs.map((x, i) => ({ label: x.z.label, conf: confI[i], deliv: delivI[i], sold: soldI[i], stock: Math.max(0, delivI[i] - soldI[i]) })).filter((z) => z.conf || z.deliv || z.sold || z.stock);
-          return { label: c.label, conf: Math.round(cs.conf), deliv, sold, stock: Math.max(0, deliv - sold), sizes };
-        }).filter((c) => c.conf || c.deliv || c.sold || c.stock),
-      };
-    });
+    const items: CatalogItem[] = catalogItems({ articles, photos, seasons, costLine, nowRange, nowPrice, keyOf, mu, eurU });
     // Строки отчёта «по артикулам»: по сезонам — заказ/приход (шт., €), продано (шт.), NS, цена и маркап проданного, остаток (шт.) и его цена/маркап по прайсу.
-    const SES: Season[] = [...SEASONS];
-    const reportLeaves: ReportLeaf[] = articles.map((n) => {
-      const first = n.rows[0], cost = costLine(n), price = n.rows.map(nowPrice).find((x) => x !== null) ?? null;
-      const by: ReportLeaf["by"] = {};
-      for (const k of SES) {
-        const m = n.m[k];
-        // Продажи товара прошлых сезонов (олды) в календаре этого сезона (в FW25 их не было): шт. и маркап (NS EUR + Discount EUR) ÷ SC EUR; остаток всех сезонов до этого включительно.
-        const old = k === "FW25/26" ? { n: 0, g: 0, c: 0, ri: 0, re: 0, ei: 0, ee: 0 } : n.rows.reduce((o, r) => { const c = r.seas?.[k]; return { n: o.n + Math.max(0, c?.soldOld ?? 0), g: o.g + ((c?.rubOld ?? 0) + (c?.discOld ?? 0)) / MU_EUR_RATE, c: o.c + (c?.scOld ?? 0), ri: o.ri + (c?.rubOld ?? 0), re: o.re + (c?.rubExOld ?? 0), ei: o.ei + (c?.eurOld ?? 0), ee: o.ee + (c?.eurExOld ?? 0) }; }, { n: 0, g: 0, c: 0, ri: 0, re: 0, ei: 0, ee: 0 });
-        const totalStock = SES.reduce((t, x) => t + (n.m[x].deliv - n.m[x].allG), 0); // остаток всех сезонов: получено − продано товара
-        // FW26/27: получено и остаток товара сезона — по отчёту (как в Excel и «Поставки»), а не по файлу поступлений.
-        const repDeliv = m.deliv, repStock = m.deliv - m.allG;
-        const tStock = k === "FW26/27" ? totalStock : k === "SS26" ? Math.max(0, totalStock - n.m["FW26/27"].stock) : 0;
-        // Остаток: цена сейчас (₽) и MU = цена сейчас в € ÷ себестоимость в € (приход € ÷ шт., иначе заказ € ÷ шт.).
-        const pE = price && eurRate ? price / eurRate : 0;
-        by[k] = { oSold: old.n, oGross: old.g, oCost: old.c, oRubIn: old.ri, oRubEx: old.re, oEurIn: old.ei, oEurEx: old.ee,
-          tStock, tRetail: price ? price * tStock : 0, tPriced: price ? tStock : 0, tRetailBoth: pE && cost ? pE * tStock : 0, tCostBoth: pE && cost ? cost * tStock : 0,
-          conf: m.conf, confEur: m.confEur, deliv: repDeliv, delivEur: m.delivEur, sold: m.ssn, nsRubIn: m.rubSIn, nsRubEx: m.rubSEx, nsEurIn: m.eurSIn, nsEurEx: m.eurSEx, gross: m.grossS, cost: m.costS, stock: repStock,
-          sRetail: price ? price * m.stock : 0, sPriced: price ? m.stock : 0, sRetailBoth: pE && cost ? pE * m.stock : 0, sCostBoth: pE && cost ? cost * m.stock : 0 };
-      }
-      return { cls: (first?.cls ?? "other") as ReportLeaf["cls"], cat1: first?.l2 || "(без категории)", fur: first?.fur ? furRuLabel(first.fur, FUR_REPORT) : keyOf(first, "fur"), cat2: first?.l4 || first?.l5 || "(без категории)", model: n.modelCode ?? n.label, by, ...(() => { const ks = Object.keys(by) as string[], f = by["FW26/27"], ttlDeliv = ks.reduce((a, k) => a + by[k].deliv, 0), ttlDelivEur = ks.reduce((a, k) => a + by[k].delivEur, 0), tc = ks.reduce((a, k) => a + by[k].conf, 0), te = ks.reduce((a, k) => a + by[k].confEur, 0); const uFw = f && f.deliv > 0 && f.delivEur > 0 ? f.delivEur / f.deliv : f && f.conf > 0 && f.confEur > 0 ? f.confEur / f.conf : 0, uAll = tc > 0 && te > 0 ? te / tc : uFw; return { ttlDeliv, ttlDelivEur, stockEur: leafStockEur(n.rows).fw, stockEurTtl: leafStockEur(n.rows).all }; })(), ttlConf: (Object.keys(by) as string[]).reduce((a, k) => a + by[k].conf, 0), ttlConfEur: (Object.keys(by) as string[]).reduce((a, k) => a + by[k].confEur, 0) };
-    });
+    const reportLeaves: ReportLeaf[] = reportLeavesOf({ articles, costLine, nowPrice, eurRate, keyOf });
     return <CatalogCards items={items} seasonOptions={SEASONS.map((x) => ({ key: x, label: SEASON_LABEL[x] }))} picked={pick} onToggleSeason={(k) => toggle(k as Season)} furs={furs} furPick={furPick} onFur={setFurPick} q={q} onQ={setQ} vatEx={ex} onVat={onVat} report={{ leaves: reportLeaves, eurRate, ex }} supply={supply} embedded={embedded} />;
   };
   if (catalog) return renderCatalog(false);

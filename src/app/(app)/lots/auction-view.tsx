@@ -1,13 +1,11 @@
 import { lotsText } from "@/lib/cost-labels";
 import { auctionSummariesView } from "@/lib/mart/auctions";
-import { Fragment } from "react";
-import { GROUPS, classifyLabel, labelUnit, type GroupKey } from "@/lib/cost-breakdown-groups";
 import { loadRawInfo } from "@/lib/raw-stage-server";
 import { relabelOrders } from "@/lib/order-label-db";
 import { escapeLike } from "@/lib/input";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionName as auctionNameLib } from "@/lib/auction-payments";
-import { formatMoney, isRoundingRest, OVERPAY_FROM, formatRate, formatQtyTrim } from "@/lib/utils";
+import { formatMoney, isRoundingRest, OVERPAY_FROM, formatQtyTrim } from "@/lib/utils";
 import { isDebtDust } from "@/lib/raw-rounding";
 import Link from "next/link";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -16,12 +14,10 @@ import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleBlock } from "@/components/collapsible-block";
 import { buttonVariants } from "@/components/ui/button";
-import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatDate, formatQty } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { Money } from "@/components/money";
 import { lotUnitCostExclVat, expenseInclVat } from "@/lib/purchase-totals";
-import { DOC_KIND_LABELS } from "@/lib/purchase-files";
-import { DocEditControls, ToggleAllPurchases } from "./auction-controls";
+import { ToggleAllPurchases } from "./auction-controls";
 import { buildAuctionRows } from "./auction-rows";
 import { docCounts } from "@/lib/doc-links";
 import { LotsProvider } from "./lots-state";
@@ -29,13 +25,11 @@ import { AuctionTotalsPanel, FlatLotsPanel, PurchaseCostParts, PurchaseLotsTable
 import { CUSTOM_FIELD_ENTITY } from "@/lib/custom-fields";
 import { DriveDocuments } from "@/components/drive-documents";
 import { toDriveView } from "@/lib/drive-docs-server";
-import { DocFileButtons } from "@/components/doc-preview";
-import { copiesLabel, countLabel, docGroupKey, groupBy, matchDriveToFiles } from "@/lib/drive-docs-group";
+import { countLabel, docGroupKey, groupBy, matchDriveToFiles } from "@/lib/drive-docs-group";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { getYearFilter, type YearFilter } from "@/lib/year-filter";
 import { purchaseYear } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
-import { InfoHint } from "@/components/info-hint";
 import { AuctionDocsPay } from "./auction-docs-pay";
 import { AuctionVerify } from "../verify/verify-block";
 import { classifyPurchaseSource } from "@/lib/purchase-source";
@@ -45,44 +39,15 @@ import { loadLevelTotals } from "@/lib/mart/level-totals";
 import { withExtra } from "@/lib/commission4-pick";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
-import { usageExclVat } from "@/lib/commission4";
-import { lotUsdListed } from "@/lib/lot-hammer";
-
-const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
+import { UNIT_LABELS, parsePlan, grossUp, docVersion, rateText, auctionStatusText, pluralPurchases, type AuctionSummary } from "./_auction-view/helpers";
+import { levelUsage } from "./_auction-view/level-usage";
+import { AuctionCostBreakdown } from "./_auction-view/cost-breakdown";
+import { DocFilesTable } from "./_auction-view/doc-files-table";
 
 /** Название аукциона/партии — первая строка Purchase.auctionSession (так же, как у документов партии). */
 export const auctionName = auctionNameLib;
 
-export type AuctionSummary = {
-  name: string;
-  count: number;
-  received: number;
-  draft: number;
-  cancelled: number;
-  lastDate: number;
-  /** Источник закупки: настоящий аукцион или поставщик (тот же признак, что у лотов на Главной). */
-  src: "auction" | "supplier";
-};
-
-export function auctionStatusText(a: Pick<AuctionSummary, "count" | "received" | "draft" | "cancelled">): string {
-  const parts: string[] = [];
-  if (a.received && !a.draft && !a.cancelled) parts.push("принято");
-  else if (a.draft && !a.received && !a.cancelled) parts.push("черновики");
-  else {
-    if (a.received) parts.push(`принято ${a.received}`);
-    if (a.draft) parts.push(`черновиков ${a.draft}`);
-    if (a.cancelled) parts.push(`отменено ${a.cancelled}`);
-  }
-  return parts.join(", ");
-}
-
-export function pluralPurchases(n: number): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return `${n} закупка`;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `${n} закупки`;
-  return `${n} закупок`;
-}
+export { auctionStatusText, pluralPurchases, type AuctionSummary };
 
 /** Все аукционы организации (distinct Purchase.auctionSession): число закупок, статусы, дата последней. */
 export async function loadAuctions(organizationId: string, year: YearFilter = "all"): Promise<AuctionSummary[]> {
@@ -105,37 +70,6 @@ export async function loadAuctions(organizationId: string, year: YearFilter = "a
   }
   return Array.from(map.values()).sort((a, b) => b.lastDate - a.lastDate || a.name.localeCompare(b.name, "ru"));
 }
-
-type Plan = { unitCostInclVat: Decimal; materialExclVat: Decimal; expenseExclVat: Decimal; costBreakdown: unknown };
-
-function parsePlan(raw: unknown): Plan | null {
-  const c = raw as Record<string, unknown> | null | undefined;
-  if (!c || typeof c !== "object") return null;
-  try {
-    if (c.unitCostInclVat == null || c.materialExclVat == null || c.expenseExclVat == null) return null;
-    return {
-      unitCostInclVat: new Decimal(String(c.unitCostInclVat)),
-      materialExclVat: new Decimal(String(c.materialExclVat)),
-      expenseExclVat: new Decimal(String(c.expenseExclVat)),
-      costBreakdown: c.costBreakdown,
-    };
-  } catch {
-    return null;
-  }
-}
-
-const grossUp = (base: Decimal, vat: Decimal) => base.add(base.mul(vat).div(100));
-
-function fmtSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} Б`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1).replace(".", ",")} КБ`;
-  return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} МБ`;
-}
-
-/** Версия файла для ссылки (сброс кэша при замене) — по имени файла на диске, а не по дате документа. */
-const docVersion = (storagePath: string) => encodeURIComponent(storagePath.split(/[\\/]/).pop() ?? "");
-
-const rateText = (r: Decimal) => formatRate(Number(r.toString()));
 
 export async function AuctionView({
   organizationId,
@@ -293,30 +227,7 @@ export async function AuctionView({
   // Единая полоса итогов уровня: куплено → использовано → остаток → оплачено → долг (режимы НДС и 4 % — как в шапке).
   const c4 = await getCommission4Mode();
   const k4 = new Decimal(COMMISSION_RATE);
-  let usedQty = zero(), usedIncl = zero(), usedExcl = zero(), extraIncl = zero(), extraExcl = zero(), remQty = zero(), remIncl = zero(), remExcl = zero();
-  let usdSum = 0, usdQty = 0;
-  const seenLots = new Set<string>();
-  for (const b of counted) {
-    for (const l of b.lines) {
-      const q = Number(l.i.quantity.toString());
-      const usd = lotUsdListed(l.breakdown, []);
-      if (usd != null && q > 0) { usdSum += usd * q; usdQty += q; }
-      const lot = l.i.lot;
-      // Заказано, но не получено (лота ещё нет): входит в «Куплено», значит и в остаток целиком (как на Главной и в верхней полосе).
-      if (!lot) { remQty = remQty.add(l.i.quantity); remIncl = remIncl.add(l.totalIncl); remExcl = remExcl.add(l.totalExcl); continue; }
-      if (seenLots.has(lot.id)) continue;
-      seenLots.add(lot.id);
-      for (const u of lot.usages) {
-        usedQty = usedQty.add(u.quantity); usedIncl = usedIncl.add(u.totalCost);
-        const ex = usageExclVat(u, l.unitExcl);
-        usedExcl = usedExcl.add(ex);
-        if (u.commission4) { extraIncl = extraIncl.add(u.totalCost.mul(k4)); extraExcl = extraExcl.add(ex.mul(k4)); }
-      }
-      remQty = remQty.add(lot.quantityRemaining);
-      remIncl = remIncl.add(lot.quantityRemaining.mul(lot.unitCost));
-      remExcl = remExcl.add(lot.quantityRemaining.mul(l.unitExcl));
-    }
-  }
+  const { usedQty, usedIncl, usedExcl, extraIncl, extraExcl, remQty, remIncl, remExcl, usdSum, usdQty } = levelUsage(counted, k4);
   const perMoney = (vi: Decimal, ve: Decimal, q: Decimal) => (q.greaterThan(0) ? <Money incl={vi.div(q)} excl={ve.div(q)} /> : "–");
   const pct = (part: Decimal, whole: Decimal) => (whole.greaterThan(0) ? ` · ${Math.round((Number(part) / Number(whole)) * 100)} %` : "");
   // Единое правило режима «4 %» (commission4-pick): одна сумма «Использовано» по режиму шапки.
@@ -460,87 +371,7 @@ export async function AuctionView({
         </CardContent>
       </Card>
 
-      {(() => {
-        // Состав стоимости аукциона: из чего сложилась итоговая сумма по всем лотам (с НДС).
-        // Статьи берутся из расчёта каждого лота (значение на шкуру × количество); то, чего расчёт не покрывает, идёт строкой «Прочее и округление».
-        const sums = new Map<string, { group: GroupKey; label: string; sum: number }>();
-        let covered = 0;
-        for (const b of counted) {
-          for (const l of b.lines) {
-            const items = ((l.breakdown ?? {}) as { items?: { label?: unknown; value?: unknown }[] }).items;
-            if (!Array.isArray(items)) continue;
-            const qtyN = Number(l.i.quantity.toString());
-            for (const it of items) {
-              if (typeof it.label !== "string") continue;
-              const v = Number(it.value);
-              const g = classifyLabel(it.label);
-              if (!Number.isFinite(v) || g === "totals" || labelUnit(it.label) !== "₽") continue;
-              const key = `${g}|${it.label}`;
-              const cur = sums.get(key) ?? { group: g, label: it.label.replace(/,\s*₽$/, ""), sum: 0 };
-              cur.sum += v * qtyN;
-              covered += v * qtyN;
-              sums.set(key, cur);
-            }
-          }
-        }
-        const groups = GROUPS.filter((g) => [...sums.values()].some((x) => x.group === g.key)).map((g) => ({ ...g, rows: [...sums.values()].filter((x) => x.group === g.key && Math.abs(x.sum) >= 0.5) })).filter((g) => g.rows.length > 0);
-        if (groups.length === 0) return null;
-        const grand = Number(fullIncl.toString());
-        // Статьи расчёта есть не у всех лотов: если они покрывают меньше половины суммы, строка «Прочее 97 %» ничего не объясняет — таблицу не показываем (состав по цене и НДС — ниже).
-        if (covered < grand * 0.5) return null;
-        const rest = grand - covered;
-        const per = (v: number) => (Number(totalQty.toString()) > 0 ? formatMoney(Math.round(v / Number(totalQty.toString())).toString()) : "–");
-        const share = (v: number) => (grand > 0 ? `${((v / grand) * 100).toFixed(1).replace(".", ",")}%` : "–");
-        const rowCls = "border-b border-neutral-100";
-        const tdn = "py-1 pl-3 text-right tabular-nums whitespace-nowrap";
-        return (
-          <details className="group rounded-lg border border-neutral-200 bg-white">
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium hover:bg-neutral-50">
-              Расшифровка по статьям расчёта лотов <span className="ml-2 text-xs font-normal text-neutral-500 group-open:hidden">развернуть ›</span>
-            </summary>
-          <Card className="border-0 shadow-none">
-            <CardHeader>
-              <CardTitle>
-                Состав стоимости по статьям расчёта
-                <InfoHint label="Как считается" wide>
-                  <p>Сумма по всем лотам аукциона с НДС. Для каждого лота берётся его расчёт: цена лота в валюте × курс, сборы аукциона и НДС на них, НДС на товар, выделка, транспорт, брокер, комиссии. Значение на шкуру умножается на количество и складывается по лотам.</p>
-                  <p className="mt-1">Итог совпадает с «С расходами» выше. Если в расчёте лота нет разбивки, его сумма попадает в «Прочее и округление».</p>
-                </InfoHint>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[460px] text-sm">
-                  <thead><tr className="text-left text-xs text-neutral-500"><th scope="col" className="py-1 pr-3 font-medium">Статья</th><th scope="col" className="py-1 pl-3 text-right font-medium">Сумма, ₽</th><th scope="col" className="py-1 pl-3 text-right font-medium">На шкуру, ₽</th><th scope="col" className="py-1 pl-3 text-right font-medium">Доля</th></tr></thead>
-                  <tbody>
-                    {groups.map((g) => {
-                      const sub = g.rows.reduce((a, r) => a + r.sum, 0);
-                      return (
-                        <Fragment key={g.key}>
-                          <tr className="bg-neutral-50">
-                            <td className="py-1 pl-1 pr-3 text-xs font-semibold uppercase tracking-wide text-neutral-600">{g.title}</td>
-                            <td className={tdn + " text-xs font-semibold text-neutral-700"}>{formatMoney(Math.round(sub).toString())}</td>
-                            <td className={tdn + " text-xs text-neutral-500"}>{per(sub)}</td>
-                            <td className={tdn + " text-xs text-neutral-500"}>{share(sub)}</td>
-                          </tr>
-                          {g.rows.length > 1 && g.rows.map((r) => (
-                            <tr key={r.label} className={rowCls}><td className="py-1 pl-4 pr-3 text-neutral-700">{r.label}</td><td className={tdn}>{formatMoney(Math.round(r.sum).toString())}</td><td className={tdn + " text-neutral-500"}>{per(r.sum)}</td><td className={tdn + " text-neutral-500"}>{share(r.sum)}</td></tr>
-                          ))}
-                        </Fragment>
-                      );
-                    })}
-                    {Math.abs(rest) >= 1 && (
-                      <tr className={rowCls}><td className="py-1 pl-1 pr-3 text-neutral-700">Прочее и округление</td><td className={tdn}>{formatMoney(Math.round(rest).toString())}</td><td className={tdn + " text-neutral-500"}>{per(rest)}</td><td className={tdn + " text-neutral-500"}>{share(rest)}</td></tr>
-                    )}
-                    <tr className="row-total"><td className="py-1.5 pr-3">Итого с расходами, с НДС</td><td className={tdn + " font-semibold"}>{formatMoney(Math.round(grand).toString())}</td><td className={tdn}>{per(grand)}</td><td className={tdn}>100%</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-          </details>
-        );
-      })()}
+      <AuctionCostBreakdown counted={counted} fullIncl={fullIncl} totalQty={totalQty} />
 
       {blocks.length === 0 && (
         <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
@@ -655,90 +486,7 @@ export async function AuctionView({
                 Все файлы аукциона ({fileGroups.length}) <span className="ml-2 text-xs font-normal text-neutral-500 group-open:hidden">развернуть ›</span>
               </summary>
               <div className="border-t border-neutral-100 p-2">
-            <Table className="max-md:block">
-              <Thead className="max-md:hidden">
-                <Tr>
-                  <Th>Документ</Th>
-                  <Th>Тип</Th>
-                  <Th>Относится к</Th>
-                  <Th>Дата</Th>
-                  <Th>Размер</Th>
-                  <Th>Файл</Th>
-                  {canEdit && <Th>Корректировка</Th>}
-                </Tr>
-              </Thead>
-              <Tbody className="max-md:block">
-                {fileGroups.map((g) => {
-                  const { d } = g[0];
-                  const v = docVersion(d.storagePath);
-                  const where = (r: (typeof g)[number]) => (r.batch ? `вся партия ${r.d.batch ?? ""}` : `закупка ${r.purchaseLabel}`);
-                  const controls = (r: (typeof g)[number]) => (
-                    <DocEditControls
-                      documentId={r.d.id}
-                      purchaseId={r.purchaseId || editPurchaseId}
-                      title={r.d.title}
-                      kind={r.d.kind}
-                      isBatch={r.batch}
-                      batchName={r.d.batch}
-                    />
-                  );
-                  return (
-                    <Tr key={d.id} className="align-top max-md:block max-md:space-y-1 max-md:p-3">
-                      <Td className="min-w-40 font-medium max-md:block max-md:px-0 max-md:py-0">
-                        {d.title}
-                        {g.length > 1 && (
-                          <span className="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs font-normal text-neutral-600" title="Один и тот же файл привязан несколько раз">
-                            {copiesLabel(g.length)}
-                          </span>
-                        )}
-                        <div className="text-xs font-normal text-neutral-500">{d.originalName}</div>
-                      </Td>
-                      <Td className="whitespace-nowrap max-md:block max-md:px-0 max-md:py-0">{DOC_KIND_LABELS[d.kind]}</Td>
-                      <Td className="text-xs max-md:block max-md:px-0 max-md:py-0">
-                        {g.length === 1 ? (
-                          where(g[0])
-                        ) : (
-                          <details>
-                            <summary className="cursor-pointer">{g.length} привязок</summary>
-                            <ul className="mt-1 list-disc pl-4">
-                              {g.map((r) => (
-                                <li key={r.d.id}>{where(r)}</li>
-                              ))}
-                            </ul>
-                          </details>
-                        )}
-                      </Td>
-                      <Td className="whitespace-nowrap max-md:inline-block max-md:px-0 max-md:py-0 max-md:pr-3">{formatDate(d.createdAt)}</Td>
-                      <Td className="whitespace-nowrap max-md:inline-block max-md:px-0 max-md:py-0">{fmtSize(d.sizeBytes)}</Td>
-                      <Td className="max-md:block max-md:px-0 max-md:py-1">
-                        <div className="flex flex-wrap gap-1">
-                          <DocFileButtons href={`/api/purchase-docs/${d.id}?v=${v}`} mime={d.mimeType} title={d.title} />
-                        </div>
-                      </Td>
-                      {canEdit && (
-                        <Td className="min-w-56 max-md:block max-md:min-w-0 max-md:px-0 max-md:py-1">
-                          {g.length === 1 ? (
-                            controls(g[0])
-                          ) : (
-                            <details>
-                              <summary className="cursor-pointer text-xs text-neutral-500">Правки по привязкам ({g.length})</summary>
-                              <div className="mt-2 flex flex-col gap-3">
-                                {g.map((r) => (
-                                  <div key={r.d.id}>
-                                    <div className="mb-1 text-xs text-neutral-500">{where(r)}</div>
-                                    {controls(r)}
-                                  </div>
-                                ))}
-                              </div>
-                            </details>
-                          )}
-                        </Td>
-                      )}
-                    </Tr>
-                  );
-                })}
-              </Tbody>
-            </Table>
+            <DocFilesTable fileGroups={fileGroups} canEdit={canEdit} editPurchaseId={editPurchaseId} />
               </div>
             </details>
           ) : (

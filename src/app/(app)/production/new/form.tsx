@@ -1,80 +1,36 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { Input, Select, Textarea } from "@/components/ui/input";
 import type { CreateOrderState } from "../actions";
 import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
 import { ArticleSelect } from "@/components/article-select";
 import { InfoHint } from "@/components/info-hint";
-import { MoneyClient } from "@/components/money-client";
 import { createFurInline } from "@/app/(app)/settings/furs/actions";
 import { useKeepingForm } from "@/lib/use-keeping-form";
 import { parseLotLines } from "@/lib/lot-lines";
 import { defaultCommission4, COMMISSION_RATE } from "@/lib/commission4-const";
-import { vatPeriodLabel } from "@/lib/vat-by-date";
-import { draftTotals, lineCalc, vatByRate, type CalcLine } from "@/lib/tz-calc";
+import { draftTotals, vatByRate, type CalcLine } from "@/lib/tz-calc";
 import { formatQty, formatMoney, formatDec1 } from "@/lib/utils";
-import { LotPicker, type LotOpt } from "./lot-picker";
+import type { LotOpt } from "./lot-picker";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
+import type { Carry, ExpLine, Extra, Line, ModelOption, Opt } from "./_form/types";
+import { cardCls, num } from "./_form/types";
+import { Field, Step } from "./_form/parts";
+import { LotLineTable } from "./_form/line-table";
+import { TotalsStep } from "./_form/totals-step";
+import { BatchField } from "./_form/batch-field";
+import { SubmitBar } from "./_form/submit-bar";
 
 export type { LotOpt } from "./lot-picker";
 
 const initialState: CreateOrderState = {};
 
-type ModelOption = { id: string; name: string; retailPrice: string | null; category: string | null; group: string | null };
-type Opt = { id: string; name: string };
-type Line = { key: number; lotId: string; qty: string; c4: boolean; c4Touched: boolean };
-type Extra = { key: number; modelId: string; qty: string; color: string; colorRefId: string | null; size: string; work: string };
-type ExpLine = { key: number; categoryId: string; amount: string; desc: string };
-/** Что остаётся в форме после «Сохранить и добавить ещё»: заказчик, договор, партия, даты, цвет, вид меха и т.п. (артикул, количество и строки очищаются). */
-type Carry = {
-  f: Record<string, string>; clientId: string; contractorId?: string; contract: string; contractTouched: boolean;
-  batchSel: string; batchNew: string; furSel: string; furNew: string; vatSel: string; vatCustom: string; colorRefId: string;
-};
-
-const num = (s: string) => {
-  const n = Number(String(s).replace(",", ".").replace(/\s/g, ""));
-  return Number.isFinite(n) ? n : NaN;
-};
 let seq = 1;
 const nextKey = () => seq++;
-
-/** Сумма с НДС / без НДС через общий переключатель «С НДС / Без НДС» шапки. */
-function M({ incl, excl }: { incl: number; excl: number }) {
-  return <MoneyClient incl={String(Math.round(incl * 100) / 100)} excl={String(Math.round(excl * 100) / 100)} />;
-}
-
-function Step({ n, title, hint, children, id }: { n: number; title: string; hint?: ReactNode; children: ReactNode; id?: string }) {
-  return (
-    <section id={id} aria-label={title} className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-xs font-medium text-white">{n}</span>
-        <h2 className="block-title">{title}</h2>
-        {hint ? <InfoHint label={title} wide>{hint}</InfoHint> : null}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Field({ label, children, className, hint, link, htmlFor }: { label: string; children: ReactNode; className?: string; hint?: ReactNode; link?: ReactNode; htmlFor?: string }) {
-  return (
-    <div className={className}>
-      <div className="mb-1 flex items-center gap-1 text-xs text-neutral-500">
-        <Label htmlFor={htmlFor} className="mb-0 text-xs text-neutral-500">{label}</Label>
-        {hint ? <InfoHint label={label}>{hint}</InfoHint> : null}
-        {link}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-const cardCls = "rounded-lg border border-neutral-200 bg-white p-3";
-const th = "px-2 py-1.5 text-left text-xs font-medium text-neutral-500";
 
 export function ProductionCreateForm(props: {
   /** Предзаполнение артикула: /production/new?article=… (кнопка «Создать ТЗ на этот артикул» в карточке). */
@@ -341,85 +297,6 @@ function FormBody({
     else setPaste(lines.filter((ln) => !add.some((a) => lotById.get(a.lotId)?.lotNumber?.toLowerCase() === ln.lotNumber.toLowerCase())).map((ln) => `${ln.lotNumber}\t${ln.quantity}`).join("\n"));
   }
 
-  const lineTable = (kind: "fur" | "lining", ls: Line[], pool: LotOpt[], unitLabel: string) => (
-    <div className="table-scroll overflow-x-auto">
-      <table className="w-full min-w-[820px] text-sm">
-        <thead>
-          <tr className="border-b border-neutral-200">
-            <th className={th}>Лот</th>
-            <th className={`${th} text-right`}>Остаток</th>
-            <th className={`${th} text-right`}><span className="inline-flex flex-col items-end leading-tight"><span>Цена</span><span className="text-[11px] font-normal opacity-80">₽/{unitLabel}</span></span></th>
-            <th className={`${th} text-right`}>НДС</th>
-            <th className={`${th} w-28 text-right`}><span className="inline-flex flex-col items-end leading-tight"><span>Кол-во</span><span className="text-[11px] font-normal opacity-80">{unitLabel}</span></span></th>
-            <th className={`${th} text-center`}><span className="inline-flex flex-col items-center leading-tight"><span>4 %</span><span className="text-[11px] font-normal opacity-80">₽</span></span></th>
-            <th className={`${th} text-right`}><span className="inline-flex flex-col items-end leading-tight"><span>Сумма</span><span className="text-[11px] font-normal opacity-80">₽</span></span></th>
-            <th className={th} />
-          </tr>
-        </thead>
-        <tbody>
-          {ls.map((l, i) => {
-            const lot = lotById.get(l.lotId);
-            const q = num(l.qty);
-            const own = lot ? ownVat(lot) : null;
-            const c = lot && q > 0 ? lineCalc({ lot: { unitCost: lot.unitCost, unitCostExcl: lot.unitCostExcl, vatRate: lot.vatRate }, qty: q, commission4: l.c4, vatRate: own }) : null;
-            const over = lot && (taken[lot.id] ?? 0) > lot.remaining + 1e-9;
-            return (
-              <tr key={l.key} className="border-b border-neutral-100 align-top">
-                <td className="min-w-[16rem] px-2 py-1.5">
-                  <LotPicker lots={pool} value={l.lotId} onChange={(id) => upd(kind, l.key, { lotId: id })} taken={taken} ariaLabel={`Лот, строка ${i + 1}`} />
-                  {lot && (
-                    <span className="mt-0.5 flex flex-wrap gap-x-2 text-[11px] text-neutral-500">
-                      <Link href={`/analytics/raw/lot/${lot.id}`} target="_blank" className="text-blue-700 hover:underline" title="Карточка лота: закупка, где ещё использован, остаток">лот →</Link>
-                      {lot.purchaseId && <Link href={`/purchases/${lot.purchaseId}`} target="_blank" className="text-blue-700 hover:underline" title="Закупка, из которой пришёл лот">закупка {lot.purchaseNumber} →</Link>}
-                      {lot.auction && <span>{lot.auction}</span>}
-                    </span>
-                  )}
-                </td>
-                <td className={`whitespace-nowrap px-2 py-1.5 text-right tabular-nums ${over ? "text-red-600" : "text-neutral-600"}`}>{lot ? formatDec1(lot.remaining) : "–"}</td>
-                <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
-                  {lot ? <><M incl={lot.unitCost} excl={lot.unitCostExcl} /><span className="block text-[11px] text-neutral-600">из лота</span></> : "–"}
-                </td>
-                <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-600">
-                  {lot ? <>{own ?? lot.vatRate} %{own != null && <span className="block text-[11px] text-amber-700">в лоте {lot.vatRate} %</span>}<span className="block text-[11px] text-neutral-600">{vatPeriodLabel(lot.purchaseDate)}</span></> : "–"}
-                </td>
-                <td className="px-2 py-1.5">
-                  <Input
-                    aria-label={`Количество, строка ${i + 1}`}
-                    type="number" step="0.001" min="0" inputMode="decimal"
-                    value={l.qty}
-                    onChange={(e) => upd(kind, l.key, { qty: e.target.value })}
-                    className={`h-8 text-right tabular-nums ${over ? "border-red-500 bg-red-50" : ""}`}
-                  />
-                </td>
-                <td className="px-2 py-2 text-center">
-                  <input
-                    type="checkbox" checked={l.c4} aria-label={`Начислять 4 %, строка ${i + 1}`}
-                    onChange={(e) => upd(kind, l.key, { c4: e.target.checked, c4Touched: true })}
-                    className="h-4 w-4"
-                  />
-                </td>
-                <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
-                  {c ? (
-                    <>
-                      <span className="font-medium"><M incl={c.incl4} excl={c.excl4} /></span>
-                      {l.c4 && <span className="block text-[11px] text-neutral-600">без 4 %: <M incl={c.baseIncl} excl={c.baseExcl} /></span>}
-                    </>
-                  ) : "–"}
-                </td>
-                <td className="px-2 py-1.5 text-right">
-                  <button type="button" onClick={() => del(kind, l.key)} className="rounded px-1.5 py-0.5 text-neutral-600 hover:bg-neutral-100 hover:text-red-600" aria-label={`Убрать строку ${i + 1}`} title="Убрать строку">✕</button>
-                </td>
-              </tr>
-            );
-          })}
-          {ls.length === 0 && (
-            <tr><td colSpan={8} className="px-2 py-3 text-center text-neutral-500">{kind === "fur" ? "Мех не добавлен" : "Подкладка не добавлена"}</td></tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-
   const clientName = clients.find((c) => c.id === clientId)?.name;
 
   return (
@@ -490,33 +367,7 @@ function FormBody({
               </Select>
             </Field>
           )}
-          <Field label="Партия пошива" hint="Партия поставки. Партия 6 — без надбавки 4 %. Можно выбрать из списка или завести новую по номеру.">
-            {batches.length > 8 ? (
-              <Input className="mb-1" placeholder="Поиск партии: номер или год" aria-label="Поиск партии пошива" value={batchQuery} onChange={(e) => setBatchQuery(e.target.value)} />
-            ) : null}
-            <Select value={batchSel} onChange={(e) => { setBatchSel(e.target.value); onBatch(e.target.value); }} aria-label="Партия пошива">
-              <option value="">Партия не указана</option>
-              {batches
-                .filter((b) => b.id === batchSel || (!b.empty && (!batchQuery.trim() || b.label.toLowerCase().includes(batchQuery.trim().toLowerCase()))))
-                .map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
-              <option value="__new__">＋ Новая партия…</option>
-            </Select>
-            {batchSel === "__new__" && (
-              <Input className="mt-1" inputMode="numeric" placeholder="Номер новой партии" aria-label="Номер новой партии" value={batchNew} onChange={(e) => { setBatchNew(e.target.value); onBatch("__new__", e.target.value); }} />
-            )}
-            {batchSel === "__new__" && batchNew.trim() !== "" && (() => {
-              const hit = batches.find((b) => b.number === Number(batchNew));
-              return hit ? (
-                <p className="mt-1 text-xs text-amber-700" data-batch-hint>Партия {hit.number} уже есть: {hit.tz && hit.tz.length ? `ТЗ ${hit.tz.join(", ")}` : "ТЗ пока нет"}. <button type="button" className="underline" onClick={() => { setBatchSel(hit.id); onBatch(hit.id); }}>Выбрать её</button></p>
-              ) : (
-                <p className="mt-1 text-xs text-amber-700" data-batch-hint>Партии {batchNew.trim()} ещё нет — будет создана новая.</p>
-              );
-            })()}
-            {batchSel && batchSel !== "__new__" && (() => {
-              const hit = batches.find((b) => b.id === batchSel);
-              return hit && hit.tz && hit.tz.length ? <p className="mt-1 text-xs text-neutral-500">Партия {hit.number}: ТЗ {hit.tz.join(", ")}</p> : null;
-            })()}
-          </Field>
+          <BatchField batches={batches} batchSel={batchSel} setBatchSel={setBatchSel} batchNew={batchNew} setBatchNew={setBatchNew} batchQuery={batchQuery} setBatchQuery={setBatchQuery} onBatch={onBatch} />
           <Field label="Цвет" hint="Из справочника цветов или своё значение (синонимы привяжутся автоматически).">
             <ColorSelect refs={colorOptions} canCreate={canAddColor} placeholder="Коричневый" defaultValue={carry?.f.color ?? ""} defaultRefId={carry?.colorRefId || null} onChange={(t, r) => setF((p) => ({ ...p, color: t, colorRefId: r }))} />
           </Field>
@@ -618,13 +469,13 @@ function FormBody({
               {pasteErrs.length > 0 && <ul className="mt-1 list-disc pl-5 text-xs text-red-700">{pasteErrs.map((e, i) => <li key={i}>{e}</li>)}</ul>}
             </div>
           )}
-          {lineTable("fur", fur, furLots, "шт.")}
+          <LotLineTable kind="fur" ls={fur} pool={furLots} unitLabel="шт." lotById={lotById} taken={taken} ownVat={ownVat} upd={upd} del={del} />
 
           <div className="flex items-center gap-2 border-t border-neutral-100 pt-3">
             <h3 className="text-sm font-medium">Подкладка <span className="font-normal text-neutral-500">· {formatDec1(T.lining.qty)} м</span></h3>
             <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={() => addLine("lining")}>+ Лот подкладки</Button>
           </div>
-          {lineTable("lining", lining, liningLots, "м")}
+          <LotLineTable kind="lining" ls={lining} pool={liningLots} unitLabel="м" lotById={lotById} taken={taken} ownVat={ownVat} upd={upd} del={del} />
 
           <div className="flex items-center gap-2 border-t border-neutral-100 pt-3">
             <h3 className="text-sm font-medium">Расходы</h3>
@@ -660,72 +511,9 @@ function FormBody({
         </div>
       </Step>}
 
-      {!multi && <Step n={3} title="Итоги" hint={<><p>Пересчитывается на лету, до сохранения; формулы те же, что в карточке ТЗ: мех + подкладка (с 4 % или без) + расходы + работа. «С 4 %» — основная цифра, под ней «без 4 %». Показ «С НДС / Без НДС» — общий переключатель шапки.</p><p className="mt-1">Средневзвешенная цена — сумма по лотам ÷ количество; расход на 1 изделие — количество шкур (метров) ÷ количество изделий.</p></>}>
-        <div className={`${cardCls} grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-6`}>
-          {[
-            ["Мех", T.fur.incl4, T.fur.excl4, T.fur.baseIncl, T.fur.baseExcl],
-            ["Подкладка", T.lining.incl4, T.lining.excl4, T.lining.baseIncl, T.lining.baseExcl],
-          ].map(([label, i4, e4, i0, e0]) => (
-            <div key={label as string}>
-              <div className="text-xs text-neutral-500">{label as string} · с 4 %</div>
-              <div className="font-medium tabular-nums">{(i4 as number) > 0 ? <M incl={i4 as number} excl={e4 as number} /> : "–"}</div>
-              {(i0 as number) > 0 && <div className="text-[11px] text-neutral-600">без 4 %: <M incl={i0 as number} excl={e0 as number} /></div>}
-            </div>
-          ))}
-          <div>
-            <div className="text-xs text-neutral-500">Расходы</div>
-            <div className="font-medium tabular-nums">{T.expenses > 0 ? formatMoney(T.expenses) : "–"}</div>
-          </div>
-          <div>
-            <div className="text-xs text-neutral-500">Работа</div>
-            <div className="font-medium tabular-nums">{T.work > 0 ? formatMoney(T.work) : "–"}</div>
-          </div>
-          <div>
-            <div className="text-xs text-neutral-500">Полная себестоимость ТЗ (с работой) · с 4 %</div>
-            <div className="text-base font-semibold tabular-nums">{T.grandIncl4 > 0 ? <M incl={T.grandIncl4} excl={T.grandExcl4} /> : "–"}</div>
-            {T.grandIncl0 > 0 && <div className="text-[11px] text-neutral-600">без 4 %: <M incl={T.grandIncl0} excl={T.grandExcl0} /></div>}
-          </div>
-          <div>
-            <div className="text-xs text-neutral-500">На 1 изделие · с 4 %</div>
-            <div className="font-medium tabular-nums">{T.perUnitIncl4 != null && T.grandIncl4 > 0 ? <M incl={T.perUnitIncl4} excl={T.perUnitExcl4 ?? 0} /> : "–"}</div>
-            {T.perUnitIncl0 != null && T.grandIncl0 > 0 && <div className="text-[11px] text-neutral-600">без 4 %: <M incl={T.perUnitIncl0} excl={T.perUnitExcl0 ?? 0} /></div>}
-          </div>
-          <div>
-            <div className="text-xs text-neutral-500">4 % добавляют</div>
-            <div className="font-medium tabular-nums">{T.extra4 > 0.005 ? formatMoney(T.extra4) : "–"}</div>
-          </div>
-          <div className="col-span-2 sm:col-span-3 lg:col-span-3">
-            <div className="text-xs text-neutral-500">НДС в списаниях (с 4 %)</div>
-            <div className="tabular-nums">
-              {vatRows4.length === 0 ? "–" : vatRows4.map((r) => (
-                <span key={r.rate} className="mr-3 inline-block">НДС {r.rate} %: <b className="font-medium">{formatMoney(Math.round(r.vat))}</b> <span className="text-[11px] text-neutral-600">из {formatMoney(Math.round(r.incl))}</span></span>
-              ))}
-            </div>
-          </div>
-          <div className="col-span-2 sm:col-span-3 lg:col-span-3">
-            <div className="text-xs text-neutral-500">Средневзвешенное · расход на 1 изделие</div>
-            <div className="text-[13px] tabular-nums">
-              <div>Мех: {T.furAvgPrice ? <><b className="font-medium">{formatMoney(Math.round(T.furAvgPrice.incl4))}</b>/шкуру <span className="text-[11px] text-neutral-600">(без 4 %: {formatMoney(Math.round(T.furAvgPrice.incl0))})</span></> : "–"}{T.furPerItem != null ? <> · {formatQty(Math.round(T.furPerItem * 100) / 100)} шк./изд.</> : ""}</div>
-              {T.liningAvgPrice && (
-                <div>Подкладка: <b className="font-medium">{formatMoney(Math.round(T.liningAvgPrice.incl4))}</b>/м <span className="text-[11px] text-neutral-600">(без 4 %: {formatMoney(Math.round(T.liningAvgPrice.incl0))})</span>{T.liningPerItem != null ? <> · {formatQty(Math.round(T.liningPerItem * 100) / 100)} м/изд.</> : ""}</div>
-              )}
-            </div>
-          </div>
-        </div>
-        {clientName && <p className="text-xs text-neutral-500">Заказчик: {clientName}. Оплаты за работу разносятся на ТЗ в «Оплаты → За работу».</p>}
-      </Step>}
+      {!multi && <TotalsStep T={T} vatRows4={vatRows4} clientName={clientName} />}
 
-      <div className="sticky bottom-0 z-20 -mx-1 flex flex-wrap items-center gap-2 border-t border-neutral-200 bg-white px-1 py-2 max-md:mx-0 max-md:flex-col max-md:items-stretch">
-        <div className="min-w-0 text-sm">
-          {multi ? <span className="text-neutral-500">Позиций в ТЗ: {extras.length + 1}</span> : <><span className="text-neutral-500">Полная себестоимость: </span>
-          <b className="tabular-nums">{T.grandIncl4 > 0 ? <M incl={T.grandIncl4} excl={T.grandExcl4} /> : "–"}</b>
-          {T.perUnitIncl4 != null && T.grandIncl4 > 0 && <span className="text-neutral-500"> · на 1 изд. <span className="tabular-nums"><M incl={T.perUnitIncl4} excl={T.perUnitExcl4 ?? 0} /></span></span>}</>}
-        </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2 max-md:ml-0 max-md:[&>button]:flex-1">
-          <Button type="submit" name="intent" value="again" variant="outline" size="sm" disabled={pending}>Сохранить и добавить ещё</Button>
-          <Button type="submit" name="intent" value="open" disabled={pending}>{pending ? "Сохраняем…" : "Сохранить ТЗ"}</Button>
-        </div>
-      </div>
+      <SubmitBar multi={multi} positions={extras.length + 1} T={T} pending={pending} />
       {confirmNode}
     </form>
   );

@@ -47,7 +47,7 @@ const LEGACY = new Set<string>([
   "src/app/(app)/models/[id]/page.tsx",
   "src/app/(app)/payments/[id]/page.tsx",
   "src/app/(app)/payments/client-debt-block.tsx",
-  "src/app/(app)/payments/page.tsx",
+  "src/app/(app)/payments/_page/load.ts", // запросы страницы «Оплаты» (вынесены из page.tsx)
   "src/app/(app)/plan/page.tsx",
   "src/app/(app)/plan/seasons/page.tsx",
   "src/app/(app)/production/[id]/page.tsx",
