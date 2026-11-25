@@ -49,6 +49,9 @@ async function main() {
   const spPay = await prisma.payment.count({ where: { auctionSession: "СП 03.25" } });
   // документы партии
   const sp09 = await prisma.auction.findFirstOrThrow({ where: { name: "СП 09.26" } });
+  // В обезличенной заготовке документов нет — кладём один документ партии, чтобы переименованию было что обновить.
+  if (!(await prisma.purchaseDocument.count({ where: { batch: { in: [sp09.name, ...sp09.aliases] } } })))
+    await prisma.purchaseDocument.create({ data: { organizationId: org, batch: sp09.name, title: "тест", storagePath: "test/none.pdf", originalName: "none.pdf", mimeType: "application/pdf", sizeBytes: 1 } });
   const spDocs = await prisma.purchaseDocument.count({ where: { batch: { in: [sp09.name, ...sp09.aliases] } } });
   const r2 = await renameAuctionIn(prisma, org, sp09.id, "СП Сентябрь 26");
   ok(r2.synced.documents === spDocs && spDocs > 0, `rename: документов партии обновлено ${r2.synced.documents} из ${spDocs}`);

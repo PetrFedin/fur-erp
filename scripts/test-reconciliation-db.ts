@@ -65,7 +65,7 @@ const fd = (o: Record<string, string>) => { const f = new FormData(); for (const
   if (existsSync(journal)) unlinkSync(journal);
   const mig = (...a: string[]) => {
     try {
-      const out = execFileSync("node", ["--conditions=react-server", "--env-file=.env", "node_modules/.bin/tsx", "scripts/archive/migrate-reconciliation-to-db-2026-10-20.ts", ...a], { cwd: join(__dirname, ".."), env: { ...process.env, DATABASE_URL: url }, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] });
+      const out = execFileSync("node", ["--conditions=react-server", ...(existsSync(join(__dirname, "..", ".env")) ? ["--env-file=.env"] : []), "node_modules/.bin/tsx", "scripts/archive/migrate-reconciliation-to-db-2026-10-20.ts", ...a], { cwd: join(__dirname, ".."), env: { ...process.env, DATABASE_URL: url }, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] });
       return { code: 0, out };
     } catch (e) { const x = e as { status?: number; stdout?: string; stderr?: string }; return { code: x.status ?? 1, out: `${x.stdout ?? ""}${x.stderr ?? ""}` }; }
   };

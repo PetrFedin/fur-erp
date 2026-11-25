@@ -98,8 +98,9 @@ async function main() {
   const lotB = uniq[1];
   const article = await raw.productModel.findFirstOrThrow({ where: { organizationId: org } });
   const batch = await raw.productionBatch.findFirstOrThrow({ where: { organizationId: org }, orderBy: { number: "desc" } });
-  const color = await raw.colorRef.findFirstOrThrow({ where: { organizationId: org, NOT: { note: { contains: "Предложено" } } } });
-  const color2 = await raw.colorRef.findFirstOrThrow({ where: { organizationId: org, id: { not: color.id }, NOT: { note: { contains: "Предложено" } } } });
+  // NOT contains в SQL отбрасывает и note = NULL (в обезличенной заготовке примечаний у цветов нет) — пустое примечание берём явно.
+  const color = await raw.colorRef.findFirstOrThrow({ where: { organizationId: org, OR: [{ note: null }, { NOT: { note: { contains: "Предложено" } } }] } });
+  const color2 = await raw.colorRef.findFirstOrThrow({ where: { organizationId: org, id: { not: color.id }, OR: [{ note: null }, { NOT: { note: { contains: "Предложено" } } }] } });
   const ordersBefore = await raw.productionOrder.count();
   const remA = Number(lotA.quantityRemaining);
   const remB = Number(lotB.quantityRemaining);

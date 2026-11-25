@@ -241,7 +241,8 @@ async function main() {
   ok(/другой пользователь/.test(errOf(r)), "защита от чужой правки (_v)");
 
   console.log("7. Цвета составного ТЗ");
-  const order = await raw.productionOrder.findFirstOrThrow({ where: { organizationId: org.id, colors: { none: {} } } });
+  // ТЗ без цветов и с планом от 2 шт. (два цвета по 1 шт.; в обезличенной заготовке есть ТЗ на 1 шт.)
+  const order = await raw.productionOrder.findFirstOrThrow({ where: { organizationId: org.id, colors: { none: {} }, plannedQuantity: { gte: 2 } } });
   const refs = await raw.colorRef.findMany({ where: { organizationId: org.id }, take: 2 });
   await raw.productionOrder.update({ where: { id: order.id }, data: { verifiedAt: new Date(), verifiedBy: "u-test" } }).catch(() => null);
   r = await PR.setOrderColors(order.id, fd({ colorRefId: [refs[0].id, refs[1].id], quantity: ["1", "1"], sizes: ["42, 46", ""] }));

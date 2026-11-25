@@ -174,8 +174,12 @@ async function main() {
     }
   }
   console.log(`сверено с присланными Word: ${checkedOrig}, из них сырьё (количество × цена) совпало полностью: ${matMatched}`);
-  check(matMatched >= 5, `сырьё совпало с присланным Word только у ${matMatched} ТЗ`);
-  check(checkedOrig >= 3, `с присланными Word сверено ${checkedOrig} ТЗ (ожидалось не меньше 3)`);
+  // Присланные Word лежат только в uploads/ владельца; в обезличенной заготовке (CI) их нет — сверка с ними пропускается, остальное проверяется.
+  if (originals.size === 0) console.log("присланных Word нет (заготовка без файлов владельца) — сверка с ними пропущена");
+  else {
+    check(matMatched >= 5, `сырьё совпало с присланным Word только у ${matMatched} ТЗ`);
+    check(checkedOrig >= 3, `с присланными Word сверено ${checkedOrig} ТЗ (ожидалось не меньше 3)`);
+  }
   console.log(bad ? `ПРОВАЛОВ: ${bad}` : "OK");
   await prisma.$disconnect();
   process.exit(bad ? 1 : 0);

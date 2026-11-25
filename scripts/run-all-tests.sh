@@ -2,7 +2,10 @@
 # Последовательный прогон всех scripts/test-*.ts. Живую БД только ЧИТАЕМ (pg_dump);
 # каждый тест идёт на своей свежей копии (CREATE DATABASE ... TEMPLATE шаблон), в конце всё удаляется.
 #   bash scripts/run-all-tests.sh [маска-имени]      например: bash scripts/run-all-tests.sh supplier
-# Переменные: DB_CONTAINER (fur-erp-db-1), DB_USER (fur_erp), DB_HOST_PORT (5436), TEST_TIMEOUT (300 с).
+# Переменные: DB_CONTAINER (fur-erp-db-1; «none» — psql на этой машине, PGHOST/DB_PASSWORD, как в CI), DB_USER (fur_erp),
+#   DB_HOST_PORT (5436), TEST_TIMEOUT (300 с),
+#   FIXTURE=demo — заготовка вместо живой базы: обезличенная база демо из репозитория (deploy/demo/demo.sql.gz) + витрина,
+#   собранная на ней один раз. Живая база и файлы владельца не нужны (так идёт прогон в CI).
 # «нужен сервер» — тесты, требующие поднятый сервер или боевую сборку; они не запускаются.
 set -u
 cd "$(dirname "$0")/.."
@@ -11,13 +14,32 @@ FILTER="${1:-}"
 NEEDS_SERVER="test-security test-demo-sanitize"
 # Нужны внешние файлы или отчёты, которых нет в репозитории и на каждой машине (Загрузки владельца, расчёты СП 09-26, отчёт «заказ и продажи»): не считаются падением.
 NEEDS_DATA="test-import-screen test-supplier-calc test-orders-summary test-orders-tree"
+ENVFILE=""; [[ -f .env ]] && ENVFILE="--env-file=.env"
 TPL="fur_erp_runall_tpl_$$"; CUR="fur_erp_runall_cur_$$"
-psqlc() { docker exec -i "$C" psql -U "$U" -d postgres -v ON_ERROR_STOP=1 -q "$@"; }
+if [[ "$C" == none ]]; then
+  export PGPASSWORD="${DB_PASSWORD:-$U}"
+  psqlc() { psql -h "${PGHOST:-127.0.0.1}" -p "$PORT" -U "$U" -d postgres -v ON_ERROR_STOP=1 -q "$@"; }
+  psqld() { local d="$1"; shift; psql -h "${PGHOST:-127.0.0.1}" -p "$PORT" -U "$U" -d "$d" "$@"; }
+  pgdump() { pg_dump -h "${PGHOST:-127.0.0.1}" -p "$PORT" -U "$U" "$@"; }
+else
+  psqlc() { docker exec -i "$C" psql -U "$U" -d postgres -v ON_ERROR_STOP=1 -q "$@"; }
+  psqld() { local d="$1"; shift; docker exec -i "$C" psql -U "$U" -d "$d" "$@"; }
+  pgdump() { docker exec "$C" pg_dump -U "$U" "$@"; }
+fi
 cleanup() { psqlc -c "DROP DATABASE IF EXISTS $TPL" >/dev/null 2>&1; }
 trap cleanup EXIT
 
 psqlc -c "CREATE DATABASE $TPL" || exit 2
-docker exec "$C" pg_dump -U "$U" -d fur_erp --no-owner | docker exec -i "$C" psql -U "$U" -d "$TPL" -q -v ON_ERROR_STOP=0 >/dev/null 2>&1
+if [[ "${FIXTURE:-}" == demo ]]; then
+  # Заготовка: дамп демо (без витрины — make-demo-db удаляет Dm*), затем витрина собирается текущим кодом.
+  gunzip -c deploy/demo/demo.sql.gz | grep -v '^\\\(un\)\?restrict ' | psqld "$TPL" -q -v ON_ERROR_STOP=1 >/dev/null || { echo "заготовка: дамп демо не загрузился"; exit 2; }
+  env DATABASE_URL="postgresql://$U:${DB_PASSWORD:-$U}@${PGHOST:-localhost}:$PORT/$TPL" \
+    node --conditions=react-server $ENVFILE node_modules/.bin/tsx scripts/mart-refresh.ts >"/tmp/mart-fixture.$$.log" 2>&1
+  mc=$?; head -1 "/tmp/mart-fixture.$$.log"; grep '^FAIL' "/tmp/mart-fixture.$$.log"
+  [[ $mc -eq 1 ]] && { echo "заготовка: витрина не собралась"; tail -5 "/tmp/mart-fixture.$$.log"; exit 2; }
+else
+  pgdump -d fur_erp --no-owner | psqld "$TPL" -q -v ON_ERROR_STOP=0 >/dev/null 2>&1
+fi
 
 RES=(); FAILS=0
 for f in scripts/test-*.ts; do
@@ -35,12 +57,12 @@ for f in scripts/test-*.ts; do
   CUR="fur_erp_${sfx}_runall_$$"
   psqlc -c "DROP DATABASE IF EXISTS $CUR" >/dev/null 2>&1
   psqlc -c "CREATE DATABASE $CUR TEMPLATE $TPL" >/dev/null || { RES+=("$n|упал (нет копии)|-"); FAILS=$((FAILS+1)); continue; }
-  URL="postgresql://$U:${DB_PASSWORD:-$U}@localhost:$PORT/$CUR"
+  URL="postgresql://$U:${DB_PASSWORD:-$U}@${PGHOST:-localhost}:$PORT/$CUR"
   start=$(date +%s)
   # SNAPSHOTS=0: тесты пишут в базу напрямую (мимо revalidateAll), поэтому читают живой расчёт, а не снимки и готовые строки витрины.
   env SNAPSHOTS=0 DATABASE_URL="$URL" SCRATCH_URL="$URL" ALLOC_TEST_URL="$URL" AUDIT_TEST_URL="$URL" BATCH_TEST_URL="$URL" \
       COMMENTS_TEST_URL="$URL" EDIT_TEST_URL="$URL" SHIPMENT_TEST_URL="$URL" TASK_TEST_URL="$URL" WIZ_TEST_URL="$URL" \
-      perl -e 'alarm shift; exec @ARGV' "$TMO" node --conditions=react-server --env-file=.env node_modules/.bin/tsx "$f" >"/tmp/${n}.$$.log" 2>&1
+      perl -e 'alarm shift; exec @ARGV' "$TMO" node --conditions=react-server $ENVFILE node_modules/.bin/tsx "$f" >"/tmp/${n}.$$.log" 2>&1
   code=$?
   psqlc -c "DROP DATABASE IF EXISTS $CUR" >/dev/null 2>&1
   t=$(( $(date +%s) - start ))

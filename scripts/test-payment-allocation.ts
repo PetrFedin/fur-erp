@@ -103,7 +103,7 @@ async function main() {
   // ---------- 2. Скрипт allocate-production-payments ----------
   const out = mkdtempSync(join(tmpdir(), "alloc-"));
   const run = (...args: string[]) =>
-    execFileSync("node", ["--env-file=.env", "node_modules/.bin/tsx", "scripts/allocate-production-payments.ts", ...args], {
+    execFileSync("node", [...(existsSync(join(__dirname, "..", ".env")) ? ["--env-file=.env"] : []), "node_modules/.bin/tsx", "scripts/allocate-production-payments.ts", ...args], {
       env: { ...process.env, DATABASE_URL: url, ALLOC_OUT_DIR: out }, encoding: "utf8", cwd: join(__dirname, ".."),
     });
   const nAlloc = () => prisma.paymentAllocation.count();

@@ -29,3 +29,45 @@ jobs:
         run: npx eslint src --quiet
       - name: Production build
         run: npm run build
+
+  # Все scripts/test-*.ts на заготовке: обезличенная база демо из репозитория (deploy/demo/demo.sql.gz) + витрина, собранная
+  # текущим кодом. Живая база и файлы владельца не нужны; каждый тест идёт на своей копии заготовки (scripts/run-all-tests.sh).
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fur_erp
+          POSTGRES_PASSWORD: fur_erp
+          POSTGRES_DB: fur_erp
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U fur_erp" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://fur_erp:fur_erp@127.0.0.1:5432/fur_erp
+      AUTH_SECRET: ci-only-not-a-production-secret
+      NEXTAUTH_SECRET: ci-only-not-a-production-secret
+      NEXTAUTH_URL: http://localhost:3000
+      AUTH_URL: http://localhost:3000
+      ALLOW_REGISTRATION: "false"
+      FIXTURE: demo
+      DB_CONTAINER: none
+      PGHOST: 127.0.0.1
+      DB_HOST_PORT: "5432"
+      DB_USER: fur_erp
+      DB_PASSWORD: fur_erp
+      TEST_TIMEOUT: "600"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Клиент PostgreSQL 16
+        run: sudo apt-get install -y -q postgresql-client-16 || sudo apt-get install -y -q postgresql-client
+      - name: Тесты на заготовке
+        run: bash scripts/run-all-tests.sh
