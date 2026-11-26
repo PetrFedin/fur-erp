@@ -302,7 +302,7 @@ const rubAll = (ls: Ln[]) => ls.reduce((s, l) => s + l.retailRub, 0);
 
 // Найденные этими тестами ошибки (исправлены 26.11): имена прототипа из адреса и «ё» в артикуле.
 ok("parseCols: «toString» из адреса — не колонка, набор как без параметра", JSON.stringify(parseCols(["toString"], false)) === JSON.stringify(parseCols([], false)));
-ok("parseSort: «toString»/«constructor» — не сортировка", parseSort("toString", "asc").sort !== "toString" && parseSort("constructor", "desc").sort !== "constructor");
+ok("parseSort: «toString»/«constructor» — не сортировка", (parseSort("toString", "asc").sort as string) !== "toString" && (parseSort("constructor", "desc").sort as string) !== "constructor");
 ok("articleKey: «Ёлка» = «Елка», «ёж» = «еж»", articleKey("Ёлка") === articleKey("Елка") && articleKey("ёж") === articleKey("еж"));
 
 console.log(fails ? `\nПровалов: ${fails} из ${checks}` : `\nВсё в порядке (${checks} проверок)`);
