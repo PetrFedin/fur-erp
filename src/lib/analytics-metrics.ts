@@ -242,7 +242,7 @@ export const BASIC_COLS = COL_KEYS.filter((k) => COLUMNS[k].basic);
 
 /** Выбранные колонки: cols=… (список), иначе all=1 — все, иначе обычный набор. */
 export function parseCols(raw: string[], all: boolean): ColKey[] {
-  const picked = raw.flatMap((s) => s.split(",")).map((s) => s.trim()).filter((s): s is ColKey => s in COLUMNS);
+  const picked = raw.flatMap((s) => s.split(",")).map((s) => s.trim()).filter((s): s is ColKey => Object.hasOwn(COLUMNS, s)); // hasOwn: «toString» и прочие имена прототипа из адреса — не колонки
   const set = new Set(picked);
   if (set.size > 0) return COL_KEYS.filter((k) => set.has(k));
   return all ? COL_KEYS : BASIC_COLS;
@@ -252,7 +252,7 @@ export type SortDir = "asc" | "desc";
 
 /** Порядок: label — по названию строки; иначе ключ колонки. Пустой sort — порядок по умолчанию. */
 export function parseSort(sort: string, dir: string): { sort: ColKey | "label" | ""; dir: SortDir } {
-  const s = sort === "label" || sort in COLUMNS ? (sort as ColKey | "label") : "";
+  const s = sort === "label" || Object.hasOwn(COLUMNS, sort) ? (sort as ColKey | "label") : "";
   return { sort: s, dir: dir === "asc" ? "asc" : "desc" };
 }
 

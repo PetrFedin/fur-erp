@@ -11,7 +11,8 @@ set -u
 cd "$(dirname "$0")/.."
 C="${DB_CONTAINER:-fur-erp-db-1}"; U="${DB_USER:-fur_erp}"; PORT="${DB_HOST_PORT:-5436}"; TMO="${TEST_TIMEOUT:-300}"
 FILTER="${1:-}"
-NEEDS_SERVER="test-security test-demo-sanitize"
+# test-smoke и test-security гоняет scripts/smoke-run.sh (сборка + next start на заготовке), в CI — задача smoke.
+NEEDS_SERVER="test-security test-demo-sanitize test-smoke"
 # Нужны внешние файлы или отчёты, которых нет в репозитории и на каждой машине (Загрузки владельца, расчёты СП 09-26, отчёт «заказ и продажи»): не считаются падением.
 NEEDS_DATA="test-import-screen test-supplier-calc test-orders-summary test-orders-tree"
 ENVFILE=""; [[ -f .env ]] && ENVFILE="--env-file=.env"

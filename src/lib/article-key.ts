@@ -22,9 +22,9 @@ export type ArticleLite = {
 };
 
 export function articleKey(s: string | null | undefined): string {
-  return normalizeModelCode(s ?? "")
+  // ё → е до нормализации: она переводит кириллическую «Е» в латинскую «e», и «Ёлка» должна совпасть с «Елка».
+  return normalizeModelCode((s ?? "").replace(/ё/g, "е").replace(/Ё/g, "Е"))
     .toLowerCase()
-    .replace(/ё/g, "е")
     .replace(/[^a-z0-9а-я]/g, "");
 }
 
