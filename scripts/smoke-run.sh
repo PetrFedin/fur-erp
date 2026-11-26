@@ -34,8 +34,10 @@ DATABASE_URL="$URL" node --conditions=react-server $ENVFILE node_modules/.bin/ts
 
 # Сервер: боевой режим, своя база; фоновая пересборка витрины не нужна (витрина уже собрана).
 # ALLOW_ROLE_SWITCH=true — как на демо: test-security проверяет изоляцию в режиме «владелец смотрит как поставщик» (ROLE_SWITCH_EXPECT=on).
+# Свой случайный секрет: боевой режим отказывается стартовать со слабым AUTH_SECRET (src/lib/security-env.ts), а в CI он нарочно простой.
+SECRET=$(openssl rand -base64 48 | tr -d '\n')
 LOG="/tmp/smoke-server.$$.log"
-env DATABASE_URL="$URL" NODE_ENV=production MART_AUTO_REFRESH=0 ALLOW_ROLE_SWITCH=true AUTH_URL="http://localhost:$APP" NEXTAUTH_URL="http://localhost:$APP" \
+env DATABASE_URL="$URL" NODE_ENV=production MART_AUTO_REFRESH=0 ALLOW_ROLE_SWITCH=true AUTH_SECRET="$SECRET" NEXTAUTH_SECRET="$SECRET" AUTH_URL="http://localhost:$APP" NEXTAUTH_URL="http://localhost:$APP" \
   node_modules/.bin/next start -p "$APP" >"$LOG" 2>&1 &
 SRV=$!
 for _ in $(seq 1 90); do
