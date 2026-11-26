@@ -6,8 +6,9 @@ import { requireRole, requireSession } from "@/lib/session";
 import { loadBudgetStats } from "@/lib/budget-stats";
 import { assertSafeZip } from "@/lib/zip-guard";
 import { DEFAULT_PARAMS, autoCalc, collapseUnknownLengths, computeTree, grandTotal, nowPerUnit, perUnit, varPct, parseNodes, templateNodes, type BudgetNode, type BudgetParams, type BudgetStat, type NodeSrc } from "@/lib/budget-calc";
+import { ACCESS } from "@/lib/access";
 
-const EDIT = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
+const EDIT = ACCESS.budget;
 type Res<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
 const n = (v: unknown, d = 0) => (typeof v === "number" && Number.isFinite(v) ? Math.min(Math.max(v, -1e12), 1e12) : d);

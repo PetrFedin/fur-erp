@@ -5,8 +5,9 @@ import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/session";
+import { ACCESS } from "@/lib/access";
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "ACCOUNTANT"] as const;
+const EDIT_ROLES = ACCESS.expenseCategories;
 
 const schema = z.object({
   name: z.string().trim().min(2, "Укажите название статьи").max(100, "Название слишком длинное"),

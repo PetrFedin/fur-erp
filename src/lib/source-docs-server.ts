@@ -35,8 +35,8 @@ const UPLOAD_ROLES: Record<SourceTarget["entity"], readonly string[]> = {
   purchase: ACCESS.purchases,
   order: PRODUCTION_EDIT_ROLES,
   batch: PRODUCTION_EDIT_ROLES,
-  payment: ["OWNER", "ADMIN"],
-  productionPayment: ["OWNER", "ADMIN"],
+  payment: ACCESS.restrictedDocs,
+  productionPayment: ACCESS.restrictedDocs,
 };
 const can = (role: Role, t: SourceTarget) => hasRole(role, UPLOAD_ROLES[t.entity]);
 

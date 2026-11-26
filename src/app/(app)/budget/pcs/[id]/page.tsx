@@ -7,9 +7,10 @@ import { loadBudgetAvg, withBudgetAvg } from "@/lib/budget-pcs-avg";
 import { loadFw27 } from "@/lib/fw27-presentation-server";
 import { loadMinkSexStock } from "@/lib/mink-sex";
 import { PcsView } from "../pcs-view";
+import { ACCESS } from "@/lib/access";
 
 export const metadata = { title: "Budget PCS" };
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
+const EDIT_ROLES: readonly string[] = ACCESS.budget;
 
 export default async function PcsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

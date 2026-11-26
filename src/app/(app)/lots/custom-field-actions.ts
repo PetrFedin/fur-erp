@@ -14,9 +14,10 @@ import {
   validateFieldName,
   type ExtraValue,
 } from "@/lib/custom-fields";
+import { ACCESS } from "@/lib/access";
 
 // Столбцы и значения — справочная информация к лотам, поэтому правятся и у принятых закупок.
-const EDIT_ROLES = ["OWNER", "ADMIN", "PURCHASER"] as const;
+const EDIT_ROLES = ACCESS.lotFields;
 
 export type FieldResult = { ok: true; id?: string } | { ok?: false; error: string };
 

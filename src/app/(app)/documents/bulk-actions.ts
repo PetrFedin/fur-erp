@@ -21,8 +21,8 @@ const ALLOWED: Record<BulkEntity, readonly string[]> = {
   lot: ACCESS.purchases,
   order: PRODUCTION_EDIT_ROLES,
   batch: PRODUCTION_EDIT_ROLES,
-  payment: ["OWNER", "ADMIN"],
-  productionPayment: ["OWNER", "ADMIN"],
+  payment: ACCESS.restrictedDocs,
+  productionPayment: ACCESS.restrictedDocs,
 };
 
 export type BulkAnalysis = { error: string } | ({ ok: true; name: string; size: number } & BulkSuggestion);

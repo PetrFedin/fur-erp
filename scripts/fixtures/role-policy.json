@@ -1,0 +1,247 @@
+{
+  "ACCESS": {
+    "suppliers": [
+      "OWNER",
+      "ADMIN",
+      "PURCHASER"
+    ],
+    "clients": [
+      "OWNER",
+      "ADMIN",
+      "TECHNOLOGIST"
+    ],
+    "warehouses": [
+      "OWNER",
+      "ADMIN",
+      "WAREHOUSE"
+    ],
+    "materials": [
+      "OWNER",
+      "ADMIN",
+      "PURCHASER",
+      "TECHNOLOGIST"
+    ],
+    "colors": [
+      "OWNER",
+      "ADMIN",
+      "PURCHASER",
+      "TECHNOLOGIST"
+    ],
+    "auctions": [
+      "OWNER",
+      "ADMIN",
+      "PURCHASER"
+    ],
+    "categories": [
+      "OWNER",
+      "ADMIN",
+      "TECHNOLOGIST"
+    ],
+    "models": [
+      "OWNER",
+      "ADMIN",
+      "TECHNOLOGIST"
+    ],
+    "furRefs": [
+      "OWNER",
+      "ADMIN",
+      "PURCHASER",
+      "TECHNOLOGIST"
+    ],
+    "purchases": [
+      "OWNER",
+      "ADMIN",
+      "PURCHASER"
+    ],
+    "users": [
+      "OWNER",
+      "ADMIN"
+    ],
+    "supplyPlan": [
+      "OWNER",
+      "ADMIN",
+      "TECHNOLOGIST"
+    ],
+    "planning": [
+      "OWNER",
+      "ADMIN",
+      "TECHNOLOGIST"
+    ],
+    "supplierPayments": [
+      "OWNER",
+      "ADMIN",
+      "PURCHASER",
+      "ACCOUNTANT"
+    ],
+    "history": [
+      "OWNER",
+      "ADMIN",
+      "ACCOUNTANT"
+    ],
+    "comments": [
+      "OWNER",
+      "ADMIN"
+    ],
+    "inbox": [
+      "OWNER",
+      "ADMIN",
+      "TECHNOLOGIST",
+      "PURCHASER"
+    ],
+    "chat": [
+      "OWNER",
+      "ADMIN",
+      "TECHNOLOGIST",
+      "PURCHASER",
+      "ACCOUNTANT"
+    ],
+    "channels": [
+      "OWNER",
+      "ADMIN"
+    ],
+    "dataImport": [
+      "OWNER",
+      "ADMIN"
+    ],
+    "taskDecisions": [
+      "OWNER",
+      "ADMIN"
+    ],
+    "dataCheck": [
+      "OWNER",
+      "ADMIN"
+    ],
+    "dashboard": [
+      "OWNER",
+      "ADMIN",
+      "ACCOUNTANT"
+    ],
+    "cashflow": [
+      "OWNER",
+      "ADMIN",
+      "ACCOUNTANT"
+    ],
+    "reconciliation": [
+      "OWNER",
+      "ADMIN",
+      "ACCOUNTANT"
+    ],
+    "fittings": [
+      "OWNER",
+      "ADMIN",
+      "TECHNOLOGIST"
+    ],
+    "budget": [
+      "OWNER",
+      "ADMIN",
+      "TECHNOLOGIST"
+    ],
+    "salesForecast": [
+      "OWNER",
+      "ADMIN",
+      "TECHNOLOGIST"
+    ],
+    "shipments": [
+      "OWNER",
+      "ADMIN",
+      "TECHNOLOGIST"
+    ],
+    "shipmentReopen": [
+      "OWNER",
+      "ADMIN"
+    ],
+    "production": [
+      "OWNER",
+      "ADMIN",
+      "TECHNOLOGIST"
+    ],
+    "expenseCategories": [
+      "OWNER",
+      "ADMIN",
+      "ACCOUNTANT"
+    ],
+    "lotFields": [
+      "OWNER",
+      "ADMIN",
+      "PURCHASER"
+    ],
+    "receiving": [
+      "OWNER",
+      "ADMIN",
+      "PURCHASER",
+      "WAREHOUSE"
+    ],
+    "restrictedDocs": [
+      "OWNER",
+      "ADMIN"
+    ]
+  },
+  "GROUP_TOPICS": {
+    "Оплаты": {
+      "roles": [
+        "OWNER",
+        "ADMIN",
+        "ACCOUNTANT"
+      ],
+      "supplier": false
+    },
+    "Отгрузки": {
+      "roles": [
+        "OWNER",
+        "ADMIN",
+        "TECHNOLOGIST"
+      ],
+      "supplier": true
+    },
+    "Аукционы": {
+      "roles": [
+        "OWNER",
+        "ADMIN",
+        "PURCHASER"
+      ],
+      "supplier": true
+    },
+    "Сырьё": {
+      "roles": [
+        "OWNER",
+        "ADMIN",
+        "PURCHASER"
+      ],
+      "supplier": true
+    },
+    "ТЗ": {
+      "roles": [
+        "OWNER",
+        "ADMIN",
+        "TECHNOLOGIST"
+      ],
+      "supplier": true
+    },
+    "Изделия": {
+      "roles": [
+        "OWNER",
+        "ADMIN",
+        "TECHNOLOGIST"
+      ],
+      "supplier": true
+    },
+    "Календарь": {
+      "roles": [
+        "OWNER",
+        "ADMIN",
+        "TECHNOLOGIST"
+      ],
+      "supplier": true
+    },
+    "Общее": {
+      "roles": [
+        "OWNER",
+        "ADMIN",
+        "TECHNOLOGIST",
+        "PURCHASER",
+        "ACCOUNTANT"
+      ],
+      "supplier": false
+    }
+  }
+}

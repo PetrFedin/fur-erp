@@ -52,9 +52,25 @@ const ok = (what: string, cond: boolean, extra = "") => { checks++; console.log(
   await processDueJobs(async () => { throw new Error("тестовая ошибка"); });
   const afterErr = await job();
   ok("после ошибки задача вернулась в очередь с задержкой", afterErr.status === "pending" && afterErr.attempts === 1 && afterErr.runAt.getTime() > Date.now() && /тестовая/.test(afterErr.lastError ?? ""));
+  // Оповещение о сбое: заглушка Bot API на локальном порту ловит sendMessage (этап 7, наблюдаемость).
+  const http = await import("node:http");
+  const got: { method: string; body: string }[] = [];
+  const tg = http.createServer((req, res) => { let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { got.push({ method: String(req.url).split("/").pop() ?? "", body: b }); res.setHeader("content-type", "application/json"); res.end(JSON.stringify({ ok: true, result: { message_id: 1 } })); }); });
+  await new Promise<void>((r) => tg.listen(0, "127.0.0.1", () => r()));
+  Object.assign(process.env, { TELEGRAM_BOT_TOKEN: "test-token", TELEGRAM_API_BASE: `http://127.0.0.1:${(tg.address() as { port: number }).port}`, ALERT_TELEGRAM_CHAT_ID: "-100123" });
+  await prisma.dmRefreshJob.update({ where: { organizationId: org }, data: { status: "running", attempts: 0, lockedUntil: new Date(Date.now() + 60_000) } });
+  await finishJob(org, new Error("первая"));
+  ok("промежуточная ошибка (попытка 1) оповещения не шлёт", got.length === 0 && (await job()).status === "pending");
   await prisma.dmRefreshJob.update({ where: { organizationId: org }, data: { status: "running", attempts: 4, lockedUntil: new Date(Date.now() + 60_000) } });
   await finishJob(org, new Error("снова"));
   ok("после исчерпания попыток — failed", (await job()).status === "failed");
+  const sent = got.find((g) => g.method === "sendMessage");
+  ok("при failed оповещение ушло в Telegram: чат, текст, ошибка", !!sent && /-100123/.test(sent.body) && /не пересобралась/.test(sent.body) && /снова/.test(sent.body), sent?.body.slice(0, 120) ?? "нет запроса");
+  const { loadControlCounts } = await import("../src/lib/control-counts");
+  const cc = await loadControlCounts(org, "all", { fresh: true });
+  ok("сбой виден в «Что требует внимания» первой строкой со ссылкой на «Контроль → Данные»", cc.top?.[0]?.id === "mart-failed" && cc.top[0].href === "/data-check");
+  tg.close();
+  for (const k of ["TELEGRAM_BOT_TOKEN", "TELEGRAM_API_BASE", "ALERT_TELEGRAM_CHAT_ID"]) delete process.env[k];
 
   // 6. восстановление после падения сервера: running с истёкшей блокировкой
   await prisma.dmRefreshJob.update({ where: { organizationId: org }, data: { status: "running", lockedUntil: new Date(Date.now() - 1000), attempts: 0 } });

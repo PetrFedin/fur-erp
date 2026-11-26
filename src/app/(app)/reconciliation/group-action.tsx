@@ -13,6 +13,7 @@ import { loadDocCandidates, loadPayCandidates } from "@/lib/reconciliation-outsi
 import type { InvEdit } from "./parts";
 import { visibleFor } from "./model";
 import { GroupBody, type DocInfo } from "./group-body";
+import { ACCESS, hasRole } from "@/lib/access";
 
 /**
  * Раскрытое содержимое одной группы «Реестра сверки» (счета, «в базе», проверки, документы) — подгружается при раскрытии,
@@ -29,7 +30,7 @@ export async function loadReconGroup(groupId: string) {
 
   const live = await loadLive(orgId, reg);
   // Кнопки правки — только ролям с правом ввода и только когда реестр уже перенесён в базу.
-  const canEdit = reg.source === "db" && (["OWNER", "ADMIN", "ACCOUNTANT"] as string[]).includes(session.user.role);
+  const canEdit = reg.source === "db" && hasRole(session.user.role, ACCESS.reconciliation);
   let ed: Map<string, InvEdit> | undefined;
   if (canEdit) {
     const invs = g.invoiceIds.map((id) => reg.invoices.find((i) => i.id === id)).filter((i): i is NonNullable<typeof i> => !!i);

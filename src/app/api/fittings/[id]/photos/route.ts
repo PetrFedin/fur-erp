@@ -2,8 +2,9 @@ import { revalidatePath } from "next/cache";
 import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { readPhotoFiles, writePhotoFiles, removeStoredFiles } from "@/lib/fitting-files";
+import { ACCESS } from "@/lib/access";
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
+const EDIT_ROLES: readonly string[] = ACCESS.fittings;
 
 /** Добавить фото к существующей примерке (multipart, поле photos). */
 export async function POST(request: Request, ctx: RouteContext<"/api/fittings/[id]/photos">) {

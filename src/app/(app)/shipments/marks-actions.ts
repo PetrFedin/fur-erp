@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/session";
 import { wallNow } from "@/lib/shipment-calc";
 import { MARKS_TITLE, marksSummary, type MarkKind } from "@/lib/shipment-marks";
 import { acceptLinesByReview, sendLineToRework } from "./actions";
+import { ACCESS } from "@/lib/access";
 
 type R = { error?: string; ok?: boolean; saved?: number };
 export type MarkInput = { lineId: string; kind: MarkKind | ""; note: string };
@@ -44,7 +45,7 @@ export async function saveSupplierMarks(shipmentId: string, marks: MarkInput[]):
 
 /** «Подтвердить» у нас: принято → «Готов к отгрузке»; не принято / замечание → «На доработку» с текстом Веллмеха. */
 export async function confirmSupplierMark(shipmentId: string, lineId: string): Promise<R> {
-  const s = await requireRole("OWNER", "ADMIN", "TECHNOLOGIST");
+  const s = await requireRole(...ACCESS.shipments);
   const ev = await prisma.shipmentEventLine.findFirst({ where: { shipmentLineId: lineId, event: { shipmentId, title: MARKS_TITLE, shipment: { organizationId: s.user.organizationId } } } });
   if (!ev) return { error: "Отметка Веллмеха не найдена" };
   if ((ev.accepted ?? 0) > 0) {

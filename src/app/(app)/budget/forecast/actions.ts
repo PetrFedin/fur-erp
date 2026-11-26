@@ -3,8 +3,9 @@
 import { revalidateAll } from "@/lib/revalidate-all";
 import { requireRole } from "@/lib/session";
 import { deleteForecast, getForecast, putForecast, type ForecastEdits } from "@/lib/forecast-store";
+import { ACCESS } from "@/lib/access";
 
-const EDIT = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
+const EDIT = ACCESS.budget;
 type Res<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 const s = (v: unknown, max = 80) => String(v ?? "").trim().slice(0, max);
 const newId = () => Math.random().toString(36).slice(2, 10);

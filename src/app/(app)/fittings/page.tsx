@@ -17,6 +17,7 @@ import { orderLabel, truncate } from "@/lib/fittings";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { dateRange, defineFilters, parseFilters, pick, yearOptionsFrom, yearRanges } from "@/lib/filters";
 import { articleLabel } from "@/lib/article-label";
+import { ACCESS, hasRole } from "@/lib/access";
 
 export const metadata = { title: "Примерки" };
 
@@ -35,7 +36,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
   const f = parseFilters(FITTING_FILTERS, sp);
   const q = f.q;
   const period = dateRange(f.from, f.to);
-  const canEdit = ["OWNER", "ADMIN", "TECHNOLOGIST"].includes(session.user.role);
+  const canEdit = hasRole(session.user.role, ACCESS.fittings);
 
   const where: Prisma.FittingWhereInput = {
     organizationId: orgId,

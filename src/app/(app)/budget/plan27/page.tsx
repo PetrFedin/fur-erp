@@ -2,9 +2,10 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { requireSession } from "@/lib/session";
 import { loadPlanData } from "@/lib/fw27-plan-data";
 import { PlanView } from "./plan-view";
+import { ACCESS } from "@/lib/access";
 
 export const metadata = { title: "План производства 2027" };
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
+const EDIT_ROLES: readonly string[] = ACCESS.budget;
 
 export default async function Plan27Page() {
   const session = await requireSession();

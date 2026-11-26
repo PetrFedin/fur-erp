@@ -6,10 +6,11 @@ import { loadBudgetStats } from "@/lib/budget-stats";
 import { articleHint, articleLabel } from "@/lib/article-label";
 import { DEFAULT_PARAMS, normKey, parseNodes, type BudgetParams } from "@/lib/budget-calc";
 import { BudgetEditor } from "../budget-editor";
+import { ACCESS } from "@/lib/access";
 
 export const metadata = { title: "Бюджеты и прогнозы" };
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
+const EDIT_ROLES: readonly string[] = ACCESS.budget;
 
 export default async function BudgetVersionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -6,11 +6,12 @@ import { orderLabel, localTodayIso } from "@/lib/fittings";
 import { formatDate } from "@/lib/utils";
 import { NewFittingForm } from "./new-fitting-form";
 import { articleLabel } from "@/lib/article-label";
+import { ACCESS } from "@/lib/access";
 
 export const metadata = { title: "Новая примерка" };
 
 export default async function NewFittingPage({ searchParams }: PageProps<"/fittings/new">) {
-  const session = await requireRole("OWNER", "ADMIN", "TECHNOLOGIST");
+  const session = await requireRole(...ACCESS.fittings);
   const sp = await searchParams;
   const orderParam = typeof sp.order === "string" ? sp.order : "";
 

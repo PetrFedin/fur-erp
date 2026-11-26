@@ -3,7 +3,7 @@ import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { ControlTabs } from "@/components/control-tabs";
 import { requireRole } from "@/lib/session";
-import { ACCESS } from "@/lib/access";
+import { ACCESS, hasRole } from "@/lib/access";
 import { Card } from "@/components/ui/card";
 import { TILE_BOX } from "@/app/(app)/dashboard/tile";
 import { InfoHint } from "@/components/info-hint";
@@ -226,7 +226,7 @@ export default async function ReconciliationPage() {
   const reg = await loadRegistry(orgId);
   const [live, vf] = await Promise.all([loadLive(orgId, reg), loadVerifyFlags(prisma, orgId)]);
   const { invs, ids, groups } = visibleFor(year, reg);
-  const canEdit = reg.source === "db" && (["OWNER", "ADMIN", "ACCOUNTANT"] as string[]).includes(session.user.role);
+  const canEdit = reg.source === "db" && hasRole(session.user.role, ACCESS.reconciliation);
   const outside = reg.source === "db" ? await loadOutsidePurchases(orgId, reg) : [];
   const openGroups = groups.filter(isOpenGroup).length;
 

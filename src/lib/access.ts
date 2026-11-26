@@ -45,7 +45,43 @@ export const ACCESS = {
   dashboard: ["OWNER", "ADMIN", "ACCOUNTANT"],
   cashflow: ["OWNER", "ADMIN", "ACCOUNTANT"],
   reconciliation: ["OWNER", "ADMIN", "ACCOUNTANT"],
+  // Разделы ниже собраны 26.11.2026 из списков ролей, объявленных прямо в файлах действий и страниц (этап 7: права в одном месте).
+  // Составы ролей перенесены без изменений.
+  // Изделия и фурнитура (/fittings): создание, правка, фото.
+  fittings: ["OWNER", "ADMIN", "TECHNOLOGIST"],
+  // Бюджет (/budget): прогнозы, план в штуках, план FW27.
+  budget: ["OWNER", "ADMIN", "TECHNOLOGIST"],
+  // Прогноз продаж (/sales, прогноз).
+  salesForecast: ["OWNER", "ADMIN", "TECHNOLOGIST"],
+  // Отгрузки и пошив у подрядчика (/shipments): партии, строки, распределение, отметки, ЗИ.
+  shipments: ["OWNER", "ADMIN", "TECHNOLOGIST"],
+  // Отмена принятой отгрузки (вернуть этап в «ожидаемые»).
+  shipmentReopen: ["OWNER", "ADMIN"],
+  // Производство: правка ТЗ и партий пошива.
+  production: ["OWNER", "ADMIN", "TECHNOLOGIST"],
+  // Категории расходов (/settings/expense-categories).
+  expenseCategories: ["OWNER", "ADMIN", "ACCOUNTANT"],
+  // Свои поля лотов (/lots).
+  lotFields: ["OWNER", "ADMIN", "PURCHASER"],
+  // Приём сырья на склад и правка лота (этапы, количество): закупщик и кладовщик.
+  receiving: ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"],
+  // Документы оплат (заказчику и подрядчику) и документы без своего раздела (лоты без закупки, клиенты, поставщики):
+  // прикреплять и убирать — только владелец и администратор.
+  restrictedDocs: ["OWNER", "ADMIN"],
 } as const satisfies Record<string, readonly UserRole[]>;
+
+// Темы групп чата (перенесено из chat-core.ts 26.11.2026 — права в одном месте).
+/** Темы групп: кто из ролей имеет доступ к теме и может ли быть участником поставщик (SUPPLIER). Оплаты и «Общее» — только свои. */
+export const GROUP_TOPICS: Record<string, { roles: readonly string[]; supplier: boolean }> = {
+  "Оплаты": { roles: ["OWNER", "ADMIN", "ACCOUNTANT"], supplier: false },
+  "Отгрузки": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST"], supplier: true },
+  "Аукционы": { roles: ["OWNER", "ADMIN", "PURCHASER"], supplier: true },
+  "Сырьё": { roles: ["OWNER", "ADMIN", "PURCHASER"], supplier: true },
+  "ТЗ": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST"], supplier: true },
+  "Изделия": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST"], supplier: true },
+  "Календарь": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST"], supplier: true },
+  "Общее": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST", "PURCHASER", "ACCOUNTANT"], supplier: false },
+};
 
 export function hasRole(role: string | undefined | null, allowed: readonly string[]): boolean {
   return allowed.includes(role ?? "");

@@ -3,8 +3,9 @@ import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { FITTING_DATE_ERROR, isFittingStatus, parseFittingDate } from "@/lib/fittings";
 import { readPhotoFiles, writePhotoFiles, removeStoredFiles } from "@/lib/fitting-files";
+import { ACCESS } from "@/lib/access";
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
+const EDIT_ROLES: readonly string[] = ACCESS.fittings;
 
 /** Создание примерки вместе с фото (multipart). Ответ — JSON {id} или {error}. */
 export async function POST(request: Request) {

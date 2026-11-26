@@ -4,8 +4,9 @@ import { revalidateAll } from "@/lib/revalidate-all";
 import { requireRole } from "@/lib/session";
 import { putPlanState } from "@/lib/fw27-plan-data";
 import { NI, NM, TARGET_LOAD_DEFAULT, type PlanState } from "@/lib/fw27-plan";
+import { ACCESS } from "@/lib/access";
 
-const EDIT = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
+const EDIT = ACCESS.budget;
 type Res = { ok: true; at: string } | { ok: false; error: string };
 
 const num = (v: unknown, lo: number, hi: number) => { const x = Number(v); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : null; };

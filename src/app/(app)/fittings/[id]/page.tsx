@@ -13,6 +13,7 @@ import { PhotoGallery } from "./photo-gallery";
 import { AddPhotosForm } from "./add-photos-form";
 import { DeleteFittingButton } from "./delete-fitting-button";
 import { articleLabel } from "@/lib/article-label";
+import { ACCESS, hasRole } from "@/lib/access";
 
 export const metadata = { title: "Примерка" };
 
@@ -35,7 +36,7 @@ export default async function FittingPage({ params }: PageProps<"/fittings/[id]"
     },
   });
   if (!fitting) notFound();
-  const canEdit = ["OWNER", "ADMIN", "TECHNOLOGIST"].includes(session.user.role);
+  const canEdit = hasRole(session.user.role, ACCESS.fittings);
   const o = fitting.productionOrder;
 
   return (

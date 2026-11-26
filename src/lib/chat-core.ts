@@ -1,3 +1,4 @@
+import { ACCESS, GROUP_TOPICS } from "@/lib/access";
 // Чистая логика чата (без базы и сервера): видимость, статусы запроса, безопасные подписи записей,
 // маршрутизация входящих из мессенджеров, получатели рассылки. Проверяется в scripts/test-chat.ts.
 
@@ -6,7 +7,7 @@ export type ThreadStatus = "OPEN" | "ANSWERED" | "CLOSED";
 export type ThreadKind = "GENERAL" | "REQUEST" | "GROUP";
 
 /** Внутренние роли, которым открыт чат (ключ chat в access.ts). */
-export const CHAT_INTERNAL_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST", "PURCHASER", "ACCOUNTANT"] as const;
+export const CHAT_INTERNAL_ROLES = ACCESS.chat;
 
 export const REQUEST_TYPES = ["Документ", "Подтверждение статуса", "Уточнение", "Срок", "Оплата", "Другое"] as const;
 
@@ -246,17 +247,8 @@ export const externalMsgId = (chatId: string | number, messageId: string | numbe
 
 // ───────── Группы по темам ─────────
 
-/** Темы групп: кто из ролей имеет доступ к теме и может ли быть участником поставщик (SUPPLIER). Оплаты и «Общее» — только свои. */
-export const GROUP_TOPICS: Record<string, { roles: readonly string[]; supplier: boolean }> = {
-  "Оплаты": { roles: ["OWNER", "ADMIN", "ACCOUNTANT"], supplier: false },
-  "Отгрузки": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST"], supplier: true },
-  "Аукционы": { roles: ["OWNER", "ADMIN", "PURCHASER"], supplier: true },
-  "Сырьё": { roles: ["OWNER", "ADMIN", "PURCHASER"], supplier: true },
-  "ТЗ": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST"], supplier: true },
-  "Изделия": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST"], supplier: true },
-  "Календарь": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST"], supplier: true },
-  "Общее": { roles: ["OWNER", "ADMIN", "TECHNOLOGIST", "PURCHASER", "ACCOUNTANT"], supplier: false },
-};
+/** Темы групп и их роли — в src/lib/access.ts (права в одном месте); здесь прежнее имя для импортов. */
+export { GROUP_TOPICS };
 
 /** Может ли пользователь с этой ролью быть участником группы этой темы. */
 export function eligibleForTopic(topic: string, role: string): boolean {

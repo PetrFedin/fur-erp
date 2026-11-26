@@ -6,8 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { FITTING_DATE_ERROR, isFittingStatus, parseFittingDate } from "@/lib/fittings";
 import { removeStoredFiles, removeFittingDirIfEmpty } from "@/lib/fitting-files";
+import { ACCESS } from "@/lib/access";
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
+const EDIT_ROLES = ACCESS.fittings;
 
 export type FittingFormState = { error?: string; ok?: boolean };
 

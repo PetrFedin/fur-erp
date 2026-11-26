@@ -7,9 +7,10 @@ import { loadRegistry } from "@/lib/reconciliation-registry";
 import {
   checkInvoiceFields, findDuplicateInvoice, groupKeyOf, invoiceKey, mskToday, parseIsoDate, parseMoney,
 } from "@/lib/reconciliation-rules";
+import { ACCESS } from "@/lib/access";
 
 /** Ввод реестра сверки: только владелец, администратор и бухгалтер. Каждое изменение пишет журнал (AuditLog) через расширение клиента. */
-const ROLES = ["OWNER", "ADMIN", "ACCOUNTANT"] as const;
+const ROLES = ACCESS.reconciliation;
 export type ActionResult = { error?: string; ok?: boolean };
 const fail = (error: string): ActionResult => ({ error });
 

@@ -5,9 +5,10 @@
 // Расчёт (ноябрь = ждём по ТЗ + половина остатка без ТЗ, декабрь = вторая половина) остаётся основой; правка владельца его заменяет только в тех ячейках, где она есть.
 import { prisma } from "@/lib/prisma";
 import { requireRole, requireSession } from "@/lib/session";
+import { ACCESS } from "@/lib/access";
 
 const KEY = "sales-fw26-forecast";
-const EDIT = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
+const EDIT = ACCESS.salesForecast;
 const FORECAST_MONTHS = ["2026-11", "2026-12", "2027-01"] as const;
 
 export type Fw26Forecast = { cells: Record<string, Record<string, number>>; janOn: boolean; canEdit: boolean };

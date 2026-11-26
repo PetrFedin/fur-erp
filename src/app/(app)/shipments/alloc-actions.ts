@@ -6,9 +6,10 @@ import { requireRole } from "@/lib/session";
 import { revalidateAll } from "@/lib/revalidate-all";
 import { parseZi, ziKey, matchZi } from "@/lib/shipment-zi";
 import { allocFromZi, parseAlloc, validateAlloc, ziBySite, type AllocInput, type AllocState, type LineCtx } from "@/lib/shipment-alloc";
+import { ACCESS } from "@/lib/access";
 
 // Раскладка по площадкам ЦУМ — только наша сторона. Подрядчик сюда не допускается.
-const ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
+const ROLES = ACCESS.shipments;
 type Res = { error?: string; ok?: boolean };
 const LABEL = "Изменена раскладка приёмки по площадкам";
 const ID = /^[A-Za-z0-9_-]{1,64}$/;

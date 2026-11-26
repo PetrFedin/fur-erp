@@ -6,8 +6,9 @@ import { deletePcs, getPcs, putPcs } from "@/lib/budget-pcs-store";
 import { buildPcsWorkbook } from "@/lib/budget-pcs-xlsx";
 import { loadBudgetAvg, withBudgetAvg } from "@/lib/budget-pcs-avg";
 import { ST_FILE_LEN, type PcsBlock, type PcsParams, type PcsRow } from "@/lib/budget-pcs";
+import { ACCESS } from "@/lib/access";
 
-const EDIT = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
+const EDIT = ACCESS.budget;
 type Res<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 const s = (v: unknown, max = 80) => String(v ?? "").trim().slice(0, max);
 const newId = () => Math.random().toString(36).slice(2, 10);

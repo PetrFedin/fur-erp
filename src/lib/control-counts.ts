@@ -37,13 +37,14 @@ export function loadControlCounts(organizationId: string, year: YearFilter, opts
   const hit = cache.get(key);
   if (!opts.fresh && hit && Date.now() - hit.at < TTL_MS) return hit.value;
   const value = (async () => {
-    const [allRows, vf, coverage, blocks, inbox, chatStale] = await Promise.all([
+    const [allRows, vf, coverage, blocks, inbox, chatStale, martFailed] = await Promise.all([
       computeAttention(prisma, organizationId, year),
       loadVerifyFlags(prisma, organizationId, year),
       computeDocCoverage(prisma, organizationId),
       loadTaskBlocks(prisma, organizationId),
       prisma.supplierInbox.count({ where: { organizationId, status: "SENT" } }),
       staleSupplierRequests(organizationId).catch(() => 0),
+      prisma.dmRefreshJob.count({ where: { organizationId, status: "failed" } }).catch(() => 0),
     ]);
     // Оплаты, описанные задачами на документы, не считаются второй раз в «Нет платёжек» / «Аванс без привязки».
     const attentionRows = stripCoveredPayments(allRows, blocks.coveredPaymentIds);
@@ -57,6 +58,8 @@ export function loadControlCounts(organizationId: string, year: YearFilter, opts
     // Запросы Веллмеха без ответа более 2 дней — строка в «Что требует внимания» (в общий счётчик задач не входит).
     if (chatStale > 0) top.push({ id: "chat-stale", title: "Запросы Веллмеха без ответа более 2 дней", count: chatStale, priority: "yellow", href: "/chat?f=await" });
     top.sort((x, y) => y.count - x.count);
+    // Сбой пересборки витрины (очередь исчерпала попытки) — первой строкой, в общий счётчик задач не входит. Этап 7, наблюдаемость.
+    if (martFailed > 0) top.unshift({ id: "mart-failed", title: "Витрина данных не пересобралась — экраны считают на лету", count: 1, priority: "red", href: "/data-check" });
     return {
       tasks: a.main + blocks.openDocs + blocks.openDecisions,
       urgent: a.red + blocks.urgentDocs,

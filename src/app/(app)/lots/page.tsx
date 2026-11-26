@@ -31,6 +31,7 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { RawCards } from "../dashboard/raw-block";
 import { PayTiles } from "../dashboard/pay-tiles";
 import { FurScope, ScopeEmpty, ScopeShow } from "@/components/fur-scope";
+import { ACCESS, hasRole } from "@/lib/access";
 
 export const metadata = { title: "Сырьё" };
 
@@ -98,7 +99,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     ? materials.filter((m) => f.material.includes(m.id) || (m.unit !== "M" && f.material.includes(canonOf(m.name)))).map((m) => m.id)
     : [];
 
-  const canEditDocs = ["OWNER", "ADMIN", "PURCHASER"].includes(session.user.role);
+  const canEditDocs = hasRole(session.user.role, ACCESS.purchases);
   // Весь раздел «Сырьё» внутри общего переключателя «Вся закупка / На аукционах / У поставщика» (как на Главной; ?fsrc= и sessionStorage).
   const scopeInfo = { year: year === "all" ? "все годы" : `${year} год`, filters: null };
 

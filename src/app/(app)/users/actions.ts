@@ -7,8 +7,9 @@ import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { staleError } from "@/lib/concurrency";
+import { ACCESS } from "@/lib/access";
 
-const MANAGE_ROLES = ["OWNER", "ADMIN"] as const;
+const MANAGE_ROLES = ACCESS.users;
 const ROLE_VALUES = [
   "OWNER",
   "ADMIN",

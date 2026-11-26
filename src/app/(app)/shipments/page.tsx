@@ -23,10 +23,11 @@ import { ShipmentsFeed } from "./shipments-feed";
 import { ShipmentsTabs } from "./tabs";
 import { loadShipmentsFeed } from "@/lib/shipments-feed";
 import { loadReportSizes } from "@/lib/margin-server";
+import { ACCESS } from "@/lib/access";
 
 export const metadata = { title: "Отгрузки и календарь" };
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
+const EDIT_ROLES: readonly string[] = ACCESS.shipments;
 
 const SHIPMENT_FILTERS = defineFilters({
   ...pick(["q", "supplier", "batch", "year", "from", "to", "model"], {

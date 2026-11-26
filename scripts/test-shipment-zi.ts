@@ -27,6 +27,7 @@ eq("строки накладной у совпавшей", r.byLine.get("a")?.i
 eq("мусор", parseZi({ version: 2 }), null);
 // ── раскладка по площадкам (матрица) ──
 import { readFileSync } from "node:fs";
+import { ACCESS } from "../src/lib/access";
 import { readModuleSource } from "./lib/module-source";
 import { allocFromZi, fmtDelta, lineDiff, sumDiff, validateAlloc, ziBySite, type AllocInput } from "../src/lib/shipment-alloc";
 const ctx = { L1: { quantity: 5, accepted: 3, label: "M026 · р. 42" }, L2: { quantity: 1, accepted: 0, label: "M018 · р. 44" } };
@@ -64,11 +65,11 @@ eq("остаток: перераспределено", fmtDelta(lineDiff(1, 2).d
 eq("суммы: допуск 1 ₽", [sumDiff(100, 100.9).ok, sumDiff(100, 102).ok], [true, false]);
 // права: действия раскладки закрыты для подрядчика, «открыть заново» — только владелец/администратор
 const act = readFileSync("src/app/(app)/shipments/alloc-actions.ts", "utf8");
-eq("раскладка: роли без SUPPLIER", /const ROLES = \["OWNER", "ADMIN", "TECHNOLOGIST"\] as const;/.test(act) && !/SUPPLIER/.test(act), true);
+eq("раскладка: роли без SUPPLIER", /const ROLES = ACCESS\.shipments;/.test(act) && !/SUPPLIER/.test(act) && !(ACCESS.shipments as readonly string[]).includes("SUPPLIER"), true);
 eq("все действия раскладки через ctxOf/requireRole", (act.match(/export async function/g) ?? []).length === (act.match(/await ctxOf\(/g) ?? []).length, true);
 const pg = readFileSync("src/app/(app)/shipments/[id]/page.tsx", "utf8");
 eq("матрица строится только для нашей стороны", /if \(ziRaw && !isSupplier && ZI_STAFF_ROLES\.includes\(session\.user\.role\)\) \{\s+const mm/.test(pg), true);
 const shipAct = readModuleSource("src/app/(app)/shipments/actions.ts"); // действия разнесены по _actions/
-eq("открыть заново: только OWNER/ADMIN", /export async function cancelAcceptance[\s\S]{0,200}requireRole\("OWNER", "ADMIN"\)/.test(shipAct), true);
+eq("открыть заново: только OWNER/ADMIN", /export async function cancelAcceptance[\s\S]{0,200}requireRole\(\.\.\.ACCESS\.shipmentReopen\)/.test(shipAct) && JSON.stringify(ACCESS.shipmentReopen) === JSON.stringify(["OWNER", "ADMIN"]), true);
 console.log(fail ? `УПАЛО: ${fail}` : "Накладные ЗИ: все проверки прошли");
 process.exit(fail ? 1 : 0);

@@ -22,7 +22,7 @@ export const tooBig = (d: Decimal) => d.gte(MAX_MONEY);
 
 export const EDIT_ROLES = ACCESS.purchases;
 
-export const WAREHOUSE_ROLES = ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"] as const;
+export const WAREHOUSE_ROLES = ACCESS.receiving;
 
 export type OrderRef = { id: string; number: string; quantity: string };
 

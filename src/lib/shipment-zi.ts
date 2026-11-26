@@ -1,3 +1,4 @@
+import { ACCESS } from "@/lib/access";
 // Приёмка ЦУМ по накладным ЗИ. Хранится без миграции: SystemState, ключ «shipment-zi:<id отгрузки>».
 // Накладные ЗИ приходят файлами по поставкам (21М, 22М, 23М): строка = одно изделие, бутик, размер, цвет, сумма.
 // Здесь только чистые функции (без БД): разбор ключа артикула, сопоставление со строками отгрузки, итоги.
@@ -84,7 +85,7 @@ export function parseZi(v: unknown): ZiData | null {
 
 /** Роли, которым доступны исходные файлы накладных ЦУМ и цены (подрядчику — нет). */
 export const ZI_SOURCE_NOTE = "zi-source";
-export const ZI_STAFF_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
+export const ZI_STAFF_ROLES: readonly string[] = ACCESS.shipments;
 
 /** Для подрядчика: без сумм, НДС, бутиков и расхождений по ценам. */
 export function ziForSupplier(d: ZiData): ZiData {

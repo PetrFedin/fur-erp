@@ -9,6 +9,7 @@ import { clip, eventTitles, isReworkState, moveError, REWORK_STATE_LABEL } from 
 import { orderLabel } from "@/lib/order-label";
 import { loadTzPositions } from "@/lib/order-label-db";
 import { EDIT_ROLES, type EditResult, str, dateOk, resolveResponsible, ownShipment } from "./shared";
+import { ACCESS } from "@/lib/access";
 
 /**
  * Кнопка «ПРИНЯТО»: этап приёмки становится выполненным (дата-время из окна, details — автосводка по строкам),
@@ -52,7 +53,7 @@ export async function confirmAcceptance(shipmentId: string, eventId: string, fd:
 
 /** «Отменить приёмку»: этап снова ожидаемый, acceptedAt снимается, статус — «Запланирована». */
 export async function cancelAcceptance(shipmentId: string): Promise<{ error?: string }> {
-  const session = await requireRole("OWNER", "ADMIN");
+  const session = await requireRole(...ACCESS.shipmentReopen);
   const orgId = session.user.organizationId;
   const sh = await prisma.shipment.findFirst({ where: { id: shipmentId, organizationId: orgId }, select: { id: true, acceptedAt: true, acceptEventId: true } });
   if (!sh) return { error: "Отгрузка не найдена" };

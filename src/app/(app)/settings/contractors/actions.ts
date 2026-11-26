@@ -105,7 +105,7 @@ export async function toggleContract(id: string): Promise<void> {
  * или случайный (тогда показывается один раз на экране; в журналы и чат не попадает).
  */
 export async function createCabinetAccess(supplierId: string, _p: ContractorFormState & { password?: string }, fd: FormData): Promise<ContractorFormState & { password?: string }> {
-  const s = await requireRole("OWNER", "ADMIN");
+  const s = await requireRole(...ACCESS.users);
   const email = String(fd.get("email") ?? "").trim().toLowerCase();
   const name = String(fd.get("name") ?? "").trim();
   const typed = String(fd.get("password") ?? "");

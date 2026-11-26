@@ -15,6 +15,7 @@ import { toggleUserActive } from "./actions";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick } from "@/lib/filters";
 import { escapeLike } from "@/lib/input";
+import { ACCESS } from "@/lib/access";
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: "Владелец",
@@ -36,7 +37,7 @@ const USER_FILTERS = defineFilters({
 export const metadata = { title: "Пользователи" };
 
 export default async function UsersPage({ searchParams }: PageProps<"/users">) {
-  const session = await requireRole("OWNER", "ADMIN");
+  const session = await requireRole(...ACCESS.users);
   const canManage = true;
   const isOwner = session.user.role === "OWNER";
   const sp = await searchParams;

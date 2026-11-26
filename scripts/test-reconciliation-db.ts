@@ -8,6 +8,7 @@ import Module from "module";
 import { join } from "path";
 import { execFileSync } from "child_process";
 import { existsSync, readFileSync, unlinkSync } from "fs";
+import { ACCESS } from "../src/lib/access";
 
 const url = process.env.SCRATCH_URL ?? process.env.DATABASE_URL ?? "";
 const dbName = url.split("?")[0].split("/").pop() ?? "";
@@ -260,7 +261,7 @@ const fd = (o: Record<string, string>) => { const f = new FormData(); for (const
   }
   const src = (f: string) => readFileSync(join(__dirname, "..", f), "utf-8");
   ok(!/allowSupplier/.test(src("src/app/(app)/reconciliation/page.tsx")) && !/SUPPLIER/.test(src("src/app/(app)/reconciliation/actions.ts")), "страница и действия не пускают внешнего поставщика (SUPPLIER не видит)");
-  ok(/requireRole\(\.\.\.ROLES\)/.test(src("src/app/(app)/reconciliation/actions.ts")) && /\["OWNER", "ADMIN", "ACCOUNTANT"\]/.test(src("src/app/(app)/reconciliation/actions.ts")), "права ввода: только OWNER, ADMIN, ACCOUNTANT");
+  ok(/requireRole\(\.\.\.ROLES\)/.test(src("src/app/(app)/reconciliation/actions.ts")) && /const ROLES = ACCESS\.reconciliation;/.test(src("src/app/(app)/reconciliation/actions.ts")) && JSON.stringify(ACCESS.reconciliation) === JSON.stringify(["OWNER", "ADMIN", "ACCOUNTANT"]), "права ввода: только OWNER, ADMIN, ACCOUNTANT");
 
   // ───────────────────────── 3. /api/ready и отметка «сверка выполнена»
   as("ACCOUNTANT", orgId);

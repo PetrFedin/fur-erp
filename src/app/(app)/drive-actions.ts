@@ -128,8 +128,8 @@ type UploadEntity = Entity | "payment" | "productionPayment" | "lot";
 
 const UPLOAD_ROLES: Record<UploadEntity, readonly string[]> = {
   ...ROLES,
-  payment: ["OWNER", "ADMIN"],
-  productionPayment: ["OWNER", "ADMIN"],
+  payment: ACCESS.restrictedDocs,
+  productionPayment: ACCESS.restrictedDocs,
   lot: ACCESS.purchases,
 };
 

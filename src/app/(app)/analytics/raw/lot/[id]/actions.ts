@@ -19,8 +19,9 @@ import { removeStoredFiles } from "@/lib/fitting-files";
 import { parseDateInput } from "@/lib/input";
 import { auctionName } from "@/lib/auction-payments";
 import { replaceFirstLine } from "@/lib/auction-key";
+import { ACCESS } from "@/lib/access";
 
-const ROLES = ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"] as const;
+const ROLES = ACCESS.receiving;
 type Res = { error?: string };
 
 export type LotPatch = {

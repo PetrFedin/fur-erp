@@ -31,9 +31,10 @@ import { sumOrders, sumTotal } from "@/lib/orders-sum";
 import { loadZi } from "@/lib/shipment-zi-db";
 import { matchZi, sheetLabel, ziForSupplier, ziStatus, ZI_SOURCE_NOTE, ZI_STAFF_ROLES } from "@/lib/shipment-zi";
 import { CreateAcceptanceButton, ClampText, DocRemove, EventActions, NewEventButton, type EventValues } from "./event-ui";
+import { ACCESS, hasRole } from "@/lib/access";
 
 export const metadata = { title: "Отгрузка" };
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
+const EDIT_ROLES: readonly string[] = ACCESS.shipments;
 
 const stamp = (d: Date) =>
   d.toLocaleString("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -349,7 +350,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             canEdit={canEdit}
             staff={!isSupplier}
             matrix={matrix}
-            canReopen={["OWNER", "ADMIN"].includes(session.user.role)}
+            canReopen={hasRole(session.user.role, ACCESS.shipmentReopen)}
             waiting={{ rework: reworkQty, review: reviewQty }}
             event={acceptEvent ? { id: acceptEvent.id, stamp: fmtWall(acceptEvent.occurredAt, acceptEvent.timeKnown) } : null}
             closed={s.acceptedAt && summary ? `${summary.accepted.stamp}${s.acceptedBy && !isSupplier ? `, принял ${s.acceptedBy}` : ""}` : null}

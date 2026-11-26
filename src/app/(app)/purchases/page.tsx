@@ -36,6 +36,7 @@ import { furLotsOrLive, purchaseViewCached } from "@/lib/mart/snapshots";
 import { loadLevelTotals } from "@/lib/mart/level-totals";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { usedByMode } from "@/lib/commission4-pick";
+import { ACCESS, hasRole } from "@/lib/access";
 
 export const metadata = { title: "Сырьё — все закупки" };
 
@@ -63,7 +64,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const session = await requireSession();
   const sp = await searchParams;
   const year = await getYearFilter();
-  const canCreate = ["OWNER", "ADMIN", "PURCHASER"].includes(session.user.role);
+  const canCreate = hasRole(session.user.role, ACCESS.purchases);
   const orgId = session.user.organizationId;
   const f = parseFilters(PURCHASE_FILTERS_ALL, sp);
   const PAGE = 50;

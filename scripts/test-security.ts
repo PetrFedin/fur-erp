@@ -18,6 +18,7 @@ import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "n
 import http from "node:http";
 import path from "node:path";
 import { SUPPLIER_DOC_TYPES, supplierMayUpload } from "../src/lib/supplier-docs";
+import { ACCESS } from "../src/lib/access";
 import { isOurPaymentDoc, paymentDocFlags } from "../src/lib/supplier-payment-docs-core";
 import { PAY_STATE_LABEL, isConfirmedForSupplier, payInfo, poolShares, rawPayInfo } from "../src/lib/supplier-pay-core";
 
@@ -514,7 +515,8 @@ async function main() {
   const supplierMarksPart = marksSrc.slice(marksSrc.indexOf("export async function saveSupplierMarks"), marksSrc.indexOf("export async function confirmSupplierMark"));
   ok(supplierMarksPart.length > 100 && !ACCOUNTING.test(supplierMarksPart) && !/acceptLinesByReview|sendLineToRework/.test(supplierMarksPart), "отметки примерки от Веллмеха пишутся только в хронологию; в учёт переходят лишь кнопкой «Подтвердить» у заказчика");
   const confirmPart = marksSrc.slice(marksSrc.indexOf("export async function confirmSupplierMark"));
-  ok(/requireRole\("OWNER", "ADMIN", "TECHNOLOGIST"\)/.test(confirmPart), "«Подтвердить» отметку Веллмеха может только наша роль (не SUPPLIER)");
+  // Роли — раздел ACCESS.shipments (права в одном месте, src/lib/access.ts); в нём не должно быть SUPPLIER.
+  ok(/requireRole\(\.\.\.ACCESS\.shipments\)/.test(confirmPart) && !(ACCESS.shipments as readonly string[]).includes("SUPPLIER"), "«Подтвердить» отметку Веллмеха может только наша роль (не SUPPLIER)");
   // Страницы кабинета подрядчика не берут поля цен/наценок/бюджета из базы.
   const supplierSrc = srcFiles.filter((f) => /src\/(app\/\(app\)\/supplier\/|lib\/supplier-)/.test(rel(f)) && !/supplier-pay|supplier-debt|supplier-calc|supplier-payment-docs/.test(rel(f)));
   const priceWords = supplierSrc.filter((f) => /\b(sellingPrice|retailPrice|clientWorkPricePerUnit|avgUnitCost|BudgetScenario|budgetScenario)\b/.test(readFileSync(f, "utf8")) && !/supplier-calc-start|tz-vendor/.test(rel(f))).map(rel);

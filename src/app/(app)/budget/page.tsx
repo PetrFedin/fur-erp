@@ -8,10 +8,11 @@ import { ForecastCards } from "./forecast-cards";
 import { PcsCards } from "./pcs-cards";
 import { listPcs } from "@/lib/budget-pcs-store";
 import { BudgetList, type BudgetSummary } from "./budget-list";
+import { ACCESS } from "@/lib/access";
 
 export const metadata = { title: "Бюджеты и прогнозы" };
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
+const EDIT_ROLES: readonly string[] = ACCESS.budget;
 
 export default async function BudgetListPage() {
   const session = await requireSession();

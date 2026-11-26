@@ -5,9 +5,10 @@ import { loadRawForecast } from "@/lib/raw-forecast";
 import { getForecast } from "@/lib/forecast-store";
 import { loadRawBalance } from "@/lib/raw-balance";
 import { ForecastView } from "../forecast-view";
+import { ACCESS } from "@/lib/access";
 
 export const metadata = { title: "Прогноз сырья" };
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
+const EDIT_ROLES: readonly string[] = ACCESS.budget;
 
 export default async function RawForecastPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

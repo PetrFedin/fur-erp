@@ -66,7 +66,7 @@ export default async function LotCardPage({ params, searchParams }: { params: Pr
     notFound();
   }
   const { lot: l, passport: p, orders } = card;
-  const canEdit = hasRole(session.user.role, ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"]);
+  const canEdit = hasRole(session.user.role, ACCESS.receiving);
 
   const row = await prisma.rawMaterialLot.findFirst({
     where: { id, organizationId: orgId },

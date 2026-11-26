@@ -110,7 +110,7 @@ export default async function PurchaseDetailPage({ params, searchParams }: PageP
   const statusEditable = purchase.status !== "RECEIVED" && purchase.status !== "CANCELLED";
   // Роль из сессии: формы и кнопки правок видят только OWNER/ADMIN/PURCHASER (сервер всё равно отказывает остальным).
   const canEditRole = hasRole(session.user.role, ACCESS.purchases);
-  const canReceive = ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"].includes(session.user.role);
+  const canReceive = hasRole(session.user.role, ACCESS.receiving);
   const editable = statusEditable && canEditRole;
   // Принятая закупка: № счёта, УПД, дата и аукцион правятся (поставщик, склад, валюта — нет: лоты уже посчитаны).
   const headerEditable = canEditRole && purchase.status !== "CANCELLED";

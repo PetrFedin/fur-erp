@@ -14,7 +14,7 @@ import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
 export function driveDocRemoveRoles(d: Pick<DriveDocument, "purchaseId" | "productionOrderId" | "productionBatchId">): readonly string[] {
   if (d.purchaseId) return ACCESS.purchases;
   if (d.productionOrderId || d.productionBatchId) return PRODUCTION_EDIT_ROLES;
-  return ["OWNER", "ADMIN"];
+  return ACCESS.restrictedDocs;
 }
 
 export function toDriveView(d: DriveDocument, scope?: string | null, role?: string | null): DriveDocView {

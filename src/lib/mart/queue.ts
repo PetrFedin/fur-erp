@@ -73,12 +73,18 @@ export async function finishJob(orgId: string, error: unknown | null): Promise<v
     return;
   }
   const msg = String((error as Error)?.message ?? error).slice(0, 500);
-  await db.$executeRaw`
+  const rows = await db.$queryRaw<{ status: string; attempts: number }[]>`
     UPDATE "DmRefreshJob" SET
       "attempts" = "attempts" + 1, "lastError" = ${msg}, "lockedUntil" = NULL, "lastFinishedAt" = now(),
       "status" = CASE WHEN "attempts" + 1 >= ${MAX_ATTEMPTS} THEN 'failed' ELSE 'pending' END,
       "runAt" = now() + (LEAST(60, POWER(2, "attempts" + 1)) * 60000) * interval '1 millisecond'
-    WHERE "organizationId" = ${orgId}`;
+    WHERE "organizationId" = ${orgId}
+    RETURNING "status", "attempts"`;
+  // Попытки исчерпаны — оповещение (лог [mart][alert] и Telegram, если настроен). Промежуточные ошибки — только лог в processDueJobs.
+  if (rows[0]?.status === "failed") {
+    const { alertMartFailed } = await import("@/lib/mart/alerts");
+    await alertMartFailed(orgId, msg, rows[0].attempts);
+  }
 }
 
 /** Обрабатывает созревшие задачи по одной. run — сама сборка (по умолчанию buildMart); в тестах подставляется заглушка. */

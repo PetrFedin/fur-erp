@@ -7,8 +7,9 @@ import { requireRole } from "@/lib/session";
 import { removeStoredFiles } from "@/lib/fitting-files";
 import { readDocumentFiles, writeDocumentFiles } from "@/lib/purchase-files";
 import { resetByPurchaseDoc } from "@/lib/verification";
+import { ACCESS } from "@/lib/access";
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "PURCHASER"] as const;
+const EDIT_ROLES = ACCESS.purchases;
 const KINDS = ["AUCTION_INVOICE", "SPECIFICATION", "ADVANCE_INVOICE", "CALC_SHEET", "UPD", "PAYMENT_PROOF", "OTHER"] as const;
 type Kind = (typeof KINDS)[number];
 

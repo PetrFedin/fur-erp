@@ -51,7 +51,7 @@ export function navLinksFor(role: string | null | undefined, opts: { suppliesRaw
   return NAV_LINKS.filter((l) => (l.href !== "/chat" || chat) && (l.href !== "/cashflow" || money));
 }
 
-const CHAT_ROLES: readonly string[] = ["OWNER", "ADMIN", "TECHNOLOGIST", "PURCHASER", "ACCOUNTANT"];
+const CHAT_ROLES: readonly string[] = ACCESS.chat;
 
 /**
  * Какой пункт меню подсвечивать на этом адресе: побеждает самый длинный подходящий префикс.

@@ -2,9 +2,10 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { isDateInRange } from "@/lib/shipments";
+import { ACCESS } from "@/lib/access";
 
 // Так же, как в разделе ТЗ: отгрузки ведут те, кто ведёт ТЗ.
-export const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
+export const EDIT_ROLES = ACCESS.shipments;
 
 export type Sess = Awaited<ReturnType<typeof requireRole>>;
 
