@@ -1,10 +1,14 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile, readFile, rmdir } from "node:fs/promises";
 import path from "node:path";
 
+import { UPLOAD_ROOT, resolveInside, putStoredFile, getStoredFile, deleteStoredFiles, removeStoredDirIfEmpty } from "@/lib/storage";
+
+// Путь и проверка пути — в хранилище (src/lib/storage.ts); здесь прежние имена для импортов.
+export { UPLOAD_ROOT, resolveInside };
+
 /**
- * Хранилище фото примерок: файлы на диске в UPLOAD_DIR, в БД (FittingPhoto)
+ * Хранилище фото примерок: файлы в хранилище (папка UPLOAD_DIR или S3, src/lib/storage.ts), в БД (FittingPhoto)
  * лежит только путь относительно UPLOAD_DIR. Имя файла на диске — uuid,
  * исходное имя хранится лишь в БД, поэтому путь не зависит от того, что
  * прислал пользователь. Читаем/удаляем только пути из БД, и только если они
@@ -15,7 +19,6 @@ export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 export const MAX_PHOTOS_PER_UPLOAD = 10;
 export const MAX_TOTAL_UPLOAD_BYTES = 50 * 1024 * 1024;
 
-export const UPLOAD_ROOT = path.resolve(process.env.UPLOAD_DIR?.trim() || "./uploads");
 
 type ImageKind = { mime: string; ext: string };
 
@@ -77,30 +80,20 @@ export async function readPhotoFiles(
   return { files: out };
 }
 
-/** Путь внутри UPLOAD_ROOT или null, если он оттуда выходит. */
-export function resolveInside(storagePath: string): string | null {
-  if (!storagePath || storagePath.includes("\0")) return null;
-  const abs = path.resolve(UPLOAD_ROOT, storagePath);
-  return abs.startsWith(UPLOAD_ROOT + path.sep) ? abs : null;
-}
-
-/** Пишет файлы на диск; при сбое убирает уже записанные и пробрасывает ошибку. */
+/** Пишет файлы в хранилище; при сбое убирает уже записанные и пробрасывает ошибку. */
 export async function writePhotoFiles(
   organizationId: string,
   fittingId: string,
   files: { buf: Buffer; kind: ImageKind; originalName: string }[],
 ): Promise<StoredPhoto[]> {
   const dirRel = path.join("fittings", organizationId, fittingId);
-  const dirAbs = resolveInside(dirRel);
-  if (!dirAbs) throw new Error("Некорректный каталог загрузок");
-  await mkdir(dirAbs, { recursive: true });
+  if (!resolveInside(dirRel)) throw new Error("Некорректный каталог загрузок");
   const written: StoredPhoto[] = [];
   try {
     for (const f of files) {
       const rel = path.join(dirRel, `${randomUUID()}.${f.kind.ext}`);
-      const abs = resolveInside(rel);
-      if (!abs) throw new Error("Некорректный путь файла");
-      await writeFile(abs, f.buf, { flag: "wx" });
+      if (!resolveInside(rel)) throw new Error("Некорректный путь файла");
+      await putStoredFile(rel, f.buf, { contentType: f.kind.mime, exclusive: true });
       written.push({ storagePath: rel, originalName: f.originalName, mimeType: f.kind.mime, sizeBytes: f.buf.length });
     }
   } catch (e) {
@@ -110,36 +103,16 @@ export async function writePhotoFiles(
   return written;
 }
 
-/** Удаляет только файлы внутри UPLOAD_ROOT; отсутствующий файл — не ошибка. */
+/** Удаляет только файлы внутри хранилища; отсутствующий файл — не ошибка. */
 export async function removeStoredFiles(storagePaths: string[]) {
-  for (const p of storagePaths) {
-    const abs = resolveInside(p);
-    if (!abs) continue;
-    try {
-      await unlink(abs);
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== "ENOENT") console.error("Не удалось удалить файл фото", p, e);
-    }
-  }
+  await deleteStoredFiles(storagePaths);
 }
 
 export async function readStoredFile(storagePath: string): Promise<Buffer | null> {
-  const abs = resolveInside(storagePath);
-  if (!abs) return null;
-  try {
-    return await readFile(abs);
-  } catch {
-    return null;
-  }
+  return getStoredFile(storagePath);
 }
 
-/** Убирает каталог примерки, если он опустел (rmdir не трогает непустой каталог). */
+/** Убирает каталог примерки, если он опустел (в S3 каталогов нет — ничего не делает). */
 export async function removeFittingDirIfEmpty(organizationId: string, fittingId: string) {
-  const abs = resolveInside(path.join("fittings", organizationId, fittingId));
-  if (!abs) return;
-  try {
-    await rmdir(abs);
-  } catch {
-    // каталога нет или в нём остались файлы — оставляем как есть
-  }
+  await removeStoredDirIfEmpty(path.join("fittings", organizationId, fittingId));
 }

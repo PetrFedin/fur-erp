@@ -2,7 +2,6 @@ import "server-only";
 // Редактор «Магазин и фото» одного артикула: чтение для окна и сохранение одной операцией.
 // Хранение прежнее (миграции не нужны): PLU — свойства артикула «PLU» / «PLU <вариант>», ссылки — SystemState article-shop-links:<id>,
 // фото — SystemState article-photos:<id> + файлы в UPLOAD_DIR/article-photos/<организация>/<артикул>/.
-import { readFile } from "node:fs/promises";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { LINKS_KEY, PHOTOS_KEY, readLinks, readPhotos, type ArticlePhoto, type ShopLink } from "./article-photos";
 import { groupPhotosByColor, pluOfItem, variantColorName } from "./article-photo-color";
@@ -11,7 +10,7 @@ import { isPluParam } from "./article-photo-match";
 import { removeStoredFiles, resolveInside } from "./fitting-files";
 import { photoRel } from "./article-photo-upload";
 import { buildPluParams, dupWithin, parsePluList, photoDirOk, pluByVariant, pluTakenBy, validateShopUrl, PHOTOS_PER_ARTICLE_MAX, VARIANTS_MAX } from "./article-shop-core";
-import { rmdir } from "node:fs/promises";
+import { getStoredFile, removeStoredDirIfEmpty } from "./storage";
 import path from "node:path";
 
 export type ShopActor = { id: string; name: string | null; role: string; organizationId: string };
@@ -169,8 +168,10 @@ export async function saveShop(db: PrismaClient, actor: ShopActor, modelId: stri
     if (!photoDirOk(file, orgId, modelId) || !abs || !tAbs) return { ok: false, error: "Фото не найдено: загрузите его заново" };
     let w = 0, h = 0;
     try {
-      await readFile(tAbs);
-      const meta = await (await import("sharp")).default(abs).metadata();
+      if (!(await getStoredFile(thumb))) throw new Error("thumb");
+      const full = await getStoredFile(file);
+      if (!full) throw new Error("file");
+      const meta = await (await import("sharp")).default(full).metadata();
       w = meta.width ?? 0; h = meta.height ?? 0;
       if (!w || !h) throw new Error("size");
     } catch { return { ok: false, error: "Фото не найдено: загрузите его заново" }; }
@@ -239,8 +240,7 @@ export async function saveShop(db: PrismaClient, actor: ShopActor, modelId: stri
   // файлы убранных фото — после записи в базе (сбой оставит лишний файл, но не битую ссылку)
   await removeStoredFiles(removed.flatMap((x) => [x.file, x.thumb]).filter((f) => photoDirOk(f, orgId, modelId)));
   if (!next.length) {
-    const dir = resolveInside(path.join("article-photos", orgId, modelId));
-    if (dir) await rmdir(dir).catch(() => {});
+    await removeStoredDirIfEmpty(path.join("article-photos", orgId, modelId));
   }
   return { ok: true, changed: true };
 }

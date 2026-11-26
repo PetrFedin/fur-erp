@@ -3,8 +3,7 @@ import "server-only";
 // файлы <uuid>.jpg и <uuid>-t.jpg строго в каталоге article-photos/<организация>/<артикул>/.
 // Загруженное файл ждёт «Сохранить»: в запись article-photos:<id> он попадает только при сохранении (article-shop.ts).
 import { randomUUID } from "node:crypto";
-import path from "node:path";
-import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { listStoredFiles, putStoredFile } from "./storage";
 import { detectImage, removeStoredFiles, resolveInside } from "./fitting-files";
 import { PHOTO_MAX_BYTES, PHOTOS_PER_ARTICLE_MAX } from "./article-shop-core";
 import { PHOTOS_KEY, readPhotos } from "./article-photos";
@@ -35,15 +34,12 @@ export async function processPhotoBuffer(buf: Buffer): Promise<{ ok: true; full:
 }
 
 /** Удаляет файлы каталога артикула, которых нет в записи и которые лежат больше часа (брошенные загрузки). */
-async function sweepOrphans(dirRel: string, dirAbs: string, keep: Set<string>) {
-  let names: string[] = [];
-  try { names = await readdir(dirAbs); } catch { return; }
+async function sweepOrphans(dirRel: string, keep: Set<string>) {
   const now = Date.now();
-  for (const n of names) {
-    const id = /^([0-9a-f-]{36})(-t)?\.jpg$/i.exec(n)?.[1];
+  for (const f of await listStoredFiles(dirRel)) {
+    const id = /^([0-9a-f-]{36})(-t)?\.jpg$/i.exec(f.name)?.[1];
     if (!id || keep.has(id)) continue;
-    const st = await stat(path.join(dirAbs, n)).catch(() => null);
-    if (st && now - st.mtimeMs > ORPHAN_AGE_MS) await removeStoredFiles([`${dirRel}/${n}`]);
+    if (now - f.mtimeMs > ORPHAN_AGE_MS) await removeStoredFiles([`${dirRel}/${f.name}`]);
   }
 }
 
@@ -56,19 +52,16 @@ export async function stageArticlePhoto(db: Db, orgId: string, modelId: string, 
   if (!model) return { ok: false, error: "Артикул не найден" };
   const rec = readPhotos((await db.systemState.findUnique({ where: { organizationId_key: { organizationId: orgId, key: PHOTOS_KEY + modelId } }, select: { value: true } }))?.value);
   const dirRel = articleDirRel(orgId, modelId);
-  const dirAbs = resolveInside(dirRel);
-  if (!dirAbs) return { ok: false, error: "Артикул не найден" };
-  await mkdir(dirAbs, { recursive: true });
-  await sweepOrphans(dirRel, dirAbs, new Set(rec.map((p) => p.id)));
-  let onDisk = 0;
-  try { onDisk = (await readdir(dirAbs)).filter((n) => /^[0-9a-f-]{36}\.jpg$/i.test(n)).length; } catch { /* нет каталога */ }
+  if (!resolveInside(dirRel)) return { ok: false, error: "Артикул не найден" };
+  await sweepOrphans(dirRel, new Set(rec.map((p) => p.id)));
+  const onDisk = (await listStoredFiles(dirRel)).filter((f) => /^[0-9a-f-]{36}\.jpg$/i.test(f.name)).length;
   if (onDisk >= PHOTOS_PER_ARTICLE_MAX) return { ok: false, error: `У артикула уже ${PHOTOS_PER_ARTICLE_MAX} фото — это максимум` };
   const r = await processPhotoBuffer(buf);
   if (!r.ok) return r;
   const id = randomUUID();
   const fAbs = resolveInside(photoRel(orgId, modelId, id)), tAbs = resolveInside(photoRel(orgId, modelId, id, true));
   if (!fAbs || !tAbs) return { ok: false, error: "Некорректный путь файла" };
-  await writeFile(fAbs, r.full, { flag: "wx" });
-  await writeFile(tAbs, r.thumb, { flag: "wx" });
+  await putStoredFile(photoRel(orgId, modelId, id), r.full, { contentType: "image/jpeg", exclusive: true });
+  await putStoredFile(photoRel(orgId, modelId, id, true), r.thumb, { contentType: "image/jpeg", exclusive: true });
   return { ok: true, photo: { id, w: r.w, h: r.h } };
 }

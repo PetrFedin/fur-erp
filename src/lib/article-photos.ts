@@ -5,9 +5,9 @@ import "server-only";
 //   article-shop-links:<modelId>  -> { links: [{ variant, itemId, url }] }            (только для сотрудников заказчика)
 // Ссылки магазина лежат в отдельном ключе, чтобы кабинет подрядчика их не читал вообще.
 import path from "node:path";
-import { readFile } from "node:fs/promises";
 import type { PrismaClient } from "@prisma/client";
 import { resolveInside } from "./fitting-files";
+import { getStoredFile } from "./storage";
 import { isSafeShopUrl } from "./article-shop-core";
 
 export const PHOTOS_KEY = "article-photos:";
@@ -68,9 +68,8 @@ export async function loadShopLinks(db: Db, orgId: string, modelId: string): Pro
 }
 
 export async function readPhotoFile(rel: string): Promise<Buffer | null> {
-  const abs = resolveInside(rel);
-  if (!abs || !rel.startsWith("article-photos" + path.sep) && !rel.startsWith("article-photos/")) return null;
-  try { return await readFile(abs); } catch { return null; }
+  if (!resolveInside(rel) || !rel.startsWith("article-photos" + path.sep) && !rel.startsWith("article-photos/")) return null;
+  return getStoredFile(rel);
 }
 
 /** Все ссылки магазина организации: id артикула -> ссылки. ТОЛЬКО для сотрудников заказчика. */

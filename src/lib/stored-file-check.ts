@@ -1,10 +1,9 @@
 import "server-only";
-import { statSync } from "node:fs";
-import { resolveInside } from "@/lib/fitting-files";
+import { storedObjectExists } from "@/lib/storage";
 import { prisma } from "@/lib/prisma";
 
 /**
- * «Прикреплён» — только если файл по пути из БД реально лежит в UPLOAD_DIR и не пустой.
+ * «Прикреплён» — только если файл по пути из БД реально лежит в хранилище (папка UPLOAD_DIR или S3 — src/lib/storage.ts) и не пустой.
  * Запись с storagePath, но без файла на диске (перенос каталога, потерянная загрузка) считается «не прикреплён»:
  * интерфейс не показывает «Открыть» и не ведёт на 404. Результат кэшируется на несколько секунд.
  */
@@ -16,16 +15,7 @@ export function storedFileExists(storagePath: string | null | undefined): boolea
   const now = Date.now();
   const hit = cache.get(storagePath);
   if (hit && now - hit.at < TTL_MS) return hit.ok;
-  let ok = false;
-  try {
-    const abs = resolveInside(storagePath);
-    if (abs) {
-      const st = statSync(abs);
-      ok = st.isFile() && st.size > 0;
-    }
-  } catch {
-    ok = false;
-  }
+  const ok = storedObjectExists(storagePath);
   if (cache.size > 5000) cache.clear();
   cache.set(storagePath, { ok, at: now });
   return ok;

@@ -1,8 +1,8 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { resolveInside, removeStoredFiles } from "@/lib/fitting-files";
+import { putStoredFile } from "@/lib/storage";
 import { formatMb } from "@/lib/format-mb";
 
 /**
@@ -95,16 +95,13 @@ export type StoredDoc = { storagePath: string; originalName: string; mimeType: s
 
 export async function writeDocumentFiles(organizationId: string, scope: string, files: ReadDoc[]): Promise<StoredDoc[]> {
   const dirRel = path.join("purchase-docs", organizationId, scope);
-  const dirAbs = resolveInside(dirRel);
-  if (!dirAbs) throw new Error("Некорректный каталог загрузок");
-  await mkdir(dirAbs, { recursive: true });
+  if (!resolveInside(dirRel)) throw new Error("Некорректный каталог загрузок");
   const written: StoredDoc[] = [];
   try {
     for (const f of files) {
       const rel = path.join(dirRel, `${randomUUID()}.${f.kind.ext}`);
-      const abs = resolveInside(rel);
-      if (!abs) throw new Error("Некорректный путь файла");
-      await writeFile(abs, f.buf, { flag: "wx" });
+      if (!resolveInside(rel)) throw new Error("Некорректный путь файла");
+      await putStoredFile(rel, f.buf, { contentType: f.kind.mime, exclusive: true });
       written.push({ storagePath: rel, originalName: f.originalName, mimeType: f.kind.mime, sizeBytes: f.buf.length });
     }
   } catch (e) {

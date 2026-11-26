@@ -5,7 +5,7 @@ import path from "node:path";
 import type { PrismaClient, Prisma } from "@prisma/client";
 import { PHOTOS_KEY, readPhotos, type ArticlePhoto } from "./article-photos";
 import { removeStoredFiles, resolveInside } from "./fitting-files";
-import { rmdir } from "node:fs/promises";
+import { removeStoredDirIfEmpty } from "./storage";
 
 export type DeletePhotoActor = { id: string; name: string | null; role: string; organizationId: string };
 export type DeletePhotoResult = { ok: true; removed: number; left: number } | { ok: false; error: string };
@@ -48,8 +48,7 @@ export async function deleteArticlePhotos(db: PrismaClient, actor: DeletePhotoAc
   const files = gone.flatMap((p) => [p.file, p.thumb]).filter((f) => insideArticleDir(f, actor.organizationId, modelId));
   await removeStoredFiles(files);
   if (!left.length) {
-    const dir = resolveInside(path.join("article-photos", actor.organizationId, modelId));
-    if (dir) await rmdir(dir).catch(() => {}); // каталог убираем, только если опустел
+    await removeStoredDirIfEmpty(path.join("article-photos", actor.organizationId, modelId)); // каталог убираем, только если опустел
   }
   return { ok: true, removed: gone.length, left: left.length };
 }

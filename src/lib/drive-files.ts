@@ -1,9 +1,9 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { resolveInside, removeStoredFiles } from "@/lib/fitting-files";
+import { putStoredFile } from "@/lib/storage";
 import { readDocumentFiles, type ReadDoc } from "@/lib/purchase-files";
 
 /**
@@ -28,13 +28,10 @@ export async function readOneDriveFile(
 
 export async function writeDriveFile(organizationId: string, f: ReadDoc): Promise<StoredDriveFile> {
   const dirRel = path.join("drive-docs", organizationId);
-  const dirAbs = resolveInside(dirRel);
-  if (!dirAbs) throw new Error("Некорректный каталог загрузок");
-  await mkdir(dirAbs, { recursive: true });
+  if (!resolveInside(dirRel)) throw new Error("Некорректный каталог загрузок");
   const rel = path.join(dirRel, `${randomUUID()}.${f.kind.ext}`);
-  const abs = resolveInside(rel);
-  if (!abs) throw new Error("Некорректный путь файла");
-  await writeFile(abs, f.buf, { flag: "wx" });
+  if (!resolveInside(rel)) throw new Error("Некорректный путь файла");
+  await putStoredFile(rel, f.buf, { contentType: f.kind.mime, exclusive: true });
   return { storagePath: rel, storedName: f.originalName, storedMime: f.kind.mime, storedSize: f.buf.length };
 }
 
