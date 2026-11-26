@@ -65,5 +65,5 @@ S3_BUCKET=fur-erp-docs S3_ACCESS_KEY_ID=… S3_SECRET_ACCESS_KEY=… \
 
 ## Проверки
 
-- `scripts/test-storage.ts` — договор хранилища для папки и S3 (S3-часть — при `S3_TEST_ENDPOINT`, в CI — MinIO).
+- `scripts/test-storage.ts` — договор хранилища для папки и S3 (S3-часть — при `S3_TEST_ENDPOINT`, в CI — Versity Gateway).
 - `scripts/storage-sync.ts --dry-run` — сколько файлов ещё не в бакете.

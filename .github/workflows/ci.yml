@@ -69,10 +69,11 @@ jobs:
       - run: npx prisma generate
       - name: Клиент PostgreSQL 16
         run: sudo apt-get install -y -q postgresql-client-16 || sudo apt-get install -y -q postgresql-client
-      - name: MinIO для проверки хранилища S3 (scripts/test-storage.ts)
+      - name: S3-совместимый сервер для проверки хранилища (scripts/test-storage.ts)
+        # Versity Gateway проверяет подпись запросов, как Yandex Object Storage; образы MinIO больше не публикуются открыто.
         run: |
-          docker run -d --name minio -p 127.0.0.1:19000:9000 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin minio/minio:latest server /data
-          for i in $(seq 1 60); do curl -sf http://127.0.0.1:19000/minio/health/live && break; sleep 1; done
+          docker run -d --name s3 -p 127.0.0.1:19000:7070 versity/versitygw:latest --access minioadmin --secret minioadmin --region us-east-1 posix /tmp
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:19000/ && break; sleep 1; done
       - name: Тесты на заготовке
         env:
           S3_TEST_ENDPOINT: http://127.0.0.1:19000

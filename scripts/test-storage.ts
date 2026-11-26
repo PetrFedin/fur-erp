@@ -1,6 +1,6 @@
 // Хранилище файлов (src/lib/storage.ts): один договор для локальной папки и S3.
 //   node --conditions=react-server node_modules/.bin/tsx scripts/test-storage.ts
-// Часть S3 — если задан S3_TEST_ENDPOINT (MinIO: S3_TEST_ACCESS_KEY / S3_TEST_SECRET_KEY, бакет создаётся сам), иначе пропускается.
+// Часть S3 — если задан S3_TEST_ENDPOINT (MinIO / Versity Gateway: S3_TEST_ACCESS_KEY / S3_TEST_SECRET_KEY, по умолчанию minioadmin; бакет создаётся сам), иначе пропускается.
 import "./stubs/server-only-shim";
 import { mkdtempSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
